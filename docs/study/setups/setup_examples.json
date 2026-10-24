@@ -1,0 +1,1138 @@
+{
+ "generated": "2026-10-24",
+ "scanned": 226,
+ "candidates": 320,
+ "seconds": 10,
+ "raw_hits": {
+  "Launchpad": 2246,
+  "Kicker Candle": 1604,
+  "High Volume Edge": 475,
+  "Oops Reversal": 2091,
+  "Slingshot": 1438,
+  "Gap Support": 659,
+  "Go Signal": 2033
+ },
+ "examples": [
+  {
+   "setup": "Launchpad",
+   "sym": "PANW",
+   "asof": "2021-11-12",
+   "year": 2021,
+   "close": 85.8633,
+   "facts": {
+    "ma_spread_pct": 3.08,
+    "from_120d_high_pct": -0.4,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "LMT",
+   "asof": "2021-12-13",
+   "year": 2021,
+   "close": 345.55,
+   "facts": {
+    "ma_spread_pct": 1.38,
+    "from_120d_high_pct": -9.9,
+    "above_sma200": false
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "AMAT",
+   "asof": "2022-01-12",
+   "year": 2022,
+   "close": 159.55,
+   "facts": {
+    "ma_spread_pct": 1.65,
+    "from_120d_high_pct": -1.9,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "BA",
+   "asof": "2022-02-11",
+   "year": 2022,
+   "close": 212.3,
+   "facts": {
+    "ma_spread_pct": 2.51,
+    "from_120d_high_pct": -8.9,
+    "above_sma200": false
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "WMT",
+   "asof": "2022-03-14",
+   "year": 2022,
+   "close": 48.0167,
+   "facts": {
+    "ma_spread_pct": 1.22,
+    "from_120d_high_pct": -4.8,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "SMCI",
+   "asof": "2023-01-03",
+   "year": 2023,
+   "close": 8.386,
+   "facts": {
+    "ma_spread_pct": 2.01,
+    "from_120d_high_pct": -10.7,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "XLF",
+   "asof": "2023-02-02",
+   "year": 2023,
+   "close": 36.66,
+   "facts": {
+    "ma_spread_pct": 3.02,
+    "from_120d_high_pct": 0.3,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "CIEN",
+   "asof": "2023-03-06",
+   "year": 2023,
+   "close": 50.89,
+   "facts": {
+    "ma_spread_pct": 1.85,
+    "from_120d_high_pct": -2.2,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "UNH",
+   "asof": "2024-01-03",
+   "year": 2024,
+   "close": 542.03,
+   "facts": {
+    "ma_spread_pct": 0.86,
+    "from_120d_high_pct": -2.0,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "NET",
+   "asof": "2024-02-02",
+   "year": 2024,
+   "close": 82.65,
+   "facts": {
+    "ma_spread_pct": 1.54,
+    "from_120d_high_pct": -3.6,
+    "above_sma200": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "SHOP",
+   "asof": "2021-11-12",
+   "year": 2021,
+   "close": 166.952,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 2.06,
+    "day_pct": 12.02,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.97
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "AFRM",
+   "asof": "2022-01-28",
+   "year": 2022,
+   "close": 59.71,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 4.84,
+    "day_pct": 17.06,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.98
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "AVAV",
+   "asof": "2022-02-28",
+   "year": 2022,
+   "close": 71.05,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 3.45,
+    "day_pct": 14.1,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.94
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "FUTU",
+   "asof": "2022-04-04",
+   "year": 2022,
+   "close": 41.35,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 5.78,
+    "day_pct": 19.51,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 1.0
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "COIN",
+   "asof": "2023-01-04",
+   "year": 2023,
+   "close": 37.7,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 2.95,
+    "day_pct": 12.2,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.8
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "INTA",
+   "asof": "2023-02-07",
+   "year": 2023,
+   "close": 33.51,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 9.27,
+    "day_pct": 18.12,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 1.0
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "MSTR",
+   "asof": "2023-03-13",
+   "year": 2023,
+   "close": 22.316,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 5.21,
+    "day_pct": 16.22,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.81
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "ETON",
+   "asof": "2024-01-08",
+   "year": 2024,
+   "close": 5.03,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 2.3,
+    "day_pct": 15.9,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.88
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "SMCI",
+   "asof": "2024-02-22",
+   "year": 2024,
+   "close": 97.552,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 17.82,
+    "day_pct": 32.87,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.83
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "PINS",
+   "asof": "2024-05-01",
+   "year": 2024,
+   "close": 40.48,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 17.91,
+    "day_pct": 21.02,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.84
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "ROKU",
+   "asof": "2021-12-08",
+   "year": 2021,
+   "close": 256.08,
+   "facts": {
+    "up_day": true,
+    "day_pct": 18.23,
+    "rvol": 5.75
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "SOFI",
+   "asof": "2022-01-19",
+   "year": 2022,
+   "close": 13.71,
+   "facts": {
+    "up_day": true,
+    "day_pct": 13.68,
+    "rvol": 5.13
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "CRWD",
+   "asof": "2022-03-10",
+   "year": 2022,
+   "close": 47.755,
+   "facts": {
+    "up_day": true,
+    "day_pct": 12.5,
+    "rvol": 4.81
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "HPK",
+   "asof": "2022-04-13",
+   "year": 2022,
+   "close": 28.83,
+   "facts": {
+    "up_day": true,
+    "day_pct": 31.76,
+    "rvol": 25.77
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "ELF",
+   "asof": "2023-02-02",
+   "year": 2023,
+   "close": 67.29,
+   "facts": {
+    "up_day": true,
+    "day_pct": 15.01,
+    "rvol": 4.56
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "BBIO",
+   "asof": "2023-03-06",
+   "year": 2023,
+   "close": 16.52,
+   "facts": {
+    "up_day": true,
+    "day_pct": 51.98,
+    "rvol": 14.02
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "RIOT",
+   "asof": "2023-04-11",
+   "year": 2023,
+   "close": 12.38,
+   "facts": {
+    "up_day": true,
+    "day_pct": 17.01,
+    "rvol": 2.96
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "SMCI",
+   "asof": "2024-01-19",
+   "year": 2024,
+   "close": 42.336,
+   "facts": {
+    "up_day": true,
+    "day_pct": 35.94,
+    "rvol": 6.43
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "HIMS",
+   "asof": "2024-02-27",
+   "year": 2024,
+   "close": 13.43,
+   "facts": {
+    "up_day": true,
+    "day_pct": 31.02,
+    "rvol": 10.03
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "IREN",
+   "asof": "2024-04-01",
+   "year": 2024,
+   "close": 6.47,
+   "facts": {
+    "up_day": true,
+    "day_pct": 19.81,
+    "rvol": 2.33
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "RKLB",
+   "asof": "2021-12-14",
+   "year": 2021,
+   "close": 12.57,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": false,
+    "open_vs_prior_low_pct": -0.77,
+    "day_pct": 6.89,
+    "variant": "williams+scanner",
+    "close_pos": 0.82
+   },
+   "q": 6.89
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "NET",
+   "asof": "2022-02-24",
+   "year": 2022,
+   "close": 108.38,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": true,
+    "open_vs_prior_low_pct": -3.19,
+    "day_pct": 18.66,
+    "variant": "super",
+    "close_pos": 0.96
+   },
+   "q": 13.0
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "DSGN",
+   "asof": "2022-05-12",
+   "year": 2022,
+   "close": 10.69,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": false,
+    "open_vs_prior_low_pct": -0.05,
+    "day_pct": 7.87,
+    "variant": "williams+scanner",
+    "close_pos": 0.96
+   },
+   "q": 7.87
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "MSTR",
+   "asof": "2022-07-05",
+   "year": 2022,
+   "close": 18.768,
+   "facts": {
+    "scanner": true,
+    "williams": false,
+    "super": true,
+    "open_vs_prior_low_pct": 2.76,
+    "day_pct": 12.54,
+    "variant": "super",
+    "close_pos": 0.98
+   },
+   "q": 13.0
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "AZTA",
+   "asof": "2023-05-11",
+   "year": 2023,
+   "close": 41.07,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": false,
+    "open_vs_prior_low_pct": -0.65,
+    "day_pct": 12.67,
+    "variant": "williams+scanner",
+    "close_pos": 0.96
+   },
+   "q": 12.0
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "RIOT",
+   "asof": "2023-08-29",
+   "year": 2023,
+   "close": 12.3,
+   "facts": {
+    "scanner": true,
+    "williams": false,
+    "super": true,
+    "open_vs_prior_low_pct": 0.14,
+    "day_pct": 17.25,
+    "variant": "super",
+    "close_pos": 0.89
+   },
+   "q": 13.0
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "CLSK",
+   "asof": "2023-12-01",
+   "year": 2023,
+   "close": 7.64,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": true,
+    "open_vs_prior_low_pct": -3.9,
+    "day_pct": 22.44,
+    "variant": "super",
+    "close_pos": 0.93
+   },
+   "q": 13.0
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "CELC",
+   "asof": "2025-03-04",
+   "year": 2025,
+   "close": 9.94,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": false,
+    "open_vs_prior_low_pct": -0.45,
+    "day_pct": 11.69,
+    "variant": "williams+scanner",
+    "close_pos": 0.71
+   },
+   "q": 11.69
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "IONQ",
+   "asof": "2025-04-07",
+   "year": 2025,
+   "close": 22.75,
+   "facts": {
+    "scanner": true,
+    "williams": false,
+    "super": false,
+    "open_vs_prior_low_pct": 1.24,
+    "day_pct": 10.01,
+    "variant": "scanner",
+    "close_pos": 0.76
+   },
+   "q": 10.01
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "CRDO",
+   "asof": "2026-05-19",
+   "year": 2026,
+   "close": 168.99,
+   "facts": {
+    "scanner": true,
+    "williams": false,
+    "super": false,
+    "open_vs_prior_low_pct": 0.61,
+    "day_pct": 8.14,
+    "variant": "scanner",
+    "close_pos": 0.88
+   },
+   "q": 8.14
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "QCOM",
+   "asof": "2021-11-15",
+   "year": 2021,
+   "close": 168.51,
+   "facts": {
+    "trigger_gap_pct": 0.95,
+    "earnings_like_gap": {
+     "gap_day": "2021-11-04",
+     "gap_pct": 12.9,
+     "bars_ago": 7
+    },
+    "rally": {
+     "rally_pct": 35.6,
+     "peak_day": "2021-11-09",
+     "bars_ago": 4
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "CBZ",
+   "asof": "2021-12-22",
+   "year": 2021,
+   "close": 39.13,
+   "facts": {
+    "trigger_gap_pct": -0.5,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 21.2,
+     "peak_day": "2021-12-16",
+     "bars_ago": 4
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "XOM",
+   "asof": "2022-01-25",
+   "year": 2022,
+   "close": 74.93,
+   "facts": {
+    "trigger_gap_pct": -0.27,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 23.6,
+     "peak_day": "2022-01-19",
+     "bars_ago": 4
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "RTX",
+   "asof": "2022-02-25",
+   "year": 2022,
+   "close": 98.12,
+   "facts": {
+    "trigger_gap_pct": 0.15,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 20.5,
+     "peak_day": "2022-02-11",
+     "bars_ago": 9
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "TEAM",
+   "asof": "2022-03-28",
+   "year": 2022,
+   "close": 302.31,
+   "facts": {
+    "trigger_gap_pct": 0.91,
+    "earnings_like_gap": {
+     "gap_day": "2022-01-28",
+     "gap_pct": 7.3,
+     "bars_ago": 40
+    },
+    "rally": {
+     "rally_pct": 22.2,
+     "peak_day": "2022-03-22",
+     "bars_ago": 4
+    },
+    "sma50_rising": false
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "FIGS",
+   "asof": "2023-01-03",
+   "year": 2023,
+   "close": 7.25,
+   "facts": {
+    "trigger_gap_pct": 2.23,
+    "earnings_like_gap": {
+     "gap_day": "2022-11-10",
+     "gap_pct": 10.2,
+     "bars_ago": 35
+    },
+    "rally": {
+     "rally_pct": 20.9,
+     "peak_day": "2022-12-21",
+     "bars_ago": 7
+    },
+    "sma50_rising": false
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "HAS",
+   "asof": "2023-02-02",
+   "year": 2023,
+   "close": 63.25,
+   "facts": {
+    "trigger_gap_pct": 0.98,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 20.5,
+     "peak_day": "2023-01-13",
+     "bars_ago": 13
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "INTA",
+   "asof": "2023-03-06",
+   "year": 2023,
+   "close": 40.88,
+   "facts": {
+    "trigger_gap_pct": 0.03,
+    "earnings_like_gap": {
+     "gap_day": "2023-02-07",
+     "gap_pct": 9.3,
+     "bars_ago": 18
+    },
+    "rally": {
+     "rally_pct": 75.8,
+     "peak_day": "2023-02-28",
+     "bars_ago": 4
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "BBWI",
+   "asof": "2024-01-02",
+   "year": 2024,
+   "close": 44.75,
+   "facts": {
+    "trigger_gap_pct": -1.25,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 51.2,
+     "peak_day": "2023-12-26",
+     "bars_ago": 4
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "PANW",
+   "asof": "2024-02-02",
+   "year": 2024,
+   "close": 172.53,
+   "facts": {
+    "trigger_gap_pct": -0.12,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 45.7,
+     "peak_day": "2024-01-29",
+     "bars_ago": 4
+    },
+    "sma50_rising": true
+   },
+   "q": 0.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "LYFT",
+   "asof": "2021-11-15",
+   "year": 2021,
+   "close": 51.66,
+   "facts": {
+    "gap_pct": 4.09,
+    "bars_since_gap": 6,
+    "first_test": true,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "TTD",
+   "asof": "2022-01-04",
+   "year": 2022,
+   "close": 85.36,
+   "facts": {
+    "gap_pct": 22.98,
+    "bars_since_gap": 39,
+    "first_test": true,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "NFLX",
+   "asof": "2022-02-07",
+   "year": 2022,
+   "close": 40.21,
+   "facts": {
+    "gap_pct": 4.58,
+    "bars_since_gap": 5,
+    "first_test": true,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "SBUX",
+   "asof": "2022-04-05",
+   "year": 2022,
+   "close": 84.12,
+   "facts": {
+    "gap_pct": 5.88,
+    "bars_since_gap": 14,
+    "first_test": true,
+    "levels_touched": [
+     "top"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "EDU",
+   "asof": "2023-01-30",
+   "year": 2023,
+   "close": 42.12,
+   "facts": {
+    "gap_pct": 4.49,
+    "bars_since_gap": 7,
+    "first_test": true,
+    "levels_touched": [
+     "top",
+     "mid"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "AXP",
+   "asof": "2023-03-10",
+   "year": 2023,
+   "close": 165.7,
+   "facts": {
+    "gap_pct": 7.01,
+    "bars_since_gap": 29,
+    "first_test": true,
+    "levels_touched": [
+     "glow"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "BABA",
+   "asof": "2023-04-20",
+   "year": 2023,
+   "close": 90.74,
+   "facts": {
+    "gap_pct": 10.72,
+    "bars_since_gap": 16,
+    "first_test": true,
+    "levels_touched": [
+     "mid"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "MU",
+   "asof": "2024-01-02",
+   "year": 2024,
+   "close": 82.34,
+   "facts": {
+    "gap_pct": 8.02,
+    "bars_since_gap": 6,
+    "first_test": true,
+    "levels_touched": [
+     "top"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "UAL",
+   "asof": "2024-02-06",
+   "year": 2024,
+   "close": 41.23,
+   "facts": {
+    "gap_pct": 6.67,
+    "bars_since_gap": 10,
+    "first_test": true,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "FMS",
+   "asof": "2024-03-14",
+   "year": 2024,
+   "close": 19.63,
+   "facts": {
+    "gap_pct": 9.53,
+    "bars_since_gap": 7,
+    "first_test": true,
+    "levels_touched": [
+     "mid"
+    ]
+   },
+   "q": 3.0
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "CCI",
+   "asof": "2021-11-15",
+   "year": 2021,
+   "close": 182.78,
+   "facts": {
+    "swept": [
+     "prior_low",
+     "ema9",
+     "ema20",
+     "sma50"
+    ],
+    "red_to_green": true,
+    "dcr": 0.981
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "QQQ",
+   "asof": "2021-12-15",
+   "year": 2021,
+   "close": 397.05,
+   "facts": {
+    "swept": [
+     "sma50"
+    ],
+    "red_to_green": true,
+    "dcr": 0.973
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "INTC",
+   "asof": "2022-01-14",
+   "year": 2022,
+   "close": 55.7,
+   "facts": {
+    "swept": [
+     "prior_low",
+     "ema9"
+    ],
+    "red_to_green": true,
+    "dcr": 0.944
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "ANET",
+   "asof": "2022-02-16",
+   "year": 2022,
+   "close": 33.11,
+   "facts": {
+    "swept": [
+     "ema9",
+     "sma50"
+    ],
+    "red_to_green": true,
+    "dcr": 0.925
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "SNOW",
+   "asof": "2022-03-24",
+   "year": 2022,
+   "close": 227.57,
+   "facts": {
+    "swept": [
+     "prior_low",
+     "ema9",
+     "ema20"
+    ],
+    "red_to_green": true,
+    "dcr": 0.992
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "RKLB",
+   "asof": "2023-01-10",
+   "year": 2023,
+   "close": 4.38,
+   "facts": {
+    "swept": [
+     "prior_low"
+    ],
+    "red_to_green": true,
+    "dcr": 1.0
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "ZM",
+   "asof": "2023-02-14",
+   "year": 2023,
+   "close": 77.9,
+   "facts": {
+    "swept": [
+     "ema20"
+    ],
+    "red_to_green": true,
+    "dcr": 0.977
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "CSCO",
+   "asof": "2023-03-16",
+   "year": 2023,
+   "close": 50.12,
+   "facts": {
+    "swept": [
+     "ema9",
+     "ema20"
+    ],
+    "red_to_green": true,
+    "dcr": 0.904
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "CELH",
+   "asof": "2024-01-02",
+   "year": 2024,
+   "close": 59.03,
+   "facts": {
+    "swept": [
+     "prior_low",
+     "ema9",
+     "sma50"
+    ],
+    "red_to_green": true,
+    "dcr": 0.982
+   },
+   "q": 0.9
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "COLM",
+   "asof": "2024-02-02",
+   "year": 2024,
+   "close": 81.36,
+   "facts": {
+    "swept": [
+     "prior_low",
+     "5bar_low",
+     "ema9",
+     "ema20",
+     "sma50"
+    ],
+    "red_to_green": false,
+    "dcr": 0.974
+   },
+   "q": 0.9
+  }
+ ]
+}

@@ -1,0 +1,4093 @@
+[
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-11-12",
+  "bars": {
+   "asof": "2021-11-12",
+   "forward": 20,
+   "sym": "PANW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_948035944131",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2021-11-12",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PANW"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": -0.4,
+    "ma_spread_pct": 3.08
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#PANW#2021-11-12",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#PANW#2021-11-12",
+  "sym": "PANW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-12-13",
+  "bars": {
+   "asof": "2021-12-13",
+   "forward": 20,
+   "sym": "LMT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f637515f9514",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2021-12-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "LMT"
+   },
+   "facts": {
+    "above_sma200": false,
+    "from_120d_high_pct": -9.9,
+    "ma_spread_pct": 1.38
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#LMT#2021-12-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#LMT#2021-12-13",
+  "sym": "LMT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-01-12",
+  "bars": {
+   "asof": "2022-01-12",
+   "forward": 20,
+   "sym": "AMAT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_87c46ba3d86d",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2022-01-12",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AMAT"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": -1.9,
+    "ma_spread_pct": 1.65
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#AMAT#2022-01-12",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#AMAT#2022-01-12",
+  "sym": "AMAT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-11",
+  "bars": {
+   "asof": "2022-02-11",
+   "forward": 20,
+   "sym": "BA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1d9ea4a8540b",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2022-02-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BA"
+   },
+   "facts": {
+    "above_sma200": false,
+    "from_120d_high_pct": -8.9,
+    "ma_spread_pct": 2.51
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#BA#2022-02-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#BA#2022-02-11",
+  "sym": "BA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-03-14",
+  "bars": {
+   "asof": "2022-03-14",
+   "forward": 20,
+   "sym": "WMT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_6a56204cb70f",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2022-03-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "WMT"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": -4.8,
+    "ma_spread_pct": 1.22
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#WMT#2022-03-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#WMT#2022-03-14",
+  "sym": "WMT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-01-03",
+  "bars": {
+   "asof": "2023-01-03",
+   "forward": 20,
+   "sym": "SMCI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_08762a091109",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-01-03",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SMCI"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": -10.7,
+    "ma_spread_pct": 2.01
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#SMCI#2023-01-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#SMCI#2023-01-03",
+  "sym": "SMCI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-02-02",
+  "bars": {
+   "asof": "2023-02-02",
+   "forward": 20,
+   "sym": "XLF",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8103048c986e",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-02-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "XLF"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": 0.3,
+    "ma_spread_pct": 3.02
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#XLF#2023-02-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#XLF#2023-02-02",
+  "sym": "XLF",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-03-06",
+  "bars": {
+   "asof": "2023-03-06",
+   "forward": 20,
+   "sym": "CIEN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_65d60a85dc2b",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-03-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CIEN"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": -2.2,
+    "ma_spread_pct": 1.85
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#CIEN#2023-03-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#CIEN#2023-03-06",
+  "sym": "CIEN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-03",
+  "bars": {
+   "asof": "2024-01-03",
+   "forward": 20,
+   "sym": "UNH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_12859e06bb16",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2024-01-03",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "UNH"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": -2.0,
+    "ma_spread_pct": 0.86
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#UNH#2024-01-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#UNH#2024-01-03",
+  "sym": "UNH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-02",
+  "bars": {
+   "asof": "2024-02-02",
+   "forward": 20,
+   "sym": "NET",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_05ae2b91ce50",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2024-02-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NET"
+   },
+   "facts": {
+    "above_sma200": true,
+    "from_120d_high_pct": -3.6,
+    "ma_spread_pct": 1.54
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#NET#2024-02-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#NET#2024-02-02",
+  "sym": "NET",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-11-12",
+  "bars": {
+   "asof": "2021-11-12",
+   "forward": 20,
+   "sym": "SHOP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_982ad9603a5f",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.06% after a red day and closed up 12.02%, above the prior day's high, at 97% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2021-11-12",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SHOP"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "day_pct": 12.02,
+    "gap_pct": 2.06,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#SHOP#2021-11-12",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#SHOP#2021-11-12",
+  "sym": "SHOP",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-01-28",
+  "bars": {
+   "asof": "2022-01-28",
+   "forward": 20,
+   "sym": "AFRM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2a4978a0b4e0",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 4.84% after a red day and closed up 17.06%, above the prior day's high, at 98% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2022-01-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AFRM"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "day_pct": 17.06,
+    "gap_pct": 4.84,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#AFRM#2022-01-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#AFRM#2022-01-28",
+  "sym": "AFRM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-28",
+  "bars": {
+   "asof": "2022-02-28",
+   "forward": 20,
+   "sym": "AVAV",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f7b87bf020f8",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 3.45% after a red day and closed up 14.1%, above the prior day's high, at 94% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2022-02-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AVAV"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.94,
+    "close_pos_pct": 94,
+    "day_pct": 14.1,
+    "gap_pct": 3.45,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#AVAV#2022-02-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#AVAV#2022-02-28",
+  "sym": "AVAV",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-04-04",
+  "bars": {
+   "asof": "2022-04-04",
+   "forward": 20,
+   "sym": "FUTU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_853d4a93013b",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 5.78% after a red day and closed up 19.51%, above the prior day's high, at 100% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2022-04-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FUTU"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 1.0,
+    "close_pos_pct": 100,
+    "day_pct": 19.51,
+    "gap_pct": 5.78,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#FUTU#2022-04-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#FUTU#2022-04-04",
+  "sym": "FUTU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-01-04",
+  "bars": {
+   "asof": "2023-01-04",
+   "forward": 20,
+   "sym": "COIN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_36d936f080a8",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.95% after a red day and closed up 12.2%, above the prior day's high, at 80% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-01-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "COIN"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.8,
+    "close_pos_pct": 80,
+    "day_pct": 12.2,
+    "gap_pct": 2.95,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#COIN#2023-01-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#COIN#2023-01-04",
+  "sym": "COIN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-02-07",
+  "bars": {
+   "asof": "2023-02-07",
+   "forward": 20,
+   "sym": "INTA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_69859fc3eb69",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 9.27% after a red day and closed up 18.12%, above the prior day's high, at 100% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-02-07",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "INTA"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 1.0,
+    "close_pos_pct": 100,
+    "day_pct": 18.12,
+    "gap_pct": 9.27,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#INTA#2023-02-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#INTA#2023-02-07",
+  "sym": "INTA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-03-13",
+  "bars": {
+   "asof": "2023-03-13",
+   "forward": 20,
+   "sym": "MSTR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d881b37fcda9",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 5.21% after a red day and closed up 16.22%, above the prior day's high, at 81% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-03-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MSTR"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.81,
+    "close_pos_pct": 81,
+    "day_pct": 16.22,
+    "gap_pct": 5.21,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#MSTR#2023-03-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#MSTR#2023-03-13",
+  "sym": "MSTR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-08",
+  "bars": {
+   "asof": "2024-01-08",
+   "forward": 20,
+   "sym": "ETON",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0339c1116ba6",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.3% after a red day and closed up 15.9%, above the prior day's high, at 88% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2024-01-08",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ETON"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.88,
+    "close_pos_pct": 88,
+    "day_pct": 15.9,
+    "gap_pct": 2.3,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#ETON#2024-01-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#ETON#2024-01-08",
+  "sym": "ETON",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-22",
+  "bars": {
+   "asof": "2024-02-22",
+   "forward": 20,
+   "sym": "SMCI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2b880b567174",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 17.82% after a red day and closed up 32.87%, above the prior day's high, at 83% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2024-02-22",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SMCI"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.83,
+    "close_pos_pct": 83,
+    "day_pct": 32.87,
+    "gap_pct": 17.82,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#SMCI#2024-02-22",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#SMCI#2024-02-22",
+  "sym": "SMCI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-05-01",
+  "bars": {
+   "asof": "2024-05-01",
+   "forward": 20,
+   "sym": "PINS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7264d26f92d7",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 17.91% after a red day and closed up 21.02%, above the prior day's high, at 84% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2024-05-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PINS"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.84,
+    "close_pos_pct": 84,
+    "day_pct": 21.02,
+    "gap_pct": 17.91,
+    "green": true,
+    "prior_red": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#PINS#2024-05-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#PINS#2024-05-01",
+  "sym": "PINS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-12-08",
+  "bars": {
+   "asof": "2021-12-08",
+   "forward": 20,
+   "sym": "ROKU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_fb120f63512d",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 18.23% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2021-12-08",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ROKU"
+   },
+   "facts": {
+    "day_pct": 18.23,
+    "rvol": 5.75,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#ROKU#2021-12-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#ROKU#2021-12-08",
+  "sym": "ROKU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-01-19",
+  "bars": {
+   "asof": "2022-01-19",
+   "forward": 20,
+   "sym": "SOFI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9d14e2baa3a3",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 13.68% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2022-01-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SOFI"
+   },
+   "facts": {
+    "day_pct": 13.68,
+    "rvol": 5.13,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#SOFI#2022-01-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#SOFI#2022-01-19",
+  "sym": "SOFI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-03-10",
+  "bars": {
+   "asof": "2022-03-10",
+   "forward": 20,
+   "sym": "CRWD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5611d83d325d",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 12.5% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2022-03-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CRWD"
+   },
+   "facts": {
+    "day_pct": 12.5,
+    "rvol": 4.81,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#CRWD#2022-03-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#CRWD#2022-03-10",
+  "sym": "CRWD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-04-13",
+  "bars": {
+   "asof": "2022-04-13",
+   "forward": 20,
+   "sym": "HPK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d584fa79e6eb",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 31.76% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2022-04-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HPK"
+   },
+   "facts": {
+    "day_pct": 31.76,
+    "rvol": 25.77,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#HPK#2022-04-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#HPK#2022-04-13",
+  "sym": "HPK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-02-02",
+  "bars": {
+   "asof": "2023-02-02",
+   "forward": 20,
+   "sym": "ELF",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f7a5bfa5eb4a",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 15.01% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2023-02-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ELF"
+   },
+   "facts": {
+    "day_pct": 15.01,
+    "rvol": 4.56,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#ELF#2023-02-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#ELF#2023-02-02",
+  "sym": "ELF",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-03-06",
+  "bars": {
+   "asof": "2023-03-06",
+   "forward": 20,
+   "sym": "BBIO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_71322ac4cadd",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 51.98% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2023-03-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BBIO"
+   },
+   "facts": {
+    "day_pct": 51.98,
+    "rvol": 14.02,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#BBIO#2023-03-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#BBIO#2023-03-06",
+  "sym": "BBIO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-04-11",
+  "bars": {
+   "asof": "2023-04-11",
+   "forward": 20,
+   "sym": "RIOT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c0bec83a0c97",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 17.01% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2023-04-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RIOT"
+   },
+   "facts": {
+    "day_pct": 17.01,
+    "rvol": 2.96,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#RIOT#2023-04-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#RIOT#2023-04-11",
+  "sym": "RIOT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-19",
+  "bars": {
+   "asof": "2024-01-19",
+   "forward": 20,
+   "sym": "SMCI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f4e97098a4b4",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 35.94% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-01-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SMCI"
+   },
+   "facts": {
+    "day_pct": 35.94,
+    "rvol": 6.43,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#SMCI#2024-01-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#SMCI#2024-01-19",
+  "sym": "SMCI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-27",
+  "bars": {
+   "asof": "2024-02-27",
+   "forward": 20,
+   "sym": "HIMS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_00d38d48795c",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 31.02% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-02-27",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HIMS"
+   },
+   "facts": {
+    "day_pct": 31.02,
+    "rvol": 10.03,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#HIMS#2024-02-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#HIMS#2024-02-27",
+  "sym": "HIMS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-04-01",
+  "bars": {
+   "asof": "2024-04-01",
+   "forward": 20,
+   "sym": "IREN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_00cb89d61675",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 19.81% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-04-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "IREN"
+   },
+   "facts": {
+    "day_pct": 19.81,
+    "rvol": 2.33,
+    "up_day": true
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#IREN#2024-04-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#IREN#2024-04-01",
+  "sym": "IREN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-12-14",
+  "bars": {
+   "asof": "2021-12-14",
+   "forward": 20,
+   "sym": "RKLB",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_433bcb431a93",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -0.77% from the prior low and closed up 6.89%: also a Williams Oops: it opened below the prior day's low.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2021-12-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RKLB"
+   },
+   "facts": {
+    "close_pos": 0.82,
+    "close_pos_pct": 82,
+    "day_pct": 6.89,
+    "open_vs_prior_low_pct": -0.77,
+    "scanner": true,
+    "super": false,
+    "variant": "williams+scanner",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#RKLB#2021-12-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#RKLB#2021-12-14",
+  "sym": "RKLB",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-24",
+  "bars": {
+   "asof": "2022-02-24",
+   "forward": 20,
+   "sym": "NET",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9b4b67f42f93",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -3.19% from the prior low and closed up 18.66%: a Super Oops: it also closed above the prior day's high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2022-02-24",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NET"
+   },
+   "facts": {
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "day_pct": 18.66,
+    "open_vs_prior_low_pct": -3.19,
+    "scanner": true,
+    "super": true,
+    "variant": "super",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#NET#2022-02-24",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#NET#2022-02-24",
+  "sym": "NET",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-05-12",
+  "bars": {
+   "asof": "2022-05-12",
+   "forward": 20,
+   "sym": "DSGN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b69a2d5d7033",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -0.05% from the prior low and closed up 7.87%: also a Williams Oops: it opened below the prior day's low.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2022-05-12",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DSGN"
+   },
+   "facts": {
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "day_pct": 7.87,
+    "open_vs_prior_low_pct": -0.05,
+    "scanner": true,
+    "super": false,
+    "variant": "williams+scanner",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#DSGN#2022-05-12",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#DSGN#2022-05-12",
+  "sym": "DSGN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-07-05",
+  "bars": {
+   "asof": "2022-07-05",
+   "forward": 20,
+   "sym": "MSTR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b40c45305f02",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened 2.76% from the prior low and closed up 12.54%: a Super Oops: it also closed above the prior day's high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2022-07-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MSTR"
+   },
+   "facts": {
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "day_pct": 12.54,
+    "open_vs_prior_low_pct": 2.76,
+    "scanner": true,
+    "super": true,
+    "variant": "super",
+    "williams": false
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#MSTR#2022-07-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#MSTR#2022-07-05",
+  "sym": "MSTR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-11",
+  "bars": {
+   "asof": "2023-05-11",
+   "forward": 20,
+   "sym": "AZTA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_07a164da8229",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -0.65% from the prior low and closed up 12.67%: also a Williams Oops: it opened below the prior day's low.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2023-05-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AZTA"
+   },
+   "facts": {
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "day_pct": 12.67,
+    "open_vs_prior_low_pct": -0.65,
+    "scanner": true,
+    "super": false,
+    "variant": "williams+scanner",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#AZTA#2023-05-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#AZTA#2023-05-11",
+  "sym": "AZTA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-08-29",
+  "bars": {
+   "asof": "2023-08-29",
+   "forward": 20,
+   "sym": "RIOT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e5be3855b574",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened 0.14% from the prior low and closed up 17.25%: a Super Oops: it also closed above the prior day's high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2023-08-29",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RIOT"
+   },
+   "facts": {
+    "close_pos": 0.89,
+    "close_pos_pct": 89,
+    "day_pct": 17.25,
+    "open_vs_prior_low_pct": 0.14,
+    "scanner": true,
+    "super": true,
+    "variant": "super",
+    "williams": false
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#RIOT#2023-08-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#RIOT#2023-08-29",
+  "sym": "RIOT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-12-01",
+  "bars": {
+   "asof": "2023-12-01",
+   "forward": 20,
+   "sym": "CLSK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_15460c82fe2a",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -3.9% from the prior low and closed up 22.44%: a Super Oops: it also closed above the prior day's high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2023-12-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CLSK"
+   },
+   "facts": {
+    "close_pos": 0.93,
+    "close_pos_pct": 93,
+    "day_pct": 22.44,
+    "open_vs_prior_low_pct": -3.9,
+    "scanner": true,
+    "super": true,
+    "variant": "super",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#CLSK#2023-12-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#CLSK#2023-12-01",
+  "sym": "CLSK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-03-04",
+  "bars": {
+   "asof": "2025-03-04",
+   "forward": 20,
+   "sym": "CELC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_04a89d83af29",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -0.45% from the prior low and closed up 11.69%: also a Williams Oops: it opened below the prior day's low.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2025-03-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CELC"
+   },
+   "facts": {
+    "close_pos": 0.71,
+    "close_pos_pct": 71,
+    "day_pct": 11.69,
+    "open_vs_prior_low_pct": -0.45,
+    "scanner": true,
+    "super": false,
+    "variant": "williams+scanner",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#CELC#2025-03-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#CELC#2025-03-04",
+  "sym": "CELC",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-04-07",
+  "bars": {
+   "asof": "2025-04-07",
+   "forward": 20,
+   "sym": "IONQ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_25f539fd1851",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened 1.24% from the prior low and closed up 10.01%: a scanner Oops.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2025-04-07",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "IONQ"
+   },
+   "facts": {
+    "close_pos": 0.76,
+    "close_pos_pct": 76,
+    "day_pct": 10.01,
+    "open_vs_prior_low_pct": 1.24,
+    "scanner": true,
+    "super": false,
+    "variant": "scanner",
+    "williams": false
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#IONQ#2025-04-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#IONQ#2025-04-07",
+  "sym": "IONQ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-19",
+  "bars": {
+   "asof": "2026-05-19",
+   "forward": 20,
+   "sym": "CRDO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7e0f9b308cf7",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened 0.61% from the prior low and closed up 8.14%: a scanner Oops.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2026-05-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CRDO"
+   },
+   "facts": {
+    "close_pos": 0.88,
+    "close_pos_pct": 88,
+    "day_pct": 8.14,
+    "open_vs_prior_low_pct": 0.61,
+    "scanner": true,
+    "super": false,
+    "variant": "scanner",
+    "williams": false
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#CRDO#2026-05-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#CRDO#2026-05-19",
+  "sym": "CRDO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-11-15",
+  "bars": {
+   "asof": "2021-11-15",
+   "forward": 20,
+   "sym": "QCOM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0cd30f4b3a79",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 12.9% 7 sessions earlier; the trigger day gapped only 0.95%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2021-11-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "QCOM"
+   },
+   "facts": {
+    "earnings_like_gap": {
+     "bars_ago": 7,
+     "gap_day": "2021-11-04",
+     "gap_pct": 12.9
+    },
+    "rally": {
+     "bars_ago": 4,
+     "peak_day": "2021-11-09",
+     "rally_pct": 35.6
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": 0.95
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#QCOM#2021-11-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#QCOM#2021-11-15",
+  "sym": "QCOM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-12-22",
+  "bars": {
+   "asof": "2021-12-22",
+   "forward": 20,
+   "sym": "CBZ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_6dfecfdc36fb",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 21.2% rally that peaked 4 sessions earlier; the trigger day gapped only -0.5%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2021-12-22",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CBZ"
+   },
+   "facts": {
+    "earnings_like_gap": null,
+    "rally": {
+     "bars_ago": 4,
+     "peak_day": "2021-12-16",
+     "rally_pct": 21.2
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": -0.5
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#CBZ#2021-12-22",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#CBZ#2021-12-22",
+  "sym": "CBZ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-01-25",
+  "bars": {
+   "asof": "2022-01-25",
+   "forward": 20,
+   "sym": "XOM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_89fd134cf770",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 23.6% rally that peaked 4 sessions earlier; the trigger day gapped only -0.27%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2022-01-25",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "XOM"
+   },
+   "facts": {
+    "earnings_like_gap": null,
+    "rally": {
+     "bars_ago": 4,
+     "peak_day": "2022-01-19",
+     "rally_pct": 23.6
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": -0.27
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#XOM#2022-01-25",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#XOM#2022-01-25",
+  "sym": "XOM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-25",
+  "bars": {
+   "asof": "2022-02-25",
+   "forward": 20,
+   "sym": "RTX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_76ae84b16121",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 20.5% rally that peaked 9 sessions earlier; the trigger day gapped only 0.15%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2022-02-25",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RTX"
+   },
+   "facts": {
+    "earnings_like_gap": null,
+    "rally": {
+     "bars_ago": 9,
+     "peak_day": "2022-02-11",
+     "rally_pct": 20.5
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": 0.15
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#RTX#2022-02-25",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#RTX#2022-02-25",
+  "sym": "RTX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-03-28",
+  "bars": {
+   "asof": "2022-03-28",
+   "forward": 20,
+   "sym": "TEAM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8d6d6114daa1",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 7.3% 40 sessions earlier; the trigger day gapped only 0.91%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2022-03-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TEAM"
+   },
+   "facts": {
+    "earnings_like_gap": {
+     "bars_ago": 40,
+     "gap_day": "2022-01-28",
+     "gap_pct": 7.3
+    },
+    "rally": {
+     "bars_ago": 4,
+     "peak_day": "2022-03-22",
+     "rally_pct": 22.2
+    },
+    "sma50_rising": false,
+    "trigger_gap_pct": 0.91
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#TEAM#2022-03-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#TEAM#2022-03-28",
+  "sym": "TEAM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-01-03",
+  "bars": {
+   "asof": "2023-01-03",
+   "forward": 20,
+   "sym": "FIGS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e38b2425da50",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 10.2% 35 sessions earlier; the trigger day gapped only 2.23%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-01-03",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FIGS"
+   },
+   "facts": {
+    "earnings_like_gap": {
+     "bars_ago": 35,
+     "gap_day": "2022-11-10",
+     "gap_pct": 10.2
+    },
+    "rally": {
+     "bars_ago": 7,
+     "peak_day": "2022-12-21",
+     "rally_pct": 20.9
+    },
+    "sma50_rising": false,
+    "trigger_gap_pct": 2.23
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#FIGS#2023-01-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#FIGS#2023-01-03",
+  "sym": "FIGS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-02-02",
+  "bars": {
+   "asof": "2023-02-02",
+   "forward": 20,
+   "sym": "HAS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_aa9ff9139d51",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 20.5% rally that peaked 13 sessions earlier; the trigger day gapped only 0.98%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-02-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HAS"
+   },
+   "facts": {
+    "earnings_like_gap": null,
+    "rally": {
+     "bars_ago": 13,
+     "peak_day": "2023-01-13",
+     "rally_pct": 20.5
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": 0.98
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#HAS#2023-02-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#HAS#2023-02-02",
+  "sym": "HAS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-03-06",
+  "bars": {
+   "asof": "2023-03-06",
+   "forward": 20,
+   "sym": "INTA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ef3240c76505",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 9.3% 18 sessions earlier; the trigger day gapped only 0.03%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-03-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "INTA"
+   },
+   "facts": {
+    "earnings_like_gap": {
+     "bars_ago": 18,
+     "gap_day": "2023-02-07",
+     "gap_pct": 9.3
+    },
+    "rally": {
+     "bars_ago": 4,
+     "peak_day": "2023-02-28",
+     "rally_pct": 75.8
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": 0.03
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#INTA#2023-03-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#INTA#2023-03-06",
+  "sym": "INTA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-02",
+  "bars": {
+   "asof": "2024-01-02",
+   "forward": 20,
+   "sym": "BBWI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1a7bf89e0507",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 51.2% rally that peaked 4 sessions earlier; the trigger day gapped only -1.25%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-01-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BBWI"
+   },
+   "facts": {
+    "earnings_like_gap": null,
+    "rally": {
+     "bars_ago": 4,
+     "peak_day": "2023-12-26",
+     "rally_pct": 51.2
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": -1.25
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#BBWI#2024-01-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#BBWI#2024-01-02",
+  "sym": "BBWI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-02",
+  "bars": {
+   "asof": "2024-02-02",
+   "forward": 20,
+   "sym": "PANW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8cc256d6b364",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 45.7% rally that peaked 4 sessions earlier; the trigger day gapped only -0.12%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-02-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PANW"
+   },
+   "facts": {
+    "earnings_like_gap": null,
+    "rally": {
+     "bars_ago": 4,
+     "peak_day": "2024-01-29",
+     "rally_pct": 45.7
+    },
+    "sma50_rising": true,
+    "trigger_gap_pct": -0.12
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#PANW#2024-02-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#PANW#2024-02-02",
+  "sym": "PANW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-11-15",
+  "bars": {
+   "asof": "2021-11-15",
+   "forward": 20,
+   "sym": "LYFT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_645115b2fe4c",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.09% 6 sessions earlier and price tested top, glow, gopen, mid and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2021-11-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "LYFT"
+   },
+   "facts": {
+    "bars_since_gap": 6,
+    "first_test": true,
+    "gap_pct": 4.09,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#LYFT#2021-11-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#LYFT#2021-11-15",
+  "sym": "LYFT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-01-04",
+  "bars": {
+   "asof": "2022-01-04",
+   "forward": 20,
+   "sym": "TTD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_cfdff8a667cb",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 22.98% 39 sessions earlier and price tested glow, gopen and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2022-01-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TTD"
+   },
+   "facts": {
+    "bars_since_gap": 39,
+    "first_test": true,
+    "gap_pct": 22.98,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#TTD#2022-01-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#TTD#2022-01-04",
+  "sym": "TTD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-07",
+  "bars": {
+   "asof": "2022-02-07",
+   "forward": 20,
+   "sym": "NFLX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3a2ecf317c4e",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.58% 5 sessions earlier and price tested top, glow, gopen, mid and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2022-02-07",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NFLX"
+   },
+   "facts": {
+    "bars_since_gap": 5,
+    "first_test": true,
+    "gap_pct": 4.58,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#NFLX#2022-02-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#NFLX#2022-02-07",
+  "sym": "NFLX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-04-05",
+  "bars": {
+   "asof": "2022-04-05",
+   "forward": 20,
+   "sym": "SBUX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d3c73e1a77ed",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 5.88% 14 sessions earlier and price tested top and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2022-04-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SBUX"
+   },
+   "facts": {
+    "bars_since_gap": 14,
+    "first_test": true,
+    "gap_pct": 5.88,
+    "levels_touched": [
+     "top"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#SBUX#2022-04-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#SBUX#2022-04-05",
+  "sym": "SBUX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-01-30",
+  "bars": {
+   "asof": "2023-01-30",
+   "forward": 20,
+   "sym": "EDU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b8b6df7ef791",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.49% 7 sessions earlier and price tested top, mid and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-01-30",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "EDU"
+   },
+   "facts": {
+    "bars_since_gap": 7,
+    "first_test": true,
+    "gap_pct": 4.49,
+    "levels_touched": [
+     "top",
+     "mid"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#EDU#2023-01-30",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#EDU#2023-01-30",
+  "sym": "EDU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-03-10",
+  "bars": {
+   "asof": "2023-03-10",
+   "forward": 20,
+   "sym": "AXP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_34da7ed38547",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 7.01% 29 sessions earlier and price tested glow and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-03-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AXP"
+   },
+   "facts": {
+    "bars_since_gap": 29,
+    "first_test": true,
+    "gap_pct": 7.01,
+    "levels_touched": [
+     "glow"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#AXP#2023-03-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#AXP#2023-03-10",
+  "sym": "AXP",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-04-20",
+  "bars": {
+   "asof": "2023-04-20",
+   "forward": 20,
+   "sym": "BABA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c2a4cc4dd3d3",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 10.72% 16 sessions earlier and price tested mid and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-04-20",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BABA"
+   },
+   "facts": {
+    "bars_since_gap": 16,
+    "first_test": true,
+    "gap_pct": 10.72,
+    "levels_touched": [
+     "mid"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#BABA#2023-04-20",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#BABA#2023-04-20",
+  "sym": "BABA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-02",
+  "bars": {
+   "asof": "2024-01-02",
+   "forward": 20,
+   "sym": "MU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_392fa99527a1",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 8.02% 6 sessions earlier and price tested top and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-01-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MU"
+   },
+   "facts": {
+    "bars_since_gap": 6,
+    "first_test": true,
+    "gap_pct": 8.02,
+    "levels_touched": [
+     "top"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#MU#2024-01-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#MU#2024-01-02",
+  "sym": "MU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-06",
+  "bars": {
+   "asof": "2024-02-06",
+   "forward": 20,
+   "sym": "UAL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5300cd8fafc6",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 6.67% 10 sessions earlier and price tested top, glow, gopen, mid and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-02-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "UAL"
+   },
+   "facts": {
+    "bars_since_gap": 10,
+    "first_test": true,
+    "gap_pct": 6.67,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#UAL#2024-02-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#UAL#2024-02-06",
+  "sym": "UAL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-03-14",
+  "bars": {
+   "asof": "2024-03-14",
+   "forward": 20,
+   "sym": "FMS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e86fa18ab8f5",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 9.53% 7 sessions earlier and price tested mid and held.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-03-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FMS"
+   },
+   "facts": {
+    "bars_since_gap": 7,
+    "first_test": true,
+    "gap_pct": 9.53,
+    "levels_touched": [
+     "mid"
+    ]
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#FMS#2024-03-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#FMS#2024-03-14",
+  "sym": "FMS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-11-15",
+  "bars": {
+   "asof": "2021-11-15",
+   "forward": 20,
+   "sym": "CCI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c1ca6625e8c2",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9, ema20, sma50 and the close finished at 98% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2021-11-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CCI"
+   },
+   "facts": {
+    "dcr": 0.981,
+    "dcr_pct": 98,
+    "red_to_green": true,
+    "swept": [
+     "prior_low",
+     "ema9",
+     "ema20",
+     "sma50"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#CCI#2021-11-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#CCI#2021-11-15",
+  "sym": "CCI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-12-15",
+  "bars": {
+   "asof": "2021-12-15",
+   "forward": 20,
+   "sym": "QQQ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4c8b6554a5f7",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept sma50 and the close finished at 97% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2021-12-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "QQQ"
+   },
+   "facts": {
+    "dcr": 0.973,
+    "dcr_pct": 97,
+    "red_to_green": true,
+    "swept": [
+     "sma50"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#QQQ#2021-12-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#QQQ#2021-12-15",
+  "sym": "QQQ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-01-14",
+  "bars": {
+   "asof": "2022-01-14",
+   "forward": 20,
+   "sym": "INTC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a545b48595e0",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9 and the close finished at 94% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2022-01-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "INTC"
+   },
+   "facts": {
+    "dcr": 0.944,
+    "dcr_pct": 94,
+    "red_to_green": true,
+    "swept": [
+     "prior_low",
+     "ema9"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#INTC#2022-01-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#INTC#2022-01-14",
+  "sym": "INTC",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-16",
+  "bars": {
+   "asof": "2022-02-16",
+   "forward": 20,
+   "sym": "ANET",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_dcdde6e5e549",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept ema9, sma50 and the close finished at 92% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2022-02-16",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ANET"
+   },
+   "facts": {
+    "dcr": 0.925,
+    "dcr_pct": 92,
+    "red_to_green": true,
+    "swept": [
+     "ema9",
+     "sma50"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#ANET#2022-02-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#ANET#2022-02-16",
+  "sym": "ANET",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-03-24",
+  "bars": {
+   "asof": "2022-03-24",
+   "forward": 20,
+   "sym": "SNOW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a43e4e7585ab",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9, ema20 and the close finished at 99% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2022-03-24",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SNOW"
+   },
+   "facts": {
+    "dcr": 0.992,
+    "dcr_pct": 99,
+    "red_to_green": true,
+    "swept": [
+     "prior_low",
+     "ema9",
+     "ema20"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#SNOW#2022-03-24",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#SNOW#2022-03-24",
+  "sym": "SNOW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-01-10",
+  "bars": {
+   "asof": "2023-01-10",
+   "forward": 20,
+   "sym": "RKLB",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_febb1257bfc6",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low and the close finished at 100% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2023-01-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RKLB"
+   },
+   "facts": {
+    "dcr": 1.0,
+    "dcr_pct": 100,
+    "red_to_green": true,
+    "swept": [
+     "prior_low"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#RKLB#2023-01-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#RKLB#2023-01-10",
+  "sym": "RKLB",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-02-14",
+  "bars": {
+   "asof": "2023-02-14",
+   "forward": 20,
+   "sym": "ZM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4cc6eeb30566",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept ema20 and the close finished at 98% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2023-02-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ZM"
+   },
+   "facts": {
+    "dcr": 0.977,
+    "dcr_pct": 98,
+    "red_to_green": true,
+    "swept": [
+     "ema20"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#ZM#2023-02-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#ZM#2023-02-14",
+  "sym": "ZM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-03-16",
+  "bars": {
+   "asof": "2023-03-16",
+   "forward": 20,
+   "sym": "CSCO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0848ac23a804",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept ema9, ema20 and the close finished at 90% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2023-03-16",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CSCO"
+   },
+   "facts": {
+    "dcr": 0.904,
+    "dcr_pct": 90,
+    "red_to_green": true,
+    "swept": [
+     "ema9",
+     "ema20"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#CSCO#2023-03-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#CSCO#2023-03-16",
+  "sym": "CSCO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-02",
+  "bars": {
+   "asof": "2024-01-02",
+   "forward": 20,
+   "sym": "CELH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d1a732b75fa6",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9, sma50 and the close finished at 98% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2024-01-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CELH"
+   },
+   "facts": {
+    "dcr": 0.982,
+    "dcr_pct": 98,
+    "red_to_green": true,
+    "swept": [
+     "prior_low",
+     "ema9",
+     "sma50"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#CELH#2024-01-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#CELH#2024-01-02",
+  "sym": "CELH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-02",
+  "bars": {
+   "asof": "2024-02-02",
+   "forward": 20,
+   "sym": "COLM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_62d7e4410762",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, 5bar_low, ema9, ema20, sma50 and the close finished at 97% of the range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2024-02-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "COLM"
+   },
+   "facts": {
+    "dcr": 0.974,
+    "dcr_pct": 97,
+    "red_to_green": false,
+    "swept": [
+     "prior_low",
+     "5bar_low",
+     "ema9",
+     "ema20",
+     "sma50"
+    ]
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#COLM#2024-02-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#COLM#2024-02-02",
+  "sym": "COLM",
+  "type": "spot",
+  "version": 1
+ }
+]
