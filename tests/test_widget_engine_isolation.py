@@ -191,21 +191,43 @@ def test_own_account_narrows_for_real(two):
 # ── Task 8.12: public pages ──
 
 @pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
-def test_another_members_def_id_is_neutral_in_every_public_mode_and_reads_no_database(monkeypatch, mode):
+def test_another_members_def_id_is_neutral_in_every_public_mode_and_reads_no_database(monkeypatch, tmp_path, mode):
     """A note body naming member B's `defId` (with or without `share: true`) reduces to the neutral line or is
-    dropped, never to B's widget, and a public reduction opens no database connection at all."""
+    dropped, never to B's widget, and a public reduction opens no database connection at all. B's widget row
+    EXISTS in the database first, so "no read" is shown against data that was there to be read; and the spy is
+    proved live by calling the patched seams once (a spy nobody has seen fire is not a rail)."""
     import copy
     import json
+    import sqlite3
     from api.services.journal_two import public_note_payload as pnp
 
-    reads: list[str] = []
-
-    def spy(*a, **k):
-        reads.append("get_connection")
-        raise AssertionError("a public reduction must not read the database")
-
-    monkeypatch.setattr(auth_db, "get_connection", spy)
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "iso812.db"))
+    auth_db.init_db()
     foreign = "B-DEF-ID-FOREIGN-7777"
+    c = auth_db.get_connection()
+    add_user(c, B)
+    c.execute("INSERT INTO j2_widget_definitions (id, user_id, name, plan_json, plan_version, rev, placed_rev,"
+              " created_at, updated_at) VALUES (?, ?, 'B-WIDGET-NAME-7777', '{}', 1, 1, 1, 'x', 'x')",
+              (foreign, B))
+    c.commit()
+    assert c.execute("SELECT COUNT(*) FROM j2_widget_definitions WHERE id = ?", (foreign,)).fetchone()[0] == 1
+
+    seen: list[str] = []
+    real_get, real_connect = auth_db.get_connection, sqlite3.connect
+
+    def spy_get(*a, **k):
+        seen.append("auth_db.get_connection")
+        return real_get(*a, **k)
+
+    def spy_connect(*a, **k):
+        seen.append("sqlite3.connect")
+        return real_connect(*a, **k)
+
+    monkeypatch.setattr(auth_db, "get_connection", spy_get)
+    monkeypatch.setattr(sqlite3, "connect", spy_connect)
+    # `journal_two.db` has no connection helper of its own (it opens through auth_db.get_connection), so the
+    # two seams above cover it.
+
     for share in (None, False, "true", True):
         params = {"asOf": "2026-10-20T14:00:00Z", "title": "B only", "defId": foreign, "defRef": foreign,
                   "summary": "B-SUMMARY-7777", "scopeLabel": "B-SCOPE-7777", "accountId": "B-ACC-7777",
@@ -218,10 +240,16 @@ def test_another_members_def_id_is_neutral_in_every_public_mode_and_reads_no_dat
         out = pnp.reduce(copy.deepcopy(body), mode=mode, owner_id="A", note_id="N", attachment_base="/b/",
                          facts={}, note_links=None)
         blob = json.dumps(out)
-        for leak in (foreign, "B-SUMMARY-7777", "B-SCOPE-7777", "B-ACC-7777", "B-FOOT-7777", "B-DETAIL-7777"):
+        for leak in (foreign, "B-SUMMARY-7777", "B-SCOPE-7777", "B-ACC-7777", "B-FOOT-7777", "B-DETAIL-7777",
+                     "B-WIDGET-NAME-7777"):
             assert leak not in blob, (mode, share, leak)
         if share is not True:
             assert "widgetEmbed" not in blob, (mode, share)
             if mode != "example":
                 assert pnp.ACCOUNT_NEUTRAL_LINE in blob, (mode, share)
-    assert reads == []
+    assert seen == [], seen                                  # no read, with B's row there to be read
+
+    # positive control: the spy fires on both seams, so the empty list above means something
+    auth_db.get_connection().execute("SELECT 1").fetchone()
+    sqlite3.connect(":memory:").close()
+    assert "auth_db.get_connection" in seen and "sqlite3.connect" in seen, seen

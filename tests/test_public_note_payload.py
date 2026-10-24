@@ -1350,6 +1350,8 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
                   # Task 8.12; ACCOUNT_KINDS gains it in 8.13, so it is compared on both sides until then
                   "builtWidget": {"measures", "value", "compare", "rows", "series", "points", "cells"}}
     from api.services.journal_two import notebook_widgets as nw
+    assert "builtWidget" not in nw.ACCOUNT_KINDS, (
+        "8.13 landed: drop the {'builtWidget'} tolerance in R60 and test_account_kinds_agree...")
     assert set(structured) == set(nw.ACCOUNT_KINDS) | {"builtWidget"} == set(pnp.EMBED_ROW_KEYS)
     for kind, keys in structured.items():
         assert set(pnp.EMBED_ROW_KEYS[kind]) == keys, kind
@@ -1498,7 +1500,8 @@ def test_built_vendor_row_and_allowlist_shape():
     assert pnp.market_data_verdict("widgetEmbed", "builtWidget") == pnp.NEUTRAL
     assert pnp.EMBED_PARAM_KEYS["builtWidget"] == (
         "asOf", "source", "title", "view", "measures", "value", "compare", "compareLabel", "rows", "series",
-        "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge", "empty", "share")
+        "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge", "empty", "share",
+        "labelKind", "label2Kind")      # the last two (ruling R-25) say which labels are account names
     assert not set(pnp.EMBED_PARAM_KEYS["builtWidget"]) & set(_BUILT_NEVER)
 
 
@@ -1562,3 +1565,83 @@ def test_share_string_true_is_neutral(mode, bad):
     assert not any(c in json.dumps(out) for c in _BUILT_CANARIES)
     if mode != "example":
         assert texts_in(out) == [ACCOUNT_LINE]
+
+
+# ── fix round 1 (I-2 ruling R-25, M4, M5) ──
+
+def _split_built(**over: Any) -> dict:
+    node = _built(True)
+    params = node["attrs"]["params"]
+    params.update({"labelKind": "account", "label2Kind": "account",
+                   "rows": [{"label": "ACCT-CANARY-ALPHA", "label2": "ACCT-CANARY-BETA", **_VALUES, "flagged": False},
+                            {"label": "ACCT-CANARY-BETA", "label2": "ACCT-CANARY-ALPHA", **_VALUES,
+                             "flagged": False},
+                            {"label": "ACCT-CANARY-ALPHA", "label2": None, **_VALUES, "flagged": False}],
+                   "series": [{"label": "ACCT-CANARY-BETA", "label2": "ACCT-CANARY-GAMMA", **_VALUES,
+                               "flagged": False}],
+                   "cells": [{"label": "ACCT-CANARY-GAMMA", "v1": 1.0, "n1": 3, "s1": ""},
+                             {"label": "ACCT-CANARY-ALPHA", "v1": 2.0, "n1": 1, "s1": ""}]})
+    params.update(over)
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r25_account_labels_become_numbered_accounts_stable_across_lists(mode):
+    out = reduce(doc(_split_built()), mode)
+    blob = json.dumps(out)
+    assert "ACCT-CANARY" not in blob, blob
+    params = find_embed(out)["attrs"]["params"]
+    # label numbering: first appearance across rows, series, cells -> ALPHA=1, BETA=2, GAMMA=3
+    assert [r["label"] for r in params["rows"]] == ["Account 1", "Account 2", "Account 1"]
+    assert params["series"][0]["label"] == "Account 2"
+    assert [c["label"] for c in params["cells"]] == ["Account 3", "Account 1"]
+    # label2 has its own numbering by first appearance: BETA=1, ALPHA=2, GAMMA=3
+    assert [r["label2"] for r in params["rows"]] == ["Account 1", "Account 2", None]
+    assert params["series"][0]["label2"] == "Account 3"
+    assert params["labelKind"] == "account" and params["label2Kind"] == "account"
+
+
+def test_r25_only_the_marked_field_is_relabelled():
+    node = _split_built(label2Kind=None)
+    node["attrs"]["params"]["rows"][0]["label2"] = "Breakout"
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["rows"][0]["label"] == "Account 1" and params["rows"][0]["label2"] == "Breakout"
+    # no marker at all (a setup split): labels pass untouched
+    node = _split_built(labelKind=None, label2Kind=None)
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["rows"][0]["label"] == "ACCT-CANARY-ALPHA"
+
+
+def test_built_cap_honesty_and_too_large_flags_survive_for_a_shown_widget():
+    """The cap's own sentences reach a stranger as they reach the member: truncated, tooLarge, empty and the
+    notice are allowlisted."""
+    node = _built(True)
+    node["attrs"]["params"].update({"truncated": 12, "tooLarge": True, "empty": None,
+                                    "notice": "This result is too big to show here."})
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["truncated"] == 12 and params["tooLarge"] is True
+    assert params["notice"] == "This result is too big to show here."
+    for key in ("truncated", "tooLarge", "notice", "empty"):
+        assert key in pnp.EMBED_PARAM_KEYS["builtWidget"], key
+
+
+def test_built_attrs_canary_pins_what_passes_today():
+    """M5: what a SHARED builtWidget's attrs let through today. EMBED_KEPT_ATTRS is shared by every kind; this
+    pins current behaviour and does not change it."""
+    node = _built(True)
+    attrs = node["attrs"]
+    attrs["frozen"] = {"def": "ATTR-CANARY-FROZEN", "rows": ["ATTR-CANARY-FROZEN-ROW"]}
+    attrs["caption"] = "ATTR-CANARY-CAPTION"
+    attrs["fallback"] = {"url": "/api/j2/notes/attachments/OTHER/N/inline/x.png", "w": 9, "h": 9}
+    attrs["searchText"] = "ATTR-CANARY-SEARCH"
+    attrs["tradeRef"] = "ATTR-CANARY-TRADEREF"
+    out = reduce(doc(node), "share")
+    kept = find_embed(out)["attrs"]
+    blob = json.dumps(out)
+    assert set(kept) <= set(pnp.EMBED_KEPT_ATTRS) | {"params"}
+    for dropped in ("ATTR-CANARY-SEARCH", "ATTR-CANARY-TRADEREF"):
+        assert dropped not in blob, dropped
+    assert kept["caption"] == "ATTR-CANARY-CAPTION"                 # control: kept attrs do pass
+    assert kept["fallback"] is None                                 # another note's image never survives
+    # CONCERN (reported, not changed): `frozen` is in the shared EMBED_KEPT_ATTRS and is copied whole.
+    assert kept.get("frozen") == attrs["frozen"], kept.get("frozen")

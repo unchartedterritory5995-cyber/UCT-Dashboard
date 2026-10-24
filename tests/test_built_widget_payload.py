@@ -507,3 +507,17 @@ def test_notices_lead_the_capped_notice():
     out = build(p, result_of(count=5000), sc, notices=["Running from the saved copy in this note."])
     assert out["notice"].startswith("Running from the saved copy in this note. Based on your newest")
     assert build(p, result_of(count=1), scan_of(count=1))["notice"] is None
+
+
+def test_account_split_marks_label_kind_and_other_splits_do_not():
+    """Ruling R-25: the payload says which label fields are account names, so a public page can number them."""
+    p = vplan(raw_plan(measures=("net_pnl",), split={"by": "account", "then": "setup"}, view={"type": "table"}))
+    out = build(p, result_of(), scan_of())
+    assert out["labelKind"] == "account" and "label2Kind" not in out
+    p = vplan(raw_plan(measures=("net_pnl",), split={"by": "setup", "then": "account"}, view={"type": "table"}))
+    out = build(p, result_of(), scan_of())
+    assert out["label2Kind"] == "account" and "labelKind" not in out
+    p = vplan(raw_plan(measures=("net_pnl",), split={"by": "setup", "then": None}))
+    out = build(p, result_of(), scan_of())
+    assert "labelKind" not in out and "label2Kind" not in out
+

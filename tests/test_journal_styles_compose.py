@@ -648,7 +648,10 @@ def test_account_kinds_agree_client_server_and_public_table():
     client = {k for k, body in rows.items() if re.search(r"\baccount: true\b", body)}
     optin = {d for (t, d), v in public.MARKET_DATA_VENDORS.items() if t == "widgetEmbed" and v == "member-optin"}
     assert len(client) == 7                                                              # non-vacuity
-    assert client == set(nw.ACCOUNT_KINDS) == optin
+    assert "builtWidget" not in nw.ACCOUNT_KINDS, (
+        "8.13 landed: drop the {'builtWidget'} tolerance in R60 and test_account_kinds_agree...")
+    # Task 8.12 declared builtWidget's vendor row ahead of the registry row (8.13); tolerated until then.
+    assert client == set(nw.ACCOUNT_KINDS) == optin - {"builtWidget"}
     assert set(nw.ACCOUNT_KINDS) <= set(public.EMBED_PARAM_KEYS)
 
 

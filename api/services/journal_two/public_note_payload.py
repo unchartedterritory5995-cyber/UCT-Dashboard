@@ -515,7 +515,7 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     # Railed in tests/test_public_note_payload.py.
     "builtWidget": ("asOf", "source", "title", "view", "measures", "value", "compare", "compareLabel", "rows",
                     "series", "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge",
-                    "empty", "share"),
+                    "empty", "share", "labelKind", "label2Kind"),
 }
 
 #: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or
@@ -587,6 +587,27 @@ def _allowed_item(item: Any, keys: Any) -> Any:
 _DROP = object()
 
 
+def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
+    """Ruling R-25: even a SHARED built widget never publishes an account NAME. Where the payload says a label
+    field is an account (`labelKind` / `label2Kind`), each distinct label becomes "Account N", numbered by first
+    appearance across rows, series and cells so one account keeps one number. Two kinds never share a numbering
+    map. An unknown kind value is left alone (it is only ever "account")."""
+    if widget_id != "builtWidget":
+        return
+    for kind_key, field in (("labelKind", "label"), ("label2Kind", "label2")):
+        if out.get(kind_key) != "account":
+            continue
+        numbering: dict[str, str] = {}
+        for list_key in ("rows", "series", "cells"):
+            for item in out.get(list_key) or []:
+                if not isinstance(item, dict) or item.get(field) is None:
+                    continue
+                name = str(item[field])
+                if name not in numbering:
+                    numbering[name] = f"Account {len(numbering) + 1}"
+                item[field] = numbering[name]
+
+
 def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
     """`params` reduced to what a stranger may read for this shown widget: the EMBED_PARAM_KEYS names, each
     structured value through EMBED_ROW_KEYS (ruling R60). Scalars pass as they are."""
@@ -607,6 +628,7 @@ def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
             # would still tell a stranger how many rows (or bars) the member has.
             out[k] = ([] if rows[k] == () else
                       [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP])
+    _relabel_accounts(widget_id, out)
     return out
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty

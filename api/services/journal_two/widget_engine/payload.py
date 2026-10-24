@@ -318,6 +318,13 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         "footnotes": footnotes,
         "empty": S_EMPTY.get(source_key) if count == 0 else None,
     })
+    # Ruling R-25: a label that is an ACCOUNT NAME is marked, so a public page can number it ("Account 1")
+    # instead of publishing the member's own account names.
+    split = plan.get("split") or {}
+    if split.get("by") == "account":
+        payload["labelKind"] = "account"
+    if split.get("then") == "account":
+        payload["label2Kind"] = "account"
     payload["sourceDetail"] = nw.source_detail(nw.BUILT_KIND, payload)
     list_key, trim_from = TRIM_BY_VIEW.get(view, ("rows", "end"))
     return nw.cap_payload(payload, nw.BUILT_KIND, list_key=list_key, trim_from=trim_from)
