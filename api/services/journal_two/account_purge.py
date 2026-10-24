@@ -211,6 +211,15 @@ _DIRECT_USER_TABLES = (
     # Notebook widgets phase 2 (Task 8.9) -- the "used in" projection: which of the member's
     # notes hold which of their saved tools. Created by db.ensure_schema (_PHASE_2_ALTERS).
     "j2_tool_uses",
+    # Notebook widgets phase 2 (Task 9.2) -- routines and trackers, their schedules, ticks,
+    # skips, reminder claims and values. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_routines",
+    "j2_routine_schedules",
+    "j2_routine_ticks",
+    "j2_routine_days",
+    "j2_routine_reminder_claims",
+    "j2_trackers",
+    "j2_tracker_values",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
