@@ -33,7 +33,7 @@ import { createVoiceNote, startVoiceRecording, VOICE_NOTE_MESSAGES } from '../vo
 // Wave 7 Task 7.4 (ruling R-5): the catalog is NOT imported here. This file is in the app's entry chunk, so a
 // static import of `lib/notebookTemplates.js` (~64 kB of source) put the whole catalog in every member's first
 // open. It is read through the Notebook's one loader, synchronously once it has arrived.
-import { loadTemplates, loadedTemplates, preloadTemplates } from '../../pages/journal-2-0/lib/templatesLoader'
+import { loadTemplates, loadedTemplates, preloadTemplates, templatesLoadFailed } from '../../pages/journal-2-0/lib/templatesLoader'
 import { useJ2Note } from '../../pages/journal-2-0/hooks/useJ2Notes'
 import { JournalToast } from '../../pages/journal-2-0/lib/useJournalToast'
 
@@ -151,6 +151,15 @@ export function templateOptions(templates = loadedTemplates()?.TEMPLATES) {
 export function templatesConfirmPayload({ options, write } = {}) {
   if (options === undefined) {
     const catalog = loadedTemplates()
+    if (!catalog && templatesLoadFailed()) {
+      // The last load failed (retry included); a browser may keep answering from that failure until a reload.
+      return {
+        title: 'Templates',
+        body: 'The templates could not load. Reload the page to try again.',
+        primaryLabel: 'Close',
+        onConfirm: () => {},
+      }
+    }
     if (!catalog) {
       loadTemplates().catch(() => {})
       return {

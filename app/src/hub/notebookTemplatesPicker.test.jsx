@@ -411,6 +411,31 @@ describe('Task 7.4 (R-5) — a catalog that is still loading is not an empty one
     expect(catalog, 'the catalog was imported more than once').toHaveBeenCalledTimes(1)
   })
 
+  it('⛔ after a FAILED load the sheet says it could not load (not "loading" forever); a later success restores the picker', async () => {
+    vi.resetModules()
+    const section = await import('./sections/notebookSection')
+    const loader = await import('../pages/journal-2-0/lib/templatesLoader')
+    const real = loader.templatesLoaders.catalog
+    loader.templatesLoaders.catalog = () => Promise.reject(new Error('boom'))
+    // the first open starts the load; it fails
+    expect(section.templatesConfirmPayload({ write: vi.fn() }).body).toBe('Templates are loading. Try again in a moment.')
+    await expect(loader.loadTemplates()).rejects.toThrow('boom')
+
+    const failed = section.templatesConfirmPayload({ write: vi.fn() })
+    expect(failed.title).toBe('Templates')
+    expect(failed.body).toBe('The templates could not load. Reload the page to try again.')
+    expect(failed.primaryLabel).toBe('Close')
+    expect(failed.fields).toBeUndefined()
+    expect(() => validateConfirmPayload(failed, 'test')).not.toThrow()
+
+    // a later successful load clears the failure and the sheet is the real, derived picker
+    loader.templatesLoaders.catalog = real
+    const mod = await loader.loadTemplates()
+    const ready = section.templatesConfirmPayload({ write: vi.fn() })
+    expect(ready.primaryLabel).toBe('Start note')
+    expect(ready.fields[0].options.map((o) => o.value)).toEqual(mod.TEMPLATES.map((t) => t.key))
+  })
+
   it('an explicitly empty list is still the honest "No templates" sheet (the loading answer is only for undefined)', () => {
     const p = templatesConfirmPayload({ options: [], write: vi.fn() })
     expect(p.body).toBe('No templates are available right now.')

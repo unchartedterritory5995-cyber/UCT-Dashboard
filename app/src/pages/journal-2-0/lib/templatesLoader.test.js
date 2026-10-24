@@ -84,6 +84,18 @@ describe('templatesLoader', () => {
     expect(loader.loadedTemplates()).toBeNull()
   })
 
+  it('templatesLoadFailed is true after a rejected load and cleared by a later success', async () => {
+    const real = loader.templatesLoaders.catalog
+    expect(loader.templatesLoadFailed()).toBe(false)
+    loader.templatesLoaders.catalog = () => Promise.reject(new Error('boom'))
+    await expect(loader.loadTemplates()).rejects.toThrow('boom')
+    expect(loader.templatesLoadFailed()).toBe(true)
+    loader.templatesLoaders.catalog = real
+    await loader.loadTemplates()
+    expect(loader.templatesLoadFailed()).toBe(false)
+    expect(loader.loadedTemplates()).not.toBeNull()
+  })
+
   it('preloadTemplates schedules the load once the browser is idle and never throws', async () => {
     const spy = vi.spyOn(loader.templatesLoaders, 'catalog')
     const idle = vi.fn((cb) => { cb(); return 1 })

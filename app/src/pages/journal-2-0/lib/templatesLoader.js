@@ -22,6 +22,7 @@ const hasGetTemplate = (mod) => typeof mod?.getTemplate === 'function'
 
 let pending = null
 let loaded = null
+let lastFailed = false
 
 /**
  * The catalog module. Concurrent callers share one import. On a failure the memo is cleared, so the next
@@ -32,7 +33,10 @@ export function loadTemplates() {
   if (!pending) {
     const p = importWithOneRetry(() => templatesLoaders.catalog(), RETRY_WAIT_MS, hasGetTemplate)
     pending = p
-    p.then((mod) => { if (pending === p) loaded = mod }, () => { if (pending === p) pending = null })
+    p.then(
+      (mod) => { if (pending === p) { loaded = mod; lastFailed = false } },
+      () => { if (pending === p) { pending = null; lastFailed = true } },
+    )
   }
   return pending
 }
@@ -43,6 +47,15 @@ export function loadTemplates() {
  */
 export function loadedTemplates() {
   return loaded
+}
+
+/**
+ * True when the most recent load REJECTED (the in-place retry included), until a later load succeeds. A caller that
+ * cannot wait (the hub's Templates sheet) uses it to say "could not load" rather than "loading" forever: once a
+ * dynamic import has failed, Chromium may answer every later attempt from its module map until a reload.
+ */
+export function templatesLoadFailed() {
+  return lastFailed
 }
 
 /** A template by its stable key, or null (unknown key). Rejects only if the catalog cannot load. */

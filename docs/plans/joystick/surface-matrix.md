@@ -144,10 +144,10 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 | catalysts | `catalysts.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:202 |  |
 | catalysts | `catalysts.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
 | **notebook** | _mode_ · /journal/notebook · chip “tap: next note” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Chip readout · cursor `notebook` | | | | | | | notebookSection.js | **LEFT PREVIEW** |
-| notebook | `notebook.newNote` “New note” | run | outer | yes |  |  | POST /api/j2/notes | sections/notebookSection.js:599 | **newly reachable** |
-| notebook | `notebook.voiceNote` “Voice note” | run | outer | yes |  |  | ? | sections/notebookSection.js:605 | **NEW action** |
-| notebook | `notebook.linkTicker` “Set ticker” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:615 | **newly reachable** |
-| notebook | `notebook.templates` “Templates” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:609 | **newly reachable** |
+| notebook | `notebook.newNote` “New note” | run | outer | yes |  |  | POST /api/j2/notes | sections/notebookSection.js:608 | **newly reachable** |
+| notebook | `notebook.voiceNote` “Voice note” | run | outer | yes |  |  | ? | sections/notebookSection.js:614 | **NEW action** |
+| notebook | `notebook.linkTicker` “Set ticker” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:624 | **newly reachable** |
+| notebook | `notebook.templates` “Templates” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:618 | **newly reachable** |
 | notebook | `notebook.dailyPlan` “Daily plan” | navigate → /journal/notebook?new=daily-prep | inner | yes |  |  | — (route only) | — |  |
 | notebook | `notebook.postMortem` “Postmortem” | navigate → /journal/notebook?new=trade-review | inner | yes |  |  | — (route only) | — |  |
 | notebook | `notebook.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:202 |  |

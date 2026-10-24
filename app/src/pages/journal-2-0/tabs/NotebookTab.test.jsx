@@ -386,6 +386,22 @@ describe('NotebookTab — template picker', () => {
     } finally { loaderHooks.getTemplateAsync = null }
   })
 
+  // Task 7.4 fix round 1 (R-6): a member who opens a note while the deep link's catalog loads keeps that note; the
+  // late template makes nothing. The note is opened through Research Home's own door (its mock's button).
+  it('Task 7.4: a deep link whose catalog lands after a note was opened creates nothing', async () => {
+    let land = null
+    loaderHooks.getTemplateAsync = () => new Promise((resolve) => { land = resolve })
+    try {
+      renderTab('/journal/notebook?new=earnings-play&ticker=gh')
+      await waitFor(() => expect(land).toBeTypeOf('function'))
+      fireEvent.click(await screen.findByRole('button', { name: 'test: open a note' }))
+      expect(await screen.findByTestId('note-editor')).toHaveAttribute('data-note-id', 'n-plain')
+      await act(async () => { land(getTemplate('earnings-play')); await new Promise((r) => setTimeout(r, 30)) })
+      expect(lastPostBody, 'the late template made a note over the one the member opened').toBeNull()
+      expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'n-plain')
+    } finally { loaderHooks.getTemplateAsync = null }
+  })
+
   it('Task 7.4 control: the same held load, landing while the tab is still mounted, does create the note', async () => {
     let land = null
     loaderHooks.getTemplateAsync = () => new Promise((resolve) => { land = resolve })
