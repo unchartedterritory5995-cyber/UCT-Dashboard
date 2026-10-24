@@ -1,7 +1,7 @@
 # The judged regression gate
 
 `tests/golden_judged/` stops any code change from silently making a member-visible drawing worse than what blind
-judges approved. It runs in the default `pytest` run (`testpaths = tests api`), in about 20 seconds.
+judges approved. It runs in the default `pytest` run (`testpaths = tests api`), in about 20 seconds (316 judged cases).
 
 ## What it guards
 
@@ -31,12 +31,13 @@ For each case the gate asserts:
 | `cup.json` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json` | `draw:inside-day` | `MEMBER_INSIDE_DAY_ROUND = 3` |
 | `textbook.json` | `bc:base` textbook buy point | `MEMBER_TEXTBOOK_ROUND = 1` |
-| `remount.json`, `u_and_r.json`, `donchian_breakout.json` | passed both packets, **not yet ported** | none (`pending_port`) |
+| `remount.json` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
+| `u_and_r.json` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
+| `donchian_breakout.json` | `draw:donchian_breakout`: passed both packets, **not released** (owner has not ruled) | `MEMBER_DONCHIAN_BREAKOUT_ROUND = None` (`pending_port`) |
 
-Unpassed rounds and dark drawings are not fixtures. The three `pending_port` files are carried so the gate covers
-those drawings the day they ship: `test_a_pending_drawing_is_still_not_on_the_member_path` goes red when a member
-round literal for one appears, and the fix is to set that file's `status` to `released` with its `pattern_id` and
-`member_literal` (and teach `judged.py` the row's geometry keys).
+Unpassed rounds are not fixtures. A `pending_port` file is a drawing that passed but is not released: it is carried so
+the gate covers it the day it ships. `test_a_pending_drawing_is_still_not_released_to_members` goes red when its
+member literal is set, and the fix is to set that file's `status` to `released`.
 
 `KNOWN_RED` in `test_judged_gate.py` lists the judged cases current master does NOT reproduce, each with its
 measured cause. They are strict xfails: any OTHER case going red fails the run, and a listed case that starts

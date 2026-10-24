@@ -75,7 +75,8 @@ def _first_green(fam, monkeypatch, need=lambda c: True):
 
 
 @pytest.mark.parametrize("fam,key", [("base", "pivot"), ("double_bottom", "low"), ("shelf", "price"),
-                                     ("cup", "handle_top"), ("inside_day", "stop"), ("textbook", "buy_point")])
+                                     ("cup", "handle_top"), ("inside_day", "stop"), ("textbook", "buy_point"),
+                                     ("remount", "level"), ("u_and_r", "level")])
 def test_a_judged_price_moved_by_one_ATR_is_caught(fam, key, monkeypatch):
     """Control: the comparator is not vacuous -- the same chart against a judged price one ATR away is red."""
     case, payload, bars = _first_green(fam, monkeypatch)
@@ -108,7 +109,8 @@ def test_a_missing_drawing_and_an_extra_drawing_on_the_base_are_caught(monkeypat
 def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
-    assert {"base", "double_bottom", "shelf", "sr", "cup", "inside_day", "textbook"} <= fams, fams
+    assert {"base", "double_bottom", "shelf", "sr", "cup", "inside_day", "textbook", "remount",
+            "u_and_r"} <= fams, fams
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round
@@ -123,16 +125,14 @@ def test_each_released_family_is_still_served_at_the_round_the_judges_scored():
         assert got == f["judged_round"], (f["family"], f["member_literal"], got, f["judged_round"])
 
 
-def test_a_pending_drawing_is_still_not_on_the_member_path():
-    """Passed-but-not-ported drawings are carried as fixtures now so the gate covers them the day they ship. Once a
-    member round literal for one exists, flip its fixture file to "released" (pattern_id + member_literal)."""
-    import api.services.auto_structures as AS
-    src = open(AS.__file__, encoding="utf-8").read()
+def test_a_pending_drawing_is_still_not_released_to_members():
+    """Passed-but-unreleased drawings are carried as fixtures so the gate covers them the day they ship. Once a
+    pending family's member literal is set, flip its fixture file's status to "released" so the gate checks it."""
+    from api.services import auto_structures as AS
     for f in PENDING:
-        name = f["family"].upper().replace("_BREAKOUT", "")
-        hits = re.findall(r"^MEMBER_\w*%s\w*_ROUND\s*=" % name, src, flags=re.M)
-        assert not hits, (f"{f['family']} is now on the member path ({hits}): set its fixture status to released, "
-                          f"with its pattern_id and member_literal, so the gate checks it")
+        got = getattr(AS, f["member_literal"], None)
+        assert got is None, (f"{f['family']} is released to members ({f['member_literal']} = {got!r}): set its "
+                             f"fixture status to released so the gate checks it")
 
 
 # ---------------------------------------------------------------------------- public-repo hygiene

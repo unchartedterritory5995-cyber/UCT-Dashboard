@@ -33,7 +33,12 @@ PATTERN_IDS = {
     "cup": "bc:cup-with-handle",
     "inside_day": "draw:inside-day",
     "sr": None,
+    "remount": "draw:remount",
+    "u_and_r": "draw:u_and_r",
+    "donchian_breakout": "draw:donchian_breakout",
 }
+#: the setup drawings ride their own `setup_draws` key
+SETUP_FAMILIES = ("remount", "u_and_r", "donchian_breakout")
 
 
 def _finite(v):
@@ -63,7 +68,8 @@ def _idx(bars, t):
 
 def _drawn_rows(payload):
     from api.services import auto_structures as AS
-    rows = list(payload.get("detections") or []) + list(payload.get("structures") or [])
+    rows = (list(payload.get("detections") or []) + list(payload.get("structures") or [])
+            + list(payload.get("setup_draws") or []))
     drawn = getattr(AS, "_drawn_incumbent", None) or (lambda r: not _ex(r).get("stale"))
     return [r for r in rows if drawn(r)]
 
@@ -117,6 +123,8 @@ def _key_and_span(fam, row, bars):
     if fam == "inside_day":
         d = ex["draw_inside_day"]
         return float(d["trigger"]), (int(d["start_t"]), int(d["end_t"]))
+    if fam in SETUP_FAMILIES:
+        return float(ex["draw_setup"]["level"]), (int(row["start_t"]), int(row["end_t"]))
     raise KeyError(fam)
 
 
@@ -177,6 +185,9 @@ def _check_geometry(fam, case, row, bars, atr, out):
         for k in ("trigger", "stop"):
             w = _unscale(case, e[k])
             _near(f"inside day {k}", d.get(k), w, tol(w), out)
+    elif fam in SETUP_FAMILIES:
+        w = _unscale(case, e["level"])
+        _near(f"{fam} level", (ex.get("draw_setup") or {}).get("level"), w, tol(w), out)
 
 
 def _check_sr(case, payload, atr, out):
@@ -246,7 +257,8 @@ def failures(case, payload, bars) -> list:
     # the judged drawing is the row closest to the judged key price
     want_key = _unscale(case, case["expect"][{"base": "pivot", "textbook": "buy_point", "double_bottom": "pivot",
                                               "shelf": "price", "cup": "pivot_price",
-                                              "inside_day": "trigger"}[fam]])
+                                              "inside_day": "trigger", "remount": "level", "u_and_r": "level",
+                                              "donchian_breakout": "level"}[fam]])
     if fam == "textbook":
         mine = min(rows, key=lambda r: abs(float(_ex(r)["metrics_textbook"].get("buy_point") or 1e18) - want_key))
     else:

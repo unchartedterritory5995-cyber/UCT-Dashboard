@@ -13,7 +13,7 @@ on, and with the route's data sources pointed at the fixture instead of the stor
   * auto_structures._scan_universe          -> the fixture's recorded membership (no ticker is stored)
 
 Nothing else is replaced: member_rows, the freshness filter, every precedence pass, one-line-per-base, the
-metrics / textbook numbers, the shelf pivot and the S/R layer all run as production code.
+metrics / textbook numbers, the shelf pivot, the S/R layer and the setup drawings all run as production code.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ FIXTURES = os.path.join(HERE, "fixtures")
 #: The flags of every member layer, on: the gate guards what the CODE serves once a layer is switched on.
 MEMBER_FLAGS = ("AUTO_STRUCTURES_ENABLED", "AUTO_STRUCTURES_MEMBERS_ENABLED", "AUTO_STRUCTURES_SHAPES_ENABLED",
                 "AUTO_STRUCTURES_METRICS_ENABLED", "AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED",
-                "AUTO_STRUCTURES_SHELF_ENABLED", "AUTO_STRUCTURES_SR_ENABLED")
+                "AUTO_STRUCTURES_SHELF_ENABLED", "AUTO_STRUCTURES_SR_ENABLED", "AUTO_STRUCTURES_G4_SETUPS_ENABLED")
 #: Off on purpose: an admin-only preview, never a member layer.
 DARK_FLAGS = ("AUTO_STRUCTURES_RARE_PREVIEW_ENABLED", "DEAL_STATUS_ENABLED")
 #: The replayed scan's last_seen_at (any int: every replayed row carries the same one).
@@ -177,7 +177,7 @@ def _patched(monkeypatch, sym, bars, in_universe):
         pass
     monkeypatch.setattr(AS, "_scan_universe", lambda: frozenset({sym}) if in_universe else frozenset(),
                         raising=False)
-    caches = [getattr(AS, n) for n in ("_CACHE", "_DRAWN_CACHE", "_SHELF_CACHE", "_SR_CACHE") if hasattr(AS, n)]
+    caches = [getattr(AS, n) for n in ("_CACHE", "_DRAWN_CACHE", "_SHELF_CACHE", "_SR_CACHE", "_SETUP_CACHE") if hasattr(AS, n)]
     for cache in caches:
         cache.clear()
     try:
