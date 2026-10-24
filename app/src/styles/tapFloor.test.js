@@ -181,3 +181,30 @@ describe('the widget builder floors every control at 44px on touch', () => {
     expect(unflooredAt(phoneOnly, 820)).toEqual(['.a'])
   })
 })
+
+// Wave 8 (Task 8.17): My tools. The owner's bar for it is "every control is 44 px or larger", at EVERY width, so this
+// asks more than the builder rail does: each clickable class (derived from the stylesheet, as above) must be floored at
+// 390, 820 AND 1200 px, which in practice means in its base rule.
+const MY_TOOLS_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'myTools.module.css')
+
+describe('My tools floors every control at 44px at every width', () => {
+  it('My tools has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(MY_TOOLS_CSS, 'utf8')))
+    for (const c of ['.btn', '.btnPrimary', '.btnDanger', '.filter', '.moreBtn', '.backBtn', '.linkBtn', '.noteLink']) {
+      expect(classes).toContain(c)
+    }
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(MY_TOOLS_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('CONTROL: a control floored on touch only is SEEN at desktop width', () => {
+    const touchOnly = '.a { cursor: pointer; }\n@media (max-width: 1024px) { .a { min-height: var(--tap-min); } }'
+    expect(unflooredAt(touchOnly, 820)).toEqual([])
+    expect(unflooredAt(touchOnly, 1200)).toEqual(['.a'])
+  })
+})
