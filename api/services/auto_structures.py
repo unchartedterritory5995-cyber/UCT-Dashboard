@@ -1390,6 +1390,36 @@ def daily_atr14(sym: str):
         return None
 
 
+#: The member base rows whose own drawing code is a detector or the base catalog (which must not change: they feed
+#: confidence, history and the screener), so the trend floor is applied to them HERE, on the member path. The
+#: base drawing (bc:base), the double bottom and the shelf pivot apply the same base_draw.trend_ok in their own
+#: drawing code; the cup tier gates on its own rising 200-day.
+MEMBER_TREND_GATED_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout"})
+
+
+def member_trend_gate(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any MEMBER_TREND_GATED_IDS row while the daily close of `sym` is not above a
+    RISING 200-day average (base_draw.trend_ok): a bullish base under a falling 200-day is a pause in a
+    downtrend, not a base to buy. The daily bars are read only when such a row is present. Too short a history
+    (under 220 sessions) drops them; a bar READ ERROR keeps them (the gate only removes what it can show is a
+    downtrend, and a store outage must not blank every base on the site). Every other row is untouched. Members
+    only; order kept."""
+    det, st = list(detections or []), list(structures or [])
+    if not any((r or {}).get("pattern_id") in MEMBER_TREND_GATED_IDS for r in det + st):
+        return det, st
+    try:
+        from api.services.pattern_engine import base_draw
+        b = _daily_bars(sym)
+        ok = base_draw.trend_ok([float(x["c"]) for x in b], len(b) - 1)
+    except Exception:  # noqa: BLE001 -- unknown is not a downtrend: the rows stay as they were
+        _log.warning("[auto-structures] trend read failed for %s; base rows left ungated", sym, exc_info=True)
+        ok = True
+    if ok:
+        return det, st
+    keep = [r for r in det if (r or {}).get("pattern_id") not in MEMBER_TREND_GATED_IDS]
+    return keep, [r for r in st if (r or {}).get("pattern_id") not in MEMBER_TREND_GATED_IDS]
+
+
 def member_one_line_per_base(detections, structures, atr=None) -> tuple:
     """(detections, structures) with at most ONE drawn breakout line per base. Applied on the MEMBER path
     only, after member_rows, the freshness filter and the pairwise precedences.

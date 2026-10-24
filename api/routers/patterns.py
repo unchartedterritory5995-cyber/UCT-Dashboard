@@ -860,6 +860,9 @@ def get_detections(
             mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
             if (tf or "D").upper() in ("D", "W", "M"):
                 boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
+                # no bullish base under a falling 200-day (base_draw.trend_ok) for the base rows whose drawing code
+                # is a detector or the base catalog (members only)
+                rows, boxes = auto_structures.member_trend_gate(sym, rows, boxes)
                 # a served (stamped) cup outranks a bc:flat-base covering the same base (members only)
                 boxes = auto_structures.member_cup_precedence(boxes)
                 # one breakout line per base: an incumbent member drawing (flat base, flat top, cup)

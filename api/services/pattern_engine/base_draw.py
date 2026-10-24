@@ -33,6 +33,10 @@ Two drawing rounds live here, chosen by `draw_round`:
     of team charts, the highest wick 60%). Every gate then reads that pivot. Round 2 also withholds a
     deep pullback straight after a parabolic run (PARABOLIC_RUN / PARABOLIC_DEPTH): a blow-off
     unwinding is not a base.
+  * Rounds 2 and 4 draw nothing unless the as-of close is above a RISING 200-day average (`trend_ok`, round 4's
+    textbook floor lifted to the whole chart, 2026-10-23): a "base" under a falling 200-day is a pause in a
+    downtrend, not a buyable base (O'Neil; the trend template). The shelf pivot, the double bottom and the
+    member path's base rows read the same `trend_ok`.
   * ROUND 4 (BASE_DRAW_ROUND) -- lab base_draw_v4, "textbook consolidation". Wherever round 2 draws,
     round 4 returns round 2's drawing UNCHANGED. Only where round 2 draws nothing, a second pass over
     round 2's own candidates admits one whose ONLY round-2 failures are a single touch of the pivot
@@ -178,6 +182,19 @@ def _candidates(bars, i):
     return out
 
 
+def trend_ok(closes, i) -> bool:
+    """The trend floor every member-visible bullish base drawing applies (round 4's rule, lifted here so the
+    shelf pivot, the double bottom and the member path read the same one): the close at bar `i` above the
+    TREND_N-day average of closes, and that average above its value TB_SMA_RISE_BARS sessions earlier (the
+    trend template's "above a RISING 200-day"). `closes` is any sequence of closes, oldest first; only
+    closes[:i+1] are read. False without the history to tell."""
+    if not isinstance(i, int) or i - TB_SMA_RISE_BARS - TREND_N + 1 < 0 or i >= len(closes):
+        return False
+    s200 = sum(float(x) for x in closes[i - TREND_N + 1:i + 1]) / TREND_N
+    s200p = sum(float(x) for x in closes[i - TB_SMA_RISE_BARS - TREND_N + 1:i - TB_SMA_RISE_BARS + 1]) / TREND_N
+    return float(closes[i]) > s200 and s200 > s200p
+
+
 def _evaluate(bars, i, a, k, rnd=1, waive=False):
     """One candidate base at bar k as round `rnd` judges it, or None. With `waive` (round 4's second pass
     only) a lip reached from above ("no_lip") and a single touch of the pivot region ("one_touch") are
@@ -252,7 +269,7 @@ def _evaluate(bars, i, a, k, rnd=1, waive=False):
     d = {"pivot": float(piv), "lip": lip, "low": float(low), "low_i": low_i, "len": n,
          "close_minus_pivot_atr": (c - piv) / a}
     if waive:
-        d.update(waived=tuple(waived), depth=depth, s200=s200)
+        d.update(waived=tuple(waived), depth=depth)
     return d
 
 
@@ -289,11 +306,8 @@ def _textbook_ok(b, i, a, d) -> bool:
     adv = lip_h / lo - 1.0 if lo > 0 else 0.0
     if adv < TB_MIN_ADV:
         return False
-    # the close above a RISING 200-day average (round 2 already put it above the average itself)
-    if i - TB_SMA_RISE_BARS - TREND_N + 1 < 0:
-        return False
-    s200p = sum(_f(x, "c") for x in b[i - TB_SMA_RISE_BARS - TREND_N + 1:i - TB_SMA_RISE_BARS + 1]) / TREND_N
-    return d["s200"] > s200p
+    # the close above a RISING 200-day average: base_drawing applied trend_ok before any candidate was read
+    return True
 
 
 def _textbook_drawing(bars, i):
@@ -344,6 +358,10 @@ def base_drawing(bars: list, i: int, draw_round: int | None = None):
         if type(rnd) is not int or rnd not in DRAW_ROUNDS:
             return None
         if not isinstance(i, int) or isinstance(i, bool) or i < MIN_LEN + 5 or i >= len(bars):
+            return None
+        # rounds 2 and 4 (the member rounds): no bullish base under a falling 200-day (round 1, the lab port,
+        # is unchanged)
+        if rnd != 1 and not trend_ok([_f(x, "c") for x in bars], i):
             return None
         if rnd == 4:
             # round 4 IS round 2 wherever round 2 draws; its own pass runs only where round 2 draws nothing
