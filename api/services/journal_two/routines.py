@@ -41,7 +41,8 @@ from api.services.journal_two.widget_definitions import _begin_immediate, _read,
 
 __all__ = [
     "COUNT_CAP", "ITEMS_CAP", "NAME_MAX", "ITEM_MAX", "RECENTLY_DELETED_DAYS", "READ_IDS_MAX",
-    "READ_DAYS_MAX", "KIND", "STARTERS", "DEFAULT_SETTINGS",
+    "READ_DAYS_MAX", "KIND", "DAY_MIN", "DAY_AHEAD_MAX",
+    "STORED_ITEMS_MAX", "STARTERS", "DEFAULT_SETTINGS",
     "RoutineError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly",
     "create", "get", "update", "list_routines", "archive", "unarchive", "soft_delete",
     "undelete", "duplicate", "traded_days", "set_tick", "set_skipped", "read_days",
@@ -93,6 +94,12 @@ _DAYS = "j2_routine_days"
 _CLAIMS = "j2_routine_reminder_claims"
 _CHILDREN = (_SCHED, _TICKS, _DAYS, _CLAIMS)
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+#: W9-R9: a day outside [DAY_MIN, today + DAY_AHEAD_MAX] is refused with S_BAD_DAY.
+DAY_MIN = date(1990, 1, 1)
+DAY_AHEAD_MAX = 366
+#: M4: at most this many stored items (current + ended); the oldest ended ones go first.
+STORED_ITEMS_MAX = 200
 _RULE_MAX = 40
 _TEMPLATE_KEY_MAX = 64
 
@@ -213,13 +220,18 @@ def _today(now: datetime | None) -> date:
     return trading_days.today_et(_now(now))
 
 
-def _parse_day(v: Any) -> date:
-    if not isinstance(v, str) or len(v) != 10:
+def _parse_day(v: Any, today: date | None = None) -> date:
+    """A strict `YYYY-MM-DD` (M3: no ISO week dates). With `today`, also within
+    [DAY_MIN, today + DAY_AHEAD_MAX] (W9-R9), so no later date arithmetic can overflow."""
+    if not isinstance(v, str) or not _DAY_RE.match(v):
         raise RoutineError(S_BAD_DAY)
     try:
-        return date.fromisoformat(v)
+        d = date.fromisoformat(v)
     except ValueError:
         raise RoutineError(S_BAD_DAY) from None
+    if today is not None and not (DAY_MIN <= d <= today + timedelta(days=DAY_AHEAD_MAX)):
+        raise RoutineError(S_BAD_DAY)
+    return d
 
 
 def _created_day(row: sqlite3.Row) -> date:
@@ -496,6 +508,12 @@ def _diff_items(raw: list[dict], given: list[dict], today: date) -> list[dict]:
             ended.append({**r, "to": day})
         else:
             ended.append(r)
+    over = len(kept) + len(ended) - STORED_ITEMS_MAX
+    if over > 0:
+        # M4: drop the oldest ended items (earliest `to`) so the stored list stays bounded.
+        order = sorted(range(len(ended)), key=lambda i: str(ended[i].get("to") or ""))
+        drop = set(order[:over])
+        ended = [r for i, r in enumerate(ended) if i not in drop]
     return kept + ended
 
 
@@ -719,59 +737,88 @@ def _history_floor(created: date, upto: date) -> date:
     return created
 
 
-class _Ctx:
-    """One routine's stored state, read once, for the day entries of one request."""
+def _load_children(c: sqlite3.Connection, user_id: str, rids: list[str],
+                   hi: date) -> tuple[dict, dict, dict]:
+    """Schedules, ticks and skipped days for every routine in `rids`: one query per table,
+    grouped here (I-3)."""
+    scheds: dict[str, list[tuple[str, dict]]] = {r: [] for r in rids}
+    ticks: dict[str, dict[str, dict[str, bool]]] = {r: {} for r in rids}
+    skipped: dict[str, set[str]] = {r: set() for r in rids}
+    if not rids:
+        return scheds, ticks, skipped
+    marks = ",".join("?" for _ in rids)
+    for rid, eff, js in c.execute(
+            f"SELECT routine_id, effective_from, schedule_json FROM {_SCHED} WHERE user_id = ?"
+            f" AND routine_id IN ({marks}) ORDER BY effective_from", (user_id, *rids)):
+        scheds[rid].append((eff, _load(js, {})))
+    for rid, d, item_id, ticked in c.execute(
+            f"SELECT routine_id, day, item_id, ticked FROM {_TICKS} WHERE user_id = ?"
+            f" AND routine_id IN ({marks}) AND day <= ?", (user_id, *rids, hi.isoformat())):
+        ticks[rid].setdefault(d, {})[item_id] = bool(ticked)
+    for rid, d in c.execute(
+            f"SELECT routine_id, day FROM {_DAYS} WHERE user_id = ? AND routine_id IN ({marks})"
+            " AND skipped = 1 AND day <= ?", (user_id, *rids, hi.isoformat())):
+        skipped[rid].add(d)
+    return scheds, ticks, skipped
 
-    def __init__(self, c: sqlite3.Connection, row: sqlite3.Row, hi: date,
-                 traded_for: Any) -> None:
+
+class _Ctx:
+    """One routine's stored state for the day entries of one request. History is built ONCE,
+    up to min(the latest requested day, today), and sliced per day (I-1, I-2): a day after
+    today is open or off and moves neither consistency nor runs."""
+
+    def __init__(self, row: sqlite3.Row, schedules: list, ticks: dict, skipped: set,
+                 traded: frozenset[str]) -> None:
         self.row = row
         self.created = _created_day(row)
         self.items = routine_days.parse_items(_raw_items(row))
-        self.by_id = {r["id"]: r for r in _raw_items(row)}
-        self.schedules = _schedules(c, row["user_id"], row["id"])
+        self.schedules = schedules
         self.settings = _settings(row)
         self.archived = row["archived_at"] is not None
-        self.ticks: dict[str, dict[str, bool]] = {}
-        for d, item_id, ticked in c.execute(
-                f"SELECT day, item_id, ticked FROM {_TICKS} WHERE user_id = ? AND routine_id = ?"
-                " AND day <= ?", (row["user_id"], row["id"], hi.isoformat())):
-            self.ticks.setdefault(d, {})[item_id] = bool(ticked)
-        self.skipped = frozenset(r[0] for r in c.execute(
-            f"SELECT day FROM {_DAYS} WHERE user_id = ? AND routine_id = ? AND skipped = 1"
-            " AND day <= ?", (row["user_id"], row["id"], hi.isoformat())))
-        uses_traded = any(s.get("kind") == "traded" for _, s in self.schedules)
-        self.traded = traded_for(self.created, hi) if uses_traded else frozenset()
-        self._hist: dict[date, list[routine_days.DayState]] = {}
+        self.ticks = ticks
+        self.skipped = frozenset(skipped)
+        self.traded = traded
+        self._hist: list[routine_days.DayState] | None = None
+        self._hist_upto: date | None = None
+
+    def uses_traded(self) -> bool:
+        return any(s.get("kind") == "traded" for _, s in self.schedules)
+
+    def build_history(self, upto: date, today: date) -> None:
+        self._hist_upto = upto
+        self._hist = routine_days.history(
+            items=self.items, schedules=self.schedules, ticks_by_day=self.ticks,
+            skipped_days=self.skipped, created=self.created, upto=upto, today=today,
+            traded=self.traded, done_share=self.settings["done_share"])
 
     def states_upto(self, d: date, today: date) -> list[routine_days.DayState]:
-        lo = _history_floor(self.created, d)
-        for upto, states in self._hist.items():
-            if upto >= d and _history_floor(self.created, upto) <= lo:
-                break
-        else:
-            states = routine_days.history(
-                items=self.items, schedules=self.schedules, ticks_by_day=self.ticks,
-                skipped_days=self.skipped, created=self.created, upto=d, today=today,
-                traded=self.traded, done_share=self.settings["done_share"])
-            self._hist[d] = states
-        lo_s, d_s = lo.isoformat(), d.isoformat()
-        return [s for s in states if lo_s <= s.day <= d_s]
+        cut = min(d, today)
+        if self._hist is None or self._hist_upto is None or self._hist_upto < cut:
+            self.build_history(cut, today)
+        lo_s, d_s = _history_floor(self.created, cut).isoformat(), cut.isoformat()
+        return [s for s in self._hist if lo_s <= s.day <= d_s]
+
+    def day_state(self, d: date, today: date) -> routine_days.DayState:
+        iso = d.isoformat()
+        return routine_days.day_state(
+            items=self.items, schedule=routine_days.schedule_on(self.schedules, d),
+            ticks=self.ticks.get(iso) or {}, skipped=iso in self.skipped, day=d, today=today,
+            created=self.created, traded=self.traded, done_share=self.settings["done_share"])
 
     def entry(self, d: date, today: date) -> dict:
         iso = d.isoformat()
-        share, strict = self.settings["done_share"], self.settings["strict"]
+        strict = self.settings["strict"]
         schedule = routine_days.schedule_on(self.schedules, d)
         applicable = routine_days.items_on(self.items, d)
         day_ticks = self.ticks.get(iso) or {}
-        ds = routine_days.day_state(
-            items=self.items, schedule=schedule, ticks=day_ticks, skipped=iso in self.skipped,
-            day=d, today=today, created=self.created, traded=self.traded, done_share=share)
+        ds = self.day_state(d, today)
         states = self.states_upto(d, today)
         cons = routine_days.consistency(states, strict=strict)
         unit = "days you traded" if (schedule or {}).get("kind") == "traded" else "trading days"
         sentence = routine_days.consistency_sentence(cons, unit)
         r = routine_days.runs(states, strict=strict)
         line = routine_days.run_line(r.current)
+        past_off = d < today and ds.state == "off"
         return {
             "day": iso,
             "state": ds.state,
@@ -781,7 +828,8 @@ class _Ctx:
             "partial": routine_days.partial_label(ds) if ds.ticked > 0 else None,
             "items": [{"id": it.id, "text": it.text, "negative": it.negative}
                       for it in applicable],
-            "writable": not self.archived and routine_days.in_window(d, today),
+            "writable": (not self.archived and not past_off
+                         and routine_days.in_window(d, today)),
             "beyondNote": _beyond_note(d),
             "consistency": sentence,
             "rate": _num(routine_days.consistency_rate(cons, strict=strict)) if sentence else None,
@@ -797,30 +845,35 @@ class _Ctx:
                 "archived": self.archived, "scheduleKind": (sched or {}).get("kind")}
 
 
-def _traded_cache(c: sqlite3.Connection, user_id: str):
-    cache: dict[tuple[date, date], frozenset[str]] = {}
-
-    def traded_for(lo: date, hi: date) -> frozenset[str]:
-        key = (lo, hi)
-        if key not in cache:
-            cache[key] = traded_days(c, user_id, max(lo, date(1970, 1, 1)).isoformat(),
-                                     hi.isoformat())
-        return cache[key]
-    return traded_for
+def _contexts(c: sqlite3.Connection, user_id: str, rows: list,
+              hi: date) -> dict[str, _Ctx]:
+    """A `_Ctx` per row, from one query per child table and ONE traded_days call spanning the
+    earliest created day to `hi` (only when some routine has a traded schedule)."""
+    rids = [r["id"] for r in rows]
+    scheds, ticks, skipped = _load_children(c, user_id, rids, hi)
+    ctxs = {r["id"]: _Ctx(r, scheds[r["id"]], ticks[r["id"]], skipped[r["id"]], frozenset())
+            for r in rows}
+    traders = [x for x in ctxs.values() if x.uses_traded()]
+    if traders:
+        lo = max(min(x.created for x in traders), DAY_MIN)
+        traded = traded_days(c, user_id, lo.isoformat(), hi.isoformat())
+        for x in traders:
+            x.traded = traded
+    return ctxs
 
 
 def _one_entry(c: sqlite3.Connection, user_id: str, row: sqlite3.Row, d: date,
                today: date) -> dict:
-    return _Ctx(c, row, max(d, today), _traded_cache(c, user_id)).entry(d, today)
+    return _contexts(c, user_id, [row], max(d, today))[row["id"]].entry(d, today)
 
 
 # ── ticks and skips ────────────────────────────────────────────────────────────────────────────
 
 def _write_day(user_id: str, rid: str, day: Any, now: datetime | None,
                conn: sqlite3.Connection | None, write) -> dict:
-    d = _parse_day(day)
     now_dt = _now(now)
     today = trading_days.today_et(now_dt)
+    d = _parse_day(day, today)
     owned = conn is None
     from api.services import auth_db
     c = conn or auth_db.get_connection()
@@ -829,27 +882,31 @@ def _write_day(user_id: str, rid: str, day: Any, now: datetime | None,
         if not c.in_transaction:
             _begin_immediate(c)
             began = True
-        if c.execute(f"SELECT 1 FROM {_R} WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-                     (rid, user_id)).fetchone() is None:
-            raise NotFound()
-        row = _owned(c, user_id, rid)
-        if row["archived_at"] is not None:
-            raise ReadOnly()
-        if not routine_days.in_window(d, today):
-            raise OutsideWindow()
-        if d < today and _one_entry(c, user_id, row, d, today)["state"] == "off":
-            # W9-R8: today and later never refuse here (a traded schedule reads "open" before
-            # the day's first trade); a past day the routine did not run cannot be ticked.
-            raise RoutineError(S_OFF_DAY)
-        write(c, row, d, _iso(now_dt))
-        out = _one_entry(c, user_id, row, d, today)
-        if began:
-            c.commit()
-        return out
-    except BaseException:
-        if began:
-            c.rollback()
-        raise
+        try:
+            if c.execute(f"SELECT 1 FROM {_R} WHERE id = ? AND user_id = ?"
+                         " AND deleted_at IS NULL", (rid, user_id)).fetchone() is None:
+                raise NotFound()
+            row = _owned(c, user_id, rid)
+            if row["archived_at"] is not None:
+                raise ReadOnly()
+            if not routine_days.in_window(d, today):
+                raise OutsideWindow()
+            if d < today:
+                # M1: the off-day check is day_state alone, for that one day. W9-R8: today and
+                # later never refuse here (a traded schedule reads "open" before the day's
+                # first trade); a past day the routine did not run cannot be ticked.
+                ctx = _contexts(c, user_id, [row], d)[rid]
+                if ctx.day_state(d, today).state == "off":
+                    raise RoutineError(S_OFF_DAY)
+            write(c, row, d, _iso(now_dt))
+            if began:
+                c.commit()
+        except BaseException:
+            if began:
+                c.rollback()
+            raise
+        # M1: the answer is built after the commit, outside the write lock.
+        return _one_entry(c, user_id, _owned(c, user_id, rid), d, today)
     finally:
         if owned:
             c.close()
@@ -916,7 +973,7 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
             out["resolved"] = {TODAY_TOKEN: t.isoformat()}
             resolved.append(t)
         else:
-            resolved.append(_parse_day(d))
+            resolved.append(_parse_day(d, today))
     resolved = sorted(set(resolved))
     if not want_ids:
         return out
@@ -925,15 +982,16 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
         marks = ",".join("?" for _ in want_ids)
         rows = c.execute(f"SELECT * FROM {_R} WHERE user_id = ? AND deleted_at IS NULL"
                          f" AND id IN ({marks})", (user_id, *want_ids)).fetchall()
-        traded_for = _traded_cache(c, user_id)
-        by_id = {r["id"]: r for r in rows}
-        for rid in want_ids:
-            row = by_id.get(rid)
-            if row is None:
-                continue
-            ctx = _Ctx(c, row, hi, traded_for)
-            out["routines"][rid] = {"routine": ctx.routine(today),
-                                    "days": {d.isoformat(): ctx.entry(d, today) for d in resolved}}
+        ctxs = _contexts(c, user_id, rows, hi)
+    upto = min(resolved[-1], today) if resolved else today
+    for rid in want_ids:
+        ctx = ctxs.get(rid)
+        if ctx is None:
+            continue
+        if resolved:
+            ctx.build_history(upto, today)          # I-2: one history per routine
+        out["routines"][rid] = {"routine": ctx.routine(today),
+                                "days": {d.isoformat(): ctx.entry(d, today) for d in resolved}}
     return out
 
 

@@ -338,8 +338,8 @@ def test_beyond_horizon_day_carries_the_quiet_note(R):
     hz = session_calendar.horizon()
     r = make(R, day="2026-11-02")
     past = (hz + timedelta(days=10)).isoformat()
-    day = R.read_days(A, [r["id"]], [past], now=at("2026-11-03"))["routines"][r["id"]]["days"][
-        past]
+    late = (hz - timedelta(days=20)).isoformat()      # today within 366 days of `past`
+    day = R.read_days(A, [r["id"]], [past], now=at(late))["routines"][r["id"]]["days"][past]
     assert day["beyondNote"] and day["beyondNote"].startswith(
         "Market calendar not available past")
     near = R.read_days(A, [r["id"]], ["2026-11-03"], now=at("2026-11-03"))["routines"][
@@ -375,7 +375,7 @@ def test_traded_days_excludes_estimated_entries_and_flagged_trades(R):
         _trade(c, A, entry="2026-11-04T15:00:00Z", exit_="2026-11-04", flagged=1)
         est = _position(c, A, entry="2026-11-09", estimated=1, closed="2026-11-12")
         _trade(c, A, entry="2026-11-09", exit_="2026-11-12", position_id=est)
-        _position(c, A, entry="2026-11-05", estimated=1)
+        _position(c, A, entry="2026-11-20", estimated=1)      # nothing else covers 11-20
         _position(c, A, entry="2026-11-06T02:30:00Z")          # 21:30 ET on 11-05
         _position(c, B, entry="2026-11-10")
         c.execute(
@@ -570,3 +570,126 @@ def test_no_j2_notes_write(R):
         c.close()
     assert any("j2_routine_ticks" in s for s in seen)       # the trace saw the work
     assert not [s for s in seen if "j2_notes" in s]
+
+
+# ── fix round 1 ────────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("bad", ["9999-12-31", "1900-01-01", "2090-06-01", "1989-12-31",
+                                 "2026-W45-1", "2026-11-3", "20261103"])
+def test_out_of_range_and_malformed_days_get_the_sentence(R, bad):
+    """W9-R9 / M3: never an OverflowError (a 500) and never an ISO week date."""
+    r = make(R, day="2026-11-02")
+    for call in (lambda: R.read_days(A, [r["id"]], [bad], now=at("2026-11-03")),
+                 lambda: R.set_tick(A, r["id"], bad, ids(r)[0], True, now=at("2026-11-03")),
+                 lambda: R.set_skipped(A, r["id"], bad, True, now=at("2026-11-03"))):
+        with pytest.raises(R.RoutineError) as e:
+            call()
+        assert e.value.sentence == "Dates need to look like 2026-10-24."
+
+
+def test_the_range_edges_are_accepted(R):
+    r = make(R, day="2026-11-02")
+    edge = (date(2026, 11, 3) + timedelta(days=366)).isoformat()
+    out = R.read_days(A, [r["id"]], ["1990-01-01", edge], now=at("2026-11-03"))
+    days = out["routines"][r["id"]]["days"]
+    assert days["1990-01-01"]["state"] == "off"
+    assert days[edge]["state"] in ("open", "off")
+
+
+def test_a_future_day_moves_neither_consistency_nor_runs(R):
+    r = make(R, day="2026-11-02")
+    for d in ("2026-11-02", "2026-11-03", "2026-11-04"):
+        for i in ids(r):
+            R.set_tick(A, r["id"], d, i, True, now=at(d))
+    out = R.read_days(A, [r["id"]], ["2026-11-04", "2026-11-05", "2027-06-01"],
+                      now=at("2026-11-04"))["routines"][r["id"]]["days"]
+    for d in ("2026-11-05", "2027-06-01"):
+        assert out[d]["state"] == "open"
+        assert out[d]["consistency"] == out["2026-11-04"]["consistency"]
+        assert out[d]["run"] == out["2026-11-04"]["run"]
+
+
+def test_history_is_built_once_per_routine_for_a_31_day_read(R, monkeypatch):
+    rs = [make(R, day="2026-10-01", name=f"R{i}") for i in range(3)]
+    calls: list = []
+    real = R.routine_days.history
+
+    def spy(**kw):
+        calls.append(kw["upto"])
+        return real(**kw)
+
+    monkeypatch.setattr(R.routine_days, "history", spy)
+    days = [(date(2026, 11, 1) + timedelta(days=i)).isoformat() for i in range(31)]
+    R.read_days(A, [x["id"] for x in rs], days, now=at("2026-12-10"))
+    assert len(calls) == 3
+    assert set(calls) == {date(2026, 12, 1)}
+
+
+def test_batched_read_statement_count_does_not_grow_with_routines(R):
+    def count(n):
+        rows = [make(R, day="2026-11-02", name=f"N{n}-{i}", schedule={"kind": "traded"})
+                for i in range(n)]
+        c = _conn()
+        seen: list[str] = []
+        c.set_trace_callback(seen.append)
+        try:
+            R.read_days(A, [x["id"] for x in rows], ["2026-11-03", "today"],
+                        now=at("2026-11-04"), conn=c)
+        finally:
+            c.set_trace_callback(None)
+            c.close()
+        return len(seen)
+
+    one, five = count(1), count(5)
+    assert one == five and one > 0
+
+
+def test_a_past_off_day_is_not_writable(R):
+    r = make(R, day="2026-11-02", schedule={"kind": "weekdays", "days": [0]})   # Mondays
+    days = R.read_days(A, [r["id"]], ["2026-11-03", "2026-11-09", "2026-11-10"],
+                       now=at("2026-11-10"))["routines"][r["id"]]["days"]
+    assert days["2026-11-03"]["state"] == "off" and days["2026-11-03"]["writable"] is False
+    assert days["2026-11-09"]["writable"] is True
+    assert days["2026-11-10"]["writable"] is True        # today: never refused as off
+
+
+def test_stored_items_are_capped_dropping_the_oldest_ended_first(R):
+    r = make(R, day="2026-01-05")
+    etag = r["etag"]
+    d = date(2026, 1, 6)
+    for n in range(10):                                  # 10 x 25 items replaced = 250 ended
+        u = R.update(A, r["id"], if_match=etag, now=at(d.isoformat()),
+                     items=[{"text": f"g{n}-{k}"} for k in range(25)])
+        etag = u["etag"]
+        d += timedelta(days=7)
+    with _conn() as c:
+        stored = json.loads(c.execute("SELECT items_json FROM j2_routines WHERE id = ?",
+                                      (r["id"],)).fetchone()[0])
+    assert len(stored) == R.STORED_ITEMS_MAX
+    current = [i for i in stored if i["to"] is None]
+    assert [i["text"] for i in current] == [f"g9-{k}" for k in range(25)]
+    ended_texts = {i["text"] for i in stored if i["to"] is not None}
+    assert not any(t.startswith(("Read", "Set", "g0-", "g1-")) for t in ended_texts)
+    assert all(f"g8-{k}" in ended_texts for k in range(25))
+
+
+def test_an_identical_schedule_writes_no_row(R):
+    r = make(R, day="2026-10-01", schedule={"kind": "weekdays", "days": [0, 2]})
+    R.update(A, r["id"], if_match=1, schedule={"kind": "weekdays", "days": [2, 0]},
+             now=at("2026-10-14"))
+    with _conn() as c:
+        rows = c.execute("SELECT effective_from FROM j2_routine_schedules WHERE routine_id = ?",
+                         (r["id"],)).fetchall()
+    assert [x[0] for x in rows] == ["2026-10-01"]
+
+
+def test_b_cannot_undelete_as_soft_deleted_routine(R):
+    """M7: the undelete door is checked against a routine that IS deleted, so the ownership
+    clause is the only thing that can refuse it."""
+    r = make(R, day="2026-11-02")
+    R.archive(A, r["id"], now=at("2026-11-03"))
+    R.soft_delete(A, r["id"], typed_name="Morning", now=at("2026-11-03"))
+    with pytest.raises(R.NotFound):
+        R.undelete(B, r["id"], now=at("2026-11-04"))
+    assert R.get(A, r["id"]) is None
+    assert R.undelete(A, r["id"], now=at("2026-11-04"))["deleted"] is False
