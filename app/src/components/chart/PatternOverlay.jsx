@@ -80,6 +80,8 @@ import PoleSegment from './patternShapes/PoleSegment'
 import SetupRsiPanel, { rsiPanelOf } from './patternShapes/SetupRsiPanel'
 import { anchorToBarTime, isDateTf } from './patternTime'
 import { getColor, getOpacity, FLAGGING_TIER } from './patternShapes/style'
+import MeasuredEdgeChip from './patternShapes/MeasuredEdgeChip'
+import { visibleSetupDraws } from './cautionLayer'
 
 const SHAPE_RENDERERS = {
   trendline_pair: TrendlinePair,
@@ -554,6 +556,10 @@ export function rowView(row) {
  *                      donchian lines, server-gated by AUTO_STRUCTURES_G4_SETUPS_ENABLED) or null
  *   showSetupDraws:    draw `setupDraws`; default false. The UCT Intelligence indicator's "Setups" toggle drives
  *                      this (effectiveLayers().setups). Like the S/R layer it draws with Auto patterns off too.
+ *                      It draws the bullish / neutral rows only: a `direction: "bearish"` row is the CAUTION layer.
+ *   showCautionDraws:  draw the caution (bearish) setup rows, amber, with exit wording; default false. The
+ *                      "Caution" sub-toggle drives this (effectiveLayers().caution, owner decision 7). Off, they are
+ *                      not drawn at all (cautionLayer.visibleSetupDraws).
  */
 export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
 
@@ -623,6 +629,7 @@ export default function PatternOverlay({
   showLevelsSr = true,
   setupDraws = null,
   showSetupDraws = false,
+  showCautionDraws = false,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -670,8 +677,10 @@ export default function PatternOverlay({
   const hasSr = showLevelsSr && hasLevelsSr(levelsSr)
   // The setup-drawing layer (`showSetupDraws`, the UCT Intelligence "Setups" toggle): the server sends it on
   // daily charts only, and a pending-acquisition chart has already returned its notice above.
-  const setupRows = showSetupDraws && Array.isArray(setupDraws)
-    ? setupDraws.filter((d) => d && SETUP_DRAW_SHAPES.has(d.geometry?.shape) && d.geometry?.anchors?.length)
+  const setupRows = (showSetupDraws || showCautionDraws) && Array.isArray(setupDraws)
+    ? visibleSetupDraws(
+      setupDraws.filter((d) => d && SETUP_DRAW_SHAPES.has(d.geometry?.shape) && d.geometry?.anchors?.length),
+      { setups: showSetupDraws, caution: showCautionDraws })
     : []
   const hasSetups = setupRows.length > 0
   if (!chart || !series || (!enabled && !hasSr && !hasSetups)
@@ -768,9 +777,10 @@ export default function PatternOverlay({
         const SetupShape = Array.isArray(d.geometry.extras?.draw_ema?.points)
           ? EmaSegment : SHAPE_RENDERERS[d.geometry.shape]
         return (
-          <g key={`setup:${d.id}`} data-setup-draw={d.pattern_id}>
+          <g key={`setup:${d.id}`} data-setup-draw={d.pattern_id} data-caution={d.caution ? 'true' : undefined}>
             <SetupShape detection={d} tToX={tToX} priceToY={priceToY} barHalfWidthPx={barHalfWidthPx}
               onClick={onDetectionClick} />
+            <MeasuredEdgeChip row={d} tToX={tToX} priceToY={priceToY} />
             {Array.isArray(d.geometry.extras?.draw_pole) && (
               <PoleSegment detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
             )}
@@ -784,6 +794,7 @@ export default function PatternOverlay({
         const { d, ex, flatTop, base, insideDay, shapeDraw, shelf, Renderer, pivot, handle, rimRef, secondary, entry, anchors, tlBreak, metricsLines } = v
         return (
           <g key={d.id} data-detection={d.pattern_id} data-flag-tier={d.flag_tier}>
+            <MeasuredEdgeChip row={d} tToX={tToX} priceToY={priceToY} />
             {Renderer && (
               <Renderer
                 detection={d}

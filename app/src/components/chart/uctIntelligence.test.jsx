@@ -20,6 +20,7 @@ describe('state model — a chart that never added it is exactly as before', () 
   it('defaults: not added, Auto patterns follows showPatterns, labels ON, gated layers OFF', () => {
     expect(readUctIntelligence({})).toEqual({
       added: false, autoPatterns: false, labels: true, supportResistance: false, candles: false, setups: false,
+      caution: false,
     })
     expect(readUctIntelligence({ showPatterns: true }).autoPatterns).toBe(true)
   })
@@ -74,7 +75,7 @@ describe('add / remove / layer writes', () => {
 
 describe('gating — a released layer is one signal, and unreleased means OFF', () => {
   it('nothing is released today without its signal', () => {
-    expect(NONE).toEqual({ supportResistance: false, candles: false, setups: false })
+    expect(NONE).toEqual({ supportResistance: false, candles: false, setups: false, caution: false })
   })
 
   it('S/R lights from the PRESENCE of levels_sr (even empty), never from a hardcoded flag', () => {

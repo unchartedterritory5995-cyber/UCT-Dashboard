@@ -39,7 +39,7 @@ import { toRenderState } from '../objectRenderState'
 import { layoutTables } from '../objectCanvas'
 import { renderTables } from '../objectTableDom'
 import { computeFor } from '../nativeRegistry'
-import { compareAll, renderTable } from '../../builder/memberPane/seriesCompare'
+import { compareAll, renderTable } from './seriesCompare'
 
 const REPO = path.resolve(process.cwd(), '..')
 const read = (p) => JSON.parse(fs.readFileSync(path.join(REPO, p), 'utf8'))

@@ -16,7 +16,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { unpackColor, unpackColorRgbOrder, toCss, packColor, BYTE_ORDER } from '../colorInt'
-import { COLOR_V6 } from '../versionRender'
+import { PALETTE_BY_VERSION } from '../pinePalette.js'
+
+// The v6 named colours, from the one palette authority. (This came from
+// `versionRender.js`, which only re-exported this same table and was deleted
+// 2026-10-24.)
+const COLOR_V6 = PALETTE_BY_VERSION[6]
 
 const SRC = path.resolve(__dirname, '../../../..')
 const REPO = path.resolve(SRC, '../..')

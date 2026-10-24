@@ -24,8 +24,8 @@
 // up/down pair drew the v5 red and teal.
 //
 // ⛔⛔ ONE COPY. `pine.js` (the host/screener lane) and `pineRuntimeFrontend.js`
-// (the runtime lane, through `pine.js`'s `colourHexByName`) and
-// `versionRender.js` all DERIVE from this file. A second table anywhere is a
+// (the runtime lane, through `pine.js`'s `colourHexByName`) DERIVE from this
+// file. (`versionRender.js` did too, until it was deleted on 2026-10-24.) A second table anywhere is a
 // second chance to carry the wrong red, and nothing would catch it: a rail that
 // asserts our own constant agrees with our own constant.
 //

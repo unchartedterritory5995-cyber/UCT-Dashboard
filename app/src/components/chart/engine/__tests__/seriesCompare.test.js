@@ -1,4 +1,4 @@
-// app/src/components/chart/builder/memberPane/seriesCompare.test.js
+// app/src/components/chart/engine/__tests__/seriesCompare.test.js
 //
 // ─── ⭐⭐ T5 — THE COMPARATOR, PROVED ABLE TO FAIL BEFORE IT IS POINTED AT A
 //              VENDOR CAPTURE ────────────────────────────────────────────────
