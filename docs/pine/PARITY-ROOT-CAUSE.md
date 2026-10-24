@@ -1091,12 +1091,15 @@ identical).
 
 Each is the same substitution, at a seam we have not yet compared:
 
-1. **Z-order.** `zorder.js` maps Pine's nine buckets onto lightweight-charts' four — and
-   is on the same expired allowlist. Overlap order is untested against the vendor.
-2. **Colour resolution.** `colorInt.js` (`0xTTBBGGRR`) — also unwired, also expired. A
-   transparency byte in the wrong lane is invisible in a count and obvious on a chart.
-3. **Text layout.** `textLayout.js` — same. Label size and wrap change what a member
-   reads.
+1. **Z-order.** Pine paints nine buckets in a fixed order; our object painter has its own
+   order, and the two disagree (P-2 below). Overlap order is untested against the vendor.
+   (`zorder.js`, the unwired map of those buckets, was deleted 2026-10-24; see P-2.)
+2. **Colour resolution.** `colorInt.js` (`0xTTBBGGRR`). A transparency byte in the wrong
+   lane is invisible in a count and obvious on a chart. (It is wired now: it left the
+   parking register on 2026-09-28, when the runtime lane reached the pane.)
+3. **Text layout.** Label and cell text size change what a member reads, and the size table
+   the painter uses has never been measured against the vendor (P-1 below).
+   (`textLayout.js`, the unwired spec-derived alternative, was deleted 2026-10-24.)
 4. **`request.security` semantics.** Not a feed problem only: `lookahead`, `gaps` and
    the repainting rules are behaviour we would have to match even with data.
 5. **Every remaining bare-name collision.** RC-A's fix covers the four *transformed*
@@ -1104,6 +1107,65 @@ Each is the same substitution, at a seam we have not yet compared:
    semantics reopens it — which is why the rail derives its roster.
 6. **`na` propagation at the edges.** Our `na` discipline is strong inside the table and
    untested against the vendor at object boundaries.
+
+---
+
+## Open parity items — left by the deleted Wave 2 primitives (2026-10-24)
+
+The Wave 2 parking note in `reachable.test.js` lapsed for the third time on 2026-10-23,
+and its modules were decided instead of renewed. Four R0 primitives were deleted:
+`textLayout.js` (R0.1), `versionRender.js` (R0.3), `lwcHazards.js` (R0.4) and `zorder.js`
+(R0.5). No production code imported any of them. Each was built for a design that was not
+shipped: one lightweight-charts primitive per drawing type. The shipped object layer is
+one overlay canvas (`objectLayer.js`) painted by `objectCanvas.paintObjects`, with tables
+in the DOM (`objectTableDom.js`).
+
+⭐ **To recover one:** `git show ded5ac3b2a:app/src/components/chart/engine/<name>.js`
+(its test is under `engine/__tests__/` at the same commit). `ded5ac3b2a` is the last master
+commit that holds all four. They first landed in `e855f62cdb` (PR #145); `versionRender.js`
+last changed in `21ccf763b0`.
+
+What deleting them did not settle, because only a vendor capture can:
+
+**P-1 — the text-size table is unmeasured, and it disagrees with the spec.**
+`objectCanvas.js` `TEXT_SIZE_PX` = tiny 8 · small 10 · normal 12 · large 16 · huge 22
+(auto 12). `objectTableDom.js` uses the same table for table cells. `textLayout.js` held
+the `pine-presentation-spec.md` §4 table, which is keyed by consumer: label 7/10/12/18/24
+and box/table 8/10/14/20/36. They disagree on label `large`/`huge` (16/22 against 18/24)
+and on box and table text (12 against 14 at `normal`, 22 against 36 at `huge`). Neither
+table has been measured: the spec marks its own as UNVERIFIED. **Owed:** a vendor capture
+of label and table-cell font sizes at every `size.*`, then whichever table loses is
+corrected. Do not move `TEXT_SIZE_PX` before that capture. This is a live member pane, and
+swapping one unmeasured number for another proves nothing.
+
+**P-2 — drawing families paint in a different order from Pine's.**
+Pine's buckets, lowest first, are: background colours · fills · plots · horizontal levels ·
+linefills · lines · boxes · labels · tables. So a box paints ABOVE a line and a linefill
+BELOW both. `objectCanvas.paintObjects` paints boxes first, then lines, then line fills,
+then labels. Its comment says boxes are backgrounds. With overlap, a box covers a line on
+TradingView and sits under it here. **Owed:** a capture of a script whose boxes and lines
+overlap. If TradingView matches the bucket order, reorder the loops in `paintObjects`.
+That is a small change to a live surface, so it waits for the capture.
+
+**P-3 — the fill slot.** `zorder.js` placed fills at lightweight-charts zOrder `'normal'`
+with `drawBackground()`, below the plots. `fillPrimitive.js` uses `zOrder: 'bottom'` with
+a plain `draw()`. This is G10 in `docs/pine/census/j_clouds_scope.md`, which could not
+establish which is right. `docs/pine/linemap-clouds.md` sides with the deleted map.
+**Owed:** a vendor capture of a fill between two plots, read for which one paints on top.
+
+What the deletions did not lose:
+- **`versionRender.js` was already superseded.** Its colours re-exported `pinePalette.js`.
+  The version-dependent default text colours are in `objectDefaults.js` (C37, from vendor
+  captures). The v3/v4 implicit `bgcolor` transparency of 90 is folded in `pine.js` and
+  `pool.js`, also measured.
+- **`lwcHazards.js`'s working part was its test's source sweep.** That sweep checks every
+  `createPriceLine` call site in `app/src` names a `lineStyle`, because lightweight-charts
+  defaults a price line to Dashed. It caught a real omission in October. It now lives on
+  its own in `engine/__tests__/priceLineStyleSweep.test.js` and imports no module. The
+  binder already handles the hazard itself in `guideSpecs`.
+- **`seriesCompare.js` was not deleted.** It is an instrument, the comparator behind
+  `pineTableVendorParity.test.js`, so it moved to `engine/__tests__/` (test
+  infrastructure) instead of being parked.
 
 ---
 
@@ -1147,6 +1209,12 @@ can drift from the other, which is the only reason it is safe for them to be two
 — and those three are items 1–3 of the foreseeable problems above, the same shape as the
 defect this cost. The dates are proposals the owner can move in one line; the
 enforcement is not.
+
+⚰️ **It lapsed twice more, on 2026-10-06 and 2026-10-23, and was not renewed a third
+time.** On 2026-10-24 the remaining modules were decided: four deleted, one moved to test
+infrastructure. The parity questions they stood for are P-1 to P-3 above. The renewal on
+2026-10-09 had cited `zorder.js` "still being edited" on `pine/s1-strategy-broker`. It was
+not: that branch's commit `34da5eb926` does not touch the file.
 
 **Mutation-proved three ways:** restore the expiry that actually lapsed (killed) · a
 parked block declaring no expiry (killed) · the register never actually read (killed —
