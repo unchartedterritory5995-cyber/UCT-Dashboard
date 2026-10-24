@@ -239,8 +239,12 @@ def test_an_extra_base_drawing_is_judged_by_the_line_members_see(monkeypatch):
 def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkeypatch):
     """Control for the one_line_per_base retirement (precedence round e): on each retired donchian chart the line
     stays off AND a drawn base-family line still sits within 1 ATR. Putting the channel line back is red; taking the
-    base line away is red (its absence would then be unexplained)."""
-    cases = [c for f, c in RETIRED if f == "donchian_breakout"]
+    base line away is red (its absence would then be unexplained). The donchian is withdrawn (recert B), so the
+    control re-arms its member literal at the judged round: with it None the line would be absent trivially."""
+    from api.services import auto_structures as AS
+    fam = next(f for f in FAMILIES if f["family"] == "donchian_breakout")
+    monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])
+    cases = [c for c in fam["cases"] if "retired" in c]
     assert cases and all(c["retired"]["rule"] == "one_line_per_base" for c in cases)
     case = cases[0]
     payload, bars = MP.member_payload(monkeypatch, case)
@@ -253,7 +257,6 @@ def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkey
             "levels": {"entry": lvl}}
     again = {**payload, "setup_draws": list(payload.get("setup_draws") or []) + [back]}
     assert any("back on the member chart" in m for m in JG.retired_failures(case, again, bars))
-    from api.services import auto_structures as AS
     ahead = set(AS.ONE_LINE_PER_BASE_PRIORITY[:AS.ONE_LINE_PER_BASE_PRIORITY.index("draw:donchian_breakout")])
     bare = {k: ([r for r in v if r.get("pattern_id") not in ahead] if isinstance(v, list) else v)
             for k, v in payload.items()}
@@ -272,13 +275,13 @@ def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkey
 def test_a_retired_drawing_coming_back_is_caught(monkeypatch):
     """Control: the absence check is not vacuous -- the retired case's own judged drawing, put back on its chart, is
     red, and a chart where the retiring rule no longer holds is red."""
-    fam, case = next((f, c) for f, c in RETIRED if f == "shelf" and c["retired"]["rule"] == "trend_gate")
+    fam, case = next((f, c) for f, c in RETIRED if f == "double_bottom" and c["retired"]["rule"] == "trend_gate")
     payload, bars = MP.member_payload(monkeypatch, case)
     assert JG.retired_failures(case, payload, bars) == []
-    p = JG._unscale(case, case["expect"]["price"])
-    back = {"pattern_id": "draw:shelf-pivot", "start_t": MP.ymd(case, case["expect"]["start_t"]),
-            "end_t": int(bars[-1]["t"]), "geometry": {"extras": {"draw_shelf": {
-                "price": p, "start_t": MP.ymd(case, case["expect"]["start_t"]), "end_t": int(bars[-1]["t"])}}}}
+    p = JG._unscale(case, case["expect"]["pivot"])
+    s0 = int(bars[-int(case["expect"]["len"])]["t"])
+    back = {"pattern_id": "draw:double-bottom", "start_t": s0, "end_t": int(bars[-1]["t"]),
+            "geometry": {"extras": {"draw_shape": {"pivot": p, "start_t": s0, "end_t": int(bars[-1]["t"])}}}}
     again = {**payload, "structures": list(payload.get("structures") or []) + [back]}
     assert any("back on the member chart" in m for m in JG.retired_failures(case, again, bars))
     up = [dict(b) for b in bars]
@@ -293,7 +296,7 @@ def test_a_pivot_textbook_retirement_is_held_to_the_gate(monkeypatch):
     while the gate still fails its ungated row, and red the moment the gate would pass it (the absence is then
     unexplained) -- and the replay that explains it really runs the member route with the gate off."""
     from api.services.pattern_engine import textbook_gate as TG
-    for fam in ("shelf", "double_bottom"):
+    for fam in ("double_bottom",):        # the shelf is withdrawn (recert B); its retired cases are kept as written
         case = next(c for f, c in RETIRED if f == fam and c["retired"]["rule"] == "textbook_gate")
         payload, bars = MP.member_payload(monkeypatch, case)
         assert JG.retired_failures(case, payload, bars) == [], case["id"]
@@ -319,10 +322,11 @@ def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
     every = fams | {f["family"] for f in WITHDRAWN_FAMS}   # a family withdrawn by a recertification still replays
-    assert {"base", "double_bottom", "shelf", "inside_day", "donchian_breakout"} <= fams, fams
+    assert {"base", "double_bottom", "inside_day"} <= fams, fams
+    # shelf and donchian: withdrawn 2026-10-24 when their recert B textbook fix round failed
     # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
     # cup: withdrawn 2026-10-24 (owner decision 4: strict blind 1.98 on n = 20; re-ships on an n >= 60 packet)
-    assert {"sr", "remount", "u_and_r", "textbook", "cup"} <= every, every
+    assert {"sr", "remount", "u_and_r", "textbook", "shelf", "donchian_breakout", "cup"} <= every, every
     assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
     # every setup-line family is a released fixture, and each one reproduces at least one judged case today
     assert set(JG.SETUP_LINE_FAMILIES) <= fams, set(JG.SETUP_LINE_FAMILIES) - fams

@@ -39,6 +39,7 @@ PATTERN_IDS = {
     "remount": "draw:remount",
     "u_and_r": "draw:u_and_r",
     "donchian_breakout": "draw:donchian_breakout",
+    "flat_top": "uct_flat_top_breakout",
 }
 #: the setup drawings ride their own `setup_draws` key (the single-level ones: one horizontal line at `level`)
 SETUP_FAMILIES = ("remount", "u_and_r", "donchian_breakout")
@@ -134,6 +135,9 @@ def _key_and_span(fam, row, bars):
     if fam == "shelf":
         d = ex["draw_shelf"]
         return float(d["price"]), (int(d["start_t"]), int(d["end_t"]))
+    if fam == "flat_top":
+        d = ex["draw_flat_top"]
+        return float(d["price"]), (int(d["start_t"]), int(d["end_t"]))
     if fam == "cup":
         d = ex["draw_pivot"]
         return float(d["price"]), (int(d["start_t"]), int(d["end_t"]))
@@ -192,6 +196,12 @@ def _check_geometry(fam, case, row, bars, atr, out):
         _near("shelf price", d.get("price"), w, tol(w), out)
         n = _idx(bars, _expect_t(case, "end_t")) - _idx(bars, _expect_t(case, "start_t"))
         _span_near("shelf start", bars, d.get("start_t", 0), _expect_t(case, "start_t"), n, out)
+    elif fam == "flat_top":
+        d = ex.get("draw_flat_top") or {}
+        w = _unscale(case, e["price"])
+        _near("flat top line", d.get("price"), w, tol(w), out)
+        n = _idx(bars, _expect_t(case, "end_t")) - _idx(bars, _expect_t(case, "start_t"))
+        _span_near("flat top start", bars, d.get("start_t", 0), _expect_t(case, "start_t"), n, out)
     elif fam == "cup":
         pv, hd = ex.get("draw_pivot") or {}, ex.get("draw_handle") or {}
         w = _unscale(case, e["pivot_price"])
@@ -281,7 +291,7 @@ def _want_key(fam, case):
     return _unscale(case, case["expect"][{"base": "pivot", "textbook": "buy_point", "double_bottom": "pivot",
                                           "shelf": "price", "cup": "pivot_price",
                                           "inside_day": "trigger", "remount": "level", "u_and_r": "level",
-                                          "donchian_breakout": "level"}[fam]])
+                                          "donchian_breakout": "level", "flat_top": "price"}[fam]])
 
 
 #: Rules a passed blind round retired judged cases under: rule -> (what must still hold on the fixture's chart for

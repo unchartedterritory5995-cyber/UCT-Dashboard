@@ -2465,7 +2465,13 @@ SHELF_PIVOT_ID = "draw:shelf-pivot"
 #: RELEASED to members 2026-10-23 at round "r4": blind judging round 4 (2.66 / 2.60), the independent verifier
 #: (SHIP WITH CONDITIONS C1-C5, built in 785c6ae448 + c059a0d61b) and the owner's live eye check (C6, 18 live
 #: shelf lines, 2026-10-22). Set it back to None to withdraw the line from members.
-MEMBER_SHELF_PIVOT_ROUND = "r4"
+#: WITHDRAWN from members 2026-10-24 (recert B): the strict textbook rubric failed it as served (round 1: 1.50 / 1.56 /
+#: 1.50 / 1.72, pooled 1.57), and the formal fix round with the textbook gate (pattern_engine.textbook_gate, whole
+#: bars.db history 1995-2026, four pre-registered packets of 25, two fresh blind judges each) failed narrowly:
+#: 2.26 / 2.44 / 2.32 / 2.54, pooled 2.39 (bar: every packet >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4).
+#: Evidence: lab/recert/B_pivots (PREREG_FR.txt, out/score_shelf_pivot_fr1.json). Admins keep the layer. Setting
+#: this back to "r4" needs a new passed blind round (tests/golden_judged: shelf.json.gz is "withdrawn" until then).
+MEMBER_SHELF_PIVOT_ROUND = None
 #: The frame the drawing round was judged on; outside it there is no line.
 SHELF_WINDOW = 600
 SHELF_MIN_BARS = 261
@@ -3176,7 +3182,12 @@ _SETUP_DRAW_FUNCS = (
 #: in both registry sets (the team chart keeps them); setting a literal back needs a new passed blind round.
 MEMBER_REMOUNT_ROUND = None
 MEMBER_U_AND_R_ROUND = None
-MEMBER_DONCHIAN_BREAKOUT_ROUND = 1
+#: donchian_breakout: owner released 2026-10-24 at round 1, then WITHDRAWN the same day by recert B: the strict textbook
+#: round DC1 failed it (1.62 / 1.44 / 1.66 / 1.40, pooled 1.53) and its fix round with a textbook gate (lab gate_dc,
+#: whole bars.db history 1995-2026, four packets of 25, two fresh judges each) failed too: 2.10 / 2.06 / 2.26 / 2.10,
+#: pooled 2.13 (mostly a close barely over the line, no real base under it, average volume). Evidence:
+#: lab/recert/B_pivots (PREREG_FR.txt, out/score_donchian_fr1.json).
+MEMBER_DONCHIAN_BREAKOUT_ROUND = None
 #: Round-2 setup drawings released to members: each passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 random liquid held-out charts each; bar: mean >= 2.3 AND >= 70% of charts >= 2):
 #:   rsi_bullish_divergence  A 2.56 / 96%   B 2.72 / 100%   (drawn on price AND on an RSI(14) panel)
