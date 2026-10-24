@@ -56,12 +56,40 @@ EXCLUDE = frozenset({
 NOT_DEALS = frozenset({"SMX", "ZKP", "RREV"})
 
 
+def _spellings(sym) -> set:
+    """Both class-share spellings, as the PC's `universe_exclude._spellings` adds them
+    (`deal_status` speaks BRK-B; the Massive frame says BRK.B)."""
+    s = str(sym or "").strip().upper()
+    if not s:
+        return set()
+    return {s, s.replace(".", "-").replace("/", "-"), s.replace("-", ".").replace("/", ".")}
+
+
+def pending_deals() -> frozenset:
+    """The dashboard's pending-acquisition set, `deal_status.consumer_pending()`, in both
+    class-share spellings. The PC collector's `universe_exclude` fetches this same answer
+    (`/api/catalysts/pending-deals-internal`) and excludes it, so the server must too, or
+    every news-only pending name is dropped on the PC and kept here (an `only_server`
+    name, and every count metric off by one). DEAL_STATUS_ENABLED off: empty without
+    consulting anything (byte-identical to before). Any error: empty, never breaks breadth."""
+    try:
+        from api.services import deal_status
+        out = set()
+        for sym in deal_status.consumer_pending():
+            out |= _spellings(sym)
+        return frozenset(out)
+    except Exception as exc:                     # noqa: BLE001 - fail safe: exclude nothing
+        _log.warning("[server-universe] pending deals unavailable, excluding none: %s", exc)
+        return frozenset()
+
+
 def excluded() -> frozenset:
     try:
         from api.services.screener import screener_universe
-        return EXCLUDE | screener_universe.buyout_excludes()
+        base = EXCLUDE | screener_universe.buyout_excludes()
     except Exception:
-        return EXCLUDE
+        base = EXCLUDE
+    return base | pending_deals()
 MIN_SIZE = 1000                       # the collector's list is ~2,500-3,000 names
 KEEP_SESSIONS = 60
 
