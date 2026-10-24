@@ -1,11 +1,12 @@
-"""The bc:base STATES (base_draw.state_drawing): breakout persistence, 3 weeks tight and base forming.
+"""The bc:base STATES (base_draw.state_drawing): breakout persistence and base forming (3 weeks tight is built, failed its packet, and is not drawn).
 
 A member's base used to vanish the session after any close above its pivot (the walk-back in `_evaluate`
 starts at the prior bar and rejects any earlier close over the pivot), so the buy point disappeared while
 the stock was still in its buy zone; and a base whose right side was still building, or a short tight area
 at highs, was never drawn. Each state is drawn ONLY where `base_drawing` draws nothing, so a judged base is
 never changed; each reaches a member only while its own MEMBER_BASE_*_ROUND literal matches the stamped
-`state_round` (breakout and forming: live, each passed two blind packets; tight: None, it failed its first).
+`state_round` (breakout and forming: live, each passed two blind packets; tight failed its first packet and
+is not drawn at all).
 
 Synthetic bars only: piecewise-linear closes with a small zig-zag, a fixed wick, weekdays from 2024-01-01.
 """
@@ -211,9 +212,17 @@ def test_base_draw_row_draws_a_state_only_where_no_base_is_drawn():
     row = auto_structures.base_draw_row("SYN", b)
     assert "state" not in row["geometry"]["extras"]["draw_base"]
     assert row == auto_structures._base_row("SYN", BD.base_drawing(b, _last(b)), BD.BASE_DRAW_ROUND)
-    for legs, st in ((BASE + [(2, 92.6)], "breakout"), (FORMING, "forming"), (TIGHT, "tight")):
+    for legs, st in ((BASE + [(2, 92.6)], "breakout"), (FORMING, "forming")):
         r = auto_structures.base_draw_row("SYN", _bars(legs))
         assert r["geometry"]["extras"]["draw_base"]["state"] == st
+
+
+def test_3_weeks_tight_failed_its_packet_and_is_not_drawn_for_anyone():
+    b = _bars(TIGHT)
+    assert BD.tight_drawing(b, _last(b)) is not None            # the rule still fires ...
+    assert BD.state_drawing(b, _last(b)) is None                # ... and nothing draws it
+    assert auto_structures.base_draw_row("SYN", b) is None
+    assert BD.DRAWN_STATES == ("breakout", "forming")
 
 
 def test_a_breakout_label_reads_the_base_not_the_bars_since():
@@ -235,7 +244,9 @@ def test_a_breakout_label_reads_the_base_not_the_bars_since():
 
 def test_member_gate_serves_breakout_and_withholds_dark_states(monkeypatch):
     rows = {st: auto_structures.base_draw_row("SYN", _bars(legs))
-            for legs, st in ((BASE + [(2, 92.6)], "breakout"), (FORMING, "forming"), (TIGHT, "tight"))}
+            for legs, st in ((BASE + [(2, 92.6)], "breakout"), (FORMING, "forming"))}
+    # a tight row can no longer be built; the gate is still asked of one stamped by hand (fail closed)
+    rows["tight"] = auto_structures._base_row("SYN", BD.tight_drawing(_bars(TIGHT), len(_bars(TIGHT)) - 1), 4)
     assert auto_structures.MEMBER_BASE_BREAKOUT_ROUND == 1
     assert auto_structures.MEMBER_BASE_FORMING_ROUND == 1
     assert auto_structures.MEMBER_BASE_TIGHT_ROUND is None
@@ -327,8 +338,8 @@ def test_a_breakout_on_the_as_of_bar_keeps_its_completeness_answer():
 
 
 def test_state_drawing_never_raises(monkeypatch):
-    b = _bars(TIGHT)
+    b = _bars(FORMING)
     def boom(*a, **k):
         raise RuntimeError("x")
     monkeypatch.setattr(BD, "breakout_drawing", boom)
-    assert BD.state_drawing(b, _last(b))["state"] == "tight"   # one state failing never stops the next
+    assert BD.state_drawing(b, _last(b))["state"] == "forming"   # one state failing never stops the next

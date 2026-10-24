@@ -498,7 +498,8 @@ MEMBER_BASE_BREAKOUT_ROUND = 1
 #: "Base forming" (dashed pivot, the right side still building). Round 1 passed two blind packets 2026-10-23
 #: (A 2.82 [2.68, 2.94], B 2.66 [2.48, 2.82]).
 MEMBER_BASE_FORMING_ROUND = 1
-#: "3 weeks tight". None: round 1 FAILED its first blind packet 2026-10-23 (A 1.94 [1.64, 2.22]); admins only.
+#: "3 weeks tight". None: round 1 FAILED its first blind packet 2026-10-23 (A 1.94 [1.64, 2.22]), and
+#: base_draw.state_drawing does not draw it at all (base_draw.DRAWN_STATES); None stays as the fail-closed gate.
 MEMBER_BASE_TIGHT_ROUND = None
 
 

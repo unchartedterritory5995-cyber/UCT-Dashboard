@@ -622,11 +622,18 @@ def tight_drawing(bars, i):
         return None
 
 
+#: The states `state_drawing` draws, in precedence order. Only states that passed BOTH of their blind packets
+#: are here: breakout persistence and base forming. 3 weeks tight (`tight_drawing`) failed its first packet
+#: (lab base_persist_forming, A 1.94) and is NOT drawn for anyone; adding it back is a new round and a new check.
+DRAWN_STATES = ("breakout", "forming")
+
+
 def state_drawing(bars, i, draw_round=None):
     """The base STATE drawing at bar i, or None, for bars where `base_drawing` draws nothing (the caller asks
-    only then): the breakout persistence first, then 3 weeks tight, then base forming. Never raises."""
-    for f in (lambda: breakout_drawing(bars, i, draw_round=draw_round), lambda: tight_drawing(bars, i),
-              lambda: forming_drawing(bars, i)):
+    only then): the breakout persistence first, then base forming (DRAWN_STATES). Never raises."""
+    fns = {"breakout": lambda: breakout_drawing(bars, i, draw_round=draw_round),
+           "tight": lambda: tight_drawing(bars, i), "forming": lambda: forming_drawing(bars, i)}
+    for f in (fns[s] for s in DRAWN_STATES):
         try:
             d = f()
         except Exception:  # noqa: BLE001 -- one state failing never stops the next, and never raises
