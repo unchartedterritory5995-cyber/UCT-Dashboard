@@ -101,6 +101,17 @@ def test_a_nested_built_widget_is_found(conn):
     assert [r["tool_id"] for r in _rows(conn, n["id"])] == [d]
 
 
+def test_the_projection_names_the_same_kind_the_widget_service_declares():
+    from api.services.journal_two import notebook_widgets, notes
+    assert notes._BUILT_WIDGET_ID == notebook_widgets.BUILT_KIND
+
+
+def test_a_def_id_that_cannot_encode_is_skipped_and_the_note_still_saves(conn):
+    d = _def(conn)
+    n = _note(conn, _built("\ud800", 1, "e-bad"), _built(d, 1, "e-good"))
+    assert [r["tool_id"] for r in _rows(conn, n["id"])] == [d]
+
+
 def test_a_non_integer_def_rev_is_stored_as_null_and_the_note_still_saves(conn):
     d = _def(conn)
     n = _note(conn, _built(d, "7"))
