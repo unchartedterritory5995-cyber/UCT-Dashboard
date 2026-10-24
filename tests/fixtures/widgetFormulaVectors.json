@@ -1,0 +1,4691 @@
+{
+ "version": 1,
+ "about": "Shared vectors for the widget formula dialect (Task 10.2). The server (api/services/journal_two/widget_formula.py) and the client twin (app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js) must reproduce every entry exactly. Read with a file read; never import into a bundle.",
+ "conventions": {
+  "positions": "pos and every length count Unicode code points (Python indices; Array.from in JS).",
+  "floats": "numbers compare with abs or relative tolerance 1e-9; a bool never equals a number.",
+  "null": "null is 'no data'. No result is ever NaN or Infinity, and -0 is 0.",
+  "special_floats": "a row value {\"$float\": \"nan\"|\"inf\"|\"-inf\"} decodes to that float.",
+  "build": "a build is a list of [text, times] segments, concatenated in order.",
+  "rows": "eval_group rows is a rowsets name or an inline list.",
+  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 characters, then each invisible character written as U+XXXX (the fixed list: U+0000-001F, U+007F-009F, U+00A0, U+00AD, U+061C, U+1680, U+180E, U+2000-200F, U+2028-202F, U+205F-206F, U+3000, U+D800-DFFF, U+FEFF, U+FFF9-FFFB, U+E0000-E007F)."
+ },
+ "constants": {
+  "MAX_LENGTH": 2000,
+  "MAX_TOKENS": 500,
+  "MAX_DEPTH": 32,
+  "MAX_FORMULAS": 5,
+  "NAME_MAX": 60,
+  "MAX_TEXT": 200,
+  "BUCKET_EDGES_MAX": 10,
+  "ROUND_DIGITS_MAX": 6,
+  "CHECK_EVERY": 256,
+  "SIG_DIGITS_MAX": 15,
+  "SHOWN_MAX": 20
+ },
+ "functions": [
+  "If",
+  "And",
+  "Or",
+  "Not",
+  "Abs",
+  "Round",
+  "Min",
+  "Max",
+  "CountIf",
+  "SumIf",
+  "AvgIf",
+  "Share",
+  "Bucket",
+  "Hour",
+  "Weekday"
+ ],
+ "function_docs": [
+  {
+   "name": "If",
+   "usage": "If(condition, then, otherwise)",
+   "meaning": "One value when the condition holds, another when it doesn't."
+  },
+  {
+   "name": "And",
+   "usage": "And(condition, condition, \u2026)",
+   "meaning": "Yes when every condition holds."
+  },
+  {
+   "name": "Or",
+   "usage": "Or(condition, condition, \u2026)",
+   "meaning": "Yes when any condition holds."
+  },
+  {
+   "name": "Not",
+   "usage": "Not(condition)",
+   "meaning": "The opposite of a condition."
+  },
+  {
+   "name": "Abs",
+   "usage": "Abs(number)",
+   "meaning": "The number without its sign."
+  },
+  {
+   "name": "Round",
+   "usage": "Round(number, places)",
+   "meaning": "Rounded to 0 to 6 decimal places (0 when left out)."
+  },
+  {
+   "name": "Min",
+   "usage": "Min(number, number, \u2026)",
+   "meaning": "The smallest of the values; empty values are skipped."
+  },
+  {
+   "name": "Max",
+   "usage": "Max(number, number, \u2026)",
+   "meaning": "The largest of the values; empty values are skipped."
+  },
+  {
+   "name": "CountIf",
+   "usage": "CountIf(condition)",
+   "meaning": "How many rows meet the condition."
+  },
+  {
+   "name": "SumIf",
+   "usage": "SumIf(value, condition)",
+   "meaning": "The value added up over the rows that meet the condition, or over all rows."
+  },
+  {
+   "name": "AvgIf",
+   "usage": "AvgIf(value, condition)",
+   "meaning": "The average of the value over the rows that meet the condition, or over all rows."
+  },
+  {
+   "name": "Share",
+   "usage": "Share(condition)",
+   "meaning": "The share of rows that meet the condition, from 0 to 1."
+  },
+  {
+   "name": "Bucket",
+   "usage": "Bucket(number, edge, \u2026)",
+   "meaning": "Puts a number into ranges: under the first edge, between edges, or the last edge or more."
+  },
+  {
+   "name": "Hour",
+   "usage": "Hour(day)",
+   "meaning": "The ET hour, 0 to 23; empty for trades with dates only."
+  },
+  {
+   "name": "Weekday",
+   "usage": "Weekday(day)",
+   "meaning": "The weekday of a day, Monday to Sunday."
+  }
+ ],
+ "arity_words": {
+  "If": "3 values",
+  "And": "2 to 8 values",
+  "Or": "2 to 8 values",
+  "Not": "1 value",
+  "Abs": "1 value",
+  "Round": "1 or 2 values",
+  "Min": "2 to 8 values",
+  "Max": "2 to 8 values",
+  "CountIf": "1 value",
+  "SumIf": "a value and an optional condition",
+  "AvgIf": "a value and an optional condition",
+  "Share": "1 value",
+  "Bucket": "a value and 1 to 10 edges",
+  "Hour": "1 value",
+  "Weekday": "1 value"
+ },
+ "error_templates": {
+  "empty": "Type a formula.",
+  "too_long": "A formula can be at most 2,000 characters.",
+  "too_many_parts": "This formula has too many parts. Split it into two fields.",
+  "too_deep": "This formula is nested too deeply.",
+  "bad_char": "{x} can't be used in a formula.",
+  "unclosed_field": "A [ is missing its ].",
+  "unclosed_paren": "A ( is missing its ).",
+  "extra_paren": "There is a ) without its (.",
+  "unclosed_text": "A quote is missing its closing \".",
+  "text_too_long": "Text in a formula can be at most 200 characters.",
+  "bad_number": "{x} isn't a number a formula can use.",
+  "unexpected": "Something is missing near \"{x}\".",
+  "trailing": "There is something extra at the end: \"{x}\".",
+  "unknown_field": "[{x}] isn't a field here.",
+  "tag_field": "[{label}] holds several values; use it as a filter instead.",
+  "unknown_function": "{x} isn't a function. Try If, Round or SumIf.",
+  "arg_count": "{Fn} takes {n}.",
+  "needs_number": "{what} needs a number.",
+  "needs_condition": "{what} needs a yes/no condition.",
+  "needs_day": "{Fn} needs a day.",
+  "mixed_types": "Both answers of If need the same kind of value.",
+  "compare_types": "These two sides can't be compared.",
+  "bad_result": "A formula must give a number, text or yes/no.",
+  "nested_aggregate": "CountIf, SumIf, AvgIf and Share can't contain each other.",
+  "field_outside_aggregate": "[{label}] needs to be inside CountIf, SumIf, AvgIf or Share when the formula adds up rows.",
+  "aggregate_number": "A formula that adds up rows must give a number.",
+  "bucket_edges": "Bucket's edges must be numbers, rising from left to right.",
+  "round_digits": "Round's second value must be a whole number from 0 to 6.",
+  "hour_no_time": "Hour needs a time; [{label}] has none here."
+ },
+ "fields": [
+  {
+   "key": "day",
+   "label": "Day",
+   "type": "day",
+   "hour_key": "hour_et",
+   "needs_times": false
+  },
+  {
+   "key": "entry_day",
+   "label": "Entry day",
+   "type": "day",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "net",
+   "label": "Net P&L",
+   "type": "number",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "risk_dollars",
+   "label": "Risk $",
+   "type": "number",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "r",
+   "label": "R",
+   "type": "number",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "setup",
+   "label": "Setup",
+   "type": "text",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "side",
+   "label": "Side",
+   "type": "text",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "had_stop",
+   "label": "Had a stop",
+   "type": "bool",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "mistake",
+   "label": "Mistake",
+   "type": "tag",
+   "hour_key": null,
+   "needs_times": false
+  },
+  {
+   "key": "hold_minutes",
+   "label": "Hold minutes",
+   "type": "number",
+   "hour_key": null,
+   "needs_times": true
+  }
+ ],
+ "rowsets": {
+  "book": [
+   {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 10,
+    "net": -100,
+    "risk_dollars": 100,
+    "r": -1,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 30,
+    "mistake": []
+   },
+   {
+    "day": "2026-10-06",
+    "entry_day": "2026-10-06",
+    "hour_et": 13,
+    "net": 400,
+    "risk_dollars": 200,
+    "r": 2,
+    "setup": "Pullback",
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 120,
+    "mistake": []
+   },
+   {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   {
+    "day": "2026-10-08",
+    "entry_day": "2026-10-08",
+    "hour_et": 15,
+    "net": 0,
+    "risk_dollars": 50,
+    "r": 0,
+    "setup": null,
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 5,
+    "mistake": []
+   },
+   {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 9,
+    "net": -300,
+    "risk_dollars": 150,
+    "r": -2,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": 200,
+    "mistake": []
+   },
+   {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 11,
+    "net": 125.5,
+    "risk_dollars": 50,
+    "r": 2.51,
+    "setup": "Gap",
+    "side": "LONG",
+    "had_stop": true,
+    "hold_minutes": 60,
+    "mistake": []
+   },
+   {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   }
+  ],
+  "empty": [],
+  "one": [
+   {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   }
+  ],
+  "huge": [
+   {
+    "net": 1e+308
+   },
+   {
+    "net": 1e+308
+   }
+  ],
+  "huge_mixed": [
+   {
+    "net": 1e+308
+   },
+   {
+    "net": -1e+308
+   },
+   {
+    "net": 5
+   }
+  ],
+  "dirty": [
+   {
+    "net": "12"
+   },
+   {
+    "net": true
+   },
+   {
+    "net": {
+     "$float": "nan"
+    }
+   },
+   {
+    "net": {
+     "$float": "inf"
+    }
+   },
+   {
+    "net": 7
+   },
+   {
+    "net": null
+   },
+   {},
+   {
+    "net": 3.5
+   }
+  ],
+  "no_net": [
+   {
+    "r": 1
+   },
+   {
+    "r": 2
+   }
+  ]
+ },
+ "compile": [
+  {
+   "expr": "[Net P&L]/[risk $]",
+   "canonical": "[net]/[risk_dollars]",
+   "display": "[Net P&L]/[Risk $]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net",
+    "risk_dollars"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[net] / [risk_dollars]",
+   "canonical": "[net] / [risk_dollars]",
+   "display": "[Net P&L] / [Risk $]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net",
+    "risk_dollars"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "  [ NET ]  ",
+   "canonical": "[net]",
+   "display": "[Net P&L]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[NET P&L] * 2",
+   "canonical": "[net] * 2",
+   "display": "[Net P&L] * 2",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "sumif([net], [net] > 0)",
+   "canonical": "SumIf([net], [net] > 0)",
+   "display": "SumIf([Net P&L], [Net P&L] > 0)",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "SUMIF([net])",
+   "canonical": "SumIf([net])",
+   "display": "SumIf([Net P&L])",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "avgif([r], [Had A Stop])",
+   "canonical": "AvgIf([r], [had_stop])",
+   "display": "AvgIf([R], [Had a stop])",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "r",
+    "had_stop"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "countif([had_stop])",
+   "canonical": "CountIf([had_stop])",
+   "display": "CountIf([Had a stop])",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "had_stop"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "share([net] > 0)",
+   "canonical": "Share([net] > 0)",
+   "display": "Share([Net P&L] > 0)",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "SumIf([net], [net] > 0) / Abs(SumIf([net], [net] < 0))",
+   "canonical": "SumIf([net], [net] > 0) / Abs(SumIf([net], [net] < 0))",
+   "display": "SumIf([Net P&L], [Net P&L] > 0) / Abs(SumIf([Net P&L], [Net P&L] < 0))",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "CountIf([net] > 0) / CountIf(TRUE)",
+   "canonical": "CountIf([net] > 0) / CountIf(TRUE)",
+   "display": "CountIf([Net P&L] > 0) / CountIf(TRUE)",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "Round(SumIf([net]) / 7, 2)",
+   "canonical": "Round(SumIf([net]) / 7, 2)",
+   "display": "Round(SumIf([Net P&L]) / 7, 2)",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "if([had_stop], [net], 0)",
+   "canonical": "If([had_stop], [net], 0)",
+   "display": "If([Had a stop], [Net P&L], 0)",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "had_stop",
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "If([net] > 0, \"Win\", \"Loss\")",
+   "canonical": "If([net] > 0, \"Win\", \"Loss\")",
+   "display": "If([Net P&L] > 0, \"Win\", \"Loss\")",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "If([had_stop], [day], [entry_day]) = \"2026-10-05\"",
+   "canonical": "If([had_stop], [day], [entry_day]) = \"2026-10-05\"",
+   "display": "If([Had a stop], [Day], [Entry day]) = \"2026-10-05\"",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "had_stop",
+    "day",
+    "entry_day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "and([had_stop], [r] > 1)",
+   "canonical": "And([had_stop], [r] > 1)",
+   "display": "And([Had a stop], [R] > 1)",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "had_stop",
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "OR([had_stop], true, False)",
+   "canonical": "Or([had_stop], TRUE, FALSE)",
+   "display": "Or([Had a stop], TRUE, FALSE)",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "had_stop"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "not([had_stop])",
+   "canonical": "Not([had_stop])",
+   "display": "Not([Had a stop])",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "had_stop"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "abs([r])",
+   "canonical": "Abs([r])",
+   "display": "Abs([R])",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "round([net] / [risk_dollars], 2)",
+   "canonical": "Round([net] / [risk_dollars], 2)",
+   "display": "Round([Net P&L] / [Risk $], 2)",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net",
+    "risk_dollars"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "round([r])",
+   "canonical": "Round([r])",
+   "display": "Round([R])",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "min([r], 0)",
+   "canonical": "Min([r], 0)",
+   "display": "Min([R], 0)",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "MAX([r], [net], [risk_dollars])",
+   "canonical": "Max([r], [net], [risk_dollars])",
+   "display": "Max([R], [Net P&L], [Risk $])",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "r",
+    "net",
+    "risk_dollars"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "bucket([r], -1, 0, 1, 2)",
+   "canonical": "Bucket([r], -1, 0, 1, 2)",
+   "display": "Bucket([R], -1, 0, 1, 2)",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": [
+    "Under -1",
+    "-1 to 0",
+    "0 to 1",
+    "1 to 2",
+    "2 or more"
+   ]
+  },
+  {
+   "expr": "Bucket([hold_minutes], 15, 60, 240)",
+   "canonical": "Bucket([hold_minutes], 15, 60, 240)",
+   "display": "Bucket([Hold minutes], 15, 60, 240)",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "hold_minutes"
+   ],
+   "needs_times": true,
+   "bucket_labels": [
+    "Under 15",
+    "15 to 60",
+    "60 to 240",
+    "240 or more"
+   ]
+  },
+  {
+   "expr": "Bucket([r], 0.5)",
+   "canonical": "Bucket([r], 0.5)",
+   "display": "Bucket([R], 0.5)",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": [
+    "Under 0.5",
+    "0.5 or more"
+   ]
+  },
+  {
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "canonical": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "display": "Bucket([Net P&L], -1000.50, 0.000, 007, 1234.56785)",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": [
+    "Under -1000.5",
+    "-1000.5 to 0",
+    "0 to 7",
+    "7 to 1234.5679",
+    "1234.5679 or more"
+   ]
+  },
+  {
+   "expr": "Bucket([r], -0.00004, 0.12344, 0.99995)",
+   "canonical": "Bucket([r], -0.00004, 0.12344, 0.99995)",
+   "display": "Bucket([R], -0.00004, 0.12344, 0.99995)",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": [
+    "Under 0",
+    "0 to 0.1234",
+    "0.1234 to 1",
+    "1 or more"
+   ]
+  },
+  {
+   "expr": "Bucket([r], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
+   "canonical": "Bucket([r], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
+   "display": "Bucket([R], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": [
+    "Under 1",
+    "1 to 2",
+    "2 to 3",
+    "3 to 4",
+    "4 to 5",
+    "5 to 6",
+    "6 to 7",
+    "7 to 8",
+    "8 to 9",
+    "9 to 10",
+    "10 or more"
+   ]
+  },
+  {
+   "expr": "(Bucket([r], 0))",
+   "canonical": "(Bucket([r], 0))",
+   "display": "(Bucket([R], 0))",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": [
+    "Under 0",
+    "0 or more"
+   ]
+  },
+  {
+   "expr": "If(TRUE, Bucket([r], 0), \"x\")",
+   "canonical": "If(TRUE, Bucket([r], 0), \"x\")",
+   "display": "If(TRUE, Bucket([R], 0), \"x\")",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "hour([day])",
+   "canonical": "Hour([day])",
+   "display": "Hour([Day])",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "Hour([Day]) >= 15",
+   "canonical": "Hour([day]) >= 15",
+   "display": "Hour([Day]) >= 15",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "weekday([day])",
+   "canonical": "Weekday([day])",
+   "display": "Weekday([Day])",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "Weekday([entry_day]) = \"friday\"",
+   "canonical": "Weekday([entry_day]) = \"friday\"",
+   "display": "Weekday([Entry day]) = \"friday\"",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "entry_day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[day] = \"2026-10-09\"",
+   "canonical": "[day] = \"2026-10-09\"",
+   "display": "[Day] = \"2026-10-09\"",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "\"2026-10-09\" <> [day]",
+   "canonical": "\"2026-10-09\" <> [day]",
+   "display": "\"2026-10-09\" <> [Day]",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[day] < [entry_day]",
+   "canonical": "[day] < [entry_day]",
+   "display": "[Day] < [Entry day]",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "day",
+    "entry_day"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[setup] = \"breakout\"",
+   "canonical": "[setup] = \"breakout\"",
+   "display": "[Setup] = \"breakout\"",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "setup"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[setup]",
+   "canonical": "[setup]",
+   "display": "[Setup]",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "setup"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[had_stop]",
+   "canonical": "[had_stop]",
+   "display": "[Had a stop]",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "had_stop"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[hold minutes] / 60",
+   "canonical": "[hold_minutes] / 60",
+   "display": "[Hold minutes] / 60",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "hold_minutes"
+   ],
+   "needs_times": true,
+   "bucket_labels": null
+  },
+  {
+   "expr": "-[net]",
+   "canonical": "-[net]",
+   "display": "-[Net P&L]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "--[net]",
+   "canonical": "--[net]",
+   "display": "--[Net P&L]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[net] -- 1",
+   "canonical": "[net] -- 1",
+   "display": "[Net P&L] -- 1",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "1 + 2 * 3 - 4 / 2",
+   "canonical": "1 + 2 * 3 - 4 / 2",
+   "display": "1 + 2 * 3 - 4 / 2",
+   "kind": "row",
+   "type": "number",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "\"a \"\"quoted\"\" [net] text\"",
+   "canonical": "\"a \"\"quoted\"\" [net] text\"",
+   "display": "\"a \"\"quoted\"\" [net] text\"",
+   "kind": "row",
+   "type": "text",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[net]\t+\n[r]",
+   "canonical": "[net]\t+\n[r]",
+   "display": "[Net P&L]\t+\n[R]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net",
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[r] + [net] + [r]",
+   "canonical": "[r] + [net] + [r]",
+   "display": "[R] + [Net P&L] + [R]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "r",
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "TRUE",
+   "canonical": "TRUE",
+   "display": "TRUE",
+   "kind": "row",
+   "type": "bool",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "false",
+   "canonical": "FALSE",
+   "display": "FALSE",
+   "kind": "row",
+   "type": "bool",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "0",
+   "canonical": "0",
+   "display": "0",
+   "kind": "row",
+   "type": "number",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "999999999999999",
+   "canonical": "999999999999999",
+   "display": "999999999999999",
+   "kind": "row",
+   "type": "number",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "0.000000000000000000001",
+   "canonical": "0.000000000000000000001",
+   "display": "0.000000000000000000001",
+   "kind": "row",
+   "type": "number",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "1.500000000000000000",
+   "canonical": "1.500000000000000000",
+   "display": "1.500000000000000000",
+   "kind": "row",
+   "type": "number",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[net] <> 0",
+   "canonical": "[net] <> 0",
+   "display": "[Net P&L] <> 0",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[r] <= 1",
+   "canonical": "[r] <= 1",
+   "display": "[R] <= 1",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[had_stop] = FALSE",
+   "canonical": "[had_stop] = FALSE",
+   "display": "[Had a stop] = FALSE",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "had_stop"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "\"\"",
+   "canonical": "\"\"",
+   "display": "\"\"",
+   "kind": "row",
+   "type": "text",
+   "fields": [],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "((((([net]))))) * (1)",
+   "canonical": "((((([net]))))) * (1)",
+   "display": "((((([Net P&L]))))) * (1)",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "[R]",
+   "canonical": "[r]",
+   "display": "[R]",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "Not(And(Or([r] >= 1, [r] <= -1), [had_stop]))",
+   "canonical": "Not(And(Or([r] >= 1, [r] <= -1), [had_stop]))",
+   "display": "Not(And(Or([R] >= 1, [R] <= -1), [Had a stop]))",
+   "kind": "row",
+   "type": "bool",
+   "fields": [
+    "r",
+    "had_stop"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "Max(Min([r], 3), -3)",
+   "canonical": "Max(Min([r], 3), -3)",
+   "display": "Max(Min([R], 3), -3)",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  },
+  {
+   "expr": "Share([r] >= 1) - AvgIf([r], [r] <= 0)",
+   "canonical": "Share([r] >= 1) - AvgIf([r], [r] <= 0)",
+   "display": "Share([R] >= 1) - AvgIf([R], [R] <= 0)",
+   "kind": "aggregate",
+   "type": "number",
+   "fields": [
+    "r"
+   ],
+   "needs_times": false,
+   "bucket_labels": null
+  }
+ ],
+ "eval_row": [
+  {
+   "expr": "[net] / [risk_dollars]",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": 2.5
+  },
+  {
+   "expr": "[net] / [risk_dollars]",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] / [risk_dollars]",
+   "row": {
+    "net": 5,
+    "risk_dollars": 0
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] / [risk_dollars]",
+   "row": {
+    "net": 5,
+    "risk_dollars": -0.0
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] / 0",
+   "row": {
+    "net": 0
+   },
+   "expect": null
+  },
+  {
+   "expr": "0 / 0",
+   "row": {},
+   "expect": null
+  },
+  {
+   "expr": "1 / 3",
+   "row": {},
+   "expect": 0.3333333333333333
+  },
+  {
+   "expr": "1 + 2 * 3 - 4 / 2",
+   "row": {},
+   "expect": 5
+  },
+  {
+   "expr": "(1 + 2) * 3",
+   "row": {},
+   "expect": 9
+  },
+  {
+   "expr": "10 - 4 - 3",
+   "row": {},
+   "expect": 3
+  },
+  {
+   "expr": "100 / 10 / 5",
+   "row": {},
+   "expect": 2
+  },
+  {
+   "expr": "2 * -3",
+   "row": {},
+   "expect": -6
+  },
+  {
+   "expr": "-2 * 3",
+   "row": {},
+   "expect": -6
+  },
+  {
+   "expr": "--[net]",
+   "row": {
+    "net": 4
+   },
+   "expect": 4
+  },
+  {
+   "expr": "---[net]",
+   "row": {
+    "net": 4
+   },
+   "expect": -4
+  },
+  {
+   "expr": "-[net]",
+   "row": {
+    "net": 0
+   },
+   "expect": 0
+  },
+  {
+   "expr": "[net] -- 1",
+   "row": {
+    "net": 4
+   },
+   "expect": 5
+  },
+  {
+   "expr": "[net] + [r]",
+   "row": {
+    "net": 4
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {
+    "net": "12"
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {
+    "net": true
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {
+    "net": {
+     "$float": "nan"
+    }
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {
+    "net": {
+     "$float": "inf"
+    }
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {
+    "net": {
+     "$float": "-inf"
+    }
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {
+    "net": 1e+308
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {
+    "net": 21
+   },
+   "expect": 42
+  },
+  {
+   "expr": "[net] * 2",
+   "row": {},
+   "expect": null
+  },
+  {
+   "expr": "999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999",
+   "row": {},
+   "expect": null
+  },
+  {
+   "expr": "-999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999",
+   "row": {},
+   "expect": null
+  },
+  {
+   "expr": "999999999999999 * 999999999999999",
+   "row": {},
+   "expect": 9.99999999999998e+29
+  },
+  {
+   "expr": "If([had_stop], [net], 0)",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": 250
+  },
+  {
+   "expr": "If([had_stop], [net], 0)",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": 0
+  },
+  {
+   "expr": "If([had_stop], [net], 0)",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": 0
+  },
+  {
+   "expr": "If([had_stop], [net], [r])",
+   "row": {
+    "had_stop": true
+   },
+   "expect": null
+  },
+  {
+   "expr": "If([net] > 0, \"Win\", \"Loss\")",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": "Win"
+  },
+  {
+   "expr": "If([net] > 0, \"Win\", \"Loss\")",
+   "row": {
+    "day": "2026-10-08",
+    "entry_day": "2026-10-08",
+    "hour_et": 15,
+    "net": 0,
+    "risk_dollars": 50,
+    "r": 0,
+    "setup": null,
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 5,
+    "mistake": []
+   },
+   "expect": "Loss"
+  },
+  {
+   "expr": "If([net] > 0, \"Win\", \"Loss\")",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": "Loss"
+  },
+  {
+   "expr": "And([had_stop], [r] > 1)",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": true
+  },
+  {
+   "expr": "And([had_stop], [r] > 1)",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 10,
+    "net": -100,
+    "risk_dollars": 100,
+    "r": -1,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 30,
+    "mistake": []
+   },
+   "expect": false
+  },
+  {
+   "expr": "And([had_stop], [r] > 1)",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": false
+  },
+  {
+   "expr": "Or([had_stop], [net] > 0)",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": false
+  },
+  {
+   "expr": "Or([had_stop], [net] > 0)",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 9,
+    "net": -300,
+    "risk_dollars": 150,
+    "r": -2,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": 200,
+    "mistake": []
+   },
+   "expect": false
+  },
+  {
+   "expr": "Or([had_stop], [net] > 1000, TRUE)",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": true
+  },
+  {
+   "expr": "Or([had_stop], [had_stop])",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": false
+  },
+  {
+   "expr": "Not([had_stop])",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": false
+  },
+  {
+   "expr": "Not([had_stop])",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": true
+  },
+  {
+   "expr": "Not([had_stop])",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": null
+  },
+  {
+   "expr": "Not([net] > 0)",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": null
+  },
+  {
+   "expr": "Abs([r])",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 9,
+    "net": -300,
+    "risk_dollars": 150,
+    "r": -2,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": 200,
+    "mistake": []
+   },
+   "expect": 2
+  },
+  {
+   "expr": "Abs([r])",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": null
+  },
+  {
+   "expr": "Abs(-0)",
+   "row": {},
+   "expect": 0
+  },
+  {
+   "expr": "Round(2.5)",
+   "row": {},
+   "expect": 3
+  },
+  {
+   "expr": "Round(-2.5)",
+   "row": {},
+   "expect": -3
+  },
+  {
+   "expr": "Round(1.005, 2)",
+   "row": {},
+   "expect": 1
+  },
+  {
+   "expr": "Round(1.015, 2)",
+   "row": {},
+   "expect": 1.01
+  },
+  {
+   "expr": "Round(2.675, 2)",
+   "row": {},
+   "expect": 2.68
+  },
+  {
+   "expr": "Round(-0.4)",
+   "row": {},
+   "expect": 0
+  },
+  {
+   "expr": "Round(0.5)",
+   "row": {},
+   "expect": 1
+  },
+  {
+   "expr": "Round(0.45, 1)",
+   "row": {},
+   "expect": 0.5
+  },
+  {
+   "expr": "Round([r], 1)",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 11,
+    "net": 125.5,
+    "risk_dollars": 50,
+    "r": 2.51,
+    "setup": "Gap",
+    "side": "LONG",
+    "had_stop": true,
+    "hold_minutes": 60,
+    "mistake": []
+   },
+   "expect": 2.5
+  },
+  {
+   "expr": "Round([net] / [risk_dollars], 2)",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 11,
+    "net": 125.5,
+    "risk_dollars": 50,
+    "r": 2.51,
+    "setup": "Gap",
+    "side": "LONG",
+    "had_stop": true,
+    "hold_minutes": 60,
+    "mistake": []
+   },
+   "expect": 2.51
+  },
+  {
+   "expr": "Round(123.456789, 6)",
+   "row": {},
+   "expect": 123.456789
+  },
+  {
+   "expr": "Round(123.4567894, 6)",
+   "row": {},
+   "expect": 123.456789
+  },
+  {
+   "expr": "Round(-123.4567895, 6)",
+   "row": {},
+   "expect": -123.45679
+  },
+  {
+   "expr": "Round([r])",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": null
+  },
+  {
+   "expr": "Round(999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 100000, 6)",
+   "row": {},
+   "expect": null
+  },
+  {
+   "expr": "Round(999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999 * 999999999999999) > 0",
+   "row": {},
+   "expect": true
+  },
+  {
+   "expr": "Min([r], 0)",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": 0
+  },
+  {
+   "expr": "Min([r], 0)",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 9,
+    "net": -300,
+    "risk_dollars": 150,
+    "r": -2,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": 200,
+    "mistake": []
+   },
+   "expect": -2
+  },
+  {
+   "expr": "Min([r], 0)",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": 0
+  },
+  {
+   "expr": "Min([r], [net])",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": null
+  },
+  {
+   "expr": "Min([r], [net], [risk_dollars])",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": 80
+  },
+  {
+   "expr": "Max([r], [net], [risk_dollars])",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": 250
+  },
+  {
+   "expr": "Max([r], [r])",
+   "row": {},
+   "expect": null
+  },
+  {
+   "expr": "Max(-1, -2, -3, -4, -5, -6, -7, -8)",
+   "row": {},
+   "expect": -1
+  },
+  {
+   "expr": "Bucket([r], -1, 0, 1, 2)",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": "2 or more"
+  },
+  {
+   "expr": "Bucket([r], -1, 0, 1, 2)",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 10,
+    "net": -100,
+    "risk_dollars": 100,
+    "r": -1,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 30,
+    "mistake": []
+   },
+   "expect": "-1 to 0"
+  },
+  {
+   "expr": "Bucket([r], -1, 0, 1, 2)",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 9,
+    "net": -300,
+    "risk_dollars": 150,
+    "r": -2,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": 200,
+    "mistake": []
+   },
+   "expect": "Under -1"
+  },
+  {
+   "expr": "Bucket([r], -1, 0, 1, 2)",
+   "row": {
+    "day": "2026-10-08",
+    "entry_day": "2026-10-08",
+    "hour_et": 15,
+    "net": 0,
+    "risk_dollars": 50,
+    "r": 0,
+    "setup": null,
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 5,
+    "mistake": []
+   },
+   "expect": "0 to 1"
+  },
+  {
+   "expr": "Bucket([r], -1, 0, 1, 2)",
+   "row": {
+    "r": 2
+   },
+   "expect": "2 or more"
+  },
+  {
+   "expr": "Bucket([r], -1, 0, 1, 2)",
+   "row": {
+    "r": 1.9999999
+   },
+   "expect": "1 to 2"
+  },
+  {
+   "expr": "Bucket([r], -1, 0, 1, 2)",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": null
+  },
+  {
+   "expr": "Bucket([hold_minutes], 15, 60, 240)",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 11,
+    "net": 125.5,
+    "risk_dollars": 50,
+    "r": 2.51,
+    "setup": "Gap",
+    "side": "LONG",
+    "had_stop": true,
+    "hold_minutes": 60,
+    "mistake": []
+   },
+   "expect": "60 to 240"
+  },
+  {
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "row": {
+    "net": 1234.5678
+   },
+   "expect": "7 to 1234.5679"
+  },
+  {
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "row": {
+    "net": 1234.5679
+   },
+   "expect": "1234.5679 or more"
+  },
+  {
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "row": {
+    "net": 1234.56785
+   },
+   "expect": "1234.5679 or more"
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": 9
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": null
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": 9.5
+   },
+   "expect": null
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": 24
+   },
+   "expect": null
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": -1
+   },
+   "expect": null
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": "9"
+   },
+   "expect": null
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": true
+   },
+   "expect": null
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": 0
+   },
+   "expect": 0
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": 23.0
+   },
+   "expect": 23
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": null,
+    "hour_et": 9
+   },
+   "expect": null
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": "Monday"
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 9,
+    "net": -300,
+    "risk_dollars": 150,
+    "r": -2,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": 200,
+    "mistake": []
+   },
+   "expect": "Friday"
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": "Saturday"
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2024-02-29"
+   },
+   "expect": "Thursday"
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2026-03-08"
+   },
+   "expect": "Sunday"
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2026-11-01"
+   },
+   "expect": "Sunday"
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2023-02-29"
+   },
+   "expect": null
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "0000-01-01"
+   },
+   "expect": null
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "0001-01-01"
+   },
+   "expect": "Monday"
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2026-10-05T12:00:00Z"
+   },
+   "expect": null
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "2026-1-05"
+   },
+   "expect": null
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": "\u0662\u0660\u0662\u0666-10-05"
+   },
+   "expect": null
+  },
+  {
+   "expr": "Weekday([day])",
+   "row": {
+    "day": 20261005
+   },
+   "expect": null
+  },
+  {
+   "expr": "[day] = \"2026-10-09\"",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 9,
+    "net": -300,
+    "risk_dollars": 150,
+    "r": -2,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": 200,
+    "mistake": []
+   },
+   "expect": true
+  },
+  {
+   "expr": "[day] = \"2026-10-09\"",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": false
+  },
+  {
+   "expr": "\"2026-10-09\" <> [day]",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": true
+  },
+  {
+   "expr": "[day] = \"2026-10-09\"",
+   "row": {
+    "day": "bad"
+   },
+   "expect": null
+  },
+  {
+   "expr": "[day] < [entry_day]",
+   "row": {
+    "day": "2026-01-31",
+    "entry_day": "2026-02-01"
+   },
+   "expect": true
+  },
+  {
+   "expr": "[day] >= [entry_day]",
+   "row": {
+    "day": "2026-01-31",
+    "entry_day": "2026-02-01"
+   },
+   "expect": false
+  },
+  {
+   "expr": "[day] = [entry_day]",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": true
+  },
+  {
+   "expr": "[setup] = \"breakout\"",
+   "row": {
+    "day": "2026-10-05",
+    "entry_day": "2026-10-05",
+    "hour_et": 9,
+    "net": 250,
+    "risk_dollars": 100,
+    "r": 2.5,
+    "setup": "Breakout",
+    "side": "long",
+    "had_stop": true,
+    "hold_minutes": 45,
+    "mistake": [
+     "fomo"
+    ]
+   },
+   "expect": true
+  },
+  {
+   "expr": "[setup] = \"BREAKOUT\"",
+   "row": {
+    "day": "2026-10-06",
+    "entry_day": "2026-10-06",
+    "hour_et": 13,
+    "net": 400,
+    "risk_dollars": 200,
+    "r": 2,
+    "setup": "Pullback",
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 120,
+    "mistake": []
+   },
+   "expect": false
+  },
+  {
+   "expr": "[setup] <> \"breakout\"",
+   "row": {
+    "day": "2026-10-08",
+    "entry_day": "2026-10-08",
+    "hour_et": 15,
+    "net": 0,
+    "risk_dollars": 50,
+    "r": 0,
+    "setup": null,
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 5,
+    "mistake": []
+   },
+   "expect": null
+  },
+  {
+   "expr": "[side] = \"long\"",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 11,
+    "net": 125.5,
+    "risk_dollars": 50,
+    "r": 2.51,
+    "setup": "Gap",
+    "side": "LONG",
+    "had_stop": true,
+    "hold_minutes": 60,
+    "mistake": []
+   },
+   "expect": true
+  },
+  {
+   "expr": "[setup] = \"\u0130\"",
+   "row": {
+    "setup": "i"
+   },
+   "expect": false
+  },
+  {
+   "expr": "[setup] = \"stra\u00dfe\"",
+   "row": {
+    "setup": "STRASSE"
+   },
+   "expect": false
+  },
+  {
+   "expr": "[setup] = \"k\"",
+   "row": {
+    "setup": "\u212a"
+   },
+   "expect": false
+  },
+  {
+   "expr": "[setup] = \"\"",
+   "row": {
+    "setup": ""
+   },
+   "expect": true
+  },
+  {
+   "expr": "[setup]",
+   "row": {
+    "setup": 5
+   },
+   "expect": null
+  },
+  {
+   "expr": "[setup]",
+   "row": {
+    "setup": "__proto__"
+   },
+   "expect": "__proto__"
+  },
+  {
+   "expr": "[had_stop] = FALSE",
+   "row": {
+    "day": "2026-10-07",
+    "entry_day": "2026-10-07",
+    "hour_et": null,
+    "net": -50,
+    "risk_dollars": null,
+    "r": null,
+    "setup": "Pullback",
+    "side": "long",
+    "had_stop": false,
+    "hold_minutes": null,
+    "mistake": [
+     "chase"
+    ]
+   },
+   "expect": true
+  },
+  {
+   "expr": "[had_stop] = FALSE",
+   "row": {
+    "day": "2026-10-10",
+    "entry_day": "2026-10-10",
+    "hour_et": null,
+    "net": null,
+    "risk_dollars": 80,
+    "r": null,
+    "setup": "Gap",
+    "side": "short",
+    "had_stop": null,
+    "hold_minutes": null,
+    "mistake": []
+   },
+   "expect": null
+  },
+  {
+   "expr": "[had_stop]",
+   "row": {
+    "had_stop": 1
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] <> 0",
+   "row": {
+    "day": "2026-10-08",
+    "entry_day": "2026-10-08",
+    "hour_et": 15,
+    "net": 0,
+    "risk_dollars": 50,
+    "r": 0,
+    "setup": null,
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 5,
+    "mistake": []
+   },
+   "expect": false
+  },
+  {
+   "expr": "[net] > 0",
+   "row": {
+    "net": -0.0
+   },
+   "expect": false
+  },
+  {
+   "expr": "[net] = 0",
+   "row": {
+    "net": -0.0
+   },
+   "expect": true
+  },
+  {
+   "expr": "[r] <= 1",
+   "row": {
+    "day": "2026-10-08",
+    "entry_day": "2026-10-08",
+    "hour_et": 15,
+    "net": 0,
+    "risk_dollars": 50,
+    "r": 0,
+    "setup": null,
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 5,
+    "mistake": []
+   },
+   "expect": true
+  },
+  {
+   "expr": "[r] <= 1",
+   "row": {
+    "r": 1.0000001
+   },
+   "expect": false
+  },
+  {
+   "expr": "[r] <= [net]",
+   "row": {
+    "r": 2,
+    "net": 2
+   },
+   "expect": true
+  },
+  {
+   "expr": "[r] < 1",
+   "row": {
+    "r": 1
+   },
+   "expect": false
+  },
+  {
+   "expr": "[r] >= 2.51",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 11,
+    "net": 125.5,
+    "risk_dollars": 50,
+    "r": 2.51,
+    "setup": "Gap",
+    "side": "LONG",
+    "had_stop": true,
+    "hold_minutes": 60,
+    "mistake": []
+   },
+   "expect": true
+  },
+  {
+   "expr": "[r] > 2.51",
+   "row": {
+    "day": "2026-10-09",
+    "entry_day": "2026-10-09",
+    "hour_et": 11,
+    "net": 125.5,
+    "risk_dollars": 50,
+    "r": 2.51,
+    "setup": "Gap",
+    "side": "LONG",
+    "had_stop": true,
+    "hold_minutes": 60,
+    "mistake": []
+   },
+   "expect": false
+  },
+  {
+   "expr": "0.1 + 0.2 = 0.3",
+   "row": {},
+   "expect": false
+  },
+  {
+   "expr": "0.1 + 0.2",
+   "row": {},
+   "expect": 0.30000000000000004
+  },
+  {
+   "expr": "\"a \"\"quoted\"\" [net] text\"",
+   "row": {},
+   "expect": "a \"quoted\" [net] text"
+  },
+  {
+   "expr": "TRUE",
+   "row": {},
+   "expect": true
+  },
+  {
+   "expr": "FALSE",
+   "row": {},
+   "expect": false
+  },
+  {
+   "expr": "\"\"",
+   "row": {},
+   "expect": ""
+  },
+  {
+   "expr": "[hold minutes] / 60",
+   "row": {
+    "day": "2026-10-06",
+    "entry_day": "2026-10-06",
+    "hour_et": 13,
+    "net": 400,
+    "risk_dollars": 200,
+    "r": 2,
+    "setup": "Pullback",
+    "side": "short",
+    "had_stop": true,
+    "hold_minutes": 120,
+    "mistake": []
+   },
+   "expect": 2
+  },
+  {
+   "expr": "[net]",
+   "row": {
+    "net": 9007199254740993
+   },
+   "expect": 9007199254740992
+  },
+  {
+   "expr": "[net] + 1",
+   "row": {
+    "net": -1
+   },
+   "expect": 0
+  }
+ ],
+ "eval_group": [
+  {
+   "expr": "SumIf([net])",
+   "rows": "book",
+   "expect": 325.5
+  },
+  {
+   "expr": "AvgIf([net])",
+   "rows": "book",
+   "expect": 46.5
+  },
+  {
+   "expr": "CountIf([had_stop])",
+   "rows": "book",
+   "expect": 5
+  },
+  {
+   "expr": "Share([had_stop])",
+   "rows": "book",
+   "expect": 0.625
+  },
+  {
+   "expr": "CountIf([net] > 0)",
+   "rows": "book",
+   "expect": 3
+  },
+  {
+   "expr": "Share([net] > 0)",
+   "rows": "book",
+   "expect": 0.375
+  },
+  {
+   "expr": "SumIf([net], [net] > 0)",
+   "rows": "book",
+   "expect": 775.5
+  },
+  {
+   "expr": "SumIf([net], [net] < 0)",
+   "rows": "book",
+   "expect": -450
+  },
+  {
+   "expr": "SumIf([net], [net] > 0) / Abs(SumIf([net], [net] < 0))",
+   "rows": "book",
+   "expect": 1.7233333333333334
+  },
+  {
+   "expr": "AvgIf([net], [had_stop])",
+   "rows": "book",
+   "expect": 135.1
+  },
+  {
+   "expr": "AvgIf([r])",
+   "rows": "book",
+   "expect": 0.6683333333333333
+  },
+  {
+   "expr": "SumIf([r], [side] = \"long\")",
+   "rows": "book",
+   "expect": 2.01
+  },
+  {
+   "expr": "CountIf([setup] = \"breakout\")",
+   "rows": "book",
+   "expect": 3
+  },
+  {
+   "expr": "CountIf([setup] = \"Nope\")",
+   "rows": "book",
+   "expect": 0
+  },
+  {
+   "expr": "CountIf([had_stop])",
+   "rows": "empty",
+   "expect": null
+  },
+  {
+   "expr": "Share([had_stop])",
+   "rows": "empty",
+   "expect": null
+  },
+  {
+   "expr": "SumIf([net])",
+   "rows": "empty",
+   "expect": null
+  },
+  {
+   "expr": "AvgIf([net])",
+   "rows": "empty",
+   "expect": null
+  },
+  {
+   "expr": "SumIf([net], [setup] = \"Nope\")",
+   "rows": "book",
+   "expect": null
+  },
+  {
+   "expr": "AvgIf([net], FALSE)",
+   "rows": "book",
+   "expect": null
+  },
+  {
+   "expr": "Share(TRUE)",
+   "rows": "book",
+   "expect": 1
+  },
+  {
+   "expr": "Share(FALSE)",
+   "rows": "book",
+   "expect": 0
+  },
+  {
+   "expr": "SumIf([risk_dollars])",
+   "rows": "book",
+   "expect": 730
+  },
+  {
+   "expr": "CountIf(Weekday([day]) = \"Friday\")",
+   "rows": "book",
+   "expect": 2
+  },
+  {
+   "expr": "CountIf(Hour([day]) < 12)",
+   "rows": "book",
+   "expect": 4
+  },
+  {
+   "expr": "Share([hold_minutes] >= 60)",
+   "rows": "book",
+   "expect": 0.375
+  },
+  {
+   "expr": "SumIf([net], Bucket([r], 0) = \"0 or more\")",
+   "rows": "book",
+   "expect": 775.5
+  },
+  {
+   "expr": "CountIf(Not([had_stop]))",
+   "rows": "book",
+   "expect": 2
+  },
+  {
+   "expr": "CountIf(Or([had_stop], [net] > 0))",
+   "rows": "book",
+   "expect": 5
+  },
+  {
+   "expr": "CountIf(And([had_stop], [net] > 0))",
+   "rows": "book",
+   "expect": 3
+  },
+  {
+   "expr": "SumIf(If([had_stop], [net], 0))",
+   "rows": "book",
+   "expect": 675.5
+  },
+  {
+   "expr": "AvgIf(Abs([net]))",
+   "rows": "book",
+   "expect": 175.07142857142858
+  },
+  {
+   "expr": "SumIf([net]) / CountIf(TRUE)",
+   "rows": "book",
+   "expect": 40.6875
+  },
+  {
+   "expr": "CountIf([day] = \"2026-10-09\")",
+   "rows": "book",
+   "expect": 2
+  },
+  {
+   "expr": "SumIf(Min([net], 0))",
+   "rows": "book",
+   "expect": -450
+  },
+  {
+   "expr": "Round(SumIf([net]) / 7, 2)",
+   "rows": "book",
+   "expect": 46.5
+  },
+  {
+   "expr": "CountIf([net] <> 0)",
+   "rows": "book",
+   "expect": 6
+  },
+  {
+   "expr": "-SumIf([net])",
+   "rows": "book",
+   "expect": -325.5
+  },
+  {
+   "expr": "SumIf([net]) / SumIf([net], [setup] = \"Nope\")",
+   "rows": "book",
+   "expect": null
+  },
+  {
+   "expr": "SumIf([net]) / (CountIf(TRUE) - 8)",
+   "rows": "book",
+   "expect": null
+  },
+  {
+   "expr": "SumIf([net])",
+   "rows": "huge",
+   "expect": null
+  },
+  {
+   "expr": "AvgIf([net])",
+   "rows": "huge",
+   "expect": null
+  },
+  {
+   "expr": "SumIf([net])",
+   "rows": "huge_mixed",
+   "expect": 5
+  },
+  {
+   "expr": "SumIf([net])",
+   "rows": "dirty",
+   "expect": 10.5
+  },
+  {
+   "expr": "CountIf([net] > 0)",
+   "rows": "dirty",
+   "expect": 2
+  },
+  {
+   "expr": "Share([net] > 0)",
+   "rows": "dirty",
+   "expect": 0.25
+  },
+  {
+   "expr": "AvgIf([net])",
+   "rows": "dirty",
+   "expect": 5.25
+  },
+  {
+   "expr": "SumIf([net])",
+   "rows": "no_net",
+   "expect": null
+  },
+  {
+   "expr": "CountIf(TRUE)",
+   "rows": "no_net",
+   "expect": 2
+  },
+  {
+   "expr": "SumIf([net])",
+   "rows": "one",
+   "expect": 250
+  },
+  {
+   "expr": "Max(SumIf([net], [had_stop]), SumIf([net], Not([had_stop])))",
+   "rows": "book",
+   "expect": 675.5
+  },
+  {
+   "expr": "If(CountIf([had_stop]) > 4, 1, 0)",
+   "rows": "book",
+   "expect": 1
+  },
+  {
+   "expr": "CountIf([setup] = \"breakout\") + CountIf([setup] = \"pullback\") + CountIf([setup] = \"gap\")",
+   "rows": "book",
+   "expect": 7
+  },
+  {
+   "expr": "SumIf([net] / [risk_dollars], [had_stop])",
+   "rows": "book",
+   "expect": 6.01
+  }
+ ],
+ "errors": [
+  {
+   "expr": "",
+   "code": "empty",
+   "sentence": "Type a formula.",
+   "pos": 0
+  },
+  {
+   "expr": "   \n\t ",
+   "code": "empty",
+   "sentence": "Type a formula.",
+   "pos": 0
+  },
+  {
+   "expr": "1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ",
+   "code": "too_long",
+   "sentence": "A formula can be at most 2,000 characters.",
+   "pos": 2000
+  },
+  {
+   "expr": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1",
+   "code": "too_many_parts",
+   "sentence": "This formula has too many parts. Split it into two fields.",
+   "pos": 500
+  },
+  {
+   "expr": "(((((((((((((((((((((((((((((((((1)))))))))))))))))))))))))))))))))",
+   "code": "too_deep",
+   "sentence": "This formula is nested too deeply.",
+   "pos": 32
+  },
+  {
+   "expr": "[net] & [r]",
+   "code": "bad_char",
+   "sentence": "& can't be used in a formula.",
+   "pos": 6
+  },
+  {
+   "expr": "[net] != 0",
+   "code": "bad_char",
+   "sentence": "! can't be used in a formula.",
+   "pos": 6
+  },
+  {
+   "expr": "[net]\u00a0+ 1",
+   "code": "bad_char",
+   "sentence": "U+00A0 can't be used in a formula.",
+   "pos": 5
+  },
+  {
+   "expr": "[net] + [r",
+   "code": "unclosed_field",
+   "sentence": "A [ is missing its ].",
+   "pos": 8
+  },
+  {
+   "expr": "[net [r]",
+   "code": "unclosed_field",
+   "sentence": "A [ is missing its ].",
+   "pos": 0
+  },
+  {
+   "expr": "Round([net], 2",
+   "code": "unclosed_paren",
+   "sentence": "A ( is missing its ).",
+   "pos": 5
+  },
+  {
+   "expr": "If(TRUE, Abs(1, 2",
+   "code": "unclosed_paren",
+   "sentence": "A ( is missing its ).",
+   "pos": 12
+  },
+  {
+   "expr": "[net])",
+   "code": "extra_paren",
+   "sentence": "There is a ) without its (.",
+   "pos": 5
+  },
+  {
+   "expr": "[setup] = \"Breakout",
+   "code": "unclosed_text",
+   "sentence": "A quote is missing its closing \".",
+   "pos": 10
+  },
+  {
+   "expr": "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+   "code": "text_too_long",
+   "sentence": "Text in a formula can be at most 200 characters.",
+   "pos": 0
+  },
+  {
+   "expr": "[net] * 1.2.3",
+   "code": "bad_number",
+   "sentence": "1.2.3 isn't a number a formula can use.",
+   "pos": 8
+  },
+  {
+   "expr": "0.49999999999999994",
+   "code": "bad_number",
+   "sentence": "0.49999999999999994 isn't a number a formula can use.",
+   "pos": 0
+  },
+  {
+   "expr": ".5",
+   "code": "bad_number",
+   "sentence": ".5 isn't a number a formula can use.",
+   "pos": 0
+  },
+  {
+   "expr": "5.",
+   "code": "bad_number",
+   "sentence": "5. isn't a number a formula can use.",
+   "pos": 0
+  },
+  {
+   "expr": "1_000",
+   "code": "bad_number",
+   "sentence": "1_000 isn't a number a formula can use.",
+   "pos": 0
+  },
+  {
+   "expr": "1000000000000000",
+   "code": "bad_number",
+   "sentence": "1000000000000000 isn't a number a formula can use.",
+   "pos": 0
+  },
+  {
+   "expr": "12345678901234567890123",
+   "code": "bad_number",
+   "sentence": "12345678901234567890 isn't a number a formula can use.",
+   "pos": 0
+  },
+  {
+   "expr": "[net] +",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"+\".",
+   "pos": 7
+  },
+  {
+   "expr": "(1 2)",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"2\".",
+   "pos": 3
+  },
+  {
+   "expr": "Abs(1,)",
+   "code": "unexpected",
+   "sentence": "Something is missing near \")\".",
+   "pos": 6
+  },
+  {
+   "expr": "()",
+   "code": "unexpected",
+   "sentence": "Something is missing near \")\".",
+   "pos": 1
+  },
+  {
+   "expr": "Round + 1",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"Round\".",
+   "pos": 0
+  },
+  {
+   "expr": "1 < 2 < 3",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"<\".",
+   "pos": 6
+  },
+  {
+   "expr": "1 == 2",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"=\".",
+   "pos": 3
+  },
+  {
+   "expr": "+1",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"+\".",
+   "pos": 0
+  },
+  {
+   "expr": "[net] [r]",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"[r]\".",
+   "pos": 6
+  },
+  {
+   "expr": "Abs(1) Abs(2)",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"Abs(2)\".",
+   "pos": 7
+  },
+  {
+   "expr": "1,2",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \",2\".",
+   "pos": 1
+  },
+  {
+   "expr": "1 2\n\n  3     4",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"2 3 4\".",
+   "pos": 2
+  },
+  {
+   "expr": "[Nope]",
+   "code": "unknown_field",
+   "sentence": "[Nope] isn't a field here.",
+   "pos": 0
+  },
+  {
+   "expr": "[]",
+   "code": "unknown_field",
+   "sentence": "[] isn't a field here.",
+   "pos": 0
+  },
+  {
+   "expr": "[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+   "code": "unknown_field",
+   "sentence": "[xxxxxxxxxxxxxxxxxxxx] isn't a field here.",
+   "pos": 0
+  },
+  {
+   "expr": "[had_stop] + [nope]",
+   "code": "unknown_field",
+   "sentence": "[nope] isn't a field here.",
+   "pos": 13
+  },
+  {
+   "expr": "[mistake] = \"fomo\"",
+   "code": "tag_field",
+   "sentence": "[Mistake] holds several values; use it as a filter instead.",
+   "pos": 0
+  },
+  {
+   "expr": "Sum([net])",
+   "code": "unknown_function",
+   "sentence": "Sum isn't a function. Try If, Round or SumIf.",
+   "pos": 0
+  },
+  {
+   "expr": "[net] + foo",
+   "code": "unknown_function",
+   "sentence": "foo isn't a function. Try If, Round or SumIf.",
+   "pos": 8
+  },
+  {
+   "expr": "If(TRUE, 1)",
+   "code": "arg_count",
+   "sentence": "If takes 3 values.",
+   "pos": 0
+  },
+  {
+   "expr": "And(TRUE)",
+   "code": "arg_count",
+   "sentence": "And takes 2 to 8 values.",
+   "pos": 0
+  },
+  {
+   "expr": "Or(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE)",
+   "code": "arg_count",
+   "sentence": "Or takes 2 to 8 values.",
+   "pos": 0
+  },
+  {
+   "expr": "Min(1)",
+   "code": "arg_count",
+   "sentence": "Min takes 2 to 8 values.",
+   "pos": 0
+  },
+  {
+   "expr": "Max()",
+   "code": "arg_count",
+   "sentence": "Max takes 2 to 8 values.",
+   "pos": 0
+  },
+  {
+   "expr": "Round(1, 2, 3)",
+   "code": "arg_count",
+   "sentence": "Round takes 1 or 2 values.",
+   "pos": 0
+  },
+  {
+   "expr": "SumIf()",
+   "code": "arg_count",
+   "sentence": "SumIf takes a value and an optional condition.",
+   "pos": 0
+  },
+  {
+   "expr": "AvgIf([net], TRUE, TRUE)",
+   "code": "arg_count",
+   "sentence": "AvgIf takes a value and an optional condition.",
+   "pos": 0
+  },
+  {
+   "expr": "Bucket([r])",
+   "code": "arg_count",
+   "sentence": "Bucket takes a value and 1 to 10 edges.",
+   "pos": 0
+  },
+  {
+   "expr": "Bucket([r], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)",
+   "code": "arg_count",
+   "sentence": "Bucket takes a value and 1 to 10 edges.",
+   "pos": 0
+  },
+  {
+   "expr": "Not()",
+   "code": "arg_count",
+   "sentence": "Not takes 1 value.",
+   "pos": 0
+  },
+  {
+   "expr": "Abs(1, 2)",
+   "code": "arg_count",
+   "sentence": "Abs takes 1 value.",
+   "pos": 0
+  },
+  {
+   "expr": "CountIf()",
+   "code": "arg_count",
+   "sentence": "CountIf takes 1 value.",
+   "pos": 0
+  },
+  {
+   "expr": "Share(TRUE, TRUE)",
+   "code": "arg_count",
+   "sentence": "Share takes 1 value.",
+   "pos": 0
+  },
+  {
+   "expr": "Hour()",
+   "code": "arg_count",
+   "sentence": "Hour takes 1 value.",
+   "pos": 0
+  },
+  {
+   "expr": "Weekday([day], [day])",
+   "code": "arg_count",
+   "sentence": "Weekday takes 1 value.",
+   "pos": 0
+  },
+  {
+   "expr": "Abs([nope], 1)",
+   "code": "arg_count",
+   "sentence": "Abs takes 1 value.",
+   "pos": 0
+  },
+  {
+   "expr": "[setup] + 1",
+   "code": "needs_number",
+   "sentence": "+ needs a number.",
+   "pos": 0
+  },
+  {
+   "expr": "1 * [setup]",
+   "code": "needs_number",
+   "sentence": "* needs a number.",
+   "pos": 4
+  },
+  {
+   "expr": "1 - 2 / [had_stop]",
+   "code": "needs_number",
+   "sentence": "/ needs a number.",
+   "pos": 8
+  },
+  {
+   "expr": "-[had_stop]",
+   "code": "needs_number",
+   "sentence": "- needs a number.",
+   "pos": 1
+  },
+  {
+   "expr": "Abs([setup])",
+   "code": "needs_number",
+   "sentence": "Abs needs a number.",
+   "pos": 4
+  },
+  {
+   "expr": "Round(\"2\")",
+   "code": "needs_number",
+   "sentence": "Round needs a number.",
+   "pos": 6
+  },
+  {
+   "expr": "Min(1, [day])",
+   "code": "needs_number",
+   "sentence": "Min needs a number.",
+   "pos": 7
+  },
+  {
+   "expr": "Max(TRUE, 1)",
+   "code": "needs_number",
+   "sentence": "Max needs a number.",
+   "pos": 4
+  },
+  {
+   "expr": "SumIf([setup])",
+   "code": "needs_number",
+   "sentence": "SumIf needs a number.",
+   "pos": 6
+  },
+  {
+   "expr": "AvgIf([had_stop], TRUE)",
+   "code": "needs_number",
+   "sentence": "AvgIf needs a number.",
+   "pos": 6
+  },
+  {
+   "expr": "Bucket([setup], 1)",
+   "code": "needs_number",
+   "sentence": "Bucket needs a number.",
+   "pos": 7
+  },
+  {
+   "expr": "If([net], 1, 2)",
+   "code": "needs_condition",
+   "sentence": "If needs a yes/no condition.",
+   "pos": 3
+  },
+  {
+   "expr": "And([had_stop], 1)",
+   "code": "needs_condition",
+   "sentence": "And needs a yes/no condition.",
+   "pos": 16
+  },
+  {
+   "expr": "Or([setup], TRUE)",
+   "code": "needs_condition",
+   "sentence": "Or needs a yes/no condition.",
+   "pos": 3
+  },
+  {
+   "expr": "Not([day])",
+   "code": "needs_condition",
+   "sentence": "Not needs a yes/no condition.",
+   "pos": 4
+  },
+  {
+   "expr": "CountIf([net])",
+   "code": "needs_condition",
+   "sentence": "CountIf needs a yes/no condition.",
+   "pos": 8
+  },
+  {
+   "expr": "Share(1)",
+   "code": "needs_condition",
+   "sentence": "Share needs a yes/no condition.",
+   "pos": 6
+  },
+  {
+   "expr": "SumIf([net], [net])",
+   "code": "needs_condition",
+   "sentence": "SumIf needs a yes/no condition.",
+   "pos": 13
+  },
+  {
+   "expr": "Weekday([net])",
+   "code": "needs_day",
+   "sentence": "Weekday needs a day.",
+   "pos": 8
+  },
+  {
+   "expr": "Weekday(\"2026-10-05\")",
+   "code": "needs_day",
+   "sentence": "Weekday needs a day.",
+   "pos": 8
+  },
+  {
+   "expr": "Hour([net])",
+   "code": "needs_day",
+   "sentence": "Hour needs a day.",
+   "pos": 5
+  },
+  {
+   "expr": "Hour(If(TRUE, [day], [day]))",
+   "code": "needs_day",
+   "sentence": "Hour needs a day.",
+   "pos": 5
+  },
+  {
+   "expr": "If([had_stop], 1, \"a\")",
+   "code": "mixed_types",
+   "sentence": "Both answers of If need the same kind of value.",
+   "pos": 18
+  },
+  {
+   "expr": "If([had_stop], [day], \"2026-10-05\")",
+   "code": "mixed_types",
+   "sentence": "Both answers of If need the same kind of value.",
+   "pos": 22
+  },
+  {
+   "expr": "[net] = \"a\"",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 6
+  },
+  {
+   "expr": "[setup] < \"b\"",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 8
+  },
+  {
+   "expr": "[day] = \"Monday\"",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 6
+  },
+  {
+   "expr": "[day] = \"2026-02-30\"",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 6
+  },
+  {
+   "expr": "[day] = [setup]",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 6
+  },
+  {
+   "expr": "[day] >= \"2026-01-01\"",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 6
+  },
+  {
+   "expr": "[had_stop] = 1",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 11
+  },
+  {
+   "expr": "[had_stop] < TRUE",
+   "code": "compare_types",
+   "sentence": "These two sides can't be compared.",
+   "pos": 11
+  },
+  {
+   "expr": "[day]",
+   "code": "bad_result",
+   "sentence": "A formula must give a number, text or yes/no.",
+   "pos": 0
+  },
+  {
+   "expr": "  If(TRUE, [day], [entry_day])",
+   "code": "bad_result",
+   "sentence": "A formula must give a number, text or yes/no.",
+   "pos": 2
+  },
+  {
+   "expr": "SumIf([net], CountIf([had_stop]) > 0)",
+   "code": "nested_aggregate",
+   "sentence": "CountIf, SumIf, AvgIf and Share can't contain each other.",
+   "pos": 13
+  },
+  {
+   "expr": "[net] + CountIf(CountIf(TRUE) > 1)",
+   "code": "nested_aggregate",
+   "sentence": "CountIf, SumIf, AvgIf and Share can't contain each other.",
+   "pos": 16
+  },
+  {
+   "expr": "[net] - SumIf([net])",
+   "code": "field_outside_aggregate",
+   "sentence": "[Net P&L] needs to be inside CountIf, SumIf, AvgIf or Share when the formula adds up rows.",
+   "pos": 0
+  },
+  {
+   "expr": "SumIf([net]) / [Risk $]",
+   "code": "field_outside_aggregate",
+   "sentence": "[Risk $] needs to be inside CountIf, SumIf, AvgIf or Share when the formula adds up rows.",
+   "pos": 15
+  },
+  {
+   "expr": "CountIf([had_stop]) > 2",
+   "code": "aggregate_number",
+   "sentence": "A formula that adds up rows must give a number.",
+   "pos": 0
+  },
+  {
+   "expr": "If(CountIf(TRUE) > 1, \"many\", \"few\")",
+   "code": "aggregate_number",
+   "sentence": "A formula that adds up rows must give a number.",
+   "pos": 0
+  },
+  {
+   "expr": "Bucket([r], 1, 1)",
+   "code": "bucket_edges",
+   "sentence": "Bucket's edges must be numbers, rising from left to right.",
+   "pos": 15
+  },
+  {
+   "expr": "Bucket([r], 2, 1)",
+   "code": "bucket_edges",
+   "sentence": "Bucket's edges must be numbers, rising from left to right.",
+   "pos": 15
+  },
+  {
+   "expr": "Bucket([r], [net])",
+   "code": "bucket_edges",
+   "sentence": "Bucket's edges must be numbers, rising from left to right.",
+   "pos": 12
+  },
+  {
+   "expr": "Bucket([r], 1 + 1)",
+   "code": "bucket_edges",
+   "sentence": "Bucket's edges must be numbers, rising from left to right.",
+   "pos": 12
+  },
+  {
+   "expr": "Bucket([r], --1)",
+   "code": "bucket_edges",
+   "sentence": "Bucket's edges must be numbers, rising from left to right.",
+   "pos": 12
+  },
+  {
+   "expr": "Bucket([r], 0.00001, 0.00002)",
+   "code": "bucket_edges",
+   "sentence": "Bucket's edges must be numbers, rising from left to right.",
+   "pos": 21
+  },
+  {
+   "expr": "Bucket([r], 0.1, 0.10)",
+   "code": "bucket_edges",
+   "sentence": "Bucket's edges must be numbers, rising from left to right.",
+   "pos": 17
+  },
+  {
+   "expr": "Round([net], 7)",
+   "code": "round_digits",
+   "sentence": "Round's second value must be a whole number from 0 to 6.",
+   "pos": 13
+  },
+  {
+   "expr": "Round([net], 1.0)",
+   "code": "round_digits",
+   "sentence": "Round's second value must be a whole number from 0 to 6.",
+   "pos": 13
+  },
+  {
+   "expr": "Round([net], -1)",
+   "code": "round_digits",
+   "sentence": "Round's second value must be a whole number from 0 to 6.",
+   "pos": 13
+  },
+  {
+   "expr": "Round([net], [r])",
+   "code": "round_digits",
+   "sentence": "Round's second value must be a whole number from 0 to 6.",
+   "pos": 13
+  },
+  {
+   "expr": "Round([net], \"2\")",
+   "code": "round_digits",
+   "sentence": "Round's second value must be a whole number from 0 to 6.",
+   "pos": 13
+  },
+  {
+   "expr": "Hour([entry_day])",
+   "code": "hour_no_time",
+   "sentence": "Hour needs a time; [Entry day] has none here.",
+   "pos": 5
+  },
+  {
+   "expr": "Hour([Entry day]) > 9",
+   "code": "hour_no_time",
+   "sentence": "Hour needs a time; [Entry day] has none here.",
+   "pos": 5
+  }
+ ],
+ "limits": [
+  {
+   "name": "length 2000 passes",
+   "build": [
+    [
+     "7",
+     1
+    ],
+    [
+     " ",
+     1999
+    ]
+   ],
+   "ok": true,
+   "value": 7
+  },
+  {
+   "name": "length 2001 fails",
+   "build": [
+    [
+     "7",
+     1
+    ],
+    [
+     " ",
+     2000
+    ]
+   ],
+   "ok": false,
+   "code": "too_long",
+   "pos": 2000
+  },
+  {
+   "name": "depth 32 passes",
+   "build": [
+    [
+     "(",
+     32
+    ],
+    [
+     "1",
+     1
+    ],
+    [
+     ")",
+     32
+    ]
+   ],
+   "ok": true,
+   "value": 1
+  },
+  {
+   "name": "depth 33 fails",
+   "build": [
+    [
+     "(",
+     33
+    ],
+    [
+     "1",
+     1
+    ],
+    [
+     ")",
+     33
+    ]
+   ],
+   "ok": false,
+   "code": "too_deep",
+   "pos": 32
+  },
+  {
+   "name": "call depth 32 passes",
+   "build": [
+    [
+     "Abs(",
+     32
+    ],
+    [
+     "-1",
+     1
+    ],
+    [
+     ")",
+     32
+    ]
+   ],
+   "ok": true,
+   "value": 1
+  },
+  {
+   "name": "call depth 33 fails",
+   "build": [
+    [
+     "Abs(",
+     33
+    ],
+    [
+     "-1",
+     1
+    ],
+    [
+     ")",
+     33
+    ]
+   ],
+   "ok": false,
+   "code": "too_deep",
+   "pos": 131
+  },
+  {
+   "name": "500 tokens pass",
+   "build": [
+    [
+     "-1",
+     1
+    ],
+    [
+     "+1",
+     249
+    ]
+   ],
+   "ok": true,
+   "value": 248
+  },
+  {
+   "name": "501 tokens fail",
+   "build": [
+    [
+     "1",
+     1
+    ],
+    [
+     "+1",
+     250
+    ]
+   ],
+   "ok": false,
+   "code": "too_many_parts",
+   "pos": 500
+  },
+  {
+   "name": "text of 200 passes",
+   "build": [
+    [
+     "\"",
+     1
+    ],
+    [
+     "a",
+     200
+    ],
+    [
+     "\" = \"x\"",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": false
+  },
+  {
+   "name": "text of 201 fails",
+   "build": [
+    [
+     "\"",
+     1
+    ],
+    [
+     "a",
+     201
+    ],
+    [
+     "\"",
+     1
+    ]
+   ],
+   "ok": false,
+   "code": "text_too_long",
+   "pos": 0
+  },
+  {
+   "name": "field name of 60 is looked up",
+   "build": [
+    [
+     "[",
+     1
+    ],
+    [
+     "x",
+     60
+    ],
+    [
+     "]",
+     1
+    ]
+   ],
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "15 significant digits pass",
+   "build": [
+    [
+     "123456789012345",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": 123456789012345
+  },
+  {
+   "name": "16 significant digits fail",
+   "build": [
+    [
+     "1234567890123456",
+     1
+    ]
+   ],
+   "ok": false,
+   "code": "bad_number",
+   "pos": 0
+  },
+  {
+   "name": "leading zeros are not significant",
+   "build": [
+    [
+     "0000000000000000000001",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": 1
+  },
+  {
+   "name": "10 Bucket edges pass",
+   "build": [
+    [
+     "Bucket(1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": "1 to 2"
+  },
+  {
+   "name": "11 Bucket edges fail",
+   "build": [
+    [
+     "Bucket(1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)",
+     1
+    ]
+   ],
+   "ok": false,
+   "code": "arg_count",
+   "pos": 0
+  },
+  {
+   "name": "Round to 6 passes",
+   "build": [
+    [
+     "Round(1.23456789, 6)",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": 1.234568
+  },
+  {
+   "name": "Round to 7 fails",
+   "build": [
+    [
+     "Round(1.23456789, 7)",
+     1
+    ]
+   ],
+   "ok": false,
+   "code": "round_digits",
+   "pos": 18
+  },
+  {
+   "name": "8 And values pass",
+   "build": [
+    [
+     "And(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE)",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": true
+  },
+  {
+   "name": "unary run of 499 passes",
+   "build": [
+    [
+     "-",
+     499
+    ],
+    [
+     "1",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": -1
+  }
+ ],
+ "hostile": [
+  {
+   "name": "lone quote",
+   "expr": "\"",
+   "ok": false,
+   "code": "unclosed_text",
+   "pos": 0
+  },
+  {
+   "name": "empty text",
+   "expr": "\"\"",
+   "ok": true,
+   "canonical": "\"\""
+  },
+  {
+   "name": "doubled quote",
+   "expr": "\"a\"\"b\"",
+   "ok": true,
+   "canonical": "\"a\"\"b\""
+  },
+  {
+   "name": "SQL injection",
+   "expr": "'; DROP TABLE j2_trades; --",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "semicolon",
+   "expr": "1; DROP TABLE j2_trades",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "SQL comment is two minuses",
+   "expr": "[net] -- 1",
+   "ok": true,
+   "canonical": "[net] -- 1"
+  },
+  {
+   "name": "dangling SQL comment",
+   "expr": "[net] --",
+   "ok": false,
+   "code": "unexpected",
+   "pos": 8
+  },
+  {
+   "name": "SQL inside text is only text",
+   "expr": "\"' OR 1=1 --\"",
+   "ok": true,
+   "canonical": "\"' OR 1=1 --\""
+  },
+  {
+   "name": "SQL inside a field name",
+   "expr": "[net; DROP TABLE x]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "SQL after a field",
+   "expr": "[net]; DROP TABLE x]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 5
+  },
+  {
+   "name": "JSON path",
+   "expr": "$.a",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "LIKE wildcards",
+   "expr": "%_",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "underscore",
+   "expr": "_",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "backslash",
+   "expr": "[net]\\[r]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 5
+  },
+  {
+   "name": "backslash in text",
+   "expr": "\"a\\b\"",
+   "ok": true,
+   "canonical": "\"a\\b\""
+  },
+  {
+   "name": "NUL",
+   "expr": "\u0000",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "NUL after a field",
+   "expr": "[net]\u0000",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 5
+  },
+  {
+   "name": "NUL inside text",
+   "expr": "\"\u0000\"",
+   "ok": true,
+   "canonical": "\"\u0000\""
+  },
+  {
+   "name": "RTL override",
+   "expr": "\u202e[net]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "RTL mark inside a field",
+   "expr": "[net\u200f]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "zero-width space",
+   "expr": "[net]\u200b+1",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 5
+  },
+  {
+   "name": "BOM",
+   "expr": "\ufeff[net]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "fullwidth brackets",
+   "expr": "\uff3bNet P&L\uff3d",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "fullwidth close bracket",
+   "expr": "[Net P&L\uff3d",
+   "ok": false,
+   "code": "unclosed_field",
+   "pos": 0
+  },
+  {
+   "name": "fullwidth letters in a field",
+   "expr": "[\uff2eet P&L]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "Kelvin sign",
+   "expr": "[RIS\u212a $]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "long s",
+   "expr": "[ri\u017fk $]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "dotted capital I",
+   "expr": "\u0130f(TRUE, 1, 2)",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "dotless i",
+   "expr": "\u0131f(TRUE, 1, 2)",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "__proto__ field",
+   "expr": "[__proto__]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "constructor field",
+   "expr": "[constructor]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "toString field",
+   "expr": "[toString]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "hasOwnProperty field",
+   "expr": "[hasOwnProperty]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "valueOf field",
+   "expr": "[valueOf]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "prototype field",
+   "expr": "[prototype]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 0
+  },
+  {
+   "name": "__proto__ bare",
+   "expr": "__proto__",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "constructor call",
+   "expr": "constructor(1)",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "toString call",
+   "expr": "toString()",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "valueOf call",
+   "expr": "valueOf([net])",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "eval call",
+   "expr": "eval(\"1\")",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "exec call",
+   "expr": "exec([net])",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "import call",
+   "expr": "import(\"os\")",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "exponent",
+   "expr": "1e309",
+   "ok": false,
+   "code": "bad_number",
+   "pos": 0
+  },
+  {
+   "name": "huge integer",
+   "expr": "99999999999999999999",
+   "ok": false,
+   "code": "bad_number",
+   "pos": 0
+  },
+  {
+   "name": "negative exponent",
+   "expr": "0.1e-5",
+   "ok": false,
+   "code": "bad_number",
+   "pos": 0
+  },
+  {
+   "name": "hex",
+   "expr": "0x1F",
+   "ok": false,
+   "code": "bad_number",
+   "pos": 0
+  },
+  {
+   "name": "NaN",
+   "expr": "NaN",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "Infinity",
+   "expr": "Infinity",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 0
+  },
+  {
+   "name": "-Infinity",
+   "expr": "-Infinity",
+   "ok": false,
+   "code": "unknown_function",
+   "pos": 1
+  },
+  {
+   "name": "divide by zero compiles",
+   "expr": "[net] / 0",
+   "ok": true,
+   "canonical": "[net] / 0"
+  },
+  {
+   "name": "10,000 open parens",
+   "build": [
+    [
+     "(",
+     10000
+    ]
+   ],
+   "ok": false,
+   "code": "too_long",
+   "pos": 2000
+  },
+  {
+   "name": "1 MB string",
+   "build": [
+    [
+     "a",
+     1048576
+    ]
+   ],
+   "ok": false,
+   "code": "too_long",
+   "pos": 2000
+  },
+  {
+   "name": "1999 open parens",
+   "build": [
+    [
+     "(",
+     1999
+    ]
+   ],
+   "ok": false,
+   "code": "too_deep",
+   "pos": 32
+  },
+  {
+   "name": "1999 minus signs",
+   "build": [
+    [
+     "-",
+     1999
+    ],
+    [
+     "1",
+     1
+    ]
+   ],
+   "ok": false,
+   "code": "too_many_parts",
+   "pos": 500
+  },
+  {
+   "name": "400 Abs(",
+   "build": [
+    [
+     "Abs(",
+     400
+    ]
+   ],
+   "ok": false,
+   "code": "too_deep",
+   "pos": 131
+  },
+  {
+   "name": "unclosed If",
+   "expr": "If(",
+   "ok": false,
+   "code": "unclosed_paren",
+   "pos": 2
+  },
+  {
+   "name": "emoji",
+   "expr": "\ud83d\ude00",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "emoji before a position",
+   "expr": "\"\ud83d\ude00\ud83d\ude00\" + [nope]",
+   "ok": false,
+   "code": "unknown_field",
+   "pos": 7
+  },
+  {
+   "name": "lone surrogate",
+   "expr": "\ud800",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "tab and newline between tokens",
+   "expr": "[net]\t+\n1",
+   "ok": true,
+   "canonical": "[net]\t+\n1"
+  },
+  {
+   "name": "carriage return",
+   "expr": "[net]\r\n+ 1",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 5
+  },
+  {
+   "name": "newline in text",
+   "expr": "\"line\nbreak\"",
+   "ok": false,
+   "code": "unclosed_text",
+   "pos": 0
+  },
+  {
+   "name": "newline in a field",
+   "expr": "[a\nb]",
+   "ok": false,
+   "code": "unclosed_field",
+   "pos": 0
+  },
+  {
+   "name": "padded label",
+   "expr": "[ Net P&L ]",
+   "ok": true,
+   "canonical": "[net]"
+  },
+  {
+   "name": "script tag",
+   "expr": "<script>",
+   "ok": false,
+   "code": "unexpected",
+   "pos": 0
+  },
+  {
+   "name": "template braces",
+   "expr": "{{7*7}}",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "template literal",
+   "expr": "${7*7}",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "backtick",
+   "expr": "`x`",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "hash",
+   "expr": "[net]#",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 5
+  },
+  {
+   "name": "at sign",
+   "expr": "@net",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 0
+  },
+  {
+   "name": "pipe",
+   "expr": "[net] | [r]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 6
+  },
+  {
+   "name": "caret",
+   "expr": "[net] ^ 2",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 6
+  },
+  {
+   "name": "smart quotes",
+   "expr": "[setup] = \u201cGap\u201d",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 10
+  },
+  {
+   "name": "single quotes",
+   "expr": "[setup] = 'Gap'",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 10
+  },
+  {
+   "name": "upper case function",
+   "expr": "ROUND(1)",
+   "ok": true,
+   "canonical": "Round(1)"
+  },
+  {
+   "name": "chained equals",
+   "expr": "[net] = [net] = [net]",
+   "ok": false,
+   "code": "unexpected",
+   "pos": 14
+  },
+  {
+   "name": "bool plus number",
+   "expr": "TRUE + 1",
+   "ok": false,
+   "code": "needs_number",
+   "pos": 0
+  },
+  {
+   "name": "a field holding brackets text",
+   "expr": "[setup] = \"[net]\"",
+   "ok": true,
+   "canonical": "[setup] = \"[net]\""
+  }
+ ],
+ "skip_notice": [
+  [
+   0,
+   "Risk $",
+   "trade",
+   "trades",
+   null
+  ],
+  [
+   -3,
+   "Risk $",
+   "trade",
+   "trades",
+   null
+  ],
+  [
+   1,
+   "Risk $",
+   "trade",
+   "trades",
+   "[Risk $] is empty on 1 trade; those are skipped"
+  ],
+  [
+   4,
+   "Risk $",
+   "trade",
+   "trades",
+   "[Risk $] is empty on 4 trades; those are skipped"
+  ],
+  [
+   4,
+   null,
+   "trade",
+   "trades",
+   "This formula has no value on 4 trades; those are skipped"
+  ],
+  [
+   1,
+   null,
+   "day",
+   "days",
+   "This formula has no value on 1 day; those are skipped"
+  ],
+  [
+   1234,
+   "Hold minutes",
+   "trade",
+   "trades",
+   "[Hold minutes] is empty on 1,234 trades; those are skipped"
+  ],
+  [
+   2,
+   "",
+   "note",
+   "notes",
+   "This formula has no value on 2 notes; those are skipped"
+  ]
+ ]
+}
