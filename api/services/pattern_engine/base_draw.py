@@ -549,6 +549,10 @@ def forming_drawing(bars, i):
             return None
         if not _f(b[i], "c") > _ema(b, i, FORM_EMA):
             return None
+        # the rising 200-day: _textbook_ok no longer asks it (base_drawing applies trend_ok up front), so the
+        # forming state applies the same trend_ok itself -- the gate its blind packets were judged with
+        if not trend_ok([_f(x, "c") for x in b], i):
+            return None
         seen, best = set(), None
         for k in _candidates(b, i):
             d = _evaluate(b, i, a, k, 2, waive=True, forming=True)

@@ -343,3 +343,11 @@ def test_state_drawing_never_raises(monkeypatch):
         raise RuntimeError("x")
     monkeypatch.setattr(BD, "breakout_drawing", boom)
     assert BD.state_drawing(b, _last(b))["state"] == "forming"   # one state failing never stops the next
+
+
+def test_forming_needs_a_rising_200_day(monkeypatch):
+    # base_drawing applies trend_ok up front and _textbook_ok no longer does, so forming must ask it itself
+    b = _bars(FORMING)
+    assert BD.forming_drawing(b, _last(b)) is not None                    # control
+    monkeypatch.setattr(BD, "trend_ok", lambda closes, i: False)
+    assert BD.forming_drawing(b, _last(b)) is None

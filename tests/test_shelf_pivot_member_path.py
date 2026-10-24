@@ -122,8 +122,32 @@ def _reproduce(round4):
     return bad
 
 
-def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env):
+def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env, monkeypatch):
+    # the recorded member views predate the bc:base STATES (base_draw.state_drawing); a served state row is a
+    # drawing like any other, so the shelf yields to it (test_a_served_base_state_row_hides_the_shelf). Here the
+    # states are held off so the recorded view is compared exactly.
+    from api.services.pattern_engine import base_draw
+    monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
     assert _reproduce(round4=True) == []
+
+
+def test_a_served_base_state_row_only_ever_hides_the_shelf(member_path_env, monkeypatch):
+    """A live base STATE row is a served drawing: where one changes the shelf layer's answer, the shelf yields
+    (draws nothing). It never moves the shelf line to another price."""
+    from api.services.pattern_engine import base_draw
+    real = base_draw.state_drawing
+    changed = 0
+    for c in cases():
+        _ASOF[0] = int(c["bars"][-1][0])
+        monkeypatch.setattr(base_draw, "state_drawing", real)
+        r = S.evaluate(c["bars"], *AS.shelf_member_facts(c["ticker"], _dicts(c["bars"])))
+        monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
+        r0 = S.evaluate(c["bars"], *AS.shelf_member_facts(c["ticker"], _dicts(c["bars"])))
+        pick = lambda x: None if x["pick"] is None else (x["pick"]["P"], x["pick"]["left"])
+        if pick(r) != pick(r0):
+            changed += 1
+            assert r["pick"] is None, c["id"]
+    assert changed >= 1
 
 
 def test_a_rollback_to_base_round_two_reproduces_the_recorded_member_view(member_path_env, monkeypatch):
