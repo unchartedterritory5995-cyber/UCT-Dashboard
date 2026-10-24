@@ -307,3 +307,91 @@ def test_member_route_serves_one_line_and_the_admin_route_is_unchanged(monkeypat
     monkeypatch.setattr(AS, "structures_for", lambda sym: [])
     member = _get(PAID_MEMBER).json()
     assert [r["id"] for r in member["detections"]] == ["m1", "m2"] and member["count"] == 2
+
+
+# -- the bc:base line as DRAWN: textbook round 2 draws it at metrics_textbook.line, not the body pivot --------
+
+def _base_tb(body, line, low=None, rid="base"):
+    """A bc:base row whose body pivot is `body` and whose released textbook numbers draw the top line at `line`
+    (buy point = line + $0.10), as the member path serves it after with_metrics."""
+    r = _base(body, rid=rid)
+    if low is not None:
+        r["geometry"]["extras"]["draw_base"]["low"] = low
+    r["geometry"]["extras"]["metrics_textbook"] = {"line": line, "buy_point": round(line + 0.10, 2)}
+    r["geometry"]["extras"]["metrics_textbook_round"] = AS.MEMBER_TEXTBOOK_ROUND
+    return r
+
+
+def test_bodies_more_than_one_atr_apart_but_drawn_lines_within_one_atr_dedupe_to_one():
+    # body pivot 50.00 is 1.30 ATR under the bull_flag entry 51.30; the DRAWN line 51.20 is 0.10 ATR from it
+    d, s = _run([_bull_flag(51.30)], [_base_tb(50.00, 51.20)], atr=1.0)
+    assert (_ids(d), _ids(s)) == ([], ["bc:base"])
+    # control: the same body without the textbook line keeps both (the body is what is drawn then)
+    d, s = _run([_bull_flag(51.30)], [_base(50.00)], atr=1.0)
+    assert (_ids(d), _ids(s)) == (["bull_flag"], ["bc:base"])
+
+
+def test_bodies_within_one_atr_but_drawn_lines_more_than_one_atr_apart_keep_both():
+    # body pivot 50.00 is 0.50 ATR under the bull_flag entry 50.50; the DRAWN line 51.60 is 1.10 ATR over it
+    dets, sts = [_bull_flag(50.50)], [_base_tb(50.00, 51.60)]
+    d, s = _run(dets, sts, atr=1.0)
+    assert _bytes([d, s]) == _bytes([dets, sts])
+    # control: without the textbook line the body is drawn and the two are one line
+    d, s = _run([_bull_flag(50.50)], [_base(50.00)], atr=1.0)
+    assert (_ids(d), _ids(s)) == ([], ["bc:base"])
+
+
+@pytest.mark.parametrize("tb", [
+    {"line": 51.20, "buy_point": 51.20},          # buy point not above the line
+    {"line": 40.00, "buy_point": 40.10},          # line not above the low (44.00)
+    {"line": None, "buy_point": 51.30},
+    {"line": "x", "buy_point": 51.30},
+    {"line": 51.20},                              # no buy point
+    {"line": float("nan"), "buy_point": 51.30},
+    "51.20",                                      # not a dict
+])
+def test_a_malformed_textbook_stamp_falls_back_to_the_body_pivot_as_the_chart_does(tb):
+    r = _base(50.00)
+    r["geometry"]["extras"]["metrics_textbook"] = tb
+    assert AS._breakout_lines(r) == [(50.00, S, E)]
+
+
+def test_a_released_textbook_line_is_the_bc_base_breakout_line():
+    assert AS._breakout_lines(_base_tb(50.00, 51.20)) == [(51.20, S, E)]
+
+
+def test_member_route_compares_the_drawn_line_metrics_attached_before_the_one_line_pass(monkeypatch):
+    """The route attaches metrics (with_metrics) BEFORE member_one_line_per_base: with the metrics pass after it,
+    the bull_flag 1.30 ATR over the body would survive beside a bc:base line drawn 0.10 ATR under it."""
+    flag = {**_bull_flag(51.30), "id": "bf1", "tf": "D"}
+    box = _base(50.00)
+
+    def fake_metrics(sym, rows, *, member=False):
+        out = []
+        for r in rows or []:
+            if r.get("pattern_id") == "bc:base":
+                ex = {**r["geometry"]["extras"], "metrics_textbook": {"line": 51.20, "buy_point": 51.30},
+                      "metrics_textbook_round": AS.MEMBER_TEXTBOOK_ROUND}
+                r = {**r, "geometry": {**r["geometry"], "extras": ex}}
+            out.append(r)
+        return out
+
+    _flags(monkeypatch, True, True)
+    _store(monkeypatch, [flag])
+    monkeypatch.setattr(AS, "structures_for", lambda sym: json.loads(json.dumps([box])))
+    monkeypatch.setattr(AS, "drawn_for", lambda sym: None)
+    monkeypatch.setattr(AS, "member_rows", lambda rows: list(rows or []))
+    monkeypatch.setattr(AS, "fresh_member_rows", lambda sym, tf, rows: list(rows))
+    monkeypatch.setattr(AS, "member_trend_gate", lambda sym, d, s: (list(d), list(s)))
+    monkeypatch.setattr(AS, "shelf_pivot_row", lambda *a, **k: None)
+    monkeypatch.setattr(AS, "daily_atr14", lambda sym: 1.0)
+    monkeypatch.setattr(AS, "with_metrics", fake_metrics)
+    member = _get(PAID_MEMBER).json()
+    assert member["detections"] == [] and member["count"] == 0
+    assert _ids(member["structures"]) == ["bc:base"]
+    assert member["structures"][0]["geometry"]["extras"]["metrics_textbook"]["line"] == 51.20
+    # control: metrics that draw nothing new (the body line) keep both
+    monkeypatch.setattr(AS, "with_metrics", lambda sym, rows, member=False: rows)
+    member = _get(PAID_MEMBER).json()
+    assert [r["id"] for r in member["detections"]] == ["bf1"] and member["count"] == 1
+    assert _ids(member["structures"]) == ["bc:base"]

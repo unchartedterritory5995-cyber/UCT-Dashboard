@@ -128,9 +128,33 @@ def textbook_numbers_enabled() -> bool:
 #: taken as the buy point, PLSE; a "0% deep" range labelled at all, TECH). A member gets `metrics_textbook`
 #: once AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED is on; a row whose stamped round differs keeps the confirmed
 #: base metrics label (fail closed). None withholds it from every member again.
-MEMBER_TEXTBOOK_ROUND = 1
+#: 2: RELEASED -- round 2 draws the bc:base top line at the buy point - $0.10 (`metrics_textbook.line`, the base
+#: high) instead of on the highest body, so the line and the printed buy point are one price. It passed a blind
+#: paired check against the round-1 drawing on 2026-10-23 (two packets of 25 cases where the two disagreed by more
+#: than 0.5 ATR, four judges: the round-2 drawing preferred in 100 of 100 judgments, mean score 2.82 and 2.72). The
+#: printed numbers are unchanged from round 1.
+MEMBER_TEXTBOOK_ROUND = 2
 #: The textbook keys a member's row loses while MEMBER_TEXTBOOK_ROUND does not match.
 _TEXTBOOK_KEYS = ("metrics_textbook", "metrics_textbook_round")
+
+
+#: The candle-rules round a member's candle labels may come from (screener.candle_catalog.CANDLE_RULES_ROUND
+#: stamps the geometry). 2: RELEASED -- round 2 of the textbook audit passed its blind packets on 2026-10-24
+#: (2.54 / 88% and 2.36 / 88% of cases >= 2, against a 2.3 / 70% bar); round 1 failed one packet. A literal ON
+#: PURPOSE, like the drawing rounds: when the candle rules move to a new round, member_candle_rules_ok() goes
+#: False until this is changed by hand after that round's own blind packets (fail closed).
+#: ⛔ THE CANDLE LAYER IS LABEL-ONLY. It names a shape; it never scores, ranks or forecasts it. The same audit
+#: found no label with a usable edge over random bars of the same date and trend context, so no probability,
+#: strength or signal wording may ride along with a candle name to a member.
+MEMBER_CANDLE_ROUND = 2
+
+
+def member_candle_rules_ok() -> bool:
+    """True only while MEMBER_CANDLE_ROUND is an int equal to candle_catalog.CANDLE_RULES_ROUND (read per call,
+    so a test can move one literal). A member surface that shows candle labels checks this first."""
+    from api.services.screener import candle_catalog
+    rnd = candle_catalog.CANDLE_RULES_ROUND
+    return type(MEMBER_CANDLE_ROUND) is int and type(rnd) is int and MEMBER_CANDLE_ROUND == rnd
 
 
 def with_metrics(sym: str, rows, *, member: bool = False) -> list:
@@ -488,6 +512,41 @@ MEMBER_BASE_ROUND = 4
 _BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4)})
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
+#: The base STATES (base_draw.state_drawing, lab base_persist_forming) a member may be drawn, each by the
+#: state round its own blind packets confirmed (base_draw.STATE_ROUND stamps `draw_base.state_round`). Literals
+#: ON PURPOSE; None withholds that state from every member (admins still see it). A row with no `state` is the
+#: judged base and is not touched by these.
+#: The breakout persistence ("breakout" in the buy zone / "extended" just past it). Round 1 passed two blind
+#: packets 2026-10-23 (A 2.68 [2.48, 2.86], B 2.54 [2.30, 2.74]).
+MEMBER_BASE_BREAKOUT_ROUND = 1
+#: "Base forming" (dashed pivot, the right side still building). Round 1 passed two blind packets 2026-10-23
+#: (A 2.82 [2.68, 2.94], B 2.66 [2.48, 2.82]).
+MEMBER_BASE_FORMING_ROUND = 1
+#: "3 weeks tight". None: round 1 FAILED its first blind packet 2026-10-23 (A 1.94 [1.64, 2.22]), and
+#: base_draw.state_drawing does not draw it at all (base_draw.DRAWN_STATES); None stays as the fail-closed gate.
+MEMBER_BASE_TIGHT_ROUND = None
+
+
+def _member_base_state_ok(bd) -> bool:
+    """True for a draw_base with no `state` (the judged base), or one whose state's member literal is an int
+    equal to its stamped `state_round`. Any other state is False (fail closed)."""
+    st = bd.get("state")
+    if st is None and "state" not in bd:
+        return True
+    rnd = {"breakout": MEMBER_BASE_BREAKOUT_ROUND, "extended": MEMBER_BASE_BREAKOUT_ROUND,
+           "forming": MEMBER_BASE_FORMING_ROUND, "tight": MEMBER_BASE_TIGHT_ROUND}.get(st) if isinstance(st, str) else None
+    sr = bd.get("state_round")
+    return type(rnd) is int and type(sr) is int and sr == rnd
+
+
+def _is_base_state_row(row) -> bool:
+    """True for a bc:base row drawn by a base STATE (base_draw.state_drawing). Such a row is ADDITIVE: it
+    never removes another member drawing (member_one_line_per_base ranks it last, member_inside_day_precedence
+    does not count it as an incumbent); it is the one that yields."""
+    try:
+        return (row or {}).get("pattern_id") == BASE_DRAW_ID and "state" in row["geometry"]["extras"]["draw_base"]
+    except (KeyError, TypeError):
+        return False
 
 
 def _base_member_row(row):
@@ -552,6 +611,8 @@ def _confirmed_base(row) -> bool:
         return False
     bd = ex.get("draw_base")
     if not isinstance(bd, dict) or (bd.get("label"), bd.get("low_label")) != MEMBER_BASE_LABELS:
+        return False
+    if not _member_base_state_ok(bd):
         return False
     if not (_finite(bd.get("pivot")) and _finite(bd.get("low"))):
         return False
@@ -942,6 +1003,9 @@ def base_draw_row(sym: str, bars: list):
         cur_round = base_draw.BASE_DRAW_ROUND
         d = base_draw.base_drawing(b, len(b) - 1)
         if MEMBER_BASE_ROUND == cur_round:
+            if d is None:
+                # where no base is drawn: the base STATES (breakout persistence, 3 weeks tight, base forming)
+                d = base_draw.state_drawing(b, len(b) - 1)
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:
@@ -1276,7 +1340,8 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
         if (tf or "D").upper() != "D":
             return [s for s in sts if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
         inc = [r for r in list(detections or []) + sts
-               if (r or {}).get("pattern_id") in INSIDE_DAY_INCUMBENT_IDS and _drawn_incumbent(r)]
+               if (r or {}).get("pattern_id") in INSIDE_DAY_INCUMBENT_IDS and _drawn_incumbent(r)
+               and not _is_base_state_row(r)]
         drop = set()
         for s in ids:
             d = ((s.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
@@ -1340,9 +1405,31 @@ def _stamped_atr(rows):
     return max(vals) if vals else None
 
 
+def _drawn_base_top(draw_base, textbook):
+    """The price the member's chart draws a bc:base top line at, as PatternOverlay.baseDrawing picks it: the
+    textbook round's `metrics_textbook.line` (buy point - $0.10) when it and the buy point are finite numbers with
+    low < line < buy point, else `draw_base.pivot` (the body). A member row carries `metrics_textbook` only while
+    its round is released (with_metrics strips it otherwise), so reading it here reads what is drawn."""
+    def num(v):
+        if isinstance(v, bool) or v is None:
+            return None
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        return f if _finite(f) else None
+
+    if isinstance(textbook, dict):
+        line, bp, low = num(textbook.get("line")), num(textbook.get("buy_point")), num(draw_base.get("low"))
+        if line is not None and bp is not None and low is not None and low < line < bp:
+            return line
+    return draw_base.get("pivot")
+
+
 def _breakout_lines(row) -> list:
     """[(price, start_t, end_t)] -- every BREAKOUT line (pivot / entry / ceiling / box top) the member's chart
-    draws for `row`, as PatternOverlay.rowView draws it: a bc:base or named-shape pivot, the flat-top
+    draws for `row`, as PatternOverlay.rowView draws it: a bc:base top line (_drawn_base_top) or a named-shape
+    pivot, the flat-top
     ceiling, a box's `draw_pivot`, a detector's drawn entry (`draw_entry`; never for the "flagging" tier)
     and `draw_pivot`, and a flat_base box top while the box draws. A rim reference, a low or a stop is not
     a breakout line. A line without a finite price and a readable span draws nothing and is not listed."""
@@ -1371,7 +1458,9 @@ def _breakout_lines(row) -> list:
             pass
 
     if pid == BASE_DRAW_ID:
-        stamp("draw_base", "pivot")
+        d = ex.get("draw_base")
+        if isinstance(d, dict):
+            add(_drawn_base_top(d, ex.get("metrics_textbook")), d.get("start_t"), d.get("end_t"))
     elif pid in SHAPE_DRAW_IDS:
         stamp("draw_shape", "pivot")
     elif pid == "uct_flat_top_breakout":
@@ -1410,6 +1499,40 @@ def daily_atr14(sym: str):
         return None
 
 
+#: The member base rows whose own drawing code is a detector or the base catalog (which must not change: they feed
+#: confidence, history and the screener), so the trend floor is applied to them HERE, on the member path. The
+#: base drawing (bc:base), the double bottom and the shelf pivot apply the same base_draw.trend_ok in their own
+#: drawing code; the cup tier gates on its own rising 200-day.
+MEMBER_TREND_GATED_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout"})
+
+
+def member_trend_gate(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any MEMBER_TREND_GATED_IDS row while the daily close of `sym` is not above a
+    RISING 200-day average (base_draw.trend_ok): a bullish base under a falling 200-day is a pause in a
+    downtrend, not a base to buy. The daily bars are read only when such a row is present, and the trend is read
+    at the last COMPLETE session (a forming bar is dropped, as base_draw_row does), so a live price crossing the
+    average cannot blink these rows on and off or disagree with the other base layers on the same chart. Too
+    short a history (under 220 sessions) drops them; a bar READ ERROR or an EMPTY read keeps them (the gate only
+    removes what it can show is a downtrend, and a store outage must not blank every base on the site). Every
+    other row is untouched. Members only; order kept."""
+    det, st = list(detections or []), list(structures or [])
+    if not any((r or {}).get("pattern_id") in MEMBER_TREND_GATED_IDS for r in det + st):
+        return det, st
+    try:
+        from api.services.pattern_engine import base_draw
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        ok = base_draw.trend_ok([float(x["c"]) for x in b], len(b) - 1) if b else True
+    except Exception:  # noqa: BLE001 -- unknown is not a downtrend: the rows stay as they were
+        _log.warning("[auto-structures] trend read failed for %s; base rows left ungated", sym, exc_info=True)
+        ok = True
+    if ok:
+        return det, st
+    keep = [r for r in det if (r or {}).get("pattern_id") not in MEMBER_TREND_GATED_IDS]
+    return keep, [r for r in st if (r or {}).get("pattern_id") not in MEMBER_TREND_GATED_IDS]
+
+
 def member_one_line_per_base(detections, structures, atr=None) -> tuple:
     """(detections, structures) with at most ONE drawn breakout line per base. Applied on the MEMBER path
     only, after member_rows, the freshness filter and the pairwise precedences.
@@ -1439,7 +1562,8 @@ def member_one_line_per_base(detections, structures, atr=None) -> tuple:
             if pid in rank and _drawn_incumbent(r):
                 ls = _breakout_lines(r)
                 if ls:
-                    cands.append((rank[pid], i, r, ls))
+                    # a base STATE row ranks after every incumbent: it yields, it never removes one
+                    cands.append((len(rank) if _is_base_state_row(r) else rank[pid], i, r, ls))
         if len(cands) < 2:
             return dets, sts
 
@@ -2321,6 +2445,11 @@ def sr_served_prices(rows) -> list:
                 vals = [p] if _finite(p) else []
             else:
                 vals, _span = _row_lines(r)
+                # textbook round 2: a bc:base row whose numbers carry `line` draws its top line THERE (the buy
+                # point - $0.10), not on draw_base.pivot. Added beside the body pivot, so S/R keeps clear of both.
+                tl = (ex.get("metrics_textbook") or {}).get("line") if r.get("pattern_id") == BASE_DRAW_ID else None
+                if _finite(tl):
+                    vals = list(vals) + [tl]
         except Exception:  # noqa: BLE001 -- a row whose lines cannot be read suppresses nothing (as the lab)
             continue
         for v in vals:

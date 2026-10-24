@@ -46,8 +46,10 @@ export const articleFor = (word) => (/^[AEIOU]/i.test(String(word || '')) ? 'an'
 const fail = (code, reason, extra = {}) => ({ ok: false, skip: false, code, reason, ...extra })
 const positive = (x) => { const n = Number(x); return Number.isFinite(n) && n > 0 ? n : null }
 
-/** The settings value is the server's default, written into every new account: it is not the member's. */
+/** The settings value is not the member's. The server's own answer (accountSizeIsDefault, which reads
+ *  the member-set marker) wins; a payload without it falls back to "is it the placeholder". */
 export function isPlaceholderAccount(settings) {
+  if (typeof settings?.accountSizeIsDefault === 'boolean') return settings.accountSizeIsDefault
   return Number(settings?.accountSize) === PLACEHOLDER_ACCOUNT_SIZE
 }
 
@@ -57,7 +59,7 @@ export function accountSizeFor({ params, settings }) {
   const own = positive(params?.accountSize)
   if (own != null) return own
   const s = positive(settings?.accountSize)
-  return s != null && s !== PLACEHOLDER_ACCOUNT_SIZE ? s : null
+  return s != null && !isPlaceholderAccount(settings) ? s : null
 }
 
 /**

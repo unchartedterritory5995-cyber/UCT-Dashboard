@@ -25,6 +25,17 @@ def _flat(n=45, price=10.0):
     return [_bar(price, price + 0.2, price - 0.2, price) for _ in range(n)]
 
 
+def _quiet(n=45, price=100.0, body=0.4):
+    """No trend, but REAL bodies: a "long" body is measured against the average
+    body, so a base of zero-body bars makes nothing long (R2-F1 needs a long
+    body for a marubozu)."""
+    out = []
+    for i in range(n):
+        o, c = (price, price + body) if i % 2 else (price + body, price)
+        out.append(_bar(o, max(o, c) + 0.2, min(o, c) - 0.2, c))
+    return out
+
+
 def _downtrend(n=60, start=40.0, step=0.4):
     out = []
     p = start
@@ -193,7 +204,7 @@ def test_a_few_ticks_of_range_never_prints_a_conviction_label():
 
 def test_a_real_marubozu_on_a_real_range_still_classifies():
     """The control — the noise guard must not eat a genuine wide bar."""
-    base = _flat(45, price=100.0)
+    base = _quiet(45, price=100.0)
     out = candles.single_candle(base + [_bar(100.0, 108.2, 99.9, 108.0)])
     assert out["candle_type"] == "white-marubozu"
 
@@ -201,7 +212,7 @@ def test_a_real_marubozu_on_a_real_range_still_classifies():
 def test_the_retired_marubozu_key_still_reaches_the_match_set():
     """⚠️ `marubozu` split into white/black. A saved screen holding the old
     value must not silently re-select nothing."""
-    base = _flat(45, price=100.0)
+    base = _quiet(45, price=100.0)
     out = candles.single_candle(base + [_bar(100.0, 108.2, 99.9, 108.0)])
     assert "marubozu" in cat.decode_matches(out["candle_matches"])
     assert cat.match_value("marubozu") in out["candle_matches"]

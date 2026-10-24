@@ -164,7 +164,8 @@ export function flatTopDrawing(d) {
  * `extras.draw_base` = {pivot, start_t, end_t, low, low_t, label, low_label}. Returns null for any
  * other row or a malformed stamp (a pivot that is not above the low, a missing span). When it returns
  * a drawing, the row draws exactly what the judges scored and nothing else: a light region over the
- * base, a solid pivot line on its top extended past the last bar, and a dashed line at its low.
+ * base, a solid pivot line on its top extended past the last bar, and a dashed line at its low. With textbook
+ * numbers carrying `line` (round 2) the top line sits there instead, labelled "Buy point <buy_point>".
  * Pure — exported for tests.
  */
 export function baseDrawing(d) {
@@ -175,10 +176,52 @@ export function baseDrawing(d) {
   const low = Number(bd.low)
   if (!Number.isFinite(pivot) || !Number.isFinite(low) || !(pivot > low)) return null
   if (bd.start_t == null || bd.end_t == null) return null
-  return {
-    pivot, low, start_t: bd.start_t, end_t: bd.end_t,
-    label: bd.label || 'pivot', lowLabel: bd.low_label || 'base low',
-  }
+  // a base STATE (api: base_draw.state_drawing): a known state, or none at all (the judged base)
+  const state = BASE_STATES.includes(bd.state) ? bd.state : null
+  if (bd.state != null && !state) return null
+  // a breakout-state base ends at base_end_t (its own bars); its pivot line runs on to end_t
+  const baseEnd = (state === 'breakout' || state === 'extended') && bd.base_end_t != null ? bd.base_end_t : bd.end_t
+  // Textbook round 2: the server's `metrics_textbook.line` (buy point - $0.10, the base high) is where the top
+  // line is drawn, labelled with the printed buy point, so the line and the label are one price. Without it
+  // (no textbook numbers, an unreleased round, a malformed stamp) the line stays on draw_base.pivot. A FORMING
+  // base keeps its line on draw_base.pivot: it prints no buy point, only "Base forming, pivot <that line>".
+  const tb = state === 'forming' ? null : d?.geometry?.extras?.metrics_textbook
+  const line = Number(tb?.line)
+  const bp = Number(tb?.buy_point)
+  const out = (tb && tb.line != null && tb.buy_point != null && Number.isFinite(line) && Number.isFinite(bp)
+      && line > low && bp > line)
+    ? {
+        pivot: line, low, start_t: bd.start_t, end_t: bd.end_t,
+        label: `Buy point ${bp.toFixed(2)}`, lowLabel: bd.low_label || 'base low',
+      }
+    : {
+        pivot, low, start_t: bd.start_t, end_t: bd.end_t,
+        label: bd.label || 'pivot', lowLabel: bd.low_label || 'base low',
+      }
+  // a row without a state draws exactly what it drew before the states existed
+  return state ? { ...out, state, base_end_t: baseEnd } : out
+}
+
+/** The base STATES a bc:base row may carry (`draw_base.state`; the server serves each to a member only once
+ *  its own blind packets confirmed it). */
+export const BASE_STATES = ['breakout', 'extended', 'forming', 'tight']
+/** The first printed line of a breakout-state base. */
+export const BASE_STATE_TEXT = { breakout: 'Breakout, in buy zone', extended: 'Extended' }
+
+/**
+ * The label of a base STATE row, or null for a row without a known state: "Base forming, pivot X" and
+ * "3 weeks tight, pivot X" (X = the drawn pivot line; no buy-zone text), and for a breakout state its state
+ * line on top of the base's own number lines (`numbers`). Pure — exported for tests.
+ */
+export function baseStateLines(d, numbers) {
+  const bd = d?.geometry?.extras?.draw_base
+  const state = bd && BASE_STATES.includes(bd.state) ? bd.state : null
+  if (!state) return null
+  const pivot = Number(bd.pivot)
+  if (!Number.isFinite(pivot)) return null
+  if (state === 'forming') return [`Base forming, pivot ${pivot.toFixed(2)}`]
+  if (state === 'tight') return [`3 weeks tight, pivot ${pivot.toFixed(2)}`]
+  return [BASE_STATE_TEXT[state], ...(numbers || [])]
 }
 
 /**
@@ -190,6 +233,13 @@ export function baseDrawing(d) {
  * always labelled an estimate. Pure — exported for tests.
  */
 export function baseMetricsLines(d) {
+  if (d?.pattern_id === BASE_DRAW_ID && d?.geometry?.extras?.draw_base?.state != null) {
+    return baseStateLines(d, baseNumberLines(d))
+  }
+  return baseNumberLines(d)
+}
+
+function baseNumberLines(d) {
   const tb = textbookMetricsLines(d)
   if (tb) return tb
   const m = d?.geometry?.extras?.metrics
@@ -217,8 +267,8 @@ const signedPct = (v, digits = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFix
  * The TEXTBOOK numbers a base row carries (`extras.metrics_textbook`, server-computed only under
  * AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED; api/services/textbook_numbers.py): the IBD-style buy point
  * (the base's pivot HIGH + $0.10), its buy zone and the close against it, plus the base count and the
- * volume when the server could read them. The drawn line does not move; these lines say "Buy point" so the
- * two prices are never confused. Two or three lines:
+ * volume when the server could read them. From textbook round 2 the base's top line is drawn at the buy point
+ * - $0.10 (`metrics_textbook.line`, see baseDrawing), so the line and these numbers are one price. Two or three lines:
  *   "Buy point 43.12 · 12% deep · 5.2 wks · stage 2"
  *   "Buy zone to 45.28 · −1.3% from buy point"       (" · extended" past the buy zone)
  *   "Vol +62% vs 50d avg"                             (" · light volume" on a breakout under 40%)
@@ -805,16 +855,19 @@ export default function PatternOverlay({
             )}
             {base && (() => {
               const x1 = tToX(base.start_t)
-              const x2 = tToX(base.end_t)
+              // the region and the low line end at the base's own end (a breakout state's base_end_t)
+              const baseEndT = base.base_end_t ?? base.end_t
+              const x2 = tToX(baseEndT)
+              const forming = base.state === 'forming'
               const yP = priceToY(base.pivot)
               const yL = priceToY(base.low)
               const region = [x1, x2, yP, yL].every((v) => v != null) ? (
                 <rect data-role="base-region" x={Math.min(x1, x2)} y={Math.min(yP, yL)}
                   width={Math.max(1, Math.abs(x2 - x1))} height={Math.max(1, Math.abs(yL - yP))}
-                  fill={getColor(d)} fillOpacity={getOpacity(d) * 0.08} stroke="none"
+                  fill={getColor(d)} fillOpacity={getOpacity(d) * (forming ? 0.05 : 0.08)} stroke="none"
                   style={{ pointerEvents: 'none' }} />
               ) : null
-              const level = (suffix, price, label, extra) => (
+              const level = (suffix, price, label, extra, endT = baseEndT) => (
                 <LevelSegment
                   detection={{
                     ...d,
@@ -823,7 +876,7 @@ export default function PatternOverlay({
                     geometry: {
                       shape: 'horizontal_line',
                       label,
-                      anchors: [{ t: base.start_t, price }, { t: base.end_t, price }],
+                      anchors: [{ t: base.start_t, price }, { t: endT, price }],
                     },
                   }}
                   tToX={tToX}
@@ -833,9 +886,10 @@ export default function PatternOverlay({
                 />
               )
               return (
-                <g data-role="base-draw">
+                <g data-role="base-draw" data-base-state={base.state || undefined}>
                   {region}
-                  {level('base-pivot', base.pivot, base.label, { extendRight: 40, dashed: false, role: 'base-pivot' })}
+                  {level('base-pivot', base.pivot, base.label,
+                    { extendRight: 40, dashed: forming, role: 'base-pivot' }, base.end_t)}
                   {level('base-low', base.low, base.lowLabel, { dashed: true, role: 'base-low' })}
                 </g>
               )

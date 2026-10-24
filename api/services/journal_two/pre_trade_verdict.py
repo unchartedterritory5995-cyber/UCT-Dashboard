@@ -106,9 +106,28 @@ def _persist_verdict(
     return vid
 
 
+def _account_size(settings: dict) -> tuple[float, bool]:
+    """(size, is_default) from the ONE authority (accounts.account_size_of): an unset size is
+    voice_position_sizing.UNSET_ACCOUNT_SIZE, flagged default. No account settings at all (the
+    unified '_all_' coach scope, an unknown id) is size 0 as on base, so the ERROR verdict
+    answers with no model call and no daily-cap charge (fix round 2, finding 2)."""
+    if not settings:
+        return 0.0, False
+    return accounts_service.account_size_of(settings)
+
+
+def _with_default_size_note(result: dict, is_default: bool) -> dict:
+    """Label a verdict that rests on the default size with payload keys only (the flag and the
+    shared sentence). The factors, the persisted verdict and the model input stay as base wrote
+    them (fix round 2, finding 5: base showed no equivalent)."""
+    from api.services.voice_position_sizing import default_size_sentence
+    return {**result, "account_size_is_default": bool(is_default),
+            "account_size_note": default_size_sentence() if is_default else None}
+
+
 def _hard_checks(*, user_id: str, account_id: str, params: dict, conn) -> dict | None:
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
-    account_size = float(settings.get("accountSize") or 0)
+    account_size, _is_default = _account_size(settings)
     risk_pct = _compute_risk_pct(params, account_size)
 
     if account_size <= 0:
@@ -305,6 +324,8 @@ def _llm_verdict(
     parts.append("Return your verdict as JSON only — no surrounding text.")
     user_message = "\n".join(parts)
 
+    # The model's input is byte-identical to base (fix round 2, finding 5): the default size is a
+    # payload label for the member, never prompt text.
     response = client.write_verdict(system_prompt=prompt, user_message=user_message, user_id=user_id)
     raw = response.get("body", "").strip()
 
@@ -350,10 +371,13 @@ def generate_verdict(
     """Two-stage verdict: hard checks first, LLM second. Persists to j2_verdicts."""
     _conn, _close = _get_conn(conn)
     try:
+        settings = accounts_service.get_account_settings(user_id, account_id, conn=_conn) or {}
+        account_size, size_is_default = _account_size(settings)
         hard = _hard_checks(
             user_id=user_id, account_id=account_id, params=params, conn=_conn,
         )
         if hard is not None:
+            hard = _with_default_size_note(hard, size_is_default)
             vid = _persist_verdict(
                 _conn, user_id=user_id, account_id=account_id, params=params,
                 risk_pct=hard.get("risk_pct"),
@@ -363,8 +387,6 @@ def generate_verdict(
             )
             return {**hard, "verdict_id": vid}
 
-        settings = accounts_service.get_account_settings(user_id, account_id, conn=_conn) or {}
-        account_size = float(settings.get("accountSize") or 0)
         risk_pct = _compute_risk_pct(params, account_size)
 
         # Charged here -- after the hard checks (no model call, never charged)
@@ -379,6 +401,7 @@ def generate_verdict(
             user_id=user_id, account_id=account_id, params=params,
             risk_pct=risk_pct, client=active_client, conn=_conn,
         )
+        llm = _with_default_size_note(llm, size_is_default)
         vid = _persist_verdict(
             _conn, user_id=user_id, account_id=account_id, params=params,
             risk_pct=risk_pct,

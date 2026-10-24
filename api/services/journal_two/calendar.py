@@ -152,38 +152,23 @@ def _account_size_for_user(
     *,
     account_id: str | None = None,
 ) -> float:
-    """Return the user's accountSize. If account_id is provided, returns
-    that account's account_size. Otherwise sums across all accounts
-    (sensible for "All Accounts" view), falling back to legacy
-    j2_settings if no accounts exist yet."""
-    if account_id:
-        row = conn.execute(
-            "SELECT account_size FROM j2_accounts WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        ).fetchone()
-        if row:
-            return float(row["account_size"])
-    # All-accounts: sum of account sizes
-    row = conn.execute(
-        "SELECT COALESCE(SUM(account_size), 0) AS total FROM j2_accounts "
-        "WHERE user_id = ?",
-        (user_id,),
-    ).fetchone()
-    if row and row["total"]:
-        return float(row["total"])
-    # Legacy fallback (pre-migration)
-    row = conn.execute(
-        "SELECT data FROM j2_settings WHERE user_id = ?",
-        (user_id,),
-    ).fetchone()
-    if row is None:
-        return 100_000.0
-    try:
-        data = json.loads(row["data"])
-    except (TypeError, json.JSONDecodeError):
-        return 100_000.0
-    size = data.get("accountSize", 100_000)
-    return float(size) if isinstance(size, (int, float)) else 100_000.0
+    """The size the P&L % is computed on (accounts.account_size_basis, the one authority).
+    One account: its member-set size. All Accounts (no id): the sum of the member-set sizes
+    only, falling back to legacy j2_settings when no account exists yet. Nothing set: the
+    default size (voice_position_sizing.UNSET_ACCOUNT_SIZE), which `_account_size_basis`
+    reports as default."""
+    return _account_size_basis(user_id, conn, account_id=account_id)[0]
+
+
+def _account_size_basis(
+    user_id: str,
+    conn: sqlite3.Connection,
+    *,
+    account_id: str | None = None,
+) -> tuple[float, bool]:
+    """(size, is_default) for the calendar's P&L %."""
+    from api.services.journal_two import accounts as j2_accounts
+    return j2_accounts.account_size_basis(user_id, conn, account_id=account_id)
 
 
 def _empty_bucket(d: str) -> dict[str, Any]:
@@ -708,7 +693,7 @@ def get_calendar(
         )
         expiring_by_date = _expiring_counts(expiring_legs, start_iso, end_iso)
 
-        account_size = _account_size_for_user(user_id, conn, account_id=account_id)
+        account_size, size_is_default = _account_size_basis(user_id, conn, account_id=account_id)
         days, totals = _aggregate_trades(
             in_window, account_size, _extra_bucket=extra_bucket,
         )
@@ -760,6 +745,8 @@ def get_calendar(
             "basis": effective_basis,
             "days": days,
             "totals": totals,
+            # pnlPercent rests on the default size when the member set none (accounts.py).
+            "accountSizeIsDefault": size_is_default,
         }
         if view == "month":
             payload["month"] = month
@@ -842,7 +829,7 @@ def get_day_detail(
         _union_strategy_aggregates(extra_bucket, same_day_strategies, date, date)
 
         # Reuse aggregation logic for the metrics row.
-        account_size = _account_size_for_user(user_id, conn, account_id=account_id)
+        account_size, size_is_default = _account_size_basis(user_id, conn, account_id=account_id)
         _, totals = _aggregate_trades(
             same_day, account_size, _extra_bucket=extra_bucket,
         )
@@ -851,7 +838,7 @@ def get_day_detail(
             totals["netPnlDollar"] / account_size if account_size > 0 else 0.0
         )
 
-        metrics = {**totals, "pnlPercent": pnl_pct}
+        metrics = {**totals, "pnlPercent": pnl_pct, "accountSizeIsDefault": size_is_default}
         # Account-balance basis: add the day's net-liq change + realized/open split.
         if (
             basis == "account"

@@ -1879,9 +1879,14 @@ def _grade_watchlist(user: dict, source: str = "watchlist", symbols=None,
                                account_size=(account_size or None))
 
 
-def _grade_ticker(symbol: str, account_size: float = 0) -> dict:
+def _grade_ticker(symbol: str, account_size: float = 0, user: dict | None = None) -> dict:
     from api.services import grade_ticker as _gt
-    return _gt.grade_ticker(symbol, account_size=(account_size or None))
+    if account_size:   # a size the model was handed wins; else the member's (finding 7)
+        return _gt.grade_ticker(symbol, account_size=account_size, account_size_is_default=False)
+    from api.services.journal_two import accounts as _acc
+    size, is_default, note = _acc.grading_account_size((user or {}).get("id"))
+    return _gt.grade_ticker(symbol, account_size=size, account_size_is_default=is_default,
+                            account_size_note=note)
 
 
 def _setup_winrate(setup: str, regime: str = "ALL") -> dict:
@@ -3778,6 +3783,7 @@ def _register_all() -> None:
             parameters={"symbol": {"type": "string"},
                         "account_size": {"type": "number"}},
             contexts=["global"],
+            wants_user=True,
         )(_grade_ticker)
         _vt.voice_tool(
             name="portfolio_heat",

@@ -9,6 +9,7 @@
 // is a TDZ crash inside the merge every chart is on. Both helpers moved to
 // `./instanceShape`, which imports nothing; this file re-exports them.
 import { UCT_DRAW_GOLD } from './drawingColors'
+import ACCOUNT_SIZE_DEFAULTS from '../../constants/accountSizeDefault.json'
 import { migrateLegacyToInstances, normalizeInstances, instanceScope, stackRank } from './engine/instances'
 import * as engineRegistry from './engine/nativeRegistry'
 // The legend's one reader. Imported (never re-implemented) so the merge below
@@ -355,7 +356,9 @@ export const CHART_DEFAULTS = {
   theme: 'dark', // 'dark' | 'light'
 
   positionCalc: {
-    accountSize: 50000,   // user's account in $
+    // The calculator's own default: the one unset account size (constants/accountSizeDefault.json,
+    // pinned to the server's UNSET_ACCOUNT_SIZE). It was 50,000, a third default (Round B fix 1).
+    accountSize: ACCOUNT_SIZE_DEFAULTS.unsetAccountSize,
     riskPct: 1,           // % of account to risk per trade (default 1%)
   },
 
