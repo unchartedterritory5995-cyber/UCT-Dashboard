@@ -1051,8 +1051,8 @@ VERDICT: PASS -- within every budget checked
 - Closure total: **2,259,009 B** across 63 JS chunks.
 - Budget: **2,260,793 B** (unchanged, never raised).
 - Headroom: 2,260,793 - 2,259,009 = **1,784 B**.
-- Wave 7 floor is 25 KB of headroom before wave 8 (aim 40 KB), so wave 7 has to free at least
-  **23,216 B** (aim 38,216 B) from this baseline.
+- Wave 7 floor is 25,600 B (25 KB) of headroom before wave 8 (aim 40,960 B), so wave 7 has to free at least
+  **23,816 B** (aim 39,176 B) from this baseline.
 
 `--chunks` prints one `<file> <bytes>` line per closure file after the verdict, largest first.
 The ten largest at this build (the full list is the tool's output; `check_bytes` now returns every
