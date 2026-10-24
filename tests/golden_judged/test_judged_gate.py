@@ -58,6 +58,10 @@ for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
 for _cid in ("double-bottom-a-010", "inside-day-b2-018"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
+# 72 setup-line cases left KNOWN_RED 2026-10-24 (descending-triangle 21, bollinger-squeeze 16, rectangle 14,
+# bear-flag 13, inverse-head-shoulders 8): their rounds sampled on the recert rule (close > $5 and a 20-day average
+# dollar volume >= $5M), and the member frame was a one-day $20M floor. Each family is now served on the frame it was
+# certified on (auto_structures.SETUP_FRAME_BY_ID), so they reproduce.
 
 
 def _ids(items):
@@ -132,6 +136,43 @@ def test_a_judged_price_moved_by_one_ATR_is_caught(fam, key, monkeypatch):
     case, payload, bars = _first_green(fam, monkeypatch)
     case["expect"][key] = float(case["expect"][key]) + MP.atr14(bars) * float(case["bars"]["scale"])
     assert any(key.split("_")[-1] in m or "price" in m for m in JG.failures(case, payload, bars))
+
+
+@pytest.mark.parametrize("fam", sorted(JG.SETUP_LINE_FAMILIES))
+def test_a_judged_setup_anchor_moved_by_one_ATR_is_caught(fam, monkeypatch):
+    """Control for the setup lens: the same chart against a judged anchor one ATR away is red (every setup-line
+    family), and so is the judged row moved off `setup_draws` onto another key, or removed."""
+    case, payload, bars = _first_green(fam, monkeypatch)
+    moved = json.loads(json.dumps(case))
+    det = moved["expect"]["dets"][-1]
+    det["anchors"][-1]["price"] = float(det["anchors"][-1]["price"]) + MP.atr14(bars) * float(case["bars"]["scale"])
+    assert any("price" in m for m in JG.failures(moved, payload, bars)), fam
+    pid = JG.SETUP_LINE_FAMILIES[fam]
+    mine = [r for r in payload["setup_draws"] if r["pattern_id"] == pid]
+    rest = [r for r in payload["setup_draws"] if r["pattern_id"] != pid]
+    elsewhere = {**payload, "setup_draws": rest, "structures": list(payload.get("structures") or []) + mine}
+    assert any(m.startswith("(1)") for m in JG.failures(case, elsewhere, bars)), fam
+    gone = {k: v for k, v in payload.items() if k != "setup_draws"}
+    assert any(m.startswith("(1)") and "ABSENT" in m for m in JG.failures(case, gone, bars)), fam
+
+
+def test_a_rectangle_sharing_its_top_with_a_higher_priority_line_is_caught(monkeypatch):
+    """Control for (3) on the rectangle (the one setup-line drawing the one-line-per-base pass settles): a drawn line
+    ranked ahead of it within 1 ATR of the box top over the box span is red, two ATR away it is not; and the
+    one_line_per_base retire rule reads the same distance over the box's own span."""
+    case, payload, bars = _first_green("rectangle", monkeypatch)
+    top, atr = JG._want_key("rectangle", case), MP.atr14(bars)
+    s0, s1 = MP.ymd(case, case["expect"]["dets"][0]["start"]), MP.ymd(case, case["expect"]["dets"][0]["end"])
+
+    def ceiling(p):
+        return {"pattern_id": "uct_flat_top_breakout", "start_t": s0, "end_t": s1,
+                "geometry": {"extras": {"draw_flat_top": {"price": p, "start_t": s0, "end_t": s1}}}}
+    near = {**payload, "detections": list(payload.get("detections") or []) + [ceiling(top + 0.5 * atr)]}
+    far = {**payload, "detections": list(payload.get("detections") or []) + [ceiling(top + 2.0 * atr)]}
+    assert any(m.startswith("(3)") for m in JG.failures(case, near, bars))
+    assert not any(m.startswith("(3)") for m in JG.failures(case, far, bars))
+    assert JG.RETIRE_RULES["one_line_per_base"](case, near, bars)
+    assert not JG.RETIRE_RULES["one_line_per_base"](case, far, bars)
 
 
 def test_an_SR_zone_moved_by_one_ATR_is_caught(monkeypatch):
@@ -267,6 +308,10 @@ def test_the_replay_reaches_every_layer():
     # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
     assert {"sr", "remount", "u_and_r", "textbook", "shelf", "donchian_breakout"} <= every, every
     assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
+    # every setup-line family is a released fixture, and each one reproduces at least one judged case today
+    assert set(JG.SETUP_LINE_FAMILIES) <= fams, set(JG.SETUP_LINE_FAMILIES) - fams
+    for fam in JG.SETUP_LINE_FAMILIES:
+        assert any(f == fam and c["id"] not in KNOWN_RED for f, c in RELEASED), f"every {fam} case is KNOWN_RED"
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round
