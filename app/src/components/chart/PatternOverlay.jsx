@@ -159,7 +159,8 @@ export function flatTopDrawing(d) {
  * `extras.draw_base` = {pivot, start_t, end_t, low, low_t, label, low_label}. Returns null for any
  * other row or a malformed stamp (a pivot that is not above the low, a missing span). When it returns
  * a drawing, the row draws exactly what the judges scored and nothing else: a light region over the
- * base, a solid pivot line on its top extended past the last bar, and a dashed line at its low.
+ * base, a solid pivot line on its top extended past the last bar, and a dashed line at its low. With textbook
+ * numbers carrying `line` (round 2) the top line sits there instead, labelled "Buy point <buy_point>".
  * Pure — exported for tests.
  */
 export function baseDrawing(d) {
@@ -170,6 +171,19 @@ export function baseDrawing(d) {
   const low = Number(bd.low)
   if (!Number.isFinite(pivot) || !Number.isFinite(low) || !(pivot > low)) return null
   if (bd.start_t == null || bd.end_t == null) return null
+  // Textbook round 2: the server's `metrics_textbook.line` (buy point - $0.10, the base high) is where the top
+  // line is drawn, labelled with the printed buy point, so the line and the label are one price. Without it
+  // (no textbook numbers, an unreleased round, a malformed stamp) the line stays on draw_base.pivot.
+  const tb = d?.geometry?.extras?.metrics_textbook
+  const line = Number(tb?.line)
+  const bp = Number(tb?.buy_point)
+  if (tb && tb.line != null && tb.buy_point != null && Number.isFinite(line) && Number.isFinite(bp)
+      && line > low && bp > line) {
+    return {
+      pivot: line, low, start_t: bd.start_t, end_t: bd.end_t,
+      label: `Buy point ${bp.toFixed(2)}`, lowLabel: bd.low_label || 'base low',
+    }
+  }
   return {
     pivot, low, start_t: bd.start_t, end_t: bd.end_t,
     label: bd.label || 'pivot', lowLabel: bd.low_label || 'base low',
@@ -212,8 +226,8 @@ const signedPct = (v, digits = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFix
  * The TEXTBOOK numbers a base row carries (`extras.metrics_textbook`, server-computed only under
  * AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED; api/services/textbook_numbers.py): the IBD-style buy point
  * (the base's pivot HIGH + $0.10), its buy zone and the close against it, plus the base count and the
- * volume when the server could read them. The drawn line does not move; these lines say "Buy point" so the
- * two prices are never confused. Two or three lines:
+ * volume when the server could read them. From textbook round 2 the base's top line is drawn at the buy point
+ * - $0.10 (`metrics_textbook.line`, see baseDrawing), so the line and these numbers are one price. Two or three lines:
  *   "Buy point 43.12 · 12% deep · 5.2 wks · stage 2"
  *   "Buy zone to 45.28 · −1.3% from buy point"       (" · extended" past the buy zone)
  *   "Vol +62% vs 50d avg"                             (" · light volume" on a breakout under 40%)
