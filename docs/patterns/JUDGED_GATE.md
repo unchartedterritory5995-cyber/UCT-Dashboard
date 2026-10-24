@@ -1,7 +1,7 @@
 # The judged regression gate
 
 `tests/golden_judged/` stops any code change from silently making a member-visible drawing worse than what blind
-judges approved. It runs in the default `pytest` run (`testpaths = tests api`), in about 20 seconds (316 judged cases).
+judges approved. It runs in the default `pytest` run (`testpaths = tests api`), in about two and a half minutes on the dev box (1,041 judged chart cases, measured 2026-10-24).
 
 ## What it guards
 
@@ -29,13 +29,48 @@ For each case the gate asserts:
 | `base_stateless.json.gz` | the OLD stateless `bc:base` (judged round 4): withdrawn 2026-10-24, then **superseded** the same day by the plain base (status `superseded`) | replayed at 5, the rollback value of `MEMBER_BASE_STATELESS_ROUND` |
 | `double_bottom.json.gz` | `draw:double-bottom` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
 | `shelf.json.gz` | `draw:shelf-pivot` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_SHELF_PIVOT_ROUND = "r4"` + `MEMBER_PIVOT_GATE_ROUND = 1` |
-| `sr.json` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
-| `cup.json` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
+| `sr.json.gz` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
+| `cup.json.gz` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json.gz` | `draw:inside-day` (round-3 drawing, served only through the recert B textbook gate) | `MEMBER_INSIDE_DAY_ROUND = 3` + `MEMBER_INSIDE_DAY_GATE_ROUND = 1` |
 | `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10). Withdrawn 2026-10-24 with the old stateless base its numbers print on, then **superseded** by the plain base (whose buy point is its own highest high + $0.10) | replayed at 5 (the rollback value of `MEMBER_BASE_STATELESS_ROUND`); `MEMBER_TEXTBOOK_ROUND = 2` unchanged |
-| `remount.json` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
-| `u_and_r.json` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
-| `donchian_breakout.json` | `draw:donchian_breakout`: passed both packets, owner released 2026-10-24 | `MEMBER_DONCHIAN_BREAKOUT_ROUND = 1` (`released`) |
+| `remount.json.gz` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
+| `u_and_r.json.gz` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
+| `donchian_breakout.json.gz` | `draw:donchian_breakout`: passed both packets, owner released 2026-10-24 | `MEMBER_DONCHIAN_BREAKOUT_ROUND = 1` (`released`) |
+| `rsi_bullish_divergence.json.gz` · `wyckoff_upthrust.json.gz` · `channel.json.gz` · `pennant.json.gz` · `darvas_box.json.gz` · `falling_wedge.json.gz` · `double_top.json.gz` · `golden_cross.json.gz` · `death_cross.json.gz` | the round-2 setup drawings (`setup_draw_r2`, the `setup_draws` layer); the crosses draw two rows each (the 50-day and the 200-day average) | `MEMBER_<SETUP>_ROUND = 2` (one literal per drawing) |
+| `outside_bar.json.gz` · `major_trendlines.json.gz` · `descending_triangle.json.gz` · `inverse_head_shoulders.json.gz` · `bear_flag.json.gz` · `bollinger_squeeze.json.gz` | the round-3 setup drawings (`setup_draw_r3`, the `setup_draws` layer) | `MEMBER_<SETUP>_ROUND = 3` (`MEMBER_MAJOR_TRENDLINES_ROUND` for `draw:major-trendline`) |
+| `rectangle.json.gz` | `draw:rectangle`, the trading-range box (`setup_draw_rectangle`, the `setup_draws` layer) | `MEMBER_RECTANGLE_ROUND = 1` |
+
+### The setup lens (`setup_draws`)
+
+Every setup drawing is read off the member's `setup_draws` key and nowhere else: a row of the right id that turns up
+under `structures` or `detections` does not count. The single-level setups (remount, U&R, donchian) keep the key-price
+check above. The setup-LINE families (the sixteen files in the last three rows of the table) store the judged drawing
+as the lab drew it: one `det` per row the member path serves (the crosses have two), each with its geometry `shape`
+and every anchor as a day offset and a scaled price. For each judged det the lens asks for its own drawn row with
+the same shape, the same anchor count, and every anchor within tolerance: the price within
+`min(0.25 x ATR14, 1% of price)` and the bar within `max(3, 10% of the drawing's span)` sessions (`judged.setup_line_failures`).
+
+Check (3) is asserted only for a setup drawing the member path itself settles against the base drawings, which today
+is the rectangle (`auto_structures.ONE_LINE_PER_BASE_PRIORITY`; its breakout line is the box top). The round-2 and
+round-3 setup ids are outside that priority, so the member path draws them beside whatever else is on the chart and the
+gate does not claim otherwise. `member_setup_one_line_per_base` can legitimately withhold a rectangle under a drawn
+base-family line; such a case is retired under the existing `one_line_per_base` rule (which now reads the judged box's
+own span as the window, the donchian keeping its 55-bar channel window), never added to `KNOWN_RED`. On the current
+fixtures it suppresses **none**: every rectangle case that is in the member frame is drawn.
+
+The setup fixtures were exported 2026-10-24 from every case EITHER judge scored 3 on the passed packets (round 2: 303
+cases; round 3: 199; rectangle: 35), each re-detected first with the lab's own frozen detector on the current bars, and
+kept only when its facts matched the lab key exactly (all 537 did). A round-2 or round-3 case stores the 330 bars the
+detector reads (`setup_draw_r2.WINDOW`); a rectangle case stores the 600 bars the member route reads, because the base
+drawings it yields to need the full window.
+
+**Each setup family is served on the frame its passed round sampled** (`auto_structures.SETUP_FRAME_BY_ID`, owner
+decision 2026-10-24). Round 3's batch b3 (descending triangle, Bollinger squeeze, bear flag, inverse head and shoulders)
+and the rectangle's round sampled close above $5 and a 20-day average dollar volume of at least $5M, so those five are
+drawn on that frame (`SETUP_FRAME_ADV20`). Every other setup family's round (release_g4, setups_r2, setups_r3 b1 and b2)
+sampled close above $5 and an as-of close x volume of at least $20M, and stays on that one-day frame (`SETUP_FRAME_DAY`).
+Until that change, 72 judged cases of the five were `KNOWN_RED` because the member frame was the one-day $20M floor for
+every family; they reproduce now, and putting the one-day floor back on those five turns them red again.
 
 A `withdrawn` file is a released drawing a later recertification failed: its member literal is `None` (admins
 keep the layer) and `test_a_withdrawn_drawing_is_not_served_to_members` keeps it there. Its judged cases are still
@@ -106,10 +141,13 @@ passing fails it too, so its entry has to be deleted. Never add a case to `KNOWN
 No ticker, no trader name, no member data, no path. Bars are stored as calendar-day offsets from the window's first
 bar (the weekday of that bar is kept, the year is not), and every price is multiplied by a random per-case `scale`
 that is recorded in the case so the replay can divide it back out (the drawing code has absolute floors such as a
-$5 close and $20M of dollar volume). Encoding: `tests/golden_judged/encode.py`; decoding:
+$5 close, $20M of one-day dollar volume and a $5M 20-day average). Encoding: `tests/golden_judged/encode.py`; decoding:
 `member_path.decode_bars`. `test_the_fixtures_are_symbol_free_and_small` refuses identifying keys, paths and
 anything shaped like a real date, and keeps the directory under 5 MB on disk. A fixture may be stored as
-`.json.gz` (deterministic, mtime 0); it is counted compressed and scanned decompressed.
+`.json.gz` (deterministic, mtime 0); it is counted compressed and scanned decompressed. Since 2026-10-24 every
+family is gzipped, written by `encode.write_family_gz` (compact JSON, deflate level 9 with the filtered strategy, about
+4% smaller than gzip's default here). The directory then held 4.85 MB of its 5 MB budget: the next family needs room
+made first (shorter windows where the drawing reads fewer bars), not a bigger budget.
 
 ## Labels: the screener's candle names
 

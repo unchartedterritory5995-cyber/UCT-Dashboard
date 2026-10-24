@@ -905,9 +905,10 @@ def get_detections(
                     # the base floor (round 5) refuses a shelf region too: applied inside, before the shelf can
                     # displace a forming row
                     boxes = auto_structures.member_shelf_over_forming(sym, rows, boxes)
-                # the strict textbook gate (recert B): applied LAST, so the member chart is the served chart
-                # minus the withheld rows -- exactly what the blind round judged (members only)
-                rows, boxes = auto_structures.member_textbook_gate(sym, rows, boxes)
+                # every pass after the shelf (member_after_shelf: the strict textbook gate, recert B) applied LAST, so
+                # the member chart is the served chart minus the withheld rows -- exactly what the blind round judged;
+                # the shelf asks the same helper before it displaces a forming row (members only)
+                rows, boxes = auto_structures.member_after_shelf(sym, rows, boxes)
                 mout["detections"], mout["count"] = rows, len(rows)
                 if boxes:
                     mout["structures"] = boxes
