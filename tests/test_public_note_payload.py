@@ -1643,5 +1643,7 @@ def test_built_attrs_canary_pins_what_passes_today():
         assert dropped not in blob, dropped
     assert kept["caption"] == "ATTR-CANARY-CAPTION"                 # control: kept attrs do pass
     assert kept["fallback"] is None                                 # another note's image never survives
-    # CONCERN (reported, not changed): `frozen` is in the shared EMBED_KEPT_ATTRS and is copied whole.
-    assert kept.get("frozen") == attrs["frozen"], kept.get("frozen")
+    # Ruling R-26: a built widget's `frozen` reaches a public page only as a flag.
+    assert kept.get("frozen") is False and "ATTR-CANARY-FROZEN" not in blob
+    node["attrs"]["frozen"] = True
+    assert find_embed(reduce(doc(node), "share"))["attrs"]["frozen"] is True

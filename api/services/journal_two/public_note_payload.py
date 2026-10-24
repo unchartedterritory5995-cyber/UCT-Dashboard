@@ -1457,6 +1457,10 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
         elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
             return [_neutral_for_embed(widget_id)]
         kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
+        if widget_id == "builtWidget" and "frozen" in kept:
+            # Ruling R-26: `frozen` is a flag. A hand-made body could put anything there, so a built
+            # widget's public copy keeps only whether it is frozen.
+            kept["frozen"] = kept["frozen"] is True
         kept["params"] = copy.deepcopy(allowed_params(widget_id, params))       # ruling R60
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
