@@ -1972,6 +1972,12 @@
       "where": ["web"],
       "note": "Notebook widgets, wave 9: routines and trackers (live trader blocks, My tools Routines and Trackers tabs, /routine and /track). Shipped dark 2026-10-24. Plan: docs/superpowers/plans/2026-10-24-notebook-widgets-p2-w9.md. Enablement gate for this wave only; read per request through notebook_widgets_wave_on(9) (rides the auth payload as notebook_widgets_w9_enabled, a row of NOTEBOOK_FLAGS in api/routers/auth.py). With the flag off a placed routine or tracker says \"Not available right now.\" and every stored routine, tracker, tick and value is kept. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W9_ENABLED=1 (the owner's). Rollback: railway variables --service web --set NOTEBOOK_WIDGETS_W9_ENABLED=0 (never a delete; a delete does not restart the process)."
     },
+    "NOTEBOOK_WIDGETS_W10_ENABLED": {
+      "member_facing": { "label": "Formulas, options and notes widgets, ready-made widgets", "where": "Notebook" },
+      "status": "dark",
+      "where": ["web"],
+      "note": "Notebook widgets, wave 10: widget formulas, the options and notes sources, versioned ready-made widgets and the dedicated shelf widgets, and the position size calculator. Shipped dark 2026-10-24. Plan: docs/superpowers/plans/2026-10-24-notebook-widgets-p2-w10.md. Enablement gate for this wave only; read per request through notebook_widgets_wave_on(10) (rides the auth payload as notebook_widgets_w10_enabled, a row of NOTEBOOK_FLAGS in api/routers/auth.py). With the flag off a placed widget keeps its snapshot and says \"Not available right now.\" on See it now, and every stored widget, revision and placement is kept. Unset means OFF and that is the decision. Arm: railway variables --service web --set NOTEBOOK_WIDGETS_W10_ENABLED=1 (the owner's). Rollback: railway variables --service web --set NOTEBOOK_WIDGETS_W10_ENABLED=0 (never a delete; a delete does not restart the process)."
+    },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
         "label": "Earnings prep (Reporting soon)",

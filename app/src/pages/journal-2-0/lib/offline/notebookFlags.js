@@ -89,6 +89,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_widgets_w6_enabled: false, // notebook widgets, wave 6 — absent ⇒ OFF
   notebook_widgets_w8_enabled: false, // notebook widgets, wave 8 — absent ⇒ OFF
   notebook_widgets_w9_enabled: false, // notebook widgets, wave 9 — absent ⇒ OFF
+  notebook_widgets_w10_enabled: false, // notebook widgets, wave 10 — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

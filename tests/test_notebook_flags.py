@@ -105,6 +105,7 @@ NOTEBOOK_KEYS = [
     "notebook_widgets_w6_enabled",
     "notebook_widgets_w8_enabled",
     "notebook_widgets_w9_enabled",
+    "notebook_widgets_w10_enabled",
 ]
 
 #: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.
