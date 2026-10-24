@@ -26,15 +26,16 @@ For each case the gate asserts:
 |---|---|---|
 | `base.json.gz` | `bc:base` base STATES: breakout / extended (recert A r2) and "Base forming" (recert A r3), both through the member textbook gate | `MEMBER_BASE_ROUND = 5` + `MEMBER_BASE_BREAKOUT_ROUND = 1` / `MEMBER_BASE_FORMING_ROUND = 1` |
 | `base_stateless.json.gz` | the stateless `bc:base` (judged round 4): **withdrawn** from members 2026-10-24 (status `withdrawn`), recert A failed it three rounds | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5) |
-| `double_bottom.json.gz` | `draw:double-bottom` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
-| `shelf.json.gz` | `draw:shelf-pivot` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_SHELF_PIVOT_ROUND = "r4"` + `MEMBER_PIVOT_GATE_ROUND = 1` |
+| `double_bottom.json.gz` | `draw:double-bottom`, served only through the recert B textbook gate (certified by fix round fr1, pooled 2.705) | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
+| `flat_top.json.gz` | `uct_flat_top_breakout`, served only through the recert B textbook gate (certified by fix round fr1, pooled 2.51) | `MEMBER_FLAT_TOP_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
+| `shelf.json.gz` | `draw:shelf-pivot`: **withdrawn** from members 2026-10-24 (status `withdrawn`; recert B fix round fr1 failed, pooled 2.39) | `MEMBER_SHELF_PIVOT_ROUND = None` (judged at `"r4"`) |
 | `sr.json.gz` | `levels_sr` zones and trendline sides: round r7 (35 cases both judges scored 3, recertification D packets A-D). r2 was withdrawn 2026-10-24 and r7 released the same day; a chart with fewer than 2 levels gets no layer (`withheld: too_few_levels`) | `MEMBER_SR_ROUND = "r7"` |
 | `cup.json.gz` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json.gz` | `draw:inside-day` (round-3 drawing, served only through the recert B textbook gate) | `MEMBER_INSIDE_DAY_ROUND = 3` + `MEMBER_INSIDE_DAY_GATE_ROUND = 1` |
 | `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10). **Withdrawn** 2026-10-24 with the stateless base its numbers print on | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5); `MEMBER_TEXTBOOK_ROUND = 2` unchanged |
 | `remount.json.gz` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
 | `u_and_r.json.gz` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
-| `donchian_breakout.json.gz` | `draw:donchian_breakout`: passed both packets, owner released 2026-10-24 | `MEMBER_DONCHIAN_BREAKOUT_ROUND = 1` (`released`) |
+| `donchian_breakout.json.gz` | `draw:donchian_breakout`: owner released 2026-10-24, **withdrawn** the same day (status `withdrawn`; recert B DC1 pooled 1.53, fix round fr1 pooled 2.13) | `MEMBER_DONCHIAN_BREAKOUT_ROUND = None` (judged at `1`) |
 | `rsi_bullish_divergence.json.gz` · `wyckoff_upthrust.json.gz` · `channel.json.gz` · `pennant.json.gz` · `darvas_box.json.gz` · `falling_wedge.json.gz` · `double_top.json.gz` · `golden_cross.json.gz` · `death_cross.json.gz` | the round-2 setup drawings (`setup_draw_r2`, the `setup_draws` layer); the crosses draw two rows each (the 50-day and the 200-day average) | `MEMBER_<SETUP>_ROUND = 2` (one literal per drawing) |
 | `outside_bar.json.gz` · `major_trendlines.json.gz` · `descending_triangle.json.gz` · `inverse_head_shoulders.json.gz` · `bear_flag.json.gz` · `bollinger_squeeze.json.gz` | the round-3 setup drawings (`setup_draw_r3`, the `setup_draws` layer) | `MEMBER_<SETUP>_ROUND = 3` (`MEMBER_MAJOR_TRENDLINES_ROUND` for `draw:major-trendline`) |
 | `rectangle.json.gz` | `draw:rectangle`, the trading-range box (`setup_draw_rectangle`, the `setup_draws` layer) | `MEMBER_RECTANGLE_ROUND = 1` |
@@ -112,6 +113,13 @@ fails the family's row there, so a case whose drawing goes missing for any other
 both judges scored 3 were added (shelf 12, double bottom 11). The flat top has no golden fixture; its gate is railed
 by `tests/test_textbook_pivot_gate.py` (parity with the lab rule on real served rows of all three types). A formal
 fix round (four packets of 25) is still to run; a type that fails it is hidden.
+
+Formal fix round fr1 (2026-10-24, PREREG_FR = AMENDMENT 2: whole bars.db history 1995-2026, $5M liquidity, four
+pre-registered packets of 25, two fresh blind judges each, same strict bar): flat top 2.48 / 2.50 / 2.58 / 2.48,
+pooled 2.51, PASS; double bottom 2.70 / 2.64 / 2.66 / 2.82, pooled 2.705, PASS; shelf 2.26 / 2.44 / 2.32 / 2.54,
+pooled 2.39, FAIL (withdrawn); donchian with its textbook gate 2.10 / 2.06 / 2.26 / 2.10, pooled 2.13, FAIL
+(withdrawn). 10 of each passing type's 3/3 cases were added (the flat top as a new family; the 5 MB budget caps the
+rest). A withdrawn family's retired cases are kept as written and are not checked while it is withdrawn.
 
 Un-retired the same day: 3 donchian cases (`a-002`, `b-001`, `b-005`) whose yielding was to a base line the interim
 gate now withholds. With no base line left on the chart, the channel line is drawn as judged again, and the cases are

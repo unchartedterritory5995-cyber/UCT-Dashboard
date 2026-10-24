@@ -304,15 +304,15 @@ def _drawing_bars():
     return c, _dicts(c["bars"])
 
 
-def test_the_member_round_literal_is_the_frozen_round_r4_in_source():
-    """Released 2026-10-23: the literal is the STRING "r4" written in source (never a reference to
-    shelf_pivot.SHELF_PIVOT_ROUND, so a new drawing round cannot release itself), and the id sits in the member
-    set and the trusted set member_rows requires."""
+def test_the_member_round_literal_is_None_in_source_and_the_frozen_round_stays_r4():
+    """Released 2026-10-23 at "r4", WITHDRAWN 2026-10-24 (recert B fix round failed): the literal is None written in
+    source (never a reference to shelf_pivot.SHELF_PIVOT_ROUND, so a new drawing round cannot release itself), the
+    frozen round stays "r4", and the id stays in the member set and the trusted set so one literal re-releases it."""
     src = open(AS.__file__, encoding="utf-8").read()
     lits = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Assign)
             and any(getattr(t, "id", None) == "MEMBER_SHELF_PIVOT_ROUND" for t in n.targets)]
-    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == "r4"
-    assert S.SHELF_PIVOT_ROUND == "r4" == AS.MEMBER_SHELF_PIVOT_ROUND
+    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value is None
+    assert S.SHELF_PIVOT_ROUND == "r4" and AS.MEMBER_SHELF_PIVOT_ROUND is None
     assert AS.SHELF_PIVOT_ID == S.SHELF_PIVOT_ID == "draw:shelf-pivot"
     assert AS.SHELF_PIVOT_ID in REG.DISPLAY_MEMBER_SET
     assert AS.SHELF_PIVOT_ID in REG.DISPLAY_TEAM_SET and AS.SHELF_PIVOT_ID in REG.DISPLAY_TRUSTED
@@ -369,11 +369,15 @@ def test_admins_get_the_line_when_the_flag_is_on(monkeypatch, shelf_on):
     assert row["display_tier"] == "trusted" and row["levels"] == {}
 
 
-def test_members_get_the_line_at_the_released_round(monkeypatch, shelf_on):
+def test_members_get_the_line_when_the_literal_is_set_back_to_r4(monkeypatch, shelf_on):
+    """Withdrawn (literal None): the re-release lever is that one literal -- set to "r4" the member gets the line."""
     c, bars = _drawing_bars()
     monkeypatch.setattr(AS, "_shelf_bars", lambda sym: bars)
     monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: (c["served"], c["lines"]))
-    assert AS.MEMBER_SHELF_PIVOT_ROUND == "r4"
+    assert AS.MEMBER_SHELF_PIVOT_ROUND is None
+    assert AS.shelf_pivot_row("SYN", member=True) is None
+    AS._SHELF_CACHE.clear()
+    monkeypatch.setattr(AS, "MEMBER_SHELF_PIVOT_ROUND", "r4")
     row = AS.shelf_pivot_row("SYN", member=True)
     assert row is not None and row["pattern_id"] == AS.SHELF_PIVOT_ID
     assert AS.member_rows([row]) == [row]
