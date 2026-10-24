@@ -53,10 +53,26 @@ SENT_NOT_DRAWN = {
 }
 
 
-def _drawn_view(c):
-    """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld."""
+#: Fixture charts where the member base drawing round 4 (auto_structures.MEMBER_BASE_ROUND == 4 since 2026-10-23)
+#: draws a base that round 2 -- the member round when the fixture was recorded -- did not: a member's chart now
+#: holds that bc:base drawing, so it is SERVED with its line (not withheld), and (any served drawing hides the
+#: shelf line) the layer draws nothing there. Measured on all 427 charts: this is the only one that moved.
+ROUND4_DRAWN = {
+    "held/draw/042": ("bc:base", [245.97], (20260303, 20260622)),
+}
+
+
+def _drawn_view(c, round4=True):
+    """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld, and
+    (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there)."""
     served = [(p, ls, tuple(sp) if sp else None) for p, ls, sp in c["served"]]
     lines = [tuple(x) for x in c["lines"]]
+    add = ROUND4_DRAWN.get(c["id"]) if round4 else None
+    if add is not None:
+        assert not any(x[0] == add[0] for x in served), c["id"]
+        assert not any(x[0] == add[0] for x in lines), c["id"]
+        served = served + [add]
+        lines = lines + [(add[0], v, False) for v in add[1]]
     pid = SENT_NOT_DRAWN.get(c["id"])
     if pid is None:
         return served, lines
@@ -67,12 +83,12 @@ def _drawn_view(c):
             [(p, v, True) if p == pid and v in prices else (p, v, w) for p, v, w in lines])
 
 
-def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env):
+def _reproduce(round4):
     bad = []
     for c in cases():
         _ASOF[0] = int(c["bars"][-1][0])
         served, lines = AS.shelf_member_facts(c["ticker"], _dicts(c["bars"]))
-        want_served, want_lines = _drawn_view(c)
+        want_served, want_lines = _drawn_view(c, round4)
         if [(p, ls, tuple(sp) if sp else None) for p, ls, sp in served] != want_served:
             bad.append((c["id"], "served"))
         # the detectors stamp their own clock, so two lines of one chart can swap places between runs: the SET
@@ -82,9 +98,24 @@ def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env):
         r = S.evaluate(c["bars"], served, lines)
         e = c["expect"]
         got = None if r["pick"] is None else {k: r["pick"][k] for k in ("P", "left", "disp_left")}
-        if r["gate"] != e["gate"] or got != e["pick"]:
+        if round4 and c["id"] in ROUND4_DRAWN:
+            # the recorded answer drew a shelf line; with the round-4 base served, the layer draws nothing
+            if not (e["pick"] is not None and got is None and r["gate"] != "PASS"):
+                bad.append((c["id"], "round4", e, r["gate"], got))
+        elif r["gate"] != e["gate"] or got != e["pick"]:
             bad.append((c["id"], "answer", e, got))
-    assert bad == []
+    return bad
+
+
+def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env):
+    assert _reproduce(round4=True) == []
+
+
+def test_a_rollback_to_base_round_two_reproduces_the_recorded_member_view(member_path_env, monkeypatch):
+    """With the bc:base member literal moved back to 2 (in memory), every bc:base row is a round-4 row carrying
+    round 2's drawing, and the member's chart holds round 2's line only: the recorded view, exactly."""
+    monkeypatch.setattr(AS, "MEMBER_BASE_ROUND", 2)
+    assert _reproduce(round4=False) == []
 
 
 # ---------------------------------------------------------------- gates
