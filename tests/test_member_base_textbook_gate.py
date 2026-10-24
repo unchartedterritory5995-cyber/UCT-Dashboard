@@ -130,10 +130,10 @@ def test_a_forming_base_needs_the_close_over_its_50_day(monkeypatch):
 
 
 def test_the_breakout_state_keeps_the_round_two_gate_only():
-    # a short-lived spike at the lip: the stateless base refuses it, a breakout base is not asked
+    # a short-lived spike at the lip: the forming base refuses it, a breakout base is not asked
     b, s = textbook_series()
     b[s] = {**b[s], "h": b[s]["h"] * 1.06}
-    assert AS.base_textbook_gate_fails(b, base_row(b, s)) in ("spike_wick", "lone_high")
+    assert AS.base_textbook_gate_fails(b, base_row(b, s, state="forming")) == "spike_wick"
     row = base_row(b, s, state="breakout")
     row["geometry"]["extras"]["draw_base"]["base_end_t"] = b[-1]["t"]
     assert AS.base_textbook_gate_fails(b, row) in (None, "mid_base_high")
@@ -183,18 +183,16 @@ def test_a_pinned_price_is_refused(monkeypatch):
     assert AS.base_textbook_gate_fails(b, base_row(b, s)) == "pinned"
 
 
-def test_a_lone_high_near_the_left_side_is_refused():
-    """One tall bar at the left side, its high a full body (no wick) above every other high: r2's mid-base and wick
-    floors pass it, the stateless base's lone-high floor (TG3_LONE_ATR) does not."""
-    b, s = textbook_series()
-    top = max(x["c"] for x in b[s - 3:s + 1])
-    b[s + 1] = {**b[s + 1], "o": top * 1.03, "c": top * 1.03, "h": top * 1.035, "l": top * 1.0}
-    assert AS.base_textbook_gate_fails(b, base_row(b, s)) == "lone_high"
-    assert AS.base_textbook_gate_fails(b, base_row(b, s, state="forming")) != "lone_high"
-
-
-def test_the_stateless_base_needs_a_30_percent_advance(monkeypatch):
+def test_the_forming_base_needs_a_30_percent_advance(monkeypatch):
     b, s = textbook_series(advance=0.27, pre_trend=0.0)      # 27%: over r2's 25% floor, under O'Neil's 30%
-    assert AS.base_textbook_gate_fails(b, base_row(b, s)) == "advance"
+    assert AS.base_textbook_gate_fails(b, base_row(b, s, state="forming")) == "advance"
     monkeypatch.setattr(AS, "TG3_MIN_ADV", 0.0)
+    assert AS.base_textbook_gate_fails(b, base_row(b, s, state="forming")) is None
+
+
+def test_the_stateless_base_keeps_round_two_floors_only():
+    """The stateless base failed r3 WITH the base's own floors and is withheld from members; it keeps r2's gate, so
+    the forming state's floors (here the 30% advance) never touch it."""
+    b, s = textbook_series(advance=0.27, pre_trend=0.0)
     assert AS.base_textbook_gate_fails(b, base_row(b, s)) is None
+    assert AS.base_textbook_gate_fails(b, base_row(b, s, state="forming")) == "advance"

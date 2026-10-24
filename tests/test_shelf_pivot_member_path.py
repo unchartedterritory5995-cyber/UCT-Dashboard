@@ -20,6 +20,24 @@ from api.services.pattern_engine.detectors import registry as REG
 
 from tests.test_shelf_pivot_parity import cases, expect
 
+
+@pytest.fixture(autouse=True)
+def stateless_base_released(monkeypatch):
+    """The STATELESS bc:base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_BASE_STATELESS_ROUND is
+    None). This module tests the mechanism a released stateless base runs through, so it re-enables the literal in
+    memory; tests/test_stateless_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_BASE_STATELESS_ROUND", 5)
+
+
+@pytest.fixture(autouse=True)
+def flat_base_released(monkeypatch):
+    """The flat base is WITHHELD from members since 2026-10-24 (recert A); the recorded member views were made while
+    it was served, so this module re-enables both literals in memory (tests/test_flat_base_withheld_from_members.py
+    rails the withholding)."""
+    monkeypatch.setattr(AS, "MEMBER_FLAT_BASE_ROUND", 1)
+    monkeypatch.setattr(AS, "MEMBER_BC_FLAT_BASE_ROUND", "team")
+
 _ASOF = [None]
 
 

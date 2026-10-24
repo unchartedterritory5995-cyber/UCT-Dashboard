@@ -32,6 +32,15 @@ from tests.test_member_drawing_set import _flags, _get
 
 
 @pytest.fixture(autouse=True)
+def stateless_base_released(monkeypatch):
+    """The STATELESS bc:base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_BASE_STATELESS_ROUND is
+    None). This module tests the mechanism a released stateless base runs through, so it re-enables the literal in
+    memory; tests/test_stateless_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_BASE_STATELESS_ROUND", 5)
+
+
+@pytest.fixture(autouse=True)
 def _complete_sessions(monkeypatch):
     monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: False)
 

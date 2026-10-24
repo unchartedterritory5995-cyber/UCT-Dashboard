@@ -543,6 +543,13 @@ MEMBER_BASE_FORMING_ROUND = 1
 #: "3 weeks tight". None: round 1 FAILED its first blind packet 2026-10-23 (A 1.94 [1.64, 2.22]), and
 #: base_draw.state_drawing does not draw it at all (base_draw.DRAWN_STATES); None stays as the fail-closed gate.
 MEMBER_BASE_TIGHT_ROUND = None
+#: The STATELESS base (a bc:base row with no `state`: the judged base with its "Buy point X" line, before any
+#: breakout). None: WITHDRAWN from members 2026-10-24 after recertification A failed it on the strict textbook
+#: rubric three rounds running (lab recert/A_bases: r1 pooled 1.58; r2 packet A 2.08 with the textbook gate; r3
+#: packets A 2.22 and B 2.26 with the base's own floors, the last fix round PROTOCOL allows). Admins keep it. The
+#: breakout / extended states passed r2 and are unaffected. Re-release = a new passed blind round, with this set
+#: to that round (an int).
+MEMBER_BASE_STATELESS_ROUND = None
 
 
 def _member_base_state_ok(bd) -> bool:
@@ -550,7 +557,7 @@ def _member_base_state_ok(bd) -> bool:
     equal to its stamped `state_round`. Any other state is False (fail closed)."""
     st = bd.get("state")
     if st is None and "state" not in bd:
-        return True
+        return type(MEMBER_BASE_STATELESS_ROUND) is int
     rnd = {"breakout": MEMBER_BASE_BREAKOUT_ROUND, "extended": MEMBER_BASE_BREAKOUT_ROUND,
            "forming": MEMBER_BASE_FORMING_ROUND, "tight": MEMBER_BASE_TIGHT_ROUND}.get(st) if isinstance(st, str) else None
     sr = bd.get("state_round")
@@ -1245,11 +1252,11 @@ def base_textbook_gate_fails(b, row):
     if not (float(b[i]["c"]) > s200 and s200 >= s200p * (1.0 + TG_SMA_RISE)):
         return "trend"
     st = ((((row.get("geometry") or {}).get("extras") or {}).get("draw_base")) or {}).get("state")
-    if row.get("pattern_id") == BASE_DRAW_ID and st in (None, "forming"):
-        why = _textbook_base_floors(b, s, e, i, hi, a, lone_high=st is None)
+    if row.get("pattern_id") == BASE_DRAW_ID and st == "forming":
+        why = _textbook_base_floors(b, s, e, i, hi, a)
         if why is not None:
             return why
-        if st == "forming" and float(b[i]["c"]) < hi * (1.0 - TG3_FORMING_BELOW):
+        if float(b[i]["c"]) < hi * (1.0 - TG3_FORMING_BELOW):
             return "forming_too_far_below"
     if st == "forming":
         m = TG_FORMING_SMA
@@ -1261,15 +1268,14 @@ def base_textbook_gate_fails(b, row):
     return None
 
 
-#: THE BASE'S OWN FLOORS (lab recert/A_bases round r3): the stateless bc:base drawing -- the judged base with its
-#: "Buy point X" line -- also needs a REAL ceiling and a real stage-2 uptrend. r2's blind judges still named a line
-#: on a lone mid-base spike or wick, a shelf under an older higher peak, a short shelf straight after a parabolic
-#: run, and a flat or barely turning 200-day. The forming state failed its r2 packets on the same criteria and
-#: takes these floors too (r3), plus a right side within TG3_FORMING_BELOW of the pivot. The breakout states keep
-#: r2's gate unchanged (they passed it).
+#: THE FORMING BASE'S OWN FLOORS (lab recert/A_bases round r3, PASSED 2026-10-24: packets A 2.48, B 2.70, C 2.52,
+#: D 2.42, pooled 2.53 [2.41, 2.65]): the "Base forming" state failed its r2 packets (pooled 2.33) on a line on a
+#: one-day spike, a shelf under an older higher peak, a short shelf straight after a parabolic run, a flat or barely
+#: turning 200-day and a right side drifting well under the pivot, so it also needs a REAL ceiling, a real stage-2
+#: uptrend and a right side within TG3_FORMING_BELOW of the pivot. The breakout states keep r2's gate unchanged
+#: (they passed it). The stateless base took the same floors in r3 (plus a lone-high floor) and still failed; it is
+#: withheld from members (MEMBER_BASE_STATELESS_ROUND) and keeps r2's gate only.
 TG3_WICK_ATR = 0.6          # the region's high at most this many ATR(14) above its highest candle body
-TG3_LONE_ATR = 0.7          # ... and at most this many ATR above its 4th-highest high (not one lone spike)
-TG3_LONE_RANK = 4
 TG3_PRIOR_BARS = 120        # no high in the 120 sessions before the region above its high x (1 + 3%)
 TG3_PRIOR_PCT = 0.03
 TG3_PARA_BARS = 30          # a region shorter than TG3_PARA_MAX_LEN whose left-side high is > 60% above the
@@ -1282,16 +1288,13 @@ TG3_SMA_RISE_LONG = 60      # ... and above where it stood 60 sessions earlier
 TG3_FORMING_BELOW = 0.12
 
 
-def _textbook_base_floors(b, s, e, i, hi, a, lone_high=True):
-    """The first r3 floor the base fails, or None. `s`/`e` the region, `hi` its high (last bar excluded). The lone-high
-    floor is for the stateless base only: a forming base's left-side high stands above its unfinished right side by
-    construction, so its highest high is ALWAYS alone; its spike test is the wick floor."""
+def _textbook_base_floors(b, s, e, i, hi, a):
+    """The first r3 floor a forming base fails, or None. `s`/`e` the region, `hi` its high (last bar excluded). No
+    lone-high floor: a forming base's left-side high stands above its unfinished right side by construction, so its
+    highest high is ALWAYS alone; its spike test is the wick floor."""
     body = max(max(float(x["o"]), float(x["c"])) for x in b[s:e])
     if hi - body > TG3_WICK_ATR * a:
         return "spike_wick"
-    highs = sorted((float(x["h"]) for x in b[s:e]), reverse=True)
-    if lone_high and hi - highs[min(TG3_LONE_RANK - 1, len(highs) - 1)] > TG3_LONE_ATR * a:
-        return "lone_high"
     p0 = max(0, s - TG3_PRIOR_BARS)
     if s > p0 and max(float(x["h"]) for x in b[p0:s]) > hi * (1.0 + TG3_PRIOR_PCT):
         return "older_higher_peak"

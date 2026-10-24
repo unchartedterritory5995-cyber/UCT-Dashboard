@@ -21,6 +21,15 @@ from tests.authclients import PAID_MEMBER
 from tests.test_member_drawing_set import _flags, _get, _store
 
 
+@pytest.fixture(autouse=True)
+def stateless_base_released(monkeypatch):
+    """The STATELESS bc:base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_BASE_STATELESS_ROUND is
+    None). This module tests the mechanism a released stateless base runs through, so it re-enables the literal in
+    memory; tests/test_stateless_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_BASE_STATELESS_ROUND", 5)
+
+
 def _synth(base_len=40, depth=0.12, last=-0.004, up=0.003):
     """300 sessions of advance (log slope `up`), then a rounded base `depth` deep over `base_len`
     sessions, then one session `last` away from the base's starting close."""

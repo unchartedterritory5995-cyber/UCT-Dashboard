@@ -24,6 +24,15 @@ import pytest
 from api.services import auto_structures
 from api.services.pattern_engine import base_draw
 
+
+@pytest.fixture(autouse=True)
+def stateless_base_released(monkeypatch):
+    """The STATELESS bc:base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_BASE_STATELESS_ROUND is
+    None). This module tests the mechanism a released stateless base runs through, so it re-enables the literal in
+    memory; tests/test_stateless_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_BASE_STATELESS_ROUND", 5)
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("base_draw_member_sweep",
                                                os.path.join(_HERE, "base_draw_member_sweep.py"))

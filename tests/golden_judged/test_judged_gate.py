@@ -72,7 +72,9 @@ def test_a_judged_drawing_is_still_drawn_as_the_judges_saw_it(family, case, monk
 
 
 @pytest.mark.parametrize("family,case", WITHDRAWN, ids=_ids(WITHDRAWN))
-def test_a_withdrawn_drawing_still_draws_as_judged_when_its_round_is_set(family, case, monkeypatch):
+def test_a_withdrawn_drawing_still_draws_as_judged_when_its_round_is_set(family, case, monkeypatch, request):
+    if case["id"] in KNOWN_RED:
+        request.applymarker(pytest.mark.xfail(strict=True, reason=KNOWN_RED[case["id"]]))
     from api.services import auto_structures as AS
     fam = next(f for f in WITHDRAWN_FAMS if f["family"] == family)
     monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])

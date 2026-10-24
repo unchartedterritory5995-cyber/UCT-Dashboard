@@ -22,6 +22,15 @@ from tests.test_member_drawing_set import _flags, _get, _store
 
 
 @pytest.fixture(autouse=True)
+def stateless_base_released(monkeypatch):
+    """The STATELESS bc:base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_BASE_STATELESS_ROUND is
+    None). This module tests the mechanism a released stateless base runs through, so it re-enables the literal in
+    memory; tests/test_stateless_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_BASE_STATELESS_ROUND", 5)
+
+
+@pytest.fixture(autouse=True)
 def _complete_sessions(monkeypatch):
     monkeypatch.setattr(auto_structures, "last_bar_forming", lambda t, now=None: False)
 
@@ -191,6 +200,9 @@ def test_flag_off_the_payload_is_byte_identical_and_nothing_is_computed(monkeypa
     def counted(sym):   # NOT a raise: with_metrics swallows errors, so a raise would hide a computed read
         reads.append(sym)
         return json.loads(json.dumps(b))
+    # the member textbook gate (recert A) reads the bars for its own floors -- railed in
+    # tests/test_member_base_textbook_gate.py; this test counts the METRICS reads only
+    monkeypatch.setattr(auto_structures, "member_base_textbook_gate", lambda sym, d, s: (list(d), list(s)))
     monkeypatch.setattr(auto_structures, "_daily_bars", counted)
     got = _get(user).content
     assert got == want
