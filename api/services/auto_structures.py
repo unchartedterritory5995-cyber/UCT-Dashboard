@@ -554,6 +554,39 @@ def _is_base_state_row(row) -> bool:
         return False
 
 
+def _is_forming_state_row(row) -> bool:
+    """True for a bc:base "Base forming" state row (draw_base.state == "forming")."""
+    try:
+        return _is_base_state_row(row) and row["geometry"]["extras"]["draw_base"].get("state") == "forming"
+    except (KeyError, TypeError, AttributeError):
+        return False
+
+
+def member_shelf_over_forming(sym: str, rows, boxes) -> list:
+    """The member chart's shelf pivot, where a judged shelf OUTRANKS a "Base forming" state row: the shelf is asked
+    with the forming rows left out of the drawings it yields to (shelf_member_facts leaves them out too), and where
+    it draws, the forming rows are dropped and the shelf is added. Anywhere else the boxes are returned unchanged
+    (plus the shelf when one draws). Blind paired round lab shelf_vs_forming (2026-10-24, pre-registered: 50 charts
+    where a forming row displaced a shelf, two packets, four fresh judges): the shelf preferred on 88% (A) and 72%
+    (B) of charts, forming 8% / 12%; mean trust shelf 2.20 / 1.96 vs forming 1.36 / 1.38. Members only; daily
+    charts only (the caller asks only for D). Never raises."""
+    boxes = list(boxes or [])
+    try:
+        served = [r for r in list(rows or []) + boxes if not _is_forming_state_row(r)]
+        shelf = shelf_pivot_row(sym, member=True, chart_served=served)
+        shelf = member_rows([shelf]) if shelf is not None else []
+        if shelf:
+            # the round-5 base floor refuses a shelf region as it does every base door (removal-only): a refused
+            # shelf draws nothing, so it displaces nothing
+            shelf = member_base_floor(sym, [], shelf)[1]
+        if not shelf:
+            return boxes
+        return [b for b in boxes if not _is_forming_state_row(b)] + shelf
+    except Exception as e:  # noqa: BLE001 -- the shelf layer never breaks a read
+        _log.debug("[shelf-pivot] %s over forming failed: %s", sym, e)
+        return boxes
+
+
 def _base_member_row(row):
     """A member's copy of a bc:base row as MEMBER_BASE_ROUND draws it, or None (dropped). Fail closed.
 
@@ -2195,7 +2228,10 @@ def shelf_member_facts(sym: str, bars: list):
         for p in (ex.get("pivot"), ex.get("top")):
             if _finite(p):
                 lines.append((det["pattern_id"], float(p), True))
-    st = [r for r in map(_base_as_member_round, _structure_rows(sym, bd)) if r is not None]
+    # a "Base forming" state row never hides the shelf (member_shelf_over_forming: the shelf outranks it), so the
+    # shelf is computed as if it were not drawn
+    st = [r for r in map(_base_as_member_round, _structure_rows(sym, bd))
+          if r is not None and not _is_forming_state_row(r)]
     served_st = member_rows(st)
     after_cup = member_cup_precedence(served_st)
     after_base = member_base_precedence(dets_ok, after_cup)

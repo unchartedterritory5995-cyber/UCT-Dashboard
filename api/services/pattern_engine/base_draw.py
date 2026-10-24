@@ -221,6 +221,14 @@ def trend_ok(closes, i) -> bool:
     return float(closes[i]) > s200 and s200 > s200p
 
 
+def trend_ok_at(bars, i) -> bool:
+    """`trend_ok` on the AS-OF bar of a drawing: bars[:i+1]'s closes at bar `i`. The one check every member
+    drawing that is served at bar `i` asks there -- the base itself, and each base STATE (breakout persistence
+    keeps a base drawn up to PERSIST_BARS sessions earlier, so the rule must be re-asked on the bar it is
+    served on, not only where the base was drawn)."""
+    return trend_ok([_f(x, "c") for x in bars[:i + 1]], i)
+
+
 def _evaluate(bars, i, a, k, rnd=1, waive=False, forming=False):
     """One candidate base at bar k as round `rnd` judges it, or None. With `waive` (round 4's second pass
     only) a lip reached from above ("no_lip") and a single touch of the pivot region ("one_touch") are
@@ -435,7 +443,7 @@ def base_drawing(bars: list, i: int, draw_round: int | None = None):
             return None
         # rounds 2, 4 and 5 (the member rounds): no bullish base under a falling 200-day (round 1, the lab port,
         # is unchanged)
-        if rnd != 1 and not trend_ok([_f(x, "c") for x in bars[:i + 1]], i):
+        if rnd != 1 and not trend_ok_at(bars, i):
             return None
         if rnd == 5:
             # round 5 IS round 4, minus the drawings the floor refuses
@@ -575,6 +583,10 @@ def breakout_drawing(bars, i, draw_round=None):
                 break
         if d is None:
             return None
+        # the base was drawn (and trend-gated) at an EARLIER bar: the as-of bar must pass the same rising
+        # 200-day rule, or the state would serve a bullish base under a falling 200-day
+        if not trend_ok_at(b, i):
+            return None
         ts = [int(x["t"]) for x in b]
         j, lip = ts.index(int(d["end_t"])), ts.index(int(d["start_t"]))
         piv = float(d["pivot"])
@@ -622,7 +634,7 @@ def forming_drawing(bars, i):
             return None
         # the rising 200-day: _textbook_ok no longer asks it (base_drawing applies trend_ok up front), so the
         # forming state applies the same trend_ok itself -- the gate its blind packets were judged with
-        if not trend_ok([_f(x, "c") for x in b], i):
+        if not trend_ok_at(b, i):
             return None
         seen, best = set(), None
         for k in _candidates(b, i):
