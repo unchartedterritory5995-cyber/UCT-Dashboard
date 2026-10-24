@@ -85,11 +85,13 @@ function SetupsList({ setups, loading, error }) {
  *   onSetLayer:    (key, value) => void   ('autoPatterns' | 'labels' | 'supportResistance' | 'candles' | 'setups')
  *   onRemove:      () => void
  *   setups:        { setups, loading, error } from useChartSetups
+ *   setupsList:    show the confirmed-setup LIST under the Setups toggle (the Technical tab's release);
+ *                  default true. False when the toggle exists only for the setup-drawing lines.
  *   admin:         null, or { showAll, onShowAll, showLevels, onShowLevels, showLearned, onShowLearned }
  *   defaultOpen:   start expanded
  */
 export default function UctIntelligencePanel({
-  state, availability, onSetLayer, onRemove, setups = null, admin = null, defaultOpen = true,
+  state, availability, onSetLayer, onRemove, setups = null, setupsList = true, admin = null, defaultOpen = true,
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const a = availability || {}
@@ -128,9 +130,10 @@ export default function UctIntelligencePanel({
           )}
           {a.setups && (
             <>
-              <Toggle id="setups" label="Setups" hint="Setups confirmed on this chart (daily)"
+              <Toggle id="setups" label="Setups"
+                hint={setupsList ? 'Setups confirmed on this chart (daily)' : 'Setup lines on this chart (daily)'}
                 checked={state.setups} onChange={(v) => onSetLayer('setups', v)} />
-              {state.setups && setups && <SetupsList {...setups} />}
+              {state.setups && setupsList && setups && <SetupsList {...setups} />}
             </>
           )}
           {admin && (

@@ -18,7 +18,7 @@ vi.mock('../hooks/usePatternDetections', () => ({
     g.hookCalls.push({ sym, tf, enabled, opts })
     return {
       detections: [], drawn: null, dealStatus: g.payload.dealStatus || null,
-      levelsSr: g.payload.levelsSr, candleMarks: g.payload.candleMarks,
+      levelsSr: g.payload.levelsSr, candleMarks: g.payload.candleMarks, setupDraws: g.payload.setupDraws,
     }
   },
 }))
@@ -216,6 +216,26 @@ describe('gates — hidden until released, then lit by one signal', () => {
     await waitFor(() => expect(screen.getAllByTestId('uct-intel-setup').length).toBe(1), { timeout: 5000 })
     expect(screen.getByTestId('uct-intel-setup').textContent).toContain('MACD line crosses above signal line.')
     expect(patternsUrls()).toEqual(['/api/patterns/UCTSET?tf=D&confirmed_only=true'])
+  })
+
+  it('the server sending setup_draws lights Setups and the toggle drives the lines, with no list fetch', async () => {
+    const rows = [{ id: 'draw:remount:UCTSD:1:2', pattern_id: 'draw:remount',
+      geometry: { shape: 'horizontal_line', anchors: [{ t: 1, price: 10 }, { t: 2, price: 10 }] } }]
+    g.payload = { setupDraws: rows }
+    await mount({ showPatterns: true, uctIntelligence: { added: true, setups: true } }, 'UCTSD')
+    expect(screen.getByLabelText('Setups')).toBeTruthy()
+    expect(lastOverlay().setupDraws).toBe(rows)
+    expect(lastOverlay().showSetupDraws).toBe(true)
+    expect(screen.queryByTestId('uct-intel-setups-empty')).toBeNull()
+    expect(patternsUrls()).toEqual([])                     // the confirmed-setup list is not released here
+    fireEvent.click(screen.getByLabelText('Setups'))
+    await waitFor(() => expect(lastOverlay().showSetupDraws).toBe(false))
+  })
+
+  it('no setup_draws key: the overlay is never asked to draw setup lines', async () => {
+    await mount({ showPatterns: true, uctIntelligence: { added: true, setups: true } }, 'UCTNOSD')
+    expect(lastOverlay().setupDraws ?? null).toBeNull()
+    expect(lastOverlay().showSetupDraws).toBe(false)
   })
 
   it('admins get the Admin section inside the same panel', async () => {

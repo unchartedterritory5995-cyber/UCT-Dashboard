@@ -255,6 +255,8 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "draw:inside-day",
     "draw:double-bottom",
     "draw:shelf-pivot",
+    "draw:remount",
+    "draw:u_and_r",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -341,10 +343,18 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: auto_structures.MEMBER_SHELF_PIVOT_ROUND equals the frozen round, its row carries that draw_round beside a
 #: well-formed draw_shelf, the chart is daily on completed sessions inside the judged liquidity frame, and the
 #: chart serves no other drawing (auto_structures.shelf_pivot_row / member_rows). Fail closed.
+#: draw:remount (setup_draw.py round 3: A 2.48 / 92%, B 2.42 / 92%) and draw:u_and_r (round 2: A 2.56 / 100%, B
+#: 2.50 / 92%) are ONE horizontal setup line each, served in the `setup_draws` payload key (never `structures`)
+#: and drawn only by the UCT Intelligence "Setups" toggle. Each passed two pre-registered blind packets as drawn.
+#: They reach a member only while AUTO_STRUCTURES_G4_SETUPS_ENABLED is on, the member route is on, and the row
+#: carries draw_round == auto_structures.MEMBER_<SETUP>_ROUND (equal to the frozen round) beside a well-formed
+#: draw_setup (auto_structures._confirmed_setup_draw / member_rows). draw:donchian_breakout (round 1) passed its
+#: packets too but is in NEITHER set and its member literal is None pending the owner's ruling (the team does
+#: not draw donchian): admin-only under the same flag. Fail closed.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
-    "draw:double-bottom", "draw:shelf-pivot",
+    "draw:double-bottom", "draw:shelf-pivot", "draw:remount", "draw:u_and_r",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp
