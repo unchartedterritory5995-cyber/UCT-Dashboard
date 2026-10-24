@@ -40,8 +40,7 @@ _CUP_STALE = ("judged cup never served: auto_structures.box_to_detection marks t
               "spike_rim) and _structure_rows drops it BEFORE cup_tier_stamp; already so at the cup tier's "
               "release commit")
 for _cid in ("base-a-011", "base-a-016", "base-a-018", "base-a-020", "base-a-025", "base-b-010", "base-b-013",
-             "inside-day-a2-004", "inside-day-b2-012", "inside-day-b2-025", "shelf-b-020", "textbook-g1-01",
-             "textbook-g1-12"):
+             "inside-day-a2-004", "inside-day-b2-012", "textbook-g1-01", "textbook-g1-12"):
     KNOWN_RED[_cid] = _PRECEDENCE
 for _cid in ("cup-d1-001", "cup-d1-005", "cup-d1-009", "cup-d1-010", "cup-d1-018", "cup-d1-019", "cup-d1-021",
              "cup-d1-024", "cup-d1-025", "cup-d2-003", "cup-d2-004", "cup-d2-007", "cup-d2-010", "cup-d2-013",
@@ -50,9 +49,12 @@ for _cid in ("cup-d1-001", "cup-d1-005", "cup-d1-009", "cup-d1-010", "cup-d1-018
 for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
     KNOWN_RED[_cid] = ("judged double bottom never served: withheld on the member chart (the release's stale-"
                        "breakout condition, auto_structures._db_breakout_stale); already so at the release commit")
-for _cid in ("cup-d1-015", "double-bottom-a-010", "inside-day-b2-018", "textbook-g1-10",
+# Seven cases left KNOWN_RED 2026-10-24 (cup-d1-015, textbook-g1-10, textbook-r2b-07/-09/-16, inside-day-b2-025,
+# shelf-b-020): the member drawing that sat on (or outranked) the judged one was a "flagging"-tier bull_flag. The
+# flagging tier was withheld from members that day (blind textbook score 1.28), so they reproduce now.
+for _cid in ("double-bottom-a-010", "inside-day-b2-018",
              # textbook round 2 (2026-10-23): the same finding, measured at that round's release commit ffbeeffed1
-             "textbook-r2b-07", "textbook-r2b-09", "textbook-r2b-16", "textbook-r2b-19", "textbook-r2b-20"):
+             "textbook-r2b-19", "textbook-r2b-20"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
 
