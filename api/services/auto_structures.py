@@ -1560,11 +1560,20 @@ def member_textbook_gate(sym: str, detections, structures) -> tuple:
 #:                               construction; a blind paired round (2026-10-24, precedence round e) found no
 #:                               clear winner against the base drawings, so the base drawing already shown
 #:                               stays and the channel line shows only where no line above it is within 1 ATR.
+#:   9. draw:rectangle         -- the trading-range box (a `setup_draws` row, settled by
+#:                               member_setup_one_line_per_base); its breakout line is the box TOP. Judged
+#:                               alone (2.44 / 2.76) with no paired round against any drawing above, and on a
+#:                               lower packet than the channel line (2.70 / 2.80), so it ranks last: the box
+#:                               is shown only where no drawn breakout line above it sits within 1 ATR of its
+#:                               top over an overlapping span.
 #: Rows of any other id (the MA pullback's curve and stop; the inside day, settled by its own pass; the
 #: shelf pivot, drawn only on an otherwise empty chart) are never touched here. Ties: the earlier row.
 DONCHIAN_DRAW_ID = "draw:donchian_breakout"
+#: The rectangle (horizontal trading range) setup drawing (api/services/pattern_engine/setup_draw_rectangle.py).
+RECTANGLE_DRAW_ID = "draw:rectangle"
 ONE_LINE_PER_BASE_PRIORITY = ("bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout",
-                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag", DONCHIAN_DRAW_ID)
+                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag", DONCHIAN_DRAW_ID,
+                              RECTANGLE_DRAW_ID)
 #: Two breakout lines within this many ATR(14) of each other, over overlapping spans, are one line.
 ONE_LINE_PER_BASE_ATR = 1.0
 #: With no ATR to be had at all, two lines this close (one cent, plus float noise) are one line.
@@ -1654,6 +1663,13 @@ def _breakout_lines(row) -> list:
             ps = [x.get("price") for x in an[:2]]
             if all(_finite(v) for v in ps):
                 add(sum(float(v) for v in ps) / len(ps), r.get("start_t"), r.get("end_t"))
+    elif pid == RECTANGLE_DRAW_ID:
+        # PatternOverlay draws the box from its two anchors; its breakout line is the top edge (the first
+        # anchor's price) over the box's span (the first anchor's bar to the as-of bar)
+        an = g.get("anchors")
+        if isinstance(an, list) and len(an) >= 2 and all(isinstance(x, dict) for x in an[:2]):
+            if _finite(an[0].get("price")) and _finite(an[1].get("price")):
+                box_top(an[0], an[1], max(float(an[0]["price"]), float(an[1]["price"])))
     elif pid in ("flat_base", "bull_flag"):
         if r.get("draw_entry") and not _flagging_flag(r):
             p = ex.get("draw_entry_price")
@@ -1788,7 +1804,8 @@ def member_setup_one_line_per_base(detections, structures, setups, atr=None):
     """`setups` (the member's `setup_draws` rows, or None) without a row that member_one_line_per_base would drop
     beside the chart's already-settled `detections` and `structures`: the SAME pass, run once over all three, so
     a setup drawing of ONE_LINE_PER_BASE_PRIORITY (the donchian channel line) yields wherever a higher-priority
-    drawn line sits within ONE_LINE_PER_BASE_ATR over overlapping spans. Setup ids outside the priority are kept
+    drawn line sits within ONE_LINE_PER_BASE_ATR over overlapping spans (and so does the rectangle box, ranked
+    after it, by its top edge). Setup ids outside the priority are kept
     untouched; `detections` / `structures` are read, never changed. None stays None. Never raises."""
     if setups is None:
         return None
@@ -2811,9 +2828,7 @@ _SETUP_DRAW_R2_FUNCS = (
     ("death_cross", "draw:death-cross", "Death cross", "death_cross"),
 )
 SETUP_DRAW_R2_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R2_FUNCS)
-#: The rectangle (horizontal trading range) drawing (api/services/pattern_engine/setup_draw_rectangle.py): ONE box,
-#: same layer, same flag, same key.
-RECTANGLE_DRAW_ID = "draw:rectangle"
+#: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
 SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
 SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_RECT_IDS
 #: setup_draw key -> (row id, display name).
