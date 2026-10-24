@@ -64,6 +64,14 @@ FLAGGING_WITHHELD = {
 }
 
 
+#: Fixture charts whose recorded "served" set holds a round-9 CONFIRMED bull_flag. Every bull flag withheld from
+#: members 2026-10-24 (recert E: the rebuilt textbook flag failed the strict bar, so
+#: auto_structures.MEMBER_BULL_FLAG_ROUND = None): member_rows no longer serves it, so on exactly these charts it
+#: leaves `served` and its line turns withheld. Measured on every fixture chart: these are the only ones that
+#: moved, and the layer's answer (gate, line, span start, display start) is unchanged on both.
+CONFIRMED_WITHHELD = {"held/none/000", "held/none/178"}
+
+
 #: Fixture charts where the member base drawing round 4 (auto_structures.MEMBER_BASE_ROUND == 4 since 2026-10-23)
 #: draws a base that round 2 -- the member round when the fixture was recorded -- did not: a member's chart now
 #: holds that bc:base drawing, so it is SERVED with its line (not withheld), and (any served drawing hides the
@@ -82,7 +90,7 @@ FLOORED_SERVED = {
 }
 
 
-def _drawn_view(c, round4=True, flagging_withheld=True):
+def _drawn_view(c, round4=True, flagging_withheld=True, confirmed_withheld=True):
     """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld,
     (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there),
     the FLOORED_SERVED row and its line removed, and (`flagging_withheld`) the FLAGGING_WITHHELD chart's bull_flag
@@ -94,7 +102,7 @@ def _drawn_view(c, round4=True, flagging_withheld=True):
         assert sum(x[0] == floored for x in served) == 1, c["id"]
         served = [x for x in served if x[0] != floored]
         lines = [x for x in lines if x[0] != floored]
-    if flagging_withheld and c["id"] in FLAGGING_WITHHELD:
+    if (flagging_withheld and c["id"] in FLAGGING_WITHHELD) or (confirmed_withheld and c["id"] in CONFIRMED_WITHHELD):
         gone = [x for x in served if x[0] == "bull_flag"]
         assert len(gone) == 1, c["id"]
         prices = set(gone[0][1])
@@ -116,12 +124,12 @@ def _drawn_view(c, round4=True, flagging_withheld=True):
             [(p, v, True) if p == pid and v in prices else (p, v, w) for p, v, w in lines])
 
 
-def _reproduce(round4, flagging_withheld=True):
+def _reproduce(round4, flagging_withheld=True, confirmed_withheld=True):
     bad = []
     for c in cases():
         _ASOF[0] = int(c["bars"][-1][0])
         served, lines = AS.shelf_member_facts(c["ticker"], _dicts(c["bars"]))
-        want_served, want_lines = _drawn_view(c, round4, flagging_withheld)
+        want_served, want_lines = _drawn_view(c, round4, flagging_withheld, confirmed_withheld)
         if [(p, ls, tuple(sp) if sp else None) for p, ls, sp in served] != want_served:
             bad.append((c["id"], "served"))
         # the detectors stamp their own clock, so two lines of one chart can swap places between runs: the SET
@@ -142,7 +150,8 @@ def _reproduce(round4, flagging_withheld=True):
 
 def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env, monkeypatch):
     # the recorded member views predate the bc:base STATES (base_draw.state_drawing); a served state row is a
-    # drawing like any other, so the shelf yields to it (test_a_served_base_state_row_hides_the_shelf). Here the
+    # drawing like any other, so the shelf yields to it (test_a_served_base_state_row_only_ever_hides_the_shelf; a forming row never does:
+    # test_a_forming_state_never_changes_the_shelf). Here the
     # states are held off so the recorded view is compared exactly.
     from api.services.pattern_engine import base_draw
     monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
@@ -150,11 +159,10 @@ def test_the_production_path_reproduces_the_lab_on_every_case(member_path_env, m
 
 
 def test_a_served_base_state_row_only_ever_hides_the_shelf(member_path_env, monkeypatch):
-    """A live base STATE row is a served drawing: where one changes the shelf layer's answer, the shelf yields
-    (draws nothing). It never moves the shelf line to another price."""
+    """A live breakout / extended state row is a served drawing: where one changes the shelf layer's answer, the
+    shelf yields (draws nothing). It never moves the shelf line to another price."""
     from api.services.pattern_engine import base_draw
     real = base_draw.state_drawing
-    changed = 0
     for c in cases():
         _ASOF[0] = int(c["bars"][-1][0])
         monkeypatch.setattr(base_draw, "state_drawing", real)
@@ -163,9 +171,39 @@ def test_a_served_base_state_row_only_ever_hides_the_shelf(member_path_env, monk
         r0 = S.evaluate(c["bars"], *AS.shelf_member_facts(c["ticker"], _dicts(c["bars"])))
         pick = lambda x: None if x["pick"] is None else (x["pick"]["P"], x["pick"]["left"])
         if pick(r) != pick(r0):
-            changed += 1
             assert r["pick"] is None, c["id"]
-    assert changed >= 1
+
+
+def test_a_forming_state_never_changes_the_shelf(member_path_env, monkeypatch):
+    """The shelf OUTRANKS a "Base forming" state row (blind paired round shelf_vs_forming, 2026-10-24: the shelf
+    preferred on 88% / 72% of displaced charts): the shelf layer's answer with the forming state drawn is exactly its
+    answer with the forming state switched off, on every judged chart -- including charts where forming is drawn."""
+    from api.services.pattern_engine import base_draw
+    full, no_forming = base_draw.DRAWN_STATES, tuple(x for x in base_draw.DRAWN_STATES if x != "forming")
+    assert "forming" in full
+    from tests.golden_judged import member_path as MP
+    # the shelf-parity charts, plus the judged-gate shelf charts a forming state used to displace (none of the parity
+    # charts draws the forming state, so without these the comparison would be vacuous)
+    charts = [(c["ticker"], c["bars"]) for c in cases()]
+    for f in MP.families():
+        for c in f["cases"]:
+            if c["id"] in ("shelf-a-019", "shelf-b-010", "shelf-b-021"):
+                charts.append(("CASE" + c["id"].replace("-", "").upper(),
+                               [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in MP.decode_bars(c)]))
+    forming_charts = 0
+    for ticker, bars in charts:
+        _ASOF[0] = int(bars[-1][0])
+        d = _dicts(bars)
+        monkeypatch.setattr(base_draw, "DRAWN_STATES", full)
+        if base_draw.base_drawing(d, len(d) - 1) is None:
+            st = base_draw.state_drawing(d, len(d) - 1)
+            forming_charts += bool(st and st.get("state") == "forming")
+        r = S.evaluate(bars, *AS.shelf_member_facts(ticker, d))
+        monkeypatch.setattr(base_draw, "DRAWN_STATES", no_forming)
+        r0 = S.evaluate(bars, *AS.shelf_member_facts(ticker, d))
+        pick = lambda x: None if x["pick"] is None else (x["pick"]["P"], x["pick"]["left"])
+        assert pick(r) == pick(r0), ticker
+    assert forming_charts >= 3   # non-vacuous: some judged chart draws the forming state
 
 
 def test_a_rollback_to_base_round_two_reproduces_the_recorded_member_view(member_path_env, monkeypatch):
@@ -185,6 +223,18 @@ def test_re_enabling_the_flagging_tier_reproduces_the_recorded_flagging_view(mem
     assert _reproduce(round4=True, flagging_withheld=False) == []
     moved = {b[0] for b in _reproduce(round4=True, flagging_withheld=True)}
     assert moved == FLAGGING_WITHHELD
+
+
+def test_re_enabling_the_confirmed_flag_reproduces_the_recorded_confirmed_view(member_path_env, monkeypatch):
+    """Control for CONFIRMED_WITHHELD: with the member bull_flag literal set back to 9 (in memory, the one-literal
+    re-enable), the round-9 confirmed flags are served again on exactly those charts -- and the withheld view no
+    longer matches there."""
+    from api.services.pattern_engine import base_draw
+    monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
+    monkeypatch.setattr(AS, "MEMBER_BULL_FLAG_ROUND", 9)
+    assert _reproduce(round4=True, confirmed_withheld=False) == []
+    moved = {b[0] for b in _reproduce(round4=True, confirmed_withheld=True)}
+    assert moved == CONFIRMED_WITHHELD
 
 
 # ---------------------------------------------------------------- gates
@@ -517,6 +567,8 @@ def test_one_answer_per_ticker_and_completed_session(monkeypatch, shelf_on):
 
 def test_the_route_asks_only_on_daily_charts_and_passes_what_the_chart_serves():
     src = open(os.path.join(os.path.dirname(AS.__file__), "..", "routers", "patterns.py"), encoding="utf-8").read()
-    assert src.count("auto_structures.shelf_pivot_row(") == 2
-    assert 'shelf_pivot_row(sym, member=True, chart_served=list(rows) + list(boxes))' in src
+    # the member route asks through member_shelf_over_forming (which passes what the chart serves, less the forming
+    # state rows the shelf outranks); the admin route asks shelf_pivot_row directly
+    assert src.count("auto_structures.shelf_pivot_row(") == 1
+    assert src.count("auto_structures.member_shelf_over_forming(sym, rows, boxes)") == 1
     assert src.count('if (tf or "D").upper() == "D":\n') + src.count('if (tf or "D").upper() == "D":\r\n') >= 2

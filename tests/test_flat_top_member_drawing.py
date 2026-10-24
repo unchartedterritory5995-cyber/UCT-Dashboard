@@ -28,6 +28,21 @@ from api.services.pattern_engine.detectors.uct import uct_setups_common as U
 from api.services.pattern_engine.primitives.context import build_context
 from tests.pattern_engine.detectors import _team_setups_synth as SY
 
+
+#: The member bull_flag literal AS SHIPPED, read before any test patches it. Since 2026-10-24 (recert E) it is
+#: None: every bull flag is withheld from members. The tests below exercise the round-9 gate MECHANISM, so they
+#: run under the one-literal re-enable (MEMBER_BULL_FLAG_ROUND = 9, in memory); the shipped default is railed in
+#: tests/test_bull_flag_withheld_from_members.py.
+SHIPPED_MEMBER_BULL_FLAG_ROUND = auto_structures.MEMBER_BULL_FLAG_ROUND
+
+
+@pytest.fixture
+def round9_flag_released(monkeypatch):
+    monkeypatch.setattr(auto_structures, "MEMBER_BULL_FLAG_ROUND", 9)
+
+
+pytestmark = pytest.mark.usefixtures("round9_flag_released")
+
 #: The round the blind check confirmed. Pinned as a literal.
 CONFIRMED_ROUND = 2
 #: Four ceiling touches across the base, none of them the as-of approach.

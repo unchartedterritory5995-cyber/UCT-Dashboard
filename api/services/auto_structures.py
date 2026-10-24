@@ -245,10 +245,11 @@ def member_rows(rows) -> list:
     with the box off, so a member gets one only in that shape (`_pivot_only`): a box
     whose stamp failed or never ran would draw the full box, which nobody judged.
 
-    A bull_flag passed its blind check as drawn by ONE drawing round
-    (MEMBER_BULL_FLAG_ROUND), so a member gets one only while it is that round's
-    finished, drawn flag (`_confirmed_flag`): a stale flag, or one stamped by other
-    drawing code or never stamped at all, is dropped. Fail closed.
+    A bull_flag reaches a member only while MEMBER_BULL_FLAG_ROUND is an int equal to the
+    row's drawing round (`_confirmed_flag`): a stale flag, or one stamped by other drawing
+    code or never stamped at all, is dropped. Fail closed. Since 2026-10-24 that literal is
+    None (recert E: no bull flag drawing passes the strict textbook bar), so NO bull flag
+    reaches a member.
 
     The "flagging" tier (`_flagging_flag`: a flag the round-9 code stopped ONLY on a relaxed verdict,
     stamped `extras.flagging`) is WITHHELD from members since 2026-10-24 (blind textbook score 1.28):
@@ -551,6 +552,39 @@ def _is_base_state_row(row) -> bool:
         return (row or {}).get("pattern_id") == BASE_DRAW_ID and "state" in row["geometry"]["extras"]["draw_base"]
     except (KeyError, TypeError):
         return False
+
+
+def _is_forming_state_row(row) -> bool:
+    """True for a bc:base "Base forming" state row (draw_base.state == "forming")."""
+    try:
+        return _is_base_state_row(row) and row["geometry"]["extras"]["draw_base"].get("state") == "forming"
+    except (KeyError, TypeError, AttributeError):
+        return False
+
+
+def member_shelf_over_forming(sym: str, rows, boxes) -> list:
+    """The member chart's shelf pivot, where a judged shelf OUTRANKS a "Base forming" state row: the shelf is asked
+    with the forming rows left out of the drawings it yields to (shelf_member_facts leaves them out too), and where
+    it draws, the forming rows are dropped and the shelf is added. Anywhere else the boxes are returned unchanged
+    (plus the shelf when one draws). Blind paired round lab shelf_vs_forming (2026-10-24, pre-registered: 50 charts
+    where a forming row displaced a shelf, two packets, four fresh judges): the shelf preferred on 88% (A) and 72%
+    (B) of charts, forming 8% / 12%; mean trust shelf 2.20 / 1.96 vs forming 1.36 / 1.38. Members only; daily
+    charts only (the caller asks only for D). Never raises."""
+    boxes = list(boxes or [])
+    try:
+        served = [r for r in list(rows or []) + boxes if not _is_forming_state_row(r)]
+        shelf = shelf_pivot_row(sym, member=True, chart_served=served)
+        shelf = member_rows([shelf]) if shelf is not None else []
+        if shelf:
+            # the round-5 base floor refuses a shelf region as it does every base door (removal-only): a refused
+            # shelf draws nothing, so it displaces nothing
+            shelf = member_base_floor(sym, [], shelf)[1]
+        if not shelf:
+            return boxes
+        return [b for b in boxes if not _is_forming_state_row(b)] + shelf
+    except Exception as e:  # noqa: BLE001 -- the shelf layer never breaks a read
+        _log.debug("[shelf-pivot] %s over forming failed: %s", sym, e)
+        return boxes
 
 
 def _base_member_row(row):
@@ -1714,11 +1748,14 @@ def member_setup_one_line_per_base(detections, structures, setups, atr=None):
     return [x for x in sl if id(x) in keep]
 
 
-#: The bull_flag drawing round the blind check confirmed for members: round 9,
-#: 8d033ec7d2 (lab/geometry_eval REPORT_BULLFLAG_R9.md). A literal ON PURPOSE, not
-#: display.BULL_FLAG_DRAW_ROUND: when the drawing code moves to a new round, members
-#: stop getting bull_flag until that round is confirmed and this is changed by hand.
-MEMBER_BULL_FLAG_ROUND = 9
+#: The bull_flag drawing round members are served. Round 9 (8d033ec7d2, lab/geometry_eval
+#: REPORT_BULLFLAG_R9.md) passed an older geometry rubric and then scored 1.62 on the strict textbook
+#: rubric (flag_textbook_r2); a rebuilt textbook flag (recert E, 2026-10-24) scored 2.34 / 2.36 / 2.22 /
+#: 2.50, pooled 2.355, and FAILED the protocol bar (every packet >= 2.3, pooled >= 2.4), and no fresh fix
+#: round could be filled on the member universe. So EVERY bull flag is withheld from members: None.
+#: Admins and the team still see both tiers (they never pass through member_rows). A literal ON PURPOSE,
+#: not display.BULL_FLAG_DRAW_ROUND: re-enabling is this one line, and only after a drawing round passes.
+MEMBER_BULL_FLAG_ROUND = None
 
 
 def _confirmed_flag(row) -> bool:
@@ -2220,7 +2257,10 @@ def shelf_member_facts(sym: str, bars: list):
         for p in (ex.get("pivot"), ex.get("top")):
             if _finite(p):
                 lines.append((det["pattern_id"], float(p), True))
-    st = [r for r in map(_base_as_member_round, _structure_rows(sym, bd)) if r is not None]
+    # a "Base forming" state row never hides the shelf (member_shelf_over_forming: the shelf outranks it), so the
+    # shelf is computed as if it were not drawn
+    st = [r for r in map(_base_as_member_round, _structure_rows(sym, bd))
+          if r is not None and not _is_forming_state_row(r)]
     served_st = member_rows(st)
     after_cup = member_cup_precedence(served_st)
     after_base = member_base_precedence(dets_ok, after_cup)
@@ -2539,13 +2579,18 @@ def member_drawn_for(sym: str):
     return drawn
 
 
-# ================================================================ textbook support / resistance (members: round r2)
+# ================================================================ textbook support / resistance (members: WITHDRAWN)
 #: The textbook support / resistance drawing round a member may be served (api/services/pattern_engine/sr_levels.py).
 #: A literal ON PURPOSE, never sr_levels.SR_ROUND: a member gets the layer only while this equals that frozen
-#: constant ("r2"), so a new drawing round cannot release itself. Fail closed. Round r2 passed blind judging on two
-#: fresh packets of 25 random liquid held-out charts (A 2.52 with 96% of charts >= 2, B 2.36 with 84%; bar 2.3 and
-#: 70%) and its DEV lookahead check. Set it to None to withdraw the layer from members (admins keep it under the flag).
-MEMBER_SR_ROUND = "r2"
+#: constant, so a new drawing round cannot release itself. Fail closed.
+#: None: WITHDRAWN from members 2026-10-24 (admins keep it under AUTO_STRUCTURES_SR_ENABLED). Round r2 first passed
+#: two packets of 25 (2.52 / 2.36) on a looser rubric. The recertification on the strict Edwards & Magee / Bulkowski
+#: rubric (four pre-registered packets of 25 per round, two fresh blind judges each) failed it, 2.04 / 1.98 / 2.02 /
+#: 2.20, pooled 2.06, mostly for an important nearby level left undrawn. Both permitted fix rounds failed too: r3
+#: pooled 2.055, r4 2.56 / 2.02 / 2.24 / 2.36, pooled 2.295 (bar: every packet >= 2.3 and >= 70% of charts >= 2,
+#: pooled >= 2.4). Evidence: lab/recert/D_levels_candles. Setting this back to a round string needs a new passed
+#: blind round of that round (tests/golden_judged: sr.json is "withdrawn" until then).
+MEMBER_SR_ROUND = None
 #: The judged frame (the sampling rule of every judged chart): >= SR_MIN_BARS daily bars, and on the as-of session
 #: close > SR_MIN_CLOSE and close x volume >= SR_MIN_DOLLAR_VOLUME. Outside it there is no layer.
 SR_MIN_BARS = 261
