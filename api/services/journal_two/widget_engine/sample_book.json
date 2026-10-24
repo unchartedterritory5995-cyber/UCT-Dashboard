@@ -4074,7 +4074,9 @@
    "losers": 1,
    "mood": null,
    "net": -181.3,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -181.3
@@ -4087,7 +4089,9 @@
    "losers": 0,
    "mood": null,
    "net": 210.36,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 210.36
@@ -4100,7 +4104,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4113,7 +4117,9 @@
    "losers": 0,
    "mood": null,
    "net": 1189.1,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 1189.1
@@ -4126,7 +4132,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4139,7 +4145,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4152,7 +4158,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4165,7 +4171,9 @@
    "losers": 0,
    "mood": null,
    "net": 536.74,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 536.74
@@ -4178,7 +4186,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4191,7 +4199,7 @@
    "losers": 0,
    "mood": 1,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4204,7 +4212,9 @@
    "losers": 1,
    "mood": null,
    "net": 485.09,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -549.94
@@ -4217,7 +4227,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4230,7 +4240,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4243,7 +4253,10 @@
    "losers": 2,
    "mood": null,
    "net": -1490.88,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -1429.77
@@ -4256,7 +4269,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4269,7 +4282,10 @@
    "losers": 2,
    "mood": 2,
    "net": -972.34,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -555.98
@@ -4282,7 +4298,7 @@
    "losers": 0,
    "mood": 1,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4295,7 +4311,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4308,7 +4324,7 @@
    "losers": 0,
    "mood": 4,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4321,7 +4337,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4334,7 +4350,9 @@
    "losers": 0,
    "mood": 2,
    "net": 677.82,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 2,
    "winners": 2,
    "worst": 289.77
@@ -4347,7 +4365,9 @@
    "losers": 0,
    "mood": 1,
    "net": 461.87,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 461.87
@@ -4360,7 +4380,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4373,7 +4393,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4386,7 +4406,9 @@
    "losers": 1,
    "mood": 4,
    "net": -109.75,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -109.75
@@ -4399,7 +4421,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4412,7 +4434,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4425,7 +4447,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4438,7 +4460,9 @@
    "losers": 2,
    "mood": 3,
    "net": -762.97,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -540.4
@@ -4451,7 +4475,10 @@
    "losers": 0,
    "mood": null,
    "net": 830.21,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 2,
    "worst": 275.63
@@ -4464,7 +4491,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4477,7 +4504,9 @@
    "losers": 0,
    "mood": null,
    "net": 853.8,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 2,
    "worst": 354.43
@@ -4490,7 +4519,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4503,7 +4532,9 @@
    "losers": 0,
    "mood": null,
    "net": 592.2,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 592.2
@@ -4516,7 +4547,9 @@
    "losers": 0,
    "mood": 5,
    "net": 352.92,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 352.92
@@ -4529,7 +4562,10 @@
    "losers": 2,
    "mood": null,
    "net": -114.37,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 3,
    "winners": 0,
    "worst": -68.83
@@ -4542,7 +4578,9 @@
    "losers": 1,
    "mood": 1,
    "net": -341.31,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -341.31
@@ -4555,7 +4593,7 @@
    "losers": 0,
    "mood": 1,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4568,7 +4606,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4581,7 +4619,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4594,7 +4632,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4607,7 +4645,9 @@
    "losers": 0,
    "mood": 3,
    "net": -1.0,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -1.0
@@ -4620,7 +4660,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4633,7 +4673,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4646,7 +4686,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4659,7 +4699,9 @@
    "losers": 1,
    "mood": null,
    "net": 807.64,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -186.75
@@ -4672,7 +4714,9 @@
    "losers": 0,
    "mood": null,
    "net": -3.72,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -3.72
@@ -4685,7 +4729,7 @@
    "losers": 1,
    "mood": 2,
    "net": -77.72,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 0,
    "worst": -77.72
@@ -4698,7 +4742,7 @@
    "losers": 0,
    "mood": 5,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4711,7 +4755,9 @@
    "losers": 2,
    "mood": 5,
    "net": -298.13,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -179.7
@@ -4724,7 +4770,9 @@
    "losers": 1,
    "mood": null,
    "net": -175.41,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -175.41
@@ -4737,7 +4785,9 @@
    "losers": 0,
    "mood": 5,
    "net": -2.52,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -2.52
@@ -4750,7 +4800,7 @@
    "losers": 0,
    "mood": 3,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4763,7 +4813,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4776,7 +4826,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4789,7 +4839,9 @@
    "losers": 0,
    "mood": null,
    "net": 157.05,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 157.05
@@ -4802,7 +4854,9 @@
    "losers": 1,
    "mood": 1,
    "net": -193.85,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -193.85
@@ -4815,7 +4869,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4828,7 +4882,9 @@
    "losers": 0,
    "mood": null,
    "net": -1.0,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -1.0
@@ -4841,7 +4897,7 @@
    "losers": 0,
    "mood": 3,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4854,7 +4910,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4867,7 +4923,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4880,7 +4936,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4893,7 +4949,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4906,7 +4962,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4919,7 +4975,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4932,7 +4988,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4945,7 +5001,10 @@
    "losers": 1,
    "mood": 4,
    "net": 194.79,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 3,
    "winners": 1,
    "worst": -63.65
@@ -4958,7 +5017,9 @@
    "losers": 2,
    "mood": 2,
    "net": -138.76,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -75.31
@@ -4971,7 +5032,10 @@
    "losers": 2,
    "mood": 2,
    "net": -122.12,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 3,
    "winners": 1,
    "worst": -181.18
@@ -4984,7 +5048,7 @@
    "losers": 0,
    "mood": 5,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -4997,7 +5061,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5010,7 +5074,7 @@
    "losers": 0,
    "mood": null,
    "net": 254.41,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 1,
    "worst": 254.41
@@ -5023,7 +5087,9 @@
    "losers": 1,
    "mood": null,
    "net": -332.94,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -332.94
@@ -5036,7 +5102,9 @@
    "losers": 1,
    "mood": 4,
    "net": 253.57,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 3,
    "winners": 2,
    "worst": -175.76
@@ -5049,7 +5117,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5062,7 +5130,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5075,7 +5143,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5088,7 +5156,9 @@
    "losers": 0,
    "mood": null,
    "net": 204.12,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 204.12
@@ -5101,7 +5171,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5114,7 +5184,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5127,7 +5197,9 @@
    "losers": 0,
    "mood": 5,
    "net": 445.43,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -1.0
@@ -5140,7 +5212,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5153,7 +5225,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5166,7 +5238,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5179,7 +5251,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5192,7 +5264,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5205,7 +5277,7 @@
    "losers": 0,
    "mood": 3,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5218,7 +5290,9 @@
    "losers": 0,
    "mood": null,
    "net": 816.7,
-   "origin": "csv",
+   "origins": [
+    "csv"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 816.7
@@ -5231,7 +5305,9 @@
    "losers": 1,
    "mood": null,
    "net": -57.17,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -57.17
@@ -5244,7 +5320,7 @@
    "losers": 0,
    "mood": 3,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5257,7 +5333,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5270,7 +5346,9 @@
    "losers": 1,
    "mood": null,
    "net": 382.91,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -793.49
@@ -5283,7 +5361,9 @@
    "losers": 1,
    "mood": null,
    "net": -177.93,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -177.93
@@ -5296,7 +5376,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5309,7 +5389,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5322,7 +5402,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5335,7 +5415,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5348,7 +5428,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5361,7 +5441,9 @@
    "losers": 1,
    "mood": null,
    "net": -42.15,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -42.15
@@ -5374,7 +5456,7 @@
    "losers": 0,
    "mood": null,
    "net": 440.67,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 1,
    "worst": 440.67
@@ -5387,7 +5469,9 @@
    "losers": 1,
    "mood": 5,
    "net": 117.73,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -99.71
@@ -5400,7 +5484,9 @@
    "losers": 1,
    "mood": null,
    "net": -433.12,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -433.12
@@ -5413,7 +5499,9 @@
    "losers": 2,
    "mood": null,
    "net": -304.62,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -155.71
@@ -5426,7 +5514,7 @@
    "losers": 0,
    "mood": 2,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5439,7 +5527,7 @@
    "losers": 0,
    "mood": 2,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5452,7 +5540,10 @@
    "losers": 2,
    "mood": 4,
    "net": 153.99,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 3,
    "winners": 1,
    "worst": -240.12
@@ -5465,7 +5556,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5478,7 +5569,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5491,7 +5582,9 @@
    "losers": 0,
    "mood": 5,
    "net": -2.65,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -2.65
@@ -5504,7 +5597,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5517,7 +5610,9 @@
    "losers": 1,
    "mood": null,
    "net": -244.87,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -244.87
@@ -5530,7 +5625,9 @@
    "losers": 0,
    "mood": null,
    "net": 506.41,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 2,
    "worst": 160.2
@@ -5543,7 +5640,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5556,7 +5653,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5569,7 +5666,9 @@
    "losers": 1,
    "mood": 3,
    "net": -340.65,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -340.65
@@ -5582,7 +5681,10 @@
    "losers": 0,
    "mood": 1,
    "net": 878.93,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 2,
    "worst": 312.92
@@ -5595,7 +5697,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5608,7 +5710,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5621,7 +5723,10 @@
    "losers": 1,
    "mood": null,
    "net": 460.29,
-   "origin": "mixed",
+   "origins": [
+    "csv",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -264.41
@@ -5634,7 +5739,9 @@
    "losers": 1,
    "mood": 3,
    "net": -267.83,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -267.83
@@ -5647,7 +5754,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5660,7 +5767,7 @@
    "losers": 0,
    "mood": 2,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5673,7 +5780,9 @@
    "losers": 1,
    "mood": null,
    "net": -151.58,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -151.58
@@ -5686,7 +5795,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5699,7 +5808,9 @@
    "losers": 2,
    "mood": 4,
    "net": -265.22,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 3,
    "winners": 1,
    "worst": -537.84
@@ -5712,7 +5823,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5725,7 +5836,10 @@
    "losers": 1,
    "mood": 1,
    "net": 211.79,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -69.97
@@ -5738,7 +5852,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5751,7 +5865,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5764,7 +5878,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5777,7 +5891,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5790,7 +5904,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5803,7 +5917,9 @@
    "losers": 0,
    "mood": null,
    "net": 263.22,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 263.22
@@ -5816,7 +5932,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5829,7 +5945,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5842,7 +5958,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5855,7 +5971,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5868,7 +5984,7 @@
    "losers": 1,
    "mood": 5,
    "net": -173.67,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 0,
    "worst": -173.67
@@ -5881,7 +5997,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5894,7 +6010,9 @@
    "losers": 1,
    "mood": 4,
    "net": 247.39,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -186.96
@@ -5907,7 +6025,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5920,7 +6038,9 @@
    "losers": 2,
    "mood": null,
    "net": -1261.54,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -681.94
@@ -5933,7 +6053,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5946,7 +6066,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5959,7 +6079,9 @@
    "losers": 1,
    "mood": 5,
    "net": 315.13,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -283.29
@@ -5972,7 +6094,9 @@
    "losers": 1,
    "mood": 3,
    "net": -189.7,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -189.7
@@ -5985,7 +6109,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -5998,7 +6122,10 @@
    "losers": 1,
    "mood": null,
    "net": 654.63,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 3,
    "winners": 2,
    "worst": -234.37
@@ -6011,7 +6138,10 @@
    "losers": 1,
    "mood": 4,
    "net": -1.12,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -292.9
@@ -6024,7 +6154,9 @@
    "losers": 0,
    "mood": null,
    "net": 507.01,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 507.01
@@ -6037,7 +6169,9 @@
    "losers": 0,
    "mood": null,
    "net": 314.61,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 314.61
@@ -6050,7 +6184,7 @@
    "losers": 0,
    "mood": 3,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6063,7 +6197,9 @@
    "losers": 0,
    "mood": null,
    "net": 909.6,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 909.6
@@ -6076,7 +6212,9 @@
    "losers": 0,
    "mood": 2,
    "net": 289.15,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 289.15
@@ -6089,7 +6227,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6102,7 +6240,7 @@
    "losers": 0,
    "mood": 2,
    "net": 40.13,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 1,
    "worst": 40.13
@@ -6115,7 +6253,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6128,7 +6266,9 @@
    "losers": 1,
    "mood": null,
    "net": -58.44,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -58.44
@@ -6141,7 +6281,10 @@
    "losers": 1,
    "mood": null,
    "net": -54.69,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -54.69
@@ -6154,7 +6297,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6167,7 +6310,10 @@
    "losers": 2,
    "mood": null,
    "net": -213.0,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 3,
    "winners": 1,
    "worst": -271.55
@@ -6180,7 +6326,7 @@
    "losers": 0,
    "mood": null,
    "net": 473.53,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 1,
    "worst": 473.53
@@ -6193,7 +6339,7 @@
    "losers": 1,
    "mood": null,
    "net": -270.08,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 0,
    "worst": -270.08
@@ -6206,7 +6352,9 @@
    "losers": 1,
    "mood": 1,
    "net": 315.17,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -155.05
@@ -6219,7 +6367,7 @@
    "losers": 0,
    "mood": null,
    "net": 144.58,
-   "origin": null,
+   "origins": [],
    "trade_count": 1,
    "winners": 1,
    "worst": 144.58
@@ -6232,7 +6380,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6245,7 +6393,9 @@
    "losers": 0,
    "mood": 2,
    "net": 242.71,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 242.71
@@ -6258,7 +6408,10 @@
    "losers": 0,
    "mood": null,
    "net": 326.76,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -1.0
@@ -6271,7 +6424,9 @@
    "losers": 0,
    "mood": 1,
    "net": 249.04,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 249.04
@@ -6284,7 +6439,9 @@
    "losers": 0,
    "mood": null,
    "net": 680.08,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 680.08
@@ -6297,7 +6454,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6310,7 +6467,9 @@
    "losers": 1,
    "mood": 4,
    "net": -90.26,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -90.26
@@ -6323,7 +6482,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6336,7 +6495,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6349,7 +6508,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6362,7 +6521,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6375,7 +6534,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6388,7 +6547,9 @@
    "losers": 2,
    "mood": null,
    "net": -571.7,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -321.05
@@ -6401,7 +6562,9 @@
    "losers": 1,
    "mood": null,
    "net": 205.18,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -342.71
@@ -6414,7 +6577,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6427,7 +6590,9 @@
    "losers": 1,
    "mood": 4,
    "net": -55.61,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -55.61
@@ -6440,7 +6605,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6453,7 +6618,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6466,7 +6631,9 @@
    "losers": 1,
    "mood": 3,
    "net": 30.62,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 1,
    "worst": -288.69
@@ -6479,7 +6646,9 @@
    "losers": 1,
    "mood": null,
    "net": -156.24,
-   "origin": "manual",
+   "origins": [
+    "manual"
+   ],
    "trade_count": 1,
    "winners": 0,
    "worst": -156.24
@@ -6492,7 +6661,9 @@
    "losers": 0,
    "mood": null,
    "net": 64.31,
-   "origin": "broker",
+   "origins": [
+    "broker"
+   ],
    "trade_count": 1,
    "winners": 1,
    "worst": 64.31
@@ -6505,7 +6676,7 @@
    "losers": 0,
    "mood": null,
    "net": 0.0,
-   "origin": null,
+   "origins": [],
    "trade_count": 0,
    "winners": 0,
    "worst": null
@@ -6518,7 +6689,10 @@
    "losers": 2,
    "mood": null,
    "net": -276.7,
-   "origin": "mixed",
+   "origins": [
+    "broker",
+    "manual"
+   ],
    "trade_count": 2,
    "winners": 0,
    "worst": -232.55

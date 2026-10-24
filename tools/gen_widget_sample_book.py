@@ -244,7 +244,8 @@ def _days(rng: random.Random, sess: list[date], trades: list[dict]) -> list[dict
             count += 1
             wins += opt > 0
             losses += opt < 0
-        origins = sorted({t["origin"] for t in eq})
+        # the origins present, in the order `sources.scan_days` lists them
+        origins = [o for o in ("broker", "csv", "manual") if any(t["origin"] == o for t in eq)]
         traded = count > 0
         has_checkin = rng.random() < (0.45 if traded else 0.15)
         out.append({
@@ -255,7 +256,7 @@ def _days(rng: random.Random, sess: list[date], trades: list[dict]) -> list[dict
             "losers": int(losses),
             "best": max(nets) if nets else None,
             "worst": min(nets) if nets else None,
-            "origin": (origins[0] if len(origins) == 1 else "mixed") if eq else None,
+            "origins": origins,
             "mood": rng.randint(1, 5) if has_checkin else None,
             "focus": rng.randint(1, 5) if has_checkin and rng.random() < 0.8 else None,
             "had_day_note": rng.random() < 0.3,

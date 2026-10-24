@@ -574,7 +574,12 @@ def _sample_days(book: dict) -> list[dict]:
         k, count = d["day"], int(d["trade_count"])
         decisive = int(d["winners"]) + int(d["losers"])
         net = round(float(d["net"]), 6)
-        row: dict[str, Any] = {"origin": d["origin"]} if d["origin"] else {}
+        present = list(d["origins"])                       # broker / csv / manual, scan order
+        row: dict[str, Any] = {}
+        if present:
+            row["origin"] = present[0] if len(present) == 1 else "mixed"
+            if len(present) > 1:
+                row["origins"] = present
         row.update({
             "day": k,
             "weekday": wsources._weekday(k),

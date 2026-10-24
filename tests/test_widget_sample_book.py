@@ -196,11 +196,19 @@ def test_position_rows_match_a_real_scan_of_the_same_positions(conn):
 
 def test_trading_day_rows_have_the_real_scan_shapes(conn):
     add_trade(conn, UID, day="2026-10-20", pnl=50)
+    add_trade(conn, UID, day="2026-10-21", pnl=50, source="csv")
+    add_trade(conn, UID, day="2026-10-21", pnl=-20)
     real = _real(conn, "trading_days", range={"token": "last_7d"}).rows
     shapes = {frozenset(r) for r in real}
-    assert len(shapes) == 2, "control: a day with trades (origin) and a day without"
+    assert len(shapes) == 3, "control: a one-origin day, a mixed day (origins) and a quiet day"
     mine = run.sample_rows("trading_days")
     assert {frozenset(r) for r in mine} == shapes
+    by_day = {r["day"]: r for r in real}
+    assert by_day["2026-10-21"]["origins"] == ["csv", "manual"]
+    mixed = [r for r in mine if r.get("origin") == "mixed"]
+    assert mixed and all(r["origins"] in (["broker", "manual"], ["broker", "csv"],
+                                          ["csv", "manual"], ["broker", "csv", "manual"])
+                         for r in mixed)
     assert [r["day"] for r in mine] == sorted((r["day"] for r in mine), reverse=True)
 
 
