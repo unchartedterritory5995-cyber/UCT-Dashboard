@@ -58,27 +58,10 @@ for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
 for _cid in ("double-bottom-a-010", "inside-day-b2-018"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
-#: Setup drawings judged OUTSIDE the member frame (measured 2026-10-24, when the setup-line families joined the gate).
-#: auto_structures.setup_in_frame draws a setup only when the as-of close x volume >= SETUP_MIN_DOLLAR_VOLUME ($20M).
-#: Round 3's batch b3 (descending triangle, inverse head and shoulders, bear flag, Bollinger squeeze) and the rectangle's
-#: passed round sampled their charts on a looser rule (close > $5 and a 20-day average dollar volume > $5M, 1995-2026),
-#: so these cases were judged on charts whose as-of session trades under $20M. Each one's drawing IS produced by the
-#: production detector on its bars, and each passes the gate with SETUP_MIN_DOLLAR_VOLUME set to 0, so the frame floor
-#: is the whole cause; already so at the drawings' release commits. Lowering the floor is a product decision, not a gate
-#: edit: it would also draw these setups on every thin chart the judges never saw.
-_SETUP_FRAME = ("judged setup drawing withheld by the member frame: the as-of close x volume is under "
-                "auto_structures.SETUP_MIN_DOLLAR_VOLUME ($20M); the round sampled on a 20-day $5M average, so the "
-                "judged chart is outside the frame members are drawn in; already so at the release commit")
-for _fam, _cases in (
-        ("bear-flag", "a-002 a-003 a-006 a-008 a-012 a-016 a-020 a-024 b-002 b-011 b-021 b-022 b-025"),
-        ("bollinger-squeeze", "a-006 a-008 a-010 a-017 a-020 a-022 a-023 a-024 a-025 b-005 b-006 b-009 b-010 b-014 "
-                              "b-023 b-024"),
-        ("descending-triangle", "a-005 a-009 a-014 a-017 a-018 a-022 a-024 a-025 b-001 b-002 b-004 b-007 b-008 b-009 "
-                                "b-012 b-013 b-017 b-019 b-021 b-022 b-024"),
-        ("inverse-head-shoulders", "a-001 a-011 a-016 a-025 b-002 b-010 b-019 b-020"),
-        ("rectangle", "a-003 a-004 a-016 a-018 b-002 b-004 b-007 b-008 b-011 b-012 b-021 b-022 b-024 b-025")):
-    for _c in _cases.split():
-        KNOWN_RED[f"{_fam}-{_c}"] = _SETUP_FRAME
+# 72 setup-line cases left KNOWN_RED 2026-10-24 (descending-triangle 21, bollinger-squeeze 16, rectangle 14,
+# bear-flag 13, inverse-head-shoulders 8): their rounds sampled on the recert rule (close > $5 and a 20-day average
+# dollar volume >= $5M), and the member frame was a one-day $20M floor. Each family is now served on the frame it was
+# certified on (auto_structures.SETUP_FRAME_BY_ID), so they reproduce.
 
 
 def _ids(items):

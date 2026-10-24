@@ -85,7 +85,7 @@ def day_offsets(case) -> list:
 
 def decode_bars(case) -> list:
     """The fixture's bars as {t,o,h,l,c,v} dicts in REAL price units (the stored series divided by `scale`):
-    the drawing code's absolute floors ($5 close, $20M dollar volume) see the prices the judges' charts had.
+    the drawing code's absolute floors ($5 close, the dollar-volume frames) see the prices the judges' charts had.
     Encoding (tests/golden_judged/encode.py): closes are delta-coded integers of price x scale x q; the open is an
     integer offset from the close, the high and low the wicks beyond the body; dividing by scale and rounding to `dp` places gives the source price exactly.
     Volume is in units of `vu` shares."""

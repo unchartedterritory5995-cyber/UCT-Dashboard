@@ -3176,11 +3176,30 @@ MEMBER_MAJOR_TRENDLINES_ROUND = 3
 MEMBER_RECTANGLE_ROUND = 1
 #: How many sessions of RSI(14) the divergence's panel carries (the judged frame shows at most 250 bars).
 SETUP_RSI_PANEL_BARS = 250
-#: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
-#: session close > SETUP_MIN_CLOSE and close x volume >= SETUP_MIN_DOLLAR_VOLUME. Outside it there is no drawing.
+#: The judged frames: each setup family is drawn only on the population its passed blind round SAMPLED (owner
+#: decision 2026-10-24: each family is served on the frame it was certified on). Both frames need >= SETUP_MIN_BARS
+#: daily bars and an as-of close > SETUP_MIN_CLOSE; they differ in the liquidity floor:
+#:   SETUP_FRAME_DAY    the as-of session's close x volume >= SETUP_MIN_DOLLAR_VOLUME (one day). The rule of
+#:                      release_g4 (donchian, remount, u_and_r), setups_r2 (every round-2 drawing) and setups_r3
+#:                      batches b1 (outside_bar) and b2 (major_trendlines), whose PREREGs sample "close > $5,
+#:                      close x volume >= $20M".
+#:   SETUP_FRAME_ADV20  the mean close x volume of the last SETUP_ADV_SESSIONS completed sessions (the as-of one
+#:                      included) >= SETUP_MIN_ADV_DOLLAR_VOLUME. The recert supply rule of setups_r3 b3 AMENDMENT S2
+#:                      (descending_triangle, inverse_head_shoulders, bear_flag, bollinger_squeeze) and
+#:                      rectangle_v2 PREREG_r2 (rectangle): "close > $5, 20-day average dollar volume >= $5M".
+#: Outside a family's frame there is no drawing of that family. SETUP_FRAME_BY_ID maps every setup-drawing id;
+#: an id missing from it is never drawn (fail closed).
 SETUP_MIN_BARS = 261
 SETUP_MIN_CLOSE = 5.0
 SETUP_MIN_DOLLAR_VOLUME = 20e6
+SETUP_ADV_SESSIONS = 20
+SETUP_MIN_ADV_DOLLAR_VOLUME = 5e6
+SETUP_FRAME_DAY = "day"
+SETUP_FRAME_ADV20 = "adv20"
+_SETUP_ADV20_IDS = ("draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
+                    "draw:bollinger-squeeze", RECTANGLE_DRAW_ID)
+SETUP_FRAME_BY_ID = {pid: (SETUP_FRAME_ADV20 if pid in _SETUP_ADV20_IDS else SETUP_FRAME_DAY)
+                     for pid in SETUP_DRAW_IDS}
 _SETUP_CACHE: dict = {}
 _SETUP_LOCK = threading.Lock()
 
@@ -3503,11 +3522,29 @@ def _setup_draw_rect_rows(sym: str, b: list) -> list:
     }]
 
 
-def setup_in_frame(bars) -> bool:
+def setup_in_frame(bars, frame=SETUP_FRAME_DAY) -> bool:
+    """Whether COMPLETED daily `bars` (the last one the as-of session) sit inside judged `frame` (see
+    SETUP_FRAME_BY_ID). An unknown frame is outside (fail closed)."""
     if len(bars or []) < SETUP_MIN_BARS:
         return False
     last = bars[-1]
-    return last["c"] > SETUP_MIN_CLOSE and last["c"] * last["v"] >= SETUP_MIN_DOLLAR_VOLUME
+    if not last["c"] > SETUP_MIN_CLOSE:
+        return False
+    if frame == SETUP_FRAME_DAY:
+        return last["c"] * (last["v"] or 0) >= SETUP_MIN_DOLLAR_VOLUME
+    if frame == SETUP_FRAME_ADV20:
+        tail = bars[-SETUP_ADV_SESSIONS:]
+        return sum(x["c"] * (x["v"] or 0) for x in tail) / SETUP_ADV_SESSIONS >= SETUP_MIN_ADV_DOLLAR_VOLUME
+    return False
+
+
+def setup_frames_held(bars) -> frozenset:
+    """The judged frames COMPLETED daily `bars` sit inside."""
+    return frozenset(f for f in (SETUP_FRAME_DAY, SETUP_FRAME_ADV20) if setup_in_frame(bars, f))
+
+
+def _in_frame(pid, held) -> bool:
+    return SETUP_FRAME_BY_ID.get(pid) in held
 
 
 def setup_draw_rows(sym: str, bars: list) -> list:
@@ -3519,10 +3556,13 @@ def setup_draw_rows(sym: str, bars: list) -> list:
     try:
         from api.services.pattern_engine import setup_draw
         b = list(bars or [])
-        if not setup_in_frame(b):
+        held = setup_frames_held(b)
+        if not held:
             return []
         sym = (sym or "").upper()
         for key, pid, name in _SETUP_DRAW_FUNCS:
+            if not _in_frame(pid, held):
+                continue
             try:
                 d = setup_draw.detect(key, b)
             except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
@@ -3552,9 +3592,10 @@ def setup_draw_rows(sym: str, bars: list) -> list:
                 "status": "forming",
                 **display_policy(pid),
             })
-        out.extend(_setup_draw_r2_rows(sym, b))
-        out.extend(_setup_draw_r3_rows(sym, b))
-        out.extend(_setup_draw_rect_rows(sym, b))
+        for ids, rows_fn in ((SETUP_DRAW_R2_IDS, _setup_draw_r2_rows), (SETUP_DRAW_R3_IDS, _setup_draw_r3_rows),
+                             (SETUP_DRAW_RECT_IDS, _setup_draw_rect_rows)):
+            if any(_in_frame(pid, held) for pid in ids):
+                out.extend(r for r in rows_fn(sym, b) if _in_frame(r.get("pattern_id"), held))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
     return out

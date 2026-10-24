@@ -63,13 +63,13 @@ kept only when its facts matched the lab key exactly (all 537 did). A round-2 or
 detector reads (`setup_draw_r2.WINDOW`); a rectangle case stores the 600 bars the member route reads, because the base
 drawings it yields to need the full window.
 
-**72 of them are `KNOWN_RED`, all for one measured cause, the member frame.** `auto_structures.setup_in_frame` draws a
-setup only when the as-of close x volume is at least `SETUP_MIN_DOLLAR_VOLUME` ($20M). Round 3's batch b3 (descending
-triangle 21, Bollinger squeeze 16, bear flag 13, inverse head and shoulders 8) and the rectangle's round (14) sampled
-their charts on a looser rule (close above $5 and a 20-day average dollar volume above $5M, 1995 to 2026), so those
-charts trade under $20M on the as-of session. The production detector draws every one of them on its bars, and every
-one passes with the floor set to 0; the floor is the whole cause, already so at the release commits. Moving the floor is
-a product decision (it would also draw these setups on thin charts nobody judged), not a gate edit.
+**Each setup family is served on the frame its passed round sampled** (`auto_structures.SETUP_FRAME_BY_ID`, owner
+decision 2026-10-24). Round 3's batch b3 (descending triangle, Bollinger squeeze, bear flag, inverse head and shoulders)
+and the rectangle's round sampled close above $5 and a 20-day average dollar volume of at least $5M, so those five are
+drawn on that frame (`SETUP_FRAME_ADV20`). Every other setup family's round (release_g4, setups_r2, setups_r3 b1 and b2)
+sampled close above $5 and an as-of close x volume of at least $20M, and stays on that one-day frame (`SETUP_FRAME_DAY`).
+Until that change, 72 judged cases of the five were `KNOWN_RED` because the member frame was the one-day $20M floor for
+every family; they reproduce now, and putting the one-day floor back on those five turns them red again.
 
 A `withdrawn` file is a released drawing a later recertification failed: its member literal is `None` (admins
 keep the layer) and `test_a_withdrawn_drawing_is_not_served_to_members` keeps it there. Its judged cases are still
@@ -136,7 +136,7 @@ passing fails it too, so its entry has to be deleted. Never add a case to `KNOWN
 No ticker, no trader name, no member data, no path. Bars are stored as calendar-day offsets from the window's first
 bar (the weekday of that bar is kept, the year is not), and every price is multiplied by a random per-case `scale`
 that is recorded in the case so the replay can divide it back out (the drawing code has absolute floors such as a
-$5 close and $20M of dollar volume). Encoding: `tests/golden_judged/encode.py`; decoding:
+$5 close, $20M of one-day dollar volume and a $5M 20-day average). Encoding: `tests/golden_judged/encode.py`; decoding:
 `member_path.decode_bars`. `test_the_fixtures_are_symbol_free_and_small` refuses identifying keys, paths and
 anything shaped like a real date, and keeps the directory under 5 MB on disk. A fixture may be stored as
 `.json.gz` (deterministic, mtime 0); it is counted compressed and scanned decompressed. Since 2026-10-24 every
