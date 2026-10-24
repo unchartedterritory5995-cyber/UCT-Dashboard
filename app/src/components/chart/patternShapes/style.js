@@ -38,12 +38,25 @@ export function isFlagging(detection) {
   return detection?.flag_tier === FLAGGING_TIER
 }
 
+// The setup-drawing layer (`setup_draws`) is drawn the way its blind judges saw it (lab setup_triage/overlay_v3.py,
+// the canvas of release_g4 / setups_r2 / setups_r3 / rectangle_v2): solid lines at full opacity, whatever the row's
+// `status` / `confidence`. The server stamps every setup row `status: "forming"`, `confidence: null`; on a pattern
+// detection those mean provisional (dashed, half opacity), on a judged setup drawing they mean nothing. Set by
+// cautionLayer.visibleSetupDraws on every row it returns, never by the server, so a pattern or base "forming" state
+// keeps its dashed style. A horizontal line keeps its judged touch-count dash (HorizontalLine.jsx, overlay_v3 too).
+export const SETUP_DRAW_STYLE = 'judged'
+
+export function isJudgedSetupDraw(detection) {
+  return detection?.setup_draw_style === SETUP_DRAW_STYLE
+}
+
 export function isStale(detection) {
   const age = detection?.geometry?.extras?.pattern_age_bars
   return typeof age === 'number' && age > STALE_AFTER_BARS
 }
 
 export function getOpacity(detection) {
+  if (isJudgedSetupDraw(detection)) return 1.0
   const conf = detection?.confidence ?? 50
   let op = Math.max(0.4, Math.min(1.0, conf / 100))
   // Display-only distinctions (lab/geometry_eval tiers + pattern age): an
@@ -60,6 +73,7 @@ export function getStrokeWidth(detection) {
 }
 
 export function getStrokeDasharray(detection) {
+  if (isJudgedSetupDraw(detection)) return 'none'
   if (isFlagging(detection)) return FLAGGING_DASH
   if (detection?.status === 'forming') return '5,3'
   // Experimental tier: a dotted stroke, so it never reads as a trusted line.

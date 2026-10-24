@@ -1,7 +1,8 @@
 // app/src/components/chart/patternShapes/SupportResistanceLayer.jsx — the textbook support / resistance layer.
 //
 // Zones as thin translucent bands with a dotted edge, trendlines as dashed lines, labelled "Support a-b" /
-// "Resistance a-b" / "Uptrend line (support)" / "Downtrend line (resistance)" to the right of the drawing's end.
+// "Resistance a-b" (a confirmed zone adds " | broken & retested (confirmed)", as judged) / "Uptrend line (support)" /
+// "Downtrend line (resistance)" to the right of the drawing's end.
 // Blue = support, orange = resistance (the judged render's colours). Deliberately unlike the pattern drawings
 // (solid direction-coloured lines and boxes, the purple shelf pivot): this layer is context, not a setup.
 // Display only; positions come from srLevelsGeometry (one authority), label offsets from the overlay's
@@ -15,7 +16,7 @@ export default function SupportResistanceLayer({ levelsSr, tToX, priceToY, dy = 
   return (
     <g data-role="sr-levels" style={{ pointerEvents: 'none' }}>
       {g.zones.map((z) => (
-        <g key={z.key} data-role="sr-zone" data-sr-role={z.role}>
+        <g key={z.key} data-role="sr-zone" data-sr-role={z.role} data-sr-state={z.confirmed ? 'confirmed' : 'intact'}>
           <rect data-role="sr-zone-band" x={z.x1} y={z.y0} width={Math.max(1, z.x2 - z.x1)} height={z.h}
             fill={z.color} fillOpacity={0.14} stroke={z.color} strokeOpacity={0.55} strokeWidth={0.75}
             strokeDasharray="2 3" />

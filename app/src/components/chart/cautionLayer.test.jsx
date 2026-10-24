@@ -3,6 +3,8 @@
 // amber with exit wording, listed under the toggle. Never "short", never a sell instruction, never a badge. Bullish
 // setups are unchanged. Asserted by what RENDERS. Synthetic prices.
 import { describe, it, expect, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { render, screen, fireEvent } from '@testing-library/react'
 import PatternOverlay from './PatternOverlay'
 import UctIntelligencePanel, { chartSetupRows } from './UctIntelligencePanel'
@@ -156,8 +158,31 @@ describe('caution wording is exit framing only', () => {
     for (const l of labels) expect(l, l).not.toMatch(FORBIDDEN)
     for (const [pid, l] of Object.entries(CAUTION_LABELS)) {
       if (pid === 'draw:death-cross') expect(l).toBe('50-day below 200-day')
+      else if (pid === 'draw:rsi-bearish-divergence') expect(l).toMatch(/momentum fading, price high not confirmed by RSI$/)
       else expect(l, l).toMatch(/if you hold$/)
     }
+  })
+
+  it('the four newer bearish setups have their own exit wording, never the generic fallback', () => {
+    expect(CAUTION_LABELS['draw:rsi-bearish-divergence'])
+      .toBe('RSI bearish divergence: momentum fading, price high not confirmed by RSI')
+    expect(CAUTION_LABELS['draw:rising-wedge']).toBe('Possible rising wedge: watch the lower trendline if you hold')
+    expect(CAUTION_LABELS['draw:head-shoulders']).toBe('Possible head and shoulders: watch the neckline if you hold')
+    expect(CAUTION_LABELS['draw:triple-top']).toBe('Possible triple top: watch the range low if you hold')
+    for (const [pid, name] of [['draw:rsi-bearish-divergence', 'RSI bearish divergence'],
+      ['draw:rising-wedge', 'Rising wedge'], ['draw:head-shoulders', 'Head and shoulders'],
+      ['draw:triple-top', 'Triple top']]) {
+      expect(cautionLabel({ pattern_id: pid, pattern_name: name }), pid).not.toMatch(/^Caution: /)
+    }
+  })
+
+  it('names every id in the server CAUTION_SETUP_IDS, and nothing else (read from auto_structures.py)', () => {
+    const src = readFileSync(resolve(__dirname, '../../../../api/services/auto_structures.py'), 'utf8')
+    const block = src.match(/CAUTION_SETUP_IDS = frozenset\(\{([\s\S]*?)\}\)/)
+    expect(block, 'CAUTION_SETUP_IDS not found').toBeTruthy()
+    const ids = [...block[1].matchAll(/"(draw:[^"]+)"/g)].map((m) => m[1]).sort()
+    expect(ids.length).toBeGreaterThanOrEqual(9)
+    expect(Object.keys(CAUTION_LABELS).sort()).toEqual(ids)
   })
 
   it('covers the four bearish member setups the decision names', () => {

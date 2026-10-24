@@ -9,18 +9,26 @@
 // never a badge (there is no replay edge for any bearish type). cautionLayer.test.js scans every label.
 // ⛔ The death cross is a MOVING-AVERAGE STATE ("50-day below 200-day"), not a chart pattern.
 
+import { SETUP_DRAW_STYLE } from './patternShapes/style'
+
 /** Is this setup row a caution-layer (bearish) row? The server's direction is the only signal. */
 export function isCautionRow(row) {
   return row?.direction === 'bearish'
 }
 
-/** The member-facing label for one caution row, by the server's row id. */
+/** The member-facing label for one caution row, by the server's row id: one per auto_structures.CAUTION_SETUP_IDS
+ *  member (cautionLayer.test.jsx reads that set out of the server file and holds the two equal). The RSI divergence
+ *  is a momentum read, not a level, so it names what is fading rather than a line to watch. */
 export const CAUTION_LABELS = Object.freeze({
   'draw:double-top': 'Possible double top: watch the 2nd-peak low if you hold',
   'draw:wyckoff-upthrust': 'Possible upthrust: watch the range top if you hold',
   'draw:bear-flag': 'Possible bear flag: watch the flag low if you hold',
   'draw:descending-triangle': 'Possible descending triangle: watch the flat support if you hold',
   'draw:death-cross': '50-day below 200-day',
+  'draw:rsi-bearish-divergence': 'RSI bearish divergence: momentum fading, price high not confirmed by RSI',
+  'draw:rising-wedge': 'Possible rising wedge: watch the lower trendline if you hold',
+  'draw:head-shoulders': 'Possible head and shoulders: watch the neckline if you hold',
+  'draw:triple-top': 'Possible triple top: watch the range low if you hold',
 })
 
 /** The label a caution row is drawn and listed with. An id this file does not name still gets exit framing. */
@@ -41,16 +49,18 @@ export function cautionDisplayRow(row) {
 }
 
 /** The setup-drawing rows to DRAW, after the two toggles: bullish/neutral rows only while Setups is on, caution
- *  rows only while Caution is on (and then in their display form). Bullish rows pass through unchanged. */
+ *  rows only while Caution is on (and then in their display form). Every row returned carries the judged-drawing
+ *  style marker (patternShapes/style.js SETUP_DRAW_STYLE: solid, full opacity, as the blind judges saw it), so the
+ *  server's `status: "forming"` stamp never draws a certified setup as provisional. Rows passed in are not modified. */
 export function visibleSetupDraws(rows, { setups = false, caution = false } = {}) {
   if (!Array.isArray(rows)) return []
   const out = []
   for (const r of rows) {
     if (!r) continue
     if (isCautionRow(r)) {
-      if (caution) out.push(cautionDisplayRow(r))
+      if (caution) out.push({ ...cautionDisplayRow(r), setup_draw_style: SETUP_DRAW_STYLE })
     } else if (setups) {
-      out.push(r)
+      out.push({ ...r, setup_draw_style: SETUP_DRAW_STYLE })
     }
   }
   return out
