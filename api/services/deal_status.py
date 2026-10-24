@@ -21,7 +21,11 @@ Three sources, merged:
      Rumours, talks, proposals and unsolicited bids are NOT pending (they are live
      trades). A later "completed / closed / terminated / delisted" headline about the
      target ends it, and so does going N days (DEAL_STATUS_NEWS_MAX_AGE_DAYS, default
-     120) without a confirming headline or a confirming price pin.
+     120) without a confirming headline or a confirming price pin, and so does the stock
+     missing the last DEAL_STATUS_STALE_SESSIONS (default 3) sessions of the market's own
+     calendar (a completed buyout stops printing). Only the TARGET is ever pending: never the
+     acquirer, a parent whose unit or stake is sold, a backer, or a symbol merely tagged on a
+     headline about someone else (see `parse_headline`).
   3. PRICE BEHAVIOUR (corroboration only). A gap of 8%+ that never filled, then 15+
      sessions in a tiny range (range < 2%, ATR < 0.5% of price). Beside a news deal price
      it confirms the deal (0.95, and it keeps an old headline alive). ON ITS OWN it only
@@ -182,14 +186,20 @@ _ACQUIRER_SIDE = re.compile(
     re.I)
 # Words that make an acquirer-side headline definitive (a bare "to buy" is not enough).
 _DEFINITIVE = re.compile(
-    r"definitive|\bagree|per\s+share|a\s+share|/\s?sh\b|tender\s+offer|merger\s+agreement|"
+    r"definitive|\bagree|per\s+share\b|\ba\s+share\b|/\s?sh\b|tender\s+offer|merger\s+agreement|"
     r"in\s+cash|all[\s-]cash|\bdeal\s+valued|\$\s?[\d.,]+\s*(?:billion|million|bn|b|m)\s+deal", re.I)
-# Live / speculative M&A: still a trade, never "pending".
+# Live / speculative M&A: still a trade, never "pending". Law-firm items ("Halper Sadeh
+# investigates whether the sale of X is fair", "SHAREHOLDER ALERT") are about a deal, never the
+# announcement of one, and are never read as a definitive event either.
 _SPECULATIVE = re.compile(
-    r"\b(?:rumou?rs?|rumou?red|reportedly|sources?|said\s+to|in\s+talks|talks|explor(?:es|ing)|"
+    r"\b(?:rumou?rs?|rumou?red|reportedly|sources?|said\s+to|in\s+talks|talks|explor(?:es|ing|e)|"
     r"consider(?:s|ing)?|weigh(?:s|ing)|nears?|approach(?:es|ed)?|interest\s+in|could|may|might|"
     r"potential|possible|unsolicited|hostile|non[\s-]binding|proposal|propos(?:es|ed)|bid|bids|"
-    r"counter[\s-]?offer|considers)\b|\?", re.I)
+    r"counter[\s-]?offer|considers|investigat(?:es|ing|ion|ions|e)|law\s+firm|class\s+action|"
+    r"lawsuit|shareholders?\s+alert|investors?\s+alert|stockholders?\s+alert|fair\s+(?:deals?|price|value)|"
+    r"fair\s+to\s+(?:share|stock)holders|strategic\s+(?:alternatives|review|options)|mulls?|eyes|"
+    r"seeks?\s+(?:a\s+)?buyers?|plans?\s+to|intends?\s+to|letter\s+of\s+intent|"
+    r"memorandum\s+of\s+understanding)\b|\?", re.I)
 _END = re.compile(
     r"\b(?:complet(?:es|ed|ion)|closes|closed|closing\s+of|finaliz(?:es|ed)|terminat(?:es|ed|ion)|"
     r"called\s+off|abandon(?:s|ed)|walks?\s+away|scrap(?:s|ped)?|delist(?:s|ed|ing)?|falls?\s+through|"
@@ -232,7 +242,8 @@ def _known_name(sym: str) -> str:
 
 def _named_in(sym: str, text: str) -> bool:
     """True when `text` names `sym`: `$SYM`, `(NASDAQ: SYM)`, an unambiguous bare symbol, or
-    the company name (the news subject test's own matchers)."""
+    the company name (the news subject test's own matchers). Used for END headlines only:
+    an end can only close a deal that is already active, so its looser read is harmless."""
     if not text:
         return False
     from api.services.news import subject
@@ -242,41 +253,142 @@ def _named_in(sym: str, text: str) -> bool:
     return bool(name) and subject._name_hit(subject._aliases(sym, name), text)
 
 
+# A mention followed by one of these names a PARENT, a backer or a neighbour, not the company
+# the headline is about: "Qualcomm's Arduino to be acquired", "Uber-backed X", "Uber rival X".
+_NOT_SUBJECT_AFTER = re.compile(
+    r"(?:['’]s\b|-(?:backed|owned|led|controlled|funded|based|linked)\b|"
+    r"\s+(?:unit|division|subsidiary|rival|peer|partner|supplier|spin-?off|affiliate|veteran|"
+    r"founder|executive|ceo|chief)\b)", re.I)
+# Words that make the thing changing hands a PIECE of a company (a stake, a unit, assets, a
+# supply contract), never the listed company itself: never a pending acquisition of anyone.
+_CARVE_OUT = re.compile(
+    r"\b(?:stakes?|minority|unit|units|division|divisions|business(?:es)?|brands?|"
+    r"subsidiar(?:y|ies)|segments?|assets?|portfolio|operations|product\s+lines?)\b", re.I)
+# Where the subject of a target-side headline starts: after a lead-in ("UPDATE:", "Report -",
+# "X says"). A colon inside "(NASDAQ: SYM)" is not a lead-in.
+_LEAD_IN = re.compile(
+    r"[;|]|:(?!\s*[A-Z][A-Z0-9.\-]{0,6}\s*[)\]])|\s[-–—]\s|"
+    r"\b(?:says|said|reports?|reported|confirms?|announces?\s+that)\b", re.I)
+# Where the object of an acquirer-side verb ends: "<acq> to acquire <TARGET> for $N from Y".
+_OBJECT_END = re.compile(
+    r"\s+(?:for|from|at|in|amid|after|as|with|via|valued|worth|to\s+create|to\s+form|"
+    r"to\s+expand|to\s+boost|to\s+bolster|to\s+strengthen|to\s+add|to\s+enter)\b|"
+    r"[,;|]|\s[-–—]\s", re.I)
+_EXCH = r"(?:NASDAQ|NYSE\s*AMERICAN|NYSEAMERICAN|NYSE|AMEX|OTC|OTCQX|OTCQB|CBOE|TSX|TSXV|LSE|AIM)"
+
+
+def _mentions(sym: str, text: str) -> list:
+    """[(start, end)] of every place `text` names `sym`, by its own spelling only: `$SYM`,
+    `(NASDAQ: SYM)`, the bare symbol in CAPITALS (3+ letters, not an English-word symbol: a
+    case-folded "Uber" or "sang" is not the ticker), or a company name already in memory."""
+    if not sym or not text:
+        return []
+    from api.services.news import subject
+    s = re.escape(sym)
+    out = [m.span() for m in re.finditer(rf"\${s}(?![A-Za-z0-9])", text, re.I)]
+    out += [m.span() for m in re.finditer(rf"[(\[]\s*(?:{_EXCH}\s*:?\s*)?{s}\s*[)\]]", text, re.I)]
+    if sym not in subject._AMBIGUOUS and len(sym) >= 3:
+        out += [m.span() for m in re.finditer(rf"(?<![A-Za-z0-9$.]){s}(?![A-Za-z0-9.])", text)]
+    name = _known_name(sym)
+    if name:
+        for alias in subject._aliases(sym, name):
+            toks = re.findall(r"[a-z0-9&]+", alias)
+            if not toks:
+                continue
+            pat = r"(?<![A-Za-z0-9])" + r"[^A-Za-z0-9&]+".join(map(re.escape, toks)) + r"(?![A-Za-z0-9])"
+            out += [m.span() for m in re.finditer(pat, text, re.I)]
+    return sorted(out)
+
+
+def _subject_mentions(sym: str, text: str) -> list:
+    """`_mentions` minus the ones that name a parent, backer or neighbour (`_NOT_SUBJECT_AFTER`)."""
+    return [(a, b) for a, b in _mentions(sym, text) if not _NOT_SUBJECT_AFTER.match(text, b)]
+
+
+def _subject_of(syms, span: str) -> list:
+    """The ONE company `span` is about: the tagged symbol whose own mention sits LAST (closest
+    to the verb that follows the span), so "Uber rival Alpha to be acquired" is about Alpha.
+    Nothing when the span hands over a piece of a company (`_CARVE_OUT`) or names none."""
+    if not span.strip():
+        return []
+    # The carve-out is read with every tagged company's OWN name blanked out, so "Alpha
+    # Business Systems to be acquired" is not mistaken for the sale of a business unit.
+    masked = list(span)
+    for s in syms:
+        for a, b in _mentions(s, span):
+            masked[a:b] = " " * (b - a)
+    if _CARVE_OUT.search("".join(masked)):
+        return []
+    best, at = [], -1
+    for s in syms:
+        ms = _subject_mentions(s, span)
+        if not ms:
+            continue
+        end = ms[-1][1]
+        if end > at:
+            best, at = [s], end
+        elif end == at:
+            best.append(s)
+    return best
+
+
 def parse_headline(title: str, tickers) -> list:
     """The deal events one headline carries: [(sym, kind, price)], kind is 'definitive',
-    'confirm' or 'end'. `tickers` are the symbols the store tagged on it. Conservative: a
-    headline it cannot attribute to a target yields nothing."""
+    'confirm' or 'end'. `tickers` are the symbols the store tagged on it.
+
+    Only the TARGET of a definitive agreement or tender offer is ever 'definitive', and it is
+    found from the headline's structure, never from a tag alone (2026-10-23: a store tags the
+    ACQUIRER on "<private co> to be acquired by Amazon", and the old sole-tag fallback made
+    the acquirer pending):
+      * target side ("<TARGET> (agrees|enters into a definitive agreement) to be acquired by"):
+        the tagged company the subject names last before the verb;
+      * acquirer side ("<ACQ> agrees to acquire <TARGET> for ...", "tender offer for <TARGET>"):
+        the tagged company named in the verb's object, and never one named before the verb;
+      * a stake, a unit, assets or a product deal (`_CARVE_OUT`) is nobody's acquisition;
+      * rumours, talks, explorations, proposals and law-firm "investigates" items are nothing.
+    A headline it cannot attribute to a target yields no 'definitive' event."""
     t = (title or "").strip()
     syms = [str(s).upper() for s in (tickers or []) if s]
     if not t or not syms or not _DEAL_WORD.search(t):
         return []
     price = parse_price(t)
 
-    def _target_syms(target_text: str, *, sole_ok: bool) -> list:
-        hits = [s for s in syms if _named_in(s, target_text)]
-        if not hits and sole_ok and len(syms) == 1:
-            hits = list(syms)
-        return hits
-
     tm = _TARGET_SIDE.search(t)
     am = _ACQUIRER_SIDE.search(t)
     if _END.search(t) and not _END_VETO.search(t):
         if am:
-            hits = _target_syms(t[am.end():], sole_ok=False)
+            hits = [s for s in syms if _named_in(s, t[am.end():])]
         elif tm:
-            hits = _target_syms(t[:tm.start()], sole_ok=True)
+            hits = [s for s in syms if _named_in(s, t[:tm.start()])]
+            if not hits and len(syms) == 1:
+                hits = list(syms)
         else:
             # "X completes acquisition of Y" / "Y merger terminated": every tagged symbol.
             hits = list(syms)
         return [(s, "end", None) for s in hits]
     if _SPECULATIVE.search(t):
         return []
-    if tm:
-        return [(s, "definitive", price) for s in _target_syms(t[:tm.start()], sole_ok=True)]
+    if tm and (am is None or tm.start() <= am.start()):
+        span = t[:tm.start()]
+        cut = None
+        for cut in _LEAD_IN.finditer(span):
+            pass
+        if cut is not None:
+            span = span[cut.end():]
+        return [(s, "definitive", price) for s in _subject_of(syms, span)]
     if am and _DEFINITIVE.search(t):
-        return [(s, "definitive", price) for s in _target_syms(t[am.end():], sole_ok=False)]
-    # A deal-worded, non-speculative headline: confirms an ALREADY pending deal only.
-    return [(s, "confirm", price) for s in syms]
+        acquirer = t[:am.start()]
+        obj = t[am.end():]
+        stop = _OBJECT_END.search(obj)
+        if stop is not None:
+            obj = obj[:stop.start()]
+        named_acq = {s for s in syms if _mentions(s, acquirer)}
+        hits = [s for s in _subject_of(syms, obj) if s not in named_acq]
+        return [(s, "definitive", price) for s in hits]
+    # A deal-worded, non-speculative headline: confirms an ALREADY pending deal only, and only
+    # for a company it names (a tag alone, or the acquirer's own name, confirms nothing).
+    named_acq = {s for s in syms if am and _mentions(s, t[:am.start()])}
+    return [(s, "confirm", price) for s in syms if s not in named_acq and _mentions(s, t)]
 
 
 def _ro(path: str):
@@ -667,7 +779,8 @@ def _snapshot() -> dict:
         if _STATE.get("day") == today and now - _STATE.get("built", 0) < _refresh_s():
             return _STATE["snap"]
     snap = {"day": today, "hand": hand_deals(), "mirror": mirror_list(),
-            "news": fold_news(stored_headlines(today - timedelta(days=NEWS_LOOKBACK_DAYS)))}
+            "news": fold_news(stored_headlines(today - timedelta(days=NEWS_LOOKBACK_DAYS))),
+            "stale_ref": _stale_ref()}
     with _LOCK:
         if _STATE.get("snap") is not snap:
             _SYM_CACHE.clear()
@@ -688,6 +801,49 @@ def _delisted(sym: str) -> bool:
         return False
 
 
+def _stale_sessions() -> int:
+    try:
+        return max(2, int(os.environ.get("DEAL_STATUS_STALE_SESSIONS", "3")))
+    except ValueError:
+        return 3
+
+
+def _stale_ref():
+    """The YYYYMMDD of the DEAL_STATUS_STALE_SESSIONS-th most recent session in the daily
+    store (the market's own calendar, so a store that lags as a whole drops nothing), or
+    None when it cannot be read."""
+    try:
+        from api.services import bars_sqlite
+        ref = bars_sqlite.nth_recent_trading_date(_stale_sessions(), 99991231)
+        return int(ref) if ref else None
+    except Exception as exc:  # noqa: BLE001
+        _log.info("[deal-status] trading calendar unavailable, stopped-trading check off: %s", exc)
+        return None
+
+
+def _last_bar_ymd(bars):
+    if not bars:
+        return None
+    try:
+        last = bars[-1]
+        t = last.get("t") if isinstance(last, dict) else last[0]
+        d = _parse_day(_bar_day(t)) or (_parse_day(t) if isinstance(t, str) else None)
+        return int(d.strftime("%Y%m%d")) if d else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _stopped_trading(bars, ref) -> bool:
+    """True when this symbol's newest daily bar is OLDER than `ref`, the
+    DEAL_STATUS_STALE_SESSIONS-th most recent session the market traded: the stock missed
+    that many sessions in a row, which is what a completed buyout looks like. No bars, or no
+    calendar, is NOT stopped (unknown is not delisted)."""
+    if not ref:
+        return False
+    last = _last_bar_ymd(bars)
+    return last is not None and last < int(ref)
+
+
 def _compute(sym: str, snap: dict, bars) -> dict:
     out = _not_pending(sym)
     src: list = []
@@ -701,15 +857,23 @@ def _compute(sym: str, snap: dict, bars) -> dict:
     deal = snap["news"].get(sym)
     if deal is not None and deal["active"] and _delisted(sym):
         deal = None
-    if deal is not None and deal["active"]:
-        out["since"] = deal["since"].isoformat()
-        out["price"] = deal["price"]
     pin = None
     try:
-        pin = price_pinned(bars if bars is not None else _bars_for(sym),
-                           deal_price=deal["price"] if deal and deal["active"] else None)
+        b = bars if bars is not None else _bars_for(sym)
+        if deal is not None and deal["active"] and _stopped_trading(b, snap.get("stale_ref")):
+            # The deal closed: the stock stopped printing (2026-10-23: ATKR, TBPH stayed
+            # "pending" after their buyouts completed, because no completion headline was
+            # stored for them). A news deal never outlives the stock it is about.
+            deal = None
+        if deal is not None and deal["active"]:
+            out["since"] = deal["since"].isoformat()
+            out["price"] = deal["price"]
+        pin = price_pinned(b, deal_price=deal["price"] if deal and deal["active"] else None)
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] price read failed for %s: %s", sym, exc)
+        if deal is not None and deal["active"]:
+            out["since"] = deal["since"].isoformat()
+            out["price"] = deal["price"]
     if deal is not None and deal["active"]:
         fresh = (snap["day"] - deal["last_confirm"]).days <= _news_max_age_days()
         corroborated = bool(pin) and pin.get("near_deal_price") is not False

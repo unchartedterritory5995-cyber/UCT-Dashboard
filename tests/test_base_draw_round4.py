@@ -23,6 +23,12 @@ and the base metrics of that drawing. The cases:
     gates cover it on 14,000 searched days -- so these make that check visible. The answer is the
     unmodified lab's.
 
+THE TREND FLOOR (2026-10-23): rounds 2 and 4 now draw nothing unless the as-of close is above a RISING 200-day
+average (base_draw.trend_ok, round 4's own textbook floor lifted to the whole chart). The lab answers in the fixture
+predate it, so every comparison reads `expect(c)`: the lab's answer where the floor holds, and "nothing drawn" where
+it does not. The floor is computed HERE by its own arithmetic (`_floor_ok`), never by base_draw, so a broken floor
+cannot move both sides at once; the number of recorded drawings it removes is pinned.
+
 The rail must be able to fail: each control moves ONE threshold and asserts the reproduction breaks.
 """
 from __future__ import annotations
@@ -78,14 +84,38 @@ def _mismatches(only=None):
         if only is not None and not only(c):
             continue
         d, m = _answer(c)
-        e = c["expect"]
+        e = expect(c)
         if d != e["draw"] or m != e["metrics"]:
             bad.append((c["id"], e["draw"], d))
     return bad
 
 
+def _floor_ok(c) -> bool:
+    """The trend floor, by its own arithmetic: the as-of close above the 200-day average of closes, and that
+    average above its value 20 sessions earlier. False with under 220 sessions."""
+    cl = [float(r[4]) for r in c["bars"]]
+    i = len(cl) - 1
+    if i < 219:
+        return False
+    s200 = sum(cl[i - 199:i + 1]) / 200
+    s200p = sum(cl[i - 219:i - 19]) / 200
+    return cl[i] > s200 and s200 > s200p
+
+
+def expect(c) -> dict:
+    """The lab's recorded answer under the trend floor: unchanged where the floor holds, nothing drawn where not."""
+    e = c["expect"]
+    if _floor_ok(c):
+        return e
+    return {**e, "draw": None, "round2": None, "metrics": None}
+
+
+#: Recorded drawings (round 2's or round 4's) the trend floor removes from this fixture.
+FLOORED_DRAWINGS = 18
+
+
 def _no_round2(c):
-    return c["expect"]["round2"] is None
+    return expect(c)["round2"] is None
 
 
 # --------------------------------------------------------------------------- the fixture
@@ -152,11 +182,27 @@ def test_round_four_is_round_two_wherever_round_two_draws():
         b = _bars(c)
         i = len(b) - 1
         d2 = BD.base_drawing(b, i, draw_round=2)
-        assert d2 == c["expect"]["round2"], c["id"]
+        assert d2 == expect(c)["round2"], c["id"]
         if d2 is not None:
             seen += 1
             assert BD.base_drawing(b, i, draw_round=4) == d2, c["id"]
     assert seen >= 100
+
+
+# --------------------------------------------------------------------------- the trend floor
+def test_the_trend_floor_removes_exactly_the_pinned_recorded_drawings():
+    removed = [c["id"] for c in cases() if not _floor_ok(c)
+               and (c["expect"]["draw"] is not None or c["expect"]["round2"] is not None)]
+    assert len(removed) == FLOORED_DRAWINGS, removed
+    # no blind-judged case is removed (every one sits above a rising 200-day)
+    assert not [x for x in removed if x.startswith("judged/")]
+
+
+def test_control_without_the_floor_the_reproduction_breaks(monkeypatch):
+    """The floor is visible: with base_draw.trend_ok forced true, the recorded drawings under a falling 200-day
+    come back and no longer match `expect`."""
+    monkeypatch.setattr(BD, "trend_ok", lambda closes, i: True)
+    assert len(_mismatches()) >= FLOORED_DRAWINGS > 0
 
 
 # --------------------------------------------------------------------------- the rail can fail
@@ -176,10 +222,11 @@ def test_control_the_deal_veto_is_seen(monkeypatch):
     from api.services import deal_status
     monkeypatch.setattr(deal_status, "price_pinned", lambda bars, deal_price=None: {"gap_date": "x"})
     for c in cases():
-        if c["expect"]["draw"] is not None and c["expect"]["round2"] is None:
+        e = expect(c)
+        if e["draw"] is not None and e["round2"] is None:
             assert _answer(c)[0] is None, c["id"]
-        elif c["expect"]["round2"] is not None:
-            assert _answer(c)[0] == c["expect"]["round2"], c["id"]   # round 2's drawing is never vetoed
+        elif e["round2"] is not None:
+            assert _answer(c)[0] == e["round2"], c["id"]   # round 2's drawing is never vetoed
 
 
 # --------------------------------------------------------------------------- no lookahead
