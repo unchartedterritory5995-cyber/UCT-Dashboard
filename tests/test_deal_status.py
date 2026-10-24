@@ -29,6 +29,7 @@ def _isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("COMPANY_NEWS_DB_PATH", str(tmp_path / "none_company.db"))
     monkeypatch.delenv("DEAL_STATUS_ENABLED", raising=False)
     monkeypatch.delenv("DEAL_STATUS_NEWS_MAX_AGE_DAYS", raising=False)
+    monkeypatch.setenv("DEAL_STATUS_WARM_NAMES", "0")  # no SEC fetch from a test
     monkeypatch.setattr(ds, "_today", lambda: TODAY)
     monkeypatch.setattr(ds, "_delisted", lambda sym: False)
     ds.reset_cache()
