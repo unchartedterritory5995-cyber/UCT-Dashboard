@@ -10339,5 +10339,70 @@
   "sym": "TEAM",
   "type": "spot",
   "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-09-14",
+  "bars": {
+   "asof": "2026-09-14",
+   "forward": 20,
+   "sym": "RBRK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a70deaecf14d",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 4.04% after a red day and closed up 15.64%, above the prior day's high, at 97% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2026-09-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RBRK"
+   },
+   "facts": {
+    "close_above_prior_high": true,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "day_pct": 15.64,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "gap_pct": 4.04,
+    "green": true,
+    "owner_reference": "owner 2026-10-24: 'Another great one is RBRK from just a few weeks ago'. A two-week slide ends in a red bar at the lows (the trap), then the gap and a 15.6% day; the low never broke and it ran 28%",
+    "prior_body_pct": 3.75,
+    "prior_dcr": 0.2,
+    "prior_red": true,
+    "rvol": 1.72
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#RBRK#2026-09-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#RBRK#2026-09-14",
+  "sym": "RBRK",
+  "type": "spot",
+  "version": 1
  }
 ]

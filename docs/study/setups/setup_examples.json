@@ -4014,6 +4014,30 @@
    "q": 99,
    "pass": 2,
    "owner_provided": true
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "RBRK",
+   "asof": "2026-09-14",
+   "year": 2026,
+   "close": 100.2,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 4.04,
+    "day_pct": 15.64,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.97,
+    "prior_dcr": 0.2,
+    "prior_body_pct": 3.75,
+    "rvol": 1.72,
+    "earnings_day": false,
+    "earnings_dates_near": [],
+    "owner_reference": "owner 2026-10-24: 'Another great one is RBRK from just a few weeks ago'. A two-week slide ends in a red bar at the lows (the trap), then the gap and a 15.6% day; the low never broke and it ran 28%"
+   },
+   "q": 99,
+   "pass": 4,
+   "owner_provided": true
   }
  ],
  "kicker_pass2": {
@@ -4375,6 +4399,11 @@
     "setup": "Launchpad",
     "sym": "TEAM",
     "asof": "2023-12-08"
+   },
+   {
+    "setup": "Kicker Candle",
+    "sym": "RBRK",
+    "asof": "2026-09-14"
    }
   ]
  }
