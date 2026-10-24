@@ -134,6 +134,50 @@ describe('the round-2 setup shapes draw with the pattern renderers', () => {
   })
 })
 
+// The round-3 setup shapes (setup_draw_r3.py), each with the pattern layer's own renderer.
+const TRENDLINE = shaped('draw:major-trendline', 'trendline_pair', [A(0, 20), A(4, 24)], { line_spaces: ['lin'] })
+TRENDLINE.geometry.semantic_subtype = 'single_trendline'
+const IHS = shaped('draw:inverse-head-shoulders', 'neckline', [A(0, 30), A(1, 34), A(2, 26), A(3, 34), A(4, 30)])
+const BEAR_FLAG = shaped('draw:bear-flag', 'trendline_pair', [A(1, 30), A(4, 32), A(1, 26), A(4, 28)],
+  { line_spaces: ['log', 'log'], draw_pole: [A(0, 40), A(1, 28)] })
+
+describe('the round-3 setup shapes draw with the pattern renderers', () => {
+  it('a major trendline draws ONE line, never a pair', () => {
+    const { container } = draw({ setupDraws: [TRENDLINE], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:major-trendline"]')
+    expect(g.querySelectorAll('[data-role="line"]').length).toBe(1)
+    expect(g.querySelector('[data-role="upper"]')).toBeNull()
+    expect(g.querySelector('[data-role="lower"]')).toBeNull()
+  })
+
+  it('the same two anchors without the single_trendline subtype draw nothing (the server withholds that row)', () => {
+    const bare = { ...TRENDLINE, geometry: { ...TRENDLINE.geometry, semantic_subtype: undefined } }
+    const { container } = draw({ setupDraws: [bare], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:major-trendline"]')
+    expect(g.querySelector('[data-role="line"]')).toBeNull()
+    expect(g.querySelector('path')).toBeNull()
+  })
+
+  it('an inverse head and shoulders draws its five-point silhouette and the neckline through its two peaks', () => {
+    const { container } = draw({ setupDraws: [IHS], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:inverse-head-shoulders"]')
+    expect(g.querySelector('polyline').getAttribute('points').split(' ').length).toBe(5)
+    const neck = g.querySelector('line')
+    expect(Number(neck.getAttribute('y1'))).toBeCloseTo(1000 - 34 * 10)
+    expect(Number(neck.getAttribute('y2'))).toBeCloseTo(1000 - 34 * 10)
+  })
+
+  it('a bear flag draws its two lines AND its pole', () => {
+    const { container } = draw({ setupDraws: [BEAR_FLAG], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:bear-flag"]')
+    expect(g.querySelector('[data-role="upper"]')).toBeTruthy()
+    expect(g.querySelector('[data-role="lower"]')).toBeTruthy()
+    const pole = g.querySelector('[data-role="pole"]')
+    expect(Number(pole.getAttribute('y1'))).toBe(1000 - 40 * 10)
+    expect(Number(pole.getAttribute('y2'))).toBe(1000 - 28 * 10)
+  })
+})
+
 describe('the RSI(14) panel under a divergence row', () => {
   const PANEL = {
     kind: 'rsi14', guides: [70, 30],

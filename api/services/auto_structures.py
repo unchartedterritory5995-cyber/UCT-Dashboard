@@ -2828,9 +2828,21 @@ _SETUP_DRAW_R2_FUNCS = (
     ("death_cross", "draw:death-cross", "Death cross", "death_cross"),
 )
 SETUP_DRAW_R2_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R2_FUNCS)
+#: Round-3 setup drawings (api/services/pattern_engine/setup_draw_r3.py, textbook fixes), in build order: same
+#: tuple shape as round 2. Same layer, same flag, same key.
+_SETUP_DRAW_R3_FUNCS = (
+    ("outside_bar", "draw:outside-bar", "Outside bar", "outside_bar"),
+    ("descending_triangle", "draw:descending-triangle", "Descending triangle", "descending_triangle"),
+    ("inverse_head_shoulders", "draw:inverse-head-shoulders", "Inverse head and shoulders", "inverse_head_shoulders"),
+    ("bear_flag", "draw:bear-flag", "Bear flag", "bear_flag"),
+    ("bollinger_squeeze", "draw:bollinger-squeeze", "Bollinger squeeze", "bollinger_squeeze"),
+    ("major_trendlines", "draw:major-trendline", "Major trendline", "major_trendlines"),
+)
+SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
 #: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
 SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
-SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_RECT_IDS
+SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_R3_IDS \
+    + SETUP_DRAW_RECT_IDS
 #: setup_draw key -> (row id, display name).
 _SETUP_DRAW_FUNCS = (
     ("remount", "draw:remount", "Remount"),
@@ -2868,6 +2880,20 @@ MEMBER_FALLING_WEDGE_ROUND = 2
 MEMBER_DOUBLE_TOP_ROUND = 2
 MEMBER_GOLDEN_CROSS_ROUND = 2
 MEMBER_DEATH_CROSS_ROUND = 2
+#: Round-3 setup drawings released to members (each passed two pre-registered blind packets AS DRAWN, same bar):
+#:   outside_bar             A 2.72 / 96%   B 2.96 / 100%
+#:   descending_triangle     A 2.60 / 100%  B 2.86 / 100%   (bearish)
+#:   inverse_head_shoulders  A 2.34 / 84%   B 2.30 / 84%
+#:   bear_flag               A 2.32 / 96%   B 2.34 / 88%    (bearish)
+#:   bollinger_squeeze       A 2.42 / 84%   B 2.30 / 88%
+#:   major_trendlines        A 2.48 / 92%   B 2.74 / 96%    (one line; semantic_subtype single_trendline)
+#: Literals ON PURPOSE (never setup_draw_r3.R3_DRAW_ROUND): a new drawing round cannot release itself.
+MEMBER_OUTSIDE_BAR_ROUND = 3
+MEMBER_DESCENDING_TRIANGLE_ROUND = 3
+MEMBER_INVERSE_HEAD_SHOULDERS_ROUND = 3
+MEMBER_BEAR_FLAG_ROUND = 3
+MEMBER_BOLLINGER_SQUEEZE_ROUND = 3
+MEMBER_MAJOR_TRENDLINES_ROUND = 3
 #: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
 #:   rectangle               A 2.44 / 100%  B 2.76 / 96%
@@ -2905,6 +2931,12 @@ def _member_setup_round(pid):
         "draw:double-top": MEMBER_DOUBLE_TOP_ROUND,
         "draw:golden-cross": MEMBER_GOLDEN_CROSS_ROUND,
         "draw:death-cross": MEMBER_DEATH_CROSS_ROUND,
+        "draw:outside-bar": MEMBER_OUTSIDE_BAR_ROUND,
+        "draw:descending-triangle": MEMBER_DESCENDING_TRIANGLE_ROUND,
+        "draw:inverse-head-shoulders": MEMBER_INVERSE_HEAD_SHOULDERS_ROUND,
+        "draw:bear-flag": MEMBER_BEAR_FLAG_ROUND,
+        "draw:bollinger-squeeze": MEMBER_BOLLINGER_SQUEEZE_ROUND,
+        "draw:major-trendline": MEMBER_MAJOR_TRENDLINES_ROUND,
         RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
@@ -2923,6 +2955,8 @@ def _confirmed_setup_draw(row) -> bool:
             return _confirmed_setup_draw_rect(r, want)
         if pid in SETUP_DRAW_R2_IDS:
             return _confirmed_setup_draw_r2(r, want)
+        if pid in SETUP_DRAW_R3_IDS:
+            return _confirmed_setup_draw_r3(r, want)
         key = next((k for k, i, _n in _SETUP_DRAW_FUNCS if i == pid), None)
         if key is None or not (type(want) is int and want == setup_draw.DRAW_ROUNDS.get(key)):
             return False
@@ -2995,6 +3029,77 @@ def _confirmed_setup_draw_r2(r, want) -> bool:
     return True
 
 
+#: round 3: row id -> the geometry shape of its judged drawing, and that shape's exact anchor count.
+_R3_SHAPE_OF = {
+    "draw:outside-bar": "rectangle",
+    "draw:descending-triangle": "trendline_pair",
+    "draw:inverse-head-shoulders": "neckline",
+    "draw:bear-flag": "trendline_pair",
+    "draw:bollinger-squeeze": "rectangle",
+    "draw:major-trendline": "trendline_pair",
+}
+_R3_ANCHORS = {
+    "draw:outside-bar": 2,
+    "draw:descending-triangle": 4,
+    "draw:inverse-head-shoulders": 5,
+    "draw:bear-flag": 4,
+    "draw:bollinger-squeeze": 2,
+    "draw:major-trendline": 2,
+}
+#: round 3: the rows whose judged drawing is ONE line (trendline_pair, semantic_subtype single_trendline).
+_R3_SINGLE_LINE_IDS = ("draw:major-trendline",)
+
+
+def _confirmed_setup_draw_r3(r, want) -> bool:
+    """A round-3 setup row is served to a member only when its literal is an int equal to the frozen round AND to the
+    row's stamp, its draw_setup names its own judged shape, and its geometry is that setup's judged shape with the
+    judged anchor count at finite prices (and, for the single trendline, the single_trendline subtype the renderer
+    needs to draw ONE line)."""
+    from api.services.pattern_engine import setup_draw_r3
+    pid = r.get("pattern_id")
+    meta = next((m for m in _SETUP_DRAW_R3_FUNCS if m[1] == pid), None)
+    if meta is None or not (type(want) is int and want == setup_draw_r3.DRAW_ROUNDS.get(meta[0])):
+        return False
+    geom = r.get("geometry") or {}
+    ex = geom.get("extras") or {}
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == want):
+        return False
+    d = ex.get("draw_setup")
+    if not isinstance(d, dict) or d.get("shape") != meta[3]:
+        return False
+    anchors = geom.get("anchors")
+    if geom.get("shape") != _R3_SHAPE_OF.get(pid) or not isinstance(anchors, list) or len(anchors) != _R3_ANCHORS[pid]:
+        return False
+    if not all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors):
+        return False
+    if pid in _R3_SINGLE_LINE_IDS and geom.get("semantic_subtype") != "single_trendline":
+        return False
+    return True
+
+
+def _setup_draw_r3_rows(sym: str, b: list) -> list:
+    """The round-3 rows for the in-frame COMPLETED daily `b`: the judged geometry exactly (setup_draw_r3's det:
+    shape, anchors, line_spaces, the flag's pole, the single trendline's subtype), stamped with the drawing round and
+    its facts. A failing setup costs that setup only."""
+    from api.services.pattern_engine import setup_draw_r3
+    out = []
+    w = setup_draw_r3._window(b)
+    for key, pid, name, _shape in _SETUP_DRAW_R3_FUNCS:
+        try:
+            d = setup_draw_r3.detect(key, b)
+        except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
+            _log.debug("[setup-draw-r3] %s %s failed", sym, key, exc_info=True)
+            continue
+        if d is None:
+            continue
+        for k_det, det in enumerate(d["dets"]):
+            row = _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r3, rnd=setup_draw_r3.R3_DRAW_ROUND)
+            if row is not None:
+                out.append(row)
+    return out
+
+
 def _setup_draw_r2_rows(sym: str, b: list) -> list:
     """The round-2 rows for the in-frame COMPLETED daily `b`: the judged geometry exactly (setup_draw_r2's det: shape,
     anchors, line_spaces, the pennant's pole), stamped with the drawing round and its facts; the divergence also
@@ -3021,15 +3126,17 @@ def _setup_draw_r2_rows(sym: str, b: list) -> list:
 _R2_CURVE_PERIODS = (50, 200)
 
 
-def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2):
-    """One member-shaped row for one judged det (most setups have exactly one)."""
+def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2, rnd=None):
+    """One member-shaped row for one judged det (most setups have exactly one). `setup_draw_r2` is the drawing
+    module (round 2 or 3); `rnd` its frozen round (default: round 2's)."""
     geom = det["geometry"]
     extras = {k: v for k, v in (geom.get("extras") or {}).items()
               if k in ("line_spaces", "draw_pole", "draw_ema")}
     if "draw_ema" in extras:
         # the label EmaSegment prints ("50 SMA ..."): display decoration only, the points are the judged curve
         extras["draw_ema"] = {**extras["draw_ema"], "kind": "sma", "period": _R2_CURVE_PERIODS[k_det]}
-    extras.update({"draw_setup": setup_draw_r2.facts(d), "draw_round": setup_draw_r2.R2_DRAW_ROUND})
+    extras.update({"draw_setup": setup_draw_r2.facts(d),
+                   "draw_round": setup_draw_r2.R2_DRAW_ROUND if rnd is None else rnd})
     pn = d.get("panel")
     if pn:
         rsi = pn["rsi"]
@@ -3052,7 +3159,9 @@ def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2):
         "direction": det.get("direction") or "neutral",
         "start_t": det["start_t"],
         "end_t": det["end_t"],
-        "geometry": {"shape": geom["shape"], "anchors": [dict(a) for a in geom["anchors"]], "extras": extras},
+        "geometry": {"shape": geom["shape"], "anchors": [dict(a) for a in geom["anchors"]], "extras": extras,
+                     **({"semantic_subtype": "single_trendline"}
+                        if geom.get("semantic_subtype") == "single_trendline" else {})},
         "levels": {"entry": d["level"]} if "level" in d else {},
         "confidence": None,
         "status": "forming",
@@ -3169,6 +3278,7 @@ def setup_draw_rows(sym: str, bars: list) -> list:
                 **display_policy(pid),
             })
         out.extend(_setup_draw_r2_rows(sym, b))
+        out.extend(_setup_draw_r3_rows(sym, b))
         out.extend(_setup_draw_rect_rows(sym, b))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []

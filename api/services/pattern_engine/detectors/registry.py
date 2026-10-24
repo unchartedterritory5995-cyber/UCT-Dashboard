@@ -261,6 +261,8 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     # round-2 setup drawings (setup_draw_r2.py): see the member-set note below.
     "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant", "draw:darvas-box", "draw:falling-wedge", "draw:double-top",
     "draw:golden-cross", "draw:death-cross",
+    "draw:outside-bar", "draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
+    "draw:bollinger-squeeze", "draw:major-trendline",
     # the rectangle drawing (setup_draw_rectangle.py, round 1): see the member-set note below.
     "draw:rectangle",
 })
@@ -364,6 +366,11 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: `setup_draws` key, flag (AUTO_STRUCTURES_G4_SETUPS_ENABLED) and UCT Intelligence "Setups" toggle as draw:remount,
 #: and reach a member only while the row carries draw_round == its MEMBER_<SETUP>_ROUND beside a well-formed
 #: draw_setup of its judged shape (auto_structures._confirmed_setup_draw_r2). Fail closed.
+#: The round-3 setup drawings (setup_draw_r3.py, textbook fixes; drawing round 3) -- draw:outside-bar,
+#: draw:descending-triangle, draw:inverse-head-shoulders, draw:bear-flag, draw:bollinger-squeeze,
+#: draw:major-trendline -- passed two pre-registered blind packets each, under the same bar, key, flag and toggle,
+#: and reach a member only while the row carries draw_round == its MEMBER_<SETUP>_ROUND beside a well-formed
+#: draw_setup of its judged shape (auto_structures._confirmed_setup_draw_r3). Fail closed.
 #: draw:rectangle (setup_draw_rectangle.py, drawing round 1: A 2.44 / 100%, B 2.76 / 96%) is ONE box -- a
 #: horizontal trading range, its lines on the repeated touches, from where the prior trend ended to the as-of
 #: bar. It is NOT the experimental `rectangle` detector row (which stays out of both sets). Same `setup_draws`
@@ -377,6 +384,8 @@ DISPLAY_MEMBER_SET: frozenset = frozenset({
     "draw:donchian_breakout",
     "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant", "draw:darvas-box", "draw:falling-wedge", "draw:double-top",
     "draw:golden-cross", "draw:death-cross",
+    "draw:outside-bar", "draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
+    "draw:bollinger-squeeze", "draw:major-trendline",
     "draw:rectangle",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
