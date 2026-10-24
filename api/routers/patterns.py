@@ -837,8 +837,9 @@ def get_detections(
         from api.services import auto_structures
         if auto_structures.members_enabled():
             # Pending acquisition (DEAL_STATUS_ENABLED): no drawings, no buy point, no metrics --
-            # only the marker. Asked before any layer runs, so none of them computes.
-            hold = auto_structures.deal_hold(sym.upper())
+            # only the marker. Asked before any layer runs, so none of them computes. A clear
+            # price pin (a +30% gap then a collapsed band) holds the member chart too.
+            hold = auto_structures.deal_hold(sym.upper(), member=True)
             if hold is not None:
                 return {"sym": sym.upper(), "tf": tf, "detections": [], "count": 0,
                         "deal_status": hold}
