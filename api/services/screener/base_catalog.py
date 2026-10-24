@@ -5663,6 +5663,44 @@ def ipo_base_state(ctx, first_t=None) -> Optional[dict]:
             "listing_t": int(full[0]["t"]), "pivot": top}
 
 
+#: Round-3 geometry for the IPO base drawing (pattern_engine.shape_draw, rnd=3; the rare-pattern admin preview).
+#: `ipo_base_state` itself is unchanged; these are read only by the drawing layer.
+#:
+#: A series' first stored bar whose DATE is also the first stored bar of at least this many tickers in the
+#: store (itself included) is a store backfill boundary -- a bulk history start -- not a listing day.
+IPO_BACKFILL_SHARED = 5
+#: An earlier base: before the base top, a stretch of at least IPO_MIN_BARS bars that made no new high and
+#: pulled back at least this much from the high it started at.
+IPO_EARLIER_BASE_DEPTH = 0.10
+
+
+def ipo_listing_is_backfill(first_t_shared) -> bool:
+    """True -- treat the first stored bar as NOT a listing -- unless `first_t_shared` (how many tickers in the
+    store have their first stored bar on this series' first stored date, the series itself included) is a
+    known int below IPO_BACKFILL_SHARED. Unknown fails closed."""
+    return not (type(first_t_shared) is int and 0 < first_t_shared < IPO_BACKFILL_SHARED)
+
+
+def ipo_earlier_base(full, top_i) -> Optional[tuple]:
+    """(start, end) bar indices of the first earlier base between the listing (full[0]) and the base top
+    `top_i`, or None: a run of at least IPO_MIN_BARS bars from a closing-in-on record high to the bar that
+    finally takes that high out, during which price pulled back at least IPO_EARLIER_BASE_DEPTH. A base top
+    preceded by one is a LATER base, not the first base after the listing."""
+    if not full or top_i <= 0:
+        return None
+    rec_i, rec_h = 0, float(full[0]["h"])
+    lo = float(full[0]["l"])
+    for k in range(1, min(top_i, len(full) - 1) + 1):
+        h = float(full[k]["h"])
+        if h > rec_h:
+            if k - rec_i >= IPO_MIN_BARS and rec_h > 0 and (rec_h - lo) / rec_h >= IPO_EARLIER_BASE_DEPTH:
+                return (rec_i, k)
+            rec_i, rec_h, lo = k, h, float(full[k]["l"])
+        else:
+            lo = min(lo, float(full[k]["l"]))
+    return None
+
+
 def _detect_ipo_base(ctx) -> bool:
     return ipo_base_state(ctx) is not None
 

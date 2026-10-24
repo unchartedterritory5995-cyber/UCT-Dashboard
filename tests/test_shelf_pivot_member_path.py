@@ -1,10 +1,10 @@
-"""Shelf pivot (dark): the PRODUCTION path and its gates.
+"""Shelf pivot (members released at round r4, 2026-10-23): the PRODUCTION path and its gates.
 
 1. Parity: on every fixture chart (tests/fixtures/shelf_pivot_parity.json.gz) the production path -- the member
    path's served drawings and detector lines computed by auto_structures.shelf_member_facts from the bars alone,
    then the ported layer -- gives the frozen layer's answer (same gate, line, span start, display start, score).
-2. Gates: AUTO_STRUCTURES_SHELF_ENABLED off runs nothing; a member gets nothing while MEMBER_SHELF_PIVOT_ROUND is
-   the literal None (and member_rows also requires the member set); any served drawing hides the line; any
+2. Gates: AUTO_STRUCTURES_SHELF_ENABLED off runs nothing; a member gets the line only while MEMBER_SHELF_PIVOT_ROUND
+   is the literal "r4" equal to the frozen round (and member_rows also requires the member + trusted sets); any served drawing hides the line; any
    failure draws nothing; the judged frame only (completed daily sessions, >= 261 bars, close > $5, as-of dollar
    volume >= $20M); one answer per (ticker, last completed session).
 """
@@ -138,14 +138,19 @@ def _drawing_bars():
     return c, _dicts(c["bars"])
 
 
-def test_the_member_round_literal_is_None_in_source():
+def test_the_member_round_literal_is_the_frozen_round_r4_in_source():
+    """Released 2026-10-23: the literal is the STRING "r4" written in source (never a reference to
+    shelf_pivot.SHELF_PIVOT_ROUND, so a new drawing round cannot release itself), and the id sits in the member
+    set and the trusted set member_rows requires."""
     src = open(AS.__file__, encoding="utf-8").read()
     lits = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Assign)
             and any(getattr(t, "id", None) == "MEMBER_SHELF_PIVOT_ROUND" for t in n.targets)]
-    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value is None
-    assert S.SHELF_PIVOT_ROUND == "r4"
+    assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == "r4"
+    assert S.SHELF_PIVOT_ROUND == "r4" == AS.MEMBER_SHELF_PIVOT_ROUND
     assert AS.SHELF_PIVOT_ID == S.SHELF_PIVOT_ID == "draw:shelf-pivot"
-    assert AS.SHELF_PIVOT_ID not in REG.DISPLAY_MEMBER_SET
+    assert AS.SHELF_PIVOT_ID in REG.DISPLAY_MEMBER_SET
+    assert AS.SHELF_PIVOT_ID in REG.DISPLAY_TEAM_SET and AS.SHELF_PIVOT_ID in REG.DISPLAY_TRUSTED
+    assert REG.display_policy(AS.SHELF_PIVOT_ID)["display_tier"] == "trusted"
 
 
 def test_flag_off_runs_nothing(monkeypatch):
@@ -195,21 +200,34 @@ def test_admins_get_the_line_when_the_flag_is_on(monkeypatch, shelf_on):
     assert d["label"] == "Shelf pivot" and d["tooltip"].startswith("Price has stalled at this level several times since ")
     assert d["tooltip"].endswith("is trading near it now. A level to watch, not a signal.")
     assert d["cleared"] == (bars[-1]["c"] > c["expect"]["pick"]["P"])
-    assert row["display_tier"] == "experimental" and row["levels"] == {}
+    assert row["display_tier"] == "trusted" and row["levels"] == {}
 
 
-def test_members_get_nothing_while_the_round_literal_is_None(monkeypatch, shelf_on):
+def test_members_get_the_line_at_the_released_round(monkeypatch, shelf_on):
     c, bars = _drawing_bars()
     monkeypatch.setattr(AS, "_shelf_bars", lambda sym: bars)
     monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: (c["served"], c["lines"]))
-    assert AS.MEMBER_SHELF_PIVOT_ROUND is None
+    assert AS.MEMBER_SHELF_PIVOT_ROUND == "r4"
+    row = AS.shelf_pivot_row("SYN", member=True)
+    assert row is not None and row["pattern_id"] == AS.SHELF_PIVOT_ID
+    assert AS.member_rows([row]) == [row]
+    AS._SHELF_CACHE.clear()
+
+
+def test_members_get_nothing_while_the_round_literal_is_None(monkeypatch, shelf_on):
+    """The withdraw lever: setting the literal back to None takes the line from every member (fail closed)."""
+    c, bars = _drawing_bars()
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: bars)
+    monkeypatch.setattr(AS, "shelf_member_facts", lambda sym, b: (c["served"], c["lines"]))
+    monkeypatch.setattr(AS, "MEMBER_SHELF_PIVOT_ROUND", None)
     assert AS.shelf_pivot_row("SYN", member=True) is None
     assert AS.member_rows([_a_row()]) == []
+    AS._SHELF_CACHE.clear()
 
 
 def test_member_rows_needs_the_round_AND_the_member_set(monkeypatch):
     row = {**_a_row(), "display_tier": "trusted"}
-    monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET | {AS.SHELF_PIVOT_ID}))
+    monkeypatch.setattr(AS, "MEMBER_SHELF_PIVOT_ROUND", None)
     assert AS.member_rows([row]) == []                      # literal None
     monkeypatch.setattr(AS, "MEMBER_SHELF_PIVOT_ROUND", "r3")
     assert AS.member_rows([row]) == []                      # another round
@@ -219,6 +237,8 @@ def test_member_rows_needs_the_round_AND_the_member_set(monkeypatch):
     assert AS.member_rows([row]) == [row]                   # released: round + member set + trusted
     monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET - {AS.SHELF_PIVOT_ID}))
     assert AS.member_rows([row]) == []                      # not in the member set
+    monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET | {AS.SHELF_PIVOT_ID}))
+    assert AS.member_rows([{**row, "display_tier": "experimental"}]) == []    # not trusted
 
 
 def test_any_served_drawing_hides_the_line(monkeypatch, shelf_on):

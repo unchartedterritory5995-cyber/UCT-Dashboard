@@ -329,20 +329,103 @@ def saucer_drawing(bars, i, _why=None) -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------------------------- IPO base
-#: The IPO base drawing round (EXPERIMENTAL; base_catalog.IPO_BASE is outside the member structures).
+#: The IPO base drawing round (EXPERIMENTAL; base_catalog.IPO_BASE is outside the member structures). The default
+#: stays round 1 (what AUTO_STRUCTURES_SHAPES_ENABLED draws, unchanged); round 3 is drawn only when asked for.
 IPO_BASE_DRAW_ROUND = 1
+#: The round the rare-pattern admin preview draws (lab shapes_r3: round 1 plus the `_ipo_r3_why` gate; judged
+#: 2.77 on 17 held-out cases, 100% >= 2, too few cases to pass a 2 x 25 packet).
+IPO_PREVIEW_ROUND = 3
+#: The IPO base rounds this module can draw (`rnd=1` is round 1 byte for byte).
+IPO_ROUNDS = (1, 3)
 #: The as-of close has come back at least this share of the way from the base low to the pivot.
 IPO_RIGHT_SHARE = 0.5
 
+# Round 3. Round 1 drew pivots on a lone listing-day spike wick, drew a later base rather than the first one,
+# drew thin / gappy series (often a flat line near an issue price), and took a store's backfilled history
+# start for a listing.
+#: Top to lowest low, at least this deep: a flat line a few percent wide is not a base.
+IPO_R3_MIN_DEPTH = 0.08
+#: Consecutive stored bars more than this many calendar days apart are a missing session ...
+IPO_R3_GAP_DAYS = 4
+#: ... and a series since the listing with more than this many such gaps is too thin to draw.
+IPO_R3_MAX_GAPS = 2
+#: Bars with no range (high == low) or no volume, at most this share of the series since the listing.
+IPO_R3_MAX_FLAT_SHARE = 0.05
+#: Median close x volume over the base, at least this many dollars a day.
+IPO_R3_MIN_DOLLAR_VOL = 1_000_000.0
+#: The base top standing more than this many median true ranges (of the base) above every other high in the
+#: base is a one-bar spike, not the top of a consolidation.
+IPO_R3_SPIKE_TR = 1.0
 
-def ipo_base_drawing(bars, i, first_t=None, _why=None) -> Optional[dict]:
+
+def _median(xs):
+    s = sorted(xs)
+    m = len(s) // 2
+    return s[m] if len(s) % 2 else (s[m - 1] + s[m]) / 2.0
+
+
+def _median_tr(work, s, e):
+    """Median true range of work[s..e] (s >= 1), or None."""
+    trs = []
+    for k in range(max(1, s), e + 1):
+        h, lo, pc = float(work[k]["h"]), float(work[k]["l"]), float(work[k - 1]["c"])
+        trs.append(max(h, pc) - min(lo, pc))
+    m = _median(trs) if trs else 0.0
+    return m if m > 0 else None
+
+
+def _ymd_ordinal(t):
+    import datetime
+    s = "%08d" % int(t)
+    return datetime.date(int(s[:4]), int(s[4:6]), int(s[6:8])).toordinal()
+
+
+def _ipo_r3_why(work, top_i, top, low, n, first_t_shared):
+    """The round-3 reason a round-1 IPO base is not drawn, or None (it passes)."""
+    from api.services.screener import base_catalog as bc
+    if bc.ipo_listing_is_backfill(first_t_shared):
+        return "r3_backfill_listing"
+    if (top - low) / top < IPO_R3_MIN_DEPTH:
+        return "r3_too_shallow"
+    try:
+        days = [_ymd_ordinal(work[k]["t"]) for k in range(n)]
+    except (TypeError, ValueError):
+        return "r3_bad_dates"
+    if sum(1 for k in range(1, n) if days[k] - days[k - 1] > IPO_R3_GAP_DAYS) > IPO_R3_MAX_GAPS:
+        return "r3_gappy"
+    flat = sum(1 for k in range(n) if float(work[k]["h"]) <= float(work[k]["l"]) or not float(work[k]["v"] or 0))
+    if flat > IPO_R3_MAX_FLAT_SHARE * n:
+        return "r3_flat_bars"
+    if _median([float(work[k]["c"]) * float(work[k]["v"] or 0) for k in range(top_i, n)]) < IPO_R3_MIN_DOLLAR_VOL:
+        return "r3_illiquid"
+    mtr = _median_tr(work, max(1, top_i), n - 1)
+    if mtr is None:
+        return "r3_no_range"
+    others = [float(work[k]["h"]) for k in range(top_i, n) if k != top_i]
+    if not others or top - max(others) > IPO_R3_SPIKE_TR * mtr:
+        return "r3_spike_top"
+    if bc.ipo_earlier_base(work, top_i) is not None:
+        return "r3_later_base"
+    return None
+
+
+def ipo_base_drawing(bars, i, first_t=None, _why=None, rnd=None, first_t_shared=None) -> Optional[dict]:
     """The first base after a listing (base_catalog.ipo_base_state) as of bars[i], or None.
 
     `first_t` is the series' first stored bar; without it the listing age is the window's first bar, which is
     only the listing when the window holds the whole history (see the IPO Base note in base_catalog). The
     region runs from the post-listing high to the as-of bar, the pivot is that high. Withheld when the high is
-    an isolated spike or the right side has not come back into the upper half of the base."""
+    an isolated spike or the right side has not come back into the upper half of the base.
+
+    `rnd` (default IPO_BASE_DRAW_ROUND = 1): 1 draws round 1 exactly; 3 additionally withholds (`_ipo_r3_why`) a
+    listing that is a store backfill boundary (`first_t_shared`, how many tickers in the store start on the
+    same first date; unknown fails closed), a base shallower than IPO_R3_MIN_DEPTH, a thin / gappy / flat /
+    illiquid series, a top that is a one-bar spike above every other high of the base, and a base preceded by
+    an earlier base since the listing (base_catalog.ipo_earlier_base)."""
     from api.services.screener import base_catalog as bc
+    rnd = IPO_BASE_DRAW_ROUND if rnd is None else rnd
+    if rnd not in IPO_ROUNDS:
+        raise ValueError("IPO base round %r is not drawable" % (rnd,))
     ctx, work, atr = _context(bars, i, min_bars=bc.IPO_MIN_BARS + 2)
     if ctx is None or atr is None:
         return _say(_why, "no_context")
@@ -361,6 +444,10 @@ def ipo_base_drawing(bars, i, first_t=None, _why=None) -> Optional[dict]:
     low = float(work[low_i]["l"])
     if float(work[-1]["c"]) < low + IPO_RIGHT_SHARE * (top - low):
         return _say(_why, "right_side_low")
+    if rnd >= 3:
+        r3 = _ipo_r3_why(work, top_i, top, low, n, first_t_shared)
+        if r3 is not None:
+            return _say(_why, r3)
     marks = [(0, float(work[0]["o"]), "listing"), (top_i, top, "base_top"), (low_i, low, "low")]
-    return _out("ipo-base", IPO_BASE_DRAW_ROUND, work, top_i, top, low, low_i, atr, marks,
+    return _out("ipo-base", rnd, work, top_i, top, low, low_i, atr, marks,
                 {"listing_t": int(st["listing_t"]), "pivot_from_t": int(work[top_i]["t"]), "path": False})

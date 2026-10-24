@@ -184,6 +184,7 @@ from api.routers import indicator_alerts as indicator_alerts_router
 from api.routers import signature as signature_router
 from api.routers import what_else_open as what_else_open_router  # TERM-093 instrument, DARK
 from api.routers import backtest as backtest_router
+from api.routers import rare_preview as rare_preview_router  # rare-pattern admin preview, DARK
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.routers import tweets as tweets_router
@@ -616,6 +617,21 @@ def _load_patterns_universe_ordered(_plog):
     return ordered, leader_set, len(leader_tickers)
 
 
+def _record_rare_preview(ordered, _plog) -> None:
+    """After a COMPLETED universe pass: record every rare-pattern preview instance over the same universe
+    (api/services/rare_preview.record_universe) for the owner's approve / reject page. A no-op unless
+    AUTO_STRUCTURES_RARE_PREVIEW_ENABLED is on. Never raises."""
+    try:
+        from api.services import auto_structures as _as
+        if not _as.rare_preview_enabled():
+            return
+        from api.services import rare_preview as _rp
+        res = _rp.record_universe(ordered)
+        print(f"[patterns] rare preview pass: {res}")
+    except Exception as e:  # noqa: BLE001 -- the preview never fails the universe run
+        _plog.warning("[patterns] rare preview pass failed: %s", e)
+
+
 def _execute_patterns_universe_run(kind, slot, resume_from=None, now_ts=None) -> dict:
     """Run (or resume) one universe pass under the durable run lease.
 
@@ -657,6 +673,7 @@ def _execute_patterns_universe_run(kind, slot, resume_from=None, now_ts=None) ->
             f"(full universe, leaders={n_leaders}, resumed at {handle.offset}), "
             f"stored {stored} detections"
         )
+        _record_rare_preview(ordered, _plog)
     except Exception as e:  # noqa: BLE001
         err = f"{type(e).__name__}: {e}"
         _plog.exception("[patterns] universe_scan failed: %s", e)
@@ -10150,6 +10167,7 @@ app.include_router(admin_chart_health_router.router)
 app.include_router(chart_news_router.router)
 app.include_router(indicator_alerts_router.router)
 app.include_router(backtest_router.router)
+app.include_router(rare_preview_router.router)
 app.include_router(patterns_router.router)
 app.include_router(admin_patterns_router.router)
 # TERM-053: the GEX family is gated at its MOUNT, not per route. OI-17 put

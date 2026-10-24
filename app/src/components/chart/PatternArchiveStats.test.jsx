@@ -3,7 +3,7 @@
 // pattern id) must leave the panel's original placeholder exactly as it was.
 // Synthetic data only: the repo is public.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import PatternArchiveStats, { PLACEHOLDER, archiveUrl } from './PatternArchiveStats'
@@ -76,11 +76,23 @@ describe('PatternArchiveStats', () => {
     expect((await screen.findByTestId('archive-ticker-line')).textContent).toBe('ZZNO: the team has not called it.')
   })
 
-  it.each([404, 402, 500])('keeps the original placeholder on a %s', async (status) => {
+  it.each([404, 402])('keeps the original placeholder on a %s', async (status) => {
     serve(fail(status))
     const { container } = mount({ patternId: 'uct_kicker', sym: 'ZZTA' })
     expect(await screen.findByText(PLACEHOLDER)).toBeTruthy()
     expect(container.querySelector('[data-testid="archive-stats"]')).toBeNull()
+  })
+
+  // A 429 (the rate limit) or a 5xx is a FAILURE, not "not launched yet": the placeholder
+  // would tell a member a live feature does not exist.
+  it.each([429, 500])('says the record did not load on a %s, and Try again asks again', async (status) => {
+    serve(fail(status))
+    mount({ patternId: 'uct_kicker', sym: 'ZZTA' })
+    expect(await screen.findByText("Couldn't load the team's record.")).toBeTruthy()
+    expect(screen.queryByText(PLACEHOLDER)).toBeNull()
+    serve(ok(BODY))
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await screen.findByTestId('archive-stats')
   })
 
   it('keeps the placeholder and asks nothing without a pattern id', () => {

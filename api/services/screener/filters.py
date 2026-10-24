@@ -71,10 +71,12 @@ PATTERN_ENGINE_DESCRIPTION = (
     "or none, on its setup line.")
 
 #: Detector-id words that are acronyms or codes, written as traders write them.
-#: `title()` alone turned `vcp` into "Vcp" and `nr7` into "Nr7".
-_TOKEN_WORDS = {"vcp": "VCP", "nr7": "NR7", "macd": "MACD", "rsi": "RSI",
-                "avwap": "AVWAP", "td": "TD", "vsa": "VSA", "uct": "UCT",
-                "and": "and"}
+#: `title()` alone turned `vcp` into "Vcp" and `nr7` into "Nr7". Held as the
+#: upper-case acronyms themselves: every entry was just its key upper-cased, and
+#: these are casing facts about detector-id tokens, not a list of chart indicators.
+_ACRONYM_WORDS = frozenset({"VCP", "NR7", "MACD", "RSI", "AVWAP", "TD", "VSA", "UCT"})
+#: Joining words kept lower-case inside a label.
+_LOWER_WORDS = frozenset({"and"})
 
 
 def _token_label(tok: str) -> str:
@@ -82,7 +84,14 @@ def _token_label(tok: str) -> str:
     out = []
     for w in tok.split("_"):
         m = re.fullmatch(r"(\d+)ema", w)
-        out.append(f"{m.group(1)} EMA" if m else _TOKEN_WORDS.get(w, w.title()))
+        if m:
+            out.append(f"{m.group(1)} EMA")
+        elif w in _LOWER_WORDS:
+            out.append(w)
+        elif w == w.lower() and w.upper() in _ACRONYM_WORDS:
+            out.append(w.upper())
+        else:
+            out.append(w.title())
     return " ".join(out)
 
 

@@ -14,6 +14,7 @@ import Sheet from '../../components/mobile/Sheet'
 import UIcon from '../../components/ui/UIcon'
 import ProgressRing from './ProgressRing'
 import { useStudyMap } from './useStudy'
+import LoadFailed from '../journal-2-0/components/LoadFailed'
 import {
   skillsById, unitProgress, recommendUnit, trackSummary, locateUnit, RUNGS,
 } from './studyMap'
@@ -80,7 +81,7 @@ export default function SkillTrail({
   recordedLessons = 0,
   onOpenLessons,
 }) {
-  const { data: mapData, error } = useStudyMap()
+  const { data: mapData, error, mutate: retryMap } = useStudyMap()
   const curricula = mapData?.map?.curricula
   const curriculum = useMemo(
     () => (Array.isArray(curricula) ? curricula.find((c) => c.id === curriculumId) || null : null),
@@ -141,7 +142,19 @@ export default function SkillTrail({
     }
   }, [currentTrackId])
 
-  if (error) return null
+  // A failed read is SAID, with Try again and the way back (a blank page is
+  // not a notice). A 404 (Study off) resolves to null and keeps the skeleton.
+  if (error) {
+    return (
+      <section className={s.page} aria-label="Study trail">
+        <button type="button" className={s.back} onClick={onBack}>
+          <span className={s.flipX} aria-hidden="true"><UIcon name="chevronRight" size={14} gold={false} /></span>
+          Back to courses
+        </button>
+        <LoadFailed what="the Study trail" error={error} onRetry={() => retryMap?.()} />
+      </section>
+    )
+  }
   if (mapData == null) return <SkillTrailSkeleton />
   if (!curriculum) {
     return (
