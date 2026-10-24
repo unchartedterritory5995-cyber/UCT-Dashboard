@@ -212,7 +212,7 @@ def test_moving_the_BAND_moves_every_consumer(monkeypatch):
     mild = next(lab for lab in _LABELS if vrc.REGIME_BAND[lab] == "YELLOW")
     monkeypatch.setattr(vrc, "get_current_regime", _fake_regime(mild))
 
-    def _go(sym, account_size=None):
+    def _go(sym, account_size=None, account_size_is_default=None):
         return {"ok": True, "verdict": "GO", "grade": "A", "setup": "x"}
 
     def _list(regime_fn):

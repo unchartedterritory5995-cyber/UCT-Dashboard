@@ -140,8 +140,10 @@ def _recent_coach_memory(conn, user_id: str, account_id: str, limit: int) -> lis
 
 def _trades_in_range(
     conn, user_id: str, account_id: str,
-    start: datetime, end: datetime,
+    start: datetime, end: datetime, *, limit: int | None = None,
 ) -> list[dict]:
+    """Closed trades in [start, end), oldest first. `limit` keeps only the NEWEST that many (still
+    returned oldest first), so a request-path caller reads a bounded number of rows."""
     ids = resolve_account_scope(conn, user_id, account_id)
     if not ids:
         return []
@@ -163,10 +165,12 @@ def _trades_in_range(
            -- FIX-C: coaching aggregates must not be fed unvouched trades
            -- (phantom short / user opt-out). The trade list still shows them.
            AND (t.analytics_excluded IS NULL OR t.analytics_excluded = 0)
-         ORDER BY t.exit_date ASC
+         ORDER BY t.exit_date {"DESC LIMIT ?" if limit else "ASC"}
         """,
-        [user_id, *ids, start_iso, end_iso],
+        [user_id, *ids, start_iso, end_iso, *([int(limit)] if limit else [])],
     ).fetchall()
+    if limit:
+        rows = list(reversed(rows))
     out = []
     for r in rows:
         out.append({
@@ -334,14 +338,17 @@ def _discipline_events(conn, user_id, account_id, start, end) -> dict:
             "daily_loss_lockouts": 0, "cooling_off_fires": 0,
             "no_trade_window_blocks": 0, "a_plus_taken": 0,
         }
+        size_is_default = False
         for aid in ids:
             part = _discipline_events(conn, user_id, aid, start, end)
             for k in agg:
                 agg[k] += part.get(k, 0)
-        return agg
+            size_is_default = size_is_default or bool(part.get("account_size_is_default"))
+        return {**agg, "account_size_is_default": size_is_default}
 
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
-    account_size = float(settings.get("accountSize") or 0)
+    # The one authority: an unset size is UNSET_ACCOUNT_SIZE, flagged default (accounts.py).
+    account_size, size_is_default = accounts_service.account_size_of(settings)
     cap_pct = settings.get("maxRiskPerTradePct")
     a_plus_setups = set(settings.get("aPlusSetups") or [])
     a_plus_mult = float(settings.get("aPlusRiskMultiplier") or 1.0)
@@ -410,6 +417,7 @@ def _discipline_events(conn, user_id, account_id, start, end) -> dict:
         "cooling_off_fires": cooling_off_fires,
         "no_trade_window_blocks": 0,
         "a_plus_taken": a_plus_taken,
+        "account_size_is_default": size_is_default,
     }
 
 

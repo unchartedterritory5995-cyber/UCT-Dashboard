@@ -53,6 +53,7 @@ import compassLogo from '../intro/assets/compass-mark.png'
 import UIcon from '../ui/UIcon'
 import Sparkline, { sparkPaths } from '../Sparkline'
 import styles from './JournalSnapshotTile.module.css'
+import DefaultSizeMarker from '../account/DefaultSizeMarker'
 
 const JOURNAL_LINK = '/journal?j2tab=positions'
 const MAX_ROWS = 6
@@ -446,6 +447,7 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
             {hasBroker
               ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} openRisk={openRisk} openRiskR={openRiskR} rReason={rReason} />
               : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} openRisk={openRisk} openRiskR={openRiskR} rReason={rReason} />}
+            {openRiskR != null && <DefaultSizeMarker settings={settings} />}
 
             <div className={styles.rows}>
               {visibleRows.map((row) =>

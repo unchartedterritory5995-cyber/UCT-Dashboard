@@ -164,7 +164,9 @@ def _drawn(row):
         bd = ex.get("draw_base")
         if not isinstance(bd, dict):
             return None
-        return _num(bd.get("pivot")), bd.get("start_t"), bd.get("end_t")
+        # a breakout-state base (base_draw.breakout_drawing) ends at base_end_t; its end_t is the as-of bar
+        end = bd.get("base_end_t") if bd.get("base_end_t") is not None else bd.get("end_t")
+        return _num(bd.get("pivot")), bd.get("start_t"), end
     pv = ex.get("draw_pivot")
     if not isinstance(pv, dict):
         return None
@@ -237,7 +239,9 @@ def compute(row, bars) -> Optional[dict]:
             return None
         out = {"pivot": round(pivot, 4), "asof_t": asof, "depth_pct": dp, "length_weeks": weeks,
                "buy_zone_top": bz, "pct_from_pivot": pfp}
-        stage = stage_est(b)
+        # a breakout-state base counts its stage on its own bars (through base_end_t), not the bars since
+        state_base = pid == "bc:base" and (ex.get("draw_base") or {}).get("base_end_t") is not None
+        stage = stage_est([x for x in b if _int(x.get("t")) <= end] if state_base else b)
         if stage is not None:
             out["stage"] = stage
         return out

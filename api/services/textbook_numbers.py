@@ -335,9 +335,18 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             return None
         start_i = ts.index(s_t)
         asof_i = len(b) - 1
-        if start_i >= asof_i:
+        # the base's own bars end before its as-of bar; a breakout-state base (base_draw.breakout_drawing)
+        # ends before base_end_t, the bar it was drawn at, so the bars since the breakout are never the base
+        end_i = asof_i
+        be = _int(((((row.get("geometry") or {}).get("extras") or {}).get("draw_base") or {})
+                   .get("base_end_t")) if row.get("pattern_id") == "bc:base" else None)
+        if be is not None:
+            if be not in ts:
+                return None
+            end_i = ts.index(be)
+        if start_i >= end_i:
             return None
-        span = b[start_i:asof_i]
+        span = b[start_i:end_i]
         piv = [x for x in span if p_s <= _int(x["t"]) <= p_e]
         if not piv:
             return None
@@ -364,7 +373,7 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         old = ((row.get("geometry") or {}).get("extras") or {}).get("metrics")
         weeks = _num(old.get("length_weeks")) if isinstance(old, dict) else None
         if weeks is None:
-            weeks = base_metrics.length_weeks(b, s_t, asof)
+            weeks = base_metrics.length_weeks(b, s_t, _int(b[end_i]["t"]) if be is not None else asof)
         if bp is None or dp is None or weeks is None:
             return None
         bz = round(bp * (1.0 + _buy_zone()), 2)
@@ -376,7 +385,9 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
                "extended": pfb > EXTENDED_PCT}
         if row.get("pattern_id") == "bc:base":
             out["line"] = round(bp - BUY_POINT_TICK, 2)   # the drawn top line: one price with the buy point
-        st = stage_count(b, start_i, full_history=bool(full_history))
+        # a breakout-state base counts its stage on its OWN bars (the base drawn at base_end_t), not on the
+        # bars since the breakout
+        st = stage_count(b[:end_i + 1] if be is not None else b, start_i, full_history=bool(full_history))
         if st is not None:
             out["stage"] = st
         complete = False
@@ -386,6 +397,12 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             except Exception:  # noqa: BLE001 -- an unreadable clock is not a completed session
                 complete = False
         vol = volume_readout(b, bp, complete)
+        bo = _int(((((row.get("geometry") or {}).get("extras") or {}).get("draw_base") or {})
+                   .get("breakout_t")) if row.get("pattern_id") == "bc:base" else None)
+        if bo is not None and bo in ts:
+            # a breakout-state base: the volume is the BREAKOUT session's (a closed session), not the as-of one
+            # a breakout bar that IS the as-of bar keeps the as-of bar's own completeness answer
+            vol = volume_readout(b[:ts.index(bo) + 1], bp, complete if bo == asof else True)
         if vol is not None:
             out["volume"] = vol
         return out

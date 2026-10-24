@@ -59,47 +59,242 @@ def _now_iso() -> str:
 _DEFAULT_ACCOUNT_SIZE = 100_000.0
 
 
-def member_set_account_size(size) -> float | None:
-    """The size the MEMBER set, or None when it is unset.
+def member_set_account_size(size, marked=None) -> float | None:
+    """The size the MEMBER set, or None when it is unset. The ONE authority for account size.
 
-    It is the home for FIVE readers, and only these: portfolio_heat (its default reader),
-    voice_position_sizing._get_account_settings, validate_trade (through it), the Notebook
-    myPositionsRisk widget, and AI Search's EXPOSURE line (through heat's flag). Unset there means
-    voice_position_sizing.UNSET_ACCOUNT_SIZE (25,000), flagged default.
+    Every reader asks it, through `own_account_size` / `account_size_of` (a settings dict or a
+    j2_accounts row) or the read-only `read_member_account_size` / `account_size_basis`; unset
+    means voice_position_sizing.UNSET_ACCOUNT_SIZE (100,000), flagged default, and a surface that
+    shows a number on it says so with voice_position_sizing.default_size_sentence().
+    tests/test_account_size_authority.py fails on a module outside this file that reads the raw
+    size itself.
 
-    ⚠️ KNOWN DISAGREEMENTS, not migrated (fix round 4 ruling: moving them would change Compass
-    pre-trade and coach sizing numbers for most members, a separate change). These still read the
-    RAW size, so an unset member's migrated placeholder reads as a real 100,000, or use their own
-    default:
-      - journal_two/pre_trade_verdict.py:111, :367 (Compass pre-trade hard checks)
-      - journal_two/coach_chat_tools.py:340 (sizing curve), :485 (claimed-risk check), :732
-      - journal_two/coach_data_assembler.py:344 (per-trade cap and daily-loss checks)
-      - journal_two/interventions.py:151, :272 (daily-loss tilt threshold)
-      - journal_two/discipline.py:52 (daily loss cap)
-      - journal_two/calendar.py:155-185 (P&L %; sums every account when no id is given;
-        its own fallback is 100,000)
-      - routers/intelligence.py:293 (size_pct)
-      - routers/notebook_chart_alerts.py:113 via journal_two/chart_plan.compass_size
-      - scenario_simulator.py:98
-      - grade_ticker.py:30, :162 (its own default, 50,000, used by grade_watchlist and the
-        coach/voice grade tools whenever no account_size is passed)
-
-    Unset = missing, zero, non-numeric, or exactly `_DEFAULT_ACCOUNT_SIZE`: the migration writes
-    that placeholder into the Default row, and nothing in j2_accounts records a member edit, so a
-    member who types exactly the default is indistinguishable from the migrated row and reads as
-    unset (fix round 2 ruling, 2026-10-23).
-
-    ⚠️ KNOWN LIMIT, accepted (fix round 3 ruling, no schema change): a member who really sets
-    exactly 100,000 is treated as unset by the five readers above (sized at UNSET_ACCOUNT_SIZE,
-    labelled default),
-    because nothing stored can tell their choice from the placeholder."""
+    `marked` is the member-set marker (j2_accounts.account_size_set; `accountSizeSet` in a
+    settings dict). Marked = the member's size, whatever its value, so a member who types exactly
+    100,000 counts as set. Unmarked = the old rule: missing, zero, NaN, non-numeric, or exactly
+    `_DEFAULT_ACCOUNT_SIZE` (the placeholder the Default-row migration
+    writes) is unset. A write marks it when it changes the stored size (`marked_after_write`), a
+    broker sync always does, and db._backfill_account_size_marker marked every pre-marker row
+    whose size was not the placeholder."""
     try:
         v = float(size)
     except (TypeError, ValueError):
         return None
-    if not v or v != v or v == _DEFAULT_ACCOUNT_SIZE:
+    # Base's rule, unchanged except for the marker: a NEGATIVE size (a broker's margin debt) is
+    # still the member's and is returned, so the `size > 0` checks it switches off stay off.
+    if not v or v != v:
+        return None
+    if v == _DEFAULT_ACCOUNT_SIZE and not marked:
         return None
     return v
+
+
+#: The settings-dict key carrying the member-set marker (j2_accounts.account_size_set).
+ACCOUNT_SIZE_SET_KEY = "accountSizeSet"
+
+
+def _size_and_marker(src) -> tuple[Any, Any]:
+    """(size, marker) from a settings dict (camelCase) or a j2_accounts row (snake_case)."""
+    if src is None:
+        return None, None
+    try:
+        keys = set(src.keys())
+    except AttributeError:
+        return None, None
+    if "accountSize" in keys:
+        return src["accountSize"], (src[ACCOUNT_SIZE_SET_KEY] if ACCOUNT_SIZE_SET_KEY in keys else None)
+    if "account_size" in keys:
+        return src["account_size"], (src["account_size_set"] if "account_size_set" in keys else None)
+    return None, None
+
+
+def own_account_size(src) -> float | None:
+    """The size the member SET on this account (a settings dict or a j2_accounts row), or None.
+    The one reader every module outside accounts.py asks (rail: tests/test_account_size_authority.py)."""
+    size, marked = _size_and_marker(src)
+    return member_set_account_size(size, marked)
+
+
+def account_size_of(src) -> tuple[float, bool]:
+    """(size, is_default) for an enforcement reader: exactly the size base read
+    (`float(raw or 0)`), except that the unset placeholder is the ONE default
+    (voice_position_sizing.UNSET_ACCOUNT_SIZE, equal to it), flagged. A size of 0 or less, or no
+    settings at all, stays 0 / itself, never the default, so the checks base switched off stay
+    off (fix round 2, finding 3)."""
+    return _enforcement_size(src)
+
+
+#: The PUT body key the settings modal sends when the member saved the size field (fix 1).
+ACCOUNT_SIZE_TOUCHED_KEY = "accountSizeTouched"
+
+
+def size_touched(payload) -> bool:
+    """True only when the request says the member saved the size field (a literal True)."""
+    return isinstance(payload, dict) and payload.get(ACCOUNT_SIZE_TOUCHED_KEY) is True
+
+
+def marked_after_write(prior, new_size, touched: bool = False) -> bool:
+    """The marker a settings write leaves: set when the member saved the size field (`touched`,
+    even at an unchanged value), when the write CHANGES the stored size, or when it was already
+    set. `prior` is the stored settings dict, or None when there is none yet (the seed default).
+    The legacy j2_settings PUT carries it in its JSON; the Default-row migration reads it."""
+    size, marked = _size_and_marker(prior if prior else {"accountSize": _DEFAULT_ACCOUNT_SIZE})
+    if marked or touched:
+        return True
+    try:
+        return float(new_size) != float(size)
+    except (TypeError, ValueError):
+        return True
+
+
+def _unset_account_size() -> float:
+    from api.services.voice_position_sizing import UNSET_ACCOUNT_SIZE
+    return UNSET_ACCOUNT_SIZE
+
+
+def _marker_for_seed(size, marked=None) -> int | None:
+    """The marker a newly written row carries: 1 when the size is the member's own, else NULL
+    (unmarked, read by the old rule)."""
+    return 1 if member_set_account_size(size, marked) is not None else None
+
+
+def _size_columns(conn: sqlite3.Connection) -> str:
+    """The size columns a read-only SELECT can name on this schema (the marker may predate it)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_accounts)")}
+    return "account_size, account_size_set" if "account_size_set" in cols else "account_size"
+
+
+def grading_account_size(
+    user_id: str | None,
+    conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
+) -> tuple[float, bool, str | None]:
+    """READ-ONLY: (size, is_default, note) for a grade (grade_ticker / grade_watchlist) when the
+    caller knows the member: their own size on `account_id` (the unified '_all_' scope or no id =
+    their Default account), else UNSET_ACCOUNT_SIZE flagged default. A size of 0 or less is not a
+    size a trade can be graded on, so it is the default too (fix round 2, finding 7), with its
+    own wording (R2-2): the member has a size, it is not positive. `note` is None on their own."""
+    from api.services.voice_position_sizing import default_size_sentence, nonpositive_size_sentence
+    if not user_id:
+        return _unset_account_size(), True, default_size_sentence()
+    acct = None if (not account_id or account_id == "_all_") else account_id
+    try:
+        row = _member_size_row(user_id, conn, account_id=acct)
+    except Exception:  # noqa: BLE001 -- an unreadable size grades on the default, never fails a grade
+        row = None
+    own = own_account_size(row) if row else None
+    if own is not None and own > 0:
+        return float(own), False, None
+    return _unset_account_size(), True, (
+        nonpositive_size_sentence() if _is_nonpositive_size(row, own) else default_size_sentence())
+
+
+def _is_nonpositive_size(row, own) -> bool:
+    """The member HAS a size and it is 0 or less: a negative one the predicate returns, or a 0 the
+    member-set marker says is theirs (a broker sync at net-liq 0; base reads 0 as unset, so the
+    predicate does too, and the marker is what tells the two apart)."""
+    if own is not None:
+        return own <= 0
+    size, marked = _size_and_marker(row)
+    try:
+        return bool(marked) and float(size) == 0
+    except (TypeError, ValueError):
+        return False
+
+
+def _size_rows(conn: sqlite3.Connection, where: str, params: tuple) -> list[dict]:
+    """j2_accounts size rows as plain dicts, whatever the connection's row_factory."""
+    cur = conn.execute(f"SELECT {_size_columns(conn)} FROM j2_accounts WHERE {where}", params)
+    names = [d[0] for d in cur.description]
+    return [dict(zip(names, tuple(r))) for r in cur.fetchall()]
+
+
+def read_member_account_size(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
+) -> float | None:
+    """READ-ONLY, one SELECT: the member's own size on `account_id`, or (no id) on their Default
+    account, else the oldest. None when it is unset or there is no account. Never migrates (not
+    `get_or_migrate_default_account`, which inserts a row and reassigns the member's trades)."""
+    row = _member_size_row(user_id, conn, account_id=account_id)
+    return own_account_size(row) if row else None
+
+
+def _member_size_row(user_id: str, conn: sqlite3.Connection | None = None, *,
+                     account_id: str | None = None) -> dict | None:
+    """READ-ONLY, one SELECT: the size row read_member_account_size reads, or None."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if account_id:
+            rows = _size_rows(conn, "id = ? AND user_id = ?", (account_id, user_id))
+        else:
+            rows = _size_rows(
+                conn, "user_id = ? ORDER BY (CASE WHEN name = 'Default' THEN 0 ELSE 1 END),"
+                " created_at ASC LIMIT 1", (user_id,))
+        return rows[0] if rows else None
+    finally:
+        if owned:
+            conn.close()
+
+
+def _enforcement_size(src) -> tuple[float, bool]:
+    """(size, is_default) exactly as base enforcement read it (`float(raw or 0)`), except that an
+    unset size is the ONE default (UNSET_ACCOUNT_SIZE, equal to the base placeholder), flagged.
+    A non-positive size stays what it is, so the checks it switched off stay off."""
+    size, marked = _size_and_marker(src)
+    own = member_set_account_size(size, marked)
+    if own is not None:
+        return float(own), False
+    try:
+        v = float(size or 0)
+    except (TypeError, ValueError):
+        v = 0.0
+    if v > 0:
+        return _unset_account_size(), True
+    return v, False
+
+
+def account_size_basis(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
+) -> tuple[float, bool]:
+    """READ-ONLY: (size, is_default) for the calendar P&L %, with base arithmetic (fix round 2):
+    one account = its size; All Accounts (no id, or an id naming no account of this member) =
+    the SUM over every account, placeholder included (an unset account adds the default, which
+    equals the base placeholder); a zero sum falls back to the legacy j2_settings size, then to
+    the default. `is_default` is True when any term was the default."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if account_id:
+            one = _size_rows(conn, "id = ? AND user_id = ?", (account_id, user_id))
+            if one:
+                return _enforcement_size(one[0])
+        terms = [_enforcement_size(r) for r in _size_rows(conn, "user_id = ?", (user_id,))]
+        total = sum(v for v, _d in terms)
+        if total:
+            return float(total), any(d for _v, d in terms)
+        legacy = conn.execute(
+            "SELECT data FROM j2_settings WHERE user_id = ?", (user_id,),
+        ).fetchone()
+        if legacy is None:
+            return _unset_account_size(), True
+        try:
+            data = json.loads(tuple(legacy)[0])
+        except (TypeError, ValueError):
+            return _unset_account_size(), True
+        if not isinstance(data, dict) or not isinstance(data.get("accountSize"), (int, float)):
+            return _unset_account_size(), True
+        return _enforcement_size(data)
+    finally:
+        if owned:
+            conn.close()
 
 
 def _default_settings_block() -> dict[str, Any]:
@@ -218,9 +413,9 @@ def get_or_migrate_default_account(
                     id, user_id, name, color, broker, starting_balance,
                     account_size, default_stop, position_closing,
                     breakeven_range, setups, share_journal_data,
-                    trading_mode,
+                    trading_mode, account_size_set,
                     created_at, updated_at
-                ) VALUES (?, ?, 'Default', 'blue', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, 'Default', 'blue', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     new_id, user_id,
@@ -232,6 +427,7 @@ def get_or_migrate_default_account(
                     json.dumps(block["setups"]),
                     1 if block.get("shareJournalData") else 0,
                     block.get("tradingMode", "both"),
+                    _marker_for_seed(block["accountSize"], settings.get(ACCOUNT_SIZE_SET_KEY)),
                     now, now,
                 ),
             )
@@ -409,6 +605,8 @@ def create_account(
                 "loss_streak_threshold": _src(src, "loss_streak_threshold", None),
                 "win_streak_threshold": _src(src, "win_streak_threshold", None),
                 "stale_hold_days_threshold": _src(src, "stale_hold_days_threshold", None),
+                # The member-set marker travels with the size it describes.
+                "account_size_set": _src(src, "account_size_set", None),
                 # share_journal_data, trader_profile: intentionally NOT copied
             }
         else:
@@ -436,6 +634,7 @@ def create_account(
                 "loss_streak_threshold": None,
                 "win_streak_threshold": None,
                 "stale_hold_days_threshold": None,
+                "account_size_set": None,
             }
 
         new_id = str(uuid.uuid4())
@@ -453,10 +652,11 @@ def create_account(
                 regime_size_multipliers,
                 mistake_tags, emotion_tags,
                 loss_streak_threshold, win_streak_threshold, stale_hold_days_threshold,
+                account_size_set,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
                       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?)
+                      ?, ?, ?)
             """,
             (
                 new_id, user_id, validated["name"], validated["color"],
@@ -471,6 +671,7 @@ def create_account(
                 settings["regime_size_multipliers"],
                 settings["mistake_tags"], settings["emotion_tags"],
                 settings["loss_streak_threshold"], settings["win_streak_threshold"], settings["stale_hold_days_threshold"],
+                _marker_for_seed(settings["account_size"], settings["account_size_set"]),
                 now, now,
             ),
         )
@@ -1076,7 +1277,9 @@ def upsert_account_settings(
         conn.execute(
             """
             UPDATE j2_accounts
-               SET account_size = ?, default_stop = ?, position_closing = ?,
+               SET account_size_set = CASE WHEN ? THEN 1 WHEN account_size = ? THEN account_size_set
+                                           ELSE 1 END,
+                   account_size = ?, default_stop = ?, position_closing = ?,
                    breakeven_range = ?, setups = ?, setup_rules = ?,
                    share_journal_data = ?,
                    trading_mode = ?,
@@ -1099,6 +1302,14 @@ def upsert_account_settings(
              WHERE id = ? AND user_id = ?
             """,
             (
+                # A save marks the size set only when it CHANGES it: the settings modal PUTs the whole
+                # block on every save, so an untouched placeholder must not read as the member's choice.
+                # SQLite evaluates every SET expression against the row as it was, so the CASE reads
+                # the OLD size.
+                # The member saved the size field (the modal's accountSizeTouched): set, whatever
+                # the value -- this is how typing exactly the placeholder counts.
+                1 if size_touched(payload) else 0,
+                float(full_validated["accountSize"]),
                 float(full_validated["accountSize"]),
                 json.dumps(full_validated["defaultStop"]),
                 full_validated["positionClosing"],
@@ -1241,6 +1452,12 @@ def _account_to_settings(acc: dict[str, Any], *, conn: sqlite3.Connection | None
             "accountId": row["id"],
             "accountName": row["name"],
             "accountSize": float(row["account_size"]),
+            # The member-set marker (raw); readers ask own_account_size / account_size_of, never this.
+            ACCOUNT_SIZE_SET_KEY: bool(row["account_size_set"]) if "account_size_set" in keys else False,
+            # The predicate's answer, so a client never re-derives "unset" from the value: True =
+            # the size above is not the member's, and readers use defaultAccountSize, labelled.
+            "accountSizeIsDefault": own_account_size(row) is None,
+            "defaultAccountSize": _unset_account_size(),
             "defaultStop": json.loads(row["default_stop"]),
             "positionClosing": row["position_closing"],
             "breakevenRange": json.loads(row["breakeven_range"]),
