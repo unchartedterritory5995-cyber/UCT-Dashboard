@@ -2434,16 +2434,16 @@
   {
    "setup": "Oops Reversal",
    "sym": "TEAM",
-   "asof": "2023-11-28",
+   "asof": "2023-12-08",
    "year": 2023,
-   "close": 188.41,
+   "close": 192.36,
    "facts": {
     "scanner": true,
     "williams": true,
     "super": true,
-    "open_vs_prior_low_pct": -0.31,
-    "day_pct": 4.49,
-    "close_pos": 0.86,
+    "open_vs_prior_low_pct": -0.25,
+    "day_pct": 2.4,
+    "close_pos": 0.88,
     "range_atr": 1.76,
     "rvol": 1.43,
     "prior_red": true,
@@ -2464,17 +2464,15 @@
     "ext_vs_sma50_pct": 0.2,
     "downtrend": false,
     "setup_score": 15,
-    "fwd_min_close_vs_trigger_low_pct": 4.7,
-    "fwd_max_gain_pct": 31.6,
-    "fwd_10d_pct": 7.2,
-    "fwd_20d_pct": 29.0,
     "avg_dollar_volume_m": 276.8,
     "known_name": true,
     "earnings_day": false,
-    "earnings_dates_near": []
+    "earnings_dates_near": [],
+    "owner_reference": "owner 2026-10-24: preferred this Oops over 2023-11-28; also a Launchpad example (confluence). Low 184.50 never broke; +27% in two weeks"
    },
    "q": 17.0,
-   "pass": 3
+   "pass": 3,
+   "owner_provided": true
   },
   {
    "setup": "Oops Reversal",
@@ -3015,6 +3013,50 @@
    },
    "q": 14.5,
    "pass": 3
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "SHOP",
+   "asof": "2026-09-28",
+   "year": 2026,
+   "close": 144.01,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": false,
+    "variant": "williams+scanner",
+    "open_vs_prior_low_pct": -2.05,
+    "day_pct": 1.24,
+    "close_pos": 0.99,
+    "earnings_day": false,
+    "earnings_dates_near": [],
+    "owner_reference": "owner 2026-10-24: 'SHOP on 9/28 is a prime example'; the Oops-day low (136.49) never broke and the stock ran 19% in two weeks"
+   },
+   "q": 99,
+   "pass": 3,
+   "owner_provided": true
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "SHOP",
+   "asof": "2025-07-16",
+   "year": 2025,
+   "close": 120.0,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": true,
+    "variant": "super",
+    "open_vs_prior_low_pct": -0.31,
+    "day_pct": 4.3,
+    "close_pos": 0.98,
+    "earnings_day": false,
+    "earnings_dates_near": [],
+    "owner_reference": "owner 2026-10-24: SHOP 'gave another oops about 2-3 weeks later' after 2025-06-23 'before it really accelerated higher'; the low (112.59) never broke, +5.6% the next day"
+   },
+   "q": 99,
+   "pass": 3,
+   "owner_provided": true
   }
  ],
  "kicker_pass2": {

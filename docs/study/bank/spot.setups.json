@@ -6737,18 +6737,18 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "2023-11-28",
+  "asof": "2023-12-08",
   "bars": {
-   "asof": "2023-11-28",
+   "asof": "2023-12-08",
    "forward": 20,
    "sym": "TEAM",
    "tf": "D",
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_a49ab4d3db9b",
+  "id": "si_c2eb632f1f6c",
   "lesson_origin": "session",
-  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -0.31% from the prior low and closed up 4.49%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 5.8% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -0.25% from the prior low and closed up 2.4%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 5.8% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -6764,26 +6764,22 @@
   "reveal_json": {
    "detector": "uct_oops_reversal",
    "example": {
-    "asof": "2023-11-28",
+    "asof": "2023-12-08",
     "found_by": "pod_find_setups.py (read-only scan)",
     "sym": "TEAM"
    },
    "facts": {
     "above_200": true,
     "avg_dollar_volume_m": 276.8,
-    "close_pos": 0.86,
-    "close_pos_pct": 86,
-    "day_pct": 4.49,
+    "close_pos": 0.88,
+    "close_pos_pct": 88,
+    "day_pct": 2.4,
     "down_closes_last5": 3,
     "downtrend": false,
     "drift_days": 7,
     "earnings_dates_near": [],
     "earnings_day": false,
     "ext_vs_sma50_pct": 0.2,
-    "fwd_10d_pct": 7.2,
-    "fwd_20d_pct": 29.0,
-    "fwd_max_gain_pct": 31.6,
-    "fwd_min_close_vs_trigger_low_pct": 4.7,
     "known_name": true,
     "low_near_ma": true,
     "low_near_swing_low": true,
@@ -6795,7 +6791,8 @@
      50,
      200
     ],
-    "open_vs_prior_low_pct": -0.31,
+    "open_vs_prior_low_pct": -0.25,
+    "owner_reference": "owner 2026-10-24: preferred this Oops over 2023-11-28; also a Launchpad example (confluence). Low 184.50 never broke; +27% in two weeks",
     "prior_drop_pct": -0.7,
     "prior_gap_pct": -0.58,
     "prior_range_atr": 0.65,
@@ -6815,13 +6812,13 @@
    "fires": true,
    "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
    "setup": "Oops Reversal",
-   "source": "docs/study/setups/setup_examples.json#Oops Reversal#TEAM#2023-11-28",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#TEAM#2023-12-08",
    "window_bars": 120
   },
   "review_status": "draft",
   "skill_id": "setup.family4.oops",
   "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#TEAM#2023-11-28",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#TEAM#2023-12-08",
   "sym": "TEAM",
   "type": "spot",
   "version": 1
@@ -7951,6 +7948,132 @@
   "source_kind": "setups",
   "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#UTHR#2026-03-24",
   "sym": "UTHR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-09-28",
+  "bars": {
+   "asof": "2026-09-28",
+   "forward": 20,
+   "sym": "SHOP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_228132ef9044",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -2.05% from the prior low and closed up 1.24%: also a Williams Oops: it opened below the prior day's low.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2026-09-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SHOP"
+   },
+   "facts": {
+    "close_pos": 0.99,
+    "close_pos_pct": 99,
+    "day_pct": 1.24,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "open_vs_prior_low_pct": -2.05,
+    "owner_reference": "owner 2026-10-24: 'SHOP on 9/28 is a prime example'; the Oops-day low (136.49) never broke and the stock ran 19% in two weeks",
+    "scanner": true,
+    "super": false,
+    "variant": "williams+scanner",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#SHOP#2026-09-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#SHOP#2026-09-28",
+  "sym": "SHOP",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-07-16",
+  "bars": {
+   "asof": "2025-07-16",
+   "forward": 20,
+   "sym": "SHOP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1bb0321cf901",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23). Here it opened -0.31% from the prior low and closed up 4.3%: a Super Oops: it also closed above the prior day's high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2025-07-16",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SHOP"
+   },
+   "facts": {
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "day_pct": 4.3,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "open_vs_prior_low_pct": -0.31,
+    "owner_reference": "owner 2026-10-24: SHOP 'gave another oops about 2-3 weeks later' after 2025-06-23 'before it really accelerated higher'; the low (112.59) never broke, +5.6% the next day",
+    "scanner": true,
+    "super": true,
+    "variant": "super",
+    "williams": true
+   },
+   "fires": true,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling 2026-10-23).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#SHOP#2025-07-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#SHOP#2025-07-16",
+  "sym": "SHOP",
   "type": "spot",
   "version": 1
  }
