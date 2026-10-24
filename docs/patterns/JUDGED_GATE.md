@@ -24,13 +24,14 @@ For each case the gate asserts:
 
 | fixture file | drawing | member literal it was judged at |
 |---|---|---|
-| `base.json` | `bc:base` | `MEMBER_BASE_ROUND = 4` |
+| `base.json.gz` | `bc:base` base STATES: breakout / extended (recert A r2) and "Base forming" (recert A r3), both through the member textbook gate | `MEMBER_BASE_ROUND = 5` + `MEMBER_BASE_BREAKOUT_ROUND = 1` / `MEMBER_BASE_FORMING_ROUND = 1` |
+| `base_stateless.json.gz` | the stateless `bc:base` (judged round 4): **withdrawn** from members 2026-10-24 (status `withdrawn`), recert A failed it three rounds | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5) |
 | `double_bottom.json.gz` | `draw:double-bottom` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
 | `shelf.json.gz` | `draw:shelf-pivot` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_SHELF_PIVOT_ROUND = "r4"` + `MEMBER_PIVOT_GATE_ROUND = 1` |
 | `sr.json` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
 | `cup.json` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json.gz` | `draw:inside-day` (round-3 drawing, served only through the recert B textbook gate) | `MEMBER_INSIDE_DAY_ROUND = 3` + `MEMBER_INSIDE_DAY_GATE_ROUND = 1` |
-| `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10) | `MEMBER_TEXTBOOK_ROUND = 2` (the 10 round-1 buy-point cases are kept: round 2 changed no printed number) |
+| `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10). **Withdrawn** 2026-10-24 with the stateless base its numbers print on | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5); `MEMBER_TEXTBOOK_ROUND = 2` unchanged |
 | `remount.json` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
 | `u_and_r.json` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
 | `donchian_breakout.json` | `draw:donchian_breakout`: passed both packets, owner released 2026-10-24 | `MEMBER_DONCHIAN_BREAKOUT_ROUND = 1` (`released`) |

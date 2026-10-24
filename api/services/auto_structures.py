@@ -1321,7 +1321,9 @@ def _textbook_base_floors(b, s, e, i, hi, a):
 
 def member_base_textbook_gate(sym: str, detections, structures) -> tuple:
     """(detections, structures) without any TEXTBOOK_GATE_IDS row that fails a textbook floor
-    (`base_textbook_gate_fails`). Members only; order kept; the daily bars are read only when such a row is present,
+    (`base_textbook_gate_fails`). A bc:base row is gated only when it carries a base STATE (breakout / extended /
+    forming): the stateless base is withheld from members by its own literal, so a re-release starts from the
+    drawing its judged cases record, with this gate re-decided by that release's round. Members only; order kept; the daily bars are read only when such a row is present,
     at the last COMPLETE session. Removal only and fail OPEN: unreadable bars or an unreadable row keep the row."""
     det, st = list(detections or []), list(structures or [])
     if not any((r or {}).get("pattern_id") in TEXTBOOK_GATE_IDS for r in det + st):
@@ -1339,6 +1341,8 @@ def member_base_textbook_gate(sym: str, detections, structures) -> tuple:
     def fails(r):
         if (r or {}).get("pattern_id") not in TEXTBOOK_GATE_IDS:
             return False
+        if (r or {}).get("pattern_id") == BASE_DRAW_ID and not _is_base_state_row(r):
+            return False    # the stateless base is withheld (MEMBER_BASE_STATELESS_ROUND), never gated here
         try:
             return base_textbook_gate_fails(b, r) is not None
         except Exception:  # noqa: BLE001 -- an unreadable row is kept, as the floor keeps it

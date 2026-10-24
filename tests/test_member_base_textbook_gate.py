@@ -156,11 +156,12 @@ def test_member_textbook_gate_removes_only_failing_gated_rows(monkeypatch):
     good_b, s = textbook_series()
     monkeypatch.setattr(AS, "_daily_bars", lambda sym: good_b)
     monkeypatch.setattr(AS, "last_bar_forming", lambda t, now=None: False)
-    good = base_row(good_b, s)
-    short = base_row(good_b, len(good_b) - 15)
+    good = base_row(good_b, s, state="forming")
+    short = base_row(good_b, len(good_b) - 15, state="forming")
+    stateless_short = base_row(good_b, len(good_b) - 15)     # withheld by its literal, never gated
     other = {"pattern_id": "draw:inside-day", "start_t": good_b[-3]["t"], "geometry": {"extras": {}}}
-    det, st = AS.member_base_textbook_gate("X", [short], [good, other])
-    assert det == [] and st == [good, other]
+    det, st = AS.member_base_textbook_gate("X", [short], [good, other, stateless_short])
+    assert det == [] and st == [good, other, stateless_short]
 
 
 def test_member_textbook_gate_fails_open(monkeypatch):

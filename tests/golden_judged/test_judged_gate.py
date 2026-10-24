@@ -40,7 +40,9 @@ KNOWN_RED: dict = {}
 _PRECEDENCE = ("judged drawing never served on this chart: a member drawing that outranks it on the same base "
                "(member_base_precedence / member_inside_day_precedence / one-line-per-base) takes its place; "
                "already so at the drawing's release commit")
-for _cid in ("base-a-011", "base-a-016", "base-a-018", "base-a-020", "base-a-025", "base-b-010", "base-b-013",
+# base-a-011 and base-b-013 left KNOWN_RED 2026-10-24: the drawing that outranked them was a flat base, and every
+# flat base was withheld from members that day (recert A; MEMBER_FLAT_BASE_ROUND / MEMBER_BC_FLAT_BASE_ROUND None).
+for _cid in ("base-a-016", "base-a-018", "base-a-020", "base-a-025", "base-b-010",
              "inside-day-a2-004", "textbook-g1-01", "textbook-g1-12"):
     KNOWN_RED[_cid] = _PRECEDENCE
 # inside-day-b2-012 left KNOWN_RED 2026-10-24: the member drawing that outranked it was the round-9 confirmed
@@ -257,9 +259,10 @@ def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
     every = fams | {f["family"] for f in WITHDRAWN_FAMS}   # a family withdrawn by a recertification still replays
-    assert {"base", "double_bottom", "shelf", "cup", "inside_day", "textbook", "donchian_breakout"} <= fams, fams
-    assert {"sr", "remount", "u_and_r"} <= every, every
-    assert any("line" in c["expect"] for f, c in RELEASED if f == "textbook"), "no textbook round-2 line case"
+    assert {"base", "double_bottom", "shelf", "cup", "inside_day", "donchian_breakout"} <= fams, fams
+    # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
+    assert {"sr", "remount", "u_and_r", "textbook"} <= every, every
+    assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round
@@ -343,4 +346,5 @@ def test_a_stale_cup_box_is_served_only_when_the_cup_tier_draws_it(monkeypatch):
     for fake in (lambda b: {**real(b), "withheld": "handle_deep"}, lambda b: None):
         monkeypatch.setattr(cup_tier, "stamp", fake)
         payload, _bars = MP.member_payload(monkeypatch, case)
-        assert not [r for r in payload["structures"] if r["pattern_id"] == "bc:cup-with-handle"]
+        # no structures at all is "no cup" too (the key is absent when nothing is drawn)
+        assert not [r for r in payload.get("structures", []) if r["pattern_id"] == "bc:cup-with-handle"]
