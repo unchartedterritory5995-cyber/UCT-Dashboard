@@ -23,6 +23,8 @@ import ast
 import json
 import os
 
+import pytest
+
 import api.routers.patterns as patterns_router  # registers every detector
 from api.services import auto_structures
 from api.services.pattern_engine import detect_all, display
@@ -34,6 +36,19 @@ from tests.test_bull_flag_r7 import _drawn, _ohlc
 from tests.test_bull_flag_r9 import SHORT_LEG, TALL_LEG, _flag_after
 from tests.test_member_drawing_set import _flag, _flags, _get, _store
 from tests.test_team_drawing_set_r4 import _flag_det
+
+
+#: The member bull_flag literal AS SHIPPED, read before any test patches it. Since 2026-10-24 (recert E) it is
+#: None: every bull flag is withheld from members. The tests below exercise the round-9 gate MECHANISM, so they
+#: run under the one-literal re-enable (MEMBER_BULL_FLAG_ROUND = 9, in memory); the shipped default is railed in
+#: tests/test_bull_flag_withheld_from_members.py.
+SHIPPED_MEMBER_BULL_FLAG_ROUND = auto_structures.MEMBER_BULL_FLAG_ROUND
+
+
+@pytest.fixture
+def round9_flag_released(monkeypatch):
+    monkeypatch.setattr(auto_structures, "MEMBER_BULL_FLAG_ROUND", 9)
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GOLDEN = os.path.join(HERE, "fixtures", "flag_tiers_golden.json")
@@ -192,6 +207,7 @@ def test_the_member_flagging_round_is_a_literal_none_and_the_tier_round_a_litera
 
 # -- 4. admins see both; the route ------------------------------------------------------------------
 
+@pytest.mark.usefixtures("round9_flag_released")
 def test_flag_on_members_get_the_confirmed_tier_only_and_admins_get_every_row(monkeypatch):
     t1, _ = _drawn(*_flag_after(TALL_LEG))
     t2 = _tier2_extras()

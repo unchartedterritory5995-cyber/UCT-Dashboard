@@ -64,6 +64,14 @@ FLAGGING_WITHHELD = {
 }
 
 
+#: Fixture charts whose recorded "served" set holds a round-9 CONFIRMED bull_flag. Every bull flag withheld from
+#: members 2026-10-24 (recert E: the rebuilt textbook flag failed the strict bar, so
+#: auto_structures.MEMBER_BULL_FLAG_ROUND = None): member_rows no longer serves it, so on exactly these charts it
+#: leaves `served` and its line turns withheld. Measured on every fixture chart: these are the only ones that
+#: moved, and the layer's answer (gate, line, span start, display start) is unchanged on both.
+CONFIRMED_WITHHELD = {"held/none/000", "held/none/178"}
+
+
 #: Fixture charts where the member base drawing round 4 (auto_structures.MEMBER_BASE_ROUND == 4 since 2026-10-23)
 #: draws a base that round 2 -- the member round when the fixture was recorded -- did not: a member's chart now
 #: holds that bc:base drawing, so it is SERVED with its line (not withheld), and (any served drawing hides the
@@ -82,7 +90,7 @@ FLOORED_SERVED = {
 }
 
 
-def _drawn_view(c, round4=True, flagging_withheld=True):
+def _drawn_view(c, round4=True, flagging_withheld=True, confirmed_withheld=True):
     """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld,
     (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there),
     the FLOORED_SERVED row and its line removed, and (`flagging_withheld`) the FLAGGING_WITHHELD chart's bull_flag
@@ -94,7 +102,7 @@ def _drawn_view(c, round4=True, flagging_withheld=True):
         assert sum(x[0] == floored for x in served) == 1, c["id"]
         served = [x for x in served if x[0] != floored]
         lines = [x for x in lines if x[0] != floored]
-    if flagging_withheld and c["id"] in FLAGGING_WITHHELD:
+    if (flagging_withheld and c["id"] in FLAGGING_WITHHELD) or (confirmed_withheld and c["id"] in CONFIRMED_WITHHELD):
         gone = [x for x in served if x[0] == "bull_flag"]
         assert len(gone) == 1, c["id"]
         prices = set(gone[0][1])
@@ -116,12 +124,12 @@ def _drawn_view(c, round4=True, flagging_withheld=True):
             [(p, v, True) if p == pid and v in prices else (p, v, w) for p, v, w in lines])
 
 
-def _reproduce(round4, flagging_withheld=True):
+def _reproduce(round4, flagging_withheld=True, confirmed_withheld=True):
     bad = []
     for c in cases():
         _ASOF[0] = int(c["bars"][-1][0])
         served, lines = AS.shelf_member_facts(c["ticker"], _dicts(c["bars"]))
-        want_served, want_lines = _drawn_view(c, round4, flagging_withheld)
+        want_served, want_lines = _drawn_view(c, round4, flagging_withheld, confirmed_withheld)
         if [(p, ls, tuple(sp) if sp else None) for p, ls, sp in served] != want_served:
             bad.append((c["id"], "served"))
         # the detectors stamp their own clock, so two lines of one chart can swap places between runs: the SET
@@ -185,6 +193,18 @@ def test_re_enabling_the_flagging_tier_reproduces_the_recorded_flagging_view(mem
     assert _reproduce(round4=True, flagging_withheld=False) == []
     moved = {b[0] for b in _reproduce(round4=True, flagging_withheld=True)}
     assert moved == FLAGGING_WITHHELD
+
+
+def test_re_enabling_the_confirmed_flag_reproduces_the_recorded_confirmed_view(member_path_env, monkeypatch):
+    """Control for CONFIRMED_WITHHELD: with the member bull_flag literal set back to 9 (in memory, the one-literal
+    re-enable), the round-9 confirmed flags are served again on exactly those charts -- and the withheld view no
+    longer matches there."""
+    from api.services.pattern_engine import base_draw
+    monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
+    monkeypatch.setattr(AS, "MEMBER_BULL_FLAG_ROUND", 9)
+    assert _reproduce(round4=True, confirmed_withheld=False) == []
+    moved = {b[0] for b in _reproduce(round4=True, confirmed_withheld=True)}
+    assert moved == CONFIRMED_WITHHELD
 
 
 # ---------------------------------------------------------------- gates
