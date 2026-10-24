@@ -352,43 +352,73 @@ def _old_cap(payload, kind=None):
     return nw._too_large(out)
 
 
-def test_cap_payload_existing_kinds_unchanged():
-    """Phase 1 callers get the SAME bytes as the one-at-a-time loop, too-large form included (the brief's
-    rule), across random payloads, priors and kinds."""
-    import random
-    rnd = random.Random(86)
-    trimmed = too_large = 0
-    for case in range(300):
-        n = rnd.randint(1, 700)
-        rows = [{"n": i, "pad": "x" * rnd.randint(0, 60)} for i in range(n)]
-        prior = rnd.choice([None, 0, 3, True, False])
-        p = {"asOf": "x", "source": "market", "rows": rows,
-             **({} if prior is None else {"truncated": prior})}
-        kind = rnd.choice([None, "myWatchlistToday", "tickerCard"])
-        old = _old_cap(p, kind)
-        assert json.dumps(nw.cap_payload(p, kind)) == json.dumps(old), case
-        too_large += bool(old.get("tooLarge"))
-        trimmed += bool(not old.get("tooLarge") and len(old.get("rows", [])) < n)
-    assert trimmed > 50 and too_large > 10              # both branches were actually compared
-
-
-def _count_digit_case():
-    """A payload the one-at-a-time loop sends to the too-large form only because the `truncated` count it
-    then writes pushes the trimmed list over the cap."""
+def _count_digit_case(kind="myWatchlistToday"):
+    """A phase 1 payload whose trimmed list lands within ~20 bytes of the cap, so the `truncated` count
+    the trim then writes tips it over: the old loop answered this with the too-large form."""
     for pad in range(1, 400):
         p = {"asOf": "x", "source": "manual", "rows": [{"p": "y" * pad}] * 2000}
-        if _old_cap(p).get("tooLarge"):
+        if _old_cap(p, kind).get("tooLarge"):
             return p
     return None
 
 
-def test_built_widget_trim_counts_its_own_truncated_digits():
+def test_phase1_trim_counts_its_own_truncated_digits():
+    """Ruling R-18: live for phase 1 widgets. The old loop lost every row here; now the rows stay."""
     p = _count_digit_case()
     assert p is not None, "no count-digit case found: the reference stopped reproducing it"
-    assert nw.cap_payload(p, "myWatchlistToday").get("tooLarge") is True     # phase 1: unchanged
+    assert _old_cap(p, "myWatchlistToday").get("tooLarge") is True       # the defect, reproduced
+    out = nw.cap_payload(p, "myWatchlistToday")
+    assert not out.get("tooLarge")
+    assert len(out["rows"]) > 1 and out["truncated"] == 2000 - len(out["rows"])
+    size = nw._payload_size(out)
+    assert nw.PAYLOAD_CAP_BYTES - 40 < size <= nw.PAYLOAD_CAP_BYTES       # it really was at the edge
+
+
+def test_cap_payload_sweep_never_over_cap_and_never_too_large_when_one_item_fits():
+    import random
+    rnd = random.Random(86)
+    trimmed = 0
+    for case in range(400):
+        n = rnd.randint(1, 700)
+        rows = [{"n": i, "pad": "x" * rnd.randint(0, 80)} for i in range(n)]
+        prior = rnd.choice([None, 0, 3, True, False])
+        p = {"asOf": "x", "source": "market", "rows": rows,
+             **({} if prior is None else {"truncated": prior})}
+        kind = rnd.choice([None, "myWatchlistToday", "tickerCard", nw.BUILT_KIND])
+        out = nw.cap_payload(p, kind, list_key="rows" if kind == nw.BUILT_KIND else None)
+        assert nw._payload_size(out) <= nw.PAYLOAD_CAP_BYTES, case
+        if kind == "tickerCard":
+            continue                       # no list key: over the cap it is too large by design
+        one = {**p, "rows": rows[:1]}
+        if n > 1:
+            one["truncated"] = True if prior is True else int(prior or 0) + n - 1
+        if nw._payload_size(one) <= nw.PAYLOAD_CAP_BYTES:
+            assert not out.get("tooLarge"), case
+        if len(out.get("rows", [])) < n:
+            trimmed += 1
+    assert trimmed > 50                    # the trim branch was actually exercised
+
+
+def test_built_widget_trim_counts_its_own_truncated_digits():
+    p = _count_digit_case()
+    assert p is not None
     out = nw.cap_payload(p, nw.BUILT_KIND, list_key="rows")
     assert not out.get("tooLarge") and out["truncated"] == 2000 - len(out["rows"])
     assert nw._payload_size(out) <= nw.PAYLOAD_CAP_BYTES
+
+
+def test_positions_range_label_is_right_now():
+    p = vplan(raw_plan(source="open_positions", measures=("open_positions",)))
+    assert build(p, result_of(count=2), scan_of("open_positions", count=2))["rangeLabel"] == "Right now"
+
+
+def test_source_reads_an_origin_key_on_any_scan_row():
+    p = vplan(raw_plan(source="open_positions", measures=("open_positions",)))
+    assert build(p, result_of(count=1), scan_of("open_positions", [{}], count=1))["source"] == "manual"
+    rows = [{"origin": "broker"}, {"origin": "broker"}]
+    assert build(p, result_of(count=2), scan_of("open_positions", rows))["source"] == "broker"
+    rows = [{"origin": "broker"}, {"origin": "manual"}]
+    assert build(p, result_of(count=2), scan_of("open_positions", rows))["source"] == "mixed"
 
 
 def test_built_widget_too_large_keeps_what_see_it_now_needs():

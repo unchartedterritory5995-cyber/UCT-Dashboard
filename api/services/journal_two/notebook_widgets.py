@@ -400,9 +400,9 @@ def cap_payload(payload: dict, kind: str | None = None, list_key: str | None = N
     each item kept, so the answer is the same (railed), and a 5,000-row list costs a dozen serialisations
     instead of thousands.
 
-    A BUILT widget's probe also carries the `truncated` count it would write. The phase 1 probe measures
-    without it, so a trim whose own count tips it over the cap falls to the too-large form; phase 1 keeps
-    that behaviour byte for byte here (Task 8.6 rule: existing callers unchanged) and its fix is queued."""
+    Each probe carries the `truncated` count it would write (ruling R-18). The old loop measured the
+    trimmed list without it, so a trim whose own count tipped it over the cap fell to the too-large form
+    and the member lost every row."""
     if trim_from not in ("end", "start"):
         raise ValueError(f"trim_from must be 'end' or 'start', not {trim_from!r}")
     out = _clip_member_text(payload)
@@ -417,19 +417,17 @@ def cap_payload(payload: dict, kind: str | None = None, list_key: str | None = N
         prior = out.get("truncated")
         n = len(items)
 
-        count_aware = kind == BUILT_KIND
-
-        def _trimmed(k: int, with_count: bool = True) -> dict:
+        def _trimmed(k: int) -> dict:
             kept = list(items[n - k:]) if trim_from == "start" else list(items[:k])
             t = {**out, key: kept}
-            if n - k and with_count:
+            if n - k:
                 t["truncated"] = True if isinstance(prior, bool) and prior else int(prior or 0) + (n - k)
             return t
 
         lo, hi = 0, n          # the largest count that fits lies in [lo, hi]; 0 always "fits" here
         while lo < hi:
             mid = (lo + hi + 1) // 2
-            if _payload_size(_trimmed(mid, count_aware)) <= PAYLOAD_CAP_BYTES:
+            if _payload_size(_trimmed(mid)) <= PAYLOAD_CAP_BYTES:
                 lo = mid
             else:
                 hi = mid - 1
