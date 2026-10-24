@@ -1141,6 +1141,196 @@ def member_base_floor(sym: str, detections, structures) -> tuple:
     return [r for r in det if not refused(r)], [r for r in st if not refused(r)]
 
 
+#: THE TEXTBOOK GATE (lab recert/A_bases round r2): the member base drawings re-certified 2026-10-24 on a strict
+#: O'Neil / IBD rubric failed it on the same criteria -- bases under 5 weeks, no prior uptrend or a flat 200-day,
+#: a pivot on a mid-base spike or a shelf under a higher peak, and price pins. A member row of these ids is drawn
+#: only when its own region meets the textbook floors below. Removal only; members only.
+TEXTBOOK_GATE_IDS = frozenset({BASE_DRAW_ID, "flat_base", "bc:flat-base"})
+#: a base is at least 5 weeks (sessions from the region's first bar to its last bar)
+TG_MIN_SESSIONS = 25
+#: the region's high to its lowest low, as a fraction of the high (a flat base is shallow)
+TG_MAX_DEPTH = 0.35
+TG_MAX_DEPTH_FLAT = 0.15
+#: the region's high sits on its LEFT side: within TG_LEFT_HIGH_ATR x ATR(14) of the high of its first
+#: TG_LEFT_BARS sessions (not a mid-base spike), and no high in the TG_LEFT_CLEAR sessions before the region
+#: is more than TG_LEFT_HIGH_ATR x ATR above it (not a shelf under a higher peak)
+TG_LEFT_BARS = 5
+TG_LEFT_HIGH_ATR = 0.5
+TG_LEFT_CLEAR = 30
+#: a prior advance of TG_MIN_ADV off the lowest low of the TG_ADV_WIN sessions before the region
+TG_MIN_ADV = 0.25
+TG_ADV_WIN = 126
+#: the 200-day average rising at least TG_SMA_RISE over TG_SMA_RISE_BARS sessions, the close above it
+TG_SMA_RISE = 0.005
+#: a FORMING base: the right side is building -- the close above its 50-day average
+TG_FORMING_SMA = 50
+TG_SMA_RISE_BARS = 20
+
+
+def _tg_region(row, ts):
+    """(first, last) bar index of the region a member base row draws, or None. bc:base: draw_base.start_t to
+    base_end_t (a breakout state's base) or the as-of bar; flat_base / bc:flat-base: the drawn pivot's start
+    (else the first drawn anchor) to the as-of bar."""
+    ex = (row.get("geometry") or {}).get("extras") or {}
+    pid = row.get("pattern_id")
+    end = len(ts) - 1
+    if pid == BASE_DRAW_ID:
+        bd = ex.get("draw_base") or {}
+        st = bd.get("start_t")
+        if bd.get("base_end_t") is not None and bd.get("state") in ("breakout", "extended"):
+            if int(bd["base_end_t"]) in ts:
+                end = ts.index(int(bd["base_end_t"]))
+    else:
+        pv = ex.get("draw_pivot")
+        st = pv.get("start_t") if isinstance(pv, dict) else None
+        if st is None:
+            da = ex.get("draw_anchors") or (row.get("geometry") or {}).get("anchors") or []
+            st = min((a.get("t") for a in da if isinstance(a, dict) and a.get("t") is not None), default=None)
+    if st is None or int(st) not in ts:
+        return None
+    return ts.index(int(st)), end
+
+
+def base_textbook_gate_fails(b, row):
+    """The first textbook floor the member base row fails on daily bars `b` (completed sessions, the as-of bar
+    last), or None when it meets them all. Reads b only. RAISES on an unreadable row (the caller keeps it)."""
+    from api.services.pattern_engine import base_draw
+    ts = [int(x["t"]) for x in b]
+    i = len(b) - 1
+    reg = _tg_region(row, ts)
+    if reg is None:
+        raise ValueError("region")
+    s, e = reg
+    if e - s < TG_MIN_SESSIONS:
+        return "length"
+    # the base's own bars: its last bar is the right edge, which may already be the breakout attempt
+    hi = max(float(x["h"]) for x in b[s:e])
+    lo = min(float(x["l"]) for x in b[s:i + 1])
+    flat = row.get("pattern_id") != BASE_DRAW_ID
+    if not hi > 0 or (hi - lo) / hi > (TG_MAX_DEPTH_FLAT if flat else TG_MAX_DEPTH):
+        return "depth"
+    a = base_draw._atr(b, i)
+    if not a or a <= 0:
+        raise ValueError("atr")
+    left = max(float(x["h"]) for x in b[s:min(e - 1, s + TG_LEFT_BARS) + 1])
+    if hi > left + TG_LEFT_HIGH_ATR * a:
+        return "mid_base_high"
+    l0 = max(0, s - TG_LEFT_CLEAR)
+    if s > l0 and max(float(x["h"]) for x in b[l0:s]) > hi + TG_LEFT_HIGH_ATR * a:
+        return "under_prior_peak"
+    w0 = max(0, s - TG_ADV_WIN)
+    if s - w0 < 2:
+        return "advance"
+    floor = min(float(x["l"]) for x in b[w0:s])
+    if not floor > 0 or left / floor - 1.0 < TG_MIN_ADV:
+        return "advance"
+    n = base_draw.TREND_N
+    if i - TG_SMA_RISE_BARS - n + 1 < 0:
+        return "trend"
+    s200 = sum(float(x["c"]) for x in b[i - n + 1:i + 1]) / n
+    s200p = sum(float(x["c"]) for x in b[i - TG_SMA_RISE_BARS - n + 1:i - TG_SMA_RISE_BARS + 1]) / n
+    if not (float(b[i]["c"]) > s200 and s200 >= s200p * (1.0 + TG_SMA_RISE)):
+        return "trend"
+    st = ((((row.get("geometry") or {}).get("extras") or {}).get("draw_base")) or {}).get("state")
+    if row.get("pattern_id") == BASE_DRAW_ID and st in (None, "forming"):
+        why = _textbook_base_floors(b, s, e, i, hi, a, lone_high=st is None)
+        if why is not None:
+            return why
+        if st == "forming" and float(b[i]["c"]) < hi * (1.0 - TG3_FORMING_BELOW):
+            return "forming_too_far_below"
+    if st == "forming":
+        m = TG_FORMING_SMA
+        if i + 1 < m or not float(b[i]["c"]) > sum(float(x["c"]) for x in b[i - m + 1:i + 1]) / m:
+            return "forming_under_50"
+    from api.services import deal_status
+    if deal_status.price_pinned(b) is not None:
+        return "pinned"
+    return None
+
+
+#: THE BASE'S OWN FLOORS (lab recert/A_bases round r3): the stateless bc:base drawing -- the judged base with its
+#: "Buy point X" line -- also needs a REAL ceiling and a real stage-2 uptrend. r2's blind judges still named a line
+#: on a lone mid-base spike or wick, a shelf under an older higher peak, a short shelf straight after a parabolic
+#: run, and a flat or barely turning 200-day. The forming state failed its r2 packets on the same criteria and
+#: takes these floors too (r3), plus a right side within TG3_FORMING_BELOW of the pivot. The breakout states keep
+#: r2's gate unchanged (they passed it).
+TG3_WICK_ATR = 0.6          # the region's high at most this many ATR(14) above its highest candle body
+TG3_LONE_ATR = 0.7          # ... and at most this many ATR above its 4th-highest high (not one lone spike)
+TG3_LONE_RANK = 4
+TG3_PRIOR_BARS = 120        # no high in the 120 sessions before the region above its high x (1 + 3%)
+TG3_PRIOR_PCT = 0.03
+TG3_PARA_BARS = 30          # a region shorter than TG3_PARA_MAX_LEN whose left-side high is > 60% above the
+TG3_PARA_RUN = 0.60         # lowest low of the 30 sessions before it is the top of a run, not a base
+TG3_PARA_MAX_LEN = 35
+TG3_MIN_ADV = 0.30          # O'Neil's ~30% prior advance
+TG3_SMA_RISE = 0.01         # the 200-day up >= 1% over 20 sessions ...
+TG3_SMA_RISE_LONG = 60      # ... and above where it stood 60 sessions earlier
+#: a FORMING base (r3, from its r2 packets): the right side within 12% of the pivot, not drifting near the low
+TG3_FORMING_BELOW = 0.12
+
+
+def _textbook_base_floors(b, s, e, i, hi, a, lone_high=True):
+    """The first r3 floor the base fails, or None. `s`/`e` the region, `hi` its high (last bar excluded). The lone-high
+    floor is for the stateless base only: a forming base's left-side high stands above its unfinished right side by
+    construction, so its highest high is ALWAYS alone; its spike test is the wick floor."""
+    body = max(max(float(x["o"]), float(x["c"])) for x in b[s:e])
+    if hi - body > TG3_WICK_ATR * a:
+        return "spike_wick"
+    highs = sorted((float(x["h"]) for x in b[s:e]), reverse=True)
+    if lone_high and hi - highs[min(TG3_LONE_RANK - 1, len(highs) - 1)] > TG3_LONE_ATR * a:
+        return "lone_high"
+    p0 = max(0, s - TG3_PRIOR_BARS)
+    if s > p0 and max(float(x["h"]) for x in b[p0:s]) > hi * (1.0 + TG3_PRIOR_PCT):
+        return "older_higher_peak"
+    r0 = max(0, s - TG3_PARA_BARS)
+    floor = min(float(x["l"]) for x in b[r0:s + 1])
+    if floor > 0 and float(b[s]["h"]) / floor - 1.0 > TG3_PARA_RUN and e - s < TG3_PARA_MAX_LEN:
+        return "after_parabolic_run"
+    w0 = max(0, s - TG_ADV_WIN)
+    lo = min(float(x["l"]) for x in b[w0:s]) if s - w0 >= 2 else 0.0
+    left = max(float(x["h"]) for x in b[s:min(e - 1, s + TG_LEFT_BARS) + 1])
+    if not lo > 0 or left / lo - 1.0 < TG3_MIN_ADV:
+        return "advance"
+    from api.services.pattern_engine import base_draw
+    n = base_draw.TREND_N
+    if i - TG3_SMA_RISE_LONG - n + 1 < 0:
+        return "trend"
+
+    def sma(k):
+        return sum(float(x["c"]) for x in b[k - n + 1:k + 1]) / n
+    if not (sma(i) >= sma(i - TG_SMA_RISE_BARS) * (1.0 + TG3_SMA_RISE) and sma(i) > sma(i - TG3_SMA_RISE_LONG)):
+        return "trend"
+    return None
+
+
+def member_base_textbook_gate(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any TEXTBOOK_GATE_IDS row that fails a textbook floor
+    (`base_textbook_gate_fails`). Members only; order kept; the daily bars are read only when such a row is present,
+    at the last COMPLETE session. Removal only and fail OPEN: unreadable bars or an unreadable row keep the row."""
+    det, st = list(detections or []), list(structures or [])
+    if not any((r or {}).get("pattern_id") in TEXTBOOK_GATE_IDS for r in det + st):
+        return det, st
+    try:
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return det, st
+    except Exception:  # noqa: BLE001 -- removal-only: no bars, nothing removed
+        _log.warning("[auto-structures] textbook gate read failed for %s; base rows kept", sym, exc_info=True)
+        return det, st
+
+    def fails(r):
+        if (r or {}).get("pattern_id") not in TEXTBOOK_GATE_IDS:
+            return False
+        try:
+            return base_textbook_gate_fails(b, r) is not None
+        except Exception:  # noqa: BLE001 -- an unreadable row is kept, as the floor keeps it
+            return False
+
+    return [r for r in det if not fails(r)], [r for r in st if not fails(r)]
+
+
 def shapes_enabled() -> bool:
     """Read PER CALL. AUTO_STRUCTURES_SHAPES_ENABLED (default OFF): when on, structures_for appends the named
     base-shape drawing rows (shape_draw_rows). Off, structures_for is byte-identical to the code before them.

@@ -877,6 +877,9 @@ def get_detections(
                 # the base floor: a dead or ultra-shallow range is not drawn as a base by any member door (bc:base
                 # applies it in its own drawing round; every other member base row here)
                 rows, boxes = auto_structures.member_base_floor(sym, rows, boxes)
+                # the textbook gate (lab recert/A_bases): a member base drawing only where its own region meets the
+                # textbook floors
+                rows, boxes = auto_structures.member_base_textbook_gate(sym, rows, boxes)
                 # a served (stamped) cup outranks a bc:flat-base covering the same base (members only)
                 boxes = auto_structures.member_cup_precedence(boxes)
                 # one breakout line per base: an incumbent member drawing (flat base, flat top, cup)
