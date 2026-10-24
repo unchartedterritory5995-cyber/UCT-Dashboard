@@ -128,7 +128,12 @@ def textbook_numbers_enabled() -> bool:
 #: taken as the buy point, PLSE; a "0% deep" range labelled at all, TECH). A member gets `metrics_textbook`
 #: once AUTO_STRUCTURES_TEXTBOOK_NUMBERS_ENABLED is on; a row whose stamped round differs keeps the confirmed
 #: base metrics label (fail closed). None withholds it from every member again.
-MEMBER_TEXTBOOK_ROUND = 1
+#: 2: RELEASED -- round 2 draws the bc:base top line at the buy point - $0.10 (`metrics_textbook.line`, the base
+#: high) instead of on the highest body, so the line and the printed buy point are one price. It passed a blind
+#: paired check against the round-1 drawing on 2026-10-23 (two packets of 25 cases where the two disagreed by more
+#: than 0.5 ATR, four judges: the round-2 drawing preferred in 100 of 100 judgments, mean score 2.82 and 2.72). The
+#: printed numbers are unchanged from round 1.
+MEMBER_TEXTBOOK_ROUND = 2
 #: The textbook keys a member's row loses while MEMBER_TEXTBOOK_ROUND does not match.
 _TEXTBOOK_KEYS = ("metrics_textbook", "metrics_textbook_round")
 
@@ -1410,6 +1415,40 @@ def daily_atr14(sym: str):
         return None
 
 
+#: The member base rows whose own drawing code is a detector or the base catalog (which must not change: they feed
+#: confidence, history and the screener), so the trend floor is applied to them HERE, on the member path. The
+#: base drawing (bc:base), the double bottom and the shelf pivot apply the same base_draw.trend_ok in their own
+#: drawing code; the cup tier gates on its own rising 200-day.
+MEMBER_TREND_GATED_IDS = frozenset({"flat_base", "bc:flat-base", "uct_flat_top_breakout"})
+
+
+def member_trend_gate(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any MEMBER_TREND_GATED_IDS row while the daily close of `sym` is not above a
+    RISING 200-day average (base_draw.trend_ok): a bullish base under a falling 200-day is a pause in a
+    downtrend, not a base to buy. The daily bars are read only when such a row is present, and the trend is read
+    at the last COMPLETE session (a forming bar is dropped, as base_draw_row does), so a live price crossing the
+    average cannot blink these rows on and off or disagree with the other base layers on the same chart. Too
+    short a history (under 220 sessions) drops them; a bar READ ERROR or an EMPTY read keeps them (the gate only
+    removes what it can show is a downtrend, and a store outage must not blank every base on the site). Every
+    other row is untouched. Members only; order kept."""
+    det, st = list(detections or []), list(structures or [])
+    if not any((r or {}).get("pattern_id") in MEMBER_TREND_GATED_IDS for r in det + st):
+        return det, st
+    try:
+        from api.services.pattern_engine import base_draw
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        ok = base_draw.trend_ok([float(x["c"]) for x in b], len(b) - 1) if b else True
+    except Exception:  # noqa: BLE001 -- unknown is not a downtrend: the rows stay as they were
+        _log.warning("[auto-structures] trend read failed for %s; base rows left ungated", sym, exc_info=True)
+        ok = True
+    if ok:
+        return det, st
+    keep = [r for r in det if (r or {}).get("pattern_id") not in MEMBER_TREND_GATED_IDS]
+    return keep, [r for r in st if (r or {}).get("pattern_id") not in MEMBER_TREND_GATED_IDS]
+
+
 def member_one_line_per_base(detections, structures, atr=None) -> tuple:
     """(detections, structures) with at most ONE drawn breakout line per base. Applied on the MEMBER path
     only, after member_rows, the freshness filter and the pairwise precedences.
@@ -2321,6 +2360,11 @@ def sr_served_prices(rows) -> list:
                 vals = [p] if _finite(p) else []
             else:
                 vals, _span = _row_lines(r)
+                # textbook round 2: a bc:base row whose numbers carry `line` draws its top line THERE (the buy
+                # point - $0.10), not on draw_base.pivot. Added beside the body pivot, so S/R keeps clear of both.
+                tl = (ex.get("metrics_textbook") or {}).get("line") if r.get("pattern_id") == BASE_DRAW_ID else None
+                if _finite(tl):
+                    vals = list(vals) + [tl]
         except Exception:  # noqa: BLE001 -- a row whose lines cannot be read suppresses nothing (as the lab)
             continue
         for v in vals:
