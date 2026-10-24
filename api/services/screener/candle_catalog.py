@@ -43,6 +43,19 @@ DRAGONFLY_BODY = 0.01    # ⭐ tightened so 1-3% bodies fall through to the
 MARUBOZU_BODY = 0.90
 SPINNING_BODY = 0.30
 HIGH_WAVE_SHADOW_MULT = 3.0   # CandleScanner: shadows >= 3x body
+# R2-F9 location: a reversal must print AT the extreme of the move it reverses (Nison: "after a decline" --
+# the hammer ends the decline; a hammer inside a range after a 2-bar dip is not at a bottom).
+EXTREME_LOOK = 10            # bars before the pattern
+EXTREME_BAND_ATR = 0.25      # the pattern extreme may sit this far inside the prior 10-bar extreme
+SMALL_SECOND_BODY = 0.5      # R2-F2 harami family: the second body is SMALL -- <= half the mother body
+# R2-F14: a trend has MAGNITUDE, not just a slope. The close before the pattern must sit at least MOVE_ATR x ATR
+# beyond the close MOVE_LOOK sessions earlier, in the trend's direction (Nison: a pattern needs a trend to reverse
+# or continue; a 3-bar EMA drift in a flat base is not one). Chosen on development sessions only (2023-06..2025-05).
+MOVE_LOOK = 10
+MOVE_ATR = 2.0
+THRUST_MIN_DEPTH = 0.25      # R2-F15: thrusting closes WELL into the body; 0..0.25 is Nison's in-neck
+#: R2-F14: neutral patterns whose predicate requires an up/down trend (their registry trend is None).
+TREND_CONTEXT_KEYS = frozenset({'harami-cross', 'tri-star', 'separating-lines'})
 
 # ── data-quality preconditions ─────────────────────────────────────────────
 # ⛔ NONE OF THESE EXIST IN TA-LIB. Verified in source: `ta_func/` has no
@@ -54,6 +67,17 @@ HIGH_WAVE_SHADOW_MULT = 3.0   # CandleScanner: shadows >= 3x body
 MIN_RANGE_TICKS = 4
 MIN_RANGE_PCT = 0.005    # range must be >= 0.5% of close
 MIN_HISTORY = 20
+
+#: ⭐ THE CANDLE RULES ROUND. The geometry below is round 2 of the textbook audit (2026-10-24): the "R2-Fn"
+#: tags mark each rule it added (a reversal at the extreme of a real move, long/small body sizes, colour
+#: orders and gaps the textbook names). Round 2 passed its blind packets (two packets of 25 held-out charts,
+#: two blind judges each: 2.54 / 88% and 2.36 / 88% scored >= 2 against a 2.3 / 70% bar); round 1 failed
+#: one packet. auto_structures.MEMBER_CANDLE_ROUND is the hand-set literal a member surface checks against
+#: this stamp (fail closed). Change it ONLY with a new blind round.
+#: ⛔ THE LABELS DESCRIBE, THEY DO NOT FORECAST. The same audit measured every label against random bars
+#: of the same date and trend context (600 stocks, 2016-2026): none carries a usable edge. No score, no
+#: probability and no signal language may reach a member (a test pins the vocabulary).
+CANDLE_RULES_ROUND = 2
 
 
 def tick_size(price: float) -> float:
@@ -153,10 +177,17 @@ def classify_shape(x: BarCtx) -> str:
     # the old code printed "hammer" for both and carried the WRONG SIGN roughly
     # half the time, which is worse than printing nothing.
     if x.lower_pct >= 2 * x.body_pct and x.upper_pct <= NEAR_ZERO_WICK:
-        return {"down": "hammer", "up": "hanging-man"}.get(x.trend, "umbrella")
+        if x.trend == "down" and _at_extreme(x, 1, True) and _move_ok(x, 1, "down"):      # R2-F9, F14
+            return "hammer"
+        if x.trend == "up" and _at_extreme(x, 1, False) and _move_ok(x, 1, "up"):
+            return "hanging-man"
+        return "umbrella"
     if x.upper_pct >= 2 * x.body_pct and x.lower_pct <= NEAR_ZERO_WICK:
-        return {"down": "inverted-hammer",
-                "up": "shooting-star"}.get(x.trend, "inverted-umbrella")
+        if x.trend == "down" and _at_extreme(x, 1, True) and _move_ok(x, 1, "down"):      # R2-F9, F14
+            return "inverted-hammer"
+        if x.trend == "up" and _at_extreme(x, 1, False) and _move_ok(x, 1, "up"):
+            return "shooting-star"
+        return "inverted-umbrella"
 
     # 3. the remaining doji bodies. By elimination these are two-sided: a
     # one-sided tail was already taken by dragonfly/gravestone above or by the
@@ -167,16 +198,19 @@ def classify_shape(x: BarCtx) -> str:
         return "doji"
 
     # 4. marubozu — a body that is nearly the whole range.
-    if x.body_pct >= MARUBOZU_BODY:
+    # R2-F1: Nison's marubozu is a LONG body with no shadows; a short bar with no shadows is not one.
+    if x.body_pct >= MARUBOZU_BODY and x.long_body:
         return "white-marubozu" if x.up else "black-marubozu"
 
     # 5. belt hold — opens at its extreme and runs. Strictly more general than
     # marubozu (Morris, Bulkowski and TA-Lib all omit any gap requirement), so
     # it is tested AFTER it. Needs a trend to oppose, like the umbrellas.
     if x.long_body:
-        if x.up and x.lower_pct <= 0.02 and x.trend == "down":
+        if (x.up and x.lower_pct <= 0.02 and x.trend == "down" and _at_extreme(x, 1, True)
+                and _move_ok(x, 1, "down")):                                           # R2-F9, F14
             return "bullish-belt-hold"
-        if not x.up and x.upper_pct <= 0.02 and x.trend == "up":
+        if (not x.up and x.upper_pct <= 0.02 and x.trend == "up" and _at_extreme(x, 1, False)
+                and _move_ok(x, 1, "up")):
             return "bearish-belt-hold"
 
     # 6. small-bodied indecision. High wave separates from spinning top at
@@ -202,6 +236,50 @@ def _plain(x: BarCtx) -> str:
     if x.short_body:
         return "short-white" if x.up else "short-black"
     return "white-candle" if x.up else "black-candle"
+
+
+def _at_extreme(ctx, n, bullish) -> bool:
+    """R2-F9. The pattern's n bars hold the lowest low (bullish) / highest high (bearish) of themselves plus the
+    EXTREME_LOOK bars before them, within EXTREME_BAND_ATR x ATR. Reads only bars <= the newest bar."""
+    bs = ctx.bars
+    if len(bs) < n + EXTREME_LOOK:
+        return False
+    pat, prior = bs[-n:], bs[-n - EXTREME_LOOK:-n]
+    band = EXTREME_BAND_ATR * ctx.atr
+    if bullish:
+        return min(x["l"] for x in pat) <= min(x["l"] for x in prior) + band
+    return max(x["h"] for x in pat) >= max(x["h"] for x in prior) - band
+
+
+def _move_ok(ctx, n, trend) -> bool:
+    """R2-F14. The close of the bar BEFORE the pattern's first bar is >= MOVE_ATR x ATR beyond the close MOVE_LOOK
+    sessions before that, in the direction of ``trend``. Reads only bars <= the newest bar."""
+    bs = ctx.bars
+    if trend not in ("up", "down") or len(bs) < n + 1 + MOVE_LOOK or not ctx.atr:
+        return False
+    d = bs[-n - 1]["c"] - bs[-n - 1 - MOVE_LOOK]["c"]
+    return d >= MOVE_ATR * ctx.atr if trend == "up" else d <= -MOVE_ATR * ctx.atr
+
+
+def context_ok(p, ctx) -> bool:
+    """The ONE place context rules are applied to relations.
+    R2-F9: a directional REVERSAL that names a prior trend must print at that trend's extreme.
+    R2-F14: every pattern whose definition names a trend (or, for the neutral trend-context keys, reads one) needs a
+    trend with magnitude. Patterns with no trend requirement (kicking, hikkake) are untouched."""
+    if p.trend is not None:
+        if not _move_ok(ctx, p.bars, p.trend):
+            return False
+    elif p.key in TREND_CONTEXT_KEYS:
+        if not _move_ok(ctx, p.bars, ctx.trend):
+            return False
+    if p.kind != "reversal" or p.bias not in ("bullish", "bearish") or p.trend is None:
+        return True
+    return _at_extreme(ctx, p.bars, p.bias == "bullish")
+
+
+def _long(ctx, x) -> bool:
+    """R2-F3/F11: a 'long' body in a relation -- at least the rolling average body (TA-Lib BodyLong, factor 1)."""
+    return bool(ctx.avg_body) and _b(x) >= ctx.avg_body
 
 
 # ── bar helpers (a "relation" reads raw neighbour bars, not ctx fractions) ──
@@ -284,7 +362,8 @@ def _harami(ctx, bullish: bool):
         return False
     if _b(p) < ctx.avg_body:                   # the mother bar must be long
         return False
-    return _hi(cur) <= _hi(p) and _lo(cur) >= _lo(p) and _b(cur) < _b(p)
+    return (_hi(cur) <= _hi(p) and _lo(cur) >= _lo(p) and _b(cur) < _b(p)
+            and _b(cur) <= SMALL_SECOND_BODY * _b(p))          # R2-F2
 
 
 def d_bull_harami(ctx):
@@ -322,7 +401,7 @@ def d_piercing(ctx):
     """
     p, depth = _pierce_depth(ctx)
     cur = ctx.bars[-1]
-    if p is None or _up(p) or not _up(cur) or not _nontrivial(ctx, p):
+    if p is None or _up(p) or not _up(cur) or not _nontrivial(ctx, p) or not _long(ctx, p):   # R2-F3
         return False
     return (ctx.trend == "down" and cur["o"] < p["l"]
             and depth > 0.5 and cur["c"] < p["o"])
@@ -331,7 +410,7 @@ def d_piercing(ctx):
 def d_dark_cloud(ctx):
     p, depth = _pierce_depth(ctx)
     cur = ctx.bars[-1]
-    if p is None or not _up(p) or _up(cur) or not _nontrivial(ctx, p):
+    if p is None or not _up(p) or _up(cur) or not _nontrivial(ctx, p) or not _long(ctx, p):   # R2-F3
         return False
     return (ctx.trend == "up" and cur["o"] > p["h"]
             and depth > 0.5 and cur["c"] > p["o"])
@@ -342,16 +421,16 @@ def d_thrusting(ctx):
     midpoint. Non-strict, so it owns the exact-50% tie."""
     p, depth = _pierce_depth(ctx)
     cur = ctx.bars[-1]
-    if p is None or _up(p) or not _up(cur) or not _nontrivial(ctx, p):
+    if p is None or _up(p) or not _up(cur) or not _nontrivial(ctx, p) or not _long(ctx, p):   # R2-F3
         return False
     return (ctx.trend == "down" and cur["o"] < p["l"]
-            and 0 < depth <= 0.5)
+            and THRUST_MIN_DEPTH <= depth <= 0.5)                     # R2-F15: shallower is in-neck
 
 
 def d_on_neck(ctx):
     p = _prev(ctx)
     cur = ctx.bars[-1]
-    if p is None or _up(p) or not _up(cur):
+    if p is None or _up(p) or not _up(cur) or not _long(ctx, p):                             # R2-F3
         return False
     return ctx.trend == "down" and cur["o"] < p["l"] and _eq(ctx, cur["c"], p["l"])
 
@@ -360,19 +439,22 @@ def d_tweezer_top(ctx):
     p = _prev(ctx)
     if p is None:
         return False
-    return ctx.trend == "up" and _eq(ctx, ctx.bars[-1]["h"], p["h"])
+    cur = ctx.bars[-1]
+    # R2-F8: the second session REJECTS the level (closes black after a white) -- Morris/Bulkowski; location R2-F9.
+    return ctx.trend == "up" and _eq(ctx, cur["h"], p["h"]) and _up(p) and not _up(cur)
 
 
 def d_tweezer_bottom(ctx):
     p = _prev(ctx)
     if p is None:
         return False
-    return ctx.trend == "down" and _eq(ctx, ctx.bars[-1]["l"], p["l"])
+    cur = ctx.bars[-1]
+    return ctx.trend == "down" and _eq(ctx, cur["l"], p["l"]) and not _up(p) and _up(cur)   # R2-F8
 
 
 def _marubozu_like(ctx, x, bullish):
     r = _r(x)
-    if r <= 0 or _b(x) / r < MARUBOZU_BODY:
+    if r <= 0 or _b(x) / r < MARUBOZU_BODY or not _long(ctx, x):       # R2-F1: a marubozu is LONG
         return False
     return _up(x) == bullish
 
@@ -411,7 +493,8 @@ def d_homing_pigeon(ctx):
     if p is None or _up(p) or _up(cur) or not _nontrivial(ctx, p):
         return False
     return (ctx.trend == "down" and _hi(cur) <= _hi(p) and _lo(cur) >= _lo(p)
-            and _b(cur) < _b(p))
+            and _b(cur) < _b(p) and _long(ctx, p)
+            and _b(cur) <= SMALL_SECOND_BODY * _b(p))                     # R2-F2
 
 
 def d_separating_lines(ctx):
@@ -422,8 +505,11 @@ def d_separating_lines(ctx):
     # ⚠️ THE LONG SECOND BODY IS PART OF THE DEFINITION, not a strength filter:
     # without it every opposite-coloured bar that happens to open where the last
     # one did qualifies, and the pattern fires on ordinary chop.
-    return (_up(p) != _up(cur) and _eq(ctx, cur["o"], p["o"])
-            and _b(cur) >= ctx.avg_body and ctx.trend in ("up", "down"))
+    # R2-F4: Nison -- in an UPtrend a black bar then a white bar opening at the same price (bullish
+    # continuation); in a DOWNtrend white then black. The colour order must agree with the trend.
+    order_ok = ((ctx.trend == "up" and not _up(p) and _up(cur))
+                or (ctx.trend == "down" and _up(p) and not _up(cur)))
+    return order_ok and _eq(ctx, cur["o"], p["o"]) and _b(cur) >= ctx.avg_body
 
 
 # ── three-bar and longer relations ─────────────────────────────────────────
@@ -497,6 +583,8 @@ def _abandoned(ctx, bullish):
         return False
     if not _b(b2) <= max(DOJI_BODY * _r(b2), ctx.tick):
         return False
+    if not _long(ctx, b1):                     # R2-F18 (Nison): the abandoned baby is a doji STAR -- bar 1 is long
+        return False
     if bullish:
         return (_shadow_gap_dn(ctx, b1, b2) and _shadow_gap_up(ctx, b2, b3)
                 and not _up(b1) and _up(b3) and ctx.trend == "down")
@@ -536,14 +624,14 @@ def _three_run(ctx, bullish):
 
 def d_identical_three_crows(ctx):
     b = _three_run(ctx, False)
-    if b is None or ctx.trend != "up":
+    if b is None or ctx.trend != "up" or not all(_long(ctx, x) for x in b):       # R2-F16
         return False
     return _eq(ctx, b[1]["o"], b[0]["c"]) and _eq(ctx, b[2]["o"], b[1]["c"])
 
 
 def d_three_white_soldiers(ctx):
     b = _three_run(ctx, True)
-    if b is None or ctx.trend != "down":
+    if b is None or ctx.trend != "down" or not all(_long(ctx, x) for x in b):     # R2-F11
         return False
     far = 0.60 * ctx.avg_range5
     for x in b:
@@ -556,7 +644,7 @@ def d_three_white_soldiers(ctx):
 
 def d_three_black_crows(ctx):
     b = _three_run(ctx, False)
-    if b is None or ctx.trend != "up":
+    if b is None or ctx.trend != "up" or not all(_long(ctx, x) for x in b):       # R2-F11
         return False
     for x in b:
         if (x["c"] - x["l"]) > 0.25 * _r(x):
@@ -591,7 +679,8 @@ def _inside_pair(ctx, bullish):
     a, b = _prev(ctx, 2), _prev(ctx, 1)
     if a is None or b is None or _b(a) < ctx.avg_body or _up(a) == bullish:
         return False
-    return _hi(b) <= _hi(a) and _lo(b) >= _lo(a) and _b(b) < _b(a)
+    return (_hi(b) <= _hi(a) and _lo(b) >= _lo(a) and _b(b) < _b(a)
+            and _b(b) <= SMALL_SECOND_BODY * _b(a))                       # R2-F2
 
 
 def _outside_pair(ctx, bullish):
@@ -632,7 +721,12 @@ def d_tri_star(ctx):
         r = _r(x)
         if not (r > 0 and _b(x) / r <= DOJI_BODY):
             return False
-    return ctx.trend in ("up", "down")
+    # R2-F5: Nison -- the MIDDLE doji is a star: it gaps above both neighbours at a top, below both at a bottom.
+    if ctx.trend == "up":
+        return _body_gap_up(ctx, bs[0], bs[1]) and _body_gap_dn(ctx, bs[1], bs[2])
+    if ctx.trend == "down":
+        return _body_gap_dn(ctx, bs[0], bs[1]) and _body_gap_up(ctx, bs[1], bs[2])
+    return False
 
 
 def d_stick_sandwich(ctx):
@@ -647,8 +741,10 @@ def d_two_crows(ctx):
     b1, b2, b3 = _prev(ctx, 2), _prev(ctx, 1), ctx.bars[-1]
     if b1 is None or b2 is None:
         return False
+    # R2-F7 (Morris two crows): bar 3 OPENS inside bar 2's body and CLOSES inside bar 1's white body.
     return (_up(b1) and _b(b1) >= ctx.avg_body and not _up(b2) and not _up(b3)
-            and _body_gap_up(ctx, b1, b2) and _lo(b1) < b3["c"] < _hi(b2)
+            and _body_gap_up(ctx, b1, b2) and _lo(b2) <= b3["o"] <= _hi(b2)
+            and _lo(b1) < b3["c"] < _hi(b1)
             and ctx.trend == "up")
 
 
@@ -667,9 +763,12 @@ def _three_methods(ctx, bullish):
     if _up(b1) != bullish or _b(b1) < ctx.avg_body:
         return False
     for m in mids:
-        if m["h"] > b1["h"] or m["l"] < b1["l"] or _b(m) >= _b(b1):
+        if m["h"] > b1["h"] or m["l"] < b1["l"] or _b(m) > SMALL_SECOND_BODY * _b(b1):   # R2-F17: SMALL bodies
             return False
     if _up(b5) != bullish or _b(b5) < ctx.avg_body * SHORT_BODY_MULT:
+        return False
+    # R2-F13 (Nison): the final bar opens beyond the prior close, in the trend's direction.
+    if (b5["o"] <= mids[-1]["c"]) if bullish else (b5["o"] >= mids[-1]["c"]):
         return False
     return b5["c"] > b1["c"] if bullish else b5["c"] < b1["c"]
 
@@ -689,7 +788,8 @@ def _tasuki(ctx, bullish):
         return False
     inside = _lo(b2) < b3["o"] < _hi(b2)
     # ⭐ THE GAP MUST SURVIVE — a filled gap is not a tasuki.
-    holds = b3["c"] > _hi(b1) if bullish else b3["c"] < _lo(b1)
+    # R2-F6 (Nison): and bar 3 must close INTO the gap -- below bar 2's body (upside), above it (downside).
+    holds = (_hi(b1) < b3["c"] < _lo(b2)) if bullish else (_hi(b2) < b3["c"] < _lo(b1))
     return inside and holds
 
 
@@ -905,9 +1005,8 @@ RELATIONS = [
     Pattern("three-black-crows", "Three Black Crows", "relation", 3,
             "bearish", "reversal", 17, detect=d_three_black_crows, trend="up",
             desc="Three straight down bars, each opening inside the last body and "
-                 "each closing near its low. Steady, orderly distribution — the "
-                 "one pattern that measures strong on reliability, performance and "
-                 "sample size at once."),
+                 "each closing near its low. Steady, orderly selling after an "
+                 "advance."),
     Pattern("three-white-soldiers", "Three White Soldiers", "relation", 3,
             "bullish", "reversal", 18, detect=d_three_white_soldiers, trend="down",
             desc="Three straight up bars, each opening inside the last body and "
@@ -935,7 +1034,7 @@ RELATIONS = [
     Pattern("tri-star", "Tri-Star", "relation", 3,
             "neutral", "reversal", 26, detect=d_tri_star,
             desc="Three dojis in a row. Three consecutive sessions that could not "
-                 "settle on a direction — unusual enough to be worth a look."),
+                 "settle on a direction."),
     Pattern("two-crows", "Two Crows", "relation", 3,
             "bearish", "reversal", 27, detect=d_two_crows, trend="up",
             desc="A long up bar, a down bar gapping above it, then a second down "
@@ -966,7 +1065,7 @@ RELATIONS = [
             "bullish", "reversal", 33, detect=d_hikkake_bull_confirmed,
             desc="A downside break out of an inside bar that trapped sellers, and "
                  "the close has now taken back the inside bar's HIGH. The trap has "
-                 "sprung — this is the state a hikkake trader acts on."),
+                 "sprung."),
     Pattern("hikkake-bear-confirmed", "Hikkake Confirmed (Bear)", "relation", 6,
             "bearish", "reversal", 34, detect=d_hikkake_bear_confirmed,
             desc="An upside break out of an inside bar that trapped buyers, and the "
@@ -1050,7 +1149,7 @@ RELATIONS = [
             desc="Opens below the prior low and closes right back at that low — the "
                  "bounce reached exactly the old floor and stopped."),
     Pattern("matching-low", "Matching Low", "relation", 2,
-            "bullish", "reversal", 59, detect=d_matching_low,
+            "bullish", "reversal", 59, detect=d_matching_low, trend="down",   # R2-F12
             desc="Two down bars closing at effectively the same price. A floor that "
                  "has now been tested twice on a closing basis."),
     Pattern("homing-pigeon", "Homing Pigeon", "relation", 2,
