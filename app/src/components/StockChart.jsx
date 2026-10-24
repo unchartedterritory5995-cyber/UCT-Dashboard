@@ -6158,17 +6158,19 @@ export default function StockChart({
   const [showLearnedLines, setShowLearnedLines] = useState(true)
   const {
     detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus,
-    levelsSr: patternLevelsSr, candleMarks: patternCandleMarks,
+    levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupDraws: patternSetupDraws,
   } = usePatternDetections(
     sym, resolvedTf, patternsFetch, 50,
     { includeStructures: autoStructuresScope === 'trusted' || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
   )
   const setupsReleased = useSetupsPanelReleased()
   const uctIntelAvailability = layerAvailability({
-    levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupsReleased,
+    levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupsReleased, setupDraws: patternSetupDraws,
   })
   const uctIntelLayers = effectiveLayers(cs, uctIntelAvailability)
-  const uctIntelSetups = useChartSetups(sym, uctIntelOn && uctIntelLayers.setups)
+  // The confirmed-setup LIST is the Technical tab's, released with it; the setup-drawing lines can light the same
+  // toggle on their own, and must not pull a list that is not released to this viewer.
+  const uctIntelSetups = useChartSetups(sym, uctIntelOn && uctIntelLayers.setups && setupsReleased === true)
   const handleUctIntelLayer = useCallback((key, value) => {
     if (key === 'autoPatterns') { handleTogglePatterns(value); return }
     const next = setUctIntelligenceLayer(cs, key, value)
@@ -20327,6 +20329,8 @@ export default function StockChart({
           dealStatus={autoStructuresScope != null ? patternDealStatus : null}
           levelsSr={autoStructuresScope != null ? patternLevelsSr : null}
           showLevelsSr={uctIntelLayers.supportResistance}
+          setupDraws={autoStructuresScope != null ? patternSetupDraws : null}
+          showSetupDraws={uctIntelOn && uctIntelLayers.setups}
           enabled={patternsActive}
           showDealStatus={uctIntelOn}
           showLabels={uctIntelLayers.labels}
@@ -20350,6 +20354,7 @@ export default function StockChart({
           onSetLayer={handleUctIntelLayer}
           onRemove={handleUctIntelRemove}
           setups={uctIntelSetups}
+          setupsList={setupsReleased === true}
           admin={autoStructuresScope === 'all' ? {
             showAll: showAllDrawings, onShowAll: setShowAllDrawings,
             showLevels: showPatternLevels, onShowLevels: setShowPatternLevels,

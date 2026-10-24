@@ -53,12 +53,17 @@ _RECLAIM_LAG = 3                        # close back above within 1-3 bars
 _MIN_PRIOR_ADVANCE_PCT = 0.30           # 30%+ prior advance required (O'Neil)
 _PRIOR_ADVANCE_LOOKBACK = 120           # search up to 120 bars back
 _CONFIDENCE_FLOOR = 50.0
+#: History declared to the scan (registry `min_bars`): exactly this detector's
+#: own length gate below. The scan's base depth (200) is under it, so without
+#: the declaration the detector never fired in the daily scan. Every window it
+#: reads (50 SMA + 20-bar slope, 120-bar prior advance) fits inside it.
+MIN_BARS = _SMA_PERIOD * 3 + _PRIOR_ADVANCE_LOOKBACK // 2
 
 
 def detect_pullback_to_50sma(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect O'Neil's 'second buy point' pullback-to-50-SMA. Emits 0 or 1 detection."""
     n = len(bars)
-    if n < _SMA_PERIOD * 3 + _PRIOR_ADVANCE_LOOKBACK // 2:
+    if n < MIN_BARS:
         return []
 
     if context.get("trend_stage") != 2:
@@ -557,4 +562,4 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
     }
 
 
-register(_PATTERN_ID, detect_pullback_to_50sma)
+register(_PATTERN_ID, detect_pullback_to_50sma, min_bars=MIN_BARS)
