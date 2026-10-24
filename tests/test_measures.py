@@ -213,6 +213,7 @@ def test_small_sample_hide_and_badge():
     assert small_sample(p, MeasureValue(1.5, 19, None)) == "hide"
     assert small_sample(p, MeasureValue(1.5, 20, None)) == ""
     assert all(MEASURES[k].min_n == 5 for k in MEASURES if k != "payoff")
+    assert measures.PAYOFF_MIN_N is metrics_registry._MIN_DECISIVE
 
 
 def test_streaks():
@@ -270,7 +271,54 @@ def test_every_measure_is_well_formed():
         assert m.theme in ("results", "winloss", "risk", "time", "process")
         assert m.unit in ("trades", "decisive", "days", "entries")
         assert m.kind in ("sum", "count", "rate", "average", "extreme")
-        assert m.sources and isinstance(m.sources, frozenset)
+        assert isinstance(m.sources, frozenset)
+        if k == "avg_true_r":
+            assert m.sources == frozenset(), "avg_true_r is parity-only, offered by no source"
+        else:
+            assert m.sources, f"{k} has no source"
         mv = m.fn([])
         assert isinstance(mv, MeasureValue) and mv.n == 0
     assert measures.PF_CAP == PF_CAP
+
+
+def test_r10_source_assignments():
+    """Ruling R-10: avg_true_r is parity-only (no source); average day P&L and green-day % are
+    trading-days measures; every other measure reads closed trades."""
+    days = {"avg_day_pnl", "green_day_pct"}
+    for k, m in MEASURES.items():
+        if k == "avg_true_r":
+            want = frozenset()
+        elif k in days:
+            want = frozenset({"trading_days"})
+        else:
+            want = frozenset({"closed_trades"})
+        assert m.sources == want, k
+    for k in ("days_traded", "profitable_days", "profitable_days_pct"):
+        assert MEASURES[k].sources == frozenset({"closed_trades"}), k
+    # no source offers two measures that compute the same number
+    all_sources = set().union(*(m.sources for m in MEASURES.values()))
+    assert all_sources == {"closed_trades", "trading_days"}
+    for src in all_sources:
+        fns = [m.fn for m in MEASURES.values() if src in m.sources]
+        assert len(fns) == len(set(fns)), src
+
+
+def test_streaks_without_decisive_trades_are_absent():
+    be_only = [_row(0.0, "BE"), _row(0.0, "BE")]
+    for k in ("max_win_streak", "max_loss_streak", "current_streak"):
+        mv = MEASURES[k].fn(be_only)
+        assert mv.value is None and mv.n == 2, k
+    assert MEASURES["max_win_streak"].fn([]).value is None
+    # decisive trades but no wins: a real 0, not absent
+    losses = [_row(-1.0, "Loss"), _row(-1.0, "Loss")]
+    assert MEASURES["max_win_streak"].fn(losses).value == 0.0
+    assert MEASURES["max_loss_streak"].fn(losses).value == 2.0
+
+
+def test_net_pnl_reads_only_net():
+    rows = [{"net": 10.0, "gross": float("nan"), "fees": float("nan"), "result": "Win",
+             "r": None, "hold_days": 1, "day": "2026-03-02"},
+            _row(5.0)]
+    assert MEASURES["net_pnl"].fn(rows).value == pytest.approx(15.0)
+    assert MEASURES["gross_pnl"].fn(rows).value is None
+    assert MEASURES["fees"].fn(rows).value is None

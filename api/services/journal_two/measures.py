@@ -25,6 +25,7 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Iterable, Literal, NamedTuple
 
+from api.services.journal_two.metrics_registry import _MIN_DECISIVE
 from api.services.journal_two.notebook_widgets import _num
 
 #: Profit factor is capped here and displayed "5+" at the cap.
@@ -33,12 +34,16 @@ PF_CAP = 5.0
 SMALL_SAMPLE_N = 20
 #: The default per-measure minimum; under it the value is replaced by "Not enough trades yet".
 DEFAULT_MIN_N = 5
-#: `payoff`'s own minimum: `metrics_registry._MIN_DECISIVE` (its payoff_kelly gate). Restated as a
-#: literal so this module imports no SQL; `tests/test_measures.py` pins the two equal.
-PAYOFF_MIN_N = 20
+#: `payoff`'s own minimum IS `metrics_registry._MIN_DECISIVE` (its payoff_kelly gate), imported
+#: rather than restated so the two can never disagree.
+PAYOFF_MIN_N = _MIN_DECISIVE
 
 _SOURCES = frozenset({"closed_trades"})
-_DOLLARS = ("net", "gross", "fees")
+#: Trading-days rows are one per ET session `{day, net}`, `net` being the day net incl. options.
+_DAYS_SOURCE = frozenset({"trading_days"})
+#: Kept for metrics_registry parity only; no data choice offers it (ruling R-10: it is the same
+#: number as `expectancy_r`, and one source must never list two measures with one function).
+_NO_SOURCE: frozenset[str] = frozenset()
 
 Theme = Literal["results", "winloss", "risk", "time", "process"]
 Unit = Literal["trades", "decisive", "days", "entries"]
@@ -145,7 +150,7 @@ def _div(a: float, b: float):
 # Each mirrors `metrics_registry.build_vocabulary` where the key is one of its 16.
 
 def _net_pnl(rows):
-    if _poisoned(rows, _DOLLARS):
+    if _poisoned(rows, ("net",)):
         return _mv(None, len(rows))
     return _mv(round(sum(_f(r.get("net")) for r in rows), 2), len(rows))
 
@@ -305,14 +310,20 @@ def _runs(rows) -> list[tuple[str, int]]:
     return out
 
 
+def _decisive(rows) -> bool:
+    return any(r.get("result") in ("Win", "Loss") for r in rows)
+
+
 def _max_win_streak(rows):
     runs = _runs(rows)
-    return _mv(float(max((k for res, k in runs if res == "Win"), default=0)), len(rows))
+    return _mv(max((float(k) for res, k in runs if res == "Win"), default=0.0)
+               if _decisive(rows) else None, len(rows))
 
 
 def _max_loss_streak(rows):
     runs = _runs(rows)
-    return _mv(float(max((k for res, k in runs if res == "Loss"), default=0)), len(rows))
+    return _mv(max((float(k) for res, k in runs if res == "Loss"), default=0.0)
+               if _decisive(rows) else None, len(rows))
 
 
 def _current_streak(rows):
@@ -327,8 +338,10 @@ def _current_streak(rows):
 
 # ── the catalog ────────────────────────────────────────────────────────────────────────────────
 
-def _m(key, label, theme, meaning, unit, kind, fn, *, min_n=DEFAULT_MIN_N, needs=()):
-    return Measure(key, label, theme, meaning, unit, kind, min_n, tuple(needs), _SOURCES, fn)
+def _m(key, label, theme, meaning, unit, kind, fn, *, min_n=DEFAULT_MIN_N, needs=(),
+       sources=_SOURCES):
+    return Measure(key, label, theme, meaning, unit, kind, min_n, tuple(needs),
+                   frozenset(sources), fn)
 
 
 MEASURES: dict[str, Measure] = {m.key: m for m in [
@@ -367,7 +380,7 @@ MEASURES: dict[str, Measure] = {m.key: m for m in [
        "days", "count", _profitable_days),
     _m("avg_true_r", "Average R", "risk",
        "Average result in R, over the trades whose R is known.",
-       "trades", "average", _avg_r, needs=("r",)),
+       "trades", "average", _avg_r, needs=("r",), sources=_NO_SOURCE),
     _m("max_drawdown", "Max drawdown", "risk",
        "Deepest drop of your running P&L from its high, by day.",
        "trades", "extreme", _max_drawdown),
@@ -397,8 +410,8 @@ MEASURES: dict[str, Measure] = {m.key: m for m in [
        "trades", "extreme", _current_streak),
     _m("avg_day_pnl", "Average day P&L", "time",
        "Average net P&L of a day with trades.",
-       "days", "average", _avg_day_pnl),
+       "days", "average", _avg_day_pnl, sources=_DAYS_SOURCE),
     _m("green_day_pct", "Green day %", "time",
        "Share of days with trades that ended green.",
-       "days", "rate", _profitable_days_pct),
+       "days", "rate", _profitable_days_pct, sources=_DAYS_SOURCE),
 ]}
