@@ -1498,21 +1498,10 @@
         "views": [
           "list"
         ]
-      },
-      {
-        "reason": "then_table_only",
-        "test": "no_then",
-        "views": [
-          "number",
-          "compare",
-          "bar",
-          "line",
-          "scatter",
-          "heat",
-          "list",
-          "progress"
-        ]
       }
+    ],
+    "thenViews": [
+      "table"
     ]
   },
   "views": [

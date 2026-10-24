@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import WidgetBuilderSheet, {
   PREVIEW_DEBOUNCE_MS, STALE_DRAFT, SAVED_NOT_PLACED, SAVED_COPY_SENTENCE, KEEP_FAILED, KEEP_QUESTION, isTextControl,
+  SAVED_NOT_IN_NOTE,
 } from './WidgetBuilderSheet'
 import { ANNOUNCE_DELAY_MS, SAMPLE_LABEL } from './PreviewPane'
 import { DRAFT_PREFIX } from './builderDraft'
@@ -224,7 +225,7 @@ describe('Task 8.15 fix 1', () => {
     const open = screen.getByRole('radio', { name: 'Open positions' })
     expect(closed).toHaveAttribute('tabindex', '0')
     expect(open).toHaveAttribute('tabindex', '-1')
-    closed.focus()
+    act(() => closed.focus())
     fireEvent.keyDown(closed, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(open)
     expect(closed).toHaveAttribute('aria-checked', 'true')                       // nothing reset
@@ -258,7 +259,13 @@ describe('Task 8.15 fix 1', () => {
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Mine now' } })
       fireEvent.click(saveButton())
       await flush()
-      expect(onClose).toHaveBeenCalled()                    // saved...
+      // R-39: saved, and the member is TOLD it is no longer in this note; the sheet stays to say so.
+      expect(screen.getByRole('alert')).toHaveTextContent(SAVED_NOT_IN_NOTE)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(saveButton()).toHaveTextContent('Close')
+      fireEvent.click(saveButton())
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(callsTo(fetchSpy, 'PUT', () => true).length).toBeGreaterThan(0)
       unmount()
     }
     expect(setNodeMarkup).not.toHaveBeenCalled()            // ...but another widget is never overwritten
@@ -318,13 +325,21 @@ describe('Task 8.15 fix 1', () => {
       expect(all).not.toMatch(banned)
     }
     // every field's filter editor, on the real catalog
-    for (let i = 0; i < CATALOG.sources[0].fields.length; i += 1) {
-      fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
-      fireEvent.click(within(screen.getByRole('list', { name: 'Fields' })).getAllByRole('button')[i])
-      await flush()
-      sweep()
-      fireEvent.keyDown(document.body, { key: 'Escape' })
+    // every field of EVERY kind of row (fix 2: not only the first)
+    let walked = 0
+    for (const src of CATALOG.sources) {
+      fireEvent.click(screen.getByRole('radio', { name: src.label }))
+      for (let i = 0; i < src.fields.length; i += 1) {
+        fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+        fireEvent.click(within(screen.getByRole('list', { name: 'Fields' })).getAllByRole('button')[i])
+        await flush()
+        sweep()
+        walked += 1
+        fireEvent.keyDown(document.body, { key: 'Escape' })
+      }
     }
+    expect(walked).toBe(CATALOG.sources.reduce((n, s) => n + s.fields.length, 0))
+    fireEvent.click(screen.getByRole('radio', { name: CATALOG.sources[0].label }))
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'X' } })
     fireEvent.click(saveButton())
     await flush()
@@ -334,7 +349,7 @@ describe('Task 8.15 fix 1', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(screen.getByText(KEEP_QUESTION)).toBeInTheDocument()
     sweep()
-  })
+  }, 90000)
 
   it('R-35: the builder evaluates the SERVER’s view rules: change the rules and the answer changes', () => {
     const cat = indexCatalog(CATALOG)

@@ -82,9 +82,20 @@ export function defaultMeasuresFor(cat, sourceKey) {
 
 export const splitFields = (cat, plan) => [...(sourceOf(cat, plan)?.fields.values() || [])].filter((f) => f.split)
 
-const UNBOUNDED = (tok) => tok === 'all' || (typeof tok === 'string' && tok.endsWith('_trades'))
-/** A range with no period before it ("all time", "last 20 trades"): R-12. */
-export const rangeIsUnbounded = (range) => isRecord(range) && UNBOUNDED(range.token)
+/** The range tokens with no period before them ("all time", "last 20 trades"), read from the server's own
+ *  `has_earlier` view check (R-12, R-35): never a list typed here. */
+export function unboundedTokens(cat) {
+  const checks = Array.isArray(cat?.viewRules?.checks) ? cat.viewRules.checks : []
+  const c = checks.find((x) => isRecord(x) && x.test === 'has_earlier')
+  return Array.isArray(c?.tokens) ? c.tokens : []
+}
+/** A range with no period before it: R-12. */
+export const rangeIsUnbounded = (cat, range) => isRecord(range) && unboundedTokens(cat).includes(range.token)
+
+/** The views a second split ("then by") can show in: validate_plan's own `THEN_VIEWS`, sent as data. */
+export const thenViews = (cat) => (Array.isArray(cat?.viewRules?.thenViews) ? cat.viewRules.thenViews : ['table'])
+/** A second split can be added: the view is still the suggested one (it then becomes a table) or can show it. */
+export const thenAllowed = (cat, plan) => !!plan.view?.auto || thenViews(cat).includes(plan.view?.type)
 
 /**
  * Ruling R-35: the view rules are the SERVER's data (`viewRules` in the vocabulary: sources.VIEW_CHECKS and
@@ -108,6 +119,8 @@ export const CHECK_TESTS = Object.freeze({
 
 /** The reason a view cannot show this plan, or null: the first server check that applies to the view and fails. */
 export function viewReason(cat, plan, vtype) {
+  // validate_plan refuses a second split outside its views first; then the view checks, in the server's order.
+  if (plan.split?.then && !thenViews(cat).includes(vtype)) return reasonOf(cat, 'then_table_only')
   const checks = Array.isArray(cat?.viewRules?.checks) ? cat.viewRules.checks : []
   for (const c of checks) {
     if (!isRecord(c)) continue
@@ -123,7 +136,7 @@ export function viewReason(cat, plan, vtype) {
 export function autoView(cat, plan) {
   const r = isRecord(cat?.viewRules?.auto) ? cat.viewRules.auto : { no_split: 'number', compare: 'number', then: 'table', time: 'table', split: 'table', time_fields: [] }
   const split = plan.split
-  if (!split) return plan.compare && !isRightNow(cat, plan) ? r.compare : r.no_split
+  if (!split) return plan.compare ? r.compare : r.no_split
   if (split.then) return r.then
   return (r.time_fields || []).includes(split.by) ? r.time : r.split
 }
@@ -134,12 +147,16 @@ export function autoView(cat, plan) {
  * that no longer applies (the view moved off "Number with comparison", or open positions) is dropped with it.
  */
 export function fitView(cat, plan) {
-  let view = plan.view || { type: 'number', auto: true }
-  if (view.auto || viewReason(cat, plan, view.type)) view = { type: autoView(cat, plan), auto: true }
-  let compare = plan.compare
-  if (view.type !== 'compare' || isRightNow(cat, plan)) compare = null
-  else if (!compare) compare = { mode: rangeIsUnbounded(plan.range) ? 'all' : 'previous' }
-  return { ...plan, view, compare }
+  // A comparison view gets its default comparison FIRST (all time where the range has no period before it), so the
+  // view checks judge the comparison the widget will actually make.
+  const withDefault = (p) => (p.view?.type === 'compare' && !p.compare
+    ? { ...p, compare: { mode: rangeIsUnbounded(cat, p.range) ? 'all' : 'previous' } } : p)
+  let next = withDefault({ ...plan, view: plan.view || { type: 'number', auto: true } })
+  if (next.view.auto || viewReason(cat, next, next.view.type)) {
+    next = withDefault({ ...next, view: { type: autoView(cat, next), auto: true } })
+  }
+  // A view that survived the checks above can show the comparison it names; any other view compares nothing.
+  return next.view.type === 'compare' ? next : { ...next, compare: null }
 }
 
 // ── filter sentences ──────────────────────────────────────────────────────────────────────────────

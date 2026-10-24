@@ -84,7 +84,7 @@ export function RangePicker({ cat, plan, onPick, onBack }) {
       <ul className={styles.pickerList} aria-label="Date ranges">
         {cat.ranges.map((r) => {
           const on = plan.range?.token === r.token
-          const disabled = previous && rangeIsUnbounded({ token: r.token })
+          const disabled = previous && rangeIsUnbounded(cat, { token: r.token })
           return (
             <li key={r.token}>
               <button type="button" className={`${styles.option} ${on ? styles.optionOn : ''}`} aria-pressed={on}
@@ -343,15 +343,29 @@ export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, 
   )
 }
 
-/** "a" or "an" before a word ("an emotion", "a setup"). */
-export const article = (word) => (/^[aeiou]/i.test(String(word || '').trim()) ? 'an' : 'a')
+/** "Setup" -> "setup", but an acronym keeps its case ("ET hour", "R bucket"): the server's own _lower_first. */
+export function lowerFirst(s) {
+  const t = String(s || '')
+  return t.length >= 2 && t[0] === t[0].toUpperCase() && t[1] !== t[1].toUpperCase() ? t[0].toLowerCase() + t.slice(1) : t
+}
+
+/** "a" or "an" before a word, by its SOUND: "an emotion", "a setup", and for an acronym the letter's name
+ *  ("an ET hour", "an R bucket", "a P&L"). */
+export function article(word) {
+  const w = String(word || '').trim()
+  const acronym = /^[A-Z](?:[A-Z&]|\b|$)/.test(w)
+  if (acronym) return 'AEFHILMNORSX'.includes(w[0]) ? 'an' : 'a'
+  return /^[aeiou]/i.test(w) ? 'an' : 'a'
+}
+
+/** "Type a setup", "Type an ET hour". */
+export const typePrompt = (label) => `Type ${article(lowerFirst(label))} ${lowerFirst(label)}`
 
 function TypedValue({ typed, setTyped, onAdd, label, type = 'text', title }) {
   const id = useId()
-  const word = label.toLowerCase()
   return (
     <div className={styles.typed}>
-      <label className={styles.fieldLabel} htmlFor={id}>{title || `Type ${article(word)} ${word}`}</label>
+      <label className={styles.fieldLabel} htmlFor={id}>{title || typePrompt(label)}</label>
       <div className={styles.typedRow}>
         <input id={id} type={type} className={styles.input} value={typed}
           onChange={(e) => setTyped(e.target.value)}

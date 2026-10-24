@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
-import { splitFields, reasonOf } from '../builderCatalog'
+import { splitFields, reasonOf, thenAllowed } from '../builderCatalog'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
@@ -17,7 +17,7 @@ export default function SplitSection({ cat, plan, onOpen, onClear, onSort }) {
   const split = plan.split
   const byLabel = split ? fields.get(split.by)?.label || split.by : null
   const thenLabel = split?.then ? fields.get(split.then)?.label || split.then : null
-  const thenAllowed = plan.view?.auto || plan.view?.type === 'table'
+  const thenOk = thenAllowed(cat, plan)
   const sortValue = plan.sort ? `${plan.sort.measure}:${plan.sort.dir}` : ''
   return (
     <Section id="split" title="Split it by" hint="Optional.">
@@ -37,8 +37,8 @@ export default function SplitSection({ cat, plan, onOpen, onClear, onSort }) {
         <>
           <div className={styles.chipRow}>
             <span className={styles.fieldLabel}>Then by</span>
-            <button type="button" className={styles.chip} disabled={!thenAllowed && !split.then}
-              aria-describedby={!thenAllowed && !split.then ? thenReasonId : undefined}
+            <button type="button" className={styles.chip} disabled={!thenOk && !split.then}
+              aria-describedby={!thenOk && !split.then ? thenReasonId : undefined}
               onClick={(e) => onOpen('then', e.currentTarget)}
               aria-label={split.then ? `Then by ${thenLabel}. Change` : 'No second split. Pick one'}>
               <span>{split.then ? thenLabel : 'Nothing'}</span>
@@ -50,7 +50,7 @@ export default function SplitSection({ cat, plan, onOpen, onClear, onSort }) {
               </button>
             )}
           </div>
-          {!thenAllowed && !split.then && (
+          {!thenOk && !split.then && (
             <p className={styles.reason} id={thenReasonId}>{reasonOf(cat, 'then_table_only')}</p>
           )}
           <div className={styles.pair}>

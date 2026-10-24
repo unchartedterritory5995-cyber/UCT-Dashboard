@@ -68,6 +68,8 @@ export const OFFLINE_SAVE = "Offline. Your changes are kept here; save when you'
 export const LOAD_FAILED = "Couldn't open the widget builder."
 /** Spec 5.10, "Definition missing": the placed widget runs, and is edited, from the copy the note carries. */
 export const SAVED_COPY_SENTENCE = 'Running from the saved copy in this note.'
+/** Fix 2, R-39: saved, but the placed widget it was meant to replace is gone (or is another widget now). */
+export const SAVED_NOT_IN_NOTE = 'Saved in My tools. It is no longer in this note.'
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 /** Edits that make a saved widget out of date: the plan and the name, as one value. */
@@ -92,6 +94,26 @@ export function isTextControl(el) {
  * * `height` and `inset` (how far the visual viewport's bottom sits above the layout viewport's: the keyboard on
  *   iOS) become `--vvh` / `--vv-inset` on the panel, so the footer with Save stays above the keyboard.
  */
+/** The DEVICE's orientation (fix 2): `screen.orientation`, else the orientation media query. Never the window's
+ *  aspect, which a resizes-content keyboard flips (a 390 x 300 window is a portrait phone with its keyboard up). */
+export function orientationOf() {
+  const type = typeof screen !== 'undefined' ? screen.orientation?.type : null
+  if (typeof type === 'string' && type) return type.startsWith('landscape') ? 'landscape' : 'portrait'
+  try {
+    if (typeof window.matchMedia === 'function') return window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait'
+  } catch { /* no media queries */ }
+  return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'
+}
+
+/** The tallest the viewport can be in an orientation, from the screen: so a builder that OPENS with the keyboard
+ *  already up (focus was in a field) still reads it as up, instead of taking the shortened height as the baseline. */
+function screenSeed(orient) {
+  const w = typeof screen !== 'undefined' ? Number(screen.width) || 0 : 0
+  const h = typeof screen !== 'undefined' ? Number(screen.height) || 0 : 0
+  if (!w || !h) return 0
+  return orient === 'landscape' ? Math.min(w, h) : Math.max(w, h)
+}
+
 export function useViewport() {
   const [view, setView] = useState({ keyboardOpen: false, height: null, inset: 0 })
   const base = useRef({ portrait: 0, landscape: 0 })
@@ -100,9 +122,9 @@ export function useViewport() {
     const vv = window.visualViewport || null
     const read = () => {
       const h = vv ? vv.height : window.innerHeight
-      const orient = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'
+      const orient = orientationOf()
       const b = base.current
-      b[orient] = Math.max(b[orient], window.innerHeight || 0, h || 0)
+      b[orient] = Math.max(b[orient], screenSeed(orient), window.innerHeight || 0, h || 0)
       const inset = vv ? Math.max(0, Math.round(window.innerHeight - (vv.offsetTop || 0) - vv.height)) : 0
       const keyboardOpen = !!b[orient] && h < KEYBOARD_RATIO * b[orient]
       setView((v) => (v.keyboardOpen === keyboardOpen && v.height === h && v.inset === inset ? v
@@ -130,7 +152,7 @@ function keptAgo(at, now = Date.now()) {
   return `${h} hour${h === 1 ? '' : 's'} ago`
 }
 
-export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose }) {
+export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose, registerLeave }) {
   const phone = useIsPhone()
   const viewport = useViewport()
   const keyboardOpen = phone && viewport.keyboardOpen
@@ -150,6 +172,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [answer, setAnswer] = useState(UPDATE_ALL)
+  const [gone, setGone] = useState(false)       // R-39: saved, but the placed widget is no longer in the note
+  const staleEtag = useRef(null)                // N-2: a stale draft keeps the etag it was kept at
   const rootRef = useRef(null)
   const opener = useRef(null)
   const offerRef = useRef(null)
@@ -248,7 +272,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   function resumeDraft(kept, def = target.def) {
     dispatch({ type: 'loadPlan', plan: kept.plan, keepBase: true })
     const was = Number.isInteger(kept.etag) ? kept.etag : null
-    setStale(!!def && was !== null && Number.isInteger(def.etag) && def.etag !== was)
+    const isStale = !!def && was !== null && Number.isInteger(def.etag) && def.etag !== was
+    staleEtag.current = isStale ? was : null
+    setStale(isStale)
   }
 
   // The resume offer takes focus when it appears, so it is read out (fix 1: "announce and focus").
@@ -335,6 +361,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const close = useCallback((focusTo) => { onClose?.(focusTo) }, [onClose])
   const requestClose = () => {
     if (saving) return
+    if (gone) { close(); return }
     if (phase === 'ready' && stateRef.current.dirty) {
       if (level.kind !== 'ask') push({ kind: 'ask' }, null)
       return
@@ -343,8 +370,19 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }
   const keepDraft = () => {
     const st = stateRef.current
-    return writeDraft(uid, { plan: st.plan, nameTouched: st.nameTouched, target: draftTarget, etag: target.def?.etag })
+    // N-2: a stale draft keeps the etag it was KEPT at, so it stays stale (and save-as-new only) when resumed again.
+    const etag = staleEtag.current !== null ? staleEtag.current : target.def?.etag
+    return writeDraft(uid, { plan: st.plan, nameTouched: st.nameTouched, target: draftTarget, etag })
   }
+  // R-38: leaving without closing (browser navigation, the note's editor destroyed) keeps unsaved edits as a draft,
+  // offered again on the next open. The door asks through `registerLeave`; a clean builder writes nothing.
+  const leaveRef = useRef(null)
+  leaveRef.current = () => {
+    if (phase === 'ready' && !gone && stateRef.current.dirty) keepDraft()
+  }
+  useEffect(() => {
+    if (typeof registerLeave === 'function') registerLeave(() => leaveRef.current?.())
+  }, [registerLeave])
 
   // ── edits: each change carries the view it forces, so the change and its view are ONE undo step ──
   const fitted = (patch) => fitView(cat, { ...stateRef.current.plan, ...patch })
@@ -488,14 +526,25 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       setSaveMsg(`${SAVED_NOT_PLACED} ${failureText(got.code, got.message) || FAILED_SENTENCE}`)
       return
     }
-    if (s.how === 'replace') replaceNode(got.data)
-    else insertNode(got.data)
+    if (s.how === 'replace' && !replaceNode(got.data)) {
+      // R-39: the widget is saved, but the placed widget it was to replace is gone. Say so, in the open sheet (the
+      // footer's alert, read out); Save becomes Close. Nothing is written to the note.
+      clearDraft(uid, draftTarget)
+      savedRef.current = null
+      setSaving(false)
+      setLevel({ kind: 'main' })
+      setGone(true)
+      setSaveMsg(SAVED_NOT_IN_NOTE)
+      return
+    }
+    if (s.how !== 'replace') insertNode(got.data)
     finish(placedDom(s.defId))
   }
   const owed = (data, how, st) => ({
     defId: data.id, defRev: data.rev, etag: data.etag, how, planKey: planKeyOf(st),
   })
   const save = async (choice) => {
+    if (gone) { close(); return }
     if (saving || phase !== 'ready' || !cat) return
     setSaveMsg('')
     if (savedRef.current) { await placeSaved(); return }
@@ -586,7 +635,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const name = nameOf(state)
   const unit = cat ? sourceOf(cat, plan)?.unit || 'trades' : 'trades'
   const byNeed = cat ? coverageByNeed(cat, plan, preview.payload) : new Map()
-  const saveLabel = stale ? 'Save as a new widget' : target.mode === 'copy' ? 'Save as a copy' : 'Save'
+  const saveLabel = gone ? 'Close' : stale ? 'Save as a new widget' : target.mode === 'copy' ? 'Save as a copy' : 'Save'
+  // Undo and Redo belong to the top level: inside a picker they are shown but say they are not available.
+  const historyOff = level.kind !== 'main'
 
   let content
   if (phase === 'loading') {
@@ -713,12 +764,14 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const footer = (
     <div className={styles.footer}>
       <div className={styles.history}>
-        <button type="button" className={styles.iconBtn} onClick={() => dispatch({ type: 'undo' })}
-          disabled={phase !== 'ready' || !state.past.length} aria-keyshortcuts="Control+Z Meta+Z">
+        <button type="button" className={styles.iconBtn} onClick={() => { if (!historyOff) dispatch({ type: 'undo' }) }}
+          disabled={phase !== 'ready' || !state.past.length} aria-disabled={historyOff || undefined}
+          aria-keyshortcuts="Control+Z Meta+Z">
           Undo
         </button>
-        <button type="button" className={styles.iconBtn} onClick={() => dispatch({ type: 'redo' })}
-          disabled={phase !== 'ready' || !state.future.length} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">
+        <button type="button" className={styles.iconBtn} onClick={() => { if (!historyOff) dispatch({ type: 'redo' }) }}
+          disabled={phase !== 'ready' || !state.future.length} aria-disabled={historyOff || undefined}
+          aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">
           Redo
         </button>
       </div>

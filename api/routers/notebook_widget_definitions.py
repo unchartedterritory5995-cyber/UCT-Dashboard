@@ -378,6 +378,8 @@ def _static_vocabulary() -> dict:
             "checks": [{**c, "views": list(c["views"]) if c["views"] is not None else None}
                        for c in wsources.VIEW_CHECKS],
             "auto": wsources.AUTO_VIEW,
+            # A second split's views: validate_plan's own rule (plan.THEN_VIEWS), never restated here.
+            "thenViews": list(wplan.THEN_VIEWS),
         },
         "maxMeasures": wplan.MAX_MEASURES,
         "maxFilters": wplan.MAX_FILTERS,

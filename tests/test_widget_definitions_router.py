@@ -327,6 +327,9 @@ def test_view_rules_are_the_data_view_allowed_evaluates():
     assert v["viewRules"]["auto"] == wsources.AUTO_VIEW
     assert [c["test"] for c in v["viewRules"]["checks"]] == [c["test"] for c in wsources.VIEW_CHECKS]
     assert all(c["reason"] in v["reasons"] for c in v["viewRules"]["checks"])
+    # the second-split rule has ONE authority, validate_plan; the builder reads it from here
+    assert v["viewRules"]["thenViews"] == list(wplan.THEN_VIEWS)
+    assert all(c["test"] != "no_then" for c in v["viewRules"]["checks"])
     bar = {"source": "closed_trades", "view": {"type": "bar"}, "measures": [{"key": "net_pnl"}]}
     assert wsources.CATALOG.view_allowed(bar) == wsources.S_VIEW_BAR
     saved = wsources.VIEW_CHECKS

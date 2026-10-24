@@ -41,6 +41,9 @@ _LIST_OPS = frozenset({"in", "not_in", "has_any"})
 FIELD_TYPES = ("number", "text", "tag", "enum", "bool", "day")
 SORT_DIRS = ("asc", "desc")
 COMPARE_MODES = ("previous", "all", "range")
+#: The views a second split ("then by") can be shown in. The one authority: validate_plan refuses any other,
+#: and the vocabulary sends it to the builder (`viewRules.thenViews`) to grey the choice out.
+THEN_VIEWS = ("table",)
 
 DEFAULT_RANGE_TOKEN = "last_90d"
 DEFAULT_SORT_TOP = 10
@@ -392,7 +395,7 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         vtype = "number" if split is None else ("table" if split["then"] else "bar")
         auto = True
     view = {"type": vtype, "auto": auto}
-    if split and split["then"] is not None and vtype != "table":
+    if split and split["then"] is not None and vtype not in THEN_VIEWS:
         raise PlanError(S_THEN_TABLE_ONLY)
 
     # sort

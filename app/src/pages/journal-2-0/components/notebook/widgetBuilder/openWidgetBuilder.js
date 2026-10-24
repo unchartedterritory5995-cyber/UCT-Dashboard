@@ -48,6 +48,7 @@ export function openWidgetBuilder({ editor = null, from = null, start, uid, retu
   document.body.appendChild(host)
   const root = createRoot(host)
   let detach = () => {}
+  let leave = null      // the sheet's "keep unsaved edits as a draft", asked before an unplanned unmount (R-38)
   const close = (focusTo) => {
     if (_open !== close) return
     _open = null
@@ -62,7 +63,10 @@ export function openWidgetBuilder({ editor = null, from = null, start, uid, retu
     }, 0)
   }
   _open = close
-  const onLeave = () => close()
+  const onLeave = () => {
+    try { leave?.() } catch { /* a draft that cannot be written never blocks leaving */ }
+    close()
+  }
   if (editor && typeof editor.on === 'function') editor.on('destroy', onLeave)
   window.addEventListener('popstate', onLeave)
   detach = () => {
@@ -72,6 +76,7 @@ export function openWidgetBuilder({ editor = null, from = null, start, uid, retu
   // The signed-in member keys the kept draft (`uct.nb.widgetDraft.<uid>`), as the slash menu's caches are keyed.
   root.render(createElement(BuilderBoundary, { onError: () => close() }, createElement(WidgetBuilderSheet, {
     editor, from, start, uid: uid ?? editor?.storage?.uctJournalWidgets?.uid, onClose: close,
+    registerLeave: (fn) => { leave = fn },
   })))
   return close
 }

@@ -43,7 +43,7 @@ from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
-    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, S_THEN_TABLE_ONLY, VIEWS, ResolvedRange,
+    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange,
     _UNBOUNDED_TOKENS,
 )
 
@@ -821,9 +821,8 @@ VIEW_REASONS = {
     "positions_no_compare": S_POSITIONS_NO_COMPARE, "view_one_number": S_VIEW_ONE_NUMBER,
     "no_earlier": S_NO_EARLIER, "view_progress": S_VIEW_PROGRESS, "view_bar": S_VIEW_BAR,
     "view_line": S_VIEW_LINE, "view_heat": S_VIEW_HEAT, "view_scatter_trades": S_VIEW_SCATTER_TRADES,
-    "view_scatter": S_VIEW_SCATTER, "view_list": S_VIEW_LIST, "then_table_only": S_THEN_TABLE_ONLY,
+    "view_scatter": S_VIEW_SCATTER, "view_list": S_VIEW_LIST,
 }
-_NOT_TABLE = tuple(v for v in VIEWS if v != "table")
 VIEW_CHECKS: tuple[dict, ...] = (
     {"views": None, "test": "not_right_now_compare", "sources": sorted(RIGHT_NOW_SOURCES),
      "reason": "positions_no_compare"},
@@ -836,7 +835,6 @@ VIEW_CHECKS: tuple[dict, ...] = (
     {"views": ("scatter",), "test": "source_in", "sources": ["closed_trades"], "reason": "view_scatter_trades"},
     {"views": ("scatter",), "test": "no_split_measures", "measures": 2, "reason": "view_scatter"},
     {"views": ("list",), "test": "no_split", "reason": "view_list"},
-    {"views": _NOT_TABLE, "test": "no_then", "reason": "then_table_only"},
 )
 #: The suggested view for a shape: no split -> number (compare when the plan compares); a second split -> table;
 #: a split along time -> line; any other split -> bar.
@@ -865,8 +863,6 @@ def view_check_passes(check: dict, plan: dict, source_key: str, vtype: str | Non
         return source_key in check["sources"]
     if t == "no_split_measures":
         return not split and len(plan.get("measures") or []) == check["measures"]
-    if t == "no_then":
-        return not (split and split.get("then"))
     raise ValueError(f"unknown view check {t!r}")
 
 

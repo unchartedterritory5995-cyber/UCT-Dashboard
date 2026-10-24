@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import Section from './Section'
-import { VIEW_LABELS, viewReason, autoView, isRightNow, rangeIsUnbounded, reasonOf } from '../builderCatalog'
+import { VIEW_LABELS, viewReason, autoView, rangeIsUnbounded, reasonOf } from '../builderCatalog'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /** A small drawing of each view (inline SVG, currentColor, never an image or an emoji). */
@@ -85,7 +85,7 @@ export default function ViewSection({ cat, plan, unit = 'trades', onView, onComp
   // "Dates I pick" is applied only once both dates make a span: an unfinished pair never reaches the preview.
   const [picking, setPicking] = useState(false)
   const rangeOn = cmp?.mode === 'range' || picking
-  const unbounded = rangeIsUnbounded(plan.range)
+  const unbounded = rangeIsUnbounded(cat, plan.range)
   const [target, setTarget] = useState(plan.display.target === null ? '' : String(plan.display.target))
   useEffect(() => { setTarget(plan.display.target === null ? '' : String(plan.display.target)) }, [plan.display.target])
   const accentNames = new Map([
@@ -114,7 +114,7 @@ export default function ViewSection({ cat, plan, unit = 'trades', onView, onComp
         })}
       </div>
 
-      {plan.view.type === 'compare' && !isRightNow(cat, plan) && (
+      {plan.view.type === 'compare' && (
         <fieldset className={styles.fieldset}>
           <legend className={styles.fieldLabel}>Compare with</legend>
           <div role="radiogroup" className={styles.optionGrid}>

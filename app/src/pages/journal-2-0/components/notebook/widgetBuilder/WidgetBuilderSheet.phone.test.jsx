@@ -28,6 +28,13 @@ function installViewport(height) {
 
 let vv
 let routes
+const SCREEN_KEYS = ['orientation', 'width', 'height']
+/** The device screen (jsdom's is 0 x 0 with no orientation). Removed again after each test. */
+function setScreen({ type, width, height }) {
+  Object.defineProperty(window.screen, 'orientation', { configurable: true, value: { type } })
+  Object.defineProperty(window.screen, 'width', { configurable: true, value: width })
+  Object.defineProperty(window.screen, 'height', { configurable: true, value: height })
+}
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   __resetBuiltCaches()
@@ -41,6 +48,7 @@ afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
   delete window.visualViewport
+  for (const k of SCREEN_KEYS) delete window.screen[k]
 })
 
 async function openBuilder() {
@@ -91,6 +99,26 @@ describe('WidgetBuilderSheet at 390 px', () => {
       window.dispatchEvent(new Event('resize'))
     })
     expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+  })
+
+  it('fix 2: a resizes-content keyboard that makes the window wider than tall is still a PORTRAIT keyboard', async () => {
+    setScreen({ type: 'portrait-primary', width: 390, height: 844 })
+    await openBuilder()
+    expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+    act(() => {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 300 })   // 390 x 300: wider than tall
+      vv.height = 300
+      window.dispatchEvent(new Event('resize'))
+    })
+    expect(screen.queryByTestId('builder-summary-bar')).toBeNull()
+  })
+
+  it('fix 2: a builder that OPENS with the keyboard already up reads it as up (the screen seeds the baseline)', async () => {
+    setScreen({ type: 'portrait-primary', width: 390, height: 844 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 400 })
+    vv.height = 400
+    await openBuilder()
+    expect(screen.queryByTestId('builder-summary-bar')).toBeNull()
   })
 
   it('I-3b: the panel carries the visual viewport height (--vvh) and the keyboard inset (--vv-inset)', async () => {

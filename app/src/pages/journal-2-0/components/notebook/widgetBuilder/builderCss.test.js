@@ -51,7 +51,8 @@ const classesOf = (tagText) => [...tagText.matchAll(/styles\.([A-Za-z][\w]*)/g)]
 /** Classes rendered with a `hidden` attribute. */
 export function hiddenClasses(src) {
   const out = new Set()
-  for (const t of openingTags(src)) if (/\shidden=\{/.test(t.text)) classesOf(t.text).forEach((c) => out.add(c))
+  // `hidden={...}`, `hidden="..."` and a bare `hidden` all hide (fix 2).
+  for (const t of openingTags(src)) if (/\shidden(?=[\s=>/])/.test(t.text)) classesOf(t.text).forEach((c) => out.add(c))
   return out
 }
 
@@ -127,6 +128,9 @@ describe('the builder stylesheet against its markup', () => {
     expect(hiddenDefects([jsx], '.box { display: flex; }')).toEqual(['box'])
     expect(hiddenDefects([jsx], '.box { display: flex; }\n.box[hidden] { display: none; }')).toEqual([])
     expect(hiddenDefects([jsx], '.box { color: red; }')).toEqual([])
+    // a bare `hidden` attribute counts too; a word that merely contains "hidden" does not
+    expect(hiddenDefects(['<p hidden className={styles.box}>x</p>'], '.box { display: grid; }')).toEqual(['box'])
+    expect(hiddenDefects(['<p data-hiddenish="1" className={styles.box}>x</p>'], '.box { display: grid; }')).toEqual([])
   })
 
   it('I-5: every label-wrapped radio or checkbox shows a focus ring through :has(:focus-visible)', () => {

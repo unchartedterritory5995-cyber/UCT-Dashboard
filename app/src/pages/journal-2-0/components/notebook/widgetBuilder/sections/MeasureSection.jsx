@@ -88,10 +88,10 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onBack }) {
               const disabled = (!on && full) || only
               const cov = coverageText(cat, m, byNeed)
               const meaningId = `wb-meaning-${m.key}`
+              // ⛔ aria-disabled, never `disabled`: a disabled button cannot take focus, and its meaning (the
+              // description) would be unreadable from the keyboard exactly when the member asks why.
               return (
                 <li key={m.key}>
-                  // ⛔ aria-disabled, never `disabled`: a disabled button cannot take focus, and its meaning (the
-                  // description) would be unreadable from the keyboard exactly when the member asks why.
                   <button type="button"
                     className={`${styles.option} ${on ? styles.optionOn : ''}`}
                     aria-pressed={on} aria-disabled={disabled || undefined}

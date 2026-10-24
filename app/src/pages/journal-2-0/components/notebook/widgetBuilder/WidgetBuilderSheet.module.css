@@ -203,6 +203,7 @@
 .btn:disabled,
 .btnPrimary:disabled,
 .iconBtn:disabled,
+.iconBtn[aria-disabled='true'],
 .addBtn:disabled,
 .chip:disabled,
 .chipRemove:disabled,
