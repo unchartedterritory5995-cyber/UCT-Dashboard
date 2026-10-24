@@ -1481,6 +1481,56 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
         return [s for s in (structures or []) if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
 
 
+#: The textbook gate round the strict blind recert confirmed for the inside-day drawing (lab recert B round 2:
+#: four pre-registered packets of 25, two fresh judges each, strict textbook rubric). A literal ON PURPOSE, like
+#: MEMBER_INSIDE_DAY_ROUND: it must equal textbook_gate.INSIDE_DAY_GATE_ROUND or every inside-day row is withheld
+#: (fail closed). None turns the gate off (the drawing as it was before the recert), which is NOT the hide lever:
+#: hiding the drawing is MEMBER_INSIDE_DAY_ROUND = None.
+MEMBER_INSIDE_DAY_GATE_ROUND = 1
+
+
+def member_textbook_gate(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any inside-day drawing the strict textbook gate withholds
+    (pattern_engine.textbook_gate.inside_day_fails: an established uptrend, a true and tight inside bar, not
+    extended, the trigger and stop on the bars' own extremes). Applied on the MEMBER path LAST, after every
+    precedence pass and the shelf, so the member chart is the served chart minus the withheld rows -- exactly
+    what the blind round judged. The daily bars are read only when such a row is present, at the last COMPLETE
+    session. Fails CLOSED: unreadable bars, a short history or a malformed row withhold the drawing. Order is
+    kept; never raises."""
+    det, st = list(detections or []), list(structures or [])
+    pid = INSIDE_DAY_DRAW_ID
+    if not any((r or {}).get("pattern_id") == pid for r in det + st):
+        return det, st
+    want = MEMBER_INSIDE_DAY_GATE_ROUND
+    if want is None:
+        return det, st
+    drop_all = ([r for r in det if (r or {}).get("pattern_id") != pid],
+                [r for r in st if (r or {}).get("pattern_id") != pid])
+    try:
+        from api.services.pattern_engine import textbook_gate
+        if not (type(want) is int and want == textbook_gate.INSIDE_DAY_GATE_ROUND):
+            return drop_all
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        bars = [{"t": x["t"], "o": float(x["o"]), "h": float(x["h"]), "l": float(x["l"]), "c": float(x["c"]),
+                 "v": float(x.get("v") or 0)} for x in b]
+        ts = [int(x["t"]) for x in bars]
+
+        def keep(r):
+            if (r or {}).get("pattern_id") != pid:
+                return True
+            d = ((r.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
+            end = d.get("end_t")
+            if end is None or int(end) not in ts:
+                return False
+            return not textbook_gate.inside_day_fails(bars[:ts.index(int(end)) + 1], r)
+        return [r for r in det if keep(r)], [r for r in st if keep(r)]
+    except Exception:  # noqa: BLE001 -- fail closed: an unverified inside day is not drawn
+        _log.warning("[auto-structures] textbook gate failed for %s; inside-day withheld", sym, exc_info=True)
+        return drop_all
+
+
 #: ONE BREAKOUT LINE PER BASE, across every row a member's chart draws (detections AND structures).
 #: The pairwise passes above each settle one pair of drawings; this pass closes the rest: the detector rows
 #: (flat_base, bull_flag, uct_flat_top_breakout) against each other and against the base boxes and the
