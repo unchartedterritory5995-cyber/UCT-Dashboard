@@ -23,13 +23,27 @@ them (registry.bars_for at SCAN_BASE_DEPTH), with two deliberate exceptions:
 TEXTBOOK narrows a detector to its textbook definition where the detector is LOOSER than the
 textbook (a tag must never show a definition that is false for the bar it names). A detector that is
 STRICTER than the textbook needs no narrowing: every bar it reports still meets the definition.
+
+SERVING (speed pass, 2026-10-23). A chart open no longer runs the detectors when the answer is already
+known. The nightly universe scan (and the hourly leaders scan) call record_store(), which runs the SAME
+compute_tags over the SAME _completed_daily_bars a request would read and keeps the result in
+patterns.db (setup_tag_store), stamped with a digest of those exact bars and a fingerprint of the tag
+code. A request reads its bars (one indexed query) and serves the stored row only when the digest and
+the code fingerprint both match, so a stored answer is the live answer by construction: same input,
+same code. Anything else (a ticker outside the scan universe, a session that landed after the scan, a
+revised bar, a deploy that changed the detectors) computes live, bounded by _live_timeout_s(); a run
+that overshoots serves no tags for that one response and fills the cache when it finishes.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import os
 import threading
 import time
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeout
 from typing import Optional
 
 _log = logging.getLogger(__name__)
@@ -272,23 +286,238 @@ def _completed_daily_bars(sym: str) -> list:
     return [{"t": int(r[0]), "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows]
 
 
+def bars_digest(bars: list) -> str:
+    """A digest of exactly the bars compute_tags would be handed (every field, floats by repr). A
+    stored answer is served only for the bars it was computed from."""
+    h = hashlib.sha256()
+    for b in bars:
+        h.update(f"{int(b['t'])},{b['o']!r},{b['h']!r},{b['l']!r},{b['c']!r},{b['v']!r};".encode())
+    return h.hexdigest()
+
+
+_CODE_FP: list = []
+
+
+def code_fingerprint() -> str:
+    """A fingerprint of the code a tag depends on: this module and every file of the pattern engine
+    (the detectors, their primitives, the registry). A stored row from different code is not served.
+    Computed once per process."""
+    if _CODE_FP:
+        return _CODE_FP[0]
+    here = os.path.dirname(os.path.abspath(__file__))
+    files = [os.path.abspath(__file__)]
+    for dirpath, dirnames, filenames in os.walk(os.path.join(here, "pattern_engine")):
+        dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
+        files.extend(os.path.join(dirpath, f) for f in sorted(filenames) if f.endswith(".py"))
+    h = hashlib.sha256()
+    for f in files:
+        h.update(os.path.relpath(f, here).replace(os.sep, "/").encode())
+        with open(f, "rb") as fh:
+            h.update(hashlib.sha256(fh.read()).digest())
+    _CODE_FP.append(h.hexdigest())
+    return _CODE_FP[0]
+
+
+# -- the store: tags computed by the scan, served when the input and the code match -----------------
+
+_STORE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS setup_tag_store (
+    sym         TEXT PRIMARY KEY,
+    asof_t      INTEGER NOT NULL,
+    bars_digest TEXT NOT NULL,
+    code_fp     TEXT NOT NULL,
+    tags_json   TEXT NOT NULL,
+    computed_at INTEGER NOT NULL
+)
+"""
+_store_paths: set = set()
+
+
+def _store_conn():
+    from api.services.pattern_engine.pattern_db import _db_path, get_connection
+    conn = get_connection()
+    path = _db_path()
+    if path not in _store_paths:
+        conn.executescript(_STORE_SCHEMA)
+        conn.commit()
+        _store_paths.add(path)
+    return conn
+
+
+def stored_tags(sym: str, bars: list, digest: Optional[str] = None) -> Optional[list]:
+    """The stored team tags for `sym` when they were computed from exactly `bars` by this code, else
+    None (the caller computes live)."""
+    if not bars:
+        return None
+    digest = digest or bars_digest(bars)
+    conn = _store_conn()
+    try:
+        row = conn.execute(
+            "SELECT asof_t, bars_digest, code_fp, tags_json FROM setup_tag_store WHERE sym = ?",
+            (sym,)).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return None
+    asof_t, dig, fp, tags_json = row[0], row[1], row[2], row[3]
+    if int(asof_t) != int(bars[-1]["t"]) or dig != digest or fp != code_fingerprint():
+        return None
+    tags = json.loads(tags_json)
+    return tags if isinstance(tags, list) else None
+
+
+def record_store(symbols) -> dict:
+    """Compute and keep the team tags of every symbol in `symbols` (the scan's universe), from the
+    same _completed_daily_bars and compute_tags a request uses. A symbol whose stored row already
+    matches its bars and the code is skipped, so a re-run costs one bar read per symbol. A no-op
+    while AUTO_STRUCTURES_SETUP_TAGS_ENABLED is off. Never raises; returns counts."""
+    from api.services import auto_structures
+    res = {"recorded": 0, "unchanged": 0, "no_bars": 0, "failed": 0}
+    if not auto_structures.setup_tags_enabled():
+        res["skipped"] = "flag off"
+        return res
+    if not _STORE_PASS_LOCK.acquire(blocking=False):
+        res["skipped"] = "a pass is already running"
+        return res
+    try:
+        return _record_store_locked(symbols, res)
+    finally:
+        _STORE_PASS_LOCK.release()
+
+
+_STORE_PASS_LOCK = threading.Lock()
+#: The pass runs on the web pod beside member requests: sleep briefly every this many symbols so a
+#: multi-minute pass never holds the interpreter in one long stretch.
+STORE_YIELD_EVERY = 50
+
+
+def _record_store_locked(symbols, res: dict) -> dict:
+    try:
+        fp = code_fingerprint()
+        conn = _store_conn()
+    except Exception as exc:  # noqa: BLE001 -- the store never fails the scan that calls it
+        _log.warning("[setup-tags] store unavailable: %s", exc)
+        res["skipped"] = "store unavailable"
+        return res
+    try:
+        have = {r[0]: (int(r[1]), r[2], r[3]) for r in conn.execute(
+            "SELECT sym, asof_t, bars_digest, code_fp FROM setup_tag_store")}
+        pending = 0
+        for k, raw in enumerate(symbols or []):
+            if k and k % STORE_YIELD_EVERY == 0:
+                time.sleep(0.02)
+            sym = str(raw or "").strip().upper()
+            if not sym:
+                continue
+            try:
+                bars = _completed_daily_bars(sym)
+                if not bars:
+                    res["no_bars"] += 1
+                    continue
+                digest = bars_digest(bars)
+                asof = int(bars[-1]["t"])
+                if have.get(sym) == (asof, digest, fp):
+                    res["unchanged"] += 1
+                    continue
+                tags = compute_tags(sym, bars)
+                conn.execute(
+                    "INSERT OR REPLACE INTO setup_tag_store "
+                    "(sym, asof_t, bars_digest, code_fp, tags_json, computed_at) VALUES (?,?,?,?,?,?)",
+                    (sym, asof, digest, fp, json.dumps(tags, separators=(",", ":")), int(time.time())))
+                res["recorded"] += 1
+                pending += 1
+                if pending >= 200:
+                    conn.commit()
+                    pending = 0
+            except Exception:  # noqa: BLE001 -- one ticker never stops the pass
+                res["failed"] += 1
+                _log.warning("[setup-tags] store pass failed for %s", sym, exc_info=True)
+        conn.commit()
+    finally:
+        conn.close()
+    return res
+
+
+# -- the live fallback, bounded ----------------------------------------------------------------------
+
+_POOL: list = []
+_POOL_LOCK = threading.Lock()
+_INFLIGHT: dict = {}
+
+
+def _live_timeout_s() -> float:
+    """SETUP_TAGS_LIVE_TIMEOUT_S, read per call: how long a request waits on a live computation."""
+    try:
+        return max(0.05, float(os.environ.get("SETUP_TAGS_LIVE_TIMEOUT_S", "1.5")))
+    except ValueError:
+        return 1.5
+
+
+def _pool() -> ThreadPoolExecutor:
+    with _POOL_LOCK:
+        if not _POOL:
+            _POOL.append(ThreadPoolExecutor(max_workers=2, thread_name_prefix="setup-tags"))
+        return _POOL[0]
+
+
+def _cache_put(key: str, tags: list) -> None:
+    with _CACHE_LOCK:
+        _CACHE[key] = (time.time(), tags)
+        _CACHE.move_to_end(key)
+        while len(_CACHE) > _CACHE_MAX:
+            _CACHE.popitem(last=False)
+
+
+def _live(sym: str, bars: list, key: str) -> Optional[list]:
+    """compute_tags on a worker, waited on for _live_timeout_s(). None on a timeout: the run keeps
+    going and caches its answer under `key`. One run per key at a time."""
+    with _CACHE_LOCK:
+        fut = _INFLIGHT.get(key)
+        if fut is None:
+            fut = _pool().submit(compute_tags, sym, bars)
+            _INFLIGHT[key] = fut
+            new = True
+        else:
+            new = False
+    if new:
+        def _done(f, key=key):
+            # Cache first, then leave the in-flight map: a request arriving in between finds one
+            # or the other, never neither (which would start a second run).
+            if not f.cancelled() and f.exception() is None:
+                _cache_put(key, f.result())
+            with _CACHE_LOCK:
+                _INFLIGHT.pop(key, None)
+        fut.add_done_callback(_done)
+    try:
+        return fut.result(timeout=_live_timeout_s())
+    except _FutureTimeout:
+        _log.warning("[setup-tags] live computation for %s overran %.2fs; no tags this response",
+                     sym, _live_timeout_s())
+        return None
+
+
 def _team_tags_cached(sym: str) -> list:
     bars = _completed_daily_bars(sym)
     if not bars:
         return []
-    key = f"{sym}|{int(bars[-1]['t'])}"
+    digest = bars_digest(bars)
+    key = f"{sym}|{int(bars[-1]['t'])}|{digest}"
     now = time.time()
     with _CACHE_LOCK:
         hit = _CACHE.get(key)
         if hit and now - hit[0] < _CACHE_TTL_S:
             _CACHE.move_to_end(key)
             return hit[1]
-    tags = compute_tags(sym, bars)
-    with _CACHE_LOCK:
-        _CACHE[key] = (now, tags)
-        _CACHE.move_to_end(key)
-        while len(_CACHE) > _CACHE_MAX:
-            _CACHE.popitem(last=False)
+    tags = None
+    try:
+        tags = stored_tags(sym, bars, digest)
+    except Exception:  # noqa: BLE001 -- an unreadable store falls back to the live computation
+        _log.warning("[setup-tags] store read failed for %s", sym, exc_info=True)
+    if tags is None:
+        tags = _live(sym, bars, key)
+        if tags is None:
+            return []
+    _cache_put(key, tags)
     return tags
 
 
