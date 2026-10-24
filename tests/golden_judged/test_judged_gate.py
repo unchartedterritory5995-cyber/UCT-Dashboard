@@ -124,6 +124,29 @@ def test_the_withdrawn_cup_is_not_served_to_members_and_comes_back_with_its_roun
     assert _cups(payload)
 
 
+def _darvas(payload):
+    return [r for r in payload.get("setup_draws") or [] if r.get("pattern_id") == "draw:darvas-box"]
+
+
+def test_the_withdrawn_darvas_box_is_not_served_to_members_and_comes_back_with_its_round(monkeypatch):
+    """Outcome replay 2026-10-24: win8 lift -5.1pp [-6.7,-3.4] vs matched breakout (NEGATIVE), so the darvas box is
+    withdrawn from members. With MEMBER_DARVAS_BOX_ROUND None a judged darvas chart serves the member no darvas box;
+    the re-enable control (the literal back to the judged round) serves it again."""
+    from api.services import auto_structures as AS
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "darvas_box")
+    assert fam["member_literal"] == "MEMBER_DARVAS_BOX_ROUND" and AS.MEMBER_DARVAS_BOX_ROUND is None
+    for case in fam["cases"]:
+        monkeypatch.setattr(AS, "MEMBER_DARVAS_BOX_ROUND", fam["judged_round"])     # re-enable control
+        payload, bars = MP.member_payload(monkeypatch, case)
+        if not _darvas(payload) or JG.failures(case, payload, bars):
+            continue
+        monkeypatch.setattr(AS, "MEMBER_DARVAS_BOX_ROUND", None)
+        payload, _bars = MP.member_payload(monkeypatch, case)
+        assert not _darvas(payload), case["id"]
+        return
+    raise AssertionError("no darvas case draws with the round set: the control cannot run")
+
+
 @pytest.mark.parametrize("family,case", RETIRED, ids=_ids(RETIRED))
 def test_a_retired_judged_drawing_stays_off_the_member_chart(family, case, monkeypatch):
     payload, bars = MP.member_payload(monkeypatch, case)
@@ -326,12 +349,14 @@ def test_the_replay_reaches_every_layer():
     # shelf and donchian: withdrawn 2026-10-24 when their recert B textbook fix round failed
     # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
     # cup: withdrawn 2026-10-24 (owner decision 4: strict blind 1.98 on n = 20; re-ships on an n >= 60 packet)
-    assert {"sr", "remount", "u_and_r", "textbook", "shelf", "donchian_breakout", "cup"} <= every, every
+    assert {"sr", "remount", "u_and_r", "textbook", "shelf", "donchian_breakout", "cup",
+            "darvas_box"} <= every, every
     assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
-    # every setup-line family is a released fixture, and each one reproduces at least one judged case today
-    assert set(JG.SETUP_LINE_FAMILIES) <= fams, set(JG.SETUP_LINE_FAMILIES) - fams
+    # every setup-line family is a fixture (released, or withdrawn and replayed with its round set: the darvas box,
+    # withdrawn 2026-10-24 on its NEGATIVE outcome verdict), and each one reproduces at least one judged case today
+    assert set(JG.SETUP_LINE_FAMILIES) <= every, set(JG.SETUP_LINE_FAMILIES) - every
     for fam in JG.SETUP_LINE_FAMILIES:
-        assert any(f == fam and c["id"] not in KNOWN_RED for f, c in RELEASED), f"every {fam} case is KNOWN_RED"
+        assert any(f == fam and c["id"] not in KNOWN_RED for f, c in RELEASED + WITHDRAWN), f"every {fam} case is KNOWN_RED"
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round

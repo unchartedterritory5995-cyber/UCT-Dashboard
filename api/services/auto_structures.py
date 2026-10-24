@@ -3204,7 +3204,12 @@ MEMBER_RSI_BULLISH_DIVERGENCE_ROUND = 2
 MEMBER_WYCKOFF_UPTHRUST_ROUND = 2
 MEMBER_CHANNEL_ROUND = 2
 MEMBER_PENNANT_ROUND = 2
-MEMBER_DARVAS_BOX_ROUND = 2
+#: darvas_box WITHHELD from members 2026-10-24 (None): it passed its blind drawing packets, but its outcome verdict is
+#: NEGATIVE -- outcome replay 2026-10-24: win8 lift -5.1pp [-6.7,-3.4] vs matched breakout. A buy setup that trails a
+#: plain breakout misleads, so members do not get it. The id stays in both registry sets (admins keep the drawing);
+#: re-release = this literal back to 2 on a new outcome replay that clears a matched breakout. Railed by
+#: tests/test_negative_outcome_withheld.py and the judged gate (darvas_box.json.gz status "withdrawn").
+MEMBER_DARVAS_BOX_ROUND = None
 MEMBER_FALLING_WEDGE_ROUND = 2
 MEMBER_DOUBLE_TOP_ROUND = 2
 MEMBER_GOLDEN_CROSS_ROUND = 2

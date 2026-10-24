@@ -16,12 +16,17 @@ GOOD = {"lift_pp": 3.1, "ci": [0.4, 5.9], "n": 412, "period": "2023-2026", "hold
         "method_url": "/methodology/measured-edge"}
 
 
-def test_the_list_ships_empty():
-    """Filled from the re-measured edges in a later commit, one reviewed entry per type. Not here."""
-    assert ME.MEASURED_EDGE == {}
+def test_the_list_is_exactly_the_one_re_measured_type():
+    """Outcome re-measurement 2026-10-24: exactly ONE type beat a matched plain breakout on the held-out period."""
+    assert set(ME.MEASURED_EDGE) == {"draw:channel"}
+    assert ME.badge_for("draw:channel") == {"lift_pp": 4.3, "ci": [2.3, 6.4], "n": 1210,
+                                            "period": "Oct 2023 to Aug 2026", "holdout": True,
+                                            "method_url": ME.METHOD_URL}
+    for other in ("draw:shelf-pivot", "draw:double-bottom", "draw:darvas-box", "draw:remount", "flat_base"):
+        assert ME.badge_for(other) is None, other
 
 
-def test_an_empty_list_badges_nothing():
+def test_an_unlisted_type_badges_nothing():
     rows = [{"pattern_id": "draw:shelf-pivot", "direction": "bullish"}, {"pattern_id": "flat_base"}]
     assert ME.with_badges(rows) == rows
     assert all("measured_edge" not in r for r in ME.with_badges(rows))
@@ -63,6 +68,11 @@ def test_a_malformed_entry_serves_nothing(monkeypatch, bad):
     # control: the same slot with a good entry serves
     monkeypatch.setattr(ME, "MEASURED_EDGE", {"t": dict(GOOD)})
     assert ME.badge_for("t") == GOOD
+
+
+def test_a_member_channel_row_carries_the_badge():
+    out = ME.with_badges([{"pattern_id": "draw:channel", "direction": "neutral"}])
+    assert out[0]["measured_edge"]["lift_pp"] == 4.3 and out[0]["measured_edge"]["n"] == 1210
 
 
 def test_badge_payload_covers_every_drawing_list(monkeypatch):
