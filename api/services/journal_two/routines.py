@@ -481,7 +481,8 @@ def get(user_id: str, rid: str, *, now: datetime | None = None,
         return None if row is None else _shape(c, row, _today(now))
 
 
-def _diff_items(raw: list[dict], given: list[dict], today: date) -> list[dict]:
+def _diff_items(raw: list[dict], given: list[dict], today: date,
+                ticked_ids: frozenset[str] = frozenset()) -> list[dict]:
     """The new stored item list. A given id that is valid today keeps its id (and so its
     ticks) with the new text; a valid item not given ends today; anything else is new from
     today. Ended items keep their spans; nothing before today changes."""
@@ -510,8 +511,10 @@ def _diff_items(raw: list[dict], given: list[dict], today: date) -> list[dict]:
             ended.append(r)
     over = len(kept) + len(ended) - STORED_ITEMS_MAX
     if over > 0:
-        # M4: drop the oldest ended items (earliest `to`) so the stored list stays bounded.
-        order = sorted(range(len(ended)), key=lambda i: str(ended[i].get("to") or ""))
+        # M4 + ruling W9-R11: drop the oldest ended items (earliest `to`) so the stored list
+        # stays bounded, but never one a tick still names: past days must keep reading the same.
+        order = sorted((i for i in range(len(ended)) if ended[i]["id"] not in ticked_ids),
+                       key=lambda i: str(ended[i].get("to") or ""))
         drop = set(order[:over])
         ended = [r for i, r in enumerate(ended) if i not in drop]
     return kept + ended
@@ -542,7 +545,13 @@ def update(user_id: str, rid: str, *, if_match: int, name: Any = None,
         new_settings = (_clean_settings(settings, _settings(row)) if settings is not None
                         else _settings(row))
         raw = _raw_items(row)
-        new_items = _diff_items(raw, given, today) if given is not None else raw
+        if given is not None:
+            ticked = frozenset(r[0] for r in c.execute(
+                "SELECT DISTINCT item_id FROM j2_routine_ticks WHERE user_id = ? AND routine_id = ?",
+                (user_id, rid)))
+            new_items = _diff_items(raw, given, today, ticked)
+        else:
+            new_items = raw
         if clean_sched is not None:
             current = _schedule_today(_schedules(c, user_id, rid), today)
             if current != clean_sched:

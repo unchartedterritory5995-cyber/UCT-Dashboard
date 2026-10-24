@@ -673,6 +673,24 @@ def test_stored_items_are_capped_dropping_the_oldest_ended_first(R):
     assert all(f"g8-{k}" in ended_texts for k in range(25))
 
 
+def test_a_ticked_ended_item_is_never_dropped_by_the_cap(R):
+    """Ruling W9-R11: past days keep reading the same, so a ticked item survives the cap."""
+    r = make(R, day="2026-01-05")
+    first = r["items"][0]["id"]
+    R.set_tick(A, r["id"], "2026-01-05", first, True, now=at("2026-01-05"))
+    etag = R.get(A, r["id"], now=at("2026-01-05"))["etag"]
+    d = date(2026, 1, 6)
+    for n in range(10):
+        etag = R.update(A, r["id"], if_match=etag, now=at(d.isoformat()),
+                        items=[{"text": f"g{n}-{k}"} for k in range(25)])["etag"]
+        d += timedelta(days=7)
+    with _conn() as c:
+        stored = json.loads(c.execute("SELECT items_json FROM j2_routines WHERE id = ?",
+                                      (r["id"],)).fetchone()[0])
+    assert first in {i["id"] for i in stored}
+    assert len(stored) == R.STORED_ITEMS_MAX
+
+
 def test_an_identical_schedule_writes_no_row(R):
     r = make(R, day="2026-10-01", schedule={"kind": "weekdays", "days": [0, 2]})
     R.update(A, r["id"], if_match=1, schedule={"kind": "weekdays", "days": [2, 0]},
