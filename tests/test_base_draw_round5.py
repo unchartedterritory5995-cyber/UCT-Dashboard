@@ -376,6 +376,21 @@ def test_on_the_member_route_an_approved_like_base_is_served_unchanged(monkeypat
     assert json.dumps(got, sort_keys=True) == json.dumps(want, sort_keys=True)
 
 
+def test_a_base_state_drawn_over_the_held_price_is_refused(monkeypatch):
+    """Where round 5 refuses, base_draw_row asks the base STATES; a state drawn over the same held range goes
+    through the same floor. Control: with the floor off, the state row is built."""
+    b = _held()
+    i = len(b) - 1
+    held = dict(BD.base_drawing(b, i, draw_round=4), state="forming", state_round=BD.STATE_ROUND)
+    monkeypatch.setattr(BD, "state_drawing", lambda bars, j: dict(held))
+    assert BD.base_drawing(b, i) is None
+    assert auto_structures.base_draw_row("SYN", b) is None
+    _floor_off(monkeypatch)
+    monkeypatch.setattr(BD, "base_drawing", lambda bars, j, draw_round=None: None)
+    row = auto_structures.base_draw_row("SYN", b)
+    assert row is not None and row["geometry"]["extras"]["draw_base"]["state"] == "forming"
+
+
 def test_on_the_member_route_a_shelf_line_over_the_held_price_is_refused(monkeypatch):
     """The shelf pivot (added after the other structures) goes through the member floor too."""
     _flags(monkeypatch, True, True)

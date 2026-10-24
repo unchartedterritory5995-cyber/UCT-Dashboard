@@ -1009,6 +1009,10 @@ def base_draw_row(sym: str, bars: list):
             if d is None:
                 # where no base is drawn: the base STATES (breakout persistence, 3 weeks tight, base forming)
                 d = base_draw.state_drawing(b, len(b) - 1)
+                # ... put through the same depth floor: a state drawn where round 5 refused the range must not
+                # draw that range back (a price held flat after a gap reads as a base "forming")
+                if d is not None and base_draw.floor_refuses(b, len(b) - 1, d):
+                    d = None
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:
@@ -1025,7 +1029,7 @@ def base_draw_row(sym: str, bars: list):
 #: the shelf pivot): the base floor (base_draw.floor_refuses, round 5's removal-only guard) is applied to them
 #: HERE, on the member path, so a dead or ultra-shallow range is not drawn as a base by ANY door (the shelf
 #: pivot too: `_member_floor_ids`). bc:base is not listed: its drawing code (round 5) already applies the floor,
-#: and one guard is asked once.
+#: and base_draw_row applies it to the base STATE drawings; one guard is asked once per door.
 MEMBER_FLOOR_IDS = frozenset({"bc:flat-base", "bc:cup-with-handle", "draw:double-bottom", "flat_base",
                               "uct_flat_top_breakout"})
 
