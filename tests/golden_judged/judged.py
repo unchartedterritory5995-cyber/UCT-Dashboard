@@ -11,6 +11,7 @@ For every fixture case (a chart a blind judge scored 3 on a RELEASED drawing rou
       (the member path's own "one breakout line per base" lens, auto_structures.ONE_LINE_PER_BASE_ATR).
 
 `failures(case, payload, bars)` returns a list of human-readable strings; empty means the case passes.
+`retired_failures` is its inverse for a case a newer passed blind round retired: the drawing must be ABSENT.
 """
 from __future__ import annotations
 
@@ -23,6 +24,8 @@ TOL_PCT = 0.01
 SPAN_BARS_MIN = 3
 SPAN_FRAC = 0.10
 ONE_BASE_ATR = 1.0
+#: textbook round 2: the drawn base line sits this far under the printed buy point (textbook_numbers.BUY_POINT_TICK)
+LINE_TICK = 0.10
 
 #: family -> the member pattern id it draws (None: a layer, not a row).
 PATTERN_IDS = {
@@ -143,6 +146,15 @@ def _check_geometry(fam, case, row, bars, atr, out):
         m = ex.get("metrics_textbook") or {}
         w = _unscale(case, e["buy_point"])
         _near("textbook buy point", m.get("buy_point"), w, tol(w), out)
+        if "line" in e:
+            # round 2: the base's top line is drawn at buy point - $0.10, one price with the printed buy point
+            wl = _unscale(case, e["line"])
+            _near("textbook line", m.get("line"), wl, tol(wl), out)
+            if _finite(m.get("line")) and _finite(m.get("buy_point")):
+                want = round(float(m["buy_point"]) - LINE_TICK, 2)
+                if abs(float(m["line"]) - want) > 1e-9:
+                    out.append(f"textbook line {float(m['line']):.4f} is not buy point - {LINE_TICK:.2f} "
+                               f"({want:.4f})")
     elif fam == "double_bottom":
         d = ex.get("draw_shape") or {}
         for k in ("pivot", "low"):
@@ -239,6 +251,54 @@ def _check_other_on_base(fam, case, payload, bars, atr, mine, out):
                        f"within {ONE_BASE_ATR} ATR of the judged {key:.4f}")
 
 
+def _want_key(fam, case):
+    return _unscale(case, case["expect"][{"base": "pivot", "textbook": "buy_point", "double_bottom": "pivot",
+                                          "shelf": "price", "cup": "pivot_price",
+                                          "inside_day": "trigger", "remount": "level", "u_and_r": "level",
+                                          "donchian_breakout": "level"}[fam]])
+
+
+#: Rules a passed blind round retired judged cases under: rule -> (what must still hold on the fixture's chart for
+#: the retirement to explain the drawing's absence). A retired case whose rule no longer holds is red: the drawing is
+#: then missing for some OTHER reason, which nobody judged.
+def _trend_gate_holds(bars):
+    from api.services.pattern_engine import base_draw as BD
+    closes = [b["c"] for b in bars]
+    return not BD.trend_ok(closes, len(closes) - 1)
+
+
+RETIRE_RULES = {"trend_gate": _trend_gate_holds}
+
+
+def retired_failures(case, payload, bars) -> list:
+    """A judged case a NEWER passed blind round retired (`case["retired"]`): the judged drawing must now be ABSENT
+    from the member chart -- no drawn row of the family's pattern id puts its key price within ONE_BASE_ATR x ATR14
+    of the judged one -- and the retiring rule must still hold on the chart."""
+    fam, r = case["family"], case["retired"]
+    atr = MP.atr14(bars)
+    out: list = []
+    rule = RETIRE_RULES.get(r.get("rule"))
+    if rule is None:
+        return [f"retired under an unknown rule {r.get('rule')!r}"]
+    if not rule(bars):
+        out.append(f"retired by {r.get('rule')}, but that rule no longer applies on this chart")
+    want_key = _want_key(fam, case)
+    for row in _rows_of(payload, PATTERN_IDS[fam]):
+        try:
+            keys = [_key_and_span(fam, row, bars)[0]]
+        except (KeyError, TypeError, ValueError):
+            out.append(f"a {PATTERN_IDS[fam]} row whose key price cannot be read")
+            continue
+        if fam == "textbook" and _finite((_ex(row).get("metrics_textbook") or {}).get("buy_point")):
+            keys.append(float(_ex(row)["metrics_textbook"]["buy_point"]))   # the printed buy point too
+        for key in keys:
+            if abs(key - want_key) <= ONE_BASE_ATR * atr:
+                out.append(f"retired drawing is back on the member chart: {PATTERN_IDS[fam]} at {key:.4f} "
+                           f"(judged {want_key:.4f}); {r.get('reason')}")
+                break
+    return out
+
+
 def failures(case, payload, bars) -> list:
     fam = case["family"]
     atr = MP.atr14(bars)
@@ -255,10 +315,7 @@ def failures(case, payload, bars) -> list:
         out.append(f"(1) no {pid} drawing on the member chart (drawn instead: {drawn or 'nothing'})")
         return out
     # the judged drawing is the row closest to the judged key price
-    want_key = _unscale(case, case["expect"][{"base": "pivot", "textbook": "buy_point", "double_bottom": "pivot",
-                                              "shelf": "price", "cup": "pivot_price",
-                                              "inside_day": "trigger", "remount": "level", "u_and_r": "level",
-                                              "donchian_breakout": "level"}[fam]])
+    want_key = _want_key(fam, case)
     if fam == "textbook":
         mine = min(rows, key=lambda r: abs(float(_ex(r)["metrics_textbook"].get("buy_point") or 1e18) - want_key))
     else:

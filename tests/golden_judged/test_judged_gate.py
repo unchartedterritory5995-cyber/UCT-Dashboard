@@ -9,6 +9,7 @@ tolerance and (3) draw no other member drawing on the same base (tests/golden_ju
 """
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import re
@@ -19,7 +20,11 @@ from tests.golden_judged import judged as JG
 from tests.golden_judged import member_path as MP
 
 FAMILIES = MP.families()
-RELEASED = [(f["family"], c) for f in FAMILIES if f["status"] == "released" for c in f["cases"]]
+RELEASED = [(f["family"], c) for f in FAMILIES if f["status"] == "released" for c in f["cases"]
+            if "retired" not in c]
+#: Judged cases a NEWER passed blind round retired (each carries `retired`: the rule and the round): the judged
+#: drawing must now be ABSENT from the member chart, and the rule must still hold there (judged.retired_failures).
+RETIRED = [(f["family"], c) for f in FAMILIES if f["status"] == "released" for c in f["cases"] if "retired" in c]
 PENDING = [f for f in FAMILIES if f["status"] == "pending_port"]
 
 #: Judged cases the CURRENT master does not reproduce, each a finding with its measured cause. Kept RED-visible as
@@ -31,14 +36,17 @@ _PRECEDENCE = ("judged drawing never served on this chart: a member drawing that
                "(member_base_precedence / member_inside_day_precedence / one-line-per-base) takes its place; "
                "already so at the drawing's release commit")
 for _cid in ("base-a-011", "base-a-016", "base-a-018", "base-a-020", "base-a-025", "base-b-010", "base-b-013",
-             "inside-day-a2-004", "inside-day-a2-009", "inside-day-b2-012", "inside-day-b2-013", "inside-day-b2-016",
-             "inside-day-b2-019", "inside-day-b2-025", "shelf-b-020", "textbook-g1-01", "textbook-g1-12"):
+             "inside-day-a2-004", "inside-day-b2-012", "inside-day-b2-025", "shelf-b-020", "textbook-g1-01",
+             "textbook-g1-12"):
     KNOWN_RED[_cid] = _PRECEDENCE
 for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
     KNOWN_RED[_cid] = ("judged double bottom never served: withheld on the member chart (the release's stale-"
                        "breakout condition, auto_structures._db_breakout_stale); already so at the release commit")
-for _cid in ("cup-d1-015", "cup-d1-019", "cup-d2-019", "cup-d2-024", "double-bottom-a-010", "inside-day-b2-018",
-             "textbook-g1-10"):
+for _cid in ("cup-d1-015", "double-bottom-a-010", "inside-day-b2-018", "textbook-g1-10",
+             # cup_served (2026-10-23): served at last, with the judged geometry, beside a flagging-tier bull_flag
+             "cup-d1-019", "cup-d2-019", "cup-d2-024",
+             # textbook round 2 (2026-10-23): the same finding, measured at that round's release commit ffbeeffed1
+             "textbook-r2b-07", "textbook-r2b-09", "textbook-r2b-16", "textbook-r2b-19", "textbook-r2b-20"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
 
@@ -54,6 +62,13 @@ def test_a_judged_drawing_is_still_drawn_as_the_judges_saw_it(family, case, monk
     payload, bars = MP.member_payload(monkeypatch, case)
     bad = JG.failures(case, payload, bars)
     assert not bad, f"{case['id']} (judge scores {case['judge_scores']}):\n  " + "\n  ".join(bad)
+
+
+@pytest.mark.parametrize("family,case", RETIRED, ids=_ids(RETIRED))
+def test_a_retired_judged_drawing_stays_off_the_member_chart(family, case, monkeypatch):
+    payload, bars = MP.member_payload(monkeypatch, case)
+    bad = JG.retired_failures(case, payload, bars)
+    assert not bad, f"{case['id']} (retired: {case['retired']['rule']}):\n  " + "\n  ".join(bad)
 
 
 # ---------------------------------------------------------------------------- the gate can fail
@@ -99,11 +114,44 @@ def test_a_missing_drawing_and_an_extra_drawing_on_the_base_are_caught(monkeypat
     assert any("same base" in m for m in JG.failures(case, dup, bars))
 
 
+def test_a_retired_drawing_coming_back_is_caught(monkeypatch):
+    """Control: the absence check is not vacuous -- the retired case's own judged drawing, put back on its chart, is
+    red, and a chart where the retiring rule no longer holds is red."""
+    fam, case = next((f, c) for f, c in RETIRED if f == "shelf")
+    payload, bars = MP.member_payload(monkeypatch, case)
+    assert JG.retired_failures(case, payload, bars) == []
+    p = JG._unscale(case, case["expect"]["price"])
+    back = {"pattern_id": "draw:shelf-pivot", "start_t": MP.ymd(case, case["expect"]["start_t"]),
+            "end_t": int(bars[-1]["t"]), "geometry": {"extras": {"draw_shelf": {
+                "price": p, "start_t": MP.ymd(case, case["expect"]["start_t"]), "end_t": int(bars[-1]["t"])}}}}
+    again = {**payload, "structures": list(payload.get("structures") or []) + [back]}
+    assert any("back on the member chart" in m for m in JG.retired_failures(case, again, bars))
+    up = [dict(b) for b in bars]
+    up[-1]["c"] = max(b["c"] for b in bars) * 10   # the as-of close far above any 200-day average...
+    for j in range(len(up) - 40, len(up) - 1):     # ...and that average rising
+        up[j]["c"] = up[j]["c"] * 3
+    assert any("no longer applies" in m for m in JG.retired_failures(case, payload, up))
+
+
+def test_a_textbook_line_off_the_buy_point_is_caught(monkeypatch):
+    """Control: round 2's line check -- a drawn line that is not buy point - $0.10 is red."""
+    case, payload, bars = _first_green("textbook", monkeypatch, need=lambda c: "line" in c["expect"])
+    bp = JG._unscale(case, case["expect"]["buy_point"])
+    rows = [r for r in payload["structures"] if isinstance(JG._ex(r).get("metrics_textbook"), dict)]
+    mine = min(rows, key=lambda r: abs(float(JG._ex(r)["metrics_textbook"]["buy_point"]) - bp))
+    moved = json.loads(json.dumps(payload))
+    for r in moved["structures"]:
+        if r.get("id") == mine.get("id"):
+            r["geometry"]["extras"]["metrics_textbook"]["line"] = round(bp - 0.05, 2)
+    assert any("not buy point" in m for m in JG.failures(case, moved, bars))
+
+
 def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
     assert {"base", "double_bottom", "shelf", "sr", "cup", "inside_day", "textbook", "remount",
             "u_and_r"} <= fams, fams
+    assert any("line" in c["expect"] for f, c in RELEASED if f == "textbook"), "no textbook round-2 line case"
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round
@@ -146,8 +194,9 @@ def test_the_fixtures_are_symbol_free_and_small():
     total = 0
     for name in sorted(os.listdir(MP.FIXTURES)):
         p = os.path.join(MP.FIXTURES, name)
-        total += os.path.getsize(p)
-        text = open(p, encoding="utf-8").read()
+        raw = open(p, "rb").read()
+        total += len(raw)   # bytes on disk: a .json.gz fixture counts compressed, and is scanned decompressed
+        text = (gzip.decompress(raw) if name.endswith(".gz") else raw).decode("utf-8")
         assert not re.search(r"[A-Za-z]:[\\/]|Desktop|lab[\\/]|\.png|\.db\b", text), name
         doc = json.loads(text)
         keys: set = set()
