@@ -43,7 +43,8 @@ from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
-    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange,
+    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, S_THEN_TABLE_ONLY, VIEWS, ResolvedRange,
+    _UNBOUNDED_TOKENS,
 )
 
 # ── field vocabulary ───────────────────────────────────────────────────────────────────────────
@@ -89,6 +90,10 @@ class Field:
     missing: str | None = None
     #: a row key holding the group label (an account's name)
     label_from: str | None = None
+    #: the values a member picks from for a filter, as `((value, label), ...)` or a callable returning that
+    #: (read when the vocabulary is served). Only for a field whose values are a closed set that is not
+    #: already its `bucket`; it never changes how the field splits.
+    choices: Any = None
 
 
 def _f(key, label, ftype, *, sql=None, py=None, split=False, **kw) -> Field:
@@ -291,6 +296,17 @@ _T_WEEKDAY = ("CASE strftime('%w', " + _DAY + ") WHEN '1' THEN 'Monday' WHEN '2'
 _T_ORIGIN = ("CASE WHEN t.source = 'broker' THEN 'broker' WHEN t.source = 'csv' THEN 'csv'"
              " ELSE 'manual' END")
 
+#: What `j2_trades.side` / `j2_positions.side` hold (csv_import refuses anything else).
+SIDE_CHOICES = (("Long", "Long"), ("Short", "Short"))
+
+
+def _regime_choices() -> list[tuple[str, str]]:
+    """The regime ids `j2_trades.regime` stores, with the member's word for each (regime.regime_words,
+    the one authority: "amber" reads "Yellow"). Read lazily, when the vocabulary is served."""
+    from api.services.journal_two.regime import regime_words
+    return list(regime_words().items())
+
+
 CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("day", "Day", "day", sql=_DAY, split=True),
     _f("hour_et", "ET hour", "number", sql="t.hour_et", split=True, fmt=_hour_label,
@@ -300,7 +316,7 @@ CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("month", "Month", "enum", sql="substr(" + _DAY + ", 1, 7)",
        py=lambda r: (str(r["day"])[:7] if r.get("day") else None), split=True),
     _f("symbol", "Symbol", "text", sql="t.symbol", split=True, ci=True),
-    _f("side", "Side", "enum", sql="t.side", split=True),
+    _f("side", "Side", "enum", sql="t.side", split=True, choices=SIDE_CHOICES),
     _f("setup", "Setup", "enum", sql="t.setup", split=True, none_label="No setup"),
     _f("result", "Result", "enum", sql="t.result", split=True,
        fmt=lambda v: _RESULT_LABELS.get(v, str(v)), bucket=("Win", "Loss", "BE")),
@@ -316,7 +332,7 @@ CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("shares", "Shares", "number", sql="t.shares"),
     _f("size_quartile", "Size quartile", "enum", split=True, bucket=QUARTILES),
     _f("regime", "Regime at entry", "enum", sql="t.regime", split=True,
-       none_label="No regime recorded"),
+       none_label="No regime recorded", choices=_regime_choices),
     _f("mistake", "Mistake", "tag", sql="t.mistake_tags", py=lambda r: r.get("mistake"),
        split=True, none_label="No mistake tagged"),
     _f("emotion", "Emotion", "tag", sql="t.emotion_tags", py=lambda r: r.get("emotion"),
@@ -329,9 +345,9 @@ CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("mfe_r", "MFE R", "number"),
     _f("mae_r", "MAE R", "number"),
     _f("exit_efficiency", "Exit efficiency", "number"),
-    _f("adherence_pct", "Plan adherence %", "number"),
-    _f("plan_linked", "Linked to a plan note", "bool", split=True,
-       fmt=_yes_no("Linked to a plan", "No plan linked")),
+    _f("adherence_pct", "Followed my trading plan %", "number"),
+    _f("plan_linked", "Linked to a trading plan note", "bool", split=True,
+       fmt=_yes_no("Linked to a trading plan", "No trading plan linked")),
     _f("r_bucket", "R bucket", "enum", split=True, bucket=R_BUCKETS, missing="no R"),
 ]}
 
@@ -438,7 +454,7 @@ def scan_closed(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 
 POSITION_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("symbol", "Symbol", "text", sql="p.symbol", split=True, ci=True),
-    _f("side", "Side", "enum", sql="p.side", split=True),
+    _f("side", "Side", "enum", sql="p.side", split=True, choices=SIDE_CHOICES),
     _f("setup", "Setup", "enum", sql="p.setup", split=True, none_label="No setup"),
     _f("days_open", "Days open", "number"),
     _f("unrealised", "Unrealised P&L", "number"),
@@ -796,6 +812,73 @@ S_POSITIONS_NO_COMPARE = ("Open positions are a snapshot of right now, so there 
                           "period to compare.")
 
 
+# Task 8.15 fix 1, ruling R-35: the view rules are DATA, and this is their one authority. `view_allowed`
+# evaluates them; the vocabulary sends them (`viewRules`) and the builder evaluates the same list to grey a view
+# out with the same sentence. A check applies to the views it names (None: every view) and fails when its `test`
+# is false. Adding a test name means adding it to BOTH interpreters: `view_check_passes` here and
+# `CHECK_TESTS` in the client's widgetBuilder/builderCatalog.js (rail: the builder's server-catalog fixture).
+VIEW_REASONS = {
+    "positions_no_compare": S_POSITIONS_NO_COMPARE, "view_one_number": S_VIEW_ONE_NUMBER,
+    "no_earlier": S_NO_EARLIER, "view_progress": S_VIEW_PROGRESS, "view_bar": S_VIEW_BAR,
+    "view_line": S_VIEW_LINE, "view_heat": S_VIEW_HEAT, "view_scatter_trades": S_VIEW_SCATTER_TRADES,
+    "view_scatter": S_VIEW_SCATTER, "view_list": S_VIEW_LIST, "then_table_only": S_THEN_TABLE_ONLY,
+}
+_NOT_TABLE = tuple(v for v in VIEWS if v != "table")
+VIEW_CHECKS: tuple[dict, ...] = (
+    {"views": None, "test": "not_right_now_compare", "sources": sorted(RIGHT_NOW_SOURCES),
+     "reason": "positions_no_compare"},
+    {"views": ("number", "compare", "progress"), "test": "no_split", "reason": "view_one_number"},
+    {"views": ("compare",), "test": "has_earlier", "tokens": sorted(_UNBOUNDED_TOKENS), "reason": "no_earlier"},
+    {"views": ("progress",), "test": "has_target", "reason": "view_progress"},
+    {"views": ("bar",), "test": "split", "reason": "view_bar"},
+    {"views": ("line",), "test": "split_in", "fields": sorted(TIME_FIELDS), "reason": "view_line"},
+    {"views": ("heat",), "test": "split_in", "fields": ["day"], "reason": "view_heat"},
+    {"views": ("scatter",), "test": "source_in", "sources": ["closed_trades"], "reason": "view_scatter_trades"},
+    {"views": ("scatter",), "test": "no_split_measures", "measures": 2, "reason": "view_scatter"},
+    {"views": ("list",), "test": "no_split", "reason": "view_list"},
+    {"views": _NOT_TABLE, "test": "no_then", "reason": "then_table_only"},
+)
+#: The suggested view for a shape: no split -> number (compare when the plan compares); a second split -> table;
+#: a split along time -> line; any other split -> bar.
+AUTO_VIEW = {"no_split": "number", "compare": "compare", "then": "table", "time_fields": sorted(TIME_FIELDS),
+             "time": "line", "split": "bar"}
+
+
+def view_check_passes(check: dict, plan: dict, source_key: str, vtype: str | None) -> bool:
+    t = check["test"]
+    split = plan.get("split") or None
+    if t == "not_right_now_compare":
+        return not (source_key in check["sources"] and (vtype == "compare" or plan.get("compare")))
+    if t == "no_split":
+        return not split
+    if t == "has_earlier":
+        cmp = plan.get("compare") or {"mode": "previous"}
+        tok = (plan.get("range") or {}).get("token")
+        return not (cmp.get("mode") == "previous" and tok in check["tokens"])
+    if t == "has_target":
+        return (plan.get("display") or {}).get("target") is not None
+    if t == "split":
+        return bool(split)
+    if t == "split_in":
+        return bool(split) and split.get("by") in check["fields"]
+    if t == "source_in":
+        return source_key in check["sources"]
+    if t == "no_split_measures":
+        return not split and len(plan.get("measures") or []) == check["measures"]
+    if t == "no_then":
+        return not (split and split.get("then"))
+    raise ValueError(f"unknown view check {t!r}")
+
+
+def auto_view_from(rules: dict, plan: dict) -> str:
+    split = plan.get("split")
+    if not split:
+        return rules["compare"] if plan.get("compare") else rules["no_split"]
+    if split.get("then"):
+        return rules["then"]
+    return rules["time"] if split.get("by") in rules["time_fields"] else rules["split"]
+
+
 class WidgetCatalog:
     """The concrete `plan.Catalog`: sources, the measures each may pick, accents, views, ranges."""
 
@@ -810,16 +893,12 @@ class WidgetCatalog:
         return wmeasures.measures_for(source_key)
 
     def auto_view(self, plan: dict) -> str:
-        """The view the builder suggests for a plan's shape."""
-        split = plan.get("split")
-        if not split:
-            return "compare" if plan.get("compare") else "number"
-        if split.get("then"):
-            return "table"
-        return "line" if split.get("by") in TIME_FIELDS else "bar"
+        """The view the builder suggests for a plan's shape (`AUTO_VIEW`, the data the builder reads)."""
+        return auto_view_from(AUTO_VIEW, plan)
 
     def view_allowed(self, plan: dict) -> str | None:
-        """None, or the one line saying why the plan's view (or split) cannot be used."""
+        """None, or the one line saying why the plan's view (or split) cannot be used. The split-field test is
+        structural; every view rule is the DATA in `VIEW_CHECKS`, which the builder evaluates the same way."""
         src = self.sources.get(plan.get("source"))
         if src is None:
             return None
@@ -829,31 +908,11 @@ class WidgetCatalog:
                 if k is not None and not getattr(src.fields.get(k), "split", False):
                     return S_SPLIT_FIELD
         vtype = (plan.get("view") or {}).get("type")
-        n_measures = len(plan.get("measures") or [])
-        if src.key in RIGHT_NOW_SOURCES and (vtype == "compare" or plan.get("compare")):
-            return S_POSITIONS_NO_COMPARE
-        if vtype in ("number", "compare", "progress") and split:
-            return S_VIEW_ONE_NUMBER
-        if vtype == "compare":
-            cmp = plan.get("compare") or {"mode": "previous"}
-            tok = (plan.get("range") or {}).get("token")
-            if cmp.get("mode") == "previous" and (tok == "all" or str(tok).endswith("_trades")):
-                return S_NO_EARLIER
-        if vtype == "progress" and (plan.get("display") or {}).get("target") is None:
-            return S_VIEW_PROGRESS
-        if vtype == "bar" and not split:
-            return S_VIEW_BAR
-        if vtype == "line" and (not split or split.get("by") not in TIME_FIELDS):
-            return S_VIEW_LINE
-        if vtype == "heat" and (not split or split.get("by") != "day"):
-            return S_VIEW_HEAT
-        if vtype == "scatter":
-            if src.key != "closed_trades":
-                return S_VIEW_SCATTER_TRADES
-            if split or n_measures != 2:
-                return S_VIEW_SCATTER
-        if vtype == "list" and split:
-            return S_VIEW_LIST
+        for check in VIEW_CHECKS:
+            if check["views"] is not None and vtype not in check["views"]:
+                continue
+            if not view_check_passes(check, plan, src.key, vtype):
+                return VIEW_REASONS[check["reason"]]
         return None
 
 

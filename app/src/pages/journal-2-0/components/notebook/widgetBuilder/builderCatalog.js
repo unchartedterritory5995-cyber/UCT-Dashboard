@@ -52,7 +52,7 @@ export function indexCatalog(raw) {
     rangeLabels: new Map(ranges.map((r) => [r.token, r.label])),
     views: Array.isArray(c.views) ? c.views : VIEW_LABELS.map(([k]) => k),
     accents: Array.isArray(c.accents) ? c.accents : [],
-    timeFields: new Set(Array.isArray(c.timeFields) ? c.timeFields : ['day', 'month']),
+    viewRules: isRecord(c.viewRules) ? c.viewRules : null,
     reasons: isRecord(c.reasons) ? c.reasons : {},
     maxMeasures: Number.isInteger(c.maxMeasures) ? c.maxMeasures : 3,
     maxFilters: Number.isInteger(c.maxFilters) ? c.maxFilters : 8,
@@ -87,39 +87,45 @@ const UNBOUNDED = (tok) => tok === 'all' || (typeof tok === 'string' && tok.ends
 export const rangeIsUnbounded = (range) => isRecord(range) && UNBOUNDED(range.token)
 
 /**
- * The reason a view cannot show this plan, or null. Mirrors `WidgetCatalog.view_allowed` (sources.py) with the
- * view swapped in, so each thumbnail can be greyed out with the engine's own sentence.
+ * Ruling R-35: the view rules are the SERVER's data (`viewRules` in the vocabulary: sources.VIEW_CHECKS and
+ * AUTO_VIEW), and this file only evaluates them, test by test, exactly as `sources.view_check_passes` does. A test
+ * name the client does not know answers "allowed" (the server still refuses the plan, with its sentence).
  */
-export function viewReason(cat, plan, vtype) {
-  const src = sourceOf(cat, plan)
-  if (!src) return null
-  const split = plan.split
-  const n = (plan.measures || []).length
-  if (src.rightNow && vtype === 'compare') return reasonOf(cat, 'positions_no_compare')
-  if (['number', 'compare', 'progress'].includes(vtype) && split) return reasonOf(cat, 'view_one_number')
-  if (vtype === 'compare') {
+export const CHECK_TESTS = Object.freeze({
+  not_right_now_compare: (c, plan, ctx) => !(c.sources?.includes(plan.source) && (ctx.vtype === 'compare' || !!plan.compare)),
+  no_split: (c, plan) => !plan.split,
+  has_earlier: (c, plan) => {
     const mode = plan.compare?.mode || 'previous'
-    if (mode === 'previous' && rangeIsUnbounded(plan.range)) return reasonOf(cat, 'no_earlier')
+    return !(mode === 'previous' && (c.tokens || []).includes(plan.range?.token))
+  },
+  has_target: (c, plan) => typeof plan.display?.target === 'number' && Number.isFinite(plan.display.target),
+  split: (c, plan) => !!plan.split,
+  split_in: (c, plan) => !!plan.split && (c.fields || []).includes(plan.split.by),
+  source_in: (c, plan) => (c.sources || []).includes(plan.source),
+  no_split_measures: (c, plan) => !plan.split && (plan.measures || []).length === c.measures,
+  no_then: (c, plan) => !(plan.split && plan.split.then),
+})
+
+/** The reason a view cannot show this plan, or null: the first server check that applies to the view and fails. */
+export function viewReason(cat, plan, vtype) {
+  const checks = Array.isArray(cat?.viewRules?.checks) ? cat.viewRules.checks : []
+  for (const c of checks) {
+    if (!isRecord(c)) continue
+    if (Array.isArray(c.views) && !c.views.includes(vtype)) continue
+    const test = Object.hasOwn(CHECK_TESTS, c.test) ? CHECK_TESTS[c.test] : null
+    if (test && !test(c, plan, { vtype })) return reasonOf(cat, c.reason)
   }
-  if (vtype === 'progress' && !(typeof plan.display?.target === 'number')) return reasonOf(cat, 'view_progress')
-  if (vtype === 'bar' && !split) return reasonOf(cat, 'view_bar')
-  if (vtype === 'line' && (!split || !cat.timeFields.has(split.by))) return reasonOf(cat, 'view_line')
-  if (vtype === 'heat' && (!split || split.by !== 'day')) return reasonOf(cat, 'view_heat')
-  if (vtype === 'scatter') {
-    if (src.key !== 'closed_trades') return reasonOf(cat, 'view_scatter_trades')
-    if (split || n !== 2) return reasonOf(cat, 'view_scatter')
-  }
-  if (vtype === 'list' && split) return reasonOf(cat, 'view_list')
-  if (vtype !== 'table' && split?.then) return reasonOf(cat, 'then_table_only')
   return null
 }
 
-/** The view the shape suggests (`WidgetCatalog.auto_view`). */
+/** The view the shape suggests (`AUTO_VIEW`, sources.auto_view_from). Without rules (an older server) a table,
+ *  which shows any shape, and a number for no split. */
 export function autoView(cat, plan) {
+  const r = isRecord(cat?.viewRules?.auto) ? cat.viewRules.auto : { no_split: 'number', compare: 'number', then: 'table', time: 'table', split: 'table', time_fields: [] }
   const split = plan.split
-  if (!split) return plan.compare && !isRightNow(cat, plan) ? 'compare' : 'number'
-  if (split.then) return 'table'
-  return cat.timeFields.has(split.by) ? 'line' : 'bar'
+  if (!split) return plan.compare && !isRightNow(cat, plan) ? r.compare : r.no_split
+  if (split.then) return r.then
+  return (r.time_fields || []).includes(split.by) ? r.time : r.split
 }
 
 /**

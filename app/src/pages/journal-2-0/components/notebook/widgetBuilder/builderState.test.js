@@ -58,14 +58,23 @@ describe('builderState', () => {
 
   it('history_capped_100', () => {
     let s = start()
-    for (let i = 1; i <= 130; i += 1) s = reducer(s, { type: 'setDisplay', display: { target: i } })
+    for (let i = 1; i <= 130; i += 1) s = reducer(s, { type: 'setSort', sort: { measure: 0, dir: 'desc', top: (i % 40) + 1 } })
     expect(HISTORY_CAP).toBe(100)
     expect(s.past).toHaveLength(100)
-    // The oldest steps went first: undoing all 100 lands on target 30, never on the opening plan.
+    // The oldest steps went first: undoing all 100 lands on step 30, never on the opening plan.
     for (let i = 0; i < 100; i += 1) s = reducer(s, { type: 'undo' })
-    expect(s.plan.display.target).toBe(30)
+    expect(s.plan.sort.top).toBe(31)
     expect(s.past).toHaveLength(0)
     expect(s.future).toHaveLength(100)
+  })
+
+  it('typing a target or a subtitle is one undo step; other display changes are their own', () => {
+    let s = run(start(), { type: 'setDisplay', display: { target: 5 } }, { type: 'setDisplay', display: { target: 50 } },
+      { type: 'setDisplay', display: { target: 500 } })
+    expect(s.past).toHaveLength(1)
+    expect(run(s, { type: 'undo' }).plan.display.target).toBe(null)
+    s = run(s, { type: 'setDisplay', display: { accent: 'green' } }, { type: 'setDisplay', display: { accent: 'red' } })
+    expect(s.past).toHaveLength(3)
   })
 
   it('loadPlan resets history; keepBase keeps a resumed draft dirty', () => {

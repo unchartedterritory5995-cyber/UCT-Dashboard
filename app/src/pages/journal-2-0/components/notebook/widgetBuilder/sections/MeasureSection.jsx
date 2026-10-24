@@ -22,7 +22,8 @@ export default function MeasureSection({ cat, plan, byNeed, onOpen, onRemove }) 
           return (
             <li key={pm.key} className={styles.measureItem}>
               <div className={styles.filterItem}>
-                <button type="button" className={styles.chip} onClick={(e) => onOpen(e.currentTarget)}>
+                <button type="button" className={styles.chip} aria-label={`${label}. Change measures`}
+                  onClick={(e) => onOpen(e.currentTarget)}>
                   <span>{label}</span>
                 </button>
                 <button type="button" className={styles.chipRemove} aria-label={`Remove measure: ${label}`}
@@ -89,9 +90,11 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onBack }) {
               const meaningId = `wb-meaning-${m.key}`
               return (
                 <li key={m.key}>
+                  // ⛔ aria-disabled, never `disabled`: a disabled button cannot take focus, and its meaning (the
+                  // description) would be unreadable from the keyboard exactly when the member asks why.
                   <button type="button"
                     className={`${styles.option} ${on ? styles.optionOn : ''}`}
-                    aria-pressed={on} disabled={disabled}
+                    aria-pressed={on} aria-disabled={disabled || undefined}
                     aria-describedby={[meaningId, disabled && !on ? fullId : null].filter(Boolean).join(' ')}
                     data-reveal={revealed === m.key ? '' : undefined}
                     onPointerDown={() => startPress(m.key)} onPointerUp={endPress} onPointerLeave={endPress}
@@ -99,7 +102,7 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onBack }) {
                     onContextMenu={(e) => { if (press.current.fired) e.preventDefault() }}
                     onClick={() => {
                       if (press.current.fired) { press.current.fired = false; return }
-                      onToggle(m.key)
+                      if (!disabled) onToggle(m.key)
                     }}>
                     <span className={styles.optionLabel}>{m.label}</span>
                     <span className={styles.meaning} id={meaningId}>{m.meaning}</span>

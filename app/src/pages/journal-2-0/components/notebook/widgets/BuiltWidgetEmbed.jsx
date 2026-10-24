@@ -109,7 +109,8 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
     setHow(false)
     try {
       const mod = await import('../widgetBuilder/openWidgetBuilder.js')
-      mod.openWidgetBuilder({ editor, from: { defId, getPos } })
+      // Focus comes back to ⋯ when the builder closes without placing anything (Task 8.15 fix 1, I-9).
+      mod.openWidgetBuilder({ editor, from: { defId, getPos }, returnFocus: buttonRef.current })
     } catch { /* the builder could not load: nothing opens */ }
   }
   const manage = async () => {

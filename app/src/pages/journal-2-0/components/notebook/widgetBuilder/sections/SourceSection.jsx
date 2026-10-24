@@ -1,34 +1,62 @@
-import { useId } from 'react'
+import { useId, useRef, useState } from 'react'
 import Section from './Section'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
- * "What to look at": large tiles, one per kind of row, each with its one-line description (spec 5.2). The tiles are
- * a RADIO GROUP of native radios (spec 5.11: arrow keys move, the choice follows), styled as tiles; the radio itself
- * is visually hidden, never removed, so the group keeps its keyboard and screen-reader behaviour for free.
- * "Accounts" sits here too: all of them (the default) or one, shown on the widget.
+ * "What to look at": large tiles, one per kind of row, each with its one-line description (spec 5.2).
+ *
+ * ⛔ A ROVING-FOCUS RADIO GROUP, not native radios (fix 1, I-12). Choosing another kind of row RESETS the filters,
+ * split and order, and a native radio group selects on every arrow key, so a keyboard member walking the tiles to
+ * read them would wipe their work tile by tile. Here the arrow keys move FOCUS only (one Tab stop, the chosen tile);
+ * Enter or Space chooses. Each tile is `role="radio"` with `aria-checked`, named by its label and described by its
+ * line. "Accounts" sits here too: all of them (the default) or one, shown on the widget.
  */
+export function RovingTiles({ label, options, value, onChoose }) {
+  const ids = useId()
+  const refs = useRef([])
+  const chosen = Math.max(0, options.findIndex((o) => o.key === value))
+  const [focusAt, setFocusAt] = useState(null)
+  const tabAt = focusAt ?? chosen
+  const move = (to) => {
+    const n = options.length
+    const i = ((to % n) + n) % n
+    setFocusAt(i)
+    refs.current[i]?.focus()
+  }
+  const onKeyDown = (e, i) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); move(i + 1) }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); move(i - 1) }
+    else if (e.key === 'Home') { e.preventDefault(); move(0) }
+    else if (e.key === 'End') { e.preventDefault(); move(options.length - 1) }
+  }
+  return (
+    <div className={styles.tiles} role="radiogroup" aria-label={label}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setFocusAt(null) }}>
+      {options.map((o, i) => {
+        const on = o.key === value
+        const descId = `${ids}-${i}`
+        return (
+          <button key={o.key} type="button" role="radio" aria-checked={on} ref={(el) => { refs.current[i] = el }}
+            tabIndex={i === tabAt ? 0 : -1} className={`${styles.tile} ${on ? styles.tileOn : ''}`}
+            aria-label={o.label} aria-describedby={o.description ? descId : undefined}
+            onKeyDown={(e) => onKeyDown(e, i)} onFocus={() => setFocusAt(i)}
+            onClick={() => { if (!on) onChoose(o.key) }}>
+            <span className={styles.tileTitle} aria-hidden="true">{o.label}</span>
+            {o.description && <span className={styles.tileDesc} id={descId}>{o.description}</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function SourceSection({ cat, plan, accounts, onSource, onAccounts }) {
-  const name = useId()
   const accId = useId()
-  const sources = [...cat.sources.values()]
+  const sources = [...cat.sources.values()].map((s) => ({ key: s.key, label: s.label, description: s.description }))
   const accValue = plan.accounts && typeof plan.accounts === 'object' ? plan.accounts.id : ''
   return (
     <Section id="source" title="What to look at">
-      <div className={styles.tiles} role="radiogroup" aria-label="What to look at">
-        {sources.map((s) => {
-          const on = plan.source === s.key
-          return (
-            <label key={s.key} className={`${styles.tile} ${on ? styles.tileOn : ''}`}>
-              <input type="radio" className={styles.srOnlyInput} name={name} value={s.key} checked={on}
-                aria-label={s.label} aria-describedby={s.description ? `${name}-${s.key}` : undefined}
-                onChange={() => onSource(s.key)} />
-              <span className={styles.tileTitle} aria-hidden="true">{s.label}</span>
-              {s.description && <span className={styles.tileDesc} id={`${name}-${s.key}`}>{s.description}</span>}
-            </label>
-          )
-        })}
-      </div>
+      <RovingTiles label="What to look at" options={sources} value={plan.source} onChoose={onSource} />
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={accId}>Accounts</label>
         <select id={accId} className={styles.select} value={accValue}

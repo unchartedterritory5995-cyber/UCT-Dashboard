@@ -38,45 +38,87 @@ import styles from './WidgetBuilderSheet.module.css'
  *   * new: `POST ""`, then, opened from a note, the saved widget is run and inserted at the caret.
  *   * edit, in more than one note: SaveQuestion ("This widget is in 14 notes."). "Update all" PUTs `apply:
  *     update_all` and writes NO note; "Save as a new widget" PUTs `apply: save_new` and replaces only the source
- *     note's widget. In one note or none: saved without asking (`update_all`).
- *   * a ready-made (`shelf:`) or adopted widget: "Save as a copy" — a new widget that replaces the placed one in ONE
+ *     note's widget. In one note or none (ruling R-36): saved without asking (`update_all`), and when the builder was
+ *     opened from that placed widget, the new version is run and replaces it, so the member sees their change.
+ *   * a ready-made (`shelf:`) or adopted widget, or a placed widget whose saved widget is gone (a 404: deleted, or a
+ *     note copied from another account): "Save as a copy" — a new widget that replaces the placed one in ONE
  *     transaction (one undo brings the original back), or is inserted at the caret from /build.
  *   * a refusal (a conflict, the count cap, offline) keeps everything and says why; a conflict also keeps the draft.
+ *   * saved but not yet placed (the run failed): Save places it; edits made since are saved first (fix 1, I-2).
  *
  * Escape goes back one picker level, then asks "Keep your changes?" only when something changed; a kept draft is
- * offered again ("Resume your unsaved widget") within 24 h. Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z redoes,
- * Ctrl/Cmd+Enter saves.
+ * offered again ("Resume your unsaved widget") within 24 h, and a draft of a widget that changed since is saved
+ * only as a new widget (fix 1, I-7). Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z redoes, at the top level and outside a
+ * text field (a field keeps its own undo); Ctrl/Cmd+Enter saves, except while a filter is being edited.
  *
  * ⛔ Member words: this file's copy never says "definition", "shelf", "built widget", "source", "plan" or "scope".
  */
 export const PREVIEW_DEBOUNCE_MS = 400
 /** After "Pausing the preview for a moment", the preview tries again on its own after this long. */
 export const RATE_RETRY_MS = 10000
-/** The soft keyboard is open when the visual viewport is under this share of the window's height. */
+/** The soft keyboard is open when the visual viewport is under this share of the tallest height seen. */
 export const KEYBOARD_RATIO = 0.75
 
 export const KEEP_QUESTION = 'Keep your changes?'
+export const KEEP_FAILED = "Couldn't keep your changes in this browser. Save them, or they are lost when you close."
 export const RESUME_OFFER = 'Resume your unsaved widget'
+export const STALE_DRAFT = 'This widget changed since you left. Save your version as a new widget?'
 export const SAVED_NOT_PLACED = 'Your widget is saved, but it could not be added to the note yet.'
 export const OFFLINE_SAVE = "Offline. Your changes are kept here; save when you're back."
 export const LOAD_FAILED = "Couldn't open the widget builder."
+/** Spec 5.10, "Definition missing": the placed widget runs, and is edited, from the copy the note carries. */
+export const SAVED_COPY_SENTENCE = 'Running from the saved copy in this note.'
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+/** Edits that make a saved widget out of date: the plan and the name, as one value. */
+const planKeyOf = (st) => JSON.stringify([st.plan, st.nameTouched])
 
-/** The keyboard is open (visualViewport shorter than KEYBOARD_RATIO of the window). Read at once and on every
- *  resize against the CURRENT window height, so a rotation is never compared with a stale baseline. */
-function useKeyboardOpen(active) {
-  const [open, setOpen] = useState(false)
+/** A text field, where Ctrl/Cmd+Z belongs to the field (fix 1, I-6). */
+export function isTextControl(el) {
+  if (!el || typeof el !== 'object') return false
+  if (el.isContentEditable) return true
+  const tag = String(el.tagName || '').toUpperCase()
+  if (tag === 'TEXTAREA') return true
+  if (tag !== 'INPUT') return false
+  return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'].includes(String(el.type || 'text'))
+}
+
+/**
+ * The visual viewport, for the soft keyboard (fix 1, I-3): `{keyboardOpen, height, inset}`.
+ *
+ * * A baseline is kept PER ORIENTATION: the tallest height seen in it. iOS keeps `innerHeight` and shrinks the
+ *   visual viewport; Android with resizes-content shrinks BOTH, so comparing the two with each other (the old
+ *   reading) never saw an Android keyboard. Against the baseline both read as open.
+ * * `height` and `inset` (how far the visual viewport's bottom sits above the layout viewport's: the keyboard on
+ *   iOS) become `--vvh` / `--vv-inset` on the panel, so the footer with Save stays above the keyboard.
+ */
+export function useViewport() {
+  const [view, setView] = useState({ keyboardOpen: false, height: null, inset: 0 })
+  const base = useRef({ portrait: 0, landscape: 0 })
   useEffect(() => {
-    if (!active || typeof window === 'undefined') return undefined
-    const vv = window.visualViewport
-    if (!vv) return undefined
-    const read = () => setOpen(vv.height < KEYBOARD_RATIO * window.innerHeight)
+    if (typeof window === 'undefined') return undefined
+    const vv = window.visualViewport || null
+    const read = () => {
+      const h = vv ? vv.height : window.innerHeight
+      const orient = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'
+      const b = base.current
+      b[orient] = Math.max(b[orient], window.innerHeight || 0, h || 0)
+      const inset = vv ? Math.max(0, Math.round(window.innerHeight - (vv.offsetTop || 0) - vv.height)) : 0
+      const keyboardOpen = !!b[orient] && h < KEYBOARD_RATIO * b[orient]
+      setView((v) => (v.keyboardOpen === keyboardOpen && v.height === h && v.inset === inset ? v
+        : { keyboardOpen, height: h, inset }))
+    }
     read()
-    vv.addEventListener('resize', read)
-    return () => vv.removeEventListener('resize', read)
-  }, [active])
-  return open
+    vv?.addEventListener('resize', read)
+    vv?.addEventListener('scroll', read)
+    window.addEventListener('resize', read)
+    return () => {
+      vv?.removeEventListener('resize', read)
+      vv?.removeEventListener('scroll', read)
+      window.removeEventListener('resize', read)
+    }
+  }, [])
+  return view
 }
 
 /** "about 3 hours ago" for the resume offer. */
@@ -90,17 +132,19 @@ function keptAgo(at, now = Date.now()) {
 
 export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose }) {
   const phone = useIsPhone()
-  const keyboardOpen = useKeyboardOpen(phone)
+  const viewport = useViewport()
+  const keyboardOpen = phone && viewport.keyboardOpen
   const [phase, setPhase] = useState('loading')          // loading | ready | failed | tooNew
   const [loadCode, setLoadCode] = useState('')
   const [loadTick, setLoadTick] = useState(0)
   const [cat, setCat] = useState(null)
   const [accounts, setAccounts] = useState(() => new Map())
-  const [target, setTarget] = useState({ mode: 'new', def: null })
+  const [target, setTarget] = useState({ mode: 'new', def: null, missing: false })
   const [tooNew, setTooNew] = useState('')
   const [state, dispatch] = useReducer(reducer, undefined, () => initState(blankPlan()))
   const [level, setLevel] = useState({ kind: 'main' })
   const [offer, setOffer] = useState(null)
+  const [stale, setStale] = useState(false)
   const [preview, setPreview] = useState({ payload: null, status: 'idle', error: null })
   const [retryTick, setRetryTick] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -108,6 +152,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const [answer, setAnswer] = useState(UPDATE_ALL)
   const rootRef = useRef(null)
   const opener = useRef(null)
+  const offerRef = useRef(null)
   const seq = useRef(0)
   const mounted = useRef(true)
   const savedRef = useRef(null)       // a widget saved whose place in the note is still owed
@@ -124,6 +169,20 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const noteId = editor?.storage?.uctJournalWidgets?.noteId || null
   const canWriteNote = !!editor && !editor.isDestroyed && editor.isEditable !== false
 
+  /** The placed widget this builder was opened from, if it is still where it was and still that widget. */
+  const placedNode = () => {
+    if (!getPos || !editor?.state?.doc) return null
+    try {
+      const pos = getPos()
+      const node = typeof pos === 'number' ? editor.state.doc.nodeAt(pos) : null
+      if (!node || node.type?.name !== 'widgetEmbed' || node.attrs?.widgetId !== BUILT_KIND) return null
+      if (defId && node.attrs?.params?.defId !== defId) return null
+      return { pos, node }
+    } catch {
+      return null      // the node view was destroyed (getPos throws): nothing to replace
+    }
+  }
+
   // ── open: the catalog, the member's accounts, and the widget being edited (if any) ──────────────
   useEffect(() => {
     let alive = true
@@ -134,6 +193,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
         const c = indexCatalog(raw)
         let mode = 'new'
         let def = null
+        let missing = false
         let plan
         if (shelfId) {
           const got = await getJson(`${DEFS_URL}/shelf`)
@@ -144,26 +204,34 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           plan = ex.plan
         } else if (defId) {
           const got = await getJson(`${DEFS_URL}/${encodeURIComponent(defId)}`)
-          if (!got.ok) throw Object.assign(new Error(got.code), { code: got.code })
-          if (got.data.tooNew) {
+          if (!got.ok) {
+            // Fix 1, I-10: the saved widget is gone (deleted, or the note came from another account), but the
+            // placed widget carries its plan: edit that, and save it as the member's own copy.
+            const frozen = got.code === 'unavailable' ? placedNode()?.node.attrs.params.def : null
+            if (!isRecord(frozen)) throw Object.assign(new Error(got.code), { code: got.code })
+            mode = 'copy'
+            missing = true
+            plan = frozen
+          } else if (got.data.tooNew) {
             if (!alive) return
             setTooNew(typeof got.data.summary === 'string' ? got.data.summary : '')
             setPhase('tooNew')
             return
+          } else {
+            def = got.data
+            plan = got.data.plan
+            mode = got.data.sourceGalleryId ? 'copy' : 'edit'
           }
-          def = got.data
-          plan = got.data.plan
-          mode = got.data.sourceGalleryId ? 'copy' : 'edit'
         } else {
           plan = { ...blankPlan(), measures: defaultMeasuresFor(c, 'closed_trades').map((k) => ({ key: k })) }
         }
         if (!alive) return
         setCat(c)
         setAccounts(new Map((accs || []).map((a) => [a.id, a.name])))
-        setTarget({ mode, def })
+        setTarget({ mode, def, missing })
         dispatch({ type: 'loadPlan', plan, autoName: '' })
         const kept = readDraft(uid, draftTarget)
-        if (kept && start === 'resume') dispatch({ type: 'loadPlan', plan: kept.plan, keepBase: true })
+        if (kept && start === 'resume') resumeDraft(kept, def)
         else if (kept) setOffer(kept)
         setPhase('ready')
       } catch (e) {
@@ -174,6 +242,19 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     })()
     return () => { alive = false }
   }, [loadTick]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Resume a kept draft. A draft of a widget that has been saved since (its etag moved) is never saved over the
+   *  newer version: it can only become a new widget (fix 1, I-7). */
+  function resumeDraft(kept, def = target.def) {
+    dispatch({ type: 'loadPlan', plan: kept.plan, keepBase: true })
+    const was = Number.isInteger(kept.etag) ? kept.etag : null
+    setStale(!!def && was !== null && Number.isInteger(def.etag) && def.etag !== was)
+  }
+
+  // The resume offer takes focus when it appears, so it is read out (fix 1: "announce and focus").
+  useEffect(() => {
+    if (phase === 'ready' && offer) offerRef.current?.focus()
+  }, [phase, offer])
 
   // ── the live preview ──────────────────────────────────────────────────────────────────────────
   // The name and subtitle do not change what is counted, so typing them never re-runs the preview.
@@ -222,6 +303,14 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     return () => window.removeEventListener('online', back)
   }, [])
 
+  // The keyboard-aware height (fix 1, I-3b): the panel is sized from the visual viewport, never under the keyboard.
+  useEffect(() => {
+    const panel = rootRef.current?.closest('[data-sheet-panel]')
+    if (!panel) return
+    if (typeof viewport.height === 'number' && viewport.height > 0) panel.style.setProperty('--vvh', `${Math.round(viewport.height)}px`)
+    panel.style.setProperty('--vv-inset', `${viewport.inset || 0}px`)
+  }, [viewport.height, viewport.inset, phase])
+
   // ── levels (pickers push in place) and focus ──────────────────────────────────────────────────
   const push = (next, el) => {
     opener.current = el || (typeof document !== 'undefined' ? document.activeElement : null)
@@ -243,7 +332,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }, [level])
 
   // ── closing, and the kept draft ───────────────────────────────────────────────────────────────
-  const close = useCallback(() => { onClose?.() }, [onClose])
+  const close = useCallback((focusTo) => { onClose?.(focusTo) }, [onClose])
   const requestClose = () => {
     if (saving) return
     if (phase === 'ready' && stateRef.current.dirty) {
@@ -254,7 +343,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }
   const keepDraft = () => {
     const st = stateRef.current
-    writeDraft(uid, { plan: st.plan, nameTouched: st.nameTouched, target: draftTarget })
+    return writeDraft(uid, { plan: st.plan, nameTouched: st.nameTouched, target: draftTarget, etag: target.def?.etag })
   }
 
   // ── edits: each change carries the view it forces, so the change and its view are ONE undo step ──
@@ -322,31 +411,49 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     else dispatch({ type: 'addFilter', filter })
     back()
   }
+  const whichHeading = () => rootRef.current?.querySelector('[data-builder-section="which"] [data-builder-heading]') || null
   const onRemoveFilterAt = (i) => {
     dispatch({ type: 'removeFilter', index: i })
     // The chip and its remove button are gone: focus goes to the section's own heading.
-    rootRef.current?.querySelector('[data-builder-section="which"] [data-builder-heading]')?.focus()
+    whichHeading()?.focus()
   }
 
   // ── save ───────────────────────────────────────────────────────────────────────────────────────
-  const finish = () => {
+  const finish = (focusTo) => {
     clearDraft(uid, draftTarget)
     savedRef.current = null
     setSaving(false)
-    close()
+    close(focusTo)
   }
   const refused = (got) => {
     setSaving(false)
     setLevel({ kind: 'main' })
     if (got.code === 'offline') { setSaveMsg(OFFLINE_SAVE); return }
-    if (got.code === 'conflict') keepDraft()
-    setSaveMsg(failureText(got.code, got.message) || FAILED_SENTENCE)
+    let text = failureText(got.code, got.message) || FAILED_SENTENCE
+    if (got.code === 'conflict' && !keepDraft()) text = `${text} ${KEEP_FAILED}`
+    setSaveMsg(text)
+  }
+  /** The placed widget for `id` as a focusable element (fix 1, I-9): focus lands on what was just placed. */
+  const placedDom = (id) => {
+    try {
+      let at = null
+      editor.state.doc.descendants((n, p) => {
+        if (n.type.name === 'widgetEmbed' && n.attrs?.params?.defId === id) at = p
+      })
+      const dom = at === null ? null : editor.view?.nodeDOM?.(at)
+      if (!dom || typeof dom.focus !== 'function') return null
+      if (!dom.hasAttribute?.('tabindex')) dom.setAttribute?.('tabindex', '-1')
+      return dom
+    } catch {
+      return null
+    }
   }
   const insertNode = (payload) => editor.chain().insertWidgetEmbed(BUILT_KIND, payload).run()
   const replaceNode = (payload) => {
-    const pos = getPos ? getPos() : null
-    const node = typeof pos === 'number' ? editor.state.doc.nodeAt(pos) : null
-    if (!node || node.type.name !== 'widgetEmbed') return insertNode(payload)
+    // The placed widget moved away or is another widget now: write nothing (the widget is saved, never a stray copy).
+    const hit = placedNode()
+    if (!hit) return false
+    const { pos, node } = hit
     const params = normalizeParams(BUILT_KIND, builtRefreshParams(node.attrs.params, payload))
     const attrs = {
       ...node.attrs, widgetId: BUILT_KIND, params, searchText: paramsPlainText(BUILT_KIND, params), fallback: null,
@@ -356,9 +463,22 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, attrs))
     return true
   }
+  const nameFor = (st) => (st.nameTouched && st.plan.display.title.trim() ? { name: st.plan.display.title.trim() } : {})
   const placeSaved = async () => {
-    const s = savedRef.current
-    if (!s?.how || !canWriteNote) { finish(); return }
+    let s = savedRef.current
+    // Fix 1, I-2: the member edited after the widget was saved (while its placement had failed): save those edits
+    // to the same widget first, so what goes into the note is the newest version.
+    const st = stateRef.current
+    if (planKeyOf(st) !== s.planKey) {
+      setSaving(true)
+      const put = await putJson(`/${encodeURIComponent(s.defId)}`,
+        { plan: st.plan, ...nameFor(st), apply: UPDATE_ALL, ...(noteId ? { origin: noteId } : {}) }, s.etag)
+      if (!mounted.current) return
+      if (!put.ok) { refused(put); return }
+      s = { ...s, defRev: put.data.rev, etag: put.data.etag, planKey: planKeyOf(st) }
+      savedRef.current = s
+    }
+    if (!s.how || !canWriteNote) { finish(); return }
     setSaving(true)
     const got = await runBuilt({ defId: s.defId, defRev: s.defRev })
     if (!mounted.current) return
@@ -370,32 +490,43 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     }
     if (s.how === 'replace') replaceNode(got.data)
     else insertNode(got.data)
-    finish()
+    finish(placedDom(s.defId))
   }
+  const owed = (data, how, st) => ({
+    defId: data.id, defRev: data.rev, etag: data.etag, how, planKey: planKeyOf(st),
+  })
   const save = async (choice) => {
     if (saving || phase !== 'ready' || !cat) return
     setSaveMsg('')
     if (savedRef.current) { await placeSaved(); return }
     const st = stateRef.current
     const plan = st.plan
-    const name = st.nameTouched && plan.display.title.trim() ? plan.display.title.trim() : null
     const { mode, def } = target
+    const fromNode = !!getPos && canWriteNote
     if (mode === 'edit') {
       if (!st.dirty) { finish(); return }
       const usedIn = Number.isInteger(def?.usedIn) ? def.usedIn : 0
+      // A draft of a widget that changed since is saved only as a new widget (I-7): never over the newer one.
+      if (stale) choice = SAVE_NEW
       if (usedIn > 1 && !choice) {
         setAnswer(preselectAnswer({ lastAnswer: def.lastAnswer, kind: changeKind(def.plan, plan) }))
         push({ kind: 'question' }, null)
         return
       }
-      const apply = usedIn > 1 ? choice : UPDATE_ALL
+      const apply = choice || UPDATE_ALL
       setSaving(true)
       const got = await putJson(`/${encodeURIComponent(def.id)}`,
-        { plan, ...(name ? { name } : {}), apply, ...(noteId ? { origin: noteId } : {}) }, def.etag)
+        { plan, ...nameFor(st), apply, ...(noteId ? { origin: noteId } : {}) }, def.etag)
       if (!mounted.current) return
       if (!got.ok) { refused(got); return }
       if (apply === SAVE_NEW) {
-        savedRef.current = { defId: got.data.id, defRev: got.data.rev, how: getPos && canWriteNote ? 'replace' : null }
+        savedRef.current = owed(got.data, fromNode ? 'replace' : null, st)
+        await placeSaved()
+        return
+      }
+      // Ruling R-36: in one note or none, opened from that placed widget, the member sees the new version there.
+      if (usedIn <= 1 && fromNode) {
+        savedRef.current = owed(got.data, 'replace', st)
         await placeSaved()
         return
       }
@@ -403,12 +534,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       return
     }
     setSaving(true)
-    const got = await postJson('', { plan, ...(name ? { name } : {}) })
+    const got = await postJson('', { plan, ...nameFor(st) })
     if (!mounted.current) return
     if (!got.ok) { refused(got); return }
     let how = null
     if (canWriteNote) how = mode === 'copy' && getPos ? 'replace' : 'insert'
-    savedRef.current = { defId: got.data.id, defRev: got.data.rev, how }
+    savedRef.current = owed(got.data, how, st)
     await placeSaved()
   }
 
@@ -431,15 +562,19 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       }
       if (k.phase !== 'ready' || !(e.ctrlKey || e.metaKey)) return
       if (e.key === 'Enter') {
+        // A filter being edited is not the widget: Enter there applies the filter, never saves half of it.
+        if (k.level.kind === 'filter' || k.level.kind === 'field') return
         e.preventDefault()
         k.save(k.level.kind === 'question' ? k.answer : undefined)
-      } else if (e.key === 'z' || e.key === 'Z') {
-        e.preventDefault()
-        dispatch({ type: e.shiftKey ? 'redo' : 'undo' })
-      } else if (e.key === 'y' || e.key === 'Y') {
-        e.preventDefault()
-        dispatch({ type: 'redo' })
+        return
       }
+      const z = e.key === 'z' || e.key === 'Z'
+      const y = e.key === 'y' || e.key === 'Y'
+      if (!z && !y) return
+      // The builder's history is the top level's; a text field keeps its own undo.
+      if (k.level.kind !== 'main' || isTextControl(e.target)) return
+      e.preventDefault()
+      dispatch({ type: z && !e.shiftKey ? 'undo' : 'redo' })
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
@@ -451,7 +586,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const name = nameOf(state)
   const unit = cat ? sourceOf(cat, plan)?.unit || 'trades' : 'trades'
   const byNeed = cat ? coverageByNeed(cat, plan, preview.payload) : new Map()
-  const saveLabel = target.mode === 'copy' ? 'Save as a copy' : 'Save'
+  const saveLabel = stale ? 'Save as a new widget' : target.mode === 'copy' ? 'Save as a copy' : 'Save'
 
   let content
   if (phase === 'loading') {
@@ -486,7 +621,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           initial={initial} accounts={accounts} onApply={onApplyFilter} onBack={back}
           onRemove={() => {
             dispatch({ type: 'removeFilter', index: level.index })
-            opener.current = rootRef.current?.querySelector('[data-builder-section="which"] [data-builder-heading]') || null
+            opener.current = whichHeading()
             back()
           }} />
       )
@@ -505,7 +640,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           <h3 className={styles.pickerTitle} tabIndex={-1} data-picker-heading="">{KEEP_QUESTION}</h3>
           <p className={styles.sectionHint}>You can come back to them for a day.</p>
           <div className={styles.pickerActions}>
-            <button type="button" className={styles.btnPrimary} onClick={() => { keepDraft(); close() }}>
+            <button type="button" className={styles.btnPrimary}
+              onClick={() => { if (keepDraft()) close(); else setSaveMsg(KEEP_FAILED) }}>
               Keep my changes
             </button>
             <button type="button" className={styles.btn} onClick={() => { clearDraft(uid, draftTarget); close() }}>
@@ -524,8 +660,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
               <p className={styles.offerText}>{RESUME_OFFER}</p>
               <p className={styles.sectionHint}>{`Kept ${keptAgo(offer.at)}.`}</p>
               <div className={styles.pickerActions}>
-                <button type="button" className={styles.btnPrimary}
-                  onClick={() => { dispatch({ type: 'loadPlan', plan: offer.plan, keepBase: true }); setOffer(null) }}>
+                <button type="button" className={styles.btnPrimary} ref={offerRef}
+                  onClick={() => { resumeDraft(offer); setOffer(null) }}>
                   Resume
                 </button>
                 <button type="button" className={styles.btn}
@@ -535,6 +671,17 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
               </div>
             </div>
           )}
+          {stale && (
+            <div className={styles.offer} role="group" aria-label={STALE_DRAFT}>
+              <p className={styles.offerText}>{STALE_DRAFT}</p>
+              <div className={styles.pickerActions}>
+                <button type="button" className={styles.btnPrimary} onClick={() => save(SAVE_NEW)} disabled={saving}>
+                  Save as a new widget
+                </button>
+              </div>
+            </div>
+          )}
+          {target.missing && <p className={styles.notice}>{SAVED_COPY_SENTENCE}</p>}
           <SourceSection cat={cat} plan={plan} accounts={accounts} onSource={onSource}
             onAccounts={(acc) => dispatch({ type: 'setAccounts', accounts: acc })} />
           <WhichOnesSection cat={cat} plan={plan} accounts={accounts}
@@ -546,7 +693,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
             onRemove={onRemoveMeasure} />
           <SplitSection cat={cat} plan={plan} onOpen={(slot, el) => push({ kind: 'split', slot }, el)}
             onClear={onClearSplit} onSort={(sort) => dispatch({ type: 'setSort', sort })} />
-          <ViewSection cat={cat} plan={plan} onView={onView} onCompare={onCompare} onDisplay={onDisplay} />
+          <ViewSection cat={cat} plan={plan} unit={unit} onView={onView} onCompare={onCompare} onDisplay={onDisplay} />
           <NameSection name={name} nameTouched={state.nameTouched} subtitle={plan.display.subtitle}
             onName={(v) => dispatch({ type: 'setName', name: v })}
             onSubtitle={(v) => dispatch({ type: 'setDisplay', display: { subtitle: v } })} />
@@ -585,8 +732,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   )
 
   return (
-    <Sheet open onClose={requestClose} title={title} labelledByTitle maxWidth={1080}
-      className={styles.panel} bodyClassName={styles.body} footer={phase === 'tooNew' ? null : footer}>
+    <Sheet open onClose={requestClose} title={<h2 className={styles.dialogTitle}>{title}</h2>} labelledByTitle
+      maxWidth={1080} className={styles.panel} bodyClassName={styles.body} footer={phase === 'tooNew' ? null : footer}>
       <div ref={rootRef} className={styles.layout} data-testid="widget-builder">
         {phone && pane}
         <div className={styles.controls}>{content}</div>

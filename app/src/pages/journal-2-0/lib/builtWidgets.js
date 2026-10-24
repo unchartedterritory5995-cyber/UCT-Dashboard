@@ -198,6 +198,10 @@ export function overridableFilter(def) {
 
 // ── the reads Change and the builder need (each cached per tab after its first answer) ─────────────
 
+/** A refused read as an Error that carries its `code` (e.code), so a caller can say "Not available right now." for
+ *  the dark wave instead of a generic failure. */
+const refusedRead = (got) => Object.assign(new Error(got.code), { code: got.code })
+
 let accountsLoad = null
 let catalogLoad = null
 const vocabLoads = new Map()
@@ -209,7 +213,7 @@ export function loadAccounts() {
   if (!accountsLoad) {
     accountsLoad = cached(async () => {
       const got = await getJson(ACCOUNTS_URL)
-      if (!got.ok) throw new Error(got.code)
+      if (!got.ok) throw refusedRead(got)
       const list = Array.isArray(got.data.accounts) ? got.data.accounts : []
       return list.filter((a) => isRecord(a) && a.id != null)
         .map((a) => ({ id: String(a.id), name: typeof a.name === 'string' && a.name ? a.name : 'Account' }))
@@ -222,8 +226,8 @@ export function loadAccounts() {
  *  (its plan was over 4 KB, so no frozen `def`). Not cached: the widget can change. Rejects when unreadable. */
 export async function loadDefinition(defId) {
   const got = await getJson(`${DEFS_URL}/${encodeURIComponent(String(defId || ''))}`)
-  if (!got.ok) throw new Error(got.code)
-  if (!isRecord(got.data.plan)) throw new Error('failed')
+  if (!got.ok) throw refusedRead(got)
+  if (!isRecord(got.data.plan)) throw Object.assign(new Error('failed'), { code: 'failed' })
   return got.data.plan
 }
 
@@ -233,7 +237,7 @@ export function loadVocabulary(field) {
   if (!vocabLoads.has(key)) {
     vocabLoads.set(key, cached(async () => {
       const got = await getJson(`${DEFS_URL}/vocabulary?field=${encodeURIComponent(key)}`)
-      if (!got.ok) throw new Error(got.code)
+      if (!got.ok) throw refusedRead(got)
       return Array.isArray(got.data.values) ? got.data.values : []
     }, () => vocabLoads.delete(key)))
   }
@@ -245,7 +249,7 @@ export function loadCatalog() {
   if (!catalogLoad) {
     catalogLoad = cached(async () => {
       const got = await getJson(`${DEFS_URL}/vocabulary`)
-      if (!got.ok) throw new Error(got.code)
+      if (!got.ok) throw refusedRead(got)
       return got.data
     }, (v) => { catalogLoad = v })
   }

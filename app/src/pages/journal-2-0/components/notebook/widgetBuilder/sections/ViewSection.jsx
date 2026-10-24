@@ -71,7 +71,8 @@ function ViewGlyph({ view }) {
  * and named as its description. Then the view's own settings: what a comparison is against, a progress bar's
  * target, the accent colour and whether each figure shows its count.
  */
-export default function ViewSection({ cat, plan, onView, onCompare, onDisplay }) {
+export default function ViewSection({ cat, plan, unit = 'trades', onView, onCompare, onDisplay }) {
+  const noun = unit === 'days' ? 'days' : unit === 'positions' ? 'positions' : 'trades'
   const name = useId()
   const accentName = useId()
   const targetId = useId()
@@ -173,7 +174,7 @@ export default function ViewSection({ cat, plan, onView, onCompare, onDisplay })
 
       <label className={styles.check}>
         <input type="checkbox" checked={plan.display.showN} onChange={(e) => onDisplay({ showN: e.target.checked })} />
-        <span>Show how many trades each figure is from</span>
+        <span>{`Show how many ${noun} each figure is from`}</span>
       </label>
       <p className={styles.sectionHint}>Averages and rates always show it.</p>
     </Section>

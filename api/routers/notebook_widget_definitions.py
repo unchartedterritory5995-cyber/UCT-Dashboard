@@ -310,6 +310,9 @@ def drill_widget(user: dict = Depends(require_paid), body: dict = Depends(json_b
 def _field_values(f: Any) -> list[dict] | None:
     """The values a member picks from for a field with a fixed list (its buckets, or yes/no), each
     with the label a group shows. None: the list is the member's own (`?field=`) or typed."""
+    choices = f.choices() if callable(f.choices) else f.choices
+    if choices:
+        return [{"value": v, "label": label} for v, label in choices]
     if f.type == "bool":
         vals: tuple = (True, False)
     elif f.bucket:
@@ -350,6 +353,8 @@ def _static_vocabulary() -> dict:
                 row["values"] = values
             if f.needs_times:
                 row["needsTimes"] = True
+            if f.key == "month":
+                row["input"] = "month"        # a "YYYY-MM" value: the builder shows a month picker
             fields.append(row)
         sources.append({
             "key": s.key, "label": s.label, "description": s.description, "unit": s.unit,
@@ -368,6 +373,12 @@ def _static_vocabulary() -> dict:
         "accents": list(cat.accents),
         "timeFields": sorted(wsources.TIME_FIELDS),
         "reasons": _reasons(),
+        # Ruling R-35: the view rules themselves, the data `WidgetCatalog.view_allowed` evaluates.
+        "viewRules": {
+            "checks": [{**c, "views": list(c["views"]) if c["views"] is not None else None}
+                       for c in wsources.VIEW_CHECKS],
+            "auto": wsources.AUTO_VIEW,
+        },
         "maxMeasures": wplan.MAX_MEASURES,
         "maxFilters": wplan.MAX_FILTERS,
         "topMax": wplan.TOP_MAX,

@@ -336,7 +336,7 @@ describe('BuiltWidgetEmbed', () => {
     expect(within(sheet).getByText('Net P&L of every closed trade in the last 90 days.')).toBeInTheDocument()
     fireEvent.click(within(sheet).getByRole('button', { name: 'Edit widget' }))
     await waitFor(() => expect(openWidgetBuilder).toHaveBeenCalledTimes(1))
-    expect(openWidgetBuilder).toHaveBeenCalledWith({ editor, from: { defId: 'd-1', getPos } })
+    expect(openWidgetBuilder).toHaveBeenCalledWith({ editor, from: { defId: 'd-1', getPos }, returnFocus: expect.any(HTMLElement) })
     openMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Manage…' }))
     await waitFor(() => expect(openMyTools).toHaveBeenCalledTimes(1))

@@ -312,6 +312,10 @@ describe('WidgetBuilderSheet', () => {
     editor.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') widgets += 1 })
     expect(widgets).toBe(1)                                      // replaced in place, nothing inserted
     expect(onClose).toHaveBeenCalled()
+    // Fix 1, I-9: focus is handed to the placed widget itself.
+    const dom = editor.view.nodeDOM(posOf())
+    expect(onClose.mock.calls[0][0]).toBe(dom)
+    expect(dom.getAttribute('tabindex')).toBe('-1')
     // ONE undo brings the original back.
     editor.commands.undo()
     expect(editor.state.doc.nodeAt(posOf()).attrs.params).toEqual(original)
@@ -472,7 +476,8 @@ describe('WidgetBuilderSheet', () => {
       const panel = document.querySelector('[data-sheet-panel]')
       const text = panel.textContent
       const labels = [...panel.querySelectorAll('[aria-label]')].map((el) => el.getAttribute('aria-label')).join(' ')
-      expect(`${text} ${labels}`).not.toMatch(banned)
+      // Ruling R-33: "plan" is the member's own "trading plan", and only that.
+      expect(`${text} ${labels}`.replace(/trading plan/gi, '')).not.toMatch(banned)
     }
     sweep()
     for (const open of opened) {

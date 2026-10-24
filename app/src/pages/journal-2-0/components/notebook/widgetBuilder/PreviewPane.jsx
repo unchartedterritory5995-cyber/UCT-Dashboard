@@ -38,7 +38,8 @@ const finite = (v) => typeof v === 'number' && Number.isFinite(v)
 
 /** The phone summary line: "<name> · <count> <unit> · <first value>" (the value only when there is one total). */
 export function summaryLine(name, payload, unit) {
-  const parts = [name || 'Widget']
+  // Fix 1, I-4: a preview on the bundled sample book says so first, wherever its summary is read.
+  const parts = payload?.sample === true ? [SAMPLE_LABEL, name || 'Widget'] : [name || 'Widget']
   if (payload && finite(payload.count)) parts.push(`${payload.count.toLocaleString('en-US')} ${countNoun(unit, payload.count)}`)
   const m = measuresOf(payload || {})[0]
   const v = payload?.value
@@ -130,7 +131,8 @@ export default function PreviewPane({
 }) {
   const [open, setOpen] = useState(false)
   const bodyId = useId()
-  const said = useAnnounced(typeof payload?.summary === 'string' ? payload.summary : '')
+  const said = useAnnounced(typeof payload?.summary === 'string' && payload.summary
+    ? `${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${payload.summary}` : '')
   const summary = typeof payload?.summary === 'string' ? payload.summary : ''
   const body = (
     <PreviewBody payload={payload} status={status} error={error} onRetry={onRetry}

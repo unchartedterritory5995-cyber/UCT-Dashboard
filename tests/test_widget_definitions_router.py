@@ -7,6 +7,7 @@ the engine are real, on a temp sqlite file seeded through `auth_db.init_db` (the
 from __future__ import annotations
 
 import json
+import pathlib
 import re
 
 import pytest
@@ -287,9 +288,8 @@ def test_vocabulary_carries_pick_lists_and_the_engines_reasons():
 
 def test_vocabulary_member_words():
     """No label, description, meaning, value label or reason a member reads uses an internal word.
-    "plan" is allowed only as the member's own trading plan (a plan note), named here exactly."""
+    Ruling R-33: "plan" appears only as the member's own "trading plan"."""
     banned = ("definition", "shelf", "built widget", "source", "plan", "scope")
-    trading_plan = {"Plan adherence %", "Linked to a plan note", "Linked to a plan", "No plan linked"}
     v = _client().get(BASE + "/vocabulary").json()
     texts = list(v["reasons"].values()) + [r["label"] for r in v["ranges"]]
     for s in v["sources"]:
@@ -300,8 +300,64 @@ def test_vocabulary_member_words():
     for m in v["measures"]:
         texts += [m["label"], m["meaning"]]
     assert len(texts) > 100                          # non-vacuity: the sweep read the catalog
-    bad = [t for t in texts if t not in trading_plan and any(b in t.lower() for b in banned)]
+    bad = [t for t in texts
+           if any(b in t.lower().replace("trading plan", "") for b in banned)]
     assert bad == []
+    assert any("trading plan" in t.lower() for t in texts)   # the allowance is used, not dead
+
+
+def test_vocabulary_offers_lists_for_side_regime_and_a_month_picker():
+    """Task 8.15 fix 1 (I-8): no blank text box where a list exists."""
+    from api.services.journal_two.regime import regime_words
+    v = _client().get(BASE + "/vocabulary").json()
+    for key in ("closed_trades", "open_positions"):
+        src = next(s for s in v["sources"] if s["key"] == key)
+        side = next(f for f in src["fields"] if f["key"] == "side")
+        assert side["values"] == [{"value": "Long", "label": "Long"}, {"value": "Short", "label": "Short"}]
+    closed = {f["key"]: f for f in next(s for s in v["sources"] if s["key"] == "closed_trades")["fields"]}
+    assert closed["regime"]["values"] == [{"value": k, "label": w} for k, w in regime_words().items()]
+    assert any(x["label"] == "Yellow" for x in closed["regime"]["values"])   # the member's word, not the id
+    assert closed["month"]["input"] == "month"
+
+
+def test_view_rules_are_the_data_view_allowed_evaluates():
+    """Ruling R-35: the vocabulary's `viewRules` is the engine's own table, and changing the table changes the
+    engine's answer (so the builder, which evaluates the same table, can never disagree with it)."""
+    v = _client().get(BASE + "/vocabulary").json()
+    assert v["viewRules"]["auto"] == wsources.AUTO_VIEW
+    assert [c["test"] for c in v["viewRules"]["checks"]] == [c["test"] for c in wsources.VIEW_CHECKS]
+    assert all(c["reason"] in v["reasons"] for c in v["viewRules"]["checks"])
+    bar = {"source": "closed_trades", "view": {"type": "bar"}, "measures": [{"key": "net_pnl"}]}
+    assert wsources.CATALOG.view_allowed(bar) == wsources.S_VIEW_BAR
+    saved = wsources.VIEW_CHECKS
+    try:
+        wsources.VIEW_CHECKS = tuple(c for c in saved if c["reason"] != "view_bar")
+        assert wsources.CATALOG.view_allowed(bar) is None
+    finally:
+        wsources.VIEW_CHECKS = saved
+
+
+#: The builder's member-words sweep runs against the REAL catalog through this generated file.
+SERVER_CATALOG_FIXTURE = (pathlib.Path(__file__).resolve().parent.parent / "app" / "src" / "pages" / "journal-2-0"
+                          / "components" / "notebook" / "widgetBuilder" / "__fixtures__" / "serverCatalog.json")
+
+
+def _catalog_fixture_text() -> str:
+    return json.dumps(wdr._static_vocabulary(), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+
+
+def write_vocabulary_fixture() -> None:
+    """Regenerate the builder's server-catalog fixture:
+    python -c "from tests.test_widget_definitions_router import write_vocabulary_fixture as w; w()" """
+    SERVER_CATALOG_FIXTURE.write_bytes(_catalog_fixture_text().encode("utf-8"))
+
+
+def test_builder_server_catalog_fixture_is_current():
+    """The client tests read the vocabulary from a generated file; it must be what the server serves today."""
+    assert SERVER_CATALOG_FIXTURE.exists(), "run write_vocabulary_fixture()"
+    on_disk = SERVER_CATALOG_FIXTURE.read_bytes().decode("utf-8").replace("\r\n", "\n")
+    assert on_disk == _catalog_fixture_text(), (
+        "stale: python -c \"from tests.test_widget_definitions_router import write_vocabulary_fixture as w; w()\"")
 
 
 def test_filter_values_never_in_query_string():

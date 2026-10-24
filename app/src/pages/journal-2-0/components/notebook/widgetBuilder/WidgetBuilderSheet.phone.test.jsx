@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS, KEYBOARD_RATIO } from './WidgetBuilderSheet'
 import { __resetBuiltCaches } from '../../../lib/builtWidgets'
-import { installFetch } from './__fixtures__/builderFixtures'
+import { installFetch, answer, payload } from './__fixtures__/builderFixtures'
 
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
   useIsPhone: () => true, useIsTouch: () => true, useIsTablet: () => false, useIsDesktop: () => false,
@@ -27,11 +27,12 @@ function installViewport(height) {
 }
 
 let vv
+let routes
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   __resetBuiltCaches()
   window.localStorage.clear()
-  installFetch()
+  ;({ routes } = installFetch())
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 })
   vv = installViewport(844)
@@ -73,6 +74,39 @@ describe('WidgetBuilderSheet at 390 px', () => {
     expect(screen.getByTestId('builder-live')).toBeVisible()
     act(() => vv.resize(844))
     expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+  })
+
+  it('I-3a: the Android shape (resizes-content: the WINDOW shrinks too) also reads as the keyboard open', async () => {
+    await openBuilder()
+    expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+    act(() => {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 400 })
+      vv.height = 400
+      window.dispatchEvent(new Event('resize'))
+    })
+    expect(screen.queryByTestId('builder-summary-bar')).toBeNull()
+    act(() => {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 })
+      vv.resize(844)
+      window.dispatchEvent(new Event('resize'))
+    })
+    expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+  })
+
+  it('I-3b: the panel carries the visual viewport height (--vvh) and the keyboard inset (--vv-inset)', async () => {
+    await openBuilder()
+    const panel = document.querySelector('[data-sheet-panel]')
+    expect(panel.style.getPropertyValue('--vvh')).toBe('844px')
+    expect(panel.style.getPropertyValue('--vv-inset')).toBe('0px')
+    act(() => vv.resize(500))                                       // iOS: the window stays, the keyboard covers 344
+    expect(panel.style.getPropertyValue('--vvh')).toBe('500px')
+    expect(panel.style.getPropertyValue('--vv-inset')).toBe('344px')
+  })
+
+  it('I-4: on sample data the sticky summary starts "Sample data ·"', async () => {
+    routes.unshift(['POST', (u) => u.endsWith('/preview'), () => answer(payload({ sample: true }))])
+    await openBuilder()
+    expect(screen.getByTestId('builder-summary-bar')).toHaveTextContent(/^Sample data · Net P&L, last 90 days · 47 trades/)
   })
 
   it('a picker pushes in place: exactly one sheet in the DOM, with a Back control', async () => {

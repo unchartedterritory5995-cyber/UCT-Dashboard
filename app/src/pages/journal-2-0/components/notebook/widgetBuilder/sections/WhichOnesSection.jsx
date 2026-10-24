@@ -35,13 +35,17 @@ export default function WhichOnesSection({ cat, plan, accounts, onOpenRange, onA
           {plan.filters.map((f, i) => {
             const field = src?.fields.get(f.field)
             const sentence = filterSentence(field, f, { accounts })
+            const badgeId = `${fullId}-b${i}`
             return (
               // Index keys: two filters can read the same; a filter's place in the plan is its identity here.
               // eslint-disable-next-line react/no-array-index-key
               <li key={i} className={styles.filterItem}>
-                <button type="button" className={styles.chip} onClick={(e) => onEditFilter(i, e.currentTarget)}>
+                {/* Named by its sentence alone (spec 5.11); the badge is its description. */}
+                <button type="button" className={styles.chip} aria-label={sentence}
+                  aria-describedby={f.overridable ? badgeId : undefined}
+                  onClick={(e) => onEditFilter(i, e.currentTarget)}>
                   <span>{sentence}</span>
-                  {f.overridable && <span className={styles.chipBadge}>Changeable in the note</span>}
+                  {f.overridable && <span className={styles.chipBadge} id={badgeId}>Changeable in the note</span>}
                 </button>
                 <button type="button" className={styles.chipRemove} aria-label={`Remove filter: ${sentence}`}
                   onClick={() => onRemoveFilter(i)}>
@@ -280,10 +284,14 @@ export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, 
       </div>
     )
   } else {
+    // A typed value only where the values are genuinely open (a symbol "contains"), or the list could not load;
+    // a month is picked with the browser's month picker (fix 1, I-8).
     body = (
       <div>
-        <TypedValue typed={typed} setTyped={setTyped} onAdd={addTyped} label={field.label}
-          placeholder={field.key === 'month' ? '2026-10' : undefined} />
+        {field.input === 'month'
+          ? <TypedValue typed={typed} setTyped={setTyped} onAdd={addTyped} label={field.label} type="month"
+            title={`Pick a ${field.label.toLowerCase()}`} />
+          : <TypedValue typed={typed} setTyped={setTyped} onAdd={addTyped} label={field.label} />}
         {values.length > 0 && (
           <ul className={styles.filterList} aria-label="Values">
             {values.map((v) => (
@@ -335,13 +343,17 @@ export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, 
   )
 }
 
-function TypedValue({ typed, setTyped, onAdd, label, placeholder }) {
+/** "a" or "an" before a word ("an emotion", "a setup"). */
+export const article = (word) => (/^[aeiou]/i.test(String(word || '').trim()) ? 'an' : 'a')
+
+function TypedValue({ typed, setTyped, onAdd, label, type = 'text', title }) {
   const id = useId()
+  const word = label.toLowerCase()
   return (
     <div className={styles.typed}>
-      <label className={styles.fieldLabel} htmlFor={id}>{`Type a ${label.toLowerCase()}`}</label>
+      <label className={styles.fieldLabel} htmlFor={id}>{title || `Type ${article(word)} ${word}`}</label>
       <div className={styles.typedRow}>
-        <input id={id} className={styles.input} value={typed} placeholder={placeholder}
+        <input id={id} type={type} className={styles.input} value={typed}
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAdd() } }} />
         <button type="button" className={styles.btn} onClick={onAdd} disabled={!typed.trim()}>Add</button>

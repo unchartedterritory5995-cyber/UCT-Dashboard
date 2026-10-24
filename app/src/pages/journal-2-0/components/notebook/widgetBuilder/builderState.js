@@ -144,8 +144,13 @@ export function reducer(state, action) {
       const display = { ...state.plan.display, title: touched ? name : '', titleAuto: !touched }
       return commit(state, withPlan(state, { display }), { nameTouched: touched, type: a.type, coalesce: true })
     }
-    case 'setDisplay':
-      return commit(state, withPlan(state, { display: { ...state.plan.display, ...a.display } }, a), { type: a.type })
+    case 'setDisplay': {
+      // Typing a target or a subtitle is ONE undo step, like typing the name.
+      const keys = Object.keys(a.display || {})
+      const typed = keys.length === 1 && (keys[0] === 'target' || keys[0] === 'subtitle')
+      return commit(state, withPlan(state, { display: { ...state.plan.display, ...a.display } }, a),
+        { type: typed ? `setDisplay:${keys[0]}` : a.type, coalesce: typed })
+    }
     case 'followName':
       // The latest preview's automatic name. Not a member edit: no history, no dirt.
       return typeof a.name === 'string' && a.name !== state.autoName ? { ...state, autoName: a.name } : state

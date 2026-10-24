@@ -21,6 +21,25 @@
     height: min(92vh, 92dvh);
   }
 }
+/* Fix 1, I-3b: on touch the panel is never taller than the VISUAL viewport (--vvh, set from visualViewport) and
+ * sits above the keyboard (--vv-inset: where the visual viewport's bottom is, iOS), so Save stays reachable. */
+@media (max-width: 1024px) {
+  .panel.panel {
+    max-height: min(92dvh, var(--vvh, 100dvh));
+    margin-bottom: var(--vv-inset, 0px);
+  }
+}
+@media (max-width: 640px) {
+  .panel.panel {
+    height: min(92dvh, var(--vvh, 100dvh));
+  }
+}
+
+.dialogTitle {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+}
 
 .panel .body {
   padding: 0;
@@ -67,6 +86,20 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+/* ⛔ Fix 1, C1: a class that sets `display` beats the `hidden` attribute (the UA's [hidden] rule is weaker), so
+ * every class rendered with `hidden` that sets display carries its own [hidden] rule (rail: builderCss.test.js). */
+.sections[hidden] {
+  display: none;
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-accent);
+  font-size: var(--text-sm);
+  color: var(--text-bright);
 }
 
 /* ── sections ── */
@@ -173,7 +206,8 @@
 .addBtn:disabled,
 .chip:disabled,
 .chipRemove:disabled,
-.option:disabled {
+.option:disabled,
+.option[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -185,12 +219,14 @@
 .chipRemove:focus-visible,
 .backBtn:focus-visible,
 .option:focus-visible,
+.tile:focus-visible,
 .summaryBar:focus-visible,
 .input:focus-visible,
 .select:focus-visible,
-.tile:focus-within,
-.thumb:focus-within,
-.swatch:focus-within {
+.option:has(:focus-visible),
+.thumb:has(:focus-visible),
+.swatch:has(:focus-visible),
+.check:has(:focus-visible) {
   outline: 2px solid var(--focus-ring, var(--ut-gold));
   outline-offset: 2px;
 }
@@ -545,9 +581,13 @@
   color: var(--ut-gold);
   box-shadow: inset 0 0 0 1px var(--ut-gold);
 }
+/* Fix 1, I-11: a disabled view dims its drawing and its name only; its reason is read at full contrast. */
 .thumbOff {
   cursor: not-allowed;
-  opacity: 0.62;
+}
+.thumbOff svg,
+.thumbOff .thumbLabel {
+  opacity: 0.55;
 }
 .thumbLabel {
   font-size: var(--text-xs);
@@ -557,7 +597,7 @@
 .thumbReason {
   font-size: 11px;
   line-height: 1.3;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 .suggested {
   font-size: 10px;
@@ -622,8 +662,9 @@
 .previewView[aria-busy='true'] {
   opacity: 0.85;
 }
+/* The last good result under a failure: visibly older, still readable (rail: builderCss.test.js, 4.5:1). */
 .dimmed {
-  opacity: 0.45;
+  opacity: 0.75;
 }
 .previewTitle {
   margin: 0;
