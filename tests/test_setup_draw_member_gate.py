@@ -3,8 +3,9 @@
 AUTO_STRUCTURES_G4_SETUPS_ENABLED off runs nothing and no payload carries `setup_draws`. On: an admin (the team
 chart) and a member are both served all three setups -- a member's row needs its member-round literal equal to the
 frozen round AND to the row's own stamp, the id in registry.DISPLAY_MEMBER_SET and the trusted tier.
-donchian_breakout: owner released 2026-10-24 (literal 1, id in both display sets). The release tests prove the gate
-still holds it: a literal of None, or its removal from either set, drops it; each lock is load-bearing on its own.
+donchian_breakout: owner released 2026-10-24 (literal 1), then WITHDRAWN the same day by recert B (its textbook fix
+round failed; literal None, id kept in both sets). The lock tests re-arm it at round 1 and prove each lock still holds:
+a literal of None, or its removal from either set, drops it; each lock is load-bearing on its own.
 remount and u_and_r: WITHDRAWN from members 2026-10-24 (recertification C failed both on the strict textbook rubric;
 literals None, ids kept in both sets so the team chart and a re-release by one literal still work).
 """
@@ -23,9 +24,10 @@ from tests.test_member_drawing_set import _get, _store
 from tests.test_setup_draw_parity import EXPECTED, ROWS
 
 FLAG = "AUTO_STRUCTURES_G4_SETUPS_ENABLED"
-MEMBER_SETUPS = {"draw:donchian_breakout"}
+MEMBER_SETUPS: set = set()
 #: withdrawn from members by recertification C (2026-10-24): id -> (member literal, the round the judges scored)
-WITHDRAWN = {"draw:remount": ("MEMBER_REMOUNT_ROUND", 3), "draw:u_and_r": ("MEMBER_U_AND_R_ROUND", 2)}
+WITHDRAWN = {"draw:remount": ("MEMBER_REMOUNT_ROUND", 3), "draw:u_and_r": ("MEMBER_U_AND_R_ROUND", 2),
+             "draw:donchian_breakout": ("MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)}   # recert B, 2026-10-24
 # the three round-1 (g4) setups; the round-2 ids that share SETUP_DRAW_IDS are railed in
 # tests/test_setup_draw_r2_member_gate.py, round 3 in tests/test_setup_draw_r3_member_gate.py, the rectangle in
 # tests/test_setup_draw_rectangle_member_gate.py
@@ -68,9 +70,9 @@ def setups_on(monkeypatch):
 
 def test_the_member_round_literals_are_written_in_source():
     """Literals ON PURPOSE (never a reference to setup_draw's constants, so a new drawing round cannot release
-    itself): donchian 1 (owner released 2026-10-24); remount and u_and_r None (withdrawn by recertification C)."""
+    itself): all three None -- remount and u_and_r withdrawn by recertification C, donchian by recert B."""
     tree = ast.parse(open(AS.__file__, encoding="utf-8").read())
-    want = {"MEMBER_REMOUNT_ROUND": None, "MEMBER_U_AND_R_ROUND": None, "MEMBER_DONCHIAN_BREAKOUT_ROUND": 1}
+    want = {"MEMBER_REMOUNT_ROUND": None, "MEMBER_U_AND_R_ROUND": None, "MEMBER_DONCHIAN_BREAKOUT_ROUND": None}
     for name, val in want.items():
         lits = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
                 and any(getattr(t, "id", None) == name for t in n.targets)]
@@ -78,7 +80,7 @@ def test_the_member_round_literals_are_written_in_source():
         assert val is None or type(lits[0].value.value) is int, name
     assert AS.MEMBER_REMOUNT_ROUND is None and setup_draw.REMOUNT_DRAW_ROUND == 3
     assert AS.MEMBER_U_AND_R_ROUND is None and setup_draw.U_AND_R_DRAW_ROUND == 2
-    assert AS.MEMBER_DONCHIAN_BREAKOUT_ROUND == setup_draw.DONCHIAN_DRAW_ROUND == 1
+    assert AS.MEMBER_DONCHIAN_BREAKOUT_ROUND is None and setup_draw.DONCHIAN_DRAW_ROUND == 1
 
 
 def test_the_registry_sets():
@@ -168,6 +170,7 @@ def test_member_rows_serves_exactly_the_released_setups():
 def test_donchian_release_lock_one_the_literal(monkeypatch):
     """Released (owner 2026-10-24): the real row is served to a member, and a literal of None -- or any round
     other than the frozen one -- drops it again while it stays in both sets."""
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)          # re-armed (withdrawn by recert B)
     d = _by_id(_real_rows())["draw:donchian_breakout"]
     assert d["display_tier"] == "trusted"
     assert AS.member_rows([d]) == [d]                                      # control: released, served
@@ -184,11 +187,13 @@ def test_donchian_release_lock_one_the_literal(monkeypatch):
 def test_donchian_release_lock_two_the_sets(monkeypatch):
     """Released, with the literal at its round: removing the id from the member set, or from the team set (which
     IS the trusted set, so the row is no longer stamped trusted), drops it."""
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)          # re-armed (withdrawn by recert B)
     d = _by_id(_real_rows())["draw:donchian_breakout"]
     assert AS.member_rows([d]) == [d]                                      # control: released, served
     monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET - {d["pattern_id"]}))
     assert AS.member_rows([d]) == []                                       # out of the member set
     monkeypatch.undo()
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)
     assert AS.member_rows([d]) == [d]                                      # control: back in, served
     smaller = frozenset(REG.DISPLAY_TEAM_SET - {d["pattern_id"]})
     monkeypatch.setattr(REG, "DISPLAY_TEAM_SET", smaller)
