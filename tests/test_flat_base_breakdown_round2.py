@@ -26,6 +26,16 @@ from api.services.pattern_engine import display
 from tests.detector_fixtures import ymd_t
 from tests.test_drawing_geometry_v2 import _bars, _fired
 
+
+@pytest.fixture(autouse=True)
+def flat_base_released(monkeypatch):
+    """The flat base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_FLAT_BASE_ROUND and
+    MEMBER_BC_FLAT_BASE_ROUND are None). This module tests the mechanism a released flat base runs through, so it
+    re-enables both literals in memory; tests/test_flat_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_FLAT_BASE_ROUND", 1)
+    monkeypatch.setattr(_as, "MEMBER_BC_FLAT_BASE_ROUND", "team")
+
 FROZEN = ("confidence", "levels", "start_t", "end_t", "pivot_ts")
 RUNUP = [85.0, 88.0, 91.0, 94.0, 97.0]
 

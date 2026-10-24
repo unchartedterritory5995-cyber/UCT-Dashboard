@@ -31,6 +31,20 @@ from api.services.pattern_engine import base_draw as BD
 from tests.authclients import PAID_MEMBER
 from tests.test_member_drawing_set import _flags, _get, _store
 
+
+@pytest.fixture(autouse=True)
+def flat_base_released(monkeypatch):
+    """The flat base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_FLAT_BASE_ROUND and
+    MEMBER_BC_FLAT_BASE_ROUND are None). This module tests the mechanism a released flat base runs through, so it
+    re-enables both literals in memory; tests/test_flat_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_FLAT_BASE_ROUND", 1)
+    monkeypatch.setattr(_as, "MEMBER_BC_FLAT_BASE_ROUND", "team")
+    # this module rails the depth FLOOR on synthetic held prices; the textbook gate that runs after it on the member
+    # path (recert A) would refuse these synthetic series on its own floors, so it is passed through here and
+    # railed in tests/test_member_base_textbook_gate.py
+    monkeypatch.setattr(_as, "member_base_textbook_gate", lambda sym, d, s: (list(d or []), list(s or [])))
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("flat_top_sweep_round5", os.path.join(_HERE, "flat_top_sweep.py"))
 SW = importlib.util.module_from_spec(_spec)

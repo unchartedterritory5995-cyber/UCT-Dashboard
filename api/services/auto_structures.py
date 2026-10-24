@@ -301,6 +301,7 @@ def member_rows(rows) -> list:
                  or _confirmed_flag(r) or _member_flagging_flag(r))
             and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
             and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
+            and ((r or {}).get("pattern_id") != "bc:flat-base" or MEMBER_BC_FLAT_BASE_ROUND is not None)
             and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
             and ((r or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID or _confirmed_inside_day(r))
             and ((r or {}).get("pattern_id") not in SHAPE_DRAW_IDS or _confirmed_shape(r))
@@ -436,7 +437,13 @@ def _confirmed_flat_top(row) -> bool:
 #: literal ON PURPOSE, not display.FLAT_BASE_DRAW_ROUND: the drawing code may move to a new round (round 2,
 #: lab flatbase_breakdown: `broke_down` read as of the last bar) while members keep the confirmed drawing
 #: until the new round passes its own blind check and this is changed by hand.
-MEMBER_FLAT_BASE_ROUND = 1
+MEMBER_FLAT_BASE_ROUND = None
+#: Since 2026-10-24 None (lab recert/A_bases): the flat base failed the strict textbook re-certification -- r1
+#: packets 1.92 / 1.68 / 1.80 / 1.78 (pooled 1.80) on 4 x 25 pre-registered cases, mostly bases under 5 weeks --
+#: and its fix round could not be filled: under the textbook floors (5+ weeks, <= 15% deep, a real left-side
+#: ceiling, a prior advance, a rising 200-day) the member path served about one flat base per 150 route calls, so
+#: 100 fresh cases were out of reach. Per the protocol no flat_base reaches a member; admins keep it. Setting this
+#: back to 1 restores the round-1 member drawing.
 #: The one later round that carries the round-1 drawing beside its own (extras.draw_r1).
 _FLAT_BASE_R1_CARRIER = 2
 
@@ -469,6 +476,12 @@ def _flat_base_member_row(row):
     out.update(prior)
     out["draw_round"] = 1
     return {**row, "geometry": {**row["geometry"], "extras": out}}
+
+
+#: The bc:flat-base pivot line (a base_catalog box, team set, pivot only) is served to members only while this is
+#: not None. None since 2026-10-24 for the same recert as MEMBER_FLAT_BASE_ROUND (the two drawings were judged
+#: together: one flat base, one or two drawings of it). Setting it back to "team" restores it.
+MEMBER_BC_FLAT_BASE_ROUND = None
 
 
 #: The cup row id (a base_catalog box).

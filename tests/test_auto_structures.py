@@ -33,6 +33,16 @@ from api.services.pattern_engine.primitives.geometry import bar_time
 from tests.authclients import ADMIN, FREE_MEMBER, PAID_MEMBER, authorize
 from tests.detector_fixtures import walk, ymd_t
 
+
+@pytest.fixture(autouse=True)
+def flat_base_released(monkeypatch):
+    """The flat base is WITHHELD from members since 2026-10-24 (recert A: MEMBER_FLAT_BASE_ROUND and
+    MEMBER_BC_FLAT_BASE_ROUND are None). This module tests the mechanism a released flat base runs through, so it
+    re-enables both literals in memory; tests/test_flat_base_withheld_from_members.py rails the withholding."""
+    from api.services import auto_structures as _as
+    monkeypatch.setattr(_as, "MEMBER_FLAT_BASE_ROUND", 1)
+    monkeypatch.setattr(_as, "MEMBER_BC_FLAT_BASE_ROUND", "team")
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 #: The ten detectors that emitted a bar index before the fix (measured 2026-10-16).
