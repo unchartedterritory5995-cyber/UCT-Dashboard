@@ -759,6 +759,9 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             "net": net,                              # what the day measures read
             "trade_count": float(count),
             "day_win_rate": (int(b["winners"]) / decisive) if decisive else None,
+            # decisive counts, so a win rate pooled over many days excludes breakeven trades
+            "wins": float(int(b["winners"])) if b else 0.0,
+            "losses": float(int(b["losers"])) if b else 0.0,
             "best_trade": max(ex) if ex else None,
             "worst_trade": min(ex) if ex else None,
             "mood": c.get("mood"),

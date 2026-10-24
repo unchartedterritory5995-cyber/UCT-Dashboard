@@ -29,6 +29,7 @@ import json
 import re
 import sqlite3
 import uuid
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal
 
@@ -895,9 +896,64 @@ def _contexts(c: sqlite3.Connection, user_id: str, rows: list,
     return ctxs
 
 
+@dataclass(frozen=True)
+class RoutineHistory:
+    """One routine's per-day states, read for the session member (`history_for`)."""
+    id: str
+    name: str
+    created: date
+    archived: bool
+    strict: bool
+    uses_traded: bool
+    items: tuple                       # routine_days.Item, every version
+    ticks: dict                        # day -> {item_id: bool}
+    states: tuple                      # routine_days.DayState, oldest first
+
+
+def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], upto: date,
+                today: date) -> dict[str, RoutineHistory]:
+    """The PUBLIC door to a routine's history (ruling W9-R15): for each of `rids` (one id or a
+    list) that is the session member's and not deleted (archived ones keep their history), its
+    day states oldest first, from the later of its created day and the MAX_HISTORY_SESSIONS-th
+    session back, to `min(upto, today)`. Every day the routine runs or could run is there,
+    `off` included; a caller keeps the states it counts. Foreign, unknown, deleted and
+    unreadable ids are absent. Reads only; one query per child table for all ids."""
+    ids = [rids] if isinstance(rids, str) else list(dict.fromkeys(rids or []))
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids or not user_id:
+        return {}
+    marks = ",".join("?" for _ in ids)
+    rows = []
+    for row in conn.execute(f"SELECT * FROM {_R} WHERE user_id = ? AND deleted_at IS NULL"
+                            f" AND id IN ({marks})", (user_id, *ids)).fetchall():
+        try:
+            routine_days.parse_items(_raw_items(row))
+        except (ValueError, KeyError, TypeError):
+            continue                   # a malformed routine is left out, never a 500
+        rows.append(row)
+    if not rows:
+        return {}
+    cut = min(upto, today)
+    ctxs = _contexts(conn, user_id, rows, max(upto, today))
+    out: dict[str, RoutineHistory] = {}
+    for rid in ids:
+        ctx = ctxs.get(rid)
+        if ctx is None:
+            continue
+        out[rid] = RoutineHistory(
+            id=rid, name=ctx.row["name"], created=ctx.created, archived=ctx.archived,
+            strict=bool(ctx.settings.get("strict")), uses_traded=ctx.uses_traded(),
+            items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(ctx.states_upto(cut, today)))
+    return out
+
+
 def _one_entry(c: sqlite3.Connection, user_id: str, row: sqlite3.Row, d: date,
-               today: date) -> dict:
-    return _contexts(c, user_id, [row], max(d, today))[row["id"]].entry(d, today)
+               today: date, now_dt: datetime) -> dict:
+    """The one DayEntry a write answers, the same shape `read_days` answers (with `suggested`)."""
+    ctxs = _contexts(c, user_id, [row], max(d, today))
+    iso = d.isoformat()
+    sug = _suggested(c, user_id, ctxs, [iso], now_dt).get(row["id"], {})
+    return {**ctxs[row["id"]].entry(d, today), "suggested": sug.get(iso, [])}
 
 
 # ── ticks and skips ────────────────────────────────────────────────────────────────────────────
@@ -939,7 +995,7 @@ def _write_day(user_id: str, rid: str, day: Any, now: datetime | None,
                 c.rollback()
             raise
         # M1: the answer is built after the commit, outside the write lock.
-        return _one_entry(c, user_id, _owned(c, user_id, rid), d, today)
+        return _one_entry(c, user_id, _owned(c, user_id, rid), d, today, now_dt)
     finally:
         if owned:
             c.close()
@@ -985,7 +1041,9 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
               conn: sqlite3.Connection | None = None) -> dict:
     """`{"resolved": {"today": day}?, "routines": {id: {"routine": ..., "days": {day: DayEntry}}}}`.
     At most READ_IDS_MAX ids and READ_DAYS_MAX days. `"today"` is the session on or after today
-    ET. Foreign, unknown and deleted ids are absent."""
+    ET. Foreign, unknown and deleted ids are absent. Each DayEntry carries `suggested`: the ids of
+    its opted-in items whose rule the member's own trades that day satisfy
+    (`routine_insights.suggestions`), computed here at read time and never written."""
     if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
         raise RoutineError(S_BAD_IDS)
     if not isinstance(days, list):
@@ -997,7 +1055,8 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
         raise RoutineError(S_BAD_DAY)
     if len(set(days)) > READ_DAYS_MAX:
         raise RoutineError(S_TOO_MANY_DAYS)
-    today = _today(now)
+    now_dt = _now(now)
+    today = trading_days.today_et(now_dt)
     out: dict = {"routines": {}}
     resolved: list[date] = []
     for d in dict.fromkeys(days):
@@ -1016,6 +1075,7 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
         rows = c.execute(f"SELECT * FROM {_R} WHERE user_id = ? AND deleted_at IS NULL"
                          f" AND id IN ({marks})", (user_id, *want_ids)).fetchall()
         ctxs = _contexts(c, user_id, rows, hi)
+        suggested = _suggested(c, user_id, ctxs, [d.isoformat() for d in resolved], now_dt)
     upto = min(resolved[-1], today) if resolved else today
     for rid in want_ids:
         ctx = ctxs.get(rid)
@@ -1023,9 +1083,29 @@ def read_days(user_id: str, ids: list[str], days: list[str], *, now: datetime | 
             continue
         if resolved:
             ctx.build_history(upto, today)          # I-2: one history per routine
+        sug = suggested.get(rid, {})
         out["routines"][rid] = {"routine": ctx.routine(today),
-                                "days": {d.isoformat(): ctx.entry(d, today) for d in resolved}}
+                                "days": {d.isoformat(): {**ctx.entry(d, today),
+                                                         "suggested": sug.get(d.isoformat(), [])}
+                                         for d in resolved}}
     return out
+
+
+def _suggested(c: sqlite3.Connection, user_id: str, ctxs: dict[str, _Ctx], days: list[str],
+               now_dt: datetime) -> dict[str, dict[str, list[str]]]:
+    """rid -> day -> suggested item ids. The day's trades are read ONCE for every routine, and
+    only when some routine has an opted-in item."""
+    from api.services.journal_two import routine_insights   # it imports this module
+    if not days:
+        return {}
+    wanted = {rid: ctx for rid, ctx in ctxs.items()
+              if any(routine_insights.opted_in(it) for it in ctx.items)}
+    if not wanted:
+        return {}
+    facts = routine_insights.day_facts(c, user_id, days, now=now_dt)
+    return {rid: routine_insights.suggestions(c, user_id, list(ctx.items), days, now=now_dt,
+                                              facts=facts)
+            for rid, ctx in wanted.items()}
 
 
 # ── import ─────────────────────────────────────────────────────────────────────────────────────

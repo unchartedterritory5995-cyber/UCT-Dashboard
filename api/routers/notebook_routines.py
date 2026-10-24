@@ -16,9 +16,11 @@ Routines (declared in this order, so the literal paths win over `/{rid}`):
   PUT  /{rid}/days/{day}/items/{item_id}   {ticked: bool}  -> the merged DayEntry
   PUT  /{rid}/days/{day}                   {skipped: bool} -> the merged DayEntry
   GET  /{rid}/used-in           an empty list until Task 9.10
+  GET  /{rid}/vs-pnl            day P&L on done days vs other days (Task 9.7)
 
 Trackers: the same shape without starters, import, ticks and skips, plus
   PUT  /{tid}/days/{day}        {value: number | bool | null} -> the TrackerDay
+  GET  /{tid}/vs-pnl            day P&L by the tracker's value range (Task 9.7)
 The `{tid}` path accepts the built-ins `checkin:mood` and `checkin:focus` (read-only; the store
 refuses every write to them with `read_only`).
 
@@ -66,6 +68,7 @@ from fastapi.responses import JSONResponse
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import notebook_widgets as nwidgets
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import routine_insights as rinsights
 from api.services.journal_two import routines as rstore
 from api.services.journal_two import trackers as tstore
 from api.services.journal_two.json_depth import _json_depth_exceeds
@@ -339,6 +342,15 @@ def routine_used_in(rid: str, user: dict = Depends(require_paid)) -> Any:
     return _ok({"notes": []})          # Task 9.10 fills this in
 
 
+@routines_router.get("/{rid}/vs-pnl")
+def routine_vs_pnl(rid: str, user: dict = Depends(require_paid)) -> Any:
+    """`{done, other, winRate: {done, other}, sentence}`; a foreign, unknown or deleted id is the
+    public 404."""
+    uid = _uid(user)
+    _read_rate(uid)
+    return _ok(_found(_store(lambda: rinsights.routine_vs_pnl(uid, rid))))
+
+
 # -- trackers -------------------------------------------------------------------------------------
 
 @trackers_router.get("")
@@ -452,3 +464,11 @@ def tracker_used_in(tid: str, user: dict = Depends(require_paid)) -> Any:
     _read_rate(uid)
     _found(tstore.get(uid, tid))
     return _ok({"notes": []})          # Task 9.10 fills this in
+
+
+@trackers_router.get("/{tid}/vs-pnl")
+def tracker_vs_pnl(tid: str, user: dict = Depends(require_paid)) -> Any:
+    """`{buckets, sentence}`; a foreign, unknown or deleted id is the public 404."""
+    uid = _uid(user)
+    _read_rate(uid)
+    return _ok(_found(_store(lambda: rinsights.tracker_vs_pnl(uid, tid))))

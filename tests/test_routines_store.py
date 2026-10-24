@@ -377,7 +377,8 @@ def test_read_days_caps_and_absent_ids(R):
     assert routine["scheduleKind"] == "every"
     entry = out["routines"][r["id"]]["days"]["2026-11-03"]
     assert set(entry) == {"day", "state", "label", "ticked", "skipped", "partial", "items",
-                          "writable", "beyondNote", "consistency", "rate", "run"}
+                          "writable", "beyondNote", "consistency", "rate", "run",
+                          "suggested"}
 
 
 def test_beyond_horizon_day_carries_the_quiet_note(R):

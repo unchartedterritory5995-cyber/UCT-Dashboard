@@ -628,6 +628,8 @@ def _sample_days(book: dict) -> list[dict]:
             "net": net,
             "trade_count": float(count),
             "day_win_rate": (int(d["winners"]) / decisive) if decisive else None,
+            "wins": float(int(d["winners"])),
+            "losses": float(int(d["losers"])),
             "best_trade": nw._num(d["best"]),
             "worst_trade": nw._num(d["worst"]),
             "mood": None if d["mood"] is None else float(d["mood"]),

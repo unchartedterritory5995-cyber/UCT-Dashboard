@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 import api.routers.notebook_routines as nr
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import routine_insights as rinsights
 from api.services.journal_two import routine_days
 from api.services.journal_two import routines as rstore
 from api.services.journal_two import trackers as tstore
@@ -35,8 +36,8 @@ TB = "/api/j2/trackers"
 NOW = datetime(2026, 11, 4, 17, 0, tzinfo=timezone.utc)
 TODAY = "2026-11-04"
 
-#: The routes the brief names: 15 routine routes + 12 tracker routes.
-BRIEF_ROUTES = 27
+#: The routes the briefs name: 16 routine routes + 13 tracker routes (9.6, plus 9.7's two vs-pnl).
+BRIEF_ROUTES = 29
 
 ITEMS = [{"text": "Read the wire"}, {"text": "Set max loss"}]
 EVERY = {"kind": "every"}
@@ -48,7 +49,7 @@ def _env(monkeypatch, tmp_path):
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()
-    for store in (rstore, tstore):
+    for store in (rstore, tstore, rinsights):
         real = store._now
         monkeypatch.setattr(store, "_now", lambda now=None, _r=real: _r(now or NOW))
     from api.limiter import limiter
@@ -229,16 +230,19 @@ def _store_calls_offending(source: str) -> tuple[int, list[str]]:
     tree = ast.parse(source)
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)
-             and n.func.value.id in ("rstore", "tstore")]
+             and n.func.value.id in ("rstore", "tstore", "rinsights")]
     bad = [ast.unparse(n) for n in calls
            if any(k.arg is None or k.arg == "now" for k in n.keywords)]
     return len(calls), bad
 
 
 def test_router_never_passes_now_to_a_store():
-    seen, bad = _store_calls_offending(Path(inspect.getsourcefile(nr)).read_text(encoding="utf-8"))
-    assert seen >= 25, seen                                     # non-vacuity: the store calls are seen
+    src = Path(inspect.getsourcefile(nr)).read_text(encoding="utf-8")
+    seen, bad = _store_calls_offending(src)
+    assert seen >= 27, seen                                     # non-vacuity: the store calls are seen
     assert bad == []
+    # the two vs-pnl calls are among those seen (9.7)
+    assert _store_calls_offending(src.replace("rinsights.", "other."))[0] == seen - 2
 
 
 def test_the_now_rail_catches_a_planted_now_and_a_planted_body_splat():
@@ -511,3 +515,37 @@ def test_every_refusal_is_no_store(monkeypatch):
         assert "no-store" in r.headers.get("cache-control", ""), status
     # M4: `If-Match: *` is a stale tab, never "any version"
     assert refusals[409].json()["detail"] == {"code": "conflict", "message": rstore.S_CONFLICT}
+
+
+# -- vs P&L (Task 9.7) -----------------------------------------------------------------------------
+
+def test_vs_pnl_routes_read_scope_and_404_foreign(monkeypatch):
+    c = _client()
+    one = _routine(c)
+    t = _tracker(c)
+    spent = []
+    monkeypatch.setattr(nr, "_read_rate", lambda uid: spent.append(("read", uid)))
+    monkeypatch.setattr(nr, "_write_rate", lambda uid: spent.append(("write", uid)))
+    r = c.get(f"{RB}/{one['id']}/vs-pnl")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
+    body = r.json()
+    assert set(body) == {"done", "other", "winRate", "sentence"}
+    assert body["sentence"] == "No days with trades yet. A comparison, not proof."
+    r = c.get(f"{TB}/{t['id']}/vs-pnl")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
+    assert set(r.json()) == {"buckets", "sentence"}
+    assert r.json()["sentence"].endswith(rinsights.CAVEAT)
+    assert c.get(f"{TB}/checkin:mood/vs-pnl").status_code == 200
+    assert spent == [("read", UID)] * 3                         # the read scope, never the write
+    # someone else's routine and tracker are the public 404, as are unknown ids
+    theirs = rstore.create(OTHER, name="Theirs", items=ITEMS, schedule=EVERY, now=NOW)
+    their_t = tstore.create(OTHER, name="Theirs", kind="number", now=NOW)
+    want = {"detail": public.not_found().detail}
+    for path in (f"{RB}/{theirs['id']}/vs-pnl", f"{TB}/{their_t['id']}/vs-pnl",
+                 f"{RB}/nope/vs-pnl", f"{TB}/nope/vs-pnl"):
+        r = c.get(path)
+        assert r.status_code == 404 and r.json() == want, path
+        assert "no-store" in r.headers["cache-control"], path
+    # unpaid: the router's own 402
+    r = _client(FREE).get(f"{RB}/{one['id']}/vs-pnl")
+    assert r.status_code == 402
