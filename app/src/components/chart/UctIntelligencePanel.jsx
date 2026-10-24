@@ -6,6 +6,7 @@
 // "Admin" section, rendered only when the host passes `admin`.
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
+import { cautionListRows, isCautionRow } from './cautionLayer'
 
 const EMPTY = Object.freeze([])
 
@@ -33,13 +34,21 @@ export function useChartSetups(sym, enabled) {
   }
 }
 
+/** `rows` without the caution (bearish) rows, by IDENTITY when there are none (a payload with no bearish row is
+ *  returned exactly as it came). */
+function withoutCaution(rows) {
+  return rows.some(isCautionRow) ? rows.filter((r) => !isCautionRow(r)) : rows
+}
+
 /** The rows the Setups list shows: the judge's confirmed verdicts, then the server's `setup_tags`
  *  (blind-confirmed setups and bar events from the last three sessions, present only while the
  *  server releases them; filtered there, never here). A tag naming a setup already confirmed is
  *  not listed twice. */
 export function chartSetupRows(data) {
-  const verdicts = Array.isArray(data?.verdicts) ? data.verdicts : EMPTY
-  const tags = Array.isArray(data?.setup_tags) ? data.setup_tags : EMPTY
+  // A bearish row is the CAUTION layer's (owner decision 7), never a Setups-list row: it is listed only under the
+  // Caution toggle, with exit wording, and only when the member turned it on.
+  const verdicts = withoutCaution(Array.isArray(data?.verdicts) ? data.verdicts : EMPTY)
+  const tags = withoutCaution(Array.isArray(data?.setup_tags) ? data.setup_tags : EMPTY)
   if (!tags.length) return verdicts
   const seen = new Set(verdicts.map((v) => v?.setup))
   return [...verdicts, ...tags.filter((t) => t && !seen.has(t.setup))]
@@ -91,6 +100,25 @@ function SetupsList({ setups, loading, error }) {
   )
 }
 
+function CautionList({ rows }) {
+  if (!rows.length) {
+    return <div data-testid="uct-intel-caution-empty" style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+      No caution setups on this chart right now.
+    </div>
+  }
+  return (
+    <ul data-testid="uct-intel-caution" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+      {rows.map((r) => (
+        <li key={r.pattern_id} data-testid="uct-intel-caution-row"
+          style={{ padding: '3px 0 3px 8px', borderLeft: '2px solid #f59e0b', margin: '2px 0',
+            color: 'var(--text)', fontSize: 11.5, lineHeight: 1.3 }}>
+          {r.label}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /**
  * Props:
  *   state:         readUctIntelligence(settings)
@@ -100,14 +128,17 @@ function SetupsList({ setups, loading, error }) {
  *   setups:        { setups, loading, error } from useChartSetups
  *   setupsList:    show the confirmed-setup LIST under the Setups toggle (the Technical tab's release);
  *                  default true. False when the toggle exists only for the setup-drawing lines.
+ *   setupDraws:    the payload's `setup_draws` rows (or null): the Caution toggle lists its bearish rows
  *   admin:         null, or { showAll, onShowAll, showLevels, onShowLevels, showLearned, onShowLearned }
  *   defaultOpen:   start expanded
  */
 export default function UctIntelligencePanel({
-  state, availability, onSetLayer, onRemove, setups = null, setupsList = true, admin = null, defaultOpen = true,
+  state, availability, onSetLayer, onRemove, setups = null, setupsList = true, setupDraws = null, admin = null,
+  defaultOpen = true,
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const a = availability || {}
+  const cautionRows = useMemo(() => cautionListRows(setupDraws), [setupDraws])
   const setupCount = state.setups && a.setups && setups ? setups.setups.length : 0
   return (
     <div data-testid="uct-intel-panel" role="group" aria-label="UCT Intelligence"
@@ -147,6 +178,14 @@ export default function UctIntelligencePanel({
                 hint={setupsList ? 'Setups confirmed on this chart (daily)' : 'Setup lines on this chart (daily)'}
                 checked={state.setups} onChange={(v) => onSetLayer('setups', v)} />
               {state.setups && setupsList && setups && <SetupsList {...setups} />}
+            </>
+          )}
+          {a.caution && (
+            <>
+              <Toggle id="caution" label="Caution"
+                hint="Bearish setups on a stock you hold, framed as exit risk. Off by default."
+                checked={state.caution} onChange={(v) => onSetLayer('caution', v)} />
+              {state.caution && <CautionList rows={cautionRows} />}
             </>
           )}
           {admin && (
