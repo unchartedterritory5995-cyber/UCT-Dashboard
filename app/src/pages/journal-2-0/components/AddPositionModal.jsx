@@ -40,6 +40,7 @@ import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import SecuritySymbolInput from './SecuritySymbolInput'
 import useLogTradeChecklist from '../hooks/useLogTradeChecklist'
 import LogTradeChecklistSlot from './LogTradeChecklistSlot'
+import DefaultSizeMarker from '../../../components/account/DefaultSizeMarker'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -705,7 +706,8 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
             <div role="alert" className={bannerStyles.alert}>
               <strong>Over risk cap.</strong>{' '}
               Implied risk <strong>{impliedRiskPct.toFixed(2)}%</strong> exceeds
-              your cap of <strong>{cap}%</strong>
+              your cap of <strong>{cap}%</strong>{' '}
+              <DefaultSizeMarker settings={settings} />
               {isAPlus && multiplier != null && (
                 <span style={{ opacity: 0.85 }}>
                   {' '}(A+ elevated from {baseCap}% × {multiplier})

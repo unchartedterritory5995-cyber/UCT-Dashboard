@@ -701,24 +701,17 @@ def _my_pnl_stats(user_id: str, params: dict, now: datetime) -> dict:
 def _account_size(user_id: str) -> float | None:
     """The member's own account size, or None when they never set one.
 
-    READ-ONLY by construction: one SELECT on `j2_accounts` (the Default account first, else
-    the oldest). Not `accounts.get_or_migrate_default_account`, which inserts a default
-    account and reassigns the member's positions and trades on first call, and not
-    `portfolio_heat`'s figure, which falls back to a default amount so its math always runs;
-    a default must never print as the member's real account.
+    READ-ONLY by construction: `accounts.read_member_account_size`, one SELECT on `j2_accounts`
+    (the Default account first, else the oldest) through the ONE predicate, so the migrated
+    placeholder is None and a member-set size (marker read) is theirs whatever its value. Not
+    `accounts.get_or_migrate_default_account`, which inserts a default account and reassigns the
+    member's positions and trades on first call, and not `portfolio_heat`'s figure, which falls
+    back to a default amount so its math always runs; a default must never print as the
+    member's real account.
     """
     try:
-        from api.services import auth_db
-        conn = auth_db.get_connection()
-        try:
-            row = conn.execute(
-                "SELECT account_size FROM j2_accounts WHERE user_id = ? "
-                "ORDER BY (CASE WHEN name = 'Default' THEN 0 ELSE 1 END), created_at ASC LIMIT 1",
-                (user_id,),
-            ).fetchone()
-        finally:
-            conn.close()
-        return (_num(row[0]) or None) if row else None
+        from api.services.journal_two import accounts as j2_accounts
+        return j2_accounts.read_member_account_size(user_id)
     except Exception as e:  # noqa: BLE001 -- no account size is "n/a", never a failed widget
         _log.info("positions risk: account size read failed: %s", e)
         return None
@@ -861,13 +854,11 @@ def _price_basis(bases: list) -> str | None:
 
 def _my_positions_risk(user_id: str, params: dict, now: datetime) -> dict:
     from api.services import portfolio_heat
-    from api.services.journal_two import accounts as j2_accounts
     from api.services.journal_two import positions as j2_positions
     open_positions = list(j2_positions.list_open_positions(user_id) or [])
     # READ-ONLY: heat gets the size this widget already read (`_account_size`, one SELECT), never its
     # own default reader, which migrates a Default j2_accounts row for a member who has none.
-    stored_size = _account_size(user_id)
-    own_size = j2_accounts.member_set_account_size(stored_size)
+    own_size = _account_size(user_id)   # already the member's own (the predicate ran there)
     heat = portfolio_heat.portfolio_heat(user_id, account_size_fn=lambda _u, _a: own_size) or {}
     # Fix F1 (audit I-5): open option strategies are rows too, as the Open Positions tab shows them.
     strategies = _open_strategies(user_id)

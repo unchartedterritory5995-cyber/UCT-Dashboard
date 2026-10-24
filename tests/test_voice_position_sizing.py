@@ -248,7 +248,7 @@ def test_validate_names_the_default_size_for_an_unset_member(monkeypatch):
                                        "account_size_is_default": True})
     assert out["account_size_is_default"] is True
     assert out["account_size_note"] == vps.default_size_sentence()
-    assert "default account size ($25,000)" in out["account_size_note"]
+    assert "default account size ($100,000)" in out["account_size_note"]
 
 
 def test_validate_says_nothing_for_a_member_set_size(monkeypatch):

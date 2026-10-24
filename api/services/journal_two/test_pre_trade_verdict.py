@@ -26,7 +26,7 @@ def _seed_account(db_conn, user_id="u_v"):
     db_conn.execute(
         """UPDATE j2_accounts
            SET account_size = ?, max_risk_per_trade_pct = ?,
-               daily_loss_limit_pct = ?
+               daily_loss_limit_pct = ?, account_size_set = 1
            WHERE id = ?""",
         (100000.0, 1.0, 3.0, acc["id"]),
     )
@@ -92,6 +92,8 @@ def test_hard_check_risk_above_cap_returns_skip(db_conn):
 
 
 def test_hard_check_account_size_unset_returns_error(db_conn):
+    """A size of 0 is base's "not configured" ERROR (restored in Round B fix 2, finding 3: a size
+    of 0 or less is never the default)."""
     from api.services.journal_two import pre_trade_verdict as ptv
     from api.services.journal_two import accounts as accounts_service
     acc = accounts_service.get_or_migrate_default_account("u_v", conn=db_conn)

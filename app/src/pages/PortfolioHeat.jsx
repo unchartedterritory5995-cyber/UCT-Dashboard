@@ -12,6 +12,7 @@ import styles from './PortfolioHeat.module.css'
 // ⛔ NOT `fetch(url).then(r => r.json())` -- a 402 answers JSON too. See
 // utils/jsonFetcher.js's own header comment (the Traders.jsx idiom).
 import fetcher from '../utils/jsonFetcher'
+import { DEFAULT_SIZE_SENTENCE } from '../lib/accountSize'
 
 // A null percentage renders "—", never a bare "%" (and never throws on .toFixed).
 // The shared formatter owns the rounding and the missing-value glyph.
@@ -145,7 +146,7 @@ export default function PortfolioHeat() {
 
       {account_size_is_default && (
         <p className={styles.notice} role="status">
-          No account size on file — these numbers use a default account size, not your real one.
+          {DEFAULT_SIZE_SENTENCE}.
         </p>
       )}
 

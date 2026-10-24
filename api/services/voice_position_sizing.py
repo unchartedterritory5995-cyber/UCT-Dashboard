@@ -31,8 +31,13 @@ _log = logging.getLogger(__name__)
 ABSOLUTE_MAX_RISK_PER_TRADE_PCT = 5.0  # No single trade may risk >5% ever
 ABSOLUTE_MAX_PORTFOLIO_HEAT_PCT = 12.0  # Total open risk capped at 12%
 DEFAULT_RISK_PCT = 1.0  # Used when account has no setting
-#: The size every sizing reader uses when the member has set none (heat imports it).
-UNSET_ACCOUNT_SIZE = 25000.0
+#: The ONE size every reader uses when the member has set none (accounts.account_size_of), flagged
+#: default and said with default_size_sentence(). 100,000 by owner ruling (Round B fix 1): the size
+#: the Settings modal has always shown an unset member, and the size Compass pre-trade, the coach,
+#: tilt, the discipline lock and the calendar % enforced on, so their answers do not move. It is
+#: equal to, but not the same fact as, accounts._DEFAULT_ACCOUNT_SIZE (the placeholder the migration
+#: WRITES, which the predicate compares against): changing this must never re-mark stored rows.
+UNSET_ACCOUNT_SIZE = 100000.0
 
 
 def default_size_sentence() -> str:
@@ -41,6 +46,14 @@ def default_size_sentence() -> str:
     validate_trade's `account_size_note` both read it from here."""
     return (f"No account size on file — these numbers use a default account size "
             f"(${UNSET_ACCOUNT_SIZE:,.0f}), not your real one")
+
+
+def nonpositive_size_sentence() -> str:
+    """A grade's wording when the member HAS a size but it is 0 or less (a broker balance at zero
+    or in margin debt): graded on the default, which "No account size on file" would misstate
+    (Round B fix 3, R2-2). Enforcement never reads this; base's checks stay off for that size."""
+    return (f"Account balance is zero or negative; graded on a default account size "
+            f"(${UNSET_ACCOUNT_SIZE:,.0f})")
 
 
 # ── Pure math (no DB) ───────────────────────────────────────────────────────
@@ -111,13 +124,13 @@ def _get_account_settings(user_id: str, account_id: str | None) -> dict:
     """The account's own account_size + max_risk_pct, read from its j2_accounts row
     (`accounts._account_to_settings`). The size counts only when the member SET it
     (`accounts.member_set_account_size`: the migrated Default row's placeholder is unset); unset
-    means UNSET_ACCOUNT_SIZE (25,000) with `account_size_is_default` True. An unset risk % is
+    means UNSET_ACCOUNT_SIZE (100,000) with `account_size_is_default` True. An unset risk % is
     DEFAULT_RISK_PCT.
 
     ⛔ A WRITE on first call for a member with no account: account None (or an unknown id) falls
     back to `accounts.get_or_migrate_default_account`, which inserts a Default account.
     ⚰️ Until 2026-10-23 this read `acc["settings"]`, a key `_row_to_account` never returns, so
-    every member was sized at 25,000 and 1% whatever they had set (review I-3)."""
+    every member was sized at the then 25,000 fallback and 1% whatever they had set (review I-3)."""
     try:
         from api.services.journal_two import accounts as j2_accounts
         if account_id is None:
@@ -132,7 +145,7 @@ def _get_account_settings(user_id: str, account_id: str | None) -> dict:
         settings = j2_accounts._account_to_settings(acc) or {}
     except Exception:
         settings = {}
-    own = j2_accounts.member_set_account_size(settings.get("accountSize"))
+    own = j2_accounts.own_account_size(settings)   # reads the member-set marker too
     return {
         "account_id": acc.get("id"),
         "account_name": acc.get("displayName") or acc.get("name") or "Default",

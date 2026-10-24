@@ -49,7 +49,11 @@ def compute_discipline_state(
         now_et = now_utc.astimezone(ET)
 
         today_pnl = _todays_pnl(conn, user_id, account_id, now_et)
-        account_size = float(settings.get("accountSize") or 0)
+        # The one authority (accounts.account_size_of): an unset size is UNSET_ACCOUNT_SIZE,
+        # flagged default, and the state says so beside the percentage.
+        account_size, size_is_default = accounts_service.account_size_of(settings)
+        from api.services.voice_position_sizing import default_size_sentence
+        size_note = default_size_sentence() if size_is_default else None
         today_pnl_pct = (today_pnl / account_size * 100.0) if account_size > 0 else 0.0
 
         reasons: list[dict[str, Any]] = []
@@ -61,6 +65,7 @@ def compute_discipline_state(
                 "type": "daily_loss",
                 "message": f"Down {today_pnl_pct:.2f}% today (limit: -{cap}%)",
                 "severity": "block",
+                "accountSizeNote": size_note,
             })
 
         # 2) Cooling off
@@ -98,6 +103,8 @@ def compute_discipline_state(
             "todaysPnlDollar": round(today_pnl, 2),
             "todaysPnlPct": round(today_pnl_pct, 2),
             "computedAt": now_utc.isoformat(),
+            "accountSizeIsDefault": size_is_default,
+            "accountSizeNote": size_note,
         }
     finally:
         if owned:

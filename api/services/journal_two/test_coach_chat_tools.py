@@ -854,7 +854,7 @@ def test_check_profile_divergence_flags_actual_risk_above_claimed(db_conn):
     # Insert a trade where actual risk is ~3% (assume 100k account, $3000 risk → 3%)
     # accountSize comes from j2_accounts.account_size which we may not set; check what get_account_settings returns
     db_conn.execute(
-        "UPDATE j2_accounts SET account_size = ? WHERE id = ?",
+        "UPDATE j2_accounts SET account_size = ?, account_size_set = 1 WHERE id = ?",
         (100000.0, acc["id"]),
     )
     db_conn.commit()
@@ -910,7 +910,7 @@ def test_pre_trade_verdict_tool_invokes_ptv(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     db_conn.execute(
-        "UPDATE j2_accounts SET account_size = 100000, max_risk_per_trade_pct = 1 WHERE id = ?",
+        "UPDATE j2_accounts SET account_size = 100000, account_size_set = 1, max_risk_per_trade_pct = 1 WHERE id = ?",
         (acc["id"],),
     )
     db_conn.commit()
@@ -930,7 +930,7 @@ def test_check_active_interventions_returns_active_list(db_conn):
     from api.services.journal_two import interventions as iv
     acc = _seed_account(db_conn)
     db_conn.execute(
-        "UPDATE j2_accounts SET account_size = 100000, daily_loss_limit_pct = 3, cooling_off_minutes_after_loss = 30 WHERE id = ?",
+        "UPDATE j2_accounts SET account_size = 100000, account_size_set = 1, daily_loss_limit_pct = 3, cooling_off_minutes_after_loss = 30 WHERE id = ?",
         (acc["id"],),
     )
     db_conn.commit()

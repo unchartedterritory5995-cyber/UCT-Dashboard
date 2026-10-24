@@ -277,7 +277,7 @@ def verdict_acc(db_path):
     from api.services.auth_db import get_connection
     acc = _seed_account()
     conn = get_connection()
-    conn.execute("UPDATE j2_accounts SET account_size = 100000, max_risk_per_trade_pct = 1.0, "
+    conn.execute("UPDATE j2_accounts SET account_size = 100000, account_size_set = 1, max_risk_per_trade_pct = 1.0, "
                  "daily_loss_limit_pct = 3.0 WHERE id = ?", (acc,))
     conn.commit()
     conn.close()

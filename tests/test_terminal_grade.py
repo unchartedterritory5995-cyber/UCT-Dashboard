@@ -83,7 +83,7 @@ def test_switch_on_but_no_brain_pack_answers_not_available(client, monkeypatch):
 def test_the_switch_is_read_per_request(client, monkeypatch):
     c, _ = client
     monkeypatch.setattr(tgr, "_brain_available", lambda: True)
-    monkeypatch.setattr(tgr, "_grade", lambda s: dict(VERDICT))
+    monkeypatch.setattr(tgr, "_grade", lambda s, *a, **k: dict(VERDICT))
     assert c.get("/api/terminal/grade/NVDA").json()["available"] is False
     monkeypatch.setenv("BRAIN_TOOLS_ENABLED", "1")
     assert c.get("/api/terminal/grade/NVDA").json()["available"] is True
@@ -93,7 +93,7 @@ def test_on_the_verdict_passes_through_untouched(client, monkeypatch):
     c, _ = client
     monkeypatch.setenv("BRAIN_TOOLS_ENABLED", "1")
     monkeypatch.setattr(tgr, "_brain_available", lambda: True)
-    monkeypatch.setattr(tgr, "_grade", lambda s: dict(VERDICT))
+    monkeypatch.setattr(tgr, "_grade", lambda s, *a, **k: dict(VERDICT))
     body = c.get("/api/terminal/grade/nvda").json()
     assert body["available"] is True
     for k, v in VERDICT.items():
@@ -105,7 +105,7 @@ def test_no_regime_gate_is_not_a_verdict(client, monkeypatch):
     c, _ = client
     monkeypatch.setenv("BRAIN_TOOLS_ENABLED", "1")
     monkeypatch.setattr(tgr, "_brain_available", lambda: True)
-    monkeypatch.setattr(tgr, "_grade", lambda s: {"ok": False, "reason": "regime unavailable"})
+    monkeypatch.setattr(tgr, "_grade", lambda s, *a, **k: {"ok": False, "reason": "regime unavailable"})
     body = c.get("/api/terminal/grade/NVDA").json()
     assert body["available"] is True and body["ok"] is False
     assert body["reason"] == "regime unavailable"
@@ -134,7 +134,7 @@ def test_a_repeat_read_inside_the_ttl_is_cached(client, monkeypatch):
     monkeypatch.setenv("BRAIN_TOOLS_ENABLED", "1")
     monkeypatch.setattr(tgr, "_brain_available", lambda: True)
     calls = []
-    monkeypatch.setattr(tgr, "_grade", lambda s: calls.append(s) or dict(VERDICT))
+    monkeypatch.setattr(tgr, "_grade", lambda s, *a, **k: calls.append(s) or dict(VERDICT))
     c.get("/api/terminal/grade/NVDA")
     c.get("/api/terminal/grade/NVDA")
     assert calls == ["NVDA"]
