@@ -141,7 +141,7 @@ For the 10% who want more, a spreadsheet-style formula field with autocomplete:
 - Field names in brackets: `[Net P&L] / [Risk $]`.
 - Functions (about 15): `If, And, Or, Not, Abs, Round, Min, Max, CountIf, SumIf, AvgIf, Share` (fraction of rows matching), `Bucket(value, edges…)`, `Hour, Weekday`. Streak functions are measures, not formula functions.
 - No variables, loops, text manipulation or lookups across sources.
-- Engine: extend the existing `formula_engine.py` and its client twin `lib/formula/formulaEngine.js` with the new functions, sharing test vectors (`formulaVectors.json`). Limits unchanged (length 2000, tokens 500, depth 32). Row-level formulas evaluate per row before aggregation; aggregate formulas (`CountIf`, `Share`…) evaluate per group.
+- Engine: a **separate widget-formula dialect** (`[Field]` syntax, title-case functions, aggregate functions) in its own module with its own client twin and its own shared vector file. It may reuse the note-property engine's tokenizer, but the note-property formula language (`formula_engine.py`, `{Name}`, `formulaVectors.json`) is not changed in any way, so members' stored note formulas cannot move (§16.2). Same limits (length 2000, tokens 500, depth 32). Row-level formulas evaluate per row before aggregation; aggregate formulas (`CountIf`, `Share`…) evaluate per group.
 - The formula box shows the live result for the first row and a plain error inline ("[Risk $] is empty on 4 trades; those are skipped").
 
 ### 5.6 How a builder widget lives in a note
@@ -175,7 +175,7 @@ For the 10% who want more, a spreadsheet-style formula field with autocomplete:
 - `j2_checklists (id, user_id, name, items_json, schedule_json, settings_json, created_at, updated_at, archived_at, source_gallery_id)`; items carry stable ids so renaming an item keeps its history; cap 30 checklists, 25 items each.
 - `j2_checklist_days (user_id, checklist_id, day, state, items_json, updated_at, PRIMARY KEY(user_id, checklist_id, day))`.
 - Ticking writes directly through a small endpoint (`PUT /api/j2/checklists/{id}/days/{day}`), not through the note body, so the same checklist can sit in many notes and one tick updates all of them. Writes take `BEGIN IMMEDIATE` like other note-adjacent writes.
-- The widget in a note is a `checklistWidget` kind (account kind). Unlike snapshot widgets, its state is **live** (it reads the checklist's current day on open), because a checklist frozen at insert time would be useless; the note stores only `checklistId` and display settings. Offline: ticks queue in the existing offline outbox pattern and show "Will save when you're back online".
+- The widget in a note is a `checklistWidget` kind (account kind). Unlike snapshot widgets, its state is **live** (it reads the stored day's ticks on open), because a checklist frozen at insert time would be useless. The note stores `checklistId`, a bound `day` and display settings; which day it shows is settled in §16.3. Offline: ticking is disabled with "You're offline. Ticks save when you're back online." (no offline queue in phase 2, §16.5).
 - Market calendar: reuse the existing trading-session calendar helpers (the same source the scheduler and `last_closed_session()` use); no new holiday list.
 
 ## 7. Trackers
@@ -251,8 +251,8 @@ Dedicated ones reuse phase 1's builder shell (`notebook_widgets._BUILDERS`), cap
 Before any new kind ships, free first-open room so phase 2 never fights the budget:
 1. **Lazy kind metadata.** Keep only ids and waves eager; move labels, keywords, descriptions and `paramsSchema` for all snapshot kinds into a lazy manifest loaded on the first `/` press or first embed render. The unknown-kind path already shows `searchText` while it loads.
 2. **Lazy NotebookTab dialogs:** TemplatePicker (and the 1,408-line `notebookTemplates.js` it pulls), SavedViewEditor, BulkActionBar, NoteConnectorsTrustStrip, ResearchHome.
-3. **Terminal code out of the entry chunk** (~35 KB minified, named in `docs/notebook/wave14-perf.md`) if (1) and (2) do not reach the target.
-Target: at least 40 KB of headroom, measured with `tools/notebook_perf_budgets.py`, budget unchanged. Each move is its own measured commit with the byte delta in the message.
+3. If (1) and (2) fall short, more **Notebook-owned** lazy moves: emoji data, `drawingsStore` (eager only for `peekDrawings`), `sampleNotebook`, `AiActionsPanel`. Terminal code in the entry chunk belongs to another programme and is not touched here (§16.8).
+Target: at least 40 KB of headroom (floor to proceed: 25 KB; below that, stop and report rather than raise the budget), measured with `tools/notebook_perf_budgets.py`, budget unchanged. Each move is its own measured commit with the byte delta in the message.
 
 ## 12. Research summary (inputs to this design)
 
@@ -294,3 +294,17 @@ Rollback per wave: set its flag to `0` (never a delete). Stored definitions, che
 - Exact SQL per source and field, within §5.7's rules.
 - Copy for every label and sentence, plain words, no emoji, following phase 1's copy style.
 - Test design, within the repo rules (rendered-text assertions, non-vacuity controls, mutation proofs for guards).
+
+## 16. Builder-check answers (my calls, settled 2026-10-24)
+
+An independent builder read this document and asked nine questions. The owner delegated every decision, so each is settled here as my call.
+
+1. **Shelf updates never change a placed widget silently.** Shelf definitions ship as versioned JSON in the app (`shelf:<id>`, namespaced so they can never collide with a member's ids in `{{block:built:...}}`), each with a revision number. A widget placed from the shelf, or adopted from the community library, pins its `defRev`; "See it now" re-runs that revision. When a newer revision exists the frame shows a quiet "Updated version available" control that previews the change and applies it only on click. A member's **own** definition is different on purpose: they edited it themselves, so "See it now" uses its current revision.
+2. **Formulas are a separate widget dialect** (see §5.5). The note-property formula language and its vector file are untouched.
+3. **A checklist or tracker in a note is bound to a day.** On insert, `day` = the note's own day if it has one (daily note or day note), otherwise the ET date it was inserted. Reopening a 10/14 note next month shows 10/14 (phase 1 G4). A "Today" setting on the widget makes it follow the current trading day instead (the default for widgets inserted into templates and presets). On public pages the widget is an account kind: the neutral line by default; when shared, only the bound day's item labels and states travel (allowlisted keys), read at render time, never other days' history.
+4. **Trading days source:** one row per market session in the range (market calendar, the same source the scheduler uses), including sessions with no trades. Day measures that need trades (average day P&L, green-day %, win rate that day) count only days with trades and say so. "Days I trade" means a closed trade, an opened trade or an options strategy on that ET day (entry or exit trading day). Checklist consistency = done / (scheduled - skipped). Several check-ins in one day: the latest wins.
+5. **Wave 9 is online-only.** Ticks and logs need a connection; offline the controls are disabled with a plain sentence. No change to the Notebook offline outbox in phase 2 (it is note-shaped and carries an incident history); an offline queue for checklists is a possible follow-up.
+6. **Phase 1 kinds stay exactly as they are.** No near-duplicate shelf entries are added for them (the P&L calendar and setup edge stay phase 1 widgets). "Edit" and "How this is made" apply to builder widgets and shelf definitions; on a phase 1 widget that has an equivalent definition, the menu offers "Make an editable copy" (inserts the builder version beside it); otherwise no edit control. Phase 1 code is not changed in wave 10.
+7. **"Pick yours" on adoption:** the adopt sheet lists each stripped value as a slot by type (setup, tag, symbol, account), with a picker pre-filled with the member's most-used value of that type and an "Any" choice that drops the filter. Saving requires every slot resolved, so a saved definition never contains an unresolved slot and §5.2's no-error-state rule holds. "Bound by role" means exactly this: the slot keeps its type and takes the member's own value.
+8. **Terminal code is not moved by this workstream** (§11, step 3 revised). Fallback order: more Notebook-owned lazy moves; proceed at 25 KB or more of headroom; below that, stop and report. The budget is never raised.
+9. **New measures go into `metrics_registry` itself**, with a per-measure minimum sample defined there, so the analytics tab and the builder cannot drift. The §5.2 small-sample rule (badge under 20, hidden under 5) is the floor for any measure without a stricter minimum.
