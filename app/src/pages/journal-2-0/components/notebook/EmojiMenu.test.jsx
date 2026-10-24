@@ -1,11 +1,12 @@
 // Wave 5 — the `:` emoji picker. Real editor, real roster, real Suggestion.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { act, render, cleanup } from '@testing-library/react'
 import { getSchema } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { buildExtensions } from '../../lib/tiptap'
 import { EMOJI, EMOJI_QUERY_RE, SHORTCODE_BODY, emojiByName, searchEmoji } from '../../lib/emojiData'
 import { ITEMS } from './SlashMenu'
+import { emojiLoaders, resetEmojiLoaderForTest } from '../../lib/emojiLoader'
 import { EMOJI_INPUT_PATTERN, EMOJI_MENU_ID, EMOJI_MENU_MIN_QUERY } from './EmojiMenu'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -270,5 +271,74 @@ describe('the slash door', () => {
     expect(ed.state.doc.textContent).toBe('word :')
     await type(ed, 'roc')
     expect(visibleMenu()).not.toBe(null)
+  })
+})
+
+// Task 7.5: the data is not eager. A gate stands in for the network so a rail can act "while loading".
+describe('emoji data loads on the first colon', () => {
+  const realLoader = emojiLoaders.data
+  let calls
+  let release
+  beforeEach(() => {
+    resetEmojiLoaderForTest()
+    calls = 0
+    const gate = new Promise((r) => { release = r })
+    emojiLoaders.data = () => { calls += 1; return gate.then(() => import('../../lib/emojiData')) }
+  })
+  afterEach(() => { emojiLoaders.data = realLoader; resetEmojiLoaderForTest() })
+  const land = async () => { await act(async () => { release(); await new Promise((r) => setTimeout(r, 20)) }) }
+
+  it('emoji_data_not_imported_until_colon', async () => {
+    const ed = await mount('')
+    expect(calls).toBe(0)
+    await type(ed, 'ratio 3 to 1 ok')
+    expect(calls).toBe(0)
+    await type(ed, ' :')
+    expect(calls).toBe(1)
+    await type(ed, 'r')
+    expect(calls).toBe(1) // one shared import
+  })
+
+  it('the menu answers nothing until the data lands, then lists without another keystroke', async () => {
+    const ed = await mount('Go ')
+    await type(ed, ':roc')
+    expect(visibleMenu()).toBe(null)
+    await land()
+    expect(options()[0]?.getAttribute('aria-label')).toBe('🚀 rocket')
+    expect(ed.state.doc.textContent).toBe('Go :roc')
+  })
+
+  it('first_whole_shortcode_converts_after_load', async () => {
+    const ed = await mount('')
+    await type(ed, ':smile:')
+    expect(ed.state.doc.textContent).toBe(':smile:') // still loading
+    await land()
+    expect(ed.state.doc.textContent).toBe(emojiByName('smile').char)
+  })
+
+  it('first shortcode converts at its mapped position when text was added before it meanwhile', async () => {
+    const ed = await mount('')
+    await type(ed, ':smile:')
+    await act(async () => { ed.view.dispatch(ed.state.tr.insertText('Hi ', 1)) })
+    await land()
+    expect(ed.state.doc.textContent).toBe(`Hi ${emojiByName('smile').char}`)
+  })
+
+  it('shortcode_not_replaced_if_text_changed_while_loading', async () => {
+    const ed = await mount('')
+    await type(ed, ':smile:')
+    await act(async () => { ed.view.dispatch(ed.state.tr.delete(1, ed.state.doc.content.size - 1)) })
+    expect(ed.state.doc.textContent).toBe('')
+    await land()
+    expect(ed.state.doc.textContent).toBe('')
+    // And an edit INSIDE the shortcode: nothing is swallowed either.
+    resetEmojiLoaderForTest()
+    const gate2 = new Promise((r) => { release = r })
+    emojiLoaders.data = () => gate2.then(() => import('../../lib/emojiData'))
+    const ed2 = await mount('')
+    await type(ed2, ':smile:')
+    await act(async () => { ed2.view.dispatch(ed2.state.tr.insertText('X', 4)) })
+    await land()
+    expect(ed2.state.doc.textContent).toBe(':smXile:')
   })
 })
