@@ -392,7 +392,7 @@ def test_ref_fields_never_read_another_members_routine_or_tracker(monkeypatch, t
             own = rid_a if kind == "routine" else tid_a
             sc2, res2 = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
                                         split={"by": by, "ref": own}, range=RANGE), uid=A)
-            filled = {r["day"] for r in sc2.rows if r[by] not in (None, "Not done")}
+            filled = {r["day"] for r in sc2.rows if r[by] not in (None, "not_done")}
             assert filled == set(DAYS), kind                       # A's ticked / logged days
             assert [g.values.cells[0].value for g in res2.groups
                     if g.label != "Not done"] == [pytest.approx(100.0)], kind
@@ -416,8 +416,11 @@ def test_the_routine_lookup_itself_is_scoped_to_the_member(monkeypatch, tmp_path
     from api.services.journal_two.widget_engine import sources
     c, ids = _tools_two(monkeypatch, tmp_path)
     try:
-        assert [r["id"] for r in sources._member_routines(c, A)] == [ids[A][0]]
-        assert sources._member_routines(c, A, ids[B][0]) == []
-        assert [r["id"] for r in sources._member_routines(c, B, ids[B][0])] == [ids[B][0]]
+        plain = {"filters": []}
+        assert sources._scan_routine_ids(c, A, plain) == ([ids[A][0]], 1)
+        # naming B's routine in a filter never reaches it
+        only_b = {"filters": [{"field": "routine", "op": "in", "values": [ids[B][0]]}]}
+        assert sources._scan_routine_ids(c, A, only_b) == ([], 0)
+        assert sources._scan_routine_ids(c, B, only_b) == ([ids[B][0]], 1)
     finally:
         c.close()

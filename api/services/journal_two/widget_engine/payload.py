@@ -314,6 +314,7 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         "capped": bool(scan.capped),
         "sample": bool(sample),
         "notice": " ".join([str(n) for n in notices if n]
+                           + [str(n) for n in (getattr(scan, "notices", None) or []) if n]
                            + [n for n in (_capped_notice(scan, source_key),) if n]) or None,
         "truncated": 0,
         "measures": measures,

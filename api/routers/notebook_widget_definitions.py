@@ -538,5 +538,11 @@ def restore_rev(def_id: str, rev: int, request: Request, user: dict = Depends(re
     uid = _uid(user)
     if wdefs.get(uid, def_id) is None:
         raise public.not_found()
+    # W9-R16: restoring a revision that reads routines or trackers is the dark 404 while wave 9 is
+    # off (a rename-only PUT carries no plan and is allowed).
+    if not _tools_on():
+        for r in wdefs.revs(uid, def_id) or []:
+            if r.get("rev") == rev:
+                _gate_tools(r.get("plan"))
     etag = _if_match(request)
     return _ok(_engine_errors(lambda: wdefs.restore_rev(uid, def_id, rev, if_match=etag)))

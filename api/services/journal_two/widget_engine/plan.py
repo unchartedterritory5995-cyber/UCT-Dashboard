@@ -440,6 +440,10 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
             raise PlanError(S_TOO_MANY_VALUES)
         _need(all(isinstance(x, (str, bool)) or _is_number(x) for x in values))
         _check_filter_values(op, getattr(fields[name], "type", None), values)
+        # W9-R21: a field with fixed codes (a routine day's state) stores the CODE, never a label.
+        choices = getattr(fields[name], "choices", None)
+        if choices and any(v not in choices for v in values):
+            raise PlanError(S_FILTER_VALUE_TYPE)
         over = f.get("overridable", False)
         _need(isinstance(over, bool))
         clean = {"field": name, "op": f["op"], "values": list(values), "overridable": over}
@@ -794,8 +798,12 @@ def summary(plan: dict, catalog: Catalog, count: int | None, unit: str) -> str:
     tail.append("all accounts" if plan.get("accounts", "all") == "all" else "one account")
     text = ", ".join([head, *tail]) + "."
     if count is not None:
-        u = unit[:-1] if count == 1 and unit.endswith("s") else unit
-        text += f" {count:,} {u}."
+        if count == 0 and plan.get("source") in TOOL_SOURCES:
+            # a new routine or tracker has nothing yet; "0 days" reads as a failure
+            text += f" No {unit} yet."
+        else:
+            u = unit[:-1] if count == 1 and unit.endswith("s") else unit
+            text += f" {count:,} {u}."
     return text
 
 

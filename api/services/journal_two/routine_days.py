@@ -158,10 +158,11 @@ def _is_tick(v) -> bool:
 
 def day_state(*, items: list[Item], schedule: dict | None, ticks: dict[str, bool], skipped: bool,
               day: date, today: date, created: date, traded: frozenset[str],
-              done_share: float) -> DayState:
+              done_share: float, archived: date | None = None) -> DayState:
     """The state of one day. Only ticks of items valid that day count.
 
-    `off`: before the routine was created, not scheduled that day, or no item applies that day.
+    `off`: before the routine was created, after the day it was archived (ruling W9-R20: an
+    archived routine is history only), not scheduled that day, or no item applies that day.
     `skipped`: the member skipped it. `done`: at least `ceil(done_share * items)` ticks.
     `open`: today or later and not done. Else `not_done`."""
     if done_share not in DONE_SHARES:
@@ -171,7 +172,8 @@ def day_state(*, items: list[Item], schedule: dict | None, ticks: dict[str, bool
     ticked = sum(1 for it in applicable if _is_tick(ticks.get(it.id)))
     of = len(applicable)
     iso = day.isoformat()
-    if day < created or not is_scheduled(schedule, day, traded, today=today) or of == 0:
+    if (day < created or (archived is not None and day > archived)
+            or not is_scheduled(schedule, day, traded, today=today) or of == 0):
         return DayState(iso, "off", ticked, of)
     if skipped:
         return DayState(iso, "skipped", ticked, of)
@@ -187,10 +189,13 @@ def day_state(*, items: list[Item], schedule: dict | None, ticks: dict[str, bool
 def history(*, items: list[Item], schedules: list[tuple[str, dict]],
             ticks_by_day: dict[str, dict[str, bool]], skipped_days: frozenset[str],
             created: date, upto: date, today: date, traded: frozenset[str],
-            done_share: float) -> list[DayState]:
+            done_share: float, archived: date | None = None) -> list[DayState]:
     """Every session (every weekday past the horizon) from the later of `created` and the
     `MAX_HISTORY_SESSIONS`-th session on or before `upto`, to `upto`, oldest first; plus, under a
-    `traded` schedule, each traded day that is not a session."""
+    `traded` schedule, each traded day that is not a session. An archived routine's history ends
+    on the day it was archived (ruling W9-R20): no day after it exists, so none reads Not done."""
+    if archived is not None:
+        upto = min(upto, archived)
     if upto < created:
         return []
     lo = created

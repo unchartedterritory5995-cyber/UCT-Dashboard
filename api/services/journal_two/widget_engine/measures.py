@@ -11,8 +11,6 @@ This adapter imports it and never copies a formula. It adds three things the bui
 2. `measure_input(source_key, rows)`: the rows a measure reads. Trading-days rows are one per
    session INCLUDING sessions with no trades (spec 5.3); the day measures count only days with
    trades (spec 5.4), so a quiet session is left out here, never inside a measure.
-   Routine history (wave 9): a row's `state` is the member word ("Done") a filter or split reads;
-   the routine measures read the stored state ("done"), which the scan keeps in `_state`.
 3. `evaluate(measure, source_key, rows) -> Cell`: the value, its count, how many rows carry what
    the measure needs, and the small-sample state (`measures.small_sample`).
 
@@ -116,8 +114,6 @@ def measure_input(source_key: str, rows: list[dict]) -> list[dict]:
     """The rows a measure reads. Trading days: only days with trades (spec 5.4)."""
     if source_key == TRADING_DAYS:
         return [r for r in rows if (r.get("trade_count") or 0) > 0]
-    if source_key == ROUTINE_HISTORY:
-        return [{**r, "state": r.get("_state")} for r in rows]
     return rows
 
 

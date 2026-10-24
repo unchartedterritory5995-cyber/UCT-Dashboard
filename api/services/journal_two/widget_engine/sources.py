@@ -66,6 +66,18 @@ _SESSION_SPAN_DAYS = 5500
 
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
+#: Wave 9, ruling W9-R21: a routine day's state as stored in a plan's filter values and in a row;
+#: the label is only how a group reads.
+STATE_CODES = ("done", "not_done", "skipped", "off", "open")
+#: The states a routine-history row can have (an off day is never a row).
+HISTORY_STATES = ("done", "not_done", "skipped", "open")
+STATE_LABELS = {"done": "Done", "not_done": "Not done", "skipped": "Skipped", "off": "Off day",
+                "open": "Open"}
+
+
+def state_label(code: Any) -> str:
+    return STATE_LABELS.get(code, str(code))
+
 
 @dataclass(frozen=True)
 class Field:
@@ -95,6 +107,10 @@ class Field:
     ref_kind: str | None = None
     #: False for a split-only field (a filter on it is refused)
     filterable: bool = True
+    #: the only values a filter on it may hold (codes, W9-R21)
+    choices: tuple | None = None
+    #: a row key holding a group's sort position (tracker buckets read low to high)
+    order_from: str | None = None
 
 
 def _f(key, label, ftype, *, sql=None, py=None, split=False, **kw) -> Field:
@@ -112,6 +128,8 @@ class Scan:
     count: int
     account_id: str | None             # the account actually narrowed to (None: all accounts)
     footnotes: list[str] = field(default_factory=list)
+    #: wave 9: sentences the widget leads with (a routine or tracker that is not available)
+    notices: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -563,12 +581,14 @@ DAY_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("had_day_note", "Had a day note", "bool", split=True,
        fmt=_yes_no("Had a day note", "No day note")),
     # Wave 9: the day as one of the member's routines or trackers saw it (the field's `ref`).
+    # W9-R21: codes stored, labels shown; an off day is its own group, a day before the routine
+    # existed is left out of the split (and counted).
     _f("routine_done", "Routine done", "enum", split=True, ref_kind="routine",
-       bucket=("Done", "Not done", "Skipped"), missing="an off day for this routine"),
+       bucket=STATE_CODES, choices=STATE_CODES, fmt=state_label, missing="no routine yet"),
     _f("tracker_value", "Tracker value", "number", ref_kind="tracker",
        missing="no value for this tracker"),
     _f("tracker_bucket", "Tracker value range", "enum", split=True, ref_kind="tracker",
-       missing="no value for this tracker"),
+       missing="no value for this tracker", order_from="tracker_bucket_order"),
 ]}
 
 
@@ -778,27 +798,37 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             is_=_plural(folded, "is", "are")))
     if sr.beyond_from is not None:
         notes.append(trading_days.beyond_note(sr.beyond_from))
-    notes.extend(_day_refs(conn, user_id, plan, rows, checkins, lo_s, hi_s,
-                           today or trading_days.today_et()))
-    return Scan("trading_days", rows, capped, rows[-1]["day"], len(rows), acc, notes)
+    ref_notes, notices = _day_refs(conn, user_id, plan, rows, checkins, lo_s, hi_s,
+                                   today or trading_days.today_et())
+    notes.extend(ref_notes)
+    return Scan("trading_days", rows, capped, rows[-1]["day"], len(rows), acc, notes, notices)
 
 
 # ── routine and tracker history (wave 9, Task 9.8) ─────────────────────────────────────────────
 #
-# Both read only the session member's rows (`user_id = ?` on every table, the routine store's own
-# `_contexts` for routines), never the sample book (`run.NO_SAMPLE_SOURCES`), newest first, at most
-# `wcompile.SCAN_ROWS` rows (`capped` past it). A routine's days are its SCHEDULED days only (an off
-# day never appears) and a day not decided yet (`open`) is left out until it is done.
+# Both read only the session member's rows, never the sample book (`run.NO_SAMPLE_SOURCES`), newest
+# first, at most `wcompile.SCAN_ROWS` rows (`capped` past it). Routines are read ONLY through the
+# routine store's public `routines.history_for` (ruling W9-R15). A routine's rows are its SCHEDULED
+# days (an off day never appears, nor a day before it existed or after it was archived, W9-R20);
+# today, not yet done, reads Open.
+#
+# Bounds (ruling W9-R17): history starts `routines.HISTORY_SINCE_LOOKBACK` sessions before the
+# range; at most `MAX_ROUTINES` routines (the most recently used) are read; the item expansion stops
+# at the newest `SCAN_ROWS + 1` rows; the Python loops ask `wcompile.check_deadline()`.
 
-#: The stored day state -> the member word a filter or split reads (`routine_days.STATE_LABELS`).
-STATE_WORDS = {s: routine_days.STATE_LABELS[s] for s in ("done", "not_done", "skipped")}
-ROUTINE_STATES = tuple(STATE_WORDS.values())
-OFF_DAY_FOR_ROUTINE = "an off day for this routine"
-NO_TRACKER_VALUE = "no value for this tracker"
+#: At most this many routines are read for one routine-history widget (W9-R17).
+MAX_ROUTINES = 60
+S_MORE_ROUTINES = "Showing your {n} most recently used routines."
+#: Ruling W9-R18: a routine or tracker a field names that is not the member's (foreign or deleted:
+#: the two read the same) is ONE notice, and no off-day or no-value footnote.
+S_ROUTINE_GONE = "That routine isn't available."
+S_TRACKER_GONE = "That tracker isn't available."
 #: Spec 16.4 (the 9.4 carry): a traded schedule leaves an estimated (broker placeholder) entry date
 #: out of the days you traded; how many is said, never hidden.
 ESTIMATED_ENTRIES = ("{n} {positions} with an estimated entry date {is_} not counted as a day "
                      "you traded.")
+_COUNTED = ("done", "not_done", "skipped")
+_CHECK_EVERY = 256
 
 
 def _month_of(day: Any) -> str | None:
@@ -810,25 +840,36 @@ def _splits_by(plan: dict, key: str) -> bool:
     return key in (split.get("by"), split.get("then"))
 
 
-def _readable_routine(row: sqlite3.Row) -> bool:
-    """A routine whose stored items parse (a malformed one is left out, never a 500)."""
-    try:
-        routine_days.parse_items(j2_routines._raw_items(row))
-    except (ValueError, KeyError, TypeError):
-        return False
-    return True
+def _wanted_routines(plan: dict) -> tuple[set[str] | None, set[str]]:
+    """(only these ids, or None for all; never these ids) from the plan's `routine` filters."""
+    only: set[str] | None = None
+    never: set[str] = set()
+    for f in plan.get("filters") or []:
+        if f.get("field") != "routine":
+            continue
+        vals = {v for v in f.get("values") or [] if isinstance(v, str)}
+        if f.get("op") == "in":
+            only = vals if only is None else only & vals
+        elif f.get("op") == "not_in":
+            never |= vals
+    return only, never
 
 
-def _member_routines(conn: sqlite3.Connection, user_id: str,
-                     rid: str | None = None) -> list[sqlite3.Row]:
-    """The member's routines that are not deleted (archived ones keep their history)."""
-    sql = "SELECT * FROM j2_routines WHERE user_id = ? AND deleted_at IS NULL"
-    params: list = [user_id]
-    if rid is not None:
-        sql += " AND id = ?"
-        params.append(rid)
-    rows = conn.execute(sql + " ORDER BY created_at, id", params).fetchall()
-    return [r for r in rows if _readable_routine(r)]
+def _scan_routine_ids(conn: sqlite3.Connection, user_id: str,
+                      plan: dict) -> tuple[list[str], int]:
+    """The member's routine ids a scan reads (not deleted; archived ones keep their history), the
+    most recently used first (a routine's newest ticked day or edit), at most `MAX_ROUTINES`; and how
+    many there were in all."""
+    only, never = _wanted_routines(plan)
+    rows = conn.execute(
+        "SELECT r.id FROM j2_routines r WHERE r.user_id = ? AND r.deleted_at IS NULL"
+        # the newest ticked DAY is an index seek on the ticks' primary key (user, routine, day)
+        " ORDER BY MAX(substr(r.updated_at, 1, 10), COALESCE((SELECT MAX(t.day)"
+        " FROM j2_routine_ticks t WHERE t.user_id = r.user_id AND t.routine_id = r.id), ''))"
+        " DESC, r.updated_at DESC, r.id",
+        (user_id,)).fetchall()
+    ids = [r[0] for r in rows if (only is None or r[0] in only) and r[0] not in never]
+    return ids[:MAX_ROUTINES], len(ids)
 
 
 def _estimated_entries(conn: sqlite3.Connection, user_id: str, lo: str, hi: str) -> int:
@@ -863,7 +904,9 @@ ROUTINE_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("month", "Month", "enum", split=True),
     _f("routine", "Routine", "enum", split=True, label_from="routine_name"),
     _f("item", "Item", "enum", split=True, label_from="item_text", filterable=False),
-    _f("state", "State", "enum", split=True, bucket=ROUTINE_STATES),
+    # W9-R21: the stored values are the codes; "Done" is only how a group reads
+    _f("state", "State", "enum", split=True, bucket=HISTORY_STATES, choices=HISTORY_STATES,
+       fmt=state_label),
     _f("consistency", "Consistency", "number"),
 ]}
 
@@ -882,59 +925,106 @@ def _newest_first(rows: list[dict], name_key: str, id_key: str) -> list[dict]:
     return rows
 
 
+def _routine_rows(conn: sqlite3.Connection, user_id: str, ids: list[str], cut: date,
+                  today: date, today_s: str, lo: str | None, to_day: str, by_item: bool,
+                  traded: list[str]) -> list[dict]:
+    """`scan_routines`' rows, newest first, from `lo` (None: whole history) to `to_day`, at most
+    the newest `SCAN_ROWS + 1` (W9-R17). Appends each traded-schedule routine's first day to
+    `traded`. History is read through `routines.history_for` only (W9-R15)."""
+    hists = (j2_routines.history_for(conn, user_id, ids, cut, today,
+                                     since=date.fromisoformat(lo) if lo else None)
+             if ids else {})
+    days: list[dict] = []
+    for rid in ids:
+        h = hists.get(rid)
+        if h is None:
+            continue
+        if h.uses_traded:
+            traded.append(max(h.created, j2_routines.DAY_MIN).isoformat())
+        counted: list = []
+        for i, st in enumerate(h.states):
+            if i % _CHECK_EVERY == 0:
+                wcompile.check_deadline()
+            if st.state in _COUNTED:
+                counted.append(st)
+            elif not (st.state == "open" and st.day == today_s):
+                continue                                    # off days and later days never appear
+            if (lo and st.day < lo) or st.day > to_day:
+                continue
+            rate = routine_days.consistency_rate(
+                routine_days.consistency(counted[-routine_days.CONSISTENCY_WINDOW:],
+                                         strict=h.strict), strict=h.strict)
+            days.append({
+                "routine": rid, "routine_name": h.name, "day": st.day,
+                "weekday": _weekday(st.day), "month": _month_of(st.day), "state": st.state,
+                "ticked": float(st.ticked), "of": float(st.of), "strict": h.strict,
+                "consistency": _num(rate), "item": None, "item_text": None,
+                "flagged": False, "label": h.name, "label2": None, "_h": h,
+            })
+    _newest_first(days, "routine_name", "routine")
+    out: list[dict] = []
+    for i, base in enumerate(days):
+        if len(out) > wcompile.SCAN_ROWS:
+            break                                           # the newest SCAN_ROWS + 1 are enough
+        if i % _CHECK_EVERY == 0:
+            wcompile.check_deadline()
+        h = base.pop("_h")
+        if not by_item:
+            out.append(base)
+            continue
+        ticks = h.ticks.get(base["day"]) or {}
+        for it in routine_days.items_on(h.items, date.fromisoformat(base["day"])):
+            if base["state"] == "skipped":
+                code = "skipped"
+            elif ticks.get(it.id) is True:
+                code = "done"
+            else:
+                code = "open" if base["state"] == "open" else "not_done"
+            out.append({**base, "item": it.id, "item_text": it.text, "label2": it.text,
+                        "state": code})
+    for r in out:
+        r.pop("_h", None)
+    return out
+
+
 def scan_routines(conn: sqlite3.Connection, plan: dict, settings: dict | None,
                   rng: ResolvedRange, user_id: str, *, today: date | None = None) -> Scan:
     """One row per scheduled day of each of the member's routines in the range (or, when the plan
-    splits by item, one row per valid item per scheduled day: Done when ticked, Not done when not,
-    Skipped on a skipped day). `consistency` is the rolling `CONSISTENCY_WINDOW` rate as of that
-    day (strict mode counts a skip)."""
+    splits by item, one row per valid item per scheduled day: done when ticked, not done when not,
+    skipped on a skipped day, open today). `consistency` is the rolling `CONSISTENCY_WINDOW` rate
+    as of that day (strict mode counts a skip)."""
     today = today or trading_days.today_et()
+    today_s = today.isoformat()
     hi = date.fromisoformat(rng.to_day)
     cut = min(hi, today)
     lo = rng.from_day
     by_item = _splits_by(plan, "item")
-    rows_db = _member_routines(conn, user_id)
-    ctxs = j2_routines._contexts(conn, user_id, rows_db, max(hi, today)) if rows_db else {}
-    out: list[dict] = []
-    traded_lo: str | None = None
-    for r in rows_db:
-        ctx = ctxs[r["id"]]
-        strict = bool(ctx.settings.get("strict"))
-        name = r["name"]
-        if ctx.uses_traded():
-            first = max(ctx.created, j2_routines.DAY_MIN).isoformat()
-            traded_lo = first if traded_lo is None else min(traded_lo, first)
-        counted: list = []
-        for st in ctx.states_upto(cut, today):
-            if st.state not in STATE_WORDS:
-                continue
-            counted.append(st)
-            if (lo and st.day < lo) or st.day > rng.to_day:
-                continue
-            rate = routine_days.consistency_rate(
-                routine_days.consistency(counted[-routine_days.CONSISTENCY_WINDOW:], strict=strict),
-                strict=strict)
-            base = {
-                "routine": r["id"], "routine_name": name, "day": st.day,
-                "weekday": _weekday(st.day), "month": _month_of(st.day),
-                "state": STATE_WORDS[st.state], "_state": st.state,
-                "ticked": float(st.ticked), "of": float(st.of), "strict": strict,
-                "consistency": _num(rate), "item": None, "item_text": None,
-                "flagged": False, "label": name, "label2": None,
-            }
-            if not by_item:
-                out.append(base)
-                continue
-            ticks = ctx.ticks.get(st.day) or {}
-            for it in routine_days.items_on(ctx.items, date.fromisoformat(st.day)):
-                code = ("skipped" if st.state == "skipped"
-                        else "done" if ticks.get(it.id) is True else "not_done")
-                out.append({**base, "item": it.id, "item_text": it.text, "label2": it.text,
-                            "state": STATE_WORDS[code], "_state": code})
-    _newest_first(out, "routine_name", "routine")
+    ids, total = _scan_routine_ids(conn, user_id, plan)
+    traded: list[str] = []
+
+    def rows_from(win: str | None) -> list[dict]:
+        """The rows from `win` (None: the routines' whole history) to the range's end."""
+        traded.clear()
+        return _routine_rows(conn, user_id, ids, cut, today, today_s, win, rng.to_day, by_item,
+                             traded)
+
+    # W9-R17: first read only the newest sessions that can hold the cap; when they do, older days
+    # are never built. Otherwise (sparse schedules) read the whole range.
+    first = None
+    if ids:
+        k = -(-(wcompile.SCAN_ROWS + 1) // len(ids))
+        t = trading_days.nth_session_before(cut + timedelta(days=1), k).isoformat()
+        if lo is None or t > lo:
+            first = t
+    out = rows_from(first or lo)
+    if first is not None and len(out) <= wcompile.SCAN_ROWS:
+        out = rows_from(lo)
+    traded_lo = min(traded) if traded else None
     capped = len(out) > wcompile.SCAN_ROWS
     out = out[:wcompile.SCAN_ROWS]
     notes = []
+    if total > len(ids):
+        notes.append(S_MORE_ROUTINES.format(n=len(ids)))
     if traded_lo is not None:
         note = _estimated_note(conn, user_id, max(lo or traded_lo, traded_lo), cut.isoformat())
         if note:
@@ -979,29 +1069,43 @@ def scan_trackers(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 
 
 def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dict],
-              checkins: dict[str, dict], lo_s: str, hi_s: str, today: date) -> list[str]:
-    """Write `routine_done`, `tracker_value` and `tracker_bucket` on each trading-days row for the
-    plan's routine and tracker refs, resolved for the session member only: a foreign, deleted or
-    unknown ref leaves every row's value None. A plan with no ref writes nothing (the rows keep the
-    shape the sample book mirrors). Answers the footnotes it owes."""
+              checkins: dict[str, dict], lo_s: str, hi_s: str,
+              today: date) -> tuple[list[str], list[str]]:
+    """Write `routine_done`, `tracker_value` and `tracker_bucket` (with `tracker_bucket_order`) on
+    each trading-days row for the plan's routine and tracker refs, resolved for the session member
+    only. Answers (footnotes, notices). A ref that does not resolve leaves every value None and is
+    ONE notice (W9-R18); the rows say so (`_unresolved`), so no off-day or no-value footnote is
+    added for it. A plan with no ref writes nothing (the rows keep the sample book's shape)."""
     refs = plan_refs(plan, DAY_FIELDS)
     notes: list[str] = []
+    notices: list[str] = []
     rid, tid = refs.get("routine"), refs.get("tracker")
     if not rid and not tid:
-        return notes
+        return notes, notices
+    unresolved: set[str] = set()
     for r in rows:
         r["routine_done"] = r["tracker_value"] = r["tracker_bucket"] = None
+        r["tracker_bucket_order"] = None
     if rid:
-        mine = _member_routines(conn, user_id, rid)
-        if mine:
-            hi_d = date.fromisoformat(hi_s)
-            ctx = j2_routines._contexts(conn, user_id, mine, max(hi_d, today))[rid]
-            words = {s.day: STATE_WORDS[s.state] for s in ctx.states_upto(min(hi_d, today), today)
-                     if s.state in STATE_WORDS}
+        hi_d = date.fromisoformat(hi_s)
+        h = j2_routines.history_for(conn, user_id, rid, hi_d, today,
+                                    since=date.fromisoformat(lo_s)).get(rid)
+        if h is None:
+            unresolved.add("routine")
+            notices.append(S_ROUTINE_GONE)
+        else:
+            today_s = today.isoformat()
+            codes = {s.day: s.state for s in h.states
+                     if s.state != "open" or s.day == today_s}
+            arch = h.archived_at.isoformat() if h.archived_at else None
             for r in rows:
-                r["routine_done"] = words.get(r["day"])
-            if ctx.uses_traded():
-                note = _estimated_note(conn, user_id, lo_s, min(hi_d, today).isoformat())
+                code = codes.get(r["day"])
+                if code is None and arch and r["day"] > arch:
+                    code = "off"                            # archived: it no longer runs
+                r["routine_done"] = code
+            if h.uses_traded:
+                note = _estimated_note(conn, user_id, max(lo_s, h.created.isoformat()),
+                                       min(hi_d, today).isoformat())
                 if note:
                     notes.append(note)
     if tid:
@@ -1018,13 +1122,22 @@ def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dic
                 values = {d: _num(v) for d, v in conn.execute(
                     "SELECT day, value FROM j2_tracker_values WHERE user_id = ? AND tracker_id = ?"
                     " AND day BETWEEN ? AND ?", (user_id, tid, lo_s, hi_s))}
-        if values is not None:
+        if values is None:
+            unresolved.add("tracker")
+            notices.append(S_TRACKER_GONE)
+        else:
             bs = tracker_days.buckets(kind, [v for v in values.values() if v is not None], unit)
+            order = {b.label: i for i, b in enumerate(bs)}
             for r in rows:
                 v = values.get(r["day"])
                 r["tracker_value"] = v
-                r["tracker_bucket"] = tracker_days.bucket_of(bs, v)
-    return notes
+                r["tracker_bucket"] = label = tracker_days.bucket_of(bs, v)
+                r["tracker_bucket_order"] = order.get(label)
+    if unresolved:
+        mark = frozenset(unresolved)
+        for r in rows:
+            r["_unresolved"] = mark
+    return notes, notices
 
 
 # ── the sources and the catalog ────────────────────────────────────────────────────────────────

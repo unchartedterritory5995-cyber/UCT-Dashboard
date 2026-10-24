@@ -202,7 +202,7 @@ def drill(user_id: str, plan: dict, settings: Any, cell: Any, *, snapshot_count:
     now = now or datetime.now(timezone.utc)
     today = nw._today_et(now)
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
-    viewer = wrun.clean_settings(settings)
+    viewer = wrun.tool_viewer(base, wrun.clean_settings(settings))
     want = clean_cell(cell)
     src = wsources.SOURCES[base["source"]]
 

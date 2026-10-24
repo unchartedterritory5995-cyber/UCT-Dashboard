@@ -242,11 +242,11 @@ def test_history_agrees_with_the_built_widgets_routine_done(I):
         rows = wsources.scan_days(c, plan, {"accountId": None},
                                   wplan.ResolvedRange(None, "2026-10-27", None, "all", "all"),
                                   A, today=today).rows
-    words = {s.day: wsources.STATE_WORDS[s.state] for s in hist.states
-             if s.state in wsources.STATE_WORDS}
+    # W9-R21: the widget's column holds the stored state codes, the very states history_for reads
+    words = {s.day: s.state for s in hist.states if s.state != "open"}
     seen = {x["day"]: x["routine_done"] for x in rows if x["routine_done"]}
     assert seen and seen == {d: w for d, w in words.items() if d in seen}
-    assert sum(1 for w in seen.values() if w == "Done") == 7
+    assert sum(1 for w in seen.values() if w == "done") == 7
 
 
 def test_history_for_public_door_owned_only(I):

@@ -772,9 +772,11 @@ def _history_floor(created: date, upto: date) -> date:
 
 
 def _load_children(c: sqlite3.Connection, user_id: str, rids: list[str],
-                   hi: date) -> tuple[dict, dict, dict]:
+                   hi: date, lo: date | None = None) -> tuple[dict, dict, dict]:
     """Schedules, ticks and skipped days for every routine in `rids`: one query per table,
-    grouped here (I-3)."""
+    grouped here (I-3). With `lo`, ticks and skipped days before it are not read (W9-R17)."""
+    low = " AND day >= ?" if lo is not None else ""
+    low_p = (lo.isoformat(),) if lo is not None else ()
     scheds: dict[str, list[tuple[str, dict]]] = {r: [] for r in rids}
     ticks: dict[str, dict[str, dict[str, bool]]] = {r: {} for r in rids}
     skipped: dict[str, set[str]] = {r: set() for r in rids}
@@ -787,11 +789,12 @@ def _load_children(c: sqlite3.Connection, user_id: str, rids: list[str],
         scheds[rid].append((eff, _load(js, {})))
     for rid, d, item_id, ticked in c.execute(
             f"SELECT routine_id, day, item_id, ticked FROM {_TICKS} WHERE user_id = ?"
-            f" AND routine_id IN ({marks}) AND day <= ?", (user_id, *rids, hi.isoformat())):
+            f" AND routine_id IN ({marks}) AND day <= ?{low}",
+            (user_id, *rids, hi.isoformat(), *low_p)):
         ticks[rid].setdefault(d, {})[item_id] = bool(ticked)
     for rid, d in c.execute(
             f"SELECT routine_id, day FROM {_DAYS} WHERE user_id = ? AND routine_id IN ({marks})"
-            " AND skipped = 1 AND day <= ?", (user_id, *rids, hi.isoformat())):
+            f" AND skipped = 1 AND day <= ?{low}", (user_id, *rids, hi.isoformat(), *low_p)):
         skipped[rid].add(d)
     return scheds, ticks, skipped
 
@@ -809,6 +812,9 @@ class _Ctx:
         self.schedules = schedules
         self.settings = _settings(row)
         self.archived = row["archived_at"] is not None
+        arch = compute_trading_day_et(row["archived_at"]) if self.archived else None
+        #: W9-R20: the ET day it was archived; no scheduled day exists after it.
+        self.archived_day: date | None = date.fromisoformat(arch[:10]) if arch else None
         self.ticks = ticks
         self.skipped = frozenset(skipped)
         self.traded = traded
@@ -823,7 +829,8 @@ class _Ctx:
         self._hist = routine_days.history(
             items=self.items, schedules=self.schedules, ticks_by_day=self.ticks,
             skipped_days=self.skipped, created=self.created, upto=upto, today=today,
-            traded=self.traded, done_share=self.settings["done_share"])
+            traded=self.traded, done_share=self.settings["done_share"],
+            archived=self.archived_day)
 
     def states_upto(self, d: date, today: date) -> list[routine_days.DayState]:
         cut = min(d, today)
@@ -837,7 +844,8 @@ class _Ctx:
         return routine_days.day_state(
             items=self.items, schedule=routine_days.schedule_on(self.schedules, d),
             ticks=self.ticks.get(iso) or {}, skipped=iso in self.skipped, day=d, today=today,
-            created=self.created, traded=self.traded, done_share=self.settings["done_share"])
+            created=self.created, traded=self.traded, done_share=self.settings["done_share"],
+            archived=self.archived_day)
 
     def entry(self, d: date, today: date) -> dict:
         iso = d.isoformat()
@@ -880,17 +888,20 @@ class _Ctx:
 
 
 def _contexts(c: sqlite3.Connection, user_id: str, rows: list,
-              hi: date) -> dict[str, _Ctx]:
+              hi: date, lo: date | None = None) -> dict[str, _Ctx]:
     """A `_Ctx` per row, from one query per child table and ONE traded_days call spanning the
-    earliest created day to `hi` (only when some routine has a traded schedule)."""
+    earliest created day (or `lo`, when later) to `hi` (only when some routine has a traded
+    schedule). With `lo`, nothing before it is read (W9-R17)."""
     rids = [r["id"] for r in rows]
-    scheds, ticks, skipped = _load_children(c, user_id, rids, hi)
+    scheds, ticks, skipped = _load_children(c, user_id, rids, hi, lo)
     ctxs = {r["id"]: _Ctx(r, scheds[r["id"]], ticks[r["id"]], skipped[r["id"]], frozenset())
             for r in rows}
     traders = [x for x in ctxs.values() if x.uses_traded()]
     if traders:
-        lo = max(min(x.created for x in traders), DAY_MIN)
-        traded = traded_days(c, user_id, lo.isoformat(), hi.isoformat())
+        first = max(min(x.created for x in traders), DAY_MIN)
+        if lo is not None:
+            first = max(first, lo)
+        traded = traded_days(c, user_id, first.isoformat(), hi.isoformat())
         for x in traders:
             x.traded = traded
     return ctxs
@@ -941,7 +952,9 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
     if not rows:
         return {}
     cut = min(upto, today)
-    ctxs = _contexts(conn, user_id, rows, max(upto, today))
+    floor = (trading_days.nth_session_before(since, HISTORY_SINCE_LOOKBACK)
+             if since is not None else None)
+    ctxs = _contexts(conn, user_id, rows, max(upto, today), floor)
     out: dict[str, RoutineHistory] = {}
     for rid in ids:
         ctx = ctxs.get(rid)
@@ -950,15 +963,15 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
         if since is None:
             states = ctx.states_upto(cut, today)
         else:
-            lo = max(ctx.created, trading_days.nth_session_before(since, HISTORY_SINCE_LOOKBACK))
+            lo = max(ctx.created, floor)
             states = routine_days.history(
                 items=ctx.items, schedules=ctx.schedules, ticks_by_day=ctx.ticks,
                 skipped_days=ctx.skipped, created=lo, upto=cut, today=today,
-                traded=ctx.traded, done_share=ctx.settings["done_share"])
-        arch_day = compute_trading_day_et(ctx.row["archived_at"]) if ctx.archived else None
+                traded=ctx.traded, done_share=ctx.settings["done_share"],
+                archived=ctx.archived_day)
         out[rid] = RoutineHistory(
             id=rid, name=ctx.row["name"], created=ctx.created, archived=ctx.archived,
-            archived_at=date.fromisoformat(arch_day[:10]) if arch_day else None,
+            archived_at=ctx.archived_day,
             strict=bool(ctx.settings.get("strict")), uses_traded=ctx.uses_traded(),
             items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(states))
     return out

@@ -539,3 +539,47 @@ def test_vocabulary_routine_and_tracker_fields_when_w9_on(conn, monkeypatch):
     assert vals == [{"id": "checkin:mood", "name": "Check-in mood"},
                     {"id": "checkin:focus", "name": "Check-in focus"},
                     {"id": t["id"], "name": "Sleep"}]
+
+
+def test_restore_of_a_tool_revision_is_refused_while_w9_off_and_rename_is_allowed(conn, monkeypatch):
+    """W9-R16."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    c = _client()
+    made = c.post(BASE, json={"plan": _tool_plans()[0]}).json()
+    url = f"{BASE}/{made['id']}"
+    plain = c.put(url, json={"plan": raw_plan(), "apply": "only"},
+                  headers={"If-Match": str(made["etag"])}).json()
+    assert plain["rev"] == 2
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "0")
+    r = c.post(f"{url}/revs/1/restore", headers={"If-Match": str(plain["etag"])})
+    assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+    renamed = c.put(url, json={"name": "Renamed", "apply": "only"},
+                    headers={"If-Match": str(plain["etag"])})
+    assert renamed.status_code == 200 and renamed.json()["name"] == "Renamed"
+    # control: a plain revision restores while off, and the tool one does once wave 9 is on
+    ok = c.post(f"{url}/revs/2/restore", headers={"If-Match": str(renamed.json()["etag"])})
+    assert ok.status_code == 200
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    again = c.post(f"{url}/revs/1/restore", headers={"If-Match": str(ok.json()["etag"])})
+    assert again.status_code == 200
+
+
+def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch):
+    from api.services.journal_two.widget_engine import sources as wsources
+    tool = {"id": "shelf:routine-test", "name": "Routine", "description": "d", "keywords": [],
+            "plan": wplan.validate_plan(_tool_plans()[0], wsources.CATALOG)}
+    real_example, real_examples = wshelf.example, wshelf.examples
+    monkeypatch.setattr(wshelf, "example",
+                        lambda i: dict(tool) if i == tool["id"] else real_example(i))
+    monkeypatch.setattr(wshelf, "examples", lambda: real_examples() + [dict(tool)])
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+    c = _client()
+    r = c.post(BASE + "/examples", json={"ids": [tool["id"]]})
+    assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+    assert tool["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+    plain_id = real_examples()[0]["id"]
+    assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200   # control
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    r = c.post(BASE + "/examples", json={"ids": [tool["id"], plain_id]})
+    assert r.status_code == 200 and r.json()["cards"][tool["id"]]["sample"] is False
+    assert tool["id"] in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]

@@ -47,6 +47,7 @@ from api.services.cache import TTLCache
 from api.services.journal_two import notebook_widgets as nw
 from api.services.journal_two import trading_days
 from api.services.journal_two.widget_engine import aggregate as waggregate
+from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import payload as wpayload
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import shelf as wshelf
@@ -99,6 +100,14 @@ NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES
 
 def _never_sample(plan: dict) -> bool:
     return plan.get("source") in NO_SAMPLE_SOURCES or wplan.uses_tools(plan)
+
+
+def tool_viewer(plan: dict, viewer: dict) -> dict:
+    """Ruling W9-R19: routines and trackers cover all accounts, so a viewer's account is ignored
+    for them (read as "all", never a refusal and never the dropped-account notice)."""
+    if plan.get("source") in wplan.TOOL_SOURCES:
+        viewer.pop("accountId", None)
+    return viewer
 
 
 class EngineBusy(Exception):
@@ -225,7 +234,12 @@ def deadline(conn: sqlite3.Connection, seconds: float = DEADLINE_S, *,
 
     conn.set_progress_handler(_cb, _PROGRESS_STEPS)
     try:
-        yield
+        with wcompile.python_deadline(lambda: _cb() == 1):
+            yield
+    except wcompile.ScanTooLong as e:
+        if why and why[0] == "superseded":
+            raise Superseded() from e
+        raise EngineTooLong() from e
     except sqlite3.OperationalError as e:
         if why and "interrupt" in str(e).lower():
             if why[0] == "superseded":
@@ -283,10 +297,11 @@ _TRACKERS_STAMP = ("SELECT COUNT(*), MAX(updated_at), TOTAL(save_seq), COUNT(del
                    " FROM j2_trackers WHERE user_id = ?")
 _ROUTINE_STAMPS = (_ROUTINE_TICKS_STAMP, _ROUTINE_DAYS_STAMP, _ROUTINES_STAMP,
                    _ROUTINE_SCHEDULES_STAMP)
-_TRACKER_STAMPS = (_TRACKER_VALUES_STAMP, _TRACKERS_STAMP, _CHECKINS_STAMP)
+_TRACKER_STAMPS = (_TRACKER_VALUES_STAMP, _TRACKERS_STAMP)
 
 
-def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str) -> str:
+def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str,
+               plan: dict | None = None) -> str:
     """A string that changes when the member's rows a source reads change.
 
     `j2_trades` has no `updated_at`, so the closed-trades stamp is a fingerprint of the member's rows:
@@ -306,8 +321,8 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str) -> str:
 
     Wave 9: routine history reads the routines, their schedules, ticks and skipped days (and the
     trades, positions and option strategies a "days you traded" schedule follows); tracker history
-    the trackers, their values and the check-ins; trading days append both, for the fields that
-    name a routine or a tracker.
+    the trackers, their values and the check-ins; trading days append both only when `plan` names a
+    routine or a tracker (the check-ins are read once).
     """
     def many(qs) -> str:
         return "|".join(_one(conn, q, user_id) for q in qs)
@@ -317,13 +332,15 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str) -> str:
     if source_key == "routine_history":
         return routines + "|" + many((_TRADES_STAMP, _POSITIONS_STAMP, _STRATEGIES_STAMP))
     if source_key == "tracker_history":
-        return trackers
+        return trackers + "|" + _one(conn, _CHECKINS_STAMP, user_id)
     trades = many((_TRADES_STAMP, _EXCURSIONS_STAMP, _ADHERENCE_STAMP, _ACCOUNTS_STAMP))
     if source_key == "open_positions":
         return "p|" + _one(conn, _POSITIONS_STAMP, user_id) + "|" + _one(conn, _ACCOUNTS_STAMP, user_id)
     if source_key == "trading_days":
-        return (trades + "|d|" + many((_STRATEGIES_STAMP, _CHECKINS_STAMP, _DAY_NOTES_STAMP))
-                + "|" + routines + "|" + trackers)
+        days = trades + "|d|" + many((_STRATEGIES_STAMP, _CHECKINS_STAMP, _DAY_NOTES_STAMP))
+        if wplan.uses_tools(plan):
+            days += "|" + routines + "|" + trackers
+        return days
     return trades
 
 
@@ -688,7 +705,7 @@ def _narrow(source_key: str, base: wsources.Scan, plan: dict, rng: wplan.Resolve
         capped = base.capped and (rng.from_day is None or base.earliest_day is None
                                   or rng.from_day <= base.earliest_day)
         return wsources.Scan(source_key, rows, capped, rows[-1]["day"] if rows else None,
-                             len(rows), None, list(base.footnotes))
+                             len(rows), None, list(base.footnotes), list(base.notices))
     view = (plan.get("view") or {}).get("type")
     if source_key == "closed_trades":
         if view != "list":                                  # the scan's analytics-included rule
@@ -731,7 +748,7 @@ def _narrow(source_key: str, base: wsources.Scan, plan: dict, rng: wplan.Resolve
     whole = len(rows) == len(base.rows)
     capped = base.capped and (lo <= (base.earliest_day or lo))
     return wsources.Scan(source_key, rows, capped, rows[-1]["day"] if rows else None, len(rows),
-                         None, list(base.footnotes) if whole else [])
+                         None, list(base.footnotes) if whole else [], list(base.notices))
 
 
 def _sample_scan(source_key: str) -> wsources.Scan:
@@ -814,7 +831,7 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
     if sample and _never_sample(base):
         sample = False                                # W9-R5: the member's own routines and trackers
-    viewer = clean_settings(settings)
+    viewer = tool_viewer(base, clean_settings(settings))
     if not any(f.get("overridable") for f in base["filters"]):
         viewer.pop("filter", None)                    # M5: nothing to override, nothing to echo or key
     superseded: Callable[[], bool] = lambda: False
@@ -836,7 +853,7 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
                 name = wsources._account_names(conn, user_id).get(acc)
                 account_name = nw._clip(name, wplan.MAX_TEXT) if isinstance(name, str) else None
             merged = wplan.validate_plan(_merge(base, viewer, acc), wsources.CATALOG)
-            stamp = data_stamp(conn, user_id, merged["source"])
+            stamp = data_stamp(conn, user_id, merged["source"], merged)
         notices = [S_ACCOUNT_GONE] if requested and not acc else []
         echo = dict(viewer)
         if "accountId" in echo and echo["accountId"] != acc:
@@ -989,8 +1006,10 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
     with _connection() as conn:
         with deadline(conn):
             sample = wants_sample(conn, user_id)
-            stamps = {s: data_stamp(conn, user_id, s) for s in srcs
-                      if not sample or any(p["source"] == s and sid in own for sid, p in items)}
+            tool_plan = {s: next((p for sid, p in items if p["source"] == s and sid in own), None)
+                         for s in srcs}
+            stamps = {s: data_stamp(conn, user_id, s, tool_plan[s]) for s in srcs
+                      if not sample or tool_plan[s] is not None}
         today = sample_today() if sample else real_today
         blob = json.dumps([user_id, "examples", wanted, sample, stamps, today.isoformat(),
                            real_today.isoformat(), _book()["digest"] if sample else None],

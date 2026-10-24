@@ -27,7 +27,9 @@ The scan:
 """
 from __future__ import annotations
 
-from typing import Any
+import contextvars
+from contextlib import contextmanager
+from typing import Any, Callable, Iterator
 
 from api.services.journal_two.filters import _DAY, analytics_included_sql
 from api.services.journal_two.widget_engine.plan import PlanError, S_UNKNOWN_FIELD, S_UNKNOWN_OP
@@ -37,6 +39,35 @@ SCAN_ROWS = 5000
 SCAN_LIMIT = SCAN_ROWS + 1
 #: The largest "last N trades" range (plan.RANGE_TOKENS).
 LAST_N_MAX = 100
+
+
+# -- the deadline for work done in Python (W9-R17) -------------------------------------------------
+# `run.deadline` interrupts SQL through a progress handler; a scan that loops in Python (routine
+# history) asks `check_deadline()` as it goes, and the same `run.deadline` turns `ScanTooLong` into
+# `EngineTooLong` (or `Superseded`).
+
+class ScanTooLong(Exception):
+    """A Python-side scan ran past its run's deadline (or the run was superseded)."""
+
+
+_DEADLINE: contextvars.ContextVar[Callable[[], bool] | None] = contextvars.ContextVar(
+    "widget_scan_deadline", default=None)
+
+
+@contextmanager
+def python_deadline(expired: Callable[[], bool]) -> Iterator[None]:
+    token = _DEADLINE.set(expired)
+    try:
+        yield
+    finally:
+        _DEADLINE.reset(token)
+
+
+def check_deadline() -> None:
+    """Raise `ScanTooLong` when the enclosing `run.deadline` has expired; a no-op outside one."""
+    expired = _DEADLINE.get()
+    if expired is not None and expired():
+        raise ScanTooLong()
 
 LIKE_ESCAPE = "\\"
 

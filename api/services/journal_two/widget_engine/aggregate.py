@@ -57,6 +57,7 @@ class Group:
     flagged: bool = False
     day: str | None = None     # a per-row group's day (List, Scatter)
     result: str | None = None  # a per-row group's result (Scatter)
+    order: Any = None          # the field's `order_from` value (a tracker bucket's position)
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,13 @@ def _noun(unit: str, n: int) -> str:
     return _SINGULAR.get(unit, unit) if n == 1 else unit
 
 
+def _quiet(fld: Any, rows: list[dict]) -> bool:
+    """Ruling W9-R18: a field whose routine or tracker did not resolve says so once (a notice),
+    never as a no-value footnote."""
+    kind = getattr(fld, "ref_kind", None)
+    return bool(kind and rows and kind in (rows[0].get("_unresolved") or ()))
+
+
 def _apply_filters(rows: list[dict], plan: dict, src: Any, notes: list[str]) -> list[dict]:
     kept = rows
     for f in plan.get("filters") or []:
@@ -136,7 +144,7 @@ def _apply_filters(rows: list[dict], plan: dict, src: Any, notes: list[str]) -> 
                 notes.append(S_HOLD_MINUTES_SOME.format(
                     n=missing, trades=_noun(src.unit, missing),
                     have=_plural(missing, "has", "have"), are=_plural(missing, "is", "are")))
-        elif fld.missing:
+        elif fld.missing and not _quiet(fld, kept):
             # A filter on a field some rows have no value for (a date-only trade has no ET
             # hour) leaves those rows out; say how many, as the split does.
             gone = sum(1 for r in kept if not r.get("flagged") and r.get(fld.key) is None
@@ -242,6 +250,9 @@ def _sort(groups: list[Group], plan: dict, fld: Any | None) -> list[Group]:
         return (have + none)[:sort["top"]]
     if fld is None:
         return groups
+    if getattr(fld, "order_from", None):
+        return sorted(groups, key=lambda g: (g.order is None, g.order if g.order is not None
+                                             else 0, g.label, g.key2 or ""))
     if _ordered_naturally(fld):
         return sorted(groups, key=lambda g: (_natural_key(fld, g.key), g.key2 or ""))
     # A category with no natural order: largest first measure first, then by label.
@@ -309,15 +320,17 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any) -> Result:
                     if key not in labels:
                         labels[key] = (_label(by, k1, r),
                                        _label(then, k2, r) if then is not None else None)
-        if out_by:
+        if out_by and not _quiet(by, counted):
             notes.append(_missing_note(by, src.unit, out_by))
-        if out_then:
+        if out_then and not _quiet(then, counted):
             notes.append(_missing_note(then, src.unit, out_then))
+        order_key = getattr(by, "order_from", None)
         for (k1, k2), grp in buckets.items():
             l1, l2 = labels[(k1, k2)]
             groups.append(Group(key=k1, label=l1, values=GroupValues(
                 _cells(plan, catalog, source_key, grp), len(grp)),
-                key2=(k2 if then is not None else None), label2=l2))
+                key2=(k2 if then is not None else None), label2=l2,
+                order=grp[0].get(order_key) if order_key else None))
         groups = _sort(groups, plan, by)
 
     total_cells = _cells(plan, catalog, source_key, counted)

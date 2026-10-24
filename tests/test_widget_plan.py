@@ -604,12 +604,12 @@ def test_one_ref_per_kind():
     cat = _real()
     with pytest.raises(P.PlanError) as e:
         P.validate_plan(_days(split={"by": "routine_done", "ref": RID},
-                              filters=[{"field": "routine_done", "op": "in", "values": ["Done"],
+                              filters=[{"field": "routine_done", "op": "in", "values": ["done"],
                                         "ref": RID2}]), cat)
     assert e.value.sentence == P.S_ONE_REF == "A widget can look at one routine and one tracker."
     # the same routine twice, and one routine with one tracker, are fine
     p = P.validate_plan(_days(split={"by": "routine_done", "ref": RID},
-                              filters=[{"field": "routine_done", "op": "in", "values": ["Done"],
+                              filters=[{"field": "routine_done", "op": "in", "values": ["done"],
                                         "ref": RID},
                                        {"field": "tracker_value", "op": "gte", "values": [6],
                                         "ref": RID2}]), cat)

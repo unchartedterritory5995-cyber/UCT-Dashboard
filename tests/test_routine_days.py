@@ -565,3 +565,23 @@ def test_no_zero_on_the_measure_path():
     assert rd.ROUTINE_MEASURES["routine_days_done"].fn(_rows(2, 0, 1)).value == 2.0
     # Completion % is not covered by W9-R7 here and keeps its 0.0.
     assert rd.ROUTINE_MEASURES["routine_completion_pct"].fn(none_done).value is None
+
+
+def test_history_of_an_archived_routine_ends_on_its_archive_day():
+    """W9-R20: an archived routine is history only. No day after the archive exists, so none
+    reads Not done; day_state says off for it."""
+    from datetime import date
+    from api.services.journal_two import routine_days as RD
+    items = RD.parse_items([{"id": "i1", "text": "x", "from": "2026-09-01"}])
+    kw = dict(items=items, schedules=[("2026-09-01", {"kind": "every"})], ticks_by_day={},
+              skipped_days=frozenset(), created=date(2026, 9, 1), upto=date(2026, 9, 30),
+              today=date(2026, 10, 1), traded=frozenset(), done_share=1.0)
+    live = RD.history(**kw)
+    arch = RD.history(**kw, archived=date(2026, 9, 10))
+    assert max(s.day for s in live) == "2026-09-30"
+    assert max(s.day for s in arch) == "2026-09-10"
+    assert not [s for s in arch if s.day > "2026-09-10"]
+    one = RD.day_state(items=items, schedule={"kind": "every"}, ticks={}, skipped=False,
+                       day=date(2026, 9, 11), today=date(2026, 10, 1), created=date(2026, 9, 1),
+                       traded=frozenset(), done_share=1.0, archived=date(2026, 9, 10))
+    assert one.state == "off"

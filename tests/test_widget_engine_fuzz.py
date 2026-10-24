@@ -9,6 +9,7 @@ the member's exact text.
 """
 from __future__ import annotations
 
+import re
 from datetime import date
 
 import pytest
@@ -45,8 +46,8 @@ CORPUS = [
 def _cases():
     for src in sources.SOURCES.values():
         for fld in src.fields.values():
-            if not getattr(fld, "filterable", True):
-                continue                                  # a split-only field takes no filter
+            if not getattr(fld, "filterable", True) or getattr(fld, "choices", None):
+                continue                  # split-only, or fixed codes (refused below, never run)
             for op in fld.ops:
                 if op in ("in", "not_in", "has_any", "contains"):
                     yield src.key, fld.key, op
@@ -67,6 +68,18 @@ def _plan(source, field, op, value, view=None):
     if view:
         raw["view"] = {"type": view}
     return plan.validate_plan(raw, sources.CATALOG)
+
+
+def test_a_field_with_fixed_codes_refuses_every_hostile_value():
+    coded = [(s.key, f.key) for s in sources.SOURCES.values() for f in s.fields.values()
+             if getattr(f, "choices", None)]
+    assert ("routine_history", "state") in coded and ("trading_days", "routine_done") in coded
+    for source, field in coded:
+        for op in ("in", "not_in"):
+            for value in CORPUS:
+                with pytest.raises(plan.PlanError) as e:
+                    _plan(source, field, op, value)
+                assert e.value.sentence == plan.S_FILTER_VALUE_TYPE
 
 
 def test_the_corpus_covers_every_source_and_kind_of_field():
@@ -107,15 +120,48 @@ def test_member_text_is_never_sql_text(source, field, op):
                 assert any(x is value or (isinstance(x, str) and x == value) for x in params)
 
 
+_LITERAL = re.compile(r"'(?:[^']|'')*'")
+
+
+def _outside_literals(sql: str) -> str:
+    """The executed statement with every quoted string literal removed. SQLite's trace hook shows
+    bound parameters expanded INTO quoted literals, so member text found anywhere else was
+    spliced into the SQL itself."""
+    return _LITERAL.sub("''", sql)
+
+
 @pytest.mark.parametrize("source,field,op", CASES)
 def test_hostile_text_scans_an_empty_database_without_raising(conn, source, field, op):  # noqa: F811
-    for value in CORPUS:
-        p = _plan(source, field, op, value)
-        rng = plan.resolve_range(p["range"], TODAY)
-        sc = sources.scan(conn, p, {}, rng, UID, today=TODAY)
-        res = aggregate.evaluate(sc.rows, p, sources.CATALOG)
-        if source != "trading_days":
-            assert sc.rows == [] and res.count == 0
+    executed: list[str] = []
+    conn.set_trace_callback(executed.append)
+    try:
+        for value in CORPUS:
+            p = _plan(source, field, op, value)
+            rng = plan.resolve_range(p["range"], TODAY)
+            sc = sources.scan(conn, p, {}, rng, UID, today=TODAY)
+            res = aggregate.evaluate(sc.rows, p, sources.CATALOG)
+            if source != "trading_days":
+                assert sc.rows == [] and res.count == 0
+    finally:
+        conn.set_trace_callback(None)
+    assert executed, "control: the trace hook saw the scans"
+    for sql in executed:
+        bare = _outside_literals(sql)
+        for value in CORPUS:
+            assert value not in bare, (source, field, op, value, sql[:200])
+
+
+def test_the_trace_check_can_fail(conn):  # noqa: F811
+    """Control: text spliced into SQL is caught; the same text bound as a parameter is not."""
+    executed: list[str] = []
+    conn.set_trace_callback(executed.append)
+    try:
+        conn.execute("SELECT 1 WHERE 'a' = ?", (CORPUS[3],)).fetchall()
+        conn.execute("SELECT 1 /* " + CORPUS[3] + " */").fetchall()
+    finally:
+        conn.set_trace_callback(None)
+    bound, spliced = (_outside_literals(x) for x in executed[-2:])
+    assert CORPUS[3] not in bound and CORPUS[3] in spliced
 
 
 def test_hostile_text_matches_exactly_once_seeded(conn):  # noqa: F811
