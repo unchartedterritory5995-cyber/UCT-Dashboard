@@ -289,6 +289,10 @@ def test_route_flag_on_adds_only_the_levels_sr_key(monkeypatch, calls, bars_of, 
 def test_route_member_passes_its_own_drawings_as_the_pattern_prices(monkeypatch, calls, bars_of, sr_on):
     """The member door suppresses against the rows THIS response serves (detections + structures)."""
     _flags(monkeypatch, True, True)
+    # the served box here is a flat base, withheld from members since 2026-10-24 (recert A): re-enabled in memory,
+    # since this test is about the door, not the release (tests/test_flat_base_withheld_from_members.py)
+    monkeypatch.setattr(AS, "MEMBER_FLAT_BASE_ROUND", 1)
+    monkeypatch.setattr(AS, "MEMBER_BC_FLAT_BASE_ROUND", "team")
     got = []
     real = AS.levels_sr_for
     monkeypatch.setattr(AS, "levels_sr_for", lambda sym, **k: got.append(k) or real(sym, **k))
