@@ -11754,5 +11754,1573 @@
   "sym": "MNST",
   "type": "spot",
   "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-06-11",
+  "bars": {
+   "asof": "2026-06-11",
+   "forward": 20,
+   "sym": "SW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_128565182472",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 32.3% from its high, the 8, 21 and 50-day averages sat within 0.83% of each other with price 5.2% from the 200-day, the prior 30 closes spanned 17.1%, and the last bar closed up 9.6% inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2026-06-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SW"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 13,
+    "approach_20_pct": -0.4,
+    "avg_dollar_volume_m": 240.0,
+    "base15_range_pct": 13.2,
+    "base30_range_pct": 17.1,
+    "base_len_sessions": 56,
+    "below_bundle_40": 19,
+    "breakout20": false,
+    "bundle_touches_15": 11,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.99,
+    "close_pos_pct": 99,
+    "correction_abs_pct": 32.3,
+    "correction_pct": -32.3,
+    "dangle_days_8": 5,
+    "day_pct": 9.6,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 10.0,
+    "fwd_20d_pct": 1.1,
+    "fwd_5d_pct": 3.5,
+    "fwd_max_gain_pct": 12.1,
+    "fwd_min_low_vs_trigger_low_pct": 6.5,
+    "gap_pct": -0.81,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 2.27,
+    "ma_spread_pct": 0.83,
+    "range_atr": 2.61,
+    "rvol": 1.81,
+    "s200_dist_pct": 5.2,
+    "s200_slope40_pct": -2.5,
+    "s200_vs_bundle_pct": 1.5,
+    "s50_slope20_pct": -0.9,
+    "sessions_under_or_on_bundle_30": 17,
+    "setup_score": 19,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#SW#2026-06-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#SW#2026-06-11",
+  "sym": "SW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-06-27",
+  "bars": {
+   "asof": "2023-06-27",
+   "forward": 20,
+   "sym": "ODFL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e67864b44da6",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 21.8% from its high, the 8, 21 and 50-day averages sat within 2.2% of each other with price 8.6% from the 200-day, the prior 30 closes spanned 10.8%, and the last bar closed up 7.39% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-06-27",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ODFL"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 8,
+    "approach_20_pct": 0.0,
+    "avg_dollar_volume_m": 266.3,
+    "base15_range_pct": 8.5,
+    "base30_range_pct": 10.8,
+    "base_len_sessions": 80,
+    "below_bundle_40": 22,
+    "breakout20": true,
+    "bundle_touches_15": 13,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "correction_abs_pct": 21.8,
+    "correction_pct": -21.8,
+    "dangle_days_8": 8,
+    "day_pct": 7.39,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 4.6,
+    "fwd_20d_pct": 17.1,
+    "fwd_5d_pct": 2.4,
+    "fwd_max_gain_pct": 17.8,
+    "fwd_min_low_vs_trigger_low_pct": 7.0,
+    "gap_pct": 0.94,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 3.12,
+    "ma_spread_pct": 2.2,
+    "range_atr": 2.38,
+    "rvol": 1.86,
+    "s200_dist_pct": 8.6,
+    "s200_slope40_pct": 1.8,
+    "s200_vs_bundle_pct": -4.5,
+    "s50_slope20_pct": -1.8,
+    "sessions_under_or_on_bundle_30": 22,
+    "setup_score": 19,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#ODFL#2023-06-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#ODFL#2023-06-27",
+  "sym": "ODFL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-11-29",
+  "bars": {
+   "asof": "2023-11-29",
+   "forward": 20,
+   "sym": "ASND",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3c00128839dc",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 15.2% from its high, the 8, 21 and 50-day averages sat within 0.19% of each other with price 3.6% from the 200-day, the prior 30 closes spanned 10.9%, and the last bar closed up 7.12% inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-11-29",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ASND"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 9,
+    "approach_20_pct": -2.6,
+    "avg_dollar_volume_m": 29.7,
+    "base15_range_pct": 7.4,
+    "base30_range_pct": 10.9,
+    "base_len_sessions": 80,
+    "below_bundle_40": 18,
+    "breakout20": false,
+    "bundle_touches_15": 15,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.81,
+    "close_pos_pct": 81,
+    "correction_abs_pct": 15.2,
+    "correction_pct": -15.2,
+    "dangle_days_8": 4,
+    "day_pct": 7.12,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 21.2,
+    "fwd_20d_pct": 31.2,
+    "fwd_5d_pct": 9.7,
+    "fwd_max_gain_pct": 33.3,
+    "fwd_min_low_vs_trigger_low_pct": 7.3,
+    "gap_pct": 0.64,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 1.99,
+    "ma_spread_pct": 0.19,
+    "range_atr": 2.11,
+    "rvol": 2.17,
+    "s200_dist_pct": 3.6,
+    "s200_slope40_pct": -5.6,
+    "s200_vs_bundle_pct": 1.9,
+    "s50_slope20_pct": -2.7,
+    "sessions_under_or_on_bundle_30": 21,
+    "setup_score": 19,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#ASND#2023-11-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#ASND#2023-11-29",
+  "sym": "ASND",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-12-08",
+  "bars": {
+   "asof": "2023-12-08",
+   "forward": 20,
+   "sym": "ALLE",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_49d12192b135",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 24.8% from its high, the 8, 21 and 50-day averages sat within 2.58% of each other with price 3.2% from the 200-day, the prior 30 closes spanned 10.9%, and the last bar closed up 5.0% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-12-08",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ALLE"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 12,
+    "approach_20_pct": -0.9,
+    "avg_dollar_volume_m": 81.4,
+    "base15_range_pct": 4.3,
+    "base30_range_pct": 10.9,
+    "base_len_sessions": 80,
+    "below_bundle_40": 11,
+    "breakout20": true,
+    "bundle_touches_15": 9,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.65,
+    "close_pos_pct": 65,
+    "correction_abs_pct": 24.8,
+    "correction_pct": -24.8,
+    "dangle_days_8": 4,
+    "day_pct": 5.0,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 14.3,
+    "fwd_20d_pct": 12.4,
+    "fwd_5d_pct": 6.5,
+    "fwd_max_gain_pct": 16.4,
+    "fwd_min_low_vs_trigger_low_pct": 1.2,
+    "gap_pct": 1.82,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 3.05,
+    "ma_spread_pct": 2.58,
+    "range_atr": 2.99,
+    "rvol": 3.01,
+    "s200_dist_pct": 3.2,
+    "s200_slope40_pct": -2.1,
+    "s200_vs_bundle_pct": 4.2,
+    "s50_slope20_pct": -0.8,
+    "sessions_under_or_on_bundle_30": 18,
+    "setup_score": 19,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#ALLE#2023-12-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#ALLE#2023-12-08",
+  "sym": "ALLE",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-08-21",
+  "bars": {
+   "asof": "2024-08-21",
+   "forward": 20,
+   "sym": "VEEV",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_cbed09f4b3fb",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 27.6% from its high, the 8, 21 and 50-day averages sat within 2.63% of each other with price 2.2% from the 200-day, the prior 30 closes spanned 7.2%, and the last bar closed up 4.01% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2024-08-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VEEV"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 11,
+    "approach_20_pct": -1.4,
+    "avg_dollar_volume_m": 190.4,
+    "base15_range_pct": 6.2,
+    "base30_range_pct": 7.2,
+    "base_len_sessions": 54,
+    "below_bundle_40": 16,
+    "breakout20": true,
+    "bundle_touches_15": 12,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "correction_abs_pct": 27.6,
+    "correction_pct": -27.6,
+    "dangle_days_8": 7,
+    "day_pct": 4.01,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 6.9,
+    "fwd_20d_pct": 6.4,
+    "fwd_5d_pct": -1.0,
+    "fwd_max_gain_pct": 12.4,
+    "fwd_min_low_vs_trigger_low_pct": 1.1,
+    "gap_pct": 0.22,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 2.63,
+    "ma_spread_pct": 2.63,
+    "range_atr": 1.58,
+    "rvol": 1.3,
+    "s200_dist_pct": 2.2,
+    "s200_slope40_pct": -1.9,
+    "s200_vs_bundle_pct": 5.0,
+    "s50_slope20_pct": -1.8,
+    "sessions_under_or_on_bundle_30": 19,
+    "setup_score": 19,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#VEEV#2024-08-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#VEEV#2024-08-21",
+  "sym": "VEEV",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-07-13",
+  "bars": {
+   "asof": "2023-07-13",
+   "forward": 20,
+   "sym": "SCCO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_6b938eacf95c",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 20.3% from its high, the 8, 21 and 50-day averages sat within 0.26% of each other with price 11.1% from the 200-day, the prior 30 closes spanned 10.3%, and the last bar closed up 5.14% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-07-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SCCO"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 7,
+    "approach_20_pct": 0.7,
+    "avg_dollar_volume_m": 87.8,
+    "base15_range_pct": 6.9,
+    "base30_range_pct": 10.3,
+    "base_len_sessions": 80,
+    "below_bundle_40": 21,
+    "breakout20": true,
+    "bundle_touches_15": 13,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "correction_abs_pct": 20.3,
+    "correction_pct": -20.3,
+    "dangle_days_8": 3,
+    "day_pct": 5.14,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 7.7,
+    "fwd_20d_pct": 6.8,
+    "fwd_5d_pct": 0.4,
+    "fwd_max_gain_pct": 12.4,
+    "fwd_min_low_vs_trigger_low_pct": -0.3,
+    "gap_pct": 1.43,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 1.33,
+    "ma_spread_pct": 0.26,
+    "range_atr": 1.57,
+    "rvol": 1.22,
+    "s200_dist_pct": 11.1,
+    "s200_slope40_pct": 7.4,
+    "s200_vs_bundle_pct": -7.1,
+    "s50_slope20_pct": -2.9,
+    "sessions_under_or_on_bundle_30": 23,
+    "setup_score": 19,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#SCCO#2023-07-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#SCCO#2023-07-13",
+  "sym": "SCCO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-11",
+  "bars": {
+   "asof": "2024-11-11",
+   "forward": 20,
+   "sym": "MGNI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8a2cc2adbb2f",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 25.2% from its high, the 8, 21 and 50-day averages sat within 2.04% of each other with price 14.6% from the 200-day, the prior 30 closes spanned 14.3%, and the last bar closed up 16.24% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2024-11-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MGNI"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 6,
+    "approach_20_pct": -2.1,
+    "avg_dollar_volume_m": 23.9,
+    "base15_range_pct": 12.0,
+    "base30_range_pct": 14.3,
+    "base_len_sessions": 77,
+    "below_bundle_40": 24,
+    "breakout20": true,
+    "bundle_touches_15": 12,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.9,
+    "close_pos_pct": 90,
+    "correction_abs_pct": 25.2,
+    "correction_pct": -25.2,
+    "dangle_days_8": 1,
+    "day_pct": 16.24,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 4.9,
+    "fwd_20d_pct": 6.3,
+    "fwd_5d_pct": -1.1,
+    "fwd_max_gain_pct": 16.2,
+    "fwd_min_low_vs_trigger_low_pct": 10.5,
+    "gap_pct": 2.13,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 4.23,
+    "ma_spread_pct": 2.04,
+    "range_atr": 3.42,
+    "rvol": 2.81,
+    "s200_dist_pct": 14.6,
+    "s200_slope40_pct": 6.6,
+    "s200_vs_bundle_pct": -7.5,
+    "s50_slope20_pct": -1.9,
+    "sessions_under_or_on_bundle_30": 26,
+    "setup_score": 19,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#MGNI#2024-11-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#MGNI#2024-11-11",
+  "sym": "MGNI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-01-02",
+  "bars": {
+   "asof": "2026-01-02",
+   "forward": 20,
+   "sym": "WSM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9dc18c2496ac",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 18.1% from its high, the 8, 21 and 50-day averages sat within 0.88% of each other with price 0.3% from the 200-day, the prior 30 closes spanned 10.4%, and the last bar closed up 5.19% inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2026-01-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "WSM"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 10,
+    "approach_20_pct": -3.3,
+    "avg_dollar_volume_m": 234.3,
+    "base15_range_pct": 7.0,
+    "base30_range_pct": 10.4,
+    "base_len_sessions": 80,
+    "below_bundle_40": 16,
+    "breakout20": false,
+    "bundle_touches_15": 14,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.85,
+    "close_pos_pct": 85,
+    "correction_abs_pct": 18.1,
+    "correction_pct": -18.1,
+    "dangle_days_8": 5,
+    "day_pct": 5.19,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 12.6,
+    "fwd_20d_pct": 13.9,
+    "fwd_5d_pct": 6.0,
+    "fwd_max_gain_pct": 16.9,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "gap_pct": 2.29,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 1.51,
+    "ma_spread_pct": 0.88,
+    "range_atr": 1.56,
+    "rvol": 1.41,
+    "s200_dist_pct": 0.3,
+    "s200_slope40_pct": -1.7,
+    "s200_vs_bundle_pct": -4.1,
+    "s50_slope20_pct": -1.7,
+    "sessions_under_or_on_bundle_30": 22,
+    "setup_score": 18,
+    "stack_9_20_50": false
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#WSM#2026-01-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#WSM#2026-01-02",
+  "sym": "WSM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-07-10",
+  "bars": {
+   "asof": "2023-07-10",
+   "forward": 20,
+   "sym": "MGM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2ae7d28c5804",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 15.4% from its high, the 8, 21 and 50-day averages sat within 1.03% of each other with price 9.7% from the 200-day, the prior 30 closes spanned 11.9%, and the last bar closed up 5.59% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-07-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MGM"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 10,
+    "approach_20_pct": -0.7,
+    "avg_dollar_volume_m": 182.9,
+    "base15_range_pct": 5.9,
+    "base30_range_pct": 11.9,
+    "base_len_sessions": 80,
+    "below_bundle_40": 18,
+    "breakout20": true,
+    "bundle_touches_15": 13,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 1.0,
+    "close_pos_pct": 100,
+    "correction_abs_pct": 15.4,
+    "correction_pct": -15.4,
+    "dangle_days_8": 4,
+    "day_pct": 5.59,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 7.7,
+    "fwd_20d_pct": 0.4,
+    "fwd_5d_pct": 5.9,
+    "fwd_max_gain_pct": 12.9,
+    "fwd_min_low_vs_trigger_low_pct": 3.5,
+    "gap_pct": 0.16,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 1.27,
+    "ma_spread_pct": 1.03,
+    "range_atr": 2.31,
+    "rvol": 1.32,
+    "s200_dist_pct": 9.7,
+    "s200_slope40_pct": 4.3,
+    "s200_vs_bundle_pct": -7.8,
+    "s50_slope20_pct": -0.9,
+    "sessions_under_or_on_bundle_30": 20,
+    "setup_score": 18,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#MGM#2023-07-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#MGM#2023-07-10",
+  "sym": "MGM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-06-09",
+  "bars": {
+   "asof": "2026-06-09",
+   "forward": 20,
+   "sym": "TOL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_20480be33f84",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 26.3% from its high, the 8, 21 and 50-day averages sat within 0.78% of each other with price 2.3% from the 200-day, the prior 30 closes spanned 16.9%, and the last bar closed up 5.09% inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2026-06-09",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TOL"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 13,
+    "approach_20_pct": -3.3,
+    "avg_dollar_volume_m": 170.5,
+    "base15_range_pct": 11.5,
+    "base30_range_pct": 16.9,
+    "base_len_sessions": 80,
+    "below_bundle_40": 16,
+    "breakout20": false,
+    "bundle_touches_15": 13,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.67,
+    "close_pos_pct": 67,
+    "correction_abs_pct": 26.3,
+    "correction_pct": -26.3,
+    "dangle_days_8": 5,
+    "day_pct": 5.09,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 11.7,
+    "fwd_20d_pct": 2.9,
+    "fwd_5d_pct": 6.3,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_min_low_vs_trigger_low_pct": -0.7,
+    "gap_pct": 1.73,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 3.0,
+    "ma_spread_pct": 0.78,
+    "range_atr": 1.76,
+    "rvol": 1.34,
+    "s200_dist_pct": 2.3,
+    "s200_slope40_pct": 2.4,
+    "s200_vs_bundle_pct": 2.0,
+    "s50_slope20_pct": -2.2,
+    "sessions_under_or_on_bundle_30": 23,
+    "setup_score": 18,
+    "stack_9_20_50": false
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#TOL#2026-06-09",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#TOL#2026-06-09",
+  "sym": "TOL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-31",
+  "bars": {
+   "asof": "2023-05-31",
+   "forward": 20,
+   "sym": "ADSK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0dc923998d20",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 18.2% from its high, the 8, 21 and 50-day averages sat within 0.29% of each other with price 3.6% from the 200-day, the prior 30 closes spanned 7.7%, and the last bar closed up 2.23% inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-05-31",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ADSK"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 5,
+    "approach_20_pct": -2.1,
+    "avg_dollar_volume_m": 279.2,
+    "base15_range_pct": 6.2,
+    "base30_range_pct": 7.7,
+    "base_len_sessions": 80,
+    "below_bundle_40": 24,
+    "breakout20": false,
+    "bundle_touches_15": 13,
+    "close_above_200": false,
+    "close_above_all": true,
+    "close_pos": 0.76,
+    "close_pos_pct": 76,
+    "correction_abs_pct": 18.2,
+    "correction_pct": -18.2,
+    "dangle_days_8": 4,
+    "day_pct": 2.23,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 7.1,
+    "fwd_20d_pct": 3.4,
+    "fwd_5d_pct": 0.9,
+    "fwd_max_gain_pct": 12.2,
+    "fwd_min_low_vs_trigger_low_pct": 1.1,
+    "gap_pct": 0.22,
+    "known_name": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 1.56,
+    "ma_spread_pct": 0.29,
+    "range_atr": 1.06,
+    "rvol": 2.89,
+    "s200_dist_pct": 3.6,
+    "s200_slope40_pct": 0.5,
+    "s200_vs_bundle_pct": 2.6,
+    "s50_slope20_pct": -1.5,
+    "sessions_under_or_on_bundle_30": 25,
+    "setup_score": 17,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#ADSK#2023-05-31",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#ADSK#2023-05-31",
+  "sym": "ADSK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-21",
+  "bars": {
+   "asof": "2024-11-21",
+   "forward": 20,
+   "sym": "KMX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7bf04def835c",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 18.1% from its high, the 8, 21 and 50-day averages sat within 1.94% of each other with price 1.0% from the 200-day, the prior 30 closes spanned 9.3%, and the last bar closed up 5.18% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2024-11-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "KMX"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 9,
+    "approach_20_pct": -3.4,
+    "avg_dollar_volume_m": 139.9,
+    "base15_range_pct": 7.7,
+    "base30_range_pct": 9.3,
+    "base_len_sessions": 80,
+    "below_bundle_40": 15,
+    "breakout20": true,
+    "bundle_touches_15": 12,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.82,
+    "close_pos_pct": 82,
+    "correction_abs_pct": 18.1,
+    "correction_pct": -18.1,
+    "dangle_days_8": 7,
+    "day_pct": 5.18,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 6.9,
+    "fwd_20d_pct": 4.5,
+    "fwd_5d_pct": 4.1,
+    "fwd_max_gain_pct": 13.2,
+    "fwd_min_low_vs_trigger_low_pct": 3.8,
+    "gap_pct": 1.63,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 2.34,
+    "ma_spread_pct": 1.94,
+    "range_atr": 1.88,
+    "rvol": 1.78,
+    "s200_dist_pct": 1.0,
+    "s200_slope40_pct": 0.6,
+    "s200_vs_bundle_pct": 0.1,
+    "s50_slope20_pct": -3.3,
+    "sessions_under_or_on_bundle_30": 21,
+    "setup_score": 18,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#KMX#2024-11-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#KMX#2024-11-21",
+  "sym": "KMX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-10-28",
+  "bars": {
+   "asof": "2022-10-28",
+   "forward": 20,
+   "sym": "AME",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_99b1a130be1a",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 15.3% from its high, the 8, 21 and 50-day averages sat within 1.57% of each other with price 0.6% from the 200-day, the prior 30 closes spanned 10.3%, and the last bar closed up 3.74% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2022-10-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AME"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 7,
+    "approach_20_pct": -4.2,
+    "avg_dollar_volume_m": 122.9,
+    "base15_range_pct": 9.1,
+    "base30_range_pct": 10.3,
+    "base_len_sessions": 80,
+    "below_bundle_40": 20,
+    "breakout20": true,
+    "bundle_touches_15": 11,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.95,
+    "close_pos_pct": 95,
+    "correction_abs_pct": 15.3,
+    "correction_pct": -15.3,
+    "dangle_days_8": 4,
+    "day_pct": 3.74,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 7.4,
+    "fwd_20d_pct": 7.8,
+    "fwd_5d_pct": 4.6,
+    "fwd_max_gain_pct": 10.7,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "gap_pct": 0.46,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 5.22,
+    "ma_spread_pct": 1.57,
+    "range_atr": 1.43,
+    "rvol": 2.15,
+    "s200_dist_pct": 0.6,
+    "s200_slope40_pct": -3.6,
+    "s200_vs_bundle_pct": 3.2,
+    "s50_slope20_pct": -1.8,
+    "sessions_under_or_on_bundle_30": 26,
+    "setup_score": 18,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#AME#2022-10-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#AME#2022-10-28",
+  "sym": "AME",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-03-08",
+  "bars": {
+   "asof": "2022-03-08",
+   "forward": 20,
+   "sym": "PWR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_04547789a59d",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 22.3% from its high, the 8, 21 and 50-day averages sat within 2.41% of each other with price 3.0% from the 200-day, the prior 30 closes spanned 14.3%, and the last bar closed up 8.17% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2022-03-08",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PWR"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 7,
+    "approach_20_pct": -5.5,
+    "avg_dollar_volume_m": 127.1,
+    "base15_range_pct": 13.0,
+    "base30_range_pct": 14.3,
+    "base_len_sessions": 80,
+    "below_bundle_40": 24,
+    "breakout20": true,
+    "bundle_touches_15": 12,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.91,
+    "close_pos_pct": 91,
+    "correction_abs_pct": 22.3,
+    "correction_pct": -22.3,
+    "dangle_days_8": 7,
+    "day_pct": 8.17,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 11.1,
+    "fwd_20d_pct": 11.4,
+    "fwd_5d_pct": 4.1,
+    "fwd_max_gain_pct": 17.9,
+    "fwd_min_low_vs_trigger_low_pct": 7.9,
+    "gap_pct": 0.34,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 4.46,
+    "ma_spread_pct": 2.41,
+    "range_atr": 2.16,
+    "rvol": 2.62,
+    "s200_dist_pct": 3.0,
+    "s200_slope40_pct": 1.9,
+    "s200_vs_bundle_pct": -2.0,
+    "s50_slope20_pct": -3.1,
+    "sessions_under_or_on_bundle_30": 23,
+    "setup_score": 18,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#PWR#2022-03-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#PWR#2022-03-08",
+  "sym": "PWR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-06-01",
+  "bars": {
+   "asof": "2023-06-01",
+   "forward": 20,
+   "sym": "TTEK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2f7ee4deb6f5",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 16.9% from its high, the 8, 21 and 50-day averages sat within 2.46% of each other with price 3.5% from the 200-day, the prior 30 closes spanned 10.5%, and the last bar closed up 6.07% inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2023-06-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TTEK"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 12,
+    "approach_20_pct": -0.1,
+    "avg_dollar_volume_m": 39.1,
+    "base15_range_pct": 10.5,
+    "base30_range_pct": 10.5,
+    "base_len_sessions": 80,
+    "below_bundle_40": 21,
+    "breakout20": false,
+    "bundle_touches_15": 12,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.91,
+    "close_pos_pct": 91,
+    "correction_abs_pct": 16.9,
+    "correction_pct": -16.9,
+    "dangle_days_8": 2,
+    "day_pct": 6.07,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 10.2,
+    "fwd_20d_pct": 12.3,
+    "fwd_5d_pct": 8.1,
+    "fwd_max_gain_pct": 13.5,
+    "fwd_min_low_vs_trigger_low_pct": 8.2,
+    "gap_pct": 0.44,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 2.46,
+    "ma_spread_pct": 2.46,
+    "range_atr": 2.77,
+    "rvol": 2.67,
+    "s200_dist_pct": 3.5,
+    "s200_slope40_pct": 0.1,
+    "s200_vs_bundle_pct": 1.8,
+    "s50_slope20_pct": 0.8,
+    "sessions_under_or_on_bundle_30": 20,
+    "setup_score": 18,
+    "stack_9_20_50": false
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#TTEK#2023-06-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#TTEK#2023-06-01",
+  "sym": "TTEK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-02-06",
+  "bars": {
+   "asof": "2025-02-06",
+   "forward": 20,
+   "sym": "LI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d48c6687037c",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23). Here the stock had corrected 30.0% from its high, the 8, 21 and 50-day averages sat within 1.21% of each other with price 3.4% from the 200-day, the prior 30 closes spanned 16.1%, and the last bar closed up 6.18% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2025-02-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "LI"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 12,
+    "approach_20_pct": -0.4,
+    "avg_dollar_volume_m": 163.3,
+    "base15_range_pct": 10.1,
+    "base30_range_pct": 16.1,
+    "base_len_sessions": 65,
+    "below_bundle_40": 16,
+    "breakout20": true,
+    "bundle_touches_15": 12,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.71,
+    "close_pos_pct": 71,
+    "correction_abs_pct": 30.0,
+    "correction_pct": -30.0,
+    "dangle_days_8": 5,
+    "day_pct": 6.18,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "fwd_10d_pct": 10.7,
+    "fwd_20d_pct": 16.9,
+    "fwd_5d_pct": 1.6,
+    "fwd_max_gain_pct": 33.5,
+    "fwd_min_low_vs_trigger_low_pct": 2.6,
+    "gap_pct": 5.13,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 1.3,
+    "ma_spread_pct": 1.21,
+    "range_atr": 0.83,
+    "rvol": 1.49,
+    "s200_dist_pct": 3.4,
+    "s200_slope40_pct": -8.9,
+    "s200_vs_bundle_pct": -3.1,
+    "s50_slope20_pct": -3.3,
+    "sessions_under_or_on_bundle_30": 18,
+    "setup_score": 18,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "quote": "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 stack (owner ruling 2026-10-23).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#LI#2025-02-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#LI#2025-02-06",
+  "sym": "LI",
+  "type": "spot",
+  "version": 1
  }
 ]
