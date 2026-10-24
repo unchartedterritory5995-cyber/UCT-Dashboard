@@ -4,6 +4,9 @@
 // ⛔ A GATED LAYER'S TOGGLE IS NOT RENDERED UNTIL ITS LAYER IS RELEASED (`availability`), never shown
 // disabled: a switch that does nothing is the defect, not a teaser. Admin-only layers sit in their own
 // "Admin" section, rendered only when the host passes `admin`.
+// The one exception: a RELEASED layer with nothing to draw on THIS chart (Support & resistance withheld
+// "too_few_levels" / "out_of_frame") shows its toggle quiet (disabled, unchecked, with the reason as the hint),
+// so the switch never lights over a chart that draws nothing.
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { cautionListRows, isCautionRow } from './cautionLayer'
@@ -61,11 +64,13 @@ export function setupDisplayName(v) {
     .map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')
 }
 
-function Toggle({ id, label, hint, checked, onChange }) {
+function Toggle({ id, label, hint, checked, onChange, disabled = false }) {
   return (
-    <label data-testid={`uct-intel-toggle-${id}`}
-      style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '4px 0', cursor: 'pointer' }}>
-      <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)}
+    <label data-testid={`uct-intel-toggle-${id}`} data-disabled={disabled ? 'true' : undefined}
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '4px 0',
+        cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.55 : 1 }}>
+      <input type="checkbox" checked={!disabled && !!checked} disabled={disabled}
+        onChange={(e) => { if (!disabled) onChange(e.target.checked) }}
         aria-label={label} style={{ marginTop: 2 }} />
       <span style={{ display: 'flex', flexDirection: 'column' }}>
         <span style={{ color: 'var(--text)', fontSize: 12 }}>{label}</span>
@@ -165,7 +170,9 @@ export default function UctIntelligencePanel({
           <Toggle id="labels" label="Pattern labels & numbers" hint="Buy point, depth, stage and volume"
             checked={state.labels} onChange={(v) => onSetLayer('labels', v)} />
           {a.supportResistance && (
-            <Toggle id="supportResistance" label="Support & resistance" hint="Automatic levels"
+            <Toggle id="supportResistance" label="Support & resistance"
+              hint={a.supportResistanceEmpty ? 'No clear levels on this chart' : 'Automatic levels'}
+              disabled={a.supportResistanceEmpty === true}
               checked={state.supportResistance} onChange={(v) => onSetLayer('supportResistance', v)} />
           )}
           {a.candles && (
