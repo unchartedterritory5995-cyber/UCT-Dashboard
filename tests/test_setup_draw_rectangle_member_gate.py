@@ -128,3 +128,50 @@ def test_a_failing_rectangle_costs_the_rectangle_only(monkeypatch):
         raise RuntimeError("boom")
     monkeypatch.setattr(M, "detect", boom)
     assert [r for r in AS.setup_draw_rows("ZZZ", _dicts(_SR["rows"][:_I + 1])) if r["pattern_id"] == PID] == []
+
+
+# -- one breakout line per base (auto_structures.member_setup_one_line_per_base) -----------------------------------
+
+def _box(top, floor, s, e, rid="rect"):
+    """A rectangle setup row in the shape setup_draw_rows serves (a 2-anchor `rectangle`, first anchor the top)."""
+    return {"id": rid, "pattern_id": PID, "start_t": s, "end_t": e,
+            "geometry": {"shape": "rectangle",
+                         "anchors": [{"t": s, "price": top}, {"t": e, "price": floor}],
+                         "extras": {"draw_round": 1, "draw_setup": {"shape": "rectangle", "draw_round": 1,
+                                                                     "top": top, "floor": floor}}},
+            "levels": {}}
+
+
+def _ids(rows):
+    return [r["pattern_id"] for r in rows or []]
+
+
+def test_the_rectangle_ranks_last_in_one_line_per_base():
+    pr = AS.ONE_LINE_PER_BASE_PRIORITY
+    assert pr[-1] == PID and AS.RECTANGLE_DRAW_ID == PID
+
+
+def test_the_box_top_is_its_breakout_line():
+    assert AS._breakout_lines(_box(50.0, 45.0, 100, 200)) == [(50.0, 100, 200)]
+    assert AS._breakout_lines(ROW) == [(ROW["geometry"]["anchors"][0]["price"], ROW["geometry"]["anchors"][0]["t"],
+                                        ROW["geometry"]["anchors"][1]["t"])]
+
+
+def test_a_box_whose_top_sits_on_a_base_line_yields_and_a_far_one_stays():
+    from tests.test_one_line_per_base import E, S, _base, _flat_top
+    assert _ids(AS.member_setup_one_line_per_base([], [_base(50.0)], [_box(50.4, 46.0, S, E)], atr=1.0)) == []
+    assert _ids(AS.member_setup_one_line_per_base([_flat_top(30.0)], [], [_box(29.6, 27.0, S, E)], atr=1.0)) == []
+    assert _ids(AS.member_setup_one_line_per_base([], [_base(50.0)], [_box(51.2, 46.0, S, E)], atr=1.0)) == [PID]
+
+
+def test_a_box_yields_to_the_donchian_line_on_its_top():
+    from tests.test_one_line_per_base import E, S
+    from tests.test_donchian_one_line_per_base import _donchian
+    out = AS.member_setup_one_line_per_base([], [], [_donchian(50.0), _box(50.3, 46.0, S, E)], atr=1.0)
+    assert _ids(out) == ["draw:donchian_breakout"]
+
+
+def test_a_box_over_a_different_span_is_not_the_same_base():
+    from tests.test_one_line_per_base import E, FAR_E, FAR_S, S, _base
+    assert _ids(AS.member_setup_one_line_per_base([], [_base(50.0, S, E)], [_box(50.2, 46.0, FAR_S, FAR_E)],
+                                                  atr=1.0)) == [PID]

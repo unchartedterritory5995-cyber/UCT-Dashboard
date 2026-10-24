@@ -233,7 +233,7 @@ def test_the_priority_order_decides_every_pair(winner, loser):
 def test_the_priority_order_is_the_documented_literal():
     assert AS.ONE_LINE_PER_BASE_PRIORITY == (
         "bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout", "bc:flat-base", "flat_base",
-        "bc:base", "bull_flag", "draw:donchian_breakout")
+        "bc:base", "bull_flag", "draw:donchian_breakout", "draw:rectangle")
     assert AS.ONE_LINE_PER_BASE_ATR == 1.0
 
 
@@ -292,6 +292,9 @@ def test_member_route_serves_one_line_and_the_admin_route_is_unchanged(monkeypat
         r["tf"] = "D"
     _flags(monkeypatch, True, True)
     _store(monkeypatch, dets)
+    # this rail is about one line per base; the interim recert textbook gate (test_textbook_pivot_gate.py) would
+    # withhold the synthetic flat top on its own, so it is switched off here
+    monkeypatch.setattr(AS, "MEMBER_PIVOT_GATE_ROUND", None)
     monkeypatch.setattr(AS, "structures_for", lambda sym: json.loads(json.dumps([box])))
     monkeypatch.setattr(AS, "drawn_for", lambda sym: None)
     monkeypatch.setattr(AS, "member_rows", lambda rows: list(rows or []))

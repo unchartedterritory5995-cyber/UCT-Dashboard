@@ -417,6 +417,9 @@ def test_a_base_state_drawn_over_the_held_price_is_refused(monkeypatch):
 def test_on_the_member_route_a_shelf_line_over_the_held_price_is_refused(monkeypatch):
     """The shelf pivot (added after the other structures) goes through the member floor too."""
     _flags(monkeypatch, True, True)
+    # this rail is about the member floor; the interim recert textbook gate (test_textbook_pivot_gate.py) would
+    # withhold the synthetic shelf on its own, so it is switched off here
+    monkeypatch.setattr(auto_structures, "MEMBER_PIVOT_GATE_ROUND", None)
     _store(monkeypatch, [])
     b = _held()
     i = len(b) - 1

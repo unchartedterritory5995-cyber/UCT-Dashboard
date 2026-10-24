@@ -51,7 +51,9 @@ def _run(dets, sts, setups, atr=1.0):
 
 def test_the_donchian_line_ranks_after_every_base_drawing():
     pr = AS.ONE_LINE_PER_BASE_PRIORITY
-    assert pr[-1] == "draw:donchian_breakout"
+    # the donchian line ranks after every base drawing; only the rectangle box (tests/
+    # test_setup_draw_rectangle_member_gate.py) ranks after it
+    assert pr[-2:] == ("draw:donchian_breakout", "draw:rectangle")
     for pid in ("bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout", "bc:flat-base",
                 "flat_base", "bc:base"):
         assert pr.index(pid) < pr.index("draw:donchian_breakout")

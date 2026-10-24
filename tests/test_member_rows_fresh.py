@@ -60,6 +60,13 @@ def round9_flag_released(monkeypatch):
 
 pytestmark = pytest.mark.usefixtures("round9_flag_released")
 
+
+@pytest.fixture(autouse=True)
+def _pivot_textbook_gate_off(monkeypatch):
+    """These rails are about which scan's rows are fresh enough to serve; the interim recert textbook gate on the flat top / shelf / double bottom (its own
+    rails in test_textbook_pivot_gate.py) would withhold the synthetic rows on its own, so it is switched off here."""
+    monkeypatch.setattr(auto_structures, "MEMBER_PIVOT_GATE_ROUND", None)
+
 NOW = int(time.time())
 #: Scan times: the newest scan two minutes ago, older scans one and two days back.
 SCAN_NEW = NOW - 120

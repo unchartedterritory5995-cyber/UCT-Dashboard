@@ -301,10 +301,43 @@ def _textbook_gate_holds(case, payload, bars):
     on this chart. Rebuilt from the judged trigger and stop on the as-of bar; the rule must still FAIL the chart,
     or the drawing is missing for some other reason nobody judged."""
     from api.services.pattern_engine import textbook_gate as TG
+    if case["family"] != "inside_day":
+        return _pivot_gate_holds(case, bars)
     e, k = case["expect"], float(case["bars"]["scale"])
     row = {"pattern_id": "draw:inside-day", "geometry": {"extras": {"draw_inside_day": {
         "trigger": float(e["trigger"]) / k, "stop": float(e["stop"]) / k, "end_t": bars[-1]["t"]}}}}
     return bool(TG.inside_day_fails(bars, row))
+
+
+def _pivot_gate_holds(case, bars):
+    """The interim pivot gate (shelf, double bottom): the member route, replayed on the same patched chart with the
+    gate OFF, serves the family's row, and the gate fails that row. Without the row the absence is unexplained."""
+    from api.routers import patterns as P
+    from api.services import auto_structures as AS
+    from api.services.pattern_engine import textbook_gate as TG
+    sym = "CASE" + case["id"].replace("-", "").replace("_", "").upper()[-12:]
+    old = AS.MEMBER_PIVOT_GATE_ROUND
+    caches = [getattr(AS, n) for n in ("_CACHE", "_DRAWN_CACHE", "_SHELF_CACHE", "_SR_CACHE", "_SETUP_CACHE")
+              if hasattr(AS, n)]
+    try:
+        AS.MEMBER_PIVOT_GATE_ROUND = None
+        for c in caches:
+            c.clear()
+        out = P.get_detections(sym, _user={"id": 0, "role": "member", "plan": "pro"}, tf="D", types=None,
+                               min_conf=50.0, confirmed_only=False, include_structures=True)
+    finally:
+        AS.MEMBER_PIVOT_GATE_ROUND = old
+        for c in caches:
+            c.clear()
+    rows = _rows_of(out, PATTERN_IDS[case["family"]])
+    if not rows:
+        return False
+    ts = [int(b["t"]) for b in bars]
+    for row in rows:
+        end = TG.end_of(row)
+        if end is None or end not in ts or not TG.pivot_fails(bars[:ts.index(end) + 1], row):
+            return False
+    return True
 
 
 RETIRE_RULES = {"trend_gate": lambda case, payload, bars: _trend_gate_holds(bars),

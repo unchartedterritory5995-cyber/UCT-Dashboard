@@ -99,7 +99,7 @@ def setup_tags_enabled() -> bool:
 #: The setup-tag round a member may be shown (setup_tags.TAGS_ROUND stamps every tag). A literal ON
 #: PURPOSE, like the drawing rounds: when the tag rules or their definitions move to a new round,
 #: members stop getting tags until this is changed by hand (admins still see them).
-MEMBER_SETUP_TAGS_ROUND = 1
+MEMBER_SETUP_TAGS_ROUND = 2
 
 
 #: The base-metrics round a member may be shown (base_metrics.METRICS_ROUND stamps
@@ -1693,29 +1693,48 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
 #: (fail closed). None turns the gate off (the drawing as it was before the recert), which is NOT the hide lever:
 #: hiding the drawing is MEMBER_INSIDE_DAY_ROUND = None.
 MEMBER_INSIDE_DAY_GATE_ROUND = 1
+#: The INTERIM textbook gate round for the flat top, the shelf pivot and the double bottom (coordinator ruling
+#: 2026-10-24, recert B): each failed the strict blind round 1 as served (pooled 2.01 / 1.57 / 2.005); with this gate
+#: the report-only blind packets scored 2.46 / 2.52 / 2.55. Removal-only, fail closed, like the inside-day gate:
+#: it must equal textbook_gate.PIVOT_GATE_ROUND or every row of the three ids is withheld; None turns it off.
+#: Hiding a drawing is its own member literal (MEMBER_FLAT_TOP_ROUND / MEMBER_SHELF_PIVOT_ROUND /
+#: MEMBER_DOUBLE_BOTTOM_ROUND = None), not this one.
+MEMBER_PIVOT_GATE_ROUND = 1
+
+
+def _textbook_gates():
+    """{pattern id: (member literal, the module's round, the failing-rules function)} for every gated id."""
+    from api.services.pattern_engine import textbook_gate as tg
+    out = {INSIDE_DAY_DRAW_ID: (MEMBER_INSIDE_DAY_GATE_ROUND, tg.INSIDE_DAY_GATE_ROUND, tg.inside_day_fails)}
+    for pid in tg.PIVOT_GATE_IDS:
+        out[pid] = (MEMBER_PIVOT_GATE_ROUND, tg.PIVOT_GATE_ROUND, tg.pivot_fails)
+    return out
 
 
 def member_textbook_gate(sym: str, detections, structures) -> tuple:
-    """(detections, structures) without any inside-day drawing the strict textbook gate withholds
-    (pattern_engine.textbook_gate.inside_day_fails: an established uptrend, a true and tight inside bar, not
-    extended, the trigger and stop on the bars' own extremes). Applied on the MEMBER path LAST, after every
-    precedence pass and the shelf, so the member chart is the served chart minus the withheld rows -- exactly
-    what the blind round judged. The daily bars are read only when such a row is present, at the last COMPLETE
-    session. Fails CLOSED: unreadable bars, a short history or a malformed row withhold the drawing. Order is
-    kept; never raises."""
+    """(detections, structures) without any gated drawing the strict textbook gate withholds
+    (pattern_engine.textbook_gate: the inside day, and -- as interim guards -- the flat top, the shelf pivot and
+    the double bottom). Applied on the MEMBER path LAST, after every precedence pass and the shelf, so the member
+    chart is the served chart minus the withheld rows -- exactly what the blind rounds judged. The daily bars are
+    read only when a gated row is present, at the last COMPLETE session, and each row is judged on the bars ending
+    at its own drawing's end_t. A gate whose literal is None is off; a literal that disagrees with the module's
+    round withholds every row of its ids. Fails CLOSED: unreadable bars, a short history or a malformed row
+    withhold the drawing. Order is kept; never raises."""
     det, st = list(detections or []), list(structures or [])
-    pid = INSIDE_DAY_DRAW_ID
-    if not any((r or {}).get("pattern_id") == pid for r in det + st):
+    try:
+        gates = _textbook_gates()
+    except Exception:  # noqa: BLE001 -- no gate module: withhold every gated row rather than serve it unchecked
+        _log.warning("[auto-structures] textbook gate unavailable for %s", sym, exc_info=True)
+        return ([r for r in det if (r or {}).get("pattern_id") not in _TEXTBOOK_GATED_IDS],
+                [r for r in st if (r or {}).get("pattern_id") not in _TEXTBOOK_GATED_IDS])
+    live = {pid: g for pid, g in gates.items() if g[0] is not None}
+    present = {(r or {}).get("pattern_id") for r in det + st} & set(live)
+    if not present:
         return det, st
-    want = MEMBER_INSIDE_DAY_GATE_ROUND
-    if want is None:
-        return det, st
-    drop_all = ([r for r in det if (r or {}).get("pattern_id") != pid],
-                [r for r in st if (r or {}).get("pattern_id") != pid])
+    drop_all = ([r for r in det if (r or {}).get("pattern_id") not in present],
+                [r for r in st if (r or {}).get("pattern_id") not in present])
     try:
         from api.services.pattern_engine import textbook_gate
-        if not (type(want) is int and want == textbook_gate.INSIDE_DAY_GATE_ROUND):
-            return drop_all
         b = list(_daily_bars(sym) or [])
         if b and last_bar_forming(b[-1]["t"]):
             b = b[:-1]
@@ -1724,17 +1743,25 @@ def member_textbook_gate(sym: str, detections, structures) -> tuple:
         ts = [int(x["t"]) for x in bars]
 
         def keep(r):
-            if (r or {}).get("pattern_id") != pid:
+            pid = (r or {}).get("pattern_id")
+            if pid not in present:
                 return True
-            d = ((r.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
-            end = d.get("end_t")
-            if end is None or int(end) not in ts:
+            want, rnd, fails = live[pid]
+            if not (type(want) is int and want == rnd):
                 return False
-            return not textbook_gate.inside_day_fails(bars[:ts.index(int(end)) + 1], r)
+            end = textbook_gate.end_of(r)
+            if end is None or end not in ts:
+                return False
+            return not fails(bars[:ts.index(end) + 1], r)
         return [r for r in det if keep(r)], [r for r in st if keep(r)]
-    except Exception:  # noqa: BLE001 -- fail closed: an unverified inside day is not drawn
-        _log.warning("[auto-structures] textbook gate failed for %s; inside-day withheld", sym, exc_info=True)
+    except Exception:  # noqa: BLE001 -- fail closed: an unverified drawing is not drawn
+        _log.warning("[auto-structures] textbook gate failed for %s; gated rows withheld", sym, exc_info=True)
         return drop_all
+
+
+#: The ids the textbook gate can withhold (the fallback when the gate module itself cannot be imported).
+_TEXTBOOK_GATED_IDS = frozenset({"draw:inside-day", "uct_flat_top_breakout", "draw:shelf-pivot",
+                                 "draw:double-bottom"})
 
 
 #: ONE BREAKOUT LINE PER BASE, across every row a member's chart draws (detections AND structures).
@@ -1766,11 +1793,20 @@ def member_textbook_gate(sym: str, detections, structures) -> tuple:
 #:                               construction; a blind paired round (2026-10-24, precedence round e) found no
 #:                               clear winner against the base drawings, so the base drawing already shown
 #:                               stays and the channel line shows only where no line above it is within 1 ATR.
+#:   9. draw:rectangle         -- the trading-range box (a `setup_draws` row, settled by
+#:                               member_setup_one_line_per_base); its breakout line is the box TOP. Judged
+#:                               alone (2.44 / 2.76) with no paired round against any drawing above, and on a
+#:                               lower packet than the channel line (2.70 / 2.80), so it ranks last: the box
+#:                               is shown only where no drawn breakout line above it sits within 1 ATR of its
+#:                               top over an overlapping span.
 #: Rows of any other id (the MA pullback's curve and stop; the inside day, settled by its own pass; the
 #: shelf pivot, drawn only on an otherwise empty chart) are never touched here. Ties: the earlier row.
 DONCHIAN_DRAW_ID = "draw:donchian_breakout"
+#: The rectangle (horizontal trading range) setup drawing (api/services/pattern_engine/setup_draw_rectangle.py).
+RECTANGLE_DRAW_ID = "draw:rectangle"
 ONE_LINE_PER_BASE_PRIORITY = ("bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout",
-                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag", DONCHIAN_DRAW_ID)
+                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag", DONCHIAN_DRAW_ID,
+                              RECTANGLE_DRAW_ID)
 #: Two breakout lines within this many ATR(14) of each other, over overlapping spans, are one line.
 ONE_LINE_PER_BASE_ATR = 1.0
 #: With no ATR to be had at all, two lines this close (one cent, plus float noise) are one line.
@@ -1860,6 +1896,13 @@ def _breakout_lines(row) -> list:
             ps = [x.get("price") for x in an[:2]]
             if all(_finite(v) for v in ps):
                 add(sum(float(v) for v in ps) / len(ps), r.get("start_t"), r.get("end_t"))
+    elif pid == RECTANGLE_DRAW_ID:
+        # PatternOverlay draws the box from its two anchors; its breakout line is the top edge (the first
+        # anchor's price) over the box's span (the first anchor's bar to the as-of bar)
+        an = g.get("anchors")
+        if isinstance(an, list) and len(an) >= 2 and all(isinstance(x, dict) for x in an[:2]):
+            if _finite(an[0].get("price")) and _finite(an[1].get("price")):
+                box_top(an[0], an[1], max(float(an[0]["price"]), float(an[1]["price"])))
     elif pid in ("flat_base", "bull_flag"):
         if r.get("draw_entry") and not _flagging_flag(r):
             p = ex.get("draw_entry_price")
@@ -1994,7 +2037,8 @@ def member_setup_one_line_per_base(detections, structures, setups, atr=None):
     """`setups` (the member's `setup_draws` rows, or None) without a row that member_one_line_per_base would drop
     beside the chart's already-settled `detections` and `structures`: the SAME pass, run once over all three, so
     a setup drawing of ONE_LINE_PER_BASE_PRIORITY (the donchian channel line) yields wherever a higher-priority
-    drawn line sits within ONE_LINE_PER_BASE_ATR over overlapping spans. Setup ids outside the priority are kept
+    drawn line sits within ONE_LINE_PER_BASE_ATR over overlapping spans (and so does the rectangle box, ranked
+    after it, by its top edge). Setup ids outside the priority are kept
     untouched; `detections` / `structures` are read, never changed. None stays None. Never raises."""
     if setups is None:
         return None
@@ -3028,9 +3072,7 @@ _SETUP_DRAW_R3_FUNCS = (
     ("major_trendlines", "draw:major-trendline", "Major trendline", "major_trendlines"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
-#: The rectangle (horizontal trading range) drawing (api/services/pattern_engine/setup_draw_rectangle.py): ONE box,
-#: same layer, same flag, same key.
-RECTANGLE_DRAW_ID = "draw:rectangle"
+#: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
 SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
 SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_R3_IDS \
     + SETUP_DRAW_RECT_IDS
@@ -3047,8 +3089,15 @@ _SETUP_DRAW_FUNCS = (
 #: pre-registered blind packets. donchian_breakout round 1 passed too (A 2.70 / 100%, B 2.80 / 100%); owner
 #: released 2026-10-24: its literal is 1 and its id is in DISPLAY_TEAM_SET and DISPLAY_MEMBER_SET. Withdrawing it is
 #: one literal: set it to None (or take the id out of either registry set) and member_rows drops it.
-MEMBER_REMOUNT_ROUND = 3
-MEMBER_U_AND_R_ROUND = 2
+#: WITHDRAWN 2026-10-24 (remount and u_and_r: None). Recertification C re-judged both on the strict textbook rubric
+#: (four pre-registered packets of 25 random liquid charts 2023-06..2026-10, two fresh blind judges each; bar: every
+#: packet mean >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4). remount round 3: 2.04 / 1.96 / 2.02 / 1.80, pooled
+#: 1.96 (chop lines, marginal or light-volume reclaims, brief losses); its fix round (lab textbook gate) 2.06 / 2.14 /
+#: 2.40 / 1.96, pooled 2.14. u_and_r round 2: 1.96 / 2.06 / 1.92 / 1.76, pooled 1.93 (marginal reclaims, lower-high
+#: downtrends); a fix round could not field 100 eligible held-out charts. Evidence: lab/recert/C_setups. The ids stay
+#: in both registry sets (the team chart keeps them); setting a literal back needs a new passed blind round.
+MEMBER_REMOUNT_ROUND = None
+MEMBER_U_AND_R_ROUND = None
 MEMBER_DONCHIAN_BREAKOUT_ROUND = 1
 #: Round-2 setup drawings released to members: each passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 random liquid held-out charts each; bar: mean >= 2.3 AND >= 70% of charts >= 2):

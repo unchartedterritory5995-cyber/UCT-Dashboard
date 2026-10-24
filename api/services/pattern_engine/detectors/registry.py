@@ -531,7 +531,12 @@ SETUP_TAG_TEAM_SET: frozenset = frozenset({
 #: SETUP_TAG_MEMBER_DIRECTIONS (bullish), or an id in SETUP_TAG_DIRECTIONLESS (NR7 is a range
 #: fact with no direction; it is never bearish). A bearish row (a down-close HVE, a bearish
 #: outside bar) stays admin-only. Fail closed: a row with no direction is dropped.
-SETUP_TAG_MEMBER_SET: frozenset = SETUP_TAG_TEAM_SET
+#: Gap support and trendline break are WITHHELD from members (recertification C, 2026-10-24): on the strict
+#: textbook rubric they failed the round as served and both fix rounds (gap support 0.92 -> 2.27 -> 2.14, trendline
+#: break 1.12 -> 1.86 -> 2.40 with a half under 2.3; pass = pooled 2.4, 70% >= 2, both halves >= 2.3). Admins keep
+#: them. Every other member tag must also meet its textbook check (pattern_engine.tag_textbook).
+SETUP_TAG_MEMBER_WITHHELD: frozenset = frozenset({"uct_gap_support", "uct_trendline_break"})
+SETUP_TAG_MEMBER_SET: frozenset = SETUP_TAG_TEAM_SET - SETUP_TAG_MEMBER_WITHHELD
 SETUP_TAG_MEMBER_DIRECTIONS: frozenset = frozenset({"bullish"})
 SETUP_TAG_DIRECTIONLESS: frozenset = frozenset({"nr7"})
 assert SETUP_TAG_MEMBER_SET <= SETUP_TAG_TEAM_SET, "a member tag must be in the team tag set"
