@@ -735,6 +735,9 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             present = [o for o, c in (("broker", broker_n), ("csv", csv_n),
                                       ("manual", equity_n - broker_n - csv_n)) if c > 0]
             row_origin["origin"] = present[0] if len(present) == 1 else "mixed"
+            if len(present) > 1:
+                # which ones: a CSV + hand-logged day is "mixed" here but has no broker trade
+                row_origin["origins"] = present
         rows.append({
             **row_origin,
             "day": k,

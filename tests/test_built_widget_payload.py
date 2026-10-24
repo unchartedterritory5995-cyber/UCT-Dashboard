@@ -479,6 +479,18 @@ def test_trading_day_rows_carry_their_origin(conn):
     assert by_day["2026-10-22"] == "csv" and by_day["2026-10-23"] == "mixed"
     assert all("origin" not in r for r in sc.rows if r["day"] == "2026-10-19")
     assert run_real(conn, raw)["source"] == "mixed"
+    days = {r["day"]: r for r in sc.rows}
+    assert days["2026-10-23"]["origins"] == ["csv", "manual"]
+    # the same week without its broker days: CSV + hand-logged only reads "manual"
+    assert payload._source(type("S", (), {"rows": [days["2026-10-22"], days["2026-10-23"]]})()) == "manual"
+
+
+def test_a_csv_and_manual_day_with_no_broker_trade_reads_manual():
+    p = vplan(raw_plan(source="trading_days", measures=("avg_day_pnl",), range={"token": "last_7d"}))
+    rows = [{"origin": "mixed", "origins": ["csv", "manual"]}, {"origin": "csv"}]
+    assert build(p, result_of(count=2), scan_of("trading_days", rows))["source"] == "manual"
+    rows.append({"origin": "mixed", "origins": ["broker", "csv"]})
+    assert build(p, result_of(count=3), scan_of("trading_days", rows))["source"] == "mixed"
 
 
 def test_a_mixed_row_counts_as_both():

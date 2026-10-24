@@ -233,13 +233,17 @@ def _capped_notice(scan: Any, source_key: str) -> str | None:
 def _source(scan: Any) -> str:
     """broker | manual | mixed, with `notebook_widgets._origin`'s meaning, over the rows that carry an
     `origin` key (every closed-trade and open-position row; a trading-days row with trades on it). A
-    row's own "mixed" (a day with both broker and hand-logged trades) counts as both."""
+    row's own "mixed" counts as the origins it lists (`origins`), or as both broker and manual when it
+    lists none -- so a CSV + hand-logged day with no broker trade reads "manual", not "mixed"."""
     origins: list[Any] = []
     for r in scan.rows:
         if "origin" not in r:
             continue
         o = r.get("origin")
-        origins.extend(("broker", "manual") if o == "mixed" else (o,))
+        if o == "mixed":
+            origins.extend(r.get("origins") or ("broker", "manual"))
+        else:
+            origins.append(o)
     return nw._origin(origins)
 
 
