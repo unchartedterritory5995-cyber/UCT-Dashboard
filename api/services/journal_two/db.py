@@ -2130,6 +2130,40 @@ _PHASE_2_ALTERS = [
     # number (j2_journal_rule_versions holds the history). Additive; every existing rule reads 0 / 1.
     "ALTER TABLE j2_journal_rules ADD COLUMN before_entry INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE j2_journal_rules ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+    # Notebook widgets phase 2 (Task 8.8): the member's saved widgets and their revisions
+    # (widget_definitions.py). `plan_json` is stored as the member saved it and is never
+    # rewritten in bulk; `last_answer` holds "update_all" or "save_new". ⛔ user-scoped:
+    # both are purged with the account (account_purge._DIRECT_USER_TABLES).
+    """CREATE TABLE IF NOT EXISTS j2_widget_definitions (
+        id                TEXT PRIMARY KEY,
+        user_id           TEXT NOT NULL,
+        name              TEXT NOT NULL,
+        plan_json         TEXT NOT NULL,
+        plan_version      INTEGER NOT NULL,
+        rev               INTEGER NOT NULL,
+        placed_rev        INTEGER NOT NULL,
+        last_answer       TEXT,
+        created_at        TEXT NOT NULL,
+        updated_at        TEXT NOT NULL,
+        archived_at       TEXT,
+        deleted_at        TEXT,
+        source_gallery_id TEXT,
+        source_version    INTEGER
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_widget_definitions_user"
+    " ON j2_widget_definitions(user_id, archived_at, deleted_at)",
+    """CREATE TABLE IF NOT EXISTS j2_widget_definition_revs (
+        user_id       TEXT NOT NULL,
+        definition_id TEXT NOT NULL,
+        rev           INTEGER NOT NULL,
+        plan_json     TEXT NOT NULL,
+        summary       TEXT NOT NULL,
+        saved_at      TEXT NOT NULL,
+        named         TEXT,
+        PRIMARY KEY (definition_id, rev)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_widget_definition_revs_user"
+    " ON j2_widget_definition_revs(user_id)",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
