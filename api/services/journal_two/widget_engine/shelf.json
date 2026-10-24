@@ -241,7 +241,7 @@
     {
       "id": "shelf:performance-by-symbol",
       "name": "Performance by symbol",
-      "description": "Your 10 best symbols by net P&L, with trades and win rate.",
+      "description": "Your 10 best symbols by net P&L, with trades and wins.",
       "keywords": [
         "tickers",
         "by ticker",
@@ -259,7 +259,7 @@
             "key": "trades"
           },
           {
-            "key": "win_rate"
+            "key": "wins"
           },
           {
             "key": "net_pnl"
@@ -472,7 +472,7 @@
         },
         "measures": [
           {
-            "key": "expectancy_r"
+            "key": "total_r"
           },
           {
             "key": "net_pnl"
@@ -510,7 +510,7 @@
             "key": "net_pnl"
           },
           {
-            "key": "expectancy_r"
+            "key": "total_r"
           }
         ],
         "view": {
@@ -550,7 +550,7 @@
             "key": "net_pnl"
           },
           {
-            "key": "expectancy_r"
+            "key": "total_r"
           }
         ],
         "view": {

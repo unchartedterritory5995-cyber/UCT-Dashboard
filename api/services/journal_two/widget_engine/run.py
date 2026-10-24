@@ -89,6 +89,8 @@ _PREVIEW_LANES = frozenset({"preview", "example"})
 #: Ruling R-21: only the builder preview supersedes (one preview in flight per member). Examples are
 #: fetched in concurrent batches by the gallery, so they neither bump nor watch the counter.
 _SUPERSEDE_LANES = frozenset({"preview"})
+#: Lanes a sample-book run may use (Task 8.10 fix round 1, Minor 2).
+_SAMPLE_LANES = frozenset({"preview", "example"})
 
 
 class EngineBusy(Exception):
@@ -752,6 +754,10 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
         raise ValueError("a run needs the session member's id")
     if lane not in _LANES:
         raise ValueError(f"unknown lane {lane!r}")
+    if sample and lane not in _SAMPLE_LANES:
+        # Sample data is for example cards and the builder preview only: a saved widget's run or a
+        # drill-down never reads it, and it never counts toward the daily cap (fix round 1, Minor 2).
+        raise ValueError(f"sample runs are for the preview and example lanes, not {lane!r}")
     now = now or datetime.now(timezone.utc)
     today = nw._today_et(now)
 
@@ -838,9 +844,6 @@ def _run_sample(user_id: str, base: dict, viewer: dict, *, lane: Lane,
     hit = _CACHE.get(key)
     if hit is not None:
         return copy.deepcopy(hit)
-    if lane == "run" and daily_cap_reached(user_id):
-        raise DailyCapReached()
-
     def _compute() -> dict:
         if superseded():
             raise Superseded()
@@ -851,8 +854,6 @@ def _run_sample(user_id: str, base: dict, viewer: dict, *, lane: Lane,
         if superseded():
             raise Superseded()
         _CACHE.set(key, out, CACHE_TTL_S)
-        if lane == "run":
-            count_run(user_id)
         return out
 
     ok, value = _FLIGHT.run_here(key, _compute, _WAIT_S)
@@ -923,6 +924,11 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
         items.append((sid, ex["plan"]))
     now = now or datetime.now(timezone.utc)
     srcs = list(dict.fromkeys(p["source"] for _sid, p in items))
+    if not items:
+        # Nothing to run: one count read, no permit, no scan, no cache entry (fix round 1, Minor 4).
+        with _connection() as conn:
+            with deadline(conn):
+                return {"sample": wants_sample(conn, user_id), "cards": {}}
 
     with _connection() as conn:
         with deadline(conn):

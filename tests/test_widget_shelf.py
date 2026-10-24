@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import pytest
 
 from api.services.journal_two import notebook_widgets as nw
+from api.services.journal_two.widget_engine import aggregate
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import run, shelf, sources
@@ -243,3 +244,73 @@ def test_examples_cached_per_member_and_counted_as_one_preview(conn, monkeypatch
     b = run.run_examples(other, ids, now=NOW)             # another member: own answer (the sample)
     assert b["sample"] is True and a["sample"] is False
     assert lanes == [(UID, "example"), (other, "example")]
+
+
+# -- fix round 1: no example's column is hidden on the sample book ---------------------------------
+
+def _columns(plan):
+    """Per measure, the small-sample state of each row / point / cell the example shows on the sample
+    book (the total for a one-number view). Flagged List rows carry no values and are left out."""
+    rng = wplan.resolve_range(plan["range"], run.sample_today())
+    sc = run._narrow(plan["source"], run._sample_scan(plan["source"]), plan, rng)
+    res = aggregate.evaluate(sc.rows, plan, sources.CATALOG)
+    groups = [g for g in res.groups if not g.flagged]
+    if res.groups:
+        return [[g.values.cells[i].sample for g in groups] for i in range(len(plan["measures"]))]
+    return [[c.sample] for c in res.total.cells]
+
+
+def _hidden_everywhere(plan):
+    return [plan["measures"][i]["key"] for i, col in enumerate(_columns(plan))
+            if not col or all(s == "hide" for s in col)]
+
+
+def _hidden_over_half(plan):
+    return [plan["measures"][i]["key"] for i, col in enumerate(_columns(plan))
+            if len(col) > 1 and sum(s == "hide" for s in col) * 2 > len(col)]
+
+
+def _swapped(sid, i, key):
+    p = copy.deepcopy(shelf.example(sid)["plan"])
+    p["measures"][i] = {"key": key}
+    return wplan.validate_plan(p, sources.CATALOG)
+
+
+def test_no_example_hides_a_measure_on_every_row_of_the_sample_book():
+    bad = {e["id"]: _hidden_everywhere(e["plan"]) for e in shelf.examples()}
+    assert {k: v for k, v in bad.items() if v} == {}
+    # control (the review's I-1, reverted in memory): an average on one-trade rows is all hidden
+    assert _hidden_everywhere(_swapped("shelf:best-trades", 1, "expectancy_r")) == ["expectancy_r"]
+    assert _hidden_everywhere(_swapped("shelf:recent-trades", 1, "expectancy_r")) == ["expectancy_r"]
+    assert _hidden_everywhere(_swapped("shelf:r-vs-pnl-scatter", 0, "expectancy_r")) == ["expectancy_r"]
+
+
+def test_no_grouped_example_hides_more_than_half_a_column_on_the_sample_book():
+    bad = {e["id"]: _hidden_over_half(e["plan"]) for e in shelf.examples()}
+    assert {k: v for k, v in bad.items() if v} == {}
+    # control (ruling R-24, reverted in memory): win rate per symbol hides on most of the top 10
+    assert _hidden_over_half(_swapped("shelf:performance-by-symbol", 1, "win_rate")) == ["win_rate"]
+
+
+def test_sample_runs_refuse_the_run_and_drill_lanes():
+    p = shelf.example("shelf:profit-factor")["plan"]
+    for lane in ("run", "drill"):
+        with pytest.raises(ValueError, match="preview and example"):
+            run.run_plan(UID, p, {}, lane=lane, now=NOW, sample=True)
+    assert run._pending(UID) == 0                         # nothing counted toward the daily cap
+    for lane in ("preview", "example"):                   # control: the sample lanes run
+        assert run.run_plan(UID, p, {}, lane=lane, now=NOW, sample=True)["sample"] is True
+
+
+def test_examples_with_no_ids_take_no_permit_and_scan_nothing(conn, monkeypatch):
+    calls = _spy(monkeypatch)
+
+    def no_admit(*a, **k):
+        raise AssertionError("no permit for an empty batch")
+
+    monkeypatch.setattr(run, "admit", no_admit)
+    assert run.run_examples(UID, [], now=NOW) == {"sample": True, "cards": {}}
+    for d in ("2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"):
+        add_trade(conn, UID, day=d, pnl=25)
+    assert run.run_examples(UID, [], now=NOW) == {"sample": False, "cards": {}}
+    assert calls == []
