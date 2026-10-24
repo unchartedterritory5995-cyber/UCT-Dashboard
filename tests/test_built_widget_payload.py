@@ -468,13 +468,16 @@ def test_trading_day_rows_carry_their_origin(conn):
     add_trade(conn, UID, day="2026-10-20", pnl=20)
     add_trade(conn, UID, day="2026-10-21", pnl=30, source="broker", external_id="b2")
     add_trade(conn, UID, day="2026-10-22", pnl=40, source="csv")
+    add_trade(conn, UID, day="2026-10-23", pnl=5, source="csv")
+    add_trade(conn, UID, day="2026-10-23", pnl=6)
     raw = raw_plan(source="trading_days", measures=("avg_day_pnl",), range={"token": "this_week"})
     p = vplan(raw)
     sc = sources.scan(conn, p, {}, plan.resolve_range(p["range"], TODAY), UID, today=TODAY)
     by_day = {r["day"]: r.get("origin") for r in sc.rows}
     assert by_day["2026-10-20"] == "mixed" and by_day["2026-10-21"] == "broker"
-    assert by_day["2026-10-22"] == "manual"
-    assert all("origin" not in r for r in sc.rows if r["day"] in ("2026-10-19", "2026-10-23"))
+    # a CSV-only day reads "csv", like a closed trade's origin; CSV plus hand-logged is "mixed"
+    assert by_day["2026-10-22"] == "csv" and by_day["2026-10-23"] == "mixed"
+    assert all("origin" not in r for r in sc.rows if r["day"] == "2026-10-19")
     assert run_real(conn, raw)["source"] == "mixed"
 
 

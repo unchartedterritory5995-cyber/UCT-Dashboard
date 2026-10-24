@@ -412,6 +412,159 @@ def test_handler_cleared_after_a_run(conn, monkeypatch):
     assert seen
 
 
+# -- fix round 1 ----------------------------------------------------------------------------------
+
+def _two_accounts(conn):
+    other = "u-wrun-fx"
+    add_user(conn, other)
+    theirs = add_account(conn, other, "Theirs")
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    return theirs
+
+
+@pytest.mark.parametrize("foreign_first", [True, False])
+def test_i1_foreign_setting_and_all_accounts_never_share_a_cached_notice(conn, foreign_first):
+    theirs = _two_accounts(conn)
+    runs = [({"accountId": theirs}, run.S_ACCOUNT_GONE), ({}, None)]
+    if not foreign_first:
+        runs.reverse()
+    for settings, notice in runs + runs:                  # twice: the second pass reads the cache
+        assert _go(settings=settings)["notice"] == notice
+
+
+@pytest.mark.parametrize("foreign_first", [True, False])
+def test_i1_foreign_plan_account_and_all_accounts_never_share_a_cached_notice(conn, foreign_first):
+    theirs = _two_accounts(conn)
+    runs = [(_plan(accounts={"id": theirs}), run.S_ACCOUNT_GONE), (_plan(), None)]
+    if not foreign_first:
+        runs.reverse()
+    for p, notice in runs + runs:
+        assert _go(p)["notice"] == notice
+
+
+def _blocking_scan(monkeypatch):
+    """`scan` blocks on the returned event when it runs on a thread named `blocker`."""
+    gate = threading.Event()
+    entered = threading.Event()
+    real = run.wsources.scan
+
+    def scan(*a, **k):
+        if threading.current_thread().name == "blocker":
+            entered.set()
+            assert gate.wait(5)
+        return real(*a, **k)
+
+    monkeypatch.setattr(run.wsources, "scan", scan)
+    return gate, entered
+
+
+def _in_blocker(fn):
+    box = {}
+
+    def body():
+        try:
+            box["value"] = fn()
+        except BaseException as e:  # noqa: BLE001
+            box["error"] = e
+
+    t = threading.Thread(target=body, name="blocker")
+    t.start()
+    return t, box
+
+
+def test_i2_examples_neither_bump_nor_watch_the_preview_counter(conn, monkeypatch):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    gate, entered = _blocking_scan(monkeypatch)
+    # a preview in flight, then two example runs: the preview is NOT superseded by them
+    t, box = _in_blocker(lambda: _go(lane="preview"))
+    assert entered.wait(5)
+    a = _go(lane="example", settings={"range": {"token": "all"}})
+    b = _go(lane="example", settings={"range": {"token": "last_7d"}})
+    gate.set()
+    t.join(5)
+    assert "error" not in box and box["value"]["count"] == 1
+    assert a["count"] == 1 and b["count"] == 1
+    # an example in flight is not superseded by a preview
+    gate.clear()
+    entered.clear()
+    t, box = _in_blocker(lambda: _go(lane="example", settings={"range": {"token": "ytd"}}))
+    assert entered.wait(5)
+    _go(lane="preview", settings={"range": {"token": "this_month"}})
+    gate.set()
+    t.join(5)
+    assert "error" not in box
+
+
+def test_i2_a_second_preview_still_supersedes_the_first(conn, monkeypatch):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    gate, entered = _blocking_scan(monkeypatch)
+    t, box = _in_blocker(lambda: _go(lane="preview"))
+    assert entered.wait(5)
+    second = _go(lane="preview", settings={"range": {"token": "all"}})
+    gate.set()
+    t.join(5)
+    assert isinstance(box.get("error"), run.Superseded) and second["count"] == 1
+
+
+def test_i3_a_slow_take_never_holds_the_counter_lock(monkeypatch):
+    started = threading.Event()
+
+    def slow_take(day, charges):
+        if list(charges)[0].subject == "slow":             # only the first member's flush is slow
+            started.set()
+            time.sleep(1.0)
+        return None
+
+    monkeypatch.setattr(run.daily_counters, "take", slow_take)
+    t = threading.Thread(target=run.count_run, args=("slow",))
+    t.start()
+    assert started.wait(5)
+    t0 = time.perf_counter()
+    assert run._pending("other") == 0
+    run.count_run("other-2")                              # another member counts meanwhile
+    assert time.perf_counter() - t0 < 0.5                  # not blocked behind the 1 s take
+    t.join(5)
+
+
+def test_i3_a_failed_take_puts_the_count_back(monkeypatch):
+    def broken_take(day, charges):
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(run.daily_counters, "take", broken_take)
+    run.count_run("f")
+    assert run._pending("f") == 1                          # kept for the next flush
+
+
+def test_m3_a_date_move_and_a_side_flip_bust_the_cache(conn, monkeypatch):
+    tid = add_trade(conn, UID, day="2026-10-20", pnl=50)
+    seen = _count_scans(monkeypatch)
+    _go()
+    conn.execute("UPDATE j2_trades SET exit_date = '2026-10-21T18:00:00Z' WHERE id = ?", (tid,))
+    conn.commit()
+    _go()
+    conn.execute("UPDATE j2_trades SET side = 'Short' WHERE id = ?", (tid,))
+    conn.commit()
+    _go()
+    assert seen["n"] == 3
+
+
+def test_m5_a_filter_setting_without_an_overridable_filter_is_neither_echoed_nor_keyed(
+        conn, monkeypatch):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    seen = _count_scans(monkeypatch)
+    a = _go()
+    b = _go(settings={"filter": ["VCP"]})
+    assert seen["n"] == 1 and b["filter"] is None and a == b
+
+
+def test_m6_run_plan_states_the_def_id_precondition():
+    assert "resolve_for_run" in run.run_plan.__doc__ and "foreign" in run.run_plan.__doc__
+
+
+def test_m1_the_cap_docstring_states_the_overshoot():
+    assert "overshoot" in run.daily_cap_reached.__doc__
+
+
 # -- spec 5.7: the 50,000-trade budget (opt-in) ----------------------------------------------------
 
 @pytest.mark.skipif(os.environ.get("UCT_WIDGET_50K") != "1",
@@ -445,12 +598,19 @@ def test_run_50k_trades_under_budget(conn, monkeypatch, capsys):
             timing["sql"] += time.perf_counter() - t
 
     monkeypatch.setattr(run.wsources, "scan", timed_scan)
+    with run._connection() as c:                           # M2: the pre-admission reads
+        t1 = time.perf_counter()
+        run.data_stamp(c, UID, "closed_trades")
+        run.wsources.owned_account_id(c, UID, None)
+        run.wsources._account_names(c, UID)
+        pre = time.perf_counter() - t1
     t0 = time.perf_counter()
     out = _go(p)
     total = time.perf_counter() - t0
     py = total - timing["sql"]
     with capsys.disabled():
         print(f"\n50k reading: scan (SQL + row shaping) {timing['sql']:.3f}s, rest (Python) "
-              f"{py:.3f}s, total {total:.3f}s, capped={out['capped']}, count={out['count']}")
+              f"{py:.3f}s, total {total:.3f}s, capped={out['capped']}, count={out['count']}, "
+              f"stamp+ownership {pre:.3f}s")
     assert out["capped"] is True and out["count"] == 5000
     assert timing["sql"] < 1.5 and py < 1.0

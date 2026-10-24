@@ -59,6 +59,7 @@ DAY_COLUMNS = (
     "SUM(CASE WHEN t.result = 'Win' THEN 1 ELSE 0 END) AS wins, "
     "SUM(CASE WHEN t.result = 'Loss' THEN 1 ELSE 0 END) AS losses, "
     "SUM(CASE WHEN t.source = 'broker' THEN 1 ELSE 0 END) AS broker_n, "
+    "SUM(CASE WHEN t.source = 'csv' THEN 1 ELSE 0 END) AS csv_n, "
     "MAX(t.pnl_dollar - COALESCE(t.fees, 0)) AS best, "
     "MIN(t.pnl_dollar - COALESCE(t.fees, 0)) AS worst"
 )

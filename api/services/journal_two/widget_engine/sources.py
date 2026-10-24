@@ -673,15 +673,16 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         user_id, sql_lo, sql_hi, conn, account_id=acc, et_lo=span_lo, et_hi=span_hi)
     bucket: dict[str, dict[str, Any]] = {}
     extremes: dict[str, list[float]] = {}
-    #: session -> [broker-imported equity trades, all equity trades] (8.6 C-3: the row's origin)
+    #: session -> [broker-imported, CSV-imported, all] equity trades (8.6 C-3: the row's origin)
     by_origin: dict[str, list[int]] = {}
     for e in equity:
         d = _session_of(e["day"])
         if d is None:
             continue
-        o = by_origin.setdefault(d, [0, 0])
+        o = by_origin.setdefault(d, [0, 0, 0])
         o[0] += int(e.get("broker_n") or 0)
-        o[1] += int(e.get("n") or 0)
+        o[1] += int(e.get("csv_n") or 0)
+        o[2] += int(e.get("n") or 0)
         if d != e["day"]:
             folded += int(e.get("n") or 0)
         b = bucket.setdefault(d, j2_calendar._empty_bucket(d))
@@ -726,12 +727,14 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         net = round(float(b["pnlDollar"]), 6) if b else 0.0
         c = checkins.get(k) or {}
         row_origin: dict[str, str] = {}
-        broker_n, equity_n = by_origin.get(k, (0, 0))
+        broker_n, csv_n, equity_n = by_origin.get(k, (0, 0, 0))
         if equity_n:
-            # A day of equity trades: broker when every one was imported, mixed when some were.
-            # Option strategies carry no origin here and do not set it.
-            row_origin["origin"] = ("broker" if broker_n == equity_n
-                                    else "mixed" if broker_n else "manual")
+            # A day of equity trades, with a closed trade's origin values (broker / csv / manual):
+            # the one present, or "mixed" when the day has more than one. Option strategies carry
+            # no origin here and do not set it.
+            present = [o for o, c in (("broker", broker_n), ("csv", csv_n),
+                                      ("manual", equity_n - broker_n - csv_n)) if c > 0]
+            row_origin["origin"] = present[0] if len(present) == 1 else "mixed"
         rows.append({
             **row_origin,
             "day": k,

@@ -69,7 +69,11 @@ _PROGRESS_STEPS = 1000
 
 Lane = Literal["run", "drill", "preview", "example"]
 _LANES = ("run", "drill", "preview", "example")
+#: Lanes that hold one of the `PREVIEW_MAX` preview slots.
 _PREVIEW_LANES = frozenset({"preview", "example"})
+#: Ruling R-21: only the builder preview supersedes (one preview in flight per member). Examples are
+#: fetched in concurrent batches by the gallery, so they neither bump nor watch the counter.
+_SUPERSEDE_LANES = frozenset({"preview"})
 
 
 class EngineBusy(Exception):
@@ -222,7 +226,10 @@ _TRADES_STAMP = (
     # beyond the brief's list, cheap and on the same rows: a stop added (R), a result or symbol edit
     "TOTAL(COALESCE(original_stop, 0)), TOTAL(COALESCE(r_multiple, 0)), "
     "TOTAL(LENGTH(COALESCE(symbol, '')) + LENGTH(COALESCE(result, '')) "
-    "+ LENGTH(COALESCE(account_id, '')))"
+    "+ LENGTH(COALESCE(account_id, ''))), "
+    # fix round 1 M3: a date moved (entry or exit) or a side flipped
+    "TOTAL(COALESCE(julianday(exit_date), 0)), TOTAL(COALESCE(julianday(entry_date), 0)), "
+    "SUM(CASE WHEN side = 'Long' THEN 1 ELSE 0 END)"
     " FROM j2_trades WHERE user_id = ?")
 _EXCURSIONS_STAMP = "SELECT MAX(computed_at) FROM j2_trade_excursions WHERE user_id = ?"
 _ADHERENCE_STAMP = "SELECT MAX(updated_at) FROM j2_trade_adherence WHERE user_id = ?"
@@ -241,14 +248,18 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str) -> str:
 
     `j2_trades` has no `updated_at`, so the closed-trades stamp is a fingerprint of the member's rows:
     the count, the newest rowid, the P&L, fee and flagged totals, the summed lengths of setup /
-    mistake / emotion tags, and (beyond the brief) the stop, R and symbol / result / account totals;
+    mistake / emotion tags, and (beyond the brief) the stop, R and symbol / result / account totals,
+    the summed entry and exit julian days and the count of long trades;
     plus the newest excursion `computed_at`, the newest adherence `updated_at`, and the member's
     accounts (count, newest `updated_at`). Open positions use the positions' count and newest
     `updated_at` (and their closes, marks, stops and setups). Trading days use the trades stamp plus
     option strategies, check-ins and day notes.
 
-    Known blind spot: an edit that keeps every summed quantity the same (a same-length relabel, such
-    as setup "Flag" -> "Base") does not move the stamp, and shows after the 300 s TTL at worst.
+    Known blind spot: the stamp is a set of sums, so any edit that leaves every summed quantity
+    unchanged does not move it: a same-length relabel (setup "Flag" -> "Base", a tag swapped for one
+    of equal length), two edits that cancel (one trade's P&L up by what another's goes down, or two
+    trades' dates swapped), and any column the stamp does not read at all (shares, prices, notes,
+    hour). Such an edit shows after the 300 s TTL at worst.
     """
     trades = "|".join(_one(conn, q, user_id) for q in
                       (_TRADES_STAMP, _EXCURSIONS_STAMP, _ADHERENCE_STAMP, _ACCOUNTS_STAMP))
@@ -266,29 +277,49 @@ def _et_day(now: datetime | None = None) -> str:
     return nw._today_et(now or datetime.now(timezone.utc)).isoformat()
 
 
-def _flush(user_id: str, entry: dict[str, Any]) -> None:
+def _snapshot(entry: dict[str, Any]) -> tuple[str, int]:
+    """Under `_COUNTER.lock`: take the entry's pending count for a flush and reset it."""
     n = int(entry["pending"])
     entry["pending"] = 0
     entry["last"] = _clock()
-    if n > 0:
-        daily_counters.take(entry["day"], [daily_counters.Charge(RUNS_SCOPE, user_id, n, None)])
+    return entry["day"], n
+
+
+def _take(user_id: str, day: str, n: int) -> None:
+    """Flush `n` runs for `day` OUTSIDE the counter lock (a slow database never holds up another
+    member's count or cap check). A failed take puts the count back, so it is flushed next time."""
+    if n <= 0:
+        return
+    try:
+        ok = daily_counters.take(day, [daily_counters.Charge(RUNS_SCOPE, user_id, n, None)]) is None
+    except Exception:  # noqa: BLE001 -- take fails open; this is belt and braces
+        ok = False
+    if ok:
+        return
+    with _COUNTER.lock:
+        entry = _COUNTER.by_user.get(user_id)
+        if entry is not None and entry["day"] == day:
+            entry["pending"] += n
 
 
 def count_run(user_id: str) -> None:
     """Count one saved-widget run; flush the member's pending count when `FLUSH_EVERY_S` have passed
     since their last flush (or on their first run, or when the ET day changed)."""
     day = _et_day()
+    flushes: list[tuple[str, int]] = []
     with _COUNTER.lock:
         entry = _COUNTER.by_user.get(user_id)
         if entry is not None and entry["day"] != day:
-            _flush(user_id, entry)                   # the old day's runs go to the old day
+            flushes.append(_snapshot(entry))         # the old day's runs go to the old day
             entry = None
         if entry is None:
             entry = {"day": day, "pending": 0, "last": None}
             _COUNTER.by_user[user_id] = entry
         entry["pending"] += 1
         if entry["last"] is None or _clock() - entry["last"] >= FLUSH_EVERY_S:
-            _flush(user_id, entry)
+            flushes.append(_snapshot(entry))
+    for d, n in flushes:
+        _take(user_id, d, n)
 
 
 def _pending(user_id: str) -> int:
@@ -299,6 +330,12 @@ def _pending(user_id: str) -> int:
 
 
 def daily_cap_reached(user_id: str) -> bool:
+    """True when the member's runs today (durable + pending) reach `DAILY_RUN_CAP`.
+
+    Check-then-act: a run is counted after it finishes, so concurrent runs that all pass this check
+    can overshoot the cap by about the member's concurrency (`MEMBER_MAX`, plus waiters that compute
+    their own), and a count in flight to the database is briefly in neither number. The cap is a
+    cost valve, not an exact quota."""
     day = _et_day()
     return daily_counters.value(day, RUNS_SCOPE, user_id) + _pending(user_id) >= DAILY_RUN_CAP
 
@@ -405,9 +442,11 @@ def _connection() -> Iterator[sqlite3.Connection]:
 
 
 def _cache_key(user_id: str, plan: dict, viewer: dict, stamp: str, today: str,
-               def_id: Any, def_rev: Any, latest_rev: Any) -> str:
+               def_id: Any, def_rev: Any, latest_rev: Any, notices: list[str]) -> str:
+    # The notices are in the key (fix round 1 I-1): "a foreign account was asked for" and "all
+    # accounts" read the same rows but answer different payloads.
     blob = json.dumps([user_id, wplan.plan_hash(plan), viewer, stamp, today, def_id, def_rev,
-                       latest_rev], sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                       latest_rev, notices], sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                       default=str)
     return "widget_run::" + hashlib.sha1(blob.encode("utf-8")).hexdigest()
 
@@ -416,6 +455,10 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
              def_rev: int | None = None, latest_rev: int | None = None,
              now: datetime | None = None, sample: bool = False) -> dict:
     """Run `plan` for the session member `user_id` and answer the built-widget payload.
+
+    Precondition (the router's, Task 8.11): `def_id` / `def_rev` / `latest_rev` are passed only for a
+    definition `widget_definitions.resolve_for_run` found for THIS member; a foreign or deleted
+    `defId` is treated as absent before this is called. This function echoes them, never checks them.
 
     Raises `PlanError` (a member sentence), `EngineBusy`, `EngineTooLong`, `Superseded` or
     `DailyCapReached`; the router maps each to its state. `sample=True` (the bundled sample book)
@@ -431,8 +474,10 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
 
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
     viewer = clean_settings(settings)
+    if not any(f.get("overridable") for f in base["filters"]):
+        viewer.pop("filter", None)                    # M5: nothing to override, nothing to echo or key
     superseded: Callable[[], bool] = lambda: False
-    if lane in _PREVIEW_LANES:
+    if lane in _SUPERSEDE_LANES:
         mine = preview_generation(user_id)
         superseded = lambda: _preview_gen_now(user_id) != mine          # noqa: E731
 
@@ -451,7 +496,8 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
         echo = dict(viewer)
         if "accountId" in echo and echo["accountId"] != acc:
             echo["accountId"] = None                  # a foreign id is treated as absent, never echoed
-        key = _cache_key(user_id, merged, echo, stamp, today.isoformat(), def_id, def_rev, latest_rev)
+        key = _cache_key(user_id, merged, echo, stamp, today.isoformat(), def_id, def_rev, latest_rev,
+                         notices)
 
         hit = _CACHE.get(key)
         if hit is not None:
