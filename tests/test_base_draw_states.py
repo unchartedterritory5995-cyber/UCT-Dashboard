@@ -269,3 +269,66 @@ def test_a_stateless_base_row_is_served_exactly_as_before():
     assert auto_structures.member_rows([row]) == [row]
     assert json.dumps(row["geometry"]["extras"]["draw_base"], sort_keys=True) == json.dumps(
         BD.base_drawing(_bars(BASE), len(_bars(BASE)) - 1), sort_keys=True)
+
+
+# ---------------------------------------------------------------- a state row is ADDITIVE: it never removes a drawing
+
+def _flag_at(row, price):
+    bd = row["geometry"]["extras"]["draw_base"]
+    return {"id": "bf", "pattern_id": "bull_flag", "start_t": bd["start_t"], "end_t": bd["end_t"],
+            "draw_entry": True, "levels": {"entry": price}, "geometry": {"shape": "flag", "extras": {}}}
+
+
+def test_a_state_row_yields_to_a_bull_flag_on_the_same_line_and_a_judged_base_still_wins():
+    row = auto_structures.base_draw_row("SYN", _bars(BASE + [(2, 92.6)]))
+    bd = row["geometry"]["extras"]["draw_base"]
+    flag = _flag_at(row, bd["pivot"] + 0.01)
+    dets, sts = auto_structures.member_one_line_per_base([flag], [row], atr=bd["atr"])
+    assert dets == [flag] and sts == []                       # the state row yields
+    plain = copy.deepcopy(row)
+    for k in ("state", "state_round", "base_end_t", "breakout_t"):
+        del plain["geometry"]["extras"]["draw_base"][k]
+    dets, sts = auto_structures.member_one_line_per_base([flag], [plain], atr=bd["atr"])
+    assert dets == [] and sts == [plain]                      # control: the judged base keeps its rank
+
+
+def test_a_state_row_never_suppresses_an_inside_day():
+    row = auto_structures.base_draw_row("SYN", _bars(BASE + [(2, 92.6)]))
+    bd = row["geometry"]["extras"]["draw_base"]
+    idd = {"pattern_id": auto_structures.INSIDE_DAY_DRAW_ID,
+           "geometry": {"extras": {"draw_inside_day": {"trigger": bd["pivot"], "atr": bd["atr"]}}}}
+    assert idd in auto_structures.member_inside_day_precedence([], [row, idd])
+    plain = copy.deepcopy(row)
+    del plain["geometry"]["extras"]["draw_base"]["state"]
+    assert idd not in auto_structures.member_inside_day_precedence([], [plain, idd])   # control
+
+
+# ---------------------------------------------------------------- the label of a breakout row reads the base only
+
+def test_the_stage_is_counted_on_the_base_bars(monkeypatch):
+    b = _bars(BASE + [(2, 92.6)])
+    row = auto_structures.base_draw_row("SYN", b)
+    j = [x["t"] for x in b].index(row["geometry"]["extras"]["draw_base"]["base_end_t"])
+    seen = []
+    monkeypatch.setattr(textbook_numbers, "stage_count", lambda bars, start_i, full_history=False: seen.append(len(bars)))
+    row["geometry"]["extras"]["metrics"] = base_metrics.compute(row, b)
+    textbook_numbers.compute(row, b, asof_complete=lambda t: True)
+    assert seen == [j + 1]
+
+
+def test_a_breakout_on_the_as_of_bar_keeps_its_completeness_answer():
+    b = _bars(BASE + [(2, 92.6)])
+    row = auto_structures.base_draw_row("SYN", b)
+    bd = row["geometry"]["extras"]["draw_base"]
+    row["geometry"]["extras"]["metrics"] = base_metrics.compute(row, b)
+    bd["breakout_t"] = b[-1]["t"]                             # the breakout IS the as-of bar
+    assert "volume" not in textbook_numbers.compute(row, b, asof_complete=lambda t: False)
+    assert "volume" in textbook_numbers.compute(row, b, asof_complete=lambda t: True)   # control
+
+
+def test_state_drawing_never_raises(monkeypatch):
+    b = _bars(TIGHT)
+    def boom(*a, **k):
+        raise RuntimeError("x")
+    monkeypatch.setattr(BD, "breakout_drawing", boom)
+    assert BD.state_drawing(b, _last(b))["state"] == "tight"   # one state failing never stops the next

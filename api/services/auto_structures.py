@@ -514,6 +514,16 @@ def _member_base_state_ok(bd) -> bool:
     return type(rnd) is int and type(sr) is int and sr == rnd
 
 
+def _is_base_state_row(row) -> bool:
+    """True for a bc:base row drawn by a base STATE (base_draw.state_drawing). Such a row is ADDITIVE: it
+    never removes another member drawing (member_one_line_per_base ranks it last, member_inside_day_precedence
+    does not count it as an incumbent); it is the one that yields."""
+    try:
+        return (row or {}).get("pattern_id") == BASE_DRAW_ID and "state" in row["geometry"]["extras"]["draw_base"]
+    except (KeyError, TypeError):
+        return False
+
+
 def _base_member_row(row):
     """A member's copy of a bc:base row as MEMBER_BASE_ROUND draws it, or None (dropped). Fail closed.
 
@@ -1305,7 +1315,8 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
         if (tf or "D").upper() != "D":
             return [s for s in sts if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
         inc = [r for r in list(detections or []) + sts
-               if (r or {}).get("pattern_id") in INSIDE_DAY_INCUMBENT_IDS and _drawn_incumbent(r)]
+               if (r or {}).get("pattern_id") in INSIDE_DAY_INCUMBENT_IDS and _drawn_incumbent(r)
+               and not _is_base_state_row(r)]
         drop = set()
         for s in ids:
             d = ((s.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
@@ -1468,7 +1479,8 @@ def member_one_line_per_base(detections, structures, atr=None) -> tuple:
             if pid in rank and _drawn_incumbent(r):
                 ls = _breakout_lines(r)
                 if ls:
-                    cands.append((rank[pid], i, r, ls))
+                    # a base STATE row ranks after every incumbent: it yields, it never removes one
+                    cands.append((len(rank) if _is_base_state_row(r) else rank[pid], i, r, ls))
         if len(cands) < 2:
             return dets, sts
 

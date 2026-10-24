@@ -627,7 +627,10 @@ def state_drawing(bars, i, draw_round=None):
     only then): the breakout persistence first, then 3 weeks tight, then base forming. Never raises."""
     for f in (lambda: breakout_drawing(bars, i, draw_round=draw_round), lambda: tight_drawing(bars, i),
               lambda: forming_drawing(bars, i)):
-        d = f()
+        try:
+            d = f()
+        except Exception:  # noqa: BLE001 -- one state failing never stops the next, and never raises
+            d = None
         if d is not None:
             return d
     return None

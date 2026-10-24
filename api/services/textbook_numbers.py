@@ -368,7 +368,7 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         old = ((row.get("geometry") or {}).get("extras") or {}).get("metrics")
         weeks = _num(old.get("length_weeks")) if isinstance(old, dict) else None
         if weeks is None:
-            weeks = base_metrics.length_weeks(b, s_t, asof)
+            weeks = base_metrics.length_weeks(b, s_t, _int(b[end_i]["t"]) if be is not None else asof)
         if bp is None or dp is None or weeks is None:
             return None
         bz = round(bp * (1.0 + _buy_zone()), 2)
@@ -378,7 +378,9 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         out = {"buy_point": bp, "base_high": round(base_high, 4), "asof_t": asof, "depth_pct": dp,
                "length_weeks": weeks, "buy_zone_top": bz, "pct_from_buy_point": pfb,
                "extended": pfb > EXTENDED_PCT}
-        st = stage_count(b, start_i, full_history=bool(full_history))
+        # a breakout-state base counts its stage on its OWN bars (the base drawn at base_end_t), not on the
+        # bars since the breakout
+        st = stage_count(b[:end_i + 1] if be is not None else b, start_i, full_history=bool(full_history))
         if st is not None:
             out["stage"] = st
         complete = False
@@ -392,7 +394,8 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
                    .get("breakout_t")) if row.get("pattern_id") == "bc:base" else None)
         if bo is not None and bo in ts:
             # a breakout-state base: the volume is the BREAKOUT session's (a closed session), not the as-of one
-            vol = volume_readout(b[:ts.index(bo) + 1], bp, True)
+            # a breakout bar that IS the as-of bar keeps the as-of bar's own completeness answer
+            vol = volume_readout(b[:ts.index(bo) + 1], bp, complete if bo == asof else True)
         if vol is not None:
             out["volume"] = vol
         return out
