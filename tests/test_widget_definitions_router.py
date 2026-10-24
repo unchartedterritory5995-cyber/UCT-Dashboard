@@ -109,6 +109,7 @@ def test_unpaid_402_own_sentence(conn):
         r = c.request(method, _concrete(path), json={})
         assert r.status_code == 402, (method, path)
         assert r.json()["detail"] == "Built widgets require a paid plan"
+        assert r.headers["cache-control"] == "no-store", (method, path)      # a refusal is not cached
     assert "Built widgets require a paid plan" != "Notebook widgets require a paid plan"
     assert _client(None).get(BASE + "/shelf").status_code in (401, 403)
 

@@ -109,7 +109,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
     reads the sentence as a literal in the HTTPException call)."""
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="Built widgets require a paid plan")
+        raise HTTPException(status_code=402, detail="Built widgets require a paid plan", headers=dict(NO_STORE))
     return user
 
 
