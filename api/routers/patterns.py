@@ -808,11 +808,21 @@ def get_detections(
         # and about 80% of judged tickers showed that empty state on 2026-09-10.
         # ⛔ THE COUNT ONLY. Rejection rationales stay admin-only; nothing here
         # exposes what the judge said about a setup it turned down.
-        return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts,
-                "count": len(verdicts),
-                "evaluated": pv_store.count_evaluated(sym, tf),
-                # TERM-019: when the judge last ran on this ticker's window (epoch s), or None.
-                "as_of": pv_store.last_judged_at(sym, tf)}
+        confirmed = {"sym": sym.upper(), "tf": tf, "verdicts": verdicts,
+                     "count": len(verdicts),
+                     "evaluated": pv_store.count_evaluated(sym, tf),
+                     # TERM-019: when the judge last ran on this ticker's window (epoch s), or None.
+                     "as_of": pv_store.last_judged_at(sym, tf)}
+        # Setup tags (AUTO_STRUCTURES_SETUP_TAGS_ENABLED, daily only): blind-confirmed setups and bar
+        # events from the last three completed sessions, each a name + one-line definition, beside
+        # the verdicts (never inside them). A member gets bullish tags only (setup_tags.member_tags);
+        # admins get the team set. Off: no `setup_tags` key, the payload is byte-identical.
+        if (tf or "D").upper() == "D":
+            from api.services import setup_tags as _setup_tags
+            tags = _setup_tags.tags_for(sym, member=(_user or {}).get("role") != "admin")
+            if tags is not None:
+                confirmed["setup_tags"] = tags
+        return confirmed
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
     # ⛔ Internal/admin-only detectors (registry.INTERNAL_PATTERN_IDS) are served
     # to admins only. memory.get_active_detections excludes them by default.
