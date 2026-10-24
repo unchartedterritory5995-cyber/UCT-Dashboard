@@ -1,10 +1,10 @@
 """PARITY RAIL: the round-3 production setup drawings (api/services/pattern_engine/setup_draw_r3.py) equal the
 judged drawing code on fixed fixtures -- the same facts and the same full drawing (geometry, panel), as-of every bar.
 
-tests/fixtures/setup_draw_r3_parity.json holds 10 SYNTHETIC daily series (seeded random walks with trend / range
+tests/fixtures/setup_draw_r3_parity.json holds 12 SYNTHETIC daily series (seeded random walks with trend / range
 regimes, no real ticker), 860 bars each, and, per series, the judged code's output as-of EVERY bar from index 220 on:
 {asof: {setup: {facts, sha256 of the whole drawing dict}}}. At every other bar the judged code draws nothing, so the
-production module must draw nothing there too. Together the series fire all fourteen setups (576 as-of bars).
+production module must draw nothing there too. Together the series fire all fifteen setups (705 as-of bars).
 
 JUDGED_CONSTANTS pins the full constant table as well: a behavioural fixture cannot see a perturbation no chart in
 it sits on.
@@ -23,7 +23,7 @@ from api.services.pattern_engine import setup_draw_r3 as M
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "setup_draw_r3_parity.json")
 SETUPS = ("outside_bar", "descending_triangle", "inverse_head_shoulders", "bear_flag", "bollinger_squeeze",
           "major_trendlines", "rsi_bearish_divergence", "symmetrical_triangle", "rising_wedge", "avwap_reclaim",
-          "nr7", "head_shoulders", "triple_top", "triple_bottom")
+          "nr7", "head_shoulders", "triple_top", "triple_bottom", "wyckoff_spring")
 
 #: The judged constant table, frozen with the judged round (each value read from its setup's frozen batch copy).
 JUDGED_CONSTANTS = {
@@ -50,6 +50,10 @@ JUDGED_CONSTANTS = {
     'RDB_RSI_GAP': 8.0, 'RDB_RSI_SNAP': 2, 'RDB_SEP_MIN': 10, 'RDB_SWING_ATR': 1.5, 'RD_BAR_ATR': 2.5, 'RD_CONF': 2,
     'RD_FRESH': 6, 'RD_NEWEXT': 60, 'RD_OB': 65.0, 'RD_OS': 35.0, 'RD_PX_ATR': 0.2, 'RD_RSI_GAP': 5.0,
     'RD_SEP_MAX': 40, 'RD_SEP_MIN': 8, 'RD_SWING_ATR': 1.0, 'SMA_LONG': 200, 'SMA_RISE_BARS': 20, 'WINDOW': 330,
+    'WYS_BACK_ATR': 0.5, 'WYS_CLOSE_POS': 0.5, 'WYS_CLUSTER_ATR': 0.25, 'WYS_DRIFT': 0.15, 'WYS_PRE_ATR': 1.0,
+    'WYS_TOUCH': 3, 'WYS_WINDOWS': (60, 50, 40), 'WY_BACK_ATR': 0.25, 'WY_DEPTH_ATR': 2.0, 'WY_DRIFT': 0.25,
+    'WY_FRESH': 3, 'WY_MAXH': 0.35, 'WY_MINH': 0.06, 'WY_SEP': 5, 'WY_TOUCH_ATR': 0.5,
+    'WY_WINDOWS': (60, 50, 40, 30),
 }
 
 

@@ -3157,6 +3157,7 @@ _SETUP_DRAW_R3_FUNCS = (
     ("head_shoulders", "draw:head-shoulders", "Head and shoulders", "head_shoulders"),
     ("triple_top", "draw:triple-top", "Triple top", "triple_top"),
     ("triple_bottom", "draw:triple-bottom", "Triple bottom", "triple_bottom"),
+    ("wyckoff_spring", "draw:wyckoff-spring", "Wyckoff spring", "wyckoff_spring"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
 #: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
@@ -3265,6 +3266,7 @@ MEMBER_DEATH_CROSS_ROUND = 2
 #:   head_shoulders          A 2.52 / 100%  B 2.54 / 88%    (bearish)
 #:   triple_top              A 2.46 / 92%   B 2.34 / 84%    (bearish)
 #:   triple_bottom           A 2.40 / 92%   B 2.38 / 92%
+#:   wyckoff_spring          A 2.44 / 92%   B 2.68 / 96%    (second packet drawn in its own batch)
 #: Literals ON PURPOSE (never setup_draw_r3.R3_DRAW_ROUND): a new drawing round cannot release itself.
 MEMBER_OUTSIDE_BAR_ROUND = 3
 MEMBER_DESCENDING_TRIANGLE_ROUND = 3
@@ -3280,6 +3282,7 @@ MEMBER_NR7_ROUND = 3
 MEMBER_HEAD_SHOULDERS_ROUND = 3
 MEMBER_TRIPLE_TOP_ROUND = 3
 MEMBER_TRIPLE_BOTTOM_ROUND = 3
+MEMBER_WYCKOFF_SPRING_ROUND = 3
 #: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
 #:   rectangle               A 2.44 / 100%  B 2.76 / 96%
@@ -3312,7 +3315,7 @@ _SETUP_ADV20_IDS = ("draw:descending-triangle", "draw:inverse-head-shoulders", "
                     # setups_r3 batches b2r and b4 (AMENDMENTs: the same recert supply rule)
                     "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge",
                     "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
-                    "draw:triple-bottom")
+                    "draw:triple-bottom", "draw:wyckoff-spring")
 SETUP_FRAME_BY_ID = {pid: (SETUP_FRAME_ADV20 if pid in _SETUP_ADV20_IDS else SETUP_FRAME_DAY)
                      for pid in SETUP_DRAW_IDS}
 _SETUP_CACHE: dict = {}
@@ -3354,6 +3357,7 @@ def _member_setup_round(pid):
         "draw:head-shoulders": MEMBER_HEAD_SHOULDERS_ROUND,
         "draw:triple-top": MEMBER_TRIPLE_TOP_ROUND,
         "draw:triple-bottom": MEMBER_TRIPLE_BOTTOM_ROUND,
+        "draw:wyckoff-spring": MEMBER_WYCKOFF_SPRING_ROUND,
         RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
@@ -3462,6 +3466,7 @@ _R3_SHAPE_OF = {
     "draw:head-shoulders": "neckline",
     "draw:triple-top": "neckline",
     "draw:triple-bottom": "neckline",
+    "draw:wyckoff-spring": "horizontal_line",
 }
 _R3_ANCHORS = {
     "draw:outside-bar": 2,
@@ -3478,6 +3483,7 @@ _R3_ANCHORS = {
     "draw:head-shoulders": 5,
     "draw:triple-top": 5,
     "draw:triple-bottom": 5,
+    "draw:wyckoff-spring": 3,
 }
 #: round 3: the row whose judged drawing is the anchored VWAP CURVE (extras.draw_ema points), and the row whose
 #: judged picture carries an RSI(14) panel.

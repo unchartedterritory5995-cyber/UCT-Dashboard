@@ -57,6 +57,7 @@ SETUP_LINE_FAMILIES = {
     "rsi_bearish_divergence": "draw:rsi-bearish-divergence", "symmetrical_triangle": "draw:symmetrical-triangle",
     "rising_wedge": "draw:rising-wedge", "avwap_reclaim": "draw:avwap-reclaim", "nr7": "draw:nr7",
     "head_shoulders": "draw:head-shoulders", "triple_top": "draw:triple-top", "triple_bottom": "draw:triple-bottom",
+    "wyckoff_spring": "draw:wyckoff-spring",
     "rectangle": "draw:rectangle",
 }
 PATTERN_IDS.update(SETUP_LINE_FAMILIES)

@@ -20,6 +20,7 @@ two packets of 25 random liquid held-out charts each (bar: mean >= 2.3 AND >= 70
     head_shoulders           A 2.52 / 100%  B 2.54 / 88%    (bearish)
     triple_top               A 2.46 / 92%   B 2.34 / 84%    (bearish)
     triple_bottom            A 2.40 / 92%   B 2.38 / 92%
+    wyckoff_spring           A 2.44 / 92%   B 2.68 / 96%    (second packet drawn separately)
 Every constant and every line of detection code below is the judged code, frozen (comments removed). The parity
 rail tests/test_setup_draw_r3_parity.py pins this module's output, as-of every bar of embedded synthetic series, to
 the judged code's output: change a constant and it goes red. A new round is a new constant AND a new blind check,
@@ -447,6 +448,36 @@ def rsi_bearish_divergence(tk, b, why=None):
     return _rsi_div(tk, b, why, True)
 
 
+WY_WINDOWS = (60, 50, 40, 30)
+
+WY_TOUCH_ATR = 0.5
+
+WY_SEP = 5
+
+WY_DRIFT = 0.25
+
+WY_FRESH = 3
+
+WY_DEPTH_ATR = 2.0
+
+WY_MINH, WY_MAXH = 0.06, 0.35
+
+WY_BACK_ATR = 0.25
+
+WYS_WINDOWS = (60, 50, 40)
+
+WYS_BACK_ATR = 0.5
+
+WYS_CLOSE_POS = 0.5
+
+WYS_DRIFT = 0.15
+
+WYS_TOUCH = 3
+
+WYS_CLUSTER_ATR = 0.25
+
+WYS_PRE_ATR = 1.0
+
 def _drift(cl):
     n = len(cl)
     mx = (n - 1) / 2
@@ -454,6 +485,82 @@ def _drift(cl):
     num = sum((k - mx) * (y - my) for k, y in enumerate(cl))
     den = sum((k - mx) ** 2 for k in range(n))
     return abs(num / den) * (n - 1) if den else 0.0
+
+
+def _wyckoff(tk, b, why, spring):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 120:
+        return _say(why, 'no_atr')
+    hi_p, lo_p = _pivots(b)
+    for k in range(ia - WY_FRESH + 1, ia + 1):
+        for W in (WYS_WINDOWS if spring else WY_WINDOWS):
+            r0, r1 = k - W, k - 1
+            S = min(b[j]['l'] for j in range(r0, r1 + 1))
+            R = max(b[j]['h'] for j in range(r0, r1 + 1))
+            if not (WY_MINH <= (R - S) / S <= WY_MAXH):
+                continue
+            if spring and not (b[k]['l'] < S - 0.1 * atr and b[k]['l'] >= S - WY_DEPTH_ATR * atr):
+                continue
+            if not spring and not (b[k]['h'] > R + 0.1 * atr and b[k]['h'] <= R + WY_DEPTH_ATR * atr):
+                continue
+
+            if spring and min(b[j]['l'] for j in range(k, ia + 1)) < S - WY_DEPTH_ATR * atr:
+                continue
+            if not spring and max(b[j]['h'] for j in range(k, ia + 1)) > R + WY_DEPTH_ATR * atr:
+                continue
+            ts_ = [p for p in lo_p if r0 <= p <= r1 and b[p]['l'] <= S + WY_TOUCH_ATR * atr]
+            tr_ = [p for p in hi_p if r0 <= p <= r1 and b[p]['h'] >= R - WY_TOUCH_ATR * atr]
+            if not ts_ or not tr_ or ts_[-1] - ts_[0] < WY_SEP or tr_[-1] - tr_[0] < WY_SEP:
+                continue
+            if spring:
+
+
+                if len(ts_) < WYS_TOUCH:
+                    continue
+                med = sorted(b[p]['l'] for p in ts_)[len(ts_) // 2]
+                if med - S > WYS_CLUSTER_ATR * atr:
+                    continue
+                if any(b[j]['c'] < S - WYS_PRE_ATR * atr for j in range(max(0, r0 - W), r0)):
+                    continue
+            cl = [b[j]['c'] for j in range(r0, r1 + 1)]
+            if _drift(cl) > (WYS_DRIFT if spring else WY_DRIFT) * (R - S):
+                continue
+            if sum(1 for c in cl if S <= c <= R) < 0.9 * len(cl):
+                continue
+            beyond = [(b[j]['c'] < S) if spring else (b[j]['c'] > R) for j in range(k, ia + 1)]
+            run = mx = 0
+            for x in beyond:
+                run = run + 1 if x else 0
+                mx = max(mx, run)
+            if mx > 2:
+                continue
+            c = b[ia]['c']
+
+            if spring and not (S + WYS_BACK_ATR * atr <= c <= S + 0.5 * (R - S)):
+                continue
+            if spring and (b[ia]['h'] - b[ia]['l'] <= 0 or
+                           (c - b[ia]['l']) / (b[ia]['h'] - b[ia]['l']) < WYS_CLOSE_POS):
+                continue
+            if not spring and not (R - 0.5 * (R - S) <= c <= R - WY_BACK_ATR * atr):
+                continue
+            g = deal_gate(tk, b, ia)
+            if g:
+                return _say(why, g)
+            lvl = S if spring else R
+            touches = ts_ if spring else tr_
+            pid = 'wyckoff_spring' if spring else 'wyckoff_upthrust'
+            anch = [(touches[0], lvl), (ia, lvl), (k, lvl)]
+            det = _row(pid, 'Wyckoff spring' if spring else 'Wyckoff upthrust', b, 'horizontal_line', anch,
+                       'bullish' if spring else 'bearish')
+            det['touch_count'] = len(touches) + 1
+            return {'shape': pid, 'range_bars': W, 'level': round(lvl, 4), 'height_pct': round(100 * (R - S) / S, 1),
+                    'probe_bars_ago': ia - k, 'touches': len(touches), 'dets': [det]}
+    return _say(why, 'wy_none')
+
+
+def wyckoff_spring(tk, b, why=None):
+    return _wyckoff(tk, b, why, True)
 
 
 AV_LOOK = 150
@@ -1272,6 +1379,7 @@ DETECT = {
     "head_shoulders": head_shoulders,
     "triple_top": triple_top,
     "triple_bottom": triple_bottom,
+    "wyckoff_spring": wyckoff_spring,
 }
 SETUPS = tuple(DETECT)
 DRAW_ROUNDS = {s: R3_DRAW_ROUND for s in SETUPS}
