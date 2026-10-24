@@ -315,7 +315,7 @@ BASE_IDS = auto_structures.MEMBER_FLOOR_IDS | {"bc:base", auto_structures.SHELF_
 
 def _route_bars(monkeypatch, b):
     monkeypatch.setattr(auto_structures, "_daily_bars", lambda sym: json.loads(json.dumps(b)))
-    monkeypatch.setattr(auto_structures, "deal_hold", lambda sym: None)    # the floor alone, no deal list
+    monkeypatch.setattr(auto_structures, "deal_hold", lambda sym, **k: None)    # the floor alone, no deal list
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     auto_structures._CACHE.clear()
 
@@ -427,7 +427,7 @@ def test_the_member_floor_ids_cover_every_member_base_id_but_bc_base():
     from api.services.pattern_engine.detectors import registry
     ids = auto_structures._member_floor_ids()
     assert "bc:base" not in ids and auto_structures.SHELF_PIVOT_ID in ids
-    not_bases = {"bull_flag", "uct_pullback_ma_v5", "draw:inside-day"}
+    not_bases = {"bull_flag", "uct_pullback_ma_v5", "draw:inside-day", "draw:remount", "draw:u_and_r"}
     assert ids | {"bc:base"} | not_bases == set(registry.DISPLAY_MEMBER_SET)
 
 
