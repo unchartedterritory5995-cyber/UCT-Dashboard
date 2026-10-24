@@ -1,10 +1,10 @@
 """PARITY RAIL: the round-3 production setup drawings (api/services/pattern_engine/setup_draw_r3.py) equal the
 judged drawing code on fixed fixtures -- the same facts and the same full drawing (geometry, panel), as-of every bar.
 
-tests/fixtures/setup_draw_r3_parity.json holds 4 SYNTHETIC daily series (seeded random walks with trend / range
+tests/fixtures/setup_draw_r3_parity.json holds 10 SYNTHETIC daily series (seeded random walks with trend / range
 regimes, no real ticker), 860 bars each, and, per series, the judged code's output as-of EVERY bar from index 220 on:
 {asof: {setup: {facts, sha256 of the whole drawing dict}}}. At every other bar the judged code draws nothing, so the
-production module must draw nothing there too. Together the series fire all ten setups (446 as-of bars).
+production module must draw nothing there too. Together the series fire all fourteen setups (576 as-of bars).
 
 JUDGED_CONSTANTS pins the full constant table as well: a behavioural fixture cannot see a perturbation no chart in
 it sits on.
@@ -22,7 +22,8 @@ from api.services.pattern_engine import setup_draw_r3 as M
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "setup_draw_r3_parity.json")
 SETUPS = ("outside_bar", "descending_triangle", "inverse_head_shoulders", "bear_flag", "bollinger_squeeze",
-          "major_trendlines", "rsi_bearish_divergence", "symmetrical_triangle", "rising_wedge", "avwap_reclaim")
+          "major_trendlines", "rsi_bearish_divergence", "symmetrical_triangle", "rising_wedge", "avwap_reclaim",
+          "nr7", "head_shoulders", "triple_top", "triple_bottom")
 
 #: The judged constant table, frozen with the judged round (each value read from its setup's frozen batch copy).
 JUDGED_CONSTANTS = {
@@ -35,17 +36,20 @@ JUDGED_CONSTANTS = {
     'BS_MAX_H_ATR': 2.75, 'BS_MAX_RUN': 30, 'BS_MIN_RUN': 6, 'BS_N': 20, 'BS_QUIET_MAX': 1.0, 'BS_QUIET_MEAN': 0.6,
     'BS_WIDE_ATR': 1.3, 'CV_CONV': 0.65, 'CV_LOOK': 100, 'CV_MIN_SPAN': 15, 'CV_MIN_TOUCH': 5, 'CV_MOVE_ATR': 1.0,
     'CV_RW_CONV': 0.5, 'CV_RW_LEAD': 3, 'CV_RW_LOOK': 80, 'CV_RW_TOUCH': 3, 'CV_SEP': 4, 'CV_SYM_BAL': 2.5,
-    'CV_TOL_ATR': 0.3, 'DT_FLAT': 0.02, 'DT_LOOK': 80, 'DT_MIN_TOUCH': 3, 'DT_RES_TOUCH': 3, 'DT_SPIKE_ATR': 0.3,
-    'DT_TOUCH_ATR': 0.35, 'HST_NL_SLOPE': 0.15, 'HST_SH_LVL_ATR': 0.75, 'HST_SPIKE_ATR': 0.5, 'HS_FRESH': 20,
-    'HS_FRESH_R3': 12, 'HS_HEAD_ATR': 1.0, 'HS_HEAD_R3': 1.5, 'HS_LEG': 5, 'HS_NL_SLOPE': 0.5,
-    'HS_NL_SLOPE_R3': 0.25, 'HS_PRE': 15, 'HS_SHOULDER': 0.5, 'HS_SH_DEPTH': 0.4, 'HS_SH_EQ': 0.3,
-    'HS_SH_EQ_R3': 0.2, 'HS_SPAN': 120, 'HS_TIME_R3': (0.6, 1.67), 'MIN_ASOF_INDEX': 220, 'MIN_ATR_PCT': 0.008,
-    'MT_LOOK': 200, 'MT_MAX_GAP': 0.5, 'MT_MIN_SPAN': 60, 'MT_NEAR_ATR': 2.0, 'MT_NEAR_R3': 1.0, 'MT_SEP': 10,
-    'MT_TOL_ATR': 0.3, 'OB_POKE_ATR': 0.2, 'OB_RANGE_ATR': 1.0, 'PIV_SPAN': 200, 'RDB_ALIVE_ATR': 2.0,
-    'RDB_CLEAN': 10, 'RDB_FRESH': 4, 'RDB_PX_ATR': 0.3, 'RDB_RSI_GAP': 8.0, 'RDB_RSI_SNAP': 2, 'RDB_SEP_MIN': 10,
-    'RDB_SWING_ATR': 1.5, 'RD_BAR_ATR': 2.5, 'RD_CONF': 2, 'RD_FRESH': 6, 'RD_NEWEXT': 60, 'RD_OB': 65.0,
-    'RD_OS': 35.0, 'RD_PX_ATR': 0.2, 'RD_RSI_GAP': 5.0, 'RD_SEP_MAX': 40, 'RD_SEP_MIN': 8, 'RD_SWING_ATR': 1.0,
-    'SMA_LONG': 200, 'SMA_RISE_BARS': 20, 'WINDOW': 330,
+    'CV_TOL_ATR': 0.3, 'DTOP_DECL': 0.1, 'DTOP_MAX_SPAN': 120, 'DT_FLAT': 0.02, 'DT_LOOK': 80, 'DT_MIN_TOUCH': 3,
+    'DT_RES_TOUCH': 3, 'DT_SPIKE_ATR': 0.3, 'DT_TOUCH_ATR': 0.35, 'HST_NL_SLOPE': 0.15, 'HST_SH_LVL_ATR': 0.75,
+    'HST_SPIKE_ATR': 0.5, 'HS_FRESH': 20, 'HS_FRESH_R3': 12, 'HS_HEAD_ATR': 1.0, 'HS_HEAD_R3': 1.5, 'HS_LEG': 5,
+    'HS_NL_SLOPE': 0.5, 'HS_NL_SLOPE_R3': 0.25, 'HS_PRE': 15, 'HS_SHOULDER': 0.5, 'HS_SH_DEPTH': 0.4,
+    'HS_SH_EQ': 0.3, 'HS_SH_EQ_R3': 0.2, 'HS_SPAN': 120, 'HS_TIME_R3': (0.6, 1.67), 'MIN_ASOF_INDEX': 220,
+    'MIN_ATR_PCT': 0.008, 'MT_LOOK': 200, 'MT_MAX_GAP': 0.5, 'MT_MIN_SPAN': 60, 'MT_NEAR_ATR': 2.0,
+    'MT_NEAR_R3': 1.0, 'MT_SEP': 10, 'MT_TOL_ATR': 0.3, 'MX3_EQ2_ATR': 0.3, 'MX3_EQ_ATR': 0.4, 'MX3_FRESH': 10,
+    'MX3_INSIDE_ATR': 0.25, 'MX3_NL2_ATR': 0.5, 'MX3_NL_ATR': 1.0, 'MX3_SPIKE_ATR': 0.5, 'MX_EQ': 0.03,
+    'MX_EQ_ATR': 0.6, 'MX_FRESH': 20, 'MX_MIN_SPAN': 30, 'MX_NL_ATR': 1.5, 'MX_NL_EQ': 0.3, 'MX_PRE': 15,
+    'MX_SEP': 10, 'MX_SPAN': 150, 'MX_SWING_ATR': 2.0, 'MX_TREND_ATR': 3.0, 'NR_CLEAR': 0.55, 'OB_POKE_ATR': 0.2,
+    'OB_RANGE_ATR': 1.0, 'PIV_SPAN': 200, 'RDB_ALIVE_ATR': 2.0, 'RDB_CLEAN': 10, 'RDB_FRESH': 4, 'RDB_PX_ATR': 0.3,
+    'RDB_RSI_GAP': 8.0, 'RDB_RSI_SNAP': 2, 'RDB_SEP_MIN': 10, 'RDB_SWING_ATR': 1.5, 'RD_BAR_ATR': 2.5, 'RD_CONF': 2,
+    'RD_FRESH': 6, 'RD_NEWEXT': 60, 'RD_OB': 65.0, 'RD_OS': 35.0, 'RD_PX_ATR': 0.2, 'RD_RSI_GAP': 5.0,
+    'RD_SEP_MAX': 40, 'RD_SEP_MIN': 8, 'RD_SWING_ATR': 1.0, 'SMA_LONG': 200, 'SMA_RISE_BARS': 20, 'WINDOW': 330,
 }
 
 

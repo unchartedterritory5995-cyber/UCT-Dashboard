@@ -16,6 +16,10 @@ two packets of 25 random liquid held-out charts each (bar: mean >= 2.3 AND >= 70
     symmetrical_triangle     A 2.78 / 100%  B 2.78 / 100%
     rising_wedge             A 2.60 / 100%  B 2.78 / 96%    (bearish)
     avwap_reclaim            A 2.54 / 92%   B 2.36 / 96%
+    nr7                      A 2.58 / 100%  B 2.48 / 92%
+    head_shoulders           A 2.52 / 100%  B 2.54 / 88%    (bearish)
+    triple_top               A 2.46 / 92%   B 2.34 / 84%    (bearish)
+    triple_bottom            A 2.40 / 92%   B 2.38 / 92%
 Every constant and every line of detection code below is the judged code, frozen (comments removed). The parity
 rail tests/test_setup_draw_r3_parity.py pins this module's output, as-of every bar of embedded synthetic series, to
 the judged code's output: change a constant and it goes red. A new round is a new constant AND a new blind check,
@@ -894,6 +898,162 @@ def inverse_head_shoulders(tk, b, why=None):
     return _hs(tk, b, why, True)
 
 
+def head_shoulders(tk, b, why=None):
+    return _hs(tk, b, why, False)
+
+
+MX_EQ = 0.03
+
+MX_EQ_ATR = 0.6
+
+MX_SWING_ATR = 2.0
+
+MX_SEP = 10
+
+MX_MIN_SPAN = 30
+
+MX_NL_EQ = 0.3
+
+MX_TREND_ATR = 3.0
+
+MX_NL_ATR = 1.5
+
+DTOP_MAX_SPAN = 120
+
+MX_FRESH = 20
+
+MX_PRE = 15
+
+MX_SPAN = 150
+
+DTOP_DECL = 0.10
+
+MX3_EQ_ATR = 0.4
+
+MX3_FRESH = 10
+
+MX3_NL_ATR = 1.0
+
+MX3_SPIKE_ATR = 0.5
+
+MX3_EQ2_ATR = 0.3
+
+MX3_NL2_ATR = 0.5
+
+MX3_INSIDE_ATR = 0.25
+
+def _multi(tk, b, why, n_ext, top):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 200:
+        return _say(why, 'no_atr')
+    hi_p, lo_p = _pivots(b)
+    ext_p = hi_p if top else lo_p
+    sgn = 1 if top else -1
+    key, ck = ('h', 'l') if top else ('l', 'h')
+
+    def e(j):
+        return sgn * b[j][key]
+    lasts = [p for p in ext_p if ia - (MX3_FRESH if n_ext == 3 else MX_FRESH) <= p <= ia - 3]
+    for E3 in reversed(lasts):
+        if any(e(j) > e(E3) for j in range(E3 + 1, ia + 1)):
+            continue
+        cands = [p for p in ext_p if E3 - MX_SPAN <= p <= E3 - MX_SEP]
+
+        def chain(last, need):
+            if need == 0:
+                return [[]]
+            res = []
+            for p in reversed([q for q in cands if q <= last - MX_SEP]):
+                for rest in chain(p, need - 1):
+                    res.append(rest + [p])
+                if len(res) > 40:
+                    break
+            return res
+        for prev in chain(E3, n_ext - 1):
+            E = prev + [E3]
+            ps = [b[j][key] for j in E]
+            if max(ps) / min(ps) - 1 > MX_EQ or max(ps) - min(ps) > (MX3_EQ2_ATR if n_ext == 3 else MX_EQ_ATR) * atr:
+                continue
+            if n_ext == 3:
+                least = min(e(j) for j in E)
+                near = {x for j in E for x in (j - 1, j, j + 1)}
+                if any(e(j) > least + MX3_INSIDE_ATR * atr for j in range(E[0], E[-1] + 1) if j not in near):
+                    continue
+            if n_ext == 3 and any(
+                    not any(abs(b[x][key] - b[j][key]) <= MX3_SPIKE_ATR * atr for x in range(j - 2, j + 3)
+                            if x != j and 0 <= x <= ia) for j in E):
+                continue
+            if E[-1] - E[0] < MX_MIN_SPAN or (n_ext == 2 and E[-1] - E[0] > DTOP_MAX_SPAN):
+                continue
+
+            if n_ext == 3 and not (1 / 3 <= (E[1] - E[0]) / (E[2] - E[1]) <= 3):
+                continue
+            ext_most = max(e(j) for j in E)
+            if any(e(j) > ext_most + 1e-12 for j in range(E[0], E[-1] + 1)):
+                continue
+            if any(e(j) > e(E[0]) for j in range(max(0, E[0] - MX_PRE), E[0])):
+                continue
+            N = []
+            ok = True
+            for a_, z_ in zip(E, E[1:]):
+                cj = (min if top else max)(range(a_ + 1, z_), key=lambda j: b[j][ck])
+                sw = sgn * (min(b[a_][key], b[z_][key]) - b[cj][ck]) if top else (b[cj][ck] - max(b[a_][key], b[z_][key]))
+                if sw < MX_SWING_ATR * atr:
+                    ok = False
+                    break
+                if n_ext == 2 and top and (b[a_][key] - b[cj][ck]) / b[a_][key] < DTOP_DECL:
+                    ok = False
+                    break
+                N.append(cj)
+            if not ok:
+                continue
+            ph = max(abs(b[n_][ck] - b[E[0]][key]) for n_ in N)
+            if n_ext == 3 and abs(b[N[0]][ck] - b[N[1]][ck]) > min(MX_NL_EQ * ph, MX3_NL2_ATR * atr):
+                continue
+            pre = [b[j][ck] for j in range(max(0, E[0] - 40), E[0])]
+            if not pre or (max(pre) - b[E[0]]['l'] if not top else b[E[0]]['h'] - min(pre)) < MX_TREND_ATR * atr:
+                continue
+
+            if n_ext == 3:
+                def NL(x, N=N):
+                    return b[N[0]][ck] + (b[N[1]][ck] - b[N[0]][ck]) * (x - N[0]) / (N[1] - N[0])
+            else:
+                def NL(x, N=N):
+                    return b[N[0]][ck]
+            c = b[ia]['c']
+            thr = -sgn * (c - NL(ia))
+
+            if n_ext == 3 and thr <= 0 and any(-sgn * (b[j]['c'] - NL(j)) > 0 for j in range(E3 + 1, ia)):
+                continue
+            if thr > 0:
+                first = next((j for j in range(E3 + 1, ia + 1) if -sgn * (b[j]['c'] - NL(j)) > 0), None)
+                if first is None or first < ia - 2 or thr > 1.5 * atr:
+                    continue
+            g = deal_gate(tk, b, ia)
+            if g:
+                return _say(why, g)
+            pid = {(3, False): 'triple_bottom', (3, True): 'triple_top', (2, True): 'double_top'}[(n_ext, top)]
+            name = {'triple_bottom': 'Triple bottom', 'triple_top': 'Triple top', 'double_top': 'Double top'}[pid]
+            anch = []
+            for k_, j in enumerate(E):
+                anch.append((j, b[j][key]))
+                if k_ < len(N):
+                    anch.append((N[k_], b[N[k_]][ck]))
+            det = _row(pid, name, b, 'neckline', anch, 'bearish' if top else 'bullish')
+            return {'shape': pid, 'span': E[-1] - E[0], 'last_age': ia - E3,
+                    'spread_pct': round(100 * (max(ps) / min(ps) - 1), 2), 'broke': thr > 0, 'dets': [det]}
+    return _say(why, 'mx_none')
+
+
+def triple_bottom(tk, b, why=None):
+    return _multi(tk, b, why, 3, False)
+
+
+def triple_top(tk, b, why=None):
+    return _multi(tk, b, why, 3, True)
+
+
 BF_POLE_MAX = 12
 
 BF_POLE_PCT = 0.12
@@ -1048,6 +1208,28 @@ def major_trendlines(tk, b, why=None):
             'span': ia - tt[0], 'dets': [det]}
 
 
+NR_CLEAR = 0.55
+
+def nr7(tk, b, why=None):
+    ia = len(b) - 1
+    if ia < 30:
+        return _say(why, 'short')
+    r = [b[j]['h'] - b[j]['l'] for j in range(ia - 6, ia + 1)]
+    if not (r[-1] > 0 and all(r[-1] < x for x in r[:-1])):
+        return _say(why, 'nr7_no')
+    if r[-1] > NR_CLEAR * min(r[:-1]):
+        return _say(why, 'nr7_not_clear')
+
+
+    if any(b[j]['l'] > b[ia]['h'] or b[j]['h'] < b[ia]['l'] for j in range(ia - 6, ia)):
+        return _say(why, 'nr7_not_coiled')
+    g = deal_gate(tk, b, ia)
+    if g:
+        return _say(why, g)
+    det = _row('nr7', 'NR7', b, 'rectangle', [(ia - 6, b[ia]['h']), (ia - 1, b[ia]['l'])], 'neutral')
+    return {'shape': 'nr7', 'range_vs_min_prior': round(r[-1] / min(r[:-1]), 3), 'dets': [det]}
+
+
 OB_POKE_ATR, OB_RANGE_ATR = 0.2, 1.0
 
 def outside_bar(tk, b, why=None):
@@ -1086,6 +1268,10 @@ DETECT = {
     "symmetrical_triangle": symmetrical_triangle,
     "rising_wedge": rising_wedge,
     "avwap_reclaim": avwap_reclaim,
+    "nr7": nr7,
+    "head_shoulders": head_shoulders,
+    "triple_top": triple_top,
+    "triple_bottom": triple_bottom,
 }
 SETUPS = tuple(DETECT)
 DRAW_ROUNDS = {s: R3_DRAW_ROUND for s in SETUPS}

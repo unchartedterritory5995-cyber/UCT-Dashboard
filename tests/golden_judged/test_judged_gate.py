@@ -442,7 +442,8 @@ def test_the_fixtures_are_symbol_free_and_small():
             assert set(c["bars"]["d"]) <= set("0123456789()"), (name, c["id"])
             meta = json.dumps({k: v for k, v in c.items() if k != "bars"})
             assert not re.search(r"\b(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b", meta), (name, c["id"])
-    assert total < 5_000_000, total
+    # 5.5 MB since the setups_r3 b2r / b4 families (10 cases each) joined; it was 5 MB with 4.94 MB used
+    assert total < 5_500_000, total
 
 
 def test_decoding_then_re_encoding_a_fixture_gives_it_back_exactly():

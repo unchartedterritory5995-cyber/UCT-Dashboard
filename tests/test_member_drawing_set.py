@@ -84,6 +84,7 @@ MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "u
               "draw:outside-bar", "draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
               "draw:bollinger-squeeze", "draw:major-trendline",
               "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge", "draw:avwap-reclaim",
+              "draw:nr7", "draw:head-shoulders", "draw:triple-top", "draw:triple-bottom",
               # the rectangle drawing (setup_draw_rectangle.py, round 1)
               "draw:rectangle"}
 #: The member types that arrive as detection rows; bc:flat-base arrives as a base box.

@@ -3153,6 +3153,10 @@ _SETUP_DRAW_R3_FUNCS = (
     ("symmetrical_triangle", "draw:symmetrical-triangle", "Symmetrical triangle", "symmetrical_triangle"),
     ("rising_wedge", "draw:rising-wedge", "Rising wedge", "rising_wedge"),
     ("avwap_reclaim", "draw:avwap-reclaim", "AVWAP reclaim", "avwap_reclaim"),
+    ("nr7", "draw:nr7", "NR7", "nr7"),
+    ("head_shoulders", "draw:head-shoulders", "Head and shoulders", "head_shoulders"),
+    ("triple_top", "draw:triple-top", "Triple top", "triple_top"),
+    ("triple_bottom", "draw:triple-bottom", "Triple bottom", "triple_bottom"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
 #: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
@@ -3172,6 +3176,10 @@ CAUTION_SETUP_IDS = frozenset({
     "draw:death-cross",          # a moving-average STATE (50-day below 200-day), shown as such, never a pattern
     "draw:bear-flag",
     "draw:descending-triangle",
+    "draw:rsi-bearish-divergence",
+    "draw:rising-wedge",
+    "draw:head-shoulders",
+    "draw:triple-top",
 })
 assert CAUTION_SETUP_IDS <= set(SETUP_DRAW_IDS), "a caution id must be a setup-drawing id"
 
@@ -3253,6 +3261,10 @@ MEMBER_DEATH_CROSS_ROUND = 2
 #:   symmetrical_triangle    A 2.78 / 100%  B 2.78 / 100%
 #:   rising_wedge            A 2.60 / 100%  B 2.78 / 96%    (bearish)
 #:   avwap_reclaim           A 2.54 / 92%   B 2.36 / 96%    (the anchored VWAP curve)
+#:   nr7                     A 2.58 / 100%  B 2.48 / 92%
+#:   head_shoulders          A 2.52 / 100%  B 2.54 / 88%    (bearish)
+#:   triple_top              A 2.46 / 92%   B 2.34 / 84%    (bearish)
+#:   triple_bottom           A 2.40 / 92%   B 2.38 / 92%
 #: Literals ON PURPOSE (never setup_draw_r3.R3_DRAW_ROUND): a new drawing round cannot release itself.
 MEMBER_OUTSIDE_BAR_ROUND = 3
 MEMBER_DESCENDING_TRIANGLE_ROUND = 3
@@ -3264,6 +3276,10 @@ MEMBER_RSI_BEARISH_DIVERGENCE_ROUND = 3
 MEMBER_SYMMETRICAL_TRIANGLE_ROUND = 3
 MEMBER_RISING_WEDGE_ROUND = 3
 MEMBER_AVWAP_RECLAIM_ROUND = 3
+MEMBER_NR7_ROUND = 3
+MEMBER_HEAD_SHOULDERS_ROUND = 3
+MEMBER_TRIPLE_TOP_ROUND = 3
+MEMBER_TRIPLE_BOTTOM_ROUND = 3
 #: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
 #:   rectangle               A 2.44 / 100%  B 2.76 / 96%
@@ -3292,7 +3308,11 @@ SETUP_MIN_ADV_DOLLAR_VOLUME = 5e6
 SETUP_FRAME_DAY = "day"
 SETUP_FRAME_ADV20 = "adv20"
 _SETUP_ADV20_IDS = ("draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
-                    "draw:bollinger-squeeze", RECTANGLE_DRAW_ID)
+                    "draw:bollinger-squeeze", RECTANGLE_DRAW_ID,
+                    # setups_r3 batches b2r and b4 (AMENDMENTs: the same recert supply rule)
+                    "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge",
+                    "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
+                    "draw:triple-bottom")
 SETUP_FRAME_BY_ID = {pid: (SETUP_FRAME_ADV20 if pid in _SETUP_ADV20_IDS else SETUP_FRAME_DAY)
                      for pid in SETUP_DRAW_IDS}
 _SETUP_CACHE: dict = {}
@@ -3330,6 +3350,10 @@ def _member_setup_round(pid):
         "draw:symmetrical-triangle": MEMBER_SYMMETRICAL_TRIANGLE_ROUND,
         "draw:rising-wedge": MEMBER_RISING_WEDGE_ROUND,
         "draw:avwap-reclaim": MEMBER_AVWAP_RECLAIM_ROUND,
+        "draw:nr7": MEMBER_NR7_ROUND,
+        "draw:head-shoulders": MEMBER_HEAD_SHOULDERS_ROUND,
+        "draw:triple-top": MEMBER_TRIPLE_TOP_ROUND,
+        "draw:triple-bottom": MEMBER_TRIPLE_BOTTOM_ROUND,
         RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
@@ -3434,6 +3458,10 @@ _R3_SHAPE_OF = {
     "draw:symmetrical-triangle": "trendline_pair",
     "draw:rising-wedge": "trendline_pair",
     "draw:avwap-reclaim": "horizontal_line",
+    "draw:nr7": "rectangle",
+    "draw:head-shoulders": "neckline",
+    "draw:triple-top": "neckline",
+    "draw:triple-bottom": "neckline",
 }
 _R3_ANCHORS = {
     "draw:outside-bar": 2,
@@ -3446,6 +3474,10 @@ _R3_ANCHORS = {
     "draw:symmetrical-triangle": 4,
     "draw:rising-wedge": 4,
     "draw:avwap-reclaim": 2,
+    "draw:nr7": 2,
+    "draw:head-shoulders": 5,
+    "draw:triple-top": 5,
+    "draw:triple-bottom": 5,
 }
 #: round 3: the row whose judged drawing is the anchored VWAP CURVE (extras.draw_ema points), and the row whose
 #: judged picture carries an RSI(14) panel.

@@ -1,6 +1,6 @@
 """Round-3 setup drawings: the member gate.
 
-Ten setups (setup_draw_r3.py) ride the same `setup_draws` layer and the same AUTO_STRUCTURES_G4_SETUPS_ENABLED flag
+Fourteen setups (setup_draw_r3.py) ride the same `setup_draws` layer and the same AUTO_STRUCTURES_G4_SETUPS_ENABLED flag
 as rounds 1 and 2. A member is served a round-3 row only while ALL of these hold, each proved load-bearing on its
 own below: its MEMBER_<SETUP>_ROUND literal is an int equal to setup_draw_r3.R3_DRAW_ROUND and to the row's own
 draw_round stamp; its id is in registry.DISPLAY_MEMBER_SET; its draw_setup names its own judged shape; its geometry is
@@ -22,7 +22,8 @@ FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "setup_draw_r3_par
 R3_IDS = {
     "draw:outside-bar", "draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
     "draw:bollinger-squeeze", "draw:major-trendline", "draw:rsi-bearish-divergence", "draw:symmetrical-triangle",
-    "draw:rising-wedge", "draw:avwap-reclaim",
+    "draw:rising-wedge", "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
+    "draw:triple-bottom",
 }
 LITERALS = {
     "MEMBER_OUTSIDE_BAR_ROUND": "draw:outside-bar",
@@ -35,6 +36,10 @@ LITERALS = {
     "MEMBER_SYMMETRICAL_TRIANGLE_ROUND": "draw:symmetrical-triangle",
     "MEMBER_RISING_WEDGE_ROUND": "draw:rising-wedge",
     "MEMBER_AVWAP_RECLAIM_ROUND": "draw:avwap-reclaim",
+    "MEMBER_NR7_ROUND": "draw:nr7",
+    "MEMBER_HEAD_SHOULDERS_ROUND": "draw:head-shoulders",
+    "MEMBER_TRIPLE_TOP_ROUND": "draw:triple-top",
+    "MEMBER_TRIPLE_BOTTOM_ROUND": "draw:triple-bottom",
 }
 
 

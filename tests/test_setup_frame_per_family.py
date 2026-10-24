@@ -11,7 +11,11 @@ from api.services import auto_structures as AS
 
 #: The families whose certified round sampled the 20-day $5M rule (lab PREREGs, read 2026-10-24).
 ADV20_CERTIFIED = {"draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
-                   "draw:bollinger-squeeze", "draw:rectangle"}
+                   "draw:bollinger-squeeze", "draw:rectangle",
+                   # setups_r3 batches b2r and b4 (their AMENDMENTs: the same recert supply rule)
+                   "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge",
+                   "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
+                   "draw:triple-bottom"}
 
 
 def _bars(n=AS.SETUP_MIN_BARS, close=10.0, vol=1_000_000.0, last_vol=None):
@@ -21,7 +25,7 @@ def _bars(n=AS.SETUP_MIN_BARS, close=10.0, vol=1_000_000.0, last_vol=None):
     return out
 
 
-def test_every_setup_drawing_id_has_a_frame_and_only_the_certified_five_are_adv20():
+def test_every_setup_drawing_id_has_a_frame_and_only_the_certified_ones_are_adv20():
     assert set(AS.SETUP_FRAME_BY_ID) == set(AS.SETUP_DRAW_IDS)
     adv = {pid for pid, f in AS.SETUP_FRAME_BY_ID.items() if f == AS.SETUP_FRAME_ADV20}
     assert adv == ADV20_CERTIFIED
