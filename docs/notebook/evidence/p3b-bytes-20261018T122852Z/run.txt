@@ -1,3 +1,0 @@
-command: python tools/notebook_perf_budgets.py --dist app/dist (after npm run build)
-tree: 8e4dedc99875fd204c2b9ace4975abf164e2e0f4
-exit: 0

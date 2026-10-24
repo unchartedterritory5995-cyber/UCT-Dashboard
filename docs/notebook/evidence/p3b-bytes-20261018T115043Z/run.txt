@@ -1,3 +1,0 @@
-command: python tools/notebook_perf_budgets.py --dist app/dist
-tree: dee87110c17392127fc6d73f6f68f1a93a391250
-exit: 0
