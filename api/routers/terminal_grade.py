@@ -72,9 +72,11 @@ def _brain_available() -> bool:
         return False
 
 
-def _grade(sym: str) -> dict:
+def _grade(sym: str, account_size=None, account_size_is_default=None, account_size_note=None) -> dict:
     from api.services.grade_ticker import grade_ticker
-    return grade_ticker(sym) or {}
+    return grade_ticker(sym, account_size=account_size,
+                        account_size_is_default=account_size_is_default,
+                        account_size_note=account_size_note) or {}
 
 
 def _reset_cache_for_tests() -> None:
@@ -83,7 +85,8 @@ def _reset_cache_for_tests() -> None:
 
 
 @router.get("/api/terminal/grade/{sym}")
-def terminal_grade(sym: str = Path(..., min_length=1, max_length=10)):
+def terminal_grade(sym: str = Path(..., min_length=1, max_length=10),
+                   user: dict = Depends(get_current_user_with_plan)):
     """GRADE: grade_ticker's verdict for one security, or why there is none yet."""
     s = sym.strip().upper()
     if not _SYM_RE.match(s):
@@ -93,14 +96,19 @@ def terminal_grade(sym: str = Path(..., min_length=1, max_length=10)):
     if not _brain_available():
         return {"available": False, "symbol": s, "reason": NO_PACK_REASON}
 
+    # Graded on the member's own size (accounts.grading_account_size, finding 7). The cache is
+    # keyed by the size, never shared across sizes: whole-share rounding makes size_skip size-bound.
+    from api.services.journal_two import accounts as _acc
+    size, size_is_default, size_note = _acc.grading_account_size((user or {}).get("id"))
+    key = (s, size, size_is_default, size_note)
     now = time.time()
     with _lock:
-        hit = _cache.get(s)
+        hit = _cache.get(key)
     if hit and now - hit[0] < _CACHE_TTL_S:
         return hit[1]
 
     try:
-        v = _grade(s)
+        v = _grade(s, size, size_is_default, size_note)
     except Exception:  # noqa: BLE001 -- grade_ticker never raises; this is belt and braces
         v = {"ok": False, "reason": "the grade could not be computed just now"}
     if not v.get("ok"):
@@ -112,5 +120,5 @@ def terminal_grade(sym: str = Path(..., min_length=1, max_length=10)):
     with _lock:
         if len(_cache) >= _CACHE_MAX:
             _cache.clear()
-        _cache[s] = (now, out)
+        _cache[key] = (now, out)
     return out

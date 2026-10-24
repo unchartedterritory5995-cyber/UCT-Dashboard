@@ -25,7 +25,7 @@ def _seed_account(db_conn, user_id="u_i"):
     acc = accounts_service.get_or_migrate_default_account(user_id, conn=db_conn)
     db_conn.execute(
         """UPDATE j2_accounts
-           SET account_size = ?, daily_loss_limit_pct = ?,
+           SET account_size = ?, account_size_set = 1, daily_loss_limit_pct = ?,
                cooling_off_minutes_after_loss = ?
            WHERE id = ?""",
         (100000.0, 3.0, 30, acc["id"]),
@@ -301,7 +301,7 @@ def _seed_named_account(db_conn, user_id, name, *, daily_loss_pct=None):
     )
     if daily_loss_pct is not None:
         db_conn.execute(
-            "UPDATE j2_accounts SET account_size = 100000, daily_loss_limit_pct = ? WHERE id = ?",
+            "UPDATE j2_accounts SET account_size = 100000, account_size_set = 1, daily_loss_limit_pct = ? WHERE id = ?",
             (daily_loss_pct, acc["id"]),
         )
         db_conn.commit()

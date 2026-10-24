@@ -148,7 +148,7 @@ def _utc_lower_bound(day: str) -> str:
 def _check_daily_loss_approach(conn, *, user_id, account_id) -> dict | None:
     """Net daily P&L past 75% of dailyLossLimitPct."""
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
-    account_size = float(settings.get("accountSize") or 0)
+    account_size, size_is_default = accounts_service.account_size_of(settings)
     limit_pct = settings.get("dailyLossLimitPct")
     if limit_pct is None or account_size <= 0:
         return None
@@ -167,9 +167,17 @@ def _check_daily_loss_approach(conn, *, user_id, account_id) -> dict | None:
             "factors": [
                 f"today realized {net:.0f}",
                 f"75% threshold = {threshold_dollar:.0f}",
-            ],
+            ] + _default_size_factor(size_is_default),
         }
     return None
+
+
+def _default_size_factor(is_default: bool) -> list[str]:
+    """The shared default-size sentence as a factor, when the threshold rests on it."""
+    if not is_default:
+        return []
+    from api.services.voice_position_sizing import default_size_sentence
+    return [default_size_sentence()]
 
 
 def _check_loss_streak(conn, *, user_id, account_id) -> dict | None:
@@ -267,12 +275,14 @@ def _check_portfolio_daily_loss(conn, *, user_id, account_id) -> dict | None:
         return None
     total_threshold = 0.0
     have_any_limit = False
+    any_default = False
     for aid in ids:
         s = accounts_service.get_account_settings(user_id, aid, conn=conn) or {}
-        acct_size = float(s.get("accountSize") or 0)
+        acct_size, acct_default = accounts_service.account_size_of(s)
         lim = s.get("dailyLossLimitPct")
         if lim is not None and acct_size > 0:
             have_any_limit = True
+            any_default = any_default or acct_default
             total_threshold += -0.75 * float(lim) * acct_size / 100.0
     if not have_any_limit:
         return None
@@ -291,7 +301,7 @@ def _check_portfolio_daily_loss(conn, *, user_id, account_id) -> dict | None:
             "factors": [
                 f"portfolio realized today {net:.0f}",
                 f"combined 75% threshold = {total_threshold:.0f}",
-            ],
+            ] + _default_size_factor(any_default),
         }
     return None
 

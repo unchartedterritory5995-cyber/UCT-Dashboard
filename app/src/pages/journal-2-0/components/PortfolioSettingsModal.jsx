@@ -87,7 +87,12 @@ const NO_ACCOUNT_FALLBACK = 'Select a single account in the header selector to e
 export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, noSpecificAccount, noAccountReason }) {
   // Local form state seeded from props.settings. Saving writes this
   // back through useJ2Settings.save(). Cancel discards local state.
-  const [accountSize, setAccountSize] = useState(settings?.accountSize ?? 100_000)
+  // An unset size (the server's accountSizeIsDefault, the one predicate) is shown as unset, never
+  // pre-filled as the member's own. Saving the field sends accountSizeTouched, so typing exactly the
+  // default still counts as the member's choice (Round B fix 1).
+  const sizeIsDefault = settings?.accountSizeIsDefault === true
+  const [accountSize, setAccountSize] = useState(sizeIsDefault ? '' : (settings?.accountSize ?? ''))
+  const [sizeTouched, setSizeTouched] = useState(false)
   const [stopMode, setStopMode] = useState(settings?.defaultStop?.mode ?? 'custom')
   const [barBuffer, setBarBuffer] = useState(
     settings?.defaultStop?.mode === 'bar_low_high' ? settings.defaultStop.buffer : 0,
@@ -295,8 +300,11 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
 
   const handleSave = useCallback(async () => {
     setErrorMsg('')
+    const typedSize = String(accountSize).trim() !== ''
     const payload = {
-      accountSize: Number(accountSize),
+      // Left empty: the stored value goes back untouched (the server keeps it unset).
+      accountSize: typedSize ? Number(accountSize) : Number(settings?.accountSize ?? settings?.defaultAccountSize),
+      accountSizeTouched: sizeTouched && typedSize,
       defaultStop: buildDefaultStop(
         stopMode,
         barBuffer,
@@ -351,6 +359,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     }
   }, [
     accountSize,
+    sizeTouched,
+    settings,
     stopMode,
     barBuffer,
     barBufferUnit,
@@ -435,10 +445,16 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                   min={1}
                   step="1"
                   value={accountSize}
-                  onChange={(e) => setAccountSize(e.target.value)}
+                  placeholder={sizeIsDefault ? 'Not set' : undefined}
+                  onChange={(e) => { setAccountSize(e.target.value); setSizeTouched(true) }}
                   className={styles.numberInput}
                 />
               </div>
+              {sizeIsDefault && String(accountSize).trim() === '' && (
+                <span className={styles.helper}>
+                  {`Not set — using a default of $${Number(settings?.defaultAccountSize ?? settings?.accountSize).toLocaleString('en-US')}`}
+                </span>
+              )}
             </label>
           </section>
 

@@ -63,6 +63,38 @@ describe('PortfolioSettingsModal', () => {
     expect(screen.getByRole('button', { name: 'Save Settings' })).not.toBeDisabled()
   })
 
+  // Round B fix 1: an unset size is shown as unset, and saving the field says so to the server.
+  describe('account size the member never set', () => {
+    const unset = { ...baseSettings, accountSizeIsDefault: true, defaultAccountSize: 100_000 }
+    it('is an empty field with the default named, never pre-filled as theirs', () => {
+      render(<PortfolioSettingsModal settings={unset} onSave={vi.fn()} onClose={vi.fn()} />)
+      expect(screen.queryByDisplayValue('100000')).toBeNull()
+      expect(screen.getByText('Not set — using a default of $100,000')).toBeInTheDocument()
+    })
+    it('saved untouched: the stored size goes back unmarked', async () => {
+      const user = userEvent.setup({ delay: null })
+      const onSave = vi.fn().mockResolvedValue({})
+      render(<PortfolioSettingsModal settings={unset} onSave={onSave} onClose={vi.fn()} />)
+      await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+      expect(onSave.mock.calls[0][0]).toMatchObject({ accountSize: 100_000, accountSizeTouched: false })
+    })
+    it('typed exactly the default: sent as touched, so it counts as theirs', async () => {
+      const user = userEvent.setup({ delay: null })
+      const onSave = vi.fn().mockResolvedValue({})
+      render(<PortfolioSettingsModal settings={unset} onSave={onSave} onClose={vi.fn()} />)
+      await user.type(screen.getByPlaceholderText('Not set'), '100000')
+      expect(screen.queryByText(/Not set — using a default/)).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+      expect(onSave.mock.calls[0][0]).toMatchObject({ accountSize: 100_000, accountSizeTouched: true })
+    })
+    it('a member-set size is pre-filled and has no hint', () => {
+      render(<PortfolioSettingsModal settings={{ ...baseSettings, accountSizeIsDefault: false }}
+        onSave={vi.fn()} onClose={vi.fn()} />)
+      expect(screen.getByDisplayValue('100000')).toBeInTheDocument()
+      expect(screen.queryByText(/Not set — using a default/)).toBeNull()
+    })
+  })
+
   it('shows the pre-populated account size', () => {
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
