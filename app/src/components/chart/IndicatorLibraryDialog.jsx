@@ -77,6 +77,7 @@ import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/i
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
 // flag rather than a splice.
 import { liveOverlays, isVolumeRemoved, newOverlay } from './chartDefaults'
+import { isUctIntelligenceAdded, addUctIntelligence, removeUctIntelligence } from './uctIntelligence'
 import { revivableSlotIndex, reviveSlot } from './maAdoption'
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
@@ -115,6 +116,8 @@ export function matches(row, q) {
  *  them forever, which is precisely why the catalogue used to say "no indicator
  *  matches 'moving average'" over a chart drawing four of them. */
 export function isRowOn(row, settings) {
+  // The UCT Intelligence row (uctIntelligence.js): on while the indicator is added to this chart.
+  if (row.builtIn === 'uctIntelligence') return isUctIntelligenceAdded(settings)
   if (row.builtIn === 'overlay') return liveOverlays(settings).length > 0
   if (row.builtIn === 'volume') return !isVolumeRemoved(settings)
   return row.carvedOut
@@ -129,6 +132,11 @@ export function isRowOn(row, settings) {
  *  BY IDENTITY so callers can skip persisting a no-op. */
 export function toggledRow(row, settings, registry) {
   const on = isRowOn(row, settings)
+  // ⭐ UCT INTELLIGENCE: adding turns Auto patterns + labels on (the owner's defaults); removing turns every
+  // layer off, Auto patterns included, since `showPatterns` IS that layer's one switch.
+  if (row.builtIn === 'uctIntelligence') {
+    return on ? removeUctIntelligence(settings) : addUctIntelligence(settings)
+  }
   // ⭐ THE BUILT-IN ROWS: a moving average and the volume pane.
   //
   // ⛔ ADD-BACK PREFERS A TOMBSTONE OVER A NEW SLOT, and that is the member's
@@ -216,7 +224,10 @@ export function toggledRow(row, settings, registry) {
 // reaches the builder through the settings panel, so the launcher renders only
 // where a host asks for it rather than appearing twice on the surfaces that
 // already have one.
-export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '' }) {
+// ⭐ `extraRows`: rows a HOST offers on top of the catalogue — today only the chart's UCT Intelligence row,
+// passed only while the pattern layer exists for this viewer (absent prop = absent row, the same rule as
+// `onCreateFormula`). Never part of `catalogRows()` or `BUILT_IN_ROWS`, whose consumers are railed id-for-id.
+export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '', extraRows = null }) {
   const [query, setQuery] = useState('')
   const searchRef = useRef(null)
 
@@ -308,12 +319,13 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // reading "Moving Average". See `discoveryCatalog.libraryRowFor`.
   const all = useMemo(
     () => [
+      ...(Array.isArray(extraRows) ? extraRows : []),
       ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)).map((r) => libraryRowFor(r, settings)),
       ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
       ...userCatalogRows(registry),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version
-    [registry, generation, hidden, settings],
+    [registry, generation, hidden, settings, extraRows],
   )
   // ⛔ ONE SEARCH, SHARED WITH THE SETTINGS TAB AND THE SOURCE PICKER. Same hook,
   // same endpoints, same debounce, same facade adapters — see the import block.

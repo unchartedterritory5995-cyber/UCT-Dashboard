@@ -484,6 +484,12 @@ export function rowView(row) {
  *   lastPrice:         the latest close, for choosing the nearest levels
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
  *   trustedOnly:       draw ONLY display_tier 'trusted' rows (the team set) and no levels layer; default false
+ *   showLabels:        draw the base metrics text (buy point / depth / stage / volume); default true
+ *   showLearned:       draw the `drawn` block when present (admin "Learned levels" toggle); default true
+ *   showDealStatus:    show the deal-status notice even while `enabled` is false; default false
+ *   (The UCT Intelligence indicator, uctIntelligence.js, drives the last three. A released support /
+ *    resistance or candlestick layer is gated there by the payload key's presence; its renderer is not
+ *    in this file yet.)
  */
 export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
 
@@ -546,6 +552,9 @@ export default function PatternOverlay({
   trustedOnly = false,
   dealStatus = null,
   candles = null,
+  showLabels = true,
+  showLearned = true,
+  showDealStatus = false,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -582,9 +591,12 @@ export default function PatternOverlay({
 
   // Pending acquisition (server deal_status, DEAL_STATUS_ENABLED): the server withheld every
   // drawing and buy-point label; say why instead of drawing nothing silently.
-  if (enabled && dealStatus?.pending) return <DealStatusNotice dealStatus={dealStatus} />
+  // `showDealStatus` (the UCT Intelligence indicator is on): the notice shows even while the drawings
+  // layer itself is off, so a member who added the indicator always learns why nothing is drawn.
+  if ((enabled || showDealStatus) && dealStatus?.pending) return <DealStatusNotice dealStatus={dealStatus} />
 
-  const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
+  // `showLearned` (admin panel toggle; default true = today's behaviour) withholds the learned block.
+  const hasDrawn = showLearned && !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
   if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
 
   const drawable = selectDrawable(detections, {
@@ -614,7 +626,9 @@ export default function PatternOverlay({
     if (typeof spacing === 'number' && spacing > 0) barHalfWidthPx = spacing / 2
   } catch { /* keep the default */ }
 
-  const views = drawable.map(rowView)
+  // `showLabels` false (the panel's "Pattern labels & numbers" toggle): the drawings stay, the buy point /
+  // depth / stage / volume text block does not, and the label layout reserves no room for it.
+  const views = showLabels ? drawable.map(rowView) : drawable.map((d) => ({ ...rowView(d), metricsLines: null }))
   // Candle extents in px, only when a metrics block needs placing (a base row with metrics) -- read lazily.
   let candlePx = null
   const readCandles = () => {

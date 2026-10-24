@@ -196,3 +196,28 @@ def test_sym_route_names_each_setup_from_the_metadata_table(client, monkeypatch,
     names = {v["setup"]: v["setup_name"] for v in client.get("/api/patterns/AMD").json()["verdicts"]}
     assert names["macd_bullish_cross"] == _PATTERN_METADATA["macd_bullish_cross"]["name"]
     assert names["no_such_setup_id"] is None
+
+
+def test_sym_route_carries_each_setups_one_line_definition_and_never_an_internal_id(client, monkeypatch, tmp_path):
+    """The chart's UCT Intelligence Setups list shows a one-line definition beside each name: the FIRST
+    sentence of the same metadata entry (one authority). An internal id never reaches a member, so it
+    cannot carry a definition to one either."""
+    from api.routers.patterns import _PATTERN_METADATA, setup_definition
+    from api.services.pattern_engine.detectors import registry as reg
+    internal = sorted(reg.INTERNAL_PATTERN_IDS)[0]
+    s = _seed_store(tmp_path, monkeypatch)
+    for setup, h in (("macd_bullish_cross", "m"), ("no_such_setup_id", "n"), (internal, "i")):
+        s.put_verdict({"ticker": "AMD", "tf": "D", "setup": setup, "asof_date": _fresh_asof(),
+                       "confirmed": 1, "vision_confidence": 80, "rationale": "r",
+                       "signals_hash": h, "judged_at": 1})
+    _login(client)
+    rows = client.get("/api/patterns/AMD").json()["verdicts"]
+    defs = {v["setup"]: v["setup_definition"] for v in rows}
+    full = _PATTERN_METADATA["macd_bullish_cross"]["description"]
+    assert defs["macd_bullish_cross"] and full.startswith(defs["macd_bullish_cross"])
+    assert defs["macd_bullish_cross"].endswith(".")
+    assert defs["no_such_setup_id"] is None
+    assert internal not in defs                        # dropped for a member, definition and all
+    # the helper splits on the first sentence only
+    assert setup_definition("no_such_setup_id") is None
+    assert setup_definition(None) is None
