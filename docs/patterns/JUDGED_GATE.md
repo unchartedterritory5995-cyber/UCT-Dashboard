@@ -25,13 +25,14 @@ For each case the gate asserts:
 | fixture file | drawing | member literal it was judged at |
 |---|---|---|
 | `base.json.gz` | `bc:base` base STATES: breakout / extended (recert A r2) and "Base forming" (recert A r3), both through the member textbook gate | `MEMBER_BASE_ROUND = 5` + `MEMBER_BASE_BREAKOUT_ROUND = 1` / `MEMBER_BASE_FORMING_ROUND = 1` |
-| `base_stateless.json.gz` | the stateless `bc:base` (judged round 4): **withdrawn** from members 2026-10-24 (status `withdrawn`), recert A failed it three rounds | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5) |
+| `base_plain.json.gz` | the stateless `bc:base` as the PLAIN base (`base_draw.plain_drawing`, lab base_rebuild): released 2026-10-24 after its pre-registered held-out round on the recert A rubric (A 2.74, B 2.86, C 2.56, D 2.62, pooled 2.695) | `MEMBER_BASE_STATELESS_ROUND = 6` |
+| `base_stateless.json.gz` | the OLD stateless `bc:base` (judged round 4): withdrawn 2026-10-24, then **superseded** the same day by the plain base (status `superseded`) | replayed at 5, the rollback value of `MEMBER_BASE_STATELESS_ROUND` |
 | `double_bottom.json.gz` | `draw:double-bottom` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
 | `shelf.json.gz` | `draw:shelf-pivot` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_SHELF_PIVOT_ROUND = "r4"` + `MEMBER_PIVOT_GATE_ROUND = 1` |
 | `sr.json` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
 | `cup.json` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json.gz` | `draw:inside-day` (round-3 drawing, served only through the recert B textbook gate) | `MEMBER_INSIDE_DAY_ROUND = 3` + `MEMBER_INSIDE_DAY_GATE_ROUND = 1` |
-| `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10). **Withdrawn** 2026-10-24 with the stateless base its numbers print on | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5); `MEMBER_TEXTBOOK_ROUND = 2` unchanged |
+| `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10). Withdrawn 2026-10-24 with the old stateless base its numbers print on, then **superseded** by the plain base (whose buy point is its own highest high + $0.10) | replayed at 5 (the rollback value of `MEMBER_BASE_STATELESS_ROUND`); `MEMBER_TEXTBOOK_ROUND = 2` unchanged |
 | `remount.json` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
 | `u_and_r.json` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
 | `donchian_breakout.json` | `draw:donchian_breakout`: passed both packets, owner released 2026-10-24 | `MEMBER_DONCHIAN_BREAKOUT_ROUND = 1` (`released`) |
@@ -40,6 +41,10 @@ A `withdrawn` file is a released drawing a later recertification failed: its mem
 keep the layer) and `test_a_withdrawn_drawing_is_not_served_to_members` keeps it there. Its judged cases are still
 replayed with the literal set back to the judged round, so the code stays guarded for the day a new passed round
 re-releases it; re-releasing is a re-baseline (below) that flips the status back to `released`.
+
+A `superseded` file is a released drawing a NEWER passed round of the same drawing replaced (its member literal moved
+on to that round, which a `released` file records). Its cases replay with the literal set back to the judged round --
+the rollback lever -- and `test_a_superseded_family_is_one_a_released_family_replaced` keeps the pairing honest.
 
 Unpassed rounds are not fixtures. A `pending_port` file is a drawing that passed but is not released: it is carried so
 the gate covers it the day it ships. `test_a_pending_drawing_is_still_not_released_to_members` goes red when its

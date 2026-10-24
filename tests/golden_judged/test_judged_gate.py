@@ -30,7 +30,12 @@ PENDING = [f for f in FAMILIES if f["status"] == "pending_port"]
 #: Their judged cases are still replayed, with the member literal set back to the judged round, so the code stays
 #: guarded for the day a new passed round re-releases it; and the literal itself must stay None.
 WITHDRAWN_FAMS = [f for f in FAMILIES if f["status"] == "withdrawn"]
-WITHDRAWN = [(f["family"], c) for f in WITHDRAWN_FAMS for c in f["cases"] if "retired" not in c]
+#: Families SUPERSEDED by a newer passed round of the same drawing (the member literal moved on to that round). Their
+#: judged cases are replayed exactly like a withdrawn family's -- the literal set back to the judged round -- because
+#: setting it back is the rollback lever; only the "literal is None" assertion does not apply to them.
+SUPERSEDED_FAMS = [f for f in FAMILIES if f["status"] == "superseded"]
+REPLAYED_FAMS = WITHDRAWN_FAMS + SUPERSEDED_FAMS
+WITHDRAWN = [(f["family"], c) for f in REPLAYED_FAMS for c in f["cases"] if "retired" not in c]
 
 #: Judged cases the CURRENT master does not reproduce, each a finding with its measured cause. Kept RED-visible as
 #: strict xfails: the gate still fails the moment any OTHER case regresses, and fails here too once one of these is
@@ -78,7 +83,7 @@ def test_a_withdrawn_drawing_still_draws_as_judged_when_its_round_is_set(family,
     if case["id"] in KNOWN_RED:
         request.applymarker(pytest.mark.xfail(strict=True, reason=KNOWN_RED[case["id"]]))
     from api.services import auto_structures as AS
-    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == family)
+    fam = next(f for f in REPLAYED_FAMS if f["family"] == family and case in f["cases"])
     monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])
     payload, bars = MP.member_payload(monkeypatch, case)
     bad = JG.failures(case, payload, bars)
@@ -115,6 +120,9 @@ def _first_green(fam, monkeypatch, need=lambda c: True):
     from api.services import auto_structures as AS
     for wf in WITHDRAWN_FAMS:
         if wf["family"] == fam:
+            monkeypatch.setattr(AS, wf["member_literal"], wf["judged_round"])
+    for wf in SUPERSEDED_FAMS:
+        if wf["family"] == fam and not any(r["family"] == fam and r["status"] == "released" for r in FAMILIES):
             monkeypatch.setattr(AS, wf["member_literal"], wf["judged_round"])
     for f, c in RELEASED + WITHDRAWN:
         if f == fam and c["id"] not in KNOWN_RED and need(c):
@@ -258,7 +266,7 @@ def test_a_textbook_line_off_the_buy_point_is_caught(monkeypatch):
 def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
-    every = fams | {f["family"] for f in WITHDRAWN_FAMS}   # a family withdrawn by a recertification still replays
+    every = fams | {f["family"] for f in REPLAYED_FAMS}    # a withdrawn or superseded family still replays
     assert {"base", "double_bottom", "shelf", "cup", "inside_day", "donchian_breakout"} <= fams, fams
     # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
     assert {"sr", "remount", "u_and_r", "textbook"} <= every, every
@@ -275,6 +283,17 @@ def test_each_released_family_is_still_served_at_the_round_the_judges_scored():
             continue
         got = getattr(AS, f["member_literal"])
         assert got == f["judged_round"], (f["family"], f["member_literal"], got, f["judged_round"])
+
+
+def test_a_superseded_family_is_one_a_released_family_replaced():
+    """A superseded fixture is the judged round a NEWER passed round of the same drawing replaced: its member literal
+    has moved off the judged round, onto the round a released fixture of the same literal records."""
+    from api.services import auto_structures as AS
+    for f in SUPERSEDED_FAMS:
+        got = getattr(AS, f["member_literal"])
+        assert got != f["judged_round"], (f["family"], got)
+        assert any(r["status"] == "released" and r["member_literal"] == f["member_literal"] and r["judged_round"] == got
+                   for r in FAMILIES), (f["family"], f["member_literal"], got)
 
 
 def test_a_pending_drawing_is_still_not_released_to_members():
