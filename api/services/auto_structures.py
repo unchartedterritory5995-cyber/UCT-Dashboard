@@ -2424,13 +2424,12 @@ _SETUP_DRAW_FUNCS = (
 #: never setup_draw's *_DRAW_ROUND constants: a member gets a drawing only while its literal equals the frozen
 #: round AND its id is in registry.DISPLAY_MEMBER_SET (member_rows also requires the trusted tier). Fail closed.
 #: remount round 3 (A 2.48 / 92%, B 2.42 / 92%) and u_and_r round 2 (A 2.56 / 100%, B 2.50 / 92%) passed both
-#: pre-registered blind packets. donchian_breakout round 1 passed too (A 2.70 / 100%, B 2.80 / 100%) but the
-#: owner has not ruled on it (the team does not draw donchian): None, and it stays out of both registry display
-#: sets, so admins see it under the flag and members never do. Releasing it is a later commit that sets this
-#: literal to 1 AND adds the id to DISPLAY_TEAM_SET and DISPLAY_MEMBER_SET.
+#: pre-registered blind packets. donchian_breakout round 1 passed too (A 2.70 / 100%, B 2.80 / 100%); owner
+#: released 2026-10-24: its literal is 1 and its id is in DISPLAY_TEAM_SET and DISPLAY_MEMBER_SET. Withdrawing it is
+#: one literal: set it to None (or take the id out of either registry set) and member_rows drops it.
 MEMBER_REMOUNT_ROUND = 3
 MEMBER_U_AND_R_ROUND = 2
-MEMBER_DONCHIAN_BREAKOUT_ROUND = None
+MEMBER_DONCHIAN_BREAKOUT_ROUND = 1
 #: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
 #: session close > SETUP_MIN_CLOSE and close x volume >= SETUP_MIN_DOLLAR_VOLUME. Outside it there is no drawing.
 SETUP_MIN_BARS = 261

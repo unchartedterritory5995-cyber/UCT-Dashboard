@@ -257,6 +257,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "draw:shelf-pivot",
     "draw:remount",
     "draw:u_and_r",
+    "draw:donchian_breakout",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -348,13 +349,14 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: and drawn only by the UCT Intelligence "Setups" toggle. Each passed two pre-registered blind packets as drawn.
 #: They reach a member only while AUTO_STRUCTURES_G4_SETUPS_ENABLED is on, the member route is on, and the row
 #: carries draw_round == auto_structures.MEMBER_<SETUP>_ROUND (equal to the frozen round) beside a well-formed
-#: draw_setup (auto_structures._confirmed_setup_draw / member_rows). draw:donchian_breakout (round 1) passed its
-#: packets too but is in NEITHER set and its member literal is None pending the owner's ruling (the team does
-#: not draw donchian): admin-only under the same flag. Fail closed.
+#: draw_setup (auto_structures._confirmed_setup_draw / member_rows). draw:donchian_breakout (round 1: A 2.70 / 100%,
+#: B 2.80 / 100%) passed its packets too; owner released 2026-10-24: it is in BOTH sets and its member literal is 1,
+#: under the same gates. Fail closed.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
     "draw:double-bottom", "draw:shelf-pivot", "draw:remount", "draw:u_and_r",
+    "draw:donchian_breakout",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

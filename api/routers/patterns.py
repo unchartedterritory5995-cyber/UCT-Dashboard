@@ -947,7 +947,7 @@ def get_detections(
                 if sr is not None:
                     out["levels_sr"] = sr
             # setup drawings (AUTO_STRUCTURES_G4_SETUPS_ENABLED): daily charts only, every setup for the team
-            # (donchian included, not member-released); drawn by the UCT Intelligence "Setups" toggle
+            # (the same three a member gets; donchian owner released 2026-10-24); drawn by the UCT Intelligence "Setups" toggle
             if (tf or "D").upper() == "D":
                 sd = auto_structures.setup_draws_for(sym)
                 if sd is not None:
