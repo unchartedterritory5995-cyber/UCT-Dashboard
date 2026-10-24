@@ -202,7 +202,8 @@ def single_candle(bars: list[dict]) -> dict:
         if ctx is None:
             ctx = ctx_by_len[p.bars] = _build_ctx(bars, p.bars, atr, wide, narrow)
         try:
-            if p.detect(ctx):
+            # R2: the context rules (a real prior move; a reversal at its extreme) live in ONE place.
+            if p.detect(ctx) and cat.context_ok(p, ctx):
                 matched.append(p)
         except (KeyError, TypeError, ZeroDivisionError):
             continue          # a malformed neighbour costs its pattern, not the row

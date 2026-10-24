@@ -138,6 +138,25 @@ MEMBER_TEXTBOOK_ROUND = 2
 _TEXTBOOK_KEYS = ("metrics_textbook", "metrics_textbook_round")
 
 
+#: The candle-rules round a member's candle labels may come from (screener.candle_catalog.CANDLE_RULES_ROUND
+#: stamps the geometry). 2: RELEASED -- round 2 of the textbook audit passed its blind packets on 2026-10-24
+#: (2.54 / 88% and 2.36 / 88% of cases >= 2, against a 2.3 / 70% bar); round 1 failed one packet. A literal ON
+#: PURPOSE, like the drawing rounds: when the candle rules move to a new round, member_candle_rules_ok() goes
+#: False until this is changed by hand after that round's own blind packets (fail closed).
+#: ⛔ THE CANDLE LAYER IS LABEL-ONLY. It names a shape; it never scores, ranks or forecasts it. The same audit
+#: found no label with a usable edge over random bars of the same date and trend context, so no probability,
+#: strength or signal wording may ride along with a candle name to a member.
+MEMBER_CANDLE_ROUND = 2
+
+
+def member_candle_rules_ok() -> bool:
+    """True only while MEMBER_CANDLE_ROUND is an int equal to candle_catalog.CANDLE_RULES_ROUND (read per call,
+    so a test can move one literal). A member surface that shows candle labels checks this first."""
+    from api.services.screener import candle_catalog
+    rnd = candle_catalog.CANDLE_RULES_ROUND
+    return type(MEMBER_CANDLE_ROUND) is int and type(rnd) is int and MEMBER_CANDLE_ROUND == rnd
+
+
 def with_metrics(sym: str, rows, *, member: bool = False) -> list:
     """`rows` with base metrics attached (base_metrics.with_metrics) when AUTO_STRUCTURES_METRICS_ENABLED
     is on; `rows` itself, untouched, when it is off. On the member path a row keeps its metrics only while
