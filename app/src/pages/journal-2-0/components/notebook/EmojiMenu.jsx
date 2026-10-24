@@ -121,7 +121,7 @@ EmojiList.displayName = 'EmojiList'
 
 // `:rocket:` typed whole: converts on the closing colon. The opening colon must
 // start a word, exactly as for the menu (no lookbehind -- the lead is captured).
-// Built from the one shortcode shape (lib/emojiData.js), case-insensitive like
+// Built from the one shortcode shape (lib/emojiShortcode.js), case-insensitive like
 // the menu, so `:Rocket:` converts exactly as picking `:Rocket` would.
 const SHORTCODE_FIND = new RegExp(`(^|[\\s([{])(:(${SHORTCODE_BODY}):)$`, 'i')
 export const EMOJI_INPUT_PATTERN = SHORTCODE_FIND
