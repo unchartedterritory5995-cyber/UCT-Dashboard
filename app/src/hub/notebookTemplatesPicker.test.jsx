@@ -84,8 +84,10 @@ import { wedgeAngles } from './fanGeometry'
 import { _reset as resetCursors } from './useHubCursor'
 import { AuthContext } from '../context/AuthContext'
 import NotebookHubSection from './sections/NotebookHubSection'
-import { NOTEBOOK_ROUTE, templateOptions } from './sections/notebookSection'
+import { NOTEBOOK_ROUTE, templateOptions, templatesConfirmPayload } from './sections/notebookSection'
 import { TEMPLATES, getTemplate } from '../pages/journal-2-0/lib/notebookTemplates'
+import { loadTemplates } from '../pages/journal-2-0/lib/templatesLoader'
+import { validateConfirmPayload } from './contracts'
 
 const TEMPLATES_ACTION = 'notebook.templates'
 
@@ -182,7 +184,11 @@ const confirmIt = async () => {
   await act(async () => { await Promise.resolve() })
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  // Wave 7 Task 7.4 (R-5): the section reads the catalog through the Notebook's loader, synchronously once it
+  // has arrived. On the Notebook page NotebookTab (and the section itself) warm it; here nothing else does, so the
+  // load is awaited. The derived-equality assertions below are unchanged.
+  await loadTemplates()
   hoisted.prefs = { joystick_hub: JSON.stringify({ enabled: true }) }
   hoisted.actionsDoor.current = null
   registered = null
@@ -374,5 +380,39 @@ describe('R-19 — the note it creates is the one the member PICKED', () => {
     expect(screen.getByText('Could not start that note: Could not create note (500)')).toBeTruthy()
     expect(new URLSearchParams(seenSearch).get('note'), 'a failed create still navigated')
       .toBeNull()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+describe('Task 7.4 (R-5) — a catalog that is still loading is not an empty one', () => {
+  it('⛔ before the catalog arrives the sheet says it is loading, starts the load, and is a legal payload', async () => {
+    // A FRESH module registry: the section and the loader as a member's first open has them, nothing loaded yet.
+    vi.resetModules()
+    const section = await import('./sections/notebookSection')
+    const loader = await import('../pages/journal-2-0/lib/templatesLoader')
+    const catalog = vi.spyOn(loader.templatesLoaders, 'catalog')
+    expect(loader.loadedTemplates(), 'non-vacuity: the fresh loader already held the catalog').toBeNull()
+
+    const loading = section.templatesConfirmPayload({ write: vi.fn() })
+    expect(loading.body).toBe('Templates are loading. Try again in a moment.')
+    expect(loading.body).not.toBe('No templates are available right now.')
+    expect(loading.primaryLabel).toBe('Close')
+    expect(loading.fields).toBeUndefined()
+    expect(() => validateConfirmPayload(loading, 'test')).not.toThrow()
+    expect(catalog, 'the loading sheet did not start the load').toHaveBeenCalledTimes(1)
+
+    // ...and once it has arrived, the next open is the real picker, its options still DERIVED from the catalog.
+    const mod = await loader.loadTemplates()
+    const ready = section.templatesConfirmPayload({ write: vi.fn() })
+    expect(ready.primaryLabel).toBe('Start note')
+    expect(ready.fields[0].options.map((o) => [o.value, o.label]))
+      .toEqual(mod.TEMPLATES.map((t) => [t.key, t.label]))
+    expect(section.templateOptions().map((o) => o.value)).toEqual(mod.TEMPLATES.map((t) => t.key))
+    expect(catalog, 'the catalog was imported more than once').toHaveBeenCalledTimes(1)
+  })
+
+  it('an explicitly empty list is still the honest "No templates" sheet (the loading answer is only for undefined)', () => {
+    const p = templatesConfirmPayload({ options: [], write: vi.fn() })
+    expect(p.body).toBe('No templates are available right now.')
   })
 })

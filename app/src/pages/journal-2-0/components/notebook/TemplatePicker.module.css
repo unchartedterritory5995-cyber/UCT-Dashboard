@@ -348,3 +348,30 @@
     min-height: var(--tap-min);
   }
 }
+
+/* Wave 7 Task 7.4: TemplatePickerSkeleton.jsx -- the picker's box while its chunk and the catalog load.
+   Held at a height so the empty notebook does not jump when the picker lands. */
+.skeleton {
+  min-height: 360px;
+}
+.skeletonBar,
+.skeletonDoor,
+.skeletonCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  opacity: 0.6;
+}
+.skeletonBar {
+  height: 36px;
+  border-radius: 8px;
+}
+.skeletonDoor {
+  align-self: flex-start;
+  width: 210px;
+  height: 28px;
+  border-radius: 999px;
+}
+.skeletonCard {
+  height: 64px;
+  border-radius: 10px;
+}

@@ -14,7 +14,7 @@ import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
 import { NewNoteCaret } from '../components/notebook/NewNoteMenu'
-import TemplatePicker from '../components/notebook/TemplatePicker'
+import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -133,6 +133,10 @@ function lazyDialog(load, label) {
 // Task 7.3: the bulk bar is fetched on the FIRST selection (it is only rendered while
 // `selectionOn && selection.count > 0`), so a member who never ticks a note never pays for it.
 const BulkActionBar = lazyView(() => import('../components/notebook/BulkActionBar'), 'bulk actions', null)
+// Task 7.4: the template picker (inline on the empty notebook, and in the New-note sheet) is its own chunk, and it
+// brings the catalog with it (lib/templatesLoader.js). While either loads, the skeleton holds the picker's box and
+// the tour's gallery-door anchor, so a tour waiting on that anchor still finds it.
+const TemplatePicker = lazyView(() => import('../components/notebook/TemplatePicker'), 'templates', <TemplatePickerSkeleton />)
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
 const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
@@ -448,6 +452,15 @@ export default function NotebookTab() {
   // and there's no other handle on that hook's mutate() from up here.
   const [folderRefreshKey, setFolderRefreshKey] = useState(0)
   const deepLinkRan = useRef(false)
+  // Task 7.4 (ruling R-6): the deep link awaits the catalog. When it lands, the tab must still be mounted and the
+  // member must not have opened a note or started a create meanwhile. Refs, because the effect's closure is stale.
+  const deepLinkAlive = useRef(true)
+  const openOrCreating = useRef(false)
+  useEffect(() => {
+    deepLinkAlive.current = true
+    return () => { deepLinkAlive.current = false }
+  }, [])
+  useEffect(() => { openOrCreating.current = Boolean(noteId) || creating }, [noteId, creating])
 
   // Folders panel: open/closed + width, persisted locally so it survives reloads.
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -1950,8 +1963,13 @@ export default function NotebookTab() {
     if (newKey !== 'blank') {
       // Task 7.2: the catalog loads on demand. The params were stripped above BEFORE the await, so a
       // slow or failed load can never loop; a key the catalog does not know still creates nothing.
+      // Task 7.4 (R-6): and when it lands, nothing is made if the tab unmounted or a note was opened or a create
+      // started while it loaded.
       getTemplateAsync(newKey)
-        .then((tpl) => { if (tpl) return createFromTemplate(tpl, { ticker }) })
+        .then((tpl) => {
+          if (!tpl || !deepLinkAlive.current || openOrCreating.current) return undefined
+          return createFromTemplate(tpl, { ticker })
+        })
         .catch((e) => console.warn('[notebook] the template catalog did not load; nothing was made', e))
     } else {
       // Same uppercase-and-trim normalization assembleTemplateContext applies

@@ -40,6 +40,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/TagSuggestInput.jsx': { coveredBy: 'bulk-action-bar' },
   'components/notebook/SavedViewEditor.jsx': { recipe: 'saved-view-editor' },
   'components/notebook/TemplatePicker.jsx': { recipe: 'template-picker' },
+  // Wave 7 Task 7.4: the picker's loading box (the lazy chunk and the catalog); rail a11y/dialogs.a11y.test.jsx.
+  'components/notebook/TemplatePickerSkeleton.jsx': { recipe: 'template-picker-skeleton' },
   'components/notebook/MemberTemplates.jsx': { recipe: 'member-templates' },
   // Wave 10 lane DR-C (D-4): the gallery's read-only "preview before you use
   // it" sheet, opened from either template-picker's own cards or from the

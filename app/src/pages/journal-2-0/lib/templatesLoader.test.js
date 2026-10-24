@@ -29,7 +29,9 @@ describe('templatesLoader', () => {
     expect(tpl?.key).toBe('thesis')
   })
 
-  it('a failed first import is not remembered: the next call asks again', async () => {
+  // The MEMO is cleared on a failure. (The browser may still cache a failed dynamic import for its URL until a
+  // reload; that is the in-place retry's job, railed below, not this memo's.)
+  it('a failed first import clears the memo: the next call asks again', async () => {
     const real = loader.templatesLoaders.catalog
     let n = 0
     loader.templatesLoaders.catalog = () => {
@@ -65,6 +67,21 @@ describe('templatesLoader', () => {
     const out = await failFirstThenAnswer({ default: () => null })
     expect(out.m).toBeUndefined()
     expect(out.e).toBe(out.err)
+  })
+
+  it('loadedTemplates is null until the import resolves, then the very module loadTemplates gave', async () => {
+    expect(loader.loadedTemplates()).toBeNull()
+    const p = loader.loadTemplates()
+    expect(loader.loadedTemplates(), 'reported loaded before the import resolved').toBeNull()
+    const mod = await p
+    expect(loader.loadedTemplates()).toBe(mod)
+    expect(Array.isArray(loader.loadedTemplates().TEMPLATES)).toBe(true)
+  })
+
+  it('loadedTemplates stays null after a failed import', async () => {
+    loader.templatesLoaders.catalog = () => Promise.reject(new Error('boom'))
+    await expect(loader.loadTemplates()).rejects.toThrow('boom')
+    expect(loader.loadedTemplates()).toBeNull()
   })
 
   it('preloadTemplates schedules the load once the browser is idle and never throws', async () => {

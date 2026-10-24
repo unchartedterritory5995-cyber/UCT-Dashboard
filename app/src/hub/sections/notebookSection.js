@@ -30,7 +30,10 @@ import { applyTargetToParams } from '../../pages/journal-2-0/lib/searchNavigatio
 import { createNoteViaApi, createNoteFromTemplateViaApi }
   from '../../pages/journal-2-0/lib/noteCreation'
 import { createVoiceNote, startVoiceRecording, VOICE_NOTE_MESSAGES } from '../voiceNote'
-import { TEMPLATES } from '../../pages/journal-2-0/lib/notebookTemplates'
+// Wave 7 Task 7.4 (ruling R-5): the catalog is NOT imported here. This file is in the app's entry chunk, so a
+// static import of `lib/notebookTemplates.js` (~64 kB of source) put the whole catalog in every member's first
+// open. It is read through the Notebook's one loader, synchronously once it has arrived.
+import { loadTemplates, loadedTemplates, preloadTemplates } from '../../pages/journal-2-0/lib/templatesLoader'
 import { useJ2Note } from '../../pages/journal-2-0/hooks/useJ2Notes'
 import { JournalToast } from '../../pages/journal-2-0/lib/useJournalToast'
 
@@ -114,8 +117,11 @@ export function noteLabelFromCard(node) {
  * the catalog has grown since its own file header last counted it. A list copied here would agree
  * with the catalog exactly once — on the day it was written — and this repo has paid for that
  * shape in the writer index, the COT router's "4 routes" and the setup catalog's "24".
+ *
+ * Task 7.4: the default is the catalog module the Notebook's loader already holds (`loadedTemplates()`), and an
+ * empty list until it has arrived. Still the catalog's own TEMPLATES, never a copy.
  */
-export function templateOptions(templates = TEMPLATES) {
+export function templateOptions(templates = loadedTemplates()?.TEMPLATES) {
   return (templates ?? [])
     .filter((t) => t && typeof t.key === 'string' && t.key && typeof t.label === 'string' && t.label)
     .map((t) => ({ value: t.key, label: t.label }))
@@ -134,10 +140,28 @@ export function templateOptions(templates = TEMPLATES) {
  * options (a <select> silently shows its first option otherwise, so the sheet would display one
  * choice and commit another).
  *
+ * ⭐ A CATALOG THAT IS STILL LOADING IS NOT AN EMPTY ONE (Task 7.4). With no `options` passed and the catalog not
+ * here yet, the sheet says it is loading and starts the load, rather than the "No templates" dead end; the next
+ * open finds it. The payload is built synchronously inside a gesture (HubRoot validates it at once), so it cannot
+ * wait.
+ *
  * @param {{options?: Array<{value: string, label: string}>,
  *          write: (templateKey: string) => void}} args
  */
-export function templatesConfirmPayload({ options = templateOptions(), write } = {}) {
+export function templatesConfirmPayload({ options, write } = {}) {
+  if (options === undefined) {
+    const catalog = loadedTemplates()
+    if (!catalog) {
+      loadTemplates().catch(() => {})
+      return {
+        title: 'Templates',
+        body: 'Templates are loading. Try again in a moment.',
+        primaryLabel: 'Close',
+        onConfirm: () => {},
+      }
+    }
+    options = templateOptions(catalog.TEMPLATES)
+  }
   const list = options.length ? options : null
   if (!list) {
     // The catalog is empty or unreadable. A picker with nothing to pick is the dead control the
@@ -261,6 +285,10 @@ export default function useNotebookSection() {
     mo.observe(document.body, { childList: true, subtree: true })
     return () => mo.disconnect()
   }, [onRoute, scope])
+
+  // Task 7.4: warm the template catalog once the browser is idle while the Notebook route is open, so the
+  // Templates sheet usually finds it already here (NotebookTab warms it too; the loader imports it once).
+  useEffect(() => (onRoute ? preloadTemplates() : undefined), [onRoute])
 
   const identityKey = useMemo(() => makeIdentityKey(scope), [scope])
   const cursor = useHubCursor(LIST_ID, ids, { key: identityKey })

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
@@ -8,6 +8,11 @@ import { MemoryRouter } from 'react-router-dom'
  * picked, renamed, deleted (after asking). ⛔ Feedback by RENDERED TEXT.
  */
 import TemplatePicker from './TemplatePicker'
+import { loadTemplates } from '../../lib/templatesLoader'
+
+// Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
+// picker renders synchronously, as it does on the page once the catalog has arrived.
+beforeAll(() => loadTemplates())
 
 let templates
 let calls

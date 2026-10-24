@@ -2,6 +2,7 @@
 // builders) loads on demand instead of riding the Notebook's first-open bytes.
 //
 //   loadTemplates()     one dynamic import, memoised, retried once in place (`importWithOneRetry`)
+//   loadedTemplates()   the catalog module if it has already arrived, else null (sync; Task 7.4, ruling R-5)
 //   getTemplateAsync()  a template by key, or null
 //   preloadTemplates()  warms the load once idle, so a pick is usually instant
 //
@@ -20,14 +21,28 @@ export const templatesLoaders = {
 const hasGetTemplate = (mod) => typeof mod?.getTemplate === 'function'
 
 let pending = null
+let loaded = null
 
-/** The catalog module. Concurrent callers share one import; a failure is NOT remembered. */
+/**
+ * The catalog module. Concurrent callers share one import. On a failure the memo is cleared, so the next
+ * call asks again; the browser itself may still answer a failed dynamic import from its module map until
+ * the page reloads (the in-place retry in `importWithOneRetry` is what works around that).
+ */
 export function loadTemplates() {
   if (!pending) {
-    pending = importWithOneRetry(() => templatesLoaders.catalog(), RETRY_WAIT_MS, hasGetTemplate)
-    pending.catch(() => { pending = null })
+    const p = importWithOneRetry(() => templatesLoaders.catalog(), RETRY_WAIT_MS, hasGetTemplate)
+    pending = p
+    p.then((mod) => { if (pending === p) loaded = mod }, () => { if (pending === p) pending = null })
   }
   return pending
+}
+
+/**
+ * The catalog module if it has already arrived, else null. Synchronous, for a caller that cannot wait
+ * (the hub's Templates sheet is built inside a gesture). It never starts a load; call `loadTemplates()`.
+ */
+export function loadedTemplates() {
+  return loaded
 }
 
 /** A template by its stable key, or null (unknown key). Rejects only if the catalog cannot load. */

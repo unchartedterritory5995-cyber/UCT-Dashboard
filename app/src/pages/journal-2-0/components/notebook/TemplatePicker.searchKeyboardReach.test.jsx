@@ -5,10 +5,15 @@
 // (TemplatePicker.gallery.test.jsx covers that, unmodified) or the existing
 // filtering (TemplatePicker.gallerySearch.test.jsx, also unmodified) -- every
 // assertion here is new behaviour.
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
+import { loadTemplates } from '../../lib/templatesLoader'
+
+// Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
+// picker renders synchronously, as it does on the page once the catalog has arrived.
+beforeAll(() => loadTemplates())
 import { getTemplate } from '../../lib/notebookTemplates'
 
 function renderPicker(props = {}) {

@@ -65,8 +65,9 @@ describe('no static import of a dark feature on the first-open path', () => {
     expect(door.statics.sort()).toEqual(['../../../lib/lazyChunk', '../../../lib/offline/notebookFlags', './gettingStartedPref', 'react'])
   })
 
+  // Wave 7 Task 7.4: the picker itself became a dynamic import, so the control names its static skeleton.
   it('CONTROL — the walk sees a static import when there is one', () => {
-    expect(imports('tabs/NotebookTab.jsx').statics).toContain('../components/notebook/TemplatePicker')
+    expect(imports('tabs/NotebookTab.jsx').statics).toContain('../components/notebook/TemplatePickerSkeleton')
   })
 })
 

@@ -3,11 +3,16 @@
 // member could not edit what they had typed. Those four keys belong to the text field.
 // The list is driven with ArrowUp and ArrowDown only, and the card Enter will pick is
 // exposed to assistive technology (aria-activedescendant) and said in a polite status.
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
+import { loadTemplates } from '../../lib/templatesLoader'
+
+// Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
+// picker renders synchronously, as it does on the page once the catalog has arrived.
+beforeAll(() => loadTemplates())
 import { getTemplate } from '../../lib/notebookTemplates'
 
 function renderPicker(props = {}) {

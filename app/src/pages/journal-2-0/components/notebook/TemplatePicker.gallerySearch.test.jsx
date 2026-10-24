@@ -3,11 +3,16 @@
 // template and a member's own. None of this replaces the existing card
 // click/Enter/Space behaviour (TemplatePicker.gallery.test.jsx covers that,
 // unmodified, on the default unfiltered view); this file covers what's NEW.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
+import { loadTemplates } from '../../lib/templatesLoader'
+
+// Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
+// picker renders synchronously, as it does on the page once the catalog has arrived.
+beforeAll(() => loadTemplates())
 import { TEMPLATES, FAMILIES, getTemplate } from '../../lib/notebookTemplates'
 
 function renderPicker(props = {}) {
