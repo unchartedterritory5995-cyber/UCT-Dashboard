@@ -12,6 +12,10 @@ two packets of 25 random liquid held-out charts each (bar: mean >= 2.3 AND >= 70
     bear_flag                A 2.32 / 96%   B 2.34 / 88%    (bearish)
     bollinger_squeeze        A 2.42 / 84%   B 2.30 / 88%
     major_trendlines         A 2.48 / 92%   B 2.74 / 96%
+    rsi_bearish_divergence   A 2.52 / 100%  B 2.80 / 100%   (bearish, RSI(14) panel)
+    symmetrical_triangle     A 2.78 / 100%  B 2.78 / 100%
+    rising_wedge             A 2.60 / 100%  B 2.78 / 96%    (bearish)
+    avwap_reclaim            A 2.54 / 92%   B 2.36 / 96%
 Every constant and every line of detection code below is the judged code, frozen (comments removed). The parity
 rail tests/test_setup_draw_r3_parity.py pins this module's output, as-of every bar of embedded synthetic series, to
 the judged code's output: change a constant and it goes red. A new round is a new constant AND a new blind check,
@@ -327,6 +331,118 @@ def bollinger_squeeze(tk, b, why=None):
             'box_h_atr': round((top - flo) / a0, 2), 'dets': [det]}
 
 
+RD_CONF = 2
+
+RD_FRESH = 6
+
+RD_NEWEXT = 60
+
+RD_SEP_MIN, RD_SEP_MAX = 8, 40
+
+RD_SWING_ATR = 1.0
+
+RD_PX_ATR = 0.2
+
+RD_OB, RD_OS = 65.0, 35.0
+
+RD_RSI_GAP = 5.0
+
+RD_BAR_ATR = 2.5
+
+RDB_FRESH = 4
+
+RDB_RSI_GAP = 8.0
+
+RDB_SWING_ATR = 1.5
+
+RDB_SEP_MIN = 10
+
+RDB_PX_ATR = 0.3
+
+RDB_ALIVE_ATR = 2.0
+
+RDB_CLEAN = 10
+
+RDB_RSI_SNAP = 2
+
+def _rsi_div(tk, b, why, bear):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 120:
+        return _say(why, 'no_atr')
+    r = _rsi(b)
+    key = 'h' if bear else 'l'
+    sgn = 1 if bear else -1
+
+    def ext(j):
+        return sgn * b[j][key]
+    fresh, gap, swing_k, sep_min, px_k = ((RDB_FRESH, RDB_RSI_GAP, RDB_SWING_ATR, RDB_SEP_MIN, RDB_PX_ATR) if bear
+                                          else (RD_FRESH, RD_RSI_GAP, RD_SWING_ATR, RD_SEP_MIN, RD_PX_ATR))
+    for j2 in range(ia - RD_CONF, ia - fresh - 1, -1):
+        if not all(ext(j2) > ext(x) for x in range(j2 - 3, j2)):
+            continue
+        if not all(ext(j2) >= ext(x) for x in range(j2 + 1, ia + 1)):
+            continue
+        if ext(j2) < max(ext(x) for x in range(ia - RD_NEWEXT, ia + 1)):
+            continue
+        if b[j2]['h'] - b[j2]['l'] > RD_BAR_ATR * atr:
+            return _say(why, 'rd_wide_second_bar')
+        best = None
+        for j1 in range(j2 - sep_min, j2 - RD_SEP_MAX - 1, -1):
+            if j1 < 3 or not all(ext(j1) > ext(x) for x in list(range(j1 - 3, j1)) + list(range(j1 + 1, j1 + 4))):
+                continue
+            if any(ext(x) > ext(j1) for x in range(j1 + 1, j2)):
+                continue
+
+            if bear:
+                swing = b[j1]['h'] - min(b[x]['l'] for x in range(j1 + 1, j2))
+            else:
+                swing = max(b[x]['h'] for x in range(j1 + 1, j2)) - b[j1]['l']
+            if swing < swing_k * atr:
+                continue
+            if bear and any(ext(x) > ext(j1) for x in range(max(0, j1 - RDB_CLEAN), j1)):
+                continue
+
+            if best is None or ext(j1) > ext(best):
+                best = j1
+        if best is None:
+            return _say(why, 'rd_no_first_point')
+        j1 = best
+        if sgn * (b[j2][key] - b[j1][key]) < px_k * atr:
+            return _say(why, 'rd_marginal_price')
+        q1, q2 = j1, j2
+        if bear:
+
+            def _snap(j):
+                c_ = [x for x in range(j - RDB_RSI_SNAP, min(ia, j + RDB_RSI_SNAP) + 1) if r[x] is not None]
+                return max(c_, key=lambda x: (r[x], -abs(x - j))) if c_ else j
+            q1, q2 = _snap(j1), _snap(j2)
+            if b[ia]['c'] < b[j2]['h'] - RDB_ALIVE_ATR * atr:
+                return _say(why, 'rd_resolved')
+        r1, r2 = r[q1], r[q2]
+        if r1 is None or r2 is None:
+            return _say(why, 'rd_no_rsi')
+        if bear and not (r1 >= RD_OB and r2 <= r1 - gap):
+            return _say(why, 'rd_rsi')
+        if not bear and not (r1 <= RD_OS and r2 >= r1 + RD_RSI_GAP):
+            return _say(why, 'rd_rsi')
+        g = deal_gate(tk, b, ia)
+        if g:
+            return _say(why, g)
+        pid = 'rsi_bearish_divergence' if bear else 'rsi_bullish_divergence'
+        name = 'RSI bearish divergence' if bear else 'RSI bullish divergence'
+        det = _row(pid, name, b, 'neckline', [(j1, b[j1][key]), (j2, b[j2][key])],
+                   'bearish' if bear else 'bullish')
+        panel = {'rsi': [None if v is None else round(v, 3) for v in r], 'p1': q1, 'p2': q2}
+        return {'shape': pid, 'sep': j2 - j1, 'second_age': ia - j2, 'rsi1': round(r1, 1), 'rsi2': round(r2, 1),
+                'px_diff_atr': round(sgn * (b[j2][key] - b[j1][key]) / atr, 2), 'dets': [det], 'panel': panel}
+    return _say(why, 'rd_no_second_point')
+
+
+def rsi_bearish_divergence(tk, b, why=None):
+    return _rsi_div(tk, b, why, True)
+
+
 def _drift(cl):
     n = len(cl)
     mx = (n - 1) / 2
@@ -336,7 +452,237 @@ def _drift(cl):
     return abs(num / den) * (n - 1) if den else 0.0
 
 
+AV_LOOK = 150
+
+AV_MIN_AGE = 20
+
+AV_DECL_ATR = 4.0
+
+AV_BELOW_N, AV_BELOW = 10, 7
+
+AV_FRESH = 3
+
+AV_CHOP, AV_CROSS = 30, 2
+
+AV_EXT_ATR = 1.0
+
+AV_GAP_ATR = 0.5
+
+AV_PRIOR_ABOVE = 2
+
+AV_CLEAR_ATR = 0.3
+
+AV_UNDER_N = 15
+
+AV_UNDER_ATR = 0.2
+
+AV_POKE_ATR = 0.25
+
+def avwap_reclaim(tk, b, why=None):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 200:
+        return _say(why, 'no_atr')
+    lo = ia - AV_LOOK
+    H = max(b[j]['h'] for j in range(lo, ia + 1))
+    A = max(j for j in range(lo, ia + 1) if b[j]['h'] == H)
+    if ia - A < AV_MIN_AGE:
+        return _say(why, 'av_anchor_recent')
+    if H - min(b[j]['l'] for j in range(A, ia + 1)) < AV_DECL_ATR * atr:
+        return _say(why, 'av_no_decline')
+    pv = vv = 0.0
+    av = {}
+    for j in range(A, ia + 1):
+        tp = (b[j]['h'] + b[j]['l'] + b[j]['c']) / 3
+        pv += tp * b[j]['v']
+        vv += b[j]['v']
+        if vv <= 0:
+            return _say(why, 'av_no_volume')
+        av[j] = pv / vv
+    k = None
+    for j in range(ia, ia - AV_FRESH, -1):
+        if b[j]['c'] > av[j] and b[j - 1]['c'] <= av[j - 1]:
+            k = j
+            break
+    if k is None or k - A < AV_BELOW_N + 2:
+        return _say(why, 'av_no_reclaim')
+    if any(b[j]['c'] <= av[j] for j in range(k, ia + 1)):
+        return _say(why, 'av_lost')
+    if sum(1 for j in range(A + 3, k) if b[j]['c'] > av[j]) > AV_PRIOR_ABOVE:
+        return _say(why, 'av_not_first_reclaim')
+    if sum(1 for j in range(k - AV_BELOW_N, k) if b[j]['c'] < av[j]) < AV_BELOW:
+        return _say(why, 'av_not_below')
+    cr = 0
+    for j in range(max(A + 1, k - AV_CHOP), k):
+        if (b[j]['c'] > av[j]) != (b[j - 1]['c'] > av[j - 1]):
+            cr += 1
+    if cr > AV_CROSS:
+        return _say(why, 'av_chop')
+    if b[ia]['c'] > av[ia] + AV_EXT_ATR * atr:
+        return _say(why, 'av_extended')
+    if b[ia]['c'] < av[ia] + AV_CLEAR_ATR * atr:
+        return _say(why, 'av_marginal')
+    pre = range(k - AV_UNDER_N, k)
+    if k - AV_UNDER_N <= A or any(b[j]['c'] >= av[j] for j in pre):
+        return _say(why, 'av_not_under')
+    if sum(av[j] - b[j]['c'] for j in pre) / AV_UNDER_N < AV_UNDER_ATR * atr:
+        return _say(why, 'av_hugging')
+    if any(b[j]['h'] > av[j] + AV_POKE_ATR * atr for j in pre):
+        return _say(why, 'av_earlier_poke')
+    if b[k]['o'] > av[k] + AV_GAP_ATR * atr:
+        return _say(why, 'av_gap_overshoot')
+    g = deal_gate(tk, b, ia)
+    if g:
+        return _say(why, g)
+    pts = [{'t': _t(b, j), 'price': round(av[j], 4)} for j in range(A, ia + 1)]
+    det = _row('avwap_reclaim', 'AVWAP reclaim', b, 'horizontal_line', [(A, av[A]), (ia, av[ia])], 'bullish',
+               {'draw_ema': {'points': pts}})
+    return {'shape': 'avwap_reclaim', 'anchor_age': ia - A, 'reclaim_bars_ago': ia - k, 'crossings': cr,
+            'close_vs_avwap_atr': round((b[ia]['c'] - av[ia]) / atr, 2), 'dets': [det]}
+
+
+CV_LOOK = 100
+
+CV_MIN_SPAN = 15
+
 CV_TOL_ATR = 0.3
+
+CV_MIN_TOUCH = 5
+
+CV_MOVE_ATR = 1.0
+
+CV_CONV = 0.65
+
+CV_SEP = 4
+
+CV_SYM_BAL = 2.5
+
+CV_RW_CONV = 0.5
+
+CV_RW_LEAD = 3
+
+CV_RW_TOUCH = 3
+
+CV_RW_LOOK = 80
+
+def _converging(tk, b, why, kind):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 200:
+        return _say(why, 'no_atr')
+    hi_p, lo_p = _pivots(b)
+    j_hi = ia - 2
+    lo_w = ia - (CV_RW_LOOK if kind == 'rising_wedge' else CV_LOOK)
+    space = 'lin' if kind in ('symmetrical_triangle', 'rising_wedge') else 'log'
+    from_high = kind in ('symmetrical_triangle', 'falling_wedge')
+    key = 'h' if from_high else 'l'
+    vals = [(b[j][key], j) for j in range(lo_w, ia - 7)]
+    if not vals:
+        return _say(why, 'cv_none')
+    A = (max(vals) if from_high else min(vals, key=lambda x: (x[0], -x[1])))[1]
+    if from_high and any(b[j]['h'] > b[A]['h'] for j in range(A + 1, ia + 1)):
+        return _say(why, 'cv_exceeded')
+    if not from_high and any(b[j]['l'] < b[A]['l'] for j in range(A + 1, ia + 1)):
+        return _say(why, 'cv_exceeded')
+    if ia - A < CV_MIN_SPAN:
+        return _say(why, 'cv_short')
+    if from_high:
+        if A not in hi_p:
+            return _say(why, 'cv_start_not_pivot')
+        ru = _best_line(b, hi_p, A, j_hi, 'up', atr, CV_TOL_ATR, CV_SEP, must_first=A, space=space)
+        rl = _best_line(b, lo_p, A + 1, j_hi, 'lo', atr, CV_TOL_ATR, CV_SEP, space=space)
+    elif kind == 'rising_wedge':
+
+
+        if A not in lo_p:
+            return _say(why, 'cv_start_not_pivot')
+        ru = _best_line(b, hi_p, A + 1, j_hi, 'up', atr, CV_TOL_ATR, CV_SEP, space=space)
+        if ru is None:
+            return _say(why, 'cv_no_lines')
+        rl = _best_line(b, lo_p, max(A, ru[3] - CV_RW_LEAD), j_hi, 'lo', atr, CV_TOL_ATR, CV_SEP, space=space)
+    else:
+        if A not in lo_p:
+            return _say(why, 'cv_start_not_pivot')
+        rl = _best_line(b, lo_p, A, j_hi, 'lo', atr, CV_TOL_ATR, CV_SEP, must_first=A)
+        ru = _best_line(b, hi_p, A + 1, j_hi, 'up', atr, CV_TOL_ATR, CV_SEP)
+    if ru is None or rl is None:
+        return _say(why, 'cv_no_lines')
+    nu, _, U, u1, u2, tu = ru
+    nl, _, Lw, l1, l2, tl = rl
+    if nu < 2 or nl < 2 or nu + nl < CV_MIN_TOUCH:
+        return _say(why, 'cv_touches')
+    if kind == 'rising_wedge':
+        if nl < CV_RW_TOUCH:
+            return _say(why, 'cv_touches')
+        A = min(u1, l1)
+        if ia - A < CV_MIN_SPAN:
+            return _say(why, 'cv_short')
+
+    if _alternations(tu, tl) < 3:
+        return _say(why, 'cv_no_alternation')
+
+    if not (_interior(tu, A, ia) and _interior(tl, A, ia)):
+        return _say(why, 'cv_no_interior_touch')
+
+    for j in range(A, j_hi + 1):
+        if space == 'lin':
+            if b[j]['h'] > U.at(j) + CV_TOL_ATR * atr:
+                return _say(why, 'cv_high_outside')
+            if b[j]['l'] < Lw.at(j) - CV_TOL_ATR * atr:
+                return _say(why, 'cv_low_outside')
+            continue
+        if math.log(b[j]['h']) > math.log(U.at(j)) + _tol(b, j, atr, CV_TOL_ATR):
+            return _say(why, 'cv_high_outside')
+        if math.log(b[j]['l']) < math.log(Lw.at(j)) - _tol(b, j, atr, CV_TOL_ATR):
+            return _say(why, 'cv_low_outside')
+    du = U.at(ia) - U.at(A)
+    dl = Lw.at(ia) - Lw.at(A)
+    mv = CV_MOVE_ATR * atr
+    if kind == 'symmetrical_triangle' and not (du <= -mv and dl >= mv):
+        return _say(why, 'cv_slopes')
+    if kind == 'symmetrical_triangle' and max(abs(du), abs(dl)) > CV_SYM_BAL * min(abs(du), abs(dl)):
+        return _say(why, 'cv_sym_unbalanced')
+    if kind == 'falling_wedge' and not (du <= -mv and dl <= -max(mv, 0.25 * abs(du)) and U.m < Lw.m):
+        return _say(why, 'cv_slopes')
+    if kind == 'rising_wedge' and not (dl >= mv and du >= max(mv, 0.25 * dl) and Lw.m > U.m):
+        return _say(why, 'cv_slopes')
+    w0 = U.at(A) - Lw.at(A)
+    w1 = U.at(ia) - Lw.at(ia)
+    if w0 <= 0 or w1 <= 0 or w1 > (CV_RW_CONV if kind == 'rising_wedge' else CV_CONV) * w0:
+        return _say(why, 'cv_not_converging')
+    if U.at(ia + 3) <= Lw.at(ia + 3):
+        return _say(why, 'cv_apex_passed')
+    c = b[ia]['c']
+    for j in range(A, ia if kind == 'symmetrical_triangle' else ia - 1):
+        if b[j]['c'] > U.at(j) + CV_TOL_ATR * atr or b[j]['c'] < Lw.at(j) - CV_TOL_ATR * atr:
+            return _say(why, 'cv_close_outside')
+    if c > U.at(ia):
+        if kind == 'rising_wedge' or c > U.at(ia) + 1.5 * atr:
+            return _say(why, 'cv_left_up')
+    if c < Lw.at(ia):
+        if kind == 'falling_wedge' or c < Lw.at(ia) - 1.5 * atr:
+            return _say(why, 'cv_left_down')
+    g = deal_gate(tk, b, ia)
+    if g:
+        return _say(why, g)
+    s_u = A if from_high else u1
+    s_l = l1 if from_high else (l1 if kind == 'rising_wedge' else A)
+    name = {'symmetrical_triangle': 'Symmetrical triangle', 'falling_wedge': 'Falling wedge',
+            'rising_wedge': 'Rising wedge'}[kind]
+    direc = {'symmetrical_triangle': 'neutral', 'falling_wedge': 'bullish', 'rising_wedge': 'bearish'}[kind]
+    det = _line_rows_pair(kind, name, b, [(s_u, U.at(s_u)), (ia, U.at(ia))], [(s_l, Lw.at(s_l)), (ia, Lw.at(ia))],
+                          direc, space=space)
+    return {'shape': kind, 'span': ia - A, 'touches_upper': nu, 'touches_lower': nl,
+            'conv': round(w1 / w0, 2), 'dets': [det]}
+
+
+def symmetrical_triangle(tk, b, why=None):
+    return _converging(tk, b, why, 'symmetrical_triangle')
+
+
+def rising_wedge(tk, b, why=None):
+    return _converging(tk, b, why, 'rising_wedge')
+
 
 DT_LOOK = 80
 
@@ -440,6 +786,12 @@ HS_TIME_R3 = (0.6, 1.67)
 
 HS_HEAD_R3 = 1.5
 
+HST_SH_LVL_ATR = 0.75
+
+HST_SPIKE_ATR = 0.5
+
+HST_NL_SLOPE = 0.15
+
 def _hs(tk, b, why, inverse):
     ia = len(b) - 1
     atr = _atr(b, ia)
@@ -498,6 +850,15 @@ def _hs(tk, b, why, inverse):
                     continue
                 if abs(n1p - n2p) > HS_NL_SLOPE_R3 * hd:
                     continue
+                if not inverse:
+
+                    if abs(b[LS][key] - b[RS][key]) > HST_SH_LVL_ATR * atr or abs(n1p - n2p) > HST_NL_SLOPE * hd:
+                        continue
+                    if any(not any(abs(b[x][key] - b[j][key]) <= HST_SPIKE_ATR * atr
+                                   for x in range(j - 2, j + 3) if x != j and 0 <= x <= ia) for j in (LS, H, RS)):
+                        continue
+                    if any(-sgn * (b[j]['c'] - NL(j)) > 0 for j in range(N1, RS)):
+                        continue
                 pre = [b[j][ck] for j in range(max(0, LS - 40), LS)]
                 if not pre:
                     continue
@@ -721,6 +1082,10 @@ DETECT = {
     "bear_flag": bear_flag,
     "bollinger_squeeze": bollinger_squeeze,
     "major_trendlines": major_trendlines,
+    "rsi_bearish_divergence": rsi_bearish_divergence,
+    "symmetrical_triangle": symmetrical_triangle,
+    "rising_wedge": rising_wedge,
+    "avwap_reclaim": avwap_reclaim,
 }
 SETUPS = tuple(DETECT)
 DRAW_ROUNDS = {s: R3_DRAW_ROUND for s in SETUPS}

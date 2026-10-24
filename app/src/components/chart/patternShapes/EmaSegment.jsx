@@ -42,7 +42,7 @@ export default function EmaSegment({ detection, tToX, priceToY, onClick }) {
       />
       <text x={lx + 6} y={ly + 4} fontSize="10" fill={color} opacity={opacity}
         style={{ pointerEvents: 'none' }}>
-        {`${ema.period} ${maName} · ${formatLabel(detection)}`}
+        {ema.kind === 'avwap' ? `AVWAP · ${formatLabel(detection)}` : `${ema.period} ${maName} · ${formatLabel(detection)}`}
       </text>
       {tagX != null && tagY != null && (
         <path

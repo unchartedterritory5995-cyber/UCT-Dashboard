@@ -167,6 +167,16 @@ describe('the round-3 setup shapes draw with the pattern renderers', () => {
     expect(Number(neck.getAttribute('y2'))).toBeCloseTo(1000 - 34 * 10)
   })
 
+  it('an AVWAP reclaim draws its curve labelled AVWAP, never as a moving average', () => {
+    const avwap = shaped('draw:avwap-reclaim', 'horizontal_line', [A(0, 30), A(4, 28)],
+      { draw_ema: { kind: 'avwap', points: [A(0, 30), A(2, 29), A(4, 28)] } })
+    const { container } = draw({ setupDraws: [avwap], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:avwap-reclaim"]')
+    expect(g.querySelector('polyline[data-role="ema"]').getAttribute('points').split(' ').length).toBe(3)
+    expect(g.textContent).toMatch(/^AVWAP · /)
+    expect(g.textContent).not.toMatch(/EMA|SMA|undefined/)
+  })
+
   it('a bear flag draws its two lines AND its pole', () => {
     const { container } = draw({ setupDraws: [BEAR_FLAG], showSetupDraws: true })
     const g = container.querySelector('[data-setup-draw="draw:bear-flag"]')

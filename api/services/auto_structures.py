@@ -3149,6 +3149,10 @@ _SETUP_DRAW_R3_FUNCS = (
     ("bear_flag", "draw:bear-flag", "Bear flag", "bear_flag"),
     ("bollinger_squeeze", "draw:bollinger-squeeze", "Bollinger squeeze", "bollinger_squeeze"),
     ("major_trendlines", "draw:major-trendline", "Major trendline", "major_trendlines"),
+    ("rsi_bearish_divergence", "draw:rsi-bearish-divergence", "RSI bearish divergence", "rsi_bearish_divergence"),
+    ("symmetrical_triangle", "draw:symmetrical-triangle", "Symmetrical triangle", "symmetrical_triangle"),
+    ("rising_wedge", "draw:rising-wedge", "Rising wedge", "rising_wedge"),
+    ("avwap_reclaim", "draw:avwap-reclaim", "AVWAP reclaim", "avwap_reclaim"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
 #: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
@@ -3245,6 +3249,10 @@ MEMBER_DEATH_CROSS_ROUND = 2
 #:   bear_flag               A 2.32 / 96%   B 2.34 / 88%    (bearish)
 #:   bollinger_squeeze       A 2.42 / 84%   B 2.30 / 88%
 #:   major_trendlines        A 2.48 / 92%   B 2.74 / 96%    (one line; semantic_subtype single_trendline)
+#:   rsi_bearish_divergence  A 2.52 / 100%  B 2.80 / 100%   (bearish; RSI(14) panel)
+#:   symmetrical_triangle    A 2.78 / 100%  B 2.78 / 100%
+#:   rising_wedge            A 2.60 / 100%  B 2.78 / 96%    (bearish)
+#:   avwap_reclaim           A 2.54 / 92%   B 2.36 / 96%    (the anchored VWAP curve)
 #: Literals ON PURPOSE (never setup_draw_r3.R3_DRAW_ROUND): a new drawing round cannot release itself.
 MEMBER_OUTSIDE_BAR_ROUND = 3
 MEMBER_DESCENDING_TRIANGLE_ROUND = 3
@@ -3252,6 +3260,10 @@ MEMBER_INVERSE_HEAD_SHOULDERS_ROUND = 3
 MEMBER_BEAR_FLAG_ROUND = 3
 MEMBER_BOLLINGER_SQUEEZE_ROUND = 3
 MEMBER_MAJOR_TRENDLINES_ROUND = 3
+MEMBER_RSI_BEARISH_DIVERGENCE_ROUND = 3
+MEMBER_SYMMETRICAL_TRIANGLE_ROUND = 3
+MEMBER_RISING_WEDGE_ROUND = 3
+MEMBER_AVWAP_RECLAIM_ROUND = 3
 #: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
 #:   rectangle               A 2.44 / 100%  B 2.76 / 96%
@@ -3314,6 +3326,10 @@ def _member_setup_round(pid):
         "draw:bear-flag": MEMBER_BEAR_FLAG_ROUND,
         "draw:bollinger-squeeze": MEMBER_BOLLINGER_SQUEEZE_ROUND,
         "draw:major-trendline": MEMBER_MAJOR_TRENDLINES_ROUND,
+        "draw:rsi-bearish-divergence": MEMBER_RSI_BEARISH_DIVERGENCE_ROUND,
+        "draw:symmetrical-triangle": MEMBER_SYMMETRICAL_TRIANGLE_ROUND,
+        "draw:rising-wedge": MEMBER_RISING_WEDGE_ROUND,
+        "draw:avwap-reclaim": MEMBER_AVWAP_RECLAIM_ROUND,
         RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
@@ -3414,6 +3430,10 @@ _R3_SHAPE_OF = {
     "draw:bear-flag": "trendline_pair",
     "draw:bollinger-squeeze": "rectangle",
     "draw:major-trendline": "trendline_pair",
+    "draw:rsi-bearish-divergence": "neckline",
+    "draw:symmetrical-triangle": "trendline_pair",
+    "draw:rising-wedge": "trendline_pair",
+    "draw:avwap-reclaim": "horizontal_line",
 }
 _R3_ANCHORS = {
     "draw:outside-bar": 2,
@@ -3422,7 +3442,15 @@ _R3_ANCHORS = {
     "draw:bear-flag": 4,
     "draw:bollinger-squeeze": 2,
     "draw:major-trendline": 2,
+    "draw:rsi-bearish-divergence": 2,
+    "draw:symmetrical-triangle": 4,
+    "draw:rising-wedge": 4,
+    "draw:avwap-reclaim": 2,
 }
+#: round 3: the row whose judged drawing is the anchored VWAP CURVE (extras.draw_ema points), and the row whose
+#: judged picture carries an RSI(14) panel.
+_R3_CURVE_IDS = ("draw:avwap-reclaim",)
+_R3_RSI_PANEL_IDS = ("draw:rsi-bearish-divergence",)
 #: round 3: the rows whose judged drawing is ONE line (trendline_pair, semantic_subtype single_trendline).
 _R3_SINGLE_LINE_IDS = ("draw:major-trendline",)
 
@@ -3452,6 +3480,17 @@ def _confirmed_setup_draw_r3(r, want) -> bool:
         return False
     if pid in _R3_SINGLE_LINE_IDS and geom.get("semantic_subtype") != "single_trendline":
         return False
+    if pid in _R3_CURVE_IDS:
+        em = ex.get("draw_ema")
+        pts = em.get("points") if isinstance(em, dict) else None
+        if not (isinstance(pts, list) and len(pts) >= 2
+                and all(isinstance(p, dict) and p.get("t") is not None and _finite(p.get("price")) for p in pts)):
+            return False
+    if pid in _R3_RSI_PANEL_IDS:
+        pn = ex.get("draw_panel")
+        if not (isinstance(pn, dict) and pn.get("kind") == "rsi14" and isinstance(pn.get("points"), list)
+                and len(pn["points"]) >= 2 and all(_finite((pn.get(k) or {}).get("value")) for k in ("p1", "p2"))):
+            return False
     return True
 
 
@@ -3511,7 +3550,11 @@ def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2, rnd=None):
               if k in ("line_spaces", "draw_pole", "draw_ema")}
     if "draw_ema" in extras:
         # the label EmaSegment prints ("50 SMA ..."): display decoration only, the points are the judged curve
-        extras["draw_ema"] = {**extras["draw_ema"], "kind": "sma", "period": _R2_CURVE_PERIODS[k_det]}
+        if pid == "draw:avwap-reclaim":
+            # the anchored VWAP curve, labelled as what it is (the judged picture had no label)
+            extras["draw_ema"] = {**extras["draw_ema"], "kind": "avwap"}
+        else:
+            extras["draw_ema"] = {**extras["draw_ema"], "kind": "sma", "period": _R2_CURVE_PERIODS[k_det]}
     extras.update({"draw_setup": setup_draw_r2.facts(d),
                    "draw_round": setup_draw_r2.R2_DRAW_ROUND if rnd is None else rnd})
     pn = d.get("panel")
