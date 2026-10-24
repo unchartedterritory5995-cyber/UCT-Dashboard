@@ -173,7 +173,10 @@ def test_display_policy_matches_the_tiers_v3_report_and_the_team_set():
     then the owner's TEAM DRAWING SET (2026-10-17): the trusted tier IS what the team draws."""
     team = {"bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5",
             "uct_flat_top_breakout", "bc:base", "draw:inside-day", "draw:double-bottom",
-            "draw:shelf-pivot", "draw:remount", "draw:u_and_r"}
+            "draw:shelf-pivot", "draw:remount", "draw:u_and_r",
+            # round-2 setup drawings (setup_draw_r2.py), each blind-confirmed on two packets
+            "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant",
+            "draw:darvas-box", "draw:falling-wedge", "draw:double-top", "draw:golden-cross", "draw:death-cross"}
     assert registry.DISPLAY_TEAM_SET == team and registry.DISPLAY_TRUSTED == team
     for pid in team:
         assert display_policy(pid)["display_tier"] == "trusted"

@@ -22,7 +22,9 @@ from tests.test_setup_draw_parity import EXPECTED, ROWS
 
 FLAG = "AUTO_STRUCTURES_G4_SETUPS_ENABLED"
 MEMBER_SETUPS = {"draw:remount", "draw:u_and_r"}
-ALL_SETUPS = set(AS.SETUP_DRAW_IDS)
+# the three round-1 (g4) setups; the round-2 ids that share SETUP_DRAW_IDS are railed in
+# tests/test_setup_draw_r2_member_gate.py
+ALL_SETUPS = set(AS.SETUP_DRAW_IDS) - set(AS.SETUP_DRAW_R2_IDS)
 
 
 def _bars_at(i):
@@ -109,7 +111,8 @@ def _route_env(monkeypatch, flag_on):
     _store(monkeypatch, [])
     monkeypatch.setattr(AS, "structures_for", lambda sym: [])
     monkeypatch.setattr(AS, "drawn_for", lambda sym: None)
-    monkeypatch.setattr(AS, "deal_hold", lambda sym: None)
+    # the real signature: the route asks deal_hold(sym, member=True) on the member path (fc6986f872)
+    monkeypatch.setattr(AS, "deal_hold", lambda sym, member=False: None)
 
 
 def test_flag_off_no_payload_carries_the_key(monkeypatch, setups_on):

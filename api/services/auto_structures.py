@@ -250,9 +250,10 @@ def member_rows(rows) -> list:
     finished, drawn flag (`_confirmed_flag`): a stale flag, or one stamped by other
     drawing code or never stamped at all, is dropped. Fail closed.
 
-    The one other bull_flag a member gets is the "flagging" tier (`_flagging_flag`): a flag the
-    round-9 code stopped ONLY on a relaxed verdict, stamped `extras.flagging` with tier "flagging"
-    and the member round. PatternOverlay draws it light, with no entry line.
+    The "flagging" tier (`_flagging_flag`: a flag the round-9 code stopped ONLY on a relaxed verdict,
+    stamped `extras.flagging`) is WITHHELD from members since 2026-10-24 (blind textbook score 1.28):
+    `_member_flagging_flag` is False while MEMBER_FLAGGING_ROUND is None, so a member gets the
+    confirmed tier only. Admins and the team still get both tiers (they never pass through here).
 
     A uct_flat_top_breakout passed its blind check as the "flat top" ceiling drawn
     under the v2 conditions (MEMBER_FLAT_TOP_ROUND), so a member gets one only while
@@ -296,7 +297,7 @@ def member_rows(rows) -> list:
             if (r or {}).get("display_tier") == "trusted"
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") != "bull_flag"
-                 or _confirmed_flag(r) or _flagging_flag(r))
+                 or _confirmed_flag(r) or _member_flagging_flag(r))
             and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
             and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
             and ((r or {}).get("pattern_id") != BASE_DRAW_ID or _confirmed_base(r))
@@ -496,20 +497,23 @@ BASE_DRAW_ID = "bc:base"
 #: B 2.78 [2.64, 2.90]); round 4 (round 2 unchanged wherever round 2 draws, plus a textbook consolidation
 #: round 2 missed only on a single touch or a lip reached from above) passed its own pre-registered blind
 #: packets 2026-10-23 (A 2.86 [2.72, 2.98] and B 2.96 [2.90, 3.00], and a regression packet where round 2
-#: draws: 25 of 25 identical) and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
+#: draws: 25 of 25 identical); round 5 (round 4 unchanged, minus the drawings base_draw.floor_refuses says
+#: are not a base: under the label's own 3% depth floor, or a volatility-collapsed range with no correction) is a
+#: REMOVAL-ONLY guard, pre-registered 2026-10-23 (no approved case dropped; the refused set scored 0.90 of 3 by
+#: blind judges), and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
 #: the drawing code moves ahead of this round, every bc:base row carries THIS round's drawing
 #: (`extras.draw_member`) and a member is served exactly the row this round draws (`_base_member_row`),
 #: until the new round passes its own blind check and this is changed by hand. While the two are equal
-#: there is no carrier. Setting this back to 2 restores the round-2 member drawing byte for byte, and to 1
-#: the round-1 one (the carrier path below; railed by tests/test_base_draw_r4_member_parity.py and
-#: tests/test_base_draw_member_parity.py).
-MEMBER_BASE_ROUND = 4
+#: there is no carrier. Setting this back to 4 restores the round-4 member drawing, to 2 the round-2 one byte
+#: for byte, and to 1 the round-1 one (the carrier path below; railed by tests/test_base_draw_round5.py,
+#: tests/test_base_draw_r4_member_parity.py and tests/test_base_draw_member_parity.py).
+MEMBER_BASE_ROUND = 5
 #: The (member round, row round) pairs where a row of a later drawing round carries the member round's
 #: drawing of the same bars beside its own (extras.draw_member): round-2 rows carrying round 1 (the round-1
 #: era), and round-4 rows carrying round 2 (members on round 2 while round 4 is admin-only) or round 1 (a
-#: rollback of the literal to 1). Round 3 failed its held-out check and is never drawn. Any other pairing
-#: is dropped.
-_BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4)})
+#: rollback of the literal to 1), and round-5 rows carrying round 4, 2 or 1 (a rollback of the literal to
+#: any of them). Round 3 failed its held-out check and is never drawn. Any other pairing is dropped.
+_BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4), (1, 5), (2, 5), (4, 5)})
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
 #: The base STATES (base_draw.state_drawing, lab base_persist_forming) a member may be drawn, each by the
@@ -570,6 +574,10 @@ def member_shelf_over_forming(sym: str, rows, boxes) -> list:
         served = [r for r in list(rows or []) + boxes if not _is_forming_state_row(r)]
         shelf = shelf_pivot_row(sym, member=True, chart_served=served)
         shelf = member_rows([shelf]) if shelf is not None else []
+        if shelf:
+            # the round-5 base floor refuses a shelf region as it does every base door (removal-only): a refused
+            # shelf draws nothing, so it displaces nothing
+            shelf = member_base_floor(sym, [], shelf)[1]
         if not shelf:
             return boxes
         return [b for b in boxes if not _is_forming_state_row(b)] + shelf
@@ -829,8 +837,9 @@ def cup_tier_stamp(det: dict, bars: list) -> None:
     sessions; an unknown or failing session clock stamps NOTHING). Adds that one key and nothing
     else; a row the tier does not stamp is untouched. Display only. Never raises.
 
-    Only rows the admin display rounds did NOT mark stale reach this stamp (structures_for drops a
-    stale box first). Measured in the lab (2026-10-18): those rounds drop 63.6% of the 1,402 tier
+    Rows the admin display rounds mark stale are stamped too since lab cup_served (2026-10-23) and are
+    served only when the tier draws them (`_tier_drawn_stale_cup`); before it, structures_for dropped them.
+    Measured in the lab (2026-10-18): those rounds drop 63.6% of the 1,402 tier
     fires (failed_breakout 297, gap_island 176, rim_broken 173, short_of_rim 164, ...) and round 4
     withholds 169 more, so a member is served 341 of 1,402 = 24.3%; the 21 judged charts a member
     can be served score 2.36 [2.10, 2.62], 85.7% >= 2 (post hoc), served recognition 8 of 8."""
@@ -1035,6 +1044,10 @@ def base_draw_row(sym: str, bars: list):
             if d is None:
                 # where no base is drawn: the base STATES (breakout persistence, 3 weeks tight, base forming)
                 d = base_draw.state_drawing(b, len(b) - 1)
+                # ... put through the same depth floor: a state drawn where round 5 refused the range must not
+                # draw that range back (a price held flat after a gap reads as a base "forming")
+                if d is not None and base_draw.floor_refuses(b, len(b) - 1, d):
+                    d = None
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:
@@ -1045,6 +1058,86 @@ def base_draw_row(sym: str, bars: list):
         return row
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return None
+
+
+#: The member base rows drawn by code other than base_draw (a base_catalog box, a detector, a shape drawer,
+#: the shelf pivot): the base floor (base_draw.floor_refuses, round 5's removal-only guard) is applied to them
+#: HERE, on the member path, so a dead or ultra-shallow range is not drawn as a base by ANY door (the shelf
+#: pivot too: `_member_floor_ids`). bc:base is not listed: its drawing code (round 5) already applies the floor,
+#: and base_draw_row applies it to the base STATE drawings; one guard is asked once per door.
+MEMBER_FLOOR_IDS = frozenset({"bc:flat-base", "bc:cup-with-handle", "draw:double-bottom", "flat_base",
+                              "uct_flat_top_breakout"})
+
+
+def _member_floor_ids() -> frozenset:
+    """MEMBER_FLOOR_IDS and the shelf pivot (SHELF_PIVOT_ID is declared further down this module)."""
+    return MEMBER_FLOOR_IDS | {SHELF_PIVOT_ID}
+
+
+def _floor_region(row):
+    """(start_t, pivot) of a member base row: the row's own start and the pivot it draws (the drawn pivot line,
+    flat top, shape pivot or shelf line; else the box top or the entry level). None when unreadable."""
+    try:
+        ex = (row.get("geometry") or {}).get("extras") or {}
+        piv = None
+        for key, field in (("draw_pivot", "price"), ("draw_flat_top", "price"), ("draw_shape", "pivot"),
+                           ("draw_shelf", "price")):
+            d = ex.get(key)
+            if isinstance(d, dict) and _finite(d.get(field)):
+                piv = float(d[field])
+                break
+        if piv is None:
+            for v in (ex.get("top"), (row.get("levels") or {}).get("entry")):
+                if _finite(v):
+                    piv = float(v)
+                    break
+        if piv is None or row.get("start_t") is None:
+            return None
+        return int(row["start_t"]), piv
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def member_base_floor(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any `_member_floor_ids()` row whose drawn region the base floor refuses
+    (base_draw.floor_refuses on the row's start, its drawn pivot and the region's lowest low through the newest
+    complete session). Members only; order kept. The daily bars are read only when such a row is present.
+    REMOVAL-ONLY and fail OPEN, as the floor itself: unreadable bars or an unreadable row keep the row."""
+    ids = _member_floor_ids()
+    det, st = list(detections or []), list(structures or [])
+    if not any((r or {}).get("pattern_id") in ids for r in det + st):
+        return det, st
+    try:
+        from api.services.pattern_engine import base_draw
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        if not b:
+            return det, st
+        i = len(b) - 1
+        ts = [int(x["t"]) for x in b]
+    except Exception:  # noqa: BLE001 -- the floor is removal-only: no bars, nothing removed
+        _log.warning("[auto-structures] floor read failed for %s; base rows kept", sym, exc_info=True)
+        return det, st
+
+    def refused(r):
+        if (r or {}).get("pattern_id") not in ids:
+            return False
+        reg = _floor_region(r)
+        if reg is None or reg[0] not in ts:
+            return False
+        s = ts.index(reg[0])
+        if s >= i:
+            return False
+        low = min(float(x["l"]) for x in b[s:])
+        if not reg[1] > low:
+            return False        # a pivot at or under the region's own low is not a region this can read
+        try:
+            return base_draw.floor_refuses(b, i, {"start_t": reg[0], "pivot": reg[1], "low": low})
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            return False
+
+    return [r for r in det if not refused(r)], [r for r in st if not refused(r)]
 
 
 def shapes_enabled() -> bool:
@@ -1644,11 +1737,16 @@ def _confirmed_flag(row) -> bool:
     return type(rnd) is int and rnd == MEMBER_BULL_FLAG_ROUND
 
 
-#: The "flagging" tier's own member round (lab flag_vocab, 2026-10-18: on the team's broad flag
-#: vocabulary, held out by date, drawing these flags lifted Youden's J +0.135 [+0.108, +0.161]).
-#: A literal on purpose, like MEMBER_BULL_FLAG_ROUND: a new drawing round stops the tier for
-#: members until it is re-measured and this is changed by hand.
-MEMBER_FLAGGING_ROUND = 9
+#: The drawing round a "flagging"-tier stamp must carry to BE that tier (the round the tier was
+#: built and measured on). A literal on purpose, like MEMBER_BULL_FLAG_ROUND: a new drawing round is
+#: not recognised as the tier until this is changed by hand. Recognition only -- it releases nothing.
+FLAGGING_TIER_ROUND = 9
+#: The "flagging" tier's MEMBER release literal. Flagging tier withheld from members 2026-10-24: blind
+#: textbook score 1.28 (24% of cases scoring >= 2). None: no member gets a flagging-tier row (the
+#: confirmed round-9 tier is unaffected; admins and the team keep seeing both). Fail closed: anything
+#: but an int equal to FLAGGING_TIER_ROUND serves nothing. RE-ENABLING IT IS THIS ONE LITERAL: set it
+#: back to 9.
+MEMBER_FLAGGING_ROUND = None
 #: The tier name the stamp must carry.
 MEMBER_FLAGGING_TIER = "flagging"
 
@@ -1656,9 +1754,10 @@ MEMBER_FLAGGING_TIER = "flagging"
 def _flagging_flag(row) -> bool:
     """True when a bull_flag row is the "flagging" tier as display.draw_geometry stamps it: the
     strict round stopped it (`stale`, no `draw_round`) on a relaxed reason only
-    (display.FLAGGING_REASONS), and `extras.flagging` carries tier "flagging" and the member round
-    as an int. Anything else -- no stamp, another round, another tier, a stale reason outside the
-    relaxed set, a row that is ALSO stamped confirmed -- is False. Fail closed."""
+    (display.FLAGGING_REASONS), and `extras.flagging` carries tier "flagging" and FLAGGING_TIER_ROUND
+    as an int. Recognition only: whether a MEMBER gets it is `_member_flagging_flag`. Anything
+    else -- no stamp, another round, another tier, a stale reason outside the relaxed set, a row
+    that is ALSO stamped confirmed -- is False. Fail closed."""
     ex = ((row or {}).get("geometry") or {}).get("extras") or {}
     if ex.get("stale") is not True or "draw_round" in ex:
         return False
@@ -1668,7 +1767,15 @@ def _flagging_flag(row) -> bool:
     if not isinstance(stamp, dict) or stamp.get("tier") != MEMBER_FLAGGING_TIER:
         return False
     rnd = stamp.get("draw_round")
-    return type(rnd) is int and rnd == MEMBER_FLAGGING_ROUND
+    return type(rnd) is int and rnd == FLAGGING_TIER_ROUND
+
+
+def _member_flagging_flag(row) -> bool:
+    """True when a member may be served this "flagging"-tier row: MEMBER_FLAGGING_ROUND (read PER CALL)
+    is an int equal to FLAGGING_TIER_ROUND AND the row is the tier (`_flagging_flag`). While the literal
+    is None (withheld 2026-10-24) this is always False. Fail closed."""
+    want = MEMBER_FLAGGING_ROUND
+    return type(want) is int and want == FLAGGING_TIER_ROUND and _flagging_flag(row)
 
 
 def _pivot_only(row) -> bool:
@@ -1904,6 +2011,30 @@ def structures_for(sym: str) -> list:
     return out
 
 
+def _tier_drawn_stale_cup(det: dict, bars: list):
+    """A bc:cup-with-handle row the TEAM display rounds marked stale, served in the cup tier's member form when
+    the round-4 tier DRAWS it (stamped, nothing withheld, `_confirmed_cup_tier`); else None (the row stays dropped).
+
+    lab cup_served (2026-10-23, PREREG bf403e59...): the team verdicts (failed_breakout, rim_broken, gap_island,
+    short_of_rim, prior_peak, spike_rim, ...) read the DETECTOR'S cup -- its start, its lip HIGH, its box top --
+    and the member never sees that geometry: a served cup is redrawn wholesale from the tier's own anchors, with
+    the tier's own gates and withholds. They dropped 18 of the 29 judged-3 cup charts. Serving the stale boxes
+    the tier draws passed a fresh blind packet (25 such cups, two judges: mean 2.30 [2.12, 2.48], 96% >= 2;
+    25 still-withheld contrast charts 2.06). The team reason is kept as `extras.team_stale_reason`. Never raises."""
+    try:
+        if (det or {}).get("pattern_id") != CUP_ID:
+            return None
+        cup_tier_stamp(det, bars)
+        ex = det["geometry"]["extras"]
+        ex["team_stale_reason"] = ex.pop("stale_reason", None)
+        ex.pop("stale", None)
+        if not _confirmed_cup_tier(det):
+            return None
+        return _cup_tier_member_row(det)
+    except Exception:  # noqa: BLE001 -- fail closed: the stale row stays dropped
+        return None
+
+
 def _structure_rows(sym: str, bars: list) -> list:
     """The structures rows for daily `bars` ({t,o,h,l,c,v}, oldest first): structures_for's body, uncached.
     May raise (structures_for turns that into no rows)."""
@@ -1918,6 +2049,10 @@ def _structure_rows(sym: str, bars: list) -> list:
             # A stale box (extras.stale, e.g. a failed cup breakout) is not
             # served: dropping it here keeps the overlay unchanged.
             if (det.get("geometry") or {}).get("extras", {}).get("stale"):
+                # ... except a cup the round-4 cup tier DRAWS: served in the tier's own form (lab cup_served)
+                det = _tier_drawn_stale_cup(det, bars)
+                if det is not None:
+                    out.append(det)
                 continue
             # the cup recognition tier (lab cup_tier_v2 + cup_draw_v4): extras.cup_tier, or nothing
             cup_tier_stamp(det, bars)
@@ -2574,7 +2709,21 @@ def levels_sr_for(sym: str, *, member: bool = False, served=None):
 #: The setup-drawing row ids (api/services/pattern_engine/setup_draw.py), in build order. One horizontal line each.
 #: They ride the `setup_draws` key, never `structures`: PatternOverlay draws them as their own layer, driven by the
 #: UCT Intelligence "Setups" toggle (uctIntelligence.layerAvailability reads the key's presence).
-SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout")
+#: Round-2 setup drawings (api/services/pattern_engine/setup_draw_r2.py, textbook rebuilds), in build order:
+#: setup_draw_r2 key -> (row id, display name, the judged drawing's `shape` fact). Same layer, same flag, same key.
+_SETUP_DRAW_R2_FUNCS = (
+    ("rsi_bullish_divergence", "draw:rsi-bullish-divergence", "RSI bullish divergence", "rsi_bullish_divergence"),
+    ("wyckoff_upthrust", "draw:wyckoff-upthrust", "Wyckoff upthrust", "wyckoff_upthrust"),
+    ("channel", "draw:channel", "Price channel", "channel"),
+    ("pennant", "draw:pennant", "Pennant", "pennant"),
+    ("darvas_box", "draw:darvas-box", "Darvas box", "bc:darvas-box"),
+    ("falling_wedge", "draw:falling-wedge", "Falling wedge", "falling_wedge"),
+    ("double_top", "draw:double-top", "Double top", "double_top"),
+    ("golden_cross", "draw:golden-cross", "Golden cross", "golden_cross"),
+    ("death_cross", "draw:death-cross", "Death cross", "death_cross"),
+)
+SETUP_DRAW_R2_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R2_FUNCS)
+SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS
 #: setup_draw key -> (row id, display name).
 _SETUP_DRAW_FUNCS = (
     ("remount", "draw:remount", "Remount"),
@@ -2592,6 +2741,29 @@ _SETUP_DRAW_FUNCS = (
 MEMBER_REMOUNT_ROUND = 3
 MEMBER_U_AND_R_ROUND = 2
 MEMBER_DONCHIAN_BREAKOUT_ROUND = None
+#: Round-2 setup drawings released to members: each passed two pre-registered blind packets AS DRAWN (two fresh
+#: judges per packet, 25 random liquid held-out charts each; bar: mean >= 2.3 AND >= 70% of charts >= 2):
+#:   rsi_bullish_divergence  A 2.56 / 96%   B 2.72 / 100%   (drawn on price AND on an RSI(14) panel)
+#:   wyckoff_upthrust        A 2.56 / 100%  B 2.48 / 96%    (bearish)
+#:   channel                 A 2.84 / 100%  B 2.48 / 100%
+#:   pennant                 A 2.46 / 88%   B 2.34 / 80%
+#:   darvas_box              A 2.62 / 96%   B 2.60 / 92%
+#:   falling_wedge           A 2.84 / 100%  B 2.76 / 100%
+#:   double_top              A 2.38 / 84%   B 2.56 / 88%    (bearish)
+#:   golden_cross            A 2.52 / 88%   B 2.46 / 84%    (two rows: the 50-day and the 200-day SMA curves)
+#:   death_cross             A 2.42 / 92%   B 2.34 / 92%    (bearish; two rows, as the golden cross)
+#: Literals ON PURPOSE (never setup_draw_r2.R2_DRAW_ROUND): a new drawing round cannot release itself.
+MEMBER_RSI_BULLISH_DIVERGENCE_ROUND = 2
+MEMBER_WYCKOFF_UPTHRUST_ROUND = 2
+MEMBER_CHANNEL_ROUND = 2
+MEMBER_PENNANT_ROUND = 2
+MEMBER_DARVAS_BOX_ROUND = 2
+MEMBER_FALLING_WEDGE_ROUND = 2
+MEMBER_DOUBLE_TOP_ROUND = 2
+MEMBER_GOLDEN_CROSS_ROUND = 2
+MEMBER_DEATH_CROSS_ROUND = 2
+#: How many sessions of RSI(14) the divergence's panel carries (the judged frame shows at most 250 bars).
+SETUP_RSI_PANEL_BARS = 250
 #: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
 #: session close > SETUP_MIN_CLOSE and close x volume >= SETUP_MIN_DOLLAR_VOLUME. Outside it there is no drawing.
 SETUP_MIN_BARS = 261
@@ -2613,6 +2785,15 @@ def _member_setup_round(pid):
         "draw:remount": MEMBER_REMOUNT_ROUND,
         "draw:u_and_r": MEMBER_U_AND_R_ROUND,
         "draw:donchian_breakout": MEMBER_DONCHIAN_BREAKOUT_ROUND,
+        "draw:rsi-bullish-divergence": MEMBER_RSI_BULLISH_DIVERGENCE_ROUND,
+        "draw:wyckoff-upthrust": MEMBER_WYCKOFF_UPTHRUST_ROUND,
+        "draw:channel": MEMBER_CHANNEL_ROUND,
+        "draw:pennant": MEMBER_PENNANT_ROUND,
+        "draw:darvas-box": MEMBER_DARVAS_BOX_ROUND,
+        "draw:falling-wedge": MEMBER_FALLING_WEDGE_ROUND,
+        "draw:double-top": MEMBER_DOUBLE_TOP_ROUND,
+        "draw:golden-cross": MEMBER_GOLDEN_CROSS_ROUND,
+        "draw:death-cross": MEMBER_DEATH_CROSS_ROUND,
     }.get(pid)
 
 
@@ -2626,6 +2807,8 @@ def _confirmed_setup_draw(row) -> bool:
         r = row or {}
         pid = r.get("pattern_id")
         want = _member_setup_round(pid)
+        if pid in SETUP_DRAW_R2_IDS:
+            return _confirmed_setup_draw_r2(r, want)
         key = next((k for k, i, _n in _SETUP_DRAW_FUNCS if i == pid), None)
         if key is None or not (type(want) is int and want == setup_draw.DRAW_ROUNDS.get(key)):
             return False
@@ -2642,6 +2825,128 @@ def _confirmed_setup_draw(row) -> bool:
                 and all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors))
     except Exception:  # noqa: BLE001 -- an unreadable row is not served
         return False
+
+
+#: row id -> the geometry shape its judged drawing has, and the exact anchor count of that shape.
+_R2_SHAPE_OF = {
+    "draw:rsi-bullish-divergence": "neckline", "draw:wyckoff-upthrust": "horizontal_line",
+    "draw:channel": "trendline_pair", "draw:pennant": "trendline_pair", "draw:darvas-box": "rectangle",
+    "draw:falling-wedge": "trendline_pair", "draw:double-top": "neckline",
+    "draw:golden-cross": "horizontal_line", "draw:death-cross": "horizontal_line",
+}
+#: row id -> the exact anchor count of its judged geometry.
+_R2_ANCHORS = {
+    "draw:rsi-bullish-divergence": 2, "draw:wyckoff-upthrust": 3, "draw:channel": 4, "draw:pennant": 4,
+    "draw:darvas-box": 2, "draw:falling-wedge": 4, "draw:double-top": 3,
+    "draw:golden-cross": 2, "draw:death-cross": 2,
+}
+#: The rows whose judged drawing is a moving-average CURVE (extras.draw_ema), one row per average.
+_R2_CURVE_IDS = ("draw:golden-cross", "draw:death-cross")
+
+
+def _confirmed_setup_draw_r2(r, want) -> bool:
+    """A round-2 setup row is served to a member only when its literal is an int equal to the frozen round AND to the
+    row's stamp, its draw_setup names its own judged shape, and its geometry is that setup's judged shape with
+    finite anchors (and, for the divergence, a well-formed RSI panel: the judged picture has one)."""
+    from api.services.pattern_engine import setup_draw_r2
+    pid = r.get("pattern_id")
+    meta = next((m for m in _SETUP_DRAW_R2_FUNCS if m[1] == pid), None)
+    if meta is None or not (type(want) is int and want == setup_draw_r2.DRAW_ROUNDS.get(meta[0])):
+        return False
+    geom = r.get("geometry") or {}
+    ex = geom.get("extras") or {}
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == want):
+        return False
+    d = ex.get("draw_setup")
+    if not isinstance(d, dict) or d.get("shape") != meta[3]:
+        return False
+    shape = geom.get("shape")
+    anchors = geom.get("anchors")
+    if shape != _R2_SHAPE_OF.get(pid) or not isinstance(anchors, list) or len(anchors) != _R2_ANCHORS[pid]:
+        return False
+    if not all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors):
+        return False
+    if pid in _R2_CURVE_IDS:
+        em = ex.get("draw_ema")
+        pts = em.get("points") if isinstance(em, dict) else None
+        if not (isinstance(pts, list) and len(pts) >= 2
+                and all(isinstance(p, dict) and p.get("t") is not None and _finite(p.get("price")) for p in pts)):
+            return False
+    if pid == "draw:rsi-bullish-divergence":
+        pn = ex.get("draw_panel")
+        if not (isinstance(pn, dict) and pn.get("kind") == "rsi14" and isinstance(pn.get("points"), list)
+                and len(pn["points"]) >= 2 and all(_finite((pn.get(k) or {}).get("value")) for k in ("p1", "p2"))):
+            return False
+    return True
+
+
+def _setup_draw_r2_rows(sym: str, b: list) -> list:
+    """The round-2 rows for the in-frame COMPLETED daily `b`: the judged geometry exactly (setup_draw_r2's det: shape,
+    anchors, line_spaces, the pennant's pole), stamped with the drawing round and its facts; the divergence also
+    carries its RSI(14) panel. A failing setup costs that setup only."""
+    from api.services.pattern_engine import setup_draw_r2
+    out = []
+    w = setup_draw_r2._window(b)
+    for key, pid, name, _shape in _SETUP_DRAW_R2_FUNCS:
+        try:
+            d = setup_draw_r2.detect(key, b)
+        except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
+            _log.debug("[setup-draw-r2] %s %s failed", sym, key, exc_info=True)
+            continue
+        if d is None:
+            continue
+        for k_det, det in enumerate(d["dets"]):
+            row = _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2)
+            if row is not None:
+                out.append(row)
+    return out
+
+
+#: The two averages a cross row draws, in the judged dets order.
+_R2_CURVE_PERIODS = (50, 200)
+
+
+def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2):
+    """One member-shaped row for one judged det (most setups have exactly one)."""
+    geom = det["geometry"]
+    extras = {k: v for k, v in (geom.get("extras") or {}).items()
+              if k in ("line_spaces", "draw_pole", "draw_ema")}
+    if "draw_ema" in extras:
+        # the label EmaSegment prints ("50 SMA ..."): display decoration only, the points are the judged curve
+        extras["draw_ema"] = {**extras["draw_ema"], "kind": "sma", "period": _R2_CURVE_PERIODS[k_det]}
+    extras.update({"draw_setup": setup_draw_r2.facts(d), "draw_round": setup_draw_r2.R2_DRAW_ROUND})
+    pn = d.get("panel")
+    if pn:
+        rsi = pn["rsi"]
+        lo = max(0, len(w) - SETUP_RSI_PANEL_BARS)
+        extras["draw_panel"] = {
+            "kind": "rsi14", "guides": [70, 30],
+            "points": [{"t": int(w[j]["t"]), "value": round(rsi[j], 2)} for j in range(lo, len(w))
+                       if rsi[j] is not None],
+            "p1": {"t": int(w[pn["p1"]]["t"]), "value": round(rsi[pn["p1"]], 2)},
+            "p2": {"t": int(w[pn["p2"]]["t"]), "value": round(rsi[pn["p2"]], 2)},
+        }
+    suffix = f":{k_det}" if len(d["dets"]) > 1 else ""
+    row = {
+        "id": f"{pid}:{sym}:{det['start_t']}:{det['end_t']}{suffix}",
+        "sym": sym,
+        "tf": "D",
+        "pattern_id": pid,
+        "pattern_name": name,
+        "category": "setup",
+        "direction": det.get("direction") or "neutral",
+        "start_t": det["start_t"],
+        "end_t": det["end_t"],
+        "geometry": {"shape": geom["shape"], "anchors": [dict(a) for a in geom["anchors"]], "extras": extras},
+        "levels": {"entry": d["level"]} if "level" in d else {},
+        "confidence": None,
+        "status": "forming",
+        **display_policy(pid),
+    }
+    if det.get("touch_count") is not None:
+        row["touch_count"] = det["touch_count"]
+    return row
 
 
 def setup_in_frame(bars) -> bool:
@@ -2693,6 +2998,7 @@ def setup_draw_rows(sym: str, bars: list) -> list:
                 "status": "forming",
                 **display_policy(pid),
             })
+        out.extend(_setup_draw_r2_rows(sym, b))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
     return out

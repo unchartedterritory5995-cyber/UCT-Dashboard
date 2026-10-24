@@ -632,6 +632,19 @@ def _record_rare_preview(ordered, _plog) -> None:
         _plog.warning("[patterns] rare preview pass failed: %s", e)
 
 
+def _record_setup_tags(symbols, _plog, label) -> None:
+    """After a scan pass: compute and keep the setup tags of every symbol it covered
+    (api/services/setup_tags.record_store), so a chart open serves them instead of running the
+    detectors. A no-op unless AUTO_STRUCTURES_SETUP_TAGS_ENABLED is on. Never raises."""
+    try:
+        from api.services import setup_tags as _st
+        res = _st.record_store(symbols)
+        if not res.get("skipped"):
+            print(f"[patterns] setup tags store ({label}): {res}")
+    except Exception as e:  # noqa: BLE001 -- the store never fails the scan
+        _plog.warning("[patterns] setup tags store (%s) failed: %s", label, e)
+
+
 def _execute_patterns_universe_run(kind, slot, resume_from=None, now_ts=None) -> dict:
     """Run (or resume) one universe pass under the durable run lease.
 
@@ -680,6 +693,10 @@ def _execute_patterns_universe_run(kind, slot, resume_from=None, now_ts=None) ->
         print(f"[patterns] universe_scan failed: {e}")
     finally:
         _usr.end_run(handle, status, scanned=scanned, stored=stored, error=err)
+    # The setup-tag store pass runs AFTER the lease is released: it takes minutes and beats no
+    # heartbeat, so inside the lease a catch-up could read the live run as stale and start a second.
+    if status == "completed":
+        _record_setup_tags(ordered, _plog, "universe")
     return {"ran": True, "status": status, "offset": handle.offset,
             "scanned": scanned, "stored": stored}
 
@@ -779,6 +796,7 @@ def _run_patterns_leaders_scan():
         scanned, stored = _scan_patterns_daily(leader_tickers, leader_set, _plog)
         _plog.info("[patterns] leaders_scan: scanned %d leaders, stored %d", scanned, stored)
         print(f"[patterns] leaders_scan: scanned {scanned} leaders, stored {stored} detections")
+        _record_setup_tags(leader_tickers, _plog, "leaders")
 
         # -----------------------------------------------------------------------
         # Intraday pass — leader-only, RTH-gated

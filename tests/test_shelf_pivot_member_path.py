@@ -53,6 +53,17 @@ SENT_NOT_DRAWN = {
 }
 
 
+#: Fixture charts whose recorded "served" set holds a "flagging"-tier bull_flag. Flagging tier withheld from
+#: members 2026-10-24 (blind textbook score 1.28; auto_structures.MEMBER_FLAGGING_ROUND = None): member_rows no
+#: longer serves it, so on exactly these charts it leaves `served` and its line turns withheld. Measured on every
+#: fixture chart: these are the only ones that moved, and the layer's answer (gate, line, span start, display
+#: start) is unchanged on all of them.
+FLAGGING_WITHHELD = {
+    "held/none/059", "held/none/134", "held/none/149", "held/none/160",
+    "held/none/215", "held/none/235", "held/none/253", "held/none/256",
+}
+
+
 #: Fixture charts where the member base drawing round 4 (auto_structures.MEMBER_BASE_ROUND == 4 since 2026-10-23)
 #: draws a base that round 2 -- the member round when the fixture was recorded -- did not: a member's chart now
 #: holds that bc:base drawing, so it is SERVED with its line (not withheld), and (any served drawing hides the
@@ -71,10 +82,11 @@ FLOORED_SERVED = {
 }
 
 
-def _drawn_view(c, round4=True):
+def _drawn_view(c, round4=True, flagging_withheld=True):
     """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld,
-    (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there), and
-    the FLOORED_SERVED row and its line removed."""
+    (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there),
+    the FLOORED_SERVED row and its line removed, and (`flagging_withheld`) the FLAGGING_WITHHELD chart's bull_flag
+    taken out of served and its line withheld."""
     served = [(p, ls, tuple(sp) if sp else None) for p, ls, sp in c["served"]]
     lines = [tuple(x) for x in c["lines"]]
     floored = FLOORED_SERVED.get(c["id"])
@@ -82,6 +94,12 @@ def _drawn_view(c, round4=True):
         assert sum(x[0] == floored for x in served) == 1, c["id"]
         served = [x for x in served if x[0] != floored]
         lines = [x for x in lines if x[0] != floored]
+    if flagging_withheld and c["id"] in FLAGGING_WITHHELD:
+        gone = [x for x in served if x[0] == "bull_flag"]
+        assert len(gone) == 1, c["id"]
+        prices = set(gone[0][1])
+        served = [x for x in served if x is not gone[0]]
+        lines = [(p, v, True) if p == "bull_flag" and v in prices else (p, v, w) for p, v, w in lines]
     add = ROUND4_DRAWN.get(c["id"]) if round4 else None
     if add is not None:
         assert not any(x[0] == add[0] for x in served), c["id"]
@@ -98,12 +116,12 @@ def _drawn_view(c, round4=True):
             [(p, v, True) if p == pid and v in prices else (p, v, w) for p, v, w in lines])
 
 
-def _reproduce(round4):
+def _reproduce(round4, flagging_withheld=True):
     bad = []
     for c in cases():
         _ASOF[0] = int(c["bars"][-1][0])
         served, lines = AS.shelf_member_facts(c["ticker"], _dicts(c["bars"]))
-        want_served, want_lines = _drawn_view(c, round4)
+        want_served, want_lines = _drawn_view(c, round4, flagging_withheld)
         if [(p, ls, tuple(sp) if sp else None) for p, ls, sp in served] != want_served:
             bad.append((c["id"], "served"))
         # the detectors stamp their own clock, so two lines of one chart can swap places between runs: the SET
@@ -185,6 +203,18 @@ def test_a_rollback_to_base_round_two_reproduces_the_recorded_member_view(member
     round 2's drawing, and the member's chart holds round 2's line only: the recorded view, exactly."""
     monkeypatch.setattr(AS, "MEMBER_BASE_ROUND", 2)
     assert _reproduce(round4=False) == []
+
+
+def test_re_enabling_the_flagging_tier_reproduces_the_recorded_flagging_view(member_path_env, monkeypatch):
+    """Control for FLAGGING_WITHHELD: with the member flagging literal set back to 9 (in memory, the one-literal
+    re-enable), the flagging flags are served again on exactly those charts -- and the withheld view no longer
+    matches there."""
+    from api.services.pattern_engine import base_draw
+    monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)   # as the test above
+    monkeypatch.setattr(AS, "MEMBER_FLAGGING_ROUND", 9)
+    assert _reproduce(round4=True, flagging_withheld=False) == []
+    moved = {b[0] for b in _reproduce(round4=True, flagging_withheld=True)}
+    assert moved == FLAGGING_WITHHELD
 
 
 # ---------------------------------------------------------------- gates
@@ -336,7 +366,7 @@ def _flagging_bull_flag():
     reason = sorted(AS._display.FLAGGING_REASONS)[0]
     return {"pattern_id": "bull_flag", "display_tier": "trusted", "geometry": {"extras": {
         "stale": True, "stale_reason": reason,
-        "flagging": {"tier": AS.MEMBER_FLAGGING_TIER, "draw_round": AS.MEMBER_FLAGGING_ROUND}}}}
+        "flagging": {"tier": AS.MEMBER_FLAGGING_TIER, "draw_round": AS.FLAGGING_TIER_ROUND}}}}
 
 
 def _live_pullback():
@@ -411,7 +441,7 @@ def test_the_member_path_does_not_count_a_stale_detection_as_served(monkeypatch,
     assert AS.shelf_compute(ticker, bars) is not None
 
 
-def test_the_member_path_counts_a_flagging_flag_as_served(monkeypatch, member_path_env):
+def test_the_member_path_withholds_a_flagging_flag_unless_re_enabled(monkeypatch, member_path_env):
     c, bars = _drawing_bars()
     _ASOF[0] = int(bars[-1]["t"])
     ticker = c["ticker"]
@@ -421,6 +451,12 @@ def test_the_member_path_counts_a_flagging_flag_as_served(monkeypatch, member_pa
         r["geometry"]["extras"]["pivot"] = close * 3.0
         return r
     _with_extra_detection(monkeypatch, flag)
+    # flagging tier withheld from members 2026-10-24 (blind textbook score 1.28): not served, its line withheld
+    served, lines = AS.shelf_member_facts(ticker, bars)
+    assert not any(p == "bull_flag" for p, _ls, _sp in served)
+    assert any(p == "bull_flag" and w for p, _v, w in lines)
+    monkeypatch.setattr(AS, "MEMBER_FLAGGING_ROUND", 9)            # control: the one-literal re-enable
+    AS._SHELF_CACHE.clear()
     served, _lines = AS.shelf_member_facts(ticker, bars)
     assert any(p == "bull_flag" for p, _ls, _sp in served)
     assert AS.shelf_compute(ticker, bars) is None

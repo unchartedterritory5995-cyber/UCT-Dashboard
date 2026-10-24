@@ -246,7 +246,8 @@ def test_member_gate_serves_breakout_and_withholds_dark_states(monkeypatch):
     rows = {st: auto_structures.base_draw_row("SYN", _bars(legs))
             for legs, st in ((BASE + [(2, 92.6)], "breakout"), (FORMING, "forming"))}
     # a tight row can no longer be built; the gate is still asked of one stamped by hand (fail closed)
-    rows["tight"] = auto_structures._base_row("SYN", BD.tight_drawing(_bars(TIGHT), len(_bars(TIGHT)) - 1), 4)
+    rows["tight"] = auto_structures._base_row("SYN", BD.tight_drawing(_bars(TIGHT), len(_bars(TIGHT)) - 1),
+                                             auto_structures.MEMBER_BASE_ROUND)
     assert auto_structures.MEMBER_BASE_BREAKOUT_ROUND == 1
     assert auto_structures.MEMBER_BASE_FORMING_ROUND == 1
     assert auto_structures.MEMBER_BASE_TIGHT_ROUND is None
@@ -393,9 +394,20 @@ def test_the_shelf_outranks_a_forming_state_row(monkeypatch):
         return None if any(auto_structures._drawn_incumbent(r) for r in chart_served) else shelf
     monkeypatch.setattr(auto_structures, "shelf_pivot_row", fake)
     monkeypatch.setattr(auto_structures, "member_rows", lambda rs: [r for r in rs if r is not None])
+    monkeypatch.setattr(auto_structures, "member_base_floor", lambda sym, d, st: (list(d), list(st)))
     assert auto_structures.member_shelf_over_forming("X", [], [form]) == [shelf]          # forming dropped
     assert seen[-1] == []                                                                  # it was not served
     assert auto_structures.member_shelf_over_forming("X", [], [brk]) == [brk]             # breakout still wins
     flag = _flag_at(form, 89.0)
     assert auto_structures.member_shelf_over_forming("X", [flag], [form]) == [form]       # no shelf: forming stays
     assert auto_structures.member_shelf_over_forming("X", [], []) == [shelf]
+
+
+def test_a_floor_refused_shelf_displaces_nothing(monkeypatch):
+    # the round-5 base floor refuses the shelf region: no shelf is drawn, so the forming row stays
+    form = auto_structures._base_row("X", BD.forming_drawing(_bars(FORMING), _last(_bars(FORMING))), BD.BASE_DRAW_ROUND)
+    shelf = {"id": "s", "pattern_id": "draw:shelf-pivot", "geometry": {"extras": {"draw_shelf": {"price": 1.0}}}}
+    monkeypatch.setattr(auto_structures, "shelf_pivot_row", lambda sym, member=False, chart_served=(): shelf)
+    monkeypatch.setattr(auto_structures, "member_rows", lambda rs: [r for r in rs if r is not None])
+    monkeypatch.setattr(auto_structures, "member_base_floor", lambda sym, d, st: (list(d), []))
+    assert auto_structures.member_shelf_over_forming("X", [], [form]) == [form]

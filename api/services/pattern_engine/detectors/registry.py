@@ -257,6 +257,9 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "draw:shelf-pivot",
     "draw:remount",
     "draw:u_and_r",
+    # round-2 setup drawings (setup_draw_r2.py): see the member-set note below.
+    "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant", "draw:darvas-box", "draw:falling-wedge", "draw:double-top",
+    "draw:golden-cross", "draw:death-cross",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -351,10 +354,19 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: draw_setup (auto_structures._confirmed_setup_draw / member_rows). draw:donchian_breakout (round 1) passed its
 #: packets too but is in NEITHER set and its member literal is None pending the owner's ruling (the team does
 #: not draw donchian): admin-only under the same flag. Fail closed.
+#: The round-2 setup drawings (setup_draw_r2.py, textbook rebuilds; drawing round 2) -- draw:rsi-bullish-divergence, draw:wyckoff-upthrust, draw:channel, draw:pennant, draw:darvas-box, draw:falling-wedge, draw:double-top,
+#: draw:golden-cross, draw:death-cross
+#: -- each passed two pre-registered blind packets AS DRAWN (two fresh judges per packet, 25 random liquid held-out
+#: charts each; bar: mean >= 2.3 AND >= 70% >= 2; scores at auto_structures.MEMBER_<SETUP>_ROUND). They ride the same
+#: `setup_draws` key, flag (AUTO_STRUCTURES_G4_SETUPS_ENABLED) and UCT Intelligence "Setups" toggle as draw:remount,
+#: and reach a member only while the row carries draw_round == its MEMBER_<SETUP>_ROUND beside a well-formed
+#: draw_setup of its judged shape (auto_structures._confirmed_setup_draw_r2). Fail closed.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
     "draw:double-bottom", "draw:shelf-pivot", "draw:remount", "draw:u_and_r",
+    "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant", "draw:darvas-box", "draw:falling-wedge", "draw:double-top",
+    "draw:golden-cross", "draw:death-cross",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

@@ -1,4 +1,0 @@
-FAILED tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse
-FAILED tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag
-FAILED tests/test_notebook_telemetry_events.py::test_the_p3a_library_events_are_on_both_sides_and_read_not_typed
-3 failed, 879 passed, 2 skipped, 39245 warnings in 201.38s (0:03:21)

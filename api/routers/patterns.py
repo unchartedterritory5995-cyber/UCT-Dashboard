@@ -874,6 +874,9 @@ def get_detections(
                 # no bullish base under a falling 200-day (base_draw.trend_ok) for the base rows whose drawing code
                 # is a detector or the base catalog (members only)
                 rows, boxes = auto_structures.member_trend_gate(sym, rows, boxes)
+                # the base floor: a dead or ultra-shallow range is not drawn as a base by any member door (bc:base
+                # applies it in its own drawing round; every other member base row here)
+                rows, boxes = auto_structures.member_base_floor(sym, rows, boxes)
                 # a served (stamped) cup outranks a bc:flat-base covering the same base (members only)
                 boxes = auto_structures.member_cup_precedence(boxes)
                 # one breakout line per base: an incumbent member drawing (flat base, flat top, cup)
@@ -896,6 +899,8 @@ def get_detections(
                 # set): daily charts only, and hidden whenever the chart already serves any drawing -- except a "Base
                 # forming" state row, which the shelf outranks (blind paired round shelf_vs_forming)
                 if (tf or "D").upper() == "D":
+                    # the base floor (round 5) refuses a shelf region too: applied inside, before the shelf can
+                    # displace a forming row
                     boxes = auto_structures.member_shelf_over_forming(sym, rows, boxes)
                 if boxes:
                     mout["structures"] = boxes

@@ -47,7 +47,10 @@ from tests.test_team_drawing_set_r4 import _flag_det
 
 MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "uct_flat_top_breakout",
               "bc:base", "bc:cup-with-handle", "draw:inside-day", "draw:double-bottom", "draw:shelf-pivot",
-              "draw:remount", "draw:u_and_r"}
+              "draw:remount", "draw:u_and_r",
+              # round-2 setup drawings (setup_draw_r2.py), each blind-confirmed on two packets
+              "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant",
+              "draw:darvas-box", "draw:falling-wedge", "draw:double-top", "draw:golden-cross", "draw:death-cross"}
 #: The member types that arrive as detection rows; bc:flat-base arrives as a base box.
 MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag", "uct_flat_top_breakout"}
 #: The internal ids a member may be drawn: each is in the member set by its own blind check.
@@ -220,7 +223,7 @@ def test_the_member_set_is_exactly_the_blind_confirmed_types():
     # the inside-day drawing is its own structures row too (draw:inside-day, gated by its round stamp)
     # (and the setup drawings, their own `setup_draws` rows, each gated by its member-round literal)
     drawings = {auto_structures.INSIDE_DAY_DRAW_ID, "draw:double-bottom", auto_structures.SHELF_PIVOT_ID,
-                "draw:remount", "draw:u_and_r"}
+                "draw:remount", "draw:u_and_r"} | set(auto_structures.SETUP_DRAW_R2_IDS)
     assert set(registry.DISPLAY_MEMBER_SET) - bc - drawings <= set(registry.list_pattern_ids())
 
 
@@ -267,7 +270,7 @@ def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, call
     # (nor a shelf pivot: AUTO_STRUCTURES_SHELF_ENABLED is off here; tests/test_shelf_pivot_member_path.py)
     # (nor a setup drawing: those ride `setup_draws`, never `structures`; tests/test_setup_draw_member_gate.py)
     assert types == MEMBER_IDS - {"bc:base", "draw:inside-day", "draw:double-bottom",
-                                  "draw:shelf-pivot", "draw:remount", "draw:u_and_r"} - STAMP_GATED
+                                  "draw:shelf-pivot", "draw:remount", "draw:u_and_r"} - STAMP_GATED         - set(auto_structures.SETUP_DRAW_R2_IDS)      # setup drawings ride `setup_draws`, never `structures`
 
 
 def test_flag_on_the_member_bull_flag_is_the_admins_row(monkeypatch, calls):
@@ -311,11 +314,13 @@ def test_a_stale_or_unconfirmed_bull_flag_is_never_served_to_a_member(monkeypatc
     assert {"r14", "r15", "r16"} <= set(admin_ids)
 
 
-def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_only_as_flagging(monkeypatch):
+def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_does_not(monkeypatch):
     """End to end through the REAL display.draw_geometry (the round-9 test fixtures): a flag every
     verdict passes is stamped with the round and served as confirmed; a short-pole flag is stale,
-    never stamped with the round, and reaches a member ONLY through its "flagging" stamp -- the same
-    row with that stamp removed is dropped (test_flag_tiers.py covers the tier itself)."""
+    never stamped with the round, and carries only the "flagging" stamp. Flagging tier withheld from
+    members 2026-10-24 (blind textbook score 1.28): the member gets the confirmed flag only; the admin
+    gets all three. Control: the one-literal re-enable (MEMBER_FLAGGING_ROUND = 9) serves the flagging
+    row again and still drops the unstamped one (test_flag_tiers.py covers the tier itself)."""
     good, _ = _drawn(*_flag_after(TALL_LEG))
     bad, _ = _drawn(*_flag_after(SHORT_LEG))
     assert not good.get("stale") and good["draw_round"] == CONFIRMED_ROUND
@@ -329,11 +334,15 @@ def test_flag_on_a_real_round_9_flag_reaches_a_member_and_a_real_stale_one_only_
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [])
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     body = _get(PAID_MEMBER).json()
-    assert [r["id"] for r in body["detections"]] == ["g", "b"]
+    assert [r["id"] for r in body["detections"]] == ["g"]
     assert body["detections"][0]["geometry"]["extras"]["draw_pole"] == good["draw_pole"]
-    assert body["detections"][1]["geometry"]["extras"]["flagging"] == bad["flagging"]
     admin = _get(ADMIN).json()
     assert [r["id"] for r in admin["detections"]] == ["g", "b", "u"]
+    monkeypatch.setattr(auto_structures, "MEMBER_FLAGGING_ROUND", 9)      # control: the re-enable
+    body = _get(PAID_MEMBER).json()
+    assert [r["id"] for r in body["detections"]] == ["g", "b"]
+    assert body["detections"][1]["geometry"]["extras"]["flagging"] == bad["flagging"]
+    assert [r["id"] for r in _get(ADMIN).json()["detections"]] == ["g", "b", "u"]
 
 
 def test_a_flag_drawn_by_a_newer_round_is_not_served_until_confirmed(monkeypatch):
