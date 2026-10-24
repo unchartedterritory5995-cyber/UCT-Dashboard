@@ -114,6 +114,26 @@ def test_a_missing_drawing_and_an_extra_drawing_on_the_base_are_caught(monkeypat
     assert any("same base" in m for m in JG.failures(case, dup, bars))
 
 
+def test_an_extra_base_drawing_is_judged_by_the_line_members_see(monkeypatch):
+    """Control for the (3) lens on a bc:base row: it reads the DRAWN top line (metrics_textbook.line), not the body
+    pivot. A base whose drawn line sits on the judged line is red even with its body pivot 3 ATR away; the same base
+    without the textbook line (drawn at the far body pivot) is not."""
+    case, payload, bars = _first_green("donchian_breakout", monkeypatch)
+    key = JG._want_key("donchian_breakout", case)
+    atr = MP.atr14(bars)
+    s0, s1 = int(bars[0]["t"]), int(bars[-1]["t"])
+    base = {"id": "extra-base", "pattern_id": "bc:base", "start_t": s0, "end_t": s1,
+            "geometry": {"shape": "base_draw", "anchors": [], "extras": {
+                "draw_base": {"pivot": key + 3 * atr, "low": key * 0.7, "start_t": s0, "end_t": s1, "atr": atr},
+                "metrics_textbook": {"line": key, "buy_point": round(key + 0.10, 2)}}}}
+    drawn_on = {**payload, "structures": list(payload.get("structures") or []) + [base]}
+    assert any("same base" in m for m in JG.failures(case, drawn_on, bars))
+    body_only = json.loads(json.dumps(base))
+    del body_only["geometry"]["extras"]["metrics_textbook"]
+    far = {**payload, "structures": list(payload.get("structures") or []) + [body_only]}
+    assert not any("same base" in m for m in JG.failures(case, far, bars))
+
+
 def test_a_retired_drawing_coming_back_is_caught(monkeypatch):
     """Control: the absence check is not vacuous -- the retired case's own judged drawing, put back on its chart, is
     red, and a chart where the retiring rule no longer holds is red."""

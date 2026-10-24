@@ -241,6 +241,12 @@ def _check_other_on_base(fam, case, payload, bars, atr, mine, out):
             continue
         try:
             lines, span = AS._row_lines(r)
+            if r.get("pattern_id") == "bc:base":
+                # the base's top line where the member's chart DRAWS it: metrics_textbook.line when the textbook
+                # round carries one, else the body pivot (auto_structures._breakout_lines, the same reading the
+                # one-line-per-base pass compares since a0ac0ba156). The body pivot is not drawn when the textbook
+                # line is, so measuring it reported a line no member sees.
+                lines = [p for p, _s, _e in AS._breakout_lines(r)] or lines
         except Exception:  # noqa: BLE001 -- a row whose lines cannot be read is reported, not skipped
             out.append(f"extra drawing {r.get('pattern_id')}: its lines cannot be read")
             continue
