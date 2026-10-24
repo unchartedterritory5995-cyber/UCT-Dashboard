@@ -330,9 +330,18 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             return None
         start_i = ts.index(s_t)
         asof_i = len(b) - 1
-        if start_i >= asof_i:
+        # the base's own bars end before its as-of bar; a breakout-state base (base_draw.breakout_drawing)
+        # ends before base_end_t, the bar it was drawn at, so the bars since the breakout are never the base
+        end_i = asof_i
+        be = _int(((((row.get("geometry") or {}).get("extras") or {}).get("draw_base") or {})
+                   .get("base_end_t")) if row.get("pattern_id") == "bc:base" else None)
+        if be is not None:
+            if be not in ts:
+                return None
+            end_i = ts.index(be)
+        if start_i >= end_i:
             return None
-        span = b[start_i:asof_i]
+        span = b[start_i:end_i]
         piv = [x for x in span if p_s <= _int(x["t"]) <= p_e]
         if not piv:
             return None
@@ -379,6 +388,11 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             except Exception:  # noqa: BLE001 -- an unreadable clock is not a completed session
                 complete = False
         vol = volume_readout(b, bp, complete)
+        bo = _int(((((row.get("geometry") or {}).get("extras") or {}).get("draw_base") or {})
+                   .get("breakout_t")) if row.get("pattern_id") == "bc:base" else None)
+        if bo is not None and bo in ts:
+            # a breakout-state base: the volume is the BREAKOUT session's (a closed session), not the as-of one
+            vol = volume_readout(b[:ts.index(bo) + 1], bp, True)
         if vol is not None:
             out["volume"] = vol
         return out

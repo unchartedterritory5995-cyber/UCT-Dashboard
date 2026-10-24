@@ -164,7 +164,9 @@ def _drawn(row):
         bd = ex.get("draw_base")
         if not isinstance(bd, dict):
             return None
-        return _num(bd.get("pivot")), bd.get("start_t"), bd.get("end_t")
+        # a breakout-state base (base_draw.breakout_drawing) ends at base_end_t; its end_t is the as-of bar
+        end = bd.get("base_end_t") if bd.get("base_end_t") is not None else bd.get("end_t")
+        return _num(bd.get("pivot")), bd.get("start_t"), end
     pv = ex.get("draw_pivot")
     if not isinstance(pv, dict):
         return None

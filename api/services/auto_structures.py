@@ -482,6 +482,30 @@ MEMBER_BASE_ROUND = 4
 _BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4)})
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
+#: The base STATES (base_draw.state_drawing, lab base_persist_forming) a member may be drawn, each by the
+#: state round its own blind packets confirmed (base_draw.STATE_ROUND stamps `draw_base.state_round`). Literals
+#: ON PURPOSE; None withholds that state from every member (admins still see it). A row with no `state` is the
+#: judged base and is not touched by these.
+#: The breakout persistence ("breakout" in the buy zone / "extended" just past it). Round 1 passed two blind
+#: packets 2026-10-23 (A 2.68 [2.48, 2.86], B 2.54 [2.30, 2.74]).
+MEMBER_BASE_BREAKOUT_ROUND = 1
+#: "Base forming" (dashed pivot, the right side still building). Round 1 passed two blind packets 2026-10-23
+#: (A 2.82 [2.68, 2.94], B 2.66 [2.48, 2.82]).
+MEMBER_BASE_FORMING_ROUND = 1
+#: "3 weeks tight". None: round 1 FAILED its first blind packet 2026-10-23 (A 1.94 [1.64, 2.22]); admins only.
+MEMBER_BASE_TIGHT_ROUND = None
+
+
+def _member_base_state_ok(bd) -> bool:
+    """True for a draw_base with no `state` (the judged base), or one whose state's member literal is an int
+    equal to its stamped `state_round`. Any other state is False (fail closed)."""
+    st = bd.get("state")
+    if st is None and "state" not in bd:
+        return True
+    rnd = {"breakout": MEMBER_BASE_BREAKOUT_ROUND, "extended": MEMBER_BASE_BREAKOUT_ROUND,
+           "forming": MEMBER_BASE_FORMING_ROUND, "tight": MEMBER_BASE_TIGHT_ROUND}.get(st) if isinstance(st, str) else None
+    sr = bd.get("state_round")
+    return type(rnd) is int and type(sr) is int and sr == rnd
 
 
 def _base_member_row(row):
@@ -546,6 +570,8 @@ def _confirmed_base(row) -> bool:
         return False
     bd = ex.get("draw_base")
     if not isinstance(bd, dict) or (bd.get("label"), bd.get("low_label")) != MEMBER_BASE_LABELS:
+        return False
+    if not _member_base_state_ok(bd):
         return False
     if not (_finite(bd.get("pivot")) and _finite(bd.get("low"))):
         return False
@@ -936,6 +962,9 @@ def base_draw_row(sym: str, bars: list):
         cur_round = base_draw.BASE_DRAW_ROUND
         d = base_draw.base_drawing(b, len(b) - 1)
         if MEMBER_BASE_ROUND == cur_round:
+            if d is None:
+                # where no base is drawn: the base STATES (breakout persistence, 3 weeks tight, base forming)
+                d = base_draw.state_drawing(b, len(b) - 1)
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:

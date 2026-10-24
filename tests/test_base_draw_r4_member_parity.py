@@ -120,7 +120,15 @@ def test_on_real_bars_members_get_round_two_wherever_it_draws_and_round_four_whe
             assert ex["draw_base"] == d4 and ex["draw_round"] == 4 and ex["metrics"] == c["expect"]["metrics"]
             new += 1
         else:
-            assert served == [] and row is None, c["id"]
+            # where no base is drawn, the only row is a base STATE (base_draw.state_drawing), and a member gets
+            # one only for a state whose member literal is live (tests/test_base_draw_states.py)
+            st = row["geometry"]["extras"]["draw_base"].get("state") if row else None
+            assert row is None or st in base_draw.STATES, c["id"]
+            live = {s for s, r in (("breakout", auto_structures.MEMBER_BASE_BREAKOUT_ROUND),
+                                   ("extended", auto_structures.MEMBER_BASE_BREAKOUT_ROUND),
+                                   ("forming", auto_structures.MEMBER_BASE_FORMING_ROUND),
+                                   ("tight", auto_structures.MEMBER_BASE_TIGHT_ROUND)) if r is not None}
+            assert served == [] or (st in live and len(served) == 1), c["id"]
             none += 1
     assert same >= 100 and new >= 80 and none >= 100, (same, new, none)
 
