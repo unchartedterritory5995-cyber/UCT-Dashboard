@@ -1,10 +1,10 @@
 """Setup drawings (remount, u_and_r, donchian_breakout): the dark flag and the member gate.
 
 AUTO_STRUCTURES_G4_SETUPS_ENABLED off runs nothing and no payload carries `setup_draws`. On: an admin (the team
-chart) is served all three setups; a member is served ONLY remount and u_and_r -- each needs its member-round literal
-equal to the frozen round AND to the row's own stamp, the id in registry.DISPLAY_MEMBER_SET and the trusted tier.
-donchian_breakout's literal is None and its id is in neither display set (owner ruling pending), so two separate
-locks keep it from members; each is proved to be load-bearing on its own.
+chart) and a member are both served all three setups -- a member's row needs its member-round literal equal to the
+frozen round AND to the row's own stamp, the id in registry.DISPLAY_MEMBER_SET and the trusted tier.
+donchian_breakout: owner released 2026-10-24 (literal 1, id in both display sets). The release tests prove the gate
+still holds it: a literal of None, or its removal from either set, drops it; each lock is load-bearing on its own.
 """
 import ast
 import json
@@ -21,7 +21,7 @@ from tests.test_member_drawing_set import _get, _store
 from tests.test_setup_draw_parity import EXPECTED, ROWS
 
 FLAG = "AUTO_STRUCTURES_G4_SETUPS_ENABLED"
-MEMBER_SETUPS = {"draw:remount", "draw:u_and_r"}
+MEMBER_SETUPS = {"draw:remount", "draw:u_and_r", "draw:donchian_breakout"}
 # the three round-1 (g4) setups; the round-2 ids that share SETUP_DRAW_IDS are railed in
 # tests/test_setup_draw_r2_member_gate.py
 ALL_SETUPS = set(AS.SETUP_DRAW_IDS) - set(AS.SETUP_DRAW_R2_IDS)
@@ -63,25 +63,24 @@ def setups_on(monkeypatch):
 
 def test_the_member_round_literals_are_written_in_source():
     """Literals ON PURPOSE (never a reference to setup_draw's constants, so a new drawing round cannot release
-    itself): remount 3, u_and_r 2, donchian None."""
+    itself): remount 3, u_and_r 2, donchian 1 (owner released 2026-10-24)."""
     tree = ast.parse(open(AS.__file__, encoding="utf-8").read())
-    want = {"MEMBER_REMOUNT_ROUND": 3, "MEMBER_U_AND_R_ROUND": 2, "MEMBER_DONCHIAN_BREAKOUT_ROUND": None}
+    want = {"MEMBER_REMOUNT_ROUND": 3, "MEMBER_U_AND_R_ROUND": 2, "MEMBER_DONCHIAN_BREAKOUT_ROUND": 1}
     for name, val in want.items():
         lits = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
                 and any(getattr(t, "id", None) == name for t in n.targets)]
         assert len(lits) == 1 and isinstance(lits[0].value, ast.Constant) and lits[0].value.value == val, name
+        assert type(lits[0].value.value) is int, name
     assert AS.MEMBER_REMOUNT_ROUND == setup_draw.REMOUNT_DRAW_ROUND == 3
     assert AS.MEMBER_U_AND_R_ROUND == setup_draw.U_AND_R_DRAW_ROUND == 2
-    assert AS.MEMBER_DONCHIAN_BREAKOUT_ROUND is None and setup_draw.DONCHIAN_DRAW_ROUND == 1
+    assert AS.MEMBER_DONCHIAN_BREAKOUT_ROUND == setup_draw.DONCHIAN_DRAW_ROUND == 1
 
 
 def test_the_registry_sets():
     for pid in MEMBER_SETUPS:
         assert pid in REG.DISPLAY_MEMBER_SET and pid in REG.DISPLAY_TEAM_SET and pid in REG.DISPLAY_TRUSTED
         assert REG.display_policy(pid)["display_tier"] == "trusted"
-    d = "draw:donchian_breakout"
-    assert d not in REG.DISPLAY_MEMBER_SET and d not in REG.DISPLAY_TEAM_SET
-    assert REG.display_policy(d)["display_tier"] == "experimental"
+    assert ALL_SETUPS == MEMBER_SETUPS                         # every setup drawing is released to members
 
 
 # -- the flag ---------------------------------------------------------------------------------
@@ -130,7 +129,7 @@ def test_flag_on_the_team_chart_gets_all_three(monkeypatch, setups_on):
     assert all(r["geometry"]["shape"] == "horizontal_line" for r in body["setup_draws"])
 
 
-def test_flag_on_a_member_gets_only_remount_and_u_and_r(monkeypatch, setups_on):
+def test_flag_on_a_member_gets_all_three_released_setups(monkeypatch, setups_on):
     _route_env(monkeypatch, flag_on=True)
     body = _get(PAID_MEMBER).json()
     assert {r["pattern_id"] for r in body["setup_draws"]} == MEMBER_SETUPS
@@ -161,25 +160,42 @@ def test_member_rows_serves_exactly_the_released_setups():
     assert {r["pattern_id"] for r in AS.member_rows(rows)} == MEMBER_SETUPS
 
 
-def test_donchian_lock_one_the_literal(monkeypatch):
-    """With donchian in BOTH sets (as a release would put it) it is still dropped while its literal is None."""
+def test_donchian_release_lock_one_the_literal(monkeypatch):
+    """Released (owner 2026-10-24): the real row is served to a member, and a literal of None -- or any round
+    other than the frozen one -- drops it again while it stays in both sets."""
     d = _by_id(_real_rows())["draw:donchian_breakout"]
-    monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET | {d["pattern_id"]}))
-    trusted = {**d, "display_tier": "trusted"}
-    assert AS.member_rows([trusted]) == []
-    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)          # control: the release opens it
-    assert AS.member_rows([trusted]) == [trusted]
-
-
-def test_donchian_lock_two_the_sets(monkeypatch):
-    """With the literal set to its round, it is still dropped while its id is outside the member set / tier."""
-    d = _by_id(_real_rows())["draw:donchian_breakout"]
+    assert d["display_tier"] == "trusted"
+    assert AS.member_rows([d]) == [d]                                      # control: released, served
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", None)
+    assert AS.member_rows([d]) == []                                       # the withdraw lever
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", True)
+    assert AS.member_rows([d]) == []                                       # a bool is not the round
+    monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 2)
+    assert AS.member_rows([d]) == []                                       # a round nobody judged
     monkeypatch.setattr(AS, "MEMBER_DONCHIAN_BREAKOUT_ROUND", 1)
-    assert AS.member_rows([d]) == []                                       # experimental tier, not in the set
-    assert AS.member_rows([{**d, "display_tier": "trusted"}]) == []        # trusted but not in the member set
+    assert AS.member_rows([d]) == [d]                                      # control: restored, served again
 
 
-@pytest.mark.parametrize("pid,lit", [("draw:remount", "MEMBER_REMOUNT_ROUND"), ("draw:u_and_r", "MEMBER_U_AND_R_ROUND")])
+def test_donchian_release_lock_two_the_sets(monkeypatch):
+    """Released, with the literal at its round: removing the id from the member set, or from the team set (which
+    IS the trusted set, so the row is no longer stamped trusted), drops it."""
+    d = _by_id(_real_rows())["draw:donchian_breakout"]
+    assert AS.member_rows([d]) == [d]                                      # control: released, served
+    monkeypatch.setattr(REG, "DISPLAY_MEMBER_SET", frozenset(REG.DISPLAY_MEMBER_SET - {d["pattern_id"]}))
+    assert AS.member_rows([d]) == []                                       # out of the member set
+    monkeypatch.undo()
+    assert AS.member_rows([d]) == [d]                                      # control: back in, served
+    smaller = frozenset(REG.DISPLAY_TEAM_SET - {d["pattern_id"]})
+    monkeypatch.setattr(REG, "DISPLAY_TEAM_SET", smaller)
+    monkeypatch.setattr(REG, "DISPLAY_TRUSTED", smaller)
+    rebuilt = _by_id(_real_rows())["draw:donchian_breakout"]               # the row as the route builds it now
+    assert rebuilt["display_tier"] == "experimental"
+    assert AS.member_rows([rebuilt]) == []                                 # out of the team set: not trusted
+    assert AS.member_rows([{**d, "display_tier": "experimental"}]) == []   # the tier alone drops it
+
+
+@pytest.mark.parametrize("pid,lit", [("draw:remount", "MEMBER_REMOUNT_ROUND"), ("draw:u_and_r", "MEMBER_U_AND_R_ROUND"),
+                                     ("draw:donchian_breakout", "MEMBER_DONCHIAN_BREAKOUT_ROUND")])
 def test_a_released_setup_is_withdrawn_by_its_literal_or_a_wrong_round(monkeypatch, pid, lit):
     row = _by_id(_real_rows())[pid]
     assert AS.member_rows([row]) == [row]

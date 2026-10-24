@@ -33,7 +33,7 @@ For each case the gate asserts:
 | `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10) | `MEMBER_TEXTBOOK_ROUND = 2` (the 10 round-1 buy-point cases are kept: round 2 changed no printed number) |
 | `remount.json` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
 | `u_and_r.json` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
-| `donchian_breakout.json` | `draw:donchian_breakout`: passed both packets, **not released** (owner has not ruled) | `MEMBER_DONCHIAN_BREAKOUT_ROUND = None` (`pending_port`) |
+| `donchian_breakout.json` | `draw:donchian_breakout`: passed both packets, owner released 2026-10-24 | `MEMBER_DONCHIAN_BREAKOUT_ROUND = 1` (`released`) |
 
 Unpassed rounds are not fixtures. A `pending_port` file is a drawing that passed but is not released: it is carried so
 the gate covers it the day it ships. `test_a_pending_drawing_is_still_not_released_to_members` goes red when its

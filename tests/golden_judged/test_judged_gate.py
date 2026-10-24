@@ -150,7 +150,7 @@ def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
     assert {"base", "double_bottom", "shelf", "sr", "cup", "inside_day", "textbook", "remount",
-            "u_and_r"} <= fams, fams
+            "u_and_r", "donchian_breakout"} <= fams, fams
     assert any("line" in c["expect"] for f, c in RELEASED if f == "textbook"), "no textbook round-2 line case"
 
 
