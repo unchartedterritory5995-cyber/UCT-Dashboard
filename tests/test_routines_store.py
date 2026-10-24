@@ -113,6 +113,26 @@ def test_cap_30_sentence(R):
     make(R, name="fits now")
 
 
+def test_cap_is_CountCap_409_on_create_unarchive_duplicate_and_template_restore(R):
+    """W9-R14: the store owns the cap's status and code; every path that can cross it says so."""
+    def capped(fn):
+        with pytest.raises(R.CountCap) as e:
+            fn()
+        assert (e.value.status, e.value.code, e.value.sentence) == (409, "count_cap", R.S_CAP)
+        assert isinstance(e.value, R.RoutineError)
+
+    keyed = make(R, name="Keyed", source_template_key="eod")
+    R.archive(A, keyed["id"], now=at("2026-11-02"))
+    R.soft_delete(A, keyed["id"], typed_name="Keyed", now=at("2026-11-02"))
+    parked = make(R, name="Parked")
+    R.archive(A, parked["id"], now=at("2026-11-02"))
+    live = [make(R, name=f"R{i}") for i in range(30)]
+    capped(lambda: make(R, name="one more"))
+    capped(lambda: R.unarchive(A, parked["id"], now=at("2026-11-02")))
+    capped(lambda: R.duplicate(A, live[0]["id"], now=at("2026-11-02")))
+    capped(lambda: make(R, source_template_key="eod"))
+
+
 @pytest.mark.parametrize("kw, sentence", [
     ({"name": "x" * 81}, "A name can be at most 80 characters."),
     ({"name": "  "}, "Give the routine a name."),

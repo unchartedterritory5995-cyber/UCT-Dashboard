@@ -40,7 +40,7 @@ from api.services.journal_two.widget_definitions import _begin_immediate, _read,
 __all__ = [
     "COUNT_CAP", "NAME_MAX", "KIND", "RECENT_MAX", "DAYS_CHOICES", "RECENTLY_DELETED_DAYS",
     "READ_IDS_MAX", "READ_DAYS_MAX", "DAY_MIN", "DAY_AHEAD_MAX", "BUILTIN", "DEFAULT_SETTINGS",
-    "TrackerError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly",
+    "TrackerError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly", "CountCap",
     "create", "get", "update", "list_trackers", "archive", "unarchive", "soft_delete",
     "undelete", "duplicate", "set_value", "read_days", "is_builtin",
 ]
@@ -128,6 +128,16 @@ class OutsideWindow(TrackerError):
     code = "window"
 
     def __init__(self, sentence: str = S_WINDOW):
+        super().__init__(sentence)
+
+
+class CountCap(TrackerError):
+    """The live-tracker cap (COUNT_CAP) is reached: create, unarchive, duplicate and a
+    template restore all refuse with it (W9-R14: the store owns the 409 `count_cap`)."""
+    status = 409
+    code = "count_cap"
+
+    def __init__(self, sentence: str = S_CAP):
         super().__init__(sentence)
 
 
@@ -264,7 +274,7 @@ def _live_count(c: sqlite3.Connection, user_id: str) -> int:
 
 def _check_cap(c: sqlite3.Connection, user_id: str) -> None:
     if _live_count(c, user_id) >= COUNT_CAP:
-        raise TrackerError(S_CAP)
+        raise CountCap()
 
 
 def _settings(row: sqlite3.Row) -> dict:

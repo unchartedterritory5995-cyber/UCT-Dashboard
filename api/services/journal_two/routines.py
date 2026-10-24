@@ -44,7 +44,7 @@ __all__ = [
     "COUNT_CAP", "ITEMS_CAP", "NAME_MAX", "ITEM_MAX", "RECENTLY_DELETED_DAYS", "READ_IDS_MAX",
     "READ_DAYS_MAX", "KIND", "DAY_MIN", "DAY_AHEAD_MAX",
     "STORED_ITEMS_MAX", "STARTERS", "DEFAULT_SETTINGS",
-    "RoutineError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly",
+    "RoutineError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly", "CountCap",
     "create", "get", "update", "list_routines", "archive", "unarchive", "soft_delete",
     "undelete", "duplicate", "traded_days", "set_tick", "set_skipped", "read_days",
     "import_day_rules", "starters",
@@ -132,6 +132,16 @@ class OutsideWindow(RoutineError):
     code = "window"
 
     def __init__(self, sentence: str = S_WINDOW):
+        super().__init__(sentence)
+
+
+class CountCap(RoutineError):
+    """The live-routine cap (COUNT_CAP) is reached: create, unarchive, duplicate and a
+    template restore all refuse with it (W9-R14: the store owns the 409 `count_cap`)."""
+    status = 409
+    code = "count_cap"
+
+    def __init__(self, sentence: str = S_CAP):
         super().__init__(sentence)
 
 
@@ -371,7 +381,7 @@ def _live_count(c: sqlite3.Connection, user_id: str) -> int:
 
 def _check_cap(c: sqlite3.Connection, user_id: str) -> None:
     if _live_count(c, user_id) >= COUNT_CAP:
-        raise RoutineError(S_CAP)
+        raise CountCap()
 
 
 def _schedules(c: sqlite3.Connection, user_id: str, rid: str) -> list[tuple[str, dict]]:

@@ -30,14 +30,19 @@ The rules:
     the `public.not_found()` 404 on every `/{id}` route, and is absent from `POST /days`.
   * Errors: the stores' refusals are `tool_errors.ToolError`s carrying `status`, `code` and
     `sentence` (ruling W9-R10), and the router answers them from those attributes, the store
-    being the one authority (ruling W9-R14; so `read_only` is 409). `NotFound` is the public 404.
-    The one mapping the router adds is the count cap: the stores raise their base error with
-    `S_CAP`, answered here as 409 `count_cap` (the wave 8 router's idiom). Store calls never sit
+    being the one authority (ruling W9-R14; so `read_only` and `count_cap` are 409, each store's
+    own `CountCap`). `NotFound` is the public 404. The router adds no mapping of its own. Store
+    calls never sit
     inside a `try` that catches `ValueError` (a `ToolError` IS a `ValueError`): the body is read
     by its own dependency, before any store is called.
   * If-Match on `PUT /{id}` carries the `etag` (`save_seq`, R-15). Missing: 428 `conflict`
-    "Reload to see the newer version." (R-27); stale: 409 `conflict`. Ticks, skips and logs take
-    no If-Match (they merge per item).
+    "Reload to see the newer version." (R-27); stale: 409 `conflict`. Anything that is not a
+    number is a stale tab too: `If-Match: *` (and `W/"x"`, `abc`) answers the same 409 `conflict`,
+    never "any version". A foreign or deleted id answers the 404 before If-Match is read, so a
+    missing header never reveals that someone else's id exists. Ticks, skips and logs take no
+    If-Match (they merge per item).
+  * Every refusal carries no-store too: the 402 below, `_err`'s 400/409/413/428/429, and the
+    public 404 (`no-store, private`).
   * The stores take an optional `now=`; it is a test seam only and this router NEVER passes it
     (a request cannot choose its own day window).
   * A create with a `sourceTemplateKey` that finds the member's soft-deleted row (within the 30
@@ -84,7 +89,6 @@ S_NEED_IF_MATCH = "Reload to see the newer version."
 
 NO_STORE = {"Cache-Control": "no-store"}
 
-_CAP_SENTENCES = frozenset({rstore.S_CAP, tstore.S_CAP})
 _NOT_FOUND = (rstore.NotFound, tstore.NotFound)
 
 
@@ -110,7 +114,8 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router module, with its own sentence (tests/test_user_definitions_auth.py
     reads the sentence as a literal in the HTTPException call)."""
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="Routines and trackers require a paid plan")
+        raise HTTPException(status_code=402, detail="Routines and trackers require a paid plan",
+                            headers=dict(NO_STORE))
     return user
 
 
@@ -190,8 +195,6 @@ def _store(fn: Callable[[], Any]) -> Any:
     except _NOT_FOUND:
         raise public.not_found()
     except ToolError as e:
-        if e.sentence in _CAP_SENTENCES:
-            raise _err(409, "count_cap", e.sentence)
         raise _err(e.status, e.code, e.sentence)
 
 
@@ -202,7 +205,8 @@ def _found(item: Any) -> Any:
 
 
 def _if_match(request: Request, stale_sentence: str) -> int:
-    """The If-Match header as the item's etag. Missing: 428; not a number: a stale tab (409)."""
+    """The If-Match header as the item's etag. Missing: 428; not a number (`*` included): a stale
+    tab (409)."""
     raw = request.headers.get("if-match")
     if raw is None or not raw.strip():
         raise _err(428, "conflict", S_NEED_IF_MATCH)
@@ -376,17 +380,20 @@ def save_tracker(tid: str, request: Request, user: dict = Depends(require_paid),
     """`unit` absent keeps the unit and `null` clears it; a sent `kind` is refused by the store."""
     uid = _uid(user)
     _write_rate(uid)
-    extra: dict = {}
-    if "unit" in body:
-        extra["unit"] = body["unit"]
-    if "kind" in body:
-        extra["kind"] = body["kind"]
     if tstore.is_builtin(tid):          # the store answers `read_only` before any If-Match
-        return _ok(_store(lambda: tstore.update(uid, tid, if_match=0, **extra)))
+        return _ok(_store(lambda: tstore.update(uid, tid, if_match=0)))
     _found(tstore.get(uid, tid))
     etag = _if_match(request, tstore.S_CONFLICT)
-    return _ok(_store(lambda: tstore.update(
-        uid, tid, if_match=etag, name=body.get("name"), settings=body.get("settings"), **extra)))
+    name, settings = body.get("name"), body.get("settings")
+    # Explicit keywords only (never `**body`): `kind` present is refused by the store; `unit`
+    # present (even null) is passed, absent keeps the stored unit.
+    if "kind" in body:
+        return _ok(_store(lambda: tstore.update(uid, tid, if_match=etag, kind=body["kind"])))
+    if "unit" in body:
+        return _ok(_store(lambda: tstore.update(uid, tid, if_match=etag, name=name,
+                                                unit=body["unit"], settings=settings)))
+    return _ok(_store(lambda: tstore.update(uid, tid, if_match=etag, name=name,
+                                            settings=settings)))
 
 
 @trackers_router.post("/{tid}/archive")
@@ -429,12 +436,13 @@ def duplicate_tracker(tid: str, user: dict = Depends(require_paid)) -> Any:
 def log_tracker_day(tid: str, day: str, user: dict = Depends(require_paid),
                     body: dict = Depends(json_body)) -> Any:
     """`{value}`: a number, a bool (yes/no) or null (clears the day). The key is required, so an
-    empty body is never read as a clear."""
+    empty body is never read as a clear. A built-in is asked first: it answers `read_only`
+    whatever the body."""
     uid = _uid(user)
     _write_rate(uid)
-    if "value" not in body:
+    if not tstore.is_builtin(tid) and "value" not in body:
         raise _err(400, "invalid", S_UNREADABLE_BODY)
-    value = body["value"]
+    value = body.get("value")
     return _ok(_store(lambda: tstore.set_value(uid, tid, day, value)))
 
 

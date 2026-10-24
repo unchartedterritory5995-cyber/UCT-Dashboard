@@ -108,12 +108,23 @@ def test_all_routes_404_when_w9_off(monkeypatch):
     routes = _routes()
     assert len(routes) >= 25 and len(routes) == BRIEF_ROUTES, routes   # non-vacuity
     want = public.not_found().detail
+    oversized = json.dumps({"name": "x" * (nr.MAX_BODY + 10)}).encode()
+    bodies = {                                                  # dark wins over every body shape
+        "empty": dict(json={}),
+        "oversized": dict(content=oversized, headers={"content-type": "application/json"}),
+        "malformed": dict(content=b"{not json", headers={"content-type": "application/json"}),
+        "chunked": dict(content=iter([b'{"name": "', b"x" * (nr.MAX_BODY + 10), b'"}'])),
+    }
     for user in (PAID, FREE, None):                             # dark first, whoever is asking
         c = _client(user)
         for method, path in routes:
-            r = c.request(method, _concrete(path), json={})
-            assert r.status_code == 404, (method, path, user, r.status_code)
-            assert r.json() == {"detail": want}, (method, path)
+            for label, kw in bodies.items():
+                if label == "chunked":                          # a generator is single-use
+                    kw = dict(content=iter([b'{"name": "', b"x" * (nr.MAX_BODY + 10), b'"}']))
+                r = c.request(method, _concrete(path), **kw)
+                assert r.status_code == 404, (method, path, user, label, r.status_code)
+                assert r.json() == {"detail": want}, (method, path, label)
+                assert "no-store" in r.headers["cache-control"], (method, path, label)
 
 
 def test_flag_read_per_request(monkeypatch):
@@ -136,6 +147,7 @@ def test_unpaid_402_own_sentence():
         r = c.request(method, _concrete(path), json={})
         assert r.status_code == 402, (method, path)
         assert r.json()["detail"] == "Routines and trackers require a paid plan"
+        assert r.headers["cache-control"] == "no-store", (method, path)
     assert _client(None).get(RB + "/starters").status_code in (401, 403)
 
 
@@ -187,6 +199,9 @@ def test_tick_and_skip_return_the_merged_day():
     ro = c.put(f"{TB}/checkin:mood/days/{TODAY}", json={"value": 3})
     assert ro.status_code == 409 and ro.json()["detail"] == {
         "code": "read_only", "message": tstore.S_READ_ONLY}
+    # M2: a built-in is read-only whatever the body, an empty one included
+    ro = c.put(f"{TB}/checkin:focus/days/{TODAY}", json={})
+    assert ro.status_code == 409 and _code(ro) == "read_only"
 
 
 def test_window_400_code_and_sentence():
@@ -208,13 +223,40 @@ def test_window_400_code_and_sentence():
     assert r.status_code == 400 and r.json()["detail"] == want
 
 
-def test_router_never_passes_now_to_a_store():
-    tree = ast.parse(Path(inspect.getsourcefile(nr)).read_text(encoding="utf-8"))
+def _store_calls_offending(source: str) -> tuple[int, list[str]]:
+    """(store calls seen, the ones that pass `now=` or any `**mapping`). A `**` keyword is refused
+    outright: whatever it unpacks could carry `now` from a request body."""
+    tree = ast.parse(source)
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)
              and n.func.value.id in ("rstore", "tstore")]
-    assert len(calls) >= 25, len(calls)                         # non-vacuity: the store calls are seen
-    assert [ast.unparse(n) for n in calls if any(k.arg == "now" for k in n.keywords)] == []
+    bad = [ast.unparse(n) for n in calls
+           if any(k.arg is None or k.arg == "now" for k in n.keywords)]
+    return len(calls), bad
+
+
+def test_router_never_passes_now_to_a_store():
+    seen, bad = _store_calls_offending(Path(inspect.getsourcefile(nr)).read_text(encoding="utf-8"))
+    assert seen >= 25, seen                                     # non-vacuity: the store calls are seen
+    assert bad == []
+
+
+def test_the_now_rail_catches_a_planted_now_and_a_planted_body_splat():
+    planted = "\n".join([
+        "def a(uid, body):",
+        "    return rstore.create(uid, **body)",
+        "def b(uid, body):",
+        "    return tstore.set_value(uid, 't', 'd', 1, now=body.get('now'))",
+        "def c(uid, extra):",
+        "    return tstore.update(uid, 't', if_match=1, **extra)",
+        "def ok(uid, body):",
+        "    return rstore.get(uid, body.get('id'))",
+        ""])
+    seen, bad = _store_calls_offending(planted)
+    assert seen == 4
+    assert bad == ["rstore.create(uid, **body)",
+                   "tstore.set_value(uid, 't', 'd', 1, now=body.get('now'))",
+                   "tstore.update(uid, 't', if_match=1, **extra)"]
 
 
 def test_foreign_id_404_and_absent_from_days():
@@ -241,6 +283,10 @@ def test_foreign_id_404_and_absent_from_days():
     ]:
         r = mine.request(method, path, json=body, headers={"If-Match": "1"})
         assert r.status_code == 404 and r.json() == want, (method, path, r.status_code)
+    # with NO If-Match a foreign id is still the 404, never the 428 (that would confirm it exists)
+    for path in (f"{RB}/{one['id']}", f"{TB}/{t['id']}"):
+        r = mine.put(path, json={"name": "x"})
+        assert r.status_code == 404 and r.json() == want, path
     assert mine.post(RB + "/days", json={"ids": [one["id"]], "days": [TODAY]}).json()["routines"] == {}
     assert mine.post(TB + "/days", json={"ids": [t["id"]], "days": [TODAY]}).json()["trackers"] == {}
     # nothing was written to the other member's rows
@@ -324,10 +370,19 @@ def test_write_rate_120_and_read_rate_60_separate_scopes(monkeypatch):
     r = c.post(f"{RB}/x/archive")
     assert r.status_code == 429 and r.json()["detail"] == {
         "code": "rate", "message": "Too many changes in a minute. Try again shortly."}
+    monkeypatch.setattr(rstore, "get", lambda uid, rid: {"id": rid})
+    monkeypatch.setattr(rstore, "import_day_rules", lambda uid: [])
+    reads = [lambda: c.get(RB + "/starters"),
+             lambda: c.post(RB + "/days", json={"ids": [], "days": []}),
+             lambda: c.get(RB + "/x"),
+             lambda: c.get(RB + "/x/used-in"),
+             lambda: c.get(RB + "/import-day-rules")]
     for i in range(60):                                         # the read scope is its own
-        path = RB + "/starters" if i % 3 else RB + "/days"
-        r = c.get(path) if i % 3 else c.post(path, json={"ids": [], "days": []})
-        assert r.status_code == 200, i
+        r = reads[i % len(reads)]()
+        assert r.status_code == 200, (i, r.request.url)
+    for probe in reads:                                         # every read route is on the read scope
+        r = probe()
+        assert r.status_code == 429 and _code(r) == "rate", r.request.url
     r = c.post(TB + "/days", json={"ids": [], "days": []})      # POST /days is a read
     assert r.status_code == 429 and r.json()["detail"] == {
         "code": "rate", "message": "Too many reads in a minute. Try again shortly."}
@@ -391,3 +446,68 @@ def test_template_key_create_restores_the_stored_row():
     assert c.post(f"{RB}/{one['id']}/delete", json={"typedName": "Morning"}).status_code == 200
     again = _routine(c, name="Different", sourceTemplateKey="eod")
     assert again["id"] == one["id"] and again["name"] == "Morning" and again["archived"] is False
+
+
+def test_a_parser_RecursionError_is_400_invalid(monkeypatch):
+    """Python 3.12 (production) can raise RecursionError out of json.loads on a deep body before
+    the depth check sees it; the router must answer 400 `invalid`, never a 500."""
+    def boom(*a, **k):
+        raise RecursionError("maximum recursion depth exceeded")
+    import types                       # a shim for THIS module only: the client still decodes JSON
+    monkeypatch.setattr(nr, "json", types.SimpleNamespace(loads=boom))
+    c = _client()
+    for r in (c.post(RB, json={"name": "x"}),
+              c.post(TB + "/days", json={"ids": [], "days": []})):
+        assert r.status_code == 400 and r.json()["detail"] == {
+            "code": "invalid", "message": "That request couldn't be read."}
+        assert r.headers["cache-control"] == "no-store"
+
+
+def test_my_own_soft_deleted_id_is_the_404():
+    c = _client()
+    one = _routine(c)
+    a = one["items"][0]["id"]
+    c.post(f"{RB}/{one['id']}/archive")
+    assert c.post(f"{RB}/{one['id']}/delete", json={"typedName": "Morning"}).status_code == 200
+    t = _tracker(c)
+    c.post(f"{TB}/{t['id']}/archive")
+    assert c.post(f"{TB}/{t['id']}/delete", json={"typedName": "Sleep"}).status_code == 200
+    want = {"detail": public.not_found().detail}
+    for method, path, body, hdr in [
+        ("GET", f"{RB}/{one['id']}", None, {}),
+        ("PUT", f"{RB}/{one['id']}", {"name": "x"}, {"If-Match": str(one["etag"])}),
+        ("PUT", f"{RB}/{one['id']}", {"name": "x"}, {}),
+        ("PUT", f"{RB}/{one['id']}/days/{TODAY}/items/{a}", {"ticked": True}, {}),
+        ("PUT", f"{RB}/{one['id']}/days/{TODAY}", {"skipped": True}, {}),
+        ("GET", f"{RB}/{one['id']}/used-in", None, {}),
+        ("GET", f"{TB}/{t['id']}", None, {}),
+        ("PUT", f"{TB}/{t['id']}", {"name": "x"}, {}),
+        ("PUT", f"{TB}/{t['id']}/days/{TODAY}", {"value": 1}, {}),
+        ("GET", f"{TB}/{t['id']}/used-in", None, {}),
+    ]:
+        r = c.request(method, path, json=body, headers=hdr)
+        assert r.status_code == 404 and r.json() == want, (method, path, r.status_code)
+    # and it is still there to bring back
+    assert c.post(f"{RB}/{one['id']}/undelete").status_code == 200
+
+
+def test_every_refusal_is_no_store(monkeypatch):
+    c = _client()
+    one = _routine(c)
+    a = one["items"][0]["id"]
+    refusals = {
+        400: c.put(f"{RB}/{one['id']}/days/{TODAY}/items/{a}", json={"ticked": "yes"}),
+        404: c.get(f"{RB}/no-such-id"),
+        409: c.put(f"{RB}/{one['id']}", json={}, headers={"If-Match": "*"}),
+        413: c.post(RB, json={"name": "x" * (nr.MAX_BODY + 10)}),
+        428: c.put(f"{RB}/{one['id']}", json={}),
+        402: _client(FREE).get(RB + "/starters"),
+    }
+    for _ in range(120):                                       # spend the write budget
+        c.post(f"{RB}/no-such-id/archive")
+    refusals[429] = c.post(f"{RB}/no-such-id/archive")
+    for status, r in refusals.items():
+        assert r.status_code == status, (status, r.status_code, r.text)
+        assert "no-store" in r.headers.get("cache-control", ""), status
+    # M4: `If-Match: *` is a stale tab, never "any version"
+    assert refusals[409].json()["detail"] == {"code": "conflict", "message": rstore.S_CONFLICT}

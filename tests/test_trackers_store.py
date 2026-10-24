@@ -123,13 +123,17 @@ def test_create_each_kind_and_cap_30(T):
     assert _count("j2_trackers") == 30
     with pytest.raises(T.TrackerError) as e:
         make(T, name="one more", kind="number")
-    assert e.value.sentence == T.S_CAP and e.value.status == 400
+    assert e.value.sentence == T.S_CAP and e.value.status == 409 and e.value.code == "count_cap"
+    assert isinstance(e.value, T.CountCap)
     assert _count("j2_trackers") == 30
     T.archive(A, made["yesno"]["id"], now=NOW)
     make(T, name="fits now", kind="number")
     with pytest.raises(T.TrackerError) as e:     # unarchive is refused at the cap too
         T.unarchive(A, made["yesno"]["id"], now=NOW)
-    assert e.value.sentence == T.S_CAP
+    assert e.value.sentence == T.S_CAP and isinstance(e.value, T.CountCap)
+    with pytest.raises(T.CountCap) as e:         # and so is duplicate
+        T.duplicate(A, made["number"]["id"], now=NOW)
+    assert (e.value.status, e.value.code) == (409, "count_cap")
 
 
 def test_unit_17_chars_refused(T):
@@ -521,7 +525,7 @@ def test_template_key_create_restores_a_deleted_tracker_live(T):
     fill = [make(T, name=f"F{i}", kind="number") for i in range(30)]
     with pytest.raises(T.TrackerError) as e:
         make(T, kind="yesno", source_template_key="slept-8h", now=NOW + timedelta(days=2))
-    assert e.value.sentence == T.S_CAP
+    assert e.value.sentence == T.S_CAP and isinstance(e.value, T.CountCap)
     assert [x["id"] for x in T.list_trackers(A, filter="deleted", now=NOW)] == [t["id"]]
     # past the 30 days it is gone, and the template starts afresh
     T.archive(A, fill[0]["id"], now=NOW)
