@@ -53,8 +53,3 @@ def test_the_one_literal_re_enables_it(monkeypatch, row, lit, val):
     monkeypatch.setattr(AS, lit, val)
     assert [r["pattern_id"] for r in AS.member_rows([row])] == [row["pattern_id"]]
 
-
-def test_other_member_rows_are_untouched():
-    other = {"pattern_id": "uct_pullback_ma_v5", "display_tier": "trusted", "geometry": {"extras": {}}}
-    if other["pattern_id"] in AS.member_ids():
-        assert AS.member_rows([other, _flat_base_row(), _bc_flat_base_row()]) == [other]

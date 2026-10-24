@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import ast
 
+import pytest
+
 from api.services import auto_structures
 from api.services.pattern_engine.detectors import registry
 from tests.authclients import ADMIN, PAID_MEMBER
@@ -25,6 +27,14 @@ from tests.test_member_drawing_set import _flags, _get, _store
 
 V5 = "uct_pullback_ma_v5"
 
+
+
+@pytest.fixture(autouse=True)
+def flat_base_released(monkeypatch):
+    """flat_base is this file's still-served "other" member type; it is withheld from members since 2026-10-24
+    (recert A), so it is re-enabled in memory here (tests/test_flat_base_withheld_from_members.py rails that)."""
+    monkeypatch.setattr(auto_structures, "MEMBER_FLAT_BASE_ROUND", 1)
+    monkeypatch.setattr(auto_structures, "MEMBER_BC_FLAT_BASE_ROUND", "team")
 
 def test_the_member_v5_literal_is_none_in_source():
     tree = ast.parse(open(auto_structures.__file__, encoding="utf-8").read())
