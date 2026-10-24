@@ -123,18 +123,40 @@ def test_the_frozen_round_moving_withholds_the_member_layer(monkeypatch, sr_on, 
     assert AS.levels_sr_for("ZZZ", member=True, served=[]) is None
 
 
-def test_outside_the_judged_frame_there_is_no_layer(monkeypatch, sr_on):
+def test_outside_the_judged_frame_nothing_is_drawn_and_the_block_says_why(monkeypatch, sr_on):
     c = _drawing_case()
     base = _dicts(c["bars"])
+    computed = []
+    real = AS.sr_compute
+    monkeypatch.setattr(AS, "sr_compute", lambda b, p: computed.append(1) or real(b, p))
     for bars in (base[-(AS.SR_MIN_BARS - 1):],
                  base[:-1] + [{**base[-1], "c": 4.99}],
                  base[:-1] + [{**base[-1], "v": (AS.SR_MIN_DOLLAR_VOLUME / base[-1]["c"]) * 0.99}]):
         AS._SR_CACHE.clear()
         monkeypatch.setattr(AS, "_shelf_bars", lambda sym, b=bars: b)
-        assert AS.levels_sr_for("ZZZ", member=True, served=[]) is None
+        p = AS.levels_sr_for("ZZZ", member=True, served=[])
+        assert p == {"round": "r2", "asof_t": bars[-1]["t"], "atr": None, "zones": [], "trendlines": [],
+                     "withheld": "out_of_frame"}
+    assert computed == []                                          # nothing was drawn out of frame
     AS._SR_CACHE.clear()
     monkeypatch.setattr(AS, "_shelf_bars", lambda sym: base)      # control
-    assert AS.levels_sr_for("ZZZ", member=True, served=[]) is not None
+    p = AS.levels_sr_for("ZZZ", member=True, served=[])
+    assert p["zones"] and "withheld" not in p
+
+
+def test_a_history_too_short_to_draw_says_so(monkeypatch, sr_on):
+    c = _drawing_case()
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: _dicts(c["bars"]))
+    monkeypatch.setattr(S, "draw", lambda rows, i=None, pp=(): None)
+    p = AS.levels_sr_for("ZZZ", member=True, served=[])
+    assert p["withheld"] == "short_history" and p["zones"] == [] and p["trendlines"] == []
+
+
+def test_no_bars_means_no_key(monkeypatch, sr_on):
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: None)
+    assert AS.levels_sr_for("ZZZ", member=True, served=[]) is None
+    monkeypatch.setattr(AS, "_shelf_bars", lambda sym: [])
+    assert AS.levels_sr_for("ZZZ") is None
 
 
 def test_only_bars_up_to_the_last_completed_session_are_read(monkeypatch, sr_on):

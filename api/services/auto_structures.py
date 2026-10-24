@@ -2125,6 +2125,14 @@ def _sr_payload(d: dict) -> dict:
     return out
 
 
+def _sr_withheld(bars: list, why: str) -> dict:
+    """The block for a chart the released layer looked at and draws nothing on, by rule ("out_of_frame": outside
+    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer"."""
+    from api.services.pattern_engine import sr_levels
+    return {"round": sr_levels.SR_ROUND, "asof_t": int(bars[-1]["t"]), "atr": None, "zones": [], "trendlines": [],
+            "withheld": why}
+
+
 def sr_compute(bars: list, prices) -> dict | None:
     """The layer for completed daily `bars` (oldest first, the last one the as-of bar) and the served pattern
     prices, or None with too little history. The judged frame is levels_sr_for's to check (once, before any work).
@@ -2140,8 +2148,10 @@ def levels_sr_for(sym: str, *, member: bool = False, served=None):
     off; nothing runs while it is off) and, for a member, MEMBER_SR_ROUND equal to the frozen round. `served`: the
     drawings this response serves (member path) -- their prices win (patterns win); None (team path) = the drawings
     the MEMBER path serves on this chart, replayed from the bars (shelf_member_facts). Reads only bars up to the last
-    COMPLETED session (an unknown session clock draws nothing). One computed answer per (ticker, last completed
-    session, served prices). Any failure -> None. Never raises."""
+    COMPLETED session (an unknown session clock draws nothing). Outside the judged frame, or with too little history,
+    the block is present with no zones or lines and `withheld` naming why, so the key itself means "released to this
+    viewer" (the UCT Intelligence indicator's "Support & resistance" toggle reads its presence). One computed answer
+    per (ticker, last completed session, served prices). Any failure -> None (no key). Never raises."""
     try:
         if not sr_enabled():
             return None
@@ -2149,8 +2159,10 @@ def levels_sr_for(sym: str, *, member: bool = False, served=None):
             return None
         sym = (sym or "").upper()
         bars = _shelf_bars(sym)          # the last COMPLETED session's 600-bar window (>= sr_levels.BARS_NEEDED)
-        if not bars or not sr_in_frame(bars):
+        if not bars:
             return None
+        if not sr_in_frame(bars):
+            return _sr_withheld(bars, "out_of_frame")
         key = int(bars[-1]["t"])
         scope = "member" if member else "team"
         if served is not None:
@@ -2167,6 +2179,8 @@ def levels_sr_for(sym: str, *, member: bool = False, served=None):
             facts, _lines = shelf_member_facts(sym, bars)
             prices = tuple(sorted({round(float(v), 4) for _pid, ls, _span in facts for v in ls}))
         out = sr_compute(bars, prices)
+        if out is None:
+            out = _sr_withheld(bars, "short_history")
         with _SR_LOCK:
             _SR_CACHE[(sym, scope)] = (key, prices, out)
         return out
