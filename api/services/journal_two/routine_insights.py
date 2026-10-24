@@ -429,8 +429,10 @@ def _holds(rule: str, n: int | None, f: dict,
     if rule == "max_trades":
         return 1 <= f["count"] <= int(n)
     if rule == "under_daily_loss_limit":
-        if not f["limits"] or f["unattributed"]:
-            return False      # no account has a limit, or part of the day has no account (I-1)
+        if not f["limits"] or f["unattributed"] or not f["count"]:
+            # no account has a limit, part of the day has no account (I-1), or nothing closed that
+            # day (an option still open is unrealised: "stayed above the limit" would be unfounded)
+            return False
         return all(f["nets"].get(acc, 0.0) > -limit for acc, limit in f["limits"].items())
     timed = []
     for ev in f["events"]:

@@ -779,3 +779,13 @@ def test_m6_a_deleted_tracker_is_none(I):
     trackers.archive(A, t["id"], now=NOW)
     trackers.soft_delete(A, t["id"], typed_name="Sleep", now=NOW)
     assert I.tracker_vs_pnl(A, t["id"], now=NOW) is None
+
+
+def test_a_day_with_only_an_open_option_gets_no_loss_limit_suggestion(I):
+    """Re-review minor 1: an unrealised option is not evidence the day stayed above the limit."""
+    d = "2026-10-26"
+    with _conn() as c:
+        acc = _account(c, A, size=10000.0, pct=2.0)
+        strategy_at(c, A, day=d, pnl=0.0, entry=f"{d}T14:00:00Z", account=acc, status="open")
+        c.commit()
+    assert _sug(I, LIMIT, d) == []
