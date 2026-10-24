@@ -1,0 +1,96 @@
+"""PARITY RAIL: the round-3 production setup drawings (api/services/pattern_engine/setup_draw_r3.py) equal the
+judged drawing code on fixed fixtures -- the same facts and the same full drawing (geometry, panel), as-of every bar.
+
+tests/fixtures/setup_draw_r3_parity.json holds 4 SYNTHETIC daily series (seeded random walks with trend / range
+regimes, no real ticker), 860 bars each, and, per series, the judged code's output as-of EVERY bar from index 220 on:
+{asof: {setup: {facts, sha256 of the whole drawing dict}}}. At every other bar the judged code draws nothing, so the
+production module must draw nothing there too. Together the series fire all six setups (207 as-of bars).
+
+JUDGED_CONSTANTS pins the full constant table as well: a behavioural fixture cannot see a perturbation no chart in
+it sits on.
+
+If this goes red, the production drawing no longer reproduces the judged geometry. Do NOT re-bless the fixture from
+the production module: that makes the rail compare the module with itself. A new drawing round is a new blind check.
+"""
+import hashlib
+import json
+import os
+
+import pytest
+
+from api.services.pattern_engine import setup_draw_r3 as M
+
+FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "setup_draw_r3_parity.json")
+SETUPS = ("outside_bar", "descending_triangle", "inverse_head_shoulders", "bear_flag", "bollinger_squeeze",
+          "major_trendlines")
+
+#: The judged constant table, frozen with the judged round (each value read from its setup's frozen batch copy).
+JUDGED_CONSTANTS = {
+    'BF_LANE_TOUCH': 2, 'BF_MAX': 20, 'BF_MAX_R3': 12, 'BF_MIN': 5, 'BF_POLE_ATR': 4.0, 'BF_POLE_BARS': 8,
+    'BF_POLE_BOUNCE': 0.25, 'BF_POLE_MAX': 12, 'BF_POLE_PCT': 0.12, 'BF_RETR': 0.5, 'BF_RETR_R3': 0.38,
+    'BF_SLOPE': 0.5, 'BF_WIDTH': 0.5, 'BF_WIDTH_R3': 0.35, 'BS_BW_LOOK': 125, 'BS_BW_TOL': 1.1, 'BS_DRIFT': 0.5,
+    'BS_H_NORMAL': 2.0, 'BS_K_BB': 2.0, 'BS_K_KC': 1.5, 'BS_MAX_H_ATR': 2.75, 'BS_MAX_RUN': 30, 'BS_MIN_RUN': 6,
+    'BS_N': 20, 'BS_QUIET_MAX': 1.0, 'BS_QUIET_MEAN': 0.6, 'BS_WIDE_ATR': 1.3, 'CV_TOL_ATR': 0.3, 'DT_FLAT': 0.02,
+    'DT_LOOK': 80, 'DT_MIN_TOUCH': 3, 'DT_RES_TOUCH': 3, 'DT_SPIKE_ATR': 0.3, 'DT_TOUCH_ATR': 0.35, 'HS_FRESH': 20,
+    'HS_FRESH_R3': 12, 'HS_HEAD_ATR': 1.0, 'HS_HEAD_R3': 1.5, 'HS_LEG': 5, 'HS_NL_SLOPE': 0.5,
+    'HS_NL_SLOPE_R3': 0.25, 'HS_PRE': 15, 'HS_SHOULDER': 0.5, 'HS_SH_DEPTH': 0.4, 'HS_SH_EQ': 0.3,
+    'HS_SH_EQ_R3': 0.2, 'HS_SPAN': 120, 'HS_TIME_R3': (0.6, 1.67), 'MIN_ASOF_INDEX': 220, 'MIN_ATR_PCT': 0.008,
+    'MT_LOOK': 200, 'MT_MAX_GAP': 0.5, 'MT_MIN_SPAN': 60, 'MT_NEAR_ATR': 2.0, 'MT_NEAR_R3': 1.0, 'MT_SEP': 10,
+    'MT_TOL_ATR': 0.3, 'OB_POKE_ATR': 0.2, 'OB_RANGE_ATR': 1.0, 'PIV_SPAN': 200, 'SMA_LONG': 200,
+    'SMA_RISE_BARS': 20, 'WINDOW': 330,
+}
+
+
+def _load():
+    with open(FIXTURE, encoding="utf-8") as fh:
+        return json.load(fh)["series"]
+
+
+SERIES = _load()
+
+
+def _sha(d):
+    return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
+
+
+def test_the_module_serves_exactly_the_judged_setups_at_the_judged_round():
+    assert M.SETUPS == SETUPS
+    assert M.R3_DRAW_ROUND == 3 and M.DRAW_ROUNDS == {s: 3 for s in SETUPS}
+
+
+def test_the_judged_constant_table():
+    for name, val in JUDGED_CONSTANTS.items():
+        assert getattr(M, name) == val, name
+
+
+def test_every_setup_fires_somewhere_in_the_fixture():
+    fired = {s for sr in SERIES for v in sr["expected"].values() for s in v}
+    assert fired == set(SETUPS)
+
+
+@pytest.mark.parametrize("k", range(len(SERIES)))
+def test_parity_as_of_every_bar(k):
+    sr = SERIES[k]
+    rows = sr["rows"]
+    want_all = sr["expected"]
+    bad = []
+    for i in range(220, len(rows)):
+        got = {}
+        for s, d in M.detect_all(rows[:i + 1]).items():
+            if d is not None:
+                got[s] = {"facts": M.facts(d), "sha": _sha(d)}
+        want = want_all.get(str(i), {})
+        if got != want:
+            bad.append((i, sorted(got), sorted(want)))
+    assert not bad, bad[:5]
+
+
+def test_a_detector_reads_nothing_after_the_as_of_bar():
+    """The drawing as-of bar i is the same whether or not later bars exist in the series handed in... once sliced:
+    detect() reads only the last WINDOW bars of what it is given, so the caller's slice IS the as-of bar."""
+    sr = SERIES[0]
+    rows = sr["rows"]
+    i = int(min(sr["expected"], key=int))
+    a = M.detect_all(rows[:i + 1])
+    b = M.detect_all(list(rows[:i + 1]))
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
