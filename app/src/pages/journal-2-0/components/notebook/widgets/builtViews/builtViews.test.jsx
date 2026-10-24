@@ -7,8 +7,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import BuiltWidgetEmbed from '../BuiltWidgetEmbed'
 import BarView, { VALUE_MAX, VALUE_SLACK, valueLines, lineWidth } from './BarView'
-import HeatView, { TEXT_MIN_CELL, MAX_CELL, cellLines } from './HeatView'
-import LineView, { nearestIndex } from './LineView'
+import HeatView, { TEXT_MIN_CELL, MAX_CELL, SNAP_SLOP, cellLines } from './HeatView'
+import LineView, { nearestIndex, readoutPlace } from './LineView'
 import ScatterView from './ScatterView'
 import CompareView, { changeText } from './CompareView'
 import ProgressView from './ProgressView'
@@ -186,13 +186,19 @@ describe('built widget views', () => {
   }
 
   it('the 583 \u2192 600 \u2192 583 scrollbar sequence ends at 583 (the narrower width fits either way)', () => {
+    // Discriminating: 600 is NEW when it arrives (taken), so the last 583 is a flip back to a width seen; only a
+    // rule where the narrower width wins ends at 583. A rule that ignores every flip-back ends at 600.
     vi.useFakeTimers()
     try {
       const { at, ev, setReal } = flipRig()
-      ev(600); ev(583); ev(600); ev(583)
+      ev(583)
+      expect(at()).toBe(583)
+      ev(600)
+      expect(at()).toBe(600)
+      ev(583)
       expect(at()).toBe(583)
       setReal(583)
-      act(() => { vi.advanceTimersByTime(SETTLE_MS + 100) })
+      act(() => { vi.advanceTimersByTime(SEEN_MS + SETTLE_MS) })
       expect(at()).toBe(583)
     } finally { vi.useRealTimers() }
   })
@@ -208,11 +214,33 @@ describe('built widget views', () => {
       expect(at()).toBe(584)                                                 // not before the window closes
       act(() => { vi.advanceTimersByTime(100) })
       expect(at()).toBe(600)
-      // at most one trailing accept per flip pair: the same pair flipping again keeps the narrower width
+      // at most one trailing read per pair per SEEN_MS: the same pair flipping again waits for that window
       ev(584); ev(600)
       setReal(600)
       act(() => { vi.advanceTimersByTime(SETTLE_MS + 100) })
+      expect(at()).toBe(584)                                                 // 950 ms after the first read
+      act(() => { vi.advanceTimersByTime(SEEN_MS) })
+      expect(at()).toBe(600)                                                 // the window opened: the truth
+    } finally { vi.useRealTimers() }
+  })
+
+  it('a real drag (narrow, widen, narrow, widen inside 1 s) always ends at the box\u2019s clientWidth', () => {
+    vi.useFakeTimers()
+    try {
+      const { at, ev, setReal, cw } = flipRig()
+      ev(600); ev(584); ev(600)                                              // t=0: the widen is ignored
+      setReal(600)
+      act(() => { vi.advanceTimersByTime(SETTLE_MS + 50) })                  // t=450: the trailing read
+      expect(at()).toBe(600)
+      act(() => { vi.advanceTimersByTime(50) })                              // t=500, still inside 1 s
+      ev(584)                                                                // narrow: taken
       expect(at()).toBe(584)
+      ev(600)                                                                // widen in the SPENT pair: ignored...
+      expect(at()).toBe(584)
+      const reads = cw.mock.calls.length
+      act(() => { vi.advanceTimersByTime(SEEN_MS * 3) })
+      expect(at()).toBe(600)                                                 // ...but the box is read again
+      expect(cw.mock.calls.length - reads).toBe(1)                           // once, not a storm
     } finally { vi.useRealTimers() }
   })
 
@@ -724,12 +752,14 @@ describe('built widget views', () => {
     expect(tip.tagName.toLowerCase()).toBe('div')
     expect([...tip.children].map((d) => d.textContent)).toEqual(['2026-10', 'Net P&L: -$50.00', 'Win rate: 40.0%, from 2 decisive trades'])
     expect(svg.querySelector('[data-testid="built-line-guide"]')).not.toBeNull()
-    // clamped: at the last point the readout's right edge stays inside the 340 px box
+    // clamped: at the last point the readout's right edge stays inside the 340 px box, and it never starts left of
+    // the axis (the ticks are there)
+    const padL = Number(svg.querySelector('line[class*="axis"]').getAttribute('x1'))
     const left = parseFloat(tip.style.left)
-    const est = Math.max(...[...tip.children].map((d) => textW(d.textContent, 12))) + 16
-    expect(left).toBeGreaterThanOrEqual(0)
-    expect(left + Math.min(340, est)).toBeLessThanOrEqual(340)
-    expect(tip.style.maxWidth).toBe('340px')
+    const est = Math.max(...[...tip.children].map((d) => textW(d.textContent, 12))) + 18
+    expect(left).toBeGreaterThanOrEqual(padL)
+    expect(left + Math.min(340 - padL, est)).toBeLessThanOrEqual(340)
+    expect(tip.style.maxWidth).toBe(`${340 - padL}px`)
     expect(/white-space:\s*normal/.test(ruleBody('.readout'))).toBe(true)
     fireEvent.pointerLeave(overlay)
     expect(screen.queryByTestId('built-line-readout')).toBeNull()
@@ -797,17 +827,183 @@ describe('built widget views', () => {
     expect(600 - Number(line.getAttribute('x')) - w).toBeGreaterThanOrEqual(8 + 6)            // the slack, plus the column's own pad
   })
 
-  it('no rule anywhere sets .flagText, .badgeText or .badge under 11 px', () => {
-    const rules = [...CSS.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+  /** Every rule naming .flagText, .badgeText or .badge, with the font size it sets in px (font-size or the font:
+   *  shorthand; px, rem or em at a 16 px base). Rules that set no size are listed with px null. */
+  const smallTextRules = (css) => {
+    const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
     const named = rules.filter(([, sel]) => /\.(flagText|badgeText|badge)(?![\w-])/.test(sel))
-    expect(named.length).toBeGreaterThan(0)
-    for (const [, sel, body] of named) {
-      const m = /font-size:\s*(\d+(?:\.\d+)?)px/.exec(body)
-      if (m) expect(Number(m[1]), sel.trim()).toBeGreaterThanOrEqual(11)
+    const toPx = (n, unit) => Number(n) * (unit === 'px' ? 1 : 16)
+    return named.map(([, sel, body]) => {
+      const sizes = []
+      for (const [, n, unit] of body.matchAll(/font-size:\s*(\d*\.?\d+)(px|rem|em)\b/g)) sizes.push(toPx(n, unit))
+      for (const [, value] of body.matchAll(/(?:^|[;\s])font:\s*([^;]+)/g)) {
+        const m = /(?:^|\s)(\d*\.?\d+)(px|rem|em)(?=\s*(?:\/|\s|$))/.exec(value)
+        if (m) sizes.push(toPx(m[1], m[2]))
+      }
+      return { sel: sel.trim(), px: sizes.length ? Math.min(...sizes) : null }
+    })
+  }
+  const underEleven = (css) => smallTextRules(css).filter((r) => r.px !== null && r.px < 11).map((r) => r.sel)
+
+  it('no rule anywhere sets .flagText, .badgeText or .badge under 11 px (font-size or font:, px, rem or em)', () => {
+    const found = smallTextRules(CSS)
+    expect(found.length).toBeGreaterThan(0)
+    expect(found.some((r) => r.px === 11)).toBe(true)                         // it reads the real rules' sizes
+    expect(underEleven(CSS)).toEqual([])
+    // controls, through the SAME loop: each one breaks the rule a different way, and each is caught
+    expect(underEleven('.badgeText { font-size: 9px; }')).toEqual(['.badgeText'])
+    expect(underEleven('.badge {\n  font: 600 10px/1.2 sans-serif;\n}')).toEqual(['.badge'])
+    expect(underEleven('.flagText { font-size: 0.6rem; }')).toEqual(['.flagText'])
+    expect(underEleven('@media (max-width: 640px) {\n  .flagText,\n.badgeText { font: 0.5em sans-serif }\n}'))
+      .toEqual(['.flagText,\n.badgeText'])
+    // and the sizes that are fine stay fine (11 px, 0.75rem = 12 px), and another class is never read
+    expect(underEleven('.badge { font-size: 11px } .flagText { font: 500 0.75rem/1 x } .tick { font-size: 9px }')).toEqual([])
+  })
+
+  // ── fix round 4 ─────────────────────────────────────────────────────────────────────────────────────────
+
+  it('the Line box and the heat scroller set touch-action: manipulation, so two taps never zoom on iOS', () => {
+    for (const sel of ['.chartFit', '.chartBox']) expect(/touch-action:\s*manipulation\s*;/.test(ruleBody(sel)), sel).toBe(true)
+    expect(/display:\s*block\s*;/.test(ruleBody('.chartFit'))).toBe(true)  // touch-action needs a block box
+    const l = render(<LineView params={P(SEVEN.line)} onDrill={() => {}} />)
+    const fit = l.getByTestId('built-line-view').parentElement
+    expect(fit.tagName).toBe('DIV')
+    expect(fit.className).toMatch(/chartFit/)
+    l.unmount()
+    render(<HeatView params={P(SEVEN.heat)} onDrill={() => {}} />)
+    const box = screen.getByTestId('built-heat-view').parentElement
+    expect(box.tagName).toBe('DIV')
+    expect(box.className).toMatch(/chartBox/)
+  })
+
+  it('line: a mouse click leaves no readout behind once the pointer leaves', () => {
+    const drills = []
+    render(<LineView params={P(SEVEN.line)} onDrill={(cell) => drills.push(cell)} />)
+    const overlay = screen.getByTestId('built-line-view').querySelector('[data-overlay]')
+    fireEvent.pointerMove(overlay, { clientX: 9999, pointerType: 'mouse' })
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    expect(drills).toEqual([{ label: '2026-10' }])
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-10')   // the hover
+    fireEvent.pointerLeave(overlay, { pointerType: 'mouse' })
+    expect(screen.queryByTestId('built-line-readout')).toBeNull()
+    expect(screen.queryByTestId('built-line-guide')).toBeNull()
+    // a tap selection goes with a mouse that leaves (a touch screen with a mouse attached)
+    fireEvent.pointerDown(overlay, { pointerType: 'touch' })
+    fireEvent.click(overlay, { clientX: 0 })
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-08')
+    fireEvent.pointerLeave(overlay, { pointerType: 'mouse' })
+    expect(screen.queryByTestId('built-line-readout')).toBeNull()
+  })
+
+  it('line: a mouse or a pen drills on ONE click even on the touch tier (a narrow desktop window)', () => {
+    asTouch()
+    const drills = []
+    render(<LineView params={P(SEVEN.line)} onDrill={(cell) => drills.push(cell)} />)
+    const overlay = screen.getByTestId('built-line-view').querySelector('[data-overlay]')
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    expect(drills).toEqual([{ label: '2026-10' }])
+    fireEvent.pointerDown(overlay, { pointerType: 'pen' })
+    fireEvent.click(overlay, { clientX: 0 })
+    expect(drills).toEqual([{ label: '2026-10' }, { label: '2026-08' }])
+    // control: a finger on the same tier still selects first
+    fireEvent.pointerDown(overlay, { pointerType: 'touch' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    expect(drills.length).toBe(2)
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-10')
+  })
+
+  it('line: keyboard focus on a period shows its readout, and blur clears it; focus after a pointer does not', () => {
+    render(<LineView params={P(SEVEN.line)} onDrill={() => {}} />)
+    const marks = screen.getByTestId('built-line-view').querySelectorAll('[data-built-cell]')
+    fireEvent.keyDown(document.body, { key: 'Tab' })
+    act(() => marks[2].focus())
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-10')
+    expect(screen.getByTestId('built-line-guide')).toBeInTheDocument()
+    fireEvent.keyDown(marks[2], { key: 'ArrowLeft' })                       // the roving group moves focus
+    expect(document.activeElement).toBe(marks[1])
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-09')
+    act(() => marks[1].blur())
+    expect(screen.queryByTestId('built-line-readout')).toBeNull()
+    // focus put back on a mark after a mouse click (a drill panel's Close) shows no readout
+    fireEvent.mouseDown(document.body)
+    act(() => marks[0].focus())
+    expect(document.activeElement).toBe(marks[0])
+    expect(screen.queryByTestId('built-line-readout')).toBeNull()
+  })
+
+  it('line readout sits clear of its point and of the ticks: over the top edge, or the bottom when the point is high', () => {
+    const series = [{ label: 'a', v1: 100, n1: 1, s1: '' }, { label: 'b', v1: -100, n1: 1, s1: '' }, { label: 'c', v1: 0, n1: 1, s1: '' }]
+    render(<LineView params={P({ view: 'line', measures: MONEY, value: {}, series })} width={600} onDrill={() => {}} />)
+    const svg = screen.getByTestId('built-line-view')
+    const overlay = svg.querySelector('[data-overlay]')
+    const padL = Number(svg.querySelector('line[class*="axis"]').getAttribute('x1'))
+    const maxTick = svg.querySelector('[data-axis="max"]')
+    const dots = [...svg.querySelectorAll('[data-period] circle')].map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')) }))
+    const H = Number(svg.getAttribute('height'))
+    const boxOf = (tip) => {
+      const lines = tip.children.length
+      const w = Math.min(600 - padL, Math.ceil(Math.max(...[...tip.children].map((d) => textW(d.textContent, 12)))) + 18)
+      const h = Math.ceil(lines * 12 * 1.35) + 10
+      const left = parseFloat(tip.style.left)
+      const top = tip.style.top ? parseFloat(tip.style.top) : H - parseFloat(tip.style.bottom) - h
+      return { left, right: left + w, top, bottom: top + h }
     }
-    // control: the check sees a rule that breaks it
-    const broken = '.badgeText { font-size: 9px; }'
-    expect(/font-size:\s*9px/.test(broken) && /\.(flagText|badgeText|badge)(?![\w-])/.test(broken)).toBe(true)
+    const covers = (b, d) => d.x + 3.5 > b.left && d.x - 3.5 < b.right && d.y + 3.5 > b.top && d.y - 3.5 < b.bottom
+    const want = { 0: 'bottom', 1: 'top', 2: 'top' }                        // the max point is in the top third
+    for (const i of [0, 1, 2]) {
+      fireEvent.pointerMove(overlay, { clientX: dots[i].x, pointerType: 'mouse' })
+      const tip = screen.getByTestId('built-line-readout')
+      expect(tip.getAttribute('data-place'), `period ${i}`).toBe(want[i])
+      const b = boxOf(tip)
+      expect(covers(b, dots[i]), `period ${i} point`).toBe(false)
+      expect(b.left).toBeGreaterThanOrEqual(padL)                            // the max and min ticks end at padL - 4
+      expect(Number(maxTick.getAttribute('x'))).toBeLessThan(padL)
+      expect(tip.style.maxWidth).toBe(`${600 - padL}px`)
+    }
+    expect(dots[0].y).toBeLessThan(26 + (H - 52) / 3)                         // it really is in the top third
+    // a period with points at the top AND the bottom: the readout goes beside it
+    const beside = readoutPlace({ ys: [26, 164], h: 60, x: 200, w: 120, width: 600, padL: 50 })
+    expect(beside).toEqual({ v: 'top', left: 200 + 3.5 + 4 })
+    const left = readoutPlace({ ys: [26, 164], h: 60, x: 560, w: 120, width: 600, padL: 50 })
+    expect(left.left + 120).toBeLessThanOrEqual(560 - 3.5)
+    expect(readoutPlace({ ys: [], h: 40, x: 10, w: 100, width: 600, padL: 50 }).left).toBe(50)
+  })
+
+  it('heat counts itself at its newest end within SNAP_SLOP (a rounded scroll position), and never snaps for it', () => {
+    asTouch()
+    const set = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(2400)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(340)
+    Object.defineProperty(HTMLElement.prototype, 'scrollLeft', { configurable: true, get() { return 2060 - 1.5 }, set })
+    try {
+      expect(SNAP_SLOP).toBeGreaterThan(1)
+      render(<HeatView params={P({ view: 'heat', measures: MONEY, value: {}, cells: yearCells() })} width={340} />)
+      expect(set).not.toHaveBeenCalled()
+    } finally { delete HTMLElement.prototype.scrollLeft }
+  })
+
+  it('heat: a snap that fires no scroll event is ours for one frame only, so the member\u2019s next scroll counts', () => {
+    asTouch()
+    const frames = []
+    vi.stubGlobal('requestAnimationFrame', (fn) => { frames.push(fn); return frames.length })
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    const set = vi.fn()                                                      // the browser moved nothing: no event
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(2400)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(340)
+    Object.defineProperty(HTMLElement.prototype, 'scrollLeft', { configurable: true, get() { return 0 }, set })
+    try {
+      const p = P({ view: 'heat', measures: MONEY, value: {}, cells: yearCells() })
+      const r = render(<HeatView params={p} width={340} />)
+      expect(set).toHaveBeenCalledTimes(1)
+      expect(frames.length).toBe(1)
+      act(() => { frames.splice(0).forEach((fn) => fn(0)) })                 // the next frame
+      fireEvent.scroll(screen.getByTestId('built-heat-view').parentElement)  // the member's own scroll
+      set.mockClear()
+      r.rerender(<HeatView params={p} width={360} />)                        // a pure width change
+      expect(set).not.toHaveBeenCalled()                                     // their position is theirs
+    } finally { delete HTMLElement.prototype.scrollLeft }
   })
 
   it('compactValue: +<0.01 for a tiny gain, a b unit, and 0R for an exact zero', () => {

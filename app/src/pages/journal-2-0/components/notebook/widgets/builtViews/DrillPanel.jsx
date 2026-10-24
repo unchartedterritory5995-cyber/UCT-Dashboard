@@ -83,17 +83,22 @@ function DrillBody({ params, state, onLink }) {
   )
 }
 
-/** Below this much room under the mark the panel opens ABOVE it; and the most it is ever allowed to be. */
+/** Below this much room under the mark the panel opens ABOVE it (if there is this much room there); and the most
+ *  it is ever allowed to be. */
 export const PANEL_MIN_H = 120
 export const PANEL_MAX_H = 320
 const GAP = 4
 const MARGIN = 8
+/** A short widget's frame keeps this much of its own height clear of a panel that cannot fit (8 px each side). */
+const FRAME_INSET = 16
 
 /** Where the anchored panel sits inside `box` (rects in the same coordinates). Its left edge is at the mark's,
  *  clamped so the whole panel stays inside the widget. It opens under the mark, no taller than min(PANEL_MAX_H,
  *  the room under the mark inside the visible `frame`, minus MARGIN); when that room is under PANEL_MIN_H and
- *  there is more above, it opens ABOVE the mark instead (`bottom`, measured from the box's bottom edge). With no
- *  frame the height is only capped at PANEL_MAX_H. Pure, so it is testable without layout. */
+ *  there is at least PANEL_MIN_H above, it opens ABOVE the mark instead (`bottom`, measured from the box's bottom
+ *  edge). With no room above either (a short widget) it opens under the mark with a height FLOOR of
+ *  min(PANEL_MIN_H, the frame's client height - FRAME_INSET): the frame scrolls to it, and it is never a sliver.
+ *  With no frame the height is only capped at PANEL_MAX_H. Pure, so it is testable without layout. */
 export function anchorPosition(box, mark, panelW, frame = null) {
   const w = Math.max(0, box.width || 0)
   const pw = Math.min(panelW, w || panelW)
@@ -102,12 +107,14 @@ export function anchorPosition(box, mark, panelW, frame = null) {
   if (!frame || !(frame.bottom > frame.top)) return { left, top, width: Math.round(pw), maxHeight: PANEL_MAX_H }
   const below = Math.floor(frame.bottom - mark.bottom - GAP - MARGIN)
   const above = Math.floor(mark.top - frame.top - GAP - MARGIN)
-  if (below < PANEL_MIN_H && above > below) {
+  if (below < PANEL_MIN_H && above >= PANEL_MIN_H) {
     const boxBottom = typeof box.bottom === 'number' ? box.bottom : box.top + (box.height || 0)
     return { left, bottom: Math.round(boxBottom - mark.top + GAP), width: Math.round(pw),
       maxHeight: Math.max(0, Math.min(PANEL_MAX_H, above)), above: true }
   }
-  return { left, top, width: Math.round(pw), maxHeight: Math.max(0, Math.min(PANEL_MAX_H, below)) }
+  const frameH = frame.clientHeight > 0 ? frame.clientHeight : frame.bottom - frame.top
+  const floor = Math.max(0, Math.min(PANEL_MIN_H, Math.floor(frameH - FRAME_INSET)))
+  return { left, top, width: Math.round(pw), maxHeight: Math.max(0, Math.min(PANEL_MAX_H, Math.max(below, floor))) }
 }
 
 export default function DrillPanel({ params, cell, what, opener, onClose, detached = false, container = null }) {
@@ -141,7 +148,8 @@ export default function DrillPanel({ params, cell, what, opener, onClose, detach
       const b = box.getBoundingClientRect()
       const o = opener?.isConnected && opener.getBoundingClientRect ? opener.getBoundingClientRect() : b
       const frameEl = box.closest?.('[data-snapshot-frame]')
-      const f = frameEl ? frameEl.getBoundingClientRect() : null
+      const fr = frameEl ? frameEl.getBoundingClientRect() : null
+      const f = fr ? { top: fr.top, bottom: fr.bottom, clientHeight: frameEl.clientHeight } : null
       const next = anchorPosition(b, o, PANEL_W, f)
       setPos((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
     }
@@ -159,15 +167,16 @@ export default function DrillPanel({ params, cell, what, opener, onClose, detach
     // is the mark's own business.
     const away = (e) => {
       const panel = panelRef.current
-      // ...nor a press on a chart's drill surface (the Line overlay), which picks its own period: closing here
-      // would close and reopen the panel on the same click.
-      if (!panel || panel.contains(e.target) || (opener && opener.contains?.(e.target))
-        || e.target?.closest?.('[data-drill-surface]')) return
+      if (!panel || panel.contains(e.target) || (opener && opener.contains?.(e.target))) return
+      // ...nor a press on THIS widget's drill surface (the Line overlay), which picks its own period: closing here
+      // would close and reopen the panel on the same click. Another widget's surface is outside: it closes.
+      const surface = e.target?.closest?.('[data-drill-surface]')
+      if (surface && container?.current?.contains(surface)) return
       closeCb.current?.(false)
     }
     document.addEventListener('mousedown', away)
     return () => document.removeEventListener('mousedown', away)
-  }, [sheet, opener])
+  }, [sheet, opener, container])
 
   const title = TITLE(what)
   const body = <DrillBody params={params} state={state} onLink={() => closeCb.current?.(false)} />

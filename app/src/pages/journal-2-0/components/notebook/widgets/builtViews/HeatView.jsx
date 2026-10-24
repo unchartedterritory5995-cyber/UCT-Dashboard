@@ -1,4 +1,4 @@
-import { useCallback, useId, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { tableModelOf, measuresOf, compactValue, cellSpeech, SMALL_SAMPLE } from './builtModel'
 import { useCellGroup, drillFor } from './cellGroup'
 import { useChartWidth, useHitFloor, clamp, svgId, textW, TAP } from './svg'
@@ -30,6 +30,11 @@ const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 const MONTH_RE = /^\d{4}-\d{2}$/
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MINUS = '−'
+/** How far (px) the box may sit from its newest end and still count as there: a browser rounds a fractional
+ *  scroll position, so an exact compare would snap (and expect a scroll event) for a move that never happens. */
+export const SNAP_SLOP = 2
+const nextFrame = (fn) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16))
+const cancelFrame = (id) => (typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame(id) : clearTimeout(id))
 
 /** UTC day number and weekday (0 = Sunday) for an ISO day label, or null. */
 function dayOf(label) {
@@ -77,6 +82,7 @@ export default function HeatView({ params, onDrill, width: forced }) {
   const lastKey = useRef(null)
   const userScrolled = useRef(false)
   const ours = useRef(false)
+  const oursFrame = useRef(0)
   useLayoutEffect(() => {
     const el = boxEl.current
     const dataChanged = lastKey.current !== rowsKey
@@ -84,11 +90,16 @@ export default function HeatView({ params, onDrill, width: forced }) {
     if (dataChanged) userScrolled.current = false
     if (!el || userScrolled.current) return
     const end = el.scrollWidth - el.clientWidth
-    if (end > 0 && el.scrollLeft !== end) {
-      ours.current = true                         // the scroll event this causes is ours, not the member's
+    if (end > 0 && Math.abs(el.scrollLeft - end) > SNAP_SLOP) {
+      // The scroll event this causes is ours, not the member's. It is ours for ONE frame (the browser fires the
+      // scroll before the next frame's callbacks), so a move that fires no event never swallows the member's next.
+      ours.current = true
       el.scrollLeft = end
+      if (oursFrame.current) cancelFrame(oursFrame.current)
+      oursFrame.current = nextFrame(() => { oursFrame.current = 0; ours.current = false })
     }
   }, [rowsKey, width])
+  useEffect(() => () => { if (oursFrame.current) cancelFrame(oursFrame.current) }, [])
   const onScroll = () => {
     if (ours.current) { ours.current = false; return }
     userScrolled.current = true

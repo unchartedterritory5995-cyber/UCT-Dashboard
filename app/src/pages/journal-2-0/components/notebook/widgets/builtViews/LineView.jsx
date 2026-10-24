@@ -1,8 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useIsTouch } from '../../../../../../hooks/useBreakpoint'
 import { tableModelOf, measuresOf, fmtValue, cellSpeech, SMALL_SAMPLE } from './builtModel'
 import { useCellGroup, drillFor } from './cellGroup'
-import { useChartWidth, useHitFloor, scale, textW, clamp, DASHES } from './svg'
+import { useChartWidth, useHitFloor, scale, textW, clamp, DASHES, trackInputKind, lastInputWasKey } from './svg'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s } from '../SnapshotFrame'
 
@@ -15,10 +15,14 @@ import { snapshotStyles as s } from '../SnapshotFrame'
  *
  * Pointer: ONE transparent overlay the full plot, which answers the NEAREST period, so a tap anywhere on the chart
  * hits something however close the points are (the whole plot is the target, always taller than 44 px). The period
- * it answers gets a guide line and an HTML READOUT that wraps, one line per measure, positioned at the point and
- * clamped inside the box. A mouse hovers to read and clicks to drill. On touch the first tap SELECTS a period (guide
- * and readout) and a second tap on the same period drills. Where there is no drill (a read-only or shared copy) a
- * tap only reads. Keyboard: each period is still a mark in the roving group (Enter drills).
+ * it answers gets a guide line and an HTML READOUT that wraps, one line per measure. The readout sits over the top
+ * edge of the plot, or its bottom edge when a point of that period would be under it (else beside the point), and
+ * never left of the axis, so it never covers a tick or the point it describes (`readoutPlace`). A mouse or a pen
+ * hovers to read and clicks to drill, at once, even in a narrow window: the pointer's own type beats the touch
+ * tier, and a click leaves no selection behind, so the readout goes with the pointer. On touch the first tap
+ * SELECTS a period (guide and readout) and a second tap on the same period drills. Where there is no drill (a
+ * read-only or shared copy) a tap only reads. Keyboard: each period is still a mark in the roving group (Enter
+ * drills), and the focused mark shows its readout while it has focus from the keyboard.
  * ⛔ An unknown point is a GAP in the line, never a point at zero; the periods with no value are named under the
  * chart ("No data for ..."). A small sample is drawn hollow and named under the chart.
  */
@@ -26,12 +30,33 @@ const H = 190
 const PAD_R = 10
 const PAD_T = 26
 const PAD_B = 26
+/** The readout: how far it sits from the plot's top or bottom edge, the gap it keeps from a point, a dot's radius. */
+const TIP_EDGE = 2
+const TIP_GAP = 4
+const DOT_R = 3.5
 
 /** The index of the period nearest x (positions `xs`, ascending). */
 export function nearestIndex(xs, x) {
   let best = 0
   for (let i = 1; i < xs.length; i += 1) if (Math.abs(xs[i] - x) < Math.abs(xs[best] - x)) best = i
   return best
+}
+
+/**
+ * Where the readout goes, in the chart's own pixels: `ys` are the period's points, `h`/`w` the readout's size, `x`
+ * the period, `padL` the axis. Over the TOP edge when every point is clear of it, else over the BOTTOM edge, else
+ * beside the point (right, then left). Its left edge is never left of the axis, so the max and min ticks are never
+ * covered. Returns `{ v: 'top' | 'bottom', left }`.
+ */
+export function readoutPlace({ ys, h, x, w, width, padL, height = H }) {
+  const centred = clamp(x - w / 2, padL, Math.max(padL, width - w))
+  if (ys.every((y) => y - DOT_R >= TIP_EDGE + h + TIP_GAP)) return { v: 'top', left: centred }
+  if (ys.every((y) => y + DOT_R <= height - TIP_EDGE - h - TIP_GAP)) return { v: 'bottom', left: centred }
+  if (x + DOT_R + TIP_GAP + w <= width) return { v: 'top', left: x + DOT_R + TIP_GAP }
+  if (x - DOT_R - TIP_GAP - w >= padL) return { v: 'top', left: x - DOT_R - TIP_GAP - w }
+  // nowhere is clear (a readout wider than either side): the edge away from most of the points
+  const mid = ys.reduce((a, y) => a + y, 0) / (ys.length || 1)
+  return { v: mid < height / 2 ? 'bottom' : 'top', left: centred }
 }
 
 export default function LineView({ params, onDrill, width: forced }) {
@@ -42,16 +67,19 @@ export default function LineView({ params, onDrill, width: forced }) {
   const floor = useHitFloor()
   const group = useCellGroup()
   const [hover, setHover] = useState(null)    // the period under a mouse
-  const [sel, setSel] = useState(null)        // the period a tap or a click selected
+  const [sel, setSel] = useState(null)        // the period a tap or keyboard focus selected
+  const selBy = useRef(null)                  // 'tap' | 'key': what made the selection
   const pointer = useRef('')
   const tipRef = useRef(null)
-  const [tipW, setTipW] = useState(0)
+  const [tip, setTip] = useState({ w: 0, h: 0 })
   const isTouch = useIsTouch()
   const active = hover ?? sel
-  // The readout's real width, once drawn (an estimate until then), so it can be clamped inside the box.
+  useEffect(() => { trackInputKind() }, [])
+  // The readout's real size, once drawn (an estimate until then), so it can be clamped and placed clear of the point.
   useLayoutEffect(() => {
     const w = tipRef.current?.offsetWidth || 0
-    setTipW((prev) => (prev === w ? prev : w))
+    const h = tipRef.current?.offsetHeight || 0
+    setTip((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
   }, [active, width])
   if (!model.rows.length || !ms.length) return <p className={s.empty}>{'No rows to show.'}</p>
   const rows = model.rows
@@ -119,9 +147,23 @@ export default function LineView({ params, onDrill, width: forced }) {
           )}
           {rows.map((r, i) => {
             const speech = speechOf(r)
+            const mark = group.itemProps(i, drillFor(onDrill, r, r.label), speech)
+            // Focus from the keyboard shows this period's readout; leaving clears it.
+            const focus = mark.onFocus ? {
+              onFocus: (e) => {
+                mark.onFocus(e)
+                if (!lastInputWasKey()) return
+                selBy.current = 'key'
+                setSel(i)
+              },
+              onBlur: () => {
+                if (selBy.current !== 'key') return
+                selBy.current = null
+                setSel(null)
+              },
+            } : {}
             return (
-              <g key={r.key} className={styles.mark} data-period={i}
-                {...group.itemProps(i, drillFor(onDrill, r, r.label), speech)}>
+              <g key={r.key} className={styles.mark} data-period={i} {...mark} {...focus}>
                 <title>{speech}</title>
                 {/* Its focus band (the keyboard's ring); the pointer goes to the overlay. */}
                 <rect x={xs[i] - Math.max(step, 8) / 2} y={PAD_T - 6} width={Math.max(step, 8)} height={H - PAD_B - PAD_T + 12}
@@ -130,7 +172,7 @@ export default function LineView({ params, onDrill, width: forced }) {
                   const c = r.values[k]
                   if (typeof c?.value !== 'number') return null
                   return (
-                    <circle key={`d${k}`} cx={xs[i]} cy={yOfs[k](c.value)} r={3.5} data-small={c.small ? '' : undefined}
+                    <circle key={`d${k}`} cx={xs[i]} cy={yOfs[k](c.value)} r={DOT_R} data-small={c.small ? '' : undefined}
                       className={c.small ? styles.dotHollow : (c.value < 0 ? styles.dotNeg : styles.dot)} />
                   )
                 })}
@@ -143,15 +185,32 @@ export default function LineView({ params, onDrill, width: forced }) {
             data-drill-surface=""
             onPointerDown={(e) => { pointer.current = e.pointerType || '' }}
             onPointerMove={(e) => { if (e.pointerType !== 'touch') setHover(nearestIndex(xs, xAt(e))) }}
-            onPointerLeave={() => setHover(null)}
+            onPointerLeave={(e) => {
+              setHover(null)
+              // a mouse or pen that leaves takes any tap selection with it (a keyboard one stays with its focus)
+              if ((e.pointerType === 'mouse' || e.pointerType === 'pen') && selBy.current === 'tap') {
+                selBy.current = null
+                setSel(null)
+              }
+            }}
             onClick={(e) => {
               const i = nearestIndex(xs, xAt(e))
               const drill = drillFor(onDrill, rows[i], rows[i].label)
-              const touch = isTouch || pointer.current === 'touch'
+              const opener = () => markOf(e.currentTarget.ownerSVGElement, i) || e.currentTarget
+              // The click's own pointer type, else the press that started it. A mouse or a pen beats the touch
+              // tier (a narrow desktop window): it hovers to read, so one click drills and selects nothing.
+              const kind = e.nativeEvent?.pointerType || pointer.current
+              if (kind === 'mouse' || kind === 'pen') {
+                if (selBy.current === 'tap') { selBy.current = null; setSel(null) }
+                if (drill) drill(opener())
+                return
+              }
+              const touch = kind === 'touch' || isTouch
               // read-only: a tap reads; touch: the first tap selects, a second on the same period drills
-              if (!drill || (touch && sel !== i)) { setSel(i); return }
+              selBy.current = 'tap'
               setSel(i)
-              drill(markOf(e.currentTarget.ownerSVGElement, i) || e.currentTarget)
+              if (!drill || (touch && sel !== i)) return
+              drill(opener())
             }} />
           <text x={xs[0]} y={H - 8} className={styles.tick} textAnchor={rows.length > 1 ? 'start' : 'middle'}>{rows[0].label}</text>
           {rows.length > 1 && (
@@ -160,12 +219,16 @@ export default function LineView({ params, onDrill, width: forced }) {
         </svg>
         {active !== null && rows[active] && (() => {
           const lines = [rows[active].label, ...ms.map((m, k) => `${multi ? `${nameOf(m, k)}: ` : ''}${cellSpeech(rows[active].values[k], m)}`)]
-          const est = Math.min(width, Math.ceil(Math.max(...lines.map((t) => textW(t, 12)))) + 16)
-          const w = tipW || est
-          const left = clamp(xs[active] - w / 2, 0, Math.max(0, width - w))
+          const room = Math.max(0, width - padL)        // never left of the axis
+          const w = tip.w || Math.min(room, Math.ceil(Math.max(...lines.map((t) => textW(t, 12)))) + 18)
+          const h = tip.h || Math.ceil(lines.length * 12 * 1.35) + 10
+          const ys = ms.map((m, k) => rows[active].values[k]?.value)
+            .map((v, k) => (typeof v === 'number' ? yOfs[k](v) : null)).filter((y) => y !== null)
+          const at = readoutPlace({ ys, h, x: xs[active], w, width, padL })
           return (
-            <div ref={tipRef} className={styles.readout} style={{ left, maxWidth: width }} aria-hidden="true"
-              data-testid="built-line-readout">
+            <div ref={tipRef} className={styles.readout} aria-hidden="true" data-testid="built-line-readout"
+              data-place={at.v}
+              style={{ left: at.left, maxWidth: room, ...(at.v === 'top' ? { top: TIP_EDGE } : { bottom: TIP_EDGE }) }}>
               {lines.map((t, k) => <div key={`t${k}`} className={k === 0 ? styles.readoutHead : undefined}>{t}</div>)}
             </div>
           )

@@ -105,21 +105,27 @@
   width: 100%;
   min-width: 0;
   overflow-x: auto;
+  /* A heat cell drills on a tap (a second tap on touch): never let two taps read as iOS double-tap zoom. Panning
+     and pinch zoom still work. */
+  touch-action: manipulation;
   /* Its own scrollbar is horizontal, so it changes the box's HEIGHT, never the width the chart is laid out at.
      The width loop (H14) comes from the frame's VERTICAL scrollbar: SnapshotFrame's frameGutter reserves that for
      built widgets, and useChartWidth's hysteresis guards whatever is left. */
 }
-/* A chart FITTED to its box (bar, line, scatter): it never scrolls sideways. */
+/* A chart FITTED to its box (bar, line, scatter): it never scrolls sideways. A block box, so touch-action applies:
+   the Line's tap-to-select then tap-to-drill must never read as iOS double-tap zoom. */
 .chartFit {
   position: relative;
+  display: block;
   width: 100%;
   min-width: 0;
   overflow: hidden;
+  touch-action: manipulation;
 }
-/* Line: the readout of the period under the pointer (or selected by a tap), one line per measure, wrapping. */
+/* Line: the readout of the period under the pointer (or selected by a tap or the keyboard), one line per measure,
+   wrapping. Its top or bottom edge is set inline (LineView readoutPlace), clear of the point it describes. */
 .readout {
   position: absolute;
-  top: 2px;
   box-sizing: border-box;
   padding: 4px 8px;
   border: 1px solid var(--border-accent);

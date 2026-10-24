@@ -31,9 +31,11 @@ export const SETTLE_MS = 400
  * (SnapshotFrame `frameGutter`), which removes the usual cause; this guards every other one. A FLIP is a change of
  * FLIP_PX or less to a width seen in the last FLIP_READS reads (each remembered SEEN_MS). On a flip the NARROWER
  * width wins (it fits whether or not the scrollbar is there) and a widen is ignored. Because an ignored widen may
- * have been real (the scrollbar went for good), the box is read once more SETTLE_MS after the last observer event,
- * and that reading is taken if no flip happened in that window: at most once per flip pair, so a slow loop cannot
- * restart itself through the trailing read.
+ * have been real (the scrollbar went for good, or the member is dragging the box), the box is read once more
+ * SETTLE_MS after the last observer event, and that reading is taken if no flip happened in that window. Every
+ * ignored widen arms that read, even in a pair that has had one already, but a PAIR gets at most one trailing read
+ * per SEEN_MS: a read asked for sooner waits until the pair's window opens. So a real drag always ends at the box's
+ * clientWidth, and a loop the gutter did not remove can cost at most one re-measure a second, never a storm.
  */
 export function useChartWidth(forced) {
   const [measured, setMeasured] = useState(0)
@@ -43,7 +45,7 @@ export function useChartWidth(forced) {
   const box = useRef(null)
   const timer = useRef(null)
   const lastFlip = useRef(0)
-  const trailed = useRef(new Set()) // flip pairs that have had their one trailing read
+  const trailed = useRef(new Map()) // flip pair -> when it last had a trailing read
   const pending = useRef(null)      // the flip pair a trailing read is for
   const take = useCallback((w) => {
     if (w <= 0 || w === current.current) return
@@ -64,17 +66,20 @@ export function useChartWidth(forced) {
       lastFlip.current = now
       const pair = `${Math.min(w, cur)}:${Math.max(w, cur)}`
       if (w < cur) take(w)                         // the narrower width fits either way
-      else if (!trailed.current.has(pair)) pending.current = pair
+      else pending.current = pair                  // an ignored widen: read the box again once it settles
     }
     if (pending.current) {
+      // SETTLE_MS after this event, or later if the pair had its trailing read under SEEN_MS ago.
+      const last = trailed.current.get(pending.current)
+      const wait = Math.max(SETTLE_MS, typeof last === 'number' ? last + SEEN_MS - now : 0)
       timer.current = setTimeout(() => {
         timer.current = null
         const pair = pending.current
         pending.current = null
         if (!pair || !box.current || Date.now() - lastFlip.current < SETTLE_MS) return
-        trailed.current.add(pair)
+        trailed.current.set(pair, Date.now())
         take(Math.floor(box.current.clientWidth || 0))
-      }, SETTLE_MS)
+      }, wait)
     }
     if (!flip) take(w)
   }, [take])
@@ -102,6 +107,24 @@ export function useChartWidth(forced) {
 export function useHitFloor() {
   return useIsTouch() ? TAP : MARK
 }
+
+/**
+ * Was the last input a key (Tab, an arrow, Escape) rather than a pointer? A view shows a mark's readout on FOCUS only
+ * then: focus that comes back to a mark after a mouse click (a drill panel's Close button) must not leave a readout
+ * standing after the pointer has gone. The listeners go on once, in the capture phase, so nothing can stop them.
+ */
+let lastInput = 'key'
+let tracking = false
+export function trackInputKind() {
+  if (tracking || typeof document === 'undefined') return
+  tracking = true
+  const pointer = () => { lastInput = 'pointer' }
+  document.addEventListener('keydown', () => { lastInput = 'key' }, true)
+  document.addEventListener('pointerdown', pointer, true)
+  document.addEventListener('mousedown', pointer, true)
+  document.addEventListener('touchstart', pointer, { capture: true, passive: true })
+}
+export const lastInputWasKey = () => lastInput === 'key'
 
 /** The rough width of `text` at `px` (average glyph 0.6 em), for laying out columns before paint. */
 export const textW = (text, px = 12) => String(text ?? '').length * px * 0.6

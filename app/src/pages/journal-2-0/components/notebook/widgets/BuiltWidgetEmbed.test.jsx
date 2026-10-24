@@ -6,7 +6,7 @@ import { render, screen, fireEvent, within, waitFor, act } from '@testing-librar
 import BuiltWidgetEmbed, {
   SAVED_COPY_SENTENCE, ARCHIVED_SENTENCE, CHECK_FAILED_SENTENCE, UNAVAILABLE_SENTENCE,
 } from './BuiltWidgetEmbed'
-import { anchorPosition, PANEL_MAX_H } from './builtViews/DrillPanel'
+import { anchorPosition, PANEL_MAX_H, PANEL_MIN_H } from './builtViews/DrillPanel'
 import SnapshotFrame, { useSnapshotFrame } from './SnapshotFrame'
 import frameStyles from './SnapshotFrame.module.css'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
@@ -563,6 +563,85 @@ describe('BuiltWidgetEmbed', () => {
     fireEvent.click(overlay, { clientX: 9999 })
     expect(screen.getByRole('dialog')).toBe(panel)                   // the same element: never closed
     expect(fetchSpy).toHaveBeenCalledTimes(1)                        // nor asked again
+  })
+
+  // ── fix round 4 ─────────────────────────────────────────────────────────────────────────────────────────
+  const LINE = { ...TABLE, view: 'line', rows: [],
+    series: [{ label: '2026-09', v1: 1, n1: 1, s1: '' }, { label: '2026-10', v1: 2, n1: 1, s1: '' }] }
+
+  it('a press on ANOTHER widget\u2019s drill surface closes this widget\u2019s panel (only its own is exempt)', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: tradeRows(1), more: 0, count: 1, live: false, note: null }))
+    render(<><BuiltWidgetEmbed attrs={attrsOf(LINE)} /><BuiltWidgetEmbed attrs={attrsOf(LINE)} /></>)
+    const [a, b] = screen.getAllByTestId('built-line-view').map((svg) => svg.querySelector('[data-overlay]'))
+    fireEvent.pointerDown(a, { pointerType: 'mouse' })
+    fireEvent.click(a, { clientX: 9999 })
+    const panel = await screen.findByRole('dialog', { name: 'Behind 2026-10' })
+    expect(screen.getAllByTestId('built-widget-embed')[0].contains(panel)).toBe(true)
+    // control: a press on its OWN surface leaves it open
+    fireEvent.mouseDown(a)
+    expect(screen.getByRole('dialog')).toBe(panel)
+    // a press on the other widget's surface closes it
+    fireEvent.mouseDown(b)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('a mouse drill leaves no readout behind when its panel closes', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: tradeRows(1), more: 0, count: 1, live: false, note: null }))
+    render(<BuiltWidgetEmbed attrs={attrsOf(LINE)} />)
+    const overlay = screen.getByTestId('built-line-view').querySelector('[data-overlay]')
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    const panel = await screen.findByRole('dialog', { name: 'Behind 2026-10' })
+    expect(screen.queryByTestId('built-line-readout')).toBeNull()            // a click selects nothing
+    fireEvent.mouseDown(within(panel).getByRole('button', { name: 'Close' }))
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const mark = screen.getByTestId('built-line-view').querySelector('[data-period="1"]')
+    expect(document.activeElement).toBe(mark)                                // focus came back to the mark...
+    expect(screen.queryByTestId('built-line-readout')).toBeNull()            // ...and no readout stands there
+    // control: Escape (a key) brings focus back AND its readout, which is the keyboard's to have
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    const again = await screen.findByRole('dialog', { name: 'Behind 2026-10' })
+    fireEvent.keyDown(again, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-10')
+  })
+
+  it('a short widget: with no room above, the panel keeps a floor of min(PANEL_MIN_H, frame client height - 16)', () => {
+    const box = { left: 0, top: 0, width: 600, bottom: 100 }
+    // 20 px under the mark and 28 above: no room either side
+    const short = anchorPosition(box, { left: 0, top: 40, bottom: 68 }, 360, { top: 0, bottom: 100, clientHeight: 100 })
+    expect(short.above).toBeUndefined()
+    expect(short.top).toBe(72)
+    expect(short.maxHeight).toBe(Math.min(PANEL_MIN_H, 100 - 16))                       // 84, not a 20 px sliver
+    // the floor is the frame's CLIENT height (its rect includes a border or a scrollbar)
+    expect(anchorPosition(box, { left: 0, top: 40, bottom: 68 }, 360, { top: 0, bottom: 100, clientHeight: 90 }).maxHeight)
+      .toBe(74)
+    // a tall frame: the floor is PANEL_MIN_H
+    expect(anchorPosition({ ...box, bottom: 400 }, { left: 0, top: 40, bottom: 380 }, 360, { top: 0, bottom: 400, clientHeight: 400 }).maxHeight)
+      .toBe(PANEL_MIN_H)
+    // control: with room under the mark, the room is the height (no floor needed)
+    expect(anchorPosition(box, { left: 0, top: 0, bottom: 10 }, 360, { top: 0, bottom: 400, clientHeight: 400 }).maxHeight)
+      .toBe(Math.min(PANEL_MAX_H, 400 - 10 - 4 - 8))
+  })
+
+  it('the panel reads its frame\u2019s client height for that floor', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: tradeRows(1), more: 0, count: 1, live: false, note: null }))
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} />)
+    const mark = screen.getByTestId('built-bar-view').querySelectorAll('[data-built-cell]')[1]
+    fireEvent.click(mark)
+    const panel = await screen.findByRole('dialog')
+    const frame = screen.getByTestId('built-widget-embed').querySelector('[data-snapshot-frame]')
+    Object.defineProperty(frame, 'clientHeight', { configurable: true, get: () => 90 })
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function rect() {
+      if (this === mark) return { left: 0, top: 40, bottom: 68, right: 600, width: 600, height: 28 }
+      return { left: 0, top: 0, bottom: 100, right: 600, width: 600, height: 100 }
+    })
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(panel.style.top).toBe('72px')
+    expect(panel.style.maxHeight).toBe('74px')                                            // 90 - 16
+    vi.restoreAllMocks()
   })
 
   it('only a built widget reserves the frame\u2019s scrollbar gutter (H14), never another kind', () => {
