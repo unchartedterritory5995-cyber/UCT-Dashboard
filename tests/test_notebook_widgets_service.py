@@ -417,15 +417,15 @@ def test_positions_no_account_row_is_labelled_default_and_still_sized(monkeypatc
     _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=None, default=True)
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
-    assert out["accountSize"] == 25000.0 and out["accountSizeSource"] == "default"
-    assert out["rows"][0]["sizePct"] == 4.4                    # 10 x $110 on the 25,000 heat used
+    assert out["accountSize"] == 100000.0 and out["accountSizeSource"] == "default"
+    assert out["rows"][0]["sizePct"] == 1.1                    # 10 x $110 on the 100,000 heat used
 
 
 def test_positions_heat_default_flag_is_labelled_default(monkeypatch):
-    _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=25000.0, default=True)
+    _patch_positions(monkeypatch, [_pos()], [_heat_row()], account=100000.0, default=True)
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u1", {}, now=NOW)
-    assert out["accountSize"] == 25000.0 and out["accountSizeSource"] == "default"
+    assert out["accountSize"] == 100000.0 and out["accountSizeSource"] == "default"
 
 
 def test_positions_default_label_survives_the_migrated_row_on_the_second_call(monkeypatch, tmp_path):
@@ -436,10 +436,14 @@ def test_positions_default_label_survives_the_migrated_row_on_the_second_call(mo
     _patch_prices(monkeypatch, {})
     first = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
     accounts.get_or_migrate_default_account("u-new")  # the row heat's migration leaves behind
-    assert nw._account_size("u-new") == 100000.0     # control: a row exists now
+    # control: a row exists now, holding the placeholder; the widget reads it as the member's
+    # own size only through the one predicate, so it is None (Round B: _account_size returns
+    # the member-set size, not the raw column)
+    assert accounts.get_account_settings("u-new")["accountSize"] == 100000.0
+    assert nw._account_size("u-new") is None
     second = nw.build("myPositionsRisk", "u-new", {}, now=NOW)
     assert first["accountSizeSource"] == second["accountSizeSource"] == "default"
-    assert second["accountSize"] == 25000.0                # the figure heat was computed on
+    assert second["accountSize"] == 100000.0               # the figure heat was computed on (the default)
     # and a size the member really set is theirs
     from api.services import auth_db
     conn = auth_db.get_connection()
@@ -485,7 +489,7 @@ def test_a_members_set_size_reaches_heat_sizing_and_the_widget(monkeypatch, tmp_
     assert s["account_size_is_default"] is False
     pos = _pos()                                                # 10 x (100 - 95) = $50 at risk
     heat = portfolio_heat.portfolio_heat("u7", positions_fn=lambda u, a: [pos], regime_fn=lambda: {})
-    assert heat["risk_heat_pct"] == round(50 / 73000 * 100, 2)   # 0.07, never 50/25,000 = 0.2
+    assert heat["risk_heat_pct"] == round(50 / 73000 * 100, 2)   # 0.07, never 50/100,000 = 0.05 (the default)
     assert heat["account_size_is_default"] is False
     import api.services.journal_two.positions as ps
     import api.services.journal_two.options as op
@@ -499,25 +503,28 @@ def test_a_members_set_size_reaches_heat_sizing_and_the_widget(monkeypatch, tmp_
 def test_a_migrated_default_size_is_unset_in_heat_sizing_and_the_widget(monkeypatch, tmp_path):
     """Fix round 2: the migrated Default row's size (accounts._DEFAULT_ACCOUNT_SIZE) is a placeholder
     the member never chose. Every reader asks ONE predicate (accounts.member_set_account_size) and
-    treats it as unset: heat and sizing at 25,000 flagged default, the widget labelled default."""
+    treats it as unset: heat and sizing at the default (UNSET_ACCOUNT_SIZE, 100,000 since Round B fix 1)
+    flagged default, the widget labelled default."""
     auth_db = _temp_auth_db(monkeypatch, tmp_path)
     from api.services.journal_two import accounts
     from api.services import portfolio_heat, voice_position_sizing as vps
     accounts.get_or_migrate_default_account("u8")               # the migration: 100,000 placeholder
-    assert nw._account_size("u8") == accounts._DEFAULT_ACCOUNT_SIZE   # control: a row and a size exist
+    # control: a row and a size exist (the placeholder), and the widget reads it as unset
+    assert accounts.get_account_settings("u8")["accountSize"] == accounts._DEFAULT_ACCOUNT_SIZE
+    assert nw._account_size("u8") is None
     s = vps._get_account_settings("u8", None)
-    assert s["account_size"] == 25000.0 and s["account_size_is_default"] is True
+    assert s["account_size"] == 100000.0 and s["account_size_is_default"] is True
     pos = _pos()
     heat = portfolio_heat.portfolio_heat("u8", positions_fn=lambda u, a: [pos], regime_fn=lambda: {})
     assert heat["account_size_is_default"] is True
-    assert heat["risk_heat_pct"] == round(50 / 25000 * 100, 2)
+    assert heat["risk_heat_pct"] == round(50 / 100000 * 100, 2)
     import api.services.journal_two.positions as ps
     import api.services.journal_two.options as op
     monkeypatch.setattr(ps, "list_open_positions", lambda user_id, *a, **k: [pos])
     monkeypatch.setattr(op, "list_strategies", lambda user_id, status=None, **k: [])
     _patch_prices(monkeypatch, {"NVDA": {"price": 110.0}})
     out = nw.build("myPositionsRisk", "u8", {}, now=NOW)
-    assert out["accountSizeSource"] == "default" and out["accountSize"] == 25000.0
+    assert out["accountSizeSource"] == "default" and out["accountSize"] == 100000.0
     # and the predicate is the one home: a member-set size passes, the placeholder and nothing do not
     assert accounts.member_set_account_size(73000) == 73000.0
     assert accounts.member_set_account_size(accounts._DEFAULT_ACCOUNT_SIZE) is None
@@ -532,7 +539,7 @@ def test_sizing_falls_back_to_the_old_default_only_without_an_account(monkeypatc
         raise RuntimeError("no account")
     monkeypatch.setattr(accounts, "get_or_migrate_default_account", boom)
     s = vps._get_account_settings("nobody", None)
-    assert s["account_size"] == 25000.0 and s["max_risk_pct"] == vps.DEFAULT_RISK_PCT
+    assert s["account_size"] == 100000.0 and s["max_risk_pct"] == vps.DEFAULT_RISK_PCT
 
 
 def test_positions_price_missing_is_null(monkeypatch):

@@ -16,6 +16,16 @@ from typing import Any
 _log = logging.getLogger(__name__)
 
 _SUPPORTED_RULES = ("flat_pct", "flat_dollar", "multiplier")
+#: Bounds for the request path (the voice simulate_sizing_change tool): a window of at most
+#: MAX_DAYS and at most MAX_TRADES of the newest closed trades in it, read with a SQL LIMIT. The
+#: result says when the cap cut it (`trades_capped`). One pass over the trades, no other loop.
+MAX_DAYS = 730
+MAX_TRADES = 5000
+
+
+def _default_note(is_default: bool) -> str | None:
+    from api.services.voice_position_sizing import default_size_sentence
+    return default_size_sentence() if is_default else None
 
 
 def _trade_actual_risk(trade: dict) -> float:
@@ -64,7 +74,10 @@ def simulate(
     try:
         from api.services.journal_two import coach_data_assembler
         from api.services.auth_db import get_connection
-        from api.services.journal_two.accounts_service import get_account_settings
+        # ⚰️ This imported `journal_two.accounts_service`, a module that does not exist, so every
+        # call returned "journal modules unavailable" and simulated nothing (found routing the
+        # size through the one authority, Round B).
+        from api.services.journal_two.accounts import get_account_settings, account_size_of
     except Exception as e:
         return {"error": f"journal modules unavailable: {e}"}
 
@@ -86,16 +99,22 @@ def simulate(
     try:
         from datetime import datetime, timedelta, timezone
         end = datetime.now(timezone.utc)
-        start = end - timedelta(days=max(1, min(730, int(days or 180))))
-        start_iso, end_iso = start.isoformat(), end.isoformat()
+        days = max(1, min(MAX_DAYS, int(days or 180)))
+        start = end - timedelta(days=days)
         conn = get_connection()
         try:
+            # datetimes, not ISO strings: `_trades_in_range` formats them itself, and handing it
+            # strings raised here on every call (found with the import fix, Round B).
             trades = coach_data_assembler._trades_in_range(
-                conn, user_id, account_id, start_iso, end_iso,
+                conn, user_id, account_id, start, end, limit=MAX_TRADES + 1,
             )
+            trades_capped = len(trades) > MAX_TRADES
+            if trades_capped:
+                trades = trades[1:]   # newest MAX_TRADES; the extra row only proves the cap cut
+            account_size_is_default = False
             if account_size is None:
                 settings = get_account_settings(user_id, account_id, conn=conn) or {}
-                account_size = float(settings.get("accountSize") or 0)
+                account_size, account_size_is_default = account_size_of(settings)
         finally:
             conn.close()
     except Exception as e:
@@ -159,7 +178,10 @@ def simulate(
         "rule_value": rule_value,
         "days": days,
         "trade_count": len(trades),
+        "trades_capped": trades_capped,
         "account_size": account_size,
+        "account_size_is_default": account_size_is_default,
+        "account_size_note": _default_note(account_size_is_default),
         "actual_pnl": round(actual_total, 2),
         "scenario_pnl": round(scenario_total, 2),
         "delta": round(scenario_total - actual_total, 2),

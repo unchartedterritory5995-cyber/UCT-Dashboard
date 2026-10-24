@@ -22,7 +22,7 @@ import {
   // `enabled` is hide-but-keep; `removed` is gone-from-this-chart, and both gate
   // whether a line is drawn. See `chartDefaults`'s tombstone header for why the
   // slot has to stay in place.
-  liveOverlayList, isOverlayRemoved, isVolumeRemoved,
+  liveOverlayList, isOverlayRemoved, isVolumeRemoved, CHART_DEFAULTS,
 } from './chart/chartDefaults'
 import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
 import { barInfoFieldsOf } from './chart/barInfoFields'
@@ -20583,7 +20583,7 @@ export default function StockChart({
               entry={positionTool.entry}
               stop={positionTool.stop}
               target={positionTool.target}
-              accountSize={cs.positionCalc?.accountSize ?? 50000}
+              accountSize={cs.positionCalc?.accountSize ?? CHART_DEFAULTS.positionCalc.accountSize}
               riskPct={cs.positionCalc?.riskPct ?? 1}
               onChange={({ entry, stop, target }) => setPositionTool(p => ({ ...p, entry, stop, target }))}
               onConfigChange={({ accountSize, riskPct }) =>

@@ -14,7 +14,7 @@ def _grade(sym):
 def _call(**over):
     kw = dict(symbols=["DECK", "AMD", "BAD"], source="explicit",
               resolve_fn=lambda uid, aid, src, syms: (syms, f"{len(syms)} explicit"),
-              grade_fn=lambda sym, account_size=None: _grade(sym),
+              grade_fn=lambda sym, account_size=None, account_size_is_default=None: _grade(sym),
               regime_fn=lambda: {"regime": "bull_trend", "exposure_rating": 120},
               edge_fn=lambda uid, aid: {"HTF": {"verdict": "edge", "muted": False, "note": "you're 6-2 on HTF"},
                                         "Bull Flag": {"verdict": "weak", "muted": True, "note": "4-11 on these"}},
@@ -61,7 +61,7 @@ def test_red_tape_forces_all_watch_only():
 def test_correlated_block_flags_same_sector():
     out = _call(symbols=["NVDA", "AMD"], source="explicit",
                 resolve_fn=lambda uid, aid, s, sy: (["NVDA", "AMD"], "2 explicit"),
-                grade_fn=lambda sym, account_size=None: {"ok": True, "symbol": sym, "verdict": "GO",
+                grade_fn=lambda sym, account_size=None, account_size_is_default=None: {"ok": True, "symbol": sym, "verdict": "GO",
                     "grade": "A", "setup": "HTF", "entry": 100, "stop": 95, "size_pct": 15,
                     "account_risk_pct": 0.7},
                 sector_fn=lambda sym: {"Semiconductors"})

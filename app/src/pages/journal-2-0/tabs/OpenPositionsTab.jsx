@@ -54,6 +54,8 @@ import {
   percent,
 } from '../../../lib/journal-2-0'
 import styles from './OpenPositionsTab.module.css'
+import { resolvedAccountSize } from '../../../lib/accountSize'
+import DefaultSizeMarker from '../../../components/account/DefaultSizeMarker'
 
 const COLUMN_STORAGE_KEY = 'uct.j2.openPositions.columns'
 const VIEW_STORAGE_KEY = 'uct.j2.openPositions.view'
@@ -156,7 +158,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const { mutate } = useSWRConfig()
   const { warming, broker: warmingBroker } = useBrokerWarming()
 
-  const accountSize = settings?.accountSize ?? 0
+  const accountSize = resolvedAccountSize(settings)   // the server's answer, never a re-derived one
   const tradingMode = settings?.tradingMode ?? 'both'
   const showShares = tradingMode !== 'options'
   const showOptions = tradingMode !== 'shares'
@@ -441,6 +443,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         </div>
 
         <div className={styles.actionGroup}>
+          <DefaultSizeMarker settings={settings} style={{ alignSelf: 'center' }} />
           <div className={styles.viewToggle} role="group" aria-label="Positions view">
             <button
               type="button"

@@ -28,7 +28,7 @@ import pytest
 from api.services import auto_structures, base_metrics
 from api.services.pattern_engine import base_draw
 
-from tests.test_base_draw_round4 import _bars, cases
+from tests.test_base_draw_round4 import _bars, cases, expect
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("base_draw_member_sweep_r4",
@@ -83,8 +83,8 @@ def test_on_real_bars_a_rollback_to_round_two_serves_the_round_two_row_byte_for_
     drew2 = only4 = 0
     for c in cases():
         b = _bars(c)
-        d2 = c["expect"]["round2"]
-        d4 = c["expect"]["draw"]
+        d2 = expect(c)["round2"]
+        d4 = expect(c)["draw"]
         row = auto_structures.base_draw_row("SYN", b)
         served = base_metrics.with_metrics(auto_structures.member_rows([row] if row else []), b)
         want = base_metrics.with_metrics([auto_structures._base_row("SYN", d2, 2)], b) if d2 else []
@@ -112,7 +112,7 @@ def test_on_real_bars_members_get_round_two_wherever_it_draws_and_round_four_whe
     same = new = none = 0
     for c in cases():
         b = _bars(c)
-        d2, d4 = c["expect"]["round2"], c["expect"]["draw"]
+        d2, d4 = expect(c)["round2"], expect(c)["draw"]
         row = auto_structures.base_draw_row("SYN", b)
         served = base_metrics.with_metrics(auto_structures.member_rows([row] if row else []), b)
         if d2 is not None:
@@ -126,7 +126,7 @@ def test_on_real_bars_members_get_round_two_wherever_it_draws_and_round_four_whe
         elif d4 is not None:
             assert len(served) == 1, c["id"]
             ex = served[0]["geometry"]["extras"]
-            assert ex["draw_base"] == d4 and ex["draw_round"] == 4 and ex["metrics"] == c["expect"]["metrics"]
+            assert ex["draw_base"] == d4 and ex["draw_round"] == 4 and ex["metrics"] == expect(c)["metrics"]
             new += 1
         else:
             assert served == [] and row is None, c["id"]

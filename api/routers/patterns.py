@@ -871,6 +871,9 @@ def get_detections(
             mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
             if (tf or "D").upper() in ("D", "W", "M"):
                 boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
+                # no bullish base under a falling 200-day (base_draw.trend_ok) for the base rows whose drawing code
+                # is a detector or the base catalog (members only)
+                rows, boxes = auto_structures.member_trend_gate(sym, rows, boxes)
                 # the base floor: a dead or ultra-shallow range is not drawn as a base by any member door (bc:base
                 # applies it in its own drawing round; every other member base row here)
                 rows, boxes = auto_structures.member_base_floor(sym, rows, boxes)

@@ -39,6 +39,9 @@ def _add_settings(conn, user_id, account_size=100_000):
     from api.services.journal_two.settings import default_settings_data
     data = default_settings_data()
     data["accountSize"] = account_size
+    # The member typed this size (the marker): these fixtures describe a member's own settings,
+    # and without it a 100,000 reads as the unset placeholder (accounts.member_set_account_size).
+    data["accountSizeSet"] = True
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         "INSERT OR REPLACE INTO j2_settings "
