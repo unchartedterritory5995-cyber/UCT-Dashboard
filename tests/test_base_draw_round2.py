@@ -170,6 +170,6 @@ def test_a_normal_base_draws_identically_in_both_rounds(kw):
 
 def test_an_unknown_round_draws_nothing():
     b = _plain()
-    for rnd in (0, 3, 5, "2", "4", True, 2.0, 4.0):
+    for rnd in (0, 3, 6, "2", "4", "5", True, 2.0, 4.0, 5.0):
         assert BD.base_drawing(b, len(b) - 1, draw_round=rnd) is None
     assert BD.base_drawing(b, len(b) - 1) == _draw(b, BD.BASE_DRAW_ROUND)
