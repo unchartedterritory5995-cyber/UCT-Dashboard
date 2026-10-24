@@ -18,6 +18,11 @@ export const FLIP_PX = 20
 export const FLIP_READS = 4
 export const SEEN_MS = 1000
 export const SETTLE_MS = 400
+/** A flip pair gets at most this many trailing reads before the narrower width is kept for good (until a real,
+ *  non-flip change): a loop the gutter did not remove settles after a few re-measures, never flickers forever. */
+export const TRAIL_MAX = 3
+/** How long a pair that has had a trailing read is still recognised as a flip pair (its period is ~SEEN_MS). */
+export const PAIR_MS = 10000
 
 /**
  * `[ref, width]`: put `ref` on the box the chart fills; `width` is its measured width in px (or `forced`, or W).
@@ -35,7 +40,8 @@ export const SETTLE_MS = 400
  * SETTLE_MS after the last observer event, and that reading is taken if no flip happened in that window. Every
  * ignored widen arms that read, even in a pair that has had one already, but a PAIR gets at most one trailing read
  * per SEEN_MS: a read asked for sooner waits until the pair's window opens. So a real drag always ends at the box's
- * clientWidth, and a loop the gutter did not remove can cost at most one re-measure a second, never a storm.
+ * clientWidth, and a loop the gutter did not remove costs at most TRAIL_MAX re-measures (one a second) before
+ * the narrower width is kept until a real, non-flip change resets the pairs.
  */
 export function useChartWidth(forced) {
   const [measured, setMeasured] = useState(0)
@@ -46,6 +52,7 @@ export function useChartWidth(forced) {
   const timer = useRef(null)
   const lastFlip = useRef(0)
   const trailed = useRef(new Map()) // flip pair -> when it last had a trailing read
+  const trailCount = useRef(new Map()) // flip pair -> how many trailing reads it has had
   const pending = useRef(null)      // the flip pair a trailing read is for
   const take = useCallback((w) => {
     if (w <= 0 || w === current.current) return
@@ -58,7 +65,13 @@ export function useChartWidth(forced) {
     const now = Date.now()
     seen.current = seen.current.filter((e) => now - e.t < SEEN_MS)
     const cur = current.current
-    const flip = cur > 0 && w !== cur && Math.abs(w - cur) <= FLIP_PX && seen.current.some((e) => e.w === w)
+    const near = cur > 0 && w !== cur && Math.abs(w - cur) <= FLIP_PX
+    const pairKey = `${Math.min(w, cur)}:${Math.max(w, cur)}`
+    const lastTrail = trailed.current.get(pairKey)
+    // A flip: back to a width seen in the last SEEN_MS, or between a pair that had a trailing read in the last
+    // PAIR_MS (a slow loop: the trailing read itself spaces it past SEEN_MS).
+    const flip = near && (seen.current.some((e) => e.w === w)
+      || (typeof lastTrail === 'number' && now - lastTrail < PAIR_MS))
     seen.current = [...seen.current, { w, t: now }].slice(-FLIP_READS)
     // Any observer event pushes the trailing read back (it comes SETTLE_MS after the LAST one).
     if (timer.current) { clearTimeout(timer.current); timer.current = null }
@@ -66,7 +79,8 @@ export function useChartWidth(forced) {
       lastFlip.current = now
       const pair = `${Math.min(w, cur)}:${Math.max(w, cur)}`
       if (w < cur) take(w)                         // the narrower width fits either way
-      else pending.current = pair                  // an ignored widen: read the box again once it settles
+      else if ((trailCount.current.get(pair) || 0) < TRAIL_MAX) pending.current = pair // read again once settled
+      else trailed.current.set(pair, now)          // capped: the loop is still going, keep recognising the pair
     }
     if (pending.current) {
       // SETTLE_MS after this event, or later if the pair had its trailing read under SEEN_MS ago.
@@ -78,10 +92,14 @@ export function useChartWidth(forced) {
         pending.current = null
         if (!pair || !box.current || Date.now() - lastFlip.current < SETTLE_MS) return
         trailed.current.set(pair, Date.now())
+        trailCount.current.set(pair, (trailCount.current.get(pair) || 0) + 1)
         take(Math.floor(box.current.clientWidth || 0))
       }, wait)
     }
-    if (!flip) take(w)
+    if (!flip) {
+      if (w !== cur) trailCount.current.clear() // a real change: every pair may re-measure again
+      take(w)
+    }
   }, [take])
   const ref = useCallback((el) => {
     if (ro.current) { ro.current.disconnect(); ro.current = null }

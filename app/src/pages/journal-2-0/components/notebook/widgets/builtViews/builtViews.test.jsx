@@ -14,7 +14,7 @@ import CompareView, { changeText } from './CompareView'
 import ProgressView from './ProgressView'
 import { widgetEmbedNode } from '../../../../lib/notebookWidgets'
 import { fmtValue, countText, compactValue, tableModelOf } from './builtModel'
-import { W, TAP, textW, FLIP_PX, SETTLE_MS, SEEN_MS } from './svg'
+import { W, TAP, textW, FLIP_PX, SETTLE_MS, SEEN_MS, TRAIL_MAX } from './svg'
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -184,6 +184,29 @@ describe('built widget views', () => {
     const ev = (w) => act(() => fire([{ contentRect: { width: w } }]))
     return { r, at, ev, setReal: (w) => { real = w }, cw }
   }
+
+  it('H14: a loop the gutter did not remove stops re-measuring after TRAIL_MAX trailing reads', () => {
+    // Every trailing read finds the box wide again (the scrollbar went), the wide chart brings it back, and so on.
+    vi.useFakeTimers()
+    try {
+      const { at, ev, setReal } = flipRig()
+      setReal(600)
+      ev(600)
+      const widths = []
+      for (let i = 0; i < 20; i += 1) {
+        ev(583)                                                     // the scrollbar appears: narrower wins
+        ev(600)                                                     // it goes again: an ignored widen
+        act(() => { vi.advanceTimersByTime(SEEN_MS + SETTLE_MS) })   // the trailing read (until the cap)
+        widths.push(at())
+      }
+      expect(widths.filter((w) => w === 600).length).toBeLessThanOrEqual(TRAIL_MAX)
+      expect(widths.slice(-5)).toEqual([583, 583, 583, 583, 583])
+      // control: a real change outside the pair resets it, so a later drag still lands on the box's width
+      setReal(420)
+      ev(420)
+      expect(at()).toBe(420)
+    } finally { vi.useRealTimers() }
+  })
 
   it('the 583 \u2192 600 \u2192 583 scrollbar sequence ends at 583 (the narrower width fits either way)', () => {
     // Discriminating: 600 is NEW when it arrives (taken), so the last 583 is a flip back to a width seen; only a
