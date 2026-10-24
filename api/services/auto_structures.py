@@ -2761,7 +2761,11 @@ _SETUP_DRAW_R2_FUNCS = (
     ("death_cross", "draw:death-cross", "Death cross", "death_cross"),
 )
 SETUP_DRAW_R2_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R2_FUNCS)
-SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS
+#: The rectangle (horizontal trading range) drawing (api/services/pattern_engine/setup_draw_rectangle.py): ONE box,
+#: same layer, same flag, same key.
+RECTANGLE_DRAW_ID = "draw:rectangle"
+SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
+SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_RECT_IDS
 #: setup_draw key -> (row id, display name).
 _SETUP_DRAW_FUNCS = (
     ("remount", "draw:remount", "Remount"),
@@ -2799,6 +2803,11 @@ MEMBER_FALLING_WEDGE_ROUND = 2
 MEMBER_DOUBLE_TOP_ROUND = 2
 MEMBER_GOLDEN_CROSS_ROUND = 2
 MEMBER_DEATH_CROSS_ROUND = 2
+#: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
+#: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
+#:   rectangle               A 2.44 / 100%  B 2.76 / 96%
+#: Literal ON PURPOSE (never setup_draw_rectangle.RECTANGLE_DRAW_ROUND): a new drawing round cannot release itself.
+MEMBER_RECTANGLE_ROUND = 1
 #: How many sessions of RSI(14) the divergence's panel carries (the judged frame shows at most 250 bars).
 SETUP_RSI_PANEL_BARS = 250
 #: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
@@ -2831,6 +2840,7 @@ def _member_setup_round(pid):
         "draw:double-top": MEMBER_DOUBLE_TOP_ROUND,
         "draw:golden-cross": MEMBER_GOLDEN_CROSS_ROUND,
         "draw:death-cross": MEMBER_DEATH_CROSS_ROUND,
+        RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
 
@@ -2844,6 +2854,8 @@ def _confirmed_setup_draw(row) -> bool:
         r = row or {}
         pid = r.get("pattern_id")
         want = _member_setup_round(pid)
+        if pid == RECTANGLE_DRAW_ID:
+            return _confirmed_setup_draw_rect(r, want)
         if pid in SETUP_DRAW_R2_IDS:
             return _confirmed_setup_draw_r2(r, want)
         key = next((k for k, i, _n in _SETUP_DRAW_FUNCS if i == pid), None)
@@ -2986,6 +2998,62 @@ def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2):
     return row
 
 
+def _confirmed_setup_draw_rect(r, want) -> bool:
+    """A rectangle row is served to a member only when its literal is an int equal to the frozen round AND to the
+    row's own stamp, its draw_setup is the rectangle's (finite top above a finite floor, the same round), and its
+    geometry is the judged box: a `rectangle` with exactly 2 anchors at finite prices, the first one the top."""
+    from api.services.pattern_engine import setup_draw_rectangle
+    if not (type(want) is int and want == setup_draw_rectangle.RECTANGLE_DRAW_ROUND):
+        return False
+    geom = r.get("geometry") or {}
+    ex = geom.get("extras") or {}
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == want):
+        return False
+    d = ex.get("draw_setup")
+    if not (isinstance(d, dict) and d.get("shape") == "rectangle" and d.get("draw_round") == rnd
+            and _finite(d.get("top")) and _finite(d.get("floor")) and float(d["top"]) > float(d["floor"])):
+        return False
+    anchors = geom.get("anchors")
+    if geom.get("shape") != "rectangle" or not isinstance(anchors, list) or len(anchors) != 2:
+        return False
+    if not all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors):
+        return False
+    return float(anchors[0]["price"]) > float(anchors[1]["price"])
+
+
+def _setup_draw_rect_rows(sym: str, b: list) -> list:
+    """The rectangle row for the in-frame COMPLETED daily `b`: the judged box exactly (setup_draw_rectangle's det),
+    stamped with the drawing round and its facts. No entry level: the judged drawing is the box alone."""
+    from api.services.pattern_engine import setup_draw_rectangle
+    try:
+        d = setup_draw_rectangle.detect(b)
+    except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
+        _log.debug("[setup-draw-rect] %s failed", sym, exc_info=True)
+        return []
+    if d is None:
+        return []
+    det = d["det"]
+    geom = det["geometry"]
+    return [{
+        "id": f"{RECTANGLE_DRAW_ID}:{sym}:{det['start_t']}:{det['end_t']}",
+        "sym": sym,
+        "tf": "D",
+        "pattern_id": RECTANGLE_DRAW_ID,
+        "pattern_name": "Rectangle",
+        "category": "setup",
+        "direction": det.get("direction") or "bullish",
+        "start_t": det["start_t"],
+        "end_t": det["end_t"],
+        "geometry": {"shape": geom["shape"], "anchors": [dict(a) for a in geom["anchors"]],
+                     "extras": {"draw_setup": setup_draw_rectangle.facts(d), "draw_round": d["draw_round"]}},
+        "levels": {},
+        "confidence": None,
+        "status": "forming",
+        **display_policy(RECTANGLE_DRAW_ID),
+    }]
+
+
 def setup_in_frame(bars) -> bool:
     if len(bars or []) < SETUP_MIN_BARS:
         return False
@@ -3036,6 +3104,7 @@ def setup_draw_rows(sym: str, bars: list) -> list:
                 **display_policy(pid),
             })
         out.extend(_setup_draw_r2_rows(sym, b))
+        out.extend(_setup_draw_rect_rows(sym, b))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
     return out

@@ -261,6 +261,8 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     # round-2 setup drawings (setup_draw_r2.py): see the member-set note below.
     "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant", "draw:darvas-box", "draw:falling-wedge", "draw:double-top",
     "draw:golden-cross", "draw:death-cross",
+    # the rectangle drawing (setup_draw_rectangle.py, round 1): see the member-set note below.
+    "draw:rectangle",
 })
 DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: MEMBER SET (owner-approved 2026-10-17): the part of the team set a PAID member
@@ -362,6 +364,12 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: `setup_draws` key, flag (AUTO_STRUCTURES_G4_SETUPS_ENABLED) and UCT Intelligence "Setups" toggle as draw:remount,
 #: and reach a member only while the row carries draw_round == its MEMBER_<SETUP>_ROUND beside a well-formed
 #: draw_setup of its judged shape (auto_structures._confirmed_setup_draw_r2). Fail closed.
+#: draw:rectangle (setup_draw_rectangle.py, drawing round 1: A 2.44 / 100%, B 2.76 / 96%) is ONE box -- a
+#: horizontal trading range, its lines on the repeated touches, from where the prior trend ended to the as-of
+#: bar. It is NOT the experimental `rectangle` detector row (which stays out of both sets). Same `setup_draws`
+#: key, flag and toggle; it reaches a member only while its row carries draw_round ==
+#: auto_structures.MEMBER_RECTANGLE_ROUND beside a well-formed rectangle draw_setup
+#: (auto_structures._confirmed_setup_draw_rect). Fail closed.
 DISPLAY_MEMBER_SET: frozenset = frozenset({
     "flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag",
     "uct_flat_top_breakout", "bc:base", "bc:cup-with-handle", "draw:inside-day",
@@ -369,6 +377,7 @@ DISPLAY_MEMBER_SET: frozenset = frozenset({
     "draw:donchian_breakout",
     "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant", "draw:darvas-box", "draw:falling-wedge", "draw:double-top",
     "draw:golden-cross", "draw:death-cross",
+    "draw:rectangle",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
 #: Team-set ids that are trusted ROW BY ROW: a row is `trusted` only while it carries the stamp

@@ -65,7 +65,9 @@ MEMBER_IDS = {"flat_base", "uct_pullback_ma_v5", "bc:flat-base", "bull_flag", "u
               "draw:remount", "draw:u_and_r", "draw:donchian_breakout",
               # round-2 setup drawings (setup_draw_r2.py), each blind-confirmed on two packets
               "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant",
-              "draw:darvas-box", "draw:falling-wedge", "draw:double-top", "draw:golden-cross", "draw:death-cross"}
+              "draw:darvas-box", "draw:falling-wedge", "draw:double-top", "draw:golden-cross", "draw:death-cross",
+              # the rectangle drawing (setup_draw_rectangle.py, round 1)
+              "draw:rectangle"}
 #: The member types that arrive as detection rows; bc:flat-base arrives as a base box.
 MEMBER_ROW_IDS = {"flat_base", "uct_pullback_ma_v5", "bull_flag", "uct_flat_top_breakout"}
 #: The internal ids a member may be drawn: each is in the member set by its own blind check.
@@ -238,7 +240,7 @@ def test_the_member_set_is_exactly_the_blind_confirmed_types():
     # the inside-day drawing is its own structures row too (draw:inside-day, gated by its round stamp)
     # (and the setup drawings, their own `setup_draws` rows, each gated by its member-round literal)
     drawings = {auto_structures.INSIDE_DAY_DRAW_ID, "draw:double-bottom", auto_structures.SHELF_PIVOT_ID,
-                "draw:remount", "draw:u_and_r", "draw:donchian_breakout"} | set(auto_structures.SETUP_DRAW_R2_IDS)
+                "draw:remount", "draw:u_and_r", "draw:donchian_breakout"} | set(auto_structures.SETUP_DRAW_R2_IDS)         | set(auto_structures.SETUP_DRAW_RECT_IDS)
     assert set(registry.DISPLAY_MEMBER_SET) - bc - drawings <= set(registry.list_pattern_ids())
 
 
@@ -285,7 +287,7 @@ def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, call
     # (nor a shelf pivot: AUTO_STRUCTURES_SHELF_ENABLED is off here; tests/test_shelf_pivot_member_path.py)
     # (nor a setup drawing: those ride `setup_draws`, never `structures`; tests/test_setup_draw_member_gate.py)
     assert types == MEMBER_IDS - {"bc:base", "draw:inside-day", "draw:double-bottom",
-                                  "draw:shelf-pivot", "draw:remount", "draw:u_and_r", "draw:donchian_breakout"} - STAMP_GATED         - set(auto_structures.SETUP_DRAW_R2_IDS)      # setup drawings ride `setup_draws`, never `structures`
+                                  "draw:shelf-pivot", "draw:remount", "draw:u_and_r", "draw:donchian_breakout"} - STAMP_GATED         - set(auto_structures.SETUP_DRAW_R2_IDS) - set(auto_structures.SETUP_DRAW_RECT_IDS)  # setup drawings ride `setup_draws`, never `structures`
 
 
 def test_flag_on_the_member_bull_flag_is_the_admins_row(monkeypatch, calls):

@@ -176,7 +176,9 @@ def test_display_policy_matches_the_tiers_v3_report_and_the_team_set():
             "draw:shelf-pivot", "draw:remount", "draw:u_and_r", "draw:donchian_breakout",
             # round-2 setup drawings (setup_draw_r2.py), each blind-confirmed on two packets
             "draw:rsi-bullish-divergence", "draw:wyckoff-upthrust", "draw:channel", "draw:pennant",
-            "draw:darvas-box", "draw:falling-wedge", "draw:double-top", "draw:golden-cross", "draw:death-cross"}
+            "draw:darvas-box", "draw:falling-wedge", "draw:double-top", "draw:golden-cross", "draw:death-cross",
+            # the rectangle drawing (setup_draw_rectangle.py, round 1), blind-confirmed on two packets
+            "draw:rectangle"}
     assert registry.DISPLAY_TEAM_SET == team and registry.DISPLAY_TRUSTED == team
     for pid in team:
         assert display_policy(pid)["display_tier"] == "trusted"
