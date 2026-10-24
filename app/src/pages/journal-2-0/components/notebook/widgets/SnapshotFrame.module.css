@@ -11,6 +11,11 @@
   font-size: 13px;
   box-sizing: border-box;
 }
+/* Wave 8 (Task 8.14, H14): a built widget's charts are laid out at their measured width, so a vertical scrollbar
+   appearing must not narrow them (it could make itself go again: a ResizeObserver loop). Built widgets only. */
+.frameGutter {
+  scrollbar-gutter: stable;
+}
 .head {
   display: flex;
   flex-wrap: wrap;

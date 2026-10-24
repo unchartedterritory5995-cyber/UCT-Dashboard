@@ -6,7 +6,7 @@ import { render, screen, within, fireEvent, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import BuiltWidgetEmbed from '../BuiltWidgetEmbed'
-import BarView, { VALUE_MAX } from './BarView'
+import BarView, { VALUE_MAX, VALUE_SLACK, valueLines, lineWidth } from './BarView'
 import HeatView, { TEXT_MIN_CELL, MAX_CELL, cellLines } from './HeatView'
 import LineView, { nearestIndex } from './LineView'
 import ScatterView from './ScatterView'
@@ -14,7 +14,7 @@ import CompareView, { changeText } from './CompareView'
 import ProgressView from './ProgressView'
 import { widgetEmbedNode } from '../../../../lib/notebookWidgets'
 import { fmtValue, countText, compactValue, tableModelOf } from './builtModel'
-import { W, TAP, textW, FLIP_PX } from './svg'
+import { W, TAP, textW, FLIP_PX, SETTLE_MS, SEEN_MS } from './svg'
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -169,7 +169,62 @@ describe('built widget views', () => {
     const settled = commits
     act(() => fire([{ contentRect: { width: 400 } }]))
     expect(commits).toBeGreaterThan(settled)
-    expect(/scrollbar-gutter:\s*stable/.test(ruleBody('.chartBox'))).toBe(true)
+    // the heat map's own (horizontal) scroller reserves no gutter: it changes height, never the width it is laid out at
+    expect(/scrollbar-gutter/.test(ruleBody('.chartBox'))).toBe(false)
+  })
+
+  // ── I-1: the hysteresis keeps the narrower width, forgets after 1 s, and re-reads once the storm stops ──────
+  const flipRig = () => {
+    let fire = null
+    vi.stubGlobal('ResizeObserver', class { constructor(cb) { fire = cb } observe() {} disconnect() {} })
+    let real = 0
+    const cw = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => real)
+    const r = render(<BarView params={P(SEVEN.bar)} />)
+    const at = () => Number(screen.getByTestId('built-bar-view').getAttribute('width'))
+    const ev = (w) => act(() => fire([{ contentRect: { width: w } }]))
+    return { r, at, ev, setReal: (w) => { real = w }, cw }
+  }
+
+  it('the 583 \u2192 600 \u2192 583 scrollbar sequence ends at 583 (the narrower width fits either way)', () => {
+    vi.useFakeTimers()
+    try {
+      const { at, ev, setReal } = flipRig()
+      ev(600); ev(583); ev(600); ev(583)
+      expect(at()).toBe(583)
+      setReal(583)
+      act(() => { vi.advanceTimersByTime(SETTLE_MS + 100) })
+      expect(at()).toBe(583)
+    } finally { vi.useRealTimers() }
+  })
+
+  it('after a flip storm stops, the width is the box\u2019s REAL clientWidth (one trailing read)', () => {
+    vi.useFakeTimers()
+    try {
+      const { at, ev, setReal } = flipRig()
+      for (let i = 0; i < 9; i += 1) ev(i % 2 ? 584 : 600)                 // ends on 600: a widen, ignored
+      expect(at()).toBe(584)
+      setReal(600)                                                           // the scrollbar went for good
+      act(() => { vi.advanceTimersByTime(SETTLE_MS - 50) })
+      expect(at()).toBe(584)                                                 // not before the window closes
+      act(() => { vi.advanceTimersByTime(100) })
+      expect(at()).toBe(600)
+      // at most one trailing accept per flip pair: the same pair flipping again keeps the narrower width
+      ev(584); ev(600)
+      setReal(600)
+      act(() => { vi.advanceTimersByTime(SETTLE_MS + 100) })
+      expect(at()).toBe(584)
+    } finally { vi.useRealTimers() }
+  })
+
+  it('a width seen more than 1 s ago is not a flip: the widen is taken', () => {
+    vi.useFakeTimers()
+    try {
+      const { at, ev } = flipRig()
+      ev(600); ev(584)
+      act(() => { vi.advanceTimersByTime(SEEN_MS + 50) })
+      ev(600)
+      expect(at()).toBe(600)
+    } finally { vi.useRealTimers() }
   })
 
   it('a view that mounts EMPTY and later gets rows still measures its box (a callback ref)', () => {
@@ -372,7 +427,11 @@ describe('built widget views', () => {
     expect([1, 2, 3].map((k) => svg.querySelectorAll(`rect[data-measure="${k}"]`).length)).toEqual([1, 1, 1])
     expect(screen.getByTestId('built-bar-legend').textContent)
       .toBe('Bars top to bottom: 1 Net P&L · 2 Win rate · 3 Total R. Each measure is on its own scale.')
-    expect(within(svg).getByText('3 -1.0R')).toBeInTheDocument()
+    expect(within(svg).getByText('-1.0R')).toBeInTheDocument()
+    // the measure's number is dimmed again (a tick tspan), not part of the value's own text
+    const prefix = within(svg).getByText('-1.0R').querySelector('[data-prefix]')
+    expect(prefix.textContent).toBe('3 ')
+    expect(prefix.getAttribute('class')).toMatch(/tick/)
   })
 
   it('line draws up to three series with distinct dash patterns and a legend (never colour alone)', () => {
@@ -551,7 +610,9 @@ describe('built widget views', () => {
     expect(Number(overlay.getAttribute('height'))).toBeGreaterThanOrEqual(TAP)
     // the period nearest the tap answers, and the drill comes back to its keyboard mark
     const xs = [...svg.querySelectorAll('[data-period]')].map((g) => Number(g.querySelector('circle').getAttribute('cx')))
-    fireEvent.click(overlay, { clientX: xs[41] + 1 })
+    fireEvent.click(overlay, { clientX: xs[41] + 1 })                        // touch: the first tap selects
+    expect(drills).toEqual([])
+    fireEvent.click(overlay, { clientX: xs[41] + 1 })                        // the second, same period, drills
     expect(drills[0].cell).toEqual({ label: 'p41' })
     expect(drills[0].el.getAttribute('data-period')).toBe('41')
     expect(nearestIndex([0, 10, 20], 14)).toBe(1)
@@ -641,7 +702,7 @@ describe('built widget views', () => {
 
   it('compactValue never shows -0.00, and 999.5 to 999.99 is 1.0k', () => {
     expect(compactValue(-0.001, 'money')).toBe('>-0.01')
-    expect(compactValue(0.001, 'money')).toBe('<0.01')
+    expect(compactValue(0.001, 'money')).toBe('+<0.01')
     expect(compactValue(-0.004, 'r')).toBe('>-0.01R')
     expect(compactValue(999.5, 'money')).toBe('+1.0k')
     expect(compactValue(999.99, 'money')).toBe('+1.0k')
@@ -649,5 +710,111 @@ describe('built widget views', () => {
     expect(compactValue(999960, 'money')).toBe('+1.0m')
     expect(compactValue(-0.001, 'pct')).toBe('>-1%')
     for (const v of [-0.001, -0.0049, -0.00001]) expect(compactValue(v, 'money')).not.toMatch(/-0\.00/)
+  })
+  // ── fix round 3 ─────────────────────────────────────────────────────────────────────────────────────────
+
+  it('line readout: an HTML tooltip, one wrapped line per measure, clamped inside the box (mouse hover)', () => {
+    const series = [{ label: '2026-09', v1: 100, n1: 3, s1: '', v2: 0.5, n2: 3, s2: '' }, { label: '2026-10', v1: -50, n1: 2, s1: '', v2: 0.4, n2: 2, s2: '' }]
+    render(<LineView params={P({ view: 'line', measures: [MONEY[0], RATE], value: {}, series })} width={340} onDrill={() => {}} />)
+    const svg = screen.getByTestId('built-line-view')
+    const overlay = svg.querySelector('[data-overlay]')
+    const xs = [...svg.querySelectorAll('[data-period]')].map((g) => Number(g.querySelector('circle').getAttribute('cx')))
+    fireEvent.pointerMove(overlay, { clientX: xs[1], pointerType: 'mouse' })
+    const tip = screen.getByTestId('built-line-readout')
+    expect(tip.tagName.toLowerCase()).toBe('div')
+    expect([...tip.children].map((d) => d.textContent)).toEqual(['2026-10', 'Net P&L: -$50.00', 'Win rate: 40.0%, from 2 decisive trades'])
+    expect(svg.querySelector('[data-testid="built-line-guide"]')).not.toBeNull()
+    // clamped: at the last point the readout's right edge stays inside the 340 px box
+    const left = parseFloat(tip.style.left)
+    const est = Math.max(...[...tip.children].map((d) => textW(d.textContent, 12))) + 16
+    expect(left).toBeGreaterThanOrEqual(0)
+    expect(left + Math.min(340, est)).toBeLessThanOrEqual(340)
+    expect(tip.style.maxWidth).toBe('340px')
+    expect(/white-space:\s*normal/.test(ruleBody('.readout'))).toBe(true)
+    fireEvent.pointerLeave(overlay)
+    expect(screen.queryByTestId('built-line-readout')).toBeNull()
+  })
+
+  it('line: a mouse click drills at once; a touch tap selects first; a read-only copy only reads, with no pointer cursor', () => {
+    const drills = []
+    const r = render(<LineView params={P(SEVEN.line)} onDrill={(cell) => drills.push(cell)} />)
+    let overlay = screen.getByTestId('built-line-view').querySelector('[data-overlay]')
+    expect(overlay.getAttribute('class')).toMatch(/overlayDrill/)
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse' })
+    fireEvent.click(overlay, { clientX: 0 })
+    expect(drills).toEqual([{ label: '2026-08' }])
+    // a touch pointer (on a desktop-sized screen): select, then drill on the same period
+    fireEvent.pointerDown(overlay, { pointerType: 'touch' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    expect(drills.length).toBe(1)
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-10')
+    fireEvent.pointerDown(overlay, { pointerType: 'touch' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    expect(drills).toEqual([{ label: '2026-08' }, { label: '2026-10' }])
+    r.unmount()
+    // read-only: a tap shows the readout and drills nothing; no pointer cursor
+    render(<LineView params={P(SEVEN.line)} />)
+    overlay = screen.getByTestId('built-line-view').querySelector('[data-overlay]')
+    expect(overlay.getAttribute('class')).not.toMatch(/overlayDrill/)
+    fireEvent.click(overlay, { clientX: 9999 })
+    expect(screen.getByTestId('built-line-readout').firstChild.textContent).toBe('2026-10')
+    expect(/cursor:\s*pointer/.test(ruleBody('.overlayDrill'))).toBe(true)
+    expect(/cursor/.test(ruleBody('.overlay'))).toBe(false)
+  })
+
+  it('heat snaps to the newest end when the DATA changes, never on a pure width change after the member scrolled', () => {
+    asTouch()
+    const set = vi.fn()
+    const sw = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(2400)
+    const cw = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(340)
+    Object.defineProperty(HTMLElement.prototype, 'scrollLeft', { configurable: true, get() { return 0 }, set })
+    try {
+      const p = P({ view: 'heat', measures: MONEY, value: {}, cells: yearCells() })
+      const r = render(<HeatView params={p} width={340} />)
+      expect(set).toHaveBeenCalledTimes(1)
+      const box = screen.getByTestId('built-heat-view').parentElement
+      fireEvent.scroll(box)                                                  // ours (the snap)
+      fireEvent.scroll(box)                                                  // the member's
+      set.mockClear()
+      r.rerender(<HeatView params={p} width={360} />)                        // the box changed width only
+      expect(set).not.toHaveBeenCalled()
+      r.rerender(<HeatView params={{ ...p, cells: yearCells().slice(5) }} width={360} />)
+      expect(set).toHaveBeenCalledWith(2400 - 340)
+    } finally {
+      delete HTMLElement.prototype.scrollLeft
+      sw.mockRestore()
+      cw.mockRestore()
+    }
+  })
+
+  it('bar: the value column carries 8 px of slack beyond its widest measured line', () => {
+    const rows = [{ label: 'Flag', v1: 123456.78, n1: 1, s1: '', n: 1 }]
+    render(<BarView params={P({ view: 'bar', measures: MONEY, value: {}, rows })} width={600} />)
+    const svg = screen.getByTestId('built-bar-view')
+    const line = svg.querySelector('[data-value-line]')
+    const w = lineWidth(valueLines({ text: '+$123,456.78' }, '', false)[0])
+    expect(VALUE_SLACK).toBe(8)
+    expect(600 - Number(line.getAttribute('x')) - w).toBeGreaterThanOrEqual(8 + 6)            // the slack, plus the column's own pad
+  })
+
+  it('no rule anywhere sets .flagText, .badgeText or .badge under 11 px', () => {
+    const rules = [...CSS.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    const named = rules.filter(([, sel]) => /\.(flagText|badgeText|badge)(?![\w-])/.test(sel))
+    expect(named.length).toBeGreaterThan(0)
+    for (const [, sel, body] of named) {
+      const m = /font-size:\s*(\d+(?:\.\d+)?)px/.exec(body)
+      if (m) expect(Number(m[1]), sel.trim()).toBeGreaterThanOrEqual(11)
+    }
+    // control: the check sees a rule that breaks it
+    const broken = '.badgeText { font-size: 9px; }'
+    expect(/font-size:\s*9px/.test(broken) && /\.(flagText|badgeText|badge)(?![\w-])/.test(broken)).toBe(true)
+  })
+
+  it('compactValue: +<0.01 for a tiny gain, a b unit, and 0R for an exact zero', () => {
+    expect(compactValue(0.001, 'money')).toBe('+<0.01')
+    expect(compactValue(2.5e9, 'money')).toBe('+2.5b')
+    expect(compactValue(-999.96e6, 'money')).toBe('-1.0b')
+    expect(compactValue(0, 'r')).toBe('0R')
+    expect(compactValue(-0.004, 'r')).toBe('>-0.01R')
   })
 })

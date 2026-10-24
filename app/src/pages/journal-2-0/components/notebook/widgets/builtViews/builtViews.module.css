@@ -105,15 +105,41 @@
   width: 100%;
   min-width: 0;
   overflow-x: auto;
-  /* H14: the gutter is reserved whether or not the scrollbar shows, so a scrollbar appearing never narrows the box
-     (which would shrink the chart, drop the scrollbar, widen the box: a ResizeObserver loop). */
-  scrollbar-gutter: stable;
+  /* Its own scrollbar is horizontal, so it changes the box's HEIGHT, never the width the chart is laid out at.
+     The width loop (H14) comes from the frame's VERTICAL scrollbar: SnapshotFrame's frameGutter reserves that for
+     built widgets, and useChartWidth's hysteresis guards whatever is left. */
 }
 /* A chart FITTED to its box (bar, line, scatter): it never scrolls sideways. */
 .chartFit {
+  position: relative;
   width: 100%;
   min-width: 0;
   overflow: hidden;
+}
+/* Line: the readout of the period under the pointer (or selected by a tap), one line per measure, wrapping. */
+.readout {
+  position: absolute;
+  top: 2px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.readoutHead {
+  font-weight: 600;
+}
+.guide {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
 }
 /* Line: the pointer overlay (the nearest period answers) and each period's keyboard focus band. */
 .overlay {

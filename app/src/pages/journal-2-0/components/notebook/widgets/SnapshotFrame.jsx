@@ -40,7 +40,7 @@ export const EARNINGS_UNREAD = 'The earnings calendar could not be read just now
 export default function SnapshotFrame({
   title, asOf, account = false, share = false, editable = false,
   onRefresh, onShareChange, onSavePreset, sourceLine, sourceDetail, tooLarge = false, tooLargeText, children,
-  changeKeys = [], settings = {}, onChange, changeContext = null, menu = null,
+  changeKeys = [], settings = {}, onChange, changeContext = null, menu = null, kind = null,
 }) {
   const [busy, setBusy] = useState(false)
   const [change, setChange] = useState(null)   // the settings being edited, or null when closed
@@ -140,7 +140,8 @@ export default function SnapshotFrame({
   const privateChip = account && !share
   const stamp = etDateTime(asOf)
   return (
-    <div className={styles.frame} data-snapshot-frame="">
+    // Wave 8 (Task 8.14, H14): only a BUILT widget reserves its scrollbar gutter (its charts measure their width).
+    <div className={`${styles.frame} ${kind === BUILT_KIND ? styles.frameGutter : ''}`} data-snapshot-frame="">
       <div className={styles.head}>
         <span className={styles.title}>{title}</span>
         {privateChip ? (
@@ -431,6 +432,7 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
   const onSavePreset = useCallback((name) => savePreset({ name, kind, params: paramsRef.current, uid }), [kind, uid])
   const built = kind === BUILT_KIND
   return {
+    kind,
     // A built widget carries its member-given title; every kind falls back to its own name.
     title: (typeof params.title === 'string' && params.title) || meta?.title || kind,
     asOf: params.asOf,

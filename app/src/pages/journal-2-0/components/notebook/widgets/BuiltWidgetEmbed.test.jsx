@@ -6,7 +6,9 @@ import { render, screen, fireEvent, within, waitFor, act } from '@testing-librar
 import BuiltWidgetEmbed, {
   SAVED_COPY_SENTENCE, ARCHIVED_SENTENCE, CHECK_FAILED_SENTENCE, UNAVAILABLE_SENTENCE,
 } from './BuiltWidgetEmbed'
-import { anchorPosition } from './builtViews/DrillPanel'
+import { anchorPosition, PANEL_MAX_H } from './builtViews/DrillPanel'
+import SnapshotFrame, { useSnapshotFrame } from './SnapshotFrame'
+import frameStyles from './SnapshotFrame.module.css'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
 import { openMyTools } from '../myTools/openMyTools.js'
@@ -445,16 +447,24 @@ describe('BuiltWidgetEmbed', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('the anchored panel sits under its mark, clamped inside the widget', () => {
-    const box = { left: 100, top: 50, width: 500 }
-    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360)).toEqual({ left: 50, top: 74, width: 360, maxHeight: null })
-    // no taller than the widget's visible area (its margin taken off), never under the floor
-    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360, 300).maxHeight).toBe(284)
-    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360, 60).maxHeight).toBe(120)
-    // a mark near the right edge: the panel is pulled back so its right edge stays inside
-    expect(anchorPosition(box, { left: 560, bottom: 120 }, 360)).toEqual({ left: 140, top: 74, width: 360, maxHeight: null })
-    // a widget narrower than the panel: full width, at the left
-    expect(anchorPosition({ left: 0, top: 0, width: 300 }, { left: 250, bottom: 40 }, 360)).toEqual({ left: 0, top: 44, width: 300, maxHeight: null })
+  it('the anchored panel sits under its mark, clamped inside the widget, and flips above when there is no room', () => {
+    const box = { left: 100, top: 50, width: 500, bottom: 350 }
+    expect(anchorPosition(box, { left: 150, top: 92, bottom: 120 }, 360)).toEqual({ left: 50, top: 74, width: 360, maxHeight: PANEL_MAX_H })
+    expect(anchorPosition(box, { left: 560, top: 92, bottom: 120 }, 360).left).toBe(140)
+    expect(anchorPosition({ left: 0, top: 0, width: 300 }, { left: 250, top: 12, bottom: 40 }, 360)).toEqual({ left: 0, top: 44, width: 300, maxHeight: PANEL_MAX_H })
+    // in a visible frame: no taller than the room under the mark (minus the gap and an 8 px margin), at most 320
+    const frame = { top: 0, bottom: 300 }
+    const under = anchorPosition({ left: 0, top: 0, width: 600, bottom: 300 }, { left: 0, top: 30, bottom: 58 }, 360, frame)
+    expect(under).toEqual({ left: 0, top: 62, width: 360, maxHeight: 230 })
+    expect(under.top + under.maxHeight).toBeLessThanOrEqual(frame.bottom)                 // nothing overflows
+    expect(anchorPosition({ left: 0, top: 0, width: 600 }, { left: 0, top: 30, bottom: 58 }, 360, { top: 0, bottom: 2000 }).maxHeight)
+      .toBe(PANEL_MAX_H)
+    // too little room under the mark: it opens ABOVE, still inside the frame
+    const above = anchorPosition({ left: 0, top: 0, width: 600, bottom: 300 }, { left: 0, top: 222, bottom: 250 }, 360, frame)
+    expect(above.above).toBe(true)
+    expect(above.bottom).toBe(300 - 222 + 4)
+    expect(above.maxHeight).toBe(222 - 4 - 8)
+    expect(300 - above.bottom - above.maxHeight).toBeGreaterThanOrEqual(frame.top)
   })
 
   it('a mouse or touch drill returns focus to the MARK when it closes, not to the editor that held it', async () => {
@@ -535,7 +545,37 @@ describe('BuiltWidgetEmbed', () => {
     act(() => { window.dispatchEvent(new Event('resize')) })
     expect(panel.style.left).toBe('200px')
     expect(panel.style.top).toBe('62px')
-    expect(panel.style.maxHeight).toBe('284px')
+    // the room under the mark inside the 300 px frame (300 - 58 - 4 - 8): the panel cannot overflow it
+    expect(panel.style.maxHeight).toBe('230px')
+    expect(62 + 230).toBeLessThanOrEqual(300)
     vi.restoreAllMocks()
+  })
+  it('a click on the Line overlay while its panel is open neither closes nor reopens it', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: tradeRows(1), more: 0, count: 1, live: false, note: null }))
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'line', rows: [],
+      series: [{ label: '2026-09', v1: 1, n1: 1, s1: '' }, { label: '2026-10', v1: 2, n1: 1, s1: '' }] })} />)
+    const overlay = screen.getByTestId('built-line-view').querySelector('[data-overlay]')
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    const panel = await screen.findByRole('dialog', { name: 'Behind 2026-10' })
+    fireEvent.mouseDown(overlay)
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse' })
+    fireEvent.click(overlay, { clientX: 9999 })
+    expect(screen.getByRole('dialog')).toBe(panel)                   // the same element: never closed
+    expect(fetchSpy).toHaveBeenCalledTimes(1)                        // nor asked again
+  })
+
+  it('only a built widget reserves the frame\u2019s scrollbar gutter (H14), never another kind', () => {
+    const r = render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} />)
+    expect(r.container.querySelector('[data-snapshot-frame]').className).toContain(frameStyles.frameGutter)
+    r.unmount()
+    function Other() {
+      const attrs = widgetEmbedNode('myPnlStats', { asOf: ASOF, source: 'manual', netPnl: 1, tradeCount: 1 }).attrs
+      const frame = useSnapshotFrame('myPnlStats', attrs, {})
+      return <SnapshotFrame {...frame}><p>body</p></SnapshotFrame>
+    }
+    const o = render(<Other />)
+    expect(o.container.querySelector('[data-snapshot-frame]').className).not.toContain(frameStyles.frameGutter)
+    expect(frameStyles.frameGutter).toBeTruthy()
   })
 })

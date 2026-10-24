@@ -43,16 +43,20 @@ function split(text) {
   return [words.slice(0, best).join(' '), words.slice(best).join(' ')]
 }
 
-/** One value's lines: `[{text, px, badge}]`. One line (value, then the badge beside it) or, `wrap`, two. */
+/** One value's lines: `[{prefix, text, px, badge}]`. One line (value, then the badge beside it) or, `wrap`, two.
+ *  `prefix` (the measure's number, "2 ") is drawn dimmed, on the first line only. */
 export function valueLines(c, prefix, wrap) {
-  const head = `${prefix}${c.text}`
-  if (!wrap) return [{ text: head, px: VALUE_PX, badge: c.small ? SMALL_SAMPLE : null }]
-  if (c.hidden) return split(head).map((t) => ({ text: t, px: VALUE_PX, badge: null }))
-  return [{ text: head, px: VALUE_PX, badge: null }, ...(c.small ? [{ text: SMALL_SAMPLE, px: BADGE_PX, badge: null, isBadge: true }] : [])]
+  if (!wrap) return [{ prefix, text: c.text, px: VALUE_PX, badge: c.small ? SMALL_SAMPLE : null }]
+  if (c.hidden) return split(c.text).map((t, j) => ({ prefix: j === 0 ? prefix : '', text: t, px: VALUE_PX, badge: null }))
+  return [{ prefix, text: c.text, px: VALUE_PX, badge: null },
+    ...(c.small ? [{ prefix: '', text: SMALL_SAMPLE, px: BADGE_PX, badge: null, isBadge: true }] : [])]
 }
 
-/** The width one line takes, its badge (6 px apart) included. */
-export const lineWidth = (l) => textW(l.text, l.px) + (l.badge ? 6 + textW(l.badge, BADGE_PX) : 0)
+/** Slack for proportional glyphs (textW is an average-width estimate; "W" and "%" run wider). */
+export const VALUE_SLACK = 8
+/** The width one line takes: its dimmed prefix (11 px), its text, and its badge (6 px apart). */
+export const lineWidth = (l) => (l.prefix ? textW(l.prefix, BADGE_PX) : 0) + textW(l.text, l.px)
+  + (l.badge ? 6 + textW(l.badge, BADGE_PX) : 0)
 
 export default function BarView({ params, onDrill, width: forced }) {
   const p = params || {}
@@ -67,8 +71,8 @@ export default function BarView({ params, onDrill, width: forced }) {
   const widest = (wrap) => Math.ceil(Math.max(0, ...model.rows.flatMap((r) => ms.flatMap((m, k) =>
     valueLines(r.values[k] || { text: '' }, prefixOf(k), wrap).map(lineWidth)))))
   let wrap = false
-  let valueW = widest(false) + PAD * 2
-  if (valueW > width * VALUE_MAX) { wrap = true; valueW = widest(true) + PAD * 2 }
+  let valueW = widest(false) + PAD * 2 + VALUE_SLACK
+  if (valueW > width * VALUE_MAX) { wrap = true; valueW = widest(true) + PAD * 2 + VALUE_SLACK }
   const linesPerSlot = wrap ? Math.max(1, ...model.rows.flatMap((r) => ms.map((m, k) => valueLines(r.values[k] || { text: '' }, prefixOf(k), true).length))) : 1
   const slotH = Math.max(BAR + BAR_GAP, linesPerSlot * LINE_H)
   const rowH = Math.max(floor, ms.length * slotH + 8, 30)
@@ -123,6 +127,7 @@ export default function BarView({ params, onDrill, width: forced }) {
                       <text key={`l${j}`} x={valueX} y={firstY + j * LINE_H} dominantBaseline="middle" data-value-line=""
                         data-px={l.px}
                         className={l.isBadge ? styles.badgeText : (c.hidden || typeof v !== 'number' ? styles.valueDim : styles.value)}>
+                        {l.prefix && <tspan className={styles.tick} data-prefix="">{l.prefix}</tspan>}
                         {l.text}
                         {l.badge && <tspan dx="6" className={styles.badgeText} data-badge="">{l.badge}</tspan>}
                       </text>

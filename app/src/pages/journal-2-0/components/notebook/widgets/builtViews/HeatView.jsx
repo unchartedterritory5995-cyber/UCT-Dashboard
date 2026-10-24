@@ -68,15 +68,31 @@ export default function HeatView({ params, onDrill, width: forced }) {
   const ms = measuresOf(p)
   const m = ms[0] || {}
   const [measureRef, width] = useChartWidth(forced)
-  // The box may scroll sideways (a long range at the touch floor): it opens at the NEWEST end, and goes back there
-  // when the data changes, never at the oldest week.
+  // The box may scroll sideways (a long range at the touch floor): it opens at the NEWEST end and goes back there
+  // when the DATA changes. A width change alone (the box measured, a rotation) keeps it at the newest end only
+  // until the member scrolls it themselves: after that their position is theirs.
   const boxEl = useRef(null)
   const boxRef = useCallback((el) => { boxEl.current = el; measureRef(el) }, [measureRef])
   const rowsKey = `${model.rows.length}:${model.rows[0]?.label || ''}:${model.rows[model.rows.length - 1]?.label || ''}`
+  const lastKey = useRef(null)
+  const userScrolled = useRef(false)
+  const ours = useRef(false)
   useLayoutEffect(() => {
     const el = boxEl.current
-    if (el && el.scrollWidth > el.clientWidth) el.scrollLeft = el.scrollWidth - el.clientWidth
+    const dataChanged = lastKey.current !== rowsKey
+    lastKey.current = rowsKey
+    if (dataChanged) userScrolled.current = false
+    if (!el || userScrolled.current) return
+    const end = el.scrollWidth - el.clientWidth
+    if (end > 0 && el.scrollLeft !== end) {
+      ours.current = true                         // the scroll event this causes is ours, not the member's
+      el.scrollLeft = end
+    }
   }, [rowsKey, width])
+  const onScroll = () => {
+    if (ours.current) { ours.current = false; return }
+    userScrolled.current = true
+  }
   const floor = useHitFloor()
   const group = useCellGroup()
   const hatch = `built-hatch-${svgId(useId())}`
@@ -121,7 +137,7 @@ export default function HeatView({ params, onDrill, width: forced }) {
           {`Showing ${m.label || 'the first measure'}. Show as table for the rest.`}
         </p>
       )}
-      <div className={styles.chartBox} ref={boxRef}>
+      <div className={styles.chartBox} ref={boxRef} onScroll={onScroll}>
         <svg className={styles.chart} viewBox={`0 0 ${svgW} ${height}`} width={svgW} height={height} role="group"
           aria-label={`${m.label || 'Value'} ${by}`} data-testid="built-heat-view" data-cell-size={cell}
           {...group.groupProps}>

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { useIsTouch } from '../../../../../../hooks/useBreakpoint'
 import { tableModelOf, measuresOf, fmtValue, cellSpeech, SMALL_SAMPLE } from './builtModel'
 import { useCellGroup, drillFor } from './cellGroup'
-import { useChartWidth, useHitFloor, scale, textW, DASHES } from './svg'
+import { useChartWidth, useHitFloor, scale, textW, clamp, DASHES } from './svg'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s } from '../SnapshotFrame'
 
@@ -13,8 +14,11 @@ import { snapshotStyles as s } from '../SnapshotFrame'
  * measure's low and high; with more than one measure each line has its own scale, and says so.
  *
  * Pointer: ONE transparent overlay the full plot, which answers the NEAREST period, so a tap anywhere on the chart
- * hits something however close the points are (the whole plot is the target, always taller than 44 px). It shows
- * that period's values as a tooltip line. Keyboard: each period is still a mark in the roving group (Enter drills).
+ * hits something however close the points are (the whole plot is the target, always taller than 44 px). The period
+ * it answers gets a guide line and an HTML READOUT that wraps, one line per measure, positioned at the point and
+ * clamped inside the box. A mouse hovers to read and clicks to drill. On touch the first tap SELECTS a period (guide
+ * and readout) and a second tap on the same period drills. Where there is no drill (a read-only or shared copy) a
+ * tap only reads. Keyboard: each period is still a mark in the roving group (Enter drills).
  * ⛔ An unknown point is a GAP in the line, never a point at zero; the periods with no value are named under the
  * chart ("No data for ..."). A small sample is drawn hollow and named under the chart.
  */
@@ -37,7 +41,18 @@ export default function LineView({ params, onDrill, width: forced }) {
   const [boxRef, width] = useChartWidth(forced)
   const floor = useHitFloor()
   const group = useCellGroup()
-  const [hover, setHover] = useState(null)
+  const [hover, setHover] = useState(null)    // the period under a mouse
+  const [sel, setSel] = useState(null)        // the period a tap or a click selected
+  const pointer = useRef('')
+  const tipRef = useRef(null)
+  const [tipW, setTipW] = useState(0)
+  const isTouch = useIsTouch()
+  const active = hover ?? sel
+  // The readout's real width, once drawn (an estimate until then), so it can be clamped inside the box.
+  useLayoutEffect(() => {
+    const w = tipRef.current?.offsetWidth || 0
+    setTipW((prev) => (prev === w ? prev : w))
+  }, [active, width])
   if (!model.rows.length || !ms.length) return <p className={s.empty}>{'No rows to show.'}</p>
   const rows = model.rows
   const multi = ms.length > 1
@@ -98,12 +113,9 @@ export default function LineView({ params, onDrill, width: forced }) {
             <polyline key={`m${k}r${j}`} points={pts.join(' ')} className={styles.line} fill="none"
               strokeDasharray={DASHES[k] || undefined} data-measure={k + 1} />
           )))}
-          {hover !== null && rows[hover] && (
-            <g data-testid="built-line-hover">
-              <line x1={xs[hover]} x2={xs[hover]} y1={PAD_T} y2={H - PAD_B} className={styles.grid} />
-              <text x={Math.min(Math.max(xs[hover], padL), width - PAD_R)} y={12} className={styles.tick}
-                textAnchor={xs[hover] > width / 2 ? 'end' : 'start'}>{speechOf(rows[hover])}</text>
-            </g>
+          {active !== null && rows[active] && (
+            <line x1={xs[active]} x2={xs[active]} y1={PAD_T} y2={H - PAD_B} className={styles.guide}
+              data-testid="built-line-guide" />
           )}
           {rows.map((r, i) => {
             const speech = speechOf(r)
@@ -128,18 +140,36 @@ export default function LineView({ params, onDrill, width: forced }) {
           {/* The pointer target, last so it is on top: the whole plot, answering the nearest period. */}
           <rect x={padL} y={0} width={Math.max(0, width - padL)} height={Math.max(floor, H - PAD_B)}
             className={`${styles.overlay} ${onDrill ? styles.overlayDrill : ''}`} data-hit="" data-overlay=""
-            onPointerMove={(e) => setHover(nearestIndex(xs, xAt(e)))}
+            data-drill-surface=""
+            onPointerDown={(e) => { pointer.current = e.pointerType || '' }}
+            onPointerMove={(e) => { if (e.pointerType !== 'touch') setHover(nearestIndex(xs, xAt(e))) }}
             onPointerLeave={() => setHover(null)}
             onClick={(e) => {
               const i = nearestIndex(xs, xAt(e))
               const drill = drillFor(onDrill, rows[i], rows[i].label)
-              if (drill) drill(markOf(e.currentTarget.ownerSVGElement, i) || e.currentTarget)
+              const touch = isTouch || pointer.current === 'touch'
+              // read-only: a tap reads; touch: the first tap selects, a second on the same period drills
+              if (!drill || (touch && sel !== i)) { setSel(i); return }
+              setSel(i)
+              drill(markOf(e.currentTarget.ownerSVGElement, i) || e.currentTarget)
             }} />
           <text x={xs[0]} y={H - 8} className={styles.tick} textAnchor={rows.length > 1 ? 'start' : 'middle'}>{rows[0].label}</text>
           {rows.length > 1 && (
             <text x={xs[xs.length - 1]} y={H - 8} className={styles.tick} textAnchor="end">{rows[rows.length - 1].label}</text>
           )}
         </svg>
+        {active !== null && rows[active] && (() => {
+          const lines = [rows[active].label, ...ms.map((m, k) => `${multi ? `${nameOf(m, k)}: ` : ''}${cellSpeech(rows[active].values[k], m)}`)]
+          const est = Math.min(width, Math.ceil(Math.max(...lines.map((t) => textW(t, 12)))) + 16)
+          const w = tipW || est
+          const left = clamp(xs[active] - w / 2, 0, Math.max(0, width - w))
+          return (
+            <div ref={tipRef} className={styles.readout} style={{ left, maxWidth: width }} aria-hidden="true"
+              data-testid="built-line-readout">
+              {lines.map((t, k) => <div key={`t${k}`} className={k === 0 ? styles.readoutHead : undefined}>{t}</div>)}
+            </div>
+          )
+        })()}
       </div>
       {multi && (
         <ul className={styles.legend} data-testid="built-line-legend">

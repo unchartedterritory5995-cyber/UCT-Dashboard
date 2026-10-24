@@ -12,46 +12,88 @@ export const W = 600
 export const TAP = 44
 export const MARK = 28
 
-/** How far (px) a width may flip back to one seen recently and still be ignored, and how many reads are kept. */
+/** How far (px) a width may flip back to one seen recently and still count as a flip, how many reads are kept,
+ *  how long a read is remembered, and how long after the last observer event the box is read once more. */
 export const FLIP_PX = 20
 export const FLIP_READS = 4
+export const SEEN_MS = 1000
+export const SETTLE_MS = 400
 
 /**
  * `[ref, width]`: put `ref` on the box the chart fills; `width` is its measured width in px (or `forced`, or W).
  *
  * ⛔ A CALLBACK ref, so a view that first renders empty (no box) and later gets rows still measures its box the
  * moment the box exists. ⛔ It reads `contentRect.width` / `clientWidth` (the box's own content width, never the
- * transformed rect). ⛔ HYSTERESIS (rule H14, a ResizeObserver loop): a chart that grows a scrollbar shrinks its
- * box, which can shrink the chart until the scrollbar goes, which grows the box back, forever. A change of
- * FLIP_PX or less back to a width seen in the last FLIP_READS reads is ignored, so the loop settles at once.
+ * transformed rect).
+ *
+ * ⛔ HYSTERESIS (rule H14, a ResizeObserver loop). A scrollbar that appears narrows the box, the narrower chart can
+ * make the scrollbar go, the box widens, and so on forever. The built widget's frame reserves its scrollbar gutter
+ * (SnapshotFrame `frameGutter`), which removes the usual cause; this guards every other one. A FLIP is a change of
+ * FLIP_PX or less to a width seen in the last FLIP_READS reads (each remembered SEEN_MS). On a flip the NARROWER
+ * width wins (it fits whether or not the scrollbar is there) and a widen is ignored. Because an ignored widen may
+ * have been real (the scrollbar went for good), the box is read once more SETTLE_MS after the last observer event,
+ * and that reading is taken if no flip happened in that window: at most once per flip pair, so a slow loop cannot
+ * restart itself through the trailing read.
  */
 export function useChartWidth(forced) {
   const [measured, setMeasured] = useState(0)
   const current = useRef(0)
-  const seen = useRef([])
+  const seen = useRef([])          // [{w, t}]
   const ro = useRef(null)
-  const accept = useCallback((raw) => {
-    const w = Math.floor(raw || 0)
-    if (w <= 0) return
-    const cur = current.current
-    const flipBack = cur > 0 && w !== cur && Math.abs(w - cur) <= FLIP_PX && seen.current.includes(w)
-    seen.current = [...seen.current, w].slice(-FLIP_READS)
-    if (w === cur || flipBack) return
+  const box = useRef(null)
+  const timer = useRef(null)
+  const lastFlip = useRef(0)
+  const trailed = useRef(new Set()) // flip pairs that have had their one trailing read
+  const pending = useRef(null)      // the flip pair a trailing read is for
+  const take = useCallback((w) => {
+    if (w <= 0 || w === current.current) return
     current.current = w
     setMeasured(w)
   }, [])
+  const read = useCallback((raw) => {
+    const w = Math.floor(raw || 0)
+    if (w <= 0) return
+    const now = Date.now()
+    seen.current = seen.current.filter((e) => now - e.t < SEEN_MS)
+    const cur = current.current
+    const flip = cur > 0 && w !== cur && Math.abs(w - cur) <= FLIP_PX && seen.current.some((e) => e.w === w)
+    seen.current = [...seen.current, { w, t: now }].slice(-FLIP_READS)
+    // Any observer event pushes the trailing read back (it comes SETTLE_MS after the LAST one).
+    if (timer.current) { clearTimeout(timer.current); timer.current = null }
+    if (flip) {
+      lastFlip.current = now
+      const pair = `${Math.min(w, cur)}:${Math.max(w, cur)}`
+      if (w < cur) take(w)                         // the narrower width fits either way
+      else if (!trailed.current.has(pair)) pending.current = pair
+    }
+    if (pending.current) {
+      timer.current = setTimeout(() => {
+        timer.current = null
+        const pair = pending.current
+        pending.current = null
+        if (!pair || !box.current || Date.now() - lastFlip.current < SETTLE_MS) return
+        trailed.current.add(pair)
+        take(Math.floor(box.current.clientWidth || 0))
+      }, SETTLE_MS)
+    }
+    if (!flip) take(w)
+  }, [take])
   const ref = useCallback((el) => {
     if (ro.current) { ro.current.disconnect(); ro.current = null }
+    box.current = el
     if (!el || forced > 0) return
-    accept(el.clientWidth)
+    read(el.clientWidth)
     if (typeof ResizeObserver === 'undefined') return
     ro.current = new ResizeObserver((entries) => {
       const e = entries && entries[0]
-      accept(e && e.contentRect ? e.contentRect.width : el.clientWidth)
+      read(e && e.contentRect ? e.contentRect.width : el.clientWidth)
     })
     ro.current.observe(el)
-  }, [forced, accept])
-  useEffect(() => () => { if (ro.current) ro.current.disconnect() }, [])
+  }, [forced, read])
+  useEffect(() => () => {
+    if (ro.current) ro.current.disconnect()
+    if (timer.current) clearTimeout(timer.current)
+  }, [])
   const width = forced > 0 ? forced : (measured > 0 ? measured : W)
   return [ref, width]
 }

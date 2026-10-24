@@ -210,7 +210,12 @@ export default function BuiltWidgetEmbed({
   const canToggle = !empty && view !== 'table'
   const canDrill = !shareView && !empty
   const onDrill = canDrill
-    ? (cell, what, opener) => { drillSeq.current += 1; setDrill({ cell, what, opener, n: drillSeq.current }) }
+    ? (cell, what, opener) => {
+      // The mark whose panel is already open: leave it open (never close and reopen it).
+      if (drill && opener && drill.opener === opener) return
+      drillSeq.current += 1
+      setDrill({ cell, what, opener, n: drillSeq.current })
+    }
     : null
 
   const applyLatest = async (rev) => {
