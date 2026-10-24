@@ -77,6 +77,7 @@ import { LabelLayoutContext } from './patternShapes/labelLayoutContext'
 import { computeLabelLayout } from './patternLabelLayout'
 import EmaSegment from './patternShapes/EmaSegment'
 import PoleSegment from './patternShapes/PoleSegment'
+import SetupRsiPanel, { rsiPanelOf } from './patternShapes/SetupRsiPanel'
 import { anchorToBarTime, isDateTf } from './patternTime'
 import { getColor, getOpacity, FLAGGING_TIER } from './patternShapes/style'
 
@@ -89,6 +90,10 @@ const SHAPE_RENDERERS = {
   horizontal_line: HorizontalLine,
   base_box: BaseBox,
 }
+
+// The shapes the setup-drawing layer (`setup_draws`) draws, each with the pattern layer's own renderer (plus the
+// pole segment when a row carries `extras.draw_pole`). Any other shape in that layer is dropped, never guessed at.
+export const SETUP_DRAW_SHAPES = new Set(['horizontal_line', 'trendline_pair', 'rectangle', 'neckline'])
 
 // How many levels-layer lines (support/resistance, volume nodes) may draw at once.
 export const LEVELS_NEAREST = 2
@@ -616,7 +621,7 @@ export default function PatternOverlay({
   // The setup-drawing layer (`showSetupDraws`, the UCT Intelligence "Setups" toggle): the server sends it on
   // daily charts only, and a pending-acquisition chart has already returned its notice above.
   const setupRows = showSetupDraws && Array.isArray(setupDraws)
-    ? setupDraws.filter((d) => d && d.geometry?.shape === 'horizontal_line' && d.geometry?.anchors?.length)
+    ? setupDraws.filter((d) => d && SETUP_DRAW_SHAPES.has(d.geometry?.shape) && d.geometry?.anchors?.length)
     : []
   const hasSetups = setupRows.length > 0
   if (!chart || !series || (!enabled && !hasSr && !hasSetups)
@@ -707,11 +712,24 @@ export default function PatternOverlay({
       {hasSr && (
         <SupportResistanceLayer levelsSr={levelsSr} tToX={tToX} priceToY={priceToY} dy={labelLayout.srDy} />
       )}
-      {hasSetups && setupRows.map((d) => (
-        <g key={`setup:${d.id}`} data-setup-draw={d.pattern_id}>
-          <HorizontalLine detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
-        </g>
-      ))}
+      {hasSetups && setupRows.map((d) => {
+        // A moving-average curve (the golden / death cross rows carry extras.draw_ema) is drawn as the curve,
+        // never as the row's nominal shape -- a horizontal_line here would be one flat line at the anchors' mean.
+        const SetupShape = Array.isArray(d.geometry.extras?.draw_ema?.points)
+          ? EmaSegment : SHAPE_RENDERERS[d.geometry.shape]
+        return (
+          <g key={`setup:${d.id}`} data-setup-draw={d.pattern_id}>
+            <SetupShape detection={d} tToX={tToX} priceToY={priceToY} barHalfWidthPx={barHalfWidthPx}
+              onClick={onDetectionClick} />
+            {Array.isArray(d.geometry.extras?.draw_pole) && (
+              <PoleSegment detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
+            )}
+            {rsiPanelOf(d) && (
+              <SetupRsiPanel row={d} tToX={tToX} width={size.width} height={size.height} />
+            )}
+          </g>
+        )
+      })}
       {views.map((v) => {
         const { d, ex, flatTop, base, insideDay, shapeDraw, shelf, Renderer, pivot, handle, rimRef, secondary, entry, anchors, tlBreak, metricsLines } = v
         return (

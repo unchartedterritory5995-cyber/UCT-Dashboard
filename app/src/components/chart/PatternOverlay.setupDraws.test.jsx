@@ -77,6 +77,105 @@ describe('the overlay draws the setup lines only behind the Setups toggle', () =
   })
 })
 
+// The round-2 setup shapes: each row draws with the pattern layer's own renderer.
+const shaped = (pid, shape, anchors, extras = {}) => ({
+  id: `${pid}:SYN:20261012:20261016`, pattern_id: pid, pattern_name: pid, direction: 'bullish',
+  display_tier: 'trusted', category: 'setup', status: 'forming', confidence: null,
+  geometry: { shape, anchors, extras: { draw_round: 1, ...extras } },
+})
+const A = (i, price) => ({ t: DAILY[i], price })
+const CHANNEL = shaped('draw:channel', 'trendline_pair', [A(0, 30), A(4, 32), A(0, 20), A(4, 22)],
+  { line_spaces: ['log', 'log'] })
+const PENNANT = shaped('draw:pennant', 'trendline_pair', [A(1, 40), A(4, 37), A(2, 33), A(4, 35)],
+  { line_spaces: ['log', 'log'], draw_pole: [A(0, 25), A(1, 40)] })
+const DARVAS = shaped('draw:darvas-box', 'rectangle', [A(1, 50), A(4, 46)])
+const DIVERGENCE = shaped('draw:rsi-bullish-divergence', 'neckline', [A(1, 18), A(3, 17)])
+
+describe('the round-2 setup shapes draw with the pattern renderers', () => {
+  it('a channel draws two lines and a lane, no pole', () => {
+    const { container } = draw({ setupDraws: [CHANNEL], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:channel"]')
+    expect(g).toBeTruthy()
+    expect(g.querySelector('[data-role="upper"]')).toBeTruthy()
+    expect(g.querySelector('[data-role="lower"]')).toBeTruthy()
+    expect(g.querySelector('[data-role="pole"]')).toBeNull()
+  })
+
+  it('a pennant draws its two lines AND its pole', () => {
+    const { container } = draw({ setupDraws: [PENNANT], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:pennant"]')
+    expect(g.querySelector('[data-role="upper"]')).toBeTruthy()
+    const pole = g.querySelector('[data-role="pole"]')
+    expect(pole).toBeTruthy()
+    expect(Number(pole.getAttribute('y1'))).toBe(1000 - 25 * 10)
+    expect(Number(pole.getAttribute('y2'))).toBe(1000 - 40 * 10)
+  })
+
+  it('a Darvas box draws one rectangle spanning its two corners', () => {
+    const { container } = draw({ setupDraws: [DARVAS], showSetupDraws: true })
+    const rect = container.querySelector('[data-setup-draw="draw:darvas-box"] rect')
+    expect(rect).toBeTruthy()
+    expect(Number(rect.getAttribute('y'))).toBe(1000 - 50 * 10)
+    expect(Number(rect.getAttribute('height'))).toBe(40)
+  })
+
+  it('a 2-anchor neckline draws the divergence segment with its two dots', () => {
+    const { container } = draw({ setupDraws: [DIVERGENCE], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:rsi-bullish-divergence"]')
+    expect(g.querySelector('[data-role="divergence"]')).toBeTruthy()
+    expect(g.querySelectorAll('circle').length).toBe(2)
+  })
+
+  it('an unknown shape in the setup layer is dropped, never guessed at', () => {
+    const odd = shaped('draw:odd', 'cup_curve', [A(0, 10), A(2, 8), A(4, 10)])
+    const { container } = draw({ setupDraws: [odd, CHANNEL], showSetupDraws: true })
+    const ids = [...container.querySelectorAll('[data-setup-draw]')].map((g) => g.getAttribute('data-setup-draw'))
+    expect(ids).toEqual(['draw:channel'])
+  })
+})
+
+describe('the RSI(14) panel under a divergence row', () => {
+  const PANEL = {
+    kind: 'rsi14', guides: [70, 30],
+    points: DAILY.map((t, i) => ({ t, value: [25, 22, 30, 28, 35][i] })),
+    p1: { t: DAILY[1], value: 22 }, p2: { t: DAILY[3], value: 28 },
+  }
+  const WITH_PANEL = { ...DIVERGENCE, geometry: { ...DIVERGENCE.geometry,
+    extras: { ...DIVERGENCE.geometry.extras, draw_panel: PANEL } } }
+
+  it('row + toggle on: the strip draws its guides, the RSI line, and the divergence joined with dots', () => {
+    const { container } = draw({ setupDraws: [WITH_PANEL], showSetupDraws: true })
+    const p = container.querySelector('[data-setup-panel="rsi14"]')
+    expect(p).toBeTruthy()
+    expect([...p.querySelectorAll('[data-role="rsi-guide"]')].map((g) => g.getAttribute('data-level')))
+      .toEqual(['70', '30'])
+    expect(p.querySelector('[data-role="rsi-line"]').getAttribute('points').split(' ').length).toBe(5)
+    const seg = p.querySelector('[data-role="rsi-divergence"]')
+    expect(Number(seg.getAttribute('y2'))).toBeLessThan(Number(seg.getAttribute('y1')))  // RSI higher low rises
+    expect(p.querySelectorAll('circle').length).toBe(2)
+    expect(p.textContent).toContain('RSI(14)')
+    // the strip sits at the bottom of the pane
+    const bg = p.querySelector('[data-role="rsi-panel-bg"]')
+    expect(Number(bg.getAttribute('y')) + Number(bg.getAttribute('height'))).toBe(400)
+  })
+
+  it('no draw_panel on the row: the divergence line draws, the strip does not', () => {
+    const { container } = draw({ setupDraws: [DIVERGENCE], showSetupDraws: true })
+    expect(container.querySelector('[data-role="divergence"]')).toBeTruthy()
+    expect(container.querySelector('[data-setup-panel]')).toBeNull()
+  })
+
+  it('toggle off: the strip goes away with the setup layer', () => {
+    const { container, rerender } = draw({ setupDraws: [WITH_PANEL], showSetupDraws: true })
+    expect(container.querySelector('[data-setup-panel="rsi14"]')).toBeTruthy()
+    rerender(
+      <PatternOverlay chart={makeDailyChart(DAILY)} series={series} containerRef={containerRef()}
+        enabled={false} tf="D" barTimes={DAILY} detections={[]} setupDraws={[WITH_PANEL]} showSetupDraws={false} />,
+    )
+    expect(container.querySelector('[data-setup-panel]')).toBeNull()
+  })
+})
+
 describe('the Setups toggle is gated on the payload key', () => {
   it('lights from the PRESENCE of setup_draws (even empty), and stays hidden without it', () => {
     expect(layerAvailability({ setupDraws: [] }).setups).toBe(true)
@@ -115,5 +214,37 @@ describe('the Setups toggle is gated on the payload key', () => {
     expect(screen.getByText('Setup lines on this chart (daily)')).toBeTruthy()
     expect(screen.queryByTestId('uct-intel-setups-empty')).toBeNull()
     expect(screen.queryByTestId('uct-intel-setups')).toBeNull()
+  })
+})
+
+describe('a moving-average curve row (golden / death cross) draws as the curve', () => {
+  const curve = (period, prices) => ({
+    ...row('draw:golden-cross', prices[0], 2),
+    id: `draw:golden-cross:SYN:20261012:20261016:${period}`,
+    geometry: {
+      shape: 'horizontal_line',
+      anchors: [{ t: 20261012, price: prices[0] }, { t: 20261016, price: prices[2] }],
+      extras: {
+        draw_round: 2, draw_setup: { shape: 'golden_cross' },
+        draw_ema: { kind: 'sma', period, points: [
+          { t: 20261012, price: prices[0] }, { t: 20261014, price: prices[1] }, { t: 20261016, price: prices[2] }] },
+      },
+    },
+  })
+
+  it('each curve row draws a polyline through its points and no flat line', () => {
+    const rows = [curve(50, [20, 21, 23]), curve(200, [22, 22, 22])]
+    const { container } = draw({ setupDraws: rows, showSetupDraws: true })
+    const groups = container.querySelectorAll('[data-setup-draw="draw:golden-cross"]')
+    expect(groups.length).toBe(2)
+    for (const g of groups) {
+      expect(g.querySelector('polyline[data-role="ema"]')).not.toBeNull()
+      expect(g.querySelector('line')).toBeNull()
+    }
+    const pts = groups[0].querySelector('polyline[data-role="ema"]').getAttribute('points').split(' ')
+    expect(pts.length).toBe(3)
+    expect(Number(pts[1].split(',')[1])).toBe(1000 - 21 * 10)
+    expect(screen.getAllByText(/50 SMA/).length).toBe(1)
+    expect(screen.getAllByText(/200 SMA/).length).toBe(1)
   })
 })

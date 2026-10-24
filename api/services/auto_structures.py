@@ -2413,7 +2413,21 @@ def levels_sr_for(sym: str, *, member: bool = False, served=None):
 #: The setup-drawing row ids (api/services/pattern_engine/setup_draw.py), in build order. One horizontal line each.
 #: They ride the `setup_draws` key, never `structures`: PatternOverlay draws them as their own layer, driven by the
 #: UCT Intelligence "Setups" toggle (uctIntelligence.layerAvailability reads the key's presence).
-SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout")
+#: Round-2 setup drawings (api/services/pattern_engine/setup_draw_r2.py, textbook rebuilds), in build order:
+#: setup_draw_r2 key -> (row id, display name, the judged drawing's `shape` fact). Same layer, same flag, same key.
+_SETUP_DRAW_R2_FUNCS = (
+    ("rsi_bullish_divergence", "draw:rsi-bullish-divergence", "RSI bullish divergence", "rsi_bullish_divergence"),
+    ("wyckoff_upthrust", "draw:wyckoff-upthrust", "Wyckoff upthrust", "wyckoff_upthrust"),
+    ("channel", "draw:channel", "Price channel", "channel"),
+    ("pennant", "draw:pennant", "Pennant", "pennant"),
+    ("darvas_box", "draw:darvas-box", "Darvas box", "bc:darvas-box"),
+    ("falling_wedge", "draw:falling-wedge", "Falling wedge", "falling_wedge"),
+    ("double_top", "draw:double-top", "Double top", "double_top"),
+    ("golden_cross", "draw:golden-cross", "Golden cross", "golden_cross"),
+    ("death_cross", "draw:death-cross", "Death cross", "death_cross"),
+)
+SETUP_DRAW_R2_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R2_FUNCS)
+SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS
 #: setup_draw key -> (row id, display name).
 _SETUP_DRAW_FUNCS = (
     ("remount", "draw:remount", "Remount"),
@@ -2431,6 +2445,29 @@ _SETUP_DRAW_FUNCS = (
 MEMBER_REMOUNT_ROUND = 3
 MEMBER_U_AND_R_ROUND = 2
 MEMBER_DONCHIAN_BREAKOUT_ROUND = None
+#: Round-2 setup drawings released to members: each passed two pre-registered blind packets AS DRAWN (two fresh
+#: judges per packet, 25 random liquid held-out charts each; bar: mean >= 2.3 AND >= 70% of charts >= 2):
+#:   rsi_bullish_divergence  A 2.56 / 96%   B 2.72 / 100%   (drawn on price AND on an RSI(14) panel)
+#:   wyckoff_upthrust        A 2.56 / 100%  B 2.48 / 96%    (bearish)
+#:   channel                 A 2.84 / 100%  B 2.48 / 100%
+#:   pennant                 A 2.46 / 88%   B 2.34 / 80%
+#:   darvas_box              A 2.62 / 96%   B 2.60 / 92%
+#:   falling_wedge           A 2.84 / 100%  B 2.76 / 100%
+#:   double_top              A 2.38 / 84%   B 2.56 / 88%    (bearish)
+#:   golden_cross            A 2.52 / 88%   B 2.46 / 84%    (two rows: the 50-day and the 200-day SMA curves)
+#:   death_cross             A 2.42 / 92%   B 2.34 / 92%    (bearish; two rows, as the golden cross)
+#: Literals ON PURPOSE (never setup_draw_r2.R2_DRAW_ROUND): a new drawing round cannot release itself.
+MEMBER_RSI_BULLISH_DIVERGENCE_ROUND = 2
+MEMBER_WYCKOFF_UPTHRUST_ROUND = 2
+MEMBER_CHANNEL_ROUND = 2
+MEMBER_PENNANT_ROUND = 2
+MEMBER_DARVAS_BOX_ROUND = 2
+MEMBER_FALLING_WEDGE_ROUND = 2
+MEMBER_DOUBLE_TOP_ROUND = 2
+MEMBER_GOLDEN_CROSS_ROUND = 2
+MEMBER_DEATH_CROSS_ROUND = 2
+#: How many sessions of RSI(14) the divergence's panel carries (the judged frame shows at most 250 bars).
+SETUP_RSI_PANEL_BARS = 250
 #: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
 #: session close > SETUP_MIN_CLOSE and close x volume >= SETUP_MIN_DOLLAR_VOLUME. Outside it there is no drawing.
 SETUP_MIN_BARS = 261
@@ -2452,6 +2489,15 @@ def _member_setup_round(pid):
         "draw:remount": MEMBER_REMOUNT_ROUND,
         "draw:u_and_r": MEMBER_U_AND_R_ROUND,
         "draw:donchian_breakout": MEMBER_DONCHIAN_BREAKOUT_ROUND,
+        "draw:rsi-bullish-divergence": MEMBER_RSI_BULLISH_DIVERGENCE_ROUND,
+        "draw:wyckoff-upthrust": MEMBER_WYCKOFF_UPTHRUST_ROUND,
+        "draw:channel": MEMBER_CHANNEL_ROUND,
+        "draw:pennant": MEMBER_PENNANT_ROUND,
+        "draw:darvas-box": MEMBER_DARVAS_BOX_ROUND,
+        "draw:falling-wedge": MEMBER_FALLING_WEDGE_ROUND,
+        "draw:double-top": MEMBER_DOUBLE_TOP_ROUND,
+        "draw:golden-cross": MEMBER_GOLDEN_CROSS_ROUND,
+        "draw:death-cross": MEMBER_DEATH_CROSS_ROUND,
     }.get(pid)
 
 
@@ -2465,6 +2511,8 @@ def _confirmed_setup_draw(row) -> bool:
         r = row or {}
         pid = r.get("pattern_id")
         want = _member_setup_round(pid)
+        if pid in SETUP_DRAW_R2_IDS:
+            return _confirmed_setup_draw_r2(r, want)
         key = next((k for k, i, _n in _SETUP_DRAW_FUNCS if i == pid), None)
         if key is None or not (type(want) is int and want == setup_draw.DRAW_ROUNDS.get(key)):
             return False
@@ -2481,6 +2529,128 @@ def _confirmed_setup_draw(row) -> bool:
                 and all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors))
     except Exception:  # noqa: BLE001 -- an unreadable row is not served
         return False
+
+
+#: row id -> the geometry shape its judged drawing has, and the exact anchor count of that shape.
+_R2_SHAPE_OF = {
+    "draw:rsi-bullish-divergence": "neckline", "draw:wyckoff-upthrust": "horizontal_line",
+    "draw:channel": "trendline_pair", "draw:pennant": "trendline_pair", "draw:darvas-box": "rectangle",
+    "draw:falling-wedge": "trendline_pair", "draw:double-top": "neckline",
+    "draw:golden-cross": "horizontal_line", "draw:death-cross": "horizontal_line",
+}
+#: row id -> the exact anchor count of its judged geometry.
+_R2_ANCHORS = {
+    "draw:rsi-bullish-divergence": 2, "draw:wyckoff-upthrust": 3, "draw:channel": 4, "draw:pennant": 4,
+    "draw:darvas-box": 2, "draw:falling-wedge": 4, "draw:double-top": 3,
+    "draw:golden-cross": 2, "draw:death-cross": 2,
+}
+#: The rows whose judged drawing is a moving-average CURVE (extras.draw_ema), one row per average.
+_R2_CURVE_IDS = ("draw:golden-cross", "draw:death-cross")
+
+
+def _confirmed_setup_draw_r2(r, want) -> bool:
+    """A round-2 setup row is served to a member only when its literal is an int equal to the frozen round AND to the
+    row's stamp, its draw_setup names its own judged shape, and its geometry is that setup's judged shape with
+    finite anchors (and, for the divergence, a well-formed RSI panel: the judged picture has one)."""
+    from api.services.pattern_engine import setup_draw_r2
+    pid = r.get("pattern_id")
+    meta = next((m for m in _SETUP_DRAW_R2_FUNCS if m[1] == pid), None)
+    if meta is None or not (type(want) is int and want == setup_draw_r2.DRAW_ROUNDS.get(meta[0])):
+        return False
+    geom = r.get("geometry") or {}
+    ex = geom.get("extras") or {}
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == want):
+        return False
+    d = ex.get("draw_setup")
+    if not isinstance(d, dict) or d.get("shape") != meta[3]:
+        return False
+    shape = geom.get("shape")
+    anchors = geom.get("anchors")
+    if shape != _R2_SHAPE_OF.get(pid) or not isinstance(anchors, list) or len(anchors) != _R2_ANCHORS[pid]:
+        return False
+    if not all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors):
+        return False
+    if pid in _R2_CURVE_IDS:
+        em = ex.get("draw_ema")
+        pts = em.get("points") if isinstance(em, dict) else None
+        if not (isinstance(pts, list) and len(pts) >= 2
+                and all(isinstance(p, dict) and p.get("t") is not None and _finite(p.get("price")) for p in pts)):
+            return False
+    if pid == "draw:rsi-bullish-divergence":
+        pn = ex.get("draw_panel")
+        if not (isinstance(pn, dict) and pn.get("kind") == "rsi14" and isinstance(pn.get("points"), list)
+                and len(pn["points"]) >= 2 and all(_finite((pn.get(k) or {}).get("value")) for k in ("p1", "p2"))):
+            return False
+    return True
+
+
+def _setup_draw_r2_rows(sym: str, b: list) -> list:
+    """The round-2 rows for the in-frame COMPLETED daily `b`: the judged geometry exactly (setup_draw_r2's det: shape,
+    anchors, line_spaces, the pennant's pole), stamped with the drawing round and its facts; the divergence also
+    carries its RSI(14) panel. A failing setup costs that setup only."""
+    from api.services.pattern_engine import setup_draw_r2
+    out = []
+    w = setup_draw_r2._window(b)
+    for key, pid, name, _shape in _SETUP_DRAW_R2_FUNCS:
+        try:
+            d = setup_draw_r2.detect(key, b)
+        except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
+            _log.debug("[setup-draw-r2] %s %s failed", sym, key, exc_info=True)
+            continue
+        if d is None:
+            continue
+        for k_det, det in enumerate(d["dets"]):
+            row = _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2)
+            if row is not None:
+                out.append(row)
+    return out
+
+
+#: The two averages a cross row draws, in the judged dets order.
+_R2_CURVE_PERIODS = (50, 200)
+
+
+def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2):
+    """One member-shaped row for one judged det (most setups have exactly one)."""
+    geom = det["geometry"]
+    extras = {k: v for k, v in (geom.get("extras") or {}).items()
+              if k in ("line_spaces", "draw_pole", "draw_ema")}
+    if "draw_ema" in extras:
+        # the label EmaSegment prints ("50 SMA ..."): display decoration only, the points are the judged curve
+        extras["draw_ema"] = {**extras["draw_ema"], "kind": "sma", "period": _R2_CURVE_PERIODS[k_det]}
+    extras.update({"draw_setup": setup_draw_r2.facts(d), "draw_round": setup_draw_r2.R2_DRAW_ROUND})
+    pn = d.get("panel")
+    if pn:
+        rsi = pn["rsi"]
+        lo = max(0, len(w) - SETUP_RSI_PANEL_BARS)
+        extras["draw_panel"] = {
+            "kind": "rsi14", "guides": [70, 30],
+            "points": [{"t": int(w[j]["t"]), "value": round(rsi[j], 2)} for j in range(lo, len(w))
+                       if rsi[j] is not None],
+            "p1": {"t": int(w[pn["p1"]]["t"]), "value": round(rsi[pn["p1"]], 2)},
+            "p2": {"t": int(w[pn["p2"]]["t"]), "value": round(rsi[pn["p2"]], 2)},
+        }
+    suffix = f":{k_det}" if len(d["dets"]) > 1 else ""
+    row = {
+        "id": f"{pid}:{sym}:{det['start_t']}:{det['end_t']}{suffix}",
+        "sym": sym,
+        "tf": "D",
+        "pattern_id": pid,
+        "pattern_name": name,
+        "category": "setup",
+        "direction": det.get("direction") or "neutral",
+        "start_t": det["start_t"],
+        "end_t": det["end_t"],
+        "geometry": {"shape": geom["shape"], "anchors": [dict(a) for a in geom["anchors"]], "extras": extras},
+        "levels": {"entry": d["level"]} if "level" in d else {},
+        "confidence": None,
+        "status": "forming",
+        **display_policy(pid),
+    }
+    if det.get("touch_count") is not None:
+        row["touch_count"] = det["touch_count"]
+    return row
 
 
 def setup_in_frame(bars) -> bool:
@@ -2532,6 +2702,7 @@ def setup_draw_rows(sym: str, bars: list) -> list:
                 "status": "forming",
                 **display_policy(pid),
             })
+        out.extend(_setup_draw_r2_rows(sym, b))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
     return out
