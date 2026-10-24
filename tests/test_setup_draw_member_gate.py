@@ -23,8 +23,9 @@ from tests.test_setup_draw_parity import EXPECTED, ROWS
 FLAG = "AUTO_STRUCTURES_G4_SETUPS_ENABLED"
 MEMBER_SETUPS = {"draw:remount", "draw:u_and_r", "draw:donchian_breakout"}
 # the three round-1 (g4) setups; the round-2 ids that share SETUP_DRAW_IDS are railed in
-# tests/test_setup_draw_r2_member_gate.py
-ALL_SETUPS = set(AS.SETUP_DRAW_IDS) - set(AS.SETUP_DRAW_R2_IDS) - set(AS.SETUP_DRAW_R3_IDS)
+# tests/test_setup_draw_r2_member_gate.py, round 3 in tests/test_setup_draw_r3_member_gate.py, the rectangle in
+# tests/test_setup_draw_rectangle_member_gate.py
+ALL_SETUPS = set(AS.SETUP_DRAW_IDS) - set(AS.SETUP_DRAW_R2_IDS) - set(AS.SETUP_DRAW_R3_IDS) - set(AS.SETUP_DRAW_RECT_IDS)
 
 
 def _bars_at(i):

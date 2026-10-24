@@ -1481,6 +1481,56 @@ def member_inside_day_precedence(detections, structures, tf="D") -> list:
         return [s for s in (structures or []) if (s or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID]
 
 
+#: The textbook gate round the strict blind recert confirmed for the inside-day drawing (lab recert B round 2:
+#: four pre-registered packets of 25, two fresh judges each, strict textbook rubric). A literal ON PURPOSE, like
+#: MEMBER_INSIDE_DAY_ROUND: it must equal textbook_gate.INSIDE_DAY_GATE_ROUND or every inside-day row is withheld
+#: (fail closed). None turns the gate off (the drawing as it was before the recert), which is NOT the hide lever:
+#: hiding the drawing is MEMBER_INSIDE_DAY_ROUND = None.
+MEMBER_INSIDE_DAY_GATE_ROUND = 1
+
+
+def member_textbook_gate(sym: str, detections, structures) -> tuple:
+    """(detections, structures) without any inside-day drawing the strict textbook gate withholds
+    (pattern_engine.textbook_gate.inside_day_fails: an established uptrend, a true and tight inside bar, not
+    extended, the trigger and stop on the bars' own extremes). Applied on the MEMBER path LAST, after every
+    precedence pass and the shelf, so the member chart is the served chart minus the withheld rows -- exactly
+    what the blind round judged. The daily bars are read only when such a row is present, at the last COMPLETE
+    session. Fails CLOSED: unreadable bars, a short history or a malformed row withhold the drawing. Order is
+    kept; never raises."""
+    det, st = list(detections or []), list(structures or [])
+    pid = INSIDE_DAY_DRAW_ID
+    if not any((r or {}).get("pattern_id") == pid for r in det + st):
+        return det, st
+    want = MEMBER_INSIDE_DAY_GATE_ROUND
+    if want is None:
+        return det, st
+    drop_all = ([r for r in det if (r or {}).get("pattern_id") != pid],
+                [r for r in st if (r or {}).get("pattern_id") != pid])
+    try:
+        from api.services.pattern_engine import textbook_gate
+        if not (type(want) is int and want == textbook_gate.INSIDE_DAY_GATE_ROUND):
+            return drop_all
+        b = list(_daily_bars(sym) or [])
+        if b and last_bar_forming(b[-1]["t"]):
+            b = b[:-1]
+        bars = [{"t": x["t"], "o": float(x["o"]), "h": float(x["h"]), "l": float(x["l"]), "c": float(x["c"]),
+                 "v": float(x.get("v") or 0)} for x in b]
+        ts = [int(x["t"]) for x in bars]
+
+        def keep(r):
+            if (r or {}).get("pattern_id") != pid:
+                return True
+            d = ((r.get("geometry") or {}).get("extras") or {}).get("draw_inside_day") or {}
+            end = d.get("end_t")
+            if end is None or int(end) not in ts:
+                return False
+            return not textbook_gate.inside_day_fails(bars[:ts.index(int(end)) + 1], r)
+        return [r for r in det if keep(r)], [r for r in st if keep(r)]
+    except Exception:  # noqa: BLE001 -- fail closed: an unverified inside day is not drawn
+        _log.warning("[auto-structures] textbook gate failed for %s; inside-day withheld", sym, exc_info=True)
+        return drop_all
+
+
 #: ONE BREAKOUT LINE PER BASE, across every row a member's chart draws (detections AND structures).
 #: The pairwise passes above each settle one pair of drawings; this pass closes the rest: the detector rows
 #: (flat_base, bull_flag, uct_flat_top_breakout) against each other and against the base boxes and the
@@ -2772,7 +2822,12 @@ _SETUP_DRAW_R3_FUNCS = (
     ("major_trendlines", "draw:major-trendline", "Major trendline", "major_trendlines"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
-SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_R3_IDS
+#: The rectangle (horizontal trading range) drawing (api/services/pattern_engine/setup_draw_rectangle.py): ONE box,
+#: same layer, same flag, same key.
+RECTANGLE_DRAW_ID = "draw:rectangle"
+SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
+SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_R3_IDS \
+    + SETUP_DRAW_RECT_IDS
 #: setup_draw key -> (row id, display name).
 _SETUP_DRAW_FUNCS = (
     ("remount", "draw:remount", "Remount"),
@@ -2824,6 +2879,11 @@ MEMBER_INVERSE_HEAD_SHOULDERS_ROUND = 3
 MEMBER_BEAR_FLAG_ROUND = 3
 MEMBER_BOLLINGER_SQUEEZE_ROUND = 3
 MEMBER_MAJOR_TRENDLINES_ROUND = 3
+#: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
+#: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
+#:   rectangle               A 2.44 / 100%  B 2.76 / 96%
+#: Literal ON PURPOSE (never setup_draw_rectangle.RECTANGLE_DRAW_ROUND): a new drawing round cannot release itself.
+MEMBER_RECTANGLE_ROUND = 1
 #: How many sessions of RSI(14) the divergence's panel carries (the judged frame shows at most 250 bars).
 SETUP_RSI_PANEL_BARS = 250
 #: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
@@ -2862,6 +2922,7 @@ def _member_setup_round(pid):
         "draw:bear-flag": MEMBER_BEAR_FLAG_ROUND,
         "draw:bollinger-squeeze": MEMBER_BOLLINGER_SQUEEZE_ROUND,
         "draw:major-trendline": MEMBER_MAJOR_TRENDLINES_ROUND,
+        RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
 
@@ -2875,6 +2936,8 @@ def _confirmed_setup_draw(row) -> bool:
         r = row or {}
         pid = r.get("pattern_id")
         want = _member_setup_round(pid)
+        if pid == RECTANGLE_DRAW_ID:
+            return _confirmed_setup_draw_rect(r, want)
         if pid in SETUP_DRAW_R2_IDS:
             return _confirmed_setup_draw_r2(r, want)
         if pid in SETUP_DRAW_R3_IDS:
@@ -3094,6 +3157,62 @@ def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2, rnd=None):
     return row
 
 
+def _confirmed_setup_draw_rect(r, want) -> bool:
+    """A rectangle row is served to a member only when its literal is an int equal to the frozen round AND to the
+    row's own stamp, its draw_setup is the rectangle's (finite top above a finite floor, the same round), and its
+    geometry is the judged box: a `rectangle` with exactly 2 anchors at finite prices, the first one the top."""
+    from api.services.pattern_engine import setup_draw_rectangle
+    if not (type(want) is int and want == setup_draw_rectangle.RECTANGLE_DRAW_ROUND):
+        return False
+    geom = r.get("geometry") or {}
+    ex = geom.get("extras") or {}
+    rnd = ex.get("draw_round")
+    if not (type(rnd) is int and rnd == want):
+        return False
+    d = ex.get("draw_setup")
+    if not (isinstance(d, dict) and d.get("shape") == "rectangle" and d.get("draw_round") == rnd
+            and _finite(d.get("top")) and _finite(d.get("floor")) and float(d["top"]) > float(d["floor"])):
+        return False
+    anchors = geom.get("anchors")
+    if geom.get("shape") != "rectangle" or not isinstance(anchors, list) or len(anchors) != 2:
+        return False
+    if not all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors):
+        return False
+    return float(anchors[0]["price"]) > float(anchors[1]["price"])
+
+
+def _setup_draw_rect_rows(sym: str, b: list) -> list:
+    """The rectangle row for the in-frame COMPLETED daily `b`: the judged box exactly (setup_draw_rectangle's det),
+    stamped with the drawing round and its facts. No entry level: the judged drawing is the box alone."""
+    from api.services.pattern_engine import setup_draw_rectangle
+    try:
+        d = setup_draw_rectangle.detect(b)
+    except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
+        _log.debug("[setup-draw-rect] %s failed", sym, exc_info=True)
+        return []
+    if d is None:
+        return []
+    det = d["det"]
+    geom = det["geometry"]
+    return [{
+        "id": f"{RECTANGLE_DRAW_ID}:{sym}:{det['start_t']}:{det['end_t']}",
+        "sym": sym,
+        "tf": "D",
+        "pattern_id": RECTANGLE_DRAW_ID,
+        "pattern_name": "Rectangle",
+        "category": "setup",
+        "direction": det.get("direction") or "bullish",
+        "start_t": det["start_t"],
+        "end_t": det["end_t"],
+        "geometry": {"shape": geom["shape"], "anchors": [dict(a) for a in geom["anchors"]],
+                     "extras": {"draw_setup": setup_draw_rectangle.facts(d), "draw_round": d["draw_round"]}},
+        "levels": {},
+        "confidence": None,
+        "status": "forming",
+        **display_policy(RECTANGLE_DRAW_ID),
+    }]
+
+
 def setup_in_frame(bars) -> bool:
     if len(bars or []) < SETUP_MIN_BARS:
         return False
@@ -3145,6 +3264,7 @@ def setup_draw_rows(sym: str, bars: list) -> list:
             })
         out.extend(_setup_draw_r2_rows(sym, b))
         out.extend(_setup_draw_r3_rows(sym, b))
+        out.extend(_setup_draw_rect_rows(sym, b))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
     return out

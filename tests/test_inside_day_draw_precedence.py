@@ -110,6 +110,9 @@ def _serve(monkeypatch, structures, detections=()):
 
 
 def test_the_route_applies_it_for_members_only(monkeypatch, idrow):
+    # this rail is about the precedence pass; the recert textbook gate (its own rails in test_textbook_gate.py)
+    # would withhold the synthetic row on its own, so it is switched off here
+    monkeypatch.setattr(AS, "MEMBER_INSIDE_DAY_GATE_ROUND", None)
     near = _d(idrow)["trigger"]
     base = _base(idrow, near)
     base["display_tier"] = "trusted"

@@ -245,6 +245,9 @@ def test_flag_on_a_member_is_served_the_inside_day_on_a_daily_chart(monkeypatch)
     row = auto_structures.inside_day_draw_row("SYN", _synth())
     _flags(monkeypatch, True, True)
     _store(monkeypatch, [])
+    # this rail is about the drawing-round literal; the recert textbook gate (its own rails in
+    # test_textbook_gate.py) would withhold the synthetic row on its own, so it is switched off here
+    monkeypatch.setattr(auto_structures, "MEMBER_INSIDE_DAY_GATE_ROUND", None)
     monkeypatch.setattr(auto_structures, "structures_for", lambda sym: [json.loads(json.dumps(row))])
     monkeypatch.setattr(auto_structures, "drawn_for", lambda sym: None)
     body = _get(PAID_MEMBER).json()
