@@ -1,0 +1,18 @@
+{
+ "why": "Oops Reversal examples pass 1 (spot.setups, imported 2026-10-24). Re-scored with the setup-behind-the-day scale (scripts/study/find_oops_examples.py): 7 of 10 are downtrend bounces below the 200-day and none tests the 21/50-day or a prior swing low. Replaced by pass 2 (docs/study/setups/setup_examples.json oops_pass2, 18 picks, 6 per variant). Owner delegated the pass 2026-10-24 ('You do that yourself and run it').",
+ "ids": {
+  "spot.setups": [
+   "si_433bcb431a93",
+   "si_9b4b67f42f93",
+   "si_b69a2d5d7033",
+   "si_b40c45305f02",
+   "si_07a164da8229",
+   "si_e5be3855b574",
+   "si_15460c82fe2a",
+   "si_04a89d83af29",
+   "si_25f539fd1851",
+   "si_7e0f9b308cf7"
+  ]
+ },
+ "retired_syms": ["RKLB 2021-12-14", "NET 2022-02-24", "DSGN 2022-05-12", "MSTR 2022-07-05", "AZTA 2023-05-11", "RIOT 2023-08-29", "CLSK 2023-12-01", "CELC 2025-03-04", "IONQ 2025-04-07", "CRDO 2026-05-19"]
+}

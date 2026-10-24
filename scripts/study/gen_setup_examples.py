@@ -77,7 +77,16 @@ def fact_line(setup: str, ex: dict) -> str:
         v = {"super": "a Super Oops: it also closed above the prior day's high",
              "williams+scanner": "also a Williams Oops: it opened below the prior day's low",
              "scanner": "a scanner Oops"}.get(f.get("variant"), "an Oops")
-        return f"Here it opened {f.get('open_vs_prior_low_pct')}% from the prior low and closed up {f.get('day_pct')}%: {v}."
+        line = f"Here it opened {f.get('open_vs_prior_low_pct')}% from the prior low and closed up {f.get('day_pct')}%: {v}."
+        if f.get("setup_score") is not None:
+            # pass 2 (owner 2026-10-24): the setup behind the day
+            level = ("the 21 or 50-day average" if f.get("low_near_ma") else
+                     "a prior swing low" if f.get("low_near_swing_low") else "no obvious level")
+            line += (f" The setup was already there: the stock was above its 200-day, had pulled back {f.get('pullback_pct')}% "
+                     f"from its 20-day high, the dip tested {level}, and the close "
+                     + ("reclaimed the 21-day average" if f.get("reclaims_e21") else "stayed under the 21-day average")
+                     + (" on its earnings report." if f.get("earnings_day") else "."))
+        return line
     if setup == "Slingshot":
         g, r = f.get("earnings_like_gap"), f.get("rally")
         drive = (f"an earnings-style gap of {g['gap_pct']}% {g['bars_ago']} sessions earlier" if g
@@ -106,7 +115,7 @@ def items_for(examples: list[dict]) -> list[dict]:
                 facts[k + "_pct"] = int(round(float(facts[k]) * 100))
         if facts.get("setup_score") is not None:
             # the Kicker pass-2 lesson names the three averages; the grounding check reads them here
-            facts["ma_periods"] = [8, 21, 50]
+            facts["ma_periods"] = [8, 20, 21, 50, 200]
         ex = dict(ex, facts=facts)
         reveal = {"detector": detector, "setup": setup, "fires": True, "quote": definition,
                   "facts": facts, "source": ref, "window_bars": WINDOW,
