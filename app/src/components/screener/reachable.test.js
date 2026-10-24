@@ -47,6 +47,7 @@ import { execFileSync } from 'node:child_process'
 import { describe, it, expect } from 'vitest'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
+import { etYmd } from '../../lib/marketClock/etTime.js'
 
 const ROOT = (() => {
   let dir = process.cwd()
@@ -819,6 +820,16 @@ const PARKING_EXPIRES = {
  *  arithmetic in this file that must never drift by a day. */
 const hasLapsed = (expires, todayISO) => String(expires) < String(todayISO)
 
+/** ⛔ "TODAY" IS THE ET CALENDAR DATE, NOT THE UTC ONE. This rail used
+ *  `new Date().toISOString().slice(0, 10)`, which is the UTC date, so a note
+ *  dated D went red at 8pm EDT / 7pm CDT on D itself, hours before the END of
+ *  its stated day that the boundary control promises. That is the "fires a day
+ *  early" failure, for the evening instead of all day; on 2026-10-23 it made a
+ *  lapse due at ET midnight read red that evening. The clock dependency is the
+ *  feature and stays; only the zone is pinned, to the `America/New_York` the
+ *  rest of the app dates by. */
+const parkingToday = (nowMs = Date.now()) => etYmd(nowMs)
+
 /** The register's blocks, READ FROM ITS OWN SOURCE — never a second hand-typed
  *  list of what is parked where. A block with no entries under it is a
  *  historical marker (the two JOYSTICK ones are wired now) and parks nothing,
@@ -884,7 +895,7 @@ describe('🔴 S4 — a parking note may not outlive its own expiry', () => {
   })
 
   it('⛔⛔ NO BLOCK IS PAST ITS EXPIRY — the check `objectPool` needed and did not have', () => {
-    const todayISO = new Date().toISOString().slice(0, 10)
+    const todayISO = parkingToday()
     const lapsed = parkedBlocks()
       .filter((b) => b.paths.length > 0 && hasLapsed(PARKING_EXPIRES[b.name], todayISO))
       .map((b) => `${b.name} (expired ${PARKING_EXPIRES[b.name]}, still parking `
@@ -906,6 +917,17 @@ describe('🔴 S4 — a parking note may not outlive its own expiry', () => {
     // day itself is not lapsed. An off-by-one here fires a day early on every
     // block at once, which reads as a broken rail rather than a real decision.
     expect(hasLapsed('2026-09-22', '2026-09-22')).toBe(false)
+  })
+
+  it('⛔ CONTROL — "today" is the ET date at a FIXED instant, never the UTC one', () => {
+    // A fixed instant, not the wall clock: 22:05 CDT on 2026-10-23 is already
+    // 2026-10-24 in UTC. A note dated 2026-10-23 has not lapsed there, and has
+    // lapsed one minute past ET midnight.
+    const evening = Date.parse('2026-10-24T03:05:00Z')
+    expect(parkingToday(evening)).toBe('2026-10-23')
+    expect(hasLapsed('2026-10-23', parkingToday(evening))).toBe(false)
+    const pastEtMidnight = Date.parse('2026-10-24T04:01:00Z')
+    expect(hasLapsed('2026-10-23', parkingToday(pastEtMidnight))).toBe(true)
   })
 })
 
