@@ -21,6 +21,9 @@
 //   candles           — the patterns payload carries `candle_marks` (no route serves it today).
 //   setups            — the Research Technical tab's release (`research_technical_tab_enabled`): the
 //                       confirmed-setup list the panel reads is that tab's list, so it ships with it.
+//                       OR the patterns payload carries `setup_draws` (the setup-drawing lines; present
+//                       only while the server releases them to this viewer). The toggle drives both; the
+//                       list itself still shows only with the Technical tab's release.
 
 export const UCT_INTELLIGENCE_ID = 'uctIntelligence'
 
@@ -108,13 +111,13 @@ export function setUctIntelligenceLayer(settings, key, value) {
 }
 
 /** Which gated layers exist for this viewer right now. `payload` is the patterns response's gate
- *  signals (`levelsSr`, `candleMarks`: undefined when the key is absent); `setupsReleased` the
- *  Technical tab's release flag. */
-export function layerAvailability({ levelsSr, candleMarks, setupsReleased } = {}) {
+ *  signals (`levelsSr`, `candleMarks`, `setupDraws`: undefined when the key is absent); `setupsReleased`
+ *  the Technical tab's release flag. */
+export function layerAvailability({ levelsSr, candleMarks, setupsReleased, setupDraws } = {}) {
   return {
     supportResistance: levelsSr !== undefined && levelsSr !== null,
     candles: candleMarks !== undefined && candleMarks !== null,
-    setups: setupsReleased === true,
+    setups: setupsReleased === true || Array.isArray(setupDraws),
   }
 }
 
