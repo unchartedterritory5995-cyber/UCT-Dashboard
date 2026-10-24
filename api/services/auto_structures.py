@@ -1364,9 +1364,31 @@ def _stamped_atr(rows):
     return max(vals) if vals else None
 
 
+def _drawn_base_top(draw_base, textbook):
+    """The price the member's chart draws a bc:base top line at, as PatternOverlay.baseDrawing picks it: the
+    textbook round's `metrics_textbook.line` (buy point - $0.10) when it and the buy point are finite numbers with
+    low < line < buy point, else `draw_base.pivot` (the body). A member row carries `metrics_textbook` only while
+    its round is released (with_metrics strips it otherwise), so reading it here reads what is drawn."""
+    def num(v):
+        if isinstance(v, bool) or v is None:
+            return None
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        return f if _finite(f) else None
+
+    if isinstance(textbook, dict):
+        line, bp, low = num(textbook.get("line")), num(textbook.get("buy_point")), num(draw_base.get("low"))
+        if line is not None and bp is not None and low is not None and low < line < bp:
+            return line
+    return draw_base.get("pivot")
+
+
 def _breakout_lines(row) -> list:
     """[(price, start_t, end_t)] -- every BREAKOUT line (pivot / entry / ceiling / box top) the member's chart
-    draws for `row`, as PatternOverlay.rowView draws it: a bc:base or named-shape pivot, the flat-top
+    draws for `row`, as PatternOverlay.rowView draws it: a bc:base top line (_drawn_base_top) or a named-shape
+    pivot, the flat-top
     ceiling, a box's `draw_pivot`, a detector's drawn entry (`draw_entry`; never for the "flagging" tier)
     and `draw_pivot`, and a flat_base box top while the box draws. A rim reference, a low or a stop is not
     a breakout line. A line without a finite price and a readable span draws nothing and is not listed."""
@@ -1395,7 +1417,9 @@ def _breakout_lines(row) -> list:
             pass
 
     if pid == BASE_DRAW_ID:
-        stamp("draw_base", "pivot")
+        d = ex.get("draw_base")
+        if isinstance(d, dict):
+            add(_drawn_base_top(d, ex.get("metrics_textbook")), d.get("start_t"), d.get("end_t"))
     elif pid in SHAPE_DRAW_IDS:
         stamp("draw_shape", "pivot")
     elif pid == "uct_flat_top_breakout":
