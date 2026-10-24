@@ -9385,6 +9385,14 @@ async def lifespan(app: FastAPI):
                 print("[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)")
         except Exception as e:
             print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
+        # Notebook widgets wave 9 (Task 9.9): optional routine reminders, one bell per routine per
+        # ET day. Wave 9's flag is read at every RUN, never here. In-app bell only.
+        try:
+            from api.services.journal_two import routine_reminders as _j2_routine_reminders
+            if _j2_routine_reminders.register_routine_reminder_job(_scheduler):
+                print("[startup] notebook routine reminders registered (every 5 min ET; inert unless wave 9 is on)")
+        except Exception as e:
+            print(f"[startup] notebook routine reminders registration failed (non-fatal): {e}")
         # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
         # 18:00 ET mon-fri and a one-shot boot catch-up; NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED (and the
         # journal styles switch) are read at every RUN, never here. In-app bell only.
