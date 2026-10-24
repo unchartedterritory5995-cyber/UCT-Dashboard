@@ -104,22 +104,46 @@ class BoundedPool:
     straggler a request abandoned at its budget still counts against the ceiling until its own leaf
     timeout ends it. Pools are per process (a second web process doubles the ceiling)."""
 
-    def __init__(self, workers: int, name: str):
+    def __init__(self, workers: int, name: str, reserve: int = 0):
+        if not 0 <= reserve < workers:
+            raise ValueError(f"reserve must be in [0, {workers}), not {reserve!r}")
         self.workers = workers
+        self._reserve = reserve
         self._pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix=name)
         self._slots = threading.BoundedSemaphore(workers)
+        # Task 8.7: pool work (phase 1 kinds) holds at most `workers - reserve` permits, so the
+        # reserved ones are always there for inline admission (`admit_inline`).
+        self._phase1 = threading.BoundedSemaphore(workers - reserve)
 
     def try_submit(self, fn: Callable, *args: Any) -> Future | None:
-        slots = self._slots
+        phase1, slots = self._phase1, self._slots
+        if not phase1.acquire(blocking=False):
+            return None
         if not slots.acquire(blocking=False):
+            phase1.release()
             return None
         try:
             fut = self._pool.submit(fn, *args)
         except RuntimeError:                        # the pool is shut down (interpreter exit)
             slots.release()
+            phase1.release()
             return None
-        fut.add_done_callback(lambda _f: slots.release())
+
+        def _done(_f: Future) -> None:
+            slots.release()
+            phase1.release()
+
+        fut.add_done_callback(_done)
         return fut
+
+    def admit_inline(self) -> bool:
+        """Take one permit for work the CALLER runs on its own thread (a built-widget run, Task 8.7):
+        True at once, or False at once when every permit is held. Never queues. Pair with
+        `release_inline`. Inline work is bounded by `_slots` only, so it can use the reserve."""
+        return self._slots.acquire(blocking=False)
+
+    def release_inline(self) -> None:
+        self._slots.release()
 
     def shutdown(self) -> None:
         """Stop taking work and cancel what has not started (a test's teardown; never on a live path)."""
@@ -131,7 +155,10 @@ class BoundedPool:
 #: ⛔ journal_styles' slot builder keeps its OWN pool: a slot task waits on builder tasks, so sharing one
 #: bounded pool could deadlock when it is full.
 WIDGET_POOL_WORKERS = 8
-_POOL = BoundedPool(WIDGET_POOL_WORKERS, "nb-widget")
+#: Permits phase 1 kinds may never take: they are held for built-widget runs (Task 8.7), so phase 1
+#: holds at most 6 and a builder run is never starved by a saturated fan-out.
+WIDGET_POOL_RESERVE = 2
+_POOL = BoundedPool(WIDGET_POOL_WORKERS, "nb-widget", reserve=WIDGET_POOL_RESERVE)
 
 
 def _fan_out(fn: Callable, jobs: dict[str, tuple], *, per_request: int, budget_s: float) -> dict[str, Any]:
@@ -334,6 +361,8 @@ _TOO_LARGE_KEEP = ("asOf", "source", "sourceDetail", "symbol", "month", "range",
 _BUILT_TOO_LARGE_KEEP = ("title", "view", "sourceKey", "defId", "defRev", "latestRev", "def", "defRef",
                          "scopeLabel", "rangeLabel", "accountId", "filter", "sample", "notice")
 _BUILT_KEEP_MAX_BYTES = 4_400
+#: What the too-large form always keeps, whatever its size guard drops.
+_TOO_LARGE_FRAME = frozenset({"asOf", "source", "tooLarge", "empty"})
 
 
 def _payload_size(p: dict) -> int:
@@ -378,6 +407,13 @@ def _too_large(payload: dict, kind: str | None = None) -> dict:
     out.setdefault("source", payload.get("source"))
     out["tooLarge"] = True
     out["empty"] = TOO_LARGE_SENTENCE
+    # 8.6 review Minor 1: each built key is bounded on its own, but together they could pass the cap.
+    # Drop the largest optional key until the form fits; the frame keys are never dropped.
+    while _payload_size(out) > PAYLOAD_CAP_BYTES:
+        optional = [k for k in out if k not in _TOO_LARGE_FRAME]
+        if not optional:
+            break
+        del out[max(optional, key=lambda k: _payload_size({k: out[k]}))]
     return out
 
 

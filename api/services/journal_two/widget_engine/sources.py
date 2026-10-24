@@ -266,6 +266,8 @@ def _yes_no(yes: str, no: str) -> Callable[[Any], str]:
 
 
 _RESULT_LABELS = {"Win": "Win", "Loss": "Loss", "BE": "Breakeven"}
+#: A row's `source` column -> its origin key (anything else was entered by hand).
+_ROW_ORIGIN = {"broker": "broker", "csv": "csv"}
 _ORIGIN_LABELS = {"manual": "Manual", "csv": "CSV import", "broker": "Broker"}
 
 
@@ -380,7 +382,7 @@ def _closed_rows(conn: sqlite3.Connection, user_id: str, raw: list[dict]) -> lis
             "regime": r.get("regime") or None,
             "mistake": _tags(r.get("mistake_tags")),
             "emotion": _tags(r.get("emotion_tags")),
-            "origin": {"broker": "broker", "csv": "csv"}.get(r.get("source"), "manual"),
+            "origin": _ROW_ORIGIN.get(r.get("source"), "manual"),
             "account": r.get("account_id") or None,
             "account_name": names.get(r.get("account_id")),
             "had_stop": not placeholder_stop.is_placeholder_stop(
@@ -506,6 +508,8 @@ def _position_rows(conn: sqlite3.Connection, user_id: str, raw: list[dict],
             "account_name": names.get(acc),
             "had_stop": risk is not None,
             "entry_estimated": est,
+            # 8.6 C-3: the same broker / CSV / manual meaning as a closed trade's origin
+            "origin": _ROW_ORIGIN.get(r.get("source"), "manual"),
             "flagged": False,
             "label": r.get("symbol"),
             "label2": entry_day or "Entry date estimated",
@@ -669,10 +673,15 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         user_id, sql_lo, sql_hi, conn, account_id=acc, et_lo=span_lo, et_hi=span_hi)
     bucket: dict[str, dict[str, Any]] = {}
     extremes: dict[str, list[float]] = {}
+    #: session -> [broker-imported equity trades, all equity trades] (8.6 C-3: the row's origin)
+    by_origin: dict[str, list[int]] = {}
     for e in equity:
         d = _session_of(e["day"])
         if d is None:
             continue
+        o = by_origin.setdefault(d, [0, 0])
+        o[0] += int(e.get("broker_n") or 0)
+        o[1] += int(e.get("n") or 0)
         if d != e["day"]:
             folded += int(e.get("n") or 0)
         b = bucket.setdefault(d, j2_calendar._empty_bucket(d))
@@ -716,7 +725,15 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         ex = extremes.get(k) or []
         net = round(float(b["pnlDollar"]), 6) if b else 0.0
         c = checkins.get(k) or {}
+        row_origin: dict[str, str] = {}
+        broker_n, equity_n = by_origin.get(k, (0, 0))
+        if equity_n:
+            # A day of equity trades: broker when every one was imported, mixed when some were.
+            # Option strategies carry no origin here and do not set it.
+            row_origin["origin"] = ("broker" if broker_n == equity_n
+                                    else "mixed" if broker_n else "manual")
         rows.append({
+            **row_origin,
             "day": k,
             "weekday": _weekday(k),
             "day_net": net if count else None,

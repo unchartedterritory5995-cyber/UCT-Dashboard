@@ -27,7 +27,7 @@ Every read of `aggregate.Result` is in `_from_result`, so a change to that shape
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Iterable
 
 from api.services.journal_two import notebook_widgets as nw
 from api.services.journal_two.widget_engine import compile as wcompile
@@ -56,8 +56,6 @@ S_EMPTY: dict[str, str] = {
 }
 S_ALL_ACCOUNTS = "All my accounts"
 S_ONE_ACCOUNT = "One account"
-#: Open positions are "right now": a date range does not apply to what is open (ruling R-17).
-S_OPEN_NOW = "Right now"
 #: Over the scan cap (spec 5.7 / 5.10). Closed trades read the exact sentences; the other sources the
 #: same sentence in their own unit.
 S_CAPPED_NOTICE = "Based on your newest {n:,} {unit}. Narrow the range to include all {unit}."
@@ -206,16 +204,19 @@ def _scope_label(scan: Any, account_name: str | None) -> str:
     return S_ONE_ACCOUNT
 
 
-def _range_label(rng: Any, scan: Any, source_key: str, count: int) -> str:
-    if source_key == "open_positions":
-        return S_OPEN_NOW
+def _range_label(plan: dict, rng: Any, scan: Any, source_key: str, count: int) -> str:
+    """`plan.range_label_for` is the one authority for the range a widget shows ("Right now" for open
+    positions, R-17); this only adds the over-the-cap and fewer-than-N wording on top of it."""
+    base = wplan.range_label_for(plan, rng)
+    if source_key in wplan.RIGHT_NOW_SOURCES:
+        return base
     if scan.capped:
         n, unit = _CAP_ROWS[source_key], _CAP_UNIT[source_key]
         day = _mon_d(scan.earliest_day) if scan.earliest_day else None
         if day:
             return S_CAPPED_RANGE.format(day=day, n=n, unit=unit)
         return S_CAPPED_RANGE_NO_DAY.format(n=n, unit=unit)
-    label = _upper_first(rng.label)
+    label = _upper_first(base)
     if rng.last_n is not None and count < rng.last_n:
         return S_YOU_HAVE.format(label=label, n=count)
     return label
@@ -231,9 +232,15 @@ def _capped_notice(scan: Any, source_key: str) -> str | None:
 
 def _source(scan: Any) -> str:
     """broker | manual | mixed, with `notebook_widgets._origin`'s meaning, over the rows that carry an
-    `origin` key. Closed-trades rows carry one today; position and day rows do not yet, so they read
-    `_origin([])` = "manual" until the scan adds the key (no change needed here when it does)."""
-    return nw._origin([r.get("origin") for r in scan.rows if "origin" in r])
+    `origin` key (every closed-trade and open-position row; a trading-days row with trades on it). A
+    row's own "mixed" (a day with both broker and hand-logged trades) counts as both."""
+    origins: list[Any] = []
+    for r in scan.rows:
+        if "origin" not in r:
+            continue
+        o = r.get("origin")
+        origins.extend(("broker", "manual") if o == "mixed" else (o,))
+    return nw._origin(origins)
 
 
 # -- the payload -----------------------------------------------------------------------------------
@@ -241,13 +248,14 @@ def _source(scan: Any) -> str:
 def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str | None,
                   def_rev: int | None, latest_rev: int | None, rng: Any, scan: Any, sample: bool,
                   now: datetime, compare_result: Any = None, compare_label: str | None = None,
-                  account_name: str | None = None) -> dict:
+                  account_name: str | None = None, notices: Iterable[str] = ()) -> dict:
     """The snapshot a note stores for one run of a validated `plan`.
 
     `result` is `aggregate.evaluate(scan.rows, plan, CATALOG)`; `rng` the resolved range the scan read;
     `settings` the merged viewer settings (`range`, `accountId`, `filter`), echoed so the client's refresh
     drops nothing. `compare_result` / `compare_label` are the comparison period's result and its label, when
-    the view compares. `account_name` names the one account narrowed to, when the caller knows it."""
+    the view compares. `account_name` names the one account narrowed to, when the caller knows it.
+    `notices` are the run's own sentences (a dropped account, a frozen copy), ahead of the cap notice."""
     settings = settings or {}
     source_key = plan["source"]
     src = wsources.CATALOG.sources[source_key]
@@ -283,7 +291,7 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         payload["defRef"] = {"id": def_id, "rev": def_rev}
     payload.update({
         "scopeLabel": _scope_label(scan, account_name),
-        "rangeLabel": _range_label(rng, scan, source_key, count),
+        "rangeLabel": _range_label(plan, rng, scan, source_key, count),
         "range": settings.get("range"),
         # a foreign or dropped account id is never echoed: only the account the scan actually narrowed to
         "accountId": acc if acc is not None and acc == scan.account_id else None,
@@ -291,7 +299,8 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         "count": count,
         "capped": bool(scan.capped),
         "sample": bool(sample),
-        "notice": _capped_notice(scan, source_key),
+        "notice": " ".join([str(n) for n in notices if n]
+                           + [n for n in (_capped_notice(scan, source_key),) if n]) or None,
         "truncated": 0,
         "measures": measures,
         "value": parts["value"],

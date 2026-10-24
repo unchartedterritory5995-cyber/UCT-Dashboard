@@ -429,3 +429,66 @@ def test_built_widget_too_large_keeps_what_see_it_now_needs():
     assert out["tooLarge"] is True
     assert (out["defId"], out["defRev"], out["title"]) == ("w1", 2, "T")
     assert out["def"] == {"v": 1, "source": "closed_trades"}
+
+
+# -- Task 8.7 follow-ups: one range-label authority, and an origin on every source's rows ---------
+
+@pytest.mark.parametrize("source, measure, token", [
+    ("closed_trades", "net_pnl", "last_30d"),
+    ("open_positions", "open_positions", "last_30d"),
+    ("trading_days", "avg_day_pnl", "last_30d"),
+    ("closed_trades", "net_pnl", "this_month"),
+])
+def test_range_label_comes_from_plan_range_label_for(source, measure, token):
+    p = vplan(raw_plan(source=source, measures=(measure,), range={"token": token}))
+    rng = plan.resolve_range(p["range"], TODAY)
+    out = build(p, result_of(count=2), scan_of(source, count=2))
+    assert out["rangeLabel"] == payload._upper_first(plan.range_label_for(p, rng))
+    assert not hasattr(payload, "S_OPEN_NOW")              # the duplicate is gone
+
+
+def test_open_position_rows_carry_their_origin(conn):
+    a = add_position(conn, UID, symbol="AAPL")
+    add_position(conn, UID, symbol="MSFT")
+    conn.execute("UPDATE j2_positions SET source = 'broker' WHERE id = ?", (a,))
+    conn.commit()
+    p = vplan(raw_plan(source="open_positions", measures=("open_positions",)))
+    sc = sources.scan(conn, p, {}, plan.resolve_range(p["range"], TODAY), UID, today=TODAY)
+    assert sorted(r["origin"] for r in sc.rows) == ["broker", "manual"]
+    assert run_real(conn, raw_plan(source="open_positions", measures=("open_positions",)))[
+        "source"] == "mixed"
+    conn.execute("UPDATE j2_positions SET source = 'broker'")
+    conn.commit()
+    assert run_real(conn, raw_plan(source="open_positions", measures=("open_positions",)))[
+        "source"] == "broker"
+
+
+def test_trading_day_rows_carry_their_origin(conn):
+    add_trade(conn, UID, day="2026-10-20", pnl=10, source="broker", external_id="b1")
+    add_trade(conn, UID, day="2026-10-20", pnl=20)
+    add_trade(conn, UID, day="2026-10-21", pnl=30, source="broker", external_id="b2")
+    add_trade(conn, UID, day="2026-10-22", pnl=40, source="csv")
+    raw = raw_plan(source="trading_days", measures=("avg_day_pnl",), range={"token": "this_week"})
+    p = vplan(raw)
+    sc = sources.scan(conn, p, {}, plan.resolve_range(p["range"], TODAY), UID, today=TODAY)
+    by_day = {r["day"]: r.get("origin") for r in sc.rows}
+    assert by_day["2026-10-20"] == "mixed" and by_day["2026-10-21"] == "broker"
+    assert by_day["2026-10-22"] == "manual"
+    assert all("origin" not in r for r in sc.rows if r["day"] in ("2026-10-19", "2026-10-23"))
+    assert run_real(conn, raw)["source"] == "mixed"
+
+
+def test_a_mixed_row_counts_as_both():
+    p = vplan(raw_plan(source="trading_days", measures=("avg_day_pnl",), range={"token": "last_7d"}))
+    assert build(p, result_of(count=1), scan_of("trading_days", [{"origin": "mixed"}]))[
+        "source"] == "mixed"
+    assert build(p, result_of(count=1), scan_of("trading_days", [{"origin": "broker"}, {}]))[
+        "source"] == "broker"
+
+
+def test_notices_lead_the_capped_notice():
+    p = vplan(raw_plan())
+    sc = scan_of("closed_trades", count=5000, capped=True, earliest="2026-03-04")
+    out = build(p, result_of(count=5000), sc, notices=["Running from the saved copy in this note."])
+    assert out["notice"].startswith("Running from the saved copy in this note. Based on your newest")
+    assert build(p, result_of(count=1), scan_of(count=1))["notice"] is None

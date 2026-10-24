@@ -2076,6 +2076,54 @@ def test_bounded_pool_admits_up_to_its_workers_and_releases_on_done_and_on_cance
     assert c is not None and c.result(2) == 7                    # permits come back when the work is done
 
 
+def test_bounded_pool_reserve_holds_back_permits_for_inline_admission():
+    import threading
+    pool = nw.BoundedPool(4, "nb-widget-r", reserve=2)
+    gate = threading.Event()
+    a = pool.try_submit(gate.wait, 5)
+    b = pool.try_submit(gate.wait, 5)
+    assert a is not None and b is not None
+    assert pool.try_submit(lambda: 1) is None                    # phase 1 stops at workers - reserve
+    assert pool.admit_inline() and pool.admit_inline()           # the reserve is there for inline runs
+    assert not pool.admit_inline()                               # and the pool is now full
+    pool.release_inline()
+    gate.set()
+    a.result(2), b.result(2)
+    time.sleep(0.05)
+    c = pool.try_submit(lambda: 7)                               # both permits came back on done
+    assert c is not None and c.result(2) == 7
+    pool.release_inline()
+
+
+def test_bounded_pool_inline_admission_also_bounds_phase1():
+    pool = nw.BoundedPool(2, "nb-widget-i", reserve=0)
+    assert pool.admit_inline() and pool.admit_inline()
+    assert pool.try_submit(lambda: 1) is None                    # one ceiling over both kinds of work
+    pool.release_inline()
+    f = pool.try_submit(lambda: 3)
+    assert f is not None and f.result(2) == 3
+    pool.release_inline()
+
+
+def test_the_module_pool_reserves_two_and_styles_keep_none():
+    from api.services.journal_two import journal_styles
+    assert nw.WIDGET_POOL_RESERVE == 2
+    src = __import__("inspect").getsource(nw)
+    assert "BoundedPool(WIDGET_POOL_WORKERS, \"nb-widget\", reserve=WIDGET_POOL_RESERVE)" in src
+    assert journal_styles._slot_pool()._reserve == 0
+
+
+def test_built_too_large_keep_set_never_exceeds_the_cap():
+    big = {"asOf": "x", "source": "manual", "def": {"pad": "d" * 4000},
+           "defRef": {"pad": "r" * 4000}, "title": "t" * 4000, "scopeLabel": "s" * 4000,
+           "rangeLabel": "g" * 4000, "notice": "n" * 4000, "filter": ["f" * 4000],
+           "defId": "w1", "rows": [], "pad": "p" * 20000}
+    out = nw.cap_payload(big, nw.BUILT_KIND, list_key="rows")
+    assert out["tooLarge"] is True and out["empty"] == nw.TOO_LARGE_SENTENCE
+    assert nw._payload_size(out) <= nw.PAYLOAD_CAP_BYTES
+    assert out["defId"] == "w1" and out["asOf"] == "x"           # the small keys survive the guard
+
+
 def test_saturated_pool_names_reporting_answers_partial_at_once(monkeypatch):
     _saturate(monkeypatch)
     items = [{"symbol": s, "date": "2026-10-21", "daysAway": 1, "timing": "bmo", "sources": ["watchlist"]}
