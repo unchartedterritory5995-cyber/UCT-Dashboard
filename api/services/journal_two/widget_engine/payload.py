@@ -56,8 +56,8 @@ S_EMPTY: dict[str, str] = {
 }
 S_ALL_ACCOUNTS = "All my accounts"
 S_ONE_ACCOUNT = "One account"
-#: Open positions are "now": a date range does not apply to what is open (sources.scan_positions).
-S_OPEN_NOW = "Open now"
+#: Open positions are "right now": a date range does not apply to what is open (ruling R-17).
+S_OPEN_NOW = "Right now"
 #: Over the scan cap (spec 5.7 / 5.10). Closed trades read the exact sentences; the other sources the
 #: same sentence in their own unit.
 S_CAPPED_NOTICE = "Based on your newest {n:,} {unit}. Narrow the range to include all {unit}."
@@ -230,7 +230,9 @@ def _capped_notice(scan: Any, source_key: str) -> str | None:
 
 
 def _source(scan: Any) -> str:
-    """broker | manual | mixed, with `notebook_widgets._origin`'s meaning, over the rows that say."""
+    """broker | manual | mixed, with `notebook_widgets._origin`'s meaning, over the rows that carry an
+    `origin` key. Closed-trades rows carry one today; position and day rows do not yet, so they read
+    `_origin([])` = "manual" until the scan adds the key (no change needed here when it does)."""
     return nw._origin([r.get("origin") for r in scan.rows if "origin" in r])
 
 
