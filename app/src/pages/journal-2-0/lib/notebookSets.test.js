@@ -183,6 +183,10 @@ const KIND_FIXTURES = {
     data: { asOf: '2026-10-20T14:00:00Z', source: 'market', rows: [{ symbol: 'NVDA', mentions: 3, people: 2 }] } },
   myEarningsReactions: { settings: {},
     data: { asOf: '2026-10-20T14:00:00Z', source: 'market', rows: [{ symbol: 'TSLA', nextDayPct: -4 }], partial: false } },
+  // Wave 8: a built widget offers no preset (its settings are its definition's); a stored one still strips to nothing.
+  builtWidget: { settings: {},
+    data: { asOf: '2026-10-24T14:00:00Z', source: 'manual', defId: 'd-1', defRev: 2, title: 'Net P&L by setup',
+      range: { token: 'last_30d' }, accountId: 'acc-1', filter: ['Flag'], rows: [{ label: 'Flag', v1: 1 }] } },
 }
 
 describe('presets store settings only', () => {
@@ -212,6 +216,20 @@ describe('presets store settings only', () => {
     // A preset of a kind whose wave is off is not offered (control: on above, off here).
     __resetNotebookFlags()
     expect(presetRows('preset', { sets: [], presets: [PRESET] }, 'mine', insert)).toEqual([])
+  })
+
+  it('M7: a built widget is never a preset: refused on save, dropped on read, never offered', async () => {
+    globalThis.fetch = prefsFetch(JSON.stringify({ v: 1, sets: [], presets: [] }))
+    const { posts } = globalThis.fetch
+    const res = await savePreset({ name: 'Mine', kind: 'builtWidget', params: { range: { token: 'ytd' } } })
+    expect(res.ok).toBe(false)
+    expect(posts).toHaveLength(0)
+    const BUILT = { id: 'p_9', name: 'Built', kind: 'builtWidget', params: { share: false } }
+    expect(readSets(JSON.stringify({ v: 1, sets: [], presets: [BUILT, PRESET] })).presets.map((p) => p.id)).toEqual(['p_1'])
+    latchNotebookFlags({ notebook_widgets_w8_enabled: true, notebook_widgets_w1_enabled: true })
+    const insert = vi.fn(() => 'cmd')
+    const rows = presetRows('preset', { sets: [], presets: [BUILT, PRESET] }, 'mine', insert)
+    expect(rows.map((r) => r.title)).toEqual(['Preset — Flagged only'])     // control: the phase 1 preset is offered
   })
 
   it('savePreset keeps the stored sets and strips the data', async () => {

@@ -22,11 +22,12 @@ afterEach(() => {
 })
 
 describe('WIDGET_KINDS', () => {
-  it('covers all fifteen kinds, in groups, with the account kinds marked', () => {
+  it('covers all sixteen kinds, in groups, with the account kinds marked', () => {
     expect(WIDGET_KINDS.map((k) => k.id)).toEqual([
       'myWatchlistToday', 'myNamesReporting', 'marketOnMyNames',
       'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions', 'tickerCard', 'tickerFlow',
       'myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge',
+      'builtWidget',
     ])
     for (const k of WIDGET_KINDS) {
       expect(['open', 'plan', 'review']).toContain(k.group)
@@ -36,7 +37,11 @@ describe('WIDGET_KINDS', () => {
       expect(Number.isInteger(k.wave)).toBe(true)
     }
     expect(WIDGET_KINDS.filter((k) => k.account).map((k) => k.id))
-      .toEqual(['myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge'])
+      .toEqual(['myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge',
+        'builtWidget'])
+    // Wave 8: the built kind is the one `built` row, an account kind under Reviewing.
+    expect(WIDGET_KINDS.filter((k) => k.built).map((k) => [k.id, k.wave, k.group, k.title]))
+      .toEqual([['builtWidget', 8, 'review', 'Widget']])
     // The two that need a choice (a trade, a screen) are listed by the / menu, never inserted bare.
     expect(WIDGET_KINDS.filter((k) => k.pick).map((k) => k.id)).toEqual(['myScreenToday', 'tradeRecap'])
     expect(WIDGET_KINDS.filter((k) => k.wave === 6).map((k) => k.id).sort())

@@ -987,6 +987,16 @@ const PANEL_MANIFESTS = {
   myEarningsReactions: snapshotManifest('My earnings reactions',
     // rows: [{symbol, day, epsActual, epsEst, revActual, revEst, nextDayPct}]
     'rows:j! truncated:n', _countLine('name')),
+  // Wave 8 (Task 8.13): a widget the member BUILT (api/services/journal_two/widget_engine/payload.py). Its values ride
+  // fixed keys (value/rows/series/points/cells: {label, label2, v1..v3, n1..n3, s1..s3, n}); `def` is the frozen plan
+  // (or `defRef` when it is over 4 KB) and `range`/`accountId`/`filter` the viewer settings, all echoed by the server.
+  // `range` is a plan range object ({token} or {from, to}), so it is json. `labelKind`/`label2Kind` say a label is an
+  // account name (ruling R-25). ⛔ The search line names the kind, the title and a day, never a figure.
+  builtWidget: snapshotManifest('Widget',
+    'defId defRev:n latestRev:n def:j defRef:j title summary view sourceKey measures:j value:j compare:j compareLabel '
+    + 'rows:j series:j points:j cells:j coverage:j count:n scopeLabel rangeLabel range:j accountId filter:j capped:b '
+    + 'sample:b notice truncated:n footnotes:j labelKind label2Kind',
+    (p) => `[widget: ${p?.title || 'widget'}${_asOfDay(p)}]`),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).

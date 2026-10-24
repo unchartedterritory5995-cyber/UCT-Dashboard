@@ -608,7 +608,8 @@ export function snapshotWidgetItems(query) {
   for (const kind of [...WIDGET_KINDS, ...CAPTURE_KINDS]) {
     // `held`: a kind Wave R keeps dark (captureRelease.js); no wave flag releases it.
     // `pick`: a kind that needs the member's choice (a trade, a screen) is listed by pickItems instead.
-    if (kind.pick || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
+    // `built` (wave 8): a widget the member built is inserted from the builder or the Mine rows, never bare.
+    if (kind.pick || kind.built || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
     const item = { title: kind.title, description: kind.description, group: kind.group }
     const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
     // `/calendar` inserts today's day; `/calendar 3/13` that day; anything else after it offers nothing.

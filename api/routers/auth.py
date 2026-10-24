@@ -289,6 +289,7 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_WIDGETS_W5_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 5)
     "NOTEBOOK_WIDGETS_W6_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 6)
     "NOTEBOOK_WIDGETS_W8_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 8)
+    "NOTEBOOK_WIDGETS_W9_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 9)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

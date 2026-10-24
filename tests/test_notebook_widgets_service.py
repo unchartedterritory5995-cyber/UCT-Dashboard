@@ -73,15 +73,19 @@ def test_kind_without_a_builder_yet_raises(monkeypatch):
 
 
 def test_every_kind_has_a_builder():
-    assert set(nw._BUILDERS) == set(nw.KIND_WAVE)
+    """Every phase 1 kind has a builder; the built kind (wave 8) has none on purpose: its payload is
+    `widget_engine.payload.build_payload`, reached only through /api/j2/widget-definitions."""
+    assert nw.BUILT_KIND in nw.KIND_WAVE and nw.BUILT_KIND not in nw._BUILDERS
+    assert set(nw._BUILDERS) == set(nw.KIND_WAVE) - {nw.BUILT_KIND}
 
 
 def test_kind_tables_are_complete():
-    assert len(nw.KIND_WAVE) == 15
+    assert len(nw.KIND_WAVE) == 16
     assert nw.KIND_WAVE["myRulesCheck"] == 2 and nw.KIND_WAVE["tradeRecap"] == 6
+    assert nw.KIND_WAVE[nw.BUILT_KIND] == 8 and nw.KIND_TITLE[nw.BUILT_KIND] == "Widget"
     assert nw.ACCOUNT_KINDS == frozenset({
         "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
-        "tradeRecap", "myPnlCalendar", "mySetupEdge"})
+        "tradeRecap", "myPnlCalendar", "mySetupEdge", "builtWidget"})
     assert nw.ACCOUNT_KINDS <= set(nw.KIND_WAVE)
     assert nw.PAYLOAD_CAP_BYTES == 16384 and nw.ROW_CAP == 40
 
@@ -2363,7 +2367,9 @@ def _bytes(p):
 
 
 def test_i2_every_kind_but_the_card_names_its_trimmable_list():
-    assert set(nw.LIST_KEY) | {"tickerCard"} == set(nw.KIND_WAVE)
+    # the built kind names its list per VIEW at the call (widget_engine.payload.TRIM_BY_VIEW), not per kind
+    assert set(nw.LIST_KEY) | {"tickerCard", nw.BUILT_KIND} == set(nw.KIND_WAVE)
+    assert nw.BUILT_KIND not in nw.LIST_KEY
 
 
 def test_i2_rules_check_with_long_labels_fits_and_labels_are_clipped(monkeypatch):
@@ -2684,9 +2690,12 @@ def test_m1_partial_follows_earnings_unknown_on_the_card_and_the_watchlist(monke
 def test_ux_i6_every_kind_has_a_plain_source_sentence():
     for kind in nw.KIND_WAVE:
         for src in ("broker", "manual", "mixed", "market"):
-            got = nw.source_detail(kind, {"source": src, "priceBasis": "live"})
-            assert isinstance(got, str) and got.endswith(".") and got.strip() == got, (kind, src)
-            assert "  " not in got and "\n" not in got, (kind, src)
+            # the built kind's sentence names what the widget looks at (its `sourceKey`), every source
+            keys = sorted(nw._BUILT_DETAIL) if kind == nw.BUILT_KIND else [None]
+            for sk in keys:
+                got = nw.source_detail(kind, {"source": src, "priceBasis": "live", "sourceKey": sk})
+                assert isinstance(got, str) and got.endswith(".") and got.strip() == got, (kind, src, sk)
+                assert "  " not in got and "\n" not in got, (kind, src, sk)
 
 
 def test_ux_i6_positions_source_names_the_broker_and_the_price_it_used(monkeypatch):

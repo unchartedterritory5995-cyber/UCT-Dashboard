@@ -310,9 +310,8 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "myPnlCalendar"): "member-optin",
     ("widgetEmbed", "mySetupEdge"): "member-optin",
     # Notebook widgets phase 2: a member-built widget. Its figures are the member's own account data, so it is
-    # neutral unless `params.share` is the boolean True, and then only the result keys below (Task 8.12). The
-    # registry row (KIND_WAVE / ACCOUNT_KINDS) arrives with Task 8.13; this row lands first on purpose, because
-    # `test_every_registered_widget_has_a_vendor_row` reds a registry id without one and nothing reds the reverse.
+    # neutral unless `params.share` is the boolean True, and then only the result keys below (Task 8.12). Its
+    # KIND_WAVE / ACCOUNT_KINDS rows and the client registry row landed together in Task 8.13.
     ("widgetEmbed", "builtWidget"): "member-optin",
     ("widgetEmbed", "marketOnMyNames"): "mixed",
     ("widgetEmbed", "tickerFlow"): "mixed",

@@ -1120,8 +1120,10 @@ def _cap_honesty_keys(kind: str) -> set[str]:
     added: set[str] = set()
     big = nw.cap_payload({**base, "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
     added |= set(big) - set(base) - {"blob"}
-    key = nw.LIST_KEY[kind]
-    trimmed = nw.cap_payload({**base, key: [{"pad": "x" * 2000} for _ in range(20)]}, kind)
+    # the built kind names its list by view at the call (payload.TRIM_BY_VIEW); every phase 1 kind by LIST_KEY
+    key = "rows" if kind == nw.BUILT_KIND else nw.LIST_KEY[kind]
+    trimmed = nw.cap_payload({**base, key: [{"pad": "x" * 2000} for _ in range(20)]}, kind,
+                             list_key=key if kind == nw.BUILT_KIND else None)
     added |= set(trimmed) - set(base) - {key}
     if "mistakes" in pnp.EMBED_ROW_KEYS.get(kind, {}):
         clipped = nw.cap_payload({**base, "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 3)]}, kind)
@@ -1347,12 +1349,9 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
     structured = {"myPnlStats": {"range", "equity"}, "myPositionsRisk": {"rows"}, "myRulesCheck": {"range", "rules"},
                   "myMistakes": {"rows"}, "tradeRecap": {"bars", "mistakes"},
                   "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"},
-                  # Task 8.12; ACCOUNT_KINDS gains it in 8.13, so it is compared on both sides until then
                   "builtWidget": {"measures", "value", "compare", "rows", "series", "points", "cells"}}
     from api.services.journal_two import notebook_widgets as nw
-    assert "builtWidget" not in nw.ACCOUNT_KINDS, (
-        "8.13 landed: drop the {'builtWidget'} tolerance in R60 and test_account_kinds_agree...")
-    assert set(structured) == set(nw.ACCOUNT_KINDS) | {"builtWidget"} == set(pnp.EMBED_ROW_KEYS)
+    assert set(structured) == set(nw.ACCOUNT_KINDS) == set(pnp.EMBED_ROW_KEYS)
     for kind, keys in structured.items():
         assert set(pnp.EMBED_ROW_KEYS[kind]) == keys, kind
         assert keys <= set(pnp.EMBED_PARAM_KEYS[kind]), kind

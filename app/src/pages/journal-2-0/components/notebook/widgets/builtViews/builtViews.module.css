@@ -1,0 +1,63 @@
+/* Built widget views (wave 8, Task 8.13). Pure CSS; the tables reuse the snapshot frame's table styles. */
+.numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+.metricLabel {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.metricValue {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.metricHidden {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.metricCount {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+.flagged {
+  margin-left: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.caption {
+  margin: 0 0 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.altCaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

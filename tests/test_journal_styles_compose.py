@@ -621,7 +621,7 @@ def test_the_server_kind_titles_match_the_client_widget_kinds():
     start = src.index("export const WIDGET_KINDS")
     block = src[start:src.index("])", start)]
     client = dict(re.findall(r"\{ id: '(\w+)'.*?title: '([^']+)'", block, flags=re.S))
-    assert len(client) == 15                                                             # non-vacuity
+    assert len(client) == 16                                                             # non-vacuity
     assert nw.KIND_TITLE == client
     assert set(js.SNAPSHOT_SLOT_KINDS) <= set(nw.KIND_TITLE)
 
@@ -644,14 +644,11 @@ def test_account_kinds_agree_client_server_and_public_table():
     import re
     from api.services.journal_two import notebook_widgets as nw, public_note_payload as public
     rows = _client_widget_rows()
-    assert len(rows) == 15                                                               # non-vacuity
+    assert len(rows) == 16                                                               # non-vacuity
     client = {k for k, body in rows.items() if re.search(r"\baccount: true\b", body)}
     optin = {d for (t, d), v in public.MARKET_DATA_VENDORS.items() if t == "widgetEmbed" and v == "member-optin"}
-    assert len(client) == 7                                                              # non-vacuity
-    assert "builtWidget" not in nw.ACCOUNT_KINDS, (
-        "8.13 landed: drop the {'builtWidget'} tolerance in R60 and test_account_kinds_agree...")
-    # Task 8.12 declared builtWidget's vendor row ahead of the registry row (8.13); tolerated until then.
-    assert client == set(nw.ACCOUNT_KINDS) == optin - {"builtWidget"}
+    assert len(client) == 8                                                              # non-vacuity
+    assert client == set(nw.ACCOUNT_KINDS) == optin
     assert set(nw.ACCOUNT_KINDS) <= set(public.EMBED_PARAM_KEYS)
 
 
@@ -665,7 +662,7 @@ def test_client_waves_match_the_server_kind_wave():
         m = re.search(r"\bwave: (\d+)", body)
         assert m, k
         client[k] = int(m.group(1))
-    assert len(client) == 15                                                             # non-vacuity
+    assert len(client) == 16                                                             # non-vacuity
     assert client == nw.KIND_WAVE
 
 

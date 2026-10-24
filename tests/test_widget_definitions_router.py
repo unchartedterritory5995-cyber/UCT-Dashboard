@@ -168,7 +168,8 @@ def test_preview_rate_120_scope_separate_from_run_60(conn, monkeypatch):
     for i in range(60):                                         # the run scope is its own
         assert c.post(BASE + "/run", json={"def": _plan()}).status_code == 200, i
     r = c.post(BASE + "/run", json={"def": _plan()})
-    assert r.status_code == 429 and _code(r) == "rate"
+    assert r.status_code == 429 and r.json()["detail"] == {
+        "code": "rate", "message": "Too many refreshes in a minute. Try again shortly."}     # R-28: spec 5.10
     assert c.post(BASE + "/drill", json={"def": _plan()}).status_code == 429   # drill shares it
 
 
