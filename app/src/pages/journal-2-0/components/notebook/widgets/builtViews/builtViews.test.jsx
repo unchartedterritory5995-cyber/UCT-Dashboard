@@ -201,6 +201,14 @@ describe('built widget views', () => {
       }
       expect(widths.filter((w) => w === 600).length).toBeLessThanOrEqual(TRAIL_MAX)
       expect(widths.slice(-5)).toEqual([583, 583, 583, 583, 583])
+      // a small REAL change (not a flip) resets the pairs: the old pair may re-measure again
+      ev(590)
+      expect(at()).toBe(590)
+      ev(583)
+      expect(at()).toBe(583)
+      ev(600)                                                       // a widen in the old pair, after the reset
+      act(() => { vi.advanceTimersByTime(SEEN_MS + SETTLE_MS) })
+      expect(at()).toBe(600)                                        // the trailing read landed again
       // control: a real change outside the pair resets it, so a later drag still lands on the box's width
       setReal(420)
       ev(420)
@@ -992,6 +1000,19 @@ describe('built widget views', () => {
     const left = readoutPlace({ ys: [26, 164], h: 60, x: 560, w: 120, width: 600, padL: 50 })
     expect(left.left + 120).toBeLessThanOrEqual(560 - 3.5)
     expect(readoutPlace({ ys: [], h: 40, x: 10, w: 100, width: 600, padL: 50 }).left).toBe(50)
+  })
+
+  it('I-1: a readout too wide to sit beside its point goes in the largest clear gap and covers none of its points', () => {
+    const ys = [30, 160]
+    const h = 75
+    const at = readoutPlace({ ys, h, x: 170, w: 280, width: 340, padL: 50 })
+    expect(at.v).toBe('at')
+    for (const y of ys) {
+      const clear = y + 3.5 <= at.top || y - 3.5 >= at.top + h
+      expect(clear).toBe(true)
+    }
+    expect(at.top).toBeGreaterThanOrEqual(2)
+    expect(at.top + h).toBeLessThanOrEqual(190 - 2)
   })
 
   it('heat counts itself at its newest end within SNAP_SLOP (a rounded scroll position), and never snaps for it', () => {

@@ -42,6 +42,8 @@ export const PAIR_MS = 10000
  * per SEEN_MS: a read asked for sooner waits until the pair's window opens. So a real drag always ends at the box's
  * clientWidth, and a loop the gutter did not remove costs at most TRAIL_MAX re-measures (one a second) before
  * the narrower width is kept until a real, non-flip change resets the pairs.
+ * ⛔ The envelope: a flip is a step of FLIP_PX or less. A loop with a larger step (a classic scrollbar at a browser
+ * zoom-out, on a cause the frame gutter does not cover) is outside it and is not damped here.
  */
 export function useChartWidth(forced) {
   const [measured, setMeasured] = useState(0)

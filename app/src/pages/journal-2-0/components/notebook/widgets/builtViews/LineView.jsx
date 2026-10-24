@@ -46,7 +46,8 @@ export function nearestIndex(xs, x) {
  * Where the readout goes, in the chart's own pixels: `ys` are the period's points, `h`/`w` the readout's size, `x`
  * the period, `padL` the axis. Over the TOP edge when every point is clear of it, else over the BOTTOM edge, else
  * beside the point (right, then left). Its left edge is never left of the axis, so the max and min ticks are never
- * covered. Returns `{ v: 'top' | 'bottom', left }`.
+ * covered. Too wide to sit beside the point, it goes in the largest clear gap between the period's points (`v: 'at'`,
+ * with `top`), so it covers none of them. Returns `{ v: 'top' | 'bottom' | 'at', left, top? }`.
  */
 export function readoutPlace({ ys, h, x, w, width, padL, height = H }) {
   const centred = clamp(x - w / 2, padL, Math.max(padL, width - w))
@@ -54,7 +55,18 @@ export function readoutPlace({ ys, h, x, w, width, padL, height = H }) {
   if (ys.every((y) => y + DOT_R <= height - TIP_EDGE - h - TIP_GAP)) return { v: 'bottom', left: centred }
   if (x + DOT_R + TIP_GAP + w <= width) return { v: 'top', left: x + DOT_R + TIP_GAP }
   if (x - DOT_R - TIP_GAP - w >= padL) return { v: 'top', left: x - DOT_R - TIP_GAP - w }
-  // nowhere is clear (a readout wider than either side): the edge away from most of the points
+  // too wide to sit beside it: the largest clear vertical gap between this period's points (or an edge band)
+  const sorted = [...ys].sort((a, b) => a - b)
+  const bands = []
+  let from = TIP_EDGE
+  for (const y of sorted) { bands.push([from, y - DOT_R - TIP_GAP]); from = y + DOT_R + TIP_GAP }
+  bands.push([from, height - TIP_EDGE])
+  const fits = bands.filter(([a, b]) => b - a >= h).sort((p, q) => (q[1] - q[0]) - (p[1] - p[0]))
+  if (fits.length) {
+    const [a, b] = fits[0]
+    return { v: 'at', top: Math.round(a + (b - a - h) / 2), left: centred }
+  }
+  // nowhere is clear at all (a readout taller than every gap): the edge away from most of the points
   const mid = ys.reduce((a, y) => a + y, 0) / (ys.length || 1)
   return { v: mid < height / 2 ? 'bottom' : 'top', left: centred }
 }
@@ -228,7 +240,8 @@ export default function LineView({ params, onDrill, width: forced }) {
           return (
             <div ref={tipRef} className={styles.readout} aria-hidden="true" data-testid="built-line-readout"
               data-place={at.v}
-              style={{ left: at.left, maxWidth: room, ...(at.v === 'top' ? { top: TIP_EDGE } : { bottom: TIP_EDGE }) }}>
+              style={{ left: at.left, maxWidth: room, ...(at.v === 'at' ? { top: at.top }
+                : at.v === 'top' ? { top: TIP_EDGE } : { bottom: TIP_EDGE }) }}>
               {lines.map((t, k) => <div key={`t${k}`} className={k === 0 ? styles.readoutHead : undefined}>{t}</div>)}
             </div>
           )
