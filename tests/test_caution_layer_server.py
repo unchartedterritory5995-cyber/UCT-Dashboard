@@ -52,7 +52,7 @@ def test_setup_draw_rows_stamps_every_row(monkeypatch):
             {"pattern_id": "draw:wyckoff-upthrust", "direction": "neutral"},
             {"pattern_id": "draw:major-trendline", "direction": "bearish"},
             {"pattern_id": "draw:channel", "direction": "neutral"}]
-    monkeypatch.setattr(AS, "setup_in_frame", lambda b: True)
+    monkeypatch.setattr(AS, "setup_frames_held", lambda b: frozenset({AS.SETUP_FRAME_DAY, AS.SETUP_FRAME_ADV20}))
     monkeypatch.setattr(AS, "_SETUP_DRAW_FUNCS", ())
     monkeypatch.setattr(AS, "_setup_draw_r2_rows", lambda s, b: [dict(r) for r in rows[:2]])
     monkeypatch.setattr(AS, "_setup_draw_r3_rows", lambda s, b: [dict(r) for r in rows[2:]])
