@@ -246,7 +246,8 @@ def test_member_gate_serves_breakout_and_withholds_dark_states(monkeypatch):
     rows = {st: auto_structures.base_draw_row("SYN", _bars(legs))
             for legs, st in ((BASE + [(2, 92.6)], "breakout"), (FORMING, "forming"))}
     # a tight row can no longer be built; the gate is still asked of one stamped by hand (fail closed)
-    rows["tight"] = auto_structures._base_row("SYN", BD.tight_drawing(_bars(TIGHT), len(_bars(TIGHT)) - 1), 4)
+    rows["tight"] = auto_structures._base_row("SYN", BD.tight_drawing(_bars(TIGHT), len(_bars(TIGHT)) - 1),
+                                             auto_structures.MEMBER_BASE_ROUND)
     assert auto_structures.MEMBER_BASE_BREAKOUT_ROUND == 1
     assert auto_structures.MEMBER_BASE_FORMING_ROUND == 1
     assert auto_structures.MEMBER_BASE_TIGHT_ROUND is None
