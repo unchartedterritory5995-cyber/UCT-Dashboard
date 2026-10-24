@@ -1,10 +1,15 @@
 """A built-widget run on the ONE-process web pod (wave 8, Task 8.7): admission, deadline, cache, counters.
 
-`run_plan` is the one door every builder run goes through (`/run`, `/drill`, `/preview`, `/examples`):
+`run_plan` is the one door every builder run goes through (`/run`, `/drill`, `/preview`):
 
     validate -> clean + merge the viewer settings -> cache key -> SingleFlight.run_here
              -> admit (a permit from notebook_widgets._POOL, never a second pool) -> deadline (SQL)
              -> scan -> aggregate.evaluate -> payload.build_payload -> cache
+
+`run_examples` (`/examples`, Task 8.10) is the same machinery for a batch of shelf examples: ONE
+admission in the `example` lane, ONE scan per distinct source, every card cut from that row set.
+A member with fewer than `SAMPLE_BELOW` closed trades gets both on the bundled sample book
+(`sample_rows`, `wants_sample`), labelled `sample: True`.
 
 Rules it keeps (global constraints, "One web process" / "Rates"):
 
@@ -33,15 +38,18 @@ import sqlite3
 import threading
 import time
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Iterator, Literal
 
-from api.services import auth_db, daily_counters
+from api.services import auth_db, daily_counters, placeholder_stop
 from api.services.cache import TTLCache
 from api.services.journal_two import notebook_widgets as nw
+from api.services.journal_two import trading_days
 from api.services.journal_two.widget_engine import aggregate as waggregate
 from api.services.journal_two.widget_engine import payload as wpayload
 from api.services.journal_two.widget_engine import plan as wplan
+from api.services.journal_two.widget_engine import shelf as wshelf
 from api.services.journal_two.widget_engine import sources as wsources
 from api.services.journal_two.widget_engine.plan import PlanError
 
@@ -59,6 +67,13 @@ FLUSH_EVERY_S = 60
 BUSY = "Busy right now. Try again in a moment."
 TOO_LONG = "This is a lot of data to add up. Try a shorter range or fewer splits."
 S_ACCOUNT_GONE = "That account is no longer in your Journal; showing all accounts."
+
+#: Task 8.10: a member with fewer than this many closed trades sees examples on the sample book.
+SAMPLE_BELOW = 5
+#: Examples run in one batch at most this many.
+MAX_EXAMPLES = 8
+S_TOO_MANY_EXAMPLES = "Pick up to 8 examples."
+S_UNKNOWN_EXAMPLE = "That example isn't available."
 
 #: The `daily_usage_counters` scope for saved-widget runs (subject = the member's id).
 RUNS_SCOPE = "notebook_widget_runs"
@@ -427,6 +442,266 @@ def _compare_range(plan: dict, rng: wplan.ResolvedRange, today) -> wplan.Resolve
     return None
 
 
+# -- the sample book (Task 8.10) ---------------------------------------------------------------------
+
+SAMPLE_BOOK_PATH = Path(__file__).with_name("sample_book.json")
+_BOOK_LOCK = threading.Lock()
+_BOOK: dict[str, Any] = {}
+
+
+def _book() -> dict:
+    """The parsed sample book and its digest, read once per process (`tools/gen_widget_sample_book.py`
+    writes it; it is synthetic and never a member's)."""
+    with _BOOK_LOCK:
+        if not _BOOK:
+            # LF-normalised: a CRLF checkout of the same commit is the same book (and digest)
+            blob = SAMPLE_BOOK_PATH.read_bytes().replace(b"\r\n", b"\n")
+            _BOOK["data"] = json.loads(blob.decode("utf-8"))
+            _BOOK["digest"] = hashlib.sha1(blob).hexdigest()
+        return _BOOK
+
+
+def sample_today() -> date:
+    """The sample book's own "today": a sample run resolves its range against this session, so the
+    book's nine months stay inside the widget's range whatever the real date."""
+    return date.fromisoformat(_book()["data"]["anchor_day"])
+
+
+def _sample_closed(book: dict) -> list[dict]:
+    names = {a["id"]: a["name"] for a in book["accounts"]}
+    recs = sorted(book["closed_trades"], key=lambda t: (t["day"], t["exit_at"], t["id"]), reverse=True)
+    n = len(recs)
+    out: list[dict] = []
+    for i, t in enumerate(recs):
+        gross, fees, r = nw._num(t["gross"]), nw._num(t["fees"]) or 0.0, nw._num(t["r"])
+        pct = nw._num(t["pct_return"])
+        shares, entry = nw._num(t["shares"]), nw._num(t["entry_price"])
+        row = {
+            "_tid": t["id"],
+            "id": wsources._sort_key(t["exit_at"], n - i),
+            "day": t["day"],
+            "hour_et": nw._num(t["hour_et"]),
+            "symbol": t["symbol"],
+            "side": t["side"],
+            "setup": t["setup"] or None,
+            "result": t["result"],
+            "net": None if gross is None else round(gross - fees, 6),
+            "gross": gross,
+            "fees": fees,
+            "r": r,
+            "risk_dollars": wsources._risk(t["entry_price"], t["stop"], t["shares"]),
+            "pct_return": pct,
+            "hold_days": nw._num(t["hold_days"]),
+            "hold_minutes": wsources._minutes_held(t["entry_at"], t["exit_at"]),
+            "shares": shares,
+            "regime": t["regime"] or None,
+            "mistake": list(t["mistake"]),
+            "emotion": list(t["emotion"]),
+            "origin": wsources._ROW_ORIGIN.get(t["origin"], "manual"),
+            "account": t["account"],
+            "account_name": names.get(t["account"]),
+            "had_stop": not placeholder_stop.is_placeholder_stop(t["stop"], t["entry_price"]),
+            "mfe_r": nw._num(t["mfe_r"]),
+            "mae_r": nw._num(t["mae_r"]),
+            "exit_efficiency": nw._num(t["exit_efficiency"]),
+            "adherence_pct": nw._num(t["adherence_pct"]),
+            "plan_linked": bool(t["plan_linked"]),
+            "flagged": bool(t["flagged"]),
+            "_size": None if shares is None or entry is None else abs(shares * entry),
+            "label": t["symbol"],
+            "label2": t["day"],
+        }
+        row["weekday"] = wsources._weekday(row["day"])
+        row["month"] = str(row["day"])[:7] if row["day"] else None
+        row["hold_bucket"] = wsources._hold_bucket(row["hold_days"])
+        row["r_bucket"] = wsources._r_bucket(r)
+        out.append(row)
+    for row, q in zip(out, wsources._quartiles([r.pop("_size") for r in out])):
+        row["size_quartile"] = q
+    return out
+
+
+def _sample_positions(book: dict, today: date) -> list[dict]:
+    """The same derivation as `sources._position_rows`, over the book's positions."""
+    names = {a["id"]: a["name"] for a in book["accounts"]}
+    sizes = {a["id"]: nw._num(a["size"]) for a in book["accounts"]}
+    recs = sorted(book["open_positions"], key=lambda p: (p["entry_at"], p["id"]), reverse=True)
+    out = []
+    for p in recs:
+        est = bool(p["entry_estimated"])
+        entry_day = trading_days.entry_day_et(p["entry_at"], estimated=est)
+        days_open = float((today - date.fromisoformat(entry_day)).days) if entry_day else None
+        entry, shares, mark = nw._num(p["entry_price"]), nw._num(p["shares"]), nw._num(p["mark"])
+        unreal = None
+        if mark is not None and entry is not None and shares is not None:
+            unreal = round((mark - entry) * shares * (1 if p["side"] == "Long" else -1), 2)
+        risk = wsources._risk(p["entry_price"], p["stop"], p["shares"])
+        if risk is not None and entry is not None:
+            stop = nw._num(p["stop"])
+            if stop is not None and (stop >= entry if p["side"] == "Long" else stop <= entry):
+                risk = 0.0
+        price = mark if mark is not None else entry
+        value = None if price is None or shares is None else abs(price * shares)
+        size = sizes.get(p["account"])
+        out.append({
+            "_tid": p["id"],
+            "symbol": p["symbol"],
+            "side": p["side"],
+            "setup": p["setup"] or None,
+            "days_open": days_open,
+            "unrealised": unreal,
+            "risk_dollars": risk,
+            "risk_pct_account": (None if risk is None or not size or size <= 0
+                                 else round(risk / size * 100.0, 4)),
+            "pct_account": (None if value is None or not size or size <= 0
+                            else round(value / size * 100.0, 4)),
+            "account": p["account"],
+            "account_name": names.get(p["account"]),
+            "had_stop": risk is not None,
+            "entry_estimated": est,
+            "origin": wsources._ROW_ORIGIN.get(p["origin"], "manual"),
+            "flagged": False,
+            "label": p["symbol"],
+            "label2": entry_day or "Entry date estimated",
+        })
+    return out
+
+
+def _sample_days(book: dict) -> list[dict]:
+    """The same row shape as `sources.scan_days`: one row per session, newest first."""
+    out = []
+    for d in sorted(book["trading_days"], key=lambda r: r["day"], reverse=True):
+        k, count = d["day"], int(d["trade_count"])
+        decisive = int(d["winners"]) + int(d["losers"])
+        net = round(float(d["net"]), 6)
+        row: dict[str, Any] = {"origin": d["origin"]} if d["origin"] else {}
+        row.update({
+            "day": k,
+            "weekday": wsources._weekday(k),
+            "day_net": net if count else None,
+            "net": net,
+            "trade_count": float(count),
+            "day_win_rate": (int(d["winners"]) / decisive) if decisive else None,
+            "best_trade": nw._num(d["best"]),
+            "worst_trade": nw._num(d["worst"]),
+            "mood": None if d["mood"] is None else float(d["mood"]),
+            "focus": None if d["focus"] is None else float(d["focus"]),
+            "had_day_note": bool(d["had_day_note"]),
+            "flagged": False,
+            "label": k,
+            "label2": wsources._weekday(k),
+        })
+        out.append(row)
+    return out
+
+
+def sample_rows(source_key: str) -> list[dict]:
+    """The sample book's rows for one source, newest first, shaped exactly like that source's scan
+    rows (`sources.scan_closed` / `scan_positions` / `scan_days`, including the `origin` key).
+    A fresh list every call: a caller may change it freely."""
+    book = _book()["data"]
+    if source_key == "closed_trades":
+        return _sample_closed(book)
+    if source_key == "open_positions":
+        return _sample_positions(book, sample_today())
+    if source_key == "trading_days":
+        return _sample_days(book)
+    raise ValueError(f"unknown source {source_key!r}")
+
+
+def wants_sample(conn: sqlite3.Connection, user_id: str) -> bool:
+    """True when the member has fewer than `SAMPLE_BELOW` closed trades across all accounts."""
+    n = conn.execute("SELECT COUNT(*) FROM j2_trades WHERE user_id = ?", (user_id,)).fetchone()[0]
+    return int(n or 0) < SAMPLE_BELOW
+
+
+# -- one row set, many cards ------------------------------------------------------------------------
+
+def _in_range(day: Any, rng: wplan.ResolvedRange) -> bool:
+    if not isinstance(day, str):
+        return False
+    d = day[:10]
+    return d <= rng.to_day and (rng.from_day is None or d >= rng.from_day)
+
+
+def _narrow(source_key: str, base: wsources.Scan, plan: dict, rng: wplan.ResolvedRange) -> wsources.Scan:
+    """One card's `Scan` cut from a scan that covers it (`base`: a wider range, no filters, flagged
+    trades included): the card's range, its "last N trades", and the flagged-trade rule of its view,
+    as `sources.scan` would have read them for the card alone. Filters, splits and measures are then
+    `aggregate.evaluate`'s, as for any scan."""
+    rows = list(base.rows)
+    if source_key == "open_positions":                      # what is open now: no range applies
+        return wsources.Scan(source_key, rows, base.capped, None, len(rows), None)
+    view = (plan.get("view") or {}).get("type")
+    if source_key == "closed_trades":
+        if view != "list":                                  # the scan's analytics-included rule
+            rows = [r for r in rows if not r.get("flagged")]
+        if rng.last_n is not None:
+            rows = [r for r in rows if isinstance(r.get("day"), str) and r["day"][:10] <= rng.to_day]
+            kept = waggregate.apply_filters(rows, plan, wsources.CLOSED)
+            out, n = [], 0
+            for r in kept:                                  # newest first: keep the newest N
+                if n >= int(rng.last_n):
+                    break
+                out.append(r)
+                if not r.get("flagged"):
+                    n += 1
+            rows, capped = out, base.capped and n < int(rng.last_n)
+        else:
+            rows = [r for r in rows if _in_range(r.get("day"), rng)]
+            capped = base.capped and (rng.from_day is None or base.earliest_day is None
+                                      or rng.from_day <= base.earliest_day)
+        return wsources.Scan(source_key, rows, capped, rows[-1]["day"] if rows else None,
+                             len(rows), None)
+    # trading days: one row per session; an unbounded range starts at the first traded session
+    lo = rng.from_day
+    if rng.last_n is not None:                              # sessions back to the Nth newest trade
+        seen, lo = 0, None
+        for r in rows:
+            if r["day"] > rng.to_day:
+                continue
+            lo = r["day"]
+            seen += int(r.get("trade_count") or 0)
+            if seen >= int(rng.last_n):
+                break
+    elif lo is None:
+        traded = [r["day"] for r in rows if (r.get("trade_count") or 0) > 0]
+        lo = min(traded) if traded else None
+    if lo is None:
+        return wsources.Scan(source_key, [], False, None, 0, None)
+    cut = wplan.ResolvedRange(lo, rng.to_day, None, rng.label, rng.token)
+    rows = [r for r in rows if _in_range(r.get("day"), cut)]
+    whole = len(rows) == len(base.rows)
+    capped = base.capped and (lo <= (base.earliest_day or lo))
+    return wsources.Scan(source_key, rows, capped, rows[-1]["day"] if rows else None, len(rows),
+                         None, list(base.footnotes) if whole else [])
+
+
+def _sample_scan(source_key: str) -> wsources.Scan:
+    rows = sample_rows(source_key)
+    earliest = rows[-1].get("day") if rows and source_key != "open_positions" else None
+    return wsources.Scan(source_key, rows, False, earliest, len(rows), None)
+
+
+def _card(plan: dict, base: wsources.Scan, today: date, now: datetime, *, sample: bool,
+          settings: dict | None = None, notices: list[str] | None = None,
+          def_id: Any = None, def_rev: Any = None, latest_rev: Any = None) -> dict:
+    """Evaluate one validated plan over `base` (a covering scan) and build its payload."""
+    rng = wplan.resolve_range(plan["range"], today)
+    crng = _compare_range(plan, rng, today)
+    scan = _narrow(plan["source"], base, plan, rng)
+    result = waggregate.evaluate(scan.rows, plan, wsources.CATALOG)
+    cresult = None
+    if crng is not None:
+        cscan = _narrow(plan["source"], base, plan, crng)
+        cresult = waggregate.evaluate(cscan.rows, plan, wsources.CATALOG)
+    return wpayload.build_payload(
+        result=result, plan=plan, settings=settings or {}, def_id=def_id, def_rev=def_rev,
+        latest_rev=latest_rev, rng=rng, scan=scan, sample=sample, now=now,
+        compare_result=cresult, compare_label=crng.label if crng is not None else None,
+        account_name=None, notices=notices or [])
+
+
 # -- the run ---------------------------------------------------------------------------------------
 
 @contextmanager
@@ -461,14 +736,17 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
     `defId` is treated as absent before this is called. This function echoes them, never checks them.
 
     Raises `PlanError` (a member sentence), `EngineBusy`, `EngineTooLong`, `Superseded` or
-    `DailyCapReached`; the router maps each to its state. `sample=True` (the bundled sample book)
-    lands in Task 8.10."""
+    `DailyCapReached`; the router maps each to its state.
+
+    `sample=True` (Task 8.10, the router decides it with `wants_sample`) reads the bundled sample book
+    instead of the member's rows: no database is touched, the range resolves against the book's own
+    day (`sample_today`), every account is the book's ("All my accounts"), and the payload says
+    `sample: True`. It still takes the same admission and cache (keyed on the member AND the sample
+    switch), so it is never served to another member, nor to this member once they are on real data."""
     if not isinstance(user_id, str) or not user_id:
         raise ValueError("a run needs the session member's id")
     if lane not in _LANES:
         raise ValueError(f"unknown lane {lane!r}")
-    if sample:
-        raise NotImplementedError("sample runs read sources.sample_rows (Task 8.10)")
     now = now or datetime.now(timezone.utc)
     today = nw._today_et(now)
 
@@ -480,6 +758,10 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
     if lane in _SUPERSEDE_LANES:
         mine = preview_generation(user_id)
         superseded = lambda: _preview_gen_now(user_id) != mine          # noqa: E731
+
+    if sample:
+        return _run_sample(user_id, base, viewer, lane=lane, superseded=superseded, now=now,
+                           def_id=def_id, def_rev=def_rev, latest_rev=latest_rev)
 
     with _connection() as conn:
         with deadline(conn, superseded=superseded):
@@ -533,5 +815,148 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
 
         ok, value = _FLIGHT.run_here(key, _compute, _WAIT_S)
         if not ok:                                    # waited past the leader, or it failed: our own
+            value = _compute()
+        return copy.deepcopy(value)
+
+
+def _run_sample(user_id: str, base: dict, viewer: dict, *, lane: Lane,
+                superseded: Callable[[], bool], now: datetime, def_id: Any, def_rev: Any,
+                latest_rev: Any) -> dict:
+    """`run_plan(sample=True)`: the plan over the sample book (no database read)."""
+    today = sample_today()
+    merged = wplan.validate_plan(_merge(base, viewer, None), wsources.CATALOG)
+    echo = dict(viewer)
+    if "accountId" in echo:
+        echo["accountId"] = None                      # the book's accounts are never the member's
+    key = _cache_key(user_id, merged, echo, "sample|" + _book()["digest"], today.isoformat(),
+                     def_id, def_rev, latest_rev, ["sample"])
+    hit = _CACHE.get(key)
+    if hit is not None:
+        return copy.deepcopy(hit)
+    if lane == "run" and daily_cap_reached(user_id):
+        raise DailyCapReached()
+
+    def _compute() -> dict:
+        if superseded():
+            raise Superseded()
+        with admit(user_id, lane):
+            book_scan = _sample_scan(merged["source"])
+            out = _card(merged, book_scan, today, now, sample=True, settings=echo, def_id=def_id,
+                        def_rev=def_rev, latest_rev=latest_rev)
+        if superseded():
+            raise Superseded()
+        _CACHE.set(key, out, CACHE_TTL_S)
+        if lane == "run":
+            count_run(user_id)
+        return out
+
+    ok, value = _FLIGHT.run_here(key, _compute, _WAIT_S)
+    if not ok:
+        value = _compute()
+    return copy.deepcopy(value)
+
+
+# -- examples (Task 8.10) ----------------------------------------------------------------------------
+
+#: The measure a covering scan's plan names (any measure the source offers: only the rows are used).
+_COVER_MEASURE = {"closed_trades": "trades", "open_positions": "open_positions",
+                  "trading_days": "avg_day_pnl"}
+
+
+def _cover_plan(source_key: str) -> dict:
+    """The plan of the ONE scan a batch reads for a source: no filters, every account, and (for
+    closed trades) the list view, so flagged trades are in the rows for the list cards that show them
+    (`_narrow` drops them for every other view, as the per-card scan's SQL would)."""
+    raw: dict[str, Any] = {"v": wplan.PLAN_VERSION, "source": source_key,
+                           "measures": [{"key": _COVER_MEASURE[source_key]}],
+                           "range": {"token": "all"}}
+    if source_key == "closed_trades":
+        raw["view"] = {"type": "list", "auto": False}
+    return wplan.validate_plan(raw, wsources.CATALOG)
+
+
+def _cover_range(ranges: list[wplan.ResolvedRange], today: date) -> wplan.ResolvedRange:
+    """The smallest range covering every card's range (and comparison range)."""
+    unbounded = any(r.from_day is None or r.last_n is not None for r in ranges)
+    lo = None if unbounded or not ranges else min(r.from_day for r in ranges)
+    hi = max([r.to_day for r in ranges] or [today.isoformat()])
+    return wplan.ResolvedRange(lo, hi, None, "cover", None if lo else "all")
+
+
+def _example_ids(ids: Any) -> list[str]:
+    if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
+        raise PlanError(S_UNKNOWN_EXAMPLE)
+    out = list(dict.fromkeys(ids))
+    if len(out) > MAX_EXAMPLES:
+        raise PlanError(S_TOO_MANY_EXAMPLES)
+    return out
+
+
+def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -> dict:
+    """Up to `MAX_EXAMPLES` shelf examples for the session member, in ONE batch:
+    `{"sample": bool, "cards": {id: payload}}`.
+
+    * Under `SAMPLE_BELOW` closed trades every card reads the sample book (`sample: True`), else the
+      member's own rows.
+    * ONE scan per distinct source (`sources.scan` over the widest range the cards need, no filters),
+      every card then cut from that row set (`_narrow`) and evaluated on its own.
+    * Counted as ONE preview: one admission in the `example` lane (a preview slot, no daily-cap run;
+      ruling R-21, it neither bumps nor watches the preview generation), one deadline over the scans,
+      one cache entry per member for `CACHE_TTL_S`, keyed on the ids, the sample switch and the
+      member's data stamps, so the 5th closed trade turns the cards real at once.
+
+    Raises `PlanError` (more than `MAX_EXAMPLES` ids, or an unknown id), `EngineBusy` or
+    `EngineTooLong`."""
+    if not isinstance(user_id, str) or not user_id:
+        raise ValueError("a run needs the session member's id")
+    wanted = _example_ids(ids)
+    items = []
+    for sid in wanted:
+        ex = wshelf.example(sid)
+        if ex is None:
+            raise PlanError(S_UNKNOWN_EXAMPLE)
+        items.append((sid, ex["plan"]))
+    now = now or datetime.now(timezone.utc)
+    srcs = list(dict.fromkeys(p["source"] for _sid, p in items))
+
+    with _connection() as conn:
+        with deadline(conn):
+            sample = wants_sample(conn, user_id)
+            stamps = {} if sample else {s: data_stamp(conn, user_id, s) for s in srcs}
+        today = sample_today() if sample else nw._today_et(now)
+        blob = json.dumps([user_id, "examples", wanted, sample, stamps, today.isoformat(),
+                           _book()["digest"] if sample else None],
+                          sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        key = "widget_examples::" + hashlib.sha1(blob.encode("utf-8")).hexdigest()
+        hit = _CACHE.get(key)
+        if hit is not None:
+            return copy.deepcopy(hit)
+
+        def _compute() -> dict:
+            per_src: dict[str, list[wplan.ResolvedRange]] = {}
+            for _sid, p in items:
+                rng = wplan.resolve_range(p["range"], today)
+                per_src.setdefault(p["source"], []).append(rng)
+                crng = _compare_range(p, rng, today)
+                if crng is not None:
+                    per_src[p["source"]].append(crng)
+            with admit(user_id, "example"):
+                covers: dict[str, wsources.Scan] = {}
+                if sample:
+                    covers = {s: _sample_scan(s) for s in srcs}
+                else:
+                    with deadline(conn):
+                        for s in srcs:
+                            covers[s] = wsources.scan(conn, _cover_plan(s), {"accountId": None},
+                                                      _cover_range(per_src[s], today), user_id,
+                                                      today=today)
+                cards = {sid: _card(p, covers[p["source"]], today, now, sample=sample)
+                         for sid, p in items}
+            out = {"sample": sample, "cards": cards}
+            _CACHE.set(key, out, CACHE_TTL_S)
+            return out
+
+        ok, value = _FLIGHT.run_here(key, _compute, _WAIT_S)
+        if not ok:
             value = _compute()
         return copy.deepcopy(value)

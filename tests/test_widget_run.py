@@ -368,9 +368,17 @@ def test_long_account_name_is_clipped_in_scope_label(conn):
     assert len(out["scopeLabel"]) <= 200
 
 
-def test_sample_is_not_implemented_yet(conn):
-    with pytest.raises(NotImplementedError):
-        _go(sample=True)
+def test_sample_run_reads_the_book_and_never_the_database(conn, monkeypatch):
+    """Task 8.10 replaced the Task 8.7 NotImplementedError: a sample run reads the sample book."""
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    monkeypatch.setattr(auth_db, "get_connection",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("no database")))
+    out = _go(raw_plan(measures=("trades", "net_pnl"), range={"token": "all"}), sample=True,
+              lane="preview")
+    assert out["sample"] is True
+    assert out["value"]["v1"] == sum(1 for r in run.sample_rows("closed_trades")
+                                     if not r["flagged"])
+    assert out["scopeLabel"] == "All my accounts"
 
 
 def test_compare_previous_runs_the_previous_range(conn):
