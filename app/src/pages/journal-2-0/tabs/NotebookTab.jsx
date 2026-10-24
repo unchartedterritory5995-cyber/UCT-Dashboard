@@ -9,7 +9,6 @@ import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
 import { TASK_PARAM } from '../lib/noteTasks'
-import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
@@ -153,6 +152,9 @@ const PublishFolderSheet = lazyDialog(() => import('../components/notebook/Publi
 const VoiceNoteDialog = lazyDialog(() => import('../components/notebook/VoiceNoteDialog'), 'voice note')
 // Notebook P1: the Journal styles manager, fetched the first time it is opened (a creating door, gated below).
 const StylesManager = lazyDialog(() => import('../components/notebook/styles/StylesManager'), 'journal styles')
+// Task 7.6: the "Save view" name prompt, fetched the first time a member opens it (before that, a closed
+// Sheet renders nothing, which is what lazyDialog renders).
+const SavedViewEditor = lazyDialog(() => import('../components/notebook/SavedViewEditor'), 'save view')
 
 // ── Wave 9 (lane 9D, D2): the folder Publish door ────────────────────────────
 // FolderSidebar renders `extraFolderActions` as `{id, label, onSelect(folder)}` buttons named
