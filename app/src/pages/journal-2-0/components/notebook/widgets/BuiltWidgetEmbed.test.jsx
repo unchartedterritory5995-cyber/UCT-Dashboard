@@ -86,8 +86,45 @@ describe('BuiltWidgetEmbed', () => {
     const rows = [...alt.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent))
     expect(rows).toEqual([['Flag', '+$1,500.00'], ['__proto__', '-$200.00'], ['VCP', 'no data']])
     expect(alt.querySelector('caption').textContent).toBe('Net P&L by setup, as a table')
-    fireEvent.click(screen.getByRole('button', { name: 'Show as widget' }))
+    // M2: one fixed label; the state is aria-pressed
+    expect(screen.getByRole('button', { name: 'Show as table' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
     expect(screen.queryByTestId('built-table-alt')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Show as table' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('R-25: a SHARED widget draws no account name (Account 1, 2 by first appearance); unshared it does', () => {
+    const CANARY = 'CANARY-ACCT-Roth'
+    const byAccount = { ...TABLE, view: 'bar', labelKind: 'account', label2Kind: 'account', rows: [
+      { label: CANARY, label2: 'Main', v1: 10, n1: 1, s1: '', n: 1 },
+      { label: 'Main', label2: CANARY, v1: 20, n1: 1, s1: '', n: 1 },
+      { label: CANARY, label2: 'Main', v1: 30, n1: 1, s1: '', n: 1 },
+    ] }
+    const shared = render(<BuiltWidgetEmbed attrs={attrsOf({ ...byAccount, share: true })} />)
+    const body = shared.container.textContent
+    expect(body).not.toContain(CANARY)
+    expect(body).not.toContain('Main account')                       // nor the scope label
+    const rows = [...shared.container.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].slice(0, 2)
+      .map((td) => td.textContent))
+    // one account keeps one number; label and label2 are numbered separately
+    expect(rows).toEqual([['Account 1', 'Account 1'], ['Account 2', 'Account 2'], ['Account 1', 'Account 1']])
+    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
+    expect(shared.container.textContent).not.toContain(CANARY)       // the table alternative too
+    shared.unmount()
+    // control: unshared, the member sees their own account names
+    const own = render(<BuiltWidgetEmbed attrs={attrsOf({ ...byAccount, share: false })} />)
+    expect(own.container.textContent).toContain(CANARY)
+    own.unmount()
+    // control: shared with no account label, labels are left alone
+    const plain = render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar', share: true })} />)
+    expect(plain.container.textContent).toContain('Flag')
+  })
+
+  it('M5: a hidden value with no count says Not enough trades yet, with no number', () => {
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, value: { v1: 5, n1: 4, s1: '', v2: null, s2: 'hide', v3: null, s3: 'hide',
+      n3: 2, n: 4 } })} />)
+    expect(screen.getByText('Not enough trades yet')).toBeInTheDocument()
+    expect(screen.getByText('Not enough trades yet (2)')).toBeInTheDocument()
   })
 
   it('the number view as a table is its total, one row per measure slot', () => {

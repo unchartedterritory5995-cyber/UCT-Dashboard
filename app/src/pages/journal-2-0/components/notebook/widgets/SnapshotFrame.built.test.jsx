@@ -136,7 +136,11 @@ describe('Change on a built widget', () => {
     const form = screen.getByRole('form', { name: 'Change this widget' })
     expect(within(form).getByLabelText('Date range')).toBeInTheDocument()
     expect(within(form).getByLabelText('Accounts')).toBeInTheDocument()
-    expect(within(form).getByLabelText('Filter values')).toBeDisabled()
+    const filter = within(form).getByLabelText('Filter values')
+    expect(filter).toBeDisabled()
+    // M3: the reason is visible text, and the field names it for a screen reader
+    const why = within(form).getByText('This widget has no filter you can change from the note.')
+    expect(filter.getAttribute('aria-describedby')).toBe(why.id)
     // the accounts are read when Change opens: All my accounts plus each account
     await waitFor(() => expect(within(form).getByRole('option', { name: 'IRA' })).toBeInTheDocument())
     expect(within(form).getByRole('option', { name: 'All my accounts' })).toBeInTheDocument()
@@ -193,6 +197,51 @@ describe('Change on a built widget', () => {
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-01' } })
     fireEvent.click(screen.getByRole('button', { name: 'Show these' }))
     expect(await screen.findByText('The start date is after the end date.')).toBeInTheDocument()
+    expect(writes).toHaveLength(0)
+  })
+
+  it('M4: a defRef-only widget reads its plan from GET /{defId}; an overridable filter there enables the filter', async () => {
+    const calls = routes()
+    const fetch0 = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => (String(url) === '/api/j2/widget-definitions/d-1'
+      ? reply(200, { id: 'd-1', plan: DEF_OVERRIDABLE }) : fetch0(url, init)))
+    const { def, ...noDef } = PARAMS                                    // eslint-disable-line no-unused-vars
+    render(<Host params={{ ...noDef, defRef: { id: 'd-1', rev: 2 } }} writes={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    expect(screen.getByLabelText('Filter values')).toBeDisabled()       // before the plan is read
+    await waitFor(() => expect(screen.getByLabelText('Filter values')).not.toBeDisabled())
+    await waitFor(() => expect(screen.getByRole('option', { name: 'VCP' })).toBeInTheDocument())
+    expect(globalThis.fetch.mock.calls.some(([u]) => String(u) === '/api/j2/widget-definitions/d-1')).toBe(true)
+    expect(calls.some(([u]) => u === '/api/j2/widget-definitions/vocabulary?field=setup')).toBe(true)
+  })
+
+  it('M4: when that read fails, the filter stays disabled with its reason', async () => {
+    routes()
+    const fetch0 = globalThis.fetch
+    const seen = []
+    globalThis.fetch = vi.fn(async (url, init) => {
+      seen.push(String(url))
+      return String(url) === '/api/j2/widget-definitions/d-1' ? reply(500, null) : fetch0(url, init)
+    })
+    const { def, ...noDef } = PARAMS                                    // eslint-disable-line no-unused-vars
+    render(<Host params={{ ...noDef, defRef: { id: 'd-1', rev: 2 } }} writes={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    await waitFor(() => expect(seen).toContain('/api/j2/widget-definitions/d-1'))
+    await waitFor(() => expect(screen.getByRole('option', { name: 'IRA' })).toBeInTheDocument())
+    expect(screen.getByLabelText('Filter values')).toBeDisabled()
+    expect(screen.getByText('This widget has no filter you can change from the note.')).toBeInTheDocument()
+    expect(seen.some((u) => u.includes('vocabulary?field='))).toBe(false)
+  })
+
+  it('M6: Change while offline says so, makes no run and writes nothing', async () => {
+    routes()
+    const writes = []
+    render(<Host params={PARAMS} writes={writes} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => false })
+    fireEvent.click(screen.getByRole('button', { name: 'Show these' }))
+    expect(await screen.findByText("Offline. You can change this when you're back.")).toBeInTheDocument()
+    expect(globalThis.fetch.mock.calls.some(([u]) => String(u).endsWith('/run'))).toBe(false)
     expect(writes).toHaveLength(0)
   })
 

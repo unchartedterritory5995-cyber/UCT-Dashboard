@@ -218,6 +218,20 @@ describe('presets store settings only', () => {
     expect(presetRows('preset', { sets: [], presets: [PRESET] }, 'mine', insert)).toEqual([])
   })
 
+  it('M7: a built widget is never a preset: refused on save, dropped on read, never offered', async () => {
+    globalThis.fetch = prefsFetch(JSON.stringify({ v: 1, sets: [], presets: [] }))
+    const { posts } = globalThis.fetch
+    const res = await savePreset({ name: 'Mine', kind: 'builtWidget', params: { range: { token: 'ytd' } } })
+    expect(res.ok).toBe(false)
+    expect(posts).toHaveLength(0)
+    const BUILT = { id: 'p_9', name: 'Built', kind: 'builtWidget', params: { share: false } }
+    expect(readSets(JSON.stringify({ v: 1, sets: [], presets: [BUILT, PRESET] })).presets.map((p) => p.id)).toEqual(['p_1'])
+    latchNotebookFlags({ notebook_widgets_w8_enabled: true, notebook_widgets_w1_enabled: true })
+    const insert = vi.fn(() => 'cmd')
+    const rows = presetRows('preset', { sets: [], presets: [BUILT, PRESET] }, 'mine', insert)
+    expect(rows.map((r) => r.title)).toEqual(['Preset — Flagged only'])     // control: the phase 1 preset is offered
+  })
+
   it('savePreset keeps the stored sets and strips the data', async () => {
     global.fetch = prefsFetch(JSON.stringify({ v: 1, sets: [SEMIS], presets: [] }))
     const res = await savePreset({ name: ' Flagged only ', kind: 'myWatchlistToday',

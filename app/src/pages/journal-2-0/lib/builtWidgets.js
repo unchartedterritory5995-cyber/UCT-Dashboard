@@ -218,6 +218,15 @@ export function loadAccounts() {
   return accountsLoad
 }
 
+/** A saved widget's plan (`GET DEFS_URL/{defId}` -> `plan`), for a placed widget that carries only `defRef`
+ *  (its plan was over 4 KB, so no frozen `def`). Not cached: the widget can change. Rejects when unreadable. */
+export async function loadDefinition(defId) {
+  const got = await getJson(`${DEFS_URL}/${encodeURIComponent(String(defId || ''))}`)
+  if (!got.ok) throw new Error(got.code)
+  if (!isRecord(got.data.plan)) throw new Error('failed')
+  return got.data.plan
+}
+
 /** The member's own values for one whitelisted field (`setup`, `mistake`, `emotion`, `symbol`, `account`). */
 export function loadVocabulary(field) {
   const key = String(field || '')

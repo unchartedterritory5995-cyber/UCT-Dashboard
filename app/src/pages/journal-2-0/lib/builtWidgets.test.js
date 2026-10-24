@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   BUILT_KIND, DEFS_URL, BUILT_CHANGE_KEYS, FAILURE_COPY, FAILED_SENTENCE,
   postJson, putJson, ifMatchHeader, runBuilt, drillBuilt, builtRefreshParams, viewerSettingsOf, failureText,
-  overridableFilter, loadAccounts, loadVocabulary, loadCatalog, __resetBuiltCaches,
+  overridableFilter, loadAccounts, loadVocabulary, loadCatalog, loadDefinition, __resetBuiltCaches,
 } from './builtWidgets'
 
 const setOnline = (value) => Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => value })
@@ -205,6 +205,17 @@ describe('the reads', () => {
     fetchSpy.mockResolvedValueOnce(reply(500, null)).mockResolvedValueOnce(reply(200, { accounts: [] }))
     await expect(loadAccounts()).rejects.toThrow()
     expect(await loadAccounts()).toEqual([])
+  })
+
+  it('loadDefinition reads GET /{defId} and answers its plan; an unreadable answer rejects', async () => {
+    fetchSpy.mockResolvedValueOnce(reply(200, { id: 'd 1', plan: { v: 1, filters: [] } }))
+    expect(await loadDefinition('d 1')).toEqual({ v: 1, filters: [] })
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/j2/widget-definitions/d%201')
+    expect(fetchSpy.mock.calls[0][1].method).toBe('GET')
+    fetchSpy.mockResolvedValueOnce(reply(404, {}))
+    await expect(loadDefinition('gone')).rejects.toThrow()
+    fetchSpy.mockResolvedValueOnce(reply(200, { id: 'x' }))
+    await expect(loadDefinition('x')).rejects.toThrow()
   })
 
   it('loadVocabulary asks for the field; loadCatalog for the static catalog', async () => {

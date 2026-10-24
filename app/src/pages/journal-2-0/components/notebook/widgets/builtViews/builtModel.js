@@ -45,9 +45,39 @@ export function cellOf(row, i, measure) {
   const n = r[`n${i}`]
   const s = r[`s${i}`]
   if (s === 'hide') {
-    return { text: `Not enough ${unitWord(measure?.unit)} yet (${finite(n) ? n : 0})`, hidden: true, small: false, value: null }
+    // A count it does not know is left out, never written as a zero.
+    const text = `Not enough ${unitWord(measure?.unit)} yet${finite(n) ? ` (${n})` : ''}`
+    return { text, hidden: true, small: false, value: null }
   }
   return { text: fmtValue(v, measure?.fmt), small: s === 'small' && finite(v), hidden: false, value: finite(v) ? v : null }
+}
+
+/** Ruling R-25 on the client: a SHARED widget's body becomes the archive image a public page shows, so it never
+ *  draws an account NAME. Where the payload marks a label field as an account (`labelKind` / `label2Kind` ===
+ *  'account'), each distinct label becomes "Account N", numbered by first appearance across rows, then series, then
+ *  cells, so one account keeps one number: the same rule as the server's public_note_payload._relabel_accounts.
+ *  The two fields never share a numbering. Unshared, or with no account label, `p` comes back as it is. Every view
+ *  reads its rows through this (tableModelOf does), so a chart view added later inherits it. */
+export function relabelAccounts(p) {
+  if (!isRecord(p) || p.share !== true) return p
+  const fields = [['labelKind', 'label'], ['label2Kind', 'label2']].filter(([k]) => p[k] === 'account')
+  if (!fields.length) return p
+  const out = { ...p }
+  for (const key of ['rows', 'series', 'cells']) {
+    if (Array.isArray(p[key])) out[key] = p[key].map((it) => (isRecord(it) ? { ...it } : it))
+  }
+  for (const [, field] of fields) {
+    const numbering = new Map()
+    for (const key of ['rows', 'series', 'cells']) {
+      for (const it of Array.isArray(out[key]) ? out[key] : []) {
+        if (!isRecord(it) || it[field] === null || it[field] === undefined) continue
+        const name = String(it[field])
+        if (!numbering.has(name)) numbering.set(name, `Account ${numbering.size + 1}`)
+        it[field] = numbering.get(name)
+      }
+    }
+  }
+  return out
 }
 
 const dayText = (d) => (typeof d === 'string' ? d.slice(0, 10) : '')
@@ -59,7 +89,8 @@ const plain = (text) => ({ text, small: false, hidden: false })
  *  flagged}]}`. It is what TableView draws and what "Show as table" (TableAlt) lays out, so both read the SAME
  *  rows: a number reads its total, a table, bar or list its rows, a line its series, a heat map its cells and a
  *  scatter its points. */
-export function tableModelOf(p) {
+export function tableModelOf(raw) {
+  const p = relabelAccounts(raw)
   const measures = measuresOf(p)
   const view = typeof p?.view === 'string' ? p.view : 'number'
   if (view === 'scatter') {

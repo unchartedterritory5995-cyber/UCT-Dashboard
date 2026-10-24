@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
 import Switch from '../../../../../components/ui/Switch'
 import { money, moneySigned, percent } from '../../../../../lib/journal-2-0/format'
@@ -12,7 +12,7 @@ import {
 } from '../../../lib/notebookWidgetsFetch'
 import {
   BUILT_KIND, BUILT_CHANGE_KEYS, runBuilt, builtRefreshParams, viewerSettingsOf, failureText, overridableFilter,
-  loadAccounts, loadVocabulary, loadCatalog,
+  loadAccounts, loadVocabulary, loadCatalog, loadDefinition,
 } from '../../../lib/builtWidgets'
 import styles from './SnapshotFrame.module.css'
 
@@ -32,6 +32,8 @@ import styles from './SnapshotFrame.module.css'
 export const REFRESH_MESSAGE_MS = 4000
 /** The server's sentence for a payload over the byte cap (fix-f1-report.md: `tooLarge`), when it sent none. */
 export const TOO_LARGE_SENTENCE = "This widget's data was too large to save. Narrow it and try again."
+/** M6: Change asked while the browser is offline (no request was made). */
+export const CHANGE_OFFLINE_SENTENCE = "Offline. You can change this when you're back."
 /** The earnings calendar was not read (`earningsUnknown: true`): an unknown day, never "none". */
 export const EARNINGS_UNREAD = 'The earnings calendar could not be read just now'
 
@@ -45,6 +47,8 @@ export default function SnapshotFrame({
   const [message, setMessage] = useState('')
   const [naming, setNaming] = useState(null)   // the preset name being typed, or null when closed
   const [loaded, setLoaded] = useState({})      // Change's choices, read when it opened, by field
+  const [fetchedDef, setFetchedDef] = useState(null)  // a defRef-only widget's plan, read when Change opened
+  const ctx = changeContext && !changeContext.def && fetchedDef ? { ...changeContext, def: fetchedDef } : changeContext
   // Spec §6 (final review M-10): offline, See it now is DISABLED with the reason as its title, and it is
   // enabled again on the browser's online event.
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
@@ -93,19 +97,31 @@ export default function SnapshotFrame({
     if (!mounted.current) return
     setBusy(false)
     if (result?.ok) setChange(null)
+    else if (result?.reason === 'offline') setMessage(CHANGE_OFFLINE_SENTENCE)
     else if (!result?.quiet) setMessage(result?.message || refreshFailureText(result?.reason))
   }
 
   // Change opens: a field that reads its choices (a built widget's ranges, accounts and filter values) asks for
   // them now; a read that fails leaves the field with what it already shows.
+  const loadField = (k, c) => {
+    const F = CHANGE_FIELDS[k]
+    if (!F?.load || (F.enabled && !F.enabled(c))) return
+    Promise.resolve().then(() => F.load(c)).then((opts) => {
+      if (mounted.current && Array.isArray(opts)) setLoaded((l) => ({ ...l, [k]: opts }))
+    }, () => {})
+  }
   const openChange = () => {
     setChange({ ...settings })
     setMessage('')
-    for (const k of changeKeys) {
-      const F = CHANGE_FIELDS[k]
-      if (!F?.load || (F.enabled && !F.enabled(changeContext))) continue
-      Promise.resolve().then(() => F.load(changeContext)).then((opts) => {
-        if (mounted.current && Array.isArray(opts)) setLoaded((l) => ({ ...l, [k]: opts }))
+    for (const k of changeKeys) loadField(k, ctx)
+    // M4: a widget whose plan was too large to freeze (`defRef` only) has no `def` to read its overridable filter
+    // from, so the plan is read from the widget itself. A read that fails leaves the filter disabled, with its
+    // reason; a field with no `enabled` rule was already loaded above.
+    if (ctx && !ctx.def && typeof ctx.loadDef === 'function') {
+      Promise.resolve().then(() => ctx.loadDef()).then((def) => {
+        if (!mounted.current || !def || typeof def !== 'object') return
+        setFetchedDef(def)
+        for (const k of changeKeys) if (CHANGE_FIELDS[k]?.enabled) loadField(k, { ...ctx, def })
       }, () => {})
     }
   }
@@ -179,7 +195,7 @@ export default function SnapshotFrame({
             const set = (v) => setChange((c) => ({ ...c, [k]: F.upper ? v.toUpperCase().replace(/\s+/g, '') : v }))
             if (F.load) {
               return <LoadedField key={k} name={k} F={F} change={change} setChange={setChange} set={set}
-                loaded={loaded[k]} ctx={changeContext} />
+                loaded={loaded[k]} ctx={ctx} />
             }
             return F.options ? (
               <select key={k} className={styles.presetInput} aria-label={F.label} value={change[k] || ''}
@@ -222,17 +238,22 @@ export default function SnapshotFrame({
  *  names the choice that shows more fields (a built widget's "Fixed dates" shows From and To). */
 function LoadedField({ name, F, change, setChange, set, loaded, ctx }) {
   const enabled = !F.enabled || F.enabled(ctx)
+  const whyId = useId()
   const cur = change[name]
   if (F.multiple) {
     const values = Array.isArray(cur) ? cur.map(String) : []
     const opts = [...(Array.isArray(loaded) ? loaded : [])]
     for (const v of values) if (!opts.some(([o]) => o === v)) opts.push([v, v])
+    // M3: a disabled field says why in visible text, tied to it for a screen reader, never in a title alone.
     return (
-      <select multiple className={styles.presetInput} aria-label={F.label} value={values} disabled={!enabled}
-        title={enabled ? undefined : F.disabledWhy}
-        onChange={(e) => setChange((c) => ({ ...c, [name]: [...e.target.selectedOptions].map((o) => o.value) }))}>
-        {opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-      </select>
+      <Fragment>
+        <select multiple className={styles.presetInput} aria-label={F.label} value={values} disabled={!enabled}
+          aria-describedby={enabled ? undefined : whyId}
+          onChange={(e) => setChange((c) => ({ ...c, [name]: [...e.target.selectedOptions].map((o) => o.value) }))}>
+          {opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+        </select>
+        {!enabled && F.disabledWhy && <span id={whyId} className={styles.note}>{F.disabledWhy}</span>}
+      </Fragment>
     )
   }
   const opts = [...(Array.isArray(loaded) ? loaded : []), ...(F.extra || [])]
@@ -423,7 +444,11 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     changeKeys: changeKeysOf(kind),
     settings: built ? builtChangeState(params) : requestParamsOf(params),
     onChange: canWrite ? (built ? onBuiltChange : onChange) : undefined,
-    changeContext: built ? { def: params.def, scopeLabel: params.scopeLabel, rangeLabel: params.rangeLabel } : null,
+    changeContext: built ? {
+      def: params.def, scopeLabel: params.scopeLabel, rangeLabel: params.rangeLabel,
+      // M4: a defRef-only widget reads its plan from GET /{defId} when Change opens.
+      loadDef: typeof params.defId === 'string' && params.defId ? () => loadDefinition(params.defId) : null,
+    } : null,
     // Only an editable snapshot offers it, and only while wave 5 is on. A built widget's settings belong to its
     // definition, so it offers no preset (spec 5.6).
     onSavePreset: canWrite && meta && !built && widgetsWaveOn(5) ? onSavePreset : undefined,

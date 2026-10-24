@@ -47,7 +47,7 @@ export default function BuiltWidgetEmbed({ attrs, height = 260, editable = false
           {canToggle && (
             <div className={styles.tools}>
               <button type="button" className={s.btn} aria-pressed={asTable} onClick={() => setAsTable((v) => !v)}>
-                {asTable ? 'Show as widget' : 'Show as table'}
+                Show as table
               </button>
             </div>
           )}

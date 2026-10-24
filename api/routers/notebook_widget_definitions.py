@@ -63,7 +63,8 @@ SCOPE_RUN = "notebook-widgets"
 PREVIEW_RATE = "120/minute"
 SCOPE_PREVIEW = "notebook-widget-preview"
 
-S_RATE = "You've run a lot of widgets in a minute. Try again shortly."
+#: Ruling R-28: the spec 5.10 sentence, the one the client (lib/builtWidgets.js FAILURE_COPY.rate) shows too.
+S_RATE = "Too many refreshes in a minute. Try again shortly."
 S_RATE_PREVIEW = "Pausing the preview for a moment; your changes are kept."
 S_DAILY_CAP = "You have refreshed widgets a lot today. Snapshots stay; refreshing resumes tomorrow."
 S_FROZEN = "Running from the saved copy in this note."
