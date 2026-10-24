@@ -51,9 +51,9 @@ for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
 # Seven cases left KNOWN_RED 2026-10-24 (cup-d1-015, textbook-g1-10, textbook-r2b-07/-09/-16, inside-day-b2-025,
 # shelf-b-020): the member drawing that sat on (or outranked) the judged one was a "flagging"-tier bull_flag. The
 # flagging tier was withheld from members that day (blind textbook score 1.28), so they reproduce now.
-for _cid in ("double-bottom-a-010", "inside-day-b2-018",
-             # textbook round 2 (2026-10-23): the same finding, measured at that round's release commit ffbeeffed1
-             "textbook-r2b-19", "textbook-r2b-20"):
+# textbook-r2b-19 and -20 left KNOWN_RED 2026-10-24 (recert C): the second member drawing on their judged base was
+# the MA pullback v5, withheld from members that day (MEMBER_PULLBACK_MA_V5_ROUND = None), so they reproduce now.
+for _cid in ("double-bottom-a-010", "inside-day-b2-018"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
 

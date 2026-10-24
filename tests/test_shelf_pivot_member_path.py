@@ -72,6 +72,18 @@ FLAGGING_WITHHELD = {
 CONFIRMED_WITHHELD = {"held/none/000", "held/none/178"}
 
 
+#: Fixture charts whose recorded "served" set holds a LIVE uct_pullback_ma_v5. The MA pullback v5 was withheld from
+#: members 2026-10-24 (recertification C failed it as served and through two fix rounds;
+#: auto_structures.MEMBER_PULLBACK_MA_V5_ROUND = None): member_rows no longer serves it, so on exactly these charts
+#: it leaves `served` and its lines turn withheld. Measured on every fixture chart: these are the only ones that
+#: moved, and the layer's answer (gate, line, span start, display start) is unchanged on all of them.
+V5_WITHHELD = {
+    "held/draw/010", "held/draw/039", "held/none/033", "held/none/042", "held/none/053", "held/none/076",
+    "held/none/084", "held/none/107", "held/none/124", "held/none/193", "held/none/195", "held/none/231",
+    "held/none/253",
+}
+
+
 #: Fixture charts where the member base drawing round 4 (auto_structures.MEMBER_BASE_ROUND == 4 since 2026-10-23)
 #: draws a base that round 2 -- the member round when the fixture was recorded -- did not: a member's chart now
 #: holds that bc:base drawing, so it is SERVED with its line (not withheld), and (any served drawing hides the
@@ -90,7 +102,7 @@ FLOORED_SERVED = {
 }
 
 
-def _drawn_view(c, round4=True, flagging_withheld=True, confirmed_withheld=True):
+def _drawn_view(c, round4=True, flagging_withheld=True, confirmed_withheld=True, v5_withheld=True):
     """The fixture's (served, lines) with the SENT_NOT_DRAWN row taken out of served and its lines withheld,
     (`round4`) the ROUND4_DRAWN base added to served with its line, not withheld (round 2 drew no base there),
     the FLOORED_SERVED row and its line removed, and (`flagging_withheld`) the FLAGGING_WITHHELD chart's bull_flag
@@ -108,6 +120,12 @@ def _drawn_view(c, round4=True, flagging_withheld=True, confirmed_withheld=True)
         prices = set(gone[0][1])
         served = [x for x in served if x is not gone[0]]
         lines = [(p, v, True) if p == "bull_flag" and v in prices else (p, v, w) for p, v, w in lines]
+    if v5_withheld and c["id"] in V5_WITHHELD:
+        gone = [x for x in served if x[0] == "uct_pullback_ma_v5"]
+        assert len(gone) == 1, c["id"]
+        prices = set(gone[0][1])
+        served = [x for x in served if x is not gone[0]]
+        lines = [(p, v, True) if p == "uct_pullback_ma_v5" and v in prices else (p, v, w) for p, v, w in lines]
     add = ROUND4_DRAWN.get(c["id"]) if round4 else None
     if add is not None:
         assert not any(x[0] == add[0] for x in served), c["id"]
@@ -124,12 +142,12 @@ def _drawn_view(c, round4=True, flagging_withheld=True, confirmed_withheld=True)
             [(p, v, True) if p == pid and v in prices else (p, v, w) for p, v, w in lines])
 
 
-def _reproduce(round4, flagging_withheld=True, confirmed_withheld=True):
+def _reproduce(round4, flagging_withheld=True, confirmed_withheld=True, v5_withheld=True):
     bad = []
     for c in cases():
         _ASOF[0] = int(c["bars"][-1][0])
         served, lines = AS.shelf_member_facts(c["ticker"], _dicts(c["bars"]))
-        want_served, want_lines = _drawn_view(c, round4, flagging_withheld, confirmed_withheld)
+        want_served, want_lines = _drawn_view(c, round4, flagging_withheld, confirmed_withheld, v5_withheld)
         if [(p, ls, tuple(sp) if sp else None) for p, ls, sp in served] != want_served:
             bad.append((c["id"], "served"))
         # the detectors stamp their own clock, so two lines of one chart can swap places between runs: the SET
@@ -235,6 +253,17 @@ def test_re_enabling_the_confirmed_flag_reproduces_the_recorded_confirmed_view(m
     assert _reproduce(round4=True, confirmed_withheld=False) == []
     moved = {b[0] for b in _reproduce(round4=True, confirmed_withheld=True)}
     assert moved == CONFIRMED_WITHHELD
+
+
+def test_re_enabling_the_ma_pullback_v5_reproduces_the_recorded_v5_view(member_path_env, monkeypatch):
+    """Control for V5_WITHHELD: with the member v5 literal set (in memory, the one-literal re-enable), the live v5
+    rows are served again on exactly those charts -- and the withheld view no longer matches there."""
+    from api.services.pattern_engine import base_draw
+    monkeypatch.setattr(base_draw, "state_drawing", lambda bars, i, draw_round=None: None)
+    monkeypatch.setattr(AS, "MEMBER_PULLBACK_MA_V5_ROUND", 1)
+    assert _reproduce(round4=True, v5_withheld=False) == []
+    moved = {b[0] for b in _reproduce(round4=True, v5_withheld=True)}
+    assert moved == V5_WITHHELD
 
 
 # ---------------------------------------------------------------- gates
@@ -488,6 +517,14 @@ def test_the_member_path_counts_a_live_detection_as_served(monkeypatch, member_p
     ticker = c["ticker"]
     _with_extra_detection(monkeypatch, lambda close: {**_strip_tier(_live_pullback()),
                                                       "geometry": {"extras": {"pivot": close * 3.0}}})
+    # the MA pullback v5 is withheld from members since 2026-10-24 (recert C): a live one is not served, its line
+    # is withheld and the shelf still computes
+    served, lines = AS.shelf_member_facts(ticker, bars)
+    assert not any(p == "uct_pullback_ma_v5" for p, _ls, _sp in served)
+    assert any(p == "uct_pullback_ma_v5" and w for p, _v, w in lines)
+    assert AS.shelf_compute(ticker, bars) is not None
+    monkeypatch.setattr(AS, "MEMBER_PULLBACK_MA_V5_ROUND", 1)      # control: the one-literal re-enable
+    AS._SHELF_CACHE.clear()
     served, _lines = AS.shelf_member_facts(ticker, bars)
     assert any(p == "uct_pullback_ma_v5" for p, _ls, _sp in served)
     assert AS.shelf_compute(ticker, bars) is None

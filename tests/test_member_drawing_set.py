@@ -56,6 +56,10 @@ SHIPPED_MEMBER_BULL_FLAG_ROUND = auto_structures.MEMBER_BULL_FLAG_ROUND
 @pytest.fixture
 def round9_flag_released(monkeypatch):
     monkeypatch.setattr(auto_structures, "MEMBER_BULL_FLAG_ROUND", 9)
+    # the MA pullback v5 is withheld from members too (recert C, 2026-10-24; MEMBER_PULLBACK_MA_V5_ROUND = None,
+    # railed in tests/test_pullback_v5_withheld_from_members.py); these tests exercise the member gates around it
+    # under the same one-literal re-enable
+    monkeypatch.setattr(auto_structures, "MEMBER_PULLBACK_MA_V5_ROUND", 1)
 
 
 pytestmark = pytest.mark.usefixtures("round9_flag_released")

@@ -224,11 +224,12 @@ def test_member_gets_the_member_set_including_the_pullback_but_not_the_rest_of_t
     monkeypatch.setattr(auto_structures, "drawn_for",
                         lambda sym: {"trendlines": [], "horizontals": [], "suppress": {}})
     body = _client(PAID_MEMBER, monkeypatch, ROWS).get(URL).json()
-    # registry.DISPLAY_MEMBER_SET (blind-confirmed): the pullback is served to a member through
-    # the member set only; this bull_flag row carries no round-9 draw_round stamp, so it is not
-    # served (fail closed; tests/test_member_drawing_set.py). The bc:flat-base box here is built
-    # without bars (no pivot stamp, so it would draw the full box): not served to a member.
-    assert [r["pattern_id"] for r in body["detections"]] == ["uct_pullback_ma_v5"]
+    # registry.DISPLAY_MEMBER_SET: the pullback is in the member set but WITHHELD since 2026-10-24 (recert C;
+    # auto_structures.MEMBER_PULLBACK_MA_V5_ROUND = None, tests/test_pullback_v5_withheld_from_members.py);
+    # this bull_flag row carries no round-9 draw_round stamp, so it is not served (fail closed;
+    # tests/test_member_drawing_set.py). The bc:flat-base box here is built without bars (no pivot stamp, so it
+    # would draw the full box): not served to a member.
+    assert [r["pattern_id"] for r in body["detections"]] == []
     assert "structures" not in body
     assert "drawn" not in body               # learned lines withheld from members (MEMBER_LEARNED_LINES_ROUND)
     admin = _client(ADMIN, monkeypatch, ROWS).get(URL).json()
