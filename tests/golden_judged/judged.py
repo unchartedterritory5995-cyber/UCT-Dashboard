@@ -296,8 +296,20 @@ def _base_line_holds(case, payload, bars):
 
 
 #: rule -> fn(case, payload, bars) -> True while the rule still explains the drawing's absence on this chart.
+def _textbook_gate_holds(case, payload, bars):
+    """recert B round 2: the strict textbook gate (pattern_engine.textbook_gate) withholds the judged inside day
+    on this chart. Rebuilt from the judged trigger and stop on the as-of bar; the rule must still FAIL the chart,
+    or the drawing is missing for some other reason nobody judged."""
+    from api.services.pattern_engine import textbook_gate as TG
+    e, k = case["expect"], float(case["bars"]["scale"])
+    row = {"pattern_id": "draw:inside-day", "geometry": {"extras": {"draw_inside_day": {
+        "trigger": float(e["trigger"]) / k, "stop": float(e["stop"]) / k, "end_t": bars[-1]["t"]}}}}
+    return bool(TG.inside_day_fails(bars, row))
+
+
 RETIRE_RULES = {"trend_gate": lambda case, payload, bars: _trend_gate_holds(bars),
-                "one_line_per_base": _base_line_holds}
+                "one_line_per_base": _base_line_holds,
+                "textbook_gate": _textbook_gate_holds}
 
 
 def retired_failures(case, payload, bars) -> list:

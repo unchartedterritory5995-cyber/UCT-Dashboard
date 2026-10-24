@@ -29,7 +29,7 @@ For each case the gate asserts:
 | `shelf.json` | `draw:shelf-pivot` | `MEMBER_SHELF_PIVOT_ROUND = "r4"` |
 | `sr.json` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
 | `cup.json` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
-| `inside_day.json` | `draw:inside-day` | `MEMBER_INSIDE_DAY_ROUND = 3` |
+| `inside_day.json.gz` | `draw:inside-day` (round-3 drawing, served only through the recert B textbook gate) | `MEMBER_INSIDE_DAY_ROUND = 3` + `MEMBER_INSIDE_DAY_GATE_ROUND = 1` |
 | `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10) | `MEMBER_TEXTBOOK_ROUND = 2` (the 10 round-1 buy-point cases are kept: round 2 changed no printed number) |
 | `remount.json` | `draw:remount` (the `setup_draws` layer) | `MEMBER_REMOUNT_ROUND = 3` |
 | `u_and_r.json` | `draw:u_and_r` (the `setup_draws` layer) | `MEMBER_U_AND_R_ROUND = 2` |
@@ -58,6 +58,12 @@ is red. `test_a_retired_drawing_coming_back_is_caught` is the control.
 Retired so far (2026-10-23, the trend-gate blind round: suppressed rows 0.98, controls 2.46 / 84%, and the lost
 approved cases re-judged blind on "is this a buy" averaged 1.00): 19 shelf and 9 double-bottom cases, plus 7 textbook
 round-2 cases whose as-of bar fails the trend rule. Only cases where `trend_ok` is False on the fixture are retired.
+
+Retired 2026-10-24 (recert B round 2, the strict textbook rubric: four pre-registered packets of 25, two fresh judges
+each, packets 2.34 / 2.54 / 2.64 / 2.82, pooled 2.585): all 32 round-3 inside-day cases, under rule `textbook_gate`
+(`pattern_engine.textbook_gate.inside_day_fails` withholds each one; every one is more than 6% above its 50-day).
+The round's 3-scored cases that pass the one-line-per-base check were added in their place (32 of 56; the other 24
+share their base with a pullback, base or channel line on the member chart and are not fixtures).
 
 Retired 2026-10-24 under `one_line_per_base` (precedence round e): 11 donchian cases. Round e was a blind paired round:
 25 shared-base charts, 2 fresh judges. On a shared base, the base-family line was preferred over the donchian channel
