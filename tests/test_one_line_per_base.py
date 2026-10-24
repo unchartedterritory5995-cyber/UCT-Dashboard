@@ -233,7 +233,7 @@ def test_the_priority_order_decides_every_pair(winner, loser):
 def test_the_priority_order_is_the_documented_literal():
     assert AS.ONE_LINE_PER_BASE_PRIORITY == (
         "bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout", "bc:flat-base", "flat_base",
-        "bc:base", "bull_flag", "draw:donchian_breakout")
+        "bc:base", "bull_flag", "draw:donchian_breakout", "draw:rectangle")
     assert AS.ONE_LINE_PER_BASE_ATR == 1.0
 
 

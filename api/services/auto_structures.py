@@ -1587,11 +1587,20 @@ _TEXTBOOK_GATED_IDS = frozenset({"draw:inside-day", "uct_flat_top_breakout", "dr
 #:                               construction; a blind paired round (2026-10-24, precedence round e) found no
 #:                               clear winner against the base drawings, so the base drawing already shown
 #:                               stays and the channel line shows only where no line above it is within 1 ATR.
+#:   9. draw:rectangle         -- the trading-range box (a `setup_draws` row, settled by
+#:                               member_setup_one_line_per_base); its breakout line is the box TOP. Judged
+#:                               alone (2.44 / 2.76) with no paired round against any drawing above, and on a
+#:                               lower packet than the channel line (2.70 / 2.80), so it ranks last: the box
+#:                               is shown only where no drawn breakout line above it sits within 1 ATR of its
+#:                               top over an overlapping span.
 #: Rows of any other id (the MA pullback's curve and stop; the inside day, settled by its own pass; the
 #: shelf pivot, drawn only on an otherwise empty chart) are never touched here. Ties: the earlier row.
 DONCHIAN_DRAW_ID = "draw:donchian_breakout"
+#: The rectangle (horizontal trading range) setup drawing (api/services/pattern_engine/setup_draw_rectangle.py).
+RECTANGLE_DRAW_ID = "draw:rectangle"
 ONE_LINE_PER_BASE_PRIORITY = ("bc:cup-with-handle", "draw:double-bottom", "uct_flat_top_breakout",
-                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag", DONCHIAN_DRAW_ID)
+                              "bc:flat-base", "flat_base", BASE_DRAW_ID, "bull_flag", DONCHIAN_DRAW_ID,
+                              RECTANGLE_DRAW_ID)
 #: Two breakout lines within this many ATR(14) of each other, over overlapping spans, are one line.
 ONE_LINE_PER_BASE_ATR = 1.0
 #: With no ATR to be had at all, two lines this close (one cent, plus float noise) are one line.
@@ -1681,6 +1690,13 @@ def _breakout_lines(row) -> list:
             ps = [x.get("price") for x in an[:2]]
             if all(_finite(v) for v in ps):
                 add(sum(float(v) for v in ps) / len(ps), r.get("start_t"), r.get("end_t"))
+    elif pid == RECTANGLE_DRAW_ID:
+        # PatternOverlay draws the box from its two anchors; its breakout line is the top edge (the first
+        # anchor's price) over the box's span (the first anchor's bar to the as-of bar)
+        an = g.get("anchors")
+        if isinstance(an, list) and len(an) >= 2 and all(isinstance(x, dict) for x in an[:2]):
+            if _finite(an[0].get("price")) and _finite(an[1].get("price")):
+                box_top(an[0], an[1], max(float(an[0]["price"]), float(an[1]["price"])))
     elif pid in ("flat_base", "bull_flag"):
         if r.get("draw_entry") and not _flagging_flag(r):
             p = ex.get("draw_entry_price")
@@ -1815,7 +1831,8 @@ def member_setup_one_line_per_base(detections, structures, setups, atr=None):
     """`setups` (the member's `setup_draws` rows, or None) without a row that member_one_line_per_base would drop
     beside the chart's already-settled `detections` and `structures`: the SAME pass, run once over all three, so
     a setup drawing of ONE_LINE_PER_BASE_PRIORITY (the donchian channel line) yields wherever a higher-priority
-    drawn line sits within ONE_LINE_PER_BASE_ATR over overlapping spans. Setup ids outside the priority are kept
+    drawn line sits within ONE_LINE_PER_BASE_ATR over overlapping spans (and so does the rectangle box, ranked
+    after it, by its top edge). Setup ids outside the priority are kept
     untouched; `detections` / `structures` are read, never changed. None stays None. Never raises."""
     if setups is None:
         return None
@@ -2849,9 +2866,7 @@ _SETUP_DRAW_R3_FUNCS = (
     ("major_trendlines", "draw:major-trendline", "Major trendline", "major_trendlines"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
-#: The rectangle (horizontal trading range) drawing (api/services/pattern_engine/setup_draw_rectangle.py): ONE box,
-#: same layer, same flag, same key.
-RECTANGLE_DRAW_ID = "draw:rectangle"
+#: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
 SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
 SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_R3_IDS \
     + SETUP_DRAW_RECT_IDS
@@ -2868,8 +2883,15 @@ _SETUP_DRAW_FUNCS = (
 #: pre-registered blind packets. donchian_breakout round 1 passed too (A 2.70 / 100%, B 2.80 / 100%); owner
 #: released 2026-10-24: its literal is 1 and its id is in DISPLAY_TEAM_SET and DISPLAY_MEMBER_SET. Withdrawing it is
 #: one literal: set it to None (or take the id out of either registry set) and member_rows drops it.
-MEMBER_REMOUNT_ROUND = 3
-MEMBER_U_AND_R_ROUND = 2
+#: WITHDRAWN 2026-10-24 (remount and u_and_r: None). Recertification C re-judged both on the strict textbook rubric
+#: (four pre-registered packets of 25 random liquid charts 2023-06..2026-10, two fresh blind judges each; bar: every
+#: packet mean >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4). remount round 3: 2.04 / 1.96 / 2.02 / 1.80, pooled
+#: 1.96 (chop lines, marginal or light-volume reclaims, brief losses); its fix round (lab textbook gate) 2.06 / 2.14 /
+#: 2.40 / 1.96, pooled 2.14. u_and_r round 2: 1.96 / 2.06 / 1.92 / 1.76, pooled 1.93 (marginal reclaims, lower-high
+#: downtrends); a fix round could not field 100 eligible held-out charts. Evidence: lab/recert/C_setups. The ids stay
+#: in both registry sets (the team chart keeps them); setting a literal back needs a new passed blind round.
+MEMBER_REMOUNT_ROUND = None
+MEMBER_U_AND_R_ROUND = None
 MEMBER_DONCHIAN_BREAKOUT_ROUND = 1
 #: Round-2 setup drawings released to members: each passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 random liquid held-out charts each; bar: mean >= 2.3 AND >= 70% of charts >= 2):
