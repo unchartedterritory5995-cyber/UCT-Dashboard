@@ -14,7 +14,6 @@ import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
 import { NewNoteCaret } from '../components/notebook/NewNoteMenu'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
-import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { SkipLinkPortal } from '../../../components/skipLinks'
@@ -136,6 +135,9 @@ const BulkActionBar = lazyView(() => import('../components/notebook/BulkActionBa
 // brings the catalog with it (lib/templatesLoader.js). While either loads, the skeleton holds the picker's box and
 // the tour's gallery-door anchor, so a tour waiting on that anchor still finds it.
 const TemplatePicker = lazyView(() => import('../components/notebook/TemplatePicker'), 'templates', <TemplatePickerSkeleton />)
+// Task 7.6: the connected-apps sync line under the list header (and its status hook). It renders nothing until
+// its status read lands, so it loads after first paint with nothing in its place (`null` fallback).
+const NoteConnectorsTrustStrip = lazyView(() => import('../components/connectors/NoteConnectorsTrustStrip'), 'connected apps status', null)
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
 const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')

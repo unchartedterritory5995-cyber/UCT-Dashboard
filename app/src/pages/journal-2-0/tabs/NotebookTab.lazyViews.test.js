@@ -35,6 +35,8 @@ const LAZY = [
   '../components/notebook/styles/StylesManager',
   // Wave 7 Task 7.6: the "Save view" name prompt, on its first open through `lazyDialog`.
   '../components/notebook/SavedViewEditor',
+  // Wave 7 Task 7.6: the connected-apps sync line, after first paint through `lazyView` (null fallback).
+  '../components/connectors/NoteConnectorsTrustStrip',
   // Notebook P1: the kind picker is a lazyView of the journal-styles surfaces, whose ONE dynamic import
   // lives in components/notebook/styles/lazyStyles.js (rail: NoteEditorPage.styleChunks.test.js).
   // ⚰️ Wave 8 seam S8-3 put the first-run tour here too, through `lazyChunk` in a bare
