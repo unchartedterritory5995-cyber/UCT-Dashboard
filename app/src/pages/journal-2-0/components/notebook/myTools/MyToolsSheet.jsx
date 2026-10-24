@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import SegmentedNav from '../../../../../components/mobile/SegmentedNav'
 import { useIsPhone } from '../../../../../hooks/useBreakpoint'
@@ -20,10 +20,30 @@ import styles from './myTools.module.css'
  *
  * ⛔ LAZY: mounted only by openMyTools.js, which only dynamic imports reach.
  */
-export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, editor = null, uid = null }) {
+export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, editor = null, uid = null, navigate = null }) {
   const phone = useIsPhone()
   const [active, setActive] = useState(TAB_KEYS.includes(tab) ? tab : 'widgets')
   const tabsRef = useRef(null)
+
+  // Closing is once: the back button, a note link's own history move and the close button can all arrive together.
+  const closed = useRef(false)
+  const closeOnce = useCallback(() => {
+    if (closed.current) return
+    closed.current = true
+    onClose?.()
+  }, [onClose])
+  // The back button (or any history move) closes My tools rather than moving the page under it, as the chart sets
+  // dialog does: the Sheet keeps no history entry of its own.
+  useEffect(() => {
+    window.addEventListener('popstate', closeOnce)
+    return () => window.removeEventListener('popstate', closeOnce)
+  }, [closeOnce])
+  // Asked again for one widget while open ("Manage…" on another placed widget): show the Widgets tab.
+  const [seen, setSeen] = useState(defId)
+  if (defId && defId !== seen) {
+    setSeen(defId)
+    setActive('widgets')
+  }
 
   // Arrow keys move between the tabs (the tabs pattern): the segmented control's buttons are ordinary buttons, so
   // the keys are read here, around it, and the tab that takes focus is the one shown.
@@ -41,8 +61,8 @@ export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, e
 
   const label = TABS.find(([k]) => k === active)?.[1] || 'Widgets'
   return (
-    <Sheet open onClose={onClose} title="My tools" labelledByTitle variant={phone ? 'fullscreen' : 'auto'}
-      maxWidth={880} className={styles.panel} bodyClassName={styles.body}>
+    <Sheet open onClose={closeOnce} title="My tools" labelledByTitle variant={phone ? 'fullscreen' : 'auto'}
+      maxWidth={880} className={styles.sheetPanel} bodyClassName={styles.body}>
       <div className={styles.root} data-testid="my-tools" data-phone={phone ? '' : undefined}>
         <div ref={tabsRef} className={styles.tabs} onKeyDown={onTabsKey}>
           <SegmentedNav ariaLabel="My tools" items={TABS.map(([key, l]) => ({ key, label: l }))}
@@ -50,7 +70,7 @@ export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, e
         </div>
         <div role="tabpanel" aria-label={label} className={styles.tabPanel} data-tab={active}>
           {active === 'widgets'
-            ? <WidgetsTab phone={phone} defId={defId} editor={editor} uid={uid} onCloseAll={onClose} />
+            ? <WidgetsTab phone={phone} defId={defId} editor={editor} uid={uid} navigate={navigate} onCloseAll={closeOnce} />
             : <p className={styles.soon} data-testid="my-tools-soon">{COMING_SOON[active]}</p>}
         </div>
       </div>

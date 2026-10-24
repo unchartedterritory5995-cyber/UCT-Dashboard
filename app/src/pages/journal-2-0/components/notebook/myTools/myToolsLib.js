@@ -4,7 +4,7 @@
 //
 // ⛔ Member words only (spec 4.1 and the global constraints): widget, note, version, archive, chart sets, presets.
 // Never the engine's own nouns. The server's sentences (count cap, conflict, archive first, type the name) are shown
-// VERBATIM through `failureText`, never retyped here.
+// VERBATIM (`actionFailure`), never retyped here.
 import { DEFS_URL, FAILURE_COPY, FETCH_TIMEOUT_MS, failureText, ifMatchHeader } from '../../../lib/builtWidgets'
 
 /** The four tabs (spec 5.8). Wave 8 builds Widgets; the other three say so and carry no controls. */
@@ -48,6 +48,10 @@ export const COPY = Object.freeze({
   revsEmpty: 'No saved versions yet.',
   tooNew: FAILURE_COPY.too_new,
   setsHint: 'Chart sets and presets have their own place.',
+  paid: 'My tools needs a paid plan.',
+  gone: "That widget isn't available.",
+  revertFailed: "Saved a copy as a new widget. This widget couldn't go back to the version before; it now has the restored version as its newest.",
+  revertRetry: 'Go back to the version before',
 })
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -109,48 +113,74 @@ export function keptUntilText(iso, now = new Date()) {
 
 // ── answers ─────────────────────────────────────────────────────────────────────────────────────────
 
-/** The sentence for a refused list or panel read. */
+/** The sentence for a refused list or panel read. 404 on a LIST is the dark wave; a 402 is the plan, and neither
+ *  has anything to retry. */
 export function readFailure(code, fallback) {
   if (code === 'offline') return COPY.offlineList
+  if (code === 'paid') return COPY.paid
   if (code === 'unavailable') return FAILURE_COPY.unavailable
   return fallback
 }
 
-/** The sentence for a refused action. The server's own sentence wherever it has one (count cap, conflict, a plan too
- *  new, "Archive this widget before deleting it.", "Type the widget's name exactly to delete it."). A plain network
- *  failure is not the refresh failure `failureText` falls back to: nothing here touches a snapshot. */
+/** Codes whose refusal has nothing a retry can change. */
+export const NO_RETRY = Object.freeze(new Set(['unavailable', 'paid']))
+
+/** Codes where the SERVER'S sentence is the authority, shown as it came (the count cap, a stale tab, a plan too new,
+ *  and `invalid`: "Archive this widget before deleting it.", "Type the widget's name exactly to delete it.").
+ *  `failureText` (lib/builtWidgets FAILURE_COPY) is only the fallback when the server sent no sentence. */
+const SERVER_SAYS = new Set(['count_cap', 'conflict', 'too_new', 'invalid'])
+
+/** The sentence for a refused action. A 404 on ONE widget means it went away (another tab deleted it). A plain
+ *  network failure is not the refresh failure `failureText` falls back to: nothing here touches a snapshot. */
 export function actionFailure(got) {
   const code = isRecord(got) ? got.code : null
   if (code === 'offline') return COPY.offlineAction
+  if (code === 'paid') return COPY.paid
+  if (code === 'unavailable') return COPY.gone
+  const message = isRecord(got) && typeof got.message === 'string' ? got.message.trim() : ''
+  if (SERVER_SAYS.has(code) && message) return message
   if (code === 'failed' || typeof code !== 'string' || !code) return COPY.actionFailed
-  return failureText(code, got.message) || COPY.actionFailed
+  return failureText(code, message) || COPY.actionFailed
 }
 
-/** `POST DEFS_URL + path` carrying `If-Match: <etag>`: the one My tools call `lib/builtWidgets.js` has no helper for
- *  (a version restore, `POST /{id}/revs/{rev}/restore`, ruling R-15). Same contract as its `postJson`: never throws;
- *  offline makes no request; a 404 is `unavailable`; a 428 (no If-Match) is a conflict (ruling R-27); a refusal is the
- *  server's `{detail: {code, message}}`.
- *  ⚠️ A copy of `postJson`'s answer reading. If `postJson` ever takes an etag, this goes and that is used. */
-export async function postWithIfMatch(path, body, etag) {
+/**
+ * My tools' one door to `/api/j2/widget-definitions`: `{ok: true, data}` or `{ok: false, code, message, status}`.
+ * Never throws; offline makes no request; 404 is `unavailable`; 402 is `paid`; 428 (no If-Match, ruling R-27) is a
+ * conflict; any other refusal is the server's `{detail: {code, message}}`. `etag` is sent as If-Match (ruling R-15).
+ *
+ * ⚠️ A local client rather than lib/builtWidgets' getJson/postJson/putJson, for two things those do not carry: a POST
+ * with If-Match (a version restore) and the HTTP status (a 402 there reads as a plain failure). When that file grows
+ * both, this goes. Each fetch names its method LITERALLY, as the door rail (lib/offline/doorEnumeration.test.js)
+ * reads methods from the call site.
+ */
+export async function request(method, path, { body, etag } = {}) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return { ok: false, code: 'offline', message: '' }
   const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
   const timer = ctl ? setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS) : null
+  const url = `${DEFS_URL}${path}`
+  const signal = ctl ? { signal: ctl.signal } : {}
+  const headers = { 'Content-Type': 'application/json', ...ifMatchHeader(etag) }
   try {
-    const res = await fetch(`${DEFS_URL}${path}`, {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...ifMatchHeader(etag) },
-      body: JSON.stringify(body ?? {}), ...(ctl ? { signal: ctl.signal } : {}),
-    })
+    let res
+    if (method === 'POST') {
+      res = await fetch(url, { method: 'POST', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...signal })
+    } else if (method === 'PUT') {
+      res = await fetch(url, { method: 'PUT', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...signal })
+    } else {
+      res = await fetch(url, { method: 'GET', credentials: 'include', ...signal })
+    }
     if (res.ok) {
       const data = await res.json()
-      return isRecord(data) ? { ok: true, data } : { ok: false, code: 'failed', message: '' }
+      return isRecord(data) ? { ok: true, data } : { ok: false, code: 'failed', message: '', status: res.status }
     }
-    if (res.status === 404) return { ok: false, code: 'unavailable', message: FAILURE_COPY.unavailable }
-    if (res.status === 428) return { ok: false, code: 'conflict', message: FAILURE_COPY.conflict }
+    if (res.status === 404) return { ok: false, code: 'unavailable', message: '', status: 404 }
+    if (res.status === 402) return { ok: false, code: 'paid', message: '', status: 402 }
+    if (res.status === 428) return { ok: false, code: 'conflict', message: FAILURE_COPY.conflict, status: 428 }
     let detail = null
     try { detail = (await res.json())?.detail } catch { detail = null }
     const code = isRecord(detail) && typeof detail.code === 'string' && detail.code ? detail.code : 'failed'
     const message = isRecord(detail) && typeof detail.message === 'string' ? detail.message : ''
-    return { ok: false, code, message }
+    return { ok: false, code, message, status: res.status }
   } catch {
     return { ok: false, code: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'failed', message: '' }
   } finally {

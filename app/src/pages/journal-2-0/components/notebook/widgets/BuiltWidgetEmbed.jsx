@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
+import { UNSAFE_NavigationContext } from 'react-router-dom'
 import UIcon from '../../../../../components/ui/UIcon'
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import {
@@ -59,6 +60,9 @@ const subtitleOf = (p) => (isRecord(p.def?.display) && typeof p.def.display.subt
  *  GET /{defId} says about the widget itself, read when it first opens (an update, an archived widget, or a widget
  *  that is gone). Escape closes it and returns focus to ⋯; Tab out of it or a click outside closes it. */
 function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
+  // The app router's history, when this widget is drawn inside it (null in a render outside any router): My tools
+  // opens on its own root, so its note links move the router through this (`useNavigate` throws outside a router).
+  const routerHistory = useContext(UNSAFE_NavigationContext)?.navigator
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(null)       // null | loading | {ok, def} | missing | dark | error
   const [how, setHow] = useState(false)
@@ -117,7 +121,7 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
     setOpen(false)
     try {
       const mod = await import('../myTools/openMyTools.js')
-      mod.openMyTools({ editor, defId })
+      mod.openMyTools({ editor, defId, ...(routerHistory ? { navigate: (to) => routerHistory.push(to) } : {}) })
     } catch { /* My tools could not load: nothing opens */ }
   }
   const restore = async () => {

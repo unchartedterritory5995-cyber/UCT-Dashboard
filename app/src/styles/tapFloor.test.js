@@ -190,7 +190,7 @@ const MY_TOOLS_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook',
 describe('My tools floors every control at 44px at every width', () => {
   it('My tools has clickable controls at all (non-vacuity)', () => {
     const classes = clickableClasses(stripComments(readFileSync(MY_TOOLS_CSS, 'utf8')))
-    for (const c of ['.btn', '.btnPrimary', '.btnDanger', '.filter', '.moreBtn', '.backBtn', '.linkBtn', '.noteLink']) {
+    for (const c of ['.btn', '.btnPrimary', '.btnDanger', '.filter', '.moreBtn', '.backBtn', '.linkBtn', '.noteLink', '.option']) {
       expect(classes).toContain(c)
     }
   })

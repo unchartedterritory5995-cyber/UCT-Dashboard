@@ -7,17 +7,26 @@
  * styles/tapFloor.test.js walks this file and fails any clickable class (a rule with `cursor: pointer`) without a
  * floor at 390, 820 or 1200 px. */
 
-.panel {
+/* The Sheet's own panel is the ONLY box with a fixed height (myToolsCss.test.js fails any other). */
+.sheetPanel {
   width: 100%;
 }
 @media (min-width: 641px) {
-  .panel {
+  .sheetPanel {
     height: min(80vh, 80dvh, 760px);
   }
 }
 
-.panel .body {
+.sheetPanel .body {
   padding: 0;
+}
+
+/* A push-in panel (a widget's notes, its versions, rename, archive, delete, the restore question): it flows in the
+   sheet's scrolling body and sets no height of its own. */
+.pushPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
 .root {
@@ -111,6 +120,18 @@
 .error {
   background: var(--warn-bg, transparent);
   border: 1px solid var(--warn-border, var(--border));
+  color: var(--danger-ink, var(--color-danger));
+}
+/* The one live region, between messages: present (so a screen reader keeps listening), no box. */
+.liveIdle {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+}
+.inlineError {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.4;
   color: var(--danger-ink, var(--color-danger));
 }
 .stateBox {
@@ -430,6 +451,52 @@
   flex: 0 0 auto;
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* ── the restore question ── */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-height: var(--tap-min);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+.option:hover {
+  background: var(--bg-hover);
+}
+.optionOn {
+  border-color: var(--ut-gold);
+  background: var(--bg-elevated);
+}
+/* The radio is a real, visible control: its own focus ring, and the label carries a ring for the keyboard too. */
+.radio {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--ut-gold);
+}
+.option:has(:focus-visible) {
+  outline: 2px solid var(--focus-ring, var(--ut-gold));
+  outline-offset: 2px;
+}
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.optionLabel {
+  font-weight: 600;
+  color: var(--text-heading);
 }
 
 /* ── version history ── */

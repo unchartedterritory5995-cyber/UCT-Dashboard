@@ -3,11 +3,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react'
 import { createRef } from 'react'
-import VersionHistory from './VersionHistory'
+import VersionHistory, { QUESTION_BACK } from './VersionHistory'
 import { installFetch, refuse, LIVE } from './__fixtures__/myToolsFixtures'
-import { diffWords } from './myToolsLib'
+import { COPY, diffWords } from './myToolsLib'
+import { FAILURE_COPY } from '../../../lib/builtWidgets'
 
-const S_CONFLICT = 'Changed in another tab. Reload to see the newer version.'
+const S_CONFLICT = 'SERVER: changed in another tab, from the server.'
 const CURRENT = 'Net P&L, split by setup, for closed trades in the last 90 days.'
 const REVS = [
   { rev: 3, summary: CURRENT, savedAt: '2025-03-04T17:00:00Z', named: null, current: true, placed: false, plan: {} },
@@ -104,14 +105,14 @@ describe('Version history', () => {
     const back = net.calls.find((c) => c.path === '/w1/revs/3/restore')
     expect(back.headers['If-Match']).toBe('8')                         // save_new does not move this widget's etag
     await waitFor(() => expect(announce).toHaveBeenCalledWith(
-      'Saved the restored version as a new widget, “Net P&L by setup copy”. This widget and its notes are as they were.'))
+      'Saved the restored version as a new widget, “Net P&L by setup copy”. This widget and its notes are as they were.', 'ok'))
   })
 
   it('a widget in one note or none restores without the question', async () => {
     const one = { ...W1, usedIn: 1 }
     const { announce } = mount(one, [['POST', '/w1/revs/2/restore', () => restored({ usedIn: 1 })]])
     await askRestore(2)
-    await waitFor(() => expect(announce).toHaveBeenCalledWith(expect.stringMatching(/^Restored the version from Mar 1, 2025/)))
+    await waitFor(() => expect(announce).toHaveBeenCalledWith(expect.stringMatching(/^Restored the version from Mar 1, 2025/), 'ok'))
     expect(screen.queryByText(/This widget is in/)).toBeNull()
     expect(net.calls.some((c) => c.method === 'PUT')).toBe(false)
   })
@@ -128,12 +129,13 @@ describe('Version history', () => {
   })
 
   it('a restore from a stale tab shows the conflict sentence and Reload reads the widget again', async () => {
-    mount(W1, [
+    const { announce } = mount(W1, [
       ['POST', '/w1/revs/2/restore', () => refuse(409, 'conflict', S_CONFLICT)],
       ['GET', '/w1', () => ({ ...W1, etag: 12 })],
     ])
     await askRestore(2)
-    expect(await screen.findByRole('alert')).toHaveTextContent(S_CONFLICT)
+    await waitFor(() => expect(within(revRow(2)).getByTestId('restore-confirm')).toHaveTextContent(S_CONFLICT))
+    expect(announce).toHaveBeenCalledWith(S_CONFLICT, 'error')
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
     await waitFor(() => expect(net.calls.some((c) => c.method === 'GET' && c.path === '/w1')).toBe(true))
     // The next restore carries the fresh etag.
@@ -145,7 +147,8 @@ describe('Version history', () => {
   it('a restore with no If-Match answer (428) is the same conflict', async () => {
     mount(W1, [['POST', '/w1/revs/2/restore', () => ({ ok: false, status: 428, json: async () => ({}) })]])
     await askRestore(2)
-    expect(await screen.findByRole('alert')).toHaveTextContent(S_CONFLICT)
+    await waitFor(() => expect(within(revRow(2)).getByTestId('restore-confirm')).toHaveTextContent(FAILURE_COPY.conflict))
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
   })
 
   it('Name this version names it; Remove the name unnames it', async () => {
@@ -158,7 +161,7 @@ describe('Version history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
     await waitFor(() => expect(net.calls.find((c) => c.path === '/w1/revs/1/name')).toMatchObject({
       method: 'POST', body: { name: 'First try' } }))
-    await waitFor(() => expect(announce).toHaveBeenCalledWith('Named the version from Feb 1, 2025, 11:05 AM “First try”.'))
+    await waitFor(() => expect(announce).toHaveBeenCalledWith('Named the version from Feb 1, 2025, 11:05 AM “First try”.', 'ok'))
     fireEvent.click(within(revRow(2)).getByRole('button', { name: /^Rename this version, from/ }))
     expect(screen.getByLabelText('Name for this version')).toHaveValue('Before the setup split')
     fireEvent.click(screen.getByRole('button', { name: 'Remove the name' }))
@@ -179,7 +182,7 @@ describe('Version history', () => {
   it('versions that cannot load say so, with Try again', async () => {
     net = installFetch([['GET', '/w1/revs', () => refuse(500, 'failed', '')]])
     render(<VersionHistory d={W1} onBack={() => {}} announce={() => {}} />)
-    expect(await screen.findByRole('alert')).toHaveTextContent("The versions couldn't be loaded just now.")
+    expect(await screen.findByText(COPY.revsFailed)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 })
@@ -195,5 +198,88 @@ describe('diffWords', () => {
   it('a run of changed words is one mark, spaces included', () => {
     expect(diffWords('Net P&L last 90 days', 'Net P&L by symbol last 90 days')).toEqual([
       { text: 'Net P&L ', changed: false }, { text: 'by symbol', changed: true }, { text: ' last 90 days', changed: false }])
+  })
+})
+
+describe('Version history, review fixes', () => {
+  it('Restore opens its confirm with focus on the confirm\'s first button', async () => {
+    mount()
+    await screen.findAllByTestId('my-tools-rev')
+    fireEvent.click(within(revRow(2)).getByRole('button', { name: /^Restore the version from/ }))
+    const group = within(revRow(2)).getByTestId('restore-confirm')
+    expect(within(group).getAllByRole('button')[0]).toHaveFocus()
+    expect(within(group).getAllByRole('button')[0]).toHaveTextContent('Cancel')
+  })
+
+  it('the confirm names notes only when the widget is in a note', async () => {
+    mount({ ...W1, usedIn: 0 })
+    await screen.findAllByTestId('my-tools-rev')
+    fireEvent.click(within(revRow(2)).getByRole('button', { name: /^Restore the version from/ }))
+    expect(within(revRow(2)).getByTestId('restore-confirm')).not.toHaveTextContent(/notes/)
+    cleanup()
+    mount({ ...W1, usedIn: 2 })
+    await screen.findAllByTestId('my-tools-rev')
+    fireEvent.click(within(revRow(2)).getByRole('button', { name: /^Restore the version from/ }))
+    expect(within(revRow(2)).getByTestId('restore-confirm')).toHaveTextContent('Your notes keep what they show.')
+  })
+
+  it('the restore question is My tools\' own: its heading, "Back to versions", and Reload on a stale tab', async () => {
+    mount(W1, [
+      ['POST', '/w1/revs/2/restore', () => restored()],
+      ['PUT', '/w1', () => refuse(409, 'conflict', S_CONFLICT)],
+      ['GET', '/w1', () => restored({ etag: 15 })],
+    ])
+    await askRestore(2)
+    expect(await screen.findByRole('heading', { name: 'Restore this version?' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Back to versions' })).toBeInTheDocument()
+    expect(screen.getByTestId('my-tools-history-question').className).toMatch(/pushPanel/)
+    fireEvent.click(screen.getByRole('button', { name: 'Save as a new widget' }))
+    expect(await screen.findByText(S_CONFLICT)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+    await waitFor(() => expect(net.calls.some((c) => c.method === 'GET' && c.path === '/w1')).toBe(true))
+  })
+
+  it('Back and Escape out of the question say the same words', async () => {
+    const { announce, subBack } = mount(W1, [['POST', /^\/w1\/revs\/\d\/restore$/, () => restored()]])
+    await askRestore(2)
+    await screen.findByRole('heading', { name: 'Restore this version?' })
+    fireEvent.click(screen.getByRole('button', { name: 'Back to versions' }))
+    expect(announce).toHaveBeenLastCalledWith(QUESTION_BACK, 'ok')
+    announce.mockClear()
+    await askRestore(1)
+    await screen.findByRole('heading', { name: 'Restore this version?' })
+    await waitFor(() => expect(subBack.current()).toBe(true))
+    expect(announce).toHaveBeenLastCalledWith(QUESTION_BACK, 'ok')
+  })
+
+  it('save as new, second step refused: the exact sentence as an error, and "Go back to the version before" retries', async () => {
+    let backTries = 0
+    const { announce } = mount(W1, [
+      ['POST', '/w1/revs/2/restore', () => restored()],
+      ['PUT', '/w1', () => ({ ...W1, id: 'w9', name: 'Net P&L by setup copy', rev: 1, etag: 1 })],
+      ['POST', '/w1/revs/3/restore', () => { backTries += 1; return backTries === 1 ? refuse(500, 'failed', '') : restored({ rev: 5, etag: 9 }) }],
+    ])
+    await askRestore(2)
+    await screen.findByRole('heading', { name: 'Restore this version?' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as a new widget' }))
+    await waitFor(() => expect(announce).toHaveBeenCalledWith(
+      "Saved a copy as a new widget. This widget couldn't go back to the version before; it now has the restored version as its newest.", 'error'))
+    expect(COPY.revertFailed).toBe("Saved a copy as a new widget. This widget couldn't go back to the version before; it now has the restored version as its newest.")
+    const retry = await screen.findByRole('button', { name: 'Go back to the version before' })
+    await waitFor(() => expect(retry).toHaveFocus())
+    fireEvent.click(retry)
+    await waitFor(() => expect(backTries).toBe(2))
+    expect(net.calls.filter((c) => c.path === '/w1/revs/3/restore').map((c) => c.headers['If-Match'])).toEqual(['8', '8'])
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Go back to the version before' })).toBeNull())
+    expect(announce).toHaveBeenLastCalledWith('This widget is back to the version before. Its notes are as they were.', 'ok')
+  })
+
+  it('a widget gone in another tab (404) leaves the panel with "That widget isn\'t available."', async () => {
+    const onGone = vi.fn()
+    net = installFetch([['GET', '/w1/revs', () => ({ revs: REVS })],
+      ['POST', '/w1/revs/2/restore', () => ({ ok: false, status: 404, json: async () => ({ detail: 'Not Found' }) })]])
+    render(<VersionHistory d={W1} onBack={() => {}} announce={() => {}} onGone={onGone} />)
+    await askRestore(2)
+    await waitFor(() => expect(onGone).toHaveBeenCalledWith(COPY.gone))
   })
 })

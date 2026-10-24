@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
-import { DEFS_URL, getJson, postJson, putJson } from '../../../lib/builtWidgets'
+import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import { VIEW_LABELS } from '../widgetBuilder/builderCatalog'
 import ViewThumb from './ViewThumb'
 import UsedInList from './UsedInList'
@@ -9,8 +9,8 @@ import VersionHistory from './VersionHistory'
 import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
 import {
-  FILTERS, LIST_RENDER_MAX, RECENTLY_DELETED_DAYS, COPY, usedInText, archiveSentence, editedText, dayText,
-  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName,
+  FILTERS, LIST_RENDER_MAX, NO_RETRY, RECENTLY_DELETED_DAYS, COPY, usedInText, archiveSentence, editedText, dayText,
+  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName, request,
 } from './myToolsLib'
 import styles from './myTools.module.css'
 
@@ -25,10 +25,12 @@ import styles from './myTools.module.css'
  *  * Every action is a ContextPopover on the row (a bottom sheet on touch, an anchored menu on desktop); on desktop
  *    the row's main action is also a button of its own.
  *  * A panel (the notes, the versions, rename, archive, delete) pushes in place of the list inside the one sheet;
- *    the list stays mounted, hidden, so Back (or Escape) returns focus to the very row it came from.
- *  * Rename and every restore send If-Match with the widget's etag (ruling R-15); a stale tab gets the server's
- *    "Changed in another tab. Reload to see the newer version." and a Reload button. Every refusal shows the server's
- *    own sentence (`actionFailure`).
+ *    the list stays mounted, hidden, so Back (or Escape) returns focus to the very row it came from. A row an action
+ *    takes away (restore, delete) hands focus to the next row once the list has been read again, or to the heading.
+ *  * Rename and every restore send If-Match with the widget's etag (ruling R-15); a stale tab gets the server's own
+ *    sentence and a Reload button. A widget gone in another tab (a 404) says so and the list is read again.
+ *  * ONE live region for the tab's whole life (`data-testid="my-tools-message"`): only its text changes, so a screen
+ *    reader hears every message (a region inserted with its text is often not announced).
  */
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const VIEW_NAME = new Map(VIEW_LABELS)
@@ -50,7 +52,10 @@ const listHeading = (filter, n) => {
   return `${n} widget${n === 1 ? '' : 's'}`
 }
 
-function Row({ d, filter, phone, highlight, busy, onMenu, onPrimary, onUsedIn }) {
+/** A newer version this widget's notes have not taken yet (saved "only here", or restored). */
+const pendingVersion = (d) => Number.isInteger(d?.rev) && Number.isInteger(d?.placedRev) && d.rev !== d.placedRev
+
+function Row({ d, filter, phone, touch, highlight, busy, menuOpen, onMenu, onPrimary, onUsedIn }) {
   const view = isRecord(d.plan?.view) ? d.plan.view.type : null
   const viewName = VIEW_NAME.get(view)
   const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
@@ -62,11 +67,11 @@ function Row({ d, filter, phone, highlight, busy, onMenu, onPrimary, onUsedIn })
       data-highlight={highlight ? '' : undefined} data-testid="my-tools-row">
       <span className={styles.thumb}><ViewThumb view={view} /></span>
       <div className={styles.rowMain}>
-        <span className={styles.rowName}>
+        <span className={styles.rowName} title={d.name}>
           {d.name}
           {viewName && <span className={styles.srOnly}>{`, ${viewName}`}</span>}
         </span>
-        {!phone && d.summary && <span className={styles.rowSummary}>{d.summary}</span>}
+        {!phone && d.summary && <span className={styles.rowSummary} title={d.summary}>{d.summary}</span>}
         <span className={styles.rowMeta}>
           {filter === 'deleted' ? (
             <>
@@ -92,51 +97,74 @@ function Row({ d, filter, phone, highlight, busy, onMenu, onPrimary, onUsedIn })
         <button type="button" className={styles.btn} disabled={primaryOff} onClick={() => onPrimary(d)}
           aria-label={`${primary} ${d.name}`}>{primary}</button>
       )}
-      <button type="button" className={styles.moreBtn} aria-label={`Actions for ${d.name}`} aria-haspopup="menu"
-        data-actions-for={d.id} disabled={busy} onClick={(e) => onMenu(d, e.currentTarget)}>
+      {/* Never disabled while busy: a menu that closes onto a disabled trigger drops focus to the page. The action
+          guards itself instead (`act` ignores a second action while one is in flight). */}
+      <button type="button" className={styles.moreBtn} aria-label={`Actions for ${d.name}`}
+        aria-haspopup={touch ? 'dialog' : 'menu'} aria-expanded={menuOpen} aria-busy={busy || undefined}
+        data-actions-for={d.id} onClick={(e) => onMenu(d, e.currentTarget)}>
         <UIcon name="more" size={18} gold={false} />
       </button>
     </li>
   )
 }
 
-function RenamePanel({ d, onBack, onDone }) {
+function RenamePanel({ d: initial, onBack, onDone, onGone, onReloaded, say }) {
   const id = useId()
-  const [name, setName] = useState(d.name || '')
+  const [d, setD] = useState(initial)                // a Reload reads the widget again (a fresh etag), name kept
+  const [name, setName] = useState(initial.name || '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const input = useRef(null)
   useEffect(() => { input.current?.focus(); input.current?.select?.() }, [])
   const clean = name.trim()
   const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
+  // A name is a title-only change, which every note takes (spec 5.2 step 4) -- unless a newer version is waiting
+  // that the notes have not taken: then "update all" would push THAT version into every note behind a rename, so
+  // the rename stays on this widget ("only") and the notes keep what they show.
+  const apply = pendingVersion(d) ? 'only' : 'update_all'
+  const fail = (got) => {
+    if (got.code === 'unavailable') { onGone(actionFailure(got)); return }
+    const text = actionFailure(got)
+    say(text, 'error')
+    setError({ text, conflict: got.code === 'conflict' })
+  }
   const save = async (e) => {
     e.preventDefault()
     if (!clean || clean === d.name || busy) return
     setBusy(true)
     setError(null)
-    // A name is a title-only change, which every note takes (spec 5.2 step 4: a title-only change is "Update all"),
-    // so a rename never leaves the notes with an "Updated version available" that changes nothing they show.
-    const got = await putJson(`/${enc(d.id)}`, { name: clean, plan: namedPlan(d.plan, clean), apply: 'update_all' }, d.etag)
+    const got = await request('PUT', `/${enc(d.id)}`, { body: { name: clean, plan: namedPlan(d.plan, clean), apply }, etag: d.etag })
     setBusy(false)
     if (got.ok) onDone(got.data, `Renamed to “${got.data.name || clean}”.`)
-    else setError({ text: actionFailure(got), conflict: got.code === 'conflict' })
+    else fail(got)
   }
+  const reload = async () => {
+    setBusy(true)
+    const got = await request('GET', `/${enc(d.id)}`)
+    setBusy(false)
+    if (!got.ok || !isRecord(got.data)) { fail(got); return }
+    setD(got.data)
+    setError(null)
+    onReloaded?.()
+    say(`Read “${got.data.name}” again. Your new name is kept; save it when you're ready.`)
+    input.current?.focus()
+  }
+  const hintText = used > 0 && (apply === 'only'
+    ? `This widget has a newer version your ${used === 1 ? 'note has' : `${used} notes have`} not taken yet, so ${used === 1 ? 'it keeps' : 'they keep'} the old name until you update ${used === 1 ? 'it' : 'them'}.`
+    : `Your ${used === 1 ? 'note shows' : `${used} notes show`} the new name the next time you press See it now.`)
+  const described = [hintText ? `${id}-hint` : '', error ? `${id}-err` : ''].filter(Boolean).join(' ') || undefined
   return (
-    <div className={styles.panel} data-testid="my-tools-rename">
+    <div className={styles.pushPanel} data-testid="my-tools-rename">
       <PanelHead title={`Rename “${d.name}”`} onBack={onBack} focusHeading={false} />
       <form className={styles.form} onSubmit={save}>
         <label className={styles.fieldLabel} htmlFor={id}>Name</label>
         <input ref={input} id={id} className={styles.input} value={name} maxLength={200}
-          aria-describedby={used > 0 ? `${id}-hint` : undefined} aria-invalid={error ? true : undefined}
+          aria-describedby={described} aria-invalid={error ? true : undefined}
           onChange={(e) => setName(e.target.value)} />
-        {used > 0 && (
-          <p className={styles.hint} id={`${id}-hint`}>
-            {`Your ${used === 1 ? 'note shows' : `${used} notes show`} the new name the next time you press See it now.`}
-          </p>
-        )}
-        {error && <p className={styles.error} role="alert">{error.text}</p>}
+        {hintText && <p className={styles.hint} id={`${id}-hint`}>{hintText}</p>}
+        {error && <p className={styles.inlineError} id={`${id}-err`}>{error.text}</p>}
         <div className={styles.actions}>
-          {error?.conflict && <button type="button" className={styles.btn} onClick={() => onDone(null, '')}>Reload</button>}
+          {error?.conflict && <button type="button" className={styles.btn} disabled={busy} onClick={reload}>Reload</button>}
           <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
           <button type="submit" className={styles.btnPrimary} disabled={!clean || clean === d.name || busy}
             aria-busy={busy || undefined}>{busy ? 'Saving…' : 'Save name'}</button>
@@ -149,11 +177,11 @@ function RenamePanel({ d, onBack, onDone }) {
 function ArchivePanel({ d, onBack, onArchive, busy, error }) {
   const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
   return (
-    <div className={styles.panel} data-testid="my-tools-archive">
+    <div className={styles.pushPanel} data-testid="my-tools-archive">
       <PanelHead title={`Archive “${d.name}”?`} onBack={onBack} />
       <p className={styles.sentence} data-testid="archive-sentence">{archiveSentence(used)}</p>
       <p className={styles.hint}>It leaves your widget list; you can restore it from Archived.</p>
-      {error && <p className={styles.error} role="alert">{error}</p>}
+      {error && <p className={styles.inlineError}>{error}</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
         <button type="button" className={styles.btnPrimary} disabled={busy} aria-busy={busy || undefined}
@@ -165,18 +193,19 @@ function ArchivePanel({ d, onBack, onArchive, busy, error }) {
 
 const EMPTY = { live: COPY.emptyLive, archived: COPY.emptyArchived, deleted: COPY.emptyDeleted }
 
-export default function WidgetsTab({ phone, defId = null, editor = null, uid = null, onCloseAll }) {
+export default function WidgetsTab({ phone, defId = null, editor = null, uid = null, navigate = null, onCloseAll }) {
+  const touch = useIsTouch()
   const [filter, setFilter] = useState('live')
-  const [lists, setLists] = useState({})            // filter -> {status: 'loading'|'ok'|'error', items?, code?}
+  const [lists, setLists] = useState({})            // filter -> {status, items?, code?, stale?}
   const [view, setView] = useState({ kind: 'list' })
   const [menu, setMenu] = useState(null)            // {d, anchor}
-  const [message, setMessage] = useState(null)      // {text, tone}
+  const [message, setMessage] = useState(null)      // {text, tone: 'ok' | 'error' | 'quiet'}
   const [busyId, setBusyId] = useState(null)
   const [panelError, setPanelError] = useState(null)
   const [highlight, setHighlight] = useState(defId)
   const rootRef = useRef(null)
   const returnTo = useRef(null)                     // the widget id whose row a panel was opened from
-  const focusAfter = useRef(null)                   // {id} | {id, fallback} | {heading}: where focus goes next
+  const focusAfter = useRef(null)                   // {id?, heading?, fallback?, wait?}: where focus goes next
   const [, setTick] = useState(0)
   const subBack = useRef(null)                      // a panel's own inner Back (VersionHistory's naming, its question)
   const mounted = useRef(true)
@@ -188,37 +217,61 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
     for (const w of watchers.current) w.disconnect()
   }, [])
 
+  const say = useCallback((text, tone = 'ok') => setMessage(text ? { text, tone } : null), [])
+
   const load = useCallback(async (key) => {
     setLists((all) => (all[key]?.status === 'ok' ? all : { ...all, [key]: { status: 'loading' } }))
-    const got = await getJson(`${DEFS_URL}?view=${key}`)
+    const got = await request('GET', `?view=${key}`)
     if (!mounted.current) return null
     const items = got.ok && Array.isArray(got.data.widgets) ? got.data.widgets.filter((w) => isRecord(w) && w.id) : null
     setLists((all) => ({ ...all, [key]: items ? { status: 'ok', items } : { status: 'error', code: got.code } }))
     return items
   }, [])
 
-  /** Reload the list on screen; the others load again when visited (an action moves widgets between lists). */
+  /** Read a list again; the others load again when visited (an action moves widgets between lists). Until the new
+   *  answer lands, the list on screen stays and is marked `stale`, so focus waits for the truth. */
   const refresh = useCallback((key) => {
-    setLists((all) => ({ [key]: all[key] }))
+    setLists((all) => (all[key] ? { [key]: { ...all[key], stale: true } } : {}))
     return load(key)
   }, [load])
 
   useEffect(() => { if (!lists[filter]) load(filter) }, [filter, lists, load])
 
-  // Opened from a placed widget ("Manage…"): show that widget's row and put focus on it. It may be archived.
-  const sought = useRef(false)
+  // A failed read says so in the live region too (quietly: the box on screen already shows it).
+  const failedCode = lists[filter]?.status === 'error' ? lists[filter].code : null
   useEffect(() => {
-    if (!defId || sought.current) return
+    if (failedCode) say(readFailure(failedCode, COPY.loadFailed), 'quiet')
+  }, [failedCode, say])
+  // Offline: the list reads itself again when the connection is back.
+  useEffect(() => {
+    if (failedCode !== 'offline') return undefined
+    const back = () => { say(null); refresh(filter) }
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  }, [failedCode, filter, refresh, say])
+
+  // Opened from a placed widget ("Manage…"), or asked again for another widget while open: show that widget's row
+  // and put focus on it. It may be archived.
+  const sought = useRef(null)
+  useEffect(() => {
+    if (!defId || sought.current === defId) return
+    if (sought.current !== null) {                    // a second "Manage…" while My tools is open
+      sought.current = null
+      setView({ kind: 'list' })
+      setMenu(null)
+      setHighlight(defId)
+      if (filter !== 'live') { setFilter('live'); return }
+    }
     const live = lists.live
     if (live?.status !== 'ok') return
-    sought.current = true
+    sought.current = defId
     if (live.items.some((w) => w.id === defId)) { focusAfter.current = { id: defId }; setTick((t) => t + 1); return }
     load('archived').then((items) => {
       if (!mounted.current || !items?.some((w) => w.id === defId)) return
       focusAfter.current = { id: defId }
       setFilter('archived')
     })
-  }, [defId, lists.live, load])
+  }, [defId, lists.live, load, filter])
 
   // ── panels ──────────────────────────────────────────────────────────────────────────────────────
   const push = (kind, d) => {
@@ -233,20 +286,29 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
   }, [])
   useEffect(() => {
     if (view.kind !== 'list' || !returnTo.current) return
-    focusAfter.current = { id: returnTo.current, fallback: true }
+    if (!focusAfter.current) focusAfter.current = { id: returnTo.current, fallback: true }
     returnTo.current = null
   }, [view])
-  // Focus lands once the element it is for is drawn (a list may arrive a render or a request later). A row that is
-  // gone (archived, deleted) hands focus to the list's heading.
+  // Focus lands once the element it is for is drawn, and (`wait`) once the list it is in has been read again. A row
+  // that is gone hands focus to the list's heading.
   useEffect(() => {
     const want = focusAfter.current
     if (!want || view.kind !== 'list') return
+    if (want.wait && (lists[want.wait]?.stale || lists[want.wait]?.status !== 'ok' || filter !== want.wait)) return
     const root = rootRef.current
-    const el = want.heading ? null : root?.querySelector(actionsFor(want.id))
-    if (el && !el.disabled) { focusAfter.current = null; el.focus(); return }
+    const el = want.id && !want.heading ? root?.querySelector(actionsFor(want.id)) : null
+    if (el) { focusAfter.current = null; el.focus(); return }
     const heading = root?.querySelector('[data-list-heading]')
     if ((want.fallback || want.heading) && heading) { focusAfter.current = null; heading.focus() }
   })
+
+  /** Where focus goes when `id` leaves list `key`: the next row, else the one before, else the heading. */
+  const focusPast = (key, id) => {
+    const xs = lists[key]?.items || []
+    const i = xs.findIndex((w) => w.id === id)
+    const next = i >= 0 ? (xs[i + 1] || xs[i - 1]) : null
+    focusAfter.current = next ? { id: next.id, fallback: true, wait: key } : { heading: true, wait: key }
+  }
 
   // Escape: a desktop menu closes first; then a panel goes back one level (its own inner level first); at the list
   // the Sheet's own Escape closes My tools. Only while this sheet is the topmost one: a touch menu is a sheet of its
@@ -273,7 +335,15 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
     return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
-  const say = (text, tone = 'ok') => setMessage(text ? { text, tone } : null)
+  /** A widget gone in another tab: say so, leave any panel, read the list again. */
+  const gone = (text = COPY.gone) => {
+    returnTo.current = null
+    focusAfter.current = { heading: true, wait: filter }
+    setView({ kind: 'list' })
+    setPanelError(null)
+    say(text, 'error')
+    refresh(filter)
+  }
 
   // ── the builder (a separate sheet on its own root) ──────────────────────────────────────────────
   const watchBuilder = () => {
@@ -317,12 +387,14 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
     if (!mounted.current) return
     setBusyId(null)
     if (got.ok) { done(got.data); return }
+    if (got.code === 'unavailable') { gone(actionFailure(got)); return }
     say(actionFailure(got), 'error')
   }
   const duplicate = (d) => {
     const name = copyName(d.name)
-    act(d, () => postJson('', { name, plan: copiedPlan(d.plan, name) }), (w) => {
+    act(d, () => request('POST', '', { body: { name, plan: copiedPlan(d.plan, name) } }), (w) => {
       say(`Made “${w?.name || name}”.`)
+      if (w?.id) focusAfter.current = { id: w.id, wait: 'live' }
       refresh('live')
     })
   }
@@ -330,29 +402,32 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
     if (busyId) return
     setBusyId(d.id)
     setPanelError(null)
-    const got = await postJson(`/${enc(d.id)}/archive`, {})
+    const got = await request('POST', `/${enc(d.id)}/archive`)
     if (!mounted.current) return
     setBusyId(null)
     if (!got.ok) {
+      if (got.code === 'unavailable') { gone(actionFailure(got)); return }
+      say(actionFailure(got), 'error')
       if (view.kind === 'archive') setPanelError(actionFailure(got))
-      else say(actionFailure(got), 'error')
       return
     }
     returnTo.current = null
+    focusPast('live', d.id)
     setView({ kind: 'list' })
     say(`Archived “${d.name}”. Restore it from Archived.`)
-    focusAfter.current = { heading: true }
     refresh('live')
   }
   const archive = (d) => {
     if ((d.usedIn || 0) > 0) push('archive', d)
     else doArchive(d)
   }
-  const unarchive = (d) => act(d, () => postJson(`/${enc(d.id)}/unarchive`, {}), () => {
+  const unarchive = (d) => act(d, () => request('POST', `/${enc(d.id)}/unarchive`), () => {
+    focusPast('archived', d.id)
     say(`Restored “${d.name}” to your widgets.`)
     refresh('archived')
   })
-  const undelete = (d) => act(d, () => postJson(`/${enc(d.id)}/undelete`, {}), () => {
+  const undelete = (d) => act(d, () => request('POST', `/${enc(d.id)}/undelete`), () => {
+    focusPast('deleted', d.id)
     say(`Restored “${d.name}”. It's in Archived.`)
     refresh('deleted')
   })
@@ -389,6 +464,7 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
     ]
   }
   const openMenu = (d, el) => {
+    if (busyId === d.id) return
     const r = el.getBoundingClientRect()
     setMenu({ d, anchor: { x: Math.max(8, r.right - 220), y: r.bottom + 4 } })
   }
@@ -397,7 +473,8 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
   const state = lists[filter]
   const items = state?.status === 'ok' ? state.items : []
   const shown = items.slice(0, LIST_RENDER_MAX)
-  const panelDone = (key) => (w, text) => {
+  const panelDone = (key, after) => (w, text) => {
+    after?.()
     if (text) say(text)
     back()
     refresh(key)
@@ -405,24 +482,27 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
 
   let panel = null
   if (view.kind === 'usedIn') {
-    panel = <UsedInList d={view.d} onBack={back} onNavigate={onCloseAll} />
+    panel = <UsedInList d={view.d} onBack={back} onNavigate={onCloseAll} navigate={navigate} />
   } else if (view.kind === 'history') {
-    panel = <VersionHistory d={view.d} onBack={back} subBackRef={subBack} announce={(t) => say(t)}
+    panel = <VersionHistory d={view.d} onBack={back} subBackRef={subBack} announce={say} onGone={gone}
       onChanged={() => refresh('live')} />
   } else if (view.kind === 'delete') {
-    panel = <DeleteConfirm d={view.d} onBack={back} onDeleted={panelDone('archived')} />
+    const id = view.d.id
+    panel = <DeleteConfirm d={view.d} onBack={back} onGone={gone}
+      onDeleted={panelDone('archived', () => { returnTo.current = null; focusPast('archived', id) })} />
   } else if (view.kind === 'rename') {
-    panel = <RenamePanel d={view.d} onBack={back} onDone={panelDone('live')} />
+    panel = <RenamePanel d={view.d} onBack={back} onDone={panelDone('live')} onGone={gone} say={say}
+      onReloaded={() => refresh('live')} />
   } else if (view.kind === 'archive') {
     panel = <ArchivePanel d={view.d} onBack={back} onArchive={doArchive} busy={busyId === view.d.id} error={panelError} />
   }
 
+  const tone = message?.tone
   return (
     <div ref={rootRef} className={styles.widgets} data-testid="my-tools-widgets">
-      {message && (
-        <p className={message.tone === 'error' ? styles.error : styles.status} role={message.tone === 'error' ? 'alert' : 'status'}
-          data-testid="my-tools-message">{message.text}</p>
-      )}
+      <p className={!message ? styles.liveIdle : tone === 'error' ? styles.error : tone === 'quiet' ? styles.srOnly : styles.status}
+        role="status" aria-live="polite" aria-atomic="true" data-tone={tone || undefined}
+        data-testid="my-tools-message">{message?.text || ''}</p>
       {panel}
       <div hidden={view.kind !== 'list'} className={styles.listWrap}>
         <div className={styles.toolbar}>
@@ -441,12 +521,12 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
           )}
         </div>
 
-        {(!state || state.status === 'loading') && <p className={styles.hint} role="status">{COPY.loading}</p>}
+        {(!state || state.status === 'loading') && <p className={styles.hint}>{COPY.loading}</p>}
         {state?.status === 'error' && (
           <div className={styles.stateBox}>
-            <p className={styles.sentence} role="alert">{readFailure(state.code, COPY.loadFailed)}</p>
-            {state.code !== 'unavailable' && (
-              <button type="button" className={styles.btn} onClick={() => refresh(filter)}>Try again</button>
+            <p className={styles.sentence} data-testid="my-tools-load-failed">{readFailure(state.code, COPY.loadFailed)}</p>
+            {!NO_RETRY.has(state.code) && (
+              <button type="button" className={styles.btn} onClick={() => { say(null); refresh(filter) }}>Try again</button>
             )}
           </div>
         )}
@@ -463,8 +543,9 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
             ) : (
               <ul className={styles.list}>
                 {shown.map((d) => (
-                  <Row key={d.id} d={d} filter={filter} phone={phone} highlight={highlight === d.id}
-                    busy={busyId === d.id} onMenu={openMenu} onPrimary={primary} onUsedIn={(x) => push('usedIn', x)} />
+                  <Row key={d.id} d={d} filter={filter} phone={phone} touch={touch} highlight={highlight === d.id}
+                    busy={busyId === d.id} menuOpen={menu?.d.id === d.id} onMenu={openMenu} onPrimary={primary}
+                    onUsedIn={(x) => push('usedIn', x)} />
                 ))}
               </ul>
             )}

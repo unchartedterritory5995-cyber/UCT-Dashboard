@@ -7,7 +7,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import MyToolsSheet from './MyToolsSheet'
 import { openMyTools } from './openMyTools'
-import { installFetch, refuse, URL_BASE } from './__fixtures__/myToolsFixtures'
+import { installFetch, refuse } from './__fixtures__/myToolsFixtures'
+import { FAILURE_COPY } from '../../../lib/builtWidgets'
 import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
 import { openSetsDialog } from '../widgets/SetsDialog'
 import { FULLSCREEN_SHEET_ATTR } from '../../../../../components/mobile/fullscreenSheetAttr'
@@ -20,9 +21,13 @@ vi.mock('../../../../../hooks/useBreakpoint', () => ({
 vi.mock('../widgetBuilder/openWidgetBuilder.js', () => ({ openWidgetBuilder: vi.fn(() => () => {}) }))
 vi.mock('../widgets/SetsDialog', () => ({ openSetsDialog: vi.fn(() => () => {}) }))
 
-const S_CONFLICT = 'Changed in another tab. Reload to see the newer version.'
-const S_CAP = 'You have 100 widgets. Archive one in My tools to make room.'
-const S_TYPE_NAME = "Type the widget's name exactly to delete it."
+// Server sentences are the SERVER'S: each test sends a sentence the client cannot know, so showing anything but what
+// the server said fails.
+const S_CONFLICT = 'SERVER: changed in another tab, from the server.'
+const S_CAP = 'SERVER: the widget cap, from the server.'
+const S_TYPE_NAME = 'SERVER: type the name, from the server.'
+const live = () => screen.getByTestId('my-tools-message')
+const saysLive = (text) => waitFor(() => expect(live()).toHaveTextContent(text))
 
 let net
 beforeEach(() => {
@@ -120,6 +125,7 @@ describe('My tools, Widgets tab', () => {
 
   it('rename_sends_if_match_and_conflict_sentence', async () => {
     net = installFetch([['PUT', '/w1', () => refuse(409, 'conflict', S_CONFLICT)]])
+    net.lists.live[0] = { ...net.lists.live[0], placedRev: 3 }      // no newer version waiting
     await openSheet()
     await menuFor('Net P&L by setup')
     fireEvent.click(menuItem('Rename'))
@@ -128,7 +134,8 @@ describe('My tools, Widgets tab', () => {
     expect(screen.getByText('Your 3 notes show the new name the next time you press See it now.')).toBeInTheDocument()
     fireEvent.change(input, { target: { value: '  Setup P&L  ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(S_CONFLICT)
+    await saysLive(S_CONFLICT)
+    expect(screen.getByTestId('my-tools-rename')).toHaveTextContent(S_CONFLICT)
     const put = net.calls.find((c) => c.method === 'PUT')
     expect(put.path).toBe('/w1')
     expect(put.headers['If-Match']).toBe('7')                  // ruling R-15: the etag, never the rev (3)
@@ -149,7 +156,7 @@ describe('My tools, Widgets tab', () => {
     fireEvent.click(menuItem('Rename'))
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Setup P&L' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Renamed to “Setup P&L”.')
+    await saysLive('Renamed to “Setup P&L”.')
     expect(await screen.findByText('Setup P&L', { exact: true })).toBeInTheDocument()
   })
 
@@ -163,7 +170,7 @@ describe('My tools, Widgets tab', () => {
       'It stays in your 3 notes as a snapshot. See it now keeps working from its saved copy.')
     expect(net.calls.some((c) => c.method === 'POST')).toBe(false)   // nothing archived until the member says so
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Archived “Net P&L by setup”. Restore it from Archived.')
+    await saysLive('Archived “Net P&L by setup”. Restore it from Archived.')
     expect(net.calls.find((c) => c.method === 'POST')).toMatchObject({ path: '/w1/archive' })
     // A widget in no note has nothing to warn about: it archives at once.
     await menuFor('Win rate')
@@ -196,7 +203,9 @@ describe('My tools, Widgets tab', () => {
     expect(screen.getByRole('heading', { name: 'Delete “Old edge” permanently?' })).toBeInTheDocument()
     const del = screen.getByRole('button', { name: 'Delete permanently' })
     expect(del).toBeDisabled()
-    expect(del).toHaveAccessibleDescription('Delete turns on when the name matches exactly.')
+    expect(del).toHaveAccessibleDescription(expect.stringContaining('Delete turns on when the name matches exactly.'))
+    expect(field).toHaveAccessibleDescription(expect.stringContaining('It moves to Recently deleted for 30 days'))
+    expect(del).toHaveAccessibleDescription(expect.stringContaining('It moves to Recently deleted for 30 days'))
     fireEvent.change(field, { target: { value: 'old edge' } })     // the case matters
     expect(del).toBeDisabled()
     fireEvent.change(field, { target: { value: 'Old edge ' } })    // so does a trailing space
@@ -205,7 +214,7 @@ describe('My tools, Widgets tab', () => {
     fireEvent.change(field, { target: { value: 'Old edge' } })
     expect(del).toBeEnabled()
     fireEvent.submit(field.closest('form'))
-    expect(await screen.findByRole('status')).toHaveTextContent('“Old edge” moved to Recently deleted. It\'s kept for 30 days.')
+    await saysLive('“Old edge” moved to Recently deleted. It\'s kept for 30 days.')
     expect(net.calls.find((c) => c.path === '/a1/delete')).toMatchObject({ method: 'POST', body: { typedName: 'Old edge' } })
   })
 
@@ -219,7 +228,7 @@ describe('My tools, Widgets tab', () => {
     const field = await screen.findByLabelText('Type Old edge to confirm')
     fireEvent.change(field, { target: { value: 'Old edge' } })
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(S_TYPE_NAME)
+    expect(await screen.findByRole('alert')).toHaveTextContent(S_TYPE_NAME)   // the field's own error
     expect(field).toHaveAttribute('aria-invalid', 'true')
   })
 
@@ -234,7 +243,7 @@ describe('My tools, Widgets tab', () => {
     await menuFor('Gone')
     expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Restore'])
     fireEvent.click(menuItem('Restore'))
-    expect(await screen.findByRole('status')).toHaveTextContent('Restored “Gone”. It\'s in Archived.')
+    await saysLive('Restored “Gone”. It\'s in Archived.')
     expect(net.calls.find((c) => c.method === 'POST')).toMatchObject({ path: '/x1/undelete' })
   })
 
@@ -244,7 +253,7 @@ describe('My tools, Widgets tab', () => {
     showList('Archived')
     await screen.findByRole('heading', { name: '1 archived' })
     fireEvent.click(screen.getByRole('button', { name: 'Restore Old edge' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(S_CAP)
+    await saysLive(S_CAP)
   })
 
   it('duplicate posts "<name> copy" and the count cap is the server\'s sentence', async () => {
@@ -252,7 +261,7 @@ describe('My tools, Widgets tab', () => {
     await openSheet()
     await menuFor('Net P&L by setup')
     fireEvent.click(menuItem('Duplicate'))
-    expect(await screen.findByRole('alert')).toHaveTextContent(S_CAP)
+    await saysLive(S_CAP)
     const post = net.calls.find((c) => c.method === 'POST')
     expect(post.path).toBe('')
     expect(post.body.name).toBe('Net P&L by setup copy')
@@ -317,7 +326,7 @@ describe('My tools, Widgets tab', () => {
   it('a list that cannot load says so and offers Try again', async () => {
     net = installFetch([['GET', '?view=live', () => refuse(500, 'failed', '')]])
     render(<MyToolsSheet onClose={() => {}} uid="u1" />)
-    expect(await screen.findByRole('alert')).toHaveTextContent("Your widgets couldn't be loaded just now.")
+    expect(await screen.findByTestId('my-tools-load-failed')).toHaveTextContent("Your widgets couldn't be loaded just now.")
     net.calls.length = 0
     net = installFetch()
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
@@ -326,16 +335,19 @@ describe('My tools, Widgets tab', () => {
 
   it('offline: no request, and the offline sentence', async () => {
     const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
-    render(<MyToolsSheet onClose={() => {}} uid="u1" />)
-    expect(await screen.findByRole('alert')).toHaveTextContent("You're offline. Your widgets show here when you're back online.")
-    expect(net.fn).not.toHaveBeenCalled()
-    online.mockRestore()
+    try {
+      render(<MyToolsSheet onClose={() => {}} uid="u1" />)
+      expect(await screen.findByTestId('my-tools-load-failed')).toHaveTextContent("You're offline. Your widgets show here when you're back online.")
+      expect(net.fn).not.toHaveBeenCalled()
+    } finally {
+      online.mockRestore()
+    }
   })
 
   it('wave 8 dark: the list reads "Not available right now." with nothing to retry', async () => {
     net = installFetch([['GET', '?view=live', () => ({ ok: false, status: 404, json: async () => ({ detail: 'Not Found' }) })]])
     render(<MyToolsSheet onClose={() => {}} uid="u1" />)
-    expect(await screen.findByRole('alert')).toHaveTextContent('Not available right now.')
+    expect(await screen.findByTestId('my-tools-load-failed')).toHaveTextContent(FAILURE_COPY.unavailable)
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   })
 
