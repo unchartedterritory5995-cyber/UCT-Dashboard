@@ -99,7 +99,7 @@ def setup_tags_enabled() -> bool:
 #: The setup-tag round a member may be shown (setup_tags.TAGS_ROUND stamps every tag). A literal ON
 #: PURPOSE, like the drawing rounds: when the tag rules or their definitions move to a new round,
 #: members stop getting tags until this is changed by hand (admins still see them).
-MEMBER_SETUP_TAGS_ROUND = 1
+MEMBER_SETUP_TAGS_ROUND = 2
 
 
 #: The base-metrics round a member may be shown (base_metrics.METRICS_ROUND stamps

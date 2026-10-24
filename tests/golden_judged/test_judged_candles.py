@@ -97,7 +97,7 @@ def test_the_label_fixtures_are_symbol_free_and_small():
     for name in sorted(os.listdir(LABELS)):
         p = os.path.join(LABELS, name)
         total += os.path.getsize(p)
-        text = open(p, encoding="utf-8").read()
+        text = json.dumps(MP.load_family(p))         # a .json.gz family is checked on its decoded text
         assert not re.search(r"[A-Za-z]:[\\/]|Desktop|lab[\\/]|\.png|\.db\b", text), name
         doc = json.loads(text)
         keys: set = set()

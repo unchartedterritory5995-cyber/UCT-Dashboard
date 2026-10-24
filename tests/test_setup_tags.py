@@ -64,7 +64,8 @@ def _textbook(pid, rows):
 # ── 1. one textbook fixture per event, through the real detector ───────────────
 
 def _kicker(textbook=True):
-    b = _flat(60)
+    # 300 sessions: a round-2 tag must also meet tag_textbook on the bar it names, which needs a year of history
+    b = _flat(300)
     if textbook:     # red candle, then a green candle opening above the red candle's OPEN
         _set(b, -2, o=51.0, h=51.2, l=49.4, c=49.5)
         _set(b, -1, o=51.5, h=53.0, l=51.3, c=52.8)
