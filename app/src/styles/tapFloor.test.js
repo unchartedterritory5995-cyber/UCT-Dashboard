@@ -132,3 +132,52 @@ describe('the 44px touch floor covers TABLET, not just phone', () => {
     expect(phoneOnlyTargets(desc)).toEqual(['.input'])
   })
 })
+
+// Wave 8 (Task 8.15): the widget builder. Its controls are the member-facing surface of built widgets, and spec 5.11
+// requires every one of them -- view thumbnails and chip remove buttons included -- to be a 44px target at EVERY
+// touch tier. The rule above only catches a phone-only floor; it says nothing about a control with NO floor. This
+// derives the builder's controls from its own stylesheet (every class whose rule sets `cursor: pointer`), so a
+// control added tomorrow is covered the day it lands, and asks that each is floored at 390 AND 820.
+const BUILDER_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgetBuilder', 'WidgetBuilderSheet.module.css')
+
+/** Classes whose rule declares `cursor: pointer` (the last class of each comma-separated part, as above). */
+function clickableClasses(css) {
+  const found = new Set()
+  const rule = /([^{}]+)\{([^{}]*)\}/g
+  let m
+  while ((m = rule.exec(withoutMedia(css)))) {
+    if (!/cursor:\s*pointer/.test(m[2])) continue
+    for (const part of m[1].split(',')) {
+      const classes = part.match(/\.[A-Za-z][A-Za-z0-9_-]*/g)
+      if (classes) found.add(classes[classes.length - 1])
+    }
+  }
+  return found
+}
+
+function unflooredAt(css, width) {
+  const clean = stripComments(css)
+  const floored = new Set([...tapTargetClasses(mediaBodies(clean, width)), ...tapTargetClasses(withoutMedia(clean))])
+  return [...clickableClasses(clean)].filter((c) => !floored.has(c)).sort()
+}
+
+describe('the widget builder floors every control at 44px on touch', () => {
+  it('the builder has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(BUILDER_CSS, 'utf8')))
+    for (const c of ['.chip', '.chipRemove', '.thumb', '.option', '.btnPrimary', '.summaryBar']) expect(classes).toContain(c)
+  })
+
+  it('every clickable class is floored at phone AND tablet width', () => {
+    const css = readFileSync(BUILDER_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+  })
+
+  it('CONTROL: a clickable class with no floor is SEEN', () => {
+    const bad = '.a { cursor: pointer; } .b { cursor: pointer; }\n@media (max-width: 1024px) { .a { min-height: var(--tap-min); } }'
+    expect(unflooredAt(bad, 390)).toEqual(['.b'])
+    expect(unflooredAt(bad, 820)).toEqual(['.b'])
+    const phoneOnly = '.a { cursor: pointer; }\n@media (max-width: 640px) { .a { min-height: var(--tap-min); } }'
+    expect(unflooredAt(phoneOnly, 820)).toEqual(['.a'])
+  })
+})

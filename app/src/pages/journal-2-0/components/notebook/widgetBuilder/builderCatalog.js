@@ -1,0 +1,260 @@
+// Notebook widgets phase 2 (wave 8, Task 8.15): what the builder reads from the catalog
+// (`GET /api/j2/widget-definitions/vocabulary`, lib/builtWidgets.js loadCatalog).
+//
+// ⛔ THE ENGINE OWNS THE RULES. `sources.WidgetCatalog.view_allowed` and `plan.validate_plan` decide what a plan
+// may be; the builder only GREYS OUT the choices the engine would refuse, so no invalid combination is reachable by
+// clicking (spec 5.2). Every reason shown is the engine's own sentence, read from the catalog's `reasons` (one
+// authority for the copy), and the preview still validates every plan on the server: a rule mirrored here wrongly
+// costs a refusal sentence in the preview, never a saved bad widget.
+//
+// ⛔ Member text (setups, tags, symbols, account names) is never used as an object key here: lookups go through
+// `Map`, so a setup named "__proto__" is an ordinary string.
+
+const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+/** Measure themes in the order the picker shows them (spec 5.2). */
+export const THEMES = Object.freeze([
+  ['results', 'Results'], ['winloss', 'Win/loss'], ['risk', 'Risk'], ['time', 'Time'], ['process', 'Process'],
+])
+
+/** Views in the order the thumbnails show them, with their plain names. */
+export const VIEW_LABELS = Object.freeze([
+  ['number', 'Number'], ['compare', 'Number with comparison'], ['table', 'Table'], ['bar', 'Bar'],
+  ['line', 'Line'], ['scatter', 'Scatter'], ['heat', 'Calendar heat map'], ['list', 'List'],
+  ['progress', 'Progress bar'],
+])
+
+/** A reason the catalog did not send (an older server): still a sentence, never a blank greyed control. */
+export const FALLBACK_REASON = "This doesn't fit what you picked."
+
+/** The fields the server lists the member's own values for (`?field=`). */
+export const VOCAB_FIELDS = Object.freeze(['setup', 'mistake', 'emotion', 'symbol', 'account'])
+
+/** The catalog, indexed. Tolerates a partial answer: every list defaults to empty. */
+export function indexCatalog(raw) {
+  const c = isRecord(raw) ? raw : {}
+  const sources = new Map()
+  for (const s of Array.isArray(c.sources) ? c.sources : []) {
+    if (!isRecord(s) || typeof s.key !== 'string') continue
+    const fields = new Map()
+    for (const f of Array.isArray(s.fields) ? s.fields : []) {
+      if (isRecord(f) && typeof f.key === 'string') fields.set(f.key, f)
+    }
+    sources.set(s.key, { ...s, fields, measureKeys: Array.isArray(s.measures) ? s.measures : [] })
+  }
+  const measures = new Map()
+  for (const m of Array.isArray(c.measures) ? c.measures : []) {
+    if (isRecord(m) && typeof m.key === 'string') measures.set(m.key, m)
+  }
+  const ranges = (Array.isArray(c.ranges) ? c.ranges : []).filter((r) => isRecord(r) && typeof r.token === 'string')
+  return {
+    sources, measures, ranges,
+    rangeLabels: new Map(ranges.map((r) => [r.token, r.label])),
+    views: Array.isArray(c.views) ? c.views : VIEW_LABELS.map(([k]) => k),
+    accents: Array.isArray(c.accents) ? c.accents : [],
+    timeFields: new Set(Array.isArray(c.timeFields) ? c.timeFields : ['day', 'month']),
+    reasons: isRecord(c.reasons) ? c.reasons : {},
+    maxMeasures: Number.isInteger(c.maxMeasures) ? c.maxMeasures : 3,
+    maxFilters: Number.isInteger(c.maxFilters) ? c.maxFilters : 8,
+    topMax: Number.isInteger(c.topMax) ? c.topMax : 40,
+  }
+}
+
+export const reasonOf = (cat, key) => (typeof cat?.reasons?.[key] === 'string' && cat.reasons[key]) || FALLBACK_REASON
+
+export const sourceOf = (cat, plan) => cat.sources.get(plan?.source) || null
+export const isRightNow = (cat, plan) => sourceOf(cat, plan)?.rightNow === true
+
+/** The measures a source offers, in the catalog's order, each with its catalog row. */
+export function measuresFor(cat, sourceKey) {
+  const src = cat.sources.get(sourceKey)
+  if (!src) return []
+  return src.measureKeys.map((k) => cat.measures.get(k)).filter(Boolean)
+}
+
+/** The measures a new "What to look at" starts with: Net P&L where it is offered, else the first. */
+export function defaultMeasuresFor(cat, sourceKey) {
+  const list = measuresFor(cat, sourceKey)
+  if (!list.length) return []
+  const pnl = list.find((m) => m.key === 'net_pnl')
+  return [(pnl || list[0]).key]
+}
+
+export const splitFields = (cat, plan) => [...(sourceOf(cat, plan)?.fields.values() || [])].filter((f) => f.split)
+
+const UNBOUNDED = (tok) => tok === 'all' || (typeof tok === 'string' && tok.endsWith('_trades'))
+/** A range with no period before it ("all time", "last 20 trades"): R-12. */
+export const rangeIsUnbounded = (range) => isRecord(range) && UNBOUNDED(range.token)
+
+/**
+ * The reason a view cannot show this plan, or null. Mirrors `WidgetCatalog.view_allowed` (sources.py) with the
+ * view swapped in, so each thumbnail can be greyed out with the engine's own sentence.
+ */
+export function viewReason(cat, plan, vtype) {
+  const src = sourceOf(cat, plan)
+  if (!src) return null
+  const split = plan.split
+  const n = (plan.measures || []).length
+  if (src.rightNow && vtype === 'compare') return reasonOf(cat, 'positions_no_compare')
+  if (['number', 'compare', 'progress'].includes(vtype) && split) return reasonOf(cat, 'view_one_number')
+  if (vtype === 'compare') {
+    const mode = plan.compare?.mode || 'previous'
+    if (mode === 'previous' && rangeIsUnbounded(plan.range)) return reasonOf(cat, 'no_earlier')
+  }
+  if (vtype === 'progress' && !(typeof plan.display?.target === 'number')) return reasonOf(cat, 'view_progress')
+  if (vtype === 'bar' && !split) return reasonOf(cat, 'view_bar')
+  if (vtype === 'line' && (!split || !cat.timeFields.has(split.by))) return reasonOf(cat, 'view_line')
+  if (vtype === 'heat' && (!split || split.by !== 'day')) return reasonOf(cat, 'view_heat')
+  if (vtype === 'scatter') {
+    if (src.key !== 'closed_trades') return reasonOf(cat, 'view_scatter_trades')
+    if (split || n !== 2) return reasonOf(cat, 'view_scatter')
+  }
+  if (vtype === 'list' && split) return reasonOf(cat, 'view_list')
+  if (vtype !== 'table' && split?.then) return reasonOf(cat, 'then_table_only')
+  return null
+}
+
+/** The view the shape suggests (`WidgetCatalog.auto_view`). */
+export function autoView(cat, plan) {
+  const split = plan.split
+  if (!split) return plan.compare && !isRightNow(cat, plan) ? 'compare' : 'number'
+  if (split.then) return 'table'
+  return cat.timeFields.has(split.by) ? 'line' : 'bar'
+}
+
+/**
+ * The plan with a view that can show it: the suggested one while the member has not chosen one (`auto`), and the
+ * suggestion again when a later change makes their choice impossible (a split added under a Number). A compare
+ * that no longer applies (the view moved off "Number with comparison", or open positions) is dropped with it.
+ */
+export function fitView(cat, plan) {
+  let view = plan.view || { type: 'number', auto: true }
+  if (view.auto || viewReason(cat, plan, view.type)) view = { type: autoView(cat, plan), auto: true }
+  let compare = plan.compare
+  if (view.type !== 'compare' || isRightNow(cat, plan)) compare = null
+  else if (!compare) compare = { mode: rangeIsUnbounded(plan.range) ? 'all' : 'previous' }
+  return { ...plan, view, compare }
+}
+
+// ── filter sentences ──────────────────────────────────────────────────────────────────────────────
+
+/** Plain names for each comparison, by field type. */
+export function opLabel(op, type) {
+  const day = type === 'day'
+  switch (op) {
+    case 'in': return 'is'
+    case 'not_in': return 'is not'
+    case 'has_any': return 'includes'
+    case 'contains': return 'contains'
+    case 'is': return 'is'
+    case 'eq': return day ? 'is on' : 'is'
+    case 'gt': return day ? 'is after' : 'is over'
+    case 'gte': return day ? 'is on or after' : 'is at least'
+    case 'lt': return day ? 'is before' : 'is under'
+    case 'lte': return day ? 'is on or before' : 'is at most'
+    case 'between': return day ? 'is from' : 'is between'
+    default: return String(op)
+  }
+}
+
+/** How many values an op takes: 'many' (a pick list), 2 (low and high), or 1. Mirrors plan._check_filter_values. */
+export function valueArity(op) {
+  if (op === 'between') return 2
+  if (op === 'in' || op === 'not_in' || op === 'has_any') return 'many'
+  return 1
+}
+
+const joinOr = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`)
+
+/** The label a value shows: the catalog's own (a bucket, yes/no), an account's name, or the value itself. */
+export function valueLabel(field, value, { accounts } = {}) {
+  const list = Array.isArray(field?.values) ? field.values : null
+  if (list) {
+    const hit = list.find((x) => isRecord(x) && x.value === value)
+    if (hit && typeof hit.label === 'string') return hit.label
+  }
+  if (field?.key === 'account' && accounts instanceof Map && accounts.has(String(value))) return accounts.get(String(value))
+  return String(value)
+}
+
+/** One filter as the sentence its chip reads ("Setup is Flag or VCP", "Hold days is under 2"). */
+export function filterSentence(field, filter, opts = {}) {
+  const label = field?.label || String(filter?.field || '')
+  const values = Array.isArray(filter?.values) ? filter.values : []
+  const shown = values.map((v) => valueLabel(field, v, opts))
+  if (filter?.op === 'is' && field?.type === 'bool') return shown[0] || label
+  if (filter?.op === 'between') return `${label} ${opLabel('between', field?.type)} ${shown[0] ?? ''} ${field?.type === 'day' ? 'to' : 'and'} ${shown[1] ?? ''}`
+  if (filter?.op === 'not_in' && shown.length > 1) return `${label} is none of ${shown.join(', ')}`
+  return `${label} ${opLabel(filter?.op, field?.type)} ${joinOr(shown)}`
+}
+
+/** Is a filter complete enough to apply? `null`, or the engine's reason (catalog `reasons`). */
+export function filterProblem(cat, field, filter) {
+  const arity = valueArity(filter.op)
+  const vals = filter.values || []
+  if (arity === 'many' && vals.length === 0) return reasonOf(cat, 'needs_value')
+  if (arity === 2) {
+    if (vals.length !== 2 || vals.some((v) => v === '' || v === null || v === undefined)) return reasonOf(cat, 'needs_value')
+    if (vals[0] > vals[1]) return reasonOf(cat, field?.type === 'day' ? 'start_after_end' : 'low_above_high')
+  }
+  if (arity === 1 && (vals.length !== 1 || vals[0] === '' || vals[0] === null || vals[0] === undefined)) {
+    return reasonOf(cat, 'needs_value')
+  }
+  if (field?.type === 'number' && vals.some((v) => typeof v !== 'number' || !Number.isFinite(v))) {
+    return reasonOf(cat, 'needs_value')
+  }
+  return null
+}
+
+// ── the range chip ───────────────────────────────────────────────────────────────────────────────
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const fmtDay = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : String(iso || '')
+}
+const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
+
+/** The range chip's words ("Last 90 days", "Jan 4, 2026 to Mar 1, 2026"). */
+export function rangeText(cat, range) {
+  if (isRecord(range) && typeof range.token === 'string') return cap(cat.rangeLabels.get(range.token) || range.token.replace(/_/g, ' '))
+  if (isRecord(range) && range.from && range.to) return `${fmtDay(range.from)} to ${fmtDay(range.to)}`
+  return 'Last 90 days'
+}
+
+// ── coverage ─────────────────────────────────────────────────────────────────────────────────────
+
+/** The words a per-row value is known by ("R known on 23 of 47 trades"). */
+const NEEDS_WORDS = new Map([
+  ['r', 'R'], ['hold_days', 'Hold time'], ['unrealised', 'Unrealised P&L'], ['risk_dollars', 'Risk to stop'],
+  ['days_open', 'Days open'],
+])
+
+const NOUN = new Map([['trades', 'trades'], ['decisive', 'trades'], ['days', 'days'], ['positions', 'positions']])
+
+/**
+ * Coverage per `needs` value, from the last preview: every preview measure that needs a per-row value carries
+ * `coverage[i] = {have, total}` (payload.py). Measures that need the same value share it, so a measure not yet
+ * picked can still say "R known on 23 of 47 trades" once any R measure has been previewed.
+ */
+export function coverageByNeed(cat, plan, payload) {
+  const out = new Map()
+  const cov = Array.isArray(payload?.coverage) ? payload.coverage : []
+  const keys = Array.isArray(plan?.measures) ? plan.measures.map((m) => m.key) : []
+  keys.forEach((k, i) => {
+    const m = cat.measures.get(k)
+    const c = cov[i]
+    if (!m || !isRecord(c) || typeof c.have !== 'number' || typeof c.total !== 'number') return
+    for (const need of Array.isArray(m.needs) ? m.needs : []) out.set(need, { have: c.have, total: c.total, unit: m.unit })
+  })
+  return out
+}
+
+/** "R known on 23 of 47 trades" for a measure, or ''. */
+export function coverageText(cat, measure, byNeed) {
+  const need = Array.isArray(measure?.needs) ? measure.needs[0] : null
+  if (!need || !(byNeed instanceof Map) || !byNeed.has(need)) return ''
+  const c = byNeed.get(need)
+  const word = NEEDS_WORDS.get(need) || cap(String(need).replace(/_/g, ' '))
+  return `${word} known on ${c.have} of ${c.total} ${NOUN.get(c.unit) || 'trades'}`
+}

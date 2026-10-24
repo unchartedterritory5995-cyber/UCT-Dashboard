@@ -321,7 +321,7 @@ CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [
        split=True, none_label="No mistake tagged"),
     _f("emotion", "Emotion", "tag", sql="t.emotion_tags", py=lambda r: r.get("emotion"),
        split=True, none_label="No emotion tagged"),
-    _f("origin", "Source", "enum", sql=_T_ORIGIN, split=True,
+    _f("origin", "How it was logged", "enum", sql=_T_ORIGIN, split=True,
        fmt=lambda v: _ORIGIN_LABELS.get(v, str(v)), bucket=("manual", "csv", "broker")),
     _f("account", "Account", "enum", sql="t.account_id", split=True, label_from="account_name",
        none_label="No account"),

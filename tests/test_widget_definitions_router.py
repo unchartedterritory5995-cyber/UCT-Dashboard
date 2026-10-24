@@ -22,6 +22,7 @@ from api.services.journal_two import widget_definitions as wdefs
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import run as wrun
 from api.services.journal_two.widget_engine import shelf as wshelf
+from api.services.journal_two.widget_engine import sources as wsources
 from tests.test_widget_sources import (  # noqa: F401 -- `conn` is a fixture used by name
     UID, add_account, add_trade, add_user, conn, raw_plan,
 )
@@ -261,6 +262,46 @@ def test_vocabulary_whitelist_refuses_unknown_field(conn):
     assert c.get(BASE + "/vocabulary", params={"field": "mistake"}).json()["values"] == ["FOMO"]
     assert c.get(BASE + "/vocabulary", params={"field": "account"}).json()["values"] == [
         {"id": acc, "name": "Swing"}]
+
+
+def test_vocabulary_carries_pick_lists_and_the_engines_reasons():
+    """Task 8.15: the builder picks fixed values from a list (never a blank box where a list exists)
+    and greys a choice out with the ENGINE's own sentence, read from here."""
+    v = _client().get(BASE + "/vocabulary").json()
+    closed = next(s for s in v["sources"] if s["key"] == "closed_trades")
+    by_key = {f["key"]: f for f in closed["fields"]}
+    assert [x["value"] for x in by_key["hold_bucket"]["values"]] == list(wsources.HOLD_BUCKETS)
+    assert by_key["origin"]["values"] == [{"value": "manual", "label": "Manual"},
+                                          {"value": "csv", "label": "CSV import"},
+                                          {"value": "broker", "label": "Broker"}]
+    assert by_key["had_stop"]["values"] == [{"value": True, "label": "Had a stop"},
+                                            {"value": False, "label": "No stop set"}]
+    assert "values" not in by_key["setup"]          # the member's own list: ?field=setup
+    assert by_key["hold_minutes"].get("needsTimes") is True
+    assert next(s for s in v["sources"] if s["key"] == "open_positions")["rightNow"] is True
+    assert v["reasons"]["view_bar"] == wsources.S_VIEW_BAR
+    assert v["reasons"]["no_earlier"] == wplan.S_NO_EARLIER
+    assert v["reasons"]["positions_no_compare"] == wsources.S_POSITIONS_NO_COMPARE
+    assert v["timeFields"] == ["day", "month"] and v["maxMeasures"] == 3
+
+
+def test_vocabulary_member_words():
+    """No label, description, meaning, value label or reason a member reads uses an internal word.
+    "plan" is allowed only as the member's own trading plan (a plan note), named here exactly."""
+    banned = ("definition", "shelf", "built widget", "source", "plan", "scope")
+    trading_plan = {"Plan adherence %", "Linked to a plan note", "Linked to a plan", "No plan linked"}
+    v = _client().get(BASE + "/vocabulary").json()
+    texts = list(v["reasons"].values()) + [r["label"] for r in v["ranges"]]
+    for s in v["sources"]:
+        texts += [s["label"], s["description"]]
+        for f in s["fields"]:
+            texts.append(f["label"])
+            texts += [x["label"] for x in f.get("values") or []]
+    for m in v["measures"]:
+        texts += [m["label"], m["meaning"]]
+    assert len(texts) > 100                          # non-vacuity: the sweep read the catalog
+    bad = [t for t in texts if t not in trading_plan and any(b in t.lower() for b in banned)]
+    assert bad == []
 
 
 def test_filter_values_never_in_query_string():

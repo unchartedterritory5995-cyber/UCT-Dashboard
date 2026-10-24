@@ -307,15 +307,55 @@ def drill_widget(user: dict = Depends(require_paid), body: dict = Depends(json_b
 
 # -- the catalog and the shelf --------------------------------------------------------------------
 
+def _field_values(f: Any) -> list[dict] | None:
+    """The values a member picks from for a field with a fixed list (its buckets, or yes/no), each
+    with the label a group shows. None: the list is the member's own (`?field=`) or typed."""
+    if f.type == "bool":
+        vals: tuple = (True, False)
+    elif f.bucket:
+        vals = tuple(f.bucket)
+    else:
+        return None
+    return [{"value": v, "label": f.fmt(v) if f.fmt else str(v)} for v in vals]
+
+
+#: Task 8.15: the one-line reasons the builder shows beside a choice it disables. The ENGINE keeps
+#: the rules (`sources.WidgetCatalog.view_allowed`, `plan.validate_plan`); the builder greys a
+#: choice out with the same sentence the engine would refuse it with, read from here, never retyped.
+def _reasons() -> dict:
+    return {
+        "view_one_number": wsources.S_VIEW_ONE_NUMBER, "view_bar": wsources.S_VIEW_BAR,
+        "view_line": wsources.S_VIEW_LINE, "view_heat": wsources.S_VIEW_HEAT,
+        "view_scatter": wsources.S_VIEW_SCATTER, "view_scatter_trades": wsources.S_VIEW_SCATTER_TRADES,
+        "view_list": wsources.S_VIEW_LIST, "view_progress": wsources.S_VIEW_PROGRESS,
+        "positions_no_compare": wsources.S_POSITIONS_NO_COMPARE, "no_earlier": wplan.S_NO_EARLIER,
+        "then_table_only": wplan.S_THEN_TABLE_ONLY, "too_many_measures": wplan.S_TOO_MANY_MEASURES,
+        "one_overridable": wplan.S_ONE_OVERRIDABLE, "too_many_filters": wplan.S_TOO_MANY_FILTERS,
+        "start_after_end": wplan.S_START_AFTER_END, "low_above_high": wplan.S_FILTER_LOW_ABOVE_HIGH,
+        "needs_value": wplan.S_FILTER_NEEDS_VALUE, "target": wplan.S_TARGET,
+        "top_range": wplan.S_TOP_RANGE, "no_measure": wplan.S_NO_MEASURE,
+    }
+
+
 def _static_vocabulary() -> dict:
     cat = wsources.CATALOG
     sources = []
     for s in cat.sources.values():
+        fields = []
+        for f in s.fields.values():
+            row = {"key": f.key, "label": f.label, "type": f.type, "ops": list(f.ops),
+                   "split": bool(f.split)}
+            values = _field_values(f)
+            if values is not None:
+                row["values"] = values
+            if f.needs_times:
+                row["needsTimes"] = True
+            fields.append(row)
         sources.append({
             "key": s.key, "label": s.label, "description": s.description, "unit": s.unit,
-            "fields": [{"key": f.key, "label": f.label, "type": f.type, "ops": list(f.ops),
-                        "split": bool(f.split)} for f in s.fields.values()],
+            "fields": fields,
             "measures": sorted(cat.measures_for(s.key)),
+            "rightNow": s.key in wplan.RIGHT_NOW_SOURCES,
         })
     measures = [{"key": m.key, "label": m.label, "theme": m.theme, "meaning": m.meaning,
                  "unit": m.unit, "kind": m.kind, "needs": list(m.needs),
@@ -326,6 +366,11 @@ def _static_vocabulary() -> dict:
         "views": list(cat.views),
         "ranges": [{"token": t, "label": wplan._TOKEN_LABELS.get(t, t)} for t in cat.range_tokens],
         "accents": list(cat.accents),
+        "timeFields": sorted(wsources.TIME_FIELDS),
+        "reasons": _reasons(),
+        "maxMeasures": wplan.MAX_MEASURES,
+        "maxFilters": wplan.MAX_FILTERS,
+        "topMax": wplan.TOP_MAX,
     }
 
 
