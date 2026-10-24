@@ -419,6 +419,9 @@ GUARDED = {
     "api/services/journal_two/template_gallery.py": "an example note (P3b) shows a member's own note to other "
                                                      "members as their work; a sample note is never published or "
                                                      "previewed as one (ruling P3b-R11, the not-live 404)",
+    "api/services/journal_two/widget_definitions.py": "a saved widget's \"used in N notes\" count and list: an "
+                                                       "example note that places a widget is not a note the "
+                                                       "member uses it in",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.

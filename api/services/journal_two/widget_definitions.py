@@ -32,6 +32,11 @@ Rules this module keeps:
     same note (`origin`, the note id) or both from My tools (`origin` None). Two notes'
     "only here" saves are never merged into one revision.
   * Count cap: `COUNT_CAP` widgets that are neither archived nor deleted per member.
+  * Used in (Task 8.9): `usedIn` is the number of DISTINCT live notes of the member's
+    that place the widget, read from the `j2_tool_uses` projection (notes._sync_note_sidecars
+    keeps it) joined to `j2_notes` -- not trashed, not a sample note. The join is on
+    `user_id` too, so another member's note naming this id never counts.
+    `used_in_notes` lists those notes.
   * Delete: only from archived, only when the typed name equals the name, and soft
     (`deleted_at`). A member's own rows deleted more than `RECENTLY_DELETED_DAYS` ago are
     hard-deleted, with their revisions, whenever that member lists their widgets.
@@ -56,6 +61,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterator, Literal
 
 from api.services import auth_db
+from api.services.journal_two import sample_marker
 from api.services.journal_two.widget_engine.plan import (
     MAX_TEXT,
     PLAN_VERSION,
@@ -71,7 +77,7 @@ __all__ = [
     "COUNT_CAP", "REVS_KEPT", "COALESCE_S", "RECENTLY_DELETED_DAYS",
     "WidgetError", "NotFound", "Conflict", "PlanError", "PlanTooNew",
     "create", "get", "update", "list_defs", "revs", "name_rev", "restore_rev",
-    "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run",
+    "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run", "used_in_notes",
 ]
 
 COUNT_CAP = 100
@@ -92,6 +98,19 @@ S_BAD_REV_NAME = "Give this version a name."
 
 _DEFS = "j2_widget_definitions"
 _REVS = "j2_widget_definition_revs"
+_USES = "j2_tool_uses"
+_KIND = "widget"
+
+# The member's live, non-sample notes that place one of the member's OWN widgets (Task 8.9).
+# Ownership is on all three tables: `u.user_id` is the note owner's (the sidecar writes it
+# from the note write), `n.user_id` re-checks it against the note, and `d.user_id` makes a
+# defId that is not the member's widget count and list nothing (treated as absent).
+_USES_JOIN = (
+    f" FROM {_USES} u JOIN j2_notes n ON n.id = u.note_id AND n.user_id = u.user_id"
+    f" JOIN {_DEFS} d ON d.id = u.tool_id AND d.user_id = u.user_id"
+    f" WHERE u.user_id = ? AND u.kind = '{_KIND}' AND n.deleted_at IS NULL"
+    " AND " + sample_marker.not_sample_sql("n")
+)
 
 
 class WidgetError(ValueError):
@@ -262,7 +281,19 @@ def _check_cap(c: sqlite3.Connection, user_id: str) -> None:
         raise WidgetError(S_CAP)
 
 
-def _shape(row: sqlite3.Row, summary_text: str | None) -> dict:
+def _used_in_count(c: sqlite3.Connection, user_id: str, def_id: str) -> int:
+    return c.execute(
+        "SELECT COUNT(DISTINCT u.note_id)" + _USES_JOIN + " AND u.tool_id = ?", (user_id, def_id)
+    ).fetchone()[0]
+
+
+def _used_in_counts(c: sqlite3.Connection, user_id: str) -> dict[str, int]:
+    return {r[0]: r[1] for r in c.execute(
+        "SELECT u.tool_id, COUNT(DISTINCT u.note_id)" + _USES_JOIN + " GROUP BY u.tool_id",
+        (user_id,))}
+
+
+def _shape(row: sqlite3.Row, summary_text: str | None, used_in: int = 0) -> dict:
     plan, too_new = _read_plan(row["plan_json"])
     too_new = too_new or _too_new(row)
     out = {
@@ -273,7 +304,7 @@ def _shape(row: sqlite3.Row, summary_text: str | None) -> dict:
         "placedRev": row["placed_rev"],
         "etag": row["save_seq"],
         "archived": row["archived_at"] is not None,
-        "usedIn": 0,                 # counted by Task 8.9
+        "usedIn": used_in,
         "lastAnswer": row["last_answer"],
         "summary": summary_text or "",
         "createdAt": row["created_at"],
@@ -327,7 +358,9 @@ def _insert_new(c: sqlite3.Connection, user_id: str, name: str, plan: dict, summ
 
 def _get_in(c: sqlite3.Connection, user_id: str, def_id: str) -> dict | None:
     row = _owned(c, user_id, def_id)
-    return None if row is None else _shape(row, _current_summary(c, row))
+    if row is None:
+        return None
+    return _shape(row, _current_summary(c, row), _used_in_count(c, user_id, def_id))
 
 
 # -- produces -------------------------------------------------------------------
@@ -479,7 +512,24 @@ def list_defs(user_id: str, *, archived: bool = False, deleted: bool = False,
             f" WHERE d.user_id = ? AND {gate} ORDER BY d.updated_at DESC, d.id DESC",
             (user_id,),
         ).fetchall()
-        return [_shape(r, r["_summary"]) for r in rows]
+        used = _used_in_counts(c, user_id) if rows else {}
+        return [_shape(r, r["_summary"], used.get(r["id"], 0)) for r in rows]
+
+
+def used_in_notes(user_id: str, def_id: str, *,
+                  conn: sqlite3.Connection | None = None) -> list[dict]:
+    """`[{noteId, title, updatedAt}]`: the member's live, non-sample notes that place this
+    widget, newest first, one entry per note. Another member's note never appears, and an id
+    that is not one of the member's widgets lists nothing."""
+    if not isinstance(def_id, str) or not def_id or not user_id:
+        return []
+    with _read(conn) as c:
+        rows = c.execute(
+            "SELECT n.id, n.title, n.updated_at" + _USES_JOIN + " AND u.tool_id = ?"
+            " GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC",
+            (user_id, def_id),
+        ).fetchall()
+    return [{"noteId": r[0], "title": r[1], "updatedAt": r[2]} for r in rows]
 
 
 def revs(user_id: str, def_id: str, *, conn: sqlite3.Connection | None = None) -> list[dict] | None:

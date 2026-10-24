@@ -405,19 +405,55 @@ def _checkin_row(attrs: dict[str, Any], params: dict[str, Any]) -> dict[str, Any
     return {"embed_id": embed_id, "day": day, "mood": mood, "focus": focus}
 
 
+# ── The "used in" projection (Notebook widgets phase 2, Task 8.9) ───────────
+# A `builtWidget` embed (a saved widget placed in a note) names its widget by
+# `params.defId` and the revision it was placed at by `params.defRev`. Each one
+# adds a `j2_tool_uses` row `(user_id, note_id, "widget", defId, defRev)`, so a
+# saved widget can answer "which notes use me" (widget_definitions.used_in_notes).
+# The row is a fact about THIS note's body only: a defId that is not the note
+# owner's own widget still gets a row under the note owner's user_id, and the
+# reader's `user_id` join is what keeps it from counting for anyone else.
+# ⛔ ONE FACT IN TWO FILES: this is notebook_widgets.BUILT_KIND, restated rather
+# than imported because notebook_widgets imports far more than this module may.
+_BUILT_WIDGET_ID = "builtWidget"
+_TOOL_KIND_WIDGET = "widget"
+_SQLITE_INT_MIN, _SQLITE_INT_MAX = -(2 ** 63), 2 ** 63 - 1
+
+
+def _tool_use_row(params: dict[str, Any]) -> tuple[str, str, int | None] | None:
+    """A `builtWidget` embed's (kind, tool_id, rev), or None when it names no widget. Never
+    raises: a bad embed is skipped and the note still saves (the degrade rule of
+    _sync_note_sidecars)."""
+    def_id = params.get("defId")
+    if not isinstance(def_id, str) or not def_id:
+        return None
+    # Bound into the INSERT below: a value SQLite cannot encode (a lone UTF-16 surrogate,
+    # an integer past 64 bits) would raise there and roll back the whole note write.
+    try:
+        def_id.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
+    rev = params.get("defRev")
+    if isinstance(rev, bool) or not isinstance(rev, int) or not _SQLITE_INT_MIN <= rev <= _SQLITE_INT_MAX:
+        rev = None
+    return (_TOOL_KIND_WIDGET, def_id, rev)
+
+
 def _sync_note_sidecars(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None, body_plain: str | None,
 ) -> None:
     """Rebuild every note-content sidecar projection inside the caller's
     transaction (no commit here): the five below, plus j2_note_checkins (P2
-    Tier 3), which rides the same walk. Replaces the old _sync_note_embeds /
+    Tier 3) and j2_tool_uses (Notebook widgets phase 2, Task 8.9), which
+    ride the same walk. Replaces the old _sync_note_embeds /
     _sync_note_mentions / _sync_note_links / _sync_note_fact_refs /
     _sync_note_excerpt_refs quintet, which every call site invoked together
     in this exact order -- see the module comment above for why combining
     them is a real perf win and not just tidying."""
     embeds: list[dict[str, Any]] = []
     checkins: list[dict[str, Any]] = []
+    tool_uses: list[tuple[str, str, int | None]] = []
     link_ids: list[str] = []
     fact_ids: list[str] = []
     excerpt_ids: list[str] = []
@@ -462,6 +498,10 @@ def _sync_note_sidecars(
                     row = _checkin_row(attrs, params)
                     if row is not None:
                         checkins.append(row)
+                elif widget_id == _BUILT_WIDGET_ID:
+                    use = _tool_use_row(params)
+                    if use is not None:
+                        tool_uses.append(use)
         elif ntype == "noteLink":
             # Wave D. A note linking to the same target twice keeps BOTH
             # occurrences (position is part of the sidecar's primary key) --
@@ -519,6 +559,15 @@ def _sync_note_sidecars(
         conn.executemany(
             "INSERT INTO j2_note_checkins (note_id, user_id, embed_id, day, mood, focus,"
             " created_at) VALUES (?,?,?,?,?,?,?)", rows)
+
+    # j2_tool_uses -- delete+insert, like the check-ins above. One row per placed
+    # widget, document order; readers count DISTINCT note_id, so a note holding one
+    # widget twice is still one note.
+    conn.execute("DELETE FROM j2_tool_uses WHERE note_id = ?", (note_id,))
+    if tool_uses:
+        conn.executemany(
+            "INSERT INTO j2_tool_uses (user_id, note_id, kind, tool_id, rev) VALUES (?,?,?,?,?)",
+            [(user_id, note_id, kind, tool_id, rev) for kind, tool_id, rev in tool_uses])
 
     # j2_note_mentions -- the one projection derived from body_plain, not
     # body_json; its own function so the body_plain backfill
@@ -4474,6 +4523,8 @@ def purge_expired_deleted_notes(
             conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
             # P2 Tier 3: no trigger cleans the check-ins either (R-T3-V3).
             conn.execute("DELETE FROM j2_note_checkins WHERE note_id = ?", (note_id,))
+            # Notebook widgets phase 2 (Task 8.9): nor the "used in" projection.
+            conn.execute("DELETE FROM j2_tool_uses WHERE note_id = ?", (note_id,))
         conn.commit()
         return len(ids)
     finally:

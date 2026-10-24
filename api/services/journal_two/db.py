@@ -2168,6 +2168,25 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_j2_widget_definition_revs_user"
     " ON j2_widget_definition_revs(user_id)",
+    # Notebook widgets phase 2, Task 8.9: the "used in" projection. One row per saved tool
+    # placed in a note -- today `kind = 'widget'` (a `builtWidget` embed's `params.defId` /
+    # `params.defRev`); wave 9 adds 'routine' and 'tracker'. A REBUILDABLE projection, never
+    # edited directly: notes._sync_note_sidecars deletes and re-inserts a note's rows in the
+    # note write's own transaction (like j2_note_checkins), and the trash sweep removes them
+    # with the note. No primary key on purpose: a note holding one widget twice keeps two
+    # rows, and readers count DISTINCT note_id. ⛔ user-scoped: purged with the account
+    # (account_purge._DIRECT_USER_TABLES).
+    """CREATE TABLE IF NOT EXISTS j2_tool_uses (
+        user_id TEXT NOT NULL,
+        note_id TEXT NOT NULL,
+        kind    TEXT NOT NULL,
+        tool_id TEXT NOT NULL,
+        rev     INTEGER
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_tool_uses_tool"
+    " ON j2_tool_uses(user_id, kind, tool_id)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_tool_uses_note"
+    " ON j2_tool_uses(note_id)",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
