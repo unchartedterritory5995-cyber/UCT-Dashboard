@@ -256,6 +256,9 @@ def member_rows(rows) -> list:
     `_member_flagging_flag` is False while MEMBER_FLAGGING_ROUND is None, so a member gets the
     confirmed tier only. Admins and the team still get both tiers (they never pass through here).
 
+    A uct_pullback_ma_v5 is WITHHELD from members since 2026-10-24 (recertification C failed it as served and
+    through two fix rounds): every v5 row is dropped while MEMBER_PULLBACK_MA_V5_ROUND is None.
+
     A uct_flat_top_breakout passed its blind check as the "flat top" ceiling drawn
     under the v2 conditions (MEMBER_FLAT_TOP_ROUND), so a member gets one only while
     it carries that round's stamp beside a well-formed `draw_flat_top`
@@ -299,6 +302,7 @@ def member_rows(rows) -> list:
             and (r or {}).get("pattern_id") in allowed
             and ((r or {}).get("pattern_id") != "bull_flag"
                  or _confirmed_flag(r) or _member_flagging_flag(r))
+            and ((r or {}).get("pattern_id") != PULLBACK_MA_V5_ID or MEMBER_PULLBACK_MA_V5_ROUND is not None)
             and ((r or {}).get("pattern_id") != "uct_flat_top_breakout" or _confirmed_flat_top(r))
             and ((r or {}).get("pattern_id") != CUP_ID or _confirmed_cup_tier(r))
             and ((r or {}).get("pattern_id") != "bc:flat-base" or MEMBER_BC_FLAT_BASE_ROUND is not None)
@@ -2050,6 +2054,17 @@ def member_setup_one_line_per_base(detections, structures, setups, atr=None):
     _d, kept = member_one_line_per_base(detections, list(structures or []) + sl, atr=atr)
     keep = {id(x) for x in kept}
     return [x for x in sl if id(x) in keep]
+
+
+#: The MA pullback v5 (uct_pullback_ma_v5: the tagged MA curve, tag-bar marker and stop) release literal.
+#: Recertification C (2026-10-24, strict textbook placement rubric, four pre-registered blind packets of 25, two
+#: fresh judges each; pass = every packet mean >= 2.3 and >= 70% of cases >= 2, pooled >= 2.4) FAILED it as served
+#: (1.60 / 1.60 / 1.78 / 1.52, pooled 1.63) and through both fix rounds (round 1: 2.10 / 2.28 / 2.28 / 2.26, pooled
+#: 2.23; round 2: 2.20 / 2.36 / 2.42 / 2.28, pooled 2.315). So NO v5 pullback reaches a member: None. Admins and the
+#: team still see it (they never pass through member_rows). A literal ON PURPOSE: re-enabling is this one line,
+#: and only after a drawing round passes the protocol.
+MEMBER_PULLBACK_MA_V5_ROUND = None
+PULLBACK_MA_V5_ID = "uct_pullback_ma_v5"
 
 
 #: The bull_flag drawing round members are served. Round 9 (8d033ec7d2, lab/geometry_eval
