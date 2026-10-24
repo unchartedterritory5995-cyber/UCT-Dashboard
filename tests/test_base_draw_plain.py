@@ -367,7 +367,20 @@ def _gapped(g):
     return b
 
 
+def _old_plateau(base_len=90, high=56, plateau=20):
+    """Flat at 40 with a plateau at `high` exactly 200..220 sessions before the as-of bar (under the later left-side
+    high, so no older peak): the 200-day is rising across the base and falls only over its last 20 sessions."""
+    r = random.Random(5)
+    pre = [40 * (1 + r.gauss(0, 0.003)) for _ in range(320)]
+    a = 320 + 60 - 1 + base_len - 200 - plateau
+    for k in range(max(0, a), min(320, a + plateau + 5)):
+        pre[k] = high * (1 + r.gauss(0, 0.003))
+    return textbook(pre=pre, adv=0.45, run_len=60, base_len=base_len, depth=0.15, end_below=0.0)
+
+
 @pytest.mark.parametrize("step,make", [
+    ("deep", lambda: textbook(base_len=60, depth=0.36, adv=0.7, run_len=60, end_below=0.0)),   # deep ONLY
+    ("trend", _old_plateau),                                                                     # 200-day turned down ONLY
     ("deep", lambda: textbook(base_len=90, depth=0.40, adv=0.9, run_len=90)),
     ("deep", lambda: textbook(base_len=80, depth=0.36, adv=0.7, run_len=80, end_below=0.0)),
     ("trend", lambda: textbook(pre=_flat_then_drop(235), adv=0.62, run_len=60, base_len=46, depth=0.10)),
@@ -375,7 +388,8 @@ def _gapped(g):
     ("gap_advance", lambda: _gapped(1.3)),
 ])
 def test_each_step_alone_decides_its_case(step, make):
-    """Charts where exactly one step fails (the lab rule names it as the deciding step): the port draws nothing."""
+    """Charts where one step fails first (the lab rule names it as the deciding step): the port draws nothing. The
+    first two are charts where that step is the ONLY failure (every later step passes), so dropping it draws."""
     b = make()
     why = {}
     assert LAB.plain_base(b, _i(b), why) is None and why.get("fail") == step, why
