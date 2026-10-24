@@ -145,163 +145,555 @@
   },
   {
    "setup": "Kicker Candle",
-   "sym": "SHOP",
-   "asof": "2021-11-12",
-   "year": 2021,
-   "close": 166.952,
+   "sym": "IMAX",
+   "asof": "2026-02-26",
+   "year": 2026,
+   "close": 41.77,
    "facts": {
     "prior_red": true,
-    "gap_pct": 2.06,
-    "day_pct": 12.02,
+    "gap_pct": 3.98,
+    "day_pct": 14.38,
     "green": true,
     "close_above_prior_high": true,
-    "close_pos": 0.97
+    "close_pos": 0.87,
+    "rvol": 3.8,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 1.58,
+    "base20_range_pct": 9.6,
+    "base30_range_pct": 9.6,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 15.0,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2026-02-25"
+    ]
    },
-   "q": 12.0
+   "q": 16.1438,
+   "pass": 2
   },
   {
    "setup": "Kicker Candle",
-   "sym": "AFRM",
-   "asof": "2022-01-28",
-   "year": 2022,
-   "close": 59.71,
-   "facts": {
-    "prior_red": true,
-    "gap_pct": 4.84,
-    "day_pct": 17.06,
-    "green": true,
-    "close_above_prior_high": true,
-    "close_pos": 0.98
-   },
-   "q": 12.0
-  },
-  {
-   "setup": "Kicker Candle",
-   "sym": "AVAV",
-   "asof": "2022-02-28",
-   "year": 2022,
-   "close": 71.05,
-   "facts": {
-    "prior_red": true,
-    "gap_pct": 3.45,
-    "day_pct": 14.1,
-    "green": true,
-    "close_above_prior_high": true,
-    "close_pos": 0.94
-   },
-   "q": 12.0
-  },
-  {
-   "setup": "Kicker Candle",
-   "sym": "FUTU",
-   "asof": "2022-04-04",
-   "year": 2022,
-   "close": 41.35,
-   "facts": {
-    "prior_red": true,
-    "gap_pct": 5.78,
-    "day_pct": 19.51,
-    "green": true,
-    "close_above_prior_high": true,
-    "close_pos": 1.0
-   },
-   "q": 12.0
-  },
-  {
-   "setup": "Kicker Candle",
-   "sym": "COIN",
-   "asof": "2023-01-04",
-   "year": 2023,
-   "close": 37.7,
-   "facts": {
-    "prior_red": true,
-    "gap_pct": 2.95,
-    "day_pct": 12.2,
-    "green": true,
-    "close_above_prior_high": true,
-    "close_pos": 0.8
-   },
-   "q": 12.0
-  },
-  {
-   "setup": "Kicker Candle",
-   "sym": "INTA",
-   "asof": "2023-02-07",
-   "year": 2023,
-   "close": 33.51,
-   "facts": {
-    "prior_red": true,
-    "gap_pct": 9.27,
-    "day_pct": 18.12,
-    "green": true,
-    "close_above_prior_high": true,
-    "close_pos": 1.0
-   },
-   "q": 12.0
-  },
-  {
-   "setup": "Kicker Candle",
-   "sym": "MSTR",
-   "asof": "2023-03-13",
-   "year": 2023,
-   "close": 22.316,
-   "facts": {
-    "prior_red": true,
-    "gap_pct": 5.21,
-    "day_pct": 16.22,
-    "green": true,
-    "close_above_prior_high": true,
-    "close_pos": 0.81
-   },
-   "q": 12.0
-  },
-  {
-   "setup": "Kicker Candle",
-   "sym": "ETON",
-   "asof": "2024-01-08",
+   "sym": "VTRS",
+   "asof": "2024-11-07",
    "year": 2024,
-   "close": 5.03,
+   "close": 13.18,
    "facts": {
     "prior_red": true,
-    "gap_pct": 2.3,
-    "day_pct": 15.9,
+    "gap_pct": 1.72,
+    "day_pct": 13.52,
     "green": true,
     "close_above_prior_high": true,
-    "close_pos": 0.88
+    "close_pos": 0.85,
+    "rvol": 3.01,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 0.17,
+    "base20_range_pct": 4.8,
+    "base30_range_pct": 4.9,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 13.7,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2024-11-07"
+    ]
    },
-   "q": 12.0
+   "q": 16.1352,
+   "pass": 2
   },
   {
    "setup": "Kicker Candle",
-   "sym": "SMCI",
-   "asof": "2024-02-22",
-   "year": 2024,
-   "close": 97.552,
-   "facts": {
-    "prior_red": true,
-    "gap_pct": 17.82,
-    "day_pct": 32.87,
-    "green": true,
-    "close_above_prior_high": true,
-    "close_pos": 0.83
-   },
-   "q": 12.0
-  },
-  {
-   "setup": "Kicker Candle",
-   "sym": "PINS",
+   "sym": "GRMN",
    "asof": "2024-05-01",
    "year": 2024,
-   "close": 40.48,
+   "close": 163.42,
    "facts": {
     "prior_red": true,
-    "gap_pct": 17.91,
-    "day_pct": 21.02,
+    "gap_pct": 6.08,
+    "day_pct": 13.12,
     "green": true,
     "close_above_prior_high": true,
-    "close_pos": 0.84
+    "close_pos": 0.9,
+    "rvol": 2.6,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 0.46,
+    "base20_range_pct": 6.6,
+    "base30_range_pct": 6.6,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 14.4,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2024-05-01"
+    ]
    },
-   "q": 12.0
+   "q": 16.1312,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "TSN",
+   "asof": "2022-02-07",
+   "year": 2022,
+   "close": 99.09,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 10.32,
+    "day_pct": 12.23,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.89,
+    "rvol": 4.85,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 3.33,
+    "base20_range_pct": 6.2,
+    "base30_range_pct": 9.7,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 13.5,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2022-02-07"
+    ]
+   },
+   "q": 16.1223,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "RCUS",
+   "asof": "2026-06-22",
+   "year": 2026,
+   "close": 27.23,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 2.39,
+    "day_pct": 12.01,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.98,
+    "rvol": 3.07,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 1.57,
+    "base20_range_pct": 14.6,
+    "base30_range_pct": 14.6,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 12.2,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": false,
+    "earnings_dates_near": []
+   },
+   "q": 16.1201,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "VYX",
+   "asof": "2023-08-03",
+   "year": 2023,
+   "close": 17.6503,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 6.3,
+    "day_pct": 11.86,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.97,
+    "rvol": 2.92,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 4.44,
+    "base20_range_pct": 9.6,
+    "base30_range_pct": 10.5,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 13.6,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2023-08-02"
+    ]
+   },
+   "q": 16.1186,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "JBTM",
+   "asof": "2025-12-10",
+   "year": 2025,
+   "close": 153.8,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 3.04,
+    "day_pct": 11.6,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.94,
+    "rvol": 2.89,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 1.92,
+    "base20_range_pct": 7.7,
+    "base30_range_pct": 13.7,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 12.2,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": false,
+    "earnings_dates_near": []
+   },
+   "q": 16.116,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "LNC",
+   "asof": "2025-07-31",
+   "year": 2025,
+   "close": 38.11,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 4.53,
+    "day_pct": 11.43,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.97,
+    "rvol": 3.59,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 2.56,
+    "base20_range_pct": 5.5,
+    "base30_range_pct": 7.1,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 12.8,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2025-07-31"
+    ]
+   },
+   "q": 16.1143,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "CRL",
+   "asof": "2024-02-14",
+   "year": 2024,
+   "close": 245.12,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 3.0,
+    "day_pct": 11.3,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.99,
+    "rvol": 3.2,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 0.71,
+    "base20_range_pct": 10.1,
+    "base30_range_pct": 14.0,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 11.8,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2024-02-14"
+    ]
+   },
+   "q": 16.113,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "JBI",
+   "asof": "2023-12-14",
+   "year": 2023,
+   "close": 11.6,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 4.89,
+    "day_pct": 11.22,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.95,
+    "rvol": 6.94,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 4.94,
+    "base20_range_pct": 7.8,
+    "base30_range_pct": 15.4,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 13.4,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": false,
+    "earnings_dates_near": []
+   },
+   "q": 16.1122,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "FIVE",
+   "asof": "2026-03-19",
+   "year": 2026,
+   "close": 235.17,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 3.21,
+    "day_pct": 10.68,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.93,
+    "rvol": 4.0,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 3.97,
+    "base20_range_pct": 6.9,
+    "base30_range_pct": 15.2,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 13.9,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2026-03-18"
+    ]
+   },
+   "q": 16.1068,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "ISRG",
+   "asof": "2025-01-15",
+   "year": 2025,
+   "close": 580.11,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 3.0,
+    "day_pct": 7.65,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.87,
+    "rvol": 2.68,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 0.67,
+    "base20_range_pct": 4.7,
+    "base30_range_pct": 5.3,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 8.5,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": false,
+    "earnings_dates_near": []
+   },
+   "q": 16.0765,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "SNPS",
+   "asof": "2023-05-18",
+   "year": 2023,
+   "close": 409.71,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 2.76,
+    "day_pct": 8.65,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.95,
+    "rvol": 2.72,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 0.33,
+    "base20_range_pct": 3.5,
+    "base30_range_pct": 4.5,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 9.7,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2023-05-17"
+    ]
+   },
+   "q": 16.0865,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "PGR",
+   "asof": "2023-10-13",
+   "year": 2023,
+   "close": 154.95,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 4.68,
+    "day_pct": 8.13,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.93,
+    "rvol": 2.96,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 4.58,
+    "base20_range_pct": 3.6,
+    "base30_range_pct": 7.3,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 14.0,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2023-10-13"
+    ]
+   },
+   "q": 16.0813,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "BJ",
+   "asof": "2021-11-18",
+   "year": 2021,
+   "close": 71.93,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 8.39,
+    "day_pct": 19.94,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.85,
+    "rvol": 6.56,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 4.62,
+    "base20_range_pct": 7.7,
+    "base30_range_pct": 13.1,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 22.9,
+    "downtrend": false,
+    "setup_score": 15,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2021-11-18"
+    ]
+   },
+   "q": 15.15,
+   "pass": 2
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "GIS",
+   "asof": "2022-06-29",
+   "year": 2022,
+   "close": 74.72,
+   "facts": {
+    "prior_red": true,
+    "gap_pct": 1.81,
+    "day_pct": 6.35,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.92,
+    "rvol": 2.99,
+    "above_200": true,
+    "above_50": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "ma_spread_pct": 1.5,
+    "base20_range_pct": 6.8,
+    "base30_range_pct": 10.4,
+    "pullback_to_ma": true,
+    "breakout10": true,
+    "breakout20": true,
+    "ext_vs_sma50_pct": 6.9,
+    "downtrend": false,
+    "setup_score": 16,
+    "earnings_day": true,
+    "earnings_dates_near": [
+     "2022-06-29"
+    ]
+   },
+   "q": 16.0635,
+   "pass": 2
   },
   {
    "setup": "High Volume Edge",
@@ -1134,5 +1526,55 @@
    },
    "q": 0.9
   }
- ]
+ ],
+ "kicker_pass2": {
+  "generated": "2026-10-24",
+  "scanned": 3453,
+  "candidates": 3641,
+  "raw_detector_hits": 366660,
+  "passing": 1560,
+  "why": "owner 2026-10-24: first batch 'all average'; ETON best 'because it is technically already giving a good setup'. Pass 2 ranks detector hits by the setup BEFORE the kicker (scripts/study/find_kicker_examples.py).",
+  "replaced": [
+   {
+    "sym": "SHOP",
+    "asof": "2021-11-12"
+   },
+   {
+    "sym": "AFRM",
+    "asof": "2022-01-28"
+   },
+   {
+    "sym": "AVAV",
+    "asof": "2022-02-28"
+   },
+   {
+    "sym": "FUTU",
+    "asof": "2022-04-04"
+   },
+   {
+    "sym": "COIN",
+    "asof": "2023-01-04"
+   },
+   {
+    "sym": "INTA",
+    "asof": "2023-02-07"
+   },
+   {
+    "sym": "MSTR",
+    "asof": "2023-03-13"
+   },
+   {
+    "sym": "ETON",
+    "asof": "2024-01-08"
+   },
+   {
+    "sym": "SMCI",
+    "asof": "2024-02-22"
+   },
+   {
+    "sym": "PINS",
+    "asof": "2024-05-01"
+   }
+  ]
+ }
 }

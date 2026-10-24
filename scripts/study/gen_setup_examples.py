@@ -62,8 +62,15 @@ SETUPS = {
 def fact_line(setup: str, ex: dict) -> str:
     f = ex.get("facts") or {}
     if setup == "Kicker Candle":
-        return (f"Here the stock gapped up {f.get('gap_pct')}% after a red day and closed up {f.get('day_pct')}%, "
-                f"above the prior day's high, at {f.get('close_pos_pct')}% of its range.")
+        line = (f"Here the stock gapped up {f.get('gap_pct')}% after a red day and closed up {f.get('day_pct')}%, "
+                f"above the prior day's high, at {f.get('close_pos_pct')}% of its range")
+        line += " on its earnings report." if f.get("earnings_day") else "."
+        if f.get("setup_score") is not None:
+            # pass 2 (owner 2026-10-24: the best kicker fires out of a setup that is already there)
+            line += (f" The setup was already there: the 8, 21 and 50-day averages sat within {f.get('ma_spread_pct')}% "
+                     f"of each other, the prior 20 closes spanned {f.get('base20_range_pct')}%, and the kicker closed "
+                     + ("above the 20-day high." if f.get("breakout20") else "inside the base."))
+        return line
     if setup == "High Volume Edge":
         return f"Here the stock closed up {f.get('day_pct')}% on the heaviest volume of the lookback."
     if setup == "Oops Reversal":
@@ -97,6 +104,9 @@ def items_for(examples: list[dict]) -> list[dict]:
         for k in ("close_pos", "dcr"):
             if facts.get(k) is not None:
                 facts[k + "_pct"] = int(round(float(facts[k]) * 100))
+        if facts.get("setup_score") is not None:
+            # the Kicker pass-2 lesson names the three averages; the grounding check reads them here
+            facts["ma_periods"] = [8, 21, 50]
         ex = dict(ex, facts=facts)
         reveal = {"detector": detector, "setup": setup, "fires": True, "quote": definition,
                   "facts": facts, "source": ref, "window_bars": WINDOW,

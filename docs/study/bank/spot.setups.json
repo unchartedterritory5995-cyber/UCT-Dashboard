@@ -554,18 +554,18 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "2021-11-12",
+  "asof": "2026-02-26",
   "bars": {
-   "asof": "2021-11-12",
+   "asof": "2026-02-26",
    "forward": 20,
-   "sym": "SHOP",
+   "sym": "IMAX",
    "tf": "D",
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_982ad9603a5f",
+  "id": "si_5252d3a10e84",
   "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.06% after a red day and closed up 12.02%, above the prior day's high, at 97% of its range.",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 3.98% after a red day and closed up 14.38%, above the prior day's high, at 87% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 1.58% of each other, the prior 20 closes spanned 9.6%, and the kicker closed above the 20-day high.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -581,30 +581,53 @@
   "reveal_json": {
    "detector": "uct_kicker",
    "example": {
-    "asof": "2021-11-12",
+    "asof": "2026-02-26",
     "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "SHOP"
+    "sym": "IMAX"
    },
    "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 9.6,
+    "base30_range_pct": 9.6,
+    "breakout10": true,
+    "breakout20": true,
     "close_above_prior_high": true,
-    "close_pos": 0.97,
-    "close_pos_pct": 97,
-    "day_pct": 12.02,
-    "gap_pct": 2.06,
+    "close_pos": 0.87,
+    "close_pos_pct": 87,
+    "day_pct": 14.38,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2026-02-25"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 15.0,
+    "gap_pct": 3.98,
     "green": true,
-    "prior_red": true
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 1.58,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 3.8,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
    },
    "fires": true,
    "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
    "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#SHOP#2021-11-12",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#IMAX#2026-02-26",
    "window_bars": 120
   },
   "review_status": "draft",
   "skill_id": "setup.family3.kicker",
   "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#SHOP#2021-11-12",
-  "sym": "SHOP",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#IMAX#2026-02-26",
+  "sym": "IMAX",
   "type": "spot",
   "version": 1
  },
@@ -613,18 +636,18 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "2022-01-28",
+  "asof": "2024-11-07",
   "bars": {
-   "asof": "2022-01-28",
+   "asof": "2024-11-07",
    "forward": 20,
-   "sym": "AFRM",
+   "sym": "VTRS",
    "tf": "D",
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_2a4978a0b4e0",
+  "id": "si_d87efdba3b02",
   "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 4.84% after a red day and closed up 17.06%, above the prior day's high, at 98% of its range.",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 1.72% after a red day and closed up 13.52%, above the prior day's high, at 85% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 0.17% of each other, the prior 20 closes spanned 4.8%, and the kicker closed above the 20-day high.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -640,443 +663,53 @@
   "reveal_json": {
    "detector": "uct_kicker",
    "example": {
-    "asof": "2022-01-28",
+    "asof": "2024-11-07",
     "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "AFRM"
+    "sym": "VTRS"
    },
    "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 4.8,
+    "base30_range_pct": 4.9,
+    "breakout10": true,
+    "breakout20": true,
     "close_above_prior_high": true,
-    "close_pos": 0.98,
-    "close_pos_pct": 98,
-    "day_pct": 17.06,
-    "gap_pct": 4.84,
+    "close_pos": 0.85,
+    "close_pos_pct": 85,
+    "day_pct": 13.52,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2024-11-07"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 13.7,
+    "gap_pct": 1.72,
     "green": true,
-    "prior_red": true
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 0.17,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 3.01,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
    },
    "fires": true,
    "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
    "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#AFRM#2022-01-28",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#VTRS#2024-11-07",
    "window_bars": 120
   },
   "review_status": "draft",
   "skill_id": "setup.family3.kicker",
   "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#AFRM#2022-01-28",
-  "sym": "AFRM",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2022-02-28",
-  "bars": {
-   "asof": "2022-02-28",
-   "forward": 20,
-   "sym": "AVAV",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_f7b87bf020f8",
-  "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 3.45% after a red day and closed up 14.1%, above the prior day's high, at 94% of its range.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_kicker",
-   "example": {
-    "asof": "2022-02-28",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "AVAV"
-   },
-   "facts": {
-    "close_above_prior_high": true,
-    "close_pos": 0.94,
-    "close_pos_pct": 94,
-    "day_pct": 14.1,
-    "gap_pct": 3.45,
-    "green": true,
-    "prior_red": true
-   },
-   "fires": true,
-   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
-   "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#AVAV#2022-02-28",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family3.kicker",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#AVAV#2022-02-28",
-  "sym": "AVAV",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2022-04-04",
-  "bars": {
-   "asof": "2022-04-04",
-   "forward": 20,
-   "sym": "FUTU",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_853d4a93013b",
-  "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 5.78% after a red day and closed up 19.51%, above the prior day's high, at 100% of its range.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_kicker",
-   "example": {
-    "asof": "2022-04-04",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "FUTU"
-   },
-   "facts": {
-    "close_above_prior_high": true,
-    "close_pos": 1.0,
-    "close_pos_pct": 100,
-    "day_pct": 19.51,
-    "gap_pct": 5.78,
-    "green": true,
-    "prior_red": true
-   },
-   "fires": true,
-   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
-   "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#FUTU#2022-04-04",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family3.kicker",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#FUTU#2022-04-04",
-  "sym": "FUTU",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2023-01-04",
-  "bars": {
-   "asof": "2023-01-04",
-   "forward": 20,
-   "sym": "COIN",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_36d936f080a8",
-  "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.95% after a red day and closed up 12.2%, above the prior day's high, at 80% of its range.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_kicker",
-   "example": {
-    "asof": "2023-01-04",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "COIN"
-   },
-   "facts": {
-    "close_above_prior_high": true,
-    "close_pos": 0.8,
-    "close_pos_pct": 80,
-    "day_pct": 12.2,
-    "gap_pct": 2.95,
-    "green": true,
-    "prior_red": true
-   },
-   "fires": true,
-   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
-   "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#COIN#2023-01-04",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family3.kicker",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#COIN#2023-01-04",
-  "sym": "COIN",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2023-02-07",
-  "bars": {
-   "asof": "2023-02-07",
-   "forward": 20,
-   "sym": "INTA",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_69859fc3eb69",
-  "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 9.27% after a red day and closed up 18.12%, above the prior day's high, at 100% of its range.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_kicker",
-   "example": {
-    "asof": "2023-02-07",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "INTA"
-   },
-   "facts": {
-    "close_above_prior_high": true,
-    "close_pos": 1.0,
-    "close_pos_pct": 100,
-    "day_pct": 18.12,
-    "gap_pct": 9.27,
-    "green": true,
-    "prior_red": true
-   },
-   "fires": true,
-   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
-   "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#INTA#2023-02-07",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family3.kicker",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#INTA#2023-02-07",
-  "sym": "INTA",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2023-03-13",
-  "bars": {
-   "asof": "2023-03-13",
-   "forward": 20,
-   "sym": "MSTR",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_d881b37fcda9",
-  "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 5.21% after a red day and closed up 16.22%, above the prior day's high, at 81% of its range.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_kicker",
-   "example": {
-    "asof": "2023-03-13",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "MSTR"
-   },
-   "facts": {
-    "close_above_prior_high": true,
-    "close_pos": 0.81,
-    "close_pos_pct": 81,
-    "day_pct": 16.22,
-    "gap_pct": 5.21,
-    "green": true,
-    "prior_red": true
-   },
-   "fires": true,
-   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
-   "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#MSTR#2023-03-13",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family3.kicker",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#MSTR#2023-03-13",
-  "sym": "MSTR",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2024-01-08",
-  "bars": {
-   "asof": "2024-01-08",
-   "forward": 20,
-   "sym": "ETON",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_0339c1116ba6",
-  "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.3% after a red day and closed up 15.9%, above the prior day's high, at 88% of its range.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_kicker",
-   "example": {
-    "asof": "2024-01-08",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "ETON"
-   },
-   "facts": {
-    "close_above_prior_high": true,
-    "close_pos": 0.88,
-    "close_pos_pct": 88,
-    "day_pct": 15.9,
-    "gap_pct": 2.3,
-    "green": true,
-    "prior_red": true
-   },
-   "fires": true,
-   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
-   "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#ETON#2024-01-08",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family3.kicker",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#ETON#2024-01-08",
-  "sym": "ETON",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2024-02-22",
-  "bars": {
-   "asof": "2024-02-22",
-   "forward": 20,
-   "sym": "SMCI",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_2b880b567174",
-  "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 17.82% after a red day and closed up 32.87%, above the prior day's high, at 83% of its range.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_kicker",
-   "example": {
-    "asof": "2024-02-22",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "SMCI"
-   },
-   "facts": {
-    "close_above_prior_high": true,
-    "close_pos": 0.83,
-    "close_pos_pct": 83,
-    "day_pct": 32.87,
-    "gap_pct": 17.82,
-    "green": true,
-    "prior_red": true
-   },
-   "fires": true,
-   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
-   "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#SMCI#2024-02-22",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family3.kicker",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#SMCI#2024-02-22",
-  "sym": "SMCI",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#VTRS#2024-11-07",
+  "sym": "VTRS",
   "type": "spot",
   "version": 1
  },
@@ -1089,14 +722,14 @@
   "bars": {
    "asof": "2024-05-01",
    "forward": 20,
-   "sym": "PINS",
+   "sym": "GRMN",
    "tf": "D",
    "window": 120
   },
   "difficulty": 3,
-  "id": "si_7264d26f92d7",
+  "id": "si_027f9d5de91c",
   "lesson_origin": "session",
-  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 17.91% after a red day and closed up 21.02%, above the prior day's high, at 84% of its range.",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 6.08% after a red day and closed up 13.12%, above the prior day's high, at 90% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 0.46% of each other, the prior 20 closes spanned 6.6%, and the kicker closed above the 20-day high.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -1114,28 +747,1109 @@
    "example": {
     "asof": "2024-05-01",
     "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "PINS"
+    "sym": "GRMN"
    },
    "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 6.6,
+    "base30_range_pct": 6.6,
+    "breakout10": true,
+    "breakout20": true,
     "close_above_prior_high": true,
-    "close_pos": 0.84,
-    "close_pos_pct": 84,
-    "day_pct": 21.02,
-    "gap_pct": 17.91,
+    "close_pos": 0.9,
+    "close_pos_pct": 90,
+    "day_pct": 13.12,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2024-05-01"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 14.4,
+    "gap_pct": 6.08,
     "green": true,
-    "prior_red": true
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 0.46,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 2.6,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
    },
    "fires": true,
    "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
    "setup": "Kicker Candle",
-   "source": "docs/study/setups/setup_examples.json#Kicker Candle#PINS#2024-05-01",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#GRMN#2024-05-01",
    "window_bars": 120
   },
   "review_status": "draft",
   "skill_id": "setup.family3.kicker",
   "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#PINS#2024-05-01",
-  "sym": "PINS",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#GRMN#2024-05-01",
+  "sym": "GRMN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-07",
+  "bars": {
+   "asof": "2022-02-07",
+   "forward": 20,
+   "sym": "TSN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ab25b8c2f607",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 10.32% after a red day and closed up 12.23%, above the prior day's high, at 89% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 3.33% of each other, the prior 20 closes spanned 6.2%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2022-02-07",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TSN"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 6.2,
+    "base30_range_pct": 9.7,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.89,
+    "close_pos_pct": 89,
+    "day_pct": 12.23,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2022-02-07"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 13.5,
+    "gap_pct": 10.32,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 3.33,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 4.85,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#TSN#2022-02-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#TSN#2022-02-07",
+  "sym": "TSN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-06-22",
+  "bars": {
+   "asof": "2026-06-22",
+   "forward": 20,
+   "sym": "RCUS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2a119b60363c",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.39% after a red day and closed up 12.01%, above the prior day's high, at 98% of its range. The setup was already there: the 8, 21 and 50-day averages sat within 1.57% of each other, the prior 20 closes spanned 14.6%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2026-06-22",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RCUS"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 14.6,
+    "base30_range_pct": 14.6,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "day_pct": 12.01,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "ext_vs_sma50_pct": 12.2,
+    "gap_pct": 2.39,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 1.57,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 3.07,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#RCUS#2026-06-22",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#RCUS#2026-06-22",
+  "sym": "RCUS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-08-03",
+  "bars": {
+   "asof": "2023-08-03",
+   "forward": 20,
+   "sym": "VYX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_da499a3ee9e2",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 6.3% after a red day and closed up 11.86%, above the prior day's high, at 97% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 4.44% of each other, the prior 20 closes spanned 9.6%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-08-03",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VYX"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 9.6,
+    "base30_range_pct": 10.5,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "day_pct": 11.86,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2023-08-02"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 13.6,
+    "gap_pct": 6.3,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 4.44,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 2.92,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#VYX#2023-08-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#VYX#2023-08-03",
+  "sym": "VYX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-12-10",
+  "bars": {
+   "asof": "2025-12-10",
+   "forward": 20,
+   "sym": "JBTM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2c211f86ee33",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 3.04% after a red day and closed up 11.6%, above the prior day's high, at 94% of its range. The setup was already there: the 8, 21 and 50-day averages sat within 1.92% of each other, the prior 20 closes spanned 7.7%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2025-12-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "JBTM"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 7.7,
+    "base30_range_pct": 13.7,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.94,
+    "close_pos_pct": 94,
+    "day_pct": 11.6,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "ext_vs_sma50_pct": 12.2,
+    "gap_pct": 3.04,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 1.92,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 2.89,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#JBTM#2025-12-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#JBTM#2025-12-10",
+  "sym": "JBTM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-07-31",
+  "bars": {
+   "asof": "2025-07-31",
+   "forward": 20,
+   "sym": "LNC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_267e2576c540",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 4.53% after a red day and closed up 11.43%, above the prior day's high, at 97% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 2.56% of each other, the prior 20 closes spanned 5.5%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2025-07-31",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "LNC"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 5.5,
+    "base30_range_pct": 7.1,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "day_pct": 11.43,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2025-07-31"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 12.8,
+    "gap_pct": 4.53,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 2.56,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 3.59,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#LNC#2025-07-31",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#LNC#2025-07-31",
+  "sym": "LNC",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-14",
+  "bars": {
+   "asof": "2024-02-14",
+   "forward": 20,
+   "sym": "CRL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e13ab8a2fb20",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 3.0% after a red day and closed up 11.3%, above the prior day's high, at 99% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 0.71% of each other, the prior 20 closes spanned 10.1%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2024-02-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CRL"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 10.1,
+    "base30_range_pct": 14.0,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.99,
+    "close_pos_pct": 99,
+    "day_pct": 11.3,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2024-02-14"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 11.8,
+    "gap_pct": 3.0,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 0.71,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 3.2,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#CRL#2024-02-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#CRL#2024-02-14",
+  "sym": "CRL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-12-14",
+  "bars": {
+   "asof": "2023-12-14",
+   "forward": 20,
+   "sym": "JBI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1340352f5ceb",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 4.89% after a red day and closed up 11.22%, above the prior day's high, at 95% of its range. The setup was already there: the 8, 21 and 50-day averages sat within 4.94% of each other, the prior 20 closes spanned 7.8%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-12-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "JBI"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 7.8,
+    "base30_range_pct": 15.4,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.95,
+    "close_pos_pct": 95,
+    "day_pct": 11.22,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "ext_vs_sma50_pct": 13.4,
+    "gap_pct": 4.89,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 4.94,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 6.94,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#JBI#2023-12-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#JBI#2023-12-14",
+  "sym": "JBI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-03-19",
+  "bars": {
+   "asof": "2026-03-19",
+   "forward": 20,
+   "sym": "FIVE",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1bb33d1f0f75",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 3.21% after a red day and closed up 10.68%, above the prior day's high, at 93% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 3.97% of each other, the prior 20 closes spanned 6.9%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2026-03-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FIVE"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 6.9,
+    "base30_range_pct": 15.2,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.93,
+    "close_pos_pct": 93,
+    "day_pct": 10.68,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2026-03-18"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 13.9,
+    "gap_pct": 3.21,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 3.97,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 4.0,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#FIVE#2026-03-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#FIVE#2026-03-19",
+  "sym": "FIVE",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-01-15",
+  "bars": {
+   "asof": "2025-01-15",
+   "forward": 20,
+   "sym": "ISRG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_fc0ace523ea0",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 3.0% after a red day and closed up 7.65%, above the prior day's high, at 87% of its range. The setup was already there: the 8, 21 and 50-day averages sat within 0.67% of each other, the prior 20 closes spanned 4.7%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2025-01-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ISRG"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 4.7,
+    "base30_range_pct": 5.3,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.87,
+    "close_pos_pct": 87,
+    "day_pct": 7.65,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "ext_vs_sma50_pct": 8.5,
+    "gap_pct": 3.0,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 0.67,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 2.68,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#ISRG#2025-01-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#ISRG#2025-01-15",
+  "sym": "ISRG",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-18",
+  "bars": {
+   "asof": "2023-05-18",
+   "forward": 20,
+   "sym": "SNPS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e1a6aedaf78f",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 2.76% after a red day and closed up 8.65%, above the prior day's high, at 95% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 0.33% of each other, the prior 20 closes spanned 3.5%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-05-18",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SNPS"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 3.5,
+    "base30_range_pct": 4.5,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.95,
+    "close_pos_pct": 95,
+    "day_pct": 8.65,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2023-05-17"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 9.7,
+    "gap_pct": 2.76,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 0.33,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 2.72,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#SNPS#2023-05-18",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#SNPS#2023-05-18",
+  "sym": "SNPS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-10-13",
+  "bars": {
+   "asof": "2023-10-13",
+   "forward": 20,
+   "sym": "PGR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3df7901e6159",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 4.68% after a red day and closed up 8.13%, above the prior day's high, at 93% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 4.58% of each other, the prior 20 closes spanned 3.6%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-10-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PGR"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 3.6,
+    "base30_range_pct": 7.3,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.93,
+    "close_pos_pct": 93,
+    "day_pct": 8.13,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2023-10-13"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 14.0,
+    "gap_pct": 4.68,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 4.58,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 2.96,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#PGR#2023-10-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#PGR#2023-10-13",
+  "sym": "PGR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-11-18",
+  "bars": {
+   "asof": "2021-11-18",
+   "forward": 20,
+   "sym": "BJ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_81a4da6692cf",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 8.39% after a red day and closed up 19.94%, above the prior day's high, at 85% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 4.62% of each other, the prior 20 closes spanned 7.7%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2021-11-18",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BJ"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 7.7,
+    "base30_range_pct": 13.1,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.85,
+    "close_pos_pct": 85,
+    "day_pct": 19.94,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2021-11-18"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 22.9,
+    "gap_pct": 8.39,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 4.62,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 6.56,
+    "setup_score": 15,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#BJ#2021-11-18",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#BJ#2021-11-18",
+  "sym": "BJ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-06-29",
+  "bars": {
+   "asof": "2022-06-29",
+   "forward": 20,
+   "sym": "GIS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3964b1f7311f",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23). Here the stock gapped up 1.81% after a red day and closed up 6.35%, above the prior day's high, at 92% of its range on its earnings report. The setup was already there: the 8, 21 and 50-day averages sat within 1.5% of each other, the prior 20 closes spanned 6.8%, and the kicker closed above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2022-06-29",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "GIS"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "base20_range_pct": 6.8,
+    "base30_range_pct": 10.4,
+    "breakout10": true,
+    "breakout20": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.92,
+    "close_pos_pct": 92,
+    "day_pct": 6.35,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2022-06-29"
+    ],
+    "earnings_day": true,
+    "ext_vs_sma50_pct": 6.9,
+    "gap_pct": 1.81,
+    "green": true,
+    "ma_periods": [
+     8,
+     21,
+     50
+    ],
+    "ma_spread_pct": 1.5,
+    "prior_red": true,
+    "pullback_to_ma": true,
+    "rvol": 2.99,
+    "setup_score": 16,
+    "sma200_rising": true,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "quote": "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped (owner ruling 2026-10-23).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#GIS#2022-06-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#GIS#2022-06-29",
+  "sym": "GIS",
   "type": "spot",
   "version": 1
  },
