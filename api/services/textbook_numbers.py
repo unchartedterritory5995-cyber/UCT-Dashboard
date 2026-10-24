@@ -356,15 +356,24 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         atr = base_metrics.asof_atr(row, b)
         if dpiv is None or dpiv <= 0 or atr is None:
             return None
-        ph = pivot_high(piv, dpiv, atr)
-        if ph is None:
-            return None
-        bp = buy_point(ph)
-        if not buy_point_justified(piv, bp, dpiv, atr):
-            return None                                 # the guard: withheld, the old label stays
-        # the base high leaves out the window bars the pivot test rejected (a spike is not the base's top)
-        rejected = {id(x) for x in piv if not ceiling_bar(x, dpiv, atr)}
-        base_high = max(_hi(x) for x in span if id(x) not in rejected)
+        plain = _plain_draw(row)
+        if plain is not None:
+            # the PLAIN base (base_draw.plain_drawing, round 6): its geometry already chose the ceiling -- the
+            # highest high of the base's own bars, the left-side high -- so the buy point is that high + $0.10 and
+            # no ceiling-bar reselection runs (that reselection is what put the old line on a mid-base spike)
+            ph = max(_hi(x) for x in span)
+            bp = buy_point(ph)
+            base_high = ph
+        else:
+            ph = pivot_high(piv, dpiv, atr)
+            if ph is None:
+                return None
+            bp = buy_point(ph)
+            if not buy_point_justified(piv, bp, dpiv, atr):
+                return None                                 # the guard: withheld, the old label stays
+            # the base high leaves out the window bars the pivot test rejected (a spike is not the base's top)
+            rejected = {id(x) for x in piv if not ceiling_bar(x, dpiv, atr)}
+            base_high = max(_hi(x) for x in span if id(x) not in rejected)
         base_low = min(_lo(x) for x in span)
         dp = base_metrics.depth_pct(base_high, base_low)
         if base_metrics.too_shallow(dp, (base_high - base_low) / atr):
@@ -387,7 +396,12 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             out["line"] = round(bp - BUY_POINT_TICK, 2)   # the drawn top line: one price with the buy point
         # a breakout-state base counts its stage on its OWN bars (the base drawn at base_end_t), not on the
         # bars since the breakout
-        st = stage_count(b[:end_i + 1] if be is not None else b, start_i, full_history=bool(full_history))
+        if plain is not None:
+            # the plain base counts its own stage on the judged frame (base_draw.plain_stage), stamped on the drawing
+            st = _int(plain.get("stage"))
+            st = st if st is not None and st >= 1 else None
+        else:
+            st = stage_count(b[:end_i + 1] if be is not None else b, start_i, full_history=bool(full_history))
         if st is not None:
             out["stage"] = st
         complete = False
@@ -403,11 +417,25 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             # a breakout-state base: the volume is the BREAKOUT session's (a closed session), not the as-of one
             # a breakout bar that IS the as-of bar keeps the as-of bar's own completeness answer
             vol = volume_readout(b[:ts.index(bo) + 1], bp, complete if bo == asof else True)
+        if vol is not None and plain is not None and vol.get("breakout") is not True:
+            vol = None          # the plain base prints volume only on its breakout session (a below-buy-point
+            #                     volume line reads as a breakout that is not there)
         if vol is not None:
             out["volume"] = vol
         return out
     except Exception:  # noqa: BLE001 -- textbook numbers never break a row
         return None
+
+
+def _plain_draw(row):
+    """The draw_base of a PLAIN base row (bc:base drawn by base_draw.plain_drawing: it carries an int plain_round and
+    no state), else None."""
+    if (row or {}).get("pattern_id") != "bc:base":
+        return None
+    bd = (((row.get("geometry") or {}).get("extras") or {}).get("draw_base"))
+    if not isinstance(bd, dict) or "state" in bd or type(bd.get("plain_round")) is not int:
+        return None
+    return bd
 
 
 def _buy_zone() -> float:

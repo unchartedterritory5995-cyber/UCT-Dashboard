@@ -561,7 +561,9 @@ def _member_base_state_ok(bd) -> bool:
     equal to its stamped `state_round`. Any other state is False (fail closed)."""
     st = bd.get("state")
     if st is None and "state" not in bd:
-        return type(MEMBER_BASE_STATELESS_ROUND) is int
+        # the stateless base: only the plain base (base_draw.plain_drawing) of the released round
+        pr = bd.get("plain_round")
+        return type(MEMBER_BASE_STATELESS_ROUND) is int and type(pr) is int and pr == MEMBER_BASE_STATELESS_ROUND
     rnd = {"breakout": MEMBER_BASE_BREAKOUT_ROUND, "extended": MEMBER_BASE_BREAKOUT_ROUND,
            "forming": MEMBER_BASE_FORMING_ROUND, "tight": MEMBER_BASE_TIGHT_ROUND}.get(st) if isinstance(st, str) else None
     sr = bd.get("state_round")
@@ -1073,6 +1075,14 @@ def base_draw_row(sym: str, bars: list):
                 # draw that range back (a price held flat after a gap reads as a base "forming")
                 if d is not None and base_draw.floor_refuses(b, len(b) - 1, d):
                     d = None
+                if d is not None:
+                    return _base_row(sym, d, cur_round)
+            # no base STATE here (the states are asked exactly as before, so every state row is unchanged): the
+            # stateless row is the PLAIN base (round 6, lab base_rebuild) where it draws; where it does not, the
+            # round-5 drawing stays an admin-only row (it carries no plain_round, so members never get it)
+            p = base_draw.plain_drawing(b, len(b) - 1)
+            if p is not None:
+                return _base_row(sym, p, cur_round)
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:
