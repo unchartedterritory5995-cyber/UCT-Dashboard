@@ -338,7 +338,8 @@ def _routine_consistency(rows):
 def _routine_completion_pct(rows):
     sched = _scheduled_rows(rows)
     done = sum(1 for r in sched if r["state"] == "done")
-    return MeasureValue(_num(done / len(sched)) if sched else None, len(sched), None)
+    # Ruling W9-R7: a completion of 0 is never shown.
+    return MeasureValue(_num(done / len(sched)) if done else None, len(sched), None)
 
 
 def _routine_days_done(rows):

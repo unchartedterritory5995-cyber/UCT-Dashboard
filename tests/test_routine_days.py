@@ -564,4 +564,4 @@ def test_no_zero_on_the_measure_path():
     assert rd.ROUTINE_MEASURES["routine_days_done"].fn(none_done).value is None
     assert rd.ROUTINE_MEASURES["routine_days_done"].fn(_rows(2, 0, 1)).value == 2.0
     # Completion % is not covered by W9-R7 here and keeps its 0.0.
-    assert rd.ROUTINE_MEASURES["routine_completion_pct"].fn(none_done).value == 0.0
+    assert rd.ROUTINE_MEASURES["routine_completion_pct"].fn(none_done).value is None
