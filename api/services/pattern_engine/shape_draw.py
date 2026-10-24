@@ -149,8 +149,12 @@ def double_bottom_drawing(bars, i, _why=None) -> Optional[dict]:
     its anchors skipped the true low, and at 1.10 because its two lows and tops did not match): the lip is the
     highest high before the first low, each low is the lowest low of its leg, the middle peak the highest high
     between them. Withheld when the snapped W is not one: lows too close, a flat middle, a middle peak above the
-    lip, a right side that has not turned up, a breakout that already failed."""
+    lip, a right side that has not turned up, a breakout that already failed -- and on any chart whose as-of
+    close is not above a RISING 200-day average (base_draw.trend_ok, the base drawing's own trend floor)."""
     from api.services.screener import base_catalog as bc
+    from api.services.pattern_engine import base_draw
+    if not base_draw.trend_ok([float(x["c"]) for x in bars[:i + 1]], i):
+        return _say(_why, "below_or_falling_200")
     ctx, work, atr = _context(bars, i)
     if ctx is None or atr is None:
         return _say(_why, "no_context")

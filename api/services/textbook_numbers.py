@@ -14,11 +14,16 @@ For a base row that already carries base metrics (`extras.metrics`, api/services
     buy_zone_top        buy_point x (1 + IBD_BUY_ZONE): the buy zone runs to 5% above the buy point
     pct_from_buy_point  (as-of close - buy_point) / buy_point, in % (1 decimal)
     stage               the base count (see below); omitted whenever it cannot be read reliably
+    line                bc:base only: where the base's top line is drawn, buy_point - $0.10 (see below)
     volume              {vol_pct, breakout, light} (see below); omitted when there is nothing to say
 
-THE DRAWN LINE DOES NOT MOVE. The drawing (its pivot line on the base's highest body) passed its own blind
-checks as drawn, so it stays exactly where it is; only the printed numbers use the textbook buy point, and
-the label says "Buy point", so the two cannot be confused.
+THE LINE (round 2). In round 1 the bc:base line stayed on the base's highest BODY (draw_base.pivot) while the
+printed buy point was the ceiling bar's WICK high + $0.10, up to SPIKE_MAX_ATR ATR over that line, so a close
+could sit visibly through the line while the label said "-2.3% from buy point" (prod eye audit 2026-10-23: 25 of
+64 member bases had the buy point more than 0.5 ATR over the line, 13 closed between the two). Round 2 stamps
+`line` = buy_point - $0.10 (the base high, the textbook pivot line an IBD chart shows) on every bc:base row, and
+the chart draws the base's top line there, labelled "Buy point". One price, one authority. draw_base.pivot is
+untouched: it still selects the ceiling bars (`ceiling_bar`) and is what a row without textbook numbers draws.
 
 Which high is the buy point (the textbook pivot placement: a consolidation, flat base or cup without a handle
 pivots on its left-side high; anything with a handle on the handle peak):
@@ -73,7 +78,7 @@ from api.services import base_metrics
 
 #: Stamped on every row this computes as `extras.metrics_textbook_round`. A member sees the textbook numbers
 #: only while auto_structures.MEMBER_TEXTBOOK_ROUND (a literal, set by hand after a blind check) equals it.
-TEXTBOOK_ROUND = 1
+TEXTBOOK_ROUND = 2
 
 #: The IBD convention: the buy point is the pivot high plus ten cents.
 BUY_POINT_TICK = 0.10
@@ -378,6 +383,8 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         out = {"buy_point": bp, "base_high": round(base_high, 4), "asof_t": asof, "depth_pct": dp,
                "length_weeks": weeks, "buy_zone_top": bz, "pct_from_buy_point": pfb,
                "extended": pfb > EXTENDED_PCT}
+        if row.get("pattern_id") == "bc:base":
+            out["line"] = round(bp - BUY_POINT_TICK, 2)   # the drawn top line: one price with the buy point
         # a breakout-state base counts its stage on its OWN bars (the base drawn at base_end_t), not on the
         # bars since the breakout
         st = stage_count(b[:end_i + 1] if be is not None else b, start_i, full_history=bool(full_history))
