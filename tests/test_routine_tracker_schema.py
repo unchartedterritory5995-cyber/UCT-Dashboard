@@ -78,5 +78,40 @@ def test_tracker_template_key_is_unique_per_member(conn):
 
 
 def test_ensure_schema_is_idempotent(conn):
+    _routine(conn, "r1", "u1")
     db.ensure_schema(conn)
     db.ensure_schema(conn)
+    for t in TABLES:
+        assert conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (t,)).fetchone(), t
+    assert conn.execute("SELECT COUNT(*) FROM j2_routines").fetchone()[0] == 1
+
+
+PRIMARY_KEYS = {
+    "j2_routines": ["id"],
+    "j2_routine_schedules": ["user_id", "routine_id", "effective_from"],
+    "j2_routine_ticks": ["user_id", "routine_id", "day", "item_id"],
+    "j2_routine_days": ["user_id", "routine_id", "day"],
+    "j2_routine_reminder_claims": ["user_id", "routine_id", "day"],
+    "j2_trackers": ["id"],
+    "j2_tracker_values": ["user_id", "tracker_id", "day"],
+}
+
+
+def test_primary_keys_are_exactly_the_briefs(conn):
+    assert set(PRIMARY_KEYS) == set(TABLES)
+    for t, want in PRIMARY_KEYS.items():
+        pk = [r[1] for r in sorted(conn.execute(f"PRAGMA table_info({t})"), key=lambda r: r[5]) if r[5]]
+        assert pk == want, (t, pk)
+
+
+def test_two_items_on_one_day_are_two_ticks(conn):
+    for item in ("a", "b"):
+        conn.execute("INSERT INTO j2_routine_ticks (user_id, routine_id, day, item_id, ticked, updated_at)"
+                     " VALUES ('u1', 'r1', '2026-10-23', ?, 1, 'x')", (item,))
+    assert conn.execute("SELECT COUNT(*) FROM j2_routine_ticks").fetchone()[0] == 2
+
+
+@pytest.mark.parametrize("name", ["idx_j2_routines_user", "idx_j2_trackers_user"])
+def test_list_indexes_exist(conn, name):
+    cols = [r[2] for r in conn.execute(f"PRAGMA index_info({name})")]
+    assert cols == ["user_id", "archived_at", "deleted_at"], (name, cols)
