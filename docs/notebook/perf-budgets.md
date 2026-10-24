@@ -1033,3 +1033,78 @@ end. A future reading that disagrees will carry its own `background:` line, so t
 apart instead of tied. The line in `perf-budgets.json` is unchanged. The L15 q1 run keeps its
 status as recorded: taken before the background half existed, its background is UNKNOWN, which the
 instrument now says out loud rather than calling quiet.
+
+## Phase 2 wave 7 baseline
+
+Task 7.1 of Notebook widgets phase 2, wave 7 ("bytes first"). The number every later wave 7 task
+is measured against, and which candidate modules are actually eager.
+
+**Build:** `git rev-parse HEAD` = `6e9e48ddd8a9045aeaf28d0070972a2a822f695b` (branch
+`feat/notebook-widgets-p2`), clean tree, `cd app && npm run build`, then
+`python tools/notebook_perf_budgets.py --dist app/dist --chunks`, exit 0. The tool printed:
+
+```
+bytes.notebook_first_open: 2,259,009 B across 63 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+- Closure total: **2,259,009 B** across 63 JS chunks.
+- Budget: **2,260,793 B** (unchanged, never raised).
+- Headroom: 2,260,793 - 2,259,009 = **1,784 B**.
+- Wave 7 floor is 25 KB of headroom before wave 8 (aim 40 KB), so wave 7 has to free at least
+  **23,216 B** (aim 38,216 B) from this baseline.
+
+`--chunks` prints one `<file> <bytes>` line per closure file after the verdict, largest first.
+The ten largest at this build (the full list is the tool's output; `check_bytes` now returns every
+row in `detail[name]["files"]`):
+
+| file | bytes |
+|---|---|
+| `assets/index-DLfawith.js` | 586,244 |
+| `assets/vendor-react-BrA_wePN.js` | 378,377 |
+| `assets/NotebookFlagGate-CuTQmf6U.js` | 340,785 |
+| `assets/tiptap-S0iTVk3y.js` | 295,418 |
+| `assets/index-BjWq0gek.js` | 216,080 |
+| `assets/askInsert-C3cjIrK5.js` | 96,982 |
+| `assets/FolderSidebar-Cld7sw9u.js` | 44,347 |
+| `assets/CapturedSourceSheet-Dkw0kXE5.js` | 27,764 |
+| `assets/registry-CQGfP3XH.js` | 26,354 |
+| `assets/useDurableNote-Rs8lxxKR.js` | 25,591 |
+
+### Eagerness census
+
+Method: a string literal unique to the module (confirmed with `grep -rnF <string> app/src`: it
+occurs in that module's own source, and otherwise only in tests, fixtures or comments, never in
+another source module's code), then `grep -lF <string>` over the 63 files the `--chunks` list
+names. A string found in a closure file means the module's code is in the first-open closure. A
+candidate found in no closure file would be recorded "lazy already, not a candidate". All paths
+are under `app/src/pages/journal-2-0/`.
+
+| candidate | evidence string | found in (closure file) | verdict |
+|---|---|---|---|
+| `lib/notebookTemplates.js` (66,299 B source) | `Daily & weekly rituals` | `assets/index-DLfawith.js` | EAGER (in the entry chunk) |
+| `components/notebook/BulkActionBar.jsx` | `data-bulk-action` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| `components/notebook/TemplatePicker.jsx` | `data-template-search-status` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| `lib/emojiData.js` (13,937 B source) | `chart_with_downwards_trend` | `assets/tiptap-S0iTVk3y.js` | EAGER (in the tiptap chunk) |
+| `components/notebook/SavedViewEditor.jsx` | `save-view-name` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| `components/connectors/NoteConnectorsTrustStrip.jsx` | `Note connectors sync status` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| onboarding sample notebook: `components/notebook/onboarding/sampleNotebook.js` | `api/j2/onboarding/sample-notebook` | `assets/sampleNotebook-DrlhqVb_.js` (15,489 B) | EAGER (its own chunk is in the static closure) |
+
+Notes on the table:
+
+- Every candidate is eager; none is "lazy already".
+- The sample notebook module is the one that holds the onboarding sample's copy and endpoints
+  (`SAMPLE_URL`, `SAMPLE_PREF`, the member-facing strings). There is no separate onboarding data
+  module; the other `onboarding/` files are the tour, the getting-started list and the capability
+  list. `sampleNotebook.js` already has its own chunk, and the chunk is reached statically (it is statically imported by
+  `ResearchHome.jsx`, `AiActionsPanel.jsx`, `gettingStarted.js`, `capabilityList.js`,
+  `GenericTourEngine.jsx` and `LearnMenuPanel.jsx`), so it counts against first open. A
+  second string from the same module, `notebook_sample`, is also in `NotebookFlagGate-CuTQmf6U.js`
+  because `ResearchHome.jsx` and `gettingStarted.js` name the same preference key; that is a
+  different module using the key, not this module's code.
+- `lib/notebookTemplates.js` sits in the entry chunk (`index-DLfawith.js`, 586,244 B), not in a
+  Notebook chunk, so moving it behind a dynamic import frees entry bytes.
+- `TemplatePicker.jsx` already lazy-loads `TemplateGallery` (`lazyChunk(() => import('./TemplateGallery'))`);
+  the picker itself is the eager part.
+- Sizes of the candidates inside their chunks are not measured here; the source byte counts above
+  are the only sizes quoted, and the minified cost of each is the next task's reading to take.

@@ -63,6 +63,41 @@ def test_the_closure_is_the_static_graph_entry_included_dynamic_and_siblings_exc
                                              "assets/route.js", "assets/shared.js"}
 
 
+def test_chunks_lists_every_closure_file(tmp_path):
+    """Wave 7 (Task 7.1): `detail[name]["files"]` holds EVERY JS file of the closure (not the
+    eight `largest` keeps), largest first, and its sizes sum to the closure total."""
+    files = dict(FILES)
+    manifest = json.loads(json.dumps(MANIFEST))
+    extra = []
+    for i in range(10):                       # 14 closure files in all: more than `largest[:8]`
+        name = f"assets/extra{i}.js"
+        files[name] = 10 + i
+        manifest[f"_extra{i}.js"] = {"file": name}
+        extra.append(f"_extra{i}.js")
+    manifest["src/Route.jsx"]["imports"] = manifest["src/Route.jsx"]["imports"] + extra
+    d = _dist(tmp_path, files, manifest)
+    _, detail = pb.check_bytes(_budgets(10_000), d)
+    got = detail["route_first_open"]
+    assert got["chunks"] == 14 and len(got["files"]) == 14
+    sizes = [b for _, b in got["files"]]
+    assert sizes == sorted(sizes, reverse=True)
+    assert sum(sizes) == got["bytes"]
+    assert [f for f, _ in got["files"]][:2] == ["assets/index.js", "assets/vendor-react.js"]
+
+
+def test_chunks_flag_prints_one_line_per_file_after_the_verdict(tmp_path, capsys):
+    d = _dist(tmp_path, FILES, MANIFEST)
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(_budgets(10_000)), encoding="utf-8")
+    assert pb.main(["--budgets", str(good), "--dist", str(d), "--chunks"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    v = next(i for i, ln in enumerate(lines) if ln.startswith("VERDICT: PASS"))
+    assert lines[v + 1:] == ["assets/index.js 1000", "assets/vendor-react.js 300",
+                             "assets/route.js 200", "assets/shared.js 50"]
+    assert pb.main(["--budgets", str(good), "--dist", str(d)]) == 0
+    assert "assets/index.js 1000" not in capsys.readouterr().out
+
+
 def test_a_breach_names_the_total_the_budget_and_the_overage(tmp_path):
     d = _dist(tmp_path, FILES, MANIFEST)
     breaches, _ = pb.check_bytes(_budgets(1500), d)
