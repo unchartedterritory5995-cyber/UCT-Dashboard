@@ -476,6 +476,175 @@ def _bars_for(sym: str) -> list:
 
 
 # ---------------------------------------------------------------------------
+# 3b. CLEAR price pin: price behaviour strong enough to act on alone
+# ---------------------------------------------------------------------------
+# A +30% one-session gap, then the stock trades in a band a fraction of its old daily range
+# (HZO, ARX: +45% gaps, 50+ sessions inside 2%). Replayed point-in-time over every +30% gap
+# in the daily store since 2023-07 (1,558 gaps): 58 fired on settled history, every one a
+# deal (4 of them deals that later broke or drifted), plus 5 current pins; 0 of 794 gaps that
+# later trended (episodic pivots, power earnings) and 0 of 296 other non-deal gaps fired. An
+# episodic pivot's flag keeps a 1.6%+ ATR and at least 0.3x its pre-gap ATR; an arb pin sits
+# near 0.3% and under 0.1x. The fresh tier (two sessions after the gap) rests on the gap DAY
+# itself: no trended gap in the replay had a gap-day range under 4%; a deal's trades in 1-2%.
+
+CLEAR_GAP_MIN = 0.30             # open / prior close - 1 of the one-session gap
+CLEAR_PIN_SESSIONS = 15          # sessions after the gap day for the settled tier
+CLEAR_PIN_BAND = 0.04            # max(high) / min(low) - 1 over every session after the gap day
+CLEAR_PIN_ATR_MAX = 0.01         # 14-session ATR / last close
+CLEAR_PIN_ATR_COLLAPSE = 0.35    # that ATR / the 20-session ATR before the gap (as % of price)
+FRESH_PIN_SESSIONS = 2           # sessions after the gap day for the fresh tier
+FRESH_PIN_BAND = 0.04            # max(high) / min(low) - 1 from the gap day through today
+FRESH_GAP_DAY_RANGE_MAX = 0.02   # the gap day's own high / low - 1
+FRESH_PIN_RANGE_MAX = 0.01       # mean daily high / low - 1 from the gap day through today
+PIN_MIN_DOLLAR_VOLUME = 250_000  # median close * volume after the gap (stale OTC prints refused)
+CLEAR_PIN_LOOKBACK = 260         # sessions searched for the gap
+CONF_CLEAR_PIN = 0.85
+CLEAR_PIN_LABEL = "Possible acquisition, drawings hidden"
+
+
+def _ohlcv(bars) -> list:
+    out = []
+    for b in bars or []:
+        if isinstance(b, dict):
+            v = b.get("v")
+            out.append((b.get("t"), float(b["o"]), float(b["h"]), float(b["l"]), float(b["c"]),
+                        None if v is None else float(v)))
+        else:
+            v = b[5] if len(b) > 5 else None
+            out.append((b[0], float(b[1]), float(b[2]), float(b[3]), float(b[4]),
+                        None if v is None else float(v)))
+    return out
+
+
+def clear_pin(bars):
+    """The clear-pin read of daily `bars` (oldest first, with volume), or None. Only the
+    latest CLEAR_GAP_MIN+ gap in the last CLEAR_PIN_LOOKBACK sessions is judged:
+      * settled: CLEAR_PIN_SESSIONS+ sessions after the gap day, all of them inside
+        CLEAR_PIN_BAND, with the 14-session ATR under CLEAR_PIN_ATR_MAX of the close and under
+        CLEAR_PIN_ATR_COLLAPSE of the pre-gap ATR;
+      * fresh: FRESH_PIN_SESSIONS+ sessions after it, the gap day inside
+        FRESH_GAP_DAY_RANGE_MAX, the gap day through today inside FRESH_PIN_BAND, and the mean
+        daily range under FRESH_PIN_RANGE_MAX and under CLEAR_PIN_ATR_COLLAPSE of the pre-gap ATR.
+    Both need PIN_MIN_DOLLAR_VOLUME of median dollar volume and real (high > low) sessions."""
+    b = _ohlcv(bars)
+    n = len(b)
+    if n < 22:
+        return None
+    lo = max(21, n - CLEAR_PIN_LOOKBACK)
+    g = None
+    for i in range(n - 1 - FRESH_PIN_SESSIONS, lo - 1, -1):
+        if b[i - 1][4] > 0 and b[i][1] / b[i - 1][4] - 1.0 >= CLEAR_GAP_MIN:
+            g = i
+            break
+    if g is None:
+        return None
+    since = b[g:]
+    if any(x[5] is None for x in since):
+        return None
+    dv = sorted(x[4] * x[5] for x in since)[len(since) // 2]
+    if dv < PIN_MIN_DOLLAR_VOLUME or sum(1 for x in since if x[2] <= x[3]) > len(since) // 3:
+        return None
+    if min(x[3] for x in since) <= 0:
+        return None
+
+    def tr(i):
+        h, l, pc = b[i][2], b[i][3], b[i - 1][4]
+        return max(h - l, abs(h - pc), abs(l - pc))
+
+    pre_atr = sum(tr(i) for i in range(g - 20, g)) / 20 / b[g - 1][4]
+    if pre_atr <= 0:
+        return None
+    post = b[g + 1:]
+    out = {"gap_date": _bar_day(b[g][0]), "gap_pct": round((b[g][1] / b[g - 1][4] - 1) * 100, 2),
+           "sessions_since_gap": len(post), "last_close": b[-1][4]}
+    if len(post) >= CLEAR_PIN_SESSIONS:
+        band = max(x[2] for x in post) / min(x[3] for x in post) - 1.0
+        atr = sum(tr(i) for i in range(n - 14, n)) / 14 / b[-1][4]
+        if band <= CLEAR_PIN_BAND and atr <= CLEAR_PIN_ATR_MAX and atr <= CLEAR_PIN_ATR_COLLAPSE * pre_atr:
+            return {**out, "tier": "settled", "band_pct": round(band * 100, 3),
+                    "atr_pct": round(atr * 100, 3)}
+    gap_day = b[g][2] / b[g][3] - 1.0
+    band = max(x[2] for x in since) / min(x[3] for x in since) - 1.0
+    mean_rng = sum(x[2] / x[3] - 1.0 for x in since) / len(since)
+    if (gap_day <= FRESH_GAP_DAY_RANGE_MAX and band <= FRESH_PIN_BAND
+            and mean_rng <= FRESH_PIN_RANGE_MAX and mean_rng <= CLEAR_PIN_ATR_COLLAPSE * pre_atr):
+        return {**out, "tier": "fresh", "band_pct": round(band * 100, 3),
+                "atr_pct": round(mean_rng * 100, 3)}
+    return None
+
+
+def _clear_pin_candidates() -> frozenset:
+    """Symbols whose recent daily bars COULD hold a clear pin, from two aggregate queries on
+    the by-date index (a loose superset: the last CLEAR_PIN_SESSIONS sessions inside
+    CLEAR_PIN_BAND, or the last three inside FRESH_PIN_BAND after a 25%+ move). Empty when
+    that index is absent: without it the query is a full read of the store."""
+    from api.services import bars_sqlite
+    if not bars_sqlite.daily_bydate_index_ready():
+        _log.info("[deal-status] by-date index absent; clear-pin scan skipped")
+        return frozenset()
+    top = 99991231
+    d15 = bars_sqlite.nth_recent_trading_date(CLEAR_PIN_SESSIONS, top)
+    d3 = bars_sqlite.nth_recent_trading_date(FRESH_PIN_SESSIONS + 1, top)
+    d16 = bars_sqlite.nth_recent_trading_date(CLEAR_PIN_SESSIONS + 1, top)
+    if not (d15 and d3 and d16):
+        return frozenset()
+    idx = bars_sqlite.DAILY_BYDATE_INDEX
+    q = (f"SELECT ticker FROM ohlcv INDEXED BY {idx} WHERE tf='D' AND ts>=? GROUP BY ticker "
+         f"HAVING COUNT(*)>=? AND MIN(l)>0 AND MAX(h)<=MIN(l)*? "
+         f"UNION SELECT a.ticker FROM (SELECT ticker FROM ohlcv INDEXED BY {idx} WHERE tf='D' AND ts>=? "
+         f"GROUP BY ticker HAVING MIN(l)>0 AND MAX(h)<=MIN(l)*?) a JOIN (SELECT ticker FROM ohlcv "
+         f"INDEXED BY {idx} WHERE tf='D' AND ts>=? GROUP BY ticker HAVING MIN(l)>0 AND MAX(h)>=MIN(l)*1.25) b "
+         f"USING (ticker)")
+    rows = bars_sqlite._conn().execute(
+        q, (int(d15), CLEAR_PIN_SESSIONS, 1.0 + CLEAR_PIN_BAND, int(d3), 1.0 + FRESH_PIN_BAND,
+            int(d16))).fetchall()
+    return frozenset(str(r[0]).upper() for r in rows if r and r[0])
+
+
+def clear_pin_symbols() -> frozenset:
+    """Every symbol whose own daily bars hold a clear pin today (`clear_pin`). Cached with the
+    day's snapshot. Never raises: an error yields nothing (logged)."""
+    try:
+        snap = _snapshot()
+        with _LOCK:
+            hit = _STATE.get("clear")
+            if hit is not None and hit[0] is snap:
+                return hit[1]
+        out = set()
+        for sym in _clear_pin_candidates():
+            try:
+                if clear_pin(_bars_for(sym)):
+                    out.add(sym)
+            except Exception as exc:  # noqa: BLE001
+                _log.warning("[deal-status] clear-pin read failed for %s: %s", sym, exc)
+        got = frozenset(out)
+        with _LOCK:
+            _STATE["clear"] = (snap, got)
+        return got
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] clear-pin scan failed, none added: %s", exc)
+        return frozenset()
+
+
+def clear_pin_marker(sym: str, bars=None):
+    """The marker a MEMBER chart shows instead of its drawings when `sym` holds a clear pin,
+    or None. None while DEAL_STATUS_ENABLED is off. Never raises (an error is None)."""
+    if not enabled():
+        return None
+    s = (sym or "").upper().strip()
+    try:
+        pin = clear_pin(bars if bars is not None else _bars_for(s))
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] clear-pin check failed for %s: %s", s, exc)
+        return None
+    if not pin:
+        return None
+    return {"pending": True, "possible": True, "label": CLEAR_PIN_LABEL,
+            "source": ["clear_price_pin"], "since": pin["gap_date"], "price": None,
+            "confidence": CONF_CLEAR_PIN}
+
+
+# ---------------------------------------------------------------------------
 # The merged answer, cached per day
 # ---------------------------------------------------------------------------
 
@@ -594,14 +763,16 @@ def deal_status(sym: str, bars=None) -> dict:
 
 def pending_deal_symbols() -> frozenset:
     """Every symbol that is `pending` today: hand lists, fresh news deals, and old news
-    deals still confirmed by a price pin. Price behaviour alone never adds a name (it is
-    never pending). Never raises: an error yields the hand lists alone (logged)."""
+    deals still confirmed by a price pin, and every CLEAR price pin (`clear_pin_symbols`: a
+    +30% gap then a collapsed band; the weak 8% pin alone still never adds a name). Never
+    raises: an error yields the hand lists alone (logged)."""
     try:
         snap = _snapshot()
         out = set(snap["hand"]) | set(snap["mirror"])
         for sym, d in snap["news"].items():
             if d["active"] and sym not in out and deal_status(sym)["pending"]:
                 out.add(sym)
+        out |= clear_pin_symbols()
         return frozenset(out)
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] pending set failed, hand lists only: %s", exc)

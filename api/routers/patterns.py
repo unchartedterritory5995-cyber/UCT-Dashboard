@@ -847,8 +847,9 @@ def get_detections(
         from api.services import auto_structures
         if auto_structures.members_enabled():
             # Pending acquisition (DEAL_STATUS_ENABLED): no drawings, no buy point, no metrics --
-            # only the marker. Asked before any layer runs, so none of them computes.
-            hold = auto_structures.deal_hold(sym.upper())
+            # only the marker. Asked before any layer runs, so none of them computes. A clear
+            # price pin (a +30% gap then a collapsed band) holds the member chart too.
+            hold = auto_structures.deal_hold(sym.upper(), member=True)
             if hold is not None:
                 return {"sym": sym.upper(), "tf": tf, "detections": [], "count": 0,
                         "deal_status": hold}
@@ -906,6 +907,12 @@ def get_detections(
                     sr = auto_structures.levels_sr_for(sym, member=True, served=list(rows) + list(boxes))
                     if sr is not None:
                         mout["levels_sr"] = sr
+                # setup drawings (dark: AUTO_STRUCTURES_G4_SETUPS_ENABLED + MEMBER_<SETUP>_ROUND + the member set):
+                # daily charts only, drawn by the UCT Intelligence "Setups" toggle. Off: no `setup_draws` key.
+                if (tf or "D").upper() == "D":
+                    sd = auto_structures.setup_draws_for(sym, member=True)
+                    if sd is not None:
+                        mout["setup_draws"] = sd
             return mout
     # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
     # no `structures` / `drawn` key at all.
@@ -939,6 +946,12 @@ def get_detections(
                 sr = auto_structures.levels_sr_for(sym)
                 if sr is not None:
                     out["levels_sr"] = sr
+            # setup drawings (AUTO_STRUCTURES_G4_SETUPS_ENABLED): daily charts only, every setup for the team
+            # (donchian included, not member-released); drawn by the UCT Intelligence "Setups" toggle
+            if (tf or "D").upper() == "D":
+                sd = auto_structures.setup_draws_for(sym)
+                if sd is not None:
+                    out["setup_draws"] = sd
     return out
 
 
