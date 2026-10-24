@@ -1634,8 +1634,9 @@ def _flagging_flag(row) -> bool:
     """True when a bull_flag row is the "flagging" tier as display.draw_geometry stamps it: the
     strict round stopped it (`stale`, no `draw_round`) on a relaxed reason only
     (display.FLAGGING_REASONS), and `extras.flagging` carries tier "flagging" and FLAGGING_TIER_ROUND
-    as an int. Recognition only: whether a MEMBER gets it is `_member_flagging_flag`. Anything else -- no stamp, another round, another tier, a stale reason outside the
-    relaxed set, a row that is ALSO stamped confirmed -- is False. Fail closed."""
+    as an int. Recognition only: whether a MEMBER gets it is `_member_flagging_flag`. Anything
+    else -- no stamp, another round, another tier, a stale reason outside the relaxed set, a row
+    that is ALSO stamped confirmed -- is False. Fail closed."""
     ex = ((row or {}).get("geometry") or {}).get("extras") or {}
     if ex.get("stale") is not True or "draw_round" in ex:
         return False

@@ -36,7 +36,7 @@ _CUP_STALE = ("judged cup never served: auto_structures.box_to_detection marks t
               "release commit")
 for _cid in ("base-a-011", "base-a-016", "base-a-018", "base-a-020", "base-a-025", "base-b-010", "base-b-013",
              "inside-day-a2-004", "inside-day-a2-009", "inside-day-b2-012", "inside-day-b2-013", "inside-day-b2-016",
-             "inside-day-b2-019", "inside-day-b2-025", "shelf-b-020", "textbook-g1-01", "textbook-g1-12"):
+             "inside-day-b2-019", "textbook-g1-01", "textbook-g1-12"):
     KNOWN_RED[_cid] = _PRECEDENCE
 for _cid in ("cup-d1-001", "cup-d1-005", "cup-d1-009", "cup-d1-010", "cup-d1-018", "cup-d1-019", "cup-d1-021",
              "cup-d1-024", "cup-d1-025", "cup-d2-003", "cup-d2-004", "cup-d2-007", "cup-d2-010", "cup-d2-013",
@@ -45,7 +45,9 @@ for _cid in ("cup-d1-001", "cup-d1-005", "cup-d1-009", "cup-d1-010", "cup-d1-018
 for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
     KNOWN_RED[_cid] = ("judged double bottom never served: withheld on the member chart (the release's stale-"
                        "breakout condition, auto_structures._db_breakout_stale); already so at the release commit")
-for _cid in ("cup-d1-015", "double-bottom-a-010", "inside-day-b2-018", "textbook-g1-10"):
+# cup-d1-015, textbook-g1-10, inside-day-b2-025 and shelf-b-020 left this list 2026-10-24: their second member drawing
+# was a "flagging"-tier bull_flag, withheld from members that day (blind textbook score 1.28), so they reproduce now.
+for _cid in ("double-bottom-a-010", "inside-day-b2-018"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
 
@@ -110,7 +112,7 @@ def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
     assert {"base", "double_bottom", "shelf", "sr", "cup", "inside_day", "textbook", "remount",
-            "u_and_r"} <= fams, fams
+            "u_and_r", "donchian_breakout"} <= fams, fams
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round
