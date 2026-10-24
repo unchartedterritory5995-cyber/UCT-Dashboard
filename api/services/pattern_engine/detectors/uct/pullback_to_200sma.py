@@ -65,13 +65,18 @@ _RECLAIM_LAG = 5                        # close back above within 1-5 bars
 _MIN_PRIOR_ADVANCE_PCT = 0.40           # 40%+ prior advance required (Weinstein/Minervini)
 _PRIOR_ADVANCE_LOOKBACK = 200           # search up to 200 bars back (major trend)
 _CONFIDENCE_FLOOR = 50.0
+#: History declared to the scan (registry `min_bars`): exactly this detector's
+#: own length gate below (200 SMA + 20 slope bars + 50 buffer). The scan's base
+#: depth (200) is under it, so without the declaration the detector never fired
+#: in the daily scan. Its 200-bar prior-advance window fits inside it.
+MIN_BARS = _SMA_PERIOD + 70
 
 
 def detect_pullback_to_200sma(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Weinstein/Minervini deep pullback to 200-SMA. Emits 0 or 1 detection."""
     n = len(bars)
     # Need 200-SMA period + 20 bars for slope + 50 bars buffer
-    if n < _SMA_PERIOD + 70:
+    if n < MIN_BARS:
         return []
 
     if context.get("trend_stage") != 2:
@@ -570,4 +575,4 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
     }
 
 
-register(_PATTERN_ID, detect_pullback_to_200sma)
+register(_PATTERN_ID, detect_pullback_to_200sma, min_bars=MIN_BARS)
