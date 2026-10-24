@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import TABLE from '../../../../constants/houseSizing.json'
 import {
   houseSize, accountSizeFor, roundPct, SIZE_CEILING_PCT, MAX_ACCOUNT_RISK_PCT, REGIME_OF, PLACEHOLDER_ACCOUNT_SIZE,
-  PREFERRED_ACCOUNT_RISK_PCT,
+  PREFERRED_ACCOUNT_RISK_PCT, isPlaceholderAccount,
 } from './houseSizing'
 
 describe('the house table (R-P2-5; app/src/constants/houseSizing.json, railed by tests/test_house_sizing_table.py)', () => {
@@ -156,6 +156,13 @@ describe('accountSizeFor (IR-S9)', () => {
   it('a size the member set in Settings counts; a size typed into this note wins', () => {
     expect(accountSizeFor({ params: {}, settings: { accountSize: 25000 } })).toBe(25000)
     expect(accountSizeFor({ params: { accountSize: 100000 }, settings: { accountSize: PLACEHOLDER_ACCOUNT_SIZE } })).toBe(100000)
+  })
+  it("the server's own answer wins: a member who typed exactly the placeholder is theirs (Round B fix 1)", () => {
+    const typed = { accountSize: PLACEHOLDER_ACCOUNT_SIZE, accountSizeIsDefault: false }
+    expect(accountSizeFor({ params: {}, settings: typed })).toBe(PLACEHOLDER_ACCOUNT_SIZE)
+    expect(isPlaceholderAccount(typed)).toBe(false)
+    expect(isPlaceholderAccount({ accountSize: 0, accountSizeIsDefault: true })).toBe(true)
+    expect(accountSizeFor({ params: {}, settings: { accountSize: 50000, accountSizeIsDefault: true } })).toBeNull()
   })
   it('settings not loaded, a zero, a negative, a string or a non-number is not an account size', () => {
     for (const settings of [undefined, null, { accountSize: 0 }, { accountSize: -5 }, { accountSize: 'abc' }, { accountSize: Infinity }]) {

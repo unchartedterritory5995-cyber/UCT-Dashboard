@@ -30,7 +30,7 @@ export function patternLabelSpecs(v) {
   if (flatTop) add('flat-top', span(flatTop.start_t, flatTop.end_t, flatTop.price), flatTop.label, 40)
   if (base) {
     add('base-pivot', span(base.start_t, base.end_t, base.pivot), base.label, 40)
-    add('base-low', span(base.start_t, base.end_t, base.low), base.lowLabel, 0)
+    add('base-low', span(base.start_t, base.base_end_t ?? base.end_t, base.low), base.lowLabel, 0)
   }
   if (shapeDraw) {
     add('shape-pivot', span(shapeDraw.pivot_from_t, shapeDraw.end_t, shapeDraw.pivot), shapeDraw.label, 40)

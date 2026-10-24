@@ -14,11 +14,16 @@ For a base row that already carries base metrics (`extras.metrics`, api/services
     buy_zone_top        buy_point x (1 + IBD_BUY_ZONE): the buy zone runs to 5% above the buy point
     pct_from_buy_point  (as-of close - buy_point) / buy_point, in % (1 decimal)
     stage               the base count (see below); omitted whenever it cannot be read reliably
+    line                bc:base only: where the base's top line is drawn, buy_point - $0.10 (see below)
     volume              {vol_pct, breakout, light} (see below); omitted when there is nothing to say
 
-THE DRAWN LINE DOES NOT MOVE. The drawing (its pivot line on the base's highest body) passed its own blind
-checks as drawn, so it stays exactly where it is; only the printed numbers use the textbook buy point, and
-the label says "Buy point", so the two cannot be confused.
+THE LINE (round 2). In round 1 the bc:base line stayed on the base's highest BODY (draw_base.pivot) while the
+printed buy point was the ceiling bar's WICK high + $0.10, up to SPIKE_MAX_ATR ATR over that line, so a close
+could sit visibly through the line while the label said "-2.3% from buy point" (prod eye audit 2026-10-23: 25 of
+64 member bases had the buy point more than 0.5 ATR over the line, 13 closed between the two). Round 2 stamps
+`line` = buy_point - $0.10 (the base high, the textbook pivot line an IBD chart shows) on every bc:base row, and
+the chart draws the base's top line there, labelled "Buy point". One price, one authority. draw_base.pivot is
+untouched: it still selects the ceiling bars (`ceiling_bar`) and is what a row without textbook numbers draws.
 
 Which high is the buy point (the textbook pivot placement: a consolidation, flat base or cup without a handle
 pivots on its left-side high; anything with a handle on the handle peak):
@@ -73,7 +78,7 @@ from api.services import base_metrics
 
 #: Stamped on every row this computes as `extras.metrics_textbook_round`. A member sees the textbook numbers
 #: only while auto_structures.MEMBER_TEXTBOOK_ROUND (a literal, set by hand after a blind check) equals it.
-TEXTBOOK_ROUND = 1
+TEXTBOOK_ROUND = 2
 
 #: The IBD convention: the buy point is the pivot high plus ten cents.
 BUY_POINT_TICK = 0.10
@@ -330,9 +335,18 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             return None
         start_i = ts.index(s_t)
         asof_i = len(b) - 1
-        if start_i >= asof_i:
+        # the base's own bars end before its as-of bar; a breakout-state base (base_draw.breakout_drawing)
+        # ends before base_end_t, the bar it was drawn at, so the bars since the breakout are never the base
+        end_i = asof_i
+        be = _int(((((row.get("geometry") or {}).get("extras") or {}).get("draw_base") or {})
+                   .get("base_end_t")) if row.get("pattern_id") == "bc:base" else None)
+        if be is not None:
+            if be not in ts:
+                return None
+            end_i = ts.index(be)
+        if start_i >= end_i:
             return None
-        span = b[start_i:asof_i]
+        span = b[start_i:end_i]
         piv = [x for x in span if p_s <= _int(x["t"]) <= p_e]
         if not piv:
             return None
@@ -359,7 +373,7 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         old = ((row.get("geometry") or {}).get("extras") or {}).get("metrics")
         weeks = _num(old.get("length_weeks")) if isinstance(old, dict) else None
         if weeks is None:
-            weeks = base_metrics.length_weeks(b, s_t, asof)
+            weeks = base_metrics.length_weeks(b, s_t, _int(b[end_i]["t"]) if be is not None else asof)
         if bp is None or dp is None or weeks is None:
             return None
         bz = round(bp * (1.0 + _buy_zone()), 2)
@@ -369,7 +383,11 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         out = {"buy_point": bp, "base_high": round(base_high, 4), "asof_t": asof, "depth_pct": dp,
                "length_weeks": weeks, "buy_zone_top": bz, "pct_from_buy_point": pfb,
                "extended": pfb > EXTENDED_PCT}
-        st = stage_count(b, start_i, full_history=bool(full_history))
+        if row.get("pattern_id") == "bc:base":
+            out["line"] = round(bp - BUY_POINT_TICK, 2)   # the drawn top line: one price with the buy point
+        # a breakout-state base counts its stage on its OWN bars (the base drawn at base_end_t), not on the
+        # bars since the breakout
+        st = stage_count(b[:end_i + 1] if be is not None else b, start_i, full_history=bool(full_history))
         if st is not None:
             out["stage"] = st
         complete = False
@@ -379,6 +397,12 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
             except Exception:  # noqa: BLE001 -- an unreadable clock is not a completed session
                 complete = False
         vol = volume_readout(b, bp, complete)
+        bo = _int(((((row.get("geometry") or {}).get("extras") or {}).get("draw_base") or {})
+                   .get("breakout_t")) if row.get("pattern_id") == "bc:base" else None)
+        if bo is not None and bo in ts:
+            # a breakout-state base: the volume is the BREAKOUT session's (a closed session), not the as-of one
+            # a breakout bar that IS the as-of bar keeps the as-of bar's own completeness answer
+            vol = volume_readout(b[:ts.index(bo) + 1], bp, complete if bo == asof else True)
         if vol is not None:
             out["volume"] = vol
         return out

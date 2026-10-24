@@ -33,6 +33,10 @@ Two drawing rounds live here, chosen by `draw_round`:
     of team charts, the highest wick 60%). Every gate then reads that pivot. Round 2 also withholds a
     deep pullback straight after a parabolic run (PARABOLIC_RUN / PARABOLIC_DEPTH): a blow-off
     unwinding is not a base.
+  * Rounds 2 and 4 draw nothing unless the as-of close is above a RISING 200-day average (`trend_ok`, round 4's
+    textbook floor lifted to the whole chart, 2026-10-23): a "base" under a falling 200-day is a pause in a
+    downtrend, not a buyable base (O'Neil; the trend template). The shelf pivot, the double bottom and the
+    member path's base rows read the same `trend_ok`.
   * ROUND 4 (BASE_DRAW_ROUND) -- lab base_draw_v4, "textbook consolidation". Wherever round 2 draws,
     round 4 returns round 2's drawing UNCHANGED. Only where round 2 draws nothing, a second pass over
     round 2's own candidates admits one whose ONLY round-2 failures are a single touch of the pivot
@@ -178,11 +182,27 @@ def _candidates(bars, i):
     return out
 
 
-def _evaluate(bars, i, a, k, rnd=1, waive=False):
+def trend_ok(closes, i) -> bool:
+    """The trend floor every member-visible bullish base drawing applies (round 4's rule, lifted here so the
+    shelf pivot, the double bottom and the member path read the same one): the close at bar `i` above the
+    TREND_N-day average of closes, and that average above its value TB_SMA_RISE_BARS sessions earlier (the
+    trend template's "above a RISING 200-day"). `closes` is any sequence of closes, oldest first; only
+    closes[:i+1] are read. False without the history to tell."""
+    if not isinstance(i, int) or i - TB_SMA_RISE_BARS - TREND_N + 1 < 0 or i >= len(closes):
+        return False
+    s200 = sum(float(x) for x in closes[i - TREND_N + 1:i + 1]) / TREND_N
+    s200p = sum(float(x) for x in closes[i - TB_SMA_RISE_BARS - TREND_N + 1:i - TB_SMA_RISE_BARS + 1]) / TREND_N
+    return float(closes[i]) > s200 and s200 > s200p
+
+
+def _evaluate(bars, i, a, k, rnd=1, waive=False, forming=False):
     """One candidate base at bar k as round `rnd` judges it, or None. With `waive` (round 4's second pass
     only) a lip reached from above ("no_lip") and a single touch of the pivot region ("one_touch") are
     recorded in the result's "waived" instead of rejecting it -- with the single touch waived, the pullback
-    check reads the whole region's lows -- and every other gate applies exactly as without it."""
+    check reads the whole region's lows -- and every other gate applies exactly as without it. With `forming`
+    (the "base forming" state only, `forming_drawing`) the as-of close band is the forming band (FORM_*) under
+    the pivot in place of [pivot - NEAR_BELOW ATR, pivot + MAX_EXT ATR], and the right-side reach gate
+    (RIGHT_BARS / RIGHT_ATR) is not asked; every other gate is unchanged. Without it nothing changes."""
     b = bars
     C = _bt(b[k])
     j = i - 1
@@ -223,7 +243,10 @@ def _evaluate(bars, i, a, k, rnd=1, waive=False):
     if depth > MAX_DEPTH or depth <= 0:
         return None
     c = _f(b[i], "c")
-    if not (piv - NEAR_BELOW * a <= c <= piv + MAX_EXT * a):
+    if forming:
+        if not (piv - min(FORM_BELOW_ATR * a, FORM_BELOW_PCT * piv) <= c <= piv):
+            return None
+    elif not (piv - NEAR_BELOW * a <= c <= piv + MAX_EXT * a):
         return None
     if any(_f(b[m], "c") > piv + BODY_TOL * a for m in range(lip, i)):
         return None
@@ -242,7 +265,8 @@ def _evaluate(bars, i, a, k, rnd=1, waive=False):
         if (floor > 0 and _f(b[lip], "h") / floor >= PARABOLIC_RUN and depth >= PARABOLIC_DEPTH
                 and n < PARABOLIC_MAX_LEN):
             return None
-    if i - 1 <= lip or max(_bt(b[m]) for m in range(max(lip + 1, i - RIGHT_BARS), i)) < piv - RIGHT_ATR * a:
+    if i - 1 <= lip or (not forming
+                        and max(_bt(b[m]) for m in range(max(lip + 1, i - RIGHT_BARS), i)) < piv - RIGHT_ATR * a):
         return None
     if i + 1 < TREND_N:
         return None
@@ -252,7 +276,7 @@ def _evaluate(bars, i, a, k, rnd=1, waive=False):
     d = {"pivot": float(piv), "lip": lip, "low": float(low), "low_i": low_i, "len": n,
          "close_minus_pivot_atr": (c - piv) / a}
     if waive:
-        d.update(waived=tuple(waived), depth=depth, s200=s200)
+        d.update(waived=tuple(waived), depth=depth)
     return d
 
 
@@ -289,11 +313,8 @@ def _textbook_ok(b, i, a, d) -> bool:
     adv = lip_h / lo - 1.0 if lo > 0 else 0.0
     if adv < TB_MIN_ADV:
         return False
-    # the close above a RISING 200-day average (round 2 already put it above the average itself)
-    if i - TB_SMA_RISE_BARS - TREND_N + 1 < 0:
-        return False
-    s200p = sum(_f(x, "c") for x in b[i - TB_SMA_RISE_BARS - TREND_N + 1:i - TB_SMA_RISE_BARS + 1]) / TREND_N
-    return d["s200"] > s200p
+    # the close above a RISING 200-day average: base_drawing applied trend_ok before any candidate was read
+    return True
 
 
 def _textbook_drawing(bars, i):
@@ -345,6 +366,10 @@ def base_drawing(bars: list, i: int, draw_round: int | None = None):
             return None
         if not isinstance(i, int) or isinstance(i, bool) or i < MIN_LEN + 5 or i >= len(bars):
             return None
+        # rounds 2 and 4 (the member rounds): no bullish base under a falling 200-day (round 1, the lab port,
+        # is unchanged)
+        if rnd != 1 and not trend_ok([_f(x, "c") for x in bars[:i + 1]], i):
+            return None
         if rnd == 4:
             # round 4 IS round 2 wherever round 2 draws; its own pass runs only where round 2 draws nothing
             d2 = base_drawing(bars, i, draw_round=2)
@@ -370,3 +395,271 @@ def base_drawing(bars: list, i: int, draw_round: int | None = None):
                 "label": PIVOT_LABEL, "low_label": LOW_LABEL}
     except (KeyError, TypeError, ValueError, ZeroDivisionError, IndexError):
         return None
+
+
+# ================================================================ the base STATES (lab base_persist_forming)
+# Display only. Each state is drawn ONLY where `base_drawing` draws nothing on the same bars (the caller,
+# auto_structures.base_draw_row, asks `state_drawing` only then), so a base the judged rounds draw is never
+# changed. Each state's drawing is the same dict as `base_drawing`'s plus
+#   state        "breakout" | "extended" | "forming" | "tight"
+#   state_round  STATE_ROUND (members get a state only while its auto_structures.MEMBER_BASE_*_ROUND literal
+#                equals this stamp)
+# and, for the breakout states only, base_end_t (the as-of bar the base was drawn at: the base's own span ends
+# there, the pivot line runs on to end_t) and breakout_t (the first close over the buy point).
+
+#: The base-state code's own round, stamped on every state drawing as `state_round`.
+STATE_ROUND = 1
+#: The states a drawing can carry.
+STATES = ("breakout", "extended", "forming", "tight")
+
+# -- BREAKOUT persistence: a base drawn in the last PERSIST_BARS sessions that price has since cleared --
+#: How many sessions back the last drawn base is looked for.
+PERSIST_BARS = 10
+#: The buy zone above the buy point (IBD: 5%) ...
+PERSIST_BUY_ZONE = 0.05
+#: ... and past it, the "extended" state runs to this far above the buy point; further out nothing is drawn.
+PERSIST_EXTENDED_MAX = 0.10
+#: A close this many ATR(14) under the pivot after the breakout is a failed breakout: nothing is drawn.
+PERSIST_FAIL_ATR = 1.0
+
+# -- BASE FORMING: the right side still building under the pivot --
+#: The as-of close at most this many ATR(14) ...
+FORM_BELOW_ATR = 5.0
+#: ... and at most this fraction under the pivot (both), and not above it.
+FORM_BELOW_PCT = 0.15
+#: The right side is rising: the as-of close above its FORM_EMA-day EMA ...
+FORM_EMA = 21
+#: ... and the base low at least this many sessions before the as-of bar.
+FORM_LOW_AGE = 5
+
+# -- 3 WEEKS TIGHT: three consecutive weekly closes within TIGHT_CLOSE_PCT, at highs, after an advance --
+TIGHT_WEEKS = 3
+#: max / min of the three weekly closes - 1.
+TIGHT_CLOSE_PCT = 0.015
+#: A week counts only with at least this many sessions.
+TIGHT_MIN_SESSIONS = 3
+#: The tight area's own depth, (high - low) / high, at most this.
+TIGHT_MAX_DEPTH = 0.10
+#: At highs: the area's high is at least this fraction of the highest high of the TIGHT_HIGH_BARS sessions
+#: ending with the area.
+TIGHT_NEAR_HIGH = 0.95
+TIGHT_HIGH_BARS = 252
+#: After an advance: the first tight week's close is at least 1 + TIGHT_MIN_ADV x the lowest low of the
+#: TIGHT_ADV_BARS sessions before the area.
+TIGHT_ADV_BARS = 63
+TIGHT_MIN_ADV = 0.20
+#: The as-of close between the area's low and this far over its high.
+TIGHT_MAX_EXT = 0.05
+#: Not a pinned price: ATR(14) at the as-of bar at least this fraction of the close (a pending deal trades
+#: tighter than any leader's 3 weeks tight).
+TIGHT_MIN_ATR_PCT = 0.01
+#: The trend: close > SMA(TIGHT_SMA_FAST) > SMA(TREND_N), and SMA(TREND_N) above its value TB_SMA_RISE_BARS ago.
+TIGHT_SMA_FAST = 50
+
+
+def _sma(b, i, n):
+    if i + 1 < n:
+        return None
+    return sum(_f(x, "c") for x in b[i - n + 1:i + 1]) / n
+
+
+def _ema(b, i, n):
+    """EMA(n) of closes at bar i, run over the 10 x n bars up to i (seeded with the first close there)."""
+    j0 = max(0, i - 10 * n)
+    k = 2.0 / (n + 1)
+    e = _f(b[j0], "c")
+    for m in range(j0 + 1, i + 1):
+        e += k * (_f(b[m], "c") - e)
+    return e
+
+
+def _pinned(b) -> bool:
+    from api.services import deal_status
+    return deal_status.price_pinned(b) is not None
+
+
+def _ok_index(bars, i) -> bool:
+    return isinstance(i, int) and not isinstance(i, bool) and MIN_LEN + 5 <= i < len(bars)
+
+
+def breakout_drawing(bars, i, draw_round=None):
+    """The BREAKOUT state at bar i, or None: the most recent base `base_drawing` (round `draw_round`) drew
+    at one of the PERSIST_BARS sessions before i, kept while price is still in (or just past) its buy zone.
+    The buy point is the textbook one the label prints (textbook_numbers: the base's ceiling-bar high +
+    $0.10), or the drawn pivot when that cannot be read. Drawn only when the as-of close is over the buy
+    point and at most PERSIST_EXTENDED_MAX over it ("breakout" up to the buy zone, PERSIST_BUY_ZONE,
+    "extended" past it), and no close since the breakout fell more than PERSIST_FAIL_ATR ATR(14) under the
+    pivot (a failed breakout). The base's geometry (pivot, start, low, atr, bars) is the drawn base's,
+    unchanged; end_t moves to bar i. Reads bars[:i+1] only. Never raises."""
+    try:
+        if not _ok_index(bars, i):
+            return None
+        b = bars[:i + 1]
+        d = None
+        for k in range(1, PERSIST_BARS + 1):
+            if i - k < MIN_LEN + 5:
+                return None
+            d = base_drawing(b, i - k, draw_round=draw_round)
+            if d is not None:
+                break
+        if d is None:
+            return None
+        ts = [int(x["t"]) for x in b]
+        j, lip = ts.index(int(d["end_t"])), ts.index(int(d["start_t"]))
+        piv = float(d["pivot"])
+        from api.services import textbook_numbers
+        ph = textbook_numbers.pivot_high(b[lip:j], piv, float(d["atr"]))
+        bp = textbook_numbers.buy_point(ph) if ph is not None else None
+        ref = max(piv, bp) if bp is not None else piv
+        c = _f(b[i], "c")
+        if not c > ref:
+            return None
+        if c <= ref * (1.0 + PERSIST_BUY_ZONE):
+            state = "breakout"
+        elif c <= ref * (1.0 + PERSIST_EXTENDED_MAX):
+            state = "extended"
+        else:
+            return None
+        bo = next(m for m in range(j, i + 1) if _f(b[m], "c") > ref)
+        a = _atr(b, i)
+        if not a or a <= 0:
+            return None
+        if any(_f(b[m], "c") < piv - PERSIST_FAIL_ATR * a for m in range(bo + 1, i + 1)):
+            return None
+        return {**d, "end_t": ts[i], "base_end_t": int(d["end_t"]), "breakout_t": ts[bo],
+                "state": state, "state_round": STATE_ROUND}
+    except (KeyError, TypeError, ValueError, ZeroDivisionError, IndexError, StopIteration):
+        return None
+
+
+def forming_drawing(bars, i):
+    """The BASE FORMING state at bar i, or None: round 2's candidate bases read with the forming band (the
+    close at most FORM_BELOW_ATR ATR and FORM_BELOW_PCT under the pivot, not above it; no right-side reach
+    gate; a single touch / a lip reached from above waived, as round 4 waives them) that meet round 4's
+    textbook floors (`_textbook_ok`: 5+ weeks, <= 35% deep, the region starting at the left-side high, a 30%
+    prior advance, a rising 200-day), with the right side rising (the close above its FORM_EMA-day EMA, the
+    base low FORM_LOW_AGE+ sessions back) and no pending-deal pin. Of those, the pivot nearest the close
+    (ties: the longer). Reads bars[:i+1] only. Never raises."""
+    try:
+        if not _ok_index(bars, i):
+            return None
+        b = bars[:i + 1]
+        a = _atr(b, i)
+        if not a or a <= 0:
+            return None
+        if not _f(b[i], "c") > _ema(b, i, FORM_EMA):
+            return None
+        # the rising 200-day: _textbook_ok no longer asks it (base_drawing applies trend_ok up front), so the
+        # forming state applies the same trend_ok itself -- the gate its blind packets were judged with
+        if not trend_ok([_f(x, "c") for x in b], i):
+            return None
+        seen, best = set(), None
+        for k in _candidates(b, i):
+            d = _evaluate(b, i, a, k, 2, waive=True, forming=True)
+            if d is None or i - d["low_i"] < FORM_LOW_AGE or not _textbook_ok(b, i, a, d):
+                continue
+            if (d["lip"], round(d["pivot"], 8)) in seen:
+                continue
+            seen.add((d["lip"], round(d["pivot"], 8)))
+            key = (abs(d["close_minus_pivot_atr"]), -d["len"])
+            if best is None or key < best[0]:
+                best = (key, d)
+        if best is None or _pinned(b):
+            return None
+        d = best[1]
+        return {"pivot": d["pivot"], "start_t": int(b[d["lip"]]["t"]), "end_t": int(b[i]["t"]),
+                "low": d["low"], "low_t": int(b[d["low_i"]]["t"]), "bars": d["len"], "atr": float(a),
+                "label": PIVOT_LABEL, "low_label": LOW_LABEL, "state": "forming", "state_round": STATE_ROUND}
+    except (KeyError, TypeError, ValueError, ZeroDivisionError, IndexError):
+        return None
+
+
+def _weeks(b, i):
+    """The COMPLETE trading weeks of b[:i+1] as lists of bar indices, oldest first: every ISO week before the
+    as-of bar's, and the as-of bar's own only when the as-of bar is a Friday."""
+    import datetime
+    out, key = [], None
+    for m in range(0, i + 1):
+        t = int(b[m]["t"])
+        k = datetime.date(t // 10000, t // 100 % 100, t % 100).isocalendar()[:2]
+        if k != key:
+            out.append([])
+            key = k
+        out[-1].append(m)
+    t = int(b[i]["t"])
+    if datetime.date(t // 10000, t // 100 % 100, t % 100).weekday() != 4:
+        out = out[:-1]
+    return out
+
+
+def tight_drawing(bars, i):
+    """The 3 WEEKS TIGHT state at bar i, or None: the last TIGHT_WEEKS complete weeks (`_weeks`), each with
+    TIGHT_MIN_SESSIONS+ sessions, whose weekly closes sit within TIGHT_CLOSE_PCT of each other; the area (their
+    bars) at most TIGHT_MAX_DEPTH deep, its high at least TIGHT_NEAR_HIGH of the TIGHT_HIGH_BARS-session high,
+    after a TIGHT_MIN_ADV advance from the lowest low of the TIGHT_ADV_BARS sessions before it; the close above
+    SMA50 above a rising SMA200; the as-of close between the area's low and TIGHT_MAX_EXT over its high; ATR(14)
+    at least TIGHT_MIN_ATR_PCT of the close and no pending-deal pin. The pivot is the area's highest high, the low its lowest low, the region runs from the
+    area's first bar to bar i. Reads bars[:i+1] only. Never raises."""
+    try:
+        if not _ok_index(bars, i):
+            return None
+        b = bars[:i + 1]
+        wk = _weeks(b, i)
+        if len(wk) < TIGHT_WEEKS:
+            return None
+        area = wk[-TIGHT_WEEKS:]
+        if any(len(w) < TIGHT_MIN_SESSIONS for w in area):
+            return None
+        wc = [_f(b[w[-1]], "c") for w in area]
+        if not min(wc) > 0 or max(wc) / min(wc) - 1.0 > TIGHT_CLOSE_PCT:
+            return None
+        a0, a1 = area[0][0], area[-1][-1]
+        piv = max(_f(b[m], "h") for m in range(a0, a1 + 1))
+        low_i = min(range(a0, a1 + 1), key=lambda m: (_f(b[m], "l"), m))
+        low = _f(b[low_i], "l")
+        if not piv > low > 0 or (piv - low) / piv > TIGHT_MAX_DEPTH:
+            return None
+        h0 = max(0, a1 - TIGHT_HIGH_BARS + 1)
+        if piv < TIGHT_NEAR_HIGH * max(_f(b[m], "h") for m in range(h0, a1 + 1)):
+            return None
+        if a0 - TIGHT_ADV_BARS < 0:
+            return None
+        floor = min(_f(b[m], "l") for m in range(a0 - TIGHT_ADV_BARS, a0))
+        if not floor > 0 or wc[0] < (1.0 + TIGHT_MIN_ADV) * floor:
+            return None
+        c = _f(b[i], "c")
+        if not (low <= c <= piv * (1.0 + TIGHT_MAX_EXT)):
+            return None
+        s50, s200 = _sma(b, i, TIGHT_SMA_FAST), _sma(b, i, TREND_N)
+        s200p = _sma(b, i - TB_SMA_RISE_BARS, TREND_N) if i - TB_SMA_RISE_BARS >= 0 else None
+        if None in (s50, s200, s200p) or not (c > s50 > s200 and s200 > s200p):
+            return None
+        a = _atr(b, i)
+        if not a or a <= 0 or a < TIGHT_MIN_ATR_PCT * c or _pinned(b):
+            return None
+        return {"pivot": float(piv), "start_t": int(b[a0]["t"]), "end_t": int(b[i]["t"]), "low": float(low),
+                "low_t": int(b[low_i]["t"]), "bars": i - a0, "atr": float(a), "label": PIVOT_LABEL,
+                "low_label": LOW_LABEL, "state": "tight", "state_round": STATE_ROUND}
+    except (KeyError, TypeError, ValueError, ZeroDivisionError, IndexError):
+        return None
+
+
+#: The states `state_drawing` draws, in precedence order. Only states that passed BOTH of their blind packets
+#: are here: breakout persistence and base forming. 3 weeks tight (`tight_drawing`) failed its first packet
+#: (lab base_persist_forming, A 1.94) and is NOT drawn for anyone; adding it back is a new round and a new check.
+DRAWN_STATES = ("breakout", "forming")
+
+
+def state_drawing(bars, i, draw_round=None):
+    """The base STATE drawing at bar i, or None, for bars where `base_drawing` draws nothing (the caller asks
+    only then): the breakout persistence first, then base forming (DRAWN_STATES). Never raises."""
+    fns = {"breakout": lambda: breakout_drawing(bars, i, draw_round=draw_round),
+           "tight": lambda: tight_drawing(bars, i), "forming": lambda: forming_drawing(bars, i)}
+    for f in (fns[s] for s in DRAWN_STATES):
+        try:
+            d = f()
+        except Exception:  # noqa: BLE001 -- one state failing never stops the next, and never raises
+            d = None
+        if d is not None:
+            return d
+    return None

@@ -1812,6 +1812,11 @@ _PHASE_2_ALTERS = [
     # trade of that setup is graded against later). JSON blob parallel to
     # `setups`: {setupName: [{id, label}]}. Defaults to {} for legacy rows.
     "ALTER TABLE j2_accounts ADD COLUMN setup_rules TEXT NOT NULL DEFAULT '{}'",
+    # The member-set marker for account_size (one authority, Round B). NULL = unmarked, read by
+    # the old rule (the migrated 100,000 placeholder is unset); 1 = the member set this size,
+    # whatever its value. Nullable with no default so every pre-existing row starts unmarked;
+    # `_backfill_account_size_marker` then marks the rows whose size is not the placeholder.
+    "ALTER TABLE j2_accounts ADD COLUMN account_size_set INTEGER",
     # Journal A+ P5-A3 — per-closed-trade rule ADHERENCE (which of a setup's
     # rules the trader followed on a given trade), keyed on the same stable
     # trade_ref (ext:<external_id> broker / id:<row id> manual) as attachments
@@ -2256,6 +2261,12 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
                 raise
     conn.commit()
 
+    try:
+        _backfill_account_size_marker(conn)
+    except Exception as e:  # noqa: BLE001 -- never crash startup over this
+        conn.rollback()
+        print(f"[j2-schema] account_size_set backfill aborted: {e}")
+
     # Wave 7 (lane I): read-path indexes. An index is an optimisation, never a
     # correctness requirement, so one that cannot be built is LOGGED and skipped
     # rather than allowed to stop the process: a missing index makes a read
@@ -2448,6 +2459,27 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     # as the step's abort line, and it stays withheld until the next boot. ONE structured
     # WARNING at the end of the boot check names each family and why.
     _warn_withheld(conn, withheld_reasons)
+
+
+def _backfill_account_size_marker(conn: sqlite3.Connection) -> int:
+    """Mark set every j2_accounts row whose size is not the migrated placeholder.
+
+    Additive and idempotent: it touches only rows still NULL, so a second boot changes nothing,
+    and it never writes `account_size` or clears a marker. A placeholder row stays unmarked,
+    because nothing stored can tell a member who typed exactly 100,000 from the migration's
+    default (accounts.member_set_account_size reads an unmarked row by that old rule)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_accounts)")}
+    if "account_size_set" not in cols:
+        return 0
+    from api.services.journal_two.accounts import _DEFAULT_ACCOUNT_SIZE
+    n = conn.execute(
+        "UPDATE j2_accounts SET account_size_set = 1"
+        " WHERE account_size_set IS NULL AND account_size IS NOT NULL"
+        " AND account_size > 0 AND account_size != ?",
+        (_DEFAULT_ACCOUNT_SIZE,),
+    ).rowcount
+    conn.commit()
+    return n
 
 
 def _data_dir() -> Path:
