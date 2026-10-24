@@ -58,6 +58,27 @@ for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
 for _cid in ("double-bottom-a-010", "inside-day-b2-018"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
+#: Setup drawings judged OUTSIDE the member frame (measured 2026-10-24, when the setup-line families joined the gate).
+#: auto_structures.setup_in_frame draws a setup only when the as-of close x volume >= SETUP_MIN_DOLLAR_VOLUME ($20M).
+#: Round 3's batch b3 (descending triangle, inverse head and shoulders, bear flag, Bollinger squeeze) and the rectangle's
+#: passed round sampled their charts on a looser rule (close > $5 and a 20-day average dollar volume > $5M, 1995-2026),
+#: so these cases were judged on charts whose as-of session trades under $20M. Each one's drawing IS produced by the
+#: production detector on its bars, and each passes the gate with SETUP_MIN_DOLLAR_VOLUME set to 0, so the frame floor
+#: is the whole cause; already so at the drawings' release commits. Lowering the floor is a product decision, not a gate
+#: edit: it would also draw these setups on every thin chart the judges never saw.
+_SETUP_FRAME = ("judged setup drawing withheld by the member frame: the as-of close x volume is under "
+                "auto_structures.SETUP_MIN_DOLLAR_VOLUME ($20M); the round sampled on a 20-day $5M average, so the "
+                "judged chart is outside the frame members are drawn in; already so at the release commit")
+for _fam, _cases in (
+        ("bear-flag", "a-002 a-003 a-006 a-008 a-012 a-016 a-020 a-024 b-002 b-011 b-021 b-022 b-025"),
+        ("bollinger-squeeze", "a-006 a-008 a-010 a-017 a-020 a-022 a-023 a-024 a-025 b-005 b-006 b-009 b-010 b-014 "
+                              "b-023 b-024"),
+        ("descending-triangle", "a-005 a-009 a-014 a-017 a-018 a-022 a-024 a-025 b-001 b-002 b-004 b-007 b-008 b-009 "
+                                "b-012 b-013 b-017 b-019 b-021 b-022 b-024"),
+        ("inverse-head-shoulders", "a-001 a-011 a-016 a-025 b-002 b-010 b-019 b-020"),
+        ("rectangle", "a-003 a-004 a-016 a-018 b-002 b-004 b-007 b-008 b-011 b-012 b-021 b-022 b-024 b-025")):
+    for _c in _cases.split():
+        KNOWN_RED[f"{_fam}-{_c}"] = _SETUP_FRAME
 
 
 def _ids(items):
@@ -132,6 +153,43 @@ def test_a_judged_price_moved_by_one_ATR_is_caught(fam, key, monkeypatch):
     case, payload, bars = _first_green(fam, monkeypatch)
     case["expect"][key] = float(case["expect"][key]) + MP.atr14(bars) * float(case["bars"]["scale"])
     assert any(key.split("_")[-1] in m or "price" in m for m in JG.failures(case, payload, bars))
+
+
+@pytest.mark.parametrize("fam", sorted(JG.SETUP_LINE_FAMILIES))
+def test_a_judged_setup_anchor_moved_by_one_ATR_is_caught(fam, monkeypatch):
+    """Control for the setup lens: the same chart against a judged anchor one ATR away is red (every setup-line
+    family), and so is the judged row moved off `setup_draws` onto another key, or removed."""
+    case, payload, bars = _first_green(fam, monkeypatch)
+    moved = json.loads(json.dumps(case))
+    det = moved["expect"]["dets"][-1]
+    det["anchors"][-1]["price"] = float(det["anchors"][-1]["price"]) + MP.atr14(bars) * float(case["bars"]["scale"])
+    assert any("price" in m for m in JG.failures(moved, payload, bars)), fam
+    pid = JG.SETUP_LINE_FAMILIES[fam]
+    mine = [r for r in payload["setup_draws"] if r["pattern_id"] == pid]
+    rest = [r for r in payload["setup_draws"] if r["pattern_id"] != pid]
+    elsewhere = {**payload, "setup_draws": rest, "structures": list(payload.get("structures") or []) + mine}
+    assert any(m.startswith("(1)") for m in JG.failures(case, elsewhere, bars)), fam
+    gone = {k: v for k, v in payload.items() if k != "setup_draws"}
+    assert any(m.startswith("(1)") and "ABSENT" in m for m in JG.failures(case, gone, bars)), fam
+
+
+def test_a_rectangle_sharing_its_top_with_a_higher_priority_line_is_caught(monkeypatch):
+    """Control for (3) on the rectangle (the one setup-line drawing the one-line-per-base pass settles): a drawn line
+    ranked ahead of it within 1 ATR of the box top over the box span is red, two ATR away it is not; and the
+    one_line_per_base retire rule reads the same distance over the box's own span."""
+    case, payload, bars = _first_green("rectangle", monkeypatch)
+    top, atr = JG._want_key("rectangle", case), MP.atr14(bars)
+    s0, s1 = MP.ymd(case, case["expect"]["dets"][0]["start"]), MP.ymd(case, case["expect"]["dets"][0]["end"])
+
+    def ceiling(p):
+        return {"pattern_id": "uct_flat_top_breakout", "start_t": s0, "end_t": s1,
+                "geometry": {"extras": {"draw_flat_top": {"price": p, "start_t": s0, "end_t": s1}}}}
+    near = {**payload, "detections": list(payload.get("detections") or []) + [ceiling(top + 0.5 * atr)]}
+    far = {**payload, "detections": list(payload.get("detections") or []) + [ceiling(top + 2.0 * atr)]}
+    assert any(m.startswith("(3)") for m in JG.failures(case, near, bars))
+    assert not any(m.startswith("(3)") for m in JG.failures(case, far, bars))
+    assert JG.RETIRE_RULES["one_line_per_base"](case, near, bars)
+    assert not JG.RETIRE_RULES["one_line_per_base"](case, far, bars)
 
 
 def test_an_SR_zone_moved_by_one_ATR_is_caught(monkeypatch):
@@ -263,6 +321,10 @@ def test_the_replay_reaches_every_layer():
     # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
     assert {"sr", "remount", "u_and_r", "textbook"} <= every, every
     assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
+    # every setup-line family is a released fixture, and each one reproduces at least one judged case today
+    assert set(JG.SETUP_LINE_FAMILIES) <= fams, set(JG.SETUP_LINE_FAMILIES) - fams
+    for fam in JG.SETUP_LINE_FAMILIES:
+        assert any(f == fam and c["id"] not in KNOWN_RED for f, c in RELEASED), f"every {fam} case is KNOWN_RED"
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round
