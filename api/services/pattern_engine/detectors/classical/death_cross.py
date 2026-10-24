@@ -53,6 +53,14 @@ _MA200_PERIOD = 200
 _MAX_CROSS_AGE = 5
 _SLOPE_BARS = 20
 _ATR_PERIOD = 14
+_52W_LOOKBACK = 252    # the target's 52-week low: bars[last_idx - 252:]
+#: History declared to the scan (registry `min_bars`). The scan's base depth
+#: (200) is under this detector's own length gate (210), so without it the
+#: detector never fired in the daily scan. The real need is the larger of:
+#:   - a cross up to (_MAX_CROSS_AGE - 1) bars old whose 20-bar slope start
+#:     still has a 200 SMA: _MA200_PERIOD - 1 + _SLOPE_BARS + _MAX_CROSS_AGE = 224
+#:   - the full 52-week low window the target reads: _52W_LOOKBACK + 1 = 253
+MIN_BARS = max(_MA200_PERIOD - 1 + _SLOPE_BARS + _MAX_CROSS_AGE, _52W_LOOKBACK + 1)
 _CONFIDENCE_FLOOR = 50.0
 _EPS = 1e-9            # defensive epsilon for the +0.005 slope gate; belt-and-suspenders,
                        # NOT load-bearing for current inputs. Verified arithmetic
@@ -152,7 +160,7 @@ def detect_death_cross(bars: List[Bar], context: dict) -> List[Detection]:
         return []
 
     # 52w low for target
-    lookback_52w = bars[max(0, last_idx - 252):]
+    lookback_52w = bars[max(0, last_idx - _52W_LOOKBACK):]
     low_52w = min(b["l"] for b in lookback_52w)
     current_close = bars[last_idx]["c"]
     atr14 = _atr(bars)
@@ -445,4 +453,4 @@ def _compose_narrative(c, context, entry, stop, target, rr, stop_pct) -> dict:
     }
 
 
-register(_PATTERN_ID, detect_death_cross)
+register(_PATTERN_ID, detect_death_cross, min_bars=MIN_BARS)
