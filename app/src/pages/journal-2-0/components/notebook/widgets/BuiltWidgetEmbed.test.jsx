@@ -425,7 +425,7 @@ describe('BuiltWidgetEmbed', () => {
     expect(screen.getByText('Based on your newest 5,000 trades.')).toBeInTheDocument()
     expect(screen.getByTestId('built-footnotes').textContent).toBe('Max drawdown: within your newest 5,000 trades.')
   })
-  it('the desktop drill panel closes on an outside click or when focus leaves it, leaving focus where it went', async () => {
+  it('the desktop drill panel closes on an outside click, and NOT when focus leaves it (non-modal)', async () => {
     fetchSpy.mockImplementation(() => answer({ rows: tradeRows(1), more: 0, count: 1, live: false, note: null }))
     render(<><button type="button">Elsewhere</button><BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} /></>)
     const marks = screen.getByTestId('built-bar-view').querySelectorAll('[data-built-cell]')
@@ -433,27 +433,28 @@ describe('BuiltWidgetEmbed', () => {
     await screen.findByRole('dialog')
     fireEvent.mouseDown(screen.getByRole('button', { name: 'Elsewhere' }))
     expect(screen.queryByRole('dialog')).toBeNull()
-    // focus leaving it closes it too
+    // focus leaving it (Tab out) does not close it
     fireEvent.click(marks[0])
     const panel = await screen.findByRole('dialog')
     const elsewhere = screen.getByRole('button', { name: 'Elsewhere' })
     fireEvent.blur(within(panel).getByRole('button', { name: 'Close' }), { relatedTarget: elsewhere })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    // control: focus moving INSIDE the panel keeps it open
-    fireEvent.click(marks[0])
-    const again = await screen.findByRole('dialog')
-    const link = await within(again).findByRole('link', { name: 'SYM0 long' })
-    fireEvent.blur(within(again).getByRole('button', { name: 'Close' }), { relatedTarget: link })
+    act(() => elsewhere.focus())
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+    // Close closes it
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('the anchored panel sits under its mark, clamped inside the widget', () => {
     const box = { left: 100, top: 50, width: 500 }
-    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360)).toEqual({ left: 50, top: 74, width: 360 })
+    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360)).toEqual({ left: 50, top: 74, width: 360, maxHeight: null })
+    // no taller than the widget's visible area (its margin taken off), never under the floor
+    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360, 300).maxHeight).toBe(284)
+    expect(anchorPosition(box, { left: 150, bottom: 120 }, 360, 60).maxHeight).toBe(120)
     // a mark near the right edge: the panel is pulled back so its right edge stays inside
-    expect(anchorPosition(box, { left: 560, bottom: 120 }, 360)).toEqual({ left: 140, top: 74, width: 360 })
+    expect(anchorPosition(box, { left: 560, bottom: 120 }, 360)).toEqual({ left: 140, top: 74, width: 360, maxHeight: null })
     // a widget narrower than the panel: full width, at the left
-    expect(anchorPosition({ left: 0, top: 0, width: 300 }, { left: 250, bottom: 40 }, 360)).toEqual({ left: 0, top: 44, width: 300 })
+    expect(anchorPosition({ left: 0, top: 0, width: 300 }, { left: 250, bottom: 40 }, 360)).toEqual({ left: 0, top: 44, width: 300, maxHeight: null })
   })
 
   it('a mouse or touch drill returns focus to the MARK when it closes, not to the editor that held it', async () => {
@@ -516,5 +517,25 @@ describe('BuiltWidgetEmbed', () => {
     expect(await screen.findByText(UNAVAILABLE_SENTENCE)).toBeInTheDocument()
     expect(UNAVAILABLE_SENTENCE).toBe('Not available right now.')
     expect(screen.queryByText(SAVED_COPY_SENTENCE)).toBeNull()
+  })
+  it('the anchored panel re-anchors when the window resizes, and its height fits the widget\u2019s visible area', async () => {
+    fetchSpy.mockImplementation(() => answer({ rows: tradeRows(1), more: 0, count: 1, live: false, note: null }))
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar' })} />)
+    const mark = screen.getByTestId('built-bar-view').querySelectorAll('[data-built-cell]')[1]
+    fireEvent.click(mark)
+    const panel = await screen.findByRole('dialog')
+    expect(panel.style.left).toBe('0px')
+    // the layout moves: the mark is now 200 px in, the widget 600 wide, the frame 300 tall
+    const frame = screen.getByTestId('built-widget-embed').querySelector('[data-snapshot-frame]')
+    Object.defineProperty(frame, 'clientHeight', { configurable: true, get: () => 300 })
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function rect() {
+      if (this === mark) return { left: 200, top: 30, bottom: 58, right: 600, width: 400, height: 28 }
+      return { left: 0, top: 0, bottom: 300, right: 600, width: 600, height: 300 }
+    })
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(panel.style.left).toBe('200px')
+    expect(panel.style.top).toBe('62px')
+    expect(panel.style.maxHeight).toBe('284px')
+    vi.restoreAllMocks()
   })
 })

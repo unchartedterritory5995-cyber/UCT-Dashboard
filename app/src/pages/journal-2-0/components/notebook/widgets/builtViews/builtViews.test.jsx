@@ -1,19 +1,20 @@
 // Wave 8 (Task 8.14 + fix round 1): the seven chart views of a placed built widget, drawn from params alone.
 // Asserted by RENDERED TEXT and by the SVG drawn (sizes in real pixels, shapes, order), never by component state.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within, fireEvent } from '@testing-library/react'
+import { Profiler } from 'react'
+import { render, screen, within, fireEvent, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import BuiltWidgetEmbed from '../BuiltWidgetEmbed'
-import BarView from './BarView'
-import HeatView, { TEXT_MIN_CELL, MAX_CELL } from './HeatView'
-import LineView from './LineView'
+import BarView, { VALUE_MAX } from './BarView'
+import HeatView, { TEXT_MIN_CELL, MAX_CELL, cellLines } from './HeatView'
+import LineView, { nearestIndex } from './LineView'
 import ScatterView from './ScatterView'
 import CompareView, { changeText } from './CompareView'
 import ProgressView from './ProgressView'
 import { widgetEmbedNode } from '../../../../lib/notebookWidgets'
 import { fmtValue, countText, compactValue, tableModelOf } from './builtModel'
-import { W, TAP, textW } from './svg'
+import { W, TAP, textW, FLIP_PX } from './svg'
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -138,16 +139,45 @@ describe('built widget views', () => {
     }
   })
 
-  it('R-31: the MEASURED width is the layout width (a 340 px container is a 340 px chart, not a shrunk 600 one)', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 340, height: 200, left: 0, top: 0,
-      right: 340, bottom: 200, x: 0, y: 0 })
+  it('R-31: the MEASURED width is the layout width, read from clientWidth and then the observer\'s contentRect', () => {
+    // a rect that disagrees, to prove the rect is NOT what is read (it can be transformed; the content box is not)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 999, height: 200, left: 0, top: 0 })
+    const cw = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(340)
     let fire = null
     vi.stubGlobal('ResizeObserver', class { constructor(cb) { fire = cb } observe() {} disconnect() {} })
     render(<BarView params={P(SEVEN.bar)} />)
     const svg = screen.getByTestId('built-bar-view')
     expect(svg.getAttribute('width')).toBe('340')
     expect(svg.getAttribute('viewBox').split(' ')[2]).toBe('340')
-    expect(typeof fire).toBe('function')                                       // it keeps watching the box
+    cw.mockRestore()
+    act(() => fire([{ contentRect: { width: 420 } }]))                          // it keeps watching the box
+    expect(screen.getByTestId('built-bar-view').getAttribute('width')).toBe('420')
+  })
+
+  it('H14: a scrollbar flip (two widths 16 px apart, alternating) settles in 3 renders or fewer', () => {
+    let fire = null
+    vi.stubGlobal('ResizeObserver', class { constructor(cb) { fire = cb } observe() {} disconnect() {} })
+    let commits = 0
+    render(<Profiler id="heat" onRender={() => { commits += 1 }}>
+      <HeatView params={P({ view: 'heat', measures: MONEY, value: {}, cells: yearCells() })} />
+    </Profiler>)
+    const before = commits
+    for (let i = 0; i < 12; i += 1) act(() => fire([{ contentRect: { width: i % 2 ? 584 : 600 } }]))
+    expect(16).toBeLessThanOrEqual(FLIP_PX)
+    expect(commits - before).toBeLessThanOrEqual(3)
+    // control: a real resize (more than FLIP_PX) is still followed
+    const settled = commits
+    act(() => fire([{ contentRect: { width: 400 } }]))
+    expect(commits).toBeGreaterThan(settled)
+    expect(/scrollbar-gutter:\s*stable/.test(ruleBody('.chartBox'))).toBe(true)
+  })
+
+  it('a view that mounts EMPTY and later gets rows still measures its box (a callback ref)', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(340)
+    const r = render(<LineView params={P({ ...SEVEN.line, series: [] })} />)
+    expect(screen.queryByTestId('built-line-view')).toBeNull()
+    r.rerender(<LineView params={P(SEVEN.line)} />)
+    expect(screen.getByTestId('built-line-view').getAttribute('width')).toBe('340')
   })
 
   it('R-31: an injected narrow width (340) keeps text at its CSS size and labels inside their column', () => {
@@ -342,7 +372,7 @@ describe('built widget views', () => {
     expect([1, 2, 3].map((k) => svg.querySelectorAll(`rect[data-measure="${k}"]`).length)).toEqual([1, 1, 1])
     expect(screen.getByTestId('built-bar-legend').textContent)
       .toBe('Bars top to bottom: 1 Net P&L · 2 Win rate · 3 Total R. Each measure is on its own scale.')
-    expect(within(svg).getByText('-1.0R')).toBeInTheDocument()
+    expect(within(svg).getByText('3 -1.0R')).toBeInTheDocument()
   })
 
   it('line draws up to three series with distinct dash patterns and a legend (never colour alone)', () => {
@@ -504,5 +534,120 @@ describe('built widget views', () => {
     const model = tableModelOf({ ...BASE, ...bar, share: true })
     expect(model.rows.map((r) => r.label)).toEqual(['Account 1', 'Account 2'])
     expect(model.rows.map((r) => r.drill)).toEqual([{ label: CANARY }, { label: 'Main' }])
+  })
+  // ── fix round 2 ─────────────────────────────────────────────────────────────────────────────────────────
+
+  it('line is FITTED to its width at any length (never scrolls) and a tap anywhere answers the nearest period', () => {
+    const drills = []
+    const series = Array.from({ length: 60 }, (_, i) => ({ label: `p${i}`, v1: i, n1: 1, s1: '' }))
+    asTouch()
+    render(<LineView params={P({ ...SEVEN.line, series })} width={340} onDrill={(cell, what, el) => drills.push({ cell, el })} />)
+    const svg = screen.getByTestId('built-line-view')
+    expect(svg.getAttribute('width')).toBe('340')
+    expect(svg.getAttribute('viewBox').split(' ')[2]).toBe('340')
+    expect(svg.closest('div').className).toMatch(/chartFit/)
+    expect(/overflow:\s*hidden/.test(ruleBody('.chartFit'))).toBe(true)
+    const overlay = svg.querySelector('[data-overlay]')
+    expect(Number(overlay.getAttribute('height'))).toBeGreaterThanOrEqual(TAP)
+    // the period nearest the tap answers, and the drill comes back to its keyboard mark
+    const xs = [...svg.querySelectorAll('[data-period]')].map((g) => Number(g.querySelector('circle').getAttribute('cx')))
+    fireEvent.click(overlay, { clientX: xs[41] + 1 })
+    expect(drills[0].cell).toEqual({ label: 'p41' })
+    expect(drills[0].el.getAttribute('data-period')).toBe('41')
+    expect(nearestIndex([0, 10, 20], 14)).toBe(1)
+    // the keyboard still walks the periods
+    expect(svg.querySelectorAll('[data-built-cell]').length).toBe(60)
+  })
+
+  it('line legend items show each series\u2019 low to high', () => {
+    const series = [{ label: 'a', v1: -50, n1: 1, s1: '', v2: 0.5, n2: 1, s2: '' }, { label: 'b', v1: 100, n1: 1, s1: '', v2: 1.5, n2: 1, s2: '' }]
+    render(<LineView params={P({ view: 'line', measures: [MONEY[0], M('Total R', 'r')], value: {}, series })} />)
+    const legend = screen.getByTestId('built-line-legend')
+    expect(legend.querySelector('[data-legend="1"]').textContent).toBe('Net P&L (-$50.00 to +$100.00)')
+    expect(legend.querySelector('[data-legend="2"]').textContent).toBe('Total R (+0.5R to +1.5R)')
+  })
+
+  it('a scrolling heat map opens at its NEWEST end, and goes back there when the data changes', () => {
+    asTouch()
+    const set = vi.fn()
+    const sw = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(2400)
+    const cw = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(340)
+    Object.defineProperty(HTMLElement.prototype, 'scrollLeft', { configurable: true, get() { return 0 }, set })
+    try {
+      const p = P({ view: 'heat', measures: MONEY, value: {}, cells: yearCells() })
+      const r = render(<HeatView params={p} />)
+      expect(set).toHaveBeenLastCalledWith(2400 - 340)
+      set.mockClear()
+      r.rerender(<HeatView params={{ ...p, cells: yearCells().slice(5) }} />)
+      expect(set).toHaveBeenCalledWith(2400 - 340)
+    } finally {
+      delete HTMLElement.prototype.scrollLeft
+      sw.mockRestore()
+      cw.mockRestore()
+    }
+  })
+
+  it('bar at 340 px: every value line (hidden sentence and badge included) fits inside the box', () => {
+    const rows = [
+      { label: 'Flag', v1: null, n1: 3, s1: 'hide', n: 3 },
+      { label: 'Pullback', v1: 0.61, n1: 12, s1: 'small', n: 12 },
+      { label: 'VCP', v1: 0.5, n1: 30, s1: '', n: 30 },
+    ]
+    render(<BarView params={P({ view: 'bar', measures: [RATE], value: {}, rows })} width={340} />)
+    const svg = screen.getByTestId('built-bar-view')
+    expect(svg.hasAttribute('data-value-wrap')).toBe(true)                     // one line each would take > 40%
+    const lines = [...svg.querySelectorAll('[data-value-line]')]
+    expect(lines.length).toBeGreaterThan(3)
+    for (const l of lines) {
+      const own = [...l.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('')
+      const badge = l.querySelector('[data-badge]')
+      const w = textW(own, Number(l.getAttribute('data-px'))) + (badge ? 6 + textW(badge.textContent, 11) : 0)
+      expect(Number(l.getAttribute('x')) + w, own).toBeLessThanOrEqual(340)
+    }
+    expect(lines.map((l) => l.textContent)).toEqual(['Not enough', 'trades yet (3)', '61.0%', 'small sample', '50.0%'])
+    // the label column keeps its share: the value column takes no more than VALUE_MAX of the width
+    const valueX = Number(lines[0].getAttribute('x'))
+    expect(340 - valueX).toBeLessThanOrEqual(340 * VALUE_MAX)
+    // control: at 600 px the badge sits beside its value, one line each
+    const wide = render(<BarView params={P({ view: 'bar', measures: [RATE], value: {}, rows })} width={600} />)
+    expect(wide.getAllByTestId('built-bar-view')[1].hasAttribute('data-value-wrap')).toBe(false)
+  })
+
+  it('the small text is 11 px or larger: flag text, the SVG badge and the HTML badge', () => {
+    // every rule naming the two SVG classes together (a fill rule and a size rule): the size is 11 px
+    const bodies = [...CSS.matchAll(/(?:^|\n)\.flagText,\n\.badgeText\s*\{([^}]*)\}/g)].map((m) => m[1])
+    const sizes = bodies.map((b) => Number((/font-size:\s*(\d+)px/.exec(b) || [])[1])).filter(Boolean)
+    expect(sizes).toEqual([11])
+    expect(Number((/font-size:\s*(\d+)px/.exec(ruleBody('.badge')) || [])[1])).toBeGreaterThanOrEqual(11)
+  })
+
+  it('heat shows a value only when it fits (cell - 4): a 6-char value in a 34 px cell shows its sign, inside the cell', () => {
+    expect(compactValue(12500, 'money')).toBe('+12.5k')
+    expect(cellLines({ value: 12500 }, 34, 'money')).toEqual(['+'])
+    expect(cellLines({ value: 400 }, 34, 'money')).toEqual(['+400'])
+    // a single week drawn at 58 px is one 34 px column
+    render(<HeatView params={P({ view: 'heat', measures: MONEY, value: {}, cells: [
+      { label: '2026-10-20', v1: 12500, n1: 1, s1: '' }, { label: '2026-10-21', v1: 400, n1: 1, s1: '' },
+      { label: '2026-10-22', v1: null, n1: 3, s1: 'hide' }] })} width={58} />)
+    const svg = screen.getByTestId('built-heat-view')
+    expect(Number(svg.getAttribute('data-cell-size'))).toBe(34)
+    const texts = [...svg.querySelectorAll('[data-heat-value] text')].map((t) => t.textContent)
+    expect(texts).toEqual(['+', '+400'])                                     // "Not / enough" does not fit 34 px
+    for (const back of svg.querySelectorAll('[data-heat-back]')) {
+      expect(Number(back.getAttribute('width'))).toBeLessThanOrEqual(34)
+      expect(Number(back.getAttribute('height'))).toBeLessThanOrEqual(34)
+    }
+  })
+
+  it('compactValue never shows -0.00, and 999.5 to 999.99 is 1.0k', () => {
+    expect(compactValue(-0.001, 'money')).toBe('>-0.01')
+    expect(compactValue(0.001, 'money')).toBe('<0.01')
+    expect(compactValue(-0.004, 'r')).toBe('>-0.01R')
+    expect(compactValue(999.5, 'money')).toBe('+1.0k')
+    expect(compactValue(999.99, 'money')).toBe('+1.0k')
+    expect(compactValue(999.4, 'money')).toBe('+999')
+    expect(compactValue(999960, 'money')).toBe('+1.0m')
+    expect(compactValue(-0.001, 'pct')).toBe('>-1%')
+    for (const v of [-0.001, -0.0049, -0.00001]) expect(compactValue(v, 'money')).not.toMatch(/-0\.00/)
   })
 })

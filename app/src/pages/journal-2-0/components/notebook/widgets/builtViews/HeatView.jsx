@@ -1,7 +1,7 @@
-import { useId } from 'react'
+import { useCallback, useId, useLayoutEffect, useRef } from 'react'
 import { tableModelOf, measuresOf, compactValue, cellSpeech, SMALL_SAMPLE } from './builtModel'
 import { useCellGroup, drillFor } from './cellGroup'
-import { useChartWidth, useHitFloor, clamp, svgId, TAP } from './svg'
+import { useChartWidth, useHitFloor, clamp, svgId, textW, TAP } from './svg'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s } from '../SnapshotFrame'
 
@@ -40,16 +40,26 @@ function dayOf(label) {
   return { n: Math.round(t / 86400000), wd: new Date(t).getUTCDay() }
 }
 
-/** The lines of text one cell shows at its rendered size. */
-function cellLines(c, cell, fmt) {
+const LINE_H = TEXT_PX + 2
+/** Do these lines fit INSIDE the cell (2 px clear on each side, so the backing never spills past it)? */
+export const linesFit = (lines, cell) => lines.every((t) => textW(t, TEXT_PX) <= cell - 4)
+  && lines.length * LINE_H + 2 <= cell
+
+/** The lines of text one cell shows at its rendered size: its value when the cell is 32 px or more AND the
+ *  value's estimated width fits (cell - 4), else its sign; for an unknown cell the words that fit, else none (its
+ *  name and tooltip still say it). */
+export function cellLines(c, cell, fmt) {
   const v = c.value
   if (typeof v === 'number') {
-    if (cell >= TEXT_MIN_CELL) return [compactValue(v, fmt)]
+    const text = compactValue(v, fmt)
+    if (cell >= TEXT_MIN_CELL && linesFit([text], cell)) return [text]
     return [v > 0 ? '+' : v < 0 ? MINUS : '0']
   }
   if (cell < TEXT_MIN_CELL) return []
-  if (c.hidden) return cell >= 44 && typeof c.n === 'number' ? ['Not', 'enough', `(${c.n})`] : ['Not', 'enough']
-  return ['no', 'data']
+  const choices = c.hidden
+    ? [...(typeof c.n === 'number' ? [['Not', 'enough', `(${c.n})`]] : []), ['Not', 'enough']]
+    : [['no', 'data']]
+  return choices.find((lines) => linesFit(lines, cell)) || []
 }
 
 export default function HeatView({ params, onDrill, width: forced }) {
@@ -57,7 +67,16 @@ export default function HeatView({ params, onDrill, width: forced }) {
   const model = tableModelOf(p)
   const ms = measuresOf(p)
   const m = ms[0] || {}
-  const [boxRef, width] = useChartWidth(forced)
+  const [measureRef, width] = useChartWidth(forced)
+  // The box may scroll sideways (a long range at the touch floor): it opens at the NEWEST end, and goes back there
+  // when the data changes, never at the oldest week.
+  const boxEl = useRef(null)
+  const boxRef = useCallback((el) => { boxEl.current = el; measureRef(el) }, [measureRef])
+  const rowsKey = `${model.rows.length}:${model.rows[0]?.label || ''}:${model.rows[model.rows.length - 1]?.label || ''}`
+  useLayoutEffect(() => {
+    const el = boxEl.current
+    if (el && el.scrollWidth > el.clientWidth) el.scrollLeft = el.scrollWidth - el.clientWidth
+  }, [rowsKey, width])
   const floor = useHitFloor()
   const group = useCellGroup()
   const hatch = `built-hatch-${svgId(useId())}`
@@ -126,10 +145,10 @@ export default function HeatView({ params, onDrill, width: forced }) {
             const tone = !known ? styles.heatNone : v < 0 ? styles.heatNeg : v > 0 ? styles.heatPos : styles.heatZero
             const strength = known ? 0.25 + 0.75 * (Math.abs(v) / extent) : 1
             const lines = cellLines(c, cell, m.fmt)
-            const lineH = TEXT_PX + 2
-            // The backing fits the TEXT (never clipped to the cell: covering the text is the point).
-            const backW = Math.max(...lines.map((t) => t.length), 1) * TEXT_PX * 0.62 + 6
-            const backH = lines.length * lineH + 3
+            const lineH = LINE_H
+            // The backing covers the text and stays inside the cell (linesFit leaves 2 px each side).
+            const backW = Math.min(cell, Math.ceil(Math.max(...lines.map((t) => textW(t, TEXT_PX)), 0)) + 4)
+            const backH = Math.min(cell, lines.length * lineH + 2)
             const speech = `${r.label}: ${cellSpeech(c, m)}`
             return (
               <g key={r.key} className={styles.mark}

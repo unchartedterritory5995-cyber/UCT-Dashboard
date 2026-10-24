@@ -39,7 +39,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   vertical-align: middle;
 }
@@ -105,6 +105,31 @@
   width: 100%;
   min-width: 0;
   overflow-x: auto;
+  /* H14: the gutter is reserved whether or not the scrollbar shows, so a scrollbar appearing never narrows the box
+     (which would shrink the chart, drop the scrollbar, widen the box: a ResizeObserver loop). */
+  scrollbar-gutter: stable;
+}
+/* A chart FITTED to its box (bar, line, scatter): it never scrolls sideways. */
+.chartFit {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+/* Line: the pointer overlay (the nearest period answers) and each period's keyboard focus band. */
+.overlay {
+  fill: transparent;
+}
+.overlayDrill {
+  cursor: pointer;
+}
+.band {
+  fill: transparent;
+  pointer-events: none;
+}
+.mark[data-built-cell]:focus-visible .band {
+  fill: var(--bg-hover);
+  stroke: var(--ut-gold);
+  stroke-width: 2;
 }
 .legend {
   display: flex;
@@ -164,7 +189,7 @@
 }
 .flagText,
 .badgeText {
-  font-size: 10px;
+  font-size: 11px;
 }
 .value {
   font-variant-numeric: tabular-nums;

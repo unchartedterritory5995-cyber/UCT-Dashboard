@@ -4,7 +4,7 @@
 // viewBox is exactly that wide, so 12 px text is 12 px on a phone and on a wide desktop alike, and a 44 px hit area
 // is 44 px. Where nothing can be measured (jsdom, a first render) the width is `W`. A test injects a width with the
 // view's `width` prop.
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIsTouch } from '../../../../../../hooks/useBreakpoint'
 
 export const W = 600
@@ -12,24 +12,46 @@ export const W = 600
 export const TAP = 44
 export const MARK = 28
 
-/** `[ref, width]`: put `ref` on the box the chart fills; `width` is its measured width in px (or `forced`, or W). */
+/** How far (px) a width may flip back to one seen recently and still be ignored, and how many reads are kept. */
+export const FLIP_PX = 20
+export const FLIP_READS = 4
+
+/**
+ * `[ref, width]`: put `ref` on the box the chart fills; `width` is its measured width in px (or `forced`, or W).
+ *
+ * ⛔ A CALLBACK ref, so a view that first renders empty (no box) and later gets rows still measures its box the
+ * moment the box exists. ⛔ It reads `contentRect.width` / `clientWidth` (the box's own content width, never the
+ * transformed rect). ⛔ HYSTERESIS (rule H14, a ResizeObserver loop): a chart that grows a scrollbar shrinks its
+ * box, which can shrink the chart until the scrollbar goes, which grows the box back, forever. A change of
+ * FLIP_PX or less back to a width seen in the last FLIP_READS reads is ignored, so the loop settles at once.
+ */
 export function useChartWidth(forced) {
-  const ref = useRef(null)
   const [measured, setMeasured] = useState(0)
-  useLayoutEffect(() => {
-    if (forced > 0) return undefined
-    const el = ref.current
-    if (!el) return undefined
-    const read = () => {
-      const w = Math.floor(el.getBoundingClientRect?.().width || el.clientWidth || 0)
-      if (w > 0) setMeasured((prev) => (prev === w ? prev : w))
-    }
-    read()
-    if (typeof ResizeObserver === 'undefined') return undefined
-    const ro = new ResizeObserver(read)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [forced])
+  const current = useRef(0)
+  const seen = useRef([])
+  const ro = useRef(null)
+  const accept = useCallback((raw) => {
+    const w = Math.floor(raw || 0)
+    if (w <= 0) return
+    const cur = current.current
+    const flipBack = cur > 0 && w !== cur && Math.abs(w - cur) <= FLIP_PX && seen.current.includes(w)
+    seen.current = [...seen.current, w].slice(-FLIP_READS)
+    if (w === cur || flipBack) return
+    current.current = w
+    setMeasured(w)
+  }, [])
+  const ref = useCallback((el) => {
+    if (ro.current) { ro.current.disconnect(); ro.current = null }
+    if (!el || forced > 0) return
+    accept(el.clientWidth)
+    if (typeof ResizeObserver === 'undefined') return
+    ro.current = new ResizeObserver((entries) => {
+      const e = entries && entries[0]
+      accept(e && e.contentRect ? e.contentRect.width : el.clientWidth)
+    })
+    ro.current.observe(el)
+  }, [forced, accept])
+  useEffect(() => () => { if (ro.current) ro.current.disconnect() }, [])
   const width = forced > 0 ? forced : (measured > 0 ? measured : W)
   return [ref, width]
 }

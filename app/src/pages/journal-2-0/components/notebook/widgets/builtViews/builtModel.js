@@ -93,17 +93,27 @@ export function compactValue(v, fmt) {
   if (!finite(v)) return NO_DATA
   const sign = v > 0 ? '+' : v < 0 ? '-' : ''
   const a = Math.abs(v)
-  // ⛔ Never "+0" for a value that is not zero: under 0.5 it keeps two decimals.
-  const short = (x) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}m` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k`
-    : x > 0 && x < 0.5 ? x.toFixed(2) : `${Math.round(x)}`)
+  // ⛔ Never "+0" (or "-0.00") for a value that is not zero, and never "1000" or "1000.0k": a value that ROUNDS up
+  // to the next unit is written in it ("1.0k", "1.0m").
+  const tiny = (unit = '') => (v < 0 ? `>-0.01${unit}` : `<0.01${unit}`)
+  const short = (x) => {
+    if (x > 0 && x < 0.005) return null
+    if (Number((x / 1e6).toFixed(1)) >= 1 || Number((x / 1e3).toFixed(1)) >= 1000) return `${(x / 1e6).toFixed(1)}m`
+    if (Math.round(x) >= 1000) return `${(x / 1e3).toFixed(1)}k`
+    if (x > 0 && x < 0.5) return x.toFixed(2)
+    return `${Math.round(x)}`
+  }
+  const signed = (x) => { const t = short(x); return t === null ? tiny() : `${sign}${t}` }
   switch (fmt) {
-    case 'money': return `${sign}${short(a)}`
-    case 'money_plain': return short(a)
-    case 'pct': return `${Math.round(v * 100)}%`
-    case 'r': return `${sign}${a > 0 && a < 0.05 ? a.toFixed(2) : a.toFixed(1)}R`
+    case 'money': return signed(a)
+    case 'money_plain': return short(a) ?? '<0.01'
+    case 'pct': { const r = Math.round(v * 100); return r === 0 && v !== 0 ? (v < 0 ? '>-1%' : '<1%') : `${r}%` }
+    case 'r':
+      if (a > 0 && a < 0.005) return tiny('R')
+      return `${sign}${a < 0.05 ? a.toFixed(2) : a.toFixed(1)}R`
     case 'pf': return v >= PF_CAP ? '5+' : v.toFixed(1)
-    case 'ratio': return v.toFixed(1)
-    default: return `${sign}${short(a)}`
+    case 'ratio': return a > 0 && a < 0.05 ? (v < 0 ? '>-0.1' : '<0.1') : v.toFixed(1)
+    default: return signed(a)
   }
 }
 

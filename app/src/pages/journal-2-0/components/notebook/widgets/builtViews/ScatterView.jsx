@@ -47,7 +47,7 @@ export default function ScatterView({ params, onDrill, width: forced }) {
   const yOf = scale(ylo, yhi, H - PAD_B - hitR, PAD_T + hitR)
   return (
     <div className={styles.chartWrap}>
-      <div className={styles.chartBox} ref={boxRef}>
+      <div className={styles.chartFit} ref={boxRef}>
         <svg className={styles.chart} viewBox={`0 0 ${width} ${H}`} width={width} height={H} role="group"
           aria-label={`${my.label || 'Y'} against ${mx.label || 'X'}`} data-testid="built-scatter-view"
           {...group.groupProps}>

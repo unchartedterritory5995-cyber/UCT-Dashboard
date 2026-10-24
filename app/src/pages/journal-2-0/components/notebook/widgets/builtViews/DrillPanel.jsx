@@ -16,8 +16,9 @@ import { snapshotStyles as s } from '../SnapshotFrame'
  * each trade linking to its own page (R-30), a flagged trade labelled "Flagged", and the server's note as given.
  *
  * Desktop: a NON-modal dialog ANCHORED beside the mark that opened it, positioned inside the widget (`container`),
- * clamped to it and scrolled into view. Escape and Close return focus to the mark; a click outside, or focus
- * moving out, closes it and leaves focus where the member put it. Touch: a Sheet (and a Sheet while the widget is
+ * clamped to it, no taller than the widget's visible area, scrolled into view, and re-anchored when the widget or
+ * the window resizes. It closes ONLY on Escape or Close (focus back to the mark) or a click outside it (focus where
+ * the member clicked); moving focus out with Tab leaves it open, as a non-modal dialog should. Touch: a Sheet (and a Sheet while the widget is
  * shared, `detached`: a shared widget's body is the archive image, so its trades never sit inside it).
  *
  * `onClose(refocus)` — the host moves focus back to the mark AFTER this has unmounted, so a Sheet's own focus
@@ -82,14 +83,19 @@ function DrillBody({ params, state, onLink }) {
   )
 }
 
+/** The smallest the panel's height is ever capped to (it scrolls inside). */
+export const PANEL_MIN_H = 120
+
 /** Where the anchored panel sits inside `box`: just under the mark, its left edge at the mark's, clamped so the
- *  whole panel stays inside the widget. Pure, so it is testable without layout. */
-export function anchorPosition(box, mark, panelW) {
+ *  whole panel stays inside the widget, and no taller than `areaH` (the widget's visible client height, the
+ *  panel's own margin taken off). Pure, so it is testable without layout. */
+export function anchorPosition(box, mark, panelW, areaH = 0) {
   const w = Math.max(0, box.width || 0)
   const pw = Math.min(panelW, w || panelW)
   const left = Math.max(0, Math.min((mark.left - box.left) || 0, Math.max(0, w - pw)))
   const top = Math.max(0, (mark.bottom - box.top) || 0) + 4
-  return { left: Math.round(left), top: Math.round(top), width: Math.round(pw) }
+  const maxHeight = areaH > 0 ? Math.max(PANEL_MIN_H, Math.round(areaH - 16)) : null
+  return { left: Math.round(left), top: Math.round(top), width: Math.round(pw), maxHeight }
 }
 
 export default function DrillPanel({ params, cell, what, opener, onClose, detached = false, container = null }) {
@@ -112,14 +118,26 @@ export default function DrillPanel({ params, cell, what, opener, onClose, detach
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Anchor beside the mark, inside the widget, before the first paint; then bring it into view.
+  // Anchor beside the mark, inside the widget, before the first paint, and again whenever the widget or the
+  // window resizes; then bring it into view. Its height is capped to the widget's visible area (the snapshot
+  // frame is the scroller).
   useLayoutEffect(() => {
-    if (sheet) return
+    if (sheet) return undefined
     const box = container?.current
-    if (!box) return
-    const b = box.getBoundingClientRect()
-    const o = opener?.getBoundingClientRect ? opener.getBoundingClientRect() : b
-    setPos(anchorPosition(b, o, PANEL_W))
+    if (!box) return undefined
+    const place = () => {
+      const b = box.getBoundingClientRect()
+      const o = opener?.isConnected && opener.getBoundingClientRect ? opener.getBoundingClientRect() : b
+      const area = box.closest?.('[data-snapshot-frame]')?.clientHeight || box.clientHeight || 0
+      const next = anchorPosition(b, o, PANEL_W, area)
+      setPos((prev) => (prev && prev.left === next.left && prev.top === next.top && prev.width === next.width
+        && prev.maxHeight === next.maxHeight ? prev : next))
+    }
+    place()
+    window.addEventListener('resize', place)
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null
+    ro?.observe(box)
+    return () => { window.removeEventListener('resize', place); ro?.disconnect() }
   }, [sheet, container, opener])
   useEffect(() => {
     if (sheet) return undefined
@@ -153,13 +171,8 @@ export default function DrillPanel({ params, cell, what, opener, onClose, detach
       role="dialog"
       aria-label={title}
       data-testid="built-drill-panel"
-      style={pos ? { left: pos.left, top: pos.top, width: pos.width } : undefined}
+      style={pos ? { left: pos.left, top: pos.top, width: pos.width, ...(pos.maxHeight ? { maxHeight: pos.maxHeight } : {}) } : undefined}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); closeCb.current?.(true) } }}
-      onBlur={(e) => {
-        // Focus moving out of a non-modal panel closes it (and leaves focus where it went).
-        const next = e.relatedTarget
-        if (next && panelRef.current && !panelRef.current.contains(next)) closeCb.current?.(false)
-      }}
     >
       <div className={styles.drillTop}>
         <span className={styles.drillTitle}>{title}</span>
