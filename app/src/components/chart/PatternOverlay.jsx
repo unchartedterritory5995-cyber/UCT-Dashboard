@@ -531,6 +531,10 @@ export function rowView(row) {
  *                      AUTO_STRUCTURES_SR_ENABLED + MEMBER_SR_ROUND) or null
  *   showLevelsSr:      draw `levelsSr`; default true. The UCT Intelligence indicator's "Support & resistance"
  *                      toggle drives this (uctIntelligence effectiveLayers().supportResistance)
+ *   setupDraws:        the setup-drawing rows (`setup_draws` on the response: remount / undercut & rally /
+ *                      donchian lines, server-gated by AUTO_STRUCTURES_G4_SETUPS_ENABLED) or null
+ *   showSetupDraws:    draw `setupDraws`; default false. The UCT Intelligence indicator's "Setups" toggle drives
+ *                      this (effectiveLayers().setups). Like the S/R layer it draws with Auto patterns off too.
  */
 export const DEAL_STATUS_LABEL = 'Pending acquisition — pattern drawings hidden'
 
@@ -598,6 +602,8 @@ export default function PatternOverlay({
   showDealStatus = false,
   levelsSr = null,
   showLevelsSr = true,
+  setupDraws = null,
+  showSetupDraws = false,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -643,12 +649,19 @@ export default function PatternOverlay({
   // (`showLevelsSr`, the UCT Intelligence "Support & resistance" toggle), so it draws with Auto patterns off too.
   const hasDrawn = enabled && showLearned && !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
   const hasSr = showLevelsSr && hasLevelsSr(levelsSr)
-  if (!chart || !series || (!enabled && !hasSr) || (!detections?.length && !hasDrawn && !hasSr)) return null
+  // The setup-drawing layer (`showSetupDraws`, the UCT Intelligence "Setups" toggle): the server sends it on
+  // daily charts only, and a pending-acquisition chart has already returned its notice above.
+  const setupRows = showSetupDraws && Array.isArray(setupDraws)
+    ? setupDraws.filter((d) => d && d.geometry?.shape === 'horizontal_line' && d.geometry?.anchors?.length)
+    : []
+  const hasSetups = setupRows.length > 0
+  if (!chart || !series || (!enabled && !hasSr && !hasSetups)
+      || (!detections?.length && !hasDrawn && !hasSr && !hasSetups)) return null
 
   const drawable = enabled ? selectDrawable(detections, {
     tf, showExperimental, showLevels, lastPrice, suppress: hasDrawn ? drawn.suppress : null, trustedOnly,
   }) : []
-  if (!drawable.length && !hasDrawn && !hasSr) return null
+  if (!drawable.length && !hasDrawn && !hasSr && !hasSetups) return null
 
   // Coordinate helpers — lightweight-charts caches internally so re-creating these per render is cheap.
   const tToX = (t) => {
@@ -730,6 +743,11 @@ export default function PatternOverlay({
       {hasSr && (
         <SupportResistanceLayer levelsSr={levelsSr} tToX={tToX} priceToY={priceToY} dy={labelLayout.srDy} />
       )}
+      {hasSetups && setupRows.map((d) => (
+        <g key={`setup:${d.id}`} data-setup-draw={d.pattern_id}>
+          <HorizontalLine detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
+        </g>
+      ))}
       {views.map((v) => {
         const { d, ex, flatTop, base, insideDay, shapeDraw, shelf, Renderer, pivot, handle, rimRef, secondary, entry, anchors, tlBreak, metricsLines } = v
         return (

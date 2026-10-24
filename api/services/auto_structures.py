@@ -61,17 +61,22 @@ def members_enabled() -> bool:
         os.environ.get("AUTO_STRUCTURES_MEMBERS_ENABLED", "0").strip().lower() in _TRUTHY)
 
 
-def deal_hold(sym: str):
+def deal_hold(sym: str, member: bool = False):
     """The chart marker that replaces EVERY drawing for `sym` (pattern rows, base boxes,
     shelf pivot, base metrics, textbook numbers, learned levels) while the stock is pending
     acquisition, or None. A stock pinned at a buyout price draws a perfect "base" that is
     nothing of the kind (TECH, 2026-10-23), so the member AND team paths of the patterns
     route ask this ONCE, before any layer runs. None while DEAL_STATUS_ENABLED is off (the
     payload is then byte-identical to before) and on any error (a bug never hides a chart).
-    Never raises."""
+    `member=True` also holds a CLEAR price pin (a +30% gap, then a collapsed band:
+    `deal_status.clear_pin`) that no hand list or headline names yet (HZO, ARX, BRZE); the
+    team chart keeps its drawings for those. Never raises."""
     try:
         from api.services import deal_status
-        return deal_status.chart_marker(sym)
+        hold = deal_status.chart_marker(sym)
+        if hold is None and member:
+            hold = deal_status.clear_pin_marker(sym)
+        return hold
     except Exception:  # noqa: BLE001 -- fail safe: not pending
         _log.warning("[auto-structures] deal hold check failed for %s", sym, exc_info=True)
         return None
@@ -274,6 +279,7 @@ def member_rows(rows) -> list:
             and ((r or {}).get("pattern_id") != INSIDE_DAY_DRAW_ID or _confirmed_inside_day(r))
             and ((r or {}).get("pattern_id") not in SHAPE_DRAW_IDS or _confirmed_shape(r))
             and ((r or {}).get("pattern_id") != SHELF_PIVOT_ID or _confirmed_shelf(r))
+            and ((r or {}).get("pattern_id") not in SETUP_DRAW_IDS or _confirmed_setup_draw(r))
             and ((r or {}).get("pattern_id") not in TEAM_PIVOT_BOXES or (r or {}).get("pattern_id") == CUP_ID
                  or _pivot_only(r))]
     return [_cup_tier_member_row(r) if r.get("pattern_id") == CUP_ID else r for r in kept]
@@ -2429,4 +2435,161 @@ def levels_sr_for(sym: str, *, member: bool = False, served=None):
         return out
     except Exception as e:  # noqa: BLE001 -- any failure draws no level
         _log.debug("[sr-levels] %s failed: %s", sym, e)
+        return None
+
+
+# ================================================================ setup drawings (dark: remount, u_and_r, donchian)
+#: The setup-drawing row ids (api/services/pattern_engine/setup_draw.py), in build order. One horizontal line each.
+#: They ride the `setup_draws` key, never `structures`: PatternOverlay draws them as their own layer, driven by the
+#: UCT Intelligence "Setups" toggle (uctIntelligence.layerAvailability reads the key's presence).
+SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout")
+#: setup_draw key -> (row id, display name).
+_SETUP_DRAW_FUNCS = (
+    ("remount", "draw:remount", "Remount"),
+    ("u_and_r", "draw:u_and_r", "Undercut & Rally"),
+    ("donchian_breakout", "draw:donchian_breakout", "Donchian breakout (55-bar)"),
+)
+#: The drawing round each setup's blind check confirmed for members -- None: NOT released. Literals ON PURPOSE,
+#: never setup_draw's *_DRAW_ROUND constants: a member gets a drawing only while its literal equals the frozen
+#: round AND its id is in registry.DISPLAY_MEMBER_SET (member_rows also requires the trusted tier). Fail closed.
+#: remount round 3 (A 2.48 / 92%, B 2.42 / 92%) and u_and_r round 2 (A 2.56 / 100%, B 2.50 / 92%) passed both
+#: pre-registered blind packets. donchian_breakout round 1 passed too (A 2.70 / 100%, B 2.80 / 100%) but the
+#: owner has not ruled on it (the team does not draw donchian): None, and it stays out of both registry display
+#: sets, so admins see it under the flag and members never do. Releasing it is a later commit that sets this
+#: literal to 1 AND adds the id to DISPLAY_TEAM_SET and DISPLAY_MEMBER_SET.
+MEMBER_REMOUNT_ROUND = 3
+MEMBER_U_AND_R_ROUND = 2
+MEMBER_DONCHIAN_BREAKOUT_ROUND = None
+#: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
+#: session close > SETUP_MIN_CLOSE and close x volume >= SETUP_MIN_DOLLAR_VOLUME. Outside it there is no drawing.
+SETUP_MIN_BARS = 261
+SETUP_MIN_CLOSE = 5.0
+SETUP_MIN_DOLLAR_VOLUME = 20e6
+_SETUP_CACHE: dict = {}
+_SETUP_LOCK = threading.Lock()
+
+
+def g4_setups_enabled() -> bool:
+    """AUTO_STRUCTURES_G4_SETUPS_ENABLED, read PER CALL; unset means OFF. Off, nothing below runs and every payload
+    is exactly what it was before the setup drawings existed (no `setup_draws` key). The kill switch is this flag."""
+    return os.environ.get("AUTO_STRUCTURES_G4_SETUPS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def _member_setup_round(pid):
+    """The released member round for one setup-drawing id (read PER CALL so a test can move one literal)."""
+    return {
+        "draw:remount": MEMBER_REMOUNT_ROUND,
+        "draw:u_and_r": MEMBER_U_AND_R_ROUND,
+        "draw:donchian_breakout": MEMBER_DONCHIAN_BREAKOUT_ROUND,
+    }.get(pid)
+
+
+def _confirmed_setup_draw(row) -> bool:
+    """True when a setup-drawing row is drawn by its setup's released round: the member literal is an int (None =
+    not released: always False) equal to the frozen setup_draw round AND to the row's own stamp, beside a
+    well-formed draw_setup (its own setup, a finite level) and a horizontal_line with >= 2 anchors at finite
+    prices. Anything else is False."""
+    try:
+        from api.services.pattern_engine import setup_draw
+        r = row or {}
+        pid = r.get("pattern_id")
+        want = _member_setup_round(pid)
+        key = next((k for k, i, _n in _SETUP_DRAW_FUNCS if i == pid), None)
+        if key is None or not (type(want) is int and want == setup_draw.DRAW_ROUNDS.get(key)):
+            return False
+        geom = r.get("geometry") or {}
+        ex = geom.get("extras") or {}
+        rnd = ex.get("draw_round")
+        if not (type(rnd) is int and rnd == want):
+            return False
+        d = ex.get("draw_setup")
+        if not isinstance(d, dict) or d.get("shape") != key or d.get("draw_round") != rnd or not _finite(d.get("level")):
+            return False
+        anchors = geom.get("anchors")
+        return (geom.get("shape") == "horizontal_line" and isinstance(anchors, list) and len(anchors) >= 2
+                and all(isinstance(a, dict) and a.get("t") is not None and _finite(a.get("price")) for a in anchors))
+    except Exception:  # noqa: BLE001 -- an unreadable row is not served
+        return False
+
+
+def setup_in_frame(bars) -> bool:
+    if len(bars or []) < SETUP_MIN_BARS:
+        return False
+    last = bars[-1]
+    return last["c"] > SETUP_MIN_CLOSE and last["c"] * last["v"] >= SETUP_MIN_DOLLAR_VOLUME
+
+
+def setup_draw_rows(sym: str, bars: list) -> list:
+    """The setup-drawing rows for COMPLETED daily `bars` ({t,o,h,l,c,v}, oldest first, the last one the as-of bar):
+    one row per setup whose drawing fires there, every setup (the member filter is member_rows). Outside the judged
+    frame: []. The row's geometry is the judged drawing exactly (setup_draw's `det`); extras carry the drawing round
+    and its facts. A failing setup costs that setup only. Never raises."""
+    out: list = []
+    try:
+        from api.services.pattern_engine import setup_draw
+        b = list(bars or [])
+        if not setup_in_frame(b):
+            return []
+        sym = (sym or "").upper()
+        for key, pid, name in _SETUP_DRAW_FUNCS:
+            try:
+                d = setup_draw.detect(key, b)
+            except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
+                _log.debug("[setup-draw] %s %s failed", sym, key, exc_info=True)
+                continue
+            if d is None:
+                continue
+            det = d["det"]
+            geom = det["geometry"]
+            out.append({
+                "id": f"{pid}:{sym}:{det['start_t']}:{det['end_t']}",
+                "sym": sym,
+                "tf": "D",
+                "pattern_id": pid,
+                "pattern_name": name,
+                "category": "setup",
+                "direction": "bullish",
+                "start_t": det["start_t"],
+                "end_t": det["end_t"],
+                "geometry": {
+                    "shape": geom["shape"],
+                    "anchors": [dict(a) for a in geom["anchors"]],
+                    "extras": {"draw_setup": setup_draw.facts(d), "draw_round": d["draw_round"]},
+                },
+                "levels": {"entry": d["level"]},
+                "confidence": None,
+                "status": "forming",
+                **display_policy(pid),
+            })
+    except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
+        return []
+    return out
+
+
+def setup_draws_for(sym: str, *, member: bool = False):
+    """The `setup_draws` list for `sym`'s daily chart, or None (no key). Gated: AUTO_STRUCTURES_G4_SETUPS_ENABLED
+    (default off; nothing runs while it is off). A member gets only the rows member_rows serves (the released
+    literal, the member set, the trusted tier); an admin gets every setup. Reads only bars up to the last COMPLETED
+    session (an unknown session clock draws nothing). Present (possibly empty) while released to this viewer, so the
+    key itself is the UCT Intelligence "Setups" toggle's signal. One computed answer per (ticker, last completed
+    session). Any failure -> None (no key). Never raises."""
+    try:
+        if not g4_setups_enabled():
+            return None
+        sym = (sym or "").upper()
+        bars = _shelf_bars(sym)          # the last COMPLETED session's 600-bar window (>= setup_draw.WINDOW)
+        if not bars:
+            return None
+        key = int(bars[-1]["t"])
+        with _SETUP_LOCK:
+            hit = _SETUP_CACHE.get(sym)
+        if hit and hit[0] == key:
+            rows = hit[1]
+        else:
+            rows = setup_draw_rows(sym, bars)
+            with _SETUP_LOCK:
+                _SETUP_CACHE[sym] = (key, rows)
+        return member_rows(rows) if member else list(rows)
+    except Exception as e:  # noqa: BLE001 -- any failure draws no line
+        _log.debug("[setup-draw] %s failed: %s", sym, e)
         return None
