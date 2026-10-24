@@ -305,6 +305,11 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeRecap"): "member-optin",
     ("widgetEmbed", "myPnlCalendar"): "member-optin",
     ("widgetEmbed", "mySetupEdge"): "member-optin",
+    # Notebook widgets phase 2: a member-built widget. Its figures are the member's own account data, so it is
+    # neutral unless `params.share` is the boolean True, and then only the result keys below (Task 8.12). The
+    # registry row (KIND_WAVE / ACCOUNT_KINDS) arrives with Task 8.13; this row lands first on purpose, because
+    # `test_every_registered_widget_has_a_vendor_row` reds a registry id without one and nothing reds the reverse.
+    ("widgetEmbed", "builtWidget"): "member-optin",
     ("widgetEmbed", "marketOnMyNames"): "mixed",
     ("widgetEmbed", "tickerFlow"): "mixed",
     ("widgetEmbed", "myScreenToday"): "mixed",
@@ -504,6 +509,13 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
                    "empty", "truncated", "tooLarge", "mistakesTruncated"),
     "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share", "truncated", "tooLarge"),
     "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
+    # A built widget (Task 8.12): the RESULT only. NEVER `def`, `defRef`, `defId`, `defRev`, `latestRev`,
+    # `summary`, `scopeLabel`, `filter`, `accountId`, `range`, `coverage`, `sample`, and never `footnotes` or
+    # `sourceDetail` (the payload carries both; they name scope and provenance a stranger must not read).
+    # Railed in tests/test_public_note_payload.py.
+    "builtWidget": ("asOf", "source", "title", "view", "measures", "value", "compare", "compareLabel", "rows",
+                    "series", "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge",
+                    "empty", "share"),
 }
 
 #: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or
@@ -542,6 +554,16 @@ EMBED_ROW_KEYS: dict[str, dict[str, Any]] = {
     "tradeRecap": {"bars": ("t", "o", "h", "l", "c"), "mistakes": SCALAR_ITEMS},
     "myPnlCalendar": {"days": ("day", "pnl"), "best": ("day", "pnl"), "worst": ("day", "pnl")},
     "mySetupEdge": {"rows": ("setup", "n", "expectancyR", "winRate", "thin")},
+    # A built widget (Task 8.12): fixed keys per list; an id, a nested object or a key a builder adds later stays home.
+    "builtWidget": {
+        "measures": ("label", "unit", "kind", "fmt"),
+        "value": ("v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n"),
+        "compare": ("v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n"),
+        "rows": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
+        "series": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
+        "points": ("x", "y", "d", "r"),
+        "cells": ("label", "v1", "n1", "s1"),
+    },
 }
 
 

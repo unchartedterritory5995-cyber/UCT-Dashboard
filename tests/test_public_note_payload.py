@@ -1346,9 +1346,11 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
     from a shown widget; the table must name every one the account builders write."""
     structured = {"myPnlStats": {"range", "equity"}, "myPositionsRisk": {"rows"}, "myRulesCheck": {"range", "rules"},
                   "myMistakes": {"rows"}, "tradeRecap": {"bars", "mistakes"},
-                  "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"}}
+                  "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"},
+                  # Task 8.12; ACCOUNT_KINDS gains it in 8.13, so it is compared on both sides until then
+                  "builtWidget": {"measures", "value", "compare", "rows", "series", "points", "cells"}}
     from api.services.journal_two import notebook_widgets as nw
-    assert set(structured) == set(nw.ACCOUNT_KINDS) == set(pnp.EMBED_ROW_KEYS)
+    assert set(structured) == set(nw.ACCOUNT_KINDS) | {"builtWidget"} == set(pnp.EMBED_ROW_KEYS)
     for kind, keys in structured.items():
         assert set(pnp.EMBED_ROW_KEYS[kind]) == keys, kind
         assert keys <= set(pnp.EMBED_PARAM_KEYS[kind]), kind
@@ -1458,3 +1460,105 @@ def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id(monkeyp
     for row in rows:
         assert set(row) - {"positionId"} == allowed, (row["kind"], set(row) ^ (allowed | {"positionId"}))
         assert "positionId" in row and "positionId" not in allowed
+
+
+# ── Notebook widgets phase 2 (Task 8.12): a built widget on a public page ──
+
+_BUILT_CANARIES = ("CANARY-DEF-9f1", "CANARY-SUMMARY-9f1", "CANARY-FILTER-9f1", "CANARY-ACCOUNT-9f1",
+                   "CANARY-SCOPE-9f1", "CANARY-FOOT-9f1", "CANARY-DETAIL-9f1", "CANARY-DEFID-9f1")
+_BUILT_NEVER = ("def", "defRef", "defId", "defRev", "latestRev", "summary", "scopeLabel", "filter", "accountId",
+                "range", "coverage", "sample", "footnotes", "sourceDetail")
+_VALUES = {"v1": 12.5, "v2": None, "v3": None, "n1": 7, "n2": None, "n3": None, "s1": "", "s2": "", "s3": "", "n": 7}
+
+
+def _built(share: Any = True) -> dict:
+    node = _widget("builtWidget")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker", "sourceDetail": "CANARY-DETAIL-9f1",
+        "title": "Net P&L by setup", "view": "bar", "summary": "CANARY-SUMMARY-9f1",
+        "defId": "CANARY-DEFID-9f1", "defRev": 4, "latestRev": 5,
+        "def": {"plan_version": 1, "note": "CANARY-DEF-9f1", "filters": {"setup": "CANARY-FILTER-9f1"}},
+        "defRef": "CANARY-DEFID-9f1", "scopeLabel": "CANARY-SCOPE-9f1 CANARY-ACCOUNT-9f1",
+        "range": {"kind": "last_90d", "from": "2026-07-22"}, "accountId": "CANARY-ACCOUNT-9f1",
+        "filter": {"setup": "CANARY-FILTER-9f1"}, "coverage": {"evaluated": 7}, "sample": False,
+        "footnotes": ["CANARY-FOOT-9f1"],
+        "measures": [{"label": "Net P&L", "unit": "usd", "kind": "sum", "fmt": "money", "id": "CANARY-DEF-9f1"}],
+        "value": dict(_VALUES), "compare": dict(_VALUES), "compareLabel": "vs last 90 days",
+        "rows": [{"label": "Breakout", "label2": None, **_VALUES, "flagged": False, "tradeId": "CANARY-DEF-9f1"}],
+        "series": [{"label": "Mon", "label2": None, **_VALUES, "flagged": False}],
+        "points": [{"x": 1.0, "y": 2.0, "d": "2026-10-19", "r": 1.5, "tradeId": "CANARY-DEF-9f1"}],
+        "cells": [{"label": "Mon", "v1": 1.0, "n1": 3, "s1": "", "extra": "CANARY-DEF-9f1"}],
+        "count": 7, "rangeLabel": "Last 90 days", "capped": False, "notice": None, "truncated": 0,
+        "tooLarge": False, "empty": None, "share": share}
+    return node
+
+
+def test_built_vendor_row_and_allowlist_shape():
+    assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", "builtWidget")] == "member-optin"
+    assert pnp.market_data_verdict("widgetEmbed", "builtWidget") == pnp.NEUTRAL
+    assert pnp.EMBED_PARAM_KEYS["builtWidget"] == (
+        "asOf", "source", "title", "view", "measures", "value", "compare", "compareLabel", "rows", "series",
+        "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge", "empty", "share")
+    assert not set(pnp.EMBED_PARAM_KEYS["builtWidget"]) & set(_BUILT_NEVER)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_built_neutral_without_share(mode):
+    for share in (None, False):
+        node = _built(share)
+        if share is None:
+            node["attrs"]["params"].pop("share")
+        out = reduce(doc(node), mode)
+        blob = json.dumps(out)
+        assert "widgetEmbed" not in types_in(out), (mode, share)
+        assert not any(c in blob for c in _BUILT_CANARIES) and "Net P&L" not in blob, (mode, share)
+        if mode != "example":                      # an example note drops an account kind, as it does for private
+            assert texts_in(out) == [ACCOUNT_LINE], (mode, share, out)
+
+
+def test_built_shown_with_share_has_no_def_summary_or_filter_values():
+    for mode in ("share", "publish"):
+        out = reduce(doc(_built(True)), mode)
+        emb = find_embed(out)
+        params = emb["attrs"]["params"]
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _BUILT_CANARIES), (mode, [c for c in _BUILT_CANARIES if c in blob])
+        assert set(params) <= set(pnp.EMBED_PARAM_KEYS["builtWidget"])
+        assert not set(params) & set(_BUILT_NEVER)
+        # control: the result itself is there
+        assert params["share"] is True and params["title"] == "Net P&L by setup" and params["count"] == 7
+        assert params["value"] == _VALUES and params["compare"] == _VALUES
+        assert params["rows"] == [{"label": "Breakout", "label2": None, **_VALUES, "flagged": False}]
+        assert params["points"] == [{"x": 1.0, "y": 2.0, "d": "2026-10-19", "r": 1.5}]
+        assert params["cells"] == [{"label": "Mon", "v1": 1.0, "n1": 3, "s1": ""}]
+        assert params["measures"] == [{"label": "Net P&L", "unit": "usd", "kind": "sum", "fmt": "money"}]
+
+
+def test_built_footnotes_and_source_detail_never_reach_public_output():
+    """Review obligation: the payload carries both keys; neither is in the allowlist, so neither is published."""
+    for mode in ("share", "publish"):
+        out = reduce(doc(_built(True)), mode)
+        params = find_embed(out)["attrs"]["params"]
+        assert "footnotes" not in params and "sourceDetail" not in params
+        blob = json.dumps(out)
+        assert "footnotes" not in blob and "sourceDetail" not in blob
+        assert "CANARY-FOOT-9f1" not in blob and "CANARY-DETAIL-9f1" not in blob
+
+
+def test_built_gallery_always_neutral():
+    for share in (None, False, True, "true"):
+        node = _built(share)
+        out = reduce(doc(node), "gallery")
+        assert "widgetEmbed" not in types_in(out), share
+        assert not any(c in json.dumps(out) for c in _BUILT_CANARIES), share
+        assert texts_in(out) == [ACCOUNT_LINE], (share, out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+@pytest.mark.parametrize("bad", ["true", "True", 1, [True], {"v": True}])
+def test_share_string_true_is_neutral(mode, bad):
+    out = reduce(doc(_built(bad)), mode)
+    assert "widgetEmbed" not in types_in(out)
+    assert not any(c in json.dumps(out) for c in _BUILT_CANARIES)
+    if mode != "example":
+        assert texts_in(out) == [ACCOUNT_LINE]

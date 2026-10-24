@@ -186,3 +186,42 @@ def test_own_account_narrows_for_real(two):
     _sc, d2 = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",), range=RANGE,
                               accounts={"id": acc_a2}), uid=A)
     assert d2.total.cells[0].value == pytest.approx(40.0)
+
+
+# ── Task 8.12: public pages ──
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_another_members_def_id_is_neutral_in_every_public_mode_and_reads_no_database(monkeypatch, mode):
+    """A note body naming member B's `defId` (with or without `share: true`) reduces to the neutral line or is
+    dropped, never to B's widget, and a public reduction opens no database connection at all."""
+    import copy
+    import json
+    from api.services.journal_two import public_note_payload as pnp
+
+    reads: list[str] = []
+
+    def spy(*a, **k):
+        reads.append("get_connection")
+        raise AssertionError("a public reduction must not read the database")
+
+    monkeypatch.setattr(auth_db, "get_connection", spy)
+    foreign = "B-DEF-ID-FOREIGN-7777"
+    for share in (None, False, "true", True):
+        params = {"asOf": "2026-10-20T14:00:00Z", "title": "B only", "defId": foreign, "defRef": foreign,
+                  "summary": "B-SUMMARY-7777", "scopeLabel": "B-SCOPE-7777", "accountId": "B-ACC-7777",
+                  "def": {"plan_version": 1, "note": foreign}, "footnotes": ["B-FOOT-7777"],
+                  "sourceDetail": "B-DETAIL-7777", "value": {"v1": 7777.0, "n": 3}}
+        if share is not None:
+            params["share"] = share
+        body = {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": {
+            "v": 1, "widgetId": "builtWidget", "mode": "snapshot", "params": params}}]}
+        out = pnp.reduce(copy.deepcopy(body), mode=mode, owner_id="A", note_id="N", attachment_base="/b/",
+                         facts={}, note_links=None)
+        blob = json.dumps(out)
+        for leak in (foreign, "B-SUMMARY-7777", "B-SCOPE-7777", "B-ACC-7777", "B-FOOT-7777", "B-DETAIL-7777"):
+            assert leak not in blob, (mode, share, leak)
+        if share is not True:
+            assert "widgetEmbed" not in blob, (mode, share)
+            if mode != "example":
+                assert pnp.ACCOUNT_NEUTRAL_LINE in blob, (mode, share)
+    assert reads == []
