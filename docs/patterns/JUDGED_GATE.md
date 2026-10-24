@@ -28,7 +28,7 @@ For each case the gate asserts:
 | `base_stateless.json.gz` | the stateless `bc:base` (judged round 4): **withdrawn** from members 2026-10-24 (status `withdrawn`), recert A failed it three rounds | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5) |
 | `double_bottom.json.gz` | `draw:double-bottom` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_DOUBLE_BOTTOM_ROUND = 2` + `MEMBER_PIVOT_GATE_ROUND = 1` |
 | `shelf.json.gz` | `draw:shelf-pivot` (served only through the interim recert B textbook gate since 2026-10-24) | `MEMBER_SHELF_PIVOT_ROUND = "r4"` + `MEMBER_PIVOT_GATE_ROUND = 1` |
-| `sr.json.gz` | `levels_sr` zones and trendline sides: **withdrawn** from members 2026-10-24 (status `withdrawn`) | `MEMBER_SR_ROUND = None` (judged at `"r2"`) |
+| `sr.json.gz` | `levels_sr` zones and trendline sides: round r7 (35 cases both judges scored 3, recertification D packets A-D). r2 was withdrawn 2026-10-24 and r7 released the same day; a chart with fewer than 2 levels gets no layer (`withheld: too_few_levels`) | `MEMBER_SR_ROUND = "r7"` |
 | `cup.json.gz` | `bc:cup-with-handle` (cup tier drawing) | `MEMBER_CUP_TIER_ROUND = 4` |
 | `inside_day.json.gz` | `draw:inside-day` (round-3 drawing, served only through the recert B textbook gate) | `MEMBER_INSIDE_DAY_ROUND = 3` + `MEMBER_INSIDE_DAY_GATE_ROUND = 1` |
 | `textbook.json.gz` | `bc:base` textbook buy point; round-2 cases also the drawn line (`metrics_textbook.line` = buy point - $0.10). **Withdrawn** 2026-10-24 with the stateless base its numbers print on | `MEMBER_BASE_STATELESS_ROUND = None` (replayed at 5); `MEMBER_TEXTBOOK_ROUND = 2` unchanged |
