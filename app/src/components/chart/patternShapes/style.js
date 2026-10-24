@@ -12,6 +12,9 @@ export const PATTERN_COLORS = {
   bullish: '#10b981', // emerald-500
   bearish: '#ef4444', // red-500
   neutral: '#c9a84c', // UCT gold
+  // The CAUTION layer (owner decision 7): bearish setups drawn as exit risk on a stock the member holds, amber,
+  // never the red of a "short" signal. Set by cautionLayer.cautionDisplayRow, never by a server direction.
+  caution: '#f59e0b', // amber-500
 }
 
 export function getColor(detection) {

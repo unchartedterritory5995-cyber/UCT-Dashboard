@@ -495,7 +495,17 @@ CUP_ID = "bc:cup-with-handle"
 #: each), on the cup recognition tier (lab cup_tier_v2: 28 of 33 = 84.8%). A literal ON PURPOSE, not
 #: cup_tier.DRAW_ROUND: when the drawing code moves to a new round, members stop getting the cup
 #: until that round is confirmed and this is changed by hand.
-MEMBER_CUP_TIER_ROUND = 4
+#: WITHDRAWN FROM MEMBERS 2026-10-24 (owner decision 4, chart pattern product decisions): the strict blind
+#: recertification scored the cup 1.98 against the 2.3 bar on n = 20 charts. n = 20 cannot certify the drawing
+#: either way, so members do not get it. It re-ships (this literal back to CUP_TIER_JUDGED_ROUND) only when a
+#: pre-registered blind packet of n >= 60 cups clears the product bar (mean >= 2.3, >= 70% of charts >= 2,
+#: pooled >= 2.4). Admins keep the cup (the team chart never passes member_rows). Railed None by
+#: tests/golden_judged (cup.json.gz status "withdrawn") and tests/test_cup_withdrawn_from_members.py.
+MEMBER_CUP_TIER_ROUND = None
+#: The cup tier drawing round the blind packets judged (d1/d2 above, and lab cup_served for the stale boxes the
+#: tier draws). The team chart's stale-cup door reads THIS, not the member literal, so withdrawing the cup from
+#: members leaves the admin chart exactly as it was.
+CUP_TIER_JUDGED_ROUND = 4
 #: The tier name the stamp must carry.
 MEMBER_CUP_TIER_NAME = "cup_conf"
 
@@ -824,9 +834,10 @@ def _confirmed_shape(row) -> bool:
         return False
 
 
-def _confirmed_cup_tier(row) -> bool:
+def _confirmed_cup_tier(row, want=None) -> bool:
     """True when a bc:cup-with-handle row carries the confirmed cup tier drawing: not stale,
-    `extras.cup_tier` names the tier and MEMBER_CUP_TIER_ROUND (an int), nothing withheld, a pivot
+    `extras.cup_tier` names the tier and `want` (default MEMBER_CUP_TIER_ROUND, read per call; it must be an
+    int, so the withdrawn literal None is always False), nothing withheld, a pivot
     with a finite price and a span, a handle box with a finite top at or above a finite floor, and a
     rim reference exactly when the pivot is at the handle high. Anything else is False."""
     ex = ((row or {}).get("geometry") or {}).get("extras") or {}
@@ -836,7 +847,8 @@ def _confirmed_cup_tier(row) -> bool:
     if not isinstance(st, dict) or st.get("tier") != MEMBER_CUP_TIER_NAME:
         return False
     rnd = st.get("draw_round")
-    if not (type(rnd) is int and rnd == MEMBER_CUP_TIER_ROUND):
+    want = MEMBER_CUP_TIER_ROUND if want is None else want
+    if not (type(want) is int and type(rnd) is int and rnd == want):
         return False
     if st.get("withheld") is not None or "withheld" not in st:
         return False
@@ -2418,7 +2430,9 @@ def _tier_drawn_stale_cup(det: dict, bars: list):
         ex = det["geometry"]["extras"]
         ex["team_stale_reason"] = ex.pop("stale_reason", None)
         ex.pop("stale", None)
-        if not _confirmed_cup_tier(det):
+        # the judged round, not the member literal: this door feeds the team chart too, so a cup withdrawn from
+        # members (MEMBER_CUP_TIER_ROUND None) stays on the admin chart as it was; member_rows still drops it
+        if not _confirmed_cup_tier(det, CUP_TIER_JUDGED_ROUND):
             return None
         return _cup_tier_member_row(det)
     except Exception:  # noqa: BLE001 -- fail closed: the stale row stays dropped
@@ -3139,6 +3153,35 @@ SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
 SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
 SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_R3_IDS \
     + SETUP_DRAW_RECT_IDS
+#: The CAUTION layer (owner decision 7, chart pattern product decisions 2026-10-24): every bearish setup drawing a
+#: member may be served -- the ones whose judged drawing is bearish by construction (setup_draw_r2 / setup_draw_r3
+#: stamp `direction: "bearish"` on their det). The server keeps SENDING them and marks every one
+#: `direction: "bearish"` (`caution_direction`), so the client decides: the UCT Intelligence "Caution" sub-toggle,
+#: OFF by default, draws them in an amber exit/risk style; off, they are neither drawn nor listed. Never badged.
+#: The one authority on "is this a bearish setup": a setup row NOT in this set is never stamped bearish (a
+#: resistance-side major trendline is structure, not a bearish setup, and is served neutral).
+CAUTION_SETUP_IDS = frozenset({
+    "draw:wyckoff-upthrust",     # a failed probe above a trading range (the spring side is bullish and not served)
+    "draw:double-top",           # the bearish twin peaks (the judged shape is the top)
+    "draw:death-cross",          # a moving-average STATE (50-day below 200-day), shown as such, never a pattern
+    "draw:bear-flag",
+    "draw:descending-triangle",
+})
+assert CAUTION_SETUP_IDS <= set(SETUP_DRAW_IDS), "a caution id must be a setup-drawing id"
+
+
+def caution_direction(row):
+    """`row` with its `direction` set by CAUTION_SETUP_IDS: "bearish" for a caution setup, and a setup row outside
+    the set that its drawing code stamped bearish (a resistance-side major trendline) served "neutral", so
+    `direction == "bearish"` means exactly "a caution-layer setup" to every client. Other rows pass unchanged."""
+    if not isinstance(row, dict):
+        return row
+    pid = row.get("pattern_id")
+    if pid in CAUTION_SETUP_IDS:
+        return row if row.get("direction") == "bearish" else {**row, "direction": "bearish"}
+    if pid in SETUP_DRAW_IDS and row.get("direction") == "bearish":
+        return {**row, "direction": "neutral"}
+    return row
 #: setup_draw key -> (row id, display name).
 _SETUP_DRAW_FUNCS = (
     ("remount", "draw:remount", "Remount"),
@@ -3631,7 +3674,8 @@ def setup_draw_rows(sym: str, bars: list) -> list:
                 out.extend(r for r in rows_fn(sym, b) if _in_frame(r.get("pattern_id"), held))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
-    return out
+    # the caution layer's one signal: direction "bearish" exactly on CAUTION_SETUP_IDS rows (owner decision 7)
+    return [caution_direction(r) for r in out]
 
 
 def setup_draws_for(sym: str, *, member: bool = False):

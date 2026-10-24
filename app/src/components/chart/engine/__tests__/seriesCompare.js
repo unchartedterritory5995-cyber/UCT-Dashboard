@@ -1,4 +1,9 @@
-// app/src/components/chart/builder/memberPane/seriesCompare.js
+// app/src/components/chart/engine/__tests__/seriesCompare.js
+//
+// ⚰️ RELOCATED 2026-10-24 from `builder/memberPane/`. It is an instrument (it
+// serves `pineTableVendorParity.test.js` and its own test), not a member
+// surface, so it lives with the tests. That ended its parking entry in
+// `reachable.test.js` instead of renewing it.
 //
 // ─── ⭐⭐ T5 — PER-SERIES AGREEMENT WITH THE VENDOR, ON THE OWNER'S TERMS ────
 //
