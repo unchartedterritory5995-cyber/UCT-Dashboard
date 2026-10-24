@@ -150,3 +150,14 @@ describe('usePatternDetections: dealStatus', () => {
     expect(result.current.dealStatus).toBeNull()
   })
 })
+
+describe('UCT Intelligence on: the deal-status notice shows even with the drawings layer off', () => {
+  it('showDealStatus + enabled=false + pending: the notice renders', () => {
+    const { getByRole } = draw({ dealStatus: MARKER, enabled: false, showDealStatus: true })
+    expect(getByRole('status').textContent).toBe(SERVER_LABEL)
+  })
+  it('showDealStatus without a pending marker draws nothing', () => {
+    const { container } = draw({ enabled: false, showDealStatus: true })
+    expect(container.innerHTML).toBe('')
+  })
+})

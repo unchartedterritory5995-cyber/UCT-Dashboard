@@ -102,6 +102,13 @@ describe('the textbook S/R layer draws zones as thin labelled bands', () => {
     }
   })
 
+  it('has its own switch: it draws with the pattern drawings off, and the patterns do not', () => {
+    const { container } = draw([shelfRow], { levelsSr: SR, enabled: false })
+    expect(container.querySelector('[data-role="sr-levels"]')).not.toBeNull()
+    expect(container.querySelector('[data-role="shelf-pivot"]')).toBeNull()
+    expect(draw([shelfRow], { levelsSr: SR, enabled: false, showLevelsSr: false }).container.querySelector('svg')).toBeNull()
+  })
+
   it('draws with no pattern rows at all (the layer stands on its own)', () => {
     const { container } = draw([], { levelsSr: SR })
     expect(container.querySelector('[data-role="sr-levels"]')).not.toBeNull()

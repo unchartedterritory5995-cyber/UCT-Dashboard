@@ -1035,6 +1035,9 @@ function ChartToolbar({
   onReplaySpeedChange = null,
   onShowHelp = null,
   showPatterns = false,
+  // The chart's UCT Intelligence library row(s) (uctIntelligence.js), offered by StockChart only while the
+  // pattern layer exists for this viewer. Absent = the library is exactly as before.
+  libraryExtraRows = null,
   onTogglePatterns = null,
   showLevels = false,
   onToggleLevels = null,
@@ -1861,6 +1864,7 @@ function ChartToolbar({
             onChange={onUpdateSettings}
             registry={engineRegistry}
             sheetClassName={sheetClassName}
+            extraRows={libraryExtraRows}
             /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
                charts workspace its ONLY one.
                `ChartSettingsPanel` (below) has held the builder's single entry

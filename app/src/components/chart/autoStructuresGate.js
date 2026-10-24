@@ -32,8 +32,9 @@ export function autoStructuresAllowed(auth) {
 /**
  * The released textbook support / resistance layer exists for this viewer: a scope above AND the server's
  * `levels_sr_enabled` (AUTO_STRUCTURES_SR_ENABLED, and for a member the frozen MEMBER_SR_ROUND literal).
- * The ONE predicate a chart control -- the UCT Intelligence indicator's "Support & resistance" toggle --
- * gates on. The server still decides what each response carries (`levels_sr`); this only says the layer exists.
+ * For a control that must know before any chart payload has loaded. On a chart, the UCT Intelligence
+ * indicator's "Support & resistance" toggle reads the payload's own `levels_sr` (present whenever the layer is
+ * released, uctIntelligence.layerAvailability); the server decides both, so the two cannot disagree for long.
  */
 export function levelsSrAvailable(auth) {
   return autoStructuresScope(auth) != null && auth.levelsSrEnabled === true
@@ -49,4 +50,14 @@ export function useAutoStructuresScope() {
 
 export function useAutoStructuresGate() {
   return autoStructuresAllowed(useContext(AuthContext))
+}
+
+/** The UCT Intelligence "Setups" list is the Research Technical tab's confirmed-setup list, so it is
+ *  released with that tab (`research_technical_tab_enabled` on the auth payload) and by nothing else. */
+export function setupsPanelReleased(auth) {
+  return !!auth && auth.researchTechnicalTabEnabled === true
+}
+
+export function useSetupsPanelReleased() {
+  return setupsPanelReleased(useContext(AuthContext))
 }

@@ -732,6 +732,16 @@ _PATTERN_METADATA = {
 # admin/Gate-5, feedback) is unchanged.
 
 
+def setup_definition(setup_id) -> Optional[str]:
+    """The first sentence of a pattern id's metadata description, or None. Pure; never raises."""
+    import re
+    desc = ((_PATTERN_METADATA.get(str(setup_id or "")) or {}).get("description") or "").strip()
+    if not desc:
+        return None
+    first = re.split(r"(?<=[.!?])\s+", desc, maxsplit=1)[0].strip()
+    return first or None
+
+
 @router.get("/catalog")
 def get_pattern_catalog(_user: dict = Depends(require_paid)):
     """Name and direction (bullish / bearish / neutral) for every pattern id.
@@ -788,6 +798,10 @@ def get_detections(
         # 2026-10-05). None when the id has no entry; the client then falls back.
         verdicts = [{**v, "setup_name": (_PATTERN_METADATA.get(v.get("setup") or "") or {}).get("name")}
                     for v in verdicts]
+        # The one-line definition the chart's UCT Intelligence "Setups" list shows beside each name: the
+        # FIRST SENTENCE of the same metadata entry's description (one authority). Additive key; None when
+        # the id has no entry. Internal ids never reach a non-admin here (dropped above).
+        verdicts = [{**v, "setup_definition": setup_definition(v.get("setup"))} for v in verdicts]
         # Seam 24: how many setups were EVALUATED in the same window, confirmed
         # and rejected alike. A member seeing an empty tab cannot otherwise tell
         # "we looked and nothing qualified" from "nothing was ever looked at" --

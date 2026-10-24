@@ -86,8 +86,8 @@ export function AuthProvider({ children }) {
   // non-admin while both flags are on; trusted tier only (the server filters the rows).
   const [autoStructuresMembersEnabled, setAutoStructuresMembersEnabled] = useState(false)
   // Textbook support / resistance (AUTO_STRUCTURES_SR_ENABLED + MEMBER_SR_ROUND): present ONLY beside
-  // one of the two keys above while the released S/R layer exists for this account's scope. The ONE
-  // client signal a chart control gates on (autoStructuresGate.levelsSrAvailable).
+  // one of the two keys above while the released S/R layer exists for this account's scope
+  // (autoStructuresGate.levelsSrAvailable; a chart's own toggle reads the payload's `levels_sr`).
   const [levelsSrEnabled, setLevelsSrEnabled] = useState(false)
   // TERM-077 — watchlist "copy or link, chosen at import". Enablement gate,
   // default FALSE; the server sends the key only when it is on.
