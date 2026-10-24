@@ -391,6 +391,8 @@ _PREDICATES = ("NOT_SAMPLE_SQL", "not_sample_sql", "is_sample", "is_sample_note"
 #: Readers that turn a note's content into a fact about the member. Each MUST use the predicate.
 GUARDED = {
     "api/services/journal_two/plan_grading.py": "which note is a trade's plan; the discipline record",
+    "api/services/journal_two/notebook_widgets.py": "the ticker card's notes-in-this-name count: an example note "
+                                                     "is never a note the member wrote about the symbol",
     "api/services/journal_two/playbook_patterns.py": "what the member wrote before wins and losses",
     "api/services/journal_two/notes.py": "symbols the member has research on (thesis-stop alert, vocabulary)",
     "api/services/journal_two/thesis_chips.py": "the chip on a position, holdings or watchlist row",

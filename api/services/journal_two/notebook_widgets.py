@@ -980,6 +980,7 @@ def _symbol_footprint(user_id: str, sym: str) -> dict:
     try:
         from api.services import auth_db
         from api.services.journal_two.notes import _symbol_note_ids_sql
+        from api.services.journal_two import sample_marker
         conn = auth_db.get_connection()
     except Exception as e:  # noqa: BLE001
         _log.info("ticker card: footprint read unavailable for %s: %s", sym, e)
@@ -996,6 +997,7 @@ def _symbol_footprint(user_id: str, sym: str) -> dict:
             ids_sql, ids_params = _symbol_note_ids_sql(user_id, [sym])
             rows = conn.execute(
                 "SELECT n.id FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL"
+                f" AND {sample_marker.not_sample_sql('n')}"
                 f" AND (n.ticker = ? OR n.id IN ({ids_sql})) LIMIT ?",
                 (user_id, sym, *ids_params, HISTORY_NOTES_CAP + 1)).fetchall()
             out["notes"] = min(len(rows), HISTORY_NOTES_CAP)
