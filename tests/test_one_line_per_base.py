@@ -292,6 +292,9 @@ def test_member_route_serves_one_line_and_the_admin_route_is_unchanged(monkeypat
         r["tf"] = "D"
     _flags(monkeypatch, True, True)
     _store(monkeypatch, dets)
+    # this rail is about one line per base; the interim recert textbook gate (test_textbook_pivot_gate.py) would
+    # withhold the synthetic flat top on its own, so it is switched off here
+    monkeypatch.setattr(AS, "MEMBER_PIVOT_GATE_ROUND", None)
     monkeypatch.setattr(AS, "structures_for", lambda sym: json.loads(json.dumps([box])))
     monkeypatch.setattr(AS, "drawn_for", lambda sym: None)
     monkeypatch.setattr(AS, "member_rows", lambda rows: list(rows or []))

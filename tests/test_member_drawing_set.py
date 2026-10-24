@@ -264,6 +264,13 @@ def test_admin_tiers_did_not_move():
         assert registry.display_policy(pid)["display_tier"] == "trusted", pid
 
 
+@pytest.fixture(autouse=True)
+def _pivot_textbook_gate_off(monkeypatch):
+    """These rails are about which pattern ids reach a member; the interim recert textbook gate on the flat top / shelf / double bottom (its own
+    rails in test_textbook_pivot_gate.py) would withhold the synthetic rows on its own, so it is switched off here."""
+    monkeypatch.setattr(auto_structures, "MEMBER_PIVOT_GATE_ROUND", None)
+
+
 # -- flag ON: a member gets exactly the seven types --------------------------------------------
 
 def test_flag_on_member_gets_exactly_the_seven_confirmed_types(monkeypatch, calls):

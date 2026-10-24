@@ -208,7 +208,7 @@ def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkey
 def test_a_retired_drawing_coming_back_is_caught(monkeypatch):
     """Control: the absence check is not vacuous -- the retired case's own judged drawing, put back on its chart, is
     red, and a chart where the retiring rule no longer holds is red."""
-    fam, case = next((f, c) for f, c in RETIRED if f == "shelf")
+    fam, case = next((f, c) for f, c in RETIRED if f == "shelf" and c["retired"]["rule"] == "trend_gate")
     payload, bars = MP.member_payload(monkeypatch, case)
     assert JG.retired_failures(case, payload, bars) == []
     p = JG._unscale(case, case["expect"]["price"])
@@ -222,6 +222,20 @@ def test_a_retired_drawing_coming_back_is_caught(monkeypatch):
     for j in range(len(up) - 40, len(up) - 1):     # ...and that average rising
         up[j]["c"] = up[j]["c"] * 3
     assert any("no longer applies" in m for m in JG.retired_failures(case, payload, up))
+
+
+def test_a_pivot_textbook_retirement_is_held_to_the_gate(monkeypatch):
+    """Control for the interim pivot gate's retire rule: a shelf / double bottom retired under textbook_gate is green
+    while the gate still fails its ungated row, and red the moment the gate would pass it (the absence is then
+    unexplained) -- and the replay that explains it really runs the member route with the gate off."""
+    from api.services.pattern_engine import textbook_gate as TG
+    for fam in ("shelf", "double_bottom"):
+        case = next(c for f, c in RETIRED if f == fam and c["retired"]["rule"] == "textbook_gate")
+        payload, bars = MP.member_payload(monkeypatch, case)
+        assert JG.retired_failures(case, payload, bars) == [], case["id"]
+        with monkeypatch.context() as m:
+            m.setattr(TG, "pivot_fails", lambda b, r: [])
+            assert any("no longer applies" in x for x in JG.retired_failures(case, payload, bars)), case["id"]
 
 
 def test_a_textbook_line_off_the_buy_point_is_caught(monkeypatch):
