@@ -907,6 +907,12 @@ def get_detections(
                     sr = auto_structures.levels_sr_for(sym, member=True, served=list(rows) + list(boxes))
                     if sr is not None:
                         mout["levels_sr"] = sr
+                # setup drawings (dark: AUTO_STRUCTURES_G4_SETUPS_ENABLED + MEMBER_<SETUP>_ROUND + the member set):
+                # daily charts only, drawn by the UCT Intelligence "Setups" toggle. Off: no `setup_draws` key.
+                if (tf or "D").upper() == "D":
+                    sd = auto_structures.setup_draws_for(sym, member=True)
+                    if sd is not None:
+                        mout["setup_draws"] = sd
             return mout
     # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
     # no `structures` / `drawn` key at all.
@@ -940,6 +946,12 @@ def get_detections(
                 sr = auto_structures.levels_sr_for(sym)
                 if sr is not None:
                     out["levels_sr"] = sr
+            # setup drawings (AUTO_STRUCTURES_G4_SETUPS_ENABLED): daily charts only, every setup for the team
+            # (donchian included, not member-released); drawn by the UCT Intelligence "Setups" toggle
+            if (tf or "D").upper() == "D":
+                sd = auto_structures.setup_draws_for(sym)
+                if sd is not None:
+                    out["setup_draws"] = sd
     return out
 
 

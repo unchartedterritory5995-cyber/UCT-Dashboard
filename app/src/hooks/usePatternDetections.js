@@ -54,6 +54,9 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
     // otherwise. `levels_sr` is the textbook support/resistance layer; `candle_marks` the candlestick markers.
     levelsSr: data && Object.prototype.hasOwnProperty.call(data, 'levels_sr') ? data.levels_sr : undefined,
     candleMarks: data && Object.prototype.hasOwnProperty.call(data, 'candle_marks') ? data.candle_marks : undefined,
+    // `setup_draws` is the setup-drawing layer (remount / undercut & rally / donchian lines; server-gated by
+    // AUTO_STRUCTURES_G4_SETUPS_ENABLED and, for a member, the released rounds). Present = released to this viewer.
+    setupDraws: data && Object.prototype.hasOwnProperty.call(data, 'setup_draws') ? data.setup_draws : undefined,
     count: data?.count || 0,
     isLoading,
     error,
