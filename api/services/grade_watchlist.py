@@ -23,9 +23,10 @@ def _default_resolve(user_id, account_id, source, symbols):
     return wsrc.resolve(user_id, account_id, source, symbols)
 
 
-def _default_grade(symbol, account_size=None):
+def _default_grade(symbol, account_size=None, account_size_is_default=None):
     from api.services.grade_ticker import grade_ticker
-    return grade_ticker(symbol, account_size=account_size)
+    return grade_ticker(symbol, account_size=account_size,
+                        account_size_is_default=account_size_is_default)
 
 
 def _default_regime():
@@ -82,15 +83,18 @@ def grade_watchlist(user_id, account_id=None, symbols=None, source="watchlist",
 
     # The member's own size when the caller did not give one (finding 7); the no-member default
     # stays grade_ticker's own (UNSET_ACCOUNT_SIZE).
-    size_is_default = False
+    # `size_flag` goes to every name (R2-1): resolved here it says whether the size is the default;
+    # None (a size the caller gave, or no member) leaves grade_ticker's own rule.
+    size_flag = None
     if not account_size and user_id:
         from api.services.journal_two import accounts as _acc
-        account_size, size_is_default = _acc.grading_account_size(user_id, account_id=account_id)
+        account_size, size_flag = _acc.grading_account_size(user_id, account_id=account_id)
+    size_is_default = bool(size_flag)
 
     graded = []
     for sym in names:
         try:
-            v = grade_fn(sym, account_size=account_size) or {}
+            v = grade_fn(sym, account_size=account_size, account_size_is_default=size_flag) or {}
         except Exception as e:  # noqa: BLE001
             v = {"ok": False, "reason": str(e)}
         if not v.get("ok"):
@@ -104,7 +108,8 @@ def grade_watchlist(user_id, account_id=None, symbols=None, source="watchlist",
                        "grade": v.get("grade"), "entry": v.get("entry"), "stop": v.get("stop"),
                        "size_pct": v.get("size_pct"), "account_risk_pct": v.get("account_risk_pct"),
                        "setup": v.get("setup"), "edge_annotation": e.get("note"),
-                       "muted": bool(e.get("muted"))})
+                       "muted": bool(e.get("muted")),
+                       "account_size_is_default": bool(v.get("account_size_is_default"))})
 
     # ── MANDATORY list-level synthesis ────────────────────────────────────────
     # The label -> band derivation is the authority's (TERM-071); this module

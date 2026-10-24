@@ -466,14 +466,28 @@ def test_grade_watchlist_grades_on_the_members_size(conn):
     _member(conn, "gr5", typed=40_000)
     seen = []
 
-    def grade_fn(sym, account_size=None):
-        seen.append(account_size)
-        return {"ok": True, "verdict": "GO"}
-    out = gw.grade_watchlist("gr5", symbols=["NVDA"], source="explicit",
-                             resolve_fn=lambda *a: (["NVDA"], "explicit"), grade_fn=grade_fn,
-                             regime_fn=lambda: {"regime": "GREEN"}, edge_fn=lambda *a: {},
-                             sector_fn=lambda s: None)
-    assert seen == [40_000.0] and out["account_size_is_default"] is False
+    def grade_fn(sym, account_size=None, account_size_is_default=None):
+        seen.append((account_size, account_size_is_default))
+        return {"ok": True, "verdict": "GO", "account_size_is_default": bool(account_size_is_default)}
+
+    def run(uid, **kw):
+        return gw.grade_watchlist(uid, symbols=["NVDA"], source="explicit",
+                                  resolve_fn=lambda *a: (["NVDA"], "explicit"), grade_fn=grade_fn,
+                                  regime_fn=lambda: {"regime": "GREEN"}, edge_fn=lambda *a: {},
+                                  sector_fn=lambda s: None, **kw)
+    out = run("gr5")
+    assert seen[-1] == (40_000.0, False) and out["account_size_is_default"] is False
+    assert out["graded"][0]["account_size_is_default"] is False
+    # R2-1: on the default, each name's verdict is labelled, not only the list.
+    _member(conn, "gr5b")
+    out = run("gr5b")
+    assert seen[-1] == (UNSET, True) and out["account_size_is_default"] is True
+    assert out["graded"][0]["account_size_is_default"] is True
+    # A size the caller gave is the caller's own; no size and no member is grade_ticker's call.
+    run("gr5b", account_size=9_000)
+    assert seen[-1] == (9_000, None)
+    run(None)
+    assert seen[-1] == (None, None)
 
 
 def test_terminal_and_ai_search_grade_on_the_members_size(conn, monkeypatch):
