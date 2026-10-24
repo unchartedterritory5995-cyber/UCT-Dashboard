@@ -54,6 +54,15 @@ Retired so far (2026-10-23, the trend-gate blind round: suppressed rows 0.98, co
 approved cases re-judged blind on "is this a buy" averaged 1.00): 19 shelf and 9 double-bottom cases, plus 7 textbook
 round-2 cases whose as-of bar fails the trend rule. Only cases where `trend_ok` is False on the fixture are retired.
 
+Retired 2026-10-24 under `one_line_per_base` (precedence round e): 11 donchian cases. Round e was a blind paired round:
+25 shared-base charts, 2 fresh judges. On a shared base, the base-family line was preferred over the donchian channel
+line in 84% of 50 judgments (95% CI 72-94%). So the channel line yields to a drawn base line within 1 ATR
+(`auto_structures.ONE_LINE_PER_BASE_PRIORITY`).
+
+The rule (`judged._base_line_holds`) still asserts on each chart that the yielding has a cause: a drawn row ranked
+ahead of the channel line puts a breakout line, where the chart draws it, within 1 ATR of the judged level inside the
+55-bar channel window. Rules now take `(case, payload, bars)`.
+
 `KNOWN_RED` in `test_judged_gate.py` lists the judged cases current master does NOT reproduce, each with its
 measured cause. They are strict xfails: any OTHER case going red fails the run, and a listed case that starts
 passing fails it too, so its entry has to be deleted. Never add a case to `KNOWN_RED` to make a change pass.

@@ -134,6 +134,39 @@ def test_an_extra_base_drawing_is_judged_by_the_line_members_see(monkeypatch):
     assert not any("same base" in m for m in JG.failures(case, far, bars))
 
 
+def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkeypatch):
+    """Control for the one_line_per_base retirement (precedence round e): on each retired donchian chart the line
+    stays off AND a drawn base-family line still sits within 1 ATR. Putting the channel line back is red; taking the
+    base line away is red (its absence would then be unexplained)."""
+    cases = [c for f, c in RETIRED if f == "donchian_breakout"]
+    assert cases and all(c["retired"]["rule"] == "one_line_per_base" for c in cases)
+    case = cases[0]
+    payload, bars = MP.member_payload(monkeypatch, case)
+    assert JG.retired_failures(case, payload, bars) == []
+    lvl = JG._want_key("donchian_breakout", case)
+    back = {"pattern_id": "draw:donchian_breakout", "start_t": int(bars[-30]["t"]), "end_t": int(bars[-1]["t"]),
+            "geometry": {"shape": "horizontal_line", "anchors": [{"t": int(bars[-30]["t"]), "price": lvl},
+                                                                 {"t": int(bars[-1]["t"]), "price": lvl}],
+                         "extras": {"draw_round": 1, "draw_setup": {"level": lvl}}},
+            "levels": {"entry": lvl}}
+    again = {**payload, "setup_draws": list(payload.get("setup_draws") or []) + [back]}
+    assert any("back on the member chart" in m for m in JG.retired_failures(case, again, bars))
+    from api.services import auto_structures as AS
+    ahead = set(AS.ONE_LINE_PER_BASE_PRIORITY[:AS.ONE_LINE_PER_BASE_PRIORITY.index("draw:donchian_breakout")])
+    bare = {k: ([r for r in v if r.get("pattern_id") not in ahead] if isinstance(v, list) else v)
+            for k, v in payload.items()}
+    assert any("no longer applies" in m for m in JG.retired_failures(case, bare, bars))
+    # the rule's distance is the 1-ATR one-line test: a drawn ceiling half an ATR off holds it, two ATR off does not
+    atr = MP.atr14(bars)
+    s0, s1 = int(bars[-40]["t"]), int(bars[-1]["t"])
+
+    def ceiling(p):
+        return {"detections": [{"pattern_id": "uct_flat_top_breakout", "start_t": s0, "end_t": s1, "geometry": {
+            "extras": {"draw_flat_top": {"price": p, "start_t": s0, "end_t": s1}}}}]}
+    assert JG.RETIRE_RULES["one_line_per_base"](case, ceiling(lvl + 0.5 * atr), bars)
+    assert not JG.RETIRE_RULES["one_line_per_base"](case, ceiling(lvl + 2.0 * atr), bars)
+
+
 def test_a_retired_drawing_coming_back_is_caught(monkeypatch):
     """Control: the absence check is not vacuous -- the retired case's own judged drawing, put back on its chart, is
     red, and a chart where the retiring rule no longer holds is red."""

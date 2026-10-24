@@ -273,7 +273,31 @@ def _trend_gate_holds(bars):
     return not BD.trend_ok(closes, len(closes) - 1)
 
 
-RETIRE_RULES = {"trend_gate": _trend_gate_holds}
+#: The channel window a donchian line is drawn over: its 55-bar channel high is set inside it.
+_DONCHIAN_WINDOW = 55
+
+
+def _base_line_holds(case, payload, bars):
+    """precedence round e: a member-drawn row ranked AHEAD of the donchian channel line in the one-line-per-base
+    order puts a breakout line (where the chart draws it) within ONE_BASE_ATR x ATR14 of the judged level, over the
+    channel window. That drawing is why the channel line is not on the chart; without one, its absence is unexplained."""
+    from api.services import auto_structures as AS
+    order = list(AS.ONE_LINE_PER_BASE_PRIORITY)
+    ahead = set(order[:order.index("draw:donchian_breakout")])
+    want, atr = _want_key(case["family"], case), MP.atr14(bars)
+    w0, w1 = int(bars[max(0, len(bars) - 1 - _DONCHIAN_WINDOW)]["t"]), int(bars[-1]["t"])
+    for row in _drawn_rows(payload):
+        if row.get("pattern_id") not in ahead:
+            continue
+        for p, s, e in AS._breakout_lines(row):
+            if s <= w1 and w0 <= e and abs(float(p) - want) <= ONE_BASE_ATR * atr:
+                return True
+    return False
+
+
+#: rule -> fn(case, payload, bars) -> True while the rule still explains the drawing's absence on this chart.
+RETIRE_RULES = {"trend_gate": lambda case, payload, bars: _trend_gate_holds(bars),
+                "one_line_per_base": _base_line_holds}
 
 
 def retired_failures(case, payload, bars) -> list:
@@ -286,7 +310,7 @@ def retired_failures(case, payload, bars) -> list:
     rule = RETIRE_RULES.get(r.get("rule"))
     if rule is None:
         return [f"retired under an unknown rule {r.get('rule')!r}"]
-    if not rule(bars):
+    if not rule(case, payload, bars):
         out.append(f"retired by {r.get('rule')}, but that rule no longer applies on this chart")
     want_key = _want_key(fam, case)
     for row in _rows_of(payload, PATTERN_IDS[fam]):
