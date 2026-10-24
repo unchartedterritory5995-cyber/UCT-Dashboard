@@ -183,3 +183,56 @@ def test_the_list_route_is_declared_before_the_review_route(db_path, monkeypatch
     got = client.get("/api/j2/trader-blocks/review/trades")
     assert got.status_code == 200 and "trades" in got.json() and "trade" not in got.json()
     assert [t["id"] for t in got.json()["trades"]] == ["trades"]
+
+
+# ── the review never writes plan-grading state while plan grading is off ─────────────────────────
+#
+# `grade_payload` FREEZES a first match (`j2_trade_plan_links`), so the review must only call it
+# behind `plan_grading.enabled()`. The pair below uses a REAL matchable plan note and the real
+# matcher, so the off case can tell "gated" from "nothing to match": the control proves the same
+# trade and note DO freeze a link with the switch on. The rail in tests/test_review_drafts.py
+# lists this module as gated on the strength of these two tests.
+
+def _own_plan_note(symbol="NVDA", stop=95.0, written="2026-09-29T12:00:00+00:00"):
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import notes, sample_examples
+    c = get_connection()
+    try:
+        out = notes.import_confirm("u1", {"source": "file", "notes": [{
+            "importKey": f"own:{symbol}", "title": f"My {symbol} plan", "tags": [], "folderPath": [],
+            "ticker": symbol, "createdAt": written, "updatedAt": written,
+            "bodyJson": sample_examples._thesis_note_body(symbol, stop)}]}, conn=c)
+        c.commit()
+    finally:
+        c.close()
+    assert not out["failed"]
+    return out["created"][0]["id"]
+
+
+def _plan_links():
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        return [tuple(r) for r in c.execute(
+            "SELECT trade_ref, note_id FROM j2_trade_plan_links WHERE user_id = 'u1'").fetchall()]
+    finally:
+        c.close()
+
+
+def test_with_plan_grading_off_the_review_freezes_no_plan(db_path, monkeypatch):
+    from api.services.journal_two import trader_blocks as tb
+    monkeypatch.delenv("NOTEBOOK_PLAN_GRADING_ENABLED", raising=False)
+    _own_plan_note()
+    _trade()
+    assert tb.trade_review("u1", "t1")["planGrade"] == {"needs": "plan grading"}
+    assert _plan_links() == [], "the review wrote plan-grading state while plan grading was off"
+
+
+def test_control_with_plan_grading_on_the_same_review_freezes_the_plan(db_path, monkeypatch):
+    from api.services.journal_two import trader_blocks as tb
+    monkeypatch.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "1")
+    note_id = _own_plan_note()
+    _trade()
+    grade = tb.trade_review("u1", "t1")["planGrade"]
+    assert grade != {"needs": "plan grading"}
+    assert [n for _, n in _plan_links()] == [note_id]

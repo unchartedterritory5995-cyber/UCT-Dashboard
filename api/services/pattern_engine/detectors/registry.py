@@ -299,8 +299,8 @@ DISPLAY_TRUSTED: frozenset = DISPLAY_TEAM_SET
 #: (auto_structures.member_base_precedence). A bc:base row
 #: exists only beside a drawing (auto_structures.base_draw_row), and auto_structures.member_rows
 #: serves it only while it carries draw_round == MEMBER_BASE_ROUND beside a well-formed draw_base.
-#: Members are on round 2 (the pivot on the base's highest body) since 2026-10-21; a row stamped with any
-#: other round is dropped. Were the drawing code ever ahead of the member round, the member would be served
+#: Members are on round 4 (round 2 -- the pivot on the base's highest body -- wherever round 2 draws, plus
+#: a textbook consolidation round 2 missed) since 2026-10-23; a row stamped with any other round is dropped. Were the drawing code ever ahead of the member round, the member would be served
 #: the member round's drawing that every row then carries in extras.draw_member
 #: (auto_structures._base_member_row).
 #: bc:cup-with-handle (lab cup_tier_v2 + cup_draw_v4, 2026-10-18) reaches a member ONLY as the cup

@@ -449,15 +449,23 @@ BASE_DRAW_ID = "bc:base"
 #: The base drawing round the blind check confirmed for members. Round 1 passed 2026-10-18 (packets
 #: A 2.70 [2.47, 2.90] and B 2.80 [2.60, 2.97]); round 2 (the pivot on the base's highest body, no base
 #: straight after a parabolic run) passed its own blind check 2026-10-21 (packets A 2.76 [2.60, 2.90] and
-#: B 2.78 [2.64, 2.90]) and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
+#: B 2.78 [2.64, 2.90]); round 4 (round 2 unchanged wherever round 2 draws, plus a textbook consolidation
+#: round 2 missed only on a single touch or a lip reached from above) passed its own pre-registered blind
+#: packets 2026-10-23 (A 2.86 [2.72, 2.98] and B 2.96 [2.90, 3.00], and a regression packet where round 2
+#: draws: 25 of 25 identical) and members now get it. A literal ON PURPOSE, not base_draw.BASE_DRAW_ROUND: when
 #: the drawing code moves ahead of this round, every bc:base row carries THIS round's drawing
 #: (`extras.draw_member`) and a member is served exactly the row this round draws (`_base_member_row`),
 #: until the new round passes its own blind check and this is changed by hand. While the two are equal
-#: there is no carrier. Setting this back to 1 restores the round-1 member drawing byte for byte (the
-#: carrier path below; railed by tests/test_base_draw_member_parity.py).
-MEMBER_BASE_ROUND = 2
-#: The one later round whose rows carry the round-1 drawing beside their own (extras.draw_member).
-_BASE_R1_CARRIER = 2
+#: there is no carrier. Setting this back to 2 restores the round-2 member drawing byte for byte, and to 1
+#: the round-1 one (the carrier path below; railed by tests/test_base_draw_r4_member_parity.py and
+#: tests/test_base_draw_member_parity.py).
+MEMBER_BASE_ROUND = 4
+#: The (member round, row round) pairs where a row of a later drawing round carries the member round's
+#: drawing of the same bars beside its own (extras.draw_member): round-2 rows carrying round 1 (the round-1
+#: era), and round-4 rows carrying round 2 (members on round 2 while round 4 is admin-only) or round 1 (a
+#: rollback of the literal to 1). Round 3 failed its held-out check and is never drawn. Any other pairing
+#: is dropped.
+_BASE_CARRIERS = frozenset({(1, 2), (1, 4), (2, 4)})
 #: The drawn labels the judges saw.
 MEMBER_BASE_LABELS = ("pivot", "base low")
 
@@ -466,8 +474,8 @@ def _base_member_row(row):
     """A member's copy of a bc:base row as MEMBER_BASE_ROUND draws it, or None (dropped). Fail closed.
 
     A row stamped with the member round is served as it is. A row of a later round is served as the
-    member round drew the SAME bars -- only while the member round is 1 and the row is of the one known
-    carrier round (_BASE_R1_CARRIER) -- and its `extras.draw_member` must be {"round": MEMBER_BASE_ROUND,
+    member round drew the SAME bars -- only for a known (member round, row round) pair (_BASE_CARRIERS) --
+    and its `extras.draw_member` must be {"round": MEMBER_BASE_ROUND,
     "draw_base": <that round's drawing or None>}; the member gets `_base_row` rebuilt from that drawing
     (byte-identical to the row the member round's code built), or nothing when that round drew nothing.
     Any other round, a missing or malformed carrier drops the row. The row passed in is not modified."""
@@ -479,7 +487,7 @@ def _base_member_row(row):
         return None
     if rnd == MEMBER_BASE_ROUND:
         return row
-    if not (MEMBER_BASE_ROUND == 1 and rnd == _BASE_R1_CARRIER):
+    if (MEMBER_BASE_ROUND, rnd) not in _BASE_CARRIERS:
         return None
     mem = ex.get("draw_member")
     if not isinstance(mem, dict) or set(mem) != {"round", "draw_base"}:
@@ -1658,6 +1666,19 @@ def _scan_universe() -> frozenset:
     return _SCAN_UNIVERSE[0]
 
 
+def _base_as_member_round(row):
+    """A bc:base row of a later drawing round that carries the member round's drawing (`_BASE_CARRIERS`) as the
+    member round's own row, or None where the member round draws nothing on those bars: the member's chart
+    holds the member round's line, never the admin round's. Any other row is returned as it is."""
+    ex = ((row or {}).get("geometry") or {}).get("extras")
+    if (row or {}).get("pattern_id") != BASE_DRAW_ID or not isinstance(ex, dict):
+        return row
+    rnd = ex.get("draw_round")
+    if type(rnd) is not int or (MEMBER_BASE_ROUND, rnd) not in _BASE_CARRIERS:
+        return row
+    return _base_member_row(row)
+
+
 def shelf_member_facts(sym: str, bars: list):
     """(served, lines) for daily `bars` (completed sessions, oldest first, the last one the as-of bar): the
     drawings the member path serves on that chart -- [(pattern_id, [drawn prices], (start_t, end_t) or None)] --
@@ -1716,7 +1737,7 @@ def shelf_member_facts(sym: str, bars: list):
         for p in (ex.get("pivot"), ex.get("top")):
             if _finite(p):
                 lines.append((det["pattern_id"], float(p), True))
-    st = _structure_rows(sym, bd)
+    st = [r for r in map(_base_as_member_round, _structure_rows(sym, bd)) if r is not None]
     served_st = member_rows(st)
     after_cup = member_cup_precedence(served_st)
     after_base = member_base_precedence(dets_ok, after_cup)

@@ -1,10 +1,12 @@
 """Write the bc:base MEMBER golden from code whose drawing round IS the member round.
 
     python tools/base_draw_member_golden.py --code-root <a checkout of the pre-round-2 commit> --sha <that commit>
+    python tools/base_draw_member_golden.py --code-root <a checkout whose drawing round is N> --sha <it>
 
 Imports api.services.auto_structures from --code-root (put first on sys.path) and the seeded synthetic
 member sweep from THIS checkout's tests/base_draw_member_sweep.py, and writes
-tests/fixtures/base_draw_member_golden.json: one digest per session / scan of exactly what that code serves a
+tests/fixtures/base_draw_member_golden.json (member round 1; base_draw_member_golden_r<N>.json for a later
+member round N): one digest per session / scan of exactly what that code serves a
 member from the base drawing (member_rows, then with_metrics member=True, metrics flag on).
 tests/test_base_draw_member_parity.py recomputes them with the code under test and requires every digest to
 match. Never point --code-root at the code under test.
@@ -44,13 +46,15 @@ def main() -> int:
     if not os.path.normcase(os.path.abspath(auto_structures.__file__)).startswith(os.path.normcase(root)):
         print("refusing: auto_structures imported from", auto_structures.__file__)
         return 2
-    if base_draw.BASE_DRAW_ROUND != auto_structures.MEMBER_BASE_ROUND or hasattr(auto_structures, "_base_member_row"):
+    member_round = auto_structures.MEMBER_BASE_ROUND
+    if base_draw.BASE_DRAW_ROUND != member_round or (member_round == 1 and hasattr(auto_structures, "_base_member_row")):
         print("refusing: --code-root is already ahead of the member round")
         return 2
     digests, counts = sweep.run(auto_structures)
     out = {"code_sha": args.sha, "member_round": auto_structures.MEMBER_BASE_ROUND, "series": sweep.SW.SERIES,
            "first": sweep.FIRST, "step": sweep.STEP, "counts": counts, "digests": digests}
-    path = os.path.join(REPO, "tests", "fixtures", "base_draw_member_golden.json")
+    name = "base_draw_member_golden.json" if member_round == 1 else f"base_draw_member_golden_r{member_round}.json"
+    path = os.path.join(REPO, "tests", "fixtures", name)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         json.dump(out, f, indent=1, sort_keys=True)
