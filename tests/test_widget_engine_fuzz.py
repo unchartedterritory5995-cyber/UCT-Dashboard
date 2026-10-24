@@ -18,6 +18,8 @@ from api.services.journal_two.widget_engine import compile as wcompile
 from tests.test_widget_sources import UID, add_trade, conn, raw_plan  # noqa: F401  (fixture)
 
 TODAY = date(2026, 10, 24)
+#: Wave 9: a field that names a routine or tracker needs one (`ref`); any member's id will do here.
+REF = "0b0e8a3c-1d2e-4f50-8a6b-7c8d9e0f1a2b"
 
 CORPUS = [
     "it's",
@@ -43,6 +45,8 @@ CORPUS = [
 def _cases():
     for src in sources.SOURCES.values():
         for fld in src.fields.values():
+            if not getattr(fld, "filterable", True):
+                continue                                  # a split-only field takes no filter
             for op in fld.ops:
                 if op in ("in", "not_in", "has_any", "contains"):
                     yield src.key, fld.key, op
@@ -53,9 +57,12 @@ CASES = list(_cases())
 
 def _plan(source, field, op, value, view=None):
     measures = {"closed_trades": ("net_pnl",), "open_positions": ("open_positions",),
-                "trading_days": ("avg_day_pnl",)}[source]
-    raw = raw_plan(source=source, measures=measures,
-                   filters=[{"field": field, "op": op, "values": [value]}],
+                "trading_days": ("avg_day_pnl",), "routine_history": ("routine_consistency",),
+                "tracker_history": ("tracker_avg",)}[source]
+    f = {"field": field, "op": op, "values": [value]}
+    if getattr(sources.SOURCES[source].fields[field], "ref_kind", None):
+        f["ref"] = REF
+    raw = raw_plan(source=source, measures=measures, filters=[f],
                    range={"from": "2026-09-01", "to": "2026-10-23"})
     if view:
         raw["view"] = {"type": view}
@@ -74,6 +81,13 @@ def test_the_corpus_covers_every_source_and_kind_of_field():
 def test_member_text_is_never_sql_text(source, field, op):
     src = sources.SOURCES[source]
     fld = src.fields[field]
+    if source in plan.TOOL_SOURCES:
+        # Wave 9: routine and tracker history compile no SQL from a plan; every filter on them runs
+        # in Python over the member's own rows, so no member text can reach SQL at all.
+        assert not wcompile.sql_filterable(fld)
+        for value in CORPUS:
+            _plan(source, field, op, value)
+        return
     for value in CORPUS:
         for view in (None, "list"):
             if view == "list" and source == "trading_days":

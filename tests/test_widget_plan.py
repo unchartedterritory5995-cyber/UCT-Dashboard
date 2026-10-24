@@ -244,7 +244,7 @@ def test_missing_version_refused():
 
 def test_too_new_refused_with_reload_sentence():
     raw = full_plan()
-    raw["v"] = 2
+    raw["v"] = P.PLAN_VERSION + 1          # wave 9: PLAN_VERSION is 2 (ruling W9-R3)
     for fn in (lambda: P.upgrade_plan(raw), lambda: P.validate_plan(raw, CAT)):
         with pytest.raises(P.PlanTooNew) as ei:
             fn()
@@ -257,7 +257,8 @@ def test_too_new_refused_with_reload_sentence():
 def test_upgrade_is_identity_for_v1():
     p = full_plan()
     assert P.upgrade_plan(p) == p
-    assert P.PLAN_VERSION == 1
+    assert P.PLAN_VERSION == 2             # wave 9 (W9-R3); a wave 8 plan is still v1
+    assert P.validate_plan(p, CAT)["v"] == 1
 
 
 def test_v1_round_trips_unchanged():
@@ -532,3 +533,120 @@ def test_plan_size_cap():
     for _ in range(15):
         d16 = [d16]
     assert P.plan_size_ok(minimal(filters=d16))  # the boundary itself is fine
+
+
+# -- wave 9 (Task 9.8): routine and tracker history, refs and the plan version -------------------
+
+RID = "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+RID2 = "1d116f15-721e-4676-9a03-6a2a87cc9ae7"
+
+
+def _real():
+    from api.services.journal_two.widget_engine import sources
+    return sources.CATALOG
+
+
+def _days(**over):
+    p = {"v": 1, "source": "trading_days", "measures": [{"key": "avg_day_pnl"}],
+         "range": {"from": "2026-10-19", "to": "2026-10-23"}}
+    p.update(over)
+    return p
+
+
+def test_needed_version_v1_for_wave8_plans_v2_for_tools():
+    cat = _real()
+    for raw in (full_plan(), minimal(), _days(split={"by": "weekday"})):
+        assert P.needed_version(raw) == 1 and not P.uses_tools(raw)
+    wave8 = minimal(range={"token": "last_30d"})
+    before = json.dumps(wave8, sort_keys=True)
+    valid = P.validate_plan(copy.deepcopy(wave8), cat)
+    assert valid["v"] == 1 and json.dumps(wave8, sort_keys=True) == before
+    # even a sender writing v2 on a plain plan gets the v1 it needs (byte-identical to wave 8)
+    assert P.validate_plan(dict(copy.deepcopy(wave8), v=2), cat) == valid
+    for raw in (minimal(source="routine_history", measures=[{"key": "routine_days_done"}]),
+                minimal(source="tracker_history", measures=[{"key": "tracker_avg"}]),
+                _days(split={"by": "routine_done", "ref": RID}),
+                _days(filters=[{"field": "tracker_value", "op": "gte", "values": [1],
+                                "ref": "checkin:mood"}])):
+        assert P.needed_version(raw) == 2 and P.uses_tools(raw)
+        assert P.validate_plan(raw, cat)["v"] == 2
+    for odd in (None, [], "x", {"split": "x", "filters": "y"}):
+        assert P.needed_version(odd) == 1 and not P.uses_tools(odd)
+
+
+def test_ref_only_on_ref_fields_and_required_there():
+    cat = _real()
+    with pytest.raises(P.PlanError) as e:                       # required on a ref field
+        P.validate_plan(_days(split={"by": "routine_done"}), cat)
+    assert e.value.sentence == P.S_BAD_REF
+    with pytest.raises(P.PlanError) as e:
+        P.validate_plan(_days(filters=[{"field": "tracker_value", "op": "gte", "values": [1]}]),
+                        cat)
+    assert e.value.sentence == P.S_BAD_REF
+    with pytest.raises(P.PlanError):                            # refused anywhere else
+        P.validate_plan(_days(split={"by": "weekday", "ref": RID}), cat)
+    with pytest.raises(P.PlanError):
+        P.validate_plan(_days(filters=[{"field": "trade_count", "op": "gte", "values": [1],
+                                        "ref": RID}]), cat)
+    for bad in ("not-a-uuid", "checkin:mood", 7, "", RID.upper(), RID + "x"):
+        with pytest.raises(P.PlanError) as e:                   # a routine ref is a uuid4
+            P.validate_plan(_days(split={"by": "routine_done", "ref": bad}), cat)
+        assert e.value.sentence == P.S_BAD_REF, bad
+    for ok in (RID, "checkin:mood", "checkin:focus"):          # a tracker ref may be a built-in
+        p = P.validate_plan(_days(split={"by": "tracker_bucket", "ref": ok}), cat)
+        assert p["split"] == {"by": "tracker_bucket", "then": None, "ref": ok}
+    p = P.validate_plan(_days(split={"by": "weekday", "then": "routine_done", "ref2": RID},
+                              view={"type": "table"}), cat)
+    assert p["split"]["ref2"] == RID and "ref" not in p["split"]
+
+
+def test_one_ref_per_kind():
+    cat = _real()
+    with pytest.raises(P.PlanError) as e:
+        P.validate_plan(_days(split={"by": "routine_done", "ref": RID},
+                              filters=[{"field": "routine_done", "op": "in", "values": ["Done"],
+                                        "ref": RID2}]), cat)
+    assert e.value.sentence == P.S_ONE_REF == "A widget can look at one routine and one tracker."
+    # the same routine twice, and one routine with one tracker, are fine
+    p = P.validate_plan(_days(split={"by": "routine_done", "ref": RID},
+                              filters=[{"field": "routine_done", "op": "in", "values": ["Done"],
+                                        "ref": RID},
+                                       {"field": "tracker_value", "op": "gte", "values": [6],
+                                        "ref": RID2}]), cat)
+    assert P.plan_refs(p, cat.sources["trading_days"].fields) == {"routine": RID, "tracker": RID2}
+
+
+def test_tool_source_refuses_one_account_and_last_n_trades():
+    cat = _real()
+    for src, m in (("routine_history", "routine_consistency"), ("tracker_history", "tracker_avg")):
+        with pytest.raises(P.PlanError) as e:
+            P.validate_plan(minimal(source=src, measures=[{"key": m}], accounts={"id": "a-1"}), cat)
+        assert e.value.sentence == P.S_TOOL_ACCOUNTS == "Routines and trackers cover all your accounts."
+        for tok in ("last_20_trades", "last_50_trades", "last_100_trades"):
+            with pytest.raises(P.PlanError) as e:
+                P.validate_plan(minimal(source=src, measures=[{"key": m}], range={"token": tok}),
+                                cat)
+            assert e.value.sentence == P.S_UNKNOWN_RANGE
+        assert P.validate_plan(minimal(source=src, measures=[{"key": m}],
+                                       range={"token": "last_30d"}), cat)["accounts"] == "all"
+        with pytest.raises(P.PlanError) as e:                   # a closed-trades measure
+            P.validate_plan(minimal(source=src), cat)
+        assert e.value.sentence == P.S_MEASURE_WRONG_DATA
+
+
+def test_v2_plan_too_new_for_a_v1_server(monkeypatch):
+    cat = _real()
+    v2 = P.validate_plan(minimal(source="routine_history",
+                                 measures=[{"key": "routine_days_done"}]), cat)
+    assert v2["v"] == 2
+    monkeypatch.setattr(P, "PLAN_VERSION", 1)                    # a server still on wave 8
+    with pytest.raises(P.PlanTooNew) as e:
+        P.validate_plan(copy.deepcopy(v2), cat)
+    assert e.value.sentence == P.S_TOO_NEW
+    assert P.validate_plan(minimal(range={"token": "last_30d"}), cat)["v"] == 1   # v1 still runs
+
+
+def test_wave9_member_copy_avoids_internal_words():
+    for text in (P.S_ONE_REF, P.S_TOOL_ACCOUNTS, P.S_BAD_REF, P.S_NOT_A_FILTER):
+        for w in ("plan", "source", "scope", "definition", "ref"):
+            assert w not in text.lower().split(), (text, w)

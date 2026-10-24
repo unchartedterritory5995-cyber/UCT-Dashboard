@@ -53,6 +53,9 @@ S_EMPTY: dict[str, str] = {
     "closed_trades": "No closed trades in this range. Widen the range, or log a trade.",
     "open_positions": "No open positions.",
     "trading_days": "No sessions in this range.",
+    # wave 9 (Task 9.8)
+    "routine_history": "Start ticking your routine; history shows here from day one.",
+    "tracker_history": "Log your first value; the chart starts with it.",
 }
 S_ALL_ACCOUNTS = "All my accounts"
 S_ONE_ACCOUNT = "One account"
@@ -88,6 +91,11 @@ MEASURE_FMT: dict[str, str] = {
     "current_streak": "signed_count",
     # days
     "avg_hold_days": "days", "avg_days_open": "days",
+    # wave 9: routines (a rate is a fraction) and trackers (the tracker's own number)
+    "routine_consistency": "pct", "routine_completion_pct": "pct",
+    "routine_days_done": "count", "routine_best_run": "count",
+    "tracker_avg": "number", "tracker_min": "number", "tracker_max": "number",
+    "tracker_latest": "number", "tracker_entries": "count",
 }
 
 #: A scan row's result -> the scatter point's `r`.
@@ -95,8 +103,10 @@ _RESULT_CODE = {"Win": "win", "Loss": "loss", "BE": "be"}
 
 #: The rows each source's scan cap holds (the cap the `capped` flag refers to).
 _CAP_ROWS = {"closed_trades": wcompile.SCAN_ROWS, "open_positions": wcompile.SCAN_ROWS,
-             "trading_days": wsources.MAX_SESSIONS}
-_CAP_UNIT = {"closed_trades": "trades", "open_positions": "positions", "trading_days": "sessions"}
+             "trading_days": wsources.MAX_SESSIONS, "routine_history": wcompile.SCAN_ROWS,
+             "tracker_history": wcompile.SCAN_ROWS}
+_CAP_UNIT = {"closed_trades": "trades", "open_positions": "positions", "trading_days": "sessions",
+             "routine_history": "days", "tracker_history": "entries"}
 
 
 # -- small helpers ---------------------------------------------------------------------------------

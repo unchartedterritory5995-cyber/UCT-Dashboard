@@ -91,6 +91,14 @@ _PREVIEW_LANES = frozenset({"preview", "example"})
 _SUPERSEDE_LANES = frozenset({"preview"})
 #: Lanes a sample-book run may use (Task 8.10 fix round 1, Minor 2).
 _SAMPLE_LANES = frozenset({"preview", "example"})
+#: Ruling W9-R5: routine and tracker history never read the sample book (a member with no trades
+#: and ten ticked days sees their own ten days). A plan that names a routine or tracker (`ref`) is
+#: read from the member's rows too: the sample book has no routines or trackers.
+NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES
+
+
+def _never_sample(plan: dict) -> bool:
+    return plan.get("source") in NO_SAMPLE_SOURCES or wplan.uses_tools(plan)
 
 
 class EngineBusy(Exception):
@@ -258,6 +266,24 @@ _POSITIONS_STAMP = (
 _STRATEGIES_STAMP = "SELECT MAX(updated_at), COUNT(*) FROM j2_option_strategies WHERE user_id = ?"
 _CHECKINS_STAMP = "SELECT COUNT(*), MAX(created_at) FROM j2_note_checkins WHERE user_id = ?"
 _DAY_NOTES_STAMP = "SELECT COUNT(*) FROM j2_day_notes WHERE user_id = ?"
+# Wave 9 (Task 9.8): routines and trackers. Beyond the brief's COUNT / MAX(updated_at), each also
+# sums what a same-second edit can change (a tick undone, a skip undone, a value rewritten, a
+# schedule replaced on its own day, a routine edited).
+_ROUTINE_TICKS_STAMP = ("SELECT COUNT(*), MAX(updated_at), TOTAL(ticked)"
+                        " FROM j2_routine_ticks WHERE user_id = ?")
+_ROUTINE_DAYS_STAMP = ("SELECT COUNT(*), MAX(updated_at), TOTAL(skipped)"
+                       " FROM j2_routine_days WHERE user_id = ?")
+_ROUTINES_STAMP = ("SELECT COUNT(*), MAX(updated_at), TOTAL(save_seq), COUNT(archived_at),"
+                   " COUNT(deleted_at) FROM j2_routines WHERE user_id = ?")
+_ROUTINE_SCHEDULES_STAMP = ("SELECT COUNT(*), MAX(effective_from), TOTAL(LENGTH(schedule_json))"
+                            " FROM j2_routine_schedules WHERE user_id = ?")
+_TRACKER_VALUES_STAMP = ("SELECT COUNT(*), MAX(updated_at), TOTAL(value)"
+                         " FROM j2_tracker_values WHERE user_id = ?")
+_TRACKERS_STAMP = ("SELECT COUNT(*), MAX(updated_at), TOTAL(save_seq), COUNT(deleted_at)"
+                   " FROM j2_trackers WHERE user_id = ?")
+_ROUTINE_STAMPS = (_ROUTINE_TICKS_STAMP, _ROUTINE_DAYS_STAMP, _ROUTINES_STAMP,
+                   _ROUTINE_SCHEDULES_STAMP)
+_TRACKER_STAMPS = (_TRACKER_VALUES_STAMP, _TRACKERS_STAMP, _CHECKINS_STAMP)
 
 
 def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str) -> str:
@@ -277,14 +303,27 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str) -> str:
     of equal length), two edits that cancel (one trade's P&L up by what another's goes down, or two
     trades' dates swapped), and any column the stamp does not read at all (shares, prices, notes,
     hour). Such an edit shows after the 300 s TTL at worst.
+
+    Wave 9: routine history reads the routines, their schedules, ticks and skipped days (and the
+    trades, positions and option strategies a "days you traded" schedule follows); tracker history
+    the trackers, their values and the check-ins; trading days append both, for the fields that
+    name a routine or a tracker.
     """
-    trades = "|".join(_one(conn, q, user_id) for q in
-                      (_TRADES_STAMP, _EXCURSIONS_STAMP, _ADHERENCE_STAMP, _ACCOUNTS_STAMP))
+    def many(qs) -> str:
+        return "|".join(_one(conn, q, user_id) for q in qs)
+
+    routines = "r|" + many(_ROUTINE_STAMPS)
+    trackers = "k|" + many(_TRACKER_STAMPS)
+    if source_key == "routine_history":
+        return routines + "|" + many((_TRADES_STAMP, _POSITIONS_STAMP, _STRATEGIES_STAMP))
+    if source_key == "tracker_history":
+        return trackers
+    trades = many((_TRADES_STAMP, _EXCURSIONS_STAMP, _ADHERENCE_STAMP, _ACCOUNTS_STAMP))
     if source_key == "open_positions":
         return "p|" + _one(conn, _POSITIONS_STAMP, user_id) + "|" + _one(conn, _ACCOUNTS_STAMP, user_id)
     if source_key == "trading_days":
-        return trades + "|d|" + "|".join(_one(conn, q, user_id) for q in
-                                         (_STRATEGIES_STAMP, _CHECKINS_STAMP, _DAY_NOTES_STAMP))
+        return (trades + "|d|" + many((_STRATEGIES_STAMP, _CHECKINS_STAMP, _DAY_NOTES_STAMP))
+                + "|" + routines + "|" + trackers)
     return trades
 
 
@@ -605,7 +644,10 @@ def _sample_days(book: dict) -> list[dict]:
 def sample_rows(source_key: str) -> list[dict]:
     """The sample book's rows for one source, newest first, shaped exactly like that source's scan
     rows (`sources.scan_closed` / `scan_positions` / `scan_days`, including the `origin` key).
-    A fresh list every call: a caller may change it freely."""
+    A fresh list every call: a caller may change it freely. Routine and tracker history have no
+    sample rows (ruling W9-R5): asking for them is a `ValueError`."""
+    if source_key in NO_SAMPLE_SOURCES:
+        raise ValueError(f"{source_key!r} is never read from the sample book")
     book = _book()["data"]
     if source_key == "closed_trades":
         return _sample_closed(book)
@@ -639,6 +681,12 @@ def _narrow(source_key: str, base: wsources.Scan, plan: dict, rng: wplan.Resolve
     rows = list(base.rows)
     if source_key == "open_positions":                      # what is open now: no range applies
         return wsources.Scan(source_key, rows, base.capped, None, len(rows), None)
+    if source_key in NO_SAMPLE_SOURCES:                     # one row per day (or per entry)
+        rows = [r for r in rows if _in_range(r.get("day"), rng)]
+        capped = base.capped and (rng.from_day is None or base.earliest_day is None
+                                  or rng.from_day <= base.earliest_day)
+        return wsources.Scan(source_key, rows, capped, rows[-1]["day"] if rows else None,
+                             len(rows), None, list(base.footnotes))
     view = (plan.get("view") or {}).get("type")
     if source_key == "closed_trades":
         if view != "list":                                  # the scan's analytics-included rule
@@ -762,6 +810,8 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
     today = nw._today_et(now)
 
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
+    if sample and _never_sample(base):
+        sample = False                                # W9-R5: the member's own routines and trackers
     viewer = clean_settings(settings)
     if not any(f.get("overridable") for f in base["filters"]):
         viewer.pop("filter", None)                    # M5: nothing to override, nothing to echo or key
@@ -930,13 +980,18 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
             with deadline(conn):
                 return {"sample": wants_sample(conn, user_id), "cards": {}}
 
+    # W9-R5: a card that reads routines or trackers is always the member's own rows, scanned for
+    # that card alone (the sample book has none, and an item split changes the rows).
+    own = {sid for sid, p in items if _never_sample(p)}
+    real_today = nw._today_et(now)
     with _connection() as conn:
         with deadline(conn):
             sample = wants_sample(conn, user_id)
-            stamps = {} if sample else {s: data_stamp(conn, user_id, s) for s in srcs}
-        today = sample_today() if sample else nw._today_et(now)
+            stamps = {s: data_stamp(conn, user_id, s) for s in srcs
+                      if not sample or any(p["source"] == s and sid in own for sid, p in items)}
+        today = sample_today() if sample else real_today
         blob = json.dumps([user_id, "examples", wanted, sample, stamps, today.isoformat(),
-                           _book()["digest"] if sample else None],
+                           real_today.isoformat(), _book()["digest"] if sample else None],
                           sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         key = "widget_examples::" + hashlib.sha1(blob.encode("utf-8")).hexdigest()
         hit = _CACHE.get(key)
@@ -945,7 +1000,9 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
 
         def _compute() -> dict:
             per_src: dict[str, list[wplan.ResolvedRange]] = {}
-            for _sid, p in items:
+            for sid, p in items:
+                if sid in own:
+                    continue
                 rng = wplan.resolve_range(p["range"], today)
                 per_src.setdefault(p["source"], []).append(rng)
                 crng = _compare_range(p, rng, today)
@@ -953,15 +1010,26 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
                     per_src[p["source"]].append(crng)
             with admit(user_id, "example"):
                 covers: dict[str, wsources.Scan] = {}
+                mine: dict[str, wsources.Scan] = {}
                 if sample:
-                    covers = {s: _sample_scan(s) for s in srcs}
-                else:
-                    with deadline(conn):
-                        for s in srcs:
+                    covers = {s: _sample_scan(s) for s in per_src}
+                with deadline(conn):
+                    if not sample:
+                        for s in per_src:
                             covers[s] = wsources.scan(conn, _cover_plan(s), {"accountId": None},
                                                       _cover_range(per_src[s], today), user_id,
                                                       today=today)
-                cards = {sid: _card(p, covers[p["source"]], today, now, sample=sample)
+                    for sid, p in items:
+                        if sid not in own:
+                            continue
+                        rng = wplan.resolve_range(p["range"], real_today)
+                        crng = _compare_range(p, rng, real_today)
+                        mine[sid] = wsources.scan(
+                            conn, p, {"accountId": None},
+                            _cover_range([rng] + ([crng] if crng is not None else []), real_today),
+                            user_id, today=real_today)
+                cards = {sid: (_card(p, mine[sid], real_today, now, sample=False) if sid in own
+                               else _card(p, covers[p["source"]], today, now, sample=sample))
                          for sid, p in items}
             out = {"sample": sample, "cards": cards}
             _CACHE.set(key, out, CACHE_TTL_S)

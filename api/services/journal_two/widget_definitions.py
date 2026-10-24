@@ -68,6 +68,7 @@ from api.services.journal_two.widget_engine.plan import (
     PlanError,
     PlanTooNew,
     default_name,
+    needed_version,
     summary as plan_summary,
     upgrade_plan,
     validate_plan,
@@ -345,7 +346,7 @@ def _insert_new(c: sqlite3.Connection, user_id: str, name: str, plan: dict, summ
         f"INSERT INTO {_DEFS} (id, user_id, name, plan_json, plan_version, rev, placed_rev,"
         " last_answer, created_at, updated_at, archived_at, deleted_at, source_gallery_id,"
         " source_version, save_seq) VALUES (?, ?, ?, ?, ?, 1, 1, NULL, ?, ?, NULL, NULL, ?, ?, 1)",
-        (def_id, user_id, name, _dump(plan), int(plan.get("v", PLAN_VERSION)), ts, ts,
+        (def_id, user_id, name, _dump(plan), needed_version(plan), ts, ts,
          source_gallery_id, source_version),
     )
     c.execute(
@@ -421,7 +422,7 @@ def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
             raise Conflict()
 
         if valid is not None:
-            plan_json, plan_version = _dump(valid), int(valid.get("v", PLAN_VERSION))
+            plan_json, plan_version = _dump(valid), needed_version(valid)
             summary_text = _summary_for(valid, cat)
         else:
             plan_json, plan_version = row["plan_json"], row["plan_version"]
@@ -604,7 +605,7 @@ def restore_rev(user_id: str, def_id: str, rev: int, *, if_match: int, catalog: 
         c.execute(
             f"UPDATE {_DEFS} SET plan_json = ?, plan_version = ?, rev = ?, updated_at = ?,"
             " save_seq = save_seq + 1 WHERE id = ? AND user_id = ?",
-            (plan_json, int(plan.get("v", PLAN_VERSION)), new_rev, ts, def_id, user_id),
+            (plan_json, needed_version(plan), new_rev, ts, def_id, user_id),
         )
         _prune(c, user_id, def_id, (new_rev, row["placed_rev"]))
         return _get_in(c, user_id, def_id)

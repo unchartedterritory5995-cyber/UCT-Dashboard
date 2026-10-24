@@ -448,3 +448,93 @@ def test_depth_cap_is_at_the_limit_not_below(conn):
     bad = c.post(BASE + "/examples", content=('{"ids": [], "pad": ' + nest(wdr.MAX_BODY_DEPTH) + '}').encode(),
                  headers={"content-type": "application/json"})
     assert bad.status_code == 400 and _code(bad) == "invalid"
+
+
+# -- wave 9 (Task 9.8): routine and tracker history behind NOTEBOOK_WIDGETS_W9_ENABLED ---------
+
+def _tool_plans():
+    rid = "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+    return [
+        raw_plan(source="routine_history", measures=("routine_days_done",),
+                 range={"token": "last_30d"}),
+        raw_plan(source="tracker_history", measures=("tracker_entries",),
+                 range={"token": "last_30d"}),
+        raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                 split={"by": "routine_done", "ref": rid}, range={"token": "last_30d"}),
+    ]
+
+
+def test_tool_plans_404_and_hidden_from_catalog_when_w9_off(conn, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+    c = _client()
+    static = c.get(BASE + "/vocabulary").json()
+    assert {s["key"] for s in static["sources"]} == {"closed_trades", "open_positions", "trading_days"}
+    days = next(s for s in static["sources"] if s["key"] == "trading_days")
+    assert all(f["refKind"] is None for s in static["sources"] for f in s["fields"])
+    assert not {"routine_done", "tracker_value", "tracker_bucket"} & {f["key"] for f in days["fields"]}
+    assert not any(k.startswith(("routine_", "tracker_")) for k in (m["key"] for m in static["measures"]))
+    for field in ("routine", "tracker"):
+        r = c.get(BASE + "/vocabulary", params={"field": field})
+        assert r.status_code == 400 and _code(r) == "invalid"
+    saved = wdefs.create(UID, "Mine", raw_plan())                       # a plain widget, for PUT
+    for p in _tool_plans():
+        for path, body in (("/run", {"def": p}), ("/preview", {"plan": p}),
+                           ("/drill", {"def": p, "cell": {}}), ("", {"plan": p})):
+            r = c.post(BASE + path, json=body)
+            assert r.status_code == 404, (path, p["source"], r.status_code)
+            assert r.json()["detail"] == public.not_found().detail
+        r = c.put(f"{BASE}/{saved['id']}", json={"plan": p, "apply": "only"},
+                  headers={"If-Match": str(saved["etag"])})
+        assert r.status_code == 404
+    assert not any(wplan.uses_tools(e["plan"]) for e in c.get(BASE + "/shelf").json()["examples"])
+    # control: the same routes with a plain plan are not the 404
+    assert c.post(BASE + "/run", json={"def": raw_plan()}).status_code == 200
+    # on: the same tool plans run (empty, never sample)
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    for p in _tool_plans():
+        r = c.post(BASE + "/run", json={"def": p})
+        assert r.status_code == 200 and r.json()["sample"] is False, p["source"]
+        assert r.json()["def"]["v"] == 2
+    created = c.post(BASE, json={"plan": _tool_plans()[0]})
+    assert created.status_code == 200
+    row = conn.execute("SELECT plan_version FROM j2_widget_definitions WHERE id = ?",
+                       (created.json()["id"],)).fetchone()
+    assert row[0] == 2
+    plain = conn.execute("SELECT plan_version FROM j2_widget_definitions WHERE id = ?",
+                         (saved["id"],)).fetchone()
+    assert plain[0] == 1                                                # a wave 8 widget stays v1
+    # off again: the stored tool widget is still listed and readable, it just does not run
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "0")
+    assert c.get(f"{BASE}/{created.json()['id']}").status_code == 200
+    assert c.post(BASE + "/run", json={"defId": created.json()["id"]}).status_code == 404
+
+
+def test_vocabulary_routine_and_tracker_fields_when_w9_on(conn, monkeypatch):
+    from datetime import datetime, timezone
+    from api.services.journal_two import routines, trackers
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    add_user(conn, OTHER)
+    now = datetime(2026, 10, 20, 17, tzinfo=timezone.utc)
+    mine = routines.create(UID, name="Morning", items=["Plan"], schedule={"kind": "every"}, now=now)
+    routines.create(OTHER, name="Theirs", items=["x"], schedule={"kind": "every"}, now=now)
+    t = trackers.create(UID, name="Sleep", kind="duration", now=now)
+    trackers.create(OTHER, name="Their tracker", kind="number", now=now)
+    c = _client()
+    static = c.get(BASE + "/vocabulary").json()
+    keys = [s["key"] for s in static["sources"]]
+    assert keys == ["closed_trades", "open_positions", "trading_days", "routine_history",
+                    "tracker_history"]
+    days = next(s for s in static["sources"] if s["key"] == "trading_days")
+    kinds = {f["key"]: f["refKind"] for f in days["fields"]}
+    assert kinds["routine_done"] == "routine" and kinds["tracker_value"] == "tracker"
+    assert kinds["tracker_bucket"] == "tracker" and kinds["day_net"] is None
+    rh = next(s for s in static["sources"] if s["key"] == "routine_history")
+    assert {f["key"]: f["filter"] for f in rh["fields"]}["item"] is False
+    assert set(rh["measures"]) == {"routine_consistency", "routine_completion_pct",
+                                   "routine_days_done", "routine_best_run"}
+    assert c.get(BASE + "/vocabulary", params={"field": "routine"}).json()["values"] == [
+        {"id": mine["id"], "name": "Morning"}]
+    vals = c.get(BASE + "/vocabulary", params={"field": "tracker"}).json()["values"]
+    assert vals == [{"id": "checkin:mood", "name": "Check-in mood"},
+                    {"id": "checkin:focus", "name": "Check-in focus"},
+                    {"id": t["id"], "name": "Sleep"}]

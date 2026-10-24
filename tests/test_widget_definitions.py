@@ -417,10 +417,11 @@ def test_too_new_plan_get_flags_and_refuses_update(W):
     # stored as the member saved it, never rewritten
     assert json.loads(_rows("SELECT plan_json FROM j2_widget_definitions WHERE id = ?",
                             (d["id"],))[0][0]) == newer
-    # an incoming plan from a newer app is refused too
+    # an incoming plan from a newer app is refused too (wave 9: PLAN_VERSION is 2, so newer is 3)
+    from api.services.journal_two.widget_engine.plan import PLAN_VERSION
     with pytest.raises(W.PlanTooNew):
-        W.create(A, "n", {"v": 2, "source": "closed_trades", "measures": [{"key": "net_pnl"}]},
-                 catalog=CAT, now=T0)
+        W.create(A, "n", {"v": PLAN_VERSION + 1, "source": "closed_trades",
+                          "measures": [{"key": "net_pnl"}]}, catalog=CAT, now=T0)
 
 
 def test_resolve_for_run_prefers_placed_rev(W):

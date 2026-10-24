@@ -31,7 +31,7 @@ S_SPLIT_MISSING = "{n} {rows} {have} {missing} and {are} not in this split."
 S_FILTER_MISSING = "{n} {rows} {have} {missing} and {are} left out."
 
 _NONE_KEY = "\x00none"
-_SINGULAR = {"trades": "trade", "positions": "position", "days": "day"}
+_SINGULAR = {"trades": "trade", "positions": "position", "days": "day", "entries": "entry"}
 
 
 @dataclass(frozen=True)

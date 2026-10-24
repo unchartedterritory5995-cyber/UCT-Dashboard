@@ -24,7 +24,10 @@ from typing import Any, Mapping, Protocol
 
 from api.services.journal_two.json_depth import _json_depth_exceeds
 
-PLAN_VERSION = 1
+#: Ruling W9-R3: a plan is stored with `v = needed_version(plan)`, so every wave 8 plan stays v1
+#: byte-for-byte and only a plan that reads a routine or a tracker is v2 (refused as too new by a
+#: server still on wave 8).
+PLAN_VERSION = 2
 
 RANGE_TOKENS = (
     "today", "this_week", "last_week", "last_7d", "last_30d", "last_90d",
@@ -32,7 +35,13 @@ RANGE_TOKENS = (
     "all", "last_20_trades", "last_50_trades", "last_100_trades",
 )
 VIEWS = ("number", "compare", "table", "bar", "line", "scatter", "heat", "list", "progress")
-SOURCES = ("closed_trades", "open_positions", "trading_days")
+SOURCES = ("closed_trades", "open_positions", "trading_days", "routine_history", "tracker_history")
+#: Wave 9: the routine and tracker history sources (dark behind `notebook_widgets_wave_on(9)`).
+TOOL_SOURCES = frozenset({"routine_history", "tracker_history"})
+#: A field's `ref_kind`: the member's own routine or tracker a filter or split on it names.
+REF_KINDS = ("routine", "tracker")
+#: The built-in trackers (the member's check-ins), a valid `tracker` ref beside a uuid4.
+BUILTIN_TRACKER_REFS = frozenset({"checkin:mood", "checkin:focus"})
 # Used when a field does not declare its own `ops`.
 DEFAULT_OPS = ("eq", "gt", "gte", "lt", "lte", "between", "in", "not_in", "has_any",
                "contains", "is")
@@ -90,6 +99,11 @@ S_FILTER_NEEDS_VALUE = "Pick at least one value for this filter."
 S_FILTER_ONE_VALUE = "This filter takes exactly one value."
 S_FILTER_VALUE_TYPE = "That value doesn't fit this field."
 S_TARGET = "The target must be a number."
+# Wave 9 (Task 9.8): routine and tracker history, and the trading-days fields that name one.
+S_ONE_REF = "A widget can look at one routine and one tracker."
+S_TOOL_ACCOUNTS = "Routines and trackers cover all your accounts."
+S_BAD_REF = "Pick a routine or tracker for this field."
+S_NOT_A_FILTER = "That field can't be used to filter a widget."
 
 
 class PlanError(ValueError):
@@ -171,6 +185,23 @@ def _check_span(frm: Any, to: Any) -> tuple[date, date]:
     return a, b
 
 
+_UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def _check_ref(kind: str | None, ref: Any) -> str | None:
+    """The `ref` a filter or split carries for a field whose `ref_kind` is `kind`: required there,
+    refused anywhere else. A routine ref is a uuid4 string; a tracker ref is one, or a built-in."""
+    if kind is None:
+        if ref is not None:
+            raise PlanError(S_UNREADABLE)
+        return None
+    if not isinstance(ref, str):
+        raise PlanError(S_BAD_REF)
+    if not (_UUID_RE.fullmatch(ref) or (kind == "tracker" and ref in BUILTIN_TRACKER_REFS)):
+        raise PlanError(S_BAD_REF)
+    return ref
+
+
 def _walk_strings_too_long(x: Any) -> bool:
     stack = [x]
     while stack:
@@ -206,7 +237,8 @@ def _join_and(items: list[str]) -> str:
 # -- upgrade + size -------------------------------------------------------------
 
 def upgrade_plan(raw: dict) -> dict:
-    """Bring a stored plan to PLAN_VERSION in memory. Identity for v1."""
+    """Bring a stored plan to PLAN_VERSION in memory. Identity for v1 and v2: v2 only adds the
+    routine and tracker sources and `ref`, so a v1 plan is already a valid v2 plan."""
     if not isinstance(raw, dict) or "v" not in raw:
         raise PlanError(S_NO_VERSION)
     v = raw["v"]
@@ -226,6 +258,62 @@ def plan_size_ok(raw: Any) -> bool:
     if len(blob.encode("utf-8")) > MAX_PLAN_BYTES:
         return False
     return not _json_depth_exceeds(raw, MAX_PLAN_DEPTH)
+
+
+# -- version and refs (wave 9) ----------------------------------------------------
+
+def _ref_entries(plan: Any) -> list[tuple[Any, Any]]:
+    """(field key, ref) for every `ref` in a plan's filters and split; any shape gets an answer."""
+    out: list[tuple[Any, Any]] = []
+    if not isinstance(plan, dict):
+        return out
+    filters = plan.get("filters")
+    for f in filters if isinstance(filters, list) else []:
+        if isinstance(f, dict) and f.get("ref") is not None:
+            out.append((f.get("field"), f["ref"]))
+    split = plan.get("split")
+    if isinstance(split, dict):
+        if split.get("ref") is not None:
+            out.append((split.get("by"), split["ref"]))
+        if split.get("ref2") is not None:
+            out.append((split.get("then"), split["ref2"]))
+    return out
+
+
+def needed_version(plan: dict) -> int:
+    """2 when the plan reads a routine or tracker source or any filter or split names one (`ref`),
+    else 1 (ruling W9-R3). Total: any value gets an answer."""
+    if not isinstance(plan, dict):
+        return 1
+    if plan.get("source") in TOOL_SOURCES or _ref_entries(plan):
+        return 2
+    return 1
+
+
+def uses_tools(plan: Any) -> bool:
+    """Does the plan read routines or trackers (wave 9)? The router's wave gate asks this."""
+    return needed_version(plan) >= 2
+
+
+def plan_refs(plan: dict, fields: Mapping[str, Any]) -> dict[str, str | None]:
+    """{"routine": ref | None, "tracker": ref | None} of a validated plan (one ref per kind)."""
+    out: dict[str, str | None] = {k: None for k in REF_KINDS}
+    for key, ref in _ref_entries(plan):
+        kind = getattr(fields.get(key), "ref_kind", None) if isinstance(key, str) else None
+        if kind in out and isinstance(ref, str):
+            out[kind] = ref
+    return out
+
+
+def _one_ref_per_kind(plan: dict, fields: Mapping[str, Any]) -> None:
+    seen: dict[str, Any] = {}
+    for key, ref in _ref_entries(plan):
+        kind = getattr(fields.get(key), "ref_kind", None) if isinstance(key, str) else None
+        if kind is None:
+            continue
+        if kind in seen and seen[kind] != ref:
+            raise PlanError(S_ONE_REF)
+        seen[kind] = ref
 
 
 # -- validate -------------------------------------------------------------------
@@ -320,6 +408,11 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         accounts = {"id": acc["id"]}
 
     rng = _norm_range(raw.get("range", {"token": DEFAULT_RANGE_TOKEN}))
+    if source in TOOL_SOURCES:
+        if accounts != "all":
+            raise PlanError(S_TOOL_ACCOUNTS)
+        if rng.get("token") in _LAST_N_TRADES:
+            raise PlanError(S_UNKNOWN_RANGE)
 
     # filters
     raw_filters = raw.get("filters", [])
@@ -328,10 +421,13 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         raise PlanError(S_TOO_MANY_FILTERS)
     filters = []
     for f in raw_filters:
-        _only_keys(f, {"field", "op", "values", "overridable"})
+        _only_keys(f, {"field", "op", "values", "overridable", "ref"})
         name = f.get("field")
         if not isinstance(name, str) or name not in fields:
             raise PlanError(S_UNKNOWN_FIELD)
+        if getattr(fields[name], "filterable", True) is False:
+            raise PlanError(S_NOT_A_FILTER)
+        ref = _check_ref(getattr(fields[name], "ref_kind", None), f.get("ref"))
         ops = getattr(fields[name], "ops", None) or DEFAULT_OPS
         op = f.get("op")
         # A non-string op is refused BEFORE the membership test: `ops` may be a
@@ -346,8 +442,10 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         _check_filter_values(op, getattr(fields[name], "type", None), values)
         over = f.get("overridable", False)
         _need(isinstance(over, bool))
-        filters.append({"field": name, "op": f["op"], "values": list(values),
-                        "overridable": over})
+        clean = {"field": name, "op": f["op"], "values": list(values), "overridable": over}
+        if ref is not None:
+            clean["ref"] = ref
+        filters.append(clean)
     if sum(1 for f in filters if f["overridable"]) > MAX_OVERRIDABLE:
         raise PlanError(S_ONE_OVERRIDABLE)
 
@@ -372,13 +470,21 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
     raw_split = raw.get("split")
     split = None
     if raw_split is not None:
-        _only_keys(raw_split, {"by", "then"})
+        _only_keys(raw_split, {"by", "then", "ref", "ref2"})
         by, then = raw_split.get("by"), raw_split.get("then")
         if not isinstance(by, str) or by not in fields:
             raise PlanError(S_UNKNOWN_FIELD)
         if then is not None and (not isinstance(then, str) or then not in fields):
             raise PlanError(S_UNKNOWN_FIELD)
         split = {"by": by, "then": then}
+        # `ref` names the routine or tracker of `by`, `ref2` the one of `then`.
+        ref = _check_ref(getattr(fields[by], "ref_kind", None), raw_split.get("ref"))
+        ref2 = _check_ref(getattr(fields[then], "ref_kind", None) if then is not None else None,
+                          raw_split.get("ref2"))
+        if ref is not None:
+            split["ref"] = ref
+        if ref2 is not None:
+            split["ref2"] = ref2
 
     # view
     if "view" in raw:
@@ -454,6 +560,10 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         "filters": filters, "measures": measures, "split": split, "view": view,
         "sort": sort, "compare": compare, "display": display,
     }
+    _one_ref_per_kind(plan, fields)
+    # Ruling W9-R3: the version is what the plan needs, never what the sender wrote: a plain plan
+    # is v1 whoever built it, a routine or tracker plan v2.
+    plan["v"] = needed_version(plan)
     # Defaults add bytes: a raw plan just under the cap can grow past it.
     if not plan_size_ok(plan):
         raise PlanError(S_TOO_LARGE)

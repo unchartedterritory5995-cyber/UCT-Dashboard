@@ -309,3 +309,115 @@ def test_another_members_routine_and_tracker_ids_are_the_account_line_and_read_n
     auth_db.get_connection().execute("SELECT 1").fetchone()
     sqlite3.connect(":memory:").close()
     assert "auth_db.get_connection" in seen and "sqlite3.connect" in seen, seen
+
+
+# -- wave 9 (Task 9.8): routine and tracker history, and the trading-days fields that name one ---
+
+def _tools_two(monkeypatch, tmp_path):
+    """A and B each with a routine and a tracker, B's ticked and logged on the same days with
+    distinctive names and values; B also has check-ins."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import routines, trackers
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "iso-tools.db"))
+    auth_db.init_db()
+    c = auth_db.get_connection()
+    add_user(c, A)
+    add_user(c, B)
+
+    def at(d):
+        y, m, dd = (int(x) for x in d.split("-"))
+        return datetime(y, m, dd, 17, tzinfo=timezone.utc)
+
+    out = {}
+    for uid, name, val in ((A, "Mine", 5.0), (B, "B ONLY routine", 7777.0)):
+        r = routines.create(uid, name=name, items=[name + " item"], schedule={"kind": "every"},
+                            now=at(DAYS[0]))
+        t = trackers.create(uid, name=name.replace("routine", "tracker"), kind="number",
+                            now=at(DAYS[0]))
+        for d in DAYS:
+            routines.set_tick(uid, r["id"], d, r["items"][0]["id"], True, now=at(d))
+            trackers.set_value(uid, t["id"], d, val, now=at(d))
+            add_trade(c, uid, day=d, pnl=100.0 if uid == A else 7777.0)
+        out[uid] = (r["id"], t["id"])
+    n_b = add_note(c, B, updated_at="2026-10-19T11:00:00Z")
+    add_checkin(c, B, n_b, day=DAYS[0], mood=5, focus=5)
+    return c, out
+
+
+@pytest.mark.parametrize("source,measures,split", [
+    ("routine_history", ("routine_days_done", "routine_consistency"), "routine"),
+    ("routine_history", ("routine_days_done",), "item"),
+    ("tracker_history", ("tracker_entries", "tracker_max"), "tracker"),
+])
+def test_tool_sources_read_only_the_members_rows(monkeypatch, tmp_path, source, measures, split):
+    c, ids = _tools_two(monkeypatch, tmp_path)
+    try:
+        for mode in ("plain", "split", "list"):
+            kw = dict(source=source, measures=measures, range=RANGE)
+            if mode == "split":
+                kw["split"] = {"by": split}
+            if mode == "list":
+                kw["view"] = {"type": "list"}
+            sc, res = run(c, raw_plan(**kw), uid=A)
+            assert sc.rows, "control: A has rows of its own"
+            for r in sc.rows:
+                assert r.get("routine") in (None, ids[A][0]) and "B ONLY" not in str(r)
+                assert r.get("tracker") in (None, ids[A][1], "checkin:mood", "checkin:focus")
+                assert r.get("value") is None or r["value"] < 7000
+            assert all("B ONLY" not in (g.label or "") + (g.label2 or "") for g in res.groups)
+            if source == "tracker_history":
+                assert not any(r["tracker"].startswith("checkin:") for r in sc.rows)  # B's only
+                assert res.total.cells[0].value == 3.0 and res.total.cells[1].value == 5.0
+            else:
+                assert res.total.cells[0].value == 3.0                 # A's three days, not six
+        # B, through the same code, sees B's own
+        sc_b, _ = run(c, raw_plan(source=source, measures=measures, range=RANGE), uid=B)
+        assert sc_b.rows and all("Mine" not in str(r) for r in sc_b.rows)
+    finally:
+        c.close()
+
+
+def test_ref_fields_never_read_another_members_routine_or_tracker(monkeypatch, tmp_path):
+    c, ids = _tools_two(monkeypatch, tmp_path)
+    try:
+        rid_b, tid_b = ids[B]
+        rid_a, tid_a = ids[A]
+        for kind, by, ref in (("routine", "routine_done", rid_b),
+                              ("tracker", "tracker_bucket", tid_b)):
+            sc, res = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                      split={"by": by, "ref": ref}, range=RANGE), uid=A)
+            assert all(r[by] is None for r in sc.rows), kind
+            assert res.groups == [], kind
+            # control: A's own ref fills the column on the same rows
+            own = rid_a if kind == "routine" else tid_a
+            sc2, res2 = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                        split={"by": by, "ref": own}, range=RANGE), uid=A)
+            filled = {r["day"] for r in sc2.rows if r[by] not in (None, "Not done")}
+            assert filled == set(DAYS), kind                       # A's ticked / logged days
+            assert [g.values.cells[0].value for g in res2.groups
+                    if g.label != "Not done"] == [pytest.approx(100.0)], kind
+        sc, res = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                  filters=[{"field": "tracker_value", "op": "gte", "values": [0],
+                                            "ref": tid_b}], range=RANGE), uid=A)
+        assert res.count == 0 and all(r["tracker_value"] is None for r in sc.rows)
+        # A's mood ref reads A's check-ins only: A has none, B's mood 5 never shows
+        sc, res = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                  split={"by": "tracker_bucket", "ref": "checkin:mood"},
+                                  range=RANGE), uid=A)
+        assert res.groups == []
+    finally:
+        c.close()
+
+
+def test_the_routine_lookup_itself_is_scoped_to_the_member(monkeypatch, tmp_path):
+    """The routine read behind both tool paths answers only the member's own routines. (The child
+    tables are scoped too, so a leak here alone would still show no B day; this rail proves the
+    first layer by itself.)"""
+    from api.services.journal_two.widget_engine import sources
+    c, ids = _tools_two(monkeypatch, tmp_path)
+    try:
+        assert [r["id"] for r in sources._member_routines(c, A)] == [ids[A][0]]
+        assert sources._member_routines(c, A, ids[B][0]) == []
+        assert [r["id"] for r in sources._member_routines(c, B, ids[B][0])] == [ids[B][0]]
+    finally:
+        c.close()

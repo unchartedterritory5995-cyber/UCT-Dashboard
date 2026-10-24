@@ -166,7 +166,20 @@ def _position_row(r: dict) -> dict:
             "hasStop": bool(r.get("had_stop")), "flagged": False}
 
 
-_SHAPE = {"closed_trades": _trade_row, "trading_days": _day_row, "open_positions": _position_row}
+def _routine_row(r: dict) -> dict:
+    """Wave 9: one scheduled day of a routine (`label2` is the item, when split by item)."""
+    return {"day": r.get("day"), "label": r.get("routine_name"), "label2": r.get("item_text"),
+            "state": r.get("state")}
+
+
+def _tracker_row(r: dict) -> dict:
+    """Wave 9: one logged value (`text` as the member reads it: "7h 30m", "Yes")."""
+    return {"day": r.get("day"), "label": r.get("tracker_name"), "value": nw._num(r.get("value")),
+            "text": r.get("text")}
+
+
+_SHAPE = {"closed_trades": _trade_row, "trading_days": _day_row, "open_positions": _position_row,
+          "routine_history": _routine_row, "tracker_history": _tracker_row}
 
 
 def _mon_d(iso: Any) -> str | None:

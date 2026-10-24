@@ -30,6 +30,11 @@ The rules:
     phase 1 widget reads use); `/preview` and `/examples` use `notebook-widget-preview` at 120/minute.
   * Every route is a sync `def` (the engine's reads block; the threadpool is where they belong). The
     body is read by an async dependency, which is the one place that can await it.
+  * WAVE 9 (Task 9.8): routine and tracker history, and the trading-days fields that name a routine
+    or a tracker, exist only while `notebook_widgets_wave_on(9)`, read PER REQUEST. Off, the
+    vocabulary lists none of them, the shelf hides examples that use them, and `/run`, `/preview`,
+    `/examples`, `/drill` and a `POST`/`PUT` of a plan that uses them (`plan.uses_tools`) answer the
+    same `public.not_found()` 404 (the client's `unavailable`). Stored widgets stay as they are.
 """
 from __future__ import annotations
 
@@ -54,6 +59,8 @@ from api.services.journal_two.widget_engine import sources as wsources
 from api.services.journal_two.widget_engine.plan import PlanError, PlanTooNew
 
 WAVE = 8
+#: Routines and trackers as builder sources (Task 9.8).
+TOOLS_WAVE = 9
 MAX_BODY = 32 * 1024
 #: A body nesting deeper than this is refused before anything copies or walks it (fix round 1, I-1).
 MAX_BODY_DEPTH = 32
@@ -78,6 +85,8 @@ S_VOCAB_FIELD = "That field isn't available here."
 
 #: `GET /vocabulary?field=` -- the fields whose member values may be listed, and how many at most.
 VOCAB_FIELDS = ("setup", "mistake", "emotion", "symbol", "account")
+#: Listed only while wave 9 is on: `{id, name}` of the member's routines / trackers.
+VOCAB_TOOL_FIELDS = ("routine", "tracker")
 VOCAB_MAX = 200
 
 NO_STORE = {"Cache-Control": "no-store"}
@@ -234,6 +243,16 @@ def _resolve(user_id: str, body: dict) -> tuple[dict, str | None, int | None, in
     raise _err(400, "invalid", S_NO_WIDGET)
 
 
+def _tools_on() -> bool:
+    return nwidgets.notebook_widgets_wave_on(TOOLS_WAVE)
+
+
+def _gate_tools(plan: Any) -> None:
+    """A plan that reads routines or trackers is the dark 404 while wave 9 is off."""
+    if wplan.uses_tools(plan) and not _tools_on():
+        raise public.not_found()
+
+
 def _with_notices(payload: dict, notices: list[str]) -> dict:
     if notices:
         payload["notice"] = " ".join([*notices, *([payload["notice"]] if payload.get("notice") else [])])
@@ -248,6 +267,7 @@ def run_widget(user: dict = Depends(require_paid), body: dict = Depends(json_bod
     _rate(RUN_RATE, SCOPE_RUN, uid, "rate", S_RATE)
     settings = _settings(body)
     plan, def_id, def_rev, latest, notices = _resolve(uid, body)
+    _gate_tools(plan)
     payload = _engine_errors(lambda: wrun.run_plan(
         uid, plan, settings, lane="run", def_id=def_id, def_rev=def_rev, latest_rev=latest))
     return _ok(_with_notices(payload, notices))
@@ -269,6 +289,7 @@ def preview_widget(user: dict = Depends(require_paid), body: dict = Depends(json
     plan = body.get("plan")
     if not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
+    _gate_tools(plan)
     settings = _settings(body)
 
     def _go() -> dict:
@@ -286,6 +307,11 @@ def run_examples(user: dict = Depends(require_paid), body: dict = Depends(json_b
     uid = _uid(user)
     _rate(PREVIEW_RATE, SCOPE_PREVIEW, uid, "rate_preview", S_RATE_PREVIEW)   # one hit per batch
     ids = body.get("ids")
+    if not _tools_on() and isinstance(ids, list):
+        for i in ids:
+            ex = wshelf.example(i) if isinstance(i, str) else None
+            if ex is not None:
+                _gate_tools(ex["plan"])
     return _ok(_engine_errors(lambda: wrun.run_examples(uid, ids)))
 
 
@@ -295,6 +321,7 @@ def drill_widget(user: dict = Depends(require_paid), body: dict = Depends(json_b
     _rate(RUN_RATE, SCOPE_RUN, uid, "rate", S_RATE)
     settings = _settings(body)
     plan, _def_id, _def_rev, _latest, notices = _resolve(uid, body)
+    _gate_tools(plan)
     snap = body.get("snapshotCount")
     snap = snap if isinstance(snap, int) and not isinstance(snap, bool) else None
     snap_at = body.get("snapshotAt") if isinstance(body.get("snapshotAt"), str) else None
@@ -307,19 +334,30 @@ def drill_widget(user: dict = Depends(require_paid), body: dict = Depends(json_b
 
 # -- the catalog and the shelf --------------------------------------------------------------------
 
-def _static_vocabulary() -> dict:
+def _static_vocabulary(tools: bool = False) -> dict:
+    """The catalog. With `tools` False (wave 9 off) no routine or tracker source, no field that
+    names one (`refKind`) and no routine or tracker measure is listed."""
     cat = wsources.CATALOG
+
+    def offered_source(key: str) -> bool:
+        return tools or key not in wplan.TOOL_SOURCES
+
     sources = []
     for s in cat.sources.values():
+        if not offered_source(s.key):
+            continue
         sources.append({
             "key": s.key, "label": s.label, "description": s.description, "unit": s.unit,
             "fields": [{"key": f.key, "label": f.label, "type": f.type, "ops": list(f.ops),
-                        "split": bool(f.split)} for f in s.fields.values()],
+                        "split": bool(f.split), "filter": bool(getattr(f, "filterable", True)),
+                        "refKind": getattr(f, "ref_kind", None)}
+                       for f in s.fields.values() if tools or not getattr(f, "ref_kind", None)],
             "measures": sorted(cat.measures_for(s.key)),
         })
     measures = [{"key": m.key, "label": m.label, "theme": m.theme, "meaning": m.meaning,
                  "unit": m.unit, "kind": m.kind, "needs": list(m.needs),
-                 "sources": sorted(m.sources)} for m in cat.measures.values()]
+                 "sources": sorted(m.sources)} for m in cat.measures.values()
+                if any(offered_source(k) for k in m.sources)]
     return {
         "sources": sources,
         "measures": measures,
@@ -343,6 +381,17 @@ def _member_values(user_id: str, field: str) -> list[Any]:
     conn = auth_db.get_connection()
     try:
         with wrun.deadline(conn):
+            if field == "routine":
+                return [{"id": r[0], "name": r[1]} for r in conn.execute(
+                    "SELECT id, name FROM j2_routines WHERE user_id = ? AND deleted_at IS NULL"
+                    " ORDER BY name, id", (user_id,)).fetchall()][:VOCAB_MAX]
+            if field == "tracker":
+                from api.services.journal_two import trackers as j2_trackers
+                own = [{"id": r[0], "name": r[1]} for r in conn.execute(
+                    "SELECT id, name FROM j2_trackers WHERE user_id = ? AND deleted_at IS NULL"
+                    " ORDER BY name, id", (user_id,)).fetchall()]
+                built = [{"id": k, "name": v["name"]} for k, v in j2_trackers.BUILTIN.items()]
+                return (built + own)[:VOCAB_MAX]
             if field == "account":
                 return [{"id": r[0], "name": r[1]} for r in conn.execute(
                     "SELECT id, name FROM j2_accounts WHERE user_id = ? ORDER BY name, id",
@@ -376,9 +425,10 @@ def _member_values(user_id: str, field: str) -> list[Any]:
 
 @router.get("/vocabulary")
 def vocabulary(field: str | None = None, user: dict = Depends(require_paid)) -> Any:
+    tools = _tools_on()
     if field is None:
-        return _ok(_static_vocabulary())
-    if field not in VOCAB_FIELDS:
+        return _ok(_static_vocabulary(tools))
+    if field not in VOCAB_FIELDS + (VOCAB_TOOL_FIELDS if tools else ()):
         raise _err(400, "invalid", S_VOCAB_FIELD)
     values = _engine_errors(lambda: _member_values(_uid(user), field))
     return _ok({"field": field, "values": values})
@@ -386,7 +436,10 @@ def vocabulary(field: str | None = None, user: dict = Depends(require_paid)) -> 
 
 @router.get("/shelf")
 def shelf(user: dict = Depends(require_paid)) -> Any:
-    return _ok({"examples": wshelf.examples()})
+    exs = wshelf.examples()
+    if not _tools_on():
+        exs = [e for e in exs if not wplan.uses_tools(e.get("plan"))]
+    return _ok({"examples": exs})
 
 
 # -- the member's widgets -------------------------------------------------------------------------
@@ -407,6 +460,7 @@ def create_widget(user: dict = Depends(require_paid), body: dict = Depends(json_
     plan = body.get("plan")
     if not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
+    _gate_tools(plan)
     name = body.get("name")
     return _ok(_engine_errors(lambda: wdefs.create(_uid(user), name, plan)))
 
@@ -432,6 +486,7 @@ def save_widget(def_id: str, request: Request, user: dict = Depends(require_paid
     plan = body.get("plan")
     if plan is not None and not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
+    _gate_tools(plan)
     origin = body.get("origin") if isinstance(body.get("origin"), str) else None
     return _ok(_engine_errors(lambda: wdefs.update(
         uid, def_id, if_match=etag, name=body.get("name"), plan=plan, apply=body.get("apply"),

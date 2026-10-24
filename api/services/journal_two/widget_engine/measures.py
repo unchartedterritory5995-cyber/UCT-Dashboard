@@ -11,6 +11,8 @@ This adapter imports it and never copies a formula. It adds three things the bui
 2. `measure_input(source_key, rows)`: the rows a measure reads. Trading-days rows are one per
    session INCLUDING sessions with no trades (spec 5.3); the day measures count only days with
    trades (spec 5.4), so a quiet session is left out here, never inside a measure.
+   Routine history (wave 9): a row's `state` is the member word ("Done") a filter or split reads;
+   the routine measures read the stored state ("done"), which the scan keeps in `_state`.
 3. `evaluate(measure, source_key, rows) -> Cell`: the value, its count, how many rows carry what
    the measure needs, and the small-sample state (`measures.small_sample`).
 
@@ -24,9 +26,12 @@ from api.services.journal_two.measures import (
     DEFAULT_MIN_N, MEASURES, Measure, MeasureValue, small_sample,
 )
 from api.services.journal_two.notebook_widgets import _num
+from api.services.journal_two.routine_days import ROUTINE_MEASURES
+from api.services.journal_two.tracker_days import TRACKER_MEASURES
 
 POSITIONS = "open_positions"
 TRADING_DAYS = "trading_days"
+ROUTINE_HISTORY = "routine_history"
 
 
 @dataclass(frozen=True)
@@ -92,11 +97,14 @@ POSITION_MEASURES: dict[str, Measure] = {m.key: m for m in [
 
 
 def builder_measures() -> dict[str, Measure]:
-    """Every measure a widget may pick: the shared module's offered ones plus the positions ones."""
+    """Every measure a widget may pick: the shared module's offered ones, the positions ones, and
+    (wave 9) the routine and tracker history ones. No key may shadow another."""
     out = {k: m for k, m in MEASURES.items() if m.sources}
-    for k, m in POSITION_MEASURES.items():
-        assert k not in out, f"position measure {k} shadows a shared measure"
-        out[k] = m
+    for group, extra in (("position", POSITION_MEASURES), ("routine", ROUTINE_MEASURES),
+                         ("tracker", TRACKER_MEASURES)):
+        for k, m in extra.items():
+            assert k not in out, f"{group} measure {k} shadows another measure"
+            out[k] = m
     return out
 
 
@@ -108,6 +116,8 @@ def measure_input(source_key: str, rows: list[dict]) -> list[dict]:
     """The rows a measure reads. Trading days: only days with trades (spec 5.4)."""
     if source_key == TRADING_DAYS:
         return [r for r in rows if (r.get("trade_count") or 0) > 0]
+    if source_key == ROUTINE_HISTORY:
+        return [{**r, "state": r.get("_state")} for r in rows]
     return rows
 
 
