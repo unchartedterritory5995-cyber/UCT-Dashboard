@@ -275,6 +275,8 @@ describe('revenge cells (W10-R54: a dated strip from `days` only)', () => {
     expect(/\.cellNoTrades\s*\{[^}]*dotted[^}]*background:\s*transparent/.test(CSS_TEXT)).toBe(true)
     expect(/\.cellNoTrades::after/.test(CSS_TEXT)).toBe(false)
     expect(/\.cellClean::after\s*\{[^}]*content:\s*''[^}]*background:\s*var\(--text-bright\)/.test(CSS_TEXT)).toBe(true)
+    // ...and the legend's clean swatch carries the same mark (review N-4)
+    expect(/\.swClean::after\s*\{[^}]*content:\s*''[^}]*background:\s*var\(--text-bright\)/.test(CSS_TEXT)).toBe(true)
     const { container } = draw('revenge_mixed')
     expect(container.querySelector('[data-cell="no_trades"]').className).toMatch(/cellNoTrades/)
     expect(container.querySelector('[data-cell="flagged"]').className).toMatch(/cellFlagged/)
@@ -334,6 +336,19 @@ describe('Show as table', () => {
     const table = screen.getByRole('table', { name: 'Revenge re-entries' })
     expect(within(table).getAllByRole('row')).toHaveLength(1 + p.flagged.length)
     expect(within(table).getAllByText('20m').length).toBe(p.flagged.length)   // the shared duration formatter
+  })
+
+  it('a capped re-entries list says, in the server words, how many it left out', () => {
+    const p = FIX.revenge_capped.payload
+    expect(p.truncated).toBeGreaterThan(0)
+    const line = p.lines[p.lines.length - 1]
+    expect(line).toMatch(/not shown\.$/)
+    draw('revenge_capped')
+    expect(screen.getByText(line)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
+    expect(within(screen.getByRole('table', { name: 'Revenge re-entries' })).getAllByRole('row'))
+      .toHaveLength(1 + p.flagged.length)
+    expect(screen.getByText(line)).toBeInTheDocument()
   })
 
   it('a same-minute re-entry never reads 0 min', () => {

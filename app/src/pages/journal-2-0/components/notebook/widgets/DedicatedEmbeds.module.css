@@ -1,7 +1,8 @@
 /* Wave 10 (Task 10.15): the seven ready-made ("dedicated") widget embeds. Real tokens only. Every chart says what
    it shows in TEXT as well as in colour: a bar past its limit is HATCHED and its legend says "Past the limit"; a
-   revenge cell carries its label ("Clean", "Revenge re-entry", "Not checked") as text a screen reader reads, and a
-   flagged cell is hatched. Text colour for a sign is the D-A4 ink (--success-ink / --danger-ink), never the fill. */
+   revenge cell carries its day and its label ("Clean", "Revenge re-entry", "No trades", "Not checked") as text a
+   screen reader reads; a flagged cell is hatched, a clean cell carries a centred mark, a no-trades cell is dotted
+   and a not-checked cell dashed. Text colour for a sign is the D-A4 ink (--success-ink / --danger-ink), never the fill. */
 .wrap {
   display: flex;
   flex-direction: column;
@@ -165,8 +166,21 @@
   border-style: dotted;
   background: transparent;
 }
+/* The legend's clean swatch carries the same centred mark as a clean cell (review N-4). */
 .swClean {
+  position: relative;
   background: var(--bg-hover);
+}
+.swClean::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: var(--text-bright);
 }
 .swFlagged {
   background: repeating-linear-gradient(45deg, var(--ind-warn) 0 2px, transparent 2px 5px);

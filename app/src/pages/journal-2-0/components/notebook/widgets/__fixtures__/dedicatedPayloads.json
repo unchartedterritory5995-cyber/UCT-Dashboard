@@ -994,7 +994,7 @@
       "source": "broker",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "AMD",
-      "tradeId": "b2fb9f4b-653f-4dfb-a4ce-9d46542fc729"
+      "tradeId": "7dbbaf0a-7fbc-47bb-9a7d-eede5ca6c4aa"
     }
   },
   "pva_no_target": {
@@ -1052,7 +1052,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "TSLA",
-      "tradeId": "c1458785-d5b8-40d5-a018-d33c76b17f2c"
+      "tradeId": "e4fa9a57-55f5-4ffc-ade5-6f30db1e0e6a"
     }
   },
   "pva_normal": {
@@ -1110,7 +1110,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "NVDA",
-      "tradeId": "c333ba16-b994-40bd-95b7-9db8a726f8fa"
+      "tradeId": "a433320d-d0f8-4f3e-979b-209f01fd8096"
     }
   },
   "pva_unlinked": {
@@ -1126,7 +1126,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "META",
-      "tradeId": "0188b385-56fb-4edc-a537-7ce5da9c8403"
+      "tradeId": "a1c3d7c4-7827-4275-a78d-3b229f9f914b"
     }
   },
   "revenge_capped": {
@@ -1266,7 +1266,8 @@
       ],
       "from": "2026-09-14",
       "lines": [
-        "7 of 9 clean (1 day with dates only was not checked)"
+        "7 of 9 clean (1 day with dates only was not checked)",
+        "1 more re-entry not shown."
       ],
       "noTrades": 20,
       "notChecked": 1,
@@ -1411,7 +1412,7 @@
       "flagged": [],
       "from": "2026-09-14",
       "lines": [
-        "None of the last 30 trading days could be checked; your trades have dates only."
+        "None of the days you traded in the last 30 trading days could be checked; your trades have dates only."
       ],
       "noTrades": 0,
       "notChecked": 30,
@@ -2689,10 +2690,10 @@
     "payload": {
       "after": {
         "avg": null,
-        "n": 2,
-        "net": 50.0,
+        "n": 0,
+        "net": null,
         "sample": "hide",
-        "text": "Not enough trades yet (2)",
+        "text": "no trades",
         "winRate": null
       },
       "asOf": "2026-10-24T16:00:00Z",
@@ -2702,17 +2703,17 @@
       "from": "2026-07-27",
       "lines": [
         "Counting the newest 3 trades, from Oct 20.",
-        "Within 30 min after a loss: Not enough trades yet (2).",
-        "Other trades: Not enough trades yet (1).",
+        "Within 30 min after a loss: no trades.",
+        "Other trades: Not enough trades yet (3).",
         "A comparison, not proof."
       ],
       "noResult": 0,
       "other": {
         "avg": null,
-        "n": 1,
-        "net": -30.0,
+        "n": 3,
+        "net": -70.0,
         "sample": "hide",
-        "text": "Not enough trades yet (1)",
+        "text": "Not enough trades yet (3)",
         "winRate": null
       },
       "source": "manual",
