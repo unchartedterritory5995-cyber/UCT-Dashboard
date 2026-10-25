@@ -52,6 +52,10 @@ W10_ENV = "NOTEBOOK_WIDGETS_W10_ENABLED"
 #: The fields `?field=` lists only while wave 10 is on (the brief's names).
 W10_VOCAB_FIELDS = ("underlying", "strategy", "folder", "kind", "note_tag", "ticker", "property")
 #: The catalog keys only wave 10 adds (the brief's names).
+#: The catalog's keys with wave 10 off: be's five plus impl's wave 8 keys (Task 8.15: the engine's reasons and view
+#: rules, the time fields and the limits), merged at the be->impl merge.
+BASE_CATALOG_KEYS = {"sources", "measures", "views", "ranges", "accents", "timeFields", "reasons", "viewRules",
+                     "maxMeasures", "maxFilters", "topMax"}
 W10_CATALOG_KEYS = {"functions", "formulaLimits", "formats", "displayOptions"}
 
 
@@ -202,14 +206,16 @@ def test_vocabulary_hides_wave10_when_off_and_lists_it_when_on(conn, monkeypatch
     off = c.get(BASE + "/vocabulary")
     assert off.status_code == 200 and _no_store(off)
     body = off.json()
-    assert set(body) == {"sources", "measures", "views", "ranges", "accents"}
+    # impl's catalog keys (wave 8: reasons, view rules, limits) are there whatever wave 10 says
+    assert set(body) == BASE_CATALOG_KEYS
     keys = {s["key"] for s in body["sources"]}
     assert not keys & wplan.WAVE10_SOURCES and "closed_trades" in keys
     assert "strategies" not in {m["key"] for m in body["measures"]}
     assert "notes" not in {m["key"] for m in body["measures"]}
     for s in body["sources"]:
         for f in s["fields"]:
-            assert not {"hourKey", "needsTimes", "prop"} & set(f), (s["key"], f["key"])
+            # `needsTimes` is impl's wave 8 field-row key (served whatever wave 10 says); hourKey and prop are wave 10's
+            assert not {"hourKey", "prop"} & set(f), (s["key"], f["key"])
     for field in W10_VOCAB_FIELDS:
         r = c.get(BASE + "/vocabulary", params={"field": field})
         assert r.status_code == 400 and r.json()["detail"]["message"] == wdr.S_VOCAB_FIELD, field
@@ -219,7 +225,7 @@ def test_vocabulary_hides_wave10_when_off_and_lists_it_when_on(conn, monkeypatch
     on = c.get(BASE + "/vocabulary")
     assert on.status_code == 200 and _no_store(on)
     body = on.json()
-    assert set(body) == {"sources", "measures", "views", "ranges", "accents"} | W10_CATALOG_KEYS
+    assert set(body) == BASE_CATALOG_KEYS | W10_CATALOG_KEYS
     assert wplan.WAVE10_SOURCES <= {s["key"] for s in body["sources"]}
     # each field row gains `hourKey` when the source sets one, `needsTimes` when it needs times
     ct = _fields(body, "closed_trades")
@@ -255,8 +261,7 @@ def test_vocabulary_hides_wave10_when_off_and_lists_it_when_on(conn, monkeypatch
         assert _no_store(r)
     # switched back off: hidden again (read per request)
     _on(monkeypatch, False)
-    assert set(c.get(BASE + "/vocabulary").json()) == {"sources", "measures", "views",
-                                                       "ranges", "accents"}
+    assert set(c.get(BASE + "/vocabulary").json()) == BASE_CATALOG_KEYS
 
 
 def test_wave10_member_values_are_the_members(conn, monkeypatch):

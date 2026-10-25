@@ -241,7 +241,9 @@ def test_measures_reuse_shared_functions(conn):
     assert res.total.cells[0].value == M.MEASURES["win_rate"].fn(closed).value == 2 / 3
     assert res.total.cells[1].value == M.MEASURES["profit_factor"].fn(closed).value == M.PF_CAP
     out = run_out(raw(measures=("win_rate", "profit_factor")))
-    assert out["measures"][1]["fmt"] == "ratio" and out["value"]["v2"] == 5.0   # the client's "5+"
+    # Ruling R-29: profit factor formats as "pf" (the client renders a value at the cap as "5+"); read from the owner.
+    assert out["measures"][1]["fmt"] == wpayload.MEASURE_FMT["profit_factor"] == "pf"
+    assert out["value"]["v2"] == 5.0
     assert [m["unit"] for m in out["measures"]] == ["strategies", "strategies"]
     assert wpayload.MEASURE_FMT["strategies"] == "count"
 

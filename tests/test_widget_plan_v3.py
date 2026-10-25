@@ -369,7 +369,9 @@ def test_formula_names_unique_and_not_a_field_label():
             ["formulas"]] == ["Edge", "Édge", "édge"]       # ASCII folding only; outer space trimmed
     for ns in (("Edge", "EDGE"), ("edge", "Edge ")):
         assert refused(names(*ns)).sentence == P.S_FORMULA_NAME_TAKEN, ns
-    for label in ("Net P&L", "net p&l", "R", "ET HOUR", "Plan adherence %"):
+    # the adherence label is read from its field (impl renamed it to "Followed my trading plan %" in wave 8)
+    adherence = S.CLOSED_FIELDS["adherence_pct"].label
+    for label in ("Net P&L", "net p&l", "R", "ET HOUR", adherence, adherence.upper()):
         assert refused(names(label)).sentence == P.S_FORMULA_NAME_TAKEN, label
     for blank in ("", "   ", "\t", None, 7):
         assert refused(names(blank)).sentence == P.S_FORMULA_NAME, blank
