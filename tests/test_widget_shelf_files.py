@@ -268,11 +268,36 @@ def _shallow_boundaries(repo: Path) -> tuple[bool, set[str]]:
     return shallow, shas
 
 
+def _add_commit(repo: Path, rel: str) -> tuple[str, str]:
+    """`(sha, path then)` of the commit that ADDED `rel`, following RENAMES only (Task 10.13).
+
+    `git log --follow` also follows a copy: a new revision file is a near-copy of the revision before
+    it (`equity-curve.r2.json` was reported as `C075` of `equity-curve.r1.json`), so --follow handed
+    back r1's add commit and the rail called every new revision "edited". Here a commit that adds the
+    path is followed back only when, in that same commit, git reports it as `R` (renamed: the old
+    path is gone). A copy or a plain add is the add commit."""
+    path, start = rel, "HEAD"
+    for _ in range(100):                                   # a rename chain, never a loop
+        out = _ok(_git_at(repo, "log", "--diff-filter=A", "--format=%H", "-1", start, "--", path),
+                  f"log {path}").split()
+        if len(out) != 1 or not re.fullmatch(r"[0-9a-f]{40}", out[0]):
+            pytest.fail(f"git could not find the commit that added {path}: {out!r}")
+        sha = out[0]
+        status = _ok(_git_at(repo, "diff-tree", "-r", "-M", "--name-status", "--no-commit-id", sha),
+                     f"diff-tree {sha}").splitlines()
+        renamed = [l.split("	") for l in status if l.startswith("R") and l.split("	")[-1] == path]
+        if not renamed:
+            return sha, path
+        path, start = renamed[0][1], sha
+    pytest.fail(f"{rel}: more than 100 renames")
+
+
 def add_commit_revisions(repo: Path, rel_dir: str, names: list[str]) -> tuple[dict, list[str]]:
     """For each committed file `rel_dir/<name>`: the revision its ADD commit stored, following
-    renames (`--follow`, read at the path it had then). Returns `({name: obj}, problems)`; a file
-    whose add commit is a shallow boundary is a problem (its real add commit is not here), never a
-    silent pass. Uncommitted files are left out. Git errors fail the test."""
+    renames (never copies: `_add_commit`; read at the path it had then). Returns
+    `({name: obj}, problems)`; a file whose add commit is a shallow boundary is a problem (its real
+    add commit is not here), never a silent pass. Uncommitted files are left out. Git errors fail
+    the test."""
     tracked = {Path(p).name for p in
                _ok(_git_at(repo, "ls-files", "--", rel_dir), "ls-files").splitlines() if p.strip()}
     shallow, boundaries = _shallow_boundaries(repo)
@@ -281,12 +306,7 @@ def add_commit_revisions(repo: Path, rel_dir: str, names: list[str]) -> tuple[di
         if name not in tracked:
             continue
         rel = f"{rel_dir}/{name}"
-        lines = [l for l in _ok(_git_at(repo, "log", "--follow", "--diff-filter=A", "--format=%H",
-                                        "--name-only", "-1", "--", rel), f"log {rel}").splitlines()
-                 if l.strip()]
-        if len(lines) < 2 or not re.fullmatch(r"[0-9a-f]{40}", lines[0]):
-            pytest.fail(f"git could not find the commit that added {rel}: {lines!r}")
-        sha, then = lines[0], lines[-1]
+        sha, then = _add_commit(repo, rel)
         if sha in boundaries or (shallow and not _ok(
                 _git_at(repo, "rev-list", "--parents", "-n", "1", sha), "parents").split()[1:]):
             problems.append(f"{name}: its add commit {sha[:10]} is a shallow boundary, so the "
@@ -428,6 +448,30 @@ def test_add_commit_rail_follows_renames_and_refuses_shallow_boundaries(tmp_path
     assert _shallow_boundaries(deep)[0] is True
     first, problems = add_commit_revisions(deep, "shelf", ["x.r1.json"])
     assert problems == [] and first["x.r1.json"]["name"] == "first"
+
+
+def test_add_commit_rail_never_follows_a_copy(tmp_path):
+    """Task 10.13: a new revision is a near-copy of the one before it, and the old one stays. Its add
+    commit is its own, never the old file's (git's --follow reported `C` and followed it)."""
+    rev = lambda n, name: {"id": "shelf:x", "rev": n, "name": name, "description": "the same words",
+                           "keywords": ["a", "b", "c"], "plan": {"v": 1, "source": "closed_trades"}}
+    src = _repo(tmp_path / "src")
+    d = src / "shelf"
+    d.mkdir()
+    (d / "x.r1.json").write_text(json.dumps(rev(1, "first"), indent=2), encoding="utf-8")
+    _commit(src, "add r1")
+    (d / "x.r2.json").write_text(json.dumps(rev(2, "second"), indent=2), encoding="utf-8")
+    _commit(src, "add r2")
+    # non-vacuity: git itself calls the new file a copy of the old one
+    cp = _ok(_git_at(src, "log", "--follow", "--name-status", "--format=", "-1", "--", "shelf/x.r2.json"),
+             "log --follow")
+    assert cp.startswith("C"), cp
+    first, problems = add_commit_revisions(src, "shelf", ["x.r1.json", "x.r2.json"])
+    assert problems == []
+    assert (first["x.r1.json"]["name"], first["x.r2.json"]["name"]) == ("first", "second")
+    entries = [{"file": f, "sha256": shelf.canonical_hash(first[f])} for f in first]
+    local = lambda f: json.loads((d / f).read_text(encoding="utf-8"))
+    assert add_commit_violations(entries, first.get, local) == []
 
 
 # -- revision 1 is the wave 8 shelf, unchanged --------------------------------------------------------
