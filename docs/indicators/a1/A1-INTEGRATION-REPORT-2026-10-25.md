@@ -204,3 +204,19 @@ A1's literal should move in the same commit.
   files.
 - On that merged tree, 15 suites pass 222/222: A1 rails, the hand-off validation, the hash
   rails, census, Gate C/approval binding, P2-A and P2-B.
+
+**Round 3: rebased onto master `0cba83141e` (Agent Phase 2 #464 merged).**
+- The rebase was clean. The resulting tree is byte-identical to the trial-merge tree above,
+  apart from this report.
+- Local tag `indicators-a1-int-pre-rebase2` keeps the round-2 head.
+- vitest full results:
+  - branch: 49,934 tests · 49,764 passed · 16 failed;
+  - master `0cba83141e`: 49,822 tests · 49,650 passed · 18 failed;
+  - 15 failures are common to both.
+- Branch-only failures:
+  - `StockChart.smoke`: a load flake; it passes in isolation.
+  - Journal round-trip files: they fail identically on master in isolation (local Python
+    bridge); only the sandbox paths differ.
+- Fixed on branch: the two literal rails. `iteratorGlobalFloor` also shows as fixed, but
+  that is a build artifact.
+- **A1-introduced failures: 0.**
