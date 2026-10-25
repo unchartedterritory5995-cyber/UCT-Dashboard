@@ -2907,6 +2907,9 @@ export default function NoteEditorPage({
         openedAt: Date.now(),
         // Final review M-3: the signed-in member, which keys the slash menu's own-rows caches.
         uid: user?.id,
+        // Task 8.18 fix round 1 (I-1, R-45): this page's router, so the / menu's builder and My tools doors move it
+        // rather than loading the whole page for a link out (Link broker, Log a trade, a note in My tools).
+        navigate: (to) => navigateTo(to),
         // P2a Task 10 (lib/blocks/priceStampsRun.js): the note's ticker, read live when a stamp runs (a
         // bare-word line names it), off the ref that holds this render's note.
         noteTicker: () => canvasNoteRef.current?.ticker,

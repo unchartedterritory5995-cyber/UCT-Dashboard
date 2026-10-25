@@ -3,7 +3,8 @@
 // control proving the list header itself rendered (the Import button).
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { installFetch, Providers } from '../a11y/fixtures'
+import { AUTH, installFetch, Providers } from '../a11y/fixtures'
+import { useLocation } from 'react-router-dom'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import NotebookTab from './NotebookTab'
 import { openMyTools } from '../components/notebook/myTools/openMyTools.js'
@@ -19,8 +20,14 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); __resetNotebookFlags() })
 
+function Where() {
+  const loc = useLocation()
+  return <output data-testid="where">{loc.pathname}</output>
+}
+const MEMBER = { ...AUTH, user: { ...AUTH.user, id: 'member-42' } }
+
 async function show() {
-  render(<Providers route="/journal/notebook?view=all"><NotebookTab /></Providers>)
+  render(<Providers route="/journal/notebook?view=all" auth={MEMBER}><NotebookTab /><Where /></Providers>)
   await settle()
   expect(screen.getByRole('button', { name: 'Import' })).toBeInTheDocument()   // control: the header rendered
 }
@@ -33,7 +40,12 @@ describe('the My tools door on the Notebook tab', () => {
     await waitFor(() => expect(openMyTools).toHaveBeenCalledTimes(1))
     const args = vi.mocked(openMyTools).mock.calls[0][0]
     expect(args.tab).toBe('widgets')
-    expect(typeof args.navigate).toBe('function')        // R-45: links out of My tools go through the router
+    // The signed-in member keys the builder's kept draft (and /build reads the same key): never the 'me' fallback.
+    expect(args.uid).toBe('member-42')
+    // R-45: a link out of My tools MOVES this tab's router.
+    expect(screen.getByTestId('where').textContent).toBe('/journal/notebook')        // control: where it starts
+    await act(async () => { args.navigate('/journal/accounts') })
+    expect(screen.getByTestId('where').textContent).toBe('/journal/accounts')
   })
 
   it('has no My tools button while wave 8 is off', async () => {

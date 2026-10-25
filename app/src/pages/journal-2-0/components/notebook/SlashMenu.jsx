@@ -29,7 +29,7 @@ import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCa
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
 import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
-import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import { widgetsWaveOn, WIDGET_CHUNK_LOST, doorLostSentence } from '../../lib/notebookWidgetsFlags'
 import { captureEnabled } from '../../../../widgets/captureRelease'
 import styles from './SlashMenu.module.css'
 
@@ -488,7 +488,7 @@ const SNAPSHOT_SYMBOL_CMD = { tickerCard: 'ticker', tickerFlow: 'flow' }
 const widgetsFetch = () => import('../../lib/notebookWidgetsFetch')
 // F2 cleanup: a lazy chunk that cannot load (lost after a deploy) is said, never silent; offline is offline.
 const lost = () => (typeof navigator !== 'undefined' && navigator.onLine === false ? { ok: false, reason: 'offline' }
-  : { ok: false, message: "This widget couldn't load. Reload the page to try again." })
+  : { ok: false, message: WIDGET_CHUNK_LOST })
 // R58 (UX I-2): the inserts in flight, one per kind and settings, so a second Enter or click adds nothing. Per editor
 // (review m-1): the same widget asked for in another note is that note's own insert.
 const inflight = new WeakMap()
@@ -553,6 +553,8 @@ function snapshotCommand(kind, params) {
 function background(load) {
   let s
   const reset = (uid) => { s = { v: null, at: 0, failedAt: 0, loading: null, uid } }
+  // Fix round 1 m-3: forget this member's rows (the next kick loads them again); a load in flight lands in the old slot.
+  const drop = () => reset(s.uid)
   reset()
   const kick = (editor) => {
     const uid = editor?.storage?.uctJournalWidgets?.uid
@@ -566,7 +568,7 @@ function background(load) {
     }
     return t.v
   }
-  return { kick, wait: () => s.loading || Promise.resolve(), reset }
+  return { kick, wait: () => s.loading || Promise.resolve(), reset, drop }
 }
 
 /** Task 17 (wave 5): the member's own presets and chart sets, under "My presets". The rows and the sets
@@ -607,22 +609,30 @@ export const __resetPicks = () => picks.reset()
 // snapshotCommand, the one snapshot insert ("Adding <name>…", then "<name> added."), with a failure said in the
 // client's own words. The kept-draft offer is the builder's own reader (builderDraft.readDraft), never a second one.
 const built = background((uid) => Promise.all([import('../../lib/builtWidgets'), widgetsFetch(),
-  import('./widgetBuilder/builderDraft')]).then(async ([b, f, d]) => ({ b, f, d, uid, list: await b.loadWidgetList() })))
-const doorLost = (editor) => {
-  const r = lost()
-  editor?.storage?.uctJournalWidgets?.notify?.(r.message || "You're offline, so this could not open.", 'error')
+  import('./widgetBuilder/builderDraft')]).then(async ([b, f, d]) => {
+  // Fix round 1 m-3: a save, archive, delete or restore anywhere in this tab drops the rows (the client's one hook).
+  b.onWidgetsChanged(dropBuilt)
+  return { b, f, d, uid, list: await b.loadWidgetList() }
+}))
+function dropBuilt() { built.drop() }
+const doorLost = (editor) => editor?.storage?.uctJournalWidgets?.notify?.(doorLostSentence(), 'error')
+// The note page's router (NoteEditorPage puts it on the editor's storage), so a link out of the builder or My tools
+// moves the router instead of loading the whole page (R-45, fix round 1 I-1).
+const routerOf = (editor) => {
+  const nav = editor?.storage?.uctJournalWidgets?.navigate
+  return typeof nav === 'function' ? { navigate: nav } : {}
 }
 const toBuilder = ({ editor, range }) => {
   editor.chain().focus().deleteRange(range).run()
   return import('./widgetBuilder/openWidgetBuilder.js')
-    .then((m) => { m.openWidgetBuilder({ editor, start: 'examples' }) }, () => doorLost(editor))
+    .then((m) => { m.openWidgetBuilder({ editor, start: 'examples', ...routerOf(editor) }) }, () => doorLost(editor))
 }
 const TOOLS_ROW = {
   title: 'Manage my tools', cmd: 'tools', keywords: ['tools', 'my tools', 'manage', 'widgets'],
   description: 'Rename, copy, archive and restore your widgets',
   command: ({ editor, range }) => {
     editor.chain().focus().deleteRange(range).run()
-    return import('./myTools/openMyTools.js').then((m) => { m.openMyTools({ editor, tab: 'widgets' }) }, () => doorLost(editor))
+    return import('./myTools/openMyTools.js').then((m) => { m.openMyTools({ editor, tab: 'widgets', ...routerOf(editor) }) }, () => doorLost(editor))
   },
 }
 const GALLERY_ROW = {

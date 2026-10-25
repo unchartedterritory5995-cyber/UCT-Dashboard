@@ -64,7 +64,7 @@ import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
-import { widgetsWaveOn } from '../lib/notebookWidgetsFlags'
+import { widgetsWaveOn, doorLostSentence } from '../lib/notebookWidgetsFlags'
 // Tier 2 part B (R-T2B-7): the earnings follow-up card. The slot is small and static; the card itself is a lazy
 // chunk it fetches the first time a follow-up link is open (V12: a failed fetch leaves the Notebook standing).
 import { earningsFollowupEnabled } from '../lib/earningsFollowupFlag'
@@ -457,7 +457,8 @@ export default function NotebookTab() {
   const toolsOn = widgetsWaveOn(8)
   const openTools = () => {
     import('../components/notebook/myTools/openMyTools.js')
-      .then((m) => { m.openMyTools({ tab: 'widgets', uid: auth?.user?.id, navigate: (to) => navigate(to) }) }, () => {})
+      .then((m) => { m.openMyTools({ tab: 'widgets', uid: auth?.user?.id, navigate: (to) => navigate(to) }) },
+        () => setActionError(doorLostSentence()))   // fix round 1 m-1: the / doors' own sentence, never silent
   }
   const [exportOpen, setExportOpen] = useState(false)
   // Bumped on a successful import to force-remount FolderSidebar, which owns

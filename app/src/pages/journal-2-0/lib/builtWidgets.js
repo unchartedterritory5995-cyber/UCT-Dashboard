@@ -83,6 +83,22 @@ async function answer(res) {
 const lost = () => ({ ok: false, code: isOffline() ? 'offline' : 'failed', message: '' })
 const offline = () => ({ ok: false, code: 'offline', message: FAILURE_COPY.offline })
 
+// ── the list changed (Task 8.18 fix round 1, m-3) ─────────────────────────────────────────────────
+// Every write that can change the member's widget list goes through postJson / putJson below, so this is the ONE
+// place that knows a write landed. A listener (the / menu's Mine loader) is told after each successful one. The
+// POSTs that only READ (a run, a drill, a preview, the examples) change nothing and tell nobody.
+const READ_POSTS = new Set(['/run', '/drill', '/preview', '/examples'])
+const changeListeners = new Set()
+/** Be told after a write that changed the member's widgets landed. Answers the unsubscribe. */
+export function onWidgetsChanged(fn) {
+  if (typeof fn === 'function') changeListeners.add(fn)
+  return () => changeListeners.delete(fn)
+}
+function landed(got) {
+  if (got?.ok) for (const fn of [...changeListeners]) { try { fn() } catch { /* a listener never breaks a write */ } }
+  return got
+}
+
 /** `POST DEFS_URL + path` with a JSON body. Never throws: `{ok: true, data}` or `{ok: false, code, message, status}`.
  *  Offline makes no request at all. `etag` is sent as If-Match (ruling R-15; a version restore). `idempotencyKey`
  *  (ruling R-43: the builder's create POST) is sent as `Idempotency-Key`, so a repeat of that POST answers the widget it
@@ -99,7 +115,8 @@ export async function postJson(path, body, { etag, idempotencyKey } = {}) {
     const res = await fetch(`${DEFS_URL}${path}`, {
       method: 'POST', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...t.signal,
     })
-    return await answer(res)
+    const got = await answer(res)
+    return READ_POSTS.has(path) ? got : landed(got)
   } catch {
     return lost()
   } finally {
@@ -121,7 +138,7 @@ export async function putJson(path, body, etag, { idempotencyKey } = {}) {
     const res = await fetch(`${DEFS_URL}${path}`, {
       method: 'PUT', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...t.signal,
     })
-    return await answer(res)
+    return landed(await answer(res))
   } catch {
     return lost()
   } finally {

@@ -278,6 +278,20 @@ describe('the Mine group (wave 8 on)', () => {
     await tools[0].command({ editor: ed, range: { from: 1, to: 7 } })
     expect(openMyTools).toHaveBeenLastCalledWith({ editor: ed, tab: 'widgets' })
 
+    // Fix round 1 I-1: the note page's router rides on the editor's storage, and both doors hand it on, so a link out
+    // of the builder or My tools MOVES that router (never a full page load).
+    const moved = []
+    const routed = { ...ed, storage: { uctJournalWidgets: { ...ed.storage.uctJournalWidgets, navigate: (to) => moved.push(to) } } }
+    await menuItems('build', routed)[0].command({ editor: routed, range: { from: 1, to: 7 } })
+    const toBuild = vi.mocked(openWidgetBuilder).mock.calls.at(-1)[0]
+    expect(toBuild).toMatchObject({ editor: routed, start: 'examples' })
+    toBuild.navigate('/journal/accounts')
+    await menuItems('tools', routed)[0].command({ editor: routed, range: { from: 1, to: 7 } })
+    const toTools = vi.mocked(openMyTools).mock.calls.at(-1)[0]
+    expect(toTools).toMatchObject({ editor: routed, tab: 'widgets' })
+    toTools.navigate('/journal/notebook?note=n9')
+    expect(moved).toEqual(['/journal/accounts', '/journal/notebook?note=n9'])
+
     // A kept draft of a NEW widget under 24 h old: the row says "Resume your unsaved widget" (the builder's own reader).
     await __builtLoad()
     const now = Date.now()
@@ -291,6 +305,30 @@ describe('the Mine group (wave 8 on)', () => {
     // ...and never another member's.
     writeDraft('u2', { plan: { v: 1 }, nameTouched: false, target: null }, now - 60_000)
     expect(builtItems('build', ed)[0].description).not.toBe(RESUME_OFFER)
+  })
+
+  it('an archived widget no longer appears in Mine (fix round 1 m-3: a write in this tab drops the rows)', async () => {
+    let list = LIST
+    installNet({ lists: { get u1() { return list } } })
+    const before = await loaded('')
+    expect(titles(before)).toContain('Win rate by hour')
+    // Archive it through the ONE client (as My tools does); the server's list no longer has it.
+    const { postJson } = await import('../../lib/builtWidgets')
+    const real = global.fetch
+    global.fetch = vi.fn((url, init) => (String(url).endsWith('/w2/archive')
+      ? Promise.resolve(json(200, { id: 'w2', archived: true })) : real(url, init)))
+    list = LIST.filter((w) => w.id !== 'w2')
+    expect((await postJson('/w2/archive')).ok).toBe(true)
+    const after = await loaded('')
+    expect(titles(after)).not.toContain('Win rate by hour')
+    expect(titles(after)).toContain('Net P&L by setup')                 // control: the list did load again
+    // A READ (a run) changes nothing and drops nothing: no second list read.
+    const reads = () => global.fetch.mock.calls.filter(([u, i]) => u === '/api/j2/widget-definitions' && !(i && i.method === 'POST')).length
+    const n = reads()
+    await postJson('/run', { defId: 'w1', settings: {} })
+    builtItems('', member())
+    await __builtLoad()
+    expect(reads()).toBe(n)
   })
 
   it('a typed query ranks a name match above a keyword match', async () => {
