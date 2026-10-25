@@ -14,7 +14,7 @@ import { useEffect, useId, useState } from 'react'
 import usePositionSizingSources from '../../../hooks/usePositionSizingSources'
 import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import { accountSizeFor } from '../../../lib/blocks/houseSizing'
-import { sizeFor, pctOf, REASONS } from '../../../lib/blocks/sizeCalc'
+import { sizeFor, pctOf, REASONS, RISK_PCT_MAX } from '../../../lib/blocks/sizeCalc'
 import blockStyles from './Blocks.module.css'
 import styles from './SizeCalcBlock.module.css'
 
@@ -39,16 +39,30 @@ export const NOT_AVAILABLE = 'Not available right now.'
 
 function Calculator({ params, setParams, editable }) {
   const ids = { symbol: useId(), entry: useId(), stop: useId(), risk: useId(), account: useId() }
-  const { settings, settingsState, retrySettings, accountName } = usePositionSizingSources()
+  const {
+    settings, settingsState, retrySettings, accountState, retryAccounts, accountName,
+  } = usePositionSizingSources()
+  const [noteFieldFocused, setNoteFieldFocused] = useState(false)
 
   const usable = settingsState === 'ready' ? settings : null
   const settingsOwn = accountSizeFor({ params: {}, settings: usable })     // null: unset, the placeholder, or no account
-  const noteSize = positive(params.accountSize)
-  const accountSize = noteSize ?? settingsOwn
-  const loading = settingsState === 'loading' && noteSize == null
-  const readFailed = settingsState === 'error' && noteSize == null
-  const showNoteSize = noteSize != null || (settingsOwn == null && settingsState !== 'loading')
-  const maxRisk = positive(usable?.maxRiskPerTradePct)
+  // An override the note holds, valid or not: an invalid draft (-100) sizes nothing, never the account (m-2).
+  const hasOverride = params.accountSize != null && params.accountSize !== ''
+  const noteSize = hasOverride ? positive(params.accountSize) : null
+  const accountSize = hasOverride ? noteSize : settingsOwn
+  // I-1: the seam answers 'off' while the accounts list is still loading or its first pick is not made ('pending'),
+  // and when it failed ('accounts-error'). Pending is LOADING, never "no account size"; failed is its own state.
+  const accountsPending = settingsState === 'off' && accountState === 'pending'
+  const accountsFailed = settingsState === 'off' && accountState === 'accounts-error'
+  const loading = (settingsState === 'loading' || accountsPending) && !hasOverride
+  const readFailed = settingsState === 'error' && !hasOverride
+  const accountsReadFailed = accountsFailed && !hasOverride
+  const settled = settingsState !== 'loading' && !accountsPending
+  // m-2: never unmounted under the cursor, nor while the note holds an override (even an empty or invalid draft).
+  const showNoteSize = noteFieldFocused || hasOverride || (settled && settingsOwn == null)
+  // m-4: a placeholder only for a value the field would accept.
+  const maxRiskRaw = positive(usable?.maxRiskPerTradePct)
+  const maxRisk = maxRiskRaw != null && maxRiskRaw <= RISK_PCT_MAX ? maxRiskRaw : null
   const symbol = typeof params.symbol === 'string' ? params.symbol.trim().toUpperCase() : ''
 
   const write = (patch) => (editable ? setParams(patch) : false)
@@ -60,7 +74,7 @@ function Calculator({ params, setParams, editable }) {
     : null
   const second = r.ok ? `Position value: ${money(r.positionValue)} (${pct(r.positionPct)} of the account).` : null
   // While the account size is still being read, or the read failed, the account sentence would be a guess.
-  const quiet = !r.ok && r.reason === REASONS.account && (loading || readFailed)
+  const quiet = !r.ok && r.reason === REASONS.account && (loading || readFailed || accountsReadFailed)
   const summary = r.ok ? first : quiet ? '' : r.reason
   const [announced, setAnnounced] = useState('')
   useEffect(() => {
@@ -70,7 +84,7 @@ function Calculator({ params, setParams, editable }) {
 
   const sizedAgainst = noteSize != null
     ? `Sized against this note's ${money(noteSize)}.`
-    : settingsOwn != null ? `Sized against ${accountName || 'your account'}: ${money(settingsOwn)}.` : null
+    : !hasOverride && settingsOwn != null ? `Sized against ${accountName || 'your account'}: ${money(settingsOwn)}.` : null
 
   return (
     <div className={blockStyles.empty}>
@@ -101,12 +115,19 @@ function Calculator({ params, setParams, editable }) {
           <div className={styles.field}>
             <label htmlFor={ids.account}>Account size for this note</label>
             <input id={ids.account} className={styles.input} type="number" inputMode="decimal" step="any" disabled={!editable}
-              value={params.accountSize ?? ''} onChange={(e) => write({ accountSize: num(e.target.value) })} />
+              value={params.accountSize ?? ''} onChange={(e) => write({ accountSize: num(e.target.value) })}
+              onFocus={() => setNoteFieldFocused(true)} onBlur={() => setNoteFieldFocused(false)} />
           </div>
         )}
       </div>
 
       {loading && <p className={blockStyles.muted}>Reading your account size…</p>}
+      {accountsReadFailed && (
+        <div className={styles.notice}>
+          <p className={blockStyles.muted}>Your accounts could not be loaded just now.</p>
+          <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={retryAccounts}>Try again</button>
+        </div>
+      )}
       {readFailed && (
         <div className={styles.notice}>
           <p className={blockStyles.muted}>Your account size could not be read just now.</p>

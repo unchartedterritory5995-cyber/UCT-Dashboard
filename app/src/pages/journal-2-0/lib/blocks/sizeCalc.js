@@ -16,6 +16,8 @@ export const REASONS = Object.freeze({
   risk: `Enter the risk per trade, up to ${RISK_PCT_MAX}%.`,
   account: 'Set your account size, or enter one for this note.',
   underOne: 'Your risk is smaller than one share at this stop.',
+  // W10-R67 (fix round 1, m-1): a size too large to be a real number of shares or dollars is never printed.
+  check: 'Check the entry, stop and account size.',
 })
 
 const positive = (x) => {
@@ -27,6 +29,8 @@ const fail = (reason) => ({ ok: false, reason })
 /** Whole shares, rounded down, after snapping float noise off the quotient (1.10 - 1.00 is 0.10000000000000009). */
 const wholeShares = (q) => Math.max(0, Math.floor(Math.round(q * 1e6) / 1e6))
 const cents = (x) => Math.round(x * 100) / 100
+/** A count or an amount this calculator can honestly print: finite and no larger than MAX_SAFE_INTEGER. */
+const printable = (x) => Number.isFinite(x) && Math.abs(x) <= Number.MAX_SAFE_INTEGER
 
 /** `part` as a percent of `whole`, to two places (half up); null when there is no whole to divide by. */
 export function pctOf(part, whole) {
@@ -52,12 +56,15 @@ export function sizeFor({ entry, stop, riskPct, accountSize } = {}) {
   if (a == null) return fail(REASONS.account)
   const perShare = Math.abs(e - s)                       // > 0: entry === stop was refused above
   const shares = wholeShares((a * r) / 100 / perShare)
+  if (!printable(shares)) return fail(REASONS.check)
   if (shares < 1) return fail(REASONS.underOne)
   const positionValue = cents(shares * e)
+  const riskDollars = cents(shares * perShare)
+  if (!printable(positionValue) || !printable(riskDollars)) return fail(REASONS.check)
   return {
     ok: true,
     shares,
-    riskDollars: cents(shares * perShare),
+    riskDollars,
     positionValue,
     positionPct: pctOf(positionValue, a),
     side: s < e ? 'long' : 'short',

@@ -8,12 +8,12 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../../lib/offline/n
 // The hooks behind the block's read seam (hooks/usePositionSizingSources); the seam itself is real here. `save` and
 // `setAccount` are spies that must NEVER be called: the block reads the account, its one write door is setParams.
 const S = vi.hoisted(() => ({ settings: null, isLoading: false, save: null, error: undefined, refresh: null,
-  accountId: 'a1', accounts: null }))
+  accountId: 'a1', accounts: null, accountsLoading: false, accountsError: undefined }))
 vi.mock('../../../hooks/useJ2Settings', () => ({ default: () => ({ settings: S.settings, isLoading: S.isLoading,
   save: S.save, error: S.error, refresh: S.refresh }) }))
 vi.mock('../../../hooks/useJ2Accounts', () => ({ default: () => S.accounts }))
 vi.mock('../../../hooks/useJ2SelectedAccount', () => ({ default: () => ({ accountId: S.accountId,
-  isAllAccounts: S.accountId == null, isLoading: false, accountsError: undefined,
+  isAllAccounts: false, isLoading: S.accountsLoading, accountsError: S.accountsError,
   accounts: S.accounts?.accounts ?? [], setAccount: S.save }) }))
 vi.mock('../../../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: null }) }))
 import SizeCalcBlock from './SizeCalcBlock'
@@ -29,6 +29,8 @@ beforeEach(() => {
   S.refresh = vi.fn()
   S.accountId = 'a1'
   S.accounts = { accounts: [{ id: 'a1', name: 'Main' }], refresh: vi.fn() }
+  S.accountsLoading = false
+  S.accountsError = undefined
   W10()
 })
 afterEach(() => { cleanup(); __resetNotebookFlags() })
@@ -60,6 +62,92 @@ describe('SizeCalcBlock', () => {
     S.settings = { accountSize: 20000 }       // never stamped: the next render reads the new size
     render(<SizeCalcBlock params={{ symbol: 'NVDA', entry: 100, stop: 95, riskPct: 1 }} setParams={vi.fn()} editable />)
     expect(screen.getByText('40 shares of NVDA, $200 at risk (1% of the account).')).toBeTruthy()
+  })
+
+  it('I-1: accounts pending is LOADING: no account sentence, no note-size field, and nothing sized', () => {
+    S.accountId = null
+    S.accountsLoading = true
+    S.accounts = { accounts: [], refresh: vi.fn() }
+    const setParams = vi.fn(() => true)
+    render(<SizeCalcBlock params={{ symbol: 'NVDA', entry: 100, stop: 95, riskPct: 1 }} setParams={setParams} editable />)
+    expect(screen.getByText('Reading your account size…')).toBeTruthy()
+    expect(screen.queryByText('Set your account size, or enter one for this note.')).toBeNull()
+    expect(screen.queryByRole('spinbutton', { name: 'Account size for this note' })).toBeNull()
+    expect(screen.queryByText(/shares of NVDA/)).toBeNull()
+    // a keystroke while pending is one write of what was typed, and the block still waits for the accounts
+    fireEvent.change(spin('Entry'), { target: { value: '101' } })
+    expect(setParams).toHaveBeenCalledTimes(1)
+    expect(setParams).toHaveBeenCalledWith({ entry: 101 })
+    expect(screen.queryByRole('spinbutton', { name: 'Account size for this note' })).toBeNull()
+    expect(screen.queryByText('Set your account size, or enter one for this note.')).toBeNull()
+  })
+
+  it('I-1: accounts failed is its own state, with Try again re-reading the accounts', () => {
+    S.accountId = null
+    S.accountsError = new Error('503')
+    S.accounts = { accounts: [], refresh: vi.fn() }
+    render(<SizeCalcBlock params={{ entry: 100, stop: 95, riskPct: 1 }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Your accounts could not be loaded just now.')).toBeTruthy()
+    expect(screen.queryByText('Set your account size, or enter one for this note.')).toBeNull()
+    expect(screen.queryByText('Reading your account size…')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(S.accounts.refresh).toHaveBeenCalledTimes(1)
+    expect(S.refresh).not.toHaveBeenCalled()                                   // the accounts, not the settings
+  })
+
+  it('I-1: accounts loaded with a size sizes against it, with no loading or failure line', () => {
+    render(<SizeCalcBlock params={{ symbol: 'NVDA', entry: 100, stop: 95, riskPct: 1 }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('100 shares of NVDA, $500 at risk (1% of the account).')).toBeTruthy()
+    expect(screen.queryByText('Reading your account size…')).toBeNull()
+    expect(screen.queryByText('Your accounts could not be loaded just now.')).toBeNull()
+  })
+
+  it('m-3: never stamped -- a changed live size is followed, and params never gain an account size', () => {
+    const setParams = vi.fn(() => true)
+    const params = { symbol: 'NVDA', entry: 100, stop: 95, riskPct: 1 }
+    const { rerender } = render(<SizeCalcBlock params={params} setParams={setParams} editable />)
+    expect(screen.getByText('100 shares of NVDA, $500 at risk (1% of the account).')).toBeTruthy()
+    S.settings = { accountSize: 20000 }
+    rerender(<SizeCalcBlock params={params} setParams={setParams} editable />)
+    expect(screen.getByText('40 shares of NVDA, $200 at risk (1% of the account).')).toBeTruthy()
+    expect(screen.getByText('Sized against Main: $20,000.')).toBeTruthy()
+    expect(setParams).not.toHaveBeenCalled()
+    expect(setParams.mock.calls.some(([p]) => Object.hasOwn(p || {}, 'accountSize'))).toBe(false)
+    expect(Object.hasOwn(params, 'accountSize')).toBe(false)
+  })
+
+  it('m-2: the note-size field stays under the cursor while cleared, and an invalid draft sizes nothing', () => {
+    const setParams = vi.fn(() => true)
+    const { rerender } = render(<SizeCalcBlock params={{ entry: 100, stop: 95, riskPct: 1, accountSize: 80000 }}
+      setParams={setParams} editable />)
+    const field = spin('Account size for this note')
+    field.focus()
+    fireEvent.focus(field)
+    fireEvent.change(field, { target: { value: '' } })
+    expect(setParams).toHaveBeenLastCalledWith({ accountSize: undefined })
+    rerender(<SizeCalcBlock params={{ entry: 100, stop: 95, riskPct: 1 }} setParams={setParams} editable />)  // fed back
+    const still = spin('Account size for this note')
+    expect(still).toBe(field)
+    expect(document.activeElement).toBe(field)
+    // an invalid draft is still the note's override: the field stays and nothing sizes against the account
+    fireEvent.blur(field)
+    rerender(<SizeCalcBlock params={{ entry: 100, stop: 95, riskPct: 1, accountSize: -100 }} setParams={setParams} editable />)
+    expect(spin('Account size for this note')).toBeTruthy()
+    expect(screen.getByText('Set your account size, or enter one for this note.')).toBeTruthy()
+    expect(screen.queryByText(/shares/)).toBeNull()
+    expect(screen.queryByText(/Sized against Main/)).toBeNull()
+    // blurred with no override and an own size: the field goes (control)
+    rerender(<SizeCalcBlock params={{ entry: 100, stop: 95, riskPct: 1 }} setParams={setParams} editable />)
+    expect(screen.queryByRole('spinbutton', { name: 'Account size for this note' })).toBeNull()
+  })
+
+  it('m-4: the risk placeholder only for a max risk between 0 and 10', () => {
+    for (const [v, want] of [[1.5, '1.5'], [10, '10'], [15, null], [10.5, null], [0, null], [-1, null], ['x', null]]) {
+      S.settings = { accountSize: 50000, maxRiskPerTradePct: v }
+      render(<SizeCalcBlock params={{}} setParams={vi.fn()} editable />)
+      expect(spin('Risk per trade (%)').getAttribute('placeholder'), String(v)).toBe(want)
+      cleanup()
+    }
   })
 
   it('max_risk_per_trade_is_a_placeholder_only', () => {

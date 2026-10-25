@@ -25,6 +25,7 @@ describe('sizeFor', () => {
       risk: 'Enter the risk per trade, up to 10%.',
       account: 'Set your account size, or enter one for this note.',
       underOne: 'Your risk is smaller than one share at this stop.',
+      check: 'Check the entry, stop and account size.',
     })
     const reason = (p) => sizeFor({ ...ok, ...p })
     for (const p of [{ entry: undefined }, { stop: undefined }, { entry: '' }, { stop: 0 }, { entry: -5 }, { stop: 'abc' }]) {
@@ -48,6 +49,16 @@ describe('sizeFor', () => {
     expect(JSON.stringify(r)).not.toMatch(/0 shares|"shares":0/)
     // exactly one share is a size
     expect(sizeFor({ entry: 100, stop: 97, riskPct: 3, accountSize: 100 })).toMatchObject({ ok: true, shares: 1 })
+  })
+
+  it('W10-R67: an unprintable size is a reason, never Infinity', () => {
+    const check = { ok: false, reason: 'Check the entry, stop and account size.' }
+    expect(sizeFor({ ...ok, accountSize: 1e300 })).toEqual(check)                         // a huge account
+    expect(sizeFor({ entry: 1e308, stop: 1, riskPct: 10, accountSize: 1e308 })).toEqual(check)
+    expect(sizeFor({ entry: 100, stop: 100 - 1e-12, riskPct: 1, accountSize: 1e6 })).toEqual(check)   // stop 1e-12 away
+    expect(JSON.stringify(sizeFor({ ...ok, accountSize: 1e300 }))).not.toMatch(/Infinity|null/)
+    // control: a large but printable size still sizes
+    expect(sizeFor({ entry: 100, stop: 99, riskPct: 1, accountSize: 1e9 })).toMatchObject({ ok: true, shares: 10000000 })
   })
 
   it('risk_pct_cap_10', () => {
