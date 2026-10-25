@@ -677,9 +677,13 @@ def test_select_checkbox_and_date_properties_filter_through_the_authority(conn):
                                         {"id": "base", "label": "Base"}], conn=conn)["id"]
     add_n(conn, UID, props={setups: ["flag", "base"]})
     add_n(conn, UID, props={setups: ["base"]})
-    out = run_out(raw(filters=[{"field": "property", "op": "eq", "values": ["flag"],
+    out = run_out(raw(filters=[{"field": "property", "op": "contains", "values": ["flag"],
                                 "prop": setups}]))
     assert out["count"] == 1 and not out["notice"]
+    # W10-R70: "eq" on a multi-select is not a served comparison; a hand-made plan asking it is
+    # dropped with the unfit notice and never narrows
+    eq = run_out(raw(filters=[{"field": "property", "op": "eq", "values": ["flag"], "prop": setups}]))
+    assert eq["notice"] == sources.S_PROP_FILTER_UNFIT and eq["count"] == out["count"] + 4
     assert out["count"] == j2_notes.count_notes(
         UID, property_filter=[{"propertyId": setups, "op": "contains", "value": "flag"}],
         exclude_sample=True, conn=conn)

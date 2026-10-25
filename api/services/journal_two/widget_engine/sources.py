@@ -1467,8 +1467,8 @@ PROPERTY_FILTER_TYPES: dict[str, dict] = {
     "text": {"valueType": "text", "ops": ("contains", "eq"), "label": "Text"},
     "url": {"valueType": "text", "ops": ("contains", "eq"), "label": "Link"},
     "select": {"valueType": "enum", "ops": ("eq",), "label": "Select"},
-    # "eq" on a multi-select is "holds this option" (`property_conditions`), as a saved plan may ask
-    "multi_select": {"valueType": "enum", "ops": ("contains", "eq"), "label": "Multi-select"},
+    # one comparison only (W10-R70): "contains" is "holds this option"; "eq" is refused, never an alias
+    "multi_select": {"valueType": "enum", "ops": ("contains",), "label": "Multi-select"},
 }
 
 #: The note property types a property sum (`plan.PROP_MEASURES`) adds up: `_summed_properties`
