@@ -684,7 +684,9 @@ def test_i6_history_for_since_bounds_the_build_and_names_archived_day(I):
                                        since=since)
         finally:
             routines.routine_days.history = real
-    floor = trading_days.nth_session_before(since, routines.HISTORY_SINCE_LOOKBACK)
+    # W9-R25 (9.8 round 3): the floor is the routine's 20th counted day before `since`; for an
+    # every-day routine that is the 20th session back (one build, no doubling)
+    floor = trading_days.nth_session_before(since, routines.routine_days.CONSISTENCY_WINDOW)
     assert calls == [floor] and floor > date(2026, 8, 3)
     h = got[r["id"]]
     assert h.states[0].day == floor.isoformat()

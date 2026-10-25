@@ -223,6 +223,39 @@ def history(*, items: list[Item], schedules: list[tuple[str, dict]],
     return out
 
 
+def window_floor(*, items: list[Item], schedules: list[tuple[str, dict]], created: date,
+                 archived: date | None, traded: frozenset[str], before: date, today: date,
+                 n: int = CONSISTENCY_WINDOW) -> date:
+    """The day history must start from so the consistency window is whole for every day from
+    `before` on (ruling W9-R25): the `n`-th counted (scheduled, finished) day strictly before
+    `before`, walking back over sessions (and, under a traded schedule, traded non-session days);
+    `created` when there are fewer; never more than `MAX_HISTORY_SESSIONS` sessions back.
+
+    Whether a day counts never depends on ticks (a scheduled past day is done, not done or
+    skipped): only `created`, `archived`, the schedule in force, the traded set and the items
+    valid that day. One backward pass per routine, so a sparse routine costs only itself."""
+    d = before - timedelta(days=1)
+    if archived is not None and d > archived:
+        d = archived
+    seen = sessions_walked = 0
+    while d >= created:
+        session = trading_days.is_session(d)
+        if session:
+            sessions_walked += 1
+            if sessions_walked > MAX_HISTORY_SESSIONS:
+                return d + timedelta(days=1)
+        if session or d.isoformat() in (traded or ()):
+            sched = schedule_on(schedules, d)
+            if (sched is not None and (session or sched.get("kind") == "traded")
+                    and d < today and is_scheduled(sched, d, traded, today=today)
+                    and items_on(items, d)):
+                seen += 1
+                if seen >= n:
+                    return d
+        d -= timedelta(days=1)
+    return created
+
+
 # ── consistency ────────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)

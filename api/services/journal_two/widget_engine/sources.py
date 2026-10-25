@@ -112,7 +112,8 @@ class Field:
     split: bool = False
     sql: str | None = None
     py: Callable[[dict], Any] | None = None
-    bucket: tuple | None = None
+    #: the group order: a tuple, or a callable returning one (read at call time, M-3)
+    bucket: tuple | Callable[[], tuple] | None = None
     needs_times: bool = False
     #: case-insensitive text (`UPPER(...)` in SQL, ASCII-only like SQLite's UPPER, in Python)
     ci: bool = False
@@ -836,11 +837,14 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 # first, at most `wcompile.SCAN_ROWS` rows (`capped` past it). Routines are read ONLY through the
 # routine store's public `routines.history_for` (ruling W9-R15). A routine's rows are its SCHEDULED
 # days (an off day never appears, nor a day before it existed or after it was archived, W9-R20);
-# today, not yet done, reads Open.
+# today, not yet done, reads Not yet (W9-R26; the code is `open`).
 #
-# Bounds (ruling W9-R17): history starts `routines.HISTORY_SINCE_LOOKBACK` sessions before the
-# range; at most `MAX_ROUTINES` routines (the most recently used) are read; the item expansion stops
-# at the newest `SCAN_ROWS + 1` rows; the Python loops ask `wcompile.check_deadline()`.
+# Bounds (ruling W9-R17): each routine's history starts at its own floor, the later of its created
+# day and its 20th counted day before the range (`routine_days.window_floor`, W9-R25), so its
+# rolling consistency equals the routine's own read and one sparse routine widens nothing else;
+# a first window reads only the newest sessions that can hold the cap; at most `MAX_ROUTINES`
+# routines (the most recently used) are read; the item expansion stops at the newest
+# `SCAN_ROWS + 1` rows; the Python loops ask `wcompile.check_deadline()`.
 
 #: At most this many routines are read for one routine-history widget (W9-R17).
 MAX_ROUTINES = 60
@@ -1035,17 +1039,24 @@ def scan_routines(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         return _routine_rows(conn, user_id, ids, cut, today, today_s, win, rng.to_day, by_item,
                              traded)
 
-    # W9-R17: first read only the newest sessions that can hold the cap; when they do, older days
-    # are never built. Otherwise (sparse schedules) read the whole range.
-    first = None
+    # W9-R17: read only the newest sessions that can hold the cap, widening the window (doubling)
+    # until it does or it reaches the range's start or the oldest routine: older days are never
+    # built. A window that already covers everything is the last one.
+    out: list[dict] = []
     if ids:
+        oldest = conn.execute(
+            "SELECT MIN(created_at) FROM j2_routines WHERE user_id = ? AND id IN"
+            f" ({','.join('?' * len(ids))})", (user_id, *ids)).fetchone()[0]
+        oldest_day = (timeutil.compute_trading_day_et(oldest) or "")[:10]
         k = -(-(wcompile.SCAN_ROWS + 1) // len(ids))
-        t = trading_days.nth_session_before(cut + timedelta(days=1), k).isoformat()
-        if lo is None or t > lo:
-            first = t
-    out = rows_from(first or lo)
-    if first is not None and len(out) <= wcompile.SCAN_ROWS:
-        out = rows_from(lo)
+        while True:
+            t = trading_days.nth_session_before(cut + timedelta(days=1), k).isoformat()
+            whole = (lo is not None and t <= lo) or t <= oldest_day \
+                or k >= routine_days.MAX_HISTORY_SESSIONS
+            out = rows_from(lo if whole else t)
+            if whole or len(out) > wcompile.SCAN_ROWS:
+                break
+            k = min(2 * k, routine_days.MAX_HISTORY_SESSIONS)
     traded_lo = min(traded) if traded else None
     capped = len(out) > wcompile.SCAN_ROWS
     out = out[:wcompile.SCAN_ROWS]
@@ -1115,8 +1126,9 @@ def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dic
         r["tracker_bucket_order"] = None
     if rid:
         hi_d = date.fromisoformat(hi_s)
+        # a day's state needs no consistency window: the floor is the range's start (M-2)
         h = j2_routines.history_for(conn, user_id, rid, hi_d, today,
-                                    since=date.fromisoformat(lo_s)).get(rid)
+                                    since=date.fromisoformat(lo_s), window=False).get(rid)
         if h is None:
             unresolved.add("routine")
             notices.append(S_ROUTINE_GONE)
@@ -1158,11 +1170,16 @@ def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dic
         else:
             bs = tracker_days.buckets(kind, [v for v in values.values() if v is not None], unit)
             order = {b.label: i for i, b in enumerate(bs)}
+            today_s = today.isoformat()
             for r in rows:
                 v = values.get(r["day"])
                 r["tracker_value"] = v
                 r["tracker_bucket"] = label = tracker_days.bucket_of(bs, v)
                 r["tracker_bucket_order"] = order.get(label)
+                if v is None and r["day"] > today_s:
+                    # a session still to come has no value yet; it is not "no value" (M-1)
+                    r["_quiet"] = r.get("_quiet", frozenset()) | {"tracker_value",
+                                                                  "tracker_bucket"}
     if unresolved:
         keys = frozenset(f.key for f in DAY_FIELDS.values() if f.ref_kind in unresolved)
         for r in rows:

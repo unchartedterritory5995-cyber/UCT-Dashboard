@@ -815,22 +815,52 @@ def _history_floor(created: date, upto: date) -> date:
     return created
 
 
-def _load_children(c: sqlite3.Connection, user_id: str, rids: list[str],
-                   hi: date, lo: date | None = None) -> tuple[dict, dict, dict]:
-    """Schedules, ticks and skipped days for every routine in `rids`: one query per table,
-    grouped here (I-3). With `lo`, ticks and skipped days before it are not read (W9-R17)."""
-    low = " AND day >= ?" if lo is not None else ""
-    low_p = (lo.isoformat(),) if lo is not None else ()
+def _load_schedules(c: sqlite3.Connection, user_id: str,
+                    rids: list[str]) -> dict[str, list[tuple[str, dict]]]:
     scheds: dict[str, list[tuple[str, dict]]] = {r: [] for r in rids}
-    ticks: dict[str, dict[str, dict[str, bool]]] = {r: {} for r in rids}
-    skipped: dict[str, set[str]] = {r: set() for r in rids}
     if not rids:
-        return scheds, ticks, skipped
+        return scheds
     marks = ",".join("?" for _ in rids)
     for rid, eff, js in c.execute(
             f"SELECT routine_id, effective_from, schedule_json FROM {_SCHED} WHERE user_id = ?"
             f" AND routine_id IN ({marks}) ORDER BY effective_from", (user_id, *rids)):
         scheds[rid].append((eff, _load(js, {})))
+    return scheds
+
+
+def _load_children(c: sqlite3.Connection, user_id: str, rids: list[str],
+                   hi: date, lo: date | dict[str, date] | None = None) -> tuple[dict, dict, dict]:
+    """Schedules, ticks and skipped days for every routine in `rids`: one query per table,
+    grouped here (I-3). With `lo` (one day, or one day per routine), ticks and skipped days
+    before it are not read (W9-R17; a per-routine floor joins a VALUES table, so one sparse
+    routine never widens what the others read)."""
+    scheds = _load_schedules(c, user_id, rids)
+    ticks: dict[str, dict[str, dict[str, bool]]] = {r: {} for r in rids}
+    skipped: dict[str, set[str]] = {r: set() for r in rids}
+    if not rids:
+        return scheds, ticks, skipped
+    if isinstance(lo, dict):
+        floors = {r: (lo.get(r) or DAY_MIN).isoformat() for r in rids}
+        vals = ",".join("(?, ?)" for _ in rids)
+        cte = f"WITH lo(rid, d) AS (VALUES {vals}) "
+        cte_p = tuple(x for r in rids for x in (r, floors[r]))
+        for rid, d, item_id, ticked in c.execute(
+                # CROSS JOIN keeps `lo` the outer loop (SQLite honours it), so each routine is one
+                # primary-key range seek (user, routine, day >= its floor), never a member-wide scan
+                cte + f"SELECT t.routine_id, t.day, t.item_id, t.ticked FROM lo CROSS JOIN {_TICKS} t"
+                " ON t.routine_id = lo.rid WHERE t.user_id = ? AND t.day >= lo.d"
+                " AND t.day <= ?", (*cte_p, user_id, hi.isoformat())):
+            ticks[rid].setdefault(d, {})[item_id] = bool(ticked)
+        for rid, d in c.execute(
+                cte + f"SELECT s.routine_id, s.day FROM lo CROSS JOIN {_DAYS} s"
+                " ON s.routine_id = lo.rid"
+                " WHERE s.user_id = ? AND s.skipped = 1 AND s.day >= lo.d AND s.day <= ?",
+                (*cte_p, user_id, hi.isoformat())):
+            skipped[rid].add(d)
+        return scheds, ticks, skipped
+    low = " AND day >= ?" if lo is not None else ""
+    low_p = (lo.isoformat(),) if lo is not None else ()
+    marks = ",".join("?" for _ in rids)
     for rid, d, item_id, ticked in c.execute(
             f"SELECT routine_id, day, item_id, ticked FROM {_TICKS} WHERE user_id = ?"
             f" AND routine_id IN ({marks}) AND day <= ?{low}",
@@ -932,16 +962,26 @@ class _Ctx:
 
 
 def _contexts(c: sqlite3.Connection, user_id: str, rows: list,
-              hi: date, lo: date | None = None) -> dict[str, _Ctx]:
+              hi: date, lo: date | dict[str, date] | None = None, *,
+              traded: frozenset[str] | None = None) -> dict[str, _Ctx]:
     """A `_Ctx` per row, from one query per child table and ONE traded_days call spanning the
     earliest created day (or `lo`, when later) to `hi` (only when some routine has a traded
-    schedule). With `lo`, nothing before it is read (W9-R17)."""
+    schedule; a caller that already read it passes `traded`). With `lo` (one day, or one day per
+    routine), nothing before it is read (W9-R17)."""
     rids = [r["id"] for r in rows]
     scheds, ticks, skipped = _load_children(c, user_id, rids, hi, lo)
     ctxs = {r["id"]: _Ctx(r, scheds[r["id"]], ticks[r["id"]], skipped[r["id"]], frozenset())
             for r in rows}
     traders = [x for x in ctxs.values() if x.uses_traded()]
-    if traders:
+    if traders and traded is not None:
+        for x in traders:
+            x.traded = traded
+    elif traders and isinstance(lo, dict):
+        traded = traded_days(c, user_id, max(min(x.created for x in traders), DAY_MIN)
+                             .isoformat(), hi.isoformat())
+        for x in traders:
+            x.traded = traded
+    elif traders:
         first = max(min(x.created for x in traders), DAY_MIN)
         if lo is not None:
             first = max(first, lo)
@@ -966,25 +1006,34 @@ class RoutineHistory:
     states: tuple                      # routine_days.DayState, oldest first
 
 
-#: With `since`, the FIRST guess of how many sessions before it history must start. Ruling W9-R25:
-#: the real floor is the later of the routine's created day and its CONSISTENCY_WINDOW-th counted
-#: (scheduled, finished) day before `since`, so the consistency as of any day from `since` on is
-#: exactly the one `read_days` reports, whatever the caller's range. A weekly routine needs more
-#: sessions than this guess; `history_for` doubles it until every routine has its window.
+#: The sessions an EVERY-DAY routine's history reaches before `since` (its 20 counted days, with
+#: room): the bound the work rails use. The real floor is per routine (`routine_days.window_floor`,
+#: ruling W9-R25), so a sparse routine reaches back further without widening any other.
 HISTORY_SINCE_LOOKBACK = 2 * routine_days.CONSISTENCY_WINDOW
-_COUNTED_STATES = ("done", "not_done", "skipped")
+
+
+def _archived_day(row: sqlite3.Row) -> date | None:
+    arch = compute_trading_day_et(row["archived_at"]) if row["archived_at"] is not None else None
+    return date.fromisoformat(arch[:10]) if arch else None
 
 
 def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], upto: date,
-                today: date, *, since: date | None = None) -> dict[str, RoutineHistory]:
+                today: date, *, since: date | None = None,
+                window: bool = True) -> dict[str, RoutineHistory]:
     """The PUBLIC door to a routine's history (ruling W9-R15): for each of `rids` (one id or a
     list) that is the session member's and not deleted (archived ones keep their history), its
     day states oldest first, from the later of its created day and the MAX_HISTORY_SESSIONS-th
-    session back, to `min(upto, today)`. With `since`, from the later of its created day and its
-    CONSISTENCY_WINDOW-th counted day before `since` (W9-R25; at least that, found by doubling a
-    session lookback from HISTORY_SINCE_LOOKBACK). Every day the routine runs or could
-    run is there, `off` included; a caller keeps the states it counts. Foreign, unknown, deleted
-    and unreadable ids are absent. Reads only; one query per child table for all ids."""
+    session back, to `min(upto, today)`.
+
+    With `since`, each routine's history starts at its OWN floor (W9-R25): the later of its created
+    day and its CONSISTENCY_WINDOW-th counted day before `since` (`routine_days.window_floor`, one
+    backward pass per routine, no ticks needed), so its consistency from `since` on equals
+    `read_days`. With `window=False` (a caller that reads no consistency) the floor is `since`.
+    Children are loaded ONCE, each routine from its own floor, and `traded_days` runs once, only
+    when some routine has a traded schedule.
+
+    Every day the routine runs or could run is there, `off` included; a caller keeps the states it
+    counts. Foreign, unknown, deleted and unreadable ids are absent. Reads only."""
     ids = [rids] if isinstance(rids, str) else list(dict.fromkeys(rids or []))
     ids = [i for i in ids if isinstance(i, str) and i]
     if not ids or not user_id:
@@ -1001,39 +1050,49 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
     if not rows:
         return {}
     cut = min(upto, today)
-    lookback = HISTORY_SINCE_LOOKBACK
-    since_s = since.isoformat() if since is not None else ""
-    while True:
-        floor = (trading_days.nth_session_before(since, lookback)
-                 if since is not None else None)
-        ctxs = _contexts(conn, user_id, rows, max(upto, today), floor)
-        out: dict[str, RoutineHistory] = {}
-        short = False
-        for rid in ids:
-            ctx = ctxs.get(rid)
-            if ctx is None:
-                continue
-            if since is None:
-                states = ctx.states_upto(cut, today)
+    hi = max(upto, today)
+    floors: dict[str, date] = {}
+    if since is None:
+        ctxs = _contexts(conn, user_id, rows, hi)
+    else:
+        scheds = _load_schedules(conn, user_id, [r["id"] for r in rows])
+        traders = {r["id"] for r in rows
+                   if any(s.get("kind") == "traded" for _, s in scheds[r["id"]])}
+        traded: frozenset[str] = frozenset()
+        if traders:
+            first = max(min(_created_day(r) for r in rows if r["id"] in traders), DAY_MIN)
+            traded = traded_days(conn, user_id, first.isoformat(), hi.isoformat())
+        for r in rows:
+            created = _created_day(r)
+            if window:
+                f = routine_days.window_floor(
+                    items=routine_days.parse_items(_raw_items(r)), schedules=scheds[r["id"]],
+                    created=created, archived=_archived_day(r),
+                    traded=traded if r["id"] in traders else frozenset(), before=since,
+                    today=today)
             else:
-                lo = max(ctx.created, floor)
-                states = routine_days.history(
-                    items=ctx.items, schedules=ctx.schedules, ticks_by_day=ctx.ticks,
-                    skipped_days=ctx.skipped, created=lo, upto=cut, today=today,
-                    traded=ctx.traded, done_share=ctx.settings["done_share"],
-                    archived=ctx.archived_day)
-                if lo > ctx.created and sum(
-                        1 for s in states if s.day < since_s
-                        and s.state in _COUNTED_STATES) < routine_days.CONSISTENCY_WINDOW:
-                    short = True            # W9-R25: this routine's window starts earlier
-            out[rid] = RoutineHistory(
-                id=rid, name=ctx.row["name"], created=ctx.created, archived=ctx.archived,
-                archived_at=ctx.archived_day,
-                strict=bool(ctx.settings.get("strict")), uses_traded=ctx.uses_traded(),
-                items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(states))
-        if not short or lookback >= routine_days.MAX_HISTORY_SESSIONS:
-            return out
-        lookback = min(lookback * 2, routine_days.MAX_HISTORY_SESSIONS)
+                f = since
+            floors[r["id"]] = max(created, min(f, since))
+        ctxs = _contexts(conn, user_id, rows, hi, floors, traded=traded)
+    out: dict[str, RoutineHistory] = {}
+    for rid in ids:
+        ctx = ctxs.get(rid)
+        if ctx is None:
+            continue
+        if since is None:
+            states = ctx.states_upto(cut, today)
+        else:
+            states = routine_days.history(
+                items=ctx.items, schedules=ctx.schedules, ticks_by_day=ctx.ticks,
+                skipped_days=ctx.skipped, created=floors[rid], upto=cut, today=today,
+                traded=ctx.traded, done_share=ctx.settings["done_share"],
+                archived=ctx.archived_day)
+        out[rid] = RoutineHistory(
+            id=rid, name=ctx.row["name"], created=ctx.created, archived=ctx.archived,
+            archived_at=ctx.archived_day,
+            strict=bool(ctx.settings.get("strict")), uses_traded=ctx.uses_traded(),
+            items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(states))
+    return out
 
 
 def _one_entry(c: sqlite3.Connection, user_id: str, row: sqlite3.Row, d: date,

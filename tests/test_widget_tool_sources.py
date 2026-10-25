@@ -9,6 +9,7 @@ The sessions used are real 2026 sessions: 2026-10-05 .. 2026-10-23 (no holiday),
 """
 from __future__ import annotations
 
+import os
 import time
 import tracemalloc
 import uuid
@@ -636,11 +637,17 @@ def test_consistency_does_not_depend_on_the_widgets_range(conn):
         per_range[str(rng_)] = {r["day"]: r["consistency"] for r in sc.rows}
     want_days = [d for d in mondays if d >= "2026-09-25"]       # in all three ranges
     read = routines.read_days(UID, [rid], want_days, now=NOW)["routines"][rid]["days"]
+    checked = 0
     for d in want_days:
         got = {k: v[d] for k, v in per_range.items()}
         assert len(set(got.values())) == 1, (d, got)
-        assert read[d]["rate"] is not None
+        # W9-R29: read_days withholds a rate (None) when the window holds no done day, while the
+        # widget charts an honest 0.0; equality is checked where the card shows a rate.
+        if read[d]["rate"] is None:
+            continue
+        checked += 1
         assert next(iter(got.values())) == pytest.approx(read[d]["rate"]), d
+    assert checked >= 3                                         # control: the rail compared
 
 
 def test_the_work_done_is_bounded_by_states_built(conn, monkeypatch):
@@ -726,3 +733,153 @@ def test_group_order_is_read_at_call_time(conn, monkeypatch):
     monkeypatch.setattr(sources, "HISTORY_STATES", ("skipped", "not_done", "done", "open"))
     _p, _sc, res = scan(conn, raw)
     assert [g.label for g in res.groups] == ["Skipped", "Not done", "Done"]
+
+
+
+# ── fix round 3 ──────────────────────────────────────────────────────────────────────────────
+
+def _routine_sql(c, name, schedule, start, n_items=1):
+    import json
+    rid = str(uuid.uuid4())
+    items = [{"id": str(uuid.uuid4()), "text": f"i{k}", "from": start.isoformat(), "to": None}
+             for k in range(n_items)]
+    c.execute("INSERT INTO j2_routines (id, user_id, name, items_json, settings_json,"
+              " created_at, updated_at, save_seq) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+              (rid, UID, name, json.dumps(items),
+               json.dumps({"done_share": 1.0, "strict": False, "reminder": None}),
+               start.isoformat() + "T15:00:00Z", "2026-10-23T12:00:00Z"))
+    c.execute("INSERT INTO j2_routine_schedules (user_id, routine_id, effective_from,"
+              " schedule_json) VALUES (?, ?, ?, ?)",
+              (UID, rid, start.isoformat(), json.dumps(schedule)))
+    return rid, [it["id"] for it in items]
+
+
+def _mixed_seed(c, years, n_daily):
+    start = TODAY - timedelta(days=365 * years)
+    days = sessions(start.isoformat(), "2026-10-23")
+    for i in range(n_daily):
+        rid, items = _routine_sql(c, f"D{i:02d}", {"kind": "every"}, start, n_items=2)
+        for it in items:
+            _seed_ticks(c, rid, it, days)
+    _routine_sql(c, "Sparse", {"kind": "traded"}, start)      # never traded: no counted day
+    c.commit()
+    return days
+
+
+def test_one_sparse_routine_widens_no_other(conn, monkeypatch):
+    """Round 3: each routine has its own floor (`routine_days.window_floor`), found in one pass;
+    children load ONCE. 29 daily routines and one never-traded routine: the states built stay at
+    the daily routines' window plus the sparse one's own history."""
+    _mixed_seed(conn, 2, 29)
+    built = {"states": 0, "contexts": 0, "calls": 0}
+    real_hist, real_ctx, real_for = (routines.routine_days.history, routines._contexts,
+                                     routines.history_for)
+
+    def hist(**kw):
+        out = real_hist(**kw)
+        built["states"] += len(out)
+        return out
+
+    def ctx(*a, **kw):
+        built["contexts"] += 1
+        return real_ctx(*a, **kw)
+
+    def hfor(*a, **kw):
+        built["calls"] += 1
+        return real_for(*a, **kw)
+    monkeypatch.setattr(routines.routine_days, "history", hist)
+    monkeypatch.setattr(routines, "_contexts", ctx)
+    monkeypatch.setattr(sources.j2_routines, "history_for", hfor)
+    p = plan.validate_plan(rplan(split={"by": "item"}, range={"token": "all"}), sources.CATALOG)
+    sc = sources.scan(conn, p, {}, plan.resolve_range(p["range"], TODAY), UID, today=TODAY)
+    assert sc.capped is True and len(sc.rows) == wcompile.SCAN_ROWS
+    assert built["calls"] == 1 and built["contexts"] == 1          # one pass, one load
+    k = -(-(wcompile.SCAN_ROWS + 1) // 30)
+    bound = (k + 2 * routines.HISTORY_SINCE_LOOKBACK) * 29 + trading_days_max()
+    assert 0 < built["states"] <= bound, (built["states"], bound)
+
+
+def trading_days_max():
+    from api.services.journal_two import routine_days
+    return routine_days.MAX_HISTORY_SESSIONS
+
+
+def test_window_floor_is_per_routine_and_tick_free():
+    from api.services.journal_two import routine_days as RD
+    items = RD.parse_items([{"id": "i", "text": "x", "from": "2026-01-02"}])
+    every = [("2026-01-02", {"kind": "every"})]
+    weekly = [("2026-01-02", {"kind": "weekdays", "days": [0]})]
+    before, today = date(2026, 10, 19), date(2026, 10, 24)
+    kw = dict(items=items, created=date(2026, 1, 2), archived=None, traded=frozenset(),
+              before=before, today=today)
+    assert RD.window_floor(schedules=every, **kw) == trading_days.nth_session_before(before, 20)
+    f = RD.window_floor(schedules=weekly, **kw)
+    mondays = [d for d in sessions(f.isoformat(), "2026-10-16")
+               if date.fromisoformat(d).weekday() == 0]
+    assert f.weekday() == 0 and len(mondays) == 20
+    never = [("2026-01-02", {"kind": "traded"})]
+    assert RD.window_floor(schedules=never, **kw) == date(2026, 1, 2)   # reaches created
+
+
+@pytest.mark.skipif(os.environ.get("UCT_WIDGET_W9_10Y") != "1",
+                    reason="seeding 10 years x 60 routines is slow; set UCT_WIDGET_W9_10Y=1")
+def test_10_years_60_routines_one_sparse_is_well_under_the_deadline(conn):
+    days = _mixed_seed(conn, 10, 59)
+    for rng_ in ({"token": "all"}, {"from": "2026-09-01", "to": "2026-10-23"},
+                 {"token": "last_30d"}):
+        p = plan.validate_plan(rplan(range=rng_), sources.CATALOG)
+        rr = plan.resolve_range(p["range"], TODAY)
+        t0 = time.perf_counter()
+        with run.deadline(conn):
+            sources.scan(conn, p, {}, rr, UID, today=TODAY)
+        took = time.perf_counter() - t0
+        print(f"\n10y x 60 ({len(days)} sessions) {rng_}: {took * 1000:.0f} ms")
+        assert took < 1.0, (rng_, took)
+
+
+def test_tracker_future_sessions_are_not_no_value(conn):
+    """Round 3 M-1 for trackers: only past days without a value count."""
+    t = trackers.create(UID, name="Sleep", kind="number", now=at("2026-10-19"))
+    trackers.set_value(UID, t["id"], "2026-10-21", 7, now=at("2026-10-21"))
+    _p, sc, res = scan(conn, dplan(split={"by": "tracker_bucket", "ref": t["id"]},
+                                   range={"from": "2026-10-19", "to": "2026-10-30"}))
+    assert "4 days have no value for this tracker and are not in this split." in res.footnotes
+    _p, _sc, res2 = scan(conn, dplan(filters=[{"field": "tracker_value", "op": "gte",
+                                               "values": [0], "ref": t["id"]}],
+                                     range={"from": "2026-10-19", "to": "2026-10-30"}))
+    assert "4 days have no value for this tracker and are left out." in res2.footnotes
+
+
+def test_day_refs_read_no_consistency_window(conn, monkeypatch):
+    """Round 3 M-2: a trading-days ref reads states from the range's start (window=False); it
+    builds no lookback, so a long-lived weekly routine costs the range only."""
+    rid, _ = make_routine(created="2026-01-05", schedule={"kind": "weekdays", "days": [0]})
+    seen = []
+    real = sources.j2_routines.history_for
+
+    def spy(*a, **kw):
+        seen.append(kw)
+        return real(*a, **kw)
+    monkeypatch.setattr(sources.j2_routines, "history_for", spy)
+    executed: list[str] = []
+    conn.set_trace_callback(executed.append)
+    try:
+        _p, sc, _ = scan(conn, dplan(split={"by": "routine_done", "ref": rid}))
+    finally:
+        conn.set_trace_callback(None)
+    assert len(seen) == 1 and seen[0]["window"] is False
+    assert seen[0]["since"] == date.fromisoformat(WEEK[0])
+    tick_reads = [q for q in executed if "j2_routine_ticks" in q]
+    # one tick read, from the range's own start (the floor bound in the VALUES table)
+    assert len(tick_reads) == 1 and "'" + WEEK[0] + "'" in tick_reads[0]
+    assert {r["routine_done"] for r in sc.rows} == {"not_done", "off"}
+
+
+def test_widget_consistency_is_zero_where_the_card_withholds_a_rate(conn):
+    """W9-R29: no done day in the window -> the widget charts 0.0 (honest data), read_days gives
+    rate None (the card shows no sentence). Both intended; pinned here."""
+    rid, _ = make_routine(created="2026-10-05")
+    _p, sc, _ = scan(conn, rplan(range=WEEK_RANGE))
+    assert {r["consistency"] for r in sc.rows} == {0.0}
+    read = routines.read_days(UID, [rid], ["2026-10-21"], now=NOW)["routines"][rid]["days"]
+    assert read["2026-10-21"]["rate"] is None and read["2026-10-21"]["consistency"] is None
