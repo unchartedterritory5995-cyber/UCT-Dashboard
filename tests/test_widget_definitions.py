@@ -298,6 +298,36 @@ def test_name_rev_sentence_and_save_new_copy_name(W):
     assert len(c2["name"]) == 200 and c2["name"] == "x" * 200
 
 
+def test_a_lone_surrogate_in_any_name_is_a_sentence_not_a_server_error(W):
+    """Task 10.2 fix 2: JSON can carry a lone surrogate. It has no UTF-8 form, so storing it
+    would raise inside the INSERT. Every name door refuses it with a sentence first."""
+    sentence = "This widget has a character that can't be saved. Remove it and try again."
+    for lone in (chr(0xD800), chr(0xDFFF)):
+        bad = "My " + lone + " widget"
+        with pytest.raises(W.WidgetError) as e:                     # create
+            W.create(A, bad, plan(), catalog=CAT, now=T0)
+        assert e.value.sentence == sentence
+        d = _mk(W, name="Good")
+        with pytest.raises(W.WidgetError) as e:                     # rename (update with a name)
+            W.update(A, d["id"], if_match=d["etag"], name=bad, apply="only", catalog=CAT, now=T0)
+        assert e.value.sentence == sentence
+        with pytest.raises(W.WidgetError) as e:                     # a save-as-new copy's name
+            W.update(A, d["id"], if_match=d["etag"], name=bad, apply="save_new", catalog=CAT,
+                     now=T0)
+        assert e.value.sentence == sentence
+        with pytest.raises(W.WidgetError) as e:                     # update with a plan and a name
+            W.update(A, d["id"], if_match=d["etag"], name=bad, plan=plan("win_rate"),
+                     apply="only", catalog=CAT, now=T0)
+        assert e.value.sentence == sentence
+        with pytest.raises(W.WidgetError) as e:                     # a revision's name
+            W.name_rev(A, d["id"], 1, bad)
+        assert e.value.sentence == sentence
+        assert W.get(A, d["id"])["name"] == "Good"                  # nothing was written
+    # Control: a real astral character is an ordinary name.
+    ok = _mk(W, name="Rocket " + chr(0x1F680))
+    assert W.get(A, ok["id"])["name"] == "Rocket " + chr(0x1F680)
+
+
 def test_keeps_50_unnamed_plus_named(W):
     d = _mk(W)
     W.name_rev(A, d["id"], 1, "The first one")
@@ -417,10 +447,11 @@ def test_too_new_plan_get_flags_and_refuses_update(W):
     # stored as the member saved it, never rewritten
     assert json.loads(_rows("SELECT plan_json FROM j2_widget_definitions WHERE id = ?",
                             (d["id"],))[0][0]) == newer
-    # an incoming plan from a newer app is refused too
+    # an incoming plan from a newer app is refused too (wave 9: PLAN_VERSION is 2, so newer is 3)
+    from api.services.journal_two.widget_engine.plan import PLAN_VERSION
     with pytest.raises(W.PlanTooNew):
-        W.create(A, "n", {"v": 2, "source": "closed_trades", "measures": [{"key": "net_pnl"}]},
-                 catalog=CAT, now=T0)
+        W.create(A, "n", {"v": PLAN_VERSION + 1, "source": "closed_trades",
+                          "measures": [{"key": "net_pnl"}]}, catalog=CAT, now=T0)
 
 
 def test_resolve_for_run_prefers_placed_rev(W):

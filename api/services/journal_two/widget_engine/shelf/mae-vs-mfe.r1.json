@@ -1,0 +1,55 @@
+{
+  "id": "shelf:mae-vs-mfe",
+  "rev": 1,
+  "name": "MAE vs MFE",
+  "description": "Each trade's worst and best move against your stop.",
+  "keywords": [
+    "mae",
+    "mfe",
+    "excursion",
+    "heat",
+    "gave it back",
+    "stopped too tight"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "formulas": [
+      {
+        "id": "f1",
+        "name": "MAE",
+        "expr": "Abs([mae_r])",
+        "format": "r"
+      },
+      {
+        "id": "f2",
+        "name": "MFE",
+        "expr": "[mfe_r]",
+        "format": "r"
+      }
+    ],
+    "measures": [
+      {
+        "formula": "f1",
+        "agg": "avg"
+      },
+      {
+        "formula": "f2",
+        "agg": "avg"
+      }
+    ],
+    "view": {
+      "type": "scatter",
+      "auto": false
+    },
+    "display": {
+      "title": "MAE vs MFE",
+      "titleAuto": false,
+      "accent": "gold",
+      "quadrants": "excursion"
+    }
+  }
+}

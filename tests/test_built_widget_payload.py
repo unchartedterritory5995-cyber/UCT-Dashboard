@@ -539,3 +539,65 @@ def test_account_split_marks_label_kind_and_other_splits_do_not():
     out = build(p, result_of(), scan_of())
     assert "labelKind" not in out and "label2Kind" not in out
 
+
+
+# -- wave 10 (Task 10.5) -------------------------------------------------------------------------
+
+def _w10_formula_plan():
+    return {"v": 1, "source": "closed_trades", "range": {"token": "all"},
+            "formulas": [{"id": "f1", "name": "Edge", "expr": "[net] / [risk_dollars]",
+                          "format": "r"},
+                         {"id": "f2", "name": "Wins", "expr": "CountIf([net] > 0)",
+                          "format": "money"}],
+            "measures": [{"formula": "f1", "agg": "avg"}, {"formula": "f2"},
+                         {"key": "net_pnl"}]}
+
+
+def test_formula_measure_rows_carry_their_key_and_fmt(conn):
+    from tests.test_widget_sources import add_trade
+    add_trade(conn, UID, day="2026-10-20", pnl=100.0)
+    out = run_real(conn, _w10_formula_plan())
+    assert out["measures"] == [
+        {"key": "formula:f1", "label": "Edge", "unit": "trades", "kind": "average", "fmt": "r"},
+        {"key": "formula:f2", "label": "Wins", "unit": "trades", "kind": "count", "fmt": "count"},
+        {"label": "Net P&L", "unit": "trades", "kind": "sum", "fmt": "money"},
+    ]
+    assert payload.FORMULA_FMT == {"number": "number", "money": "money", "percent": "pct",
+                                   "r": "r"}
+    assert set(payload.FORMULA_FMT.values()) <= set(payload.MEASURE_FMT.values())
+
+
+def test_wave9_plans_build_no_wave10_key(conn):
+    from tests.test_widget_sources import add_trade
+    for d, pnl in (("2026-10-19", 100.0), ("2026-10-20", -150.0), ("2026-10-21", 80.0)):
+        add_trade(conn, UID, day=d, pnl=pnl)
+    for raw in (raw_plan(measures=("max_drawdown",)), raw_plan(measures=("current_streak",)),
+                raw_plan(split={"by": "day"}, view={"type": "line"}),
+                raw_plan(measures=("total_r", "net_pnl"), view={"type": "scatter"})):
+        out = run_real(conn, raw)
+        assert set(out) == FIXED_KEYS | {"def"}, raw
+        assert all(set(r) == ROW_KEYS for r in out["series"])
+
+
+def test_wave10_keys_never_reach_a_public_page(conn):
+    from api.services.journal_two import public_note_payload as public
+    from tests.test_widget_sources import add_trade
+    for i, d in enumerate(("2026-10-19", "2026-10-20", "2026-10-21")):
+        add_trade(conn, UID, day=d, pnl=[100.0, -150.0, -20.0][i])
+    cum = run_real(conn, raw_plan(split={"by": "day"}, view={"type": "line"},
+                                  display={"cumulative": True}))
+    stop = run_real(conn, raw_plan(measures=("current_streak",), display={"stopAfter": 3}))
+    assert {"d1", "dd1"} <= set(cum["series"][0]) and stop["stop"]["losses"] == 2
+    p = vplan(raw_plan(measures=("max_drawdown",)))
+    rng = plan.resolve_range(p["range"], TODAY)
+    sc = sources.scan(conn, p, {}, rng, UID, today=TODAY)
+    dd = payload.build_payload(result=aggregate.evaluate(sc.rows, p, sources.CATALOG), plan=p,
+                               settings={}, def_id=None, def_rev=None, latest_rev=None, rng=rng,
+                               scan=sc, sample=False, now=NOW, w10=True)
+    assert "drawdown" in dd
+    for out in (cum, stop, dd):
+        shown = public.allowed_params("builtWidget", out)
+        assert not {"drawdown", "target", "targetLabel", "stop", "quadrants", "probe"} & set(shown)
+        assert all(not {"d1", "d2", "d3", "dd1"} & set(r) for r in shown.get("series", []))
+    shared = public.allowed_params("builtWidget", cum)          # a shared curve still draws
+    assert [r["v1"] for r in shared["series"]] == [100.0, -50.0, -70.0]

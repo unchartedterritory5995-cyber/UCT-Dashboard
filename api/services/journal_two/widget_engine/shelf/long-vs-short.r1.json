@@ -1,0 +1,42 @@
+{
+  "id": "shelf:long-vs-short",
+  "rev": 1,
+  "name": "Long vs short",
+  "description": "Trades, win rate and net P&L for longs and for shorts.",
+  "keywords": [
+    "long",
+    "short",
+    "side",
+    "direction"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "trades"
+      },
+      {
+        "key": "win_rate"
+      },
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "side"
+    },
+    "view": {
+      "type": "table",
+      "auto": false
+    },
+    "display": {
+      "title": "Long vs short",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

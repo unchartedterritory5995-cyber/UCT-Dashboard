@@ -111,6 +111,7 @@ def test_unpaid_402_own_sentence(conn):
         r = c.request(method, _concrete(path), json={})
         assert r.status_code == 402, (method, path)
         assert r.json()["detail"] == "Built widgets require a paid plan"
+        assert r.headers["cache-control"] == "no-store", (method, path)      # a refusal is not cached
     assert "Built widgets require a paid plan" != "Notebook widgets require a paid plan"
     assert _client(None).get(BASE + "/shelf").status_code in (401, 403)
 
@@ -118,7 +119,8 @@ def test_unpaid_402_own_sentence(conn):
 def test_every_200_is_no_store(conn):
     r = _client().get(BASE + "/shelf")
     assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
-    assert {e["id"] for e in r.json()["examples"]} == {e["id"] for e in wshelf.examples()}
+    assert {e["id"] for e in r.json()["examples"]} == {
+        e["id"] for e in wshelf.examples(allowed=wdr._shelf_allowed())}
 
 
 # -- runs ----------------------------------------------------------------------------------------
@@ -138,7 +140,8 @@ def test_run_saved_and_frozen_and_shelf(conn):
 
     ex = wshelf.examples()[0]
     s = c.post(BASE + "/run", json={"defId": ex["id"], "settings": {}})
-    assert s.status_code == 200 and s.json()["defId"] is None and s.json()["notice"] != wdr.S_FROZEN
+    assert s.status_code == 200 and s.json()["notice"] != wdr.S_FROZEN
+    assert (s.json()["defId"], s.json()["defRev"], s.json()["latestRev"]) == (ex["id"], 1, 1)
 
     gone = c.post(BASE + "/run", json={"defId": "nope", "settings": {}})
     assert gone.status_code == 400 and _code(gone) == "invalid"
@@ -186,7 +189,7 @@ def test_preview_answers_sample_and_default_name(conn):
 
 def test_examples_counts_one_preview(conn, monkeypatch):
     seen = []
-    monkeypatch.setattr(wrun, "run_examples", lambda uid, ids: seen.append(ids) or {"cards": {}})
+    monkeypatch.setattr(wrun, "run_examples", lambda uid, ids, **kw: seen.append(ids) or {"cards": {}})
     monkeypatch.setattr(wrun, "run_plan", lambda *a, **k: {"notice": None})
     monkeypatch.setattr(wdr, "_wants_sample", lambda uid: False)
     c = _client()
@@ -503,6 +506,34 @@ def test_crud_round_trip_and_ownership(conn, monkeypatch):
     assert r.status_code == 409 and r.json()["detail"] == {"code": "count_cap", "message": wdefs.S_CAP}
 
 
+def test_a_lone_surrogate_in_a_name_is_400_never_500(conn):
+    """Task 10.2 fix 2: the body is sent as ASCII JSON carrying an escaped lone surrogate, the
+    way a browser can send it. Every name route answers 400 with the sentence."""
+    import json as _json
+    want = {"code": "invalid", "message": wdefs.S_BAD_CHARACTER}
+    c = _client()
+
+    def send(method, url, body, headers=None):
+        raw = _json.dumps(body)  # ensure_ascii: the surrogate travels as an escape
+        return c.request(method, url, content=raw.encode("ascii"),
+                         headers={"content-type": "application/json", **(headers or {})})
+
+    bad = "a" + chr(0xD800)
+    assert "ud800" in _json.dumps({"name": bad})  # the body carries the escape, not the byte
+    r = send("POST", BASE, {"name": bad, "plan": raw_plan()})
+    assert r.status_code == 400 and r.json()["detail"] == want
+    saved = wdefs.create(UID, "Mine", raw_plan())
+    url = f"{BASE}/{saved['id']}"
+    r = send("PUT", url, {"name": bad, "apply": "only"}, {"If-Match": str(saved["etag"])})
+    assert r.status_code == 400 and r.json()["detail"] == want
+    r = send("POST", f"{url}/revs/1/name", {"name": bad})
+    assert r.status_code == 400 and r.json()["detail"] == want
+    assert wdefs.get(UID, saved["id"])["name"] == "Mine"
+    # Control: the same route accepts an ordinary escaped character.
+    r = send("PUT", url, {"name": "a" + chr(0xE9), "apply": "only"}, {"If-Match": str(saved["etag"])})
+    assert r.status_code == 200 and r.json()["name"] == "a" + chr(0xE9)
+
+
 def test_every_route_is_a_sync_def():
     import inspect
     for r in wdr.router.routes:
@@ -621,3 +652,666 @@ def test_save_new_put_honours_the_key(conn):
     bad = c.put(f"{BASE}/{src['id']}", json={**body, "name": "Else"}, headers=hdr)
     assert bad.status_code == 409 and _code(bad) == "conflict"
     assert _count(conn, "SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?", (UID,)) == 2
+
+
+# -- wave 9 (Task 9.8): routine and tracker history behind NOTEBOOK_WIDGETS_W9_ENABLED ---------
+
+def _tool_plans():
+    rid = "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+    return [
+        raw_plan(source="routine_history", measures=("routine_days_done",),
+                 range={"token": "last_30d"}),
+        raw_plan(source="tracker_history", measures=("tracker_entries",),
+                 range={"token": "last_30d"}),
+        raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                 split={"by": "routine_done", "ref": rid}, range={"token": "last_30d"}),
+    ]
+
+
+def test_tool_plans_404_and_hidden_from_catalog_when_w9_off(conn, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+    c = _client()
+    static = c.get(BASE + "/vocabulary").json()
+    assert {s["key"] for s in static["sources"]} == {"closed_trades", "open_positions", "trading_days"}
+    days = next(s for s in static["sources"] if s["key"] == "trading_days")
+    assert all(f["refKind"] is None for s in static["sources"] for f in s["fields"])
+    assert not {"routine_done", "tracker_value", "tracker_bucket"} & {f["key"] for f in days["fields"]}
+    assert not any(k.startswith(("routine_", "tracker_")) for k in (m["key"] for m in static["measures"]))
+    for field in ("routine", "tracker"):
+        r = c.get(BASE + "/vocabulary", params={"field": field})
+        assert r.status_code == 400 and _code(r) == "invalid"
+    saved = wdefs.create(UID, "Mine", raw_plan())                       # a plain widget, for PUT
+    for p in _tool_plans():
+        for path, body in (("/run", {"def": p}), ("/preview", {"plan": p}),
+                           ("/drill", {"def": p, "cell": {}}), ("", {"plan": p})):
+            r = c.post(BASE + path, json=body)
+            assert r.status_code == 404, (path, p["source"], r.status_code)
+            assert r.json()["detail"] == public.not_found().detail
+        r = c.put(f"{BASE}/{saved['id']}", json={"plan": p, "apply": "only"},
+                  headers={"If-Match": str(saved["etag"])})
+        assert r.status_code == 404
+    assert not any(wplan.uses_tools(e["plan"]) for e in c.get(BASE + "/shelf").json()["examples"])
+    # control: the same routes with a plain plan are not the 404
+    assert c.post(BASE + "/run", json={"def": raw_plan()}).status_code == 200
+    # on: the same tool plans run (empty, never sample)
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    for p in _tool_plans():
+        r = c.post(BASE + "/run", json={"def": p})
+        assert r.status_code == 200 and r.json()["sample"] is False, p["source"]
+        assert r.json()["def"]["v"] == 2
+    created = c.post(BASE, json={"plan": _tool_plans()[0]})
+    assert created.status_code == 200
+    row = conn.execute("SELECT plan_version FROM j2_widget_definitions WHERE id = ?",
+                       (created.json()["id"],)).fetchone()
+    assert row[0] == 2
+    plain = conn.execute("SELECT plan_version FROM j2_widget_definitions WHERE id = ?",
+                         (saved["id"],)).fetchone()
+    assert plain[0] == 1                                                # a wave 8 widget stays v1
+    # off again: the stored tool widget is still listed and readable, it just does not run
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "0")
+    assert c.get(f"{BASE}/{created.json()['id']}").status_code == 200
+    assert c.post(BASE + "/run", json={"defId": created.json()["id"]}).status_code == 404
+
+
+def test_vocabulary_routine_and_tracker_fields_when_w9_on(conn, monkeypatch):
+    from datetime import datetime, timezone
+    from api.services.journal_two import routines, trackers
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    add_user(conn, OTHER)
+    now = datetime(2026, 10, 20, 17, tzinfo=timezone.utc)
+    mine = routines.create(UID, name="Morning", items=["Plan"], schedule={"kind": "every"}, now=now)
+    routines.create(OTHER, name="Theirs", items=["x"], schedule={"kind": "every"}, now=now)
+    t = trackers.create(UID, name="Sleep", kind="duration", now=now)
+    trackers.create(OTHER, name="Their tracker", kind="number", now=now)
+    c = _client()
+    static = c.get(BASE + "/vocabulary").json()
+    keys = [s["key"] for s in static["sources"]]
+    assert keys == ["closed_trades", "open_positions", "trading_days", "routine_history",
+                    "tracker_history"]
+    days = next(s for s in static["sources"] if s["key"] == "trading_days")
+    kinds = {f["key"]: f["refKind"] for f in days["fields"]}
+    assert kinds["routine_done"] == "routine" and kinds["tracker_value"] == "tracker"
+    assert kinds["tracker_bucket"] == "tracker" and kinds["day_net"] is None
+    rh = next(s for s in static["sources"] if s["key"] == "routine_history")
+    assert {f["key"]: f["filter"] for f in rh["fields"]}["item"] is False
+    assert set(rh["measures"]) == {"routine_consistency", "routine_completion_pct",
+                                   "routine_days_done", "routine_best_run"}
+    assert c.get(BASE + "/vocabulary", params={"field": "routine"}).json()["values"] == [
+        {"id": mine["id"], "name": "Morning"}]
+    vals = c.get(BASE + "/vocabulary", params={"field": "tracker"}).json()["values"]
+    assert vals == [{"id": "checkin:mood", "name": "Check-in mood"},
+                    {"id": "checkin:focus", "name": "Check-in focus"},
+                    {"id": t["id"], "name": "Sleep"}]
+
+
+def test_restore_of_a_tool_revision_is_refused_while_w9_off_and_rename_is_allowed(conn, monkeypatch):
+    """W9-R16."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    c = _client()
+    made = c.post(BASE, json={"plan": _tool_plans()[0]}).json()
+    url = f"{BASE}/{made['id']}"
+    plain = c.put(url, json={"plan": raw_plan(), "apply": "only"},
+                  headers={"If-Match": str(made["etag"])}).json()
+    assert plain["rev"] == 2
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "0")
+    r = c.post(f"{url}/revs/1/restore", headers={"If-Match": str(plain["etag"])})
+    assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+    renamed = c.put(url, json={"name": "Renamed", "apply": "only"},
+                    headers={"If-Match": str(plain["etag"])})
+    assert renamed.status_code == 200 and renamed.json()["name"] == "Renamed"
+    # control: a plain revision restores while off, and the tool one does once wave 9 is on
+    ok = c.post(f"{url}/revs/2/restore", headers={"If-Match": str(renamed.json()["etag"])})
+    assert ok.status_code == 200
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    again = c.post(f"{url}/revs/1/restore", headers={"If-Match": str(ok.json()["etag"])})
+    assert again.status_code == 200
+
+
+def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch, tmp_path):
+    from tests.test_widget_shelf_files import planted
+    tool = {"id": "shelf:routine-test", "rev": 1, "name": "Routine", "description": "d",
+            "keywords": [], "plan": _tool_plans()[0]}
+    with planted(tmp_path, [tool], new_ids=(tool["id"],)):
+        monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+        c = _client()
+        r = c.post(BASE + "/examples", json={"ids": [tool["id"]]})
+        assert r.status_code == 200 and r.json()["cards"] == {}      # Task 10.9: dropped, not run
+        assert tool["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+        plain_id = wshelf.examples()[0]["id"]
+        assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200   # control
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+        r = c.post(BASE + "/examples", json={"ids": [tool["id"], plain_id]})
+        assert r.status_code == 200 and r.json()["cards"][tool["id"]]["sample"] is False
+        assert tool["id"] in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+
+
+# -- shelf revisions (Task 10.8) -----------------------------------------------------------------
+
+def test_shelf_wave10_fallback_only_before_plan_v3():
+    """Task 10.4 landed plan format 3 and `plan.uses_wave10`, and deleted `_shelf_allowed`'s getattr
+    fallback: the router asks `wplan.uses_wave10` directly."""
+    assert wplan.PLAN_VERSION == 3 and hasattr(wplan, "uses_wave10")
+    import inspect
+    src = inspect.getsource(wdr._shelf_allowed)
+    assert "wplan.uses_wave10(plan)" in src and "getattr" not in src
+
+
+def _two_revs(tmp_path, **plan_changes):
+    from tests.test_widget_shelf_files import planted, rev2_of
+    changes = plan_changes or {"display": {"title": "Win rate, revision two", "titleAuto": False,
+                                           "accent": "gold"}}
+    return planted(tmp_path, [rev2_of("shelf:win-rate", **changes)])
+
+
+def test_shelf_run_pins_def_rev(conn, tmp_path):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    c = _client()
+    with _two_revs(tmp_path):
+        one = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 1, "settings": {}})
+        two = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 2, "settings": {}})
+        assert one.status_code == two.status_code == 200
+        assert (one.json()["defRev"], one.json()["latestRev"]) == (1, 2)
+        assert (two.json()["defRev"], two.json()["latestRev"]) == (2, 2)
+        assert one.json()["title"] == "Win rate"                   # a newer rev does not move rev 1
+        assert two.json()["title"] == "Win rate, revision two"
+        assert one.json()["defId"] == two.json()["defId"] == "shelf:win-rate"
+        # an unknown revision: the note's frozen copy if it has one ...
+        frozen = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 9,
+                                             "def": _plan(), "settings": {}})
+        assert frozen.status_code == 200 and frozen.json()["notice"] == wdr.S_FROZEN
+        assert frozen.json()["defId"] is None
+        # ... else the newest revision the flags allow
+        newest = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 9, "settings": {}})
+        assert newest.status_code == 200 and newest.json()["defRev"] == 2
+        assert newest.json()["notice"] != wdr.S_FROZEN
+        drill = c.post(BASE + "/drill", json={"defId": "shelf:win-rate", "defRev": 1,
+                                              "settings": {}, "cell": {}})
+        assert drill.status_code != 500
+    unknown = c.post(BASE + "/run", json={"defId": "shelf:nope", "defRev": 1, "settings": {}})
+    assert unknown.status_code == 400 and _code(unknown) == "invalid"
+
+
+def test_shelf_run_without_def_rev_is_rev_one(conn, tmp_path):
+    c = _client()
+    with _two_revs(tmp_path):
+        for bad in (None, "2", True, 0, -3, 1.5, [2], {"rev": 2}):    # a wave 8 placement, or junk
+            body = {"defId": "shelf:win-rate", "settings": {}}
+            if bad is not None:
+                body["defRev"] = bad
+            r = c.post(BASE + "/run", json=body)
+            assert r.status_code == 200, bad
+            assert (r.json()["defRev"], r.json()["title"]) == (1, "Win rate"), bad
+        big = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 10 ** 30,
+                                          "settings": {}})
+        assert big.status_code == 200 and big.json()["defRev"] == 2     # unknown: the newest
+
+
+def test_shelf_payload_echoes_latest_rev(conn, tmp_path, monkeypatch):
+    from tests.test_widget_shelf_files import planted, rev2_of
+    c = _client()
+    r2 = rev2_of("shelf:win-rate")
+    r2["plan"] = dict(_tool_plans()[0], display={"title": "Win rate", "titleAuto": False,
+                                                 "accent": "gold"})
+    with planted(tmp_path, [r2]):
+        monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+        r = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 1, "settings": {}})
+        assert r.status_code == 200 and (r.json()["defRev"], r.json()["latestRev"]) == (1, 1)
+        shelf_row = next(e for e in c.get(BASE + "/shelf").json()["examples"]
+                         if e["id"] == "shelf:win-rate")
+        assert shelf_row["rev"] == 1                               # rev 2 needs a dark wave
+        pinned = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 2, "settings": {}})
+        assert pinned.status_code == 404                           # the tool gate still answers
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+        r = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 1, "settings": {}})
+        assert (r.json()["defRev"], r.json()["latestRev"]) == (1, 2)
+        assert r.json()["sourceKey"] == "closed_trades"            # still rev 1's plan
+        shelf_row = next(e for e in c.get(BASE + "/shelf").json()["examples"]
+                         if e["id"] == "shelf:win-rate")
+        assert shelf_row["rev"] == 2
+
+
+def test_shelf_route_lists_rev_and_summary(conn, tmp_path):
+    from api.services.journal_two.widget_engine import sources as wsources
+    c = _client()
+    rows = c.get(BASE + "/shelf").json()["examples"]
+    assert len(rows) == len(wshelf.examples(allowed=wdr._shelf_allowed())) >= 23
+    for e in rows:
+        assert e["rev"] == wshelf.latest_rev(e["id"], allowed=wdr._shelf_allowed()), e["id"]
+        unit = wsources.CATALOG.sources[e["plan"]["source"]].unit
+        assert e["summary"] == wplan.summary(e["plan"], wsources.CATALOG, None, unit), e["id"]
+        assert e["summary"].strip()
+    with _two_revs(tmp_path):
+        row = next(e for e in c.get(BASE + "/shelf").json()["examples"] if e["id"] == "shelf:win-rate")
+        assert row["rev"] == 2 and row["plan"]["display"]["title"] == "Win rate, revision two"
+
+
+def _served_codes(c, source, field):
+    static = c.get(BASE + "/vocabulary").json()
+    src = next(s for s in static["sources"] if s["key"] == source)
+    return next(f for f in src["fields"] if f["key"] == field)["values"]
+
+
+def test_vocabulary_serves_the_routine_state_codes_and_the_validator_agrees(conn, monkeypatch):
+    """W9-R23: `state` and `routine_done` serve their codes with labels, derived from the source
+    constants; every served code passes the filter validator and every label is refused."""
+    from api.services.journal_two.widget_engine import sources as wsources
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    c = _client()
+    rid = "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+    cases = {
+        ("trading_days", "routine_done"): (wsources.STATE_CODES, lambda v: raw_plan(
+            source="trading_days", measures=("avg_day_pnl",),
+            filters=[{"field": "routine_done", "op": "in", "values": [v], "ref": rid}],
+            range={"from": "2026-10-19", "to": "2026-10-23"})),
+        ("routine_history", "state"): (wsources.HISTORY_STATES, lambda v: raw_plan(
+            source="routine_history", measures=("routine_days_done",),
+            filters=[{"field": "state", "op": "in", "values": [v]}], range={"token": "last_30d"})),
+    }
+    for (source, field), (codes, mk) in cases.items():
+        served = _served_codes(c, source, field)
+        assert served == [{"value": k, "label": wsources.STATE_LABELS[k]} for k in codes]
+        assert {s["label"] for s in served} <= {"Done", "Not done", "Skipped", "Off day", "Not yet"}
+        for s in served:
+            assert wplan.validate_plan(mk(s["value"]), wsources.CATALOG)["filters"][0]["values"] \
+                == [s["value"]]
+            with pytest.raises(wplan.PlanError) as e:
+                wplan.validate_plan(mk(s["label"]), wsources.CATALOG)
+            assert e.value.sentence == wplan.S_FILTER_VALUE_TYPE
+    # moving the source moves what is served AND what the validator accepts
+    monkeypatch.setattr(wsources, "STATE_LABELS", {**wsources.STATE_LABELS, "done": "Finished"})
+    monkeypatch.setattr(wsources, "HISTORY_STATES", ("done", "skipped"))
+    served = _served_codes(c, "routine_history", "state")
+    assert served == [{"value": "done", "label": "Finished"},
+                      {"value": "skipped", "label": "Skipped"}]
+    with pytest.raises(wplan.PlanError):
+        wplan.validate_plan(cases[("routine_history", "state")][1]("not_done"), wsources.CATALOG)
+    assert _served_codes(c, "trading_days", "routine_done")[0] == {"value": "done",
+                                                                   "label": "Finished"}
+
+
+# -- wave 10 (ruling W10-R46, Task 10.4 fix round 1): the gate and the interim engine guard ------
+
+def _w10_plans():
+    """The review's three repro plans, plus the two display options that would run wrong."""
+    return {
+        "aggregate formula measure": dict(_plan(
+            formulas=[{"id": "f1", "name": "Wins n", "expr": "CountIf([net] > 0)"}]),
+            measures=[{"formula": "f1"}]),
+        "row formula measure": dict(_plan(
+            formulas=[{"id": "f1", "name": "Double", "expr": "[net] * 2"}]),
+            measures=[{"formula": "f1", "agg": "sum"}]),
+        "row formula filter": _plan(
+            formulas=[{"id": "f1", "name": "Big", "expr": "[net] > 0"}],
+            filters=[{"field": "formula:f1", "op": "is", "values": [True]}]),
+        "cumulative": _plan(split={"by": "day"}, view={"type": "line"},
+                            display={"cumulative": True}),
+        "stop after": _plan(measures=("current_streak",), display={"stopAfter": 2}),
+    }
+
+
+def _unraising(user=PAID):
+    app = FastAPI()
+    app.include_router(wdr.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(user)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(user)
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def _doors(c, p, saved):
+    """Every door `_gate_tools` guards, for plan `p`: (name, response)."""
+    yield "run", c.post(BASE + "/run", json={"def": p})
+    yield "preview", c.post(BASE + "/preview", json={"plan": p})
+    yield "drill", c.post(BASE + "/drill", json={"def": p, "cell": {}})
+    yield "create", c.post(BASE, json={"plan": p})
+    yield "save", c.put(f"{BASE}/{saved['id']}", json={"plan": p, "apply": "only"},
+                        headers={"If-Match": str(saved["etag"])})
+
+
+def test_w10_plans_are_the_dark_404_at_every_door_while_w10_is_off(conn, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    c = _unraising()
+    saved = wdefs.create(UID, "Mine", _plan())
+    plans = _w10_plans()
+    assert all(wplan.uses_wave10(p) for p in plans.values())
+    for name, p in plans.items():
+        for door, r in _doors(c, p, saved):
+            assert r.status_code == 404, (name, door, r.status_code, r.text[:200])
+            assert r.json()["detail"] == public.not_found().detail, (name, door)
+    n = conn.execute("SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?",
+                     (UID,)).fetchone()[0]
+    assert n == 1                                                   # nothing v3 was stored
+    # controls: a v1 plan runs, and a v2 tool plan runs once wave 9 is on, with wave 10 still off
+    assert c.post(BASE + "/run", json={"def": _plan()}).status_code == 200
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    r = c.post(BASE + "/run", json={"def": _tool_plans()[0]})
+    assert r.status_code == 200 and r.json()["def"]["v"] == 2
+
+
+def test_w10_plans_run_at_every_door_while_w10_is_on(conn, monkeypatch):
+    """With wave 10 ON (Tasks 10.5 and 10.6): formula measures, formula filters and the display
+    options run at `/run`, `/preview` and `/drill` -- W10-R46's interim guard is gone. Never a
+    500, and never the plan-level refusal for a plan the validator accepted."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    c = _unraising()
+    runs = drills = set(_w10_plans())
+    for name, p in _w10_plans().items():
+        made = c.post(BASE, json={"plan": p})
+        assert made.status_code == 200 and made.json()["plan"]["v"] == 3, (name, made.text[:200])
+        for door, body in (("/run", {"def": p}), ("/run", {"defId": made.json()["id"]}),
+                           ("/preview", {"plan": p}), ("/drill", {"def": p, "cell": {}})):
+            r = c.post(BASE + door, json=body)
+            ok = name in (drills if door == "/drill" else runs)
+            assert r.status_code == (200 if ok else 400), (name, door, r.status_code, r.text[:200])
+            if not ok:
+                assert r.json()["detail"] == {"code": "invalid", "message": wplan.S_UNREADABLE}
+    r = c.post(BASE + "/run", json={"def": _w10_plans()["row formula measure"]})
+    assert r.json()["value"]["v1"] == 100.0                     # [net] * 2, added up
+    assert r.json()["measures"][0]["key"] == "formula:f1"
+    r = c.post(BASE + "/run", json={"def": _w10_plans()["row formula filter"]})
+    assert r.json()["count"] == 1 and r.json()["value"]["v1"] == 50.0    # [net] > 0 kept it
+    # controls: v1 and v2 plans still run with wave 10 on
+    assert c.post(BASE + "/run", json={"def": _plan()}).status_code == 200
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    assert c.post(BASE + "/run", json={"def": _tool_plans()[0]}).status_code == 200
+
+
+def _sweep_shapes():
+    """Every display option and formula shape (Task 10.5's rail): {name: raw plan}."""
+    def f(fid, name, expr, fmt="number"):
+        return {"id": fid, "name": name, "expr": expr, "format": fmt}
+
+    def mk(measures, formulas=(), source="closed_trades", rng=None, **kw):
+        raw = {"v": 1, "source": source, "measures": list(measures),
+               "range": rng or {"token": "last_90d"}}
+        if formulas:
+            raw["formulas"] = list(formulas)
+        raw.update(kw)
+        return raw
+
+    edge = f("f1", "Edge", "[net] / [risk_dollars]", "r")
+    green = f("f1", "Green", "[net] > 0")
+    shapes = {}
+    for agg, fmt in (("sum", "money"), ("avg", "r"), ("min", "percent"), ("max", "number")):
+        shapes[f"row {agg}"] = mk([{"formula": "f1", "agg": agg}], [dict(edge, format=fmt)])
+    shapes["bool share"] = mk([{"formula": "f1", "agg": "share"}], [green])
+    shapes["bool count"] = mk([{"formula": "f1", "agg": "count"}], [green])
+    shapes["text measure"] = mk([{"formula": "f1", "agg": "sum"}],
+                                [f("f1", "Wd", "Weekday([day])")])
+    for name, expr in (("countif", "CountIf([net] > 0)"), ("sumif", "SumIf([net], [r] > 0)"),
+                       ("share", "Share([net] > 0)"), ("avgif", "AvgIf([net])"),
+                       ("composite", "SumIf([net], [net] > 0) / CountIf([net] > 0)"),
+                       ("agg divide by zero", "SumIf([net]) / 0")):
+        shapes[f"aggregate {name}"] = mk([{"formula": "f1"}], [f("f1", "Agg", expr)])
+    shapes["hour"] = mk([{"formula": "f1", "agg": "avg"}], [f("f1", "Hr", "Hour([day])")])
+    shapes["hold minutes"] = mk([{"formula": "f1", "agg": "avg"}],
+                                [f("f1", "Hours", "[hold_minutes] / 60")])
+    shapes["divide by zero"] = mk([{"formula": "f1", "agg": "avg"}],
+                                  [f("f1", "Zero", "[net] / 0")])
+    shapes["five formulas"] = mk([{"formula": f"f{i}", "agg": "sum"} for i in (1, 2, 3)],
+                                 [f(f"f{i}", f"F{i}", f"[net] * {i}") for i in range(1, 6)])
+    shapes["declared unused"] = mk([{"key": "net_pnl"}], [edge])
+    shapes["text split"] = mk([{"key": "net_pnl"}], [f("f1", "Wd", "Weekday([day])")],
+                              split={"by": "formula:f1"}, view={"type": "bar"})
+    shapes["bucket split"] = mk([{"key": "trades"}], [f("f1", "Band", "Bucket([r], 0, 1)")],
+                                split={"by": "formula:f1"}, view={"type": "bar"})
+    shapes["bool filter"] = mk([{"key": "net_pnl"}], [green],
+                               filters=[{"field": "formula:f1", "op": "is", "values": [True]}])
+    shapes["number filter"] = mk([{"key": "net_pnl"}], [edge],
+                                 filters=[{"field": "formula:f1", "op": "gt", "values": [0]}])
+    for view, split in (("list", None), ("table", {"by": "setup"}), ("bar", {"by": "setup"}),
+                        ("heat", {"by": "day"}), ("line", {"by": "day"})):
+        shapes[f"formula on {view}"] = mk([{"formula": "f1", "agg": "sum"}], [edge],
+                                           split=split, view={"type": view})
+    shapes["formula compare"] = mk([{"formula": "f1", "agg": "sum"}], [edge],
+                                   view={"type": "compare"}, compare={"mode": "previous"})
+    shapes["cumulative"] = mk([{"key": "net_pnl"}], split={"by": "day"}, view={"type": "line"},
+                              display={"cumulative": True})
+    shapes["cumulative formula"] = mk([{"formula": "f1", "agg": "sum"}], [edge],
+                                      split={"by": "month"}, view={"type": "line"},
+                                      display={"cumulative": True})
+    shapes["goal"] = mk([{"key": "net_pnl"}], rng={"token": "this_week"},
+                        view={"type": "progress"}, display={"targetGoal": True})
+    shapes["stop after"] = mk([{"key": "current_streak"}], display={"stopAfter": 2})
+    shapes["quadrants"] = mk([{"formula": "f1", "agg": "avg"}, {"formula": "f2", "agg": "avg"}],
+                             [f("f1", "MAE", "Abs([mae_r])", "r"), f("f2", "MFE", "[mfe_r]", "r")],
+                             view={"type": "scatter"}, display={"quadrants": "excursion"})
+    shapes["drawdown number"] = mk([{"key": "max_drawdown"}])
+    shapes["drawdown compare"] = mk([{"key": "max_drawdown"}], view={"type": "compare"},
+                                    compare={"mode": "previous"})
+    shapes["days formula"] = mk([{"formula": "f1", "agg": "sum"}],
+                                [f("f1", "Double", "[day_net] * 2")], source="trading_days")
+    shapes["positions formula"] = mk([{"formula": "f1", "agg": "avg"}],
+                                     [f("f1", "Heat", "[unrealised] / [risk_dollars]")],
+                                     source="open_positions", rng={"token": "all"})
+    # Task 10.6: formula filters and splits on every source that scans, the two-way split,
+    # and the options strategies source in every view it allows
+    shapes["two-way formula split"] = mk([{"key": "net_pnl"}], [green],
+                                         split={"by": "setup", "then": "formula:f1"},
+                                         view={"type": "table"})
+    shapes["formula filter + split"] = mk([{"key": "trades"}],
+                                          [green, f("f2", "Wd", "Weekday([day])")],
+                                          filters=[{"field": "formula:f1", "op": "is",
+                                                    "values": [True]}],
+                                          split={"by": "formula:f2"}, view={"type": "bar"})
+    shapes["overridable formula filter"] = mk(
+        [{"key": "net_pnl"}], [green],
+        filters=[{"field": "formula:f1", "op": "is", "values": [True], "overridable": True}])
+    shapes["days formula filter"] = mk([{"key": "avg_day_pnl"}],
+                                       [f("f1", "Green day", "[day_net] > 0")],
+                                       filters=[{"field": "formula:f1", "op": "is",
+                                                 "values": [True]}], source="trading_days")
+    shapes["days formula split"] = mk([{"key": "avg_day_pnl"}],
+                                      [f("f1", "Green day", "[day_net] > 0")],
+                                      split={"by": "formula:f1"}, view={"type": "bar"},
+                                      source="trading_days")
+    shapes["positions formula filter"] = mk([{"key": "open_positions"}],
+                                            [f("f1", "Risky", "[risk_dollars] > 100")],
+                                            filters=[{"field": "formula:f1", "op": "is",
+                                                      "values": [False]}],
+                                            source="open_positions", rng={"token": "all"})
+    opt = dict(source="options_strategies")
+    shapes["options number"] = mk([{"key": "strategies"}, {"key": "net_pnl"},
+                                   {"key": "win_rate"}], **opt)
+    shapes["options compare"] = mk([{"key": "net_pnl"}], view={"type": "compare"},
+                                   compare={"mode": "previous"}, **opt)
+    shapes["options list"] = mk([{"key": "net_pnl"}, {"key": "total_r"}], view={"type": "list"},
+                                **opt)
+    for by in ("strategy", "direction", "status", "underlying", "result", "account", "setup",
+               "weekday", "month"):
+        shapes[f"options by {by}"] = mk([{"key": "strategies"}, {"key": "profit_factor"}],
+                                        split={"by": by}, view={"type": "bar"}, **opt)
+    shapes["options line"] = mk([{"key": "net_pnl"}], split={"by": "day"}, view={"type": "line"},
+                                display={"cumulative": True}, **opt)
+    shapes["options heat"] = mk([{"key": "net_pnl"}], split={"by": "day"}, view={"type": "heat"},
+                                **opt)
+    shapes["options drawdown"] = mk([{"key": "max_drawdown"}], **opt)
+    shapes["options stop after"] = mk([{"key": "current_streak"}], display={"stopAfter": 2},
+                                      **opt)
+    shapes["options filters"] = mk([{"key": "strategies"}], filters=[
+        {"field": "dte_entry", "op": "lte", "values": [30]},
+        {"field": "status", "op": "in", "values": ["closed", "open"]},
+        {"field": "underlying", "op": "contains", "values": ["sp"]}], **opt)
+    shapes["options formulas"] = mk([{"formula": "f1", "agg": "sum"}, {"formula": "f3"}],
+                                    [f("f1", "Double", "[net] * 2", "money"),
+                                     f("f2", "Dir", "[direction]"),
+                                     f("f3", "Wins n", "CountIf([net] > 0)")],
+                                    filters=[{"field": "formula:f2", "op": "in",
+                                              "values": ["bullish"]}], **opt)
+    shapes["options formula split"] = mk([{"key": "net_pnl"}], [f("f1", "Dir", "[direction]")],
+                                         split={"by": "formula:f1"}, view={"type": "bar"}, **opt)
+    return shapes
+
+
+def test_every_w10_shape_answers_200_or_a_clean_400_never_a_500(conn, monkeypatch):
+    """Task 10.5's sweep: with wave 10 ON every formula shape and display option goes through
+    `/run`, `/preview` and `/drill`; each answers 200 (a payload with no NaN and no infinity) or a
+    clean 400 (`{code, message}`), never a 500."""
+    from api.limiter import limiter
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    acc = add_account(conn, UID, "Main")
+    days = ("2026-09-01", "2026-09-15", "2026-10-01", "2026-10-14", "2026-10-20", "2026-10-21",
+            "2026-10-22")
+    pnls = (120, -80, 45, -150, 300, -20, 60)
+    rs = (1.2, -0.8, None, -1.5, 3.0, -0.2, 0.6)
+    for i, d in enumerate(days):
+        add_trade(conn, UID, day=d, pnl=pnls[i], r=rs[i], setup=("Flag", "VCP", None)[i % 3],
+                  account=acc, hour=None if i == 2 else 10 + i, stop=100 if i == 2 else 95,
+                  entry_iso=d if i == 3 else None, exit_iso=d if i == 3 else None)
+    from tests.test_widget_options_source import add_opt
+    for i, d in enumerate(days):
+        add_opt(conn, UID, entry=f"{d}T14:00:00Z", closed_at=f"{d}T19:00:00Z", pnl=pnls[i] / 2,
+                r=rs[i], account=acc if i % 2 else None, setup=("Wheel", None)[i % 2],
+                direction=("bullish", "bearish", "neutral")[i % 3],
+                strategy_type=("long_call", "iron_condor")[i % 2],
+                legs=("2026-11-20",) if i % 3 else (), stamp=bool(i % 2))
+    add_opt(conn, UID, status="open", entry="2026-10-21T14:00:00Z", legs=("2026-11-20",))
+    add_opt(conn, UID, closed_at="2026-10-22T00:30:00Z", pnl=5.0, result="Scratch", stamp=False)
+    conn.execute("UPDATE j2_accounts SET goals = ? WHERE id = ?",
+                 (json.dumps({"weekly": 500}), acc))
+    conn.commit()
+    c = _unraising()
+    answered: dict[int, list] = {200: [], 400: []}
+    for name, p in _sweep_shapes().items():
+        for door, body in (("/run", {"def": p}), ("/preview", {"plan": p}),
+                           ("/drill", {"def": p, "cell": {}})):
+            limiter.reset()
+            r = c.post(BASE + door, json=body)
+            assert r.status_code in (200, 400), (name, door, r.status_code, r.text[:300])
+            if r.status_code == 400:
+                detail = r.json()["detail"]
+                assert set(detail) >= {"code", "message"} and detail["message"], (name, door)
+            else:
+                json.dumps(r.json(), allow_nan=False)
+            answered[r.status_code].append((name, door))
+        if (p.get("view") or {}).get("type") == "scatter":       # a scatter point's own drill
+            limiter.reset()
+            r = c.post(BASE + "/drill", json={"def": p, "cell": {"d": "2026-10-20", "x": 1,
+                                                                  "y": 1}})
+            assert r.status_code in (200, 400), (name, "point", r.status_code, r.text[:300])
+            answered[r.status_code].append((name, "/drill point"))
+        if p.get("split"):                                       # a group's own drill
+            ran = c.post(BASE + "/run", json={"def": p})
+            labels = [row.get("label") for row in (ran.json().get("rows") or [])
+                      ] if ran.status_code == 200 else []
+            for label in labels[:3]:
+                limiter.reset()
+                r = c.post(BASE + "/drill", json={"def": p, "cell": {"label": label}})
+                assert r.status_code == 200, (name, "group", label, r.text[:300])
+                answered[200].append((name, "/drill group"))
+    ran = {n for n, d in answered[200] if d == "/run"}
+    drilled = {n for n, d in answered[200] if d.startswith("/drill")}
+    refused = {n for n, d in answered[400]}
+    # non-vacuity: every shape the validator accepts runs at every door -- the only 400 left is
+    # the validator's own refusal of a text formula as a measure
+    assert refused == {"text measure"}, sorted(refused)
+    assert set(_sweep_shapes()) - {"text measure"} <= ran, sorted(set(_sweep_shapes()) - ran)
+    assert set(_sweep_shapes()) - {"text measure"} <= drilled
+    assert {n for n, d in answered[200] if d == "/drill point"} == {"quadrants"}
+    assert {"options by strategy", "two-way formula split", "formula filter + split",
+            "options formula split", "days formula split"} <= \
+        {n for n, d in answered[200] if d == "/drill group"}
+    assert len(answered[200]) >= 200
+
+
+@pytest.mark.parametrize("w9", ["0", "1"])
+def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path, w9):
+    """Restore and examples gate in a loop that runs when EITHER wave is off. Fix round 2 (N-1):
+    W9 ON with W10 OFF is the production combination, where a loop keyed on wave 9 alone skips."""
+    from tests.test_widget_shelf_files import planted
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", w9)
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    c = _unraising()
+    made = c.post(BASE, json={"plan": _w10_plans()["row formula measure"]}).json()
+    url = f"{BASE}/{made['id']}"
+    plain = c.put(url, json={"plan": _plan(), "apply": "only"},
+                  headers={"If-Match": str(made["etag"])}).json()
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    r = c.post(f"{url}/revs/1/restore", headers={"If-Match": str(plain["etag"])})
+    assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+    renamed = c.put(url, json={"name": "Renamed", "apply": "only"},
+                    headers={"If-Match": str(plain["etag"])})
+    assert renamed.status_code == 200                                # a rename-only PUT passes
+    ex = {"id": "shelf:formula-test", "rev": 1, "name": "F", "description": "d", "keywords": [],
+          "plan": _w10_plans()["aggregate formula measure"]}
+    fx = {"id": "shelf:formula-filter-test", "rev": 1, "name": "G", "description": "d",
+          "keywords": [], "plan": _w10_plans()["row formula filter"]}
+    with planted(tmp_path, [ex, fx], new_ids=(ex["id"], fx["id"])):
+        r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})
+        assert r.status_code == 200 and r.json()["cards"] == {}      # Task 10.9: dropped, not run
+        assert ex["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+        r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})          # Task 10.5 runs it
+        assert r.status_code == 200 and ex["id"] in r.json()["cards"]
+        r = c.post(BASE + "/examples", json={"ids": [fx["id"]]})          # Task 10.6 runs it
+        assert r.status_code == 200 and fx["id"] in r.json()["cards"]
+        plain_id = wshelf.examples()[0]["id"]
+        assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200  # control
+
+
+# -- Task 10.13: the wave 10 shelf revisions, the new entries and the dedicated list ---------------
+
+#: The seven dedicated kinds as `GET /shelf` lists them, in spec section 8 order (Task 10.13, verbatim).
+DEDICATED = [
+    ("myTiltCheck", "Tilt check", "Trades soon after a loss compared with the rest."),
+    ("myRevengeClean", "Revenge trades", "Clean days in the last 30 trading days."),
+    ("myPlanVsActual", "Plan vs actual", "One trade's plan against its fills."),
+    ("myRiskLeftToday", "Risk left today", "Your daily loss limit against today's P&L and open risk."),
+    ("myPropFirm", "Prop-firm rules", "Room left under your daily loss and max drawdown limits."),
+    ("myGamePlan", "Pre-market game plan",
+     "The wire's read, your names reporting today and your open risk."),
+    ("myAlertsFired", "Alerts that fired", "Your alerts since the last session."),
+]
+
+W10_NEW_IDS = ("shelf:mae-vs-mfe", "shelf:process-vs-results", "shelf:goals-progress")
+
+
+def test_shelf_dedicated_list_only_when_wave10_on(conn, monkeypatch):
+    from api.services.journal_two import shelf_kind_names
+    c = _client()
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
+    off = c.get(BASE + "/shelf")
+    assert off.status_code == 200 and "dedicated" not in off.json()
+    rows = {e["id"]: e for e in off.json()["examples"]}
+    assert not set(W10_NEW_IDS) & set(rows)                  # each needs wave 10: not offered
+    assert rows["shelf:equity-curve"]["rev"] == 1 and len(rows) == 23
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    on = c.get(BASE + "/shelf")
+    assert on.status_code == 200 and on.headers["cache-control"] == "no-store"
+    body = on.json()
+    assert [(d["kind"], d["name"], d["description"]) for d in body["dedicated"]] == DEDICATED
+    for d in body["dedicated"]:
+        assert set(d) == {"kind", "name", "description", "keywords"}, d["kind"]
+        assert d["keywords"] and all(isinstance(k, str) and k.strip() for k in d["keywords"]), d
+    rows = {e["id"]: e for e in body["examples"]}
+    assert set(W10_NEW_IDS) <= set(rows) and rows["shelf:equity-curve"]["rev"] == 2
+    assert len(rows) == 26
+    # one owner: the router serves `shelf_kind_names`' tables, it restates none of them
+    assert [d["kind"] for d in body["dedicated"]] == list(shelf_kind_names.KINDS)
+    monkeypatch.setitem(shelf_kind_names.DESCRIPTIONS, "myTiltCheck", "Moved at the source.")
+    moved = c.get(BASE + "/shelf").json()["dedicated"][0]
+    assert moved["description"] == "Moved at the source."
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    assert "dedicated" not in c.get(BASE + "/shelf").json()          # switched back off: hidden
+
+
+def test_examples_run_the_newest_allowed_revision(conn, monkeypatch):
+    """With wave 10 off a revised id's examples card runs its revision 1 (never the dark 404), and a
+    new id with no allowed revision is dropped from the batch (Task 10.9: the gallery draws its bare
+    shape; it was the dark 404 for the whole batch in 10.13); on, the card is revision 2."""
+    c = _unraising()
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
+    r = c.post(BASE + "/examples", json={"ids": ["shelf:equity-curve", "shelf:win-rate"]})
+    assert r.status_code == 200, r.text
+    card = r.json()["cards"]["shelf:equity-curve"]
+    assert card["def"] == wshelf.revision("shelf:equity-curve", 1)["plan"]
+    for new in W10_NEW_IDS:
+        r = c.post(BASE + "/examples", json={"ids": [new]})
+        assert r.status_code == 200 and r.json()["cards"] == {}, new
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    r = c.post(BASE + "/examples", json={"ids": ["shelf:equity-curve", *W10_NEW_IDS]})
+    assert r.status_code == 200, r.text
+    cards = r.json()["cards"]
+    assert cards["shelf:equity-curve"]["def"] == wshelf.revision("shelf:equity-curve", 2)["plan"]
+    assert cards["shelf:mae-vs-mfe"]["def"]["display"]["quadrants"] == "excursion"

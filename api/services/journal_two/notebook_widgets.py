@@ -27,6 +27,10 @@ from zoneinfo import ZoneInfo
 from typing import Any, Callable
 
 from api.services.cache import TTLCache
+# The seven ready-made dedicated kinds' names, wave and titles (Task 10.14). The constants-only leaf: it imports
+# nothing but `tool_errors`, so this module can read it at import. Their BUILDERS come from `shelf_kinds`, which
+# imports the builder modules, which import this module: that one is read on first use (`_builders`).
+from api.services.journal_two import shelf_kind_names as _dedicated
 
 _log = logging.getLogger(__name__)
 
@@ -62,12 +66,18 @@ KIND_WAVE: dict[str, int] = {
     "roomBuzzOnMyNames": 6,
     "myEarningsReactions": 6,
     BUILT_KIND: 8,
+    # Wave 10 (Task 10.14): the seven ready-made dedicated kinds. Refreshed only through their own POST door
+    # (api/routers/notebook_shelf_widgets.py, W10-R4); the phase 1 GET refuses them (W10-R1).
+    **{k: _dedicated.WAVE for k in _dedicated.KINDS},
 }
 
-#: Kinds that read the member's own account (never shown on a public page).
+#: Kinds that read the member's own account (never shown on a public page as they are). Two public kinds:
+#: the phase 1 account kinds and the built widget are "member-optin" (shown, through EMBED_PARAM_KEYS, only when
+#: the member switches `share` on); the seven dedicated kinds are "private" (the neutral line, `share` or not).
 ACCOUNT_KINDS = frozenset({
     "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
     "tradeRecap", "myPnlCalendar", "mySetupEdge", BUILT_KIND,
+    *_dedicated.KINDS,
 })
 
 
@@ -92,6 +102,8 @@ KIND_TITLE: dict[str, str] = {
     "roomBuzzOnMyNames": "Room buzz on my names",
     "myEarningsReactions": "My earnings reactions",
     BUILT_KIND: "Widget",
+    # Wave 10 (Task 10.14): read from the constants leaf, which `shelf_kinds.TITLES` reads too.
+    **{k: _dedicated.TITLES[k] for k in _dedicated.KINDS},
 }
 
 
@@ -338,6 +350,12 @@ def _num(v: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return f if f == f and f not in (float("inf"), float("-inf")) else None
+
+
+#: Public names for helpers other modules use (Task 10.12: no cross-module private imports; `origin` is below
+#: `_origin`). Each is the SAME object, so a number shown through `num` is a number shown through `_num`.
+num = _num
+iso_utc = _iso_utc
 
 
 #: Kind -> the payload key holding its one trimmable list (fix F1, audit I-2). A kind not named here has
@@ -674,6 +692,10 @@ def _origin(sources: list) -> str:
     if any(flags):
         return "mixed"
     return "manual"
+
+
+#: Public name (Task 10.12), the same object.
+origin = _origin
 
 
 #: Ruling R60: the earliest day a widget reads. A date outside EARLIEST_DAY .. today + 1 year is a 400
@@ -2112,6 +2134,10 @@ def source_detail(kind: str, payload: dict) -> str | None:
     src = payload.get("source")
     if kind == BUILT_KIND:
         return _BUILT_DETAIL.get(payload.get("sourceKey"))
+    if kind in _dedicated.KINDS:
+        # Task 10.14: a dedicated widget's one sentence, owned by its registry (read here, never restated).
+        from api.services.journal_two import shelf_kinds
+        return shelf_kinds.SOURCE_DETAIL[kind]
     if kind == "myPositionsRisk" and payload.get("empty"):
         return None
     if kind == "myPositionsRisk":
@@ -2127,8 +2153,9 @@ def source_detail(kind: str, payload: dict) -> str | None:
 
 # -- dispatch ------------------------------------------------------------------
 
-#: Kind -> builder(user_id, params, now). Later tasks add their kinds here.
-_BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
+#: Kind -> builder(user_id, params, now), for the kinds built in this module. The dispatch table is `_BUILDERS`
+#: (below): these rows plus the seven dedicated kinds'.
+_OWN_BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
     "myWatchlistToday": _my_watchlist_today,
     "myNamesReporting": _my_names_reporting,
     "myPnlStats": _my_pnl_stats,
@@ -2147,12 +2174,37 @@ _BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
 }
 
 
+def _builders() -> dict[str, Callable[[str, dict, Any], dict]]:
+    """`_BUILDERS`, the dispatch table: `_OWN_BUILDERS` plus a row per dedicated kind that IS
+    `shelf_kinds.BUILDERS[k]` (Task 10.14), made once, on first use.
+
+    ⛔ Not at import, at the top or the bottom of this file: `shelf_kinds` imports the two builder modules and they
+    import this module, so an import here is a cycle for some entry point (importing `shelf_discipline` first
+    would reach `shelf_kinds` while `shelf_discipline` is half-built). Railed by
+    tests/test_shelf_widgets_router.py::test_every_import_order_loads. Readers outside this module get the whole
+    table as `notebook_widgets._BUILDERS` (the module `__getattr__` below); `build` reads it through here, so a
+    test that replaces `_BUILDERS` is what `build` dispatches on."""
+    table = globals().get("_BUILDERS")
+    if table is None:
+        from api.services.journal_two import shelf_kinds
+        table = {**_OWN_BUILDERS, **{k: shelf_kinds.BUILDERS[k] for k in shelf_kinds.KINDS}}
+        globals()["_BUILDERS"] = table
+    return table
+
+
+def __getattr__(name: str) -> Any:
+    """PEP 562: `_BUILDERS` is made on first read (see `_builders`); every other name is a normal miss."""
+    if name == "_BUILDERS":
+        return _builders()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 def build(kind: str, user_id: str, params: dict, *, now: datetime | None = None) -> dict:
     """Build the payload for `kind`. Raises `WidgetRequestError` for an unknown kind
     (or one with no builder yet) and for params its builder rejects."""
     if kind not in KIND_WAVE:
         raise WidgetRequestError(f"unknown widget kind: {kind!r}")
-    builder = _BUILDERS.get(kind)
+    builder = _builders().get(kind)
     if builder is None:
         raise WidgetRequestError(f"widget kind not available yet: {kind!r}")
     if params is not None and not isinstance(params, dict):

@@ -99,6 +99,7 @@ from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
+from api.services.journal_two import shelf_kind_names   # constants only: the closure stays engine-free
 
 # ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
 # `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
@@ -291,6 +292,13 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeReview"): "private",
     # P2 Tier 3: the member's own mood and focus. A stranger sees the neutral line, never a level.
     ("widgetEmbed", "moodCheckIn"): "private",
+    # Notebook widgets phase 2, wave 9 (W9-R4): a routine and a tracker are the member's own account items.
+    # Not snapshot kinds and not "member-optin": `params.share` can never reveal them, in any mode.
+    ("widgetEmbed", "routine"): "private",
+    ("widgetEmbed", "tracker"): "private",
+    # Notebook widgets wave 10 (W10-R7, W10-R8): the position size calculator holds the member's account size and
+    # what they typed. Private like the rows of DEDICATED_KINDS below the table: never shown, `share` or not.
+    ("widgetEmbed", "sizeCalc"): "private",
     # Notebook widgets (Task 6): frozen snapshots fetched by their own slash items. Task 5 moves the two
     # account kinds to "member-optin"; until then they are the neutral private line.
     ("widgetEmbed", "myWatchlistToday"): "mixed",    # the member's list beside live prices
@@ -328,6 +336,16 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     # the neutral line until somebody decides what a stranger may see of a plan.
     ("tradeCanvas", None): "mixed",
 }
+
+#: Notebook widgets wave 10 (Task 10.12, W10-R7): the seven ready-made dedicated widgets. Each reads the
+#: member's own trades, accounts, limits or alerts, so each is "private": the account line in every public mode,
+#: example included (ruling W10-R49), and `params.share` can never reveal one (they are not "member-optin").
+#: Read from `shelf_kind_names`, the constants-only leaf, so this module stays out of the engine's import closure.
+DEDICATED_KINDS: frozenset[str] = frozenset(shelf_kind_names.KINDS)
+#: The blocks and kinds the global privacy constraint names "neutral line on share, publish, gallery and
+#: example": the seven above and the position size calculator (W10-R8). Example mode shows the line, not a drop.
+NEUTRAL_IN_EXAMPLE: frozenset[str] = DEDICATED_KINDS | {"sizeCalc"}
+MARKET_DATA_VENDORS.update({("widgetEmbed", k): "private" for k in sorted(DEDICATED_KINDS)})
 
 #: vendor -> verdict. ⭐ Loosening Massive is this one line: "massive": SHOWN.
 VENDOR_VERDICT: dict[str, str] = {
@@ -586,15 +604,22 @@ def _allowed_item(item: Any, keys: Any) -> Any:
 _DROP = object()
 
 
+#: Label kind -> the word a public copy numbers it with. "account": ruling R-25. "note" (wave 10, W10-R7): a
+#: notes-source list row's label is the note's title, which a stranger never reads.
+RELABEL_WORDS: dict[str, str] = {"account": "Account", "note": "Note"}
+
+
 def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
     """Ruling R-25: even a SHARED built widget never publishes an account NAME. Where the payload says a label
     field is an account (`labelKind` / `label2Kind`), each distinct label becomes "Account N", numbered by first
     appearance across rows, series and cells so one account keeps one number. Two kinds never share a numbering
-    map. An unknown kind value is left alone (it is only ever "account")."""
+    map. Ruling W10-R7 adds "note" on the same path: a note's title becomes "Note N". Any other kind value is
+    left alone."""
     if widget_id != "builtWidget":
         return
     for kind_key, field in (("labelKind", "label"), ("label2Kind", "label2")):
-        if out.get(kind_key) != "account":
+        word = RELABEL_WORDS.get(out.get(kind_key)) if isinstance(out.get(kind_key), str) else None
+        if word is None:
             continue
         numbering: dict[str, str] = {}
         for list_key in ("rows", "series", "cells"):
@@ -603,7 +628,7 @@ def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
                     continue
                 name = str(item[field])
                 if name not in numbering:
-                    numbering[name] = f"Account {len(numbering) + 1}"
+                    numbering[name] = f"{word} {len(numbering) + 1}"
                 item[field] = numbering[name]
 
 
@@ -1355,13 +1380,21 @@ def _is_neutral(node: Any, line: str | None = None) -> bool:
     return found is not None and (line is None or found == line)
 
 
+# W9-R4: trader blocks that print the ACCOUNT line (not the market line) when they are neutral. Deliberately
+# not in `_is_account_kind`, which is the share-switch door: nothing here can ever be switched on.
+ACCOUNT_LINE_BLOCKS = frozenset({"routine", "tracker", "sizeCalc"})
+
+
 def _is_account_kind(widget_id: Any) -> bool:
     return MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "member-optin"
 
 
 def _neutral_for_embed(widget_id: Any) -> dict:
-    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind."""
-    return _neutral(ACCOUNT_NEUTRAL_LINE if _is_account_kind(widget_id) else NEUTRAL_LINE)
+    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind, an account
+    block (ACCOUNT_LINE_BLOCKS) and a dedicated widget (DEDICATED_KINDS)."""
+    account = _is_account_kind(widget_id) or (isinstance(widget_id, str)
+                                              and (widget_id in ACCOUNT_LINE_BLOCKS or widget_id in DEDICATED_KINDS))
+    return _neutral(ACCOUNT_NEUTRAL_LINE if account else NEUTRAL_LINE)
 
 
 def _reduce_marks(marks: Any, mode: str = "share", ctx: "_Ctx | None" = None) -> list | None:
@@ -1573,6 +1606,11 @@ def _example_neutral(node: dict, ctx: _Ctx) -> list:
         widget_id = attrs.get("widgetId")
         if widget_id in trader_blocks.BLOCK_IDS:
             return _reset_block(attrs, ctx)
+        if isinstance(widget_id, str) and widget_id in NEUTRAL_IN_EXAMPLE:
+            # W10-R49: the global privacy constraint's "neutral line ... example", the line share mode shows.
+            line = _neutral_for_embed(widget_id)
+            ctx.note("account", widget_id, line["content"][0]["text"])
+            return [line]
         if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) in ("private", "member-optin"):
             ctx.note("dropped", widget_id)           # an account kind is dropped in an example, as private was
             return []
@@ -1891,7 +1929,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "ACCOUNT_LINE_BLOCKS", "DEDICATED_KINDS", "NEUTRAL_IN_EXAMPLE", "RELABEL_WORDS", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "ATTR_POLICY", "EMBED_ROW_KEYS", "SCALAR_ITEMS", "PAIR_ITEMS", "allowed_params", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",

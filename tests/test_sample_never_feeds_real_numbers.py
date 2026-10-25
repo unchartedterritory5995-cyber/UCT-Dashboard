@@ -417,13 +417,25 @@ GUARDED = {
                                               "example note is never the member's mood or focus that day",
     "api/services/journal_two/widget_engine/sources.py": "a built widget's trading-days mood and focus: a "
                                                           "check-in inside an example note is never the "
-                                                          "member's day",
+                                                          "member's day; a notes widget's list and drill "
+                                                          "titles (Task 10.7)",
+    "api/services/journal_two/widget_engine/compile.py": "the notes widget's one scan (Task 10.7): an example "
+                                                          "note is never counted, split, summed or listed as "
+                                                          "a note the member wrote",
     "api/services/journal_two/template_gallery.py": "an example note (P3b) shows a member's own note to other "
                                                      "members as their work; a sample note is never published or "
                                                      "previewed as one (ruling P3b-R11, the not-live 404)",
     "api/services/journal_two/widget_definitions.py": "a saved widget's \"used in N notes\" count and list: an "
                                                        "example note that places a widget is not a note the "
                                                        "member uses it in",
+    "api/services/journal_two/routines.py": "a routine's \"used in N notes\" count and list: an example note "
+                                             "that places a routine is not a note the member uses it in",
+    "api/services/journal_two/trackers.py": "a tracker's \"used in N notes\" count and list: an example note "
+                                             "that places a tracker is not a note the member uses it in",
+    "api/routers/notebook_widget_definitions.py": "the builder's note tag and ticker pickers (Task 10.9): the "
+                                                  "values the notes widget can count (its own predicate, "
+                                                  "compile.note_membership_sql), so an example note's tag "
+                                                  "is never offered as one the member wrote",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.
@@ -450,6 +462,9 @@ EXEMPT = {
     "api/routers/notebook_chart_alerts.py": "reads one chart block of a note the member has open, on their click",
     "api/routers/notebook_journal_styles.py": "the price-stamp route's ownership check on the one note the member "
                                               "is typing in; a yes/no, never a count",
+    "api/services/journal_two/widget_engine/run.py": "the widget result cache's freshness stamp (COUNT and "
+                                                     "MAX(updated_at) of notes, folders, kinds, properties); it "
+                                                     "only decides when to recompute, never a shown number",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",

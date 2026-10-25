@@ -1,0 +1,35 @@
+{
+  "id": "shelf:avg-win-vs-loss",
+  "rev": 1,
+  "name": "Average win vs average loss",
+  "description": "Your average win, your average loss and the ratio between them.",
+  "keywords": [
+    "payoff",
+    "reward to risk",
+    "win size",
+    "loss size"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "avg_win"
+      },
+      {
+        "key": "avg_loss"
+      },
+      {
+        "key": "payoff"
+      }
+    ],
+    "display": {
+      "title": "Average win vs average loss",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

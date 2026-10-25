@@ -705,6 +705,13 @@ PREP_GAPS = {
 LEVELS_NEEDS = "the active setups board"
 
 
+#: The member's own name sources (`member_interest.SOURCES` less the UCT 20) that `_my_names` could
+#: NOT read, left in the read budget's memo for a caller that shares it (the Pre-market game plan,
+#: fix 10.11 round 2 M-3), so "your names couldn't be read" comes from the SAME read as the lists.
+#: Never in a snapshot: a frozen note's shape does not move.
+NAMES_FAILED = "namesFailed"
+
+
 def _my_names(user_id: str) -> list[str]:
     """The MEMBER's own names: open positions, watchlists, flagged (member_interest's per-source
     reads, local auth.db). N11: `all_mine` also unions the UCT 20, which is the firm's list, not the
@@ -717,11 +724,16 @@ def _my_names(user_id: str) -> list[str]:
     # through, never an empty list that would read as "no names"). Outside one: the plain call.
     hook = {"before_source": lambda _name: _spend(memo)} if memo is not None else {}
     try:
-        by_source = member_interest.interest_for(user_id, **hook).get("by_source") or {}
+        got = member_interest.interest_for(user_id, **hook) or {}
     except BudgetSpent:
         raise
     except Exception:  # noqa: BLE001 -- interest_for never raises by its own contract; belt and braces
+        if memo is not None:
+            memo[NAMES_FAILED] = [n for n in member_interest.SOURCES if n != "uct20"]
         return []
+    if memo is not None:
+        memo[NAMES_FAILED] = [n for n in (got.get("failed") or []) if n != "uct20"]
+    by_source = got.get("by_source") or {}
     out: dict[str, None] = {}
     for name in member_interest.SOURCES:
         if name != "uct20":

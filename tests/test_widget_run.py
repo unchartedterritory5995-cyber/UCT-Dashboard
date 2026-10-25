@@ -622,3 +622,86 @@ def test_run_50k_trades_under_budget(conn, monkeypatch, capsys):
               f"stamp+ownership {pre:.3f}s")
     assert out["capped"] is True and out["count"] == 5000
     assert timing["sql"] < 1.5 and py < 1.0
+
+
+# -- wave 10 (Task 10.5) -------------------------------------------------------------------------
+
+def _formula_plan(**kw):
+    raw = {"v": 1, "source": "closed_trades", "range": {"token": "last_30d"},
+           "formulas": [{"id": "f1", "name": "Double", "expr": "[net] * 2", "format": "money"}],
+           "measures": [{"formula": "f1", "agg": "sum"}]}
+    raw.update(kw)
+    return raw
+
+
+def test_a_formula_run_is_evaluated_under_the_run_budget(conn, monkeypatch):
+    """Ruling W10-R50: ONE deadline. The window that bounds the scan (the SQL progress handler
+    and the Python-side scan check) is the very `Budget` the evaluation checks, started at
+    admission -- never a second clock."""
+    from api.services.journal_two.widget_engine import compile as wcompile
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    seen = {}
+    real_scan, real_eval = run.wsources.scan, run.waggregate.evaluate
+
+    def scan(*a, **k):
+        seen.setdefault("scan", wcompile._DEADLINE.get())
+        return real_scan(*a, **k)
+
+    def evaluate(*a, **k):
+        seen.setdefault("eval", k["check"])
+        return real_eval(*a, **k)
+
+    monkeypatch.setattr(run.wsources, "scan", scan)
+    monkeypatch.setattr(run.waggregate, "evaluate", evaluate)
+    out = _go(_formula_plan())
+    assert out["value"]["v1"] == 100.0
+    budget = seen["eval"].__self__
+    assert isinstance(budget, run.Budget) and seen["scan"] == budget.expired
+    assert budget.end - run._budget_clock() <= run.DEADLINE_S
+
+
+def test_one_clock_bounds_the_scan_and_the_evaluation(monkeypatch):
+    """Time spent in the SQL counts against the Python work: the run's one window is spent."""
+    t = {"now": 0.0}
+    monkeypatch.setattr(run, "_budget_clock", lambda: t["now"])
+    b = run.Budget(1.5)
+    t["now"] = 1.0                          # the scan used a second
+    b.check()
+    t["now"] = 1.6                          # the evaluation runs out of what is left
+    with pytest.raises(run.EngineTooLong):
+        b.check()
+    assert b.expired() and b.why[-1] == "late"
+    gone = run.Budget(9, superseded=lambda: True)
+    with pytest.raises(run.Superseded):
+        gone.check()
+
+
+def test_the_wave10_flag_and_the_preview_probe_are_in_the_cache_key(conn, monkeypatch):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    add_trade(conn, UID, day="2026-10-21", pnl=-80)
+    dd = _plan(measures=("max_drawdown",))
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    assert "drawdown" not in _go(dd)
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    assert _go(dd)["drawdown"]["trough"] == "2026-10-21"        # not the cached wave 9 payload
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    assert "drawdown" not in _go(dd)
+    plan = _formula_plan()
+    assert "probe" in _go(plan, lane="preview")
+    assert "probe" not in _go(plan)                              # the run never gets the probe
+    assert "probe" in _go(plan, lane="preview")
+
+
+def test_a_run_with_no_wave10_feature_keeps_its_cache_key(conn, monkeypatch):
+    """A wave 9 run's cache key is byte-for-byte the key it was before Task 10.5."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    keys = []
+    real = run._cache_key
+
+    def spy(*a, **k):
+        keys.append(a)
+        return real(*a, **k)
+
+    monkeypatch.setattr(run, "_cache_key", spy)
+    _go()
+    assert keys and keys[0][-1] == []                             # no notices, no wave 10 marks

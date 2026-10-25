@@ -2207,6 +2207,104 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_j2_widget_create_keys_created"
     " ON j2_widget_create_keys(created_at)",
+    # Notebook widgets phase 2, wave 9 (Task 9.2, ruling W9-R2): routines and trackers. Routines
+    # and trackers carry `deleted_at` ("Recently deleted", 30 days) and `save_seq` (the If-Match
+    # token, R-15) like j2_widget_definitions. A tick, skip or value row is per member and per
+    # day (days are YYYY-MM-DD ET, times ISO UTC). `UNIQUE(user_id, source_template_key)` allows
+    # many NULL keys per member and refuses a second row for one template. ⛔ user-scoped: ALL
+    # SEVEN tables are purged with the account (account_purge._DIRECT_USER_TABLES).
+    """CREATE TABLE IF NOT EXISTS j2_routines (
+        id                  TEXT PRIMARY KEY,
+        user_id             TEXT NOT NULL,
+        name                TEXT NOT NULL,
+        items_json          TEXT NOT NULL,
+        settings_json       TEXT NOT NULL,
+        created_at          TEXT NOT NULL,
+        updated_at          TEXT NOT NULL,
+        archived_at         TEXT,
+        deleted_at          TEXT,
+        save_seq            INTEGER NOT NULL DEFAULT 1,
+        source_gallery_id   TEXT,
+        source_template_key TEXT,
+        UNIQUE(user_id, source_template_key)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_routines_user"
+    " ON j2_routines(user_id, archived_at, deleted_at)",
+    """CREATE TABLE IF NOT EXISTS j2_routine_schedules (
+        user_id        TEXT NOT NULL,
+        routine_id     TEXT NOT NULL,
+        effective_from TEXT NOT NULL,
+        schedule_json  TEXT NOT NULL,
+        PRIMARY KEY (user_id, routine_id, effective_from)
+    )""",
+    """CREATE TABLE IF NOT EXISTS j2_routine_ticks (
+        user_id    TEXT NOT NULL,
+        routine_id TEXT NOT NULL,
+        day        TEXT NOT NULL,
+        item_id    TEXT NOT NULL,
+        ticked     INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, routine_id, day, item_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS j2_routine_days (
+        user_id    TEXT NOT NULL,
+        routine_id TEXT NOT NULL,
+        day        TEXT NOT NULL,
+        skipped    INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, routine_id, day)
+    )""",
+    """CREATE TABLE IF NOT EXISTS j2_routine_reminder_claims (
+        user_id    TEXT NOT NULL,
+        routine_id TEXT NOT NULL,
+        day        TEXT NOT NULL,
+        claimed_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, routine_id, day)
+    )""",
+    """CREATE TABLE IF NOT EXISTS j2_trackers (
+        id                  TEXT PRIMARY KEY,
+        user_id             TEXT NOT NULL,
+        name                TEXT NOT NULL,
+        kind                TEXT NOT NULL,
+        unit                TEXT,
+        settings_json       TEXT NOT NULL,
+        created_at          TEXT NOT NULL,
+        updated_at          TEXT NOT NULL,
+        archived_at         TEXT,
+        deleted_at          TEXT,
+        save_seq            INTEGER NOT NULL DEFAULT 1,
+        source_gallery_id   TEXT,
+        source_template_key TEXT,
+        UNIQUE(user_id, source_template_key)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_trackers_user"
+    " ON j2_trackers(user_id, archived_at, deleted_at)",
+    """CREATE TABLE IF NOT EXISTS j2_tracker_values (
+        user_id    TEXT NOT NULL,
+        tracker_id TEXT NOT NULL,
+        day        TEXT NOT NULL,
+        value      REAL NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, tracker_id, day)
+    )""",
+    # Notebook widgets phase 2, Task 9.6b (ruling W9-R48): the routine and tracker Duplicate's
+    # Idempotency-Key. One row per (member, key): which kind and source the request copied and
+    # the copy it made (`new_id`), kept 24 h as a replay window (tool_create_keys.py; swept by the
+    # next keyed duplicate). A sibling of the widget create key table, not a reuse of it: that
+    # table keys a definition and a payload hash, this one a kind and a source. ⛔ user-scoped:
+    # unique per member, never across members, and purged with the account
+    # (account_purge._DIRECT_USER_TABLES).
+    """CREATE TABLE IF NOT EXISTS j2_tool_create_keys (
+        user_id    TEXT NOT NULL,
+        key        TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        source_id  TEXT NOT NULL,
+        new_id     TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, key)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_tool_create_keys_created"
+    " ON j2_tool_create_keys(created_at)",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

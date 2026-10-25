@@ -44,6 +44,8 @@ class FilterSpec(BaseModel):
 # Date spine: prefer the ET trading day; fall back to the exit-date prefix for
 # rows written before the trading_day_et backfill.
 _DAY = "COALESCE(trading_day_et, substr(exit_date, 1, 10))"
+#: The same object under a public name, for other modules (Task 10.12: no cross-module private imports).
+DAY_SQL = _DAY
 
 
 def trades_where(spec: FilterSpec) -> tuple[str, list]:

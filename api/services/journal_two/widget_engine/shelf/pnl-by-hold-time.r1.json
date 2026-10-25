@@ -1,0 +1,36 @@
+{
+  "id": "shelf:pnl-by-hold-time",
+  "rev": 1,
+  "name": "P&L by hold time",
+  "description": "Net P&L by how long you held: same day, 1 day, 2-5 days and longer.",
+  "keywords": [
+    "holding period",
+    "hold time",
+    "duration",
+    "day trades vs swing"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "hold_bucket"
+    },
+    "view": {
+      "type": "bar",
+      "auto": false
+    },
+    "display": {
+      "title": "P&L by hold time",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "shelf:loss-streak",
+  "rev": 2,
+  "name": "Loss streak",
+  "description": "Your current streak and your longest streaks, and when 3 losses in a row say stop.",
+  "keywords": [
+    "streak",
+    "losing streak",
+    "tilt",
+    "in a row",
+    "stop after 3",
+    "stop rule"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "all"
+    },
+    "measures": [
+      {
+        "key": "current_streak"
+      },
+      {
+        "key": "max_loss_streak"
+      },
+      {
+        "key": "max_win_streak"
+      }
+    ],
+    "display": {
+      "title": "Loss streak",
+      "titleAuto": false,
+      "accent": "red",
+      "stopAfter": 3
+    }
+  }
+}

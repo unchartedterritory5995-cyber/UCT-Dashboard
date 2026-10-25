@@ -91,3 +91,48 @@ def test_today_et_uses_et_not_utc():
     # 01:30 UTC Oct 20 is still Oct 19 in New York.
     assert td.today_et(datetime(2026, 10, 20, 1, 30, tzinfo=timezone.utc)) == date(2026, 10, 19)
     assert isinstance(td.today_et(), date)
+
+
+# ── Task 9.3: the three session helpers ────────────────────────────────────────────────────────
+
+def test_next_session_after_skips_thanksgiving():
+    assert td.next_session_after(date(2026, 11, 25)) == date(2026, 11, 27)
+
+
+def test_next_session_after_is_strictly_after():
+    # A session is never its own next session; a Friday's next is the Monday.
+    assert td.next_session_after(date(2026, 11, 27)) == date(2026, 11, 30)
+    assert td.next_session_after(date(2026, 11, 28)) == date(2026, 11, 30)
+
+
+def test_nth_session_before_seven_from_dec_1():
+    # 11-30, 11-27 (half day), 11-25, 11-24, 11-23, 11-20, 11-19: Thanksgiving is skipped.
+    assert td.nth_session_before(date(2026, 12, 1), 7) == date(2026, 11, 19)
+
+
+def test_nth_session_before_one_is_the_previous_session():
+    assert td.nth_session_before(date(2026, 11, 30), 1) == date(2026, 11, 27)
+    assert td.nth_session_before(date(2026, 11, 27), 1) == date(2026, 11, 25)
+    # From a non-session day the count still starts strictly before it.
+    assert td.nth_session_before(date(2026, 11, 29), 1) == date(2026, 11, 27)
+
+
+def test_nth_session_before_refuses_a_count_under_one():
+    with pytest.raises(ValueError):
+        td.nth_session_before(date(2026, 12, 1), 0)
+
+
+def test_session_on_or_after_saturday_is_monday():
+    assert td.session_on_or_after(date(2026, 11, 28)) == date(2026, 11, 30)
+    assert td.session_on_or_after(date(2026, 11, 26)) == date(2026, 11, 27)
+    assert td.session_on_or_after(date(2026, 11, 27)) == date(2026, 11, 27)
+
+
+def test_helpers_count_weekdays_past_the_horizon():
+    hz = session_calendar.horizon()
+    beyond = [hz + timedelta(days=i) for i in range(1, 15)]
+    first_weekday = next(d for d in beyond if d.weekday() < 5)
+    assert td.session_on_or_after(hz + timedelta(days=1)) == first_weekday
+    sat = next(d for d in beyond if d.weekday() == 5)
+    assert td.next_session_after(sat) == sat + timedelta(days=2)
+    assert td.nth_session_before(sat + timedelta(days=2), 1) == sat - timedelta(days=1)

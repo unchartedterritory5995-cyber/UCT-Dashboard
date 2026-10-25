@@ -100,9 +100,11 @@ def test_all_four_sources_failing_yields_empty_not_an_exception():
          mock.patch.object(mi, "_position_syms", side_effect=RuntimeError()), \
          mock.patch.object(mi, "_uct20_syms", side_effect=RuntimeError()):
         result = mi.interest_for("u4")   # must not raise
+    # `failed` names every source that could not be read (Task 10.11 fix M3): an empty answer
+    # because every source failed is never the same answer as a member with no names.
     assert result == {"by_source": {"watchlist": set(), "flagged": set(),
                                      "positions": set(), "uct20": set()},
-                       "all_mine": set(), "entities": {}}
+                       "all_mine": set(), "entities": {}, "failed": list(mi.SOURCES)}
 
 
 # ═════════════════════════════════════════════════════════════════════════

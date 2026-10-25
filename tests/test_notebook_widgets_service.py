@@ -80,12 +80,15 @@ def test_every_kind_has_a_builder():
 
 
 def test_kind_tables_are_complete():
-    assert len(nw.KIND_WAVE) == 16
+    """15 phase 1 kinds, the built kind (wave 8) and the seven ready-made dedicated kinds (wave 10, Task 10.14)."""
+    from api.services.journal_two import shelf_kind_names
+    assert len(nw.KIND_WAVE) == 23
     assert nw.KIND_WAVE["myRulesCheck"] == 2 and nw.KIND_WAVE["tradeRecap"] == 6
     assert nw.KIND_WAVE[nw.BUILT_KIND] == 8 and nw.KIND_TITLE[nw.BUILT_KIND] == "Widget"
+    assert {k: nw.KIND_WAVE[k] for k in shelf_kind_names.KINDS} == {k: 10 for k in shelf_kind_names.KINDS}
     assert nw.ACCOUNT_KINDS == frozenset({
         "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
-        "tradeRecap", "myPnlCalendar", "mySetupEdge", "builtWidget"})
+        "tradeRecap", "myPnlCalendar", "mySetupEdge", "builtWidget", *shelf_kind_names.KINDS})
     assert nw.ACCOUNT_KINDS <= set(nw.KIND_WAVE)
     assert nw.PAYLOAD_CAP_BYTES == 16384 and nw.ROW_CAP == 40
 
@@ -2367,8 +2370,13 @@ def _bytes(p):
 
 
 def test_i2_every_kind_but_the_card_names_its_trimmable_list():
-    # the built kind names its list per VIEW at the call (widget_engine.payload.TRIM_BY_VIEW), not per kind
-    assert set(nw.LIST_KEY) | {"tickerCard", nw.BUILT_KIND} == set(nw.KIND_WAVE)
+    # the built kind names its list per VIEW at the call (widget_engine.payload.TRIM_BY_VIEW), not per kind.
+    # Task 10.14: the seven dedicated kinds name none either. Their builders hold each list to its own row cap and
+    # say what they dropped (`truncated`), so a payload still over the cap gets the too-large form, never a silent
+    # trim of rows the builder's own sentence counted.
+    from api.services.journal_two import shelf_kind_names
+    assert not set(nw.LIST_KEY) & set(shelf_kind_names.KINDS)
+    assert set(nw.LIST_KEY) | {"tickerCard", nw.BUILT_KIND, *shelf_kind_names.KINDS} == set(nw.KIND_WAVE)
     assert nw.BUILT_KIND not in nw.LIST_KEY
 
 

@@ -7,6 +7,8 @@ id gives exactly A's "all my accounts" result (absent, never B's).
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from tests.test_widget_sources import (
@@ -253,3 +255,381 @@ def test_another_members_def_id_is_neutral_in_every_public_mode_and_reads_no_dat
     auth_db.get_connection().execute("SELECT 1").fetchone()
     sqlite3.connect(":memory:").close()
     assert "auth_db.get_connection" in seen and "sqlite3.connect" in seen, seen
+
+
+# ── Task 9.11: routine and tracker blocks on public pages ──
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_another_members_routine_and_tracker_ids_are_the_account_line_and_read_no_database(monkeypatch, tmp_path, mode):
+    """A hand-made body naming member B's routine and tracker ids reduces to the account line (dropped in an
+    example note) and a public reduction opens no database connection. B's rows exist first; the spy is proved
+    live by firing both seams once."""
+    import copy
+    import json
+    import sqlite3
+    from api.services.journal_two import public_note_payload as pnp
+
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "iso911.db"))
+    auth_db.init_db()
+    c = auth_db.get_connection()
+    add_user(c, B)
+    c.commit()
+
+    seen: list[str] = []
+    real_get, real_connect = auth_db.get_connection, sqlite3.connect
+
+    def spy_get(*a, **k):
+        seen.append("auth_db.get_connection")
+        return real_get(*a, **k)
+
+    def spy_connect(*a, **k):
+        seen.append("sqlite3.connect")
+        return real_connect(*a, **k)
+
+    monkeypatch.setattr(auth_db, "get_connection", spy_get)
+    monkeypatch.setattr(sqlite3, "connect", spy_connect)
+
+    for widget_id, foreign in (("routine", "B-ROUTINE-ID-9911"), ("tracker", "B-TRACKER-ID-9911")):
+        for share in (None, False, "true", True):
+            params = {"routineId": foreign, "trackerId": foreign, "day": "2026-10-20",
+                      "name": "B-ROUTINE-NAME-9911", "days": {"2026-10-20": "B-DAYSTATE-9911"}}
+            if share is not None:
+                params["share"] = share
+            body = {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": {
+                "v": 1, "widgetId": widget_id, "mode": "snapshot", "params": params,
+                "searchText": "B-ROUTINE-NAME-9911", "caption": "B-ATTR-9911"}}]}
+            out = pnp.reduce(copy.deepcopy(body), mode=mode, owner_id="A", note_id="N",
+                             attachment_base="/b/", facts={}, note_links=None)
+            blob = json.dumps(out)
+            for leak in (foreign, "B-ROUTINE-NAME-9911", "B-DAYSTATE-9911", "B-ATTR-9911"):
+                assert leak not in blob, (mode, widget_id, share, leak)
+            assert "widgetEmbed" not in blob, (mode, widget_id, share)
+            if mode != "example":
+                assert pnp.ACCOUNT_NEUTRAL_LINE in blob, (mode, widget_id, share)
+    assert seen == [], seen
+
+    auth_db.get_connection().execute("SELECT 1").fetchone()
+    sqlite3.connect(":memory:").close()
+    assert "auth_db.get_connection" in seen and "sqlite3.connect" in seen, seen
+
+
+# -- wave 9 (Task 9.8): routine and tracker history, and the trading-days fields that name one ---
+
+def _tools_two(monkeypatch, tmp_path):
+    """A and B each with a routine and a tracker, B's ticked and logged on the same days with
+    distinctive names and values; B also has check-ins."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import routines, trackers
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "iso-tools.db"))
+    auth_db.init_db()
+    c = auth_db.get_connection()
+    add_user(c, A)
+    add_user(c, B)
+
+    def at(d):
+        y, m, dd = (int(x) for x in d.split("-"))
+        return datetime(y, m, dd, 17, tzinfo=timezone.utc)
+
+    out = {}
+    for uid, name, val in ((A, "Mine", 5.0), (B, "B ONLY routine", 7777.0)):
+        r = routines.create(uid, name=name, items=[name + " item"], schedule={"kind": "every"},
+                            now=at(DAYS[0]))
+        t = trackers.create(uid, name=name.replace("routine", "tracker"), kind="number",
+                            now=at(DAYS[0]))
+        for d in DAYS:
+            routines.set_tick(uid, r["id"], d, r["items"][0]["id"], True, now=at(d))
+            trackers.set_value(uid, t["id"], d, val, now=at(d))
+            add_trade(c, uid, day=d, pnl=100.0 if uid == A else 7777.0)
+        out[uid] = (r["id"], t["id"])
+    n_b = add_note(c, B, updated_at="2026-10-19T11:00:00Z")
+    add_checkin(c, B, n_b, day=DAYS[0], mood=5, focus=5)
+    return c, out
+
+
+@pytest.mark.parametrize("source,measures,split", [
+    ("routine_history", ("routine_days_done", "routine_consistency"), "routine"),
+    ("routine_history", ("routine_days_done",), "item"),
+    ("tracker_history", ("tracker_entries", "tracker_max"), "tracker"),
+])
+def test_tool_sources_read_only_the_members_rows(monkeypatch, tmp_path, source, measures, split):
+    c, ids = _tools_two(monkeypatch, tmp_path)
+    try:
+        for mode in ("plain", "split", "list"):
+            kw = dict(source=source, measures=measures, range=RANGE)
+            if mode == "split":
+                kw["split"] = {"by": split}
+            if mode == "list":
+                kw["view"] = {"type": "list"}
+            sc, res = run(c, raw_plan(**kw), uid=A)
+            assert sc.rows, "control: A has rows of its own"
+            for r in sc.rows:
+                assert r.get("routine") in (None, ids[A][0]) and "B ONLY" not in str(r)
+                assert r.get("tracker") in (None, ids[A][1], "checkin:mood", "checkin:focus")
+                assert r.get("value") is None or r["value"] < 7000
+            assert all("B ONLY" not in (g.label or "") + (g.label2 or "") for g in res.groups)
+            if source == "tracker_history":
+                assert not any(r["tracker"].startswith("checkin:") for r in sc.rows)  # B's only
+                assert res.total.cells[0].value == 3.0 and res.total.cells[1].value == 5.0
+            else:
+                assert res.total.cells[0].value == 3.0                 # A's three days, not six
+        # B, through the same code, sees B's own
+        sc_b, _ = run(c, raw_plan(source=source, measures=measures, range=RANGE), uid=B)
+        assert sc_b.rows and all("Mine" not in str(r) for r in sc_b.rows)
+    finally:
+        c.close()
+
+
+def test_ref_fields_never_read_another_members_routine_or_tracker(monkeypatch, tmp_path):
+    c, ids = _tools_two(monkeypatch, tmp_path)
+    try:
+        rid_b, tid_b = ids[B]
+        rid_a, tid_a = ids[A]
+        for kind, by, ref in (("routine", "routine_done", rid_b),
+                              ("tracker", "tracker_bucket", tid_b)):
+            sc, res = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                      split={"by": by, "ref": ref}, range=RANGE), uid=A)
+            assert all(r[by] is None for r in sc.rows), kind
+            assert res.groups == [], kind
+            # control: A's own ref fills the column on the same rows
+            own = rid_a if kind == "routine" else tid_a
+            sc2, res2 = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                        split={"by": by, "ref": own}, range=RANGE), uid=A)
+            filled = {r["day"] for r in sc2.rows if r[by] not in (None, "not_done")}
+            assert filled == set(DAYS), kind                       # A's ticked / logged days
+            assert [g.values.cells[0].value for g in res2.groups
+                    if g.label != "Not done"] == [pytest.approx(100.0)], kind
+        sc, res = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                  filters=[{"field": "tracker_value", "op": "gte", "values": [0],
+                                            "ref": tid_b}], range=RANGE), uid=A)
+        assert res.count == 0 and all(r["tracker_value"] is None for r in sc.rows)
+        # A's mood ref reads A's check-ins only: A has none, B's mood 5 never shows
+        sc, res = run(c, raw_plan(source="trading_days", measures=("avg_day_pnl",),
+                                  split={"by": "tracker_bucket", "ref": "checkin:mood"},
+                                  range=RANGE), uid=A)
+        assert res.groups == []
+    finally:
+        c.close()
+
+
+def test_the_routine_lookup_itself_is_scoped_to_the_member(monkeypatch, tmp_path):
+    """The routine read behind both tool paths answers only the member's own routines. (The child
+    tables are scoped too, so a leak here alone would still show no B day; this rail proves the
+    first layer by itself.)"""
+    from api.services.journal_two.widget_engine import sources
+    c, ids = _tools_two(monkeypatch, tmp_path)
+    try:
+        plain = {"filters": []}
+        assert sources._scan_routine_ids(c, A, plain) == ([ids[A][0]], 1)
+        # naming B's routine in a filter never reaches it
+        only_b = {"filters": [{"field": "routine", "op": "in", "values": [ids[B][0]]}]}
+        assert sources._scan_routine_ids(c, A, only_b) == ([], 0)
+        assert sources._scan_routine_ids(c, B, only_b) == ([ids[B][0]], 1)
+    finally:
+        c.close()
+
+
+# -- wave 10 (Task 10.5): formulas and goals ----------------------------------------------------
+
+def _w10_run(monkeypatch, uid, raw, settings=None):
+    from datetime import datetime, timezone
+
+    from api.services.journal_two import notebook_widgets as nw
+    from api.services.journal_two.widget_engine import run as wrun
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "iso-w10",
+                                                    reserve=nw.WIDGET_POOL_RESERVE))
+    return wrun.run_plan(uid, raw, settings or {}, lane="run",
+                         now=datetime(2026, 10, 23, 20, 0, tzinfo=timezone.utc))
+
+
+def test_two_members_with_one_formula_plan_hash_never_share_a_cache_entry(two, monkeypatch):
+    from api.services.journal_two.widget_engine import run as wrun
+    wrun._reset_state()
+    raw = {"v": 1, "source": "closed_trades", "range": RANGE,
+           "formulas": [{"id": "f1", "name": "Double", "expr": "[net] * 2", "format": "money"}],
+           "measures": [{"formula": "f1", "agg": "sum"}]}
+    a = _w10_run(monkeypatch, A, raw)
+    b = _w10_run(monkeypatch, B, raw)
+    assert a["value"]["v1"] == 2 * (100 + 101 + 102)
+    assert b["value"]["v1"] == 2 * (7777 + 7778 + 7779 + 3 * 8888)
+    assert _w10_run(monkeypatch, A, raw)["value"]["v1"] == a["value"]["v1"]
+    wrun._reset_state()
+
+
+def test_member_b_goal_is_never_read_for_a(two, monkeypatch):
+    import json
+
+    from api.services.journal_two.widget_engine import run as wrun
+    from api.services.journal_two.widget_engine import sources as wsources
+    c, acc_a, acc_b = two
+    wrun._reset_state()
+    c.execute("UPDATE j2_accounts SET goals = ? WHERE id = ?", (json.dumps({"weekly": 9999}), acc_b))
+    c.commit()
+    assert wrun._goal_target(c, A, None, "weekly") == (None, 1)
+    assert wrun._goal_target(c, A, acc_b, "weekly") == (None, 1)       # B's id reads A's own
+    monkeypatch.setattr(wsources.CATALOG, "view_allowed", lambda plan: None)
+    raw = {"v": 1, "source": "closed_trades", "range": {"token": "this_week"},
+           "measures": [{"key": "net_pnl"}], "view": {"type": "progress"},
+           "display": {"targetGoal": True}}
+    for settings in ({}, {"accountId": acc_b}):
+        out = _w10_run(monkeypatch, A, raw, settings)
+        assert out["target"] is None and "9999" not in json.dumps(out)
+    assert _w10_run(monkeypatch, B, raw)["target"] == 9999.0
+    wrun._reset_state()
+
+
+# -- wave 10 (Task 10.6): options strategies and their legs --------------------------------------
+
+def test_member_b_strategies_and_legs_never_reach_a(two):
+    """A's options rows, counts and `dte_entry` hold nothing of B's: B's strategies (7,000 each,
+    on A's days and A's underlying), B's legs, and B's account id. The legs table has no
+    `user_id`, so the leg read must name only A's own scanned strategy ids (traced below)."""
+    import uuid
+
+    from tests.test_widget_options_source import add_opt
+    c, acc_a, acc_b = two
+    a1 = add_opt(c, A, entry="2026-10-19T14:00:00Z", closed_at="2026-10-20T19:00:00Z",
+                 pnl=50.0, account=acc_a, legs=("2026-11-20",))
+    a_open = add_opt(c, A, status="open", entry="2026-10-21T14:00:00Z", account=acc_a,
+                     legs=("2026-12-18",))
+    b1 = add_opt(c, B, entry="2026-10-19T14:00:00Z", closed_at="2026-10-21T19:00:00Z",
+                 pnl=9000.0, account=acc_b, legs=("2026-10-24",))
+    b_ids = {b1} | {r[0] for r in c.execute("SELECT id FROM j2_option_strategies WHERE user_id = ?",
+                                            (B,)).fetchall()}
+    # a leg of B's strategy with the earliest expiration of all, inserted by hand
+    c.execute("INSERT INTO j2_option_legs (id, strategy_id, leg_index, side, contract_type, strike,"
+              " expiration, qty, entry_price) VALUES (?, ?, 9, 'buy', 'put', 1, '2026-10-19', 1, 1)",
+              (str(uuid.uuid4()), b1))
+    c.commit()
+    seen: list[str] = []
+    c.set_trace_callback(seen.append)
+    try:
+        for mode in ("plain", "split", "filter", "accounts_b", "setting_b"):
+            raw = raw_plan(source="options_strategies", measures=("strategies", "net_pnl"),
+                           range=RANGE)
+            settings = None
+            if mode == "split":
+                raw.update(split={"by": "underlying"}, view={"type": "bar"})
+            elif mode == "filter":
+                raw["filters"] = [{"field": "underlying", "op": "in", "values": ["SPY"]}]
+            elif mode == "accounts_b":
+                raw["accounts"] = {"id": acc_b}
+            elif mode == "setting_b":
+                settings = {"accountId": acc_b}
+            sc, res = run(c, raw, uid=A, settings=settings)
+            assert {r["_tid"] for r in sc.rows} == {a1, a_open}, mode
+            assert res.count == 2 and res.total.cells[0].value == 2.0, mode
+            assert res.total.cells[1].value == 50.0, mode           # never B's 7,000 or 9,000
+            assert {r["_tid"]: r["dte_entry"] for r in sc.rows} == {a1: 32.0, a_open: 58.0}, mode
+            assert sc.account_id is None or sc.account_id == acc_a, mode
+            if mode == "split":
+                assert [(g.label, g.values.cells[0].value) for g in res.groups] == [("SPY", 2.0)]
+    finally:
+        c.set_trace_callback(None)
+    legs = [s for s in seen if "j2_option_legs" in s]
+    assert legs, "control: the trace saw the leg reads"
+    for s in legs:
+        assert a1 in s and a_open in s, s[:200]
+        assert not any(b in s for b in b_ids), "a leg read named one of B's strategy ids"
+    # control: B's own read does see B's leg (the expiration above is real data, not a typo)
+    sc_b, _res = run(c, raw_plan(source="options_strategies", measures=("strategies",),
+                                 range=RANGE), uid=B)
+    assert {r["_tid"]: r["dte_entry"] for r in sc_b.rows}[b1] == 0.0
+
+
+def test_a_leg_naming_a_strategy_is_that_strategys_leg(two):
+    """The legs table has no owner column: a leg row naming A's strategy id IS a leg of A's
+    strategy (the options service only ever writes a leg after checking the strategy's owner).
+    So it is read for A, and only because A's own scan returned that id; the same row naming an
+    id A's scan did not return (B's) is never read for A (the test above)."""
+    import uuid
+
+    from tests.test_widget_options_source import add_opt
+    c, acc_a, _acc_b = two
+    a1 = add_opt(c, A, entry="2026-10-19T14:00:00Z", closed_at="2026-10-20T19:00:00Z",
+                 pnl=50.0, legs=("2026-11-20",))
+    c.execute("INSERT INTO j2_option_legs (id, strategy_id, leg_index, side, contract_type, strike,"
+              " expiration, qty, entry_price) VALUES (?, ?, 5, 'buy', 'put', 1, '2026-10-30', 1, 1)",
+              (str(uuid.uuid4()), a1))
+    c.commit()
+    sc, _res = run(c, raw_plan(source="options_strategies", measures=("strategies",),
+                               range=RANGE), uid=A)
+    assert [(r["_tid"], r["dte_entry"]) for r in sc.rows] == [(a1, 11.0)]
+    sc_b, res_b = run(c, raw_plan(source="options_strategies", measures=("strategies",),
+                                  range=RANGE), uid=B)
+    assert a1 not in {r["_tid"] for r in sc_b.rows}
+
+
+# -- wave 10 (Task 10.7): notes, their folders, kinds and property definitions ---------------------
+
+def test_member_b_notes_folders_kinds_and_properties_never_reach_a(two):
+    """A's notes widget holds nothing of B's: B's notes (same days, folder name, kind name, tags
+    and ticker), B's folder and kind NAMES (even on an A note that names B's ids, inserted by hand),
+    and B's property definitions (a filter or a sum naming B's property id is the one unavailable
+    notice, and never narrows). Every folder, kind and property read is scoped to A (traced)."""
+    from api.services.journal_two import note_properties
+    from tests.test_widget_notes_source import add_folder, add_kind, add_n, add_prop
+    c, _acc_a, _acc_b = two
+    fa = add_folder(c, A, "Ideas")
+    fb = add_folder(c, B, "B-FOLDER-CANARY")
+    ka = add_kind(c, A, "Setup")
+    kb = add_kind(c, B, "B-KIND-CANARY")
+    pa = add_prop(c, A, "Conviction")
+    pb = add_prop(c, B, "Conviction")
+    a_ids = {r[0] for r in c.execute("SELECT id FROM j2_notes WHERE user_id = ?", (A,))}
+    assert len(a_ids) == 1                          # the fixture's check-in note (no folder, kind)
+    a_ids |= {add_n(c, A, created=f"{d}T15:00:00Z", folder=fa, kind=ka, tags=["shared"],
+                   ticker="NVDA", props={pa: 2, pb: 2}) for d in DAYS}
+    a_ids.add(add_n(c, A, created=f"{DAYS[0]}T16:00:00Z", folder=fb, kind=kb))   # B's ids, by hand
+    for d in DAYS:
+        add_n(c, B, created=f"{d}T15:00:00Z", folder=fb, kind=kb, tags=["shared"], ticker="NVDA",
+              props={pb: 7777}, title="B-TITLE-CANARY")
+    seen: list[str] = []
+    c.set_trace_callback(seen.append)
+    try:
+        for mode in ("plain", "folder", "kind", "tag", "ticker", "list", "prop_b", "sum_b"):
+            raw = raw_plan(source="notes", measures=("notes",), range=RANGE)
+            if mode in ("folder", "kind", "tag", "ticker"):
+                raw.update(split={"by": mode}, view={"type": "bar"})
+            elif mode == "list":
+                raw["view"] = {"type": "list"}
+            elif mode == "prop_b":
+                raw["filters"] = [{"field": "property", "op": "gte", "values": [100], "prop": pb}]
+            elif mode == "sum_b":
+                raw["measures"] = [{"key": "notes"}, {"key": "property_sum", "prop": pb}]
+            sc, res = run(c, raw, uid=A)
+            assert {r["_tid"] for r in sc.rows} == a_ids, mode
+            assert res.count == 5 and res.total.cells[0].value == 5.0, mode
+            blob = repr([(g.key, g.label) for g in res.groups]) + repr(sc.rows)
+            for canary in ("B-FOLDER-CANARY", "B-KIND-CANARY", "B-TITLE-CANARY", "7777"):
+                assert canary not in blob, (mode, canary)
+            if mode in ("prop_b", "sum_b"):
+                assert sc.notices == ["That property isn't available; it is not used in this widget."]
+            if mode == "sum_b":
+                assert res.total.cells[1].value is None
+            if mode == "folder":
+                assert {g.label: g.values.cells[0].value for g in res.groups} == {
+                    "Ideas": 3.0, "No folder": 2.0}
+            if mode == "kind":
+                assert {g.label: g.values.cells[0].value for g in res.groups} == {
+                    "Setup": 3.0, "No kind": 2.0}
+    finally:
+        c.set_trace_callback(None)
+    scoped = [s for s in seen if re.search(r"FROM (j2_note_folders|j2_note_kinds|j2_note_properties"
+                                           r"|j2_notes)\b", s)]
+    assert scoped, "control: the trace saw the reads"
+    for s in scoped:
+        assert f"'{A}'" in s and f"'{B}'" not in s, s[:240]
+    # A's own property narrows (control: the scoping above is not "never filters")
+    sc, res = run(c, raw_plan(source="notes", measures=("notes",), range=RANGE,
+                              filters=[{"field": "property", "op": "gte", "values": [2],
+                                        "prop": pa}]), uid=A)
+    assert res.count == 3 and sc.notices == []
+    # control: B's own read sees B's names and numbers
+    sc_b, res_b = run(c, raw_plan(source="notes", measures=("notes",), range=RANGE,
+                                  split={"by": "folder"}, view={"type": "bar"}), uid=B)
+    assert {g.label: g.values.cells[0].value for g in res_b.groups} == {
+        "B-FOLDER-CANARY": 3.0, "No folder": 1.0} and res_b.count == 4
+    assert note_properties.get_property_def(A, pb, conn=c) is None
+    # an A note naming B's kind id (by hand) reads as no kind; A's own kinds read for A
+    assert kb not in {r.get("kind") for r in run(c, raw_plan(source="notes", measures=("notes",),
+                                                             range=RANGE), uid=A)[0].rows}

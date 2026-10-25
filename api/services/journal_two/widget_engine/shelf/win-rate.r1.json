@@ -1,0 +1,37 @@
+{
+  "id": "shelf:win-rate",
+  "rev": 1,
+  "name": "Win rate",
+  "description": "Share of wins among wins and losses, against the period before.",
+  "keywords": [
+    "hit rate",
+    "batting average",
+    "win %",
+    "win percentage",
+    "accuracy"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "win_rate"
+      }
+    ],
+    "view": {
+      "type": "compare",
+      "auto": false
+    },
+    "compare": {
+      "mode": "previous"
+    },
+    "display": {
+      "title": "Win rate",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

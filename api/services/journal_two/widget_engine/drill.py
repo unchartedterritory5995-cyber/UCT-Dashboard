@@ -15,6 +15,14 @@ and keeps the rows the cell stands for:
 * `{d, x, y}`          -- a scatter point: the trade on day `d` whose two measures are `x` and `y`,
                           among the non-flagged trades only (the rows the plot drew).
 
+Wave 10 (Task 10.6): a split or filter may name a row formula (`formula:<id>`) and a measure may be a
+formula. The plan's formulas are written onto the rows first (`aggregate.plan_fields_on`, as
+`evaluate` writes them), a split resolves its field through the plan's fields, and a scatter point's
+two values are what `aggregate.evaluate` itself drew (`measure_of`, the one lookup), so a drill finds
+exactly the rows its cell stands for. Options strategies drill to `_option_row`; notes (Task 10.7) to
+`_note_row`, whose title is read for the rows shown only (`sources.note_titles`), and a drilled row
+opens the note.
+
 Rules it keeps:
 
 * Ownership: `user_id` is the session member's. The scan is scoped to them in SQL, and every trade or
@@ -42,7 +50,7 @@ from typing import Any
 
 from api.services.journal_two import notebook_widgets as nw
 from api.services.journal_two.widget_engine import aggregate as waggregate
-from api.services.journal_two.widget_engine import measures as wmeasures
+from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import run as wrun
 from api.services.journal_two.widget_engine import sources as wsources
@@ -106,33 +114,43 @@ def _close(a: Any, b: Any) -> bool:
     return math.isclose(float(a), float(b), rel_tol=1e-9, abs_tol=1e-6)
 
 
-def _matches(row: dict, plan: dict, src: Any, cell: dict) -> bool:
+def _point_hits(rows: list[dict], plan: dict, cell: dict) -> list[dict]:
+    """The rows of a scatter point: the non-flagged rows on day `d` whose two plotted values are
+    `x` and `y`. The values are the ones `aggregate.evaluate` draws for each point (a catalog
+    measure or a formula, through `measure_of`), read off ONE evaluation of the day's rows."""
+    on_day = [r for r in rows if not r.get("flagged")                 # the plot drew no flagged row
+              and str(r.get("day") or "")[:10] == cell["d"][:10]]
+    if not on_day:
+        return []
+    res = waggregate.evaluate(on_day, {**plan, "sort": None, "split": None}, wsources.CATALOG)
+    out = []
+    for g in res.groups:                     # one group per counted row, `key` its position
+        cells = g.values.cells
+        x = nw._num(cells[0].value) if len(cells) > 0 else None
+        y = nw._num(cells[1].value) if len(cells) > 1 else None
+        if _close(x, cell["x"]) and _close(y, cell["y"]):
+            out.append(on_day[int(g.key)])
+    return out
+
+
+def _matches(row: dict, plan: dict, src: Any, cell: dict, fields: dict) -> bool:
     if not cell:
         return True
-    if "d" in cell:
-        if row.get("flagged"):
-            return False                                   # the scatter never drew a flagged trade
-        if str(row.get("day") or "")[:10] != cell["d"][:10]:
-            return False
-        cells = [wmeasures.evaluate(wsources.CATALOG.measures[m["key"]], src.key, [row]).value
-                 for m in plan["measures"]]
-        x = nw._num(cells[0]) if len(cells) > 0 else None
-        y = nw._num(cells[1]) if len(cells) > 1 else None
-        return _close(x, cell["x"]) and _close(y, cell["y"])
     split = plan.get("split")
     if not split:
         label_key, _ = src.list_labels
         return nw._clip(str(row.get(label_key) or ""), LABEL_MAX) == cell["label"]
-    if cell["label"] not in _labels(src.fields[split["by"]], row):
+    if cell["label"] not in _labels(fields[split["by"]], row):
         return False
     if split.get("then") and "label2" in cell:
-        return cell["label2"] in _labels(src.fields[split["then"]], row)
+        return cell["label2"] in _labels(fields[split["then"]], row)
     return True
 
 
 # -- ownership --------------------------------------------------------------------------------------
 
-_OWN_TABLE = {"closed_trades": "j2_trades", "open_positions": "j2_positions"}
+_OWN_TABLE = {"closed_trades": "j2_trades", "open_positions": "j2_positions",
+              "options_strategies": "j2_option_strategies", "notes": "j2_notes"}
 
 
 def _owned_ids(conn: sqlite3.Connection, user_id: str, table: str, ids: list[str]) -> set[str]:
@@ -166,7 +184,35 @@ def _position_row(r: dict) -> dict:
             "hasStop": bool(r.get("had_stop")), "flagged": False}
 
 
-_SHAPE = {"closed_trades": _trade_row, "trading_days": _day_row, "open_positions": _position_row}
+def _routine_row(r: dict) -> dict:
+    """Wave 9: one scheduled day of a routine (`label2` is the item, when split by item)."""
+    return {"day": r.get("day"), "label": r.get("routine_name"), "label2": r.get("item_text"),
+            "state": r.get("state"), "stateLabel": wsources.state_label(r.get("state"))}
+
+
+def _tracker_row(r: dict) -> dict:
+    """Wave 9: one logged value (`text` as the member reads it: "7h 30m", "Yes")."""
+    return {"day": r.get("day"), "label": r.get("tracker_name"), "value": nw._num(r.get("value")),
+            "text": r.get("text")}
+
+
+def _option_row(r: dict) -> dict:
+    """Wave 10: one options strategy (the client opens it in the options drawer, R-30). `label` is
+    the underlying, `label2` the strategy; an open strategy has no net, R or result yet."""
+    return {"day": r.get("day"), "label": r.get("underlying"), "label2": r.get("label2"),
+            "net": nw._num(r.get("net")), "r": nw._num(r.get("r")), "result": r.get("result"),
+            "strategyId": r.get("_tid")}
+
+
+def _note_row(r: dict) -> dict:
+    """Wave 10: one note (the client opens it). `label` is its title, clipped like a group label."""
+    return {"day": r.get("created"), "label": nw._clip(str(r.get("title") or ""), LABEL_MAX),
+            "noteId": r.get("_tid")}
+
+
+_SHAPE = {"closed_trades": _trade_row, "trading_days": _day_row, "open_positions": _position_row,
+          "routine_history": _routine_row, "tracker_history": _tracker_row,
+          "options_strategies": _option_row, "notes": _note_row}
 
 
 def _mon_d(iso: Any) -> str | None:
@@ -189,7 +235,7 @@ def drill(user_id: str, plan: dict, settings: Any, cell: Any, *, snapshot_count:
     now = now or datetime.now(timezone.utc)
     today = nw._today_et(now)
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
-    viewer = wrun.clean_settings(settings)
+    viewer = wrun.tool_viewer(base, wrun.clean_settings(settings))
     want = clean_cell(cell)
     src = wsources.SOURCES[base["source"]]
 
@@ -206,13 +252,26 @@ def drill(user_id: str, plan: dict, settings: Any, cell: Any, *, snapshot_count:
                     # read the way a List view reads: flagged trades are in the rows, labelled
                     scan_plan["view"] = {**(scan_plan.get("view") or {}), "type": "list"}
                 sc = wsources.scan(conn, scan_plan, {"accountId": acc}, rng, user_id, today=today)
-                rows = waggregate.apply_filters(sc.rows, merged, src)
+                # the plan's formula values on every row (once, under the run's deadline), and
+                # the fields a filter or split may name
+                fields = waggregate.plan_fields_on(sc.rows, merged, src,
+                                                   check=wcompile.check_deadline)
+                rows = waggregate.apply_filters(sc.rows, merged, src, fields=fields)
                 table = _OWN_TABLE.get(src.key)
                 if table is not None:
                     mine = _owned_ids(conn, user_id, table, [r.get("_tid") for r in rows])
                     rows = [r for r in rows if r.get("_tid") in mine]
+                if "d" in want:
+                    hits = _point_hits(rows, merged, want)
+                else:
+                    hits = [r for r in rows if _matches(r, merged, src, want, fields)]
+                if src.key == "notes":
+                    # the titles of the rows shown, and of no other note (never read to measure)
+                    shown = [r for r in hits[:MAX_ROWS] if "title" not in r]
+                    titles = wsources.note_titles(conn, user_id, [r["_tid"] for r in shown])
+                    for r in shown:
+                        r["title"] = titles.get(r["_tid"], "")
 
-    hits = [r for r in rows if _matches(r, merged, src, want)]
     count = sum(1 for r in hits if not r.get("flagged"))
     shape = _SHAPE[src.key]
     out_rows = [shape(r) for r in hits[:MAX_ROWS]]

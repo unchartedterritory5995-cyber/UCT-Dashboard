@@ -464,13 +464,20 @@ def test_view_disabled_reasons(raw, sentence):
 def test_every_field_is_typed_with_ops_for_its_type():
     for src in sources.SOURCES.values():
         for k, f in src.fields.items():
-            assert f.key == k and f.type in plan.FIELD_TYPES, (src.key, k)
+            if k == plan.PROPERTY_FIELD:
+                # Task 10.7: the note-property field has no type of its own -- it takes the named
+                # property's (`note_properties.property_filter_sql` checks each value against it)
+                assert f.type is None and not f.split and src.key == "notes", (src.key, k)
+            else:
+                assert f.key == k and f.type in plan.FIELD_TYPES, (src.key, k)
             assert f.ops and set(f.ops) <= set(plan.DEFAULT_OPS), (src.key, k)
             assert f.py is not None and f.label, (src.key, k)
 
 
 def test_every_source_has_a_measure_and_the_catalog_satisfies_the_plan_protocol():
-    for key in plan.SOURCES:
+    # Task 10.7 tightened 10.4's expiring rail: the catalog serves every source the plan names.
+    assert set(sources.SOURCES) == set(plan.SOURCES)
+    for key in sources.SOURCES:
         assert sources.CATALOG.measures_for(key), key
     assert "avg_true_r" not in sources.CATALOG.measures
     assert sources.CATALOG.accents[0] == "gold"

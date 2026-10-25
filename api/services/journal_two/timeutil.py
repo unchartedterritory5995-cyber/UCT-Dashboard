@@ -33,9 +33,13 @@ def _parse(iso: str | None) -> datetime | None:
 def _is_date_only(iso: str, dt: datetime) -> bool:
     if "T" not in str(iso):
         return True
-    # Date-only manual/CSV entries are normalized to exact UTC midnight.
+    # Date-only manual/CSV entries are normalized to exact UTC midnight (`T00:00:00Z` /
+    # `T00:00:00+00:00`, never with a fraction). A server stamp (`datetime.now().isoformat()`)
+    # carries microseconds, so one made in the first second of a UTC day (20:00:00.xxx ET) is a
+    # real instant on the ET evening before, not a date-only entry (Task 10.7 fix round 1, m-4).
     utc_dt = dt.astimezone(UTC)
-    return utc_dt.hour == 0 and utc_dt.minute == 0 and utc_dt.second == 0
+    return (utc_dt.hour == 0 and utc_dt.minute == 0 and utc_dt.second == 0
+            and utc_dt.microsecond == 0)
 
 
 def compute_trading_day_et(iso: str | None) -> str | None:

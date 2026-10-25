@@ -1,0 +1,33 @@
+{
+  "id": "shelf:expectancy",
+  "rev": 1,
+  "name": "Expectancy",
+  "description": "Average result per trade, in dollars and in R.",
+  "keywords": [
+    "edge",
+    "EV",
+    "avg R",
+    "expected value",
+    "per trade"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "expectancy"
+      },
+      {
+        "key": "expectancy_r"
+      }
+    ],
+    "display": {
+      "title": "Expectancy",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

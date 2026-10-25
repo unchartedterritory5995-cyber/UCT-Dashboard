@@ -816,6 +816,13 @@ def _entered_shares(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row) -> t
     return (float(row["s"]) if n else float(t["shares"])), max(n, 1)
 
 
+def entered_shares(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row) -> tuple[float, int]:
+    """(shares ENTERED, closing rows) for one owned trade row: the ONE answer the trade page's
+    grading and the Plan vs actual widget both pass to `grade_checks` as `entered_shares`, so the two
+    can never disagree about a position closed in pieces (fix 10.11 round 2, I-1)."""
+    return _entered_shares(conn, user_id, trade)
+
+
 def _mfe(conn: sqlite3.Connection, user_id: str, ref: str) -> float | None:
     try:
         r = conn.execute("SELECT mfe_price FROM j2_trade_excursions WHERE user_id = ? AND trade_ref = ?",
@@ -873,7 +880,7 @@ def _grade_in_scope(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row, scop
     link = m["link"]
     if link is not None and link["sourceKind"] != "none":
         plan = link["plan"]
-        entered, closes = _entered_shares(conn, user_id, t)
+        entered, closes = entered_shares(conn, user_id, t)
         checks = grade_checks(plan, trade, mfe_price=_mfe(conn, user_id, ref), entered_shares=entered)
         labels = list(link["flags"])
         if closes > 1:

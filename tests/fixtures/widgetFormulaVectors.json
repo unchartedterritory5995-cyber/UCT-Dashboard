@@ -37,6 +37,15 @@
  "engine_constants": {
   "SCAN_ROWS": 5000
  },
+ "plan_sentences": {
+  "S_FORMULA_NAME": "Give the field a name.",
+  "S_FORMULA_NAME_LONG": "A field name can be at most 60 characters.",
+  "S_FORMULA_NAME_TAKEN": "That name is already used.",
+  "S_BAD_CHARACTER": "This widget has a character that can't be saved. Remove it and try again.",
+  "S_GOAL_SOURCE": "A goal target works on closed trades or trading days.",
+  "S_QUADRANTS": "Quadrant labels need a scatter plot.",
+  "S_QUADRANTS_PAIR": "Quadrant labels need MAE across and MFE up, both in R."
+ },
  "functions": [
   "If",
   "And",

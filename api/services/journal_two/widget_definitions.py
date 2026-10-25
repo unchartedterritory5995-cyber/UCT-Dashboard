@@ -54,7 +54,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import sqlite3
 import time as _time
 import uuid
@@ -64,12 +63,15 @@ from typing import Any, Iterator, Literal
 
 from api.services import auth_db
 from api.services.journal_two import sample_marker
+from api.services.journal_two.create_keys import CREATE_KEY_TTL_S, clean_create_key, expire_keys
 from api.services.journal_two.widget_engine.plan import (
     MAX_TEXT,
     PLAN_VERSION,
     PlanError,
     PlanTooNew,
+    S_BAD_CHARACTER,
     default_name,
+    needed_version,
     summary as plan_summary,
     upgrade_plan,
     validate_plan,
@@ -220,11 +222,24 @@ def _read(conn: sqlite3.Connection | None) -> Iterator[sqlite3.Connection]:
             c.close()
 
 
+#: The same context manager under a public name, for other modules (Task 10.12: no cross-module private imports).
+read_conn = _read
+#: The write transaction and the UTC clock under public names, for the same reason (Task 9.6b, m-4).
+#: The SAME objects as `_write` and `_now`, never wrappers.
+write_conn = _write
+now_utc = _now
+
+
 def _clean_name(name: Any, refusal: str = S_BAD_NAME) -> str:
+    """The one door every stored name walks through: a widget's name on create and update (a
+    rename included) and a revision's name. A lone surrogate (JSON can carry one) has no UTF-8
+    form, so the INSERT would fail as a server error: it is refused with a sentence instead."""
     if name is None:
         return ""
     if not isinstance(name, str):
         raise WidgetError(refusal)
+    if any(0xD800 <= ord(ch) <= 0xDFFF for ch in name):
+        raise WidgetError(S_BAD_CHARACTER)
     return name.strip()[:MAX_TEXT]
 
 
@@ -349,7 +364,7 @@ def _insert_new(c: sqlite3.Connection, user_id: str, name: str, plan: dict, summ
         f"INSERT INTO {_DEFS} (id, user_id, name, plan_json, plan_version, rev, placed_rev,"
         " last_answer, created_at, updated_at, archived_at, deleted_at, source_gallery_id,"
         " source_version, save_seq) VALUES (?, ?, ?, ?, ?, 1, 1, NULL, ?, ?, NULL, NULL, ?, ?, 1)",
-        (def_id, user_id, name, _dump(plan), int(plan.get("v", PLAN_VERSION)), ts, ts,
+        (def_id, user_id, name, _dump(plan), needed_version(plan), ts, ts,
          source_gallery_id, source_version),
     )
     c.execute(
@@ -404,9 +419,11 @@ def create(user_id: str, name: str | None, plan: dict, *, catalog: Any = None,
 # Two sends of one key racing: `_write` takes BEGIN IMMEDIATE, so the second waits for the first and
 # then replays it; the (user_id, key) primary key is the backstop (railed in tests).
 
-CREATE_KEY_TTL_S = 24 * 60 * 60
+# The key's shape (`clean_create_key`), the 24 h replay window (`CREATE_KEY_TTL_S`) and the expiry sweep
+# (`expire_keys`) have ONE home, `create_keys.py`, shared with the routine and tracker Duplicate key (Task 9.6b,
+# imported here at the be->impl merge); this module keeps only its own table and its idea of "the same request".
+# The two names stay importable from here (`__all__`): callers and tests read them from this module.
 _KEYS = "j2_widget_create_keys"
-_CREATE_KEY_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 S_KEY_REUSED = "That save was already sent with different changes. Save again to send these."
 
 
@@ -417,15 +434,6 @@ class KeyReused(WidgetError):
 
     def __init__(self, sentence: str = S_KEY_REUSED):
         super().__init__(sentence)
-
-
-def clean_create_key(raw: Any) -> str | None:
-    """The key as a lowercase uuid4, or None for anything else. A malformed key is IGNORED, never
-    refused: the save then behaves exactly as it did before keys existed."""
-    if not isinstance(raw, str):
-        return None
-    key = raw.strip().lower()
-    return key if _CREATE_KEY_RE.fullmatch(key) else None
 
 
 def _payload_sha(payload: dict) -> str:
@@ -442,8 +450,7 @@ def _keyed(c: sqlite3.Connection, user_id: str, key: str, sha: str, now_dt: date
     """Inside the write transaction: expire old keys, then answer a remembered request. None when
     the key is new (or its widget has since been deleted, which forgets it); the widget it made,
     with `replayed` and `createdEtag`, when the payload matches; KeyReused when it does not."""
-    c.execute(f"DELETE FROM {_KEYS} WHERE created_at < ?",
-              (_iso(now_dt - timedelta(seconds=CREATE_KEY_TTL_S)),))
+    expire_keys(c, _KEYS, now_dt)
     row = c.execute(
         f"SELECT definition_id, payload_sha, etag FROM {_KEYS} WHERE user_id = ? AND key = ?",
         (user_id, key),
@@ -566,7 +573,7 @@ def update(user_id: str, def_id: str, *, if_match: int, name: str | None = None,
             raise Conflict()
 
         if valid is not None:
-            plan_json, plan_version = _dump(valid), int(valid.get("v", PLAN_VERSION))
+            plan_json, plan_version = _dump(valid), needed_version(valid)
             summary_text = _summary_for(valid, cat)
         else:
             plan_json, plan_version = row["plan_json"], row["plan_version"]
@@ -749,7 +756,7 @@ def restore_rev(user_id: str, def_id: str, rev: int, *, if_match: int, catalog: 
         c.execute(
             f"UPDATE {_DEFS} SET plan_json = ?, plan_version = ?, rev = ?, updated_at = ?,"
             " save_seq = save_seq + 1 WHERE id = ? AND user_id = ?",
-            (plan_json, int(plan.get("v", PLAN_VERSION)), new_rev, ts, def_id, user_id),
+            (plan_json, needed_version(plan), new_rev, ts, def_id, user_id),
         )
         _prune(c, user_id, def_id, (new_rev, row["placed_rev"]))
         return _get_in(c, user_id, def_id)

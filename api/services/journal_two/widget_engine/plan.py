@@ -24,7 +24,11 @@ from typing import Any, Mapping, Protocol
 
 from api.services.journal_two.json_depth import _json_depth_exceeds
 
-PLAN_VERSION = 1
+#: Ruling W9-R3: a plan is stored with `v = needed_version(plan)`, so every wave 8 plan stays v1
+#: byte-for-byte and only a plan that reads a routine or a tracker is v2 (refused as too new by a
+#: server still on wave 8). Ruling W10-R3: a plan with a formula, an options or notes source, or a
+#: wave 10 display option is v3 (refused as too new by a server still on wave 9).
+PLAN_VERSION = 3
 
 RANGE_TOKENS = (
     "today", "this_week", "last_week", "last_7d", "last_30d", "last_90d",
@@ -32,7 +36,50 @@ RANGE_TOKENS = (
     "all", "last_20_trades", "last_50_trades", "last_100_trades",
 )
 VIEWS = ("number", "compare", "table", "bar", "line", "scatter", "heat", "list", "progress")
-SOURCES = ("closed_trades", "open_positions", "trading_days")
+SOURCES = ("closed_trades", "open_positions", "trading_days", "routine_history", "tracker_history",
+           "options_strategies", "notes")
+#: Wave 9: the routine and tracker history sources (dark behind `notebook_widgets_wave_on(9)`).
+TOOL_SOURCES = frozenset({"routine_history", "tracker_history"})
+#: Wave 10: options strategies and notes (dark behind `notebook_widgets_wave_on(10)`). The sources
+#: themselves are Tasks 10.6 and 10.7: until the catalog lists them they are refused as unknown.
+WAVE10_SOURCES = frozenset({"options_strategies", "notes"})
+#: Wave 10 (Task 10.4): member formulas ("your own fields") and the display options.
+FORMULA_FORMATS = ("number", "money", "percent", "r")
+#: How a row formula is added up into a measure: a number one, and a yes / no one.
+ROW_AGGS = ("sum", "avg", "min", "max")
+BOOL_AGGS = ("count", "share")
+#: The range tokens a goal target follows, and the account goal each one reads.
+GOAL_TOKENS = {"today": "daily", "this_week": "weekly", "this_month": "monthly", "ytd": "yearly"}
+STOP_AFTER_MAX = 20
+#: The data an account goal follows (a goal target reads the accounts' goals against these).
+GOAL_SOURCES = ("closed_trades", "trading_days")
+QUADRANTS = ("excursion",)
+#: 10.18 m6: "excursion" captions trades as "gave it back" / "stopped too tight", true only of the
+#: excursion pair: the first measure the absolute MAE, the second the MFE, each a formula in R (the
+#: `shelf:mae-vs-mfe` shape). Canonical expressions, compared with their whitespace removed.
+EXCURSION_PAIR = ("Abs([mae_r])", "[mfe_r]")
+EXCURSION_SOURCE = "closed_trades"
+#: Measures that add up one of the member's note properties (`prop`, a uuid4).
+PROP_MEASURES = frozenset({"property_sum"})
+#: The filter field that names one note property (`prop`); it may appear more than once.
+PROPERTY_FIELD = "property"
+#: A filter or split on a row formula names it `formula:<id>`.
+FORMULA_PREFIX = "formula:"
+#: The display keys wave 10 adds. Each is written only when set.
+WAVE10_DISPLAY = ("cumulative", "targetGoal", "stopAfter", "quadrants")
+#: Formula ids, f1 to f5 (`widget_formula.MAX_FORMULAS`).
+_FORMULA_ID_RE = re.compile(r"f[1-5]")
+#: The aggregation of a formula measure, in the words `summary()` uses.
+AGG_WORDS = {"sum": "total", "avg": "average", "min": "lowest", "max": "highest",
+             "count": "how many", "share": "share"}
+#: A field's `ref_kind`: the member's own routine or tracker a filter or split on it names.
+REF_KINDS = ("routine", "tracker")
+#: The built-in trackers (the member's check-ins), a valid `tracker` ref beside a uuid4.
+BUILTIN_TRACKER_REFS = frozenset({"checkin:mood", "checkin:focus"})
+#: Filter ops by field type. `sources` takes these three from here; formula filters use them too.
+OPS_ENUM = ("in", "not_in")
+OPS_NUMBER = ("eq", "gt", "gte", "lt", "lte", "between")
+OPS_BOOL = ("is",)
 # Used when a field does not declare its own `ops`.
 DEFAULT_OPS = ("eq", "gt", "gte", "lt", "lte", "between", "in", "not_in", "has_any",
                "contains", "is")
@@ -67,6 +114,7 @@ S_START_AFTER_END = "The start date is after the end date."
 S_NO_VERSION = "This widget couldn't be read. Build it again to use it."
 S_UNREADABLE = "This widget's settings couldn't be read."
 S_TOO_LARGE = "This widget is too large to save."
+S_BAD_CHARACTER = "This widget has a character that can't be saved. Remove it and try again."
 S_UNKNOWN_SOURCE = "That data isn't available for a widget."
 S_UNKNOWN_FIELD = "That field isn't available here."
 S_UNKNOWN_OP = "That filter comparison isn't supported."
@@ -93,6 +141,36 @@ S_FILTER_NEEDS_VALUE = "Pick at least one value for this filter."
 S_FILTER_ONE_VALUE = "This filter takes exactly one value."
 S_FILTER_VALUE_TYPE = "That value doesn't fit this field."
 S_TARGET = "The target must be a number."
+# Wave 9 (Task 9.8): routine and tracker history, and the trading-days fields that name one.
+S_ONE_REF = "A widget can look at one routine and one tracker."
+S_TOOL_ACCOUNTS = "Routines and trackers cover all your accounts."
+S_BAD_REF = "Pick a routine or tracker for this field."
+S_NOT_A_FILTER = "That field can't be used to filter a widget."
+# Wave 10 (Task 10.4): formulas, note properties and the display options (given verbatim).
+S_TOO_MANY_FORMULAS = "Use up to 5 formula fields."
+S_FORMULA_NAME = "Give the field a name."
+S_FORMULA_NAME_LONG = "A field name can be at most 60 characters."
+S_FORMULA_NAME_TAKEN = "That name is already used."
+S_FORMULA_UNKNOWN = "That formula field isn't in this widget."
+S_FORMULA_FORMAT = "That format isn't available."
+S_FORMULA_AGG = "Pick how to add up this field: total, average, lowest or highest."
+S_FORMULA_BOOL_AGG = "Pick how to count this field: how many, or what share."
+S_FORMULA_TEXT_MEASURE = "A text field can split a widget but can't be measured."
+S_FORMULA_AGG_SPLIT = "A field that adds up rows can't split or filter a widget."
+S_FORMULA_SPLIT_NUMBER = "Use Bucket to split by a number."
+S_PROP_REQUIRED = "Pick a property for this filter."
+S_PROP_MEASURE = "Pick a number property to add up."
+S_CUMULATIVE = "A running total works on a line of totals, like Net P&L or Total R."
+S_GOAL_RANGE = "A goal target needs today, this week, this month or year to date."
+S_GOAL_MEASURE = "A goal target works with Net P&L."
+S_GOAL_AND_TARGET = "Pick a number target or your goal, not both."
+# Fix round 1 (M2): Net P&L picked on data a goal does not follow (options strategies once 10.6
+# widens net_pnl) names the data, never the measure the member got right.
+S_GOAL_SOURCE = "A goal target works on closed trades or trading days."
+S_STOP_AFTER = "Stop after works with the current streak."
+S_STOP_AFTER_RANGE = "Stop after must be 1 to 20 losses."
+S_QUADRANTS = "Quadrant labels need a scatter plot."
+S_QUADRANTS_PAIR = "Quadrant labels need MAE across and MFE up, both in R."
 
 
 class PlanError(ValueError):
@@ -174,6 +252,23 @@ def _check_span(frm: Any, to: Any) -> tuple[date, date]:
     return a, b
 
 
+_UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def _check_ref(kind: str | None, ref: Any) -> str | None:
+    """The `ref` a filter or split carries for a field whose `ref_kind` is `kind`: required there,
+    refused anywhere else. A routine ref is a uuid4 string; a tracker ref is one, or a built-in."""
+    if kind is None:
+        if ref is not None:
+            raise PlanError(S_UNREADABLE)
+        return None
+    if not isinstance(ref, str):
+        raise PlanError(S_BAD_REF)
+    if not (_UUID_RE.fullmatch(ref) or (kind == "tracker" and ref in BUILTIN_TRACKER_REFS)):
+        raise PlanError(S_BAD_REF)
+    return ref
+
+
 def _walk_strings_too_long(x: Any) -> bool:
     stack = [x]
     while stack:
@@ -209,7 +304,9 @@ def _join_and(items: list[str]) -> str:
 # -- upgrade + size -------------------------------------------------------------
 
 def upgrade_plan(raw: dict) -> dict:
-    """Bring a stored plan to PLAN_VERSION in memory. Identity for v1."""
+    """Bring a stored plan to PLAN_VERSION in memory. Identity for v1, v2 and v3: v2 only adds the
+    routine and tracker sources and `ref`, v3 only adds formulas, two sources, `prop` and four
+    display options, so an older plan is already a valid plan of every later format."""
     if not isinstance(raw, dict) or "v" not in raw:
         raise PlanError(S_NO_VERSION)
     v = raw["v"]
@@ -221,14 +318,275 @@ def upgrade_plan(raw: dict) -> dict:
 
 
 def plan_size_ok(raw: Any) -> bool:
-    """Compact JSON at most 16,384 bytes and JSON depth at most 16."""
+    """Compact JSON at most 16,384 bytes and JSON depth at most 16.
+
+    Raises `PlanError(S_BAD_CHARACTER)` when the plan holds text that has no UTF-8 form (a lone
+    surrogate such as U+D800 reaching us through JSON): every later encode -- the size here,
+    `plan_hash`, the stored row -- would otherwise fail as a server error."""
     try:
         blob = json.dumps(raw, separators=(",", ":"), ensure_ascii=False)
     except (TypeError, ValueError):
         return False
-    if len(blob.encode("utf-8")) > MAX_PLAN_BYTES:
+    try:
+        size = len(blob.encode("utf-8"))
+    except UnicodeEncodeError:
+        raise PlanError(S_BAD_CHARACTER) from None
+    if size > MAX_PLAN_BYTES:
         return False
     return not _json_depth_exceeds(raw, MAX_PLAN_DEPTH)
+
+
+# -- version and refs (wave 9) ----------------------------------------------------
+
+def _ref_entries(plan: Any) -> list[tuple[Any, Any]]:
+    """(field key, ref) for every `ref` in a plan's filters and split; any shape gets an answer."""
+    out: list[tuple[Any, Any]] = []
+    if not isinstance(plan, dict):
+        return out
+    filters = plan.get("filters")
+    for f in filters if isinstance(filters, list) else []:
+        if isinstance(f, dict) and f.get("ref") is not None:
+            out.append((f.get("field"), f["ref"]))
+    split = plan.get("split")
+    if isinstance(split, dict):
+        if split.get("ref") is not None:
+            out.append((split.get("by"), split["ref"]))
+        if split.get("ref2") is not None:
+            out.append((split.get("then"), split["ref2"]))
+    return out
+
+
+def _source_in(plan: dict, keys: frozenset) -> bool:
+    src = plan.get("source")
+    return isinstance(src, str) and src in keys
+
+
+def _uses_wave10(plan: Any) -> bool:
+    if not isinstance(plan, dict):
+        return False
+    if _source_in(plan, WAVE10_SOURCES):
+        return True
+    formulas = plan.get("formulas")
+    if isinstance(formulas, list) and formulas:
+        return True
+    display = plan.get("display")
+    return isinstance(display, dict) and any(k in display for k in WAVE10_DISPLAY)
+
+
+def needed_version(plan: dict) -> int:
+    """3 when the plan has a formula, reads options strategies or notes, or sets a wave 10 display
+    option (ruling W10-R3); else 2 when it reads a routine or tracker source or any filter or split
+    names one (`ref`); else 1 (ruling W9-R3). Total: any value gets an answer."""
+    if not isinstance(plan, dict):
+        return 1
+    if _uses_wave10(plan):
+        return 3
+    if uses_tools(plan):
+        return 2
+    return 1
+
+
+def uses_tools(plan: Any) -> bool:
+    """Does the plan read routines or trackers (wave 9)? The router's wave gate, the sample-book
+    rule and the trading-days stamp ask this. It is the wave 9 answer on its own, never "the
+    version is at least 2": a formula over closed trades reads no routine. Total."""
+    if not isinstance(plan, dict):
+        return False
+    return _source_in(plan, TOOL_SOURCES) or bool(_ref_entries(plan))
+
+
+def uses_wave10(plan: Any) -> bool:
+    """Does the plan need wave 10 (`needed_version(plan) >= 3`)? Total: any value gets an answer."""
+    return _uses_wave10(plan)
+
+
+def formula_of(plan: Any, fid: Any) -> dict | None:
+    """The plan's formula entry with id `fid`, or None. Total: any value gets an answer."""
+    if not isinstance(plan, dict) or not isinstance(fid, str):
+        return None
+    formulas = plan.get("formulas")
+    for f in formulas if isinstance(formulas, list) else []:
+        if isinstance(f, dict) and f.get("id") == fid:
+            return f
+    return None
+
+
+# -- formulas (wave 10) ---------------------------------------------------------------------------
+
+#: A field's type as the formula dialect reads it: an enum is text (W10 ruling), a tag stays a tag
+#: so the dialect refuses it by name.
+_FORMULA_TYPES = {"number": "number", "text": "text", "enum": "text", "bool": "bool", "day": "day",
+                  "tag": "tag"}
+_ASCII_FOLD = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
+
+def _fold(s: str) -> str:
+    """ASCII case-insensitive, like the dialect: only A-Z fold."""
+    return s.translate(_ASCII_FOLD)
+
+
+def formula_field_infos(fields: Mapping[str, Any]) -> dict:
+    """{key: widget_formula.FieldInfo} for every field a formula may name: filterable, of a type
+    the dialect knows, and not one that needs a routine or tracker (`ref_kind`: a formula carries
+    no ref) nor the note-property field (it needs `prop`). `sources.formula_fields(source)` is this
+    over a real source; the validator runs it over the catalog it is handed. Pure."""
+    from api.services.journal_two.widget_formula import FieldInfo   # widget_formula imports us
+
+    out = {}
+    for key, fld in fields.items():
+        ftype = _FORMULA_TYPES.get(getattr(fld, "type", None))
+        if (ftype is None or getattr(fld, "filterable", True) is False
+                or getattr(fld, "ref_kind", None) is not None or key == PROPERTY_FIELD):
+            continue
+        out[key] = FieldInfo(key, _label(fld, key), ftype,
+                             hour_key=getattr(fld, "hour_key", None),
+                             needs_times=bool(getattr(fld, "needs_times", False)))
+    return out
+
+
+def _name_chars_ok(name: str) -> bool:
+    """A formula name's characters (fix round 2, ruling W10-R47): nothing the member cannot see,
+    EXCEPT the parts of an ordinary emoji, by the dialect's own text-literal rule (W10-R30,
+    `widget_formula._emoji_part_ok`, with every code point of the name a neighbour):
+      * U+FE0E / U+FE0F after a visible character that is not a space and not refused;
+      * U+200D when the code points on BOTH sides are emoji (`widget_formula._EMOJI_RANGES`);
+      * U+20E3 after 0-9, # or *, optionally with U+FE0E/U+FE0F between.
+    Skin-tone modifiers (U+1F3FB-1F3FF) are ordinary emoji code points, never refused. Everything
+    else invisible stays refused: other format characters, zero-width spaces, a joiner outside an
+    emoji, bidi controls, NBSP and the other space-like characters, tab and the line ends."""
+    from api.services.journal_two import widget_formula as wf   # widget_formula imports us
+
+    for j, ch in enumerate(name):
+        if not wf._invisible(ch):
+            continue
+        if not (wf._forbidden(ch) and wf._emoji_part_ok(name, -1, j)):
+            return False
+    return True
+
+
+def formula_measure_kind(compiled: Any, agg: str | None) -> str:
+    """A formula measure's kind (Task 10.5's `measure_of` reads the same answer): a row formula's
+    `agg` decides it; an aggregate formula is `count` when it is exactly one CountIf, `sum` when
+    exactly one SumIf, `rate` when exactly one Share, else `average`."""
+    if agg is not None:
+        return {"sum": "sum", "avg": "average", "min": "extreme", "max": "extreme",
+                "count": "count", "share": "rate"}[agg]
+    tree = getattr(getattr(compiled, "ast", None), "tree", None)
+    if isinstance(tree, tuple) and len(tree) >= 3 and tree[0] == "call":
+        if tree[2] == "CountIf":
+            return "count"
+        if tree[2] == "SumIf":
+            return "sum"
+        if tree[2] == "Share":
+            return "rate"
+    return "average"
+
+
+def _compile_formulas(raw: dict, catalog: Catalog) -> tuple[list[dict], dict]:
+    """Validate and compile `raw["formulas"]` against the source's fields. Returns the stored
+    entries (expressions CANONICAL, ruling W10-R2) and {id: Compiled}. A `FormulaError` carries
+    the formula's id. Runs BEFORE the size check, so a formula error keeps its code and position."""
+    from api.services.journal_two import widget_formula as wf   # widget_formula imports us
+
+    source = raw.get("source")
+    if not isinstance(source, str) or source not in SOURCES or source not in catalog.sources:
+        raise PlanError(S_UNKNOWN_SOURCE)
+    fields = getattr(catalog.sources[source], "fields", {}) or {}
+    raw_formulas = raw.get("formulas")
+    _need(isinstance(raw_formulas, list))
+    if len(raw_formulas) > wf.MAX_FORMULAS:
+        raise PlanError(S_TOO_MANY_FORMULAS)
+    infos = formula_field_infos(fields)
+    # an hour is read through a day field's `hour_key`: a derived field, never unknown
+    readable = set(infos) | {fi.hour_key for fi in infos.values() if fi.hour_key}
+    taken = {_fold(_label(f, k)) for k, f in fields.items()}
+    entries: list[dict] = []
+    compiled: dict = {}
+    for f in raw_formulas:
+        _only_keys(f, {"id", "name", "expr", "format"})
+        fid = f.get("id")
+        if not isinstance(fid, str) or not _FORMULA_ID_RE.fullmatch(fid) or fid in compiled:
+            raise PlanError(S_UNREADABLE)
+        name = f.get("name")
+        # The widget name's trim (`str.strip`: NBSP, U+3000 and the line ends too), then no
+        # character the member cannot see: one zero-width or format character would defeat the
+        # unique-name and not-a-label rules (fix round 1, M3; the twin needs the same rule).
+        name = name.strip() if isinstance(name, str) else ""
+        if not name:
+            raise PlanError(S_FORMULA_NAME)
+        if not _name_chars_ok(name):
+            raise PlanError(S_BAD_CHARACTER)
+        if len(name) > wf.NAME_MAX:
+            raise PlanError(S_FORMULA_NAME_LONG)
+        if _fold(name) in taken:
+            raise PlanError(S_FORMULA_NAME_TAKEN)
+        taken.add(_fold(name))
+        fmt = f.get("format", "number")
+        if not isinstance(fmt, str) or fmt not in FORMULA_FORMATS:
+            raise PlanError(S_FORMULA_FORMAT)
+        try:
+            c = wf.compile_formula(f.get("expr"), infos)
+        except wf.FormulaError as e:
+            e.formula_id = fid
+            raise
+        if not set(c.fields) <= readable:      # defence: a formula reads only its source's fields
+            raise PlanError(S_UNKNOWN_FIELD)
+        # The STORED form is measured too (fix round 1, I-2): canonicalising writes keys, and a key
+        # can be longer than its label (`[Risk $]` -> `[risk_dollars]`), so a formula typed under
+        # the limit could be stored over it and refused on every later load.
+        if len(c.canonical) > wf.MAX_LENGTH:
+            raise wf.FormulaError("too_long", wf.ERRORS["too_long"], wf.MAX_LENGTH, fid)
+        compiled[fid] = c
+        entries.append({"id": fid, "name": name, "expr": c.canonical, "format": fmt})
+    return entries, compiled
+
+
+def _formula_ref(name: Any, compiled: dict) -> Any:
+    """The Compiled of a `formula:<id>` field name, or None when `name` is not one; refuses an id
+    the plan does not define."""
+    if not isinstance(name, str) or not name.startswith(FORMULA_PREFIX):
+        return None
+    c = compiled.get(name[len(FORMULA_PREFIX):])
+    if c is None:
+        raise PlanError(S_FORMULA_UNKNOWN)
+    return c
+
+
+#: The filter ops of a row formula, by its result type: the same tuples `sources` gives its fields
+#: (fix round 1, M4: one authority, here, because plan cannot import sources).
+_FORMULA_OPS = {"number": OPS_NUMBER, "text": OPS_ENUM, "bool": OPS_BOOL}
+
+
+#: Task 10.7: a member's note property id is `uuid.uuid4().hex` (`note_properties.
+#: create_property_def` mints it), 32 lowercase hex characters; the dashed form is accepted too.
+_PROP_ID_RE = re.compile(r"[0-9a-f]{32}|" + _UUID_RE.pattern)
+
+
+def _check_prop(prop: Any, sentence: str) -> str:
+    if not isinstance(prop, str) or not _PROP_ID_RE.fullmatch(prop):
+        raise PlanError(sentence)
+    return prop
+
+
+def plan_refs(plan: dict, fields: Mapping[str, Any]) -> dict[str, str | None]:
+    """{"routine": ref | None, "tracker": ref | None} of a validated plan (one ref per kind)."""
+    out: dict[str, str | None] = {k: None for k in REF_KINDS}
+    for key, ref in _ref_entries(plan):
+        kind = getattr(fields.get(key), "ref_kind", None) if isinstance(key, str) else None
+        if kind in out and isinstance(ref, str):
+            out[kind] = ref
+    return out
+
+
+def _one_ref_per_kind(plan: dict, fields: Mapping[str, Any]) -> None:
+    seen: dict[str, Any] = {}
+    for key, ref in _ref_entries(plan):
+        kind = getattr(fields.get(key), "ref_kind", None) if isinstance(key, str) else None
+        if kind is None:
+            continue
+        if kind in seen and seen[kind] != ref:
+            raise PlanError(S_ONE_REF)
+        seen[kind] = ref
 
 
 # -- validate -------------------------------------------------------------------
@@ -271,6 +629,12 @@ def _check_filter_values(op: str, ftype: str | None, values: list) -> None:
     elif op == "between" or op in _COMPARE_OPS:
         if ftype == "day":
             ok = all(_fits("day", v) for v in values)
+        elif ftype is None and op == "eq":
+            # Task 10.7: an untyped field (the note-property field, whose type is the named
+            # property's) may equal a text, a number or a yes / no; the authority checks the type
+            ok = isinstance(values[0], (str, bool)) or _is_number(values[0])
+        elif ftype is None and all(_fits("day", v) for v in values):
+            ok = True                         # an untyped field may also compare dates
         else:
             ok = ftype in (None, "number") and all(_is_number(v) for v in values)
     else:
@@ -282,7 +646,7 @@ def _check_filter_values(op: str, ftype: str | None, values: list) -> None:
 
 
 _TOP_KEYS = {"v", "source", "accounts", "range", "filters", "measures", "split",
-             "view", "sort", "compare", "display"}
+             "view", "sort", "compare", "display", "formulas"}
 
 
 def _norm_range(rng: Any) -> dict:
@@ -297,14 +661,118 @@ def _norm_range(rng: Any) -> dict:
     return {"from": rng["from"], "to": rng["to"]}
 
 
+def _without_exprs(raw: dict) -> dict:
+    """`raw` with each formula's expression left out: a formula may be `widget_formula.MAX_LENGTH`
+    characters (the dialect refuses past it), every other string at most `MAX_TEXT`."""
+    formulas = raw.get("formulas")
+    if not isinstance(formulas, list):
+        return raw
+    return dict(raw, formulas=[{k: v for k, v in f.items() if k != "expr"}
+                               if isinstance(f, dict) else f for f in formulas])
+
+
+def _measure_kind(m: dict, catalog: Catalog, compiled: dict) -> str | None:
+    if "formula" in m:
+        return formula_measure_kind(compiled[m["formula"]], m.get("agg"))
+    return getattr(catalog.measures.get(m["key"]), "kind", None)
+
+
+def _check_measure(m: Any, source: str, catalog: Catalog, compiled: dict) -> dict:
+    _need(isinstance(m, dict))
+    if "formula" in m:
+        _only_keys(m, {"formula", "agg"})
+        fid = m.get("formula")
+        c = compiled.get(fid) if isinstance(fid, str) else None
+        if c is None:
+            raise PlanError(S_FORMULA_UNKNOWN)
+        if c.kind == "aggregate":
+            _need("agg" not in m)
+            return {"formula": fid}
+        agg = m.get("agg")
+        if c.type == "text":
+            raise PlanError(S_FORMULA_TEXT_MEASURE)
+        if c.type == "bool":
+            if not isinstance(agg, str) or agg not in BOOL_AGGS:
+                raise PlanError(S_FORMULA_BOOL_AGG)
+        elif not isinstance(agg, str) or agg not in ROW_AGGS:
+            raise PlanError(S_FORMULA_AGG)
+        return {"formula": fid, "agg": agg}
+    _only_keys(m, {"key", "prop"})
+    key = m.get("key")
+    if not isinstance(key, str) or key not in catalog.measures:
+        raise PlanError(S_UNKNOWN_MEASURE)
+    if source not in (getattr(catalog.measures[key], "sources", None) or ()):
+        raise PlanError(S_MEASURE_WRONG_DATA)
+    if key in PROP_MEASURES:
+        return {"key": key, "prop": _check_prop(m.get("prop"), S_PROP_MEASURE)}
+    _need("prop" not in m)
+    return {"key": key}
+
+
+def _excursion_pair(plan: dict, formulas: list[dict]) -> bool:
+    """Is the plan the excursion pair (`EXCURSION_PAIR`, in that order, both in R, on closed
+    trades)? The only scatter whose quadrant captions are true (10.18 m6)."""
+    measures = plan["measures"]
+    if plan["source"] != EXCURSION_SOURCE or len(measures) != len(EXCURSION_PAIR):
+        return False
+    by_id = {f["id"]: f for f in formulas}
+    for m, want in zip(measures, EXCURSION_PAIR):
+        f = by_id.get(m.get("formula"))
+        if f is None or f.get("format") != "r" or "".join(f["expr"].split()) != want:
+            return False
+    return True
+
+
+def _check_display_w10(rd: dict, display: dict, plan: dict, catalog: Catalog,
+                       compiled: dict, formulas: list[dict] = ()) -> None:
+    """Ruling W10-R3: the four wave 10 display keys, each written only when set."""
+    vtype = plan["view"]["type"]
+    measures = plan["measures"]
+    if "cumulative" in rd:
+        _need(rd["cumulative"] is True)
+        if vtype != "line" or any(_measure_kind(m, catalog, compiled) != "sum" for m in measures):
+            raise PlanError(S_CUMULATIVE)
+        display["cumulative"] = True
+    if "targetGoal" in rd:
+        _need(rd["targetGoal"] is True)
+        if display["target"] is not None:
+            raise PlanError(S_GOAL_AND_TARGET)
+        if measures != [{"key": "net_pnl"}]:
+            raise PlanError(S_GOAL_MEASURE)
+        if plan["source"] not in GOAL_SOURCES:
+            raise PlanError(S_GOAL_SOURCE)
+        if plan["range"].get("token") not in GOAL_TOKENS:
+            raise PlanError(S_GOAL_RANGE)
+        _need(vtype == "progress")
+        display["targetGoal"] = True
+    if "stopAfter" in rd:
+        n = rd["stopAfter"]
+        if not _is_int(n) or not 1 <= n <= STOP_AFTER_MAX:
+            raise PlanError(S_STOP_AFTER_RANGE)
+        if not any(m.get("key") == "current_streak" for m in measures):
+            raise PlanError(S_STOP_AFTER)
+        display["stopAfter"] = n
+    if "quadrants" in rd:
+        q = rd["quadrants"]
+        _need(isinstance(q, str) and q in QUADRANTS)
+        if vtype != "scatter":
+            raise PlanError(S_QUADRANTS)
+        if not _excursion_pair(plan, list(formulas)):
+            raise PlanError(S_QUADRANTS_PAIR)
+        display["quadrants"] = q
+
+
 def validate_plan(raw: dict, catalog: Catalog) -> dict:
     """Upgrade, refuse with a member sentence, return the plan with defaults filled."""
     _need(isinstance(raw, dict))
     upgrade_plan(raw)
+    # Formulas compile FIRST: a formula error keeps its code, position and id (a lone surrogate in
+    # an expression is that formula's bad_char, not the plan-level S_BAD_CHARACTER).
+    formulas, compiled = _compile_formulas(raw, catalog) if "formulas" in raw else ([], {})
     if not plan_size_ok(raw):
         raise PlanError(S_TOO_LARGE)
     _need(set(raw) <= _TOP_KEYS)
-    if _walk_strings_too_long(raw):
+    if _walk_strings_too_long(_without_exprs(raw)):
         raise PlanError(S_TEXT_TOO_LONG)
 
     source = raw.get("source")
@@ -323,6 +791,13 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         accounts = {"id": acc["id"]}
 
     rng = _norm_range(raw.get("range", {"token": DEFAULT_RANGE_TOKEN}))
+    if source in TOOL_SOURCES:
+        if accounts != "all":
+            raise PlanError(S_TOOL_ACCOUNTS)
+        if rng.get("token") in _LAST_N_TRADES:
+            raise PlanError(S_UNKNOWN_RANGE)
+    if source in WAVE10_SOURCES and rng.get("token") in _LAST_N_TRADES:
+        raise PlanError(S_UNKNOWN_RANGE)
 
     # filters
     raw_filters = raw.get("filters", [])
@@ -331,11 +806,27 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         raise PlanError(S_TOO_MANY_FILTERS)
     filters = []
     for f in raw_filters:
-        _only_keys(f, {"field", "op", "values", "overridable"})
+        _only_keys(f, {"field", "op", "values", "overridable", "ref", "prop"})
         name = f.get("field")
-        if not isinstance(name, str) or name not in fields:
-            raise PlanError(S_UNKNOWN_FIELD)
-        ops = getattr(fields[name], "ops", None) or DEFAULT_OPS
+        c = _formula_ref(name, compiled)
+        if c is not None:
+            if c.kind == "aggregate":
+                raise PlanError(S_FORMULA_AGG_SPLIT)
+            _need(f.get("ref") is None and f.get("prop") is None)
+            ref, prop, ftype, ops = None, None, c.type, _FORMULA_OPS[c.type]
+        else:
+            if not isinstance(name, str) or name not in fields:
+                raise PlanError(S_UNKNOWN_FIELD)
+            if getattr(fields[name], "filterable", True) is False:
+                raise PlanError(S_NOT_A_FILTER)
+            ref = _check_ref(getattr(fields[name], "ref_kind", None), f.get("ref"))
+            if name == PROPERTY_FIELD:
+                prop = _check_prop(f.get("prop"), S_PROP_REQUIRED)
+            else:
+                _need(f.get("prop") is None)
+                prop = None
+            ftype = getattr(fields[name], "type", None)
+            ops = getattr(fields[name], "ops", None) or DEFAULT_OPS
         op = f.get("op")
         # A non-string op is refused BEFORE the membership test: `ops` may be a
         # set, and `["x"] in frozenset()` raises TypeError instead of answering.
@@ -346,11 +837,21 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         if len(values) > MAX_FILTER_VALUES:
             raise PlanError(S_TOO_MANY_VALUES)
         _need(all(isinstance(x, (str, bool)) or _is_number(x) for x in values))
-        _check_filter_values(op, getattr(fields[name], "type", None), values)
+        _check_filter_values(op, ftype, values)
+        # W9-R21: a field with fixed codes (a routine day's state) stores the CODE, never a label.
+        if c is None and getattr(fields[name], "strict_choices", False):
+            choices = fields[name].choices
+            allowed = {v for v, _label in (choices() if callable(choices) else choices or ())}
+            if any(v not in allowed for v in values):
+                raise PlanError(S_FILTER_VALUE_TYPE)
         over = f.get("overridable", False)
         _need(isinstance(over, bool))
-        filters.append({"field": name, "op": f["op"], "values": list(values),
-                        "overridable": over})
+        clean = {"field": name, "op": f["op"], "values": list(values), "overridable": over}
+        if ref is not None:
+            clean["ref"] = ref
+        if prop is not None:
+            clean["prop"] = prop
+        filters.append(clean)
     if sum(1 for f in filters if f["overridable"]) > MAX_OVERRIDABLE:
         raise PlanError(S_ONE_OVERRIDABLE)
 
@@ -361,27 +862,37 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         raise PlanError(S_NO_MEASURE)
     if len(raw_measures) > MAX_MEASURES:
         raise PlanError(S_TOO_MANY_MEASURES)
-    measures = []
-    for m in raw_measures:
-        _only_keys(m, {"key"})
-        key = m.get("key")
-        if not isinstance(key, str) or key not in catalog.measures:
-            raise PlanError(S_UNKNOWN_MEASURE)
-        if source not in (getattr(catalog.measures[key], "sources", None) or ()):
-            raise PlanError(S_MEASURE_WRONG_DATA)
-        measures.append({"key": key})
+    measures = [_check_measure(m, source, catalog, compiled) for m in raw_measures]
 
     # split
     raw_split = raw.get("split")
     split = None
     if raw_split is not None:
-        _only_keys(raw_split, {"by", "then"})
+        _only_keys(raw_split, {"by", "then", "ref", "ref2"})
         by, then = raw_split.get("by"), raw_split.get("then")
-        if not isinstance(by, str) or by not in fields:
-            raise PlanError(S_UNKNOWN_FIELD)
-        if then is not None and (not isinstance(then, str) or then not in fields):
-            raise PlanError(S_UNKNOWN_FIELD)
+        kinds: list = []
+        for key, optional in ((by, False), (then, True)):
+            c = _formula_ref(key, compiled)
+            if c is not None:
+                if c.kind == "aggregate":
+                    raise PlanError(S_FORMULA_AGG_SPLIT)
+                if c.type == "number":
+                    raise PlanError(S_FORMULA_SPLIT_NUMBER)
+                kinds.append(None)
+            elif optional and key is None:
+                kinds.append(None)
+            elif not isinstance(key, str) or key not in fields:
+                raise PlanError(S_UNKNOWN_FIELD)
+            else:
+                kinds.append(getattr(fields[key], "ref_kind", None))
         split = {"by": by, "then": then}
+        # `ref` names the routine or tracker of `by`, `ref2` the one of `then`.
+        ref = _check_ref(kinds[0], raw_split.get("ref"))
+        ref2 = _check_ref(kinds[1], raw_split.get("ref2"))
+        if ref is not None:
+            split["ref"] = ref
+        if ref2 is not None:
+            split["ref2"] = ref2
 
     # view
     if "view" in raw:
@@ -435,7 +946,8 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
 
     # display
     rd = _only_keys(raw.get("display", {}),
-                    {"title", "titleAuto", "subtitle", "accent", "showN", "target"})
+                    {"title", "titleAuto", "subtitle", "accent", "showN", "target",
+                     *WAVE10_DISPLAY})
     accents = tuple(getattr(catalog, "accents", ()) or ())
     display = {
         "title": rd.get("title", ""),
@@ -457,6 +969,14 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         "filters": filters, "measures": measures, "split": split, "view": view,
         "sort": sort, "compare": compare, "display": display,
     }
+    _check_display_w10(rd, display, plan, catalog, compiled, formulas)
+    # W10-R3: `formulas` is written only when the plan has one.
+    if formulas:
+        plan["formulas"] = formulas
+    _one_ref_per_kind(plan, fields)
+    # Ruling W9-R3 / W10-R3: the version is what the plan needs, never what the sender wrote: a
+    # plain plan is v1 whoever built it, a routine or tracker plan v2, a wave 10 plan v3.
+    plan["v"] = needed_version(plan)
     # Defaults add bytes: a raw plan just under the cap can grow past it.
     if not plan_size_ok(plan):
         raise PlanError(S_TOO_LARGE)
@@ -647,12 +1167,28 @@ def _range_phrase(rng: dict) -> str:
     return label
 
 
+def _formula_name(plan: dict, fid: Any) -> str:
+    f = formula_of(plan, fid)
+    return f["name"] if f is not None and isinstance(f.get("name"), str) else str(fid)
+
+
+def _measure_label(plan: dict, catalog: Catalog, m: dict) -> str:
+    """A measure's words. A formula measure is named by its own name, a row formula with the
+    aggregation in words ("Exit efficiency (average)")."""
+    if "formula" in m:
+        name = _formula_name(plan, m["formula"])
+        agg = m.get("agg")
+        return f"{name} ({AGG_WORDS[agg]})" if agg in AGG_WORDS else name
+    return _label(catalog.measures.get(m["key"]), m["key"])
+
+
 def _measure_labels(plan: dict, catalog: Catalog) -> str:
-    return _join_and([_label(catalog.measures.get(m["key"]), m["key"])
-                      for m in plan["measures"]])
+    return _join_and([_measure_label(plan, catalog, m) for m in plan["measures"]])
 
 
 def _field_label(plan: dict, catalog: Catalog, name: str) -> str:
+    if isinstance(name, str) and name.startswith(FORMULA_PREFIX):
+        return _formula_name(plan, name[len(FORMULA_PREFIX):])    # the member's own words, as typed
     fields = getattr(catalog.sources.get(plan["source"]), "fields", {}) or {}
     return _lower_first(_label(fields.get(name), name))
 
@@ -687,8 +1223,12 @@ def summary(plan: dict, catalog: Catalog, count: int | None, unit: str) -> str:
     tail.append("all accounts" if plan.get("accounts", "all") == "all" else "one account")
     text = ", ".join([head, *tail]) + "."
     if count is not None:
-        u = unit[:-1] if count == 1 and unit.endswith("s") else unit
-        text += f" {count:,} {u}."
+        if count == 0 and plan.get("source") in TOOL_SOURCES:
+            # a new routine or tracker has nothing yet; "0 days" reads as a failure
+            text += f" No {unit} yet."
+        else:
+            u = unit[:-1] if count == 1 and unit.endswith("s") else unit
+            text += f" {count:,} {u}."
     return text
 
 

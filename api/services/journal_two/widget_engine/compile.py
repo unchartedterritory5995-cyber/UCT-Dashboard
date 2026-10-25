@@ -27,16 +27,51 @@ The scan:
 """
 from __future__ import annotations
 
-from typing import Any
+import contextvars
+from contextlib import contextmanager
+from datetime import date, timedelta
+from typing import Any, Callable, Iterator
 
+from api.services.journal_two import sample_marker
 from api.services.journal_two.filters import _DAY, analytics_included_sql
-from api.services.journal_two.widget_engine.plan import PlanError, S_UNKNOWN_FIELD, S_UNKNOWN_OP
+from api.services.journal_two.widget_engine.plan import (
+    FORMULA_PREFIX, PlanError, S_UNKNOWN_FIELD, S_UNKNOWN_OP,
+)
 
 #: Rows aggregated at most; the scan reads one more to know it was capped.
 SCAN_ROWS = 5000
 SCAN_LIMIT = SCAN_ROWS + 1
 #: The largest "last N trades" range (plan.RANGE_TOKENS).
 LAST_N_MAX = 100
+
+
+# -- the deadline for work done in Python (W9-R17) -------------------------------------------------
+# `run.deadline` interrupts SQL through a progress handler; a scan that loops in Python (routine
+# history) asks `check_deadline()` as it goes, and the same `run.deadline` turns `ScanTooLong` into
+# `EngineTooLong` (or `Superseded`).
+
+class ScanTooLong(Exception):
+    """A Python-side scan ran past its run's deadline (or the run was superseded)."""
+
+
+_DEADLINE: contextvars.ContextVar[Callable[[], bool] | None] = contextvars.ContextVar(
+    "widget_scan_deadline", default=None)
+
+
+@contextmanager
+def python_deadline(expired: Callable[[], bool]) -> Iterator[None]:
+    token = _DEADLINE.set(expired)
+    try:
+        yield
+    finally:
+        _DEADLINE.reset(token)
+
+
+def check_deadline() -> None:
+    """Raise `ScanTooLong` when the enclosing `run.deadline` has expired; a no-op outside one."""
+    expired = _DEADLINE.get()
+    if expired is not None and expired():
+        raise ScanTooLong()
 
 LIKE_ESCAPE = "\\"
 
@@ -50,6 +85,25 @@ CLOSED_COLUMNS = (
 POSITION_COLUMNS = (
     "p.id, p.symbol, p.side, p.entry_date, p.shares, p.entry_price, p.stop_price, p.setup, "
     "p.account_id, p.source, p.entry_estimated, p.broker_price"
+)
+
+#: Task 10.6: one options strategy. The legs (earliest expiration) are read apart, for the
+#: scanned ids only (`sources._leg_expiry`).
+OPTION_COLUMNS = (
+    "o.id, o.account_id, o.underlying, o.strategy_type, o.direction, o.entry_date, o.setup, "
+    "o.status, o.closed_at, o.pnl_dollar, o.r_multiple, o.result, o.trading_day_et, o.source"
+)
+#: The day a strategy's row is ORDERED and PRE-FILTERED by: the stamped ET close day, else the
+#: UTC date of the close, else of the entry. It is within a day of the ET day either way, so the
+#: pre-filter widens the range by one day each side and Python decides the exact ET day
+#: (`sources._option_day`), never a day read from UTC.
+OPTION_DAY = ("COALESCE(o.trading_day_et, substr(o.closed_at, 1, 10), "
+              "substr(o.entry_date, 1, 10))")
+
+#: Task 10.7: one note, for measuring. ⛔ No body, plain text or title column (railed by a trace):
+#: a list or a drill reads the titles apart, by id (`sources.note_titles`).
+NOTE_COLUMNS = (
+    "n.id, n.created_at, n.updated_at, n.folder_id, n.tags, n.ticker, n.properties_json"
 )
 
 #: Per ET day: equity net (pnl_dollar - fees), count, wins, losses, best and worst trade.
@@ -135,6 +189,10 @@ def _filters(source: Any, plan: dict) -> tuple[str, list]:
     frag, params = [], []
     fields = source.fields
     for f in plan.get("filters") or []:
+        if str(f.get("field") or "").startswith(FORMULA_PREFIX):
+            # Task 10.6: a formula filter is evaluated in Python after the bounded scan
+            # (`aggregate.apply_filters`); no part of it ever reaches SQL (spec 5.5).
+            continue
         fld = fields.get(f.get("field"))
         if fld is None:
             raise PlanError(S_UNKNOWN_FIELD)
@@ -149,6 +207,39 @@ def _range(rng: Any) -> tuple[str, list]:
     if rng.from_day:
         return f" AND {_DAY} BETWEEN ? AND ?", [rng.from_day, rng.to_day]
     return f" AND {_DAY} <= ?", [rng.to_day]
+
+
+def _shift(day: str, n: int) -> str:
+    return (date.fromisoformat(day[:10]) + timedelta(days=n)).isoformat()
+
+
+def _option_range(rng: Any) -> tuple[str, list]:
+    """The options pre-filter: the range widened by one day each side (Python cuts it)."""
+    if rng.from_day:
+        return (f" AND {OPTION_DAY} BETWEEN ? AND ?",
+                [_shift(rng.from_day, -1), _shift(rng.to_day, 1)])
+    return f" AND {OPTION_DAY} <= ?", [_shift(rng.to_day, 1)]
+
+
+def note_membership_sql(user_id: str) -> tuple[str, list]:
+    """` WHERE ...` and its params for the notes a notes widget reads: the notes list's own
+    everyday question (`notes._notes_filter_sql`: not trashed, not archived) with the sample
+    notebook left out (`exclude_sample=True`, `sample_marker.not_sample_sql`). Derived, never
+    restated, so the widget and the list cannot disagree about which notes exist."""
+    from api.services.journal_two import notes as j2_notes        # notes imports the engine
+    sql, params = j2_notes._notes_filter_sql(user_id, exclude_sample=True)
+    if sample_marker.not_sample_sql() not in sql:
+        raise RuntimeError("the notes predicate lost the sample marker")
+    return sql, list(params)
+
+
+def _note_range(rng: Any) -> tuple[str, list]:
+    """The notes pre-filter on `created_at` (a UTC instant): the range widened by one day each side
+    (an ET day's notes are stamped on that UTC date or the next); Python cuts it to the ET day."""
+    hi = _shift(rng.to_day, 2)
+    if rng.from_day:
+        return " AND n.created_at >= ? AND n.created_at < ?", [_shift(rng.from_day, -1), hi]
+    return " AND n.created_at < ?", [hi]
 
 
 def last_n_after_filters(source: Any, plan: dict, rng: Any) -> bool:
@@ -171,8 +262,10 @@ def scan_limit(rng: Any, *, after_filters: bool = False) -> int:
 
 
 def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
-                 user_id: str) -> tuple[str, list]:
-    """The one bounded scan for `source`, as (sql, params). `user_id` is the session member's."""
+                 user_id: str, *, extra: tuple[str, list] = ("", [])) -> tuple[str, list]:
+    """The one bounded scan for `source`, as (sql, params). `user_id` is the session member's.
+    `extra` (notes only): the note-property fragment `note_properties.property_filter_sql` built
+    for the member (`sources.scan_notes`), the one property filter authority."""
     if not isinstance(user_id, str) or not user_id:
         raise ValueError("a scan needs the session member's id")
     acc = account_param(plan, settings)
@@ -196,6 +289,27 @@ def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
         f_sql, f_params = _filters(source, plan)
         sql += a_sql + f_sql + f" ORDER BY p.entry_date DESC, p.id DESC LIMIT {SCAN_LIMIT}"
         return sql, [user_id] + a_params + f_params
+    if key == "options_strategies":
+        sql = f"SELECT {OPTION_COLUMNS} FROM j2_option_strategies o WHERE o.user_id = ?"
+        a_sql, a_params = _account_fragment("o.account_id", acc, user_id)
+        f_sql, f_params = _filters(source, plan)
+        r_sql, r_params = _option_range(rng)
+        sql += (a_sql + f_sql + r_sql
+                + f" ORDER BY {OPTION_DAY} DESC, o.id DESC LIMIT {SCAN_LIMIT}")
+        return sql, [user_id] + a_params + f_params + r_params
+    if key == "notes":
+        # W10-R59: the notes the member's notes list holds -- not trashed, not archived -- by the
+        # list's OWN predicate (`notes._notes_filter_sql`, never restated), and never the sample
+        # notebook. Every property filter is `extra`.
+        n_sql, n_params = note_membership_sql(user_id)
+        sql = f"SELECT {NOTE_COLUMNS} FROM j2_notes n" + n_sql
+        a_sql, a_params = _account_fragment("n.account_id", acc, user_id)
+        f_sql, f_params = _filters(source, plan)
+        x_sql, x_params = extra
+        r_sql, r_params = _note_range(rng)
+        sql += (a_sql + f_sql + x_sql + r_sql
+                + f" ORDER BY n.created_at DESC, n.id DESC LIMIT {SCAN_LIMIT}")
+        return sql, n_params + a_params + f_params + list(x_params) + r_params
     if key == "trading_days":
         if not rng.from_day:
             raise ValueError("the trading-days scan needs a bounded range")

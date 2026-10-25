@@ -1,0 +1,51 @@
+{
+  "id": "shelf:process-vs-results",
+  "rev": 1,
+  "name": "Process vs results",
+  "description": "Your results by how closely you followed your plan.",
+  "keywords": [
+    "adherence",
+    "rules followed",
+    "discipline",
+    "process",
+    "checklist"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_12m"
+    },
+    "formulas": [
+      {
+        "id": "f1",
+        "name": "Plan followed",
+        "expr": "Bucket([adherence_pct], 50, 80)",
+        "format": "number"
+      }
+    ],
+    "measures": [
+      {
+        "key": "net_pnl"
+      },
+      {
+        "key": "expectancy"
+      },
+      {
+        "key": "trades"
+      }
+    ],
+    "split": {
+      "by": "formula:f1"
+    },
+    "view": {
+      "type": "table",
+      "auto": false
+    },
+    "display": {
+      "title": "Process vs results",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

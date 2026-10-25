@@ -79,3 +79,26 @@ def session_on_or_before(d: date) -> date:
     while not is_session(d):
         d -= timedelta(days=1)
     return d
+
+
+def session_on_or_after(d: date) -> date:
+    """``d`` if it is a session, else the first session after it."""
+    while not is_session(d):
+        d += timedelta(days=1)
+    return d
+
+
+def next_session_after(d: date) -> date:
+    """The first session strictly after ``d`` (a session is never its own next)."""
+    return session_on_or_after(d + timedelta(days=1))
+
+
+def nth_session_before(d: date, n: int) -> date:
+    """The ``n``-th session strictly before ``d``; ``n`` counts from 1. Counted in sessions, so a
+    holiday or a long weekend never shortens the span."""
+    if n < 1:
+        raise ValueError("Count at least one session back.")
+    cur = d
+    for _ in range(n):
+        cur = session_on_or_before(cur - timedelta(days=1))
+    return cur

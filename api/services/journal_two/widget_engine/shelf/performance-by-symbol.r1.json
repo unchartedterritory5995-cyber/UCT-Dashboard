@@ -1,0 +1,47 @@
+{
+  "id": "shelf:performance-by-symbol",
+  "rev": 1,
+  "name": "Performance by symbol",
+  "description": "Your 10 best symbols by net P&L, with trades and wins.",
+  "keywords": [
+    "tickers",
+    "by ticker",
+    "symbols",
+    "best stocks"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "trades"
+      },
+      {
+        "key": "wins"
+      },
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "symbol"
+    },
+    "view": {
+      "type": "table",
+      "auto": false
+    },
+    "sort": {
+      "measure": 2,
+      "dir": "desc",
+      "top": 10
+    },
+    "display": {
+      "title": "Performance by symbol",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

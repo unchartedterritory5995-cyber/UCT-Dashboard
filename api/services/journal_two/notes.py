@@ -417,6 +417,17 @@ def _checkin_row(attrs: dict[str, Any], params: dict[str, Any]) -> dict[str, Any
 # than imported because notebook_widgets imports far more than this module may.
 _BUILT_WIDGET_ID = "builtWidget"
 _TOOL_KIND_WIDGET = "widget"
+# Routines and trackers (Task 9.10) are `widgetEmbed` blocks too: widgetId `routine` names its
+# routine by `params.routineId`, widgetId `tracker` its tracker by `params.trackerId`. Each adds a
+# `j2_tool_uses` row `(user_id, note_id, "routine"|"tracker", id, NULL)` (no revision: a routine
+# is live, not placed at a revision), read by routines.used_in_notes / trackers.used_in_notes with
+# the same user_id join as above.
+# ⛔ ONE FACT IN TWO FILES: these are the widget ids `routine` and `tracker` in
+# app/src/widgets/registry.js, restated rather than imported because the registry is JavaScript.
+# tests/test_tool_uses_projection.py pins them against that file's text.
+_ROUTINE_ID = "routine"
+_TRACKER_ID = "tracker"
+_TOOL_PARAM_KEY = {_ROUTINE_ID: "routineId", _TRACKER_ID: "trackerId"}
 _SQLITE_INT_MIN, _SQLITE_INT_MAX = -(2 ** 63), 2 ** 63 - 1
 
 
@@ -437,6 +448,19 @@ def _tool_use_row(params: dict[str, Any]) -> tuple[str, str, int | None] | None:
     if isinstance(rev, bool) or not isinstance(rev, int) or not _SQLITE_INT_MIN <= rev <= _SQLITE_INT_MAX:
         rev = None
     return (_TOOL_KIND_WIDGET, def_id, rev)
+
+
+def _routine_tracker_use_row(widget_id: str, params: dict[str, Any]) -> tuple[str, str, int | None] | None:
+    """A `routine` / `tracker` embed's (kind, tool_id, None), or None when it names none. Never
+    raises, for the same reason as _tool_use_row."""
+    tool_id = params.get(_TOOL_PARAM_KEY[widget_id])
+    if not isinstance(tool_id, str) or not tool_id:
+        return None
+    try:
+        tool_id.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
+    return (widget_id, tool_id, None)
 
 
 def _sync_note_sidecars(
@@ -502,6 +526,10 @@ def _sync_note_sidecars(
                     use = _tool_use_row(params)
                     if use is not None:
                         tool_uses.append(use)
+                elif widget_id in _TOOL_PARAM_KEY:
+                    use = _routine_tracker_use_row(widget_id, params)
+                    if use is not None:
+                        tool_uses.append(use)
         elif ntype == "noteLink":
             # Wave D. A note linking to the same target twice keeps BOTH
             # occurrences (position is part of the sidecar's primary key) --
@@ -526,8 +554,13 @@ def _sync_note_sidecars(
             eid = attrs.get("excerptId") if isinstance(attrs, dict) else None
             if isinstance(eid, str) and eid:
                 excerpt_ids.append(eid)
-        for child in node.get("content", []) or []:
-            walk(child)
+        # Same guard as the other walks in this file: _refuse_unbuildable keeps a
+        # non-list content off every member write path, and this keeps a stored
+        # body that predates it from 500ing the save.
+        children = node.get("content")
+        if isinstance(children, list):
+            for child in children:
+                walk(child)
     if isinstance(body_json, dict):
         walk(body_json)
 
