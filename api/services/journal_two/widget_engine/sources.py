@@ -104,7 +104,8 @@ def _history_choices() -> tuple[tuple[str, str], ...]:
 class Field:
     """One whitelisted field. `sql` is a static fragment (None: Python only); `py(row)` computes
     the field's value from the scanned row. `bucket` lists the values in display order for a
-    bucketed field. `needs_times` marks a field only trades with entry AND exit times have."""
+    bucketed field: a tuple, or a callable returning one, read at call time. `needs_times` marks a
+    field only trades with entry AND exit times have."""
     key: str
     label: str
     type: str
@@ -842,7 +843,9 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 # Bounds (ruling W9-R17): each routine's history starts at its own floor, the later of its created
 # day and its 20th counted day before the range (`routine_days.window_floor`, W9-R25), so its
 # rolling consistency equals the routine's own read and one sparse routine widens nothing else;
-# a first window reads only the newest sessions that can hold the cap; at most `MAX_ROUTINES`
+# a routine with no scheduled day in the window is not read at all (W9-R36); a first window reads
+# only the newest sessions that can hold the cap, and when its rows per session cannot reach the cap
+# over the whole range, the whole range is read once (W9-R38); at most `MAX_ROUTINES`
 # routines (the most recently used) are read; the item expansion stops at the newest
 # `SCAN_ROWS + 1` rows; the Python loops ask `wcompile.check_deadline()`.
 
@@ -961,9 +964,12 @@ def _routine_rows(conn: sqlite3.Connection, user_id: str, ids: list[str], cut: d
                   traded: list[str]) -> list[dict]:
     """`scan_routines`' rows, newest first, from `lo` (None: whole history) to `to_day`, at most
     the newest `SCAN_ROWS + 1` (W9-R17). Appends each traded-schedule routine's first day to
-    `traded`. History is read through `routines.history_for` only (W9-R15)."""
-    hists = (j2_routines.history_for(conn, user_id, ids, cut, today,
-                                     since=date.fromisoformat(lo) if lo else None)
+    `traded` (a routine with no row still says its traded days leave estimated entries out).
+    History is read through `routines.history_for` only (W9-R15); a routine with no scheduled day
+    from `lo` to `cut` has no row, so none of it is read or built (W9-R36)."""
+    start = date.fromisoformat(lo) if lo else None
+    hists = (j2_routines.history_for(conn, user_id, ids, cut, today, since=start,
+                                     scheduled_from=start or j2_routines.DAY_MIN)
              if ids else {})
     days: list[dict] = []
     for rid in ids:
@@ -1041,21 +1047,29 @@ def scan_routines(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 
     # W9-R17: read only the newest sessions that can hold the cap, widening the window (doubling)
     # until it does or it reaches the range's start or the oldest routine: older days are never
-    # built. A window that already covers everything is the last one.
+    # built. A window that already covers everything is the last one. W9-R38: when the rows per
+    # session so far project that even the whole span cannot reach the cap, the next build is the
+    # whole span, once (the rows are the same either way; only the work differs).
     out: list[dict] = []
     if ids:
         oldest = conn.execute(
             "SELECT MIN(created_at) FROM j2_routines WHERE user_id = ? AND id IN"
             f" ({','.join('?' * len(ids))})", (user_id, *ids)).fetchone()[0]
         oldest_day = (timeutil.compute_trading_day_et(oldest) or "")[:10]
+        span_from = max(lo or "", oldest_day)
+        span = (len(trading_days.sessions(date.fromisoformat(span_from), cut).days)
+                if span_from and span_from <= cut.isoformat() else 0)
         k = -(-(wcompile.SCAN_ROWS + 1) // len(ids))
+        project_whole = False
         while True:
             t = trading_days.nth_session_before(cut + timedelta(days=1), k).isoformat()
-            whole = (lo is not None and t <= lo) or t <= oldest_day \
+            whole = project_whole or (lo is not None and t <= lo) or t <= oldest_day \
                 or k >= routine_days.MAX_HISTORY_SESSIONS
             out = rows_from(lo if whole else t)
             if whole or len(out) > wcompile.SCAN_ROWS:
                 break
+            # rows / k sessions, over `span` sessions, cannot pass SCAN_ROWS: build it all now
+            project_whole = len(out) * span <= wcompile.SCAN_ROWS * k
             k = min(2 * k, routine_days.MAX_HISTORY_SESSIONS)
     traded_lo = min(traded) if traded else None
     capped = len(out) > wcompile.SCAN_ROWS

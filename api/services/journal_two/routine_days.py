@@ -225,7 +225,7 @@ def history(*, items: list[Item], schedules: list[tuple[str, dict]],
 
 def window_floor(*, items: list[Item], schedules: list[tuple[str, dict]], created: date,
                  archived: date | None, traded: frozenset[str], before: date, today: date,
-                 n: int = CONSISTENCY_WINDOW) -> date:
+                 n: int | None = None) -> date:
     """The day history must start from so the consistency window is whole for every day from
     `before` on (ruling W9-R25): the `n`-th counted (scheduled, finished) day strictly before
     `before`, walking back over sessions (and, under a traded schedule, traded non-session days);
@@ -233,7 +233,10 @@ def window_floor(*, items: list[Item], schedules: list[tuple[str, dict]], create
 
     Whether a day counts never depends on ticks (a scheduled past day is done, not done or
     skipped): only `created`, `archived`, the schedule in force, the traded set and the items
-    valid that day. One backward pass per routine, so a sparse routine costs only itself."""
+    valid that day. One backward pass per routine, so a sparse routine costs only itself.
+    `n` defaults to `CONSISTENCY_WINDOW`, read at call time (never bound at import)."""
+    if n is None:
+        n = CONSISTENCY_WINDOW
     d = before - timedelta(days=1)
     if archived is not None and d > archived:
         d = archived
@@ -254,6 +257,87 @@ def window_floor(*, items: list[Item], schedules: list[tuple[str, dict]], create
                     return d
         d -= timedelta(days=1)
     return created
+
+
+def _next_item_day(items: list[Item], d: date) -> date | None:
+    """The first day on or after `d` on which some item is valid; None when there is none."""
+    best: date | None = None
+    for it in items:
+        if it.valid_to is not None and it.valid_to <= d:
+            continue
+        cand = max(d, it.valid_from)
+        if best is None or cand < best:
+            best = cand
+    return best
+
+
+def has_scheduled_day(*, items: list[Item], schedules: list[tuple[str, dict]], created: date,
+                      archived: date | None, traded: frozenset[str], lo: date, hi: date,
+                      today: date) -> bool:
+    """Whether the routine has a scheduled day in `[lo, hi]` (ruling W9-R36): a day on or after
+    `created`, on or before `archived`, that its schedule in force runs on (`is_scheduled`, so a
+    traded schedule needs the traded set) and on which some item is valid. A routine without one
+    has no row in that span, so nothing of it needs reading or building.
+
+    Decided from the schedules, created, archived, the traded set and the items alone, never from
+    ticks. Cheap: traded days and today are checked one by one; an `every` or `weekdays` stretch
+    stops at its first session that holds an item, and skips spans where no item is valid."""
+    lo = max(lo, created)
+    if archived is not None:
+        hi = min(hi, archived)
+    if hi < lo or not items:
+        return False
+
+    def runs_on(d: date) -> bool:
+        sched = schedule_on(schedules, d)
+        return (sched is not None and is_scheduled(sched, d, traded, today=today)
+                and bool(items_on(items, d)))
+
+    lo_s, hi_s = lo.isoformat(), hi.isoformat()
+    for t in traded or ():
+        if isinstance(t, str) and lo_s <= t <= hi_s:
+            try:
+                d = date.fromisoformat(t)
+            except ValueError:
+                continue
+            if runs_on(d):
+                return True
+    if lo <= today <= hi and runs_on(today):
+        return True
+    # The schedule in force on a day is the first-listed row with the greatest effective_from on
+    # or before it (`schedule_on`), so the rows cut the span into stretches of one schedule each.
+    effs: dict[str, dict] = {}
+    for eff, sched in schedules or []:
+        effs.setdefault(str(eff)[:10], sched)
+    keys = sorted(effs)
+    for i, key in enumerate(keys):
+        kind = (effs[key] or {}).get("kind")
+        if kind not in ("every", "weekdays"):
+            continue                    # a traded stretch runs only on the days checked above
+        if kind == "weekdays" and not any(w in (0, 1, 2, 3, 4)
+                                          for w in effs[key].get("days") or ()):
+            continue                    # no weekday a session can fall on
+        try:
+            start = max(lo, date.fromisoformat(key))
+            end = hi if i + 1 == len(keys) else min(
+                hi, date.fromisoformat(keys[i + 1]) - timedelta(days=1))
+        except ValueError:
+            # an unreadable effective day: walk the whole span, day by day, with the exact rule
+            d = lo
+            while d <= hi:
+                if runs_on(d):
+                    return True
+                d += timedelta(days=1)
+            return False
+        d = start
+        while d <= end:
+            nxt = _next_item_day(items, d)
+            if nxt is None or nxt > end:
+                break
+            if runs_on(nxt):
+                return True
+            d = nxt + timedelta(days=1)
+    return False
 
 
 # ── consistency ────────────────────────────────────────────────────────────────────────────────

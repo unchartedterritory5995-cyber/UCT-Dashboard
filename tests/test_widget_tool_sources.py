@@ -883,3 +883,226 @@ def test_widget_consistency_is_zero_where_the_card_withholds_a_rate(conn):
     assert {r["consistency"] for r in sc.rows} == {0.0}
     read = routines.read_days(UID, [rid], ["2026-10-21"], now=NOW)["routines"][rid]["days"]
     assert read["2026-10-21"]["rate"] is None and read["2026-10-21"]["consistency"] is None
+
+
+# ── fix round 4 ──────────────────────────────────────────────────────────────────────────────
+
+class _Recording:
+    def __init__(self, c):
+        self.c, self.log = c, []
+
+    def execute(self, sql, params=()):
+        self.log.append((sql, tuple(params)))
+        return self.c.execute(sql, params)
+
+
+def _seeks_per_routine(plan_rows):
+    details = [r[3] for r in plan_rows]
+    inner = [d for d in details if d.startswith(("SEARCH t ", "SEARCH s ", "SCAN t", "SCAN s"))]
+    outer = details.index("SCAN lo") if "SCAN lo" in details else -1
+    return (len(inner) == 1 and "routine_id=?" in inner[0] and "day>?" in inner[0]
+            and 0 <= outer < details.index(inner[0]))
+
+
+def test_per_routine_floor_queries_seek_each_routine(conn):
+    """W9-R32: lo stays the outer loop; each routine is one (user, routine, day) range seek.
+    60 routines (MAX_ROUTINES): a plain JOIN flips only from 38 VALUES rows."""
+    rids = [str(uuid.uuid4()) for _ in range(sources.MAX_ROUTINES)]
+    rec = _Recording(conn)
+    routines._load_children(rec, UID, rids, date(2026, 10, 24), {r: date(2026, 9, 1) for r in rids})
+    q = [(s, p) for s, p in rec.log if s.lstrip().startswith("WITH lo")]
+    assert len(q) == 2
+    for sql, params in q:
+        assert _seeks_per_routine(conn.execute("EXPLAIN QUERY PLAN " + sql, params)), sql
+        plain = sql.replace("CROSS JOIN", "JOIN")
+        assert plain != sql
+        # control: the predicate can fail on this SQLite
+        assert not _seeks_per_routine(conn.execute("EXPLAIN QUERY PLAN " + plain, params))
+
+
+def _has_row_by_history(RD, *, items, schedules, created, archived, traded, lo, hi, today):
+    """The oracle: does the full history hold a day that is not off in [lo, hi]?"""
+    if hi < created:
+        return False
+    return any(s.state != "off" and s.day >= lo.isoformat()
+               for s in RD.history(items=items, schedules=schedules, ticks_by_day={},
+                                   skipped_days=frozenset(), created=created, upto=hi,
+                                   today=today, traded=traded, done_share=1.0,
+                                   archived=archived))
+
+
+def test_has_scheduled_day_matches_the_history():
+    """W9-R36: the tick-free check says yes exactly when the history has a scheduled day in the
+    span (seeded random routines: every / weekdays / traded stretches, item windows, created,
+    archived, traded days on and off sessions, today inside the span)."""
+    import random
+    from api.services.journal_two import routine_days as RD
+    rnd = random.Random(9836)
+    base, today = date(2026, 6, 1), date(2026, 10, 21)          # today is a Wednesday session
+    span = (today - base).days
+    yes = no = 0
+    for _ in range(400):
+        def day(lo_=0, hi_=span):
+            return base + timedelta(days=rnd.randint(lo_, hi_))
+        scheds = []
+        for _k in range(rnd.randint(1, 3)):
+            kind = rnd.choice(("every", "weekdays", "traded"))
+            s = {"kind": kind}
+            if kind == "weekdays":
+                s["days"] = rnd.sample(range(5), rnd.randint(0, 2))
+            scheds.append((day().isoformat(), s))
+        scheds.sort(key=lambda x: x[0])
+        raw = []
+        for k in range(rnd.randint(1, 2)):
+            f = day()
+            to = f + timedelta(days=rnd.randint(1, 40)) if rnd.random() < 0.6 else None
+            raw.append({"id": f"i{k}", "text": "x", "from": f.isoformat(),
+                        "to": to.isoformat() if to else None})
+        items = RD.parse_items(raw)
+        traded = frozenset(day().isoformat() for _k in range(rnd.randint(0, 4)))
+        created = day()
+        archived = day() if rnd.random() < 0.3 else None
+        lo = day()
+        hi = min(today, lo + timedelta(days=rnd.randint(0, 60)))
+        kw = dict(items=items, schedules=scheds, created=created, archived=archived,
+                  traded=traded, lo=lo, hi=hi, today=today)
+        want = _has_row_by_history(RD, **kw)
+        assert RD.has_scheduled_day(**kw) is want, kw
+        yes, no = yes + want, no + (not want)
+    assert yes >= 40 and no >= 40, (yes, no)                    # control: both answers seen
+
+
+def test_a_routine_without_a_scheduled_day_is_never_built(conn, monkeypatch):
+    """W9-R36: 4 years, 20 never-traded routines and one whose only item starts after the range:
+    no children are loaded, no state is built, no row is made; the estimated-entries note still
+    reads (a traded routine with no row still leaves those days out)."""
+    start = TODAY - timedelta(days=4 * 365)
+    for i in range(20):
+        _routine_sql(conn, f"N{i:02d}", {"kind": "traded"}, start)
+    rid, _ = _routine_sql(conn, "Later", {"kind": "every"}, start)
+    conn.execute("UPDATE j2_routines SET items_json = ? WHERE id = ?",
+                 ('[{"id": "x", "text": "x", "from": "2026-12-01", "to": null}]', rid))
+    add_position(conn, UID, entry_iso="2026-10-21T14:00:00Z", estimated=1)
+    conn.commit()
+    built = {"states": 0, "contexts": 0}
+    real_hist, real_ctx = routines.routine_days.history, routines._contexts
+
+    def hist(**kw):
+        out = real_hist(**kw)
+        built["states"] += len(out)
+        return out
+
+    def ctx(*a, **kw):
+        built["contexts"] += 1
+        return real_ctx(*a, **kw)
+    monkeypatch.setattr(routines.routine_days, "history", hist)
+    monkeypatch.setattr(routines, "_contexts", ctx)
+    note = sources.ESTIMATED_ENTRIES.format(n=1, positions="position", is_="is")
+    for rng_ in ({"token": "all"}, RANGE):
+        _p, sc, _ = scan(conn, rplan(range=rng_))
+        assert sc.rows == [] and built == {"states": 0, "contexts": 0}, (rng_, built)
+        assert note in sc.footnotes, sc.footnotes
+
+
+def test_skipping_unscheduled_routines_changes_no_row(conn, monkeypatch):
+    """W9-R36 control: with the check forced to say yes for every routine, the rows are the same
+    (the skip only saves work), and that run does build the skipped routines."""
+    start = TODAY - timedelta(days=300)
+    days = sessions(start.isoformat(), "2026-10-23")
+    for i in range(3):
+        rid, items = _routine_sql(conn, f"D{i}", {"kind": "every"}, start)
+        _seed_ticks(conn, rid, items[0], days[::2])
+    for i in range(3):
+        _routine_sql(conn, f"N{i}", {"kind": "traded"}, start)
+    w, (wi,) = _routine_sql(conn, "Weekly", {"kind": "weekdays", "days": [2]}, start)
+    _seed_ticks(conn, w, wi, days[::5])
+    raws = [rplan(range={"token": "all"}), rplan(range=RANGE, split={"by": "item"}),
+            rplan(range={"token": "last_30d"}, split={"by": "state"})]
+    skipped = [scan(conn, raw)[1].rows for raw in raws]
+    built = {"n": 0}
+    real_hist = routines.routine_days.history
+
+    def hist(**kw):
+        built["n"] += 1
+        return real_hist(**kw)
+    monkeypatch.setattr(routines.routine_days, "history", hist)
+    monkeypatch.setattr(routines.routine_days, "has_scheduled_day", lambda **kw: True)
+    every = [scan(conn, raw)[1].rows for raw in raws]
+    assert every == skipped and all(skipped)
+    assert built["n"] >= 3 * 7                                  # the never-traded ones were built
+
+
+def _monthly_seed(c, years, n):
+    start = TODAY - timedelta(days=365 * years)
+    firsts, seen = [], set()
+    for d in sessions(start.isoformat(), "2026-10-23"):
+        if d[:7] not in seen:
+            seen.add(d[:7])
+            firsts.append(d)
+    for d in firsts:
+        add_trade(c, UID, day=d, commit=False)
+    for i in range(n):
+        rid, items = _routine_sql(c, f"M{i:02d}", {"kind": "traded"}, start)
+        _seed_ticks(c, rid, items[0], firsts[::2])
+    c.commit()
+    return firsts
+
+
+def test_a_window_that_projects_short_of_the_cap_builds_the_whole_range_once(conn, monkeypatch):
+    """W9-R38: 30 routines on a traded schedule, the member trading once a month for 4 years
+    (about 1,470 rows, far under the cap): the first window's rows per session project short of the
+    cap, so the next build is the whole range: two builds, never the doubling's four."""
+    firsts = _monthly_seed(conn, 4, 30)
+    built = {"states": 0, "calls": 0}
+    real_hist, real_for = routines.routine_days.history, routines.history_for
+
+    def hist(**kw):
+        out = real_hist(**kw)
+        built["states"] += len(out)
+        return out
+
+    def hfor(*a, **kw):
+        built["calls"] += 1
+        return real_for(*a, **kw)
+    monkeypatch.setattr(routines.routine_days, "history", hist)
+    monkeypatch.setattr(sources.j2_routines, "history_for", hfor)
+    _p, sc, _ = scan(conn, rplan(range={"token": "all"}))
+    assert sc.capped is False and len(sc.rows) == 30 * len(firsts)
+    assert built["calls"] == 2, built
+    # the first window (k sessions + each routine's 20 traded months back, ~21 sessions each) and
+    # the whole range, once
+    k = -(-(wcompile.SCAN_ROWS + 1) // 30)
+    span = len(sessions((TODAY - timedelta(days=4 * 365)).isoformat(), "2026-10-23"))
+    assert built["states"] <= (k + 21 * 23 + span) * 30, built
+
+
+def test_a_window_that_projects_past_the_cap_keeps_doubling(conn, monkeypatch):
+    """W9-R38 control: 30 Monday routines over 4 years (about 6,200 rows, past the cap): the first
+    window holds only about 1,000, but its rows per session project past the cap, so the window
+    keeps doubling and the whole range is built only once doubling reaches it."""
+    start = TODAY - timedelta(days=4 * 365)
+    for i in range(30):
+        _routine_sql(conn, f"W{i:02d}", {"kind": "weekdays", "days": [0]}, start)
+    conn.commit()
+    calls = {"n": 0}
+    real_for = routines.history_for
+
+    def hfor(*a, **kw):
+        calls["n"] += 1
+        return real_for(*a, **kw)
+    monkeypatch.setattr(sources.j2_routines, "history_for", hfor)
+    _p, sc, _ = scan(conn, rplan(range={"token": "all"}))
+    assert sc.capped is True and len(sc.rows) == wcompile.SCAN_ROWS
+    assert calls["n"] == 4, calls                               # k, 2k, 4k, then the whole range
+
+def test_window_floor_reads_the_window_at_call_time(monkeypatch):
+    """Minor 2: `window_floor`'s count is late-bound, so a patched CONSISTENCY_WINDOW moves it."""
+    from api.services.journal_two import routine_days as RD
+    items = RD.parse_items([{"id": "i", "text": "x", "from": "2026-01-02"}])
+    before = date(2026, 10, 19)
+    kw = dict(items=items, schedules=[("2026-01-02", {"kind": "every"})], created=date(2026, 1, 2),
+              archived=None, traded=frozenset(), before=before, today=date(2026, 10, 24))
+    assert RD.window_floor(**kw) == trading_days.nth_session_before(before, 20)
+    monkeypatch.setattr(RD, "CONSISTENCY_WINDOW", 5)
+    assert RD.window_floor(**kw) == trading_days.nth_session_before(before, 5)
+    assert RD.window_floor(n=7, **kw) == trading_days.nth_session_before(before, 7)

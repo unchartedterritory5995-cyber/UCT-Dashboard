@@ -1018,8 +1018,8 @@ def _archived_day(row: sqlite3.Row) -> date | None:
 
 
 def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], upto: date,
-                today: date, *, since: date | None = None,
-                window: bool = True) -> dict[str, RoutineHistory]:
+                today: date, *, since: date | None = None, window: bool = True,
+                scheduled_from: date | None = None) -> dict[str, RoutineHistory]:
     """The PUBLIC door to a routine's history (ruling W9-R15): for each of `rids` (one id or a
     list) that is the session member's and not deleted (archived ones keep their history), its
     day states oldest first, from the later of its created day and the MAX_HISTORY_SESSIONS-th
@@ -1031,6 +1031,12 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
     `read_days`. With `window=False` (a caller that reads no consistency) the floor is `since`.
     Children are loaded ONCE, each routine from its own floor, and `traded_days` runs once, only
     when some routine has a traded schedule.
+
+    With `scheduled_from`, a routine with no scheduled day in `[scheduled_from, min(upto, today)]`
+    (`routine_days.has_scheduled_day`: its schedules, created and archived days, the traded set and
+    its items, never its ticks) is returned with no states and no ticks, and nothing more of it is
+    read or built (ruling W9-R36): a never-traded routine, or one whose schedule never applies,
+    costs one check.
 
     Every day the routine runs or could run is there, `off` included; a caller keeps the states it
     counts. Foreign, unknown, deleted and unreadable ids are absent. Reads only."""
@@ -1052,7 +1058,8 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
     cut = min(upto, today)
     hi = max(upto, today)
     floors: dict[str, date] = {}
-    if since is None:
+    empty: dict[str, RoutineHistory] = {}
+    if since is None and scheduled_from is None:
         ctxs = _contexts(conn, user_id, rows, hi)
     else:
         scheds = _load_schedules(conn, user_id, [r["id"] for r in rows])
@@ -1062,6 +1069,26 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
         if traders:
             first = max(min(_created_day(r) for r in rows if r["id"] in traders), DAY_MIN)
             traded = traded_days(conn, user_id, first.isoformat(), hi.isoformat())
+        if scheduled_from is not None:
+            kept = []
+            for r in rows:
+                items = routine_days.parse_items(_raw_items(r))
+                if routine_days.has_scheduled_day(
+                        items=items, schedules=scheds[r["id"]], created=_created_day(r),
+                        archived=_archived_day(r),
+                        traded=traded if r["id"] in traders else frozenset(),
+                        lo=scheduled_from, hi=cut, today=today):
+                    kept.append(r)
+                    continue
+                empty[r["id"]] = RoutineHistory(
+                    id=r["id"], name=r["name"], created=_created_day(r),
+                    archived=r["archived_at"] is not None, archived_at=_archived_day(r),
+                    strict=bool(_settings(r).get("strict")), uses_traded=r["id"] in traders,
+                    items=tuple(items), ticks={}, states=())
+            rows = kept
+    if since is None and scheduled_from is not None:
+        ctxs = _contexts(conn, user_id, rows, hi, traded=traded) if rows else {}
+    elif since is not None:
         for r in rows:
             created = _created_day(r)
             if window:
@@ -1073,9 +1100,12 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
             else:
                 f = since
             floors[r["id"]] = max(created, min(f, since))
-        ctxs = _contexts(conn, user_id, rows, hi, floors, traded=traded)
+        ctxs = _contexts(conn, user_id, rows, hi, floors, traded=traded) if rows else {}
     out: dict[str, RoutineHistory] = {}
     for rid in ids:
+        if rid in empty:
+            out[rid] = empty[rid]
+            continue
         ctx = ctxs.get(rid)
         if ctx is None:
             continue
