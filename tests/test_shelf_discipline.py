@@ -915,3 +915,160 @@ def test_prop_firm_keeps_the_scans_notices(S, monkeypatch):
     monkeypatch.setattr(wsources, "scan_days", with_notice)
     got = S.my_prop_firm(A, {"since": "2026-10-01"}, FRI_R)
     assert got["notices"] == ["That routine isn't available."]
+
+
+# ── fix round 2 (review of 0d4fe4f542) ─────────────────────────────────────────────────────────
+
+def test_total_risk_includes_accounts_without_a_limit(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        account(c, A, "acc-b2", pct=None, size=10000.0, name="Other")
+        position(c, A, acc="acc-a", symbol="AAPL", entry=100.0, stop=95.0, shares=20)   # $100
+        position(c, A, acc="acc-b2", symbol="MSFT", entry=100.0, stop=90.0, shares=30)  # $300
+        position(c, A, acc=None, symbol="TSLA", entry=200.0, stop=190.0, shares=40)     # $400
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert got["openRisk"] == 800.0
+    assert got["lines"][-1] == ("Open risk to stops in total: $800 (Main $100, Other $300, "
+                                "Not linked to an account $400).")
+    other = next(b for b in got["accounts"] if b["accountId"] == "acc-b2")
+    assert other["openRisk"] == 300.0 and other["left"] is None and other["limit"] is None
+    assert other["lines"] == ["Open risk to stops: $300."]           # risk only, no room left
+
+
+def test_total_risk_includes_a_limited_account_without_size(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=100000.0, marked=None)
+        position(c, A, acc="acc-a", symbol="AAPL", entry=100.0, stop=95.0, shares=20)   # $100
+        position(c, A, acc=None, symbol="TSLA", entry=200.0, stop=190.0, shares=40)     # $400
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert got["openRisk"] == 500.0
+    main = got["accounts"][0]
+    assert main["openRisk"] == 100.0 and main["left"] is None
+    assert main["lines"] == ["Set your account size to turn your daily loss limit into dollars.",
+                             "Open risk to stops: $100."]
+    assert got["lines"][-1] == ("Open risk to stops in total: $500 (Main $100, "
+                                "Not linked to an account $400).")
+
+
+def test_total_risk_includes_accounts_past_the_cap(S):
+    with _conn() as c:
+        for i in range(45):
+            account(c, A, f"acc-{i:02d}", pct=None, size=10000.0, name=f"Acct {i:02d}")
+            position(c, A, acc=f"acc-{i:02d}", symbol="AAPL", entry=100.0, stop=99.0, shares=10)
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert len(got["accounts"]) == 40 and got["truncated"] == 5
+    assert got["openRisk"] == 450.0
+    assert "5 more accounts: $50 at risk." in got["lines"]
+    assert got["lines"][-1].startswith("Open risk to stops in total: $450 (")
+    assert got["lines"][-1].endswith(", 5 more accounts $50).")
+
+
+def test_placeholder_only_open_risk_is_unknown_never_zero(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        position(c, A, acc="acc-a", symbol="AAPL", entry=100.0, stop=100.0, shares=20)
+        position(c, A, acc=None, symbol="TSLA", entry=200.0, stop=200.0, shares=40)
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    main, unlinked = got["accounts"]
+    assert got["openRisk"] is None and unlinked["openRisk"] is None and main["openRisk"] is None
+    assert main["afterStops"] is None
+    assert main["lines"] == ["Room left today: $500 of $500.",
+                             "1 position has no stop set and is not in the open risk."]
+    assert unlinked["lines"] == ["1 position has no stop set and is not in the open risk."]
+    assert not any(ln.startswith("Open risk to stops") for ln in got["lines"])
+    from api.services import portfolio_heat
+    assert S._risk_of(portfolio_heat.portfolio_heat(
+        A, None, 1.0, positions_fn=lambda _u, _a: [], regime_fn=lambda: {},
+        cap_fn=lambda: None))["risk"] is None
+    assert S._known_sum([None, None]) is None and S._known_sum([None, 2.0, 3.0]) == 5.0
+
+
+def test_deleted_account_lines_in_order(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        position(c, A, acc="acc-gone", symbol="TSLA", entry=200.0, stop=190.0, shares=40)  # $400
+        strategy(c, A, pnl=-5, entry_iso=et("2026-10-20", "09:45"), closed_iso=None,
+                 status="open", account="acc-gone")
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    main, unlinked = got["accounts"]
+    assert main["lines"] == [
+        "Room left today: $500 of $500.",
+        "This account holds nothing open.",
+        "If every stop is hit, including positions not linked to an account: $100 left.",
+    ]
+    assert unlinked["openOptions"] == 1 and unlinked["openRisk"] == 400.0
+
+
+def test_unreadable_positions_say_so(S, monkeypatch):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        c.commit()
+    from api.services.journal_two import positions as j2_positions
+
+    def boom(*a, **k):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(j2_positions, "list_open_positions", boom)
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert got["lines"][0] == "Your open positions couldn't be read right now."
+    assert got["openRisk"] is None
+    assert got["accounts"][0]["lines"] == ["Room left today: $500 of $500."]
+    assert got["accounts"][0]["openRisk"] is None
+
+
+def test_older_exit_lookup_nearest_first_options_and_overflow(S, monkeypatch):
+    window = S.finished_sessions(FRI_R)
+    read_lo = S.trading_days.session_on_or_before(window[0] - timedelta(days=1))
+    old = S.trading_days.session_on_or_before(read_lo - timedelta(days=20)).isoformat()
+    with _conn() as c:
+        # An options LOSS long before the window, and a re-entry in the same underlying 15 minutes
+        # later, held into the window.
+        strategy(c, A, pnl=-120, entry_iso=et(old, "09:30"), closed_iso=et(old, "10:00"),
+                 day=old, underlying="NVDA")
+        trade(c, A, day="2026-10-21", pnl=50, entry=et(old, "10:15"), exit_="11:00",
+              symbol="NVDA")
+        # Newer NVDA trades between the entry and the window: a newest-first read would spend
+        # its rows on these and never reach the loss.
+        for k in (3, 6, 9):
+            d = S.trading_days.session_on_or_before(read_lo - timedelta(days=k)).isoformat()
+            trade(c, A, day=d, pnl=5, entry="13:00", exit_="13:30", symbol="NVDA")
+        c.commit()
+    monkeypatch.setattr(S, "READ_LIMIT", 3)
+    got = S.my_revenge_clean_days(A, {}, FRI_R)
+    assert got["flagged"] == [{"day": "2026-10-21", "symbol": "NVDA", "minutesApart": 15.0}]
+    assert got["olderNotRead"] == 0
+    # Overflow right at the entry: said so, and never counted clean.
+    with _conn() as c:
+        for i in range(3):
+            trade(c, A, day=old, pnl=5, entry="13:00", exit_="13:30", symbol="NVDA")
+        c.commit()
+    cut = S.my_revenge_clean_days(A, {}, FRI_R)
+    assert cut["olderNotRead"] == 1
+    assert cut["lines"][-1] == ("1 day was not checked: too many older trades to look back "
+                                "over.")
+
+
+def test_flagged_by_hand_overflow_and_no_result_by_et_day(S, monkeypatch):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        for i in range(3):
+            trade(c, A, day="2026-10-20", pnl=-10, entry="10:00", exit_="10:10",
+                  account="acc-a", flagged=1, symbol=f"F{i}")
+        # Closed 2026-10-21T00:30Z with no spine stamp: 20:30 ET on Oct 20 (today).
+        strategy(c, A, pnl=None, result="", entry_iso=et("2026-10-20", "09:45"),
+                 closed_iso="2026-10-21T00:30:00Z", account="acc-a")
+        # Closed 2026-10-20T00:30Z: 20:30 ET on Oct 19 (not today).
+        strategy(c, A, pnl=None, result="", entry_iso=et("2026-10-19", "09:45"),
+                 closed_iso="2026-10-20T00:30:00Z", account="acc-a")
+        c.commit()
+    got = S.my_risk_left_today(A, {}, datetime(2026, 10, 21, 1, 0, tzinfo=timezone.utc))
+    assert "1 options trade with no result recorded is not counted." in got["lines"]
+    monkeypatch.setattr(S, "READ_LIMIT", 3)
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert "Only your newest 2 trades excluded from analytics are counted." in got["lines"]
+    assert "Includes 2 trades you excluded from analytics." in got["accounts"][0]["lines"]

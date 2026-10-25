@@ -551,16 +551,21 @@ def finished_sessions(now: datetime, n: int = WINDOW) -> list[date]:
     return list(reversed(days))
 
 
-def _older_exits(c: sqlite3.Connection, user_id: str, need: dict[str, datetime],
-                 before: str) -> list[dict]:
-    """ONE bounded read of the timed equity exits that could be the scene of a re-entry made
-    before the window's read (`need`: symbol -> earliest such entry), at most `READ_LIMIT`."""
+def _older_exits(c: sqlite3.Connection, user_id: str,
+                 need: dict[str, tuple[datetime, datetime]]) -> tuple[list[dict], bool]:
+    """ONE bounded read of the exits (trades and closed option strategies) that could be the
+    scene of a re-entry made before the window's read (`need`: symbol -> (earliest, latest) such
+    entry): from the earliest entry less the revenge window, ASCENDING, so the rows nearest the
+    entries come first; at most `READ_LIMIT` each. (rows, overflowed)."""
     if not need:
-        return []
-    lo = (min(need.values()) - timedelta(minutes=REVENGE_WINDOW_MIN)).astimezone(
-        timezone.utc).date() - timedelta(days=1)
+        return [], False
+    first = min(a for a, _ in need.values()) - timedelta(minutes=REVENGE_WINDOW_MIN)
+    last = max(b for _, b in need.values())
+    lo = (first.astimezone(timezone.utc).date() - timedelta(days=1)).isoformat()
+    hi = (last.astimezone(timezone.utc).date() + timedelta(days=1)).isoformat()
     syms = sorted(need)
-    rows = c.execute(
+    limit = int(READ_LIMIT)
+    eq = c.execute(
         "SELECT t.id, t.symbol, t.entry_date, t.exit_date, t.pnl_dollar,"
         " COALESCE(t.fees, 0) AS fees, t.result, t.source, t.external_id, t.account_id,"
         f" COALESCE(p.entry_estimated, 0) AS est, {_DAY_T} AS day"
@@ -568,9 +573,20 @@ def _older_exits(c: sqlite3.Connection, user_id: str, need: dict[str, datetime],
         " ON p.id = t.position_id AND p.user_id = t.user_id"
         " WHERE t.user_id = ? AND (t.analytics_excluded IS NULL OR t.analytics_excluded = 0)"
         f" AND t.symbol IN ({_marks(syms)}) AND {_DAY_T} BETWEEN ? AND ?"
-        f" ORDER BY {_DAY_T} DESC, t.id DESC LIMIT {int(READ_LIMIT)}",
-        (user_id, *syms, lo.isoformat(), before)).fetchall()
-    return [_event(dict(r), option=False) for r in _counted(rows)]
+        f" ORDER BY {_DAY_T} ASC, t.id ASC LIMIT {limit}",
+        (user_id, *syms, lo, hi)).fetchall()
+    st = c.execute(
+        "SELECT id, underlying, entry_date, closed_at, status, pnl_dollar, result, source,"
+        " account_id, trading_day_et, COALESCE(trading_day_et, substr(closed_at, 1, 10)) AS day"
+        " FROM j2_option_strategies WHERE user_id = ? AND status != 'open'"
+        f" AND underlying IN ({_marks(syms)})"
+        " AND COALESCE(trading_day_et, substr(closed_at, 1, 10)) BETWEEN ? AND ?"
+        f" ORDER BY day ASC, id ASC LIMIT {limit}",
+        (user_id, *syms, lo, hi)).fetchall()
+    over = len(eq) >= limit or len(st) >= limit
+    rows = [_event(dict(r), option=False) for r in _counted(eq[:limit - 1])]
+    rows += [_event(dict(r), option=True) for r in _counted(st[:limit - 1])]
+    return rows, over
 
 
 def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
@@ -584,6 +600,7 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
     # The day before the window: a prior loss there can still be the scene of a re-entry.
     read_lo = trading_days.session_on_or_before(window[0] - timedelta(days=1)).isoformat()
     too_big: set[str] = set()
+    too_old: set[str] = set()
     with _read(None) as c, _deadline(c):
         events, cut = _events(c, user_id, read_lo, hi)
         suppressed = _dismissed_pairs(c, user_id)
@@ -592,7 +609,8 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
         by_exit: dict[tuple[str, str], list[dict]] = {}
         #: (symbol, entry ET date) -> the timed rows counted in the window: the current rows
         current: dict[tuple[str, str], list[dict]] = {}
-        need: dict[str, datetime] = {}
+        need: dict[str, tuple[datetime, datetime]] = {}
+        needy: set[str] = set()
         for e in _counted(events):
             e["session"] = _session_of(e["day"])
             if lo <= e["session"] <= hi:
@@ -606,10 +624,15 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
                 entry_day = compute_trading_day_et(e["entry_date"])
                 current.setdefault((sym, entry_day), []).append(e)
                 if entry_day <= read_lo:          # its prior exits can be older than the read
-                    need[sym] = min(need.get(sym, t[0]), t[0])
+                    a, b = need.get(sym, (t[0], t[0]))
+                    need[sym] = (min(a, t[0]), max(b, t[0]))
+                    needy.add(e["session"])
         known = {e["ref"] for e in events}
-        for e in _older_exits(c, user_id, need, read_lo):
-            if e["ref"] in known or _times(e) is None:
+        older, older_over = _older_exits(c, user_id, need)
+        if older_over:
+            too_old.update(needy)              # never counted clean: not every older exit was read
+        for e in older:
+            if e["ref"] in known or _times(e) is None or e["net"] is None:
                 continue
             by_exit.setdefault((str(e["symbol"] or ""), compute_trading_day_et(e["exit_date"])),
                                []).append(e)
@@ -635,11 +658,13 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
                     flags.append({"day": cur["session"], "symbol": sym,
                                   "minutesApart": _num(f["minutesApart"])})
     flagged_days = {f["day"] for f in flags}
-    clean = checked = not_checked = not_read = crowded = 0
+    clean = checked = not_checked = not_read = crowded = older_unread = 0
     for k in keys:
         rows = by_day.get(k) or []
         if cut is not None and k <= cut:
             not_read += 1                     # never counted clean: not every trade was read
+        elif k in too_old:
+            older_unread += 1
         elif k in too_big:
             crowded += 1                      # never counted clean: the detector was not run
         elif not rows:
@@ -654,11 +679,11 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
             checked += 1
     flags.sort(key=lambda f: (f["day"], f["symbol"]), reverse=True)
     shown = flags[:ROW_CAP]
-    traded = any(by_day.get(k) for k in keys) or not_read or crowded
+    traded = any(by_day.get(k) for k in keys) or not_read or crowded or older_unread
     if not traded:
         lines = [S_REVENGE_NO_TRADES]
     elif checked == 0:
-        lines = [S_REVENGE_NONE_CHECKED] if not (not_read or crowded) else []
+        lines = [S_REVENGE_NONE_CHECKED] if not (not_read or crowded or older_unread) else []
     elif clean == 0:
         lines = [S_REVENGE_EVERY_DAY]
     else:
@@ -674,12 +699,16 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
     if crowded:
         lines.append(f"{_plural(crowded, 'day', 'days')} {'was' if crowded == 1 else 'were'} "
                      "not checked: too many trades in one symbol to check.")
+    if older_unread:
+        lines.append(f"{_plural(older_unread, 'day', 'days')} "
+                     f"{'was' if older_unread == 1 else 'were'} not checked: too many older trades "
+                     "to look back over.")
     out: dict[str, Any] = {
         "asOf": _iso_utc(now_dt),
         "source": _origin([e.get("source") for k in keys for e in by_day.get(k) or []]),
         "from": lo, "to": hi, "window": WINDOW,
         "clean": clean, "checked": checked, "notChecked": not_checked, "notRead": not_read,
-        "tooMany": crowded,
+        "tooMany": crowded, "olderNotRead": older_unread,
         "flagged": shown,
         "lines": lines,
     }
@@ -702,9 +731,9 @@ def _day_nets(c: sqlite3.Connection, user_id: str, acc: str | None, since: date,
 
 
 def _flagged_by_hand(c: sqlite3.Connection, user_id: str, lo: str, hi: str,
-                     account: str | None = None) -> list[dict]:
-    """Trades the member excluded from analytics by hand (W10-R33), day in [lo, hi]: a money
-    widget counts them. At most `READ_LIMIT`."""
+                     account: str | None = None) -> tuple[list[dict], bool]:
+    """Trades the member excluded from analytics by hand (W10-R33), day in [lo, hi], newest first:
+    a money widget counts them. At most `READ_LIMIT` read, one fewer kept; (rows, overflowed)."""
     sql = (f"SELECT t.id, t.pnl_dollar, COALESCE(t.fees, 0) AS fees, t.account_id, t.source,"
            f" {_DAY_T} AS day FROM j2_trades t WHERE t.user_id = ? AND {_COUNTED_FLAG}"
            f" AND {_DAY_T} BETWEEN ? AND ?")
@@ -712,29 +741,44 @@ def _flagged_by_hand(c: sqlite3.Connection, user_id: str, lo: str, hi: str,
     if account is not None:
         sql += " AND t.account_id = ?"
         params.append(account)
-    sql += f" ORDER BY {_DAY_T} DESC, t.id DESC LIMIT {int(READ_LIMIT)}"
+    limit = int(READ_LIMIT)
+    sql += f" ORDER BY {_DAY_T} DESC, t.id DESC LIMIT {limit}"
+    got = c.execute(sql, params).fetchall()
     out = []
-    for r in _counted(c.execute(sql, params).fetchall()):
+    for r in _counted(got[:limit - 1]):
         out.append({"day": r["day"], "account_id": r["account_id"], "source": r["source"],
                     "net": (_num(r["pnl_dollar"]) or 0.0) - (_num(r["fees"]) or 0.0)})
-    return out
+    return out, len(got) >= limit
 
 
 def _no_result_closes(c: sqlite3.Connection, user_id: str, lo: str, hi: str,
                       account: str | None = None) -> int:
-    """Closed strategies with no P&L recorded whose ET day is in [lo, hi]: no result, said so."""
-    sql = ("SELECT COUNT(*) FROM j2_option_strategies WHERE user_id = ? AND status != 'open'"
-           " AND pnl_dollar IS NULL"
+    """Closed strategies with no P&L recorded whose ET day is in [lo, hi]: no result, said so.
+    Read a day either side and kept by their own ET day (the strategy read's rule)."""
+    wide_lo = (date.fromisoformat(lo) - timedelta(days=1)).isoformat()
+    wide_hi = (date.fromisoformat(hi) + timedelta(days=1)).isoformat()
+    sql = ("SELECT trading_day_et, closed_at FROM j2_option_strategies WHERE user_id = ?"
+           " AND status != 'open' AND pnl_dollar IS NULL"
            " AND COALESCE(trading_day_et, substr(closed_at, 1, 10)) BETWEEN ? AND ?")
-    params: list = [user_id, lo, hi]
+    params: list = [user_id, wide_lo, wide_hi]
     if account is not None:
         sql += " AND account_id = ?"
         params.append(account)
-    return int(c.execute(sql, params).fetchone()[0] or 0)
+    sql += f" LIMIT {int(READ_LIMIT)}"
+    n = 0
+    for r in _counted(c.execute(sql, params).fetchall()):
+        day = r["trading_day_et"] or compute_trading_day_et(r["closed_at"])
+        if day and lo <= day <= hi:
+            n += 1
+    return n
 
 
 def _flagged_line(n: int) -> str:
     return f"Includes {_plural(n, 'trade', 'trades')} you excluded from analytics."
+
+
+def _flagged_over_line() -> str:
+    return (f"Only your newest {READ_LIMIT - 1:,} trades excluded from analytics are counted.")
 
 
 # -- Risk left today --------------------------------------------------------------------------------
@@ -750,20 +794,39 @@ def _open_strategy_counts(c: sqlite3.Connection, user_id: str) -> dict[str | Non
 
 def _heat(user_id: str, account_id: str | None, size: float, positions: list[dict]) -> dict:
     """`portfolio_heat` over positions already read (read once, grouped in memory), read-only: the
-    size this widget read, no regime or brain read (neither feeds the open risk)."""
+    size this widget read, no regime or brain read (neither feeds the open risk). The dollars to a
+    stop need no size; a group with no size of its own is read with a stand-in that only feeds
+    heat's percentages, which this module never reads."""
     from api.services import portfolio_heat
     return portfolio_heat.portfolio_heat(
         user_id, account_id, size, positions_fn=lambda _u, _a: positions, regime_fn=lambda: {},
         cap_fn=lambda: None, account_size_fn=lambda _u, _a: size) or {}
 
 
-def _risk_of(heat: dict) -> tuple[float | None, int, int]:
-    """(open risk to real stops or None when unread, positions with a real stop, placeholders)."""
+#: What a group with nothing in it reads as.
+_NO_RISK = {"ok": True, "risk": None, "real": 0, "noStop": 0}
+
+
+def _risk_of(heat: dict) -> dict:
+    """{ok, risk, real, noStop}: `risk` is the dollars to the REAL stops, or None when no position
+    has one -- a group of placeholder stops only has no KNOWN risk, never a made-up 0 -- or when
+    heat could not run (`ok` False)."""
     if not heat.get("ok"):
-        return None, 0, 0
+        return {"ok": False, "risk": None, "real": 0, "noStop": 0}
     real = [p for p in heat.get("per_position") or [] if not p.get("placeholder_stop")]
-    risk = math.fsum(_num(p.get("risk_dollars")) or 0.0 for p in real)
-    return risk, len(real), len(heat.get("placeholder_stops") or [])
+    risk = _num(math.fsum(_num(p.get("risk_dollars")) or 0.0 for p in real)) if real else None
+    return {"ok": True, "risk": risk, "real": len(real),
+            "noStop": len(heat.get("placeholder_stops") or [])}
+
+
+def _known_sum(values) -> float | None:
+    """The sum of the known parts, or None when every part is unknown (never a made-up 0)."""
+    known = [v for v in values if v is not None]
+    return _num(math.fsum(known)) if known else None
+
+
+def _amount(v: float) -> str:
+    return _dollars(v) if _whole(v) else "under $1"
 
 
 def _room_line(left: float, limit: float) -> str:
@@ -774,17 +837,20 @@ def _room_line(left: float, limit: float) -> str:
     return f"Room left today: {_dollars(left)} of {_dollars(limit)}."
 
 
-def _risk_lines(risk: float | None, real: int, no_stop: int, open_options: int,
-                anything_open: bool) -> list[str]:
-    """The open-risk sentences one block shows (an account, or the unlinked positions)."""
+def _risk_lines(info: dict, open_options: int, anything_open: bool,
+                positions_ok: bool) -> list[str]:
+    """The open-risk sentences one block shows (an account, or the unlinked positions). With the
+    positions unread the widget says so once, at the top, and no block guesses."""
+    if not positions_ok:
+        return []
     lines: list[str] = []
-    if risk is None:
+    if not info["ok"]:
         lines.append(S_RISK_UNREAD)
-    elif real:
-        lines.append(f"Open risk to stops: {_dollars(risk)}." if _whole(risk)
-                     else "Open risk to stops: under $1.")
-    elif not no_stop and not open_options:
+    elif info["real"]:
+        lines.append(f"Open risk to stops: {_amount(info['risk'])}.")
+    elif not info["noStop"] and not open_options:
         lines.append(S_RISK_NONE_HERE if anything_open else S_RISK_NO_POSITIONS)
+    no_stop = info["noStop"]
     if no_stop:
         lines.append(f"{_plural(no_stop, 'position', 'positions')} "
                      f"{'has' if no_stop == 1 else 'have'} no stop set and "
@@ -805,106 +871,175 @@ def _after_line(after: float, with_unlinked: bool) -> str:
     return f"{lead}: {_dollars(after)} left."
 
 
+_AFTER_ANCHORS = ("Room left today", "No room left today", "Past your daily loss limit",
+                  "Open risk to stops", S_RISK_NONE_HERE, S_RISK_NO_POSITIONS)
+
+
+def _place_after(lines: list[str], line: str) -> None:
+    """Put the "if every stop is hit" line after the room and the open-risk lines (and after
+    "This account holds nothing open."), before the no-stop and options lines."""
+    i = max((k for k, ln in enumerate(lines) if ln.startswith(_AFTER_ANCHORS)), default=-1)
+    lines.insert(i + 1, line)
+
+
+def _account_block(a: dict, net: float | None, info: dict, open_options: int,
+                   anything_open: bool, positions_ok: bool, flagged: int = 0) -> dict:
+    """One account: the room left today when it has a limit and an own size, the open risk to its
+    stops either way (risk to a stop is dollars and needs no size)."""
+    pct = _num(a.get("daily_loss_limit_pct"))
+    limited = (pct or 0) > 0
+    size = accounts.own_account_size(a)
+    block: dict[str, Any] = {"accountId": a["id"], "name": a.get("name"),
+                             "limitPct": pct if limited else None, "limit": None,
+                             "net": _num(net) if limited else None, "used": None, "left": None,
+                             "openRisk": info["risk"] if positions_ok else None,
+                             "afterStops": None,
+                             "noStop": info["noStop"] if positions_ok else None,
+                             "openOptions": open_options, "lines": []}
+    lines: list[str] = []
+    left = None
+    if limited and size is not None and size > 0:
+        limit = pct / 100.0 * size
+        used = max(0.0, -(net or 0.0))
+        left = limit - used
+        block.update(limit=_num(limit), used=_num(used), left=_num(left))
+        lines.append(_room_line(left, limit))
+    elif limited:
+        lines.append(S_RISK_NO_SIZE)
+    lines += _risk_lines(info, open_options, anything_open, positions_ok)
+    if left is not None and positions_ok and info["risk"] is not None:
+        after = left - info["risk"]
+        block["afterStops"] = _num(after)
+        _place_after(lines, _after_line(after, False))
+    if flagged:
+        lines.append(_flagged_line(flagged))      # W10-R33: counted, and said so
+    block["lines"] = lines
+    return block
+
+
 def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
-    """Per account with a daily loss limit and an own size: today's room (W10-R9) and the open risk
-    to stops (`portfolio_heat`); the positions linked to no account of the member's as their own
-    block (W10-R32), and the total open risk (W10-R34)."""
+    """Per account with a daily loss limit and an own size: today's room (W10-R9); for EVERY
+    account holding something, and for the positions linked to no account of the member's
+    (W10-R32), the open risk to stops (`portfolio_heat`); and the total, always the true total
+    (W10-R34)."""
     now_dt = _utc(now)
     clean_params(KIND_RISK_LEFT, params)
     today = trading_days.today_et(now_dt)
     session = trading_days.session_on_or_before(today)       # the session today is counted on
     lo, hi = session.isoformat(), today.isoformat()
     from api.services.journal_two import positions as j2_positions
+    blocks: list[dict] = []
+    sources: list = []
+    unattributed = flagged_over = False
+    no_result = 0
+    rest: list[dict] = []
     with _read(None) as c, _deadline(c):
         accs = [dict(r) for r in c.execute(
             "SELECT * FROM j2_accounts WHERE user_id = ? ORDER BY created_at, id"
             f" LIMIT {int(READ_LIMIT)}", (user_id,)).fetchall()]
         ids = [a["id"] for a in accs]
-        limited = [a for a in accs if (_num(a.get("daily_loss_limit_pct")) or 0) > 0]
-        blocks: list[dict] = []
-        sources: list = []
-        unattributed = False
-        flagged_n = no_result = 0
+        limited_ids = {a["id"] for a in accs if (_num(a.get("daily_loss_limit_pct")) or 0) > 0}
+        positions_ok = True
+        try:
+            all_positions = list(j2_positions.list_open_positions(user_id, c) or [])
+        except Exception:  # noqa: BLE001 -- unread positions are said so, never a failed widget
+            positions_ok, all_positions = False, []
+        opens = _open_strategy_counts(c, user_id)
+        anything_open = bool(all_positions) or any(opens.values())
+        grouped: dict[str | None, list[dict]] = {}
+        for pos in _counted(all_positions):
+            key = pos.get("accountId") if pos.get("accountId") in ids else None
+            grouped.setdefault(key, []).append(pos)
+        sources += [pos.get("source") for pos in all_positions]
+        sizes = {a["id"]: accounts.own_account_size(a) for a in accs}
+        # Heat over EVERY group: accounts with no limit, with no size, past the cap, and unlinked.
+        info: dict[str | None, dict] = {}
+        for key, group in _counted(list(grouped.items())):
+            info[key] = _risk_of(_heat(user_id, key, sizes.get(key) or 1.0, group))
+        block_accs = [a for a in accs
+                      if a["id"] in limited_ids or grouped.get(a["id"]) or opens.get(a["id"])]
+        shown, rest = block_accs[:ROW_CAP], block_accs[ROW_CAP:]
+        shown_limited = [a for a in shown if a["id"] in limited_ids]
+        per: dict[str, float] = {}
         flagged_by: dict[str, int] = {}
-        if limited:
+        if shown_limited:
             # Today's net from the trading-days scan (M3): every account at once, then per account.
             whole = _day_nets(c, user_id, None, session, today)
             row_all = next((r for r in whole.rows if r["day"] == lo), None)
             sources += _row_sources(row_all)
-            per: dict[str, tuple[float, int]] = {}
             if len(ids) == 1:
-                per[ids[0]] = ((row_all or {}).get("net") or 0.0,
-                               int((row_all or {}).get("trade_count") or 0))
+                per[ids[0]] = (row_all or {}).get("net") or 0.0
             else:
-                for a in _counted(limited[:ROW_CAP]):
+                for a in _counted(shown_limited):
                     r = next((x for x in _day_nets(c, user_id, a["id"], session, today).rows
                               if x["day"] == lo), None)
-                    per[a["id"]] = ((r or {}).get("net") or 0.0,
-                                    int((r or {}).get("trade_count") or 0))
+                    per[a["id"]] = (r or {}).get("net") or 0.0
                 # Several accounts: a trade linked to none of them cannot be placed (one account
                 # takes them all, above, as the scan over every account does).
                 unattributed = _has_unlinked_trades(c, user_id, lo, hi, ids)
-            flagged = _flagged_by_hand(c, user_id, lo, hi)
+            flagged, flagged_over = _flagged_by_hand(c, user_id, lo, hi)
             only = ids[0] if len(ids) == 1 else None
             for f in flagged:
                 acc = f["account_id"] if f["account_id"] in ids else only
                 if acc in per:
-                    net, n = per[acc]
-                    per[acc] = (net + f["net"], n + 1)
+                    per[acc] += f["net"]
                     flagged_by[acc] = flagged_by.get(acc, 0) + 1
-                    flagged_n += 1
                     sources.append(f["source"])
             no_result = _no_result_closes(c, user_id, lo, hi)
-            all_positions = list(j2_positions.list_open_positions(user_id, c) or [])
-            opens = _open_strategy_counts(c, user_id)
-            anything_open = bool(all_positions) or any(opens.values())
-            grouped: dict[str | None, list[dict]] = {}
-            for pos in _counted(all_positions):
-                key = pos.get("accountId") if pos.get("accountId") in ids else None
-                grouped.setdefault(key, []).append(pos)
-            sources += [pos.get("source") for pos in all_positions]
-            unlinked_opts = sum(n for k, n in opens.items() if k not in ids)
-            for a in _counted(limited[:ROW_CAP]):
-                net, _n = per.get(a["id"], (0.0, 0))
-                blocks.append(_account_block(user_id, a, net, grouped.get(a["id"], []),
-                                             opens.get(a["id"], 0), anything_open,
-                                             flagged_by.get(a["id"], 0)))
-            unlinked = grouped.get(None, [])
-            if unlinked or unlinked_opts:
-                size = next((b["size"] for b in blocks if b.get("size")), None) or 1.0
-                risk, real, no_stop = _risk_of(_heat(user_id, None, size, unlinked))
-                blocks.append({"accountId": None, "name": UNLINKED_NAME, "openRisk": _num(risk),
-                               "noStop": no_stop, "openOptions": unlinked_opts,
-                               "lines": _risk_lines(risk, real, no_stop, unlinked_opts,
-                                                    anything_open)})
-                sized = [b for b in blocks if b.get("accountId") and b.get("left") is not None]
-                if len(ids) == 1 and sized and risk:
-                    # W10-R34: one account -- its "if every stop is hit" includes the unlinked risk.
-                    b = sized[0]
-                    after = b["left"] - (b["openRisk"] or 0.0) - risk
-                    b["afterStops"] = _num(after)
-                    b["lines"] = [ln for ln in b["lines"] if not ln.startswith(
-                        "If every stop is hit")]
-                    _insert_after(b["lines"], _after_line(after, True))
-    for b in blocks:
-        b.pop("size", None)
-    total = math.fsum(b["openRisk"] for b in blocks if b.get("openRisk"))
-    contributors = [b for b in blocks if b.get("openRisk") and _whole(b["openRisk"])]
-    if not limited:
-        lines = [S_RISK_NO_LIMIT]
-    elif all(b.get("limit") is None for b in blocks if b.get("accountId")):
-        lines = [S_RISK_NO_SIZE]
+        for a in _counted(shown):
+            blocks.append(_account_block(a, per.get(a["id"], 0.0), info.get(a["id"], _NO_RISK),
+                                         opens.get(a["id"], 0), anything_open, positions_ok,
+                                         flagged_by.get(a["id"], 0)))
+        unlinked_opts = sum(n for k, n in opens.items() if k not in ids)
+        u_info = info.get(None, _NO_RISK)
+        if grouped.get(None) or unlinked_opts:
+            blocks.append({"accountId": None, "name": UNLINKED_NAME,
+                           "openRisk": u_info["risk"] if positions_ok else None,
+                           "noStop": u_info["noStop"] if positions_ok else None,
+                           "openOptions": unlinked_opts,
+                           "lines": _risk_lines(u_info, unlinked_opts, anything_open,
+                                                positions_ok)})
+            own = blocks[0] if blocks and len(ids) == 1 and blocks[0]["accountId"] else None
+            if own is not None and own.get("left") is not None and u_info["risk"] is not None:
+                # W10-R34: one account -- its "if every stop is hit" includes the unlinked risk.
+                after = own["left"] - (own["openRisk"] or 0.0) - u_info["risk"]
+                own["afterStops"] = _num(after)
+                own["lines"] = [ln for ln in own["lines"] if not ln.startswith(
+                    "If every stop is hit")]
+                _place_after(own["lines"], _after_line(after, True))
+    # The true total: every group's known risk (I-2: unknown-only is None, never 0).
+    total = _known_sum(i["risk"] for i in info.values()) if positions_ok else None
+    rest_risk = _known_sum(info.get(a["id"], _NO_RISK)["risk"] for a in rest)
+    lines: list[str] = []
+    if not positions_ok:
+        lines.append(S_RISK_UNREAD)
+    if not limited_ids:
+        lines.append(S_RISK_NO_LIMIT)
+    elif all(b.get("limit") is None for b in blocks if b.get("accountId") in limited_ids):
+        lines.append(S_RISK_NO_SIZE)
     else:
-        lines = []
         if unattributed:
             lines.append(S_RISK_UNATTRIBUTED)
+        if flagged_over:
+            lines.append(_flagged_over_line())
         if no_result:
             lines.append(_no_result_line(no_result))
-    if contributors and limited:
-        line = f"Open risk to stops in total: {_dollars(total)}"
-        if len(contributors) > 1 or contributors[0]["accountId"] is None:
-            line += " (" + ", ".join(f"{b['name']} {_dollars(b['openRisk'])}"
-                                     for b in contributors) + ")"
+    if rest:
+        n = len(rest)
+        if rest_risk is not None and positions_ok:
+            lines.append(f"{_plural(n, 'more account', 'more accounts')}: {_amount(rest_risk)} "
+                         "at risk.")
+        else:
+            lines.append(f"{_plural(n, 'more account', 'more accounts')} not shown; none has open "
+                         "risk to a stop.")
+    if total is not None:
+        parts = [(b["name"], b["openRisk"]) for b in blocks if b.get("openRisk") is not None]
+        if rest_risk is not None:
+            parts.append((_plural(len(rest), "more account", "more accounts"), rest_risk))
+        line = f"Open risk to stops in total: {_amount(total)}"
+        if len(parts) > 1 or any(b["accountId"] is None and b.get("openRisk") is not None
+                                 for b in blocks):
+            line += " (" + ", ".join(f"{name} {_amount(v)}" for name, v in parts) + ")"
         lines.append(line + ".")
     out: dict[str, Any] = {
         "asOf": _iso_utc(now_dt),
@@ -912,19 +1047,13 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
         "day": hi,
         "session": lo,
         "accounts": blocks,
-        "openRisk": _num(total) if contributors else (0.0 if blocks else None),
-        "flaggedCounted": flagged_n,
+        "openRisk": total,
+        "flaggedCounted": sum(flagged_by.values()) if blocks else 0,
         "lines": lines,
     }
-    if len(limited) > ROW_CAP:
-        out["truncated"] = len(limited) - ROW_CAP
+    if rest:
+        out["truncated"] = len(rest)
     return out
-
-
-def _insert_after(lines: list[str], line: str) -> None:
-    """Put the "if every stop is hit" line right after the open-risk line (else after the room)."""
-    i = next((k for k, ln in enumerate(lines) if ln.startswith("Open risk to stops")), 0)
-    lines.insert(i + 1, line)
 
 
 def _has_unlinked_trades(c: sqlite3.Connection, user_id: str, lo: str, hi: str,
@@ -950,36 +1079,6 @@ def _row_sources(r: dict | None) -> list:
     return [origin] if origin else []
 
 
-def _account_block(user_id: str, a: dict, net: float, positions: list[dict], open_options: int,
-                   anything_open: bool, flagged: int = 0) -> dict:
-    pct = _num(a.get("daily_loss_limit_pct"))
-    size = accounts.own_account_size(a)
-    block: dict[str, Any] = {"accountId": a["id"], "name": a.get("name"),
-                             "limitPct": pct, "limit": None, "net": _num(net), "used": None,
-                             "left": None, "openRisk": None, "afterStops": None, "noStop": None,
-                             "openOptions": open_options, "lines": []}
-    if size is None or size <= 0:
-        block["lines"] = [S_RISK_NO_SIZE]
-        return block
-    limit = pct / 100.0 * size
-    used = max(0.0, -net)
-    left = limit - used
-    block.update(limit=_num(limit), used=_num(used), left=_num(left), size=size)
-    risk, real, no_stop = _risk_of(_heat(user_id, a["id"], size, positions))
-    block["noStop"] = no_stop
-    lines = [_room_line(left, limit)]
-    risk_lines = _risk_lines(risk, real, no_stop, open_options, anything_open)
-    if risk is not None and real:
-        after = left - risk
-        block.update(openRisk=_num(risk), afterStops=_num(after))
-        risk_lines.insert(1, _after_line(after, False))
-    lines += risk_lines
-    if flagged:
-        lines.append(_flagged_line(flagged))      # W10-R33: counted, and said so
-    block["lines"] = lines
-    return block
-
-
 # -- Prop-firm rules --------------------------------------------------------------------------------
 
 def _default_since(today: date) -> date:
@@ -999,6 +1098,7 @@ def my_prop_firm(user_id: str, params: dict, now: datetime) -> dict:
     notices: list[str] = []
     from api.services.journal_two.widget_engine import sources as wsources
     flagged_n = no_result = 0
+    flagged_over = False
     with _read(None) as c, _deadline(c):
         asked = p.get("accountId")
         acc = wsources.owned_account_id(c, user_id, asked)
@@ -1013,7 +1113,8 @@ def my_prop_firm(user_id: str, params: dict, now: datetime) -> dict:
         if rows:
             keys = {r["day"] for r in rows}
             first = rows[0]["day"]
-            for f in _flagged_by_hand(c, user_id, first, today.isoformat(), acc):
+            flagged_rows, flagged_over = _flagged_by_hand(c, user_id, first, today.isoformat(), acc)
+            for f in flagged_rows:
                 d = _session_of(f["day"])
                 d = d if d >= first else first
                 if d in keys:
@@ -1062,6 +1163,8 @@ def my_prop_firm(user_id: str, params: dict, now: datetime) -> dict:
             lines.append(_drawdown_line(drawdown, trailing["left"], dd_limit))
     if flagged_n:
         lines.append(_flagged_line(flagged_n))
+    if flagged_over:
+        lines.append(_flagged_over_line())
     if no_result:
         lines.append(_no_result_line(no_result))
     out: dict[str, Any] = {
