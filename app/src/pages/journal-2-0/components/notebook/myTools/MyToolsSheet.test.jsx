@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import MyToolsSheet from './MyToolsSheet'
 import { openMyTools } from './openMyTools'
 import { installFetch, refuse } from './__fixtures__/myToolsFixtures'
+import { installToolsFetch } from './__fixtures__/toolsFixtures'
 import { FAILURE_COPY } from '../../../lib/builtWidgets'
 import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
 import { openSetsDialog } from '../widgets/SetsDialog'
@@ -356,15 +357,19 @@ describe('My tools, Widgets tab', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   })
 
-  it('other_tabs_have_no_controls_in_w8', async () => {
+  it('Templates still has no controls in w9; Routines and Trackers are real lists (Task 9.18)', async () => {
     await openSheet()
-    for (const [tab, words] of [['Routines', 'Routines are coming soon.'], ['Trackers', 'Trackers are coming soon.'],
-      ['Templates', 'Templates are coming soon.']]) {
+    fireEvent.click(screen.getByRole('tab', { name: 'Templates' }))
+    expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'true')
+    const panel = screen.getByRole('tabpanel', { name: 'Templates' })
+    expect(panel).toHaveTextContent('Templates are coming soon.')
+    expect(panel.querySelectorAll('button, a, input, select, textarea, [tabindex]')).toHaveLength(0)
+    for (const tab of ['Routines', 'Trackers']) {
       fireEvent.click(screen.getByRole('tab', { name: tab }))
-      expect(screen.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true')
-      const panel = screen.getByRole('tabpanel', { name: tab })
-      expect(panel).toHaveTextContent(words)
-      expect(panel.querySelectorAll('button, a, input, select, textarea, [tabindex]')).toHaveLength(0)
+      const p = screen.getByRole('tabpanel', { name: tab })
+      expect(p).not.toHaveTextContent(/coming soon/i)
+      expect(screen.queryByTestId('my-tools-soon')).toBeNull()
+      expect(within(p).getByRole('group', { name: 'Show' })).toBeInTheDocument()   // the three lists' filters
     }
   })
 
@@ -461,6 +466,22 @@ describe('My tools, Widgets tab', () => {
 })
 
 describe('openMyTools', () => {
+  it('opens_on_requested_tab', async () => {
+    const tools = installToolsFetch()
+    let close
+    await act(async () => { close = openMyTools({ uid: 'u1', tab: 'trackers' }) })
+    expect(await screen.findByRole('dialog', { name: 'My tools' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Trackers' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('heading', { name: '4 trackers' })).toBeInTheDocument()
+    expect(tools.calls[0]).toMatchObject({ method: 'GET', path: 'trackers?filter=active' })
+    // Asked again while open: the open sheet shows the new tab.
+    await act(async () => { openMyTools({ tab: 'routines' }) })
+    expect(screen.getByRole('tab', { name: 'Routines' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('heading', { name: '3 routines' })).toBeInTheDocument()
+    await act(async () => { close() })
+    await waitFor(() => expect(document.querySelector('[data-my-tools-root]')).toBeNull())
+  })
+
   it('mounts My tools on its own root, one at a time, and close() takes it away', async () => {
     const editor = { storage: { uctJournalWidgets: { uid: 'u9' } } }
     let close

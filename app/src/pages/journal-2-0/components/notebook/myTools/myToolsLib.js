@@ -7,7 +7,8 @@
 // VERBATIM (`actionFailure`), never retyped here.
 import { FAILURE_COPY, failureText } from '../../../lib/builtWidgets'
 
-/** The four tabs (spec 5.8). Wave 8 builds Widgets; the other three say so and carry no controls. */
+/** The four tabs (spec 5.8). Wave 8 builds Widgets, wave 9 Routines and Trackers (Task 9.18); Templates says so and
+ *  carries no controls (wave 11). */
 export const TABS = Object.freeze([
   ['widgets', 'Widgets'], ['routines', 'Routines'], ['trackers', 'Trackers'], ['templates', 'Templates'],
 ])
@@ -24,10 +25,29 @@ export const RECENTLY_DELETED_DAYS = 30
 export const LIST_RENDER_MAX = 100
 
 export const COMING_SOON = Object.freeze({
-  routines: 'Routines are coming soon.',
-  trackers: 'Trackers are coming soon.',
   templates: 'Templates are coming soon.',
 })
+
+/** The Routines and Trackers tabs' three lists, keyed by the server's `?filter=` (GET /api/j2/routines|trackers). */
+export const TOOL_FILTERS = Object.freeze([['active', 'Active'], ['archived', 'Archived'], ['deleted', 'Recently deleted']])
+
+/** What the Routines and Trackers tabs say (Task 9.18), in the tab's own noun. The server's sentences (refusals, the
+ *  count cap, the conflict, the typed name) are shown as they came, never retyped here; the archive, delete and
+ *  check-in sentences are the editors' own (routines/toolEditorLib), so the two doors say the same words. */
+const toolCopy = (one, many) => Object.freeze({
+  noun: one,
+  loading: `Loading your ${many}…`,
+  loadFailed: `Your ${many} couldn't be loaded just now.`,
+  offlineList: `You're offline. Your ${many} show here when you're back online.`,
+  emptyActive: `No ${many} yet. Make one here.`,
+  emptyArchived: `Nothing archived. An archived ${one} stays in its notes, read-only, with its history.`,
+  emptyDeleted: `Nothing deleted in the last ${RECENTLY_DELETED_DAYS} days.`,
+  make: `New ${one}`,
+  editorFailed: `The ${one} editor couldn't open. Try again.`,
+  heading: (n) => `${n} ${n === 1 ? one : many}`,
+  restored: (name) => `Restored “${name}” to your ${many}.`,
+})
+export const TOOL_LIST_COPY = Object.freeze({ routine: toolCopy('routine', 'routines'), tracker: toolCopy('tracker', 'trackers') })
 
 export const COPY = Object.freeze({
   loading: 'Loading your widgets…',

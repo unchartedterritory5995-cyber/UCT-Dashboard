@@ -412,4 +412,10 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/notebook/styles/ExamplePreviewSheet.jsx': { recipe: 'example-preview-sheet', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/ExamplesInUse.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/StyleItemPreview.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  // Wave 9 Task 9.18: My tools' Routines and Trackers tabs (components/notebook/myTools/, a lazy chunk outside the
+  // derived population): the lists, the menu, rename with a conflict, archive, the typed-name delete, Used in, the
+  // check-in trackers first, Recently deleted, the phone sheet and offline. Rail a11y/myToolsTools.a11y.test.jsx.
+  'components/notebook/myTools/ToolsTab.jsx': { recipe: 'my-tools-routines', railFile: 'a11y/myToolsTools.a11y.test.jsx' },
+  'components/notebook/myTools/RoutinesTab.jsx': { recipe: 'my-tools-routines', railFile: 'a11y/myToolsTools.a11y.test.jsx' },
+  'components/notebook/myTools/TrackersTab.jsx': { recipe: 'my-tools-trackers', railFile: 'a11y/myToolsTools.a11y.test.jsx' },
 })

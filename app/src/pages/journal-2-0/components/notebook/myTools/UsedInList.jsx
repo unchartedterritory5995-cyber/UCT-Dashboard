@@ -1,31 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import PanelHead from './PanelHead'
 import { DEFS_URL, getJson } from '../../../lib/builtWidgets'
+import { usedIn as toolUsedIn } from '../../../lib/toolsCrud'
+import { COPY as TOOL_COPY } from '../routines/toolEditorLib'
 import {
   COPY, LIST_RENDER_MAX, NO_RETRY, editedText, noteHref, openNoteInPlace, readFailure, usedInHeading,
 } from './myToolsLib'
 import styles from './myTools.module.css'
 
 /**
- * "Used in N notes" (spec 5.8): the member's notes that hold this widget, newest first, from
- * `GET /api/j2/widget-definitions/{id}/used-in` (the `j2_tool_uses` projection: live notes only, never another
- * member's). Each is a real link to its note. A plain click opens the note in place and closes My tools: through the
+ * "Used in N notes" (spec 5.8): the member's notes that hold this widget, routine or tracker (`kind`: 'widget', the
+ * default, 'routine' or 'tracker'), newest first. A widget's from `GET /api/j2/widget-definitions/{id}/used-in`; a
+ * routine's or tracker's through lib/toolsCrud's `usedIn` (Task 9.18), never a second fetch. Both read the
+ * `j2_tool_uses` projection: live notes only, never another member's. Each is a real link to its note. A plain click opens the note in place and closes My tools: through the
  * app router's `navigate` when the door that opened My tools passed one, else through the router's own history move
  * (`openNoteInPlace`). A modified click (a new tab) is the browser's.
  */
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const plainClick = (e) => !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
 
-export default function UsedInList({ d, onBack, onNavigate, navigate = null }) {
+const isTool = (kind) => kind === 'routine' || kind === 'tracker'
+
+export default function UsedInList({ d, kind = 'widget', onBack, onNavigate, navigate = null, backLabel }) {
   const [state, setState] = useState({ status: 'loading' })
   const mounted = useRef(true)
   useEffect(() => () => { mounted.current = false }, [])
 
   const read = useCallback(async () => {
+    if (isTool(kind)) {
+      const got = await toolUsedIn(kind, d.id)
+      const notes = got.ok && Array.isArray(got.data) ? got.data.filter((n) => isRecord(n) && n.noteId) : null
+      return notes ? { status: 'ok', notes } : { status: 'error', code: got.code, message: got.message }
+    }
     const got = await getJson(`${DEFS_URL}/${encodeURIComponent(String(d.id))}/used-in`)
     const notes = got.ok && Array.isArray(got.data.notes) ? got.data.notes.filter((n) => isRecord(n) && n.noteId) : null
     return notes ? { status: 'ok', notes } : { status: 'error', code: got.code }
-  }, [d.id])
+  }, [d.id, kind])
   useEffect(() => {
     let alive = true
     read().then((next) => { if (alive) setState(next) })
@@ -62,15 +72,19 @@ export default function UsedInList({ d, onBack, onNavigate, navigate = null }) {
   const shown = notes.slice(0, LIST_RENDER_MAX)
   return (
     <div className={styles.pushPanel} data-testid="my-tools-used-in">
-      <PanelHead title={usedInHeading(d.name, count)} onBack={onBack} />
+      <PanelHead title={usedInHeading(d.name, count)} onBack={onBack} {...(backLabel ? { backLabel } : {})} />
       {state.status === 'loading' && <p className={styles.hint}>{COPY.usedInLoading}</p>}
       {state.status === 'error' && (
         <div className={styles.stateBox}>
-          <p className={styles.sentence} data-testid="used-in-failed">{readFailure(state.code, COPY.usedInFailed)}</p>
+          <p className={styles.sentence} data-testid="used-in-failed">
+            {isTool(kind) ? (state.message || TOOL_COPY.usedInFailed) : readFailure(state.code, COPY.usedInFailed)}
+          </p>
           {!NO_RETRY.has(state.code) && <button type="button" className={styles.btn} onClick={retry}>Try again</button>}
         </div>
       )}
-      {state.status === 'ok' && notes.length === 0 && <p className={styles.sentence}>{COPY.usedInEmpty}</p>}
+      {state.status === 'ok' && notes.length === 0 && (
+        <p className={styles.sentence}>{isTool(kind) ? TOOL_COPY.usedInEmpty : COPY.usedInEmpty}</p>
+      )}
       {shown.length > 0 && (
         <ul className={styles.noteList}>
           {shown.map((n) => {

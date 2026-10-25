@@ -274,3 +274,43 @@ describe('the routine and tracker editors floor every control at 44px at every w
     expect(baseFontSize('.input { font-size: 14px; min-height: var(--tap-min); }', '.input')).not.toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
   })
 })
+
+// Wave 9 (Task 9.18): My tools' Routines and Trackers tabs. Their rows ARE My tools rows (the `.row` class of
+// myTools.module.css, floored above with every other My tools control), and a row is 56px at phone width: a list row
+// is a finger target as a whole, so it gets more than the 44px a single control gets.
+const TOOLS_TAB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'ToolsTab.jsx')
+
+/** The largest `min-height` in px that `cls` declares at `width` (its base rule or a media block that applies). */
+function minHeightAt(css, cls, width) {
+  const clean = stripComments(css)
+  let best = 0
+  for (const block of [withoutMedia(clean), mediaBodies(clean, width)]) {
+    const rule = /([^{}]+)\{([^{}]*)\}/g
+    let m
+    while ((m = rule.exec(block))) {
+      if (!m[1].split(',').map((p) => p.trim()).includes(cls)) continue
+      const mh = /min-height:\s*(\d+)px/.exec(m[2])
+      if (mh) best = Math.max(best, Number(mh[1]))
+    }
+  }
+  return best
+}
+
+describe('My tools: the Routines and Trackers rows are 56px on phone', () => {
+  it('the tool rows are drawn with My tools’ own row class', () => {
+    const src = readFileSync(TOOLS_TAB, 'utf8')
+    expect(src).toMatch(/className=\{`\$\{styles\.row\}/)
+    expect(src).toMatch(/import styles from '\.\/myTools\.module\.css'/)
+  })
+
+  it('a row is at least 56px at 390, 820 and 1200px', () => {
+    const css = readFileSync(MY_TOOLS_CSS, 'utf8')
+    for (const w of [390, 820, 1200]) expect(minHeightAt(css, '.row', w), `at ${w}px`).toBeGreaterThanOrEqual(56)
+  })
+
+  it('CONTROL: a row floored at 44px, or only on desktop, is SEEN', () => {
+    expect(minHeightAt('.row { min-height: 44px; }', '.row', 390)).toBeLessThan(56)
+    expect(minHeightAt('@media (min-width: 1025px) { .row { min-height: 56px; } }', '.row', 390)).toBeLessThan(56)
+    expect(minHeightAt('.row { min-height: 56px; }', '.row', 390)).toBe(56)
+  })
+})

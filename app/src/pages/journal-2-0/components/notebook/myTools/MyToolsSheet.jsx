@@ -3,12 +3,15 @@ import Sheet from '../../../../../components/mobile/Sheet'
 import SegmentedNav from '../../../../../components/mobile/SegmentedNav'
 import { useIsPhone } from '../../../../../hooks/useBreakpoint'
 import WidgetsTab from './WidgetsTab'
+import RoutinesTab from './RoutinesTab'
+import TrackersTab from './TrackersTab'
 import { TABS, TAB_KEYS, COMING_SOON } from './myToolsLib'
 import styles from './myTools.module.css'
 
 /**
  * My tools (spec 5.8): the one place a member manages what they built. Four tabs, Widgets · Routines · Trackers ·
- * Templates; wave 8 builds Widgets, and the other three say "coming soon" with no controls at all.
+ * Templates; wave 8 builds Widgets, wave 9 Routines and Trackers (Task 9.18), and Templates says "coming soon" with no
+ * controls at all (wave 11).
  *
  * Desktop: a centered dialog. Touch: the Sheet's own touch form; at 640 px and narrower a FULL-SCREEN sheet, the
  * tabs a segmented control, rows 56 px, every row's actions in a ContextPopover.
@@ -69,9 +72,10 @@ export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, e
             value={active} onChange={setActive} />
         </div>
         <div role="tabpanel" aria-label={label} className={styles.tabPanel} data-tab={active}>
-          {active === 'widgets'
-            ? <WidgetsTab phone={phone} defId={defId} seek={seek} editor={editor} uid={uid} navigate={navigate} onCloseAll={closeOnce} />
-            : <p className={styles.soon} data-testid="my-tools-soon">{COMING_SOON[active]}</p>}
+          {active === 'widgets' && <WidgetsTab phone={phone} defId={defId} seek={seek} editor={editor} uid={uid} navigate={navigate} onCloseAll={closeOnce} />}
+          {active === 'routines' && <RoutinesTab phone={phone} navigate={navigate} onCloseAll={closeOnce} />}
+          {active === 'trackers' && <TrackersTab phone={phone} navigate={navigate} onCloseAll={closeOnce} />}
+          {COMING_SOON[active] && <p className={styles.soon} data-testid="my-tools-soon">{COMING_SOON[active]}</p>}
         </div>
       </div>
     </Sheet>
