@@ -372,6 +372,25 @@ def test_line_separators_end_a_text_and_a_field_like_a_newline():
     assert wf.eval_row(_compile("1\n+ 2"), {}) == 3  # a newline between tokens is whitespace
 
 
+def test_ordinary_emoji_are_text_but_never_a_field_name():
+    """Ruling W10-R30: split labels carry emoji. The selector, the joiner and the keycap are
+    allowed inside a text only where they build one; a field name refuses them all."""
+    heart, fe0f, zwj, keycap = chr(0x2764), chr(0xFE0F), chr(0x200D), chr(0x20E3)
+    family = chr(0x1F468) + zwj + chr(0x1F469) + zwj + chr(0x1F467)
+    for label in (heart + fe0f + " Win", family, "1" + fe0f + keycap, "#" + keycap,
+                  chr(0x1F469) + chr(0x1F3FD) + zwj + chr(0x1F4BB)):
+        c = _compile('If([net] > 0, "' + label + '", "Loss")')
+        assert wf.eval_row(c, {"net": 1}) == label
+        assert wf.display(c.canonical, FIELDS) == c.canonical.replace("[net]", "[Net P&L]")
+    for expr, pos in ((' " ' + fe0f + '"', 3), ('"a' + zwj + 'b"', 2),
+                      ('"' + family[:2] + '"', 2),               # a joiner with nothing after
+                      ('"' + heart + fe0f + zwj + chr(0x1F525) + '"', 3),  # strict: FE0F side
+                      ('"a' + keycap + '"', 2), ("[" + family + "]", 2),
+                      ("[" + heart + fe0f + "]", 2), ('"' + heart + chr(0xE0100) + '"', 2)):
+        e = _error(expr)
+        assert (e.code, e.pos) == ("bad_char", pos), (expr, e.code, e.pos)
+
+
 def test_display_name_never_breaks_the_round_trip():
     fields = {"r": wf.FieldInfo("r", "R multiple", "number"),
               "risk": wf.FieldInfo("risk", "R", "number")}  # risk's label is r's key

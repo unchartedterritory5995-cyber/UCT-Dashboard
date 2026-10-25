@@ -216,12 +216,25 @@ _FOLDED_FUNCTIONS = {name.lower(): name for name in FUNCTIONS}
 _FORBIDDEN_RANGES = (
     (0x0000, 0x0008), (0x000B, 0x001F), (0x007F, 0x009F), (0x00AD, 0x00AD), (0x061C, 0x061C),
     (0x115F, 0x1160), (0x180E, 0x180E), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F),
+    (0x20E3, 0x20E3),
     (0x2800, 0x2800), (0x3164, 0x3164), (0xD800, 0xDFFF), (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF),
     (0xFFA0, 0xFFA0), (0xFFF9, 0xFFFB), (0xE0000, 0xE007F), (0xE0100, 0xE01EF),
 )
 #: The Hangul fillers (U+115F, U+1160, U+3164, U+FFA0), the blank Braille pattern (U+2800) and
 #: the variation selectors (U+FE00-FE0F, U+E0100-E01EF) render as nothing, so they are refused
 #: with the rest: a field name or a text must not hide a character the member cannot see.
+#: Ruling W10-R30: inside a TEXT literal only, three of them are allowed where they build an
+#: ordinary emoji (see `_emoji_part_ok`); a field name refuses them all.
+
+#: Emoji code point ranges for the joiner rule (U+1F3FB-1F3FF, the skin-tone modifiers, lie
+#: inside the first range).
+_EMOJI_RANGES = (
+    (0x1F000, 0x1FAFF), (0x2600, 0x27BF), (0x2300, 0x23FF), (0x2B00, 0x2BFF), (0x1F3FB, 0x1F3FF),
+)
+_PRESENTATION_SELECTORS = frozenset("\ufe0e\ufe0f")
+_ZWJ = "\u200d"
+_KEYCAP = "\u20e3"
+_KEYCAP_BASES = frozenset("0123456789#*")
 #: Space-like characters: allowed inside a text or a field name (where they are just text, and
 #: never trimmed: trimming is space and tab only), but written as U+XXXX when quoted back so a
 #: sentence never shows a blank.
@@ -282,6 +295,32 @@ def _invisible(c: str) -> bool:
 
 def _forbidden(c: str) -> bool:
     return _member(_FORBIDDEN_TABLE, c)
+
+
+def _emoji(c: str) -> bool:
+    return _in(_EMOJI_RANGES, c)
+
+
+def _emoji_part_ok(s: str, start: int, j: int) -> bool:
+    """Ruling W10-R30: inside the text literal opened at `start`, the refused character at `j`
+    is allowed when it is part of an ordinary emoji. Only code points INSIDE the text count as
+    neighbours (the quotes do not):
+      * U+FE0E / U+FE0F after a visible character that is not a space and not refused;
+      * U+200D (zero-width joiner) when the code points on BOTH sides are emoji (`_EMOJI_RANGES`);
+      * U+20E3 (keycap) after 0-9, # or *, optionally with U+FE0E/U+FE0F between (1, FE0F, 20E3).
+    Everything else stays refused."""
+    c = s[j]
+    prev = s[j - 1] if j - 1 > start else None
+    if c in _PRESENTATION_SELECTORS:
+        return prev is not None and prev != " " and not _invisible(prev)
+    if c == _ZWJ:
+        nxt = s[j + 1] if j + 1 < len(s) else None
+        return prev is not None and nxt is not None and _emoji(prev) and _emoji(nxt)
+    if c == _KEYCAP:
+        if prev in _PRESENTATION_SELECTORS:
+            prev = s[j - 2] if j - 2 > start else None
+        return prev is not None and prev in _KEYCAP_BASES
+    return False
 
 
 def _code(c: str) -> str:
@@ -437,7 +476,7 @@ def _tokenize(s: str) -> list[_Tok]:
             while True:
                 if j >= n or s[j] in _LINE_ENDS:
                     raise _err("unclosed_text", i)
-                if _forbidden(s[j]):
+                if _forbidden(s[j]) and not _emoji_part_ok(s, i, j):
                     raise _err("bad_char", j, x=_shown_char(s[j]))
                 if s[j] == '"':
                     if j + 1 < n and s[j + 1] == '"':
