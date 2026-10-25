@@ -22,9 +22,18 @@ const IMG_URL = '/api/j2/notes/attachments/u1/n1/inline/abc123.png'
 
 let NOTES
 const updateMock = vi.fn()
+// Every PUT the page makes goes through here, so the afterEach can see one still in flight when its test ends.
+const putsInFlight = new Set()
+const trackedUpdate = (...args) => {
+  const put = new Promise((resolve) => resolve(updateMock(...args)))
+  putsInFlight.add(put)
+  const settled = () => putsInFlight.delete(put)
+  put.then(settled, settled)
+  return put
+}
 const readMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: (id) => ({ note: NOTES[id], isLoading: false, error: null, update: updateMock, refresh: vi.fn() }),
+  useJ2Note: (id) => ({ note: NOTES[id], isLoading: false, error: null, update: trackedUpdate, refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -63,13 +72,43 @@ beforeEach(() => {
     if (String(url).endsWith('/images')) return { ok: true, status: 200, json: async () => ({ url: IMG_URL, width: 800, height: 600 }) }
     return { ok: true, status: 200, json: async () => ({}) }
   })
+  warnSpy = vi.spyOn(console, 'warn')
 })
-afterEach(() => {
-  cleanup()
-  vi.useRealTimers()
-  vi.clearAllMocks()
-  __resetNotebookFlags()
-  localStorage.clear()
+// Past every backoff step of a failed save (1, 2, 4, 8, 15, 30 s) with room to spare.
+const DEAD_PAGE_HORIZON_MS = 65_000
+let warnSpy
+const retryWarnings = () => warnSpy.mock.calls.filter(([m]) => /autosave failed \(retry/.test(String(m))).length
+afterEach(async () => {
+  // ⛔⛔ NO TEST MAY LEAVE A DEAD PAGE BEHIND. This file installs no IndexedDB, so the offline layer is off here, and
+  // with it off a page whose unmount flush FAILS correctly keeps its retry (W8-R59): nothing durable holds the words.
+  // That retry then writes into whichever test runs next. ⚰️ It did: "the ticker write is refused" refused EVERY
+  // write, and its dead page's retry landed a body save in "a locked note takes no tag" whenever the box was slow.
+  // So the test's page is unmounted here, its own flush is allowed to land, and the clock is driven past every
+  // backoff step: any PUT after that, any retry armed after the unmount, or any PUT still in flight is a leak, and it
+  // fails THIS test by name rather than the next one by timing.
+  let leak = null
+  try {
+    const retriesBefore = retryWarnings()
+    cleanup() // the page unmounts: a pending debounce goes out now, once (the "save on unmount" flush)
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    const callsAfterFlush = updateMock.mock.calls.length
+    await act(async () => { await vi.advanceTimersByTimeAsync(DEAD_PAGE_HORIZON_MS) })
+    leak = {
+      putsAfterUnmount: updateMock.mock.calls.slice(callsAfterFlush).map(([patch]) => Object.keys(patch).sort()),
+      retriesArmedAfterUnmount: retryWarnings() - retriesBefore,
+      putsStillInFlight: putsInFlight.size,
+    }
+  } finally {
+    putsInFlight.clear()
+    warnSpy.mockRestore()
+    vi.useRealTimers()
+    vi.clearAllMocks()
+    __resetNotebookFlags()
+    localStorage.clear()
+  }
+  expect(leak, 'a dead editor page outlived its test').toEqual({
+    putsAfterUnmount: [], retriesArmedAfterUnmount: 0, putsStillInFlight: 0,
+  })
 })
 
 const switchesOn = () => latchNotebookFlags({
@@ -360,7 +399,14 @@ describe('accepting', () => {
   })
   it('the ticker write is refused: the alt STAYS, and the toast says what did and did not happen', async () => {
     switchesOn()
-    updateMock.mockRejectedValue(new Error('boom'))
+    // ⛔ Only the TICKER write is refused. ⚰️ This used `mockRejectedValue`, which refused EVERY write, the note's own
+    // body autosave included -- so the unmount flush at cleanup failed too, and with no IndexedDB in this file the
+    // dead page correctly kept its retry (W8-R59) and wrote this test's body into the NEXT test. The afterEach below
+    // now catches that shape by name.
+    updateMock.mockImplementation(async (patch) => {
+      if ('ticker' in patch) throw new Error('boom')
+      return { ...NOTES.n1, ...patch, updatedAt: '2026-10-01T14:09:00.000000+00:00' }
+    })
     const { editor } = await renderEditor()
     openDetails()
     await pasteImage()
