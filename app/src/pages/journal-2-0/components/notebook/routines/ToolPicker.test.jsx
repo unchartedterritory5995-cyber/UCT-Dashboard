@@ -2,11 +2,12 @@
 // It lists the member's routines (or trackers) that are not archived, plus "New routine" ("New tracker"), which opens
 // the editor and inserts the new one at the caret once it is saved. Every assertion reads what the member SEES, what
 // the server is SENT, or what the note now HOLDS. `fetch` is a fake routines server.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
 import { buildExtensions } from '../../../lib/tiptap'
 import { noteDayOf } from '../../../lib/blocks/toolDays'
+import { TOOL_NOT_ADDED, TOOL_SAVED_NOT_ADDED } from '../../../lib/toolEmbed'
 import ToolPicker, { PICKER_COPY } from './ToolPicker'
 import { openToolPicker, __resetToolPicker } from './openToolPicker'
 import { __resetEditorDoor } from './mountEditor'
@@ -119,13 +120,35 @@ describe('the tool picker', () => {
     expect(embeds(ed)).toHaveLength(1)
   })
 
-  it('a note the member cannot edit gets nothing', async () => {
+  it('a note the member cannot edit gets nothing, and the member is told why', async () => {
     installServer({ tools: { r1: routine() } })
     const ed = noteEditor()
+    const notify = vi.fn()
+    ed.storage.uctJournalWidgets.notify = notify
     ed.setEditable(false)
     await act(async () => { openToolPicker({ editor: ed, kind: 'routine' }) })
     await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Pre-market routine' })) })
     expect(embeds(ed)).toHaveLength(0)
+    expect(notify).toHaveBeenCalledWith(TOOL_NOT_ADDED, 'error')
+  })
+
+  it('m-2: a routine made through New and saved after the note turned read-only is kept, and the member is told', async () => {
+    const net = installServer({ tools: {} })
+    const ed = noteEditor()
+    const notify = vi.fn()
+    ed.storage.uctJournalWidgets.notify = notify
+    await act(async () => { openToolPicker({ editor: ed, kind: 'routine' }) })
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'New routine' })) })
+    await screen.findByRole('heading', { name: 'New routine' })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Evening review' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add an item' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Item 1' }), { target: { value: 'Log every trade' } })
+    ed.setEditable(false)                                                 // locked while the member was writing
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })) })
+    await waitFor(() => expect(notify).toHaveBeenCalledWith(TOOL_SAVED_NOT_ADDED, 'error'))
+    expect(net.sent('POST', '/api/j2/routines')).toHaveLength(1)          // the routine itself was made
+    expect(embeds(ed)).toHaveLength(0)
+    expect(TOOL_SAVED_NOT_ADDED).toBe("Saved in My tools. This note can't be changed right now, so it wasn't added here.")
   })
 })
 

@@ -25,6 +25,7 @@ import { installFetch, answer, refusal, payload, callsTo, bodyOf, deferred } fro
 import { openWidgetBuilder } from './openWidgetBuilder'
 import { openRoutineEditor } from '../routines/openRoutineEditor'
 import { FIRST_STEP } from './ExamplesGallery'
+import { TOOL_SAVED_NOT_ADDED } from '../../../lib/toolEmbed'
 
 // Wave 8 on; wave 9 only where a test turns it on (Task 9.19's first step).
 const waves = vi.hoisted(() => ({ nine: false }))
@@ -760,5 +761,12 @@ describe('ExamplesGallery: the first step on sample data', () => {
     args.onSaved({ id: 'r-new', name: 'Pre-market routine' })
     expect(calls).toEqual([['routine', { routineId: 'r-new', day: '2026-10-27', bind: 'note-day', display: 'items' },
       { searchText: '[routine: Pre-market routine · For Tue Oct 27]' }]])
+    // m-2: the note turned read-only meanwhile: the routine is kept (it was saved), nothing goes in, and it is said.
+    const notify = vi.fn()
+    ed.storage.uctJournalWidgets.notify = notify
+    ed.isEditable = false
+    args.onSaved({ id: 'r-2', name: 'Pre-market routine' })
+    expect(calls).toHaveLength(1)
+    expect(notify).toHaveBeenCalledWith(TOOL_SAVED_NOT_ADDED, 'error')
   })
 })

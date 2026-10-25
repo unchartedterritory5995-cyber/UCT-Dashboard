@@ -696,8 +696,11 @@ const tools = background(() => Promise.all([import('../../lib/toolsCrud'), widge
   // A create, save, archive, delete or restore through the client anywhere in this tab drops the rows.
   c.onToolsChanged(dropTools)
   const [r, t] = await Promise.all([c.listTools('routine'), c.listTools('tracker')])
-  if (!r.ok && !t.ok) throw r
-  return { f, routine: r.ok ? r.data.filter(liveTool) : [], tracker: t.ok ? t.data.filter(liveTool) : [] }
+  // Fix round 1 (m-3): EITHER read failing is a failed load. A kind is never cached as an empty list: the last good
+  // rows stay (background() keeps them), the 30 s back-off reads again, and the picker item says its own failure line.
+  if (!r.ok) throw r
+  if (!t.ok) throw t
+  return { f, routine: r.data.filter(liveTool), tracker: t.data.filter(liveTool) }
 }))
 function dropTools() { tools.drop() }
 function toolRow(kind, tool) {

@@ -337,6 +337,37 @@ describe('the routine and tracker rows (wave 9 on)', () => {
     expect(net.lists().length).toBe(n + 1)                              // only the read made above
   })
 
+  it('m-3: one of the two reads failing caches no empty list; the next / after the back-off reads again', async () => {
+    const net = installNet({ routines: { u1: [routine('r1', 'Pre-market routine')] }, trackers: { u1: [tracker('t1', 'Sleep')] } })
+    let now = Date.now()
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      expect(titles(await loaded(''))).toEqual(expect.arrayContaining(['Pre-market routine', 'Sleep']))
+      // A minute on, the routines read fails (a 429) while the trackers read succeeds.
+      now += 61_000
+      const real = global.fetch
+      global.fetch = vi.fn((url, init) => (String(url).startsWith('/api/j2/routines?')
+        ? Promise.resolve(json(429, { detail: { code: 'rate', message: 'Too many.' } })) : real(url, init)))
+      const during = titles(await loaded(''))
+      expect(during).toContain('Pre-market routine')                    // the last good rows stay; never an empty list
+      expect(during).toContain('Sleep')
+      // From nothing, a half-failed read caches nothing either: the doors only, no empty kind.
+      __resetTools()
+      const fresh = titles(await loaded(''))
+      expect(fresh).not.toContain('Sleep')                              // the good half is not cached alone
+      expect(fresh).toEqual(expect.arrayContaining([ROUTINE_ITEM, TRACKER_ITEM]))
+      // The routines answer again; after the 30 s back-off the next / reads both again.
+      global.fetch = real
+      now += 31_000
+      const reads = net.lists().length
+      const after = titles(await loaded(''))
+      expect(after).toEqual(expect.arrayContaining(['Pre-market routine', 'Sleep']))
+      expect(net.lists().length).toBe(reads + 2)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('W9-R49: a block restore through toolsApi.unarchive drops Mine, which re-reads exactly once', async () => {
     const net = installNet({ routines: { u1: [routine('r1', 'Pre-market routine')] } })
     expect(titles(await loaded(''))).not.toContain('Back again')

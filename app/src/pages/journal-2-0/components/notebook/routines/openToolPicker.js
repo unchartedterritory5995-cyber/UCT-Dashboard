@@ -16,7 +16,7 @@ import { createRoot } from 'react-dom/client'
 import ToolPicker from './ToolPicker'
 import { openRoutineEditor } from './openRoutineEditor'
 import { openTrackerEditor } from './openTrackerEditor'
-import { insertToolBlock } from '../../../lib/toolEmbed'
+import { TOOL_NOT_ADDED, TOOL_SAVED_NOT_ADDED, placeTool } from '../../../lib/toolEmbed'
 
 let _open = null
 
@@ -74,13 +74,14 @@ export function openToolPicker({ editor = null, kind, navigate = null } = {}) {
     kind,
     onClose: () => close(),
     onPick: (tool) => {
-      insertToolBlock(editor, kind, tool)
+      placeTool(editor, kind, tool, TOOL_NOT_ADDED)
       close(() => {})
     },
     onNew: () => close(() => {
       openEditor({
         editor,
-        onSaved: (tool) => { insertToolBlock(editor, kind, tool) },
+        // m-2: a note that turned read-only while the editor was open keeps nothing, and says the tool was kept.
+        onSaved: (tool) => { placeTool(editor, kind, tool, TOOL_SAVED_NOT_ADDED) },
         returnFocus: editor?.view?.dom || null,
         navigate: typeof navigate === 'function' ? navigate : null,
       })

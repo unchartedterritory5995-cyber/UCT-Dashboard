@@ -1,7 +1,7 @@
 import { memo, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { DEFS_URL, getJson, postJson } from '../../../lib/builtWidgets'
 import { widgetsWaveOn, doorLostSentence } from '../../../lib/notebookWidgetsFlags'
-import { insertToolBlock } from '../../../lib/toolEmbed'
+import { TOOL_SAVED_NOT_ADDED, placeTool } from '../../../lib/toolEmbed'
 import { BuilderDoor } from './builderDoor'
 import useMediaQuery from '../../../../../hooks/useMediaQuery'
 import { useIsPhone } from '../../../../../hooks/useBreakpoint'
@@ -290,7 +290,7 @@ function ExamplesGallery({
     const go = () => import('../routines/openRoutineEditor').then((m) => {
       m.openRoutineEditor({
         starter: 'premarket', editor,
-        onSaved: editor ? (routine) => { insertToolBlock(editor, 'routine', routine) } : undefined,
+        onSaved: editor ? (routine) => { placeTool(editor, 'routine', routine, TOOL_SAVED_NOT_ADDED) } : undefined,
         returnFocus: editor?.view?.dom || null,
       })
     }, () => {
