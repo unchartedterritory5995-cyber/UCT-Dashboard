@@ -12,7 +12,7 @@ import {
 } from './SlashMenu'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { buildExtensions } from '../../lib/tiptap'
-import { __resetBuiltCaches } from '../../lib/builtWidgets'
+import { __resetBuiltCaches, MARK_EXAMPLE, MARK_YOURS } from '../../lib/builtWidgets'
 import { __resetDedicatedQueue } from '../../lib/dedicatedWidgets'
 import { WIDGET_KINDS } from '../../lib/notebookWidgets'
 import { recordUse, DEFAULTS, BARE_MAX, ALL_WIDGETS } from '../../lib/builtInWidgets'
@@ -297,5 +297,29 @@ describe('dark while wave 10 is off', () => {
     __resetNotebookFlags()
     latchNotebookFlags(ALL_ON)
     expect(titles(await loaded('risk'))).toContain('Risk left today')
+  })
+})
+
+// ── The waves 8-10 ship-walk fix round, W8.8: whose widget a row is ─────────────────────────────────────────────
+describe('a typed query that finds the firm example and the member widget of one name (W8.8)', () => {
+  it('marks the example "Example" and the member\'s own "Yours", in the option\'s own text (its accessible name)', async () => {
+    installNet()
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init = {}) => (String(url) === '/api/j2/widget-definitions' && (init.method || 'GET') === 'GET'
+      ? json(200, { widgets: [{ id: 'd-mine', name: 'Daily P&L bars', summary: 'Net P&L by day, my version' }] })
+      : base(url, init)))
+    const items = await loaded('daily p&l')
+    const twins = items.filter((i) => i.title === 'Daily P&L bars')
+    expect(twins).toHaveLength(2)
+    expect(twins.map((i) => i.mark).sort()).toEqual([MARK_EXAMPLE, MARK_YOURS].sort())
+    const { getByRole, getAllByRole } = render(<SlashList items={twins} command={() => {}} />)
+    expect(getAllByRole('option')).toHaveLength(2)                       // two options, never one key twice
+    expect(getByRole('option', { name: /^Daily P&L bars Example/ })).toBeTruthy()
+    expect(getByRole('option', { name: /^Daily P&L bars Yours/ })).toBeTruthy()
+  })
+
+  it('CONTROL: an item with no mark renders its title alone', () => {
+    const { getByRole } = render(<SlashList items={[{ title: 'Heading 1', description: 'Big' }]} command={() => {}} />)
+    expect(getByRole('option', { name: 'Heading 1 Big' })).toBeTruthy()
   })
 })

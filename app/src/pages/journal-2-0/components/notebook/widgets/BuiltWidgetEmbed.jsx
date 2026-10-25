@@ -36,9 +36,11 @@ import styles from './BuiltWidgetEmbed.module.css'
  * bar, point, cell or row opens the rows behind it (DrillPanel, which is the only request a view makes, and only
  * then); a public page draws no drill.
  *
- * ⛔ The archive image (ruling R-25, WidgetEmbedView's self-archive): while `share === true` this body is what is
- * rasterised for a public page, so it draws no account NAME (the scope label; the views number accounts), and no
- * summary, subtitle or ⋯ menu, whose words can name the member's filters.
+ * ⛔ A public page (the W10.7 / W8.7 walk fix): `shareView` draws this body from the params the SERVER reduced and
+ * relabelled (public_note_payload), never from the archived image, which is a picture of the member's editor. It
+ * draws only the result and the title: no author control (the frame's switch, See it now, Change are absent with
+ * `editable` false; Show as table and the ⋯ menu are absent here), no drill, and no summary, subtitle or scope label,
+ * whose words can name the member's filters. Those three stay hidden in the editor too while `share === true`.
  */
 const VIEWS = {
   number: NumberView, compare: CompareView, table: TableView, bar: BarView, line: LineView,
@@ -189,7 +191,7 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
       {how && (
         // Its opener (a menu item) is gone once the menu closes, so focus comes back to the ⋯ button.
         <HowMadeSheet open onClose={() => { setHow(false); buttonRef.current?.focus() }} summary={params.summary}
-          shelf={shelf} onEdit={edit}
+          shelf={shelf} onEdit={edit} placedPlan={isRecord(params.def) ? params.def : null}
           latest={latest} onApply={latest ? () => onApplyLatest(latest.rev) : undefined} />
       )}
     </span>
@@ -233,7 +235,8 @@ export default function BuiltWidgetEmbed({
   const subtitle = shared ? '' : subtitleOf(p)
   const extra = Number(p.truncated) > 0 ? `${p.truncated} more not shown.` : ''
   const sourceLine = [accountSourceLine(p), extra].filter(Boolean).join(' · ') || null
-  const canToggle = !empty && view !== 'table'
+  // Show as table is a control on the member's own page; a public page draws the result only (the W8.7 walk fix).
+  const canToggle = !empty && view !== 'table' && !shareView
   const canDrill = !shareView && !empty
   const onDrill = canDrill
     ? (cell, what, opener) => {

@@ -236,7 +236,9 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // Public share page (SharedNotePage stamps shareView before the editor
   // view exists): every embed renders its ARCHIVED IMAGE — a public reader
   // never mounts live components that poll auth-scoped APIs. The durable
-  // image IS the shared artifact.
+  // image IS the shared artifact -- except a built widget, drawn from the
+  // server-reduced params it carries (a snapshot: it fetches nothing on mount;
+  // `builtPublic` below, the W10.7 walk fix).
   const shareView = !!editor?.storage?.uctJournalWidgets?.shareView
 
   // R-T12-C (fix round, I-1): the market context stamp's "Capture now" writes its params the way a
@@ -661,7 +663,13 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsArchive, editor, inView, archiveEpoch])
 
-  const archived = attrs.fallback?.url
+  // ⛔ The W10.7 / W8.7 walk fix: on a public page a BUILT widget is drawn from its params, which the server reduced
+  // and relabelled (public_note_payload: the result only, a note's title as "Note 1", an account as "Account 1"),
+  // NEVER from its archived image. That image is a picture of the member's editor: their real note titles, folder and
+  // account names, and their own controls. The server no longer sends it; this branch never shows one either (an
+  // older server's, or a hand-made body's), and its fallback is the caption line, never the image.
+  const builtPublic = shareView && attrs.widgetId === 'builtWidget'
+  const archived = attrs.fallback?.url && !builtPublic
     ? <ArchivedImage attrs={attrs} />
     : <PlaceholderChip attrs={attrs} reason={decision.reason} shareView={shareView} />
 
@@ -779,7 +787,16 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   ].filter(Boolean)
 
   let body = archived
-  if (decision.kind === 'live' && !shareView) {
+  if (builtPublic) {
+    const Built = EMBED_COMPONENTS.builtWidget
+    body = (
+      <EmbedErrorBoundary fallback={archived}>
+        <Suspense fallback={<div className={styles.loading} style={{ height }} {...RENDER_UNAVAILABLE} />}>
+          <Built attrs={attrs} height={height} editable={false} shareView />
+        </Suspense>
+      </EmbedErrorBoundary>
+    )
+  } else if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
     body = !Live ? archived : !inView ? (
       <div className={styles.loading} style={{ height }} {...RENDER_UNAVAILABLE} />

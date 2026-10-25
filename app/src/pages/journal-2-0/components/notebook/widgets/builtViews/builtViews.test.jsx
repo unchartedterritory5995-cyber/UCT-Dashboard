@@ -639,7 +639,9 @@ describe('built widget views', () => {
     expect(Number(flagged.getAttribute('y'))).toBeGreaterThan(Number(label.getAttribute('y')))
   })
 
-  it('R-25 canary: a SHARED bar or heat view draws no account name, and the drill still asks by the real one', () => {
+  it('W10.7 walk fix: a SHARED view draws the labels it is given (the server numbers them); the drill asks by them', () => {
+    // No client relabel table any more: a public page hands this view the server's reduced params ("Account 1"),
+    // and the member's own page hands it their own names, shared or not.
     const CANARY = 'CANARY-ACCT-Roth'
     const bar = { view: 'bar', labelKind: 'account', measures: MONEY, value: { v1: 1, n1: 2, n: 2 }, rows: [
       { label: CANARY, v1: 10, n1: 1, s1: '', n: 1 }, { label: 'Main', v1: 20, n1: 1, s1: '', n: 1 }] }
@@ -647,15 +649,12 @@ describe('built widget views', () => {
       { label: CANARY, v1: 10, n1: 1, s1: '' }, { label: 'Main', v1: -20, n1: 1, s1: '' }] }
     for (const p of [bar, heat]) {
       const shared = render(<BuiltWidgetEmbed attrs={attrsOf({ ...p, share: true })} />)
-      expect(shared.container.innerHTML, p.view).not.toContain(CANARY)       // text, titles and aria-labels
-      expect(shared.container.textContent, p.view).toContain('Account 1')
+      expect(shared.container.innerHTML, p.view).toContain(CANARY)
+      expect(shared.container.textContent, p.view).not.toContain('Account 1')
       shared.unmount()
-      const own = render(<BuiltWidgetEmbed attrs={attrsOf({ ...p, share: false })} />)
-      expect(own.container.innerHTML, p.view).toContain(CANARY)
-      own.unmount()
     }
     const model = tableModelOf({ ...BASE, ...bar, share: true })
-    expect(model.rows.map((r) => r.label)).toEqual(['Account 1', 'Account 2'])
+    expect(model.rows.map((r) => r.label)).toEqual([CANARY, 'Main'])
     expect(model.rows.map((r) => r.drill)).toEqual([{ label: CANARY }, { label: 'Main' }])
   })
   // ── fix round 2 ─────────────────────────────────────────────────────────────────────────────────────────

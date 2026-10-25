@@ -37,6 +37,20 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+/* The W8.8 walk fix: whose widget a row inserts ("Example" or "Yours"). Ink tokens only (D-A4): the description's
+   own muted ink and the menu's own edge, so it carries the contrast pair the a11y rail already measured. */
+.itemMark {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
 .groupLabel {
   font-size: 10px;
   font-weight: 700;

@@ -27,9 +27,6 @@ export function measuresOf(p) {
   return list.slice(0, SLOTS).map((m) => (isRecord(m) ? m : {}))
 }
 
-/** The noun a measure counts in ("Not enough trades yet (3)", "Not enough days yet (2)"). */
-export const unitWord = (unit) => (unit === 'days' ? 'days' : unit === 'positions' ? 'positions' : 'trades')
-
 const NOUNS = {
   trades: ['trade', 'trades'], decisive: ['decisive trade', 'decisive trades'], days: ['day', 'days'],
   entries: ['entry', 'entries'], positions: ['position', 'positions'],
@@ -41,6 +38,11 @@ export function countNoun(unit, n) {
   const pair = typeof unit === 'string' && Object.hasOwn(NOUNS, unit) ? NOUNS[unit] : NOUNS.trades
   return n === 1 ? pair[0] : pair[1]
 }
+
+/** The noun a measure counts in ("Not enough trades yet (3)", "Not enough notes yet (2)"): the unit the server
+ *  served, through the ONE noun table (`countNoun`), so a notes or options widget never speaks about trades (the
+ *  W10.3 walk fix). A decisive-trade measure still says "trades" here, as it always did. */
+export const unitWord = (unit) => (unit === 'decisive' ? 'trades' : countNoun(unit, 2))
 
 /** The count line under one total figure: "from 47 trades", or, when the measure is known on fewer rows than the
  *  widget read (`coverage[i-1].have < total`), "from 9 of 47 trades" (an R measure adds "(38 have no stop)").
@@ -137,33 +139,10 @@ export function cellOf(row, i, measure) {
     n: finite(n) ? n : null }
 }
 
-/** Ruling R-25 on the client: a SHARED widget's body becomes the archive image a public page shows, so it never
- *  draws an account NAME. Where the payload marks a label field as an account (`labelKind` / `label2Kind` ===
- *  'account'), each distinct label becomes "Account N", numbered by first appearance across rows, then series, then
- *  cells, so one account keeps one number: the same rule as the server's public_note_payload._relabel_accounts.
- *  The two fields never share a numbering. Unshared, or with no account label, `p` comes back as it is. Every view
- *  reads its rows through this (tableModelOf does), so a chart view added later inherits it. */
-export function relabelAccounts(p) {
-  if (!isRecord(p) || p.share !== true) return p
-  const fields = [['labelKind', 'label'], ['label2Kind', 'label2']].filter(([k]) => p[k] === 'account')
-  if (!fields.length) return p
-  const out = { ...p }
-  for (const key of ['rows', 'series', 'cells']) {
-    if (Array.isArray(p[key])) out[key] = p[key].map((it) => (isRecord(it) ? { ...it } : it))
-  }
-  for (const [, field] of fields) {
-    const numbering = new Map()
-    for (const key of ['rows', 'series', 'cells']) {
-      for (const it of Array.isArray(out[key]) ? out[key] : []) {
-        if (!isRecord(it) || it[field] === null || it[field] === undefined) continue
-        const name = String(it[field])
-        if (!numbering.has(name)) numbering.set(name, `Account ${numbering.size + 1}`)
-        it[field] = numbering.get(name)
-      }
-    }
-  }
-  return out
-}
+// ⛔ No relabelling here (the W10.7 walk fix, superseding R-25's client half). A public page draws a built widget
+// from the params the SERVER reduced and relabelled (public_note_payload: "Account 1", "Note 1", "Folder 1" ...,
+// numbered by widget_engine.payload.label_kinds), never from an image of this body. So this body always draws the
+// member's own labels, and the client keeps no second relabel table that could drift from the server's.
 
 // ── Wave 10 (Task 10.18): the engine's display keys (widget_engine/payload.py, Task 10.5) ──────────────────────
 // `drawdown.line`, `stop.line` and a goal-less `notice` are SERVER sentences: shown verbatim, never rebuilt here.
@@ -266,8 +245,8 @@ export const tableCarriesStop = (view) => TOTAL_VIEWS.has(view)
 const plain = (text) => ({ text, small: false, hidden: false })
 
 /** The cell a drill asks the server for (drill.clean_cell): `{}` for a total, `{label}` / `{label, label2}` for a
- *  group, `{d, x, y}` for a scatter point. It is built from the RAW item, never the relabelled one: a shared
- *  widget draws "Account 1", but the server finds the group by its real label. null when it cannot be asked. */
+ *  group, `{d, x, y}` for a scatter point, built from the raw item (the server finds a group by its real label).
+ *  null when it cannot be asked. A public page draws no drill. */
 function drillCellOf(view, item) {
   if (!isRecord(item)) return null
   if (view === 'scatter') {
@@ -292,12 +271,11 @@ const listOf = (p, view) => {
 
 /** The view's own rows as one table: `{columns: [{key, label}], rows: [{key, cells: [{text, small, hidden}],
  *  flagged, label, label2, values, drill}]}`. It is what TableView draws, what "Show as table" (TableAlt) lays
- *  out AND what every chart view draws, so all of them read the SAME rows through the SAME account relabelling
- *  (R-25): a number reads its total, a table, bar or list its rows, a line its series, a heat map its cells and a
- *  scatter its points. `label`/`label2` are the display labels, `values` the measure cells, `drill` the cell the
+ *  out AND what every chart view draws, so all of them read the SAME rows: a number reads its total, a table, bar
+ *  or list its rows, a line its series, a heat map its cells and a scatter its points. `label`/`label2` are the display labels, `values` the measure cells, `drill` the cell the
  *  drill-down asks for (built from the raw item; `{}` for a total). */
 export function tableModelOf(raw) {
-  const p = relabelAccounts(raw)
+  const p = raw
   const measures = measuresOf(p)
   const view = typeof p?.view === 'string' ? p.view : 'number'
   const w10 = w10Of(raw)

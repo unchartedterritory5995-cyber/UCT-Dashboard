@@ -489,6 +489,12 @@
   margin: 0;
   font-size: 13px;
 }
+/* The W10.4 walk fix: what an update changes, one plain line each. */
+.howChanges {
+  margin: 0;
+  padding-left: 1.2em;
+  line-height: 1.5;
+}
 .howCompare {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

@@ -37,6 +37,10 @@ export const FAILURE_COPY = Object.freeze({
   paid: 'Widgets need a paid plan.',
 })
 /** Anything else (a network error, a 500, an unreadable answer): the snapshot is untouched. */
+/** The W8.8 walk fix: a typed / query can list one of the firm's examples and the member's own widget under the same
+ *  name, so every such row says whose it is. Shown beside the row's title (SlashMenu `item.mark`). */
+export const MARK_EXAMPLE = 'Example'
+export const MARK_YOURS = 'Yours'
 export const FAILED_SENTENCE = "Couldn't refresh. The saved snapshot is unchanged."
 
 /** The member sentence for a failed call. `superseded` is internal (the caller already has a newer request in

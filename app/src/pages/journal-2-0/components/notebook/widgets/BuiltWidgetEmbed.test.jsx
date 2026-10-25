@@ -110,35 +110,35 @@ describe('BuiltWidgetEmbed', () => {
     expect(screen.getByRole('button', { name: 'Show as table' })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('R-25: a SHARED widget draws no account name (Account 1, 2 by first appearance); unshared it does', () => {
+  it('W10.7 walk fix: the editor body never relabels (no client relabel table); a public render shows no control', () => {
+    // R-25's client half is gone: a public page draws this body from the params the SERVER reduced and numbered
+    // (public_note_payload), never from an image of the editor. So the member's own body draws their own labels,
+    // shared or not, and the client keeps no second table that could drift from the server's.
     const CANARY = 'CANARY-ACCT-Roth'
     const byAccount = { ...TABLE, view: 'table', labelKind: 'account', label2Kind: 'account', rows: [
       { label: CANARY, label2: 'Main', v1: 10, n1: 1, s1: '', n: 1 },
       { label: 'Main', label2: CANARY, v1: 20, n1: 1, s1: '', n: 1 },
-      { label: CANARY, label2: 'Main', v1: 30, n1: 1, s1: '', n: 1 },
     ] }
     const shared = render(<BuiltWidgetEmbed attrs={attrsOf({ ...byAccount, share: true })} />)
-    const body = shared.container.textContent
-    expect(body).not.toContain(CANARY)
-    expect(body).not.toContain('Main account')                       // nor the scope label
-    const rows = [...shared.container.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].slice(0, 2)
-      .map((td) => td.textContent))
-    // one account keeps one number; label and label2 are numbered separately
-    expect(rows).toEqual([['Account 1', 'Account 1'], ['Account 2', 'Account 2'], ['Account 1', 'Account 1']])
+    expect(shared.container.textContent).toContain(CANARY)
+    expect(shared.container.textContent).not.toContain('Account 1')
+    expect(shared.container.textContent).not.toContain('Main account')           // the scope label stays hidden
     shared.unmount()
-    // the table alternative of a chart view too
-    const asBar = render(<BuiltWidgetEmbed attrs={attrsOf({ ...byAccount, view: 'bar', share: true })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
-    expect(asBar.container.textContent).not.toContain(CANARY)
-    expect(screen.getByTestId('built-table-alt').textContent).toContain('Account 1')
-    asBar.unmount()
-    // control: unshared, the member sees their own account names
-    const own = render(<BuiltWidgetEmbed attrs={attrsOf({ ...byAccount, share: false })} />)
-    expect(own.container.textContent).toContain(CANARY)
-    own.unmount()
-    // control: shared with no account label, labels are left alone
-    const plain = render(<BuiltWidgetEmbed attrs={attrsOf({ ...TABLE, view: 'bar', share: true })} />)
-    expect(plain.container.textContent).toContain('Flag')
+    // A public render (shareView) of the server's reduced params draws exactly those, and none of the member's
+    // controls: no Show as table, no See it now, no Change, no share switch, no ⋯ menu (the W8.7 walk fix).
+    const reduced = { ...byAccount, view: 'bar', share: true, rows: [
+      { label: 'Account 1', label2: 'Account 2', v1: 10, n1: 1, s1: '', n: 1 },
+      { label: 'Account 2', label2: 'Account 1', v1: 20, n1: 1, s1: '', n: 1 }] }
+    const pub = render(<BuiltWidgetEmbed attrs={attrsOf(reduced)} shareView editable={false} />)
+    expect(pub.container.textContent).toContain('Account 1')
+    for (const name of ['Show as table', 'See it now', 'Change', 'More for this widget']) {
+      expect(screen.queryByRole('button', { name })).toBeNull()
+    }
+    expect(screen.queryByText('Show on shared pages')).toBeNull()
+    pub.unmount()
+    // control: the member's own page DOES offer Show as table (the public absence is the shareView rule)
+    render(<BuiltWidgetEmbed attrs={attrsOf(reduced)} />)
+    expect(screen.getByRole('button', { name: 'Show as table' })).toBeInTheDocument()
   })
 
   it('M5: a hidden value with no count says Not enough trades yet, with no number', () => {

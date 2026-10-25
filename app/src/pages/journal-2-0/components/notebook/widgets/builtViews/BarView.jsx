@@ -11,7 +11,7 @@ import { snapshotStyles as s } from '../SnapshotFrame'
  * fetch. A bar with no value draws no bar and says why ("no data", "Not enough trades yet (n)"), never a
  * zero-length bar that reads as $0. Negatives grow left from one zero line. Each measure has its own scale (they
  * can be dollars and a rate), and every bar carries its value as text, so no bar is read by length alone. Rows come
- * from `tableModelOf`, so a shared widget's account names are already "Account N" here (R-25).
+ * from `tableModelOf`; on a public page they are the server's relabelled ones ("Account N", the W10.7 walk fix).
  *
  * The value column is MEASURED from its widest line (textW, as Line and Scatter size their axis), the hidden
  * sentence and the "small sample" badge included, so nothing is clipped. When one line each would take more than

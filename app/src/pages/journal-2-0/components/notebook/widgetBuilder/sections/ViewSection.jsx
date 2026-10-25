@@ -3,6 +3,7 @@ import Section from './Section'
 import { VIEW_LABELS, viewReason, autoView, rangeIsUnbounded, reasonOf } from '../builderCatalog'
 import styles from '../WidgetBuilderSheet.module.css'
 import { ViewGlyph } from './ViewGlyph'
+import { unitWord } from '../../widgets/builtViews/builtModel'
 
 /**
  * "Show it as": the view thumbnails, a RADIO GROUP (native radios, styled), with the suggested one marked
@@ -11,7 +12,8 @@ import { ViewGlyph } from './ViewGlyph'
  * target, the accent colour and whether each figure shows its count.
  */
 export default function ViewSection({ cat, plan, unit = 'trades', onView, onCompare, onDisplay }) {
-  const noun = unit === 'days' ? 'days' : unit === 'positions' ? 'positions' : 'trades'
+  // The W10.3 walk fix: the source's OWN served unit, through the one noun table (notes say notes).
+  const noun = unitWord(unit)
   const name = useId()
   const accentName = useId()
   const targetId = useId()

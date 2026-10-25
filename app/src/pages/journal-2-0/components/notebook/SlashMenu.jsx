@@ -653,7 +653,7 @@ function builtRow(v, w) {
     capture: (params) => v.b.runBuilt(params).then((got) => (got.ok ? { ok: true, payload: got.data }
       : got.code === 'offline' ? { ok: false, reason: 'offline' } : { ok: false, message: v.b.failureText(got.code, got.message) })),
   }
-  return { title, defId: w.id, keywords: ['widget'], description: typeof w.summary === 'string' && w.summary ? w.summary : 'A widget you built',
+  return { title, defId: w.id, keywords: ['widget'], mark: v.b.MARK_YOURS, description: typeof w.summary === 'string' && w.summary ? w.summary : 'A widget you built',
     command: snapshotCommand(kind, { defId: w.id }) }
 }
 export function builtItems(query, editor) {
@@ -1174,7 +1174,7 @@ export const SlashList = forwardRef((props, ref) => {
         return [
           label ? <div key={`g-${item.group}`} className={styles.groupLabel} aria-hidden="true">{label}</div> : null,
           <button
-            key={item.title}
+            key={`${i}:${item.title}`}
             type="button"
             role="option"
             id={`${menuId}-opt-${i}`}
@@ -1183,7 +1183,12 @@ export const SlashList = forwardRef((props, ref) => {
             onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
             onMouseEnter={() => setSelectedIndex(i)}
           >
-            <div className={styles.itemTitle}>{item.title}</div>
+            <div className={styles.itemTitle}>
+              {item.title}
+              {/* The W8.8 walk fix: whose widget this row inserts (an example or the member's own), in the option's
+                  own text, so it is part of its accessible name. */}
+              {item.mark && <>{' '}<span className={styles.itemMark}>{item.mark}</span></>}
+            </div>
             <div className={styles.itemDesc}>{item.description}</div>
           </button>,
         ]

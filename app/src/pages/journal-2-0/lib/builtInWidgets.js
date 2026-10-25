@@ -18,7 +18,7 @@
 // fact anything else reads, and a storage that throws or comes back empty leaves the defaults alone.
 import { WIDGET_KINDS, widgetKind } from './notebookWidgets'
 import { widgetsWaveOn } from './notebookWidgetsFlags'
-import { BUILT_KIND, loadShelfIndex, runBuilt, failureText } from './builtWidgets'
+import { BUILT_KIND, loadShelfIndex, runBuilt, failureText, MARK_EXAMPLE } from './builtWidgets'
 import { dedicatedSnapshotKind, ACTUAL_CMD } from './notebookWidgetsFetch'
 
 /** A bare `/` shows at most this many ready-made widgets. */
@@ -109,7 +109,9 @@ function rowOf(card, insert, uid) {
   const counted = (cmd) => (args) => Promise.resolve(cmd(args)).then((r) => { if (r && r.ok) recordUse(uid, card.id); return r })
   const base = { title: card.title, description: card.description, keywords: card.keywords }
   if (card.shelf) {
-    return { ...base, command: counted(insert(shelfSnapshotKind(card.title), { defId: card.id, defRev: card.shelf.rev })) }
+    // One of the firm's examples: marked, beside a member's own widget of the same name (the W8.8 walk fix).
+    return { ...base, mark: MARK_EXAMPLE,
+      command: counted(insert(shelfSnapshotKind(card.title), { defId: card.id, defRev: card.shelf.rev })) }
   }
   if (card.dedicated?.pick) {
     // Plan vs actual: a trade first, through the /actual rows (the /recap pick grammar).

@@ -10,6 +10,9 @@
 // ⛔ Member text (setups, tags, symbols, account names) is never used as an object key here: lookups go through
 // `Map`, so a setup named "__proto__" is an ordinary string.
 
+// The W10.3 walk fix: a coverage line counts in the source's own served unit ("of 12 notes"), the one noun table.
+import { unitWord } from '../widgets/builtViews/builtModel'
+
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 /** Measure themes in the order the picker shows them (spec 5.2). */
@@ -448,7 +451,6 @@ const NEEDS_WORDS = new Map([
   ['days_open', 'Days open'],
 ])
 
-const NOUN = new Map([['trades', 'trades'], ['decisive', 'trades'], ['days', 'days'], ['positions', 'positions']])
 
 /**
  * Coverage per `needs` value, from the last preview: every preview measure that needs a per-row value carries
@@ -474,5 +476,5 @@ export function coverageText(cat, measure, byNeed) {
   if (!need || !(byNeed instanceof Map) || !byNeed.has(need)) return ''
   const c = byNeed.get(need)
   const word = NEEDS_WORDS.get(need) || cap(String(need).replace(/_/g, ' '))
-  return `${word} known on ${c.have} of ${c.total} ${NOUN.get(c.unit) || 'trades'}`
+  return `${word} known on ${c.have} of ${c.total} ${unitWord(c.unit)}`
 }
