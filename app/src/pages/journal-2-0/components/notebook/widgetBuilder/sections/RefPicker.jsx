@@ -50,7 +50,7 @@ export default function RefPicker({ cat, kind, taken = null, current = null, onL
         </div>
       )}
       {state && !state.failed && state.list.length === 0 && (
-        <p className={styles.sectionHint}>{`You have no ${noun} yet. Make one in My tools.`}</p>
+        <p className={styles.sectionHint}>{`You don't have a ${kind} yet. Make one in My tools.`}</p>
       )}
       {state && state.list.length > 0 && (
         <ul className={styles.pickerList} aria-label={kind === 'tracker' ? 'Trackers' : 'Routines'}>

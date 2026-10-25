@@ -263,6 +263,24 @@ export const SURFACES = Object.freeze({
   // Wave 9 Task 9.19: the tool picker /routine and /track open (rail a11y/toolPicker.a11y.test.jsx: a list with New
   // routine; none yet; a list that cannot be read, with Try again).
   'components/notebook/routines/ToolPicker.jsx': { recipe: 'tool-picker' },
+  // Wave 9 Task 9.17 fix 1 (ruling W9-R50): the widget builder, in the derived population (rail
+  // a11y/widgetBuilder.a11y.test.jsx: the main level with a preview, the examples screen, a filter being edited,
+  // "Which routine" with a routine taken, the ranges on a routine source, the Update-all question).
+  'components/notebook/widgetBuilder/WidgetBuilderSheet.jsx': { recipe: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/PreviewPane.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/Section.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/SourceSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/MeasureSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/SplitSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/ViewSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/ViewGlyph.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/NameSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/ExamplesGallery.jsx': { recipe: 'widget-builder-examples' },
+  'components/notebook/widgetBuilder/ExampleCard.jsx': { coveredBy: 'widget-builder-examples' },
+  'components/notebook/widgetBuilder/miniPreview.jsx': { coveredBy: 'widget-builder-examples' },
+  'components/notebook/widgetBuilder/sections/WhichOnesSection.jsx': { recipe: 'widget-builder-filter-editor' },
+  'components/notebook/widgetBuilder/sections/RefPicker.jsx': { recipe: 'widget-builder-ref-taken' },
+  'components/notebook/widgetBuilder/SaveQuestion.jsx': { recipe: 'widget-builder-save-question' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

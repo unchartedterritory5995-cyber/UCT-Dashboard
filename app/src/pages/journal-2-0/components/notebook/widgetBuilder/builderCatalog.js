@@ -85,6 +85,8 @@ export function refName(field, ref, names) {
  * (plan.S_TOOL_ACCOUNTS) and no "last N trades" range (plan.S_UNKNOWN_RANGE); the builder hides the one and disables
  * the other. ⚠️ A rule mirrored from the engine: the catalog does not yet say which ranges a source refuses, so a
  * wrong mirror costs the engine's refusal in the preview, never a saved bad widget. The 9.20 merge may serve it.
+ * ⚠️ It does not cover be's wave 10 WAVE10_SOURCES (plan.py also refuses `last_*_trades` there); carry-over for 9.20
+ * (fix 1, M-6): serve the refused ranges per source and delete this mirror.
  */
 export const TOOL_SOURCES = Object.freeze(['routine_history', 'tracker_history'])
 export const isToolSource = (plan) => TOOL_SOURCES.includes(plan?.source)
@@ -263,9 +265,16 @@ export function valueLabel(field, value, { accounts, toolNames } = {}) {
     if (hit && typeof hit.label === 'string') return hit.label
   }
   if (field?.key === 'account' && accounts instanceof Map && accounts.has(String(value))) return accounts.get(String(value))
-  // A routine history's Routine, a tracker history's Tracker: the member's own name for the id.
-  const names = REF_KINDS.includes(field?.key) && toolNames ? toolNames[field.key] : null
-  if (names instanceof Map && names.has(String(value))) return names.get(String(value))
+  // A routine history's Routine, a tracker history's Tracker: the member's own name for the id, never the id
+  // (fix 1, I-2/M-3): "A removed routine" once their list is known and lacks it, the field's label while it loads.
+  if (REF_KINDS.includes(field?.key)) {
+    const names = toolNames ? toolNames[field.key] : null
+    if (names instanceof Map) {
+      if (names.has(String(value))) return names.get(String(value))
+      return field.key === 'tracker' ? 'A removed tracker' : 'A removed routine'
+    }
+    return field.label || String(value)
+  }
   return String(value)
 }
 

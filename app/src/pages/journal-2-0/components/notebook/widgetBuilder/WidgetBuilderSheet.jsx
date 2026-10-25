@@ -1082,7 +1082,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           taken={planRefs(cat, plan, skip).get(level.refKind) || null} current={current || null}
           onLoaded={mergeToolNames} onBack={back}
           onPick={(id) => {
-            if (forFilter) setLevel({ kind: 'filter', field: level.field, index: level.index, ref: id })
+            if (forFilter) setLevel({ kind: 'filter', field: level.field, index: level.index, ref: id, draft: level.draft })
             else onSplit(level.slot, level.field, id)
           }} />
       )
@@ -1091,11 +1091,11 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       const refKind = refKindOf(sourceOf(cat, plan)?.fields.get(level.field))
       picker = (
         <FilterEditor key={`${level.field}-${level.index ?? 'new'}-${level.ref ?? ''}`} cat={cat} plan={plan}
-          fieldKey={level.field} initial={initial} refValue={level.ref} accounts={accounts} toolNames={toolNames}
-          onApply={onApplyFilter} onBack={back}
-          onChangeRef={refKind ? () => setLevel({
+          fieldKey={level.field} initial={initial} draft={level.draft} refValue={level.ref} accounts={accounts}
+          toolNames={toolNames} onToolNames={mergeToolNames} onApply={onApplyFilter} onBack={back}
+          onChangeRef={refKind ? (draft) => setLevel({
             kind: 'ref', refKind, for: 'filter', field: level.field, index: level.index,
-            ref: level.ref ?? initial?.ref,
+            ref: level.ref ?? initial?.ref, draft,
           }) : undefined}
           onRemove={() => {
             dispatch({ type: 'removeFilter', index: level.index })

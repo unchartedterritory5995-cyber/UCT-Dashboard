@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from './WidgetBuilderSheet'
 import { normalizePlan } from './builderState'
+import { filterSentence, valueLabel, refName, indexCatalog } from './builderCatalog'
 import { __resetBuiltCaches, loadVocabulary } from '../../../lib/builtWidgets'
 import { installFetch, answer, callsTo, bodyOf } from './__fixtures__/builderFixtures'
 import {
@@ -195,10 +196,121 @@ describe('split-only fields (Task 9.17)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Routine' }))
     await flush()
     fireEvent.click(screen.getByRole('button', { name: 'Post-market review' }))
+    // Fix 1, I-2: the live line under the editor names the routine, never its id.
+    expect(document.querySelector('[data-builder-level]')).toHaveTextContent('Routine is Post-market review')
+    expect(document.body.textContent).not.toContain(R2)
     fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
     await flush(PREVIEW_DEBOUNCE_MS)
     expect(lastPlan().filters).toEqual([{ field: 'routine', op: 'in', values: [R2], overridable: false }])
     expect(screen.getByRole('button', { name: 'Routine is Post-market review' })).toBeInTheDocument()
+  })
+})
+
+describe('fix round 1 (Task 9.17)', () => {
+  it('then_by_ref2_is_set_kept_and_cleared (I-1)', async () => {
+    await onTradingDays()
+    fireEvent.click(screen.getByRole('button', { name: 'No split. Pick one' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine done' }))
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: 'Morning prep' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    // A second split on a tracker field asks which tracker and stores it as ref2.
+    fireEvent.click(screen.getByRole('button', { name: 'No second split. Pick one' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tracker value range' }))
+    await flush()
+    expect(screen.getByRole('heading', { name: 'Which tracker' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Sleep' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(lastPlan().split).toEqual({ by: 'routine_done', then: 'tracker_bucket', ref: R1, ref2: T1 })
+    expect(screen.getByRole('button', { name: 'Then by Sleep. Change' })).toBeInTheDocument()
+    // Re-picking the first split keeps the second and its tracker.
+    fireEvent.click(screen.getByRole('button', { name: 'Split by Morning prep. Change' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine done' }))
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: 'Post-market review' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(lastPlan().split).toEqual({ by: 'routine_done', then: 'tracker_bucket', ref: R2, ref2: T1 })
+    // Removing the second split drops its ref2 (the server refuses a ref2 with no `then`).
+    fireEvent.click(screen.getByRole('button', { name: 'Remove second split: Sleep' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(lastPlan().split).toEqual({ by: 'routine_done', then: null, ref: R2 })
+  })
+
+  it('a deleted routine reads "A removed routine", a loading one its field label (M-1, M-3)', () => {
+    const cat = indexCatalog(TOOL_CATALOG)
+    const td = cat.sources.get('trading_days').fields.get('routine_done')
+    const rh = cat.sources.get('routine_history').fields.get('routine')
+    const filter = { field: 'routine_done', op: 'in', values: ['done'], ref: R2 }
+    const known = { routine: new Map([[R1, 'Morning prep']]) }
+    expect(filterSentence(td, filter, { toolNames: known })).toBe('A removed routine is Done')
+    expect(filterSentence(td, filter, { toolNames: {} })).toBe('Routine done is Done')
+    expect(refName(cat.sources.get('trading_days').fields.get('tracker_bucket'), T1, { tracker: new Map() }))
+      .toBe('A removed tracker')
+    // A routine history Routine value: its name, "A removed routine", or the field label; never the id.
+    expect(valueLabel(rh, R1, { toolNames: known })).toBe('Morning prep')
+    expect(valueLabel(rh, R2, { toolNames: known })).toBe('A removed routine')
+    expect(valueLabel(rh, R2, {})).toBe('Routine')
+  })
+
+  it('a typed routine value never shows its id, even when the list could not load (M-3)', async () => {
+    routes.unshift(['GET', (u) => u.includes('/vocabulary?field=routine'), () => answer({ detail: { code: 'failed' } }, 500)])
+    await openBuilder()
+    fireEvent.click(screen.getByRole('radio', { name: 'Routine history' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine' }))
+    await flush()
+    fireEvent.change(screen.getByLabelText('Type a routine'), { target: { value: R2 } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(document.querySelector('[data-builder-level]')).toHaveTextContent('Routine is Routine')
+    expect(document.body.textContent).not.toContain(R2)
+    expect(document.body.innerHTML).not.toContain(`Remove ${R2}`)
+  })
+
+  it('an opened widget with a Routine filter names the routine on its chip', async () => {
+    const plan = { v: 2, source: 'routine_history', accounts: 'all', range: { token: 'last_90d' },
+      filters: [{ field: 'routine', op: 'in', values: [R1], overridable: false }], measures: [{ key: 'routine_consistency' }],
+      split: null, view: { type: 'number', auto: true }, sort: null, compare: null,
+      display: { title: '', titleAuto: true, subtitle: '', accent: 'gold', showN: true, target: null } }
+    routes.unshift(['GET', (u) => u.endsWith('/widget-definitions/d-7'), () => answer({
+      id: 'd-7', name: 'Prep', rev: 1, placedRev: 1, etag: 1, archived: false, usedIn: 0, lastAnswer: null, summary: '', plan })])
+    render(<WidgetBuilderSheet uid="u1" onClose={vi.fn()} from={{ defId: 'd-7' }} />)
+    await flush()
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(screen.getByRole('button', { name: 'Routine is Morning prep' })).toBeInTheDocument()
+    expect(vocabCalls('routine')).toHaveLength(1)
+  })
+
+  it('Which routine reads the list again on each open (M-2)', async () => {
+    await onTradingDays()
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine done' }))
+    await flush()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine done' }))
+    await flush()
+    expect(vocabCalls('routine')).toHaveLength(2)
+  })
+
+  it('Change routine on a new filter keeps the op and the values picked (M-5)', async () => {
+    await onTradingDays()
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine done' }))
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: 'Morning prep' }))
+    fireEvent.change(screen.getByLabelText('Comparison'), { target: { value: 'not_in' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Skipped' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change routine' }))
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: 'Post-market review' }))
+    expect(screen.getByRole('button', { name: 'Skipped' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Comparison')).toHaveValue('not_in')
+    fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(lastPlan().filters).toEqual([
+      { field: 'routine_done', op: 'not_in', values: ['skipped'], overridable: false, ref: R2 },
+    ])
   })
 })
 

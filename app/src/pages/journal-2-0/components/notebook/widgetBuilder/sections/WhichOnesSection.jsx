@@ -148,7 +148,7 @@ export function FieldPicker({ cat, plan, onPick, onBack }) {
 }
 
 /** The member's own values for a field, or the catalog's fixed list, as `[{value, label}]`; null while loading. */
-function useValueList(field) {
+function useValueList(field, onToolNames) {
   const fixed = Array.isArray(field?.values) ? field.values : null
   const own = !fixed && VOCAB_FIELDS.includes(field?.key)
   const [state, setState] = useState(() => (fixed ? { list: fixed, failed: false } : null))
@@ -165,10 +165,15 @@ function useValueList(field) {
           ? { value: String(v.id), label: typeof v.name === 'string' && v.name ? v.name : fallback || String(v.id) }
           : { value: v, label: String(v) }))
         setState({ list, failed: false })
+        // Fix 1, I-2: a routine or tracker list names the ids in every sentence the builder shows (the chips and the
+        // live preview line read the same `toolNames`).
+        if (REF_KINDS.includes(field.key)) onToolNames?.(field.key, list.map((o) => ({ id: o.value, name: o.label })))
       },
       () => { if (alive) setState({ list: [], failed: true }) },
     )
     return () => { alive = false }
+    // onToolNames is the sheet's merge; a new identity must not re-read the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [field?.key, fixed, own])
   if (fixed) return { list: fixed, failed: false, loading: false }
   if (!own) return { list: null, failed: false, loading: false }
@@ -181,22 +186,29 @@ function useValueList(field) {
  * blank text box where a list exists (spec 5.2).
  */
 export function FilterEditor({
-  cat, plan, fieldKey, initial, refValue, accounts, toolNames, onApply, onRemove, onBack, onChangeRef,
+  cat, plan, fieldKey, initial, draft, refValue, accounts, toolNames, onApply, onRemove, onBack, onChangeRef, onToolNames,
 }) {
   const field = sourceOf(cat, plan)?.fields.get(fieldKey)
   // Wave 9: a field that names a routine or tracker carries which one (picked in the step before, or the filter's).
   const refKind = refKindOf(field)
   const ref = refKind ? (refValue ?? initial?.ref ?? null) : null
   const ops = Array.isArray(field?.ops) && field.ops.length ? field.ops : ['in']
-  const [op, setOp] = useState(initial?.op && ops.includes(initial.op) ? initial.op : ops[0])
-  const [values, setValues] = useState(Array.isArray(initial?.values) ? initial.values : [])
-  const [overridable, setOverridable] = useState(initial?.overridable === true)
+  // Fix 1, M-5: back from "Change routine", the editor starts from what was picked before (`draft`), keeping every
+  // value the new routine or tracker can still have (a fixed list keeps only its own values).
+  const start = draft || initial
+  const keepable = (vs) => {
+    const list = Array.isArray(field?.values) ? field.values.map((x) => x?.value) : null
+    return list ? vs.filter((v) => list.includes(v)) : vs
+  }
+  const [op, setOp] = useState(start?.op && ops.includes(start.op) ? start.op : ops[0])
+  const [values, setValues] = useState(Array.isArray(start?.values) ? keepable(start.values) : [])
+  const [overridable, setOverridable] = useState(start?.overridable === true)
   const [query, setQuery] = useState('')
   const [typed, setTyped] = useState('')
   const opId = useId()
   const problemId = useId()
   const overId = useId()
-  const listState = useValueList(field)
+  const listState = useValueList(field, onToolNames)
   const arity = valueArity(op)
   const type = field?.type
   // Only one filter may be changed from the note (plan.py MAX_OVERRIDABLE): another one already is.
@@ -312,7 +324,8 @@ export function FilterEditor({
             {values.map((v) => (
               <li key={String(v)} className={styles.filterItem}>
                 <span className={styles.staticChip}>{valueLabel(field, v, { accounts, toolNames })}</span>
-                <button type="button" className={styles.chipRemove} aria-label={`Remove ${String(v)}`}
+                <button type="button" className={styles.chipRemove}
+                  aria-label={`Remove ${valueLabel(field, v, { accounts, toolNames })}`}
                   onClick={() => setValues((vs) => vs.filter((x) => x !== v))}>
                   <UIcon name="x" size={14} gold={false} aria-hidden="true" />
                 </button>
@@ -328,7 +341,7 @@ export function FilterEditor({
     <div>
       <PickerHead title={ref ? refName(field, ref, toolNames) : field.label} onBack={onBack} />
       {ref && onChangeRef && (
-        <button type="button" className={styles.btn} onClick={onChangeRef}>
+        <button type="button" className={styles.btn} onClick={() => onChangeRef({ op, values, overridable })}>
           {refKind === 'tracker' ? 'Change tracker' : 'Change routine'}
         </button>
       )}
