@@ -1100,7 +1100,8 @@ def _example_ids(ids: Any) -> list[str]:
     return out
 
 
-def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -> dict:
+def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None,
+                 allowed: Callable[[dict], bool] | None = None) -> dict:
     """Up to `MAX_EXAMPLES` shelf examples for the session member, in ONE batch:
     `{"sample": bool, "cards": {id: payload}}`.
 
@@ -1113,17 +1114,23 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
       one cache entry per member for `CACHE_TTL_S`, keyed on the ids, the sample switch and the
       member's data stamps, so the 5th closed trade turns the cards real at once.
 
+    * Each card runs its id's newest revision `allowed` accepts (the router passes its flag reader,
+      the one `/shelf` serves with, so a card is the revision the gallery lists; Task 10.13). An id
+      with no allowed revision is unknown here. With no `allowed`, the newest revision.
+
     Raises `PlanError` (more than `MAX_EXAMPLES` ids, or an unknown id), `EngineBusy` or
     `EngineTooLong`."""
     if not isinstance(user_id, str) or not user_id:
         raise ValueError("a run needs the session member's id")
     wanted = _example_ids(ids)
     items = []
+    revs = []
     for sid in wanted:
-        ex = wshelf.example(sid)
+        ex = wshelf.example(sid) if allowed is None else wshelf.example(sid, allowed=allowed)
         if ex is None:
             raise PlanError(S_UNKNOWN_EXAMPLE)
         items.append((sid, ex["plan"]))
+        revs.append(ex["rev"])
     now = now or datetime.now(timezone.utc)
     srcs = list(dict.fromkeys(p["source"] for _sid, p in items))
     if not items:
@@ -1147,7 +1154,7 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
         today = sample_today() if sample else real_today
         blob = json.dumps([user_id, "examples", wanted, sample, stamps, today.isoformat(),
                            real_today.isoformat(), _book()["digest"] if sample else None]
-                          + _w10_key(w10, False),
+                          + _w10_key(w10, False) + [revs],
                           sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         key = "widget_examples::" + hashlib.sha1(blob.encode("utf-8")).hexdigest()
         hit = _CACHE.get(key)
