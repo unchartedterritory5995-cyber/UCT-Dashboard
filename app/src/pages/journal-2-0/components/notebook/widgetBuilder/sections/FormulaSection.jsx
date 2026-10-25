@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section from './Section'
 import { reasonOf } from '../builderCatalog'
@@ -7,6 +7,7 @@ import {
   S_FIELD_CAP, MAX_FIELDS, FORMULA_PREFIX, compileStored, displayOf, storedOf, nameProblem, formulaMeasureOptions,
   measureId, boxPosOf, probeLine, pyStrip,
 } from '../formulaFields'
+import { bandOf, placeList, revealDelta, scrollParentOf, LIST_MAX } from '../formulaListPlace'
 import b from '../WidgetBuilderSheet.module.css'
 import styles from './FormulaSection.module.css'
 
@@ -28,11 +29,16 @@ const USAGE = new Map(FUNCTION_DOCS.map((d) => [d.name, d.usage]))
  * Edits settle after `settleMs` (the preview's debounce): each settled edit is ONE undo step. `flushRef` settles
  * every pending edit at once (Save calls it first, so what is saved is what the boxes say).
  *
+ * A phone keyboard (the W10.8 walk fix): a focused box is scrolled into what is visible (the body between the title
+ * and the sticky footer, cut to the visual viewport), again whenever the visual viewport moves while it has focus,
+ * and its suggestions open above it when there is no room below (formulaListPlace). A name's "Give the field a name."
+ * waits until the member has typed in the Name, left the field, or tried to save (`showErrors`).
+ *
  * ⛔ Member words only: "Your own fields", "Formula". Never "formula field", "plan", "source", "definition".
  */
 export default function FormulaSection({
   cat, plan, compiled, fields, unit, settleMs, probes, serverErrors, onAdd, onEdit, onRemove, onMeasure, onSplit,
-  onFilter, escapeRef, flushRef,
+  onFilter, escapeRef, flushRef, showErrors = false,
 }) {
   const formulas = Array.isArray(plan.formulas) ? plan.formulas : []
   const capId = useId()
@@ -49,6 +55,12 @@ export default function FormulaSection({
   const focusNew = useRef(false)
   const [list, setList] = useState(null)          // {id, items, active}
   const [announce, setAnnounce] = useState('')
+  // W10.8: the fields whose Name the member has typed in, or left (a name problem is said only for those).
+  const [touched, setTouched] = useState(() => new Set())
+  const touch = useCallback((id) => setTouched((t) => (t.has(id) ? t : new Set(t).add(id))), [])
+  // W10.8: where the open list sits ({id, side, maxHeight}), and the box that has focus.
+  const [place, setPlace] = useState(null)
+  const focused = useRef(null)
 
   const draftOf = (f) => drafts.get(f.id) || { name: f.name, box: displayOf(f.expr, fields) }
 
@@ -143,6 +155,53 @@ export default function FormulaSection({
     }
   })
 
+  // W10.8: scroll a focused box into what is visible, then place its open list (under it, or above it when there is
+  // no room under it). It reads layout and sets state only when the placement changed (H14: no render loop).
+  const listRef = useRef(list)
+  listRef.current = list
+  const fit = useCallback((id) => {
+    const el = boxes.current.get(id)
+    if (!el) return
+    const sc = scrollParentOf(el)
+    const band = bandOf(sc)
+    let r = el.getBoundingClientRect()
+    const d = revealDelta(r, band)
+    if (d && sc) {
+      sc.scrollTop += d
+      r = el.getBoundingClientRect()
+    }
+    const l = listRef.current
+    const next = l && l.id === id ? { id, ...placeList(r, band, Math.min(LIST_MAX, l.items.length * 44 + 8)) } : null
+    setPlace((cur) => (cur?.id === next?.id && cur?.side === next?.side && cur?.maxHeight === next?.maxHeight ? cur : next))
+  }, [])
+  const listKey = list ? `${list.id}:${list.items.length}` : ''
+  useLayoutEffect(() => {
+    if (list) fit(list.id)
+    else setPlace((cur) => (cur === null ? cur : null))
+    // `listKey` is the list's identity and size: moving the active option does not re-place it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey, fit])
+  // The keyboard opening (or closing) moves the visual viewport: the focused box is fitted again, after layout.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const vv = window.visualViewport || null
+    let raf = 0
+    const again = () => {
+      if (!focused.current) return
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => { if (focused.current) fit(focused.current) })
+    }
+    vv?.addEventListener('resize', again)
+    vv?.addEventListener('scroll', again)
+    window.addEventListener('resize', again)
+    return () => {
+      cancelAnimationFrame(raf)
+      vv?.removeEventListener('resize', again)
+      vv?.removeEventListener('scroll', again)
+      window.removeEventListener('resize', again)
+    }
+  }, [fit])
+
   const openList = (f, value, at) => {
     const items = suggest(value, at, fields)
     setList(items.length ? { id: f.id, items, active: 0 } : null)
@@ -202,8 +261,10 @@ export default function FormulaSection({
         const probe = probes?.get(f.id)
         const probeShown = r.ok && !serverShown && probe && probe.sentExpr === storedNow ? probe.probe : null
         const firstLine = probeShown ? probeLine(probeShown, { kind: r.compiled.kind, format: f.format, unit }) : ''
-        const nameErr = nameProblem(cat, draftPlan, f.id)
+        // W10.8: a name problem is said once the member typed in the Name, left the field, or tried to save.
+        const nameErr = showErrors || touched.has(f.id) ? nameProblem(cat, draftPlan, f.id) : null
         const open = list?.id === f.id
+        const placed = open && place?.id === f.id ? place : null
         const ok = r.ok && compiled.get(f.id)?.ok && compiled.get(f.id).compiled.canonical === storedNow
         const c = ok ? r.compiled : null
         const options = ok ? measureOptions.filter((o) => o.formula === f.id) : []
@@ -215,39 +276,48 @@ export default function FormulaSection({
         const fmtList = formats.some((x) => x.key === f.format) ? formats : [...formats, { key: f.format, label: f.format }]
         return (
           <div key={f.id} className={styles.field} role="group" aria-label={shownName || `Field ${index + 1}`}
-            data-testid="formula-field">
+            data-testid="formula-field"
+            onBlur={(e) => { if (!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget)) touch(f.id) }}>
             <label className={b.field}>
               <span className={b.fieldLabel}>Name</span>
               <input className={styles.input} value={d.name} ref={(el) => { if (el) names.current.set(f.id, el); else names.current.delete(f.id) }}
                 aria-invalid={nameErr ? 'true' : undefined} aria-describedby={nameErr ? nameErrId : undefined}
-                autoComplete="off" onChange={(e) => change(f, 'name', e.target.value)} />
+                autoComplete="off" onChange={(e) => { touch(f.id); change(f, 'name', e.target.value) }} />
             </label>
             {nameErr && <p className={styles.error} id={nameErrId}>{nameErr}</p>}
             <div className={b.field}>
               <label className={b.fieldLabel} htmlFor={`${id}-box`}>Formula</label>
-              <textarea id={`${id}-box`} className={styles.box} rows={2} value={d.box} spellCheck={false}
-                autoComplete="off" autoCapitalize="off" autoCorrect="off"
-                ref={(el) => { if (el) boxes.current.set(f.id, el); else boxes.current.delete(f.id) }}
-                aria-describedby={resultId} aria-invalid={!r.ok || serverShown ? 'true' : undefined}
-                aria-autocomplete="list" aria-controls={open ? listId : undefined}
-                aria-activedescendant={open ? `${listId}-${list.active}` : undefined}
-                onChange={(e) => onBoxChange(f, e)} onKeyDown={(e) => onBoxKey(f, e)}
-                onBlur={() => setList((l) => (l?.id === f.id ? null : l))} />
-              {open && (
-                <ul className={styles.list} role="listbox" id={listId} aria-label="Suggestions">
-                  {list.items.map((item, i) => (
-                    <li key={`${item.kind}-${item.label}-${item.insert}`} id={`${listId}-${i}`} role="option"
-                      aria-selected={i === list.active} data-label={item.label}
-                      className={`${styles.option} ${i === list.active ? styles.optionActive : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); insert(f, item) }}>
-                      <span className={styles.optionLabel}>{item.label}</span>
-                      {item.kind === 'function' && USAGE.has(item.label) && (
-                        <span className={styles.optionMeta}>{USAGE.get(item.label)}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <div className={styles.boxWrap}>
+                <textarea id={`${id}-box`} className={styles.box} rows={2} value={d.box} spellCheck={false}
+                  autoComplete="off" autoCapitalize="off" autoCorrect="off"
+                  ref={(el) => { if (el) boxes.current.set(f.id, el); else boxes.current.delete(f.id) }}
+                  aria-describedby={resultId} aria-invalid={!r.ok || serverShown ? 'true' : undefined}
+                  aria-autocomplete="list" aria-controls={open ? listId : undefined}
+                  aria-activedescendant={open ? `${listId}-${list.active}` : undefined}
+                  onChange={(e) => onBoxChange(f, e)} onKeyDown={(e) => onBoxKey(f, e)}
+                  onFocus={() => { focused.current = f.id; fit(f.id) }}
+                  onBlur={() => {
+                    if (focused.current === f.id) focused.current = null
+                    setList((l) => (l?.id === f.id ? null : l))
+                  }} />
+                {open && (
+                  <ul className={`${styles.list} ${placed?.side === 'above' ? styles.listAbove : ''}`} role="listbox"
+                    id={listId} aria-label="Suggestions" data-side={placed?.side || 'below'}
+                    style={placed ? { maxHeight: placed.maxHeight } : undefined}>
+                    {list.items.map((item, i) => (
+                      <li key={`${item.kind}-${item.label}-${item.insert}`} id={`${listId}-${i}`} role="option"
+                        aria-selected={i === list.active} data-label={item.label}
+                        className={`${styles.option} ${i === list.active ? styles.optionActive : ''}`}
+                        onMouseDown={(e) => { e.preventDefault(); insert(f, item) }}>
+                        <span className={styles.optionLabel}>{item.label}</span>
+                        {item.kind === 'function' && USAGE.has(item.label) && (
+                          <span className={styles.optionMeta}>{USAGE.get(item.label)}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <div id={resultId} className={styles.result}>
                 {!r.ok && <p className={styles.error} data-pos={errPos ?? undefined}>{r.sentence}</p>}
                 {r.ok && serverShown && (

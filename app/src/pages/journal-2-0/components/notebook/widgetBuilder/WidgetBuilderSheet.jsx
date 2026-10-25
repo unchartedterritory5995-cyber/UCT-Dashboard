@@ -297,6 +297,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   // boxes before a save (`formulaFlushRef`); the preview's `probe` and the server's `formula` errors reach it here.
   const formulaEscRef = useRef(null)
   const formulaFlushRef = useRef(null)
+  // The W10.8 walk fix: a field's name problem ("Give the field a name.") is said once a save was tried.
+  const [saveTried, setSaveTried] = useState(false)
   const [formulaFeedback, setFormulaFeedback] = useState(() => ({ probes: new Map(), errors: new Map() }))
   const [flushSave, setFlushSave] = useState(null)
 
@@ -1018,6 +1020,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const save = async (choice) => {
     if (gone) { close(); return }
     if (saving || phase !== 'ready' || !cat) return
+    setSaveTried(true)
     // Task 10.16: a box still settling is settled first, and the save runs on the plan that holds it.
     if (formulaFlushRef.current?.()) { setFlushSave({ choice }); return }
     setSaveMsg('')
@@ -1320,7 +1323,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
             <FormulaSection cat={cat} plan={plan} compiled={compiled} fields={formulaFields} unit={unit}
               settleMs={PREVIEW_DEBOUNCE_MS} probes={formulaFeedback.probes} serverErrors={formulaFeedback.errors}
               onAdd={onFormulaAdd} onEdit={onFormulaEdit} onRemove={onFormulaRemove} onMeasure={toggleMeasure}
-              onSplit={onFormulaSplit} onFilter={onFormulaFilter} escapeRef={formulaEscRef} flushRef={formulaFlushRef} />
+              onSplit={onFormulaSplit} onFilter={onFormulaFilter} escapeRef={formulaEscRef} flushRef={formulaFlushRef}
+              showErrors={saveTried} />
           )}
           <SplitSection cat={viewCat} plan={plan} toolNames={toolNames} onOpen={(slot, el) => push({ kind: 'split', slot }, el)}
             onClear={onClearSplit} onSort={(sort) => dispatch({ type: 'setSort', sort })} />

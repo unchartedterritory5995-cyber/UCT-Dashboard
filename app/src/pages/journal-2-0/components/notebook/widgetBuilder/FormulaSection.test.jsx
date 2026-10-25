@@ -306,6 +306,9 @@ describe('FormulaSection', () => {
     await openBuilder()
     const g = await addField('', '1', { wait: false })
     const name = nameOf(g)
+    // W10.8: nothing is said while the member is still in the field; leaving it says it.
+    expect(name).not.toHaveAccessibleDescription()
+    fireEvent.focusOut(boxOf(g))
     expect(name).toHaveAccessibleDescription(S_FORMULA_NAME)
     fireEvent.change(name, { target: { value: 'Edge​' } })
     expect(name).toHaveAccessibleDescription(S_BAD_CHARACTER)

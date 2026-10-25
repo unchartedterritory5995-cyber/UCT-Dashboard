@@ -46,7 +46,19 @@
   border-color: var(--danger-ink, var(--loss));
 }
 
-/* The autocomplete list: under the box, never over the result line it describes. */
+/* The autocomplete list: under the box, never over the result line it describes. With no room under the box (a
+ * phone keyboard up, the W10.8 walk fix) it opens ABOVE the box instead (.listAbove), laid over what is above it;
+ * FormulaSection sets its max-height from the room it measured (formulaListPlace.js). */
+.boxWrap {
+  position: relative;
+}
+.listAbove {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 4px);
+  z-index: 2;
+}
 .list {
   margin: 4px 0 0;
   padding: 4px;
