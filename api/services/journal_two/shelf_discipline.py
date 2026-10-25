@@ -5,7 +5,8 @@ Four builders, each `(user_id: str, params: dict, now: datetime) -> dict`:
   * `my_tilt_check` (`myTiltCheck`, "Tilt check"): trades entered within `TILT_WINDOW_MIN` minutes
     after ANY losing exit (any symbol, across midnight too) against every other timed trade.
   * `my_revenge_clean_days` (`myRevengeClean`, "Revenge trades"): of the last `WINDOW` finished
-    sessions, how many had no revenge re-entry (`revenge_detect.detect`, ruling W10-R12).
+    sessions with trades, how many had no revenge re-entry (`revenge_detect.detect`, ruling
+    W10-R12; a session with no trades is not clean, W10-R54), plus each session's state (`days`).
   * `my_risk_left_today` (`myRiskLeftToday`, "Risk left today"): per account with a daily loss
     limit and an own size, the room left today (W10-R9) and the open risk to stops
     (`portfolio_heat`, the phase 1 positions authority), plus the positions not linked to any of
@@ -130,6 +131,12 @@ S_TILT_AFTER = "Within 30 min after a loss"
 S_TILT_OTHER = "Other trades"
 
 S_REVENGE_NO_TRADES = "No trades in the last 30 trading days."
+#: Revenge trades' per-day states (W10-R54), a closed vocabulary: the reasons stay in the counts and lines.
+DAY_CLEAN = "clean"
+DAY_FLAGGED = "flagged"
+DAY_NO_TRADES = "no_trades"
+DAY_NOT_CHECKED = "not_checked"
+DAY_STATES = (DAY_CLEAN, DAY_FLAGGED, DAY_NO_TRADES, DAY_NOT_CHECKED)
 S_REVENGE_EVERY_DAY = "Revenge re-entries on every checked day in the last 30 trading days."
 S_REVENGE_NONE_CHECKED = ("None of the last 30 trading days could be checked; "
                           "your trades have dates only.")
@@ -579,8 +586,9 @@ def _older_exits(c: sqlite3.Connection, user_id: str,
 
 
 def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
-    """Of the last `WINDOW` finished sessions: clean (no trades, or timed trades and no revenge
-    flag), flagged, or not checked (only date-only trades, W10-R12; or not fully read)."""
+    """Of the last `WINDOW` finished sessions: clean (timed trades and no revenge flag), flagged,
+    no trades (W10-R54: neither clean nor checked), or not checked (only date-only trades, W10-R12;
+    or not fully read). `days` carries each session's state, oldest first."""
     now_dt = _utc(now)
     clean_params(KIND_REVENGE, params)
     window = finished_sessions(now_dt)
@@ -647,25 +655,35 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
                     flags.append({"day": cur["session"], "symbol": sym,
                                   "minutesApart": _num(f["minutesApart"])})
     flagged_days = {f["day"] for f in flags}
-    clean = checked = not_checked = not_read = crowded = older_unread = 0
+    clean = checked = not_checked = not_read = crowded = older_unread = no_trades = 0
+    #: One entry per session, oldest first (W10-R54): the state the strip draws, never re-derived from counts.
+    days: list[dict] = []
     for k in keys:
         rows = by_day.get(k) or []
         if cut is not None and k <= cut:
             not_read += 1                     # never counted clean: not every trade was read
+            state = DAY_NOT_CHECKED
         elif k in too_old:
             older_unread += 1
+            state = DAY_NOT_CHECKED
         elif k in too_big:
             crowded += 1                      # never counted clean: the detector was not run
+            state = DAY_NOT_CHECKED
         elif not rows:
-            clean += 1
-            checked += 1
+            # W10-R54 (supersedes W10-R12): a session with no trades is NOT clean, and not checked either.
+            no_trades += 1
+            state = DAY_NO_TRADES
         elif not any(_times(e) is not None for e in rows):
             not_checked += 1
+            state = DAY_NOT_CHECKED
         elif k in flagged_days:
             checked += 1
+            state = DAY_FLAGGED
         else:
             clean += 1
             checked += 1
+            state = DAY_CLEAN
+        days.append({"day": k, "state": state})
     flags.sort(key=lambda f: (f["day"], f["symbol"]), reverse=True)
     shown = flags[:ROW_CAP]
     traded = any(by_day.get(k) for k in keys) or not_read or crowded or older_unread
@@ -697,7 +715,8 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
         "source": _origin([e.get("source") for k in keys for e in by_day.get(k) or []]),
         "from": lo, "to": hi, "window": WINDOW,
         "clean": clean, "checked": checked, "notChecked": not_checked, "notRead": not_read,
-        "tooMany": crowded, "olderNotRead": older_unread,
+        "tooMany": crowded, "olderNotRead": older_unread, "noTrades": no_trades,
+        "days": days,
         "flagged": shown,
         "lines": lines,
     }

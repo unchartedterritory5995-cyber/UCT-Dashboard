@@ -300,14 +300,15 @@ def test_dates_only_day_not_checked_and_stated(S):
         trade(c, A, day="2026-10-19", pnl=20, entry="10:30", exit_="10:40", symbol="AMD")
         c.commit()
     got = S.my_revenge_clean_days(A, {}, NOW)
-    assert (got["clean"], got["checked"], got["notChecked"]) == (28, 29, 1)
+    # W10-R54: the 27 sessions with no trades are neither clean nor checked.
+    assert (got["clean"], got["checked"], got["notChecked"], got["noTrades"]) == (1, 2, 1, 27)
     assert got["flagged"] == [{"day": "2026-10-20", "symbol": "NVDA", "minutesApart": 20.0}]
-    assert got["lines"] == ["28 of 29 clean (1 day with dates only was not checked)"]
+    assert got["lines"] == ["1 of 2 clean (1 day with dates only was not checked)"]
     with _conn() as c:
         trade(c, A, day="2026-10-22", pnl=-500)
         c.commit()
     got = S.my_revenge_clean_days(A, {}, NOW)
-    assert got["lines"] == ["27 of 28 clean (2 days with dates only were not checked)"]
+    assert got["lines"] == ["1 of 2 clean (2 days with dates only were not checked)"]
 
 
 def test_dismissed_pair_is_clean(S, monkeypatch):
@@ -315,7 +316,7 @@ def test_dismissed_pair_is_clean(S, monkeypatch):
         loss = trade(c, A, day="2026-10-20", pnl=-50, entry="10:00", exit_="10:10")
         again = trade(c, A, day="2026-10-20", pnl=20, entry="10:30", exit_="10:40")
         c.commit()
-    assert S.my_revenge_clean_days(A, {}, NOW)["lines"] == ["29 of 30 clean"]
+    assert S.my_revenge_clean_days(A, {}, NOW)["lines"] == [S.S_REVENGE_EVERY_DAY]   # W10-R54
     seen = []
 
     def _pairs(conn, uid):
@@ -325,7 +326,7 @@ def test_dismissed_pair_is_clean(S, monkeypatch):
     monkeypatch.setattr(S, "_dismissed_pairs", _pairs)
     got = S.my_revenge_clean_days(A, {}, NOW)
     assert seen == [A]
-    assert got["flagged"] == [] and got["lines"] == ["30 of 30 clean"]
+    assert got["flagged"] == [] and got["lines"] == ["1 of 1 clean"]
 
 
 def test_line_exact_and_never_zero_of(S):
@@ -773,7 +774,8 @@ def test_revenge_flag_day_is_a_counted_session(S):
     got = S.my_revenge_clean_days(A, {}, FRI_R)
     assert got["flagged"][0]["day"] == "2026-10-16"
     assert "2026-10-16" in [d.isoformat() for d in S.finished_sessions(FRI_R)]
-    assert got["clean"] == 29
+    assert (got["clean"], got["checked"]) == (0, 1)                       # W10-R54
+    assert {d["day"]: d["state"] for d in got["days"]}["2026-10-16"] == "flagged"
 
 
 def test_noon_anchor_exit_is_date_only(S):
@@ -804,7 +806,7 @@ def test_capped_read_never_fabricates_clean(S, monkeypatch):
         for d in ("2026-10-21", "2026-10-22", "2026-10-23"):
             trade(c, A, day=d, pnl=10, entry="10:00", exit_="10:10", symbol="MSFT")
         c.commit()
-    assert S.my_revenge_clean_days(A, {}, FRI_R)["lines"] == ["29 of 30 clean"]
+    assert S.my_revenge_clean_days(A, {}, FRI_R)["lines"] == ["3 of 4 clean"]   # W10-R54
     monkeypatch.setattr(S, "READ_LIMIT", 3)
     cut = S.my_revenge_clean_days(A, {}, FRI_R)
     assert cut["notRead"] == 28 and cut["clean"] == 2 and cut["checked"] == 2
@@ -899,9 +901,9 @@ def test_revenge_bucket_cap_reads_as_not_checked(S, monkeypatch):
         c.commit()
     monkeypatch.setattr(S, "MAX_BUCKET", 1)
     got = S.my_revenge_clean_days(A, {}, NOW)
-    assert got["flagged"] == [] and got["tooMany"] == 1 and got["clean"] == 29
-    assert got["lines"] == ["29 of 29 clean",
-                            "1 day was not checked: too many trades in one symbol to check."]
+    assert got["flagged"] == [] and got["tooMany"] == 1
+    assert (got["clean"], got["checked"], got["noTrades"]) == (0, 0, 29)   # W10-R54
+    assert got["lines"] == ["1 day was not checked: too many trades in one symbol to check."]
 
 
 def test_prop_firm_keeps_the_scans_notices(S, monkeypatch):
@@ -1150,3 +1152,57 @@ def test_total_line_names_the_largest_three(S):
     # Every block still carries its own number.
     assert "truncated" not in got
     assert math.fsum(b["openRisk"] for b in got["accounts"]) == got["openRisk"]
+
+
+# -- W10-R54: the per-day list ------------------------------------------------------------------
+
+def _check_days(S, got):
+    """The four invariants between `days` and the counts, and the closed vocabulary."""
+    days = got["days"]
+    assert len(days) == got["window"] == S.WINDOW
+    assert {d["state"] for d in days} <= set(S.DAY_STATES)
+    by = {s: sum(1 for d in days if d["state"] == s) for s in S.DAY_STATES}
+    assert by["clean"] == got["clean"]
+    assert by["flagged"] == got["checked"] - got["clean"]
+    assert by["no_trades"] == got["noTrades"]
+    assert by["not_checked"] == (got["notChecked"] + got["notRead"] + got["tooMany"]
+                                 + got["olderNotRead"])
+    state = {d["day"]: d["state"] for d in days}
+    for f in got["flagged"]:
+        assert state[f["day"]] == "flagged"
+
+
+def test_revenge_days_are_the_window_oldest_first(S):
+    window = [d.isoformat() for d in S.finished_sessions(NOW)]
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    assert [d["day"] for d in got["days"]] == window
+    assert window == sorted(window) and got["days"][0]["day"] == got["from"]
+    assert got["days"][-1]["day"] == got["to"]
+    _check_days(S, got)
+
+
+def test_revenge_brand_new_member_has_no_clean_day(S):
+    got = S.my_revenge_clean_days("u-brand-new", {}, NOW)
+    assert [d["state"] for d in got["days"]] == ["no_trades"] * 30
+    assert (got["clean"], got["checked"], got["noTrades"]) == (0, 0, 30)
+    assert got["lines"] == [S.S_REVENGE_NO_TRADES]
+    no_zero_strings({k: v for k, v in got.items() if k != "days"})
+    _check_days(S, got)
+
+
+def test_revenge_days_hold_all_four_states(S):
+    window = [d.isoformat() for d in S.finished_sessions(NOW)]
+    clean_day, flag_day, dates_day = window[-1], window[-2], window[-3]
+    with _conn() as c:
+        trade(c, A, day=clean_day, pnl=40, entry="10:00", exit_="10:30")
+        trade(c, A, day=flag_day, pnl=-50, entry="10:00", exit_="10:10")
+        trade(c, A, day=flag_day, pnl=20, entry="10:30", exit_="10:40")
+        trade(c, A, day=dates_day, pnl=-50)
+        c.commit()
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    state = {d["day"]: d["state"] for d in got["days"]}
+    assert state[clean_day] == "clean" and state[flag_day] == "flagged"
+    assert state[dates_day] == "not_checked" and state[window[0]] == "no_trades"
+    assert (got["clean"], got["checked"], got["notChecked"], got["noTrades"]) == (1, 2, 1, 27)
+    assert got["lines"] == ["1 of 2 clean (1 day with dates only was not checked)"]
+    _check_days(S, got)
