@@ -6,7 +6,7 @@
 // to the other tabs over a BroadcastChannel; a tab that comes back to the front re-reads once.
 //
 // ⛔ These writes land in the routine and tracker tables, NEVER a note. lib/blocks/blockDoors.test.js
-// names this file in WRITE_EXCEPTIONS with five entries, matched on each call's literal method and URL
+// names this file in WRITE_EXCEPTIONS with seven entries, matched on each call's literal method and URL
 // template, so every `fetch` below spells its URL out as a literal (two literals where the kind decides).
 // ⛔ The labels a member reads for a day's state ("Not yet", "Done"...) belong to the blocks (Task 9.13);
 // this layer hands back the stored state codes and says nothing about them.
@@ -239,8 +239,9 @@ function publish(kind, id, day, entry, sent) {
 }
 
 /** Re-read the chosen subscriptions (one batched read); apply a result only if no write for its day landed
- *  after the read began. */
-function reReadSubs(pick) {
+ *  after the read began. `withTool`: the subscriber also gets the tool as its second argument (after a
+ *  restore, so every placed block learns it is no longer archived). */
+function reReadSubs(pick, withTool = false) {
   const jobs = []
   for (const sub of [...subs]) {
     if (!pick(sub)) continue
@@ -248,7 +249,7 @@ function reReadSubs(pick) {
     jobs.push(readDay(sub.kind, sub.id, sub.day).then((r) => {
       if (!r.ok || !subs.has(sub)) return
       if ((lastAt.get(stampKey(sub.kind, sub.id, r.resolvedDay)) ?? 0) >= startedAt) return
-      try { sub.fn(r.entry) } catch { /* see notify */ }
+      try { if (withTool) sub.fn(r.entry, r.tool); else sub.fn(r.entry) } catch { /* see notify */ }
     }))
   }
   return Promise.all(jobs)
@@ -379,6 +380,24 @@ export async function logValue(trackerId, day, value) {
     })
     const out = await settle(res)
     if (out.ok) publish('tracker', String(trackerId), String(day), out.entry, sent)
+    return out
+  } catch {
+    return networkFailure()
+  }
+}
+
+/** Restore an archived routine or tracker (ruling W9-R31): its own row, never a note. On success every
+ *  placed block of it on this page re-reads, and hears the tool with its entry.
+ *  @returns {Promise<{ok: true, entry} | {ok: false, code, message}>} */
+export async function unarchive(kind, id) {
+  if (isOffline()) return offlineFailure()
+  if (kind !== 'routine' && kind !== 'tracker') return { ok: false, code: 'missing', message: TOOL_COPY.missing }
+  try {
+    const res = kind === 'routine'
+      ? await fetch(`/api/j2/routines/${enc(id)}/unarchive`, { method: 'POST', credentials: 'include' })
+      : await fetch(`/api/j2/trackers/${enc(id)}/unarchive`, { method: 'POST', credentials: 'include' })
+    const out = await settle(res)
+    if (out.ok) await reReadSubs((s) => s.kind === kind && s.id === String(id), true)
     return out
   } catch {
     return networkFailure()

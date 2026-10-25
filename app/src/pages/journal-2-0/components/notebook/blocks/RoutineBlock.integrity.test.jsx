@@ -34,13 +34,13 @@ const entryFrom = (st, day) => {
   const ticked = Object.fromEntries(ITEMS.map((it) => [it.id, st.ticked[it.id] === true]))
   const n = Object.values(ticked).filter(Boolean).length
   return {
-    day, state: n === ITEMS.length ? 'done' : 'open', label: '', ticked, skipped: false,
-    partial: n ? `${n} of ${ITEMS.length}` : null, items: ITEMS, writable: true, beyondNote: null,
+    day, state: st.skipped ? 'skipped' : n === ITEMS.length ? 'done' : 'open', label: '', ticked, skipped: !!st.skipped,
+    partial: n ? `${n} of ${ITEMS.length}` : null, items: ITEMS, writable: !st.archived, beyondNote: null,
     consistency: null, rate: null, run: { line: null, milestone: false, best: null }, suggested: [],
   }
 }
-function serve() {
-  const st = { ticked: {}, today: '2026-10-27' }
+function serve(over = {}) {
+  const st = { ticked: {}, today: '2026-10-27', archived: false, skipped: false, ...over }
   const calls = []
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const method = init.method || 'GET'
@@ -51,7 +51,7 @@ function serve() {
       if (days.includes('today')) out.resolved = { today: st.today }
       for (const id of ids) {
         out.routines[id] = {
-          routine: { id, name: 'Pre-market routine', archived: false, items: ITEMS },
+          routine: { id, name: 'Pre-market routine', archived: st.archived, items: ITEMS },
           days: Object.fromEntries(days.map((d) => { const real = d === 'today' ? st.today : d; return [real, entryFrom(st, real)] })),
         }
       }
@@ -59,6 +59,9 @@ function serve() {
     }
     const m = /^\/api\/j2\/routines\/r1\/days\/([^/]+)\/items\/([^/]+)$/.exec(url)
     if (m && method === 'PUT') { st.ticked[m[2]] = JSON.parse(init.body).ticked; return json(200, entryFrom(st, m[1])) }
+    const k = /^\/api\/j2\/routines\/r1\/days\/([^/]+)$/.exec(url)
+    if (k && method === 'PUT') { st.skipped = JSON.parse(init.body).skipped; return json(200, entryFrom(st, k[1])) }
+    if (url === '/api/j2/routines/r1/unarchive' && method === 'POST') { st.archived = false; return json(200, { id: 'r1' }) }
     return json(200, {})
   })
   return { st, calls, toNotes: () => calls.filter((c) => c.url.startsWith('/api/j2/notes')) }
@@ -122,8 +125,35 @@ describe('⛔⛔ the routine block never writes the note', () => {
     await waitFor(() => expect(boxes()).toHaveLength(2), { timeout: 4000 })
     st.ticked.i1 = true
     const other = new FakeBC('uct-nb-tools')                                                          // the other tab
-    act(() => { other.postMessage({ kind: 'routine', id: 'r1', day: '2026-10-26', entry: entryFrom(st, '2026-10-26'), at: Date.now() + 1000, seq: 1 }) })
+    act(() => { other.postMessage({ kind: 'routine', id: 'r1', day: '2026-10-26', entry: entryFrom(st, '2026-10-26'), at: Date.now() + 1, seq: 1 }) })
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Read the morning wire' }).getAttribute('aria-checked')).toBe('true'))
+    expect(changes).toHaveLength(0)
+    expect(toNotes()).toEqual([])
+  })
+
+  it('skip_makes_no_note_write_and_no_doc_change', async () => {
+    const { toNotes, calls } = serve()
+    const { ed, changes } = mounted()
+    editors.push(ed)
+    await waitFor(() => expect(boxes()).toHaveLength(2), { timeout: 4000 })
+    const before = JSON.stringify(routineAttrs(ed))
+    fireEvent.click(screen.getByRole('button', { name: 'Skip this day' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Skipped' })).toBeTruthy())
+    expect(calls.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['/api/j2/routines/r1/days/2026-10-26'])
+    expect(changes).toHaveLength(0)
+    expect(toNotes()).toEqual([])
+    expect(JSON.stringify(routineAttrs(ed))).toBe(before)
+  })
+
+  it('restore_makes_no_note_write_and_no_doc_change', async () => {
+    const { toNotes, calls } = serve({ archived: true })
+    const { ed, changes } = mounted()
+    editors.push(ed)
+    await waitFor(() => expect(screen.getByText('Archived routine, history only')).toBeTruthy(), { timeout: 4000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(screen.getByText('Restore').closest('button'))
+    await waitFor(() => expect(boxes()).toHaveLength(2))
+    expect(calls.some((c) => c.method === 'POST' && c.url === '/api/j2/routines/r1/unarchive')).toBe(true)
     expect(changes).toHaveLength(0)
     expect(toNotes()).toEqual([])
   })

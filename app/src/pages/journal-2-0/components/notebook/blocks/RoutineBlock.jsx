@@ -3,21 +3,27 @@
 //
 // params { routineId, day: ''|'YYYY-MM-DD', bind: 'note-day'|'next-trading-day'|'week'|'today', display }.
 // The day it shows: `bind === 'today'` reads the day 'today' (the SERVER resolves it: the session on or after
-// today ET), else `params.day`, else the note's day (`editor.storage.uctJournalWidgets.noteDay`, else today ET).
+// today ET) and follows it across ET midnight; else `params.day`; else, from the note's day
+// (`editor.storage.uctJournalWidgets.noteDay`, else today ET), ruling W9-R33: `next-trading-day` is the session
+// after it, `week` that week's last trading day (spec §6.2), and `note-day` the day itself.
 //
-// ⛔⛔ LIVE STATE IS NEVER NOTE STATE. A tick, a skip and an adopted entry go through lib/blocks/toolsApi (the routine
-// tables, never a note). The body calls `setParams` ONLY from the ⋯ menu's two day settings ("Follow today", "Use
-// this note's day"), each ONE call carrying its search text: never on mount, a read, a tick, a skip or an adoption.
+// ⛔⛔ LIVE STATE IS NEVER NOTE STATE. A tick, a skip, a restore and an adopted entry go through lib/blocks/toolsApi
+// (the routine tables, never a note); this file makes no request of its own. The body calls `setParams` ONLY from
+// the ⋯ menu's two day settings ("Follow today", "Use this note's day"), each ONE call carrying its search text:
+// never on mount, a read, a tick, a skip or an adoption.
 // ⛔ Every sentence a member reads is TOOL_COPY's, the server's own line (consistency, run, best run, a refusal), or
-//    a state word below (ruling W9-R26). No surface shows a 0: the server sends no line for one, and the partial is
-//    shown only once an item is ticked. A not-done day is a text label with a tooltip: never red, never struck out.
-// ⛔ The feedback line is mounted for the block's whole life, so a sentence set by a control (or by the menu, which
-//    closes as it acts) is still on screen after that control is gone.
+//    a word below (ruling W9-R26). No surface shows a 0: the server sends no line for one, and the partial is shown
+//    only once an item is ticked. A not-done day is a text label with a tooltip: never red, never struck out.
+// ⛔ ONE live region, mounted for the block's whole life: a sentence set by a control (or by the menu, which closes
+//    as it acts) is still on screen after that control is gone, and the offline sentence is said there once.
+// ⛔ A busy or offline control is `aria-disabled` with a guard in its handler, never `disabled`, so focus stays on it.
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
+import { useIsTouch } from '../../../../../hooks/useBreakpoint'
+import { isTradingDay } from '../../../../../lib/marketClock/sessionCalendar'
 import { todayET } from '../../../lib/calendar'
-import { TOOL_COPY, isOffline, readDay, setSkipped, subscribe, tick } from '../../../lib/blocks/toolsApi'
+import { TOOL_COPY, isOffline, readDay, setSkipped, subscribe, tick, unarchive } from '../../../lib/blocks/toolsApi'
 import { forDayLabel, toolSearchText } from '../../../lib/blocks/toolDays'
 import { BlockLoading } from './blockStates'
 import styles from './Blocks.module.css'
@@ -25,15 +31,40 @@ import own from './RoutineBlock.module.css'
 
 /** The day states' member words (ruling W9-R26). `open` is a scheduled day today or later, not yet done. */
 export const STATE_WORDS = Object.freeze({ done: 'Done', not_done: 'Not done', skipped: 'Skipped', off: 'Off day', open: 'Not yet' })
-export const NOT_DONE_TIP = 'Not enough of the items were ticked on this day to count it as done.'
+export const NOT_DONE_TIP = 'Not enough items were ticked to count this day as done.'
 export const NEGATIVE_TICKED = "Didn't happen"
 export const SKIP_OFF = 'Skip this day'
 export const SKIP_ON = 'Skipped'
 const MENU_NAME = 'Routine options'
+/** Ruling W9-R34: a FUTURE day that cannot be ticked yet. */
+export const futureLine = (day) => `You can tick this on ${forDayLabel(day).replace(/^For /, '')}.`
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 const isDay = (d) => typeof d === 'string' && DAY_RE.test(d)
-const enc = encodeURIComponent
+
+function addDays(day, n) {
+  const t = new Date(`${day}T00:00:00Z`)
+  t.setUTCDate(t.getUTCDate() + n)
+  return t.toISOString().slice(0, 10)
+}
+/** The session strictly after `day` (the shared market calendar; weekdays past its horizon). */
+export function sessionAfter(day) {
+  let d = day
+  for (let i = 0; i < 15; i += 1) {
+    d = addDays(d, 1)
+    if (isTradingDay(d)) return d
+  }
+  return addDays(day, 1)
+}
+/** The last trading day of `day`'s Monday-to-Friday week. */
+export function weekLastSession(day) {
+  const mon = addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7))
+  for (let i = 4; i >= 0; i -= 1) {
+    const d = addDays(mon, i)
+    if (isTradingDay(d)) return d
+  }
+  return addDays(mon, 4)
+}
 
 /** The note's own day, from the editor (Task 9.19 stores it, as a day or a function of none); else today ET. */
 function noteDayOf(editor) {
@@ -43,27 +74,37 @@ function noteDayOf(editor) {
   return isDay(d) ? d : todayET()
 }
 
-/** A read's failure code -> the block's state. */
-const READ_STATE = { offline: 'offline', unavailable: 'unavailable', missing: 'missing' }
-
-/** Restore an archived routine (its own table, never a note). The answer is re-read by the block. */
-async function restoreRoutine(routineId) {
-  try {
-    const res = await fetch(`/api/j2/routines/${enc(routineId)}/unarchive`, { method: 'POST', credentials: 'include' })
-    return res.ok
-  } catch {
-    return false
-  }
+/** The day this block reads (W9-R33). */
+function readKeyOf(p, noteDay) {
+  if (p.bind === 'today') return 'today'
+  if (isDay(p.day)) return p.day
+  if (p.bind === 'next-trading-day') return sessionAfter(noteDay)
+  if (p.bind === 'week') return weekLastSession(noteDay)
+  return noteDay
 }
 
-function ItemControl({ item, on, disabled, onToggle }) {
+// The server's 'today', as last heard on THIS ET day (M-5): "Follow today" while offline uses it, and with none it
+// is not offered. It never guesses a calendar day.
+let lastToday = null
+const rememberToday = (day) => { if (isDay(day)) lastToday = { et: todayET(), day } }
+const cachedToday = () => (lastToday && lastToday.et === todayET() ? lastToday.day : null)
+/** Test seam: forget the cached 'today'. */
+export function __forgetToday() { lastToday = null }
+
+/** A read's failure code -> the block's state. */
+const READ_STATE = { offline: 'offline', unavailable: 'unavailable', missing: 'missing' }
+/** Write refusals whose sentence is the server's own, with nothing to retry. */
+const SERVER_SENTENCE = new Set(['read_only', 'count_cap', 'conflict'])
+
+function ItemControl({ item, on, inert, onToggle }) {
   const noteId = useId()
   const negativeTicked = item.negative && on
   return (
     <li className={own.itemRow}>
-      <button type="button" role="checkbox" aria-checked={on} aria-label={item.text} disabled={disabled}
-        aria-describedby={negativeTicked ? noteId : undefined}
-        className={`btn btn-ghost ${own.item} ${on ? own.itemOn : ''}`} onClick={() => onToggle(item, !on)}>
+      <button type="button" role="checkbox" aria-checked={on} aria-label={item.text} aria-disabled={inert || undefined}
+        aria-describedby={negativeTicked ? noteId : undefined} data-item-id={item.id}
+        className={`btn btn-ghost ${own.item} ${on ? own.itemOn : ''}`}
+        onClick={() => { if (!inert) onToggle(item, !on) }}>
         <span className={`${own.box} ${on ? own.boxOn : ''}`} aria-hidden="true">
           {on && <UIcon name="check" size={14} gold={false} />}
         </span>
@@ -102,8 +143,9 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   const bind = typeof p.bind === 'string' ? p.bind : 'note-day'
   const follow = bind === 'today'
   const noteDay = noteDayOf(editor)
-  const readKey = follow ? 'today' : (isDay(p.day) ? p.day : noteDay)
+  const readKey = readKeyOf(p, noteDay)
   const base = `${routineId}|${readKey}`
+  const isTouch = useIsTouch()
 
   const [attempt, setAttempt] = useState(0)
   // { base, attempt, status: 'ready'|'offline'|'unavailable'|'missing'|'failed', entry?, tool?, day? }. A read for
@@ -112,11 +154,13 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   const [overrides, setOverrides] = useState({})        // itemId -> { on, seq }: a tick on its way
   const [skipBusy, setSkipBusy] = useState(false)
   const [offline, setOffline] = useState(isOffline())
-  const [feedback, setFeedback] = useState(null)         // { text, retry? }
+  const [feedback, setFeedback] = useState(null)         // { text, retry?, focus? }
   const [menu, setMenu] = useState(null)                 // the ⋯ menu's anchor while open
+  const wrap = useRef(null)
   const menuButton = useRef(null)
   const alive = useRef(true)
   const seq = useRef(0)
+  const focusAfterRead = useRef(false)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
   const cur = read && read.base === base && read.attempt === attempt ? read : null
@@ -127,21 +171,32 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     let live = true
     readDay('routine', routineId, readKey).then((r) => {
       if (!live) return
-      if (r.ok) setRead({ base, attempt, status: 'ready', entry: r.entry, tool: r.tool, day: r.resolvedDay })
-      else setRead({ base, attempt, status: READ_STATE[r.code] || 'failed' })
+      if (r.ok) {
+        if (readKey === 'today') rememberToday(r.resolvedDay)
+        setRead({ base, attempt, status: 'ready', entry: r.entry, tool: r.tool, day: r.resolvedDay })
+      } else setRead({ base, attempt, status: READ_STATE[r.code] || 'failed' })
     })
     return () => { live = false }
   }, [routineId, readKey, base, attempt])
 
-  // Adoption: a tick landed in this page (another block of the same routine and day) or in another tab, or the
-  // tab came back to the front. The entry replaces what this block holds; it is never written into the note.
+  // Adoption: a tick landed in this page (another block of the same routine and day) or in another tab, the tab came
+  // back to the front, ET midnight passed, or the routine was restored (then the tool rides along). Never the note.
+  // I-1: a follow-today block takes the entry's day (the server's new 'today'); any other block ignores another
+  // day's entry, so a day line, its ticks and the next tick's day can never be two different days.
   useEffect(() => {
     if (!routineId) return undefined
-    return subscribe('routine', routineId, readKey, (entry) => {
+    return subscribe('routine', routineId, readKey, (entry, tool) => {
       if (!alive.current || !entry || typeof entry !== 'object') return
-      setRead((r) => (r && r.base === base && r.status === 'ready' ? { ...r, entry } : r))
+      if (follow) rememberToday(entry.day)
+      setRead((r) => {
+        if (!r || r.base !== base || r.status !== 'ready') return r
+        const next = tool && typeof tool === 'object' ? { ...r, tool } : r
+        if (follow) return isDay(entry.day) ? { ...next, entry, day: entry.day } : { ...next, entry }
+        if (isDay(entry.day) && entry.day !== r.day) return r
+        return { ...next, entry }
+      })
     })
-  }, [routineId, readKey, base])
+  }, [routineId, readKey, base, follow])
 
   // The browser's own connection events: controls follow them, and a read that found us offline is re-made.
   const statusRef = useRef(null)
@@ -158,17 +213,33 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     return () => { window.removeEventListener('offline', off); window.removeEventListener('online', on) }
   }, [])
 
+  // After a read Retry, once the read has landed: the block's first control, else the ⋯ button.
+  useEffect(() => {
+    if (!focusAfterRead.current || !cur) return
+    focusAfterRead.current = false
+    const root = wrap.current
+    const el = (cur.status === 'ready'
+      ? root?.querySelector('[role="checkbox"]') || root?.querySelector('[data-skip]')
+      : root?.querySelector('[data-read-retry]')) || menuButton.current
+    el?.focus?.()
+  }, [cur])
+
   const adoptAnswer = useCallback((entry) => {
-    setRead((r) => (r && r.base === base && r.status === 'ready' ? { ...r, entry } : r))
+    setRead((r) => {
+      if (!r || r.base !== base || r.status !== 'ready') return r
+      if (isDay(entry?.day) && entry.day !== r.day) return r
+      return { ...r, entry }
+    })
   }, [base])
 
-  /** A refused or failed write: the sentence it earns, and a Retry where trying again can help. */
-  const failed = useCallback((out, retry) => {
-    if (out.code === 'offline') { setOffline(true); setFeedback({ text: TOOL_COPY.offline }); return }
+  /** A refused or failed write: the sentence it earns, and a Retry (which returns focus to `focus`) where trying
+   *  again can help. Offline is said by the live region itself. */
+  const failed = useCallback((out, retry, focus) => {
+    if (out.code === 'offline') { setOffline(true); setFeedback(null); return }
     if (out.code === 'window') { setFeedback({ text: TOOL_COPY.window }); return }
     if (out.code === 'missing') { setFeedback({ text: TOOL_COPY.missing }); return }
-    if (out.code === 'read_only' && out.message) { setFeedback({ text: out.message }); return }
-    setFeedback({ text: TOOL_COPY.tickFailed, retry })
+    if (SERVER_SENTENCE.has(out.code) && out.message) { setFeedback({ text: out.message }); return }
+    setFeedback({ text: TOOL_COPY.tickFailed, retry, focus })
   }, [])
 
   const writeDay = cur?.day
@@ -187,7 +258,7 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
       return next
     })
     if (out.ok) { adoptAnswer(out.entry); return }
-    failed(out, () => sendTick(item, on))
+    failed(out, () => sendTick(item, on), `[data-item-id="${item.id.replace(/["\\]/g, '\\$&')}"]`)
   }, [routineId, writeDay, adoptAnswer, failed])
 
   const sendSkip = useCallback(async (skipped) => {
@@ -198,8 +269,16 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     if (!alive.current) return
     setSkipBusy(false)
     if (out.ok) { adoptAnswer(out.entry); return }
-    failed(out, () => sendSkip(skipped))
+    failed(out, () => sendSkip(skipped), '[data-skip]')
   }, [routineId, writeDay, adoptAnswer, failed])
+
+  const retry = () => {
+    const f = feedback
+    if (!f?.retry) return
+    if (f.focus) wrap.current?.querySelector(f.focus)?.focus?.()
+    else menuButton.current?.focus?.()
+    f.retry()
+  }
 
   // -- the ⋯ menu -------------------------------------------------------------------------------------------
   const name = typeof cur?.tool?.name === 'string' ? cur.tool.name : ''
@@ -226,9 +305,18 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   }
   // Each day setting is ONE setParams call, its search text riding the same transaction.
   const followToday = async () => {
-    const r = await readDay('routine', routineId, 'today')
-    const day = r.ok && isDay(r.resolvedDay) ? r.resolvedDay : todayET()
+    let day = null
+    if (!isOffline()) {
+      const r = await readDay('routine', routineId, 'today')
+      if (r.ok && isDay(r.resolvedDay)) { day = r.resolvedDay; rememberToday(day) }
+    }
+    day = day || cachedToday()
     if (!alive.current) return
+    if (!day) {
+      if (isOffline()) setOffline(true)
+      else setFeedback({ text: TOOL_COPY.tickFailed, retry: followToday })
+      return
+    }
     setParams?.({ bind: 'today', day: '' }, { searchText: toolSearchText('routine', name, day, 'today') })
   }
   const useNoteDay = () => {
@@ -236,10 +324,12 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   }
   const restore = async () => {
     setFeedback(null)
-    const ok = await restoreRoutine(routineId)
+    const out = await unarchive('routine', routineId)
     if (!alive.current) return
-    if (ok) setAttempt((n) => n + 1)
-    else setFeedback({ text: TOOL_COPY.tickFailed, retry: restore })
+    // The layer re-reads every placed block of this routine (this one too). This block also reads afresh: a write
+    // that landed meanwhile makes the layer drop its re-read, and the tool's `archived` must still come back.
+    if (out.ok) { setAttempt((n) => n + 1); return }
+    failed(out, restore, null)
   }
 
   const menuItems = []
@@ -247,9 +337,9 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     menuItems.push({ label: 'Edit routine', onClick: editRoutine })
     menuItems.push({ label: 'Manage…', onClick: manage })
     if (cur?.status === 'ready') {
-      menuItems.push(follow
-        ? { label: "Use this note's day", onClick: useNoteDay }
-        : { label: 'Follow today', onClick: followToday })
+      if (follow) menuItems.push({ label: "Use this note's day", onClick: useNoteDay })
+      else if (offline && !cachedToday()) menuItems.push({ label: 'Follow today', disabled: true, hint: TOOL_COPY.offline })
+      else menuItems.push({ label: 'Follow today', onClick: followToday })
     }
     if (archived) menuItems.push({ label: 'Restore', onClick: restore })
   }
@@ -270,7 +360,8 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     body = (
       <div className={styles.error} role="status">
         <p>{TOOL_COPY.readFailedRoutine}</p>
-        <button type="button" className={`btn btn-ghost ${own.tap}`} onClick={() => setAttempt((n) => n + 1)}>Retry</button>
+        <button type="button" data-read-retry="" className={`btn btn-ghost ${own.tap}`}
+          onClick={() => { focusAfterRead.current = true; setAttempt((n) => n + 1) }}>Retry</button>
       </div>
     )
   } else {
@@ -280,7 +371,8 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     const done = items.filter((it) => tickedOf(it.id)).length
     // The server's own rule: "4 of 6" once something is ticked, never "0 of 6" and never "0 of 0".
     const partial = done > 0 && items.length > 0 ? `${done} of ${items.length}` : null
-    const pastWindow = entry.writable === false && !archived && entry.state !== 'off'
+    const shut = entry.writable === false && !archived && entry.state !== 'off'
+    const future = shut && cur.day > todayET()                 // W9-R34: not yet; the 7-day sentence is for the past
     const controls = editable && !archived && entry.writable !== false
     const run = entry.run && typeof entry.run === 'object' ? entry.run : {}
     body = (
@@ -290,19 +382,19 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
           <StateWord state={entry.state} />
         </p>
         {archived && <p className={styles.muted}>{TOOL_COPY.archivedRoutine}</p>}
-        {pastWindow && <p className={styles.muted}>{TOOL_COPY.window}</p>}
+        {shut && <p className={styles.muted}>{future ? futureLine(cur.day) : TOOL_COPY.window}</p>}
         {items.length > 0 && (
           <ul className={own.items} aria-label={name || 'Routine'}>
             {items.map((it) => (controls
-              ? <ItemControl key={it.id} item={it} on={tickedOf(it.id)} disabled={offline} onToggle={sendTick} />
+              ? <ItemControl key={it.id} item={it} on={tickedOf(it.id)} inert={offline || Object.hasOwn(overrides, it.id)} onToggle={sendTick} />
               : <ItemText key={it.id} item={it} on={tickedOf(it.id)} />))}
           </ul>
         )}
         {partial && <p className={own.partial}>{partial}</p>}
         {controls && (
-          <button type="button" aria-pressed={entry.skipped === true} disabled={offline || skipBusy}
+          <button type="button" data-skip="" aria-pressed={entry.skipped === true} aria-disabled={offline || skipBusy || undefined}
             className={`btn btn-ghost ${own.tap} ${own.skip} ${entry.skipped === true ? own.skipOn : ''}`}
-            onClick={() => sendSkip(entry.skipped !== true)}>
+            onClick={() => { if (!offline && !skipBusy) sendSkip(entry.skipped !== true) }}>
             {entry.skipped === true ? SKIP_ON : SKIP_OFF}
           </button>
         )}
@@ -318,24 +410,23 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     )
   }
 
-  const showOffline = offline && cur?.status === 'ready'
+  // M-2: going offline while ready is said ONCE, here; a failure's sentence waits until the connection is back.
+  const live = offline && cur?.status === 'ready' ? { text: TOOL_COPY.offline } : feedback
   return (
-    <div className={own.wrap} data-routine-block="">
+    <div className={own.wrap} data-routine-block="" ref={wrap}>
       {menuItems.length > 0 && (
         <div className={own.menuRow}>
           <button ref={menuButton} type="button" className={`btn btn-ghost ${own.tap} ${own.menuButton}`}
-            aria-label={MENU_NAME} aria-haspopup="menu" aria-expanded={menu ? 'true' : 'false'} onClick={openMenu}>
+            aria-label={MENU_NAME} aria-haspopup={isTouch ? 'dialog' : 'menu'} aria-expanded={menu ? 'true' : 'false'}
+            onClick={openMenu}>
             <UIcon name="more" size={16} gold={false} />
           </button>
         </div>
       )}
       {body}
-      {showOffline && <p className={styles.muted}>{TOOL_COPY.offline}</p>}
-      <div className={own.feedback} role="status" aria-live="polite">
-        {feedback && <span>{feedback.text}</span>}
-        {feedback?.retry && (
-          <button type="button" className={`btn btn-ghost ${own.tap}`} onClick={() => feedback.retry()}>Retry</button>
-        )}
+      <div className={own.feedback} role="status" aria-live="polite" data-routine-live="">
+        {live && <span>{live.text}</span>}
+        {live?.retry && <button type="button" className={`btn btn-ghost ${own.tap}`} onClick={retry}>Retry</button>}
       </div>
       {menu && (
         <ContextPopover open onClose={closeMenu} anchor={menu} title={name || 'Routine'} items={menuItems} />

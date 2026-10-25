@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import RoutineBlock, { NOT_DONE_TIP } from './RoutineBlock'
+import RoutineBlock, { NOT_DONE_TIP, __forgetToday } from './RoutineBlock'
 import { TOOL_COPY } from '../../../lib/blocks/toolsApi'
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
@@ -23,7 +23,7 @@ function entryFrom(st, day) {
   const ticked = Object.fromEntries(st.items.map((it) => [it.id, st.ticked[it.id] === true]))
   const n = Object.values(ticked).filter(Boolean).length
   return {
-    day, state: st.state ?? (n === st.items.length ? 'done' : 'open'), label: '', ticked, skipped: !!st.skipped,
+    day: st.entryDay ?? day, state: st.state ?? (n === st.items.length ? 'done' : 'open'), label: '', ticked, skipped: !!st.skipped,
     partial: n ? `${n} of ${st.items.length}` : null, items: st.items, writable: st.writable ?? true,
     beyondNote: null, consistency: st.consistency ?? null, rate: null,
     run: { line: st.runLine ?? null, milestone: !!st.milestone, best: st.best ?? null }, suggested: [],
@@ -56,6 +56,7 @@ function serve(over = {}) {
     }
     let m = /^\/api\/j2\/routines\/([^/]+)\/days\/([^/]+)\/items\/([^/]+)$/.exec(url)
     if (m && method === 'PUT') {
+      if (st.tickRefusal) return json(400, { detail: st.tickRefusal })
       const s = st.tickStatus.length ? st.tickStatus.shift() : 200
       if (s !== 200) return json(s, {})
       st.ticked[decodeURIComponent(m[3])] = JSON.parse(init.body).ticked
@@ -63,12 +64,17 @@ function serve(over = {}) {
     }
     m = /^\/api\/j2\/routines\/([^/]+)\/days\/([^/]+)$/.exec(url)
     if (m && method === 'PUT') {
+      const s = st.skipStatus?.length ? st.skipStatus.shift() : 200
+      if (s !== 200) return json(s, {})
       st.skipped = JSON.parse(init.body).skipped
       st.state = st.skipped ? 'skipped' : undefined
       return json(200, entryFrom(st, decodeURIComponent(m[2])))
     }
     m = /^\/api\/j2\/routines\/([^/]+)\/unarchive$/.exec(url)
-    if (m && method === 'POST') { st.archived = false; st.writable = true; return json(200, { id: st.id }) }
+    if (m && method === 'POST') {
+      if (st.unarchiveRefusal) return json(400, { detail: st.unarchiveRefusal })
+      st.archived = false; st.writable = true; return json(200, { id: st.id })
+    }
     return json(404, {})
   })
   return { st, calls, reads: () => calls.filter((c) => c.url === '/api/j2/routines/days') }
@@ -224,10 +230,14 @@ describe('RoutineBlock', () => {
     await waitFor(() => expect(boxes()).toHaveLength(6))
     act(() => { setOnline(false); window.dispatchEvent(new Event('offline')) })
     await waitFor(() => expect(screen.getByText(TOOL_COPY.offline)).toBeTruthy())
-    expect(boxes().every((b) => b.disabled)).toBe(true)
-    expect(screen.getByRole('button', { name: 'Skip this day' }).disabled).toBe(true)
+    expect(boxes().every((b) => b.getAttribute('aria-disabled') === 'true')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Skip this day' }).getAttribute('aria-disabled')).toBe('true')
+    const before = globalThis.fetch.mock.calls.length
+    fireEvent.click(boxes()[0])                                      // the handler guard: nothing is sent
+    expect(globalThis.fetch.mock.calls.length).toBe(before)
+    expect(boxes()[0].getAttribute('aria-checked')).toBe('false')
     act(() => { setOnline(true); window.dispatchEvent(new Event('online')) })
-    await waitFor(() => expect(boxes().every((b) => !b.disabled)).toBe(true))
+    await waitFor(() => expect(boxes().every((b) => !b.hasAttribute('aria-disabled'))).toBe(true))
     expect(screen.queryByText(TOOL_COPY.offline)).toBeNull()
   })
 
@@ -382,5 +392,236 @@ describe('RoutineBlock', () => {
     fireEvent.click(menuRow("Use this note's day"))
     expect(set2).toHaveBeenCalledTimes(1)
     expect(set2.mock.calls[0]).toEqual([{ bind: 'note-day', day: '2026-10-26' }, { searchText: '[routine: Pre-market routine · For Mon Oct 26]' }])
+  })
+})
+
+describe('RoutineBlock, fix round 1', () => {
+  const inert = (el) => el.getAttribute('aria-disabled') === 'true'
+
+  it("I-1: a follow-today block hears a tick written for the server's day by another block (W9-R27)", async () => {
+    serve({ today: '2026-10-27' })
+    render(
+      <>
+        <div data-testid="t"><RoutineBlock params={{ routineId: 'r1', day: '', bind: 'today' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+        <div data-testid="f"><RoutineBlock params={PARAMS} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+      </>,
+    )
+    await waitFor(() => expect(boxes()).toHaveLength(12))
+    const t = screen.getByTestId('t'), f = screen.getByTestId('f')
+    fireEvent.click(f.querySelector('[aria-label="Size from the stop"]'))
+    await waitFor(() => expect(t.querySelector('[aria-label="Size from the stop"]').getAttribute('aria-checked')).toBe('true'))
+  })
+
+  it('I-1: a fixed-day block ignores an entry for another day', async () => {
+    const { st } = serve()
+    mount({ params: { ...PARAMS, day: '2026-10-26' } })
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    st.ticked = { i1: true, i2: true }
+    st.entryDay = '2026-10-27'                                       // the server answers another day's entry
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(checked('Read the morning wire')).toBe('false')
+    expect(screen.getByText('For Mon Oct 26')).toBeTruthy()
+    st.entryDay = undefined                                          // control: its own day's entry IS adopted
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await waitFor(() => expect(checked('Read the morning wire')).toBe('true'))
+  })
+
+  it('I-2: an offline Restore says the offline sentence once and sends no request', async () => {
+    const { calls } = serve({ archived: true, writable: false })
+    mount()
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.archivedRoutine)).toBeTruthy())
+    setOnline(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow('Restore'))
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.offline)).toBeTruthy())
+    expect(screen.getAllByText(TOOL_COPY.offline)).toHaveLength(1)
+    expect(calls.some((c) => c.url.endsWith('/unarchive'))).toBe(false)
+  })
+
+  it("I-2: count_cap shows the server's sentence and no Retry", async () => {
+    serve({ archived: true, writable: false, unarchiveRefusal: { code: 'count_cap', message: 'You can have 30 routines at a time.' } })
+    mount()
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.archivedRoutine)).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow('Restore'))
+    await waitFor(() => expect(screen.getByText('You can have 30 routines at a time.')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+
+  it('I-2: a Restore re-reads EVERY placed block of that routine', async () => {
+    serve({ archived: true, writable: false })
+    render(
+      <>
+        <div data-testid="a"><RoutineBlock params={PARAMS} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+        <div data-testid="b"><RoutineBlock params={PARAMS} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+      </>,
+    )
+    await waitFor(() => expect(screen.getAllByText(TOOL_COPY.archivedRoutine)).toHaveLength(2))
+    fireEvent.click(screen.getByTestId('a').querySelector('[aria-label="Routine options"]'))
+    fireEvent.click(menuRow('Restore'))
+    await waitFor(() => expect(boxes()).toHaveLength(12))
+    expect(screen.queryByText(TOOL_COPY.archivedRoutine)).toBeNull()
+  })
+
+  it('I-2: the block makes no request of its own (no fetch in RoutineBlock.jsx)', () => {
+    const src = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/blocks/RoutineBlock.jsx'), 'utf8')
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    expect(code).toMatch(/\bunarchive\(/)                             // control: the restore is there, through the layer
+    expect(code).not.toMatch(/\bfetch\s*\(/)
+    expect(code).not.toMatch(/XMLHttpRequest|sendBeacon/)
+  })
+
+  it('I-3: the not-done tooltip, word for word', async () => {
+    serve({ state: 'not_done', ticked: { i1: true } })
+    mount({ params: { ...PARAMS, day: '2026-10-23' } })
+    await waitFor(() => expect(screen.getByText('Not done')).toBeTruthy())
+    expect(screen.getByText('Not done').getAttribute('title')).toBe('Not enough items were ticked to count this day as done.')
+  })
+
+  it('I-4: a tick Retry puts focus on the retried checkbox', async () => {
+    serve({ tickStatus: [500] })
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    const box = screen.getByRole('checkbox', { name: 'Write the plan' })
+    box.focus()
+    fireEvent.click(box)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy())
+    expect(document.activeElement).toBe(screen.getByRole('checkbox', { name: 'Write the plan' }))   // aria-disabled kept it
+    screen.getByRole('button', { name: 'Retry' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(checked('Write the plan')).toBe('true'))
+    expect(document.activeElement).toBe(screen.getByRole('checkbox', { name: 'Write the plan' }))
+  })
+
+  it('I-4: Skip keeps focus while busy and after, and a Skip Retry returns to the toggle', async () => {
+    const { st } = serve({ skipStatus: [500] })
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    const skip = screen.getByRole('button', { name: 'Skip this day' })
+    skip.focus()
+    fireEvent.click(skip)
+    expect(inert(skip)).toBe(true)                                  // busy: aria-disabled, never `disabled`
+    expect(skip.disabled).toBe(false)
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.tickFailed)).toBeTruthy())
+    expect(document.activeElement).toBe(skip)
+    screen.getByRole('button', { name: 'Retry' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Skipped' })).toBeTruthy())
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Skipped' }))
+    expect(st.skipped).toBe(true)
+  })
+
+  it('I-4: after a read Retry, focus lands on the first control once the read is in', async () => {
+    const { st } = serve({ readStatus: 500 })
+    mount()
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.readFailedRoutine)).toBeTruthy())
+    st.readStatus = 200
+    screen.getByRole('button', { name: 'Retry' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    await waitFor(() => expect(document.activeElement).toBe(boxes()[0]))
+  })
+
+  it("M-2: going offline is said once, in the block's one live region", async () => {
+    serve({ tickStatus: [500] })
+    const { container } = mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Write the plan' }))
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.tickFailed)).toBeTruthy())
+    act(() => { setOnline(false); window.dispatchEvent(new Event('offline')) })
+    await waitFor(() => expect(screen.getAllByText(TOOL_COPY.offline)).toHaveLength(1))
+    const live = container.querySelector('[data-routine-live]')
+    expect(live.getAttribute('aria-live')).toBe('polite')
+    expect(live.textContent).toBe(TOOL_COPY.offline)
+    expect(container.querySelectorAll('[aria-live], [role="status"]')).toHaveLength(1)
+  })
+
+  it("M-3 (W9-R33): with no day, next-trading-day reads the session after the note's day, week its last session", async () => {
+    const cases = [
+      [{ bind: 'next-trading-day' }, '2026-11-25', '2026-11-27'],    // Thanksgiving is closed; the half day is a session
+      [{ bind: 'next-trading-day' }, '2026-10-23', '2026-10-26'],    // Friday -> Monday
+      [{ bind: 'week' }, '2026-10-27', '2026-10-30'],                // that week's Friday
+      [{ bind: 'week' }, '2027-03-24', '2027-03-25'],                // Good Friday 2027-03-26 is closed: Thursday
+    ]
+    for (const [p, noteDay, want] of cases) {
+      const srv = serve()
+      const u = mount({ params: { routineId: 'r1', day: '', ...p }, editor: editorWith(noteDay) })
+      await waitFor(() => expect(srv.reads()).toHaveLength(1))
+      expect(srv.reads()[0].body.days, `${p.bind} ${noteDay}`).toEqual([want])
+      u.unmount()
+    }
+  })
+
+  it('M-4 (W9-R34): a future day not yet tickable says when it can be; the 7-day sentence is for the past', async () => {
+    serve({ writable: false })
+    let u = mount({ params: { ...PARAMS, day: '2099-10-30' } })
+    await waitFor(() => expect(screen.getByText(/^You can tick this on /)).toBeTruthy())
+    expect(screen.getByText(/^You can tick this on /).textContent).toBe('You can tick this on Fri Oct 30.')
+    expect(screen.queryByText(TOOL_COPY.window)).toBeNull()
+    u.unmount()
+    serve({ writable: false })
+    u = mount({ params: { ...PARAMS, day: '2026-10-01' } })
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.window)).toBeTruthy())
+    expect(screen.queryByText(/^You can tick this on /)).toBeNull()
+  })
+
+  it('M-5: Follow today offline with no cached day is disabled; it never guesses a day', async () => {
+    __forgetToday()
+    serve()
+    const { setParams } = mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    act(() => { setOnline(false); window.dispatchEvent(new Event('offline')) })
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    const row = menuRow('Follow today')
+    expect(row.disabled).toBe(true)
+    fireEvent.click(row)
+    expect(setParams).not.toHaveBeenCalled()
+  })
+
+  it("M-5: Follow today offline uses the server's day heard earlier on this ET day", async () => {
+    __forgetToday()
+    serve({ today: '2026-10-29' })
+    const t = mount({ params: { routineId: 'r1', day: '', bind: 'today' } })    // a follow-today read seeds it
+    await waitFor(() => expect(screen.getByText('For Thu Oct 29')).toBeTruthy())
+    t.unmount()
+    const srv = serve({ today: '2026-10-29' })
+    const { setParams } = mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    act(() => { setOnline(false); window.dispatchEvent(new Event('offline')) })
+    const sent = srv.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow('Follow today'))
+    await waitFor(() => expect(setParams).toHaveBeenCalledTimes(1))
+    expect(setParams.mock.calls[0]).toEqual([{ bind: 'today', day: '' }, { searchText: '[routine: Pre-market routine · For Thu Oct 29]' }])
+    expect(srv.calls.length).toBe(sent)                              // offline: no request was tried
+  })
+
+  it("M-7: the server's read_only sentence is shown, with no Retry", async () => {
+    serve({ tickRefusal: { code: 'read_only', message: 'This routine is archived.' } })
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Write the plan' }))
+    await waitFor(() => expect(screen.getByText('This routine is archived.')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(checked('Write the plan')).toBe('false')
+  })
+
+  it('M-8: a long item wraps instead of widening the block (overflow-wrap: anywhere on the item text)', () => {
+    const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/blocks/RoutineBlock.module.css'), 'utf8')
+    const rule = /\.text\s*\{([^}]*)\}/.exec(css)
+    expect(rule, '.text rule').toBeTruthy()
+    expect(rule[1]).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(rule[1]).toMatch(/min-width:\s*0/)
+  })
+
+  it('M-9: the ⋯ button says a menu opens on a fine pointer, and a menu opens', async () => {
+    serve()
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    const b = screen.getByRole('button', { name: 'Routine options' })
+    expect(b.getAttribute('aria-haspopup')).toBe('menu')
+    fireEvent.click(b)
+    expect(screen.getByRole('menu')).toBeTruthy()
   })
 })

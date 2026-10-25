@@ -92,11 +92,11 @@ export const SNAPSHOT_BLOCK_LABELS = Object.freeze({
   myMistakes: 'My recurring mistakes',
 })
 
-/** A block's member-facing name; an id this bundle does not know reads as a newer-version block. */
 // Notebook widgets phase 2, wave 9 (W9-R4): the live trader blocks. NOT journal-style kinds (never in
 // BLOCK_KINDS, never offered by the style editor) and not snapshot kinds; this only names the block a note holds.
 export const TOOL_BLOCK_LABELS = Object.freeze({ routine: 'Routine', tracker: 'Tracker' })
 
+/** A block's member-facing name; an id this bundle does not know reads as a newer-version block. */
 export function blockLabel(id) {
   const k = BLOCK_KINDS.find((b) => b.id === id)
   if (k) return k.label

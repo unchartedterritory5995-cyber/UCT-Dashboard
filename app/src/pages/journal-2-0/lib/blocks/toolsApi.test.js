@@ -643,3 +643,49 @@ describe('fix round 2', () => {
     expect(fn).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('unarchive (Task 9.13 fix round 1, ruling W9-R31)', () => {
+  it('offline: the offline failure, and no request', async () => {
+    const api = await freshApi()
+    setOnline(false)
+    expect(await api.unarchive('routine', 'r1')).toEqual({ ok: false, code: 'offline', message: api.TOOL_COPY.offline })
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
+  it('a literal POST per kind, credentials included', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async () => json(200, { id: 'x' }))
+    await api.unarchive('routine', 'r/1')
+    await api.unarchive('tracker', 't1')
+    expect(globalThis.fetch.mock.calls.map(([u, o]) => [u, o.method, o.credentials])).toEqual([
+      ['/api/j2/routines/r%2F1/unarchive', 'POST', 'include'],
+      ['/api/j2/trackers/t1/unarchive', 'POST', 'include'],
+    ])
+  })
+
+  it("a refusal hands on the server's code and sentence; a thrown fetch is the network failure", async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async () => json(400, { detail: { code: 'count_cap', message: 'You can have 30 routines at a time.' } }))
+    expect(await api.unarchive('routine', 'r1')).toEqual({ ok: false, code: 'count_cap', message: 'You can have 30 routines at a time.' })
+    globalThis.fetch = vi.fn(async () => { throw new Error('down') })
+    expect(await api.unarchive('routine', 'r1')).toEqual({ ok: false, code: 'network', message: api.TOOL_COPY.tickFailed })
+  })
+
+  it('success re-reads EVERY subscription to that routine (with its tool), and no other', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (url.endsWith('/unarchive')) return json(200, { id: 'r1' })
+      const body = JSON.parse(init.body)
+      return json(200, routineAnswer(body.ids, body.days))
+    })
+    const a = vi.fn(), b = vi.fn(), other = vi.fn()
+    api.subscribe('routine', 'r1', '2026-10-23', a)
+    api.subscribe('routine', 'r1', '2026-10-24', b)
+    api.subscribe('routine', 'r2', '2026-10-23', other)
+    const out = await api.unarchive('routine', 'r1')
+    expect(out.ok).toBe(true)
+    expect(a).toHaveBeenCalledWith({ state: 'open', day: '2026-10-23' }, { id: 'r1', name: 'R r1' })
+    expect(b).toHaveBeenCalledWith({ state: 'open', day: '2026-10-24' }, { id: 'r1', name: 'R r1' })
+    expect(other).not.toHaveBeenCalled()
+  })
+})

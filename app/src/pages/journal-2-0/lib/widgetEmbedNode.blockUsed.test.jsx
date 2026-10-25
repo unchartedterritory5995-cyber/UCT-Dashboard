@@ -6,6 +6,8 @@ import { Editor } from '@tiptap/core'
 import { buildExtensions } from './tiptap'
 import { ITEMS, widgetItems } from '../components/notebook/SlashMenu'
 import { WIDGET_REGISTRY } from '../../../widgets/registry'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 // jsdom has no Range geometry (SlashMenu.blocks.test.jsx).
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -67,6 +69,13 @@ describe('block_used', () => {
     ed.chain().focus('end').insertWidgetEmbed('routine', { routineId: 'r1', day: '2026-10-27' }).run()
     expect(embeds(ed)).toEqual(['routine'])                                     // control: it inserted
     expect(sent()).toEqual([])
+  })
+
+  it('M-1: the guard reads the event enum, and the eager node never imports lib/journalBlocks (first-open bytes)', () => {
+    const src = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/lib/widgetEmbedNode.jsx'), 'utf8')
+    expect(src).toMatch(/EVENT_SCHEMAS\.block_used\.kind\.values\.has\(widgetId\)/)
+    expect(src).not.toMatch(/from ['"]\.\/journalBlocks['"]/)
+    expect(src).toMatch(/from ['"]\.\/notebookTelemetry['"]/)                  // control: the reader sees imports
   })
 
   it("the block's params never ride along", () => {

@@ -24,7 +24,7 @@
   border: 1px solid var(--text-muted); border-radius: 4px; color: var(--accent);
 }
 .boxOn { border-color: var(--accent); }
-.text { flex: 1; min-width: 0; text-decoration: none; }
+.text { flex: 1; min-width: 0; overflow-wrap: anywhere; text-decoration: none; }
 .note { flex: none; font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .partial { margin: 0; font-size: 13px; color: var(--text-muted); }
 .skip { justify-self: start; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 13px; }

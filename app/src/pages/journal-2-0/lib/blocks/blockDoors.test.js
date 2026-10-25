@@ -46,9 +46,8 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  *   · Task 10 — its block body's one named write;
  *   · P2b Task 8 — lib/blocks/rulesApi.js, the rule edit (a rule's words, its note, its before-entry switch).
  *   · Wave 9 Task 9.12 — lib/blocks/toolsApi.js, its five named calls (the routine and tracker batch reads, a tick,
- *     a skip, a logged value).
- *   · Wave 9 Task 9.13 — components/notebook/blocks/RoutineBlock.jsx, its one named call (Restore, in the ⋯ menu of
- *     an archived routine).
+ *     a skip, a logged value); Task 9.13 fix round 1 (ruling W9-R31) adds its two restores (routine, tracker), so
+ *     seven. The routine block itself makes no request at all (RoutineBlock.test.jsx rails that).
  * Never a whole file, never a note URL (the last case below refuses both).
  */
 export const WRITE_EXCEPTIONS = {
@@ -79,11 +78,11 @@ export const WRITE_EXCEPTIONS = {
       why: 'A read sent as POST so ids never reach a query string; it writes nothing, and never a note.' },
     { method: 'PUT', url: '/api/j2/trackers/{}/days/{}',
       why: 'Writes one value to the tracker values table (j2_tracker_values); never a note.' },
-  ],
-  // Wave 9 Task 9.13: Restore in an archived routine block's ⋯ menu.
-  'app/src/pages/journal-2-0/components/notebook/blocks/RoutineBlock.jsx': [
+    // Task 9.13 fix round 1 (W9-R31): Restore, from an archived block's ⋯ menu.
     { method: 'POST', url: '/api/j2/routines/{}/unarchive',
       why: "Clears the routine's archived stamp in j2_routines (the routine's own row); never a note." },
+    { method: 'POST', url: '/api/j2/trackers/{}/unarchive',
+      why: "Clears the tracker's archived stamp in j2_trackers (the tracker's own row); never a note." },
   ],
 }
 
@@ -135,6 +134,10 @@ export const IMPORT_ALLOW = {
   'app/src/components/mobile/ContextPopover': "the app's ONE action menu (an anchored menu, a bottom sheet on touch); UI only, no network, no writes",
   'app/src/components/ui/UIcon': "the app's icon set (inline SVG); no imports beyond React, no network, no writes",
   'app/src/pages/journal-2-0/components/notebook/routines/openRoutineEditor': "the routine editor's door, a lazy import from the ⋯ menu (Task 9.16 builds the editor; until then it only says the editor is not available); never a note write",
+  // Task 9.13 fix round 1: the ⋯ button names what opens (M-9: a menu, or a sheet on touch, ContextPopover's own
+  // test), and the day a `next-trading-day` or `week` block reads (W9-R33) comes from the shared market calendar.
+  'app/src/hooks/useBreakpoint': "useIsTouch, the same media query ContextPopover reads to pick a menu or a sheet; no network, no writes",
+  'app/src/lib/marketClock/sessionCalendar': "isTradingDay over the ONE market calendar the server reads too (market_calendar.json); pure, no network, no writes",
   'app/src/pages/journal-2-0/components/notebook/myTools/openMyTools': "My tools' door (Task 8.17), a lazy import from the ⋯ menu's Manage…, opened on the Routines tab; My tools never writes into a note",
 }
 
@@ -918,20 +921,21 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, "fetch(`/api/j2/notes/${id}`, { method: 'PUT' })", ex)).toEqual([`WRITE ${f}: PUT /api/j2/notes/{}`])
     expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'DELETE' })", ex)).toHaveLength(1)
   })
-  it("CONTROL — Task 9.12's five writes: the real toolsApi.js is clean as listed, and each entry removed fails BY NAME", () => {
+  it("CONTROL — toolsApi.js's seven calls (Task 9.12's five, 9.13's two restores): the real toolsApi.js is clean as listed, and each entry removed fails BY NAME", () => {
     const f = 'app/src/pages/journal-2-0/lib/blocks/toolsApi.js'
     const src = readFileSync(join(REPO, f), 'utf8')
     const listed = WRITE_EXCEPTIONS[f]
     expect(listed.map((e) => `${e.method} ${e.url}`)).toEqual([
       'POST /api/j2/routines/days', 'PUT /api/j2/routines/{}/days/{}/items/{}', 'PUT /api/j2/routines/{}/days/{}',
       'POST /api/j2/trackers/days', 'PUT /api/j2/trackers/{}/days/{}',
+      'POST /api/j2/routines/{}/unarchive', 'POST /api/j2/trackers/{}/unarchive',
     ])
     expect(problemsIn(f, src)).toEqual([])
     for (const gone of listed) {
       const without = { [f]: listed.filter((e) => e !== gone) }
       expect(problemsIn(f, src, without), `${gone.method} ${gone.url} removed`).toEqual([`WRITE ${f}: ${gone.method} ${gone.url}`])
     }
-    // ...and with none listed, the file's writes are exactly those five, so the list is neither short nor long.
+    // ...and with none listed, the file's writes are exactly those seven, so the list is neither short nor long.
     expect([...new Set(problemsIn(f, src, {}))].sort()).toEqual(listed.map((e) => `WRITE ${f}: ${e.method} ${e.url}`).sort())
     expect(listed.every((e) => exceptionProblems(e).length === 0)).toBe(true)
   })
