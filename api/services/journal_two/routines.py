@@ -966,9 +966,13 @@ class RoutineHistory:
     states: tuple                      # routine_days.DayState, oldest first
 
 
-#: With `since`, history starts this many sessions before it (a consistency window of 20 and
-#: room for a run line), so a caller asking about a recent span never builds years of days.
-HISTORY_SINCE_LOOKBACK = 40
+#: With `since`, the FIRST guess of how many sessions before it history must start. Ruling W9-R25:
+#: the real floor is the later of the routine's created day and its CONSISTENCY_WINDOW-th counted
+#: (scheduled, finished) day before `since`, so the consistency as of any day from `since` on is
+#: exactly the one `read_days` reports, whatever the caller's range. A weekly routine needs more
+#: sessions than this guess; `history_for` doubles it until every routine has its window.
+HISTORY_SINCE_LOOKBACK = 2 * routine_days.CONSISTENCY_WINDOW
+_COUNTED_STATES = ("done", "not_done", "skipped")
 
 
 def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], upto: date,
@@ -976,8 +980,9 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
     """The PUBLIC door to a routine's history (ruling W9-R15): for each of `rids` (one id or a
     list) that is the session member's and not deleted (archived ones keep their history), its
     day states oldest first, from the later of its created day and the MAX_HISTORY_SESSIONS-th
-    session back, to `min(upto, today)`. With `since`, from the later of its created day and the
-    HISTORY_SINCE_LOOKBACK-th session before `since` (I-6). Every day the routine runs or could
+    session back, to `min(upto, today)`. With `since`, from the later of its created day and its
+    CONSISTENCY_WINDOW-th counted day before `since` (W9-R25; at least that, found by doubling a
+    session lookback from HISTORY_SINCE_LOOKBACK). Every day the routine runs or could
     run is there, `off` included; a caller keeps the states it counts. Foreign, unknown, deleted
     and unreadable ids are absent. Reads only; one query per child table for all ids."""
     ids = [rids] if isinstance(rids, str) else list(dict.fromkeys(rids or []))
@@ -996,29 +1001,39 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
     if not rows:
         return {}
     cut = min(upto, today)
-    floor = (trading_days.nth_session_before(since, HISTORY_SINCE_LOOKBACK)
-             if since is not None else None)
-    ctxs = _contexts(conn, user_id, rows, max(upto, today), floor)
-    out: dict[str, RoutineHistory] = {}
-    for rid in ids:
-        ctx = ctxs.get(rid)
-        if ctx is None:
-            continue
-        if since is None:
-            states = ctx.states_upto(cut, today)
-        else:
-            lo = max(ctx.created, floor)
-            states = routine_days.history(
-                items=ctx.items, schedules=ctx.schedules, ticks_by_day=ctx.ticks,
-                skipped_days=ctx.skipped, created=lo, upto=cut, today=today,
-                traded=ctx.traded, done_share=ctx.settings["done_share"],
-                archived=ctx.archived_day)
-        out[rid] = RoutineHistory(
-            id=rid, name=ctx.row["name"], created=ctx.created, archived=ctx.archived,
-            archived_at=ctx.archived_day,
-            strict=bool(ctx.settings.get("strict")), uses_traded=ctx.uses_traded(),
-            items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(states))
-    return out
+    lookback = HISTORY_SINCE_LOOKBACK
+    since_s = since.isoformat() if since is not None else ""
+    while True:
+        floor = (trading_days.nth_session_before(since, lookback)
+                 if since is not None else None)
+        ctxs = _contexts(conn, user_id, rows, max(upto, today), floor)
+        out: dict[str, RoutineHistory] = {}
+        short = False
+        for rid in ids:
+            ctx = ctxs.get(rid)
+            if ctx is None:
+                continue
+            if since is None:
+                states = ctx.states_upto(cut, today)
+            else:
+                lo = max(ctx.created, floor)
+                states = routine_days.history(
+                    items=ctx.items, schedules=ctx.schedules, ticks_by_day=ctx.ticks,
+                    skipped_days=ctx.skipped, created=lo, upto=cut, today=today,
+                    traded=ctx.traded, done_share=ctx.settings["done_share"],
+                    archived=ctx.archived_day)
+                if lo > ctx.created and sum(
+                        1 for s in states if s.day < since_s
+                        and s.state in _COUNTED_STATES) < routine_days.CONSISTENCY_WINDOW:
+                    short = True            # W9-R25: this routine's window starts earlier
+            out[rid] = RoutineHistory(
+                id=rid, name=ctx.row["name"], created=ctx.created, archived=ctx.archived,
+                archived_at=ctx.archived_day,
+                strict=bool(ctx.settings.get("strict")), uses_traded=ctx.uses_traded(),
+                items=tuple(ctx.items), ticks=ctx.ticks, states=tuple(states))
+        if not short or lookback >= routine_days.MAX_HISTORY_SESSIONS:
+            return out
+        lookback = min(lookback * 2, routine_days.MAX_HISTORY_SESSIONS)
 
 
 def _one_entry(c: sqlite3.Connection, user_id: str, row: sqlite3.Row, d: date,

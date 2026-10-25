@@ -345,7 +345,7 @@ def _field_values(f: Any) -> list[dict] | None:
     if f.type == "bool":
         vals: tuple = (True, False)
     elif f.bucket:
-        vals = tuple(f.bucket)
+        vals = tuple(f.bucket() if callable(f.bucket) else f.bucket)
     else:
         return None
     return [{"value": v, "label": f.fmt(v) if f.fmt else str(v)} for v in vals]

@@ -130,7 +130,7 @@ def test_days_before_a_routine_existed_are_excluded_and_today_reads_open(conn):
     _p, sc, res = scan(conn, rplan(range={"from": "2026-10-05", "to": "2026-10-23"},
                                    split={"by": "state"}), today=friday)
     assert [r["day"] for r in sc.rows] == sessions("2026-10-14", "2026-10-23")[::-1]
-    assert sc.rows[0]["state"] == "open" and "Open" in [g.label for g in res.groups]
+    assert sc.rows[0]["state"] == "open" and "Not yet" in [g.label for g in res.groups]
     # trading days: before it existed is not an off day; it is left out of the split, counted
     _p, sc2, res2 = scan(conn, dplan(split={"by": "routine_done", "ref": rid},
                                      range={"from": "2026-10-12", "to": "2026-10-23"}),
@@ -556,11 +556,11 @@ def test_drill_rows_for_both_sources(conn):
     rng = {"from": "2026-10-22", "to": "2026-10-22"}
     out = drill.drill(UID, rplan(split={"by": "item"}, range=rng), {}, {"label": "Plan"}, now=NOW)
     assert out["rows"] == [{"day": "2026-10-22", "label": "Morning", "label2": "Plan",
-                            "state": "done"}]
+                            "state": "done", "stateLabel": "Done"}]
     out = drill.drill(UID, rplan(split={"by": "state"}, range=rng), {}, {"label": "Not done"},
                       now=NOW)
     assert out["rows"] == [{"day": "2026-10-22", "label": "Morning", "label2": None,
-                            "state": "not_done"}]
+                            "state": "not_done", "stateLabel": "Not done"}]
     out = drill.drill(UID, tplan(split={"by": "tracker"}, range=rng), {}, {"label": "Sleep"},
                       now=NOW)
     assert out["rows"] == [{"day": "2026-10-22", "label": "Sleep", "value": 450.0,
@@ -611,3 +611,118 @@ def test_item_expansion_stops_at_the_cap(conn, monkeypatch):
     assert sc.capped is True and len(sc.rows) == wcompile.SCAN_ROWS
     # 25 rows per routine-day: about 5,001 / 25 days are expanded, never the 5,000+ read
     assert Counting.calls <= (wcompile.SCAN_ROWS + 1) // 25 + 2, Counting.calls
+
+
+# ── fix round 2 ──────────────────────────────────────────────────────────────────────────────
+
+def _seed_ticks(c, rid, item, days):
+    c.executemany("INSERT INTO j2_routine_ticks (user_id, routine_id, day, item_id, ticked,"
+                  " updated_at) VALUES (?, ?, ?, ?, 1, '2026-10-23T12:00:00Z')",
+                  [(UID, rid, d, item) for d in days])
+    c.commit()
+
+
+def test_consistency_does_not_depend_on_the_widgets_range(conn):
+    """W9-R25: a weekly routine's rolling consistency is the same over "all", 9/01-10/23 and the
+    last 30 days, and equals the rate the routine's own read reports."""
+    rid, (item,) = make_routine(created="2026-06-01", schedule={"kind": "weekdays", "days": [0]})
+    mondays = [d for d in sessions("2026-06-01", "2026-10-23")
+               if date.fromisoformat(d).weekday() == 0]
+    _seed_ticks(conn, rid, item, mondays[::3])                 # every third Monday done
+    per_range = {}
+    for rng_ in ({"token": "all"}, {"from": "2026-09-01", "to": "2026-10-23"},
+                 {"token": "last_30d"}):
+        _p, sc, _ = scan(conn, rplan(range=rng_))
+        per_range[str(rng_)] = {r["day"]: r["consistency"] for r in sc.rows}
+    want_days = [d for d in mondays if d >= "2026-09-25"]       # in all three ranges
+    read = routines.read_days(UID, [rid], want_days, now=NOW)["routines"][rid]["days"]
+    for d in want_days:
+        got = {k: v[d] for k, v in per_range.items()}
+        assert len(set(got.values())) == 1, (d, got)
+        assert read[d]["rate"] is not None
+        assert next(iter(got.values())) == pytest.approx(read[d]["rate"]), d
+
+
+def test_the_work_done_is_bounded_by_states_built(conn, monkeypatch):
+    """I-2: a deterministic count of the day states built (not the clock): about
+    (first window + lookback) sessions per routine, never the whole history."""
+    import json
+    start = TODAY - timedelta(days=730)
+    days = sessions(start.isoformat(), "2026-10-23")
+    for i in range(30):
+        rid = str(uuid.uuid4())
+        it = str(uuid.uuid4())
+        conn.execute("INSERT INTO j2_routines (id, user_id, name, items_json, settings_json,"
+                     " created_at, updated_at, save_seq) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+                     (rid, UID, f"R{i:02d}", json.dumps([{"id": it, "text": "x",
+                      "from": start.isoformat(), "to": None}]),
+                      json.dumps({"done_share": 1.0, "strict": False, "reminder": None}),
+                      start.isoformat() + "T15:00:00Z", "2026-10-23T12:00:00Z"))
+        conn.execute("INSERT INTO j2_routine_schedules (user_id, routine_id, effective_from,"
+                     " schedule_json) VALUES (?, ?, ?, ?)",
+                     (UID, rid, start.isoformat(), json.dumps({"kind": "every"})))
+        _seed_ticks(conn, rid, it, days)
+    built = {"n": 0}
+    real = routines.routine_days.history
+
+    def counting(**kw):
+        out = real(**kw)
+        built["n"] += len(out)
+        return out
+    monkeypatch.setattr(routines.routine_days, "history", counting)
+    p = plan.validate_plan(rplan(range={"token": "all"}), sources.CATALOG)
+    sc = sources.scan(conn, p, {}, plan.resolve_range(p["range"], TODAY), UID, today=TODAY)
+    assert sc.capped is True and len(sc.rows) == wcompile.SCAN_ROWS
+    k = -(-(wcompile.SCAN_ROWS + 1) // 30)
+    bound = (k + 2 * routines.HISTORY_SINCE_LOOKBACK) * 30
+    assert 0 < built["n"] <= bound, (built["n"], bound, len(days) * 30)
+
+
+def test_a_closed_trades_stamp_reads_no_routine_or_tracker_table(conn, monkeypatch):
+    """I-3: the tool stamps are built only by the branches that use them."""
+    seen: list[str] = []
+    real = run._one
+
+    def spy(c, sql, uid):
+        seen.append(sql)
+        return real(c, sql, uid)
+    monkeypatch.setattr(run, "_one", spy)
+    tool_sql = set(run._ROUTINE_STAMPS) | set(run._TRACKER_STAMPS)
+    for key, p in (("closed_trades", None), ("open_positions", None), ("trading_days", dplan())):
+        seen.clear()
+        run.data_stamp(conn, UID, key, p)
+        assert seen and not (set(seen) & tool_sql), key
+    seen.clear()
+    run.data_stamp(conn, UID, "trading_days", dplan(split={"by": "routine_done",
+                                                           "ref": str(uuid.uuid4())}))
+    assert set(run._ROUTINE_STAMPS) <= set(seen)                # control: the branch reads them
+
+
+def test_future_sessions_are_not_no_routine_yet(conn):
+    """M-1: only past days before the routine existed count; sessions still to come leave quietly."""
+    rid, _ = make_routine(created="2026-10-21")
+    _p, sc, res = scan(conn, dplan(split={"by": "routine_done", "ref": rid},
+                                   range={"from": "2026-10-19", "to": "2026-10-30"}))
+    assert {r["day"] for r in sc.rows if r["routine_done"] is None} >= {"2026-10-19", "2026-10-26"}
+    assert "2 days have no routine yet and are not in this split." in res.footnotes  # 10-19, 10-20
+
+
+def test_labels_have_one_authority_and_today_reads_not_yet():
+    """M-2 / W9-R26."""
+    from api.services.journal_two import routine_days
+    for code in ("done", "not_done", "skipped", "off"):
+        assert sources.STATE_LABELS[code] == routine_days.STATE_LABELS[code]
+    assert sources.STATE_LABELS["open"] == "Not yet" and sources.state_label("open") == "Not yet"
+
+
+def test_group_order_is_read_at_call_time(conn, monkeypatch):
+    """M-3: moving the source order moves the group order."""
+    rid, (item,) = make_routine()
+    tick(rid, "2026-10-20", item)
+    skip(rid, "2026-10-21")
+    raw = rplan(split={"by": "state"}, range=WEEK_RANGE)
+    _p, _sc, res = scan(conn, raw)
+    assert [g.label for g in res.groups] == ["Done", "Not done", "Skipped"]
+    monkeypatch.setattr(sources, "HISTORY_STATES", ("skipped", "not_done", "done", "open"))
+    _p, _sc, res = scan(conn, raw)
+    assert [g.label for g in res.groups] == ["Skipped", "Not done", "Done"]

@@ -169,7 +169,7 @@ def _position_row(r: dict) -> dict:
 def _routine_row(r: dict) -> dict:
     """Wave 9: one scheduled day of a routine (`label2` is the item, when split by item)."""
     return {"day": r.get("day"), "label": r.get("routine_name"), "label2": r.get("item_text"),
-            "state": r.get("state")}
+            "state": r.get("state"), "stateLabel": wsources.state_label(r.get("state"))}
 
 
 def _tracker_row(r: dict) -> dict:

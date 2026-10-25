@@ -327,19 +327,24 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str,
     def many(qs) -> str:
         return "|".join(_one(conn, q, user_id) for q in qs)
 
-    routines = "r|" + many(_ROUTINE_STAMPS)
-    trackers = "k|" + many(_TRACKER_STAMPS)
+    # I-3: the routine and tracker stamps are read only by the branches that use them.
+    def routines() -> str:
+        return "r|" + many(_ROUTINE_STAMPS)
+
+    def trackers() -> str:
+        return "k|" + many(_TRACKER_STAMPS)
+
     if source_key == "routine_history":
-        return routines + "|" + many((_TRADES_STAMP, _POSITIONS_STAMP, _STRATEGIES_STAMP))
+        return routines() + "|" + many((_TRADES_STAMP, _POSITIONS_STAMP, _STRATEGIES_STAMP))
     if source_key == "tracker_history":
-        return trackers + "|" + _one(conn, _CHECKINS_STAMP, user_id)
+        return trackers() + "|" + _one(conn, _CHECKINS_STAMP, user_id)
     trades = many((_TRADES_STAMP, _EXCURSIONS_STAMP, _ADHERENCE_STAMP, _ACCOUNTS_STAMP))
     if source_key == "open_positions":
         return "p|" + _one(conn, _POSITIONS_STAMP, user_id) + "|" + _one(conn, _ACCOUNTS_STAMP, user_id)
     if source_key == "trading_days":
         days = trades + "|d|" + many((_STRATEGIES_STAMP, _CHECKINS_STAMP, _DAY_NOTES_STAMP))
         if wplan.uses_tools(plan):
-            days += "|" + routines + "|" + trackers
+            days += "|" + routines() + "|" + trackers()
         return days
     return trades
 

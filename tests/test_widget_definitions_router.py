@@ -610,7 +610,7 @@ def test_vocabulary_serves_the_routine_state_codes_and_the_validator_agrees(conn
     for (source, field), (codes, mk) in cases.items():
         served = _served_codes(c, source, field)
         assert served == [{"value": k, "label": wsources.STATE_LABELS[k]} for k in codes]
-        assert {s["label"] for s in served} <= {"Done", "Not done", "Skipped", "Off day", "Open"}
+        assert {s["label"] for s in served} <= {"Done", "Not done", "Skipped", "Off day", "Not yet"}
         for s in served:
             assert wplan.validate_plan(mk(s["value"]), wsources.CATALOG)["filters"][0]["values"] \
                 == [s["value"]]

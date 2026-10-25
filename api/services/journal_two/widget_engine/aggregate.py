@@ -123,11 +123,17 @@ def _noun(unit: str, n: int) -> str:
     return _SINGULAR.get(unit, unit) if n == 1 else unit
 
 
-def _quiet(fld: Any, rows: list[dict]) -> bool:
-    """Ruling W9-R18: a field whose routine or tracker did not resolve says so once (a notice),
-    never as a no-value footnote."""
-    kind = getattr(fld, "ref_kind", None)
-    return bool(kind and rows and kind in (rows[0].get("_unresolved") or ()))
+def _quiet(fld: Any, row: dict) -> bool:
+    """A row whose missing value for `fld` is not counted in a no-value footnote (`_quiet` holds
+    field keys): a routine or tracker that did not resolve says so once, as a notice (W9-R18), and
+    a session after today is not "no routine yet" (M-1)."""
+    return fld.key in (row.get("_quiet") or ())
+
+
+def bucket_order(fld: Any) -> tuple:
+    """The field's bucket, read at call time (a callable bucket follows its source, M-3)."""
+    b = getattr(fld, "bucket", None)
+    return tuple(b() if callable(b) else b or ())
 
 
 def _apply_filters(rows: list[dict], plan: dict, src: Any, notes: list[str]) -> list[dict]:
@@ -144,11 +150,11 @@ def _apply_filters(rows: list[dict], plan: dict, src: Any, notes: list[str]) -> 
                 notes.append(S_HOLD_MINUTES_SOME.format(
                     n=missing, trades=_noun(src.unit, missing),
                     have=_plural(missing, "has", "have"), are=_plural(missing, "is", "are")))
-        elif fld.missing and not _quiet(fld, kept):
+        elif fld.missing:
             # A filter on a field some rows have no value for (a date-only trade has no ET
             # hour) leaves those rows out; say how many, as the split does.
             gone = sum(1 for r in kept if not r.get("flagged") and r.get(fld.key) is None
-                       and not matches(fld, f["op"], values, None))
+                       and not matches(fld, f["op"], values, None) and not _quiet(fld, r))
             if gone:
                 notes.append(S_FILTER_MISSING.format(
                     n=gone, rows=_noun(src.unit, gone), have=_plural(gone, "has", "have"),
@@ -215,9 +221,10 @@ def _missing_note(fld: Any, unit: str, n: int) -> str:
 def _natural_key(fld: Any, key: str):
     if key == _NONE_KEY:
         return (2, 0, "")
-    if fld.bucket:
+    order = bucket_order(fld)
+    if order:
         try:
-            return (0, list(map(str, fld.bucket)).index(key), key)
+            return (0, list(map(str, order)).index(key), key)
         except ValueError:
             return (1, 0, key)
     if fld.type == "number":
@@ -227,7 +234,7 @@ def _natural_key(fld: Any, key: str):
 
 
 def _ordered_naturally(fld: Any) -> bool:
-    return bool(fld.bucket) or fld.type in ("day", "number") or fld.key == "month"
+    return bool(bucket_order(fld)) or fld.type in ("day", "number") or fld.key == "month"
 
 
 def _cells(plan: dict, catalog: Any, source_key: str, rows: list[dict]) -> list[wmeasures.Cell]:
@@ -303,13 +310,13 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any) -> Result:
         for r in counted:
             k1s = _keys_of(by, r)
             if k1s == [None] and by.none_label is None:
-                out_by += 1
+                out_by += 0 if _quiet(by, r) else 1
                 continue
             k2s: list[str | None] = [""]
             if then is not None:
                 k2s = _keys_of(then, r)
                 if k2s == [None] and then.none_label is None:
-                    out_then += 1
+                    out_then += 0 if _quiet(then, r) else 1
                     continue
             for k1 in k1s:
                 k1 = _NONE_KEY if k1 is None else k1
@@ -320,9 +327,9 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any) -> Result:
                     if key not in labels:
                         labels[key] = (_label(by, k1, r),
                                        _label(then, k2, r) if then is not None else None)
-        if out_by and not _quiet(by, counted):
+        if out_by:
             notes.append(_missing_note(by, src.unit, out_by))
-        if out_then and not _quiet(then, counted):
+        if out_then:
             notes.append(_missing_note(then, src.unit, out_then))
         order_key = getattr(by, "order_from", None)
         for (k1, k2), grp in buckets.items():

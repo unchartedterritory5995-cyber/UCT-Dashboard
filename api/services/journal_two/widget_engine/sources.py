@@ -71,8 +71,9 @@ WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 STATE_CODES = ("done", "not_done", "skipped", "off", "open")
 #: The states a routine-history row can have (an off day is never a row).
 HISTORY_STATES = ("done", "not_done", "skipped", "open")
-STATE_LABELS = {"done": "Done", "not_done": "Not done", "skipped": "Skipped", "off": "Off day",
-                "open": "Open"}
+#: One authority (M-2): the routine store's own words, with today's unticked day as "Not yet"
+#: (ruling W9-R26; the code stays `open`).
+STATE_LABELS = {**routine_days.STATE_LABELS, "open": "Not yet"}
 
 
 def state_label(code: Any) -> str:
@@ -82,6 +83,16 @@ def state_label(code: Any) -> str:
 def _state_choices() -> tuple[tuple[str, str], ...]:
     """W9-R23: `routine_done`'s codes with their labels, derived (read when served)."""
     return tuple((c, STATE_LABELS[c]) for c in STATE_CODES)
+
+
+def _state_order() -> tuple[str, ...]:
+    """`routine_done`'s group order, read at call time (M-3)."""
+    return STATE_CODES
+
+
+def _history_order() -> tuple[str, ...]:
+    """Routine history's `state` group order, read at call time (M-3)."""
+    return HISTORY_STATES
 
 
 def _history_choices() -> tuple[tuple[str, str], ...]:
@@ -117,8 +128,9 @@ class Field:
     ref_kind: str | None = None
     #: False for a split-only field (a filter on it is refused)
     filterable: bool = True
-    #: the values a member picks from for a filter, as `((value, label), ...)` or a callable returning
-    #: that (read when the vocabulary is served; the I-8 shape)
+    #: the closed set of values a member picks from for a filter, each with its label, as
+    #: `((value, label), ...)` or a callable returning that (read when the vocabulary is served; the
+    #: I-8 shape). A field may carry both: `bucket` orders its groups, `choices` lists its values.
     choices: Any = None
     #: W9-R21/R23: a filter on it may hold only the values of `choices` (codes, never labels)
     strict_choices: bool = False
@@ -597,7 +609,7 @@ DAY_FIELDS: dict[str, Field] = {f.key: f for f in [
     # W9-R21: codes stored, labels shown; an off day is its own group, a day before the routine
     # existed is left out of the split (and counted).
     _f("routine_done", "Routine done", "enum", split=True, ref_kind="routine",
-       bucket=STATE_CODES, choices=_state_choices, strict_choices=True, fmt=state_label,
+       bucket=_state_order, choices=_state_choices, strict_choices=True, fmt=state_label,
        missing="no routine yet"),
     _f("tracker_value", "Tracker value", "number", ref_kind="tracker",
        missing="no value for this tracker"),
@@ -919,7 +931,7 @@ ROUTINE_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("routine", "Routine", "enum", split=True, label_from="routine_name"),
     _f("item", "Item", "enum", split=True, label_from="item_text", filterable=False),
     # W9-R21: the stored values are the codes; "Done" is only how a group reads
-    _f("state", "State", "enum", split=True, bucket=HISTORY_STATES, choices=_history_choices,
+    _f("state", "State", "enum", split=True, bucket=_history_order, choices=_history_choices,
        strict_choices=True,
        fmt=state_label),
     _f("consistency", "Consistency", "number"),
@@ -1089,7 +1101,7 @@ def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dic
     """Write `routine_done`, `tracker_value` and `tracker_bucket` (with `tracker_bucket_order`) on
     each trading-days row for the plan's routine and tracker refs, resolved for the session member
     only. Answers (footnotes, notices). A ref that does not resolve leaves every value None and is
-    ONE notice (W9-R18); the rows say so (`_unresolved`), so no off-day or no-value footnote is
+    ONE notice (W9-R18); the rows say so (`_quiet`), so no off-day or no-value footnote is
     added for it. A plan with no ref writes nothing (the rows keep the sample book's shape)."""
     refs = plan_refs(plan, DAY_FIELDS)
     notes: list[str] = []
@@ -1118,6 +1130,9 @@ def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dic
                 if code is None and arch and r["day"] > arch:
                     code = "off"                            # archived: it no longer runs
                 r["routine_done"] = code
+                if code is None and r["day"] > today_s:
+                    # M-1: a session still to come is not "no routine yet"; it leaves quietly
+                    r["_quiet"] = r.get("_quiet", frozenset()) | {"routine_done"}
             if h.uses_traded:
                 note = _estimated_note(conn, user_id, max(lo_s, h.created.isoformat()),
                                        min(hi_d, today).isoformat())
@@ -1149,9 +1164,9 @@ def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dic
                 r["tracker_bucket"] = label = tracker_days.bucket_of(bs, v)
                 r["tracker_bucket_order"] = order.get(label)
     if unresolved:
-        mark = frozenset(unresolved)
+        keys = frozenset(f.key for f in DAY_FIELDS.values() if f.ref_kind in unresolved)
         for r in rows:
-            r["_unresolved"] = mark
+            r["_quiet"] = r.get("_quiet", frozenset()) | keys
     return notes, notices
 
 
