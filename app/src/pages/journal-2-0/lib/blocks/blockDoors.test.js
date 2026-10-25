@@ -45,6 +45,8 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  *     position's pre-entry PUT and the closed trade's adherence PUT; the body file writes nothing);
  *   · Task 10 — its block body's one named write;
  *   · P2b Task 8 — lib/blocks/rulesApi.js, the rule edit (a rule's words, its note, its before-entry switch).
+ *   · Wave 9 Task 9.12 — lib/blocks/toolsApi.js, its five named calls (the routine and tracker batch reads, a tick,
+ *     a skip, a logged value).
  * Never a whole file, never a note URL (the last case below refuses both).
  */
 export const WRITE_EXCEPTIONS = {
@@ -62,6 +64,19 @@ export const WRITE_EXCEPTIONS = {
   'app/src/pages/journal-2-0/lib/blocks/rulesApi.js': [
     { method: 'PUT', url: '/api/j2/trader-blocks/rules/{}',
       why: 'Writes j2_journal_rules and j2_journal_rule_versions (part b Task 3), never a note.' },
+  ],
+  // Wave 9 Task 9.12: the routine and tracker client. Five calls, each a literal method and URL template.
+  'app/src/pages/journal-2-0/lib/blocks/toolsApi.js': [
+    { method: 'POST', url: '/api/j2/routines/days',
+      why: 'A read sent as POST so ids never reach a query string; it writes nothing, and never a note.' },
+    { method: 'PUT', url: '/api/j2/routines/{}/days/{}/items/{}',
+      why: 'Writes one tick to the routine day-tick table (j2_routine_ticks); never a note.' },
+    { method: 'PUT', url: '/api/j2/routines/{}/days/{}',
+      why: "Writes a routine day's skip to the routine skips table (j2_routine_days); never a note." },
+    { method: 'POST', url: '/api/j2/trackers/days',
+      why: 'A read sent as POST so ids never reach a query string; it writes nothing, and never a note.' },
+    { method: 'PUT', url: '/api/j2/trackers/{}/days/{}',
+      why: 'Writes one value to the tracker values table (j2_tracker_values); never a note.' },
   ],
 }
 
@@ -889,5 +904,30 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'PUT' })", ex)).toEqual([])
     expect(problemsIn(f, "fetch(`/api/j2/notes/${id}`, { method: 'PUT' })", ex)).toEqual([`WRITE ${f}: PUT /api/j2/notes/{}`])
     expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'DELETE' })", ex)).toHaveLength(1)
+  })
+  it("CONTROL — Task 9.12's five writes: the real toolsApi.js is clean as listed, and each entry removed fails BY NAME", () => {
+    const f = 'app/src/pages/journal-2-0/lib/blocks/toolsApi.js'
+    const src = readFileSync(join(REPO, f), 'utf8')
+    const listed = WRITE_EXCEPTIONS[f]
+    expect(listed.map((e) => `${e.method} ${e.url}`)).toEqual([
+      'POST /api/j2/routines/days', 'PUT /api/j2/routines/{}/days/{}/items/{}', 'PUT /api/j2/routines/{}/days/{}',
+      'POST /api/j2/trackers/days', 'PUT /api/j2/trackers/{}/days/{}',
+    ])
+    expect(problemsIn(f, src)).toEqual([])
+    for (const gone of listed) {
+      const without = { [f]: listed.filter((e) => e !== gone) }
+      expect(problemsIn(f, src, without), `${gone.method} ${gone.url} removed`).toEqual([`WRITE ${f}: ${gone.method} ${gone.url}`])
+    }
+    // ...and with none listed, the file's writes are exactly those five, so the list is neither short nor long.
+    expect([...new Set(problemsIn(f, src, {}))].sort()).toEqual(listed.map((e) => `WRITE ${f}: ${e.method} ${e.url}`).sort())
+    expect(listed.every((e) => exceptionProblems(e).length === 0)).toBe(true)
+  })
+  it("CONTROL — toolsApi.js's exceptions are per file: the same calls in another block file are refused", () => {
+    const g = 'app/src/pages/journal-2-0/lib/blocks/toolDays.js'
+    expect(problemsIn(g, "fetch(`/api/j2/routines/${r}/days/${d}`, { method: 'PUT' })"))
+      .toEqual([`WRITE ${g}: PUT /api/j2/routines/{}/days/{}`])
+    const f = 'app/src/pages/journal-2-0/lib/blocks/toolsApi.js'
+    expect(problemsIn(f, "fetch(`/api/j2/routines/${r}/days/${d}`, { method: 'DELETE' })")).toHaveLength(1)
+    expect(problemsIn(f, "fetch('/api/j2/routines/days', { method: 'PUT' })")).toHaveLength(1)
   })
 })
