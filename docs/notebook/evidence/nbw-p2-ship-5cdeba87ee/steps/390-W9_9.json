@@ -1,0 +1,150 @@
+{
+ "viewport": "390",
+ "step": "W9.9",
+ "title": "My tools: Routines and Trackers tabs, rename, archive, restore, delete permanently",
+ "checks": [
+  {
+   "what": "the routine was renamed",
+   "ok": true,
+   "read": "Renamed to “Pre-market (walk)”."
+  },
+  {
+   "what": "the routine was archived",
+   "ok": true,
+   "read": "Archived “Pre-market (walk)”. Restore it from Archived."
+  },
+  {
+   "what": "the routine was restored",
+   "ok": true,
+   "read": "Restored “Pre-market (walk)”."
+  },
+  {
+   "what": "the tracker was renamed",
+   "ok": true,
+   "read": "Renamed to “Sleep hours”."
+  },
+  {
+   "what": "the archived tracker was deleted permanently (to Recently deleted)",
+   "ok": true,
+   "read": "“Walk scratch” moved to Recently deleted. It's kept for 30 days."
+  },
+  {
+   "what": "it is listed under Recently deleted",
+   "ok": true,
+   "read": "Walk scratch"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Routines tab",
+   "text": "Active\nArchived\nRecently deleted\nNew routine\n1 ROUTINE\nPre-market routine\nEvery trading day\n·\nUsed in 1 note\n·\nEdited today"
+  },
+  {
+   "what": "message",
+   "text": "Renamed to “Pre-market (walk)”."
+  },
+  {
+   "what": "message",
+   "text": "Archived “Pre-market (walk)”. Restore it from Archived."
+  },
+  {
+   "what": "message",
+   "text": "Restored “Pre-market (walk)”."
+  },
+  {
+   "what": "Trackers tab",
+   "text": "Active\nArchived\nRecently deleted\nNew tracker\n\nLoading your trackers…"
+  },
+  {
+   "what": "message",
+   "text": "Renamed to “Sleep hours”."
+  },
+  {
+   "what": "delete question",
+   "text": "Back\nDelete “Walk scratch” permanently?\n\nIt moves to Recently deleted for 30 days, then it is gone for good, with its history.\n\nType Walk scratch to confirm\n\nDelete turns on when the name matches exactly.\n\nCancel\nDelete permanently"
+  },
+  {
+   "what": "message",
+   "text": "“Walk scratch” moved to Recently deleted. It's kept for 30 days."
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "scratch tracker (POST /api/j2/trackers)",
+   "value": 200
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 65,
+   "small": [
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W9_9-main.png",
+  "390/W9_9-second-tab.png"
+ ]
+}

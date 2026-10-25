@@ -1,0 +1,15 @@
+tip under test: 5cdeba87ee
+phase: on-resume1
+(copied from the launcher log docs/plans/joystick/sandbox-runs/2026-10-25T16-58-03.md)
+
+# Sandbox run — shared-data-root integrity log
+
+Every checkpoint below hashes the main `.db` files under the shared root.
+`-wal` / `-shm` are excluded: opening a WAL database read-only rewrites its
+`-shm` index, so mtime there is noise. See `scripts/data_root_snapshot.py`.
+
+- `2026-10-25 16:58:08`  **pre-boot (baseline)** — C:\data, 63 db files — CLEAN
+    - sandbox = C:\data-nbw-walk; identity = 75754d36a8f5fe1923ffdbda1e481a28
+- `2026-10-25 16:58:36`  **post-boot (+15s)** — C:\data, 63 db files — CLEAN
+- `2026-10-25 17:00:27`  **post-prewarm (+120s)** — C:\data, 63 db files — CLEAN
+- `2026-10-25 17:00:33`  **shutdown** — C:\data, 63 db files — CLEAN

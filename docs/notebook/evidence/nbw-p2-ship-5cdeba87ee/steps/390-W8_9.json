@@ -1,0 +1,146 @@
+{
+ "viewport": "390",
+ "step": "W8.9",
+ "title": "My tools: rename, history restore, archive and restore",
+ "checks": [
+  {
+   "what": "rename says what happened",
+   "ok": true,
+   "read": "Renamed to “Daily P&L (renamed)”."
+  },
+  {
+   "what": "the row shows the new name",
+   "ok": true,
+   "read": "Daily P&L (renamed)"
+  },
+  {
+   "what": "the older version was restored (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "restoring saved the oldest version's plan as a NEW version",
+   "ok": true,
+   "read": "{\"before\": 3, \"rev\": 4, \"name\": \"Daily P&L (renamed)\"}"
+  },
+  {
+   "what": "archive says what happened",
+   "ok": true,
+   "read": "Archived “Daily P&L (renamed)”. Restore it from Archived."
+  },
+  {
+   "what": "the widget is listed under Archived",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "restore from Archived says what happened",
+   "ok": true,
+   "read": "Restored “Daily P&L (renamed)” to your widgets."
+  },
+  {
+   "what": "the widget is back in the Active list",
+   "ok": true,
+   "read": "Daily P&L (renamed)"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "widgets list",
+   "text": "Active\nArchived\nRecently deleted\nBuild a widget\n2 WIDGETS\nDaily P&L bars (this note)\n, Bar\nUsed in 1 note\n·\nEdited today\nDaily P&L bars (walk)\n, Bar\nUsed in 1 note\n·\nEdited today\nChart sets and presets have their own place.\nManage chart sets"
+  },
+  {
+   "what": "message after rename",
+   "text": "Renamed to “Daily P&L (renamed)”."
+  },
+  {
+   "what": "version history",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nBack\nVersion history: Daily P&L (renamed)\nOct 25, 4:48 PM\nCurrent version\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nName this version\nOct 25, 4:48 PM\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nName this version\nRestore\nOct 25, 4:47 PM\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nName this version\nRestore"
+  },
+  {
+   "what": "restore question",
+   "text": "Restore the version from Oct 25, 4:47 PM? It is saved as a new version, so nothing is lost. Your notes keep what they show.\n\nCancel\nRestore"
+  },
+  {
+   "what": "message after restore",
+   "text": "Restored the version from Oct 25, 4:47 PM. It's now the newest version."
+  },
+  {
+   "what": "archive question",
+   "text": "Back\nArchive “Daily P&L (renamed)”?\n\nIt stays in your 1 note as a snapshot. See it now keeps working from its saved copy.\n\nIt leaves your widget list; you can restore it from Archived.\n\nCancel\nArchive"
+  },
+  {
+   "what": "message after archive",
+   "text": "Archived “Daily P&L (renamed)”. Restore it from Archived."
+  },
+  {
+   "what": "message after unarchive",
+   "text": "Restored “Daily P&L (renamed)” to your widgets."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 44,
+   "small": [
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 3,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W8_9-main.png"
+ ]
+}

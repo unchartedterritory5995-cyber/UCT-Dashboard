@@ -1,0 +1,99 @@
+{
+ "viewport": "1200",
+ "step": "W9.5",
+ "title": "/track: Sleep (duration), log 7:30; open a check-in tracker read-only",
+ "checks": [
+  {
+   "what": "the tracker was saved (HTTP 200/201)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the value was logged (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the block shows 7h 30m for the day",
+   "ok": true,
+   "read": "For Sun Oct 25\n7h 30m\n\nLog your first value; the chart starts with it.\n\nCompare with P&L"
+  },
+  {
+   "what": "the check-in tracker is read-only (its line, no input)",
+   "ok": true,
+   "read": "For Sun Oct 25\n\nMood and focus come from your check-ins.\n\nCompare with P&L"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "tracker picker",
+   "text": "Add a tracker\n×\nCheck-in mood\nCheck-in focus\nNew tracker"
+  },
+  {
+   "what": "input name",
+   "text": "Sleep (hours:minutes)"
+  },
+  {
+   "what": "tracker block",
+   "text": "For Sun Oct 25\n7h 30m\n\nLog your first value; the chart starts with it.\n\nCompare with P&L"
+  },
+  {
+   "what": "check-in tracker",
+   "text": "For Sun Oct 25\n\nMood and focus come from your check-ins.\n\nCompare with P&L"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "days it logs",
+   "value": "Any day (the walk runs on a weekend; the default Trading days refuses its day)"
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 2,
+   "small": [],
+   "smallCount": 0,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W9_5-main.png",
+  "1200/W9_5-second-tab.png"
+ ]
+}

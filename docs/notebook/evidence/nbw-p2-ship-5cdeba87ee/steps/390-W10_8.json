@@ -1,0 +1,186 @@
+{
+ "viewport": "390",
+ "step": "W10.8",
+ "title": "at 390 px with the keyboard open in the Formula box (sticky summary hides, autocomplete above the keyboard)",
+ "checks": [
+  {
+   "what": "autocomplete stays above the keyboard (inside the visual viewport)",
+   "ok": false,
+   "read": "{\"x\": 26, \"y\": 434.78125, \"width\": 338, \"height\": 54}"
+  },
+  {
+   "what": "the sticky summary hides while the keyboard is open",
+   "ok": true,
+   "read": "hidden=True"
+  },
+  {
+   "what": "no horizontal page scroll with the keyboard open",
+   "ok": true,
+   "read": "{\"vw\": 390, \"docScrollWidth\": 390, \"bodyScrollWidth\": 390, \"inner\": [[390, 390], [342, 342], [342, 342]], \"horizontal\": false, \"offenders\": []}"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "suggestions / box / visual viewport",
+   "text": "{\"suggestions\": {\"x\": 26, \"y\": 434.78125, \"width\": 338, \"height\": 54}, \"box\": {\"x\": 26, \"y\": 364, \"width\": 338, \"height\": 62.78125}, \"visualViewport\": 464}"
+  }
+ ],
+ "verdict": "FAIL",
+ "metrics_keyboard_open": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 38,
+   "small": [
+    {
+     "label": "Number, suggested",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Number with comparison",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Table",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "List",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Gold",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Green",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Red",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Blue",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Purple",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Teal",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Orange",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 18,
+     "h": 18
+    }
+   ],
+   "smallCount": 12,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W10_8-keyboard.png",
+  "390/W10_8-main.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 7,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "page_text": {
+  "main": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nBack to notes\nFormulas and ready-made widgets 390\nEditor toolbar\nShare\nWriting help\nUndo\nRedo\nAa\nFormat\nB\nI\nNot reviewed\nDetails\nImage looks like a scan — no readable text yet, so Search and Ask cannot use it.\n\n\n\n\n\n\n\n‹\n⋯\nMore\nMy notes list\nSnapshot\nas of Oct 25, 2026, 5:51 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nTSLA plan (390)2026-10-25\n1\nIdea 3 (390)2026-10-25\n1\nIdea 2 (390)2026-10-25\n1\nIdea 1 (390)2026-10-25\n1\nOlder note 3902026-10-25\n1\nFormulas and ready-made widgets 3902026-10-25\n1\nRoutine walk 3902026-10-25\n1\nWidgets walk 390 (second note)2026-10-25\n1\nWidgets walk 3902026-10-25\n1\nShow as table\n\nSource: your manual trades\n\nPosition size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\n100 shares of NVDA, $100 at risk (1% of the account).\n\nPosition value: $4,800 (48% of the account).\n\nSized against this note's $10,000.\n\n100 shares of NVDA, $100 at risk (1% of the account).\n\n‹\n⋯\nMore\n‹\n⋯\nMore\n‹\n⋯\nMore\n\n\n\n\n‹\n⋯\nMore\n‹\n⋯\nMore\n\n\n\n\n‹\n⋯\nMore\n\n\n\n\n‹\n⋯\nMore\n\n\n\n\n‹\n⋯\nMore\n\n\n\n\n‹\n⋯\nMore\n\n\n\n\n‹\n⋯\nMore\nPlan vs actual\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\n\nTSLALong\n\nRow\tPlanned\tActual\tWhat happened\nEntry\t$100.00\t$100.00\tEntry: Planned $100.00, filled $100.00; filled at the plan.\nStop\t$98.00\t$98.00\tStop: Planned $98.00, your stop $98.00.\nTarget\t$106.00\t$103.00\tTarget: Planned $106.00, exited at $103.00.\nR\t+3.0R\t+1.5R\tR: Planned 3.0R, realized 1.5R.\nSize: planned 100 shares, entered 100.\n\nYour closed trades in the Journal.\n\n\n\n\n‹\n⋯\nMore\nPlan vs actual\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\n\nAAPLLong\n\nThis trade isn't linked to a plan. Link one from the trade's page.\n\nYour closed trades in the Journal.\n\nThis week's review.\n\n\n\n\nBuild a widget\n×\n\nWidget\nShow the preview\nKeep your changes?\n\nYou can come back to them for a day.\n\nKeep my changes\nDiscard them\nKeep editing\nUndo\nRedo\nSave"
+ }
+}

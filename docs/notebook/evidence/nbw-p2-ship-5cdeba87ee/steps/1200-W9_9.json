@@ -1,0 +1,276 @@
+{
+ "viewport": "1200",
+ "step": "W9.9",
+ "title": "My tools: Routines and Trackers tabs, rename, archive, restore, delete permanently",
+ "checks": [
+  {
+   "what": "the routine was renamed",
+   "ok": true,
+   "read": "Renamed to “Pre-market (walk)”."
+  },
+  {
+   "what": "the routine was archived",
+   "ok": true,
+   "read": "Archived “Pre-market (walk)”. Restore it from Archived."
+  },
+  {
+   "what": "the routine was restored",
+   "ok": true,
+   "read": "Restored “Pre-market (walk)”."
+  },
+  {
+   "what": "the tracker was renamed",
+   "ok": true,
+   "read": "Renamed to “Sleep hours”."
+  },
+  {
+   "what": "the archived tracker was deleted permanently (to Recently deleted)",
+   "ok": true,
+   "read": "“Walk scratch” moved to Recently deleted. It's kept for 30 days."
+  },
+  {
+   "what": "it is listed under Recently deleted",
+   "ok": true,
+   "read": "Walk scratch"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Routines tab",
+   "text": "Active\nArchived\nRecently deleted\nNew routine\n1 ROUTINE\nPre-market routine\nEvery trading day\n·\nUsed in 1 note\n·\nEdited today\nOpen"
+  },
+  {
+   "what": "message",
+   "text": "Renamed to “Pre-market (walk)”."
+  },
+  {
+   "what": "message",
+   "text": "Archived “Pre-market (walk)”. Restore it from Archived."
+  },
+  {
+   "what": "message",
+   "text": "Restored “Pre-market (walk)”."
+  },
+  {
+   "what": "Trackers tab",
+   "text": "Active\nArchived\nRecently deleted\nNew tracker\n4 TRACKERS\nCheck-in mood\nFrom your check-ins\n·\n1-5 scale\nOpen\nCheck-in focus\nFrom your check-ins\n·\n1-5 scale\nOpen\nWalk scratch\nYes / no\n·\nNot in any note\n·\nEdited today\nOpen\nSleep\nDuration\n·\nUsed in 1 note\n·\nEdited today\nOpen"
+  },
+  {
+   "what": "message",
+   "text": "Renamed to “Sleep hours”."
+  },
+  {
+   "what": "delete question",
+   "text": "Back\nDelete “Walk scratch” permanently?\n\nIt moves to Recently deleted for 30 days, then it is gone for good, with its history.\n\nType Walk scratch to confirm\n\nDelete turns on when the name matches exactly.\n\nCancel\nDelete permanently"
+  },
+  {
+   "what": "message",
+   "text": "“Walk scratch” moved to Recently deleted. It's kept for 30 days."
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "scratch tracker (POST /api/j2/trackers)",
+   "value": 200
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 110,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 82,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W9_9-main.png",
+  "1200/W9_9-second-tab.png"
+ ]
+}

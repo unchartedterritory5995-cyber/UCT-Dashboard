@@ -1,0 +1,71 @@
+{
+ "viewport": "390",
+ "step": "W9.3",
+ "title": "skip a day and read the consistency sentence",
+ "checks": [
+  {
+   "what": "Skip this day turns into Skipped",
+   "ok": true,
+   "read": "For Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkipped\nP&L on days you finished it"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "block, day skipped",
+   "text": "For Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkipped\nP&L on days you finished it"
+  },
+  {
+   "what": "consistency sentence",
+   "text": ""
+  }
+ ],
+ "verdict": "INCONCLUSIVE",
+ "error": "INCONCLUSIVE: no consistency sentence was drawn: the walk runs on 2026-10-25 ET, which is not a market session, and a routine created today has no scheduled day on or before today, so the server has nothing to count (the block reads 'Off day'); the skip itself was written and undone",
+ "events": {
+  "main": [],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 8,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W9_3-main.png",
+  "390/W9_3-second-tab.png"
+ ],
+ "page_text": {
+  "main": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nBack to notes\nRoutine walk 390\nEditor toolbar\nShare\nWriting help\nUndo\nRedo\nAa\nFormat\nB\nI\nNot reviewed\nDetails\n\n\n\n\nRoutine\nRemove\n\nFor Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkip this day\nP&L on days you finished it\n\nPre-market, then the open.\n\n?\n◉",
+  "second-tab": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nJournal\nLog Trade\nJournal tools\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nNotebook\nBack to notes\nRoutine walk 390\nEditor toolbar\nShare\nWriting help\nUndo\nRedo\nAa\nFormat\nB\nI\nNot reviewed\nDetails\n\n\n\n\nRoutine\nRemove\n\nFor Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkip this day\nP&L on days you finished it\n\nPre-market, then the open.\n\n?\n◉"
+ }
+}

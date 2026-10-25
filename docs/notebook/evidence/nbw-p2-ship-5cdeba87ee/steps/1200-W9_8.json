@@ -1,0 +1,245 @@
+{
+ "viewport": "1200",
+ "step": "W9.8",
+ "title": "build a widget over Routine history and over Trading days split by 'routine done'",
+ "checks": [
+  {
+   "what": "the preview reads routine history",
+   "ok": true,
+   "read": "Best run for routine history in the last 90 days, all accounts. No days yet."
+  },
+  {
+   "what": "the routine history widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the preview splits trading days by the routine",
+   "ok": true,
+   "read": "Average day P&L, split by routine done, for trading days in the last 90 days, all accounts. 63 days."
+  },
+  {
+   "what": "the trading days widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "both widgets are placed in the note",
+   "ok": true,
+   "read": "2 frames"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "routine history preview",
+   "text": "Best run for routine history in the last 90 days, all accounts. No days yet."
+  },
+  {
+   "what": "trading days split by routine done",
+   "text": "Average day P&L, split by routine done, for trading days in the last 90 days, all accounts. 63 days."
+  },
+  {
+   "what": "placed widgets",
+   "text": "Best run, last 90 days\nOnly you\nas of Oct 25, 2026, 5:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nStart ticking your routine; history shows here from day one.\n\nSource: your manual trades || Average day P&L by routine done, last 90 days\nOnly you\nas of Oct 25, 2026, 5:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNone of these days have a value for Routine done yet.\n\nYour trading days in the Journal (day P&L incl. options)."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 114,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 86,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W9_8-main.png",
+  "1200/W9_8-second-tab.png"
+ ]
+}

@@ -1,0 +1,142 @@
+{
+ "viewport": "390",
+ "step": "W9.11",
+ "title": "at 390 px also with the keyboard open in a number tracker's input",
+ "checks": [
+  {
+   "what": "the number input is on screen with the keyboard open",
+   "ok": true,
+   "read": "{\"x\": 49, \"y\": 400.375, \"width\": 144, \"height\": 44}"
+  },
+  {
+   "what": "what was typed is in the input",
+   "ok": true,
+   "read": "45"
+  },
+  {
+   "what": "no horizontal page scroll with the keyboard open",
+   "ok": true,
+   "read": "{\"vw\": 390, \"docScrollWidth\": 390, \"bodyScrollWidth\": 390, \"inner\": [[390, 390], [342, 342], [342, 342]], \"horizontal\": false, \"offenders\": []}"
+  },
+  {
+   "what": "Enter logs the value",
+   "ok": true,
+   "read": "HTTP 200"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "input box / visual viewport",
+   "text": "{\"box\": {\"x\": 49, \"y\": 400.375, \"width\": 144, \"height\": 44}, \"visualViewport\": 464}"
+  }
+ ],
+ "verdict": "PASS",
+ "metrics_keyboard_open": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 4,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W9_11-keyboard.png",
+  "390/W9_11-main.png",
+  "390/W9_11-second-tab.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 72,
+   "small": [
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ }
+}

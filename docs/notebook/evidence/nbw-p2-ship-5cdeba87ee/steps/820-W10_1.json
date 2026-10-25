@@ -1,0 +1,142 @@
+{
+ "viewport": "820",
+ "step": "W10.1",
+ "title": "/build: Closed trades, 'Add your own field', [Net P&L] / [Risk $] with autocomplete, first-row line and skip notice, Average, save, insert",
+ "checks": [
+  {
+   "what": "autocomplete offers Net P&L",
+   "ok": true,
+   "read": "Net P&L"
+  },
+  {
+   "what": "the box reads the label syntax",
+   "ok": true,
+   "read": "[Net P&L] / [Risk $]"
+  },
+  {
+   "what": "the first-row line shows",
+   "ok": true,
+   "read": "First trade: 1.5"
+  },
+  {
+   "what": "the skip notice names the trade left out (no Risk $)",
+   "ok": true,
+   "read": "[Risk $] is empty on 1 trade; those are skipped"
+  },
+  {
+   "what": "the widget measures Return on risk as an average",
+   "ok": true,
+   "read": "Net P&L and Return on risk (average) for closed trades in the last 90 days, all accounts. 6 trades."
+  },
+  {
+   "what": "the widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the formula widget is placed in the note",
+   "ok": true,
+   "read": "Net P&L and Return on risk (average), last 90 days\nOnly you\nas of Oct 25, 2026, 5:45 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNet P&L\n+$700.00\nfrom 6 trades\nReturn"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "autocomplete after [Net",
+   "text": "Net P&L"
+  },
+  {
+   "what": "autocomplete after [Risk",
+   "text": "Risk $"
+  },
+  {
+   "what": "first-row line",
+   "text": "First trade: 1.5"
+  },
+  {
+   "what": "skip notice",
+   "text": "[Risk $] is empty on 1 trade; those are skipped"
+  },
+  {
+   "what": "summary",
+   "text": "Net P&L and Return on risk (average) for closed trades in the last 90 days, all accounts. 6 trades."
+  },
+  {
+   "what": "saved plan",
+   "text": "[{\"id\": \"f1\", \"name\": \"Return on risk\", \"expr\": \"[net] / [risk_dollars]\", \"format\": \"number\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 80,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "820/W10_1-main.png"
+ ]
+}

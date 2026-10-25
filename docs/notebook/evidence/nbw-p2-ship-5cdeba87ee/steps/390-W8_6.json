@@ -1,0 +1,227 @@
+{
+ "viewport": "390",
+ "step": "W8.6",
+ "title": "drill a bar into a trade drawer",
+ "checks": [
+  {
+   "what": "the drill lists the trade behind the bar",
+   "ok": true,
+   "read": "Behind 2026-10-19\n×\n\nLive data; the snapshot was taken on Oct 25\n\nAAPL Long\n2026-10-19\n+$300.00\n+1.5R"
+  },
+  {
+   "what": "the trade opens on its own page",
+   "ok": true,
+   "read": "http://127.0.0.1:8093/journal-2-0/trade/c13da365-1ec2-4e01-8c13-7a237a081dca"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "first bar's name",
+   "text": "2026-10-19: +$300.00"
+  },
+  {
+   "what": "drill rows",
+   "text": "Behind 2026-10-19\n×\n\nLive data; the snapshot was taken on Oct 25\n\nAAPL Long\n2026-10-19\n+$300.00\n+1.5R"
+  },
+  {
+   "what": "row link",
+   "text": "/journal-2-0/trade/c13da365-1ec2-4e01-8c13-7a237a081dca"
+  },
+  {
+   "what": "trade page",
+   "text": "Skip to main content\nUCT\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade\n← Trade Journal\nCustomize\n‹\n›\nAAPL\nLONG\nWin\n▶ Replay\nSave to Notebook\nSave image\nCopy image\nResearch\nMarket context at the fill\n\nNo market context was captured for this entry. It is frozen only on the day of the entry, and a past day is never reconstructed.\n\nPlan vs execution\n\nUNPLANNED\nNo plan for this trade was written before entry. Link a plan note, or write one with Entry, Stop, Target and Shares before your next trade.\n\nLink a plan"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ]
+   ],
+   "horizontal": false,
+   "offenders": [
+    {
+     "tag": "DIV",
+     "cls": "_chartMeta_167sq_1419 ",
+     "text": "MARKET CAP\n$5.07T\nNEXT EARNINGS\n11/2/202",
+     "right": 648
+    },
+    {
+     "tag": "SPAN",
+     "cls": "_chartMetaItem_167sq_1449",
+     "text": "NEXT EARNINGS\n11/2/2026",
+     "right": 539
+    },
+    {
+     "tag": "SPAN",
+     "cls": "_chartMetaLabel_167sq_1461",
+     "text": "NEXT EARNINGS",
+     "right": 467
+    }
+   ]
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 41,
+   "small": [
+    {
+     "label": "← Trade Journal",
+     "tag": "A",
+     "w": 97,
+     "h": 21
+    },
+    {
+     "label": "▶ Replay",
+     "tag": "BUTTON",
+     "w": 79,
+     "h": 30
+    },
+    {
+     "label": "Save to Notebook",
+     "tag": "BUTTON",
+     "w": 146,
+     "h": 28
+    },
+    {
+     "label": "Save image",
+     "tag": "BUTTON",
+     "w": 111,
+     "h": 28
+    },
+    {
+     "label": "Copy image",
+     "tag": "BUTTON",
+     "w": 113,
+     "h": 28
+    },
+    {
+     "label": "Research",
+     "tag": "BUTTON",
+     "w": 99,
+     "h": 28
+    },
+    {
+     "label": "5m",
+     "tag": "BUTTON",
+     "w": 36,
+     "h": 40
+    },
+    {
+     "label": "30m",
+     "tag": "BUTTON",
+     "w": 44,
+     "h": 40
+    },
+    {
+     "label": "1h",
+     "tag": "BUTTON",
+     "w": 30,
+     "h": 40
+    },
+    {
+     "label": "1D",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 40
+    },
+    {
+     "label": "1W",
+     "tag": "BUTTON",
+     "w": 35,
+     "h": 40
+    },
+    {
+     "label": "Arithmetic price scale",
+     "tag": "BUTTON",
+     "w": 17,
+     "h": 11
+    },
+    {
+     "label": "Logarithmic price scale",
+     "tag": "BUTTON",
+     "w": 16,
+     "h": 11
+    },
+    {
+     "label": "Percentage price scale",
+     "tag": "BUTTON",
+     "w": 17,
+     "h": 11
+    },
+    {
+     "label": "Show 3 more indicators",
+     "tag": "BUTTON",
+     "w": 45,
+     "h": 14
+    },
+    {
+     "label": "3M",
+     "tag": "BUTTON",
+     "w": 31,
+     "h": 44
+    },
+    {
+     "label": "6M",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 44
+    },
+    {
+     "label": "YTD",
+     "tag": "BUTTON",
+     "w": 39,
+     "h": 44
+    },
+    {
+     "label": "1Y",
+     "tag": "BUTTON",
+     "w": 27,
+     "h": 44
+    },
+    {
+     "label": "5Y",
+     "tag": "BUTTON",
+     "w": 29,
+     "h": 44
+    },
+    {
+     "label": "— No setup —",
+     "tag": "SELECT",
+     "w": 362,
+     "h": 35
+    },
+    {
+     "label": "Tell me about this trade",
+     "tag": "BUTTON",
+     "w": 362,
+     "h": 34
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 23,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W8_6-main.png"
+ ]
+}

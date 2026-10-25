@@ -1,0 +1,116 @@
+{
+ "viewport": "390",
+ "step": "W10.6",
+ "title": "/size: a long and a short, an unset account size, a stop equal to entry",
+ "checks": [
+  {
+   "what": "an unset account size is said, and the note's own size is offered",
+   "ok": true,
+   "read": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\nSet your account size, or enter one for this note.\n\nSet your account size, or enter one for this note."
+  },
+  {
+   "what": "a long: 50 shares, $100 at risk",
+   "ok": true,
+   "read": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\n50 shares of NVDA, $100 at risk (1% of the account).\n\nPosition value: $2,500 (25% of the account).\n\nSized against this note's $10,000.\n\n50 shares of NVDA, $100 at risk (1% of the account)."
+  },
+  {
+   "what": "a short (stop above entry) sizes too",
+   "ok": true,
+   "read": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\n50 shares of NVDA, $100 at risk (1% of the account).\n\nPosition value: $2,400 (24% of the account).\n\nSized against this note's $10,000.\n\n50 shares of NVDA, $100 at risk (1% of the account)."
+  },
+  {
+   "what": "a stop equal to entry is refused in words",
+   "ok": true,
+   "read": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\nEntry and stop can't be the same.\n\nSized against this note's $10,000.\n\nEntry and stop can't be the same."
+  }
+ ],
+ "rendered": [
+  {
+   "what": "before an account size",
+   "text": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\nSet your account size, or enter one for this note.\n\nSet your account size, or enter one for this note."
+  },
+  {
+   "what": "long",
+   "text": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\n50 shares of NVDA, $100 at risk (1% of the account).\n\nPosition value: $2,500 (25% of the account).\n\nSized against this note's $10,000.\n\n50 shares of NVDA, $100 at risk (1% of the account)."
+  },
+  {
+   "what": "short",
+   "text": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\n50 shares of NVDA, $100 at risk (1% of the account).\n\nPosition value: $2,400 (24% of the account).\n\nSized against this note's $10,000.\n\n50 shares of NVDA, $100 at risk (1% of the account)."
+  },
+  {
+   "what": "stop equal to entry",
+   "text": "Position size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\nEntry and stop can't be the same.\n\nSized against this note's $10,000.\n\nEntry and stop can't be the same."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 89,
+   "small": [
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W10_6-main.png"
+ ]
+}

@@ -1,0 +1,74 @@
+{
+ "viewport": "390",
+ "step": "W10.2",
+ "title": "type a broken formula (If([net] > 0, 1), read the inline sentence, fix it with the keyboard only",
+ "checks": [
+  {
+   "what": "an inline sentence says what is wrong, without a request",
+   "ok": true,
+   "read": "A ( is missing its )."
+  },
+  {
+   "what": "fixed with the keyboard only, the formula is valid",
+   "ok": true,
+   "read": "If([net] > 0, 1, 0)"
+  },
+  {
+   "what": "focus stayed in the Formula box throughout",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "inline sentence",
+   "text": "A ( is missing its )."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 7,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W10_2-main.png"
+ ]
+}

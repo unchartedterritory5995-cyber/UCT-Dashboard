@@ -1,0 +1,71 @@
+{
+ "viewport": "1200",
+ "step": "W9.3",
+ "title": "skip a day and read the consistency sentence",
+ "checks": [
+  {
+   "what": "Skip this day turns into Skipped",
+   "ok": true,
+   "read": "For Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkipped\nP&L on days you finished it"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "block, day skipped",
+   "text": "For Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkipped\nP&L on days you finished it"
+  },
+  {
+   "what": "consistency sentence",
+   "text": ""
+  }
+ ],
+ "verdict": "INCONCLUSIVE",
+ "error": "INCONCLUSIVE: no consistency sentence was drawn: the walk runs on 2026-10-25 ET, which is not a market session, and a routine created today has no scheduled day on or before today, so the server has nothing to count (the block reads 'Off day'); the skip itself was written and undone",
+ "events": {
+  "main": [],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 8,
+   "small": [],
+   "smallCount": 0,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W9_3-main.png",
+  "1200/W9_3-second-tab.png"
+ ],
+ "page_text": {
+  "main": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nWidgets walk 1200\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nSwing book\n$24,800.00\n▾\nNotebook\nFolder navigation\nRECENTS\nRoutine walk 1200\nWidgets walk 1200 (second note)\nWidgets walk 1200\nAdd thesis starter views\nAll notes\n3\nUnfiled\n3\nArchived\n0\nTrash\n0\n+ New folder\nRoutine walk 1200\nEditor toolbar\nAsk this note\nFind\nShare\nUnfiled\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n• List\n1. List\n❝\n</>\n―\n⊞ Insert\nNot reviewed\nDetails\n\n\n\n\nRoutine\nRemove\n\nFor Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkip this day\nP&L on days you finished it\n\nPre-market, then the open.\n\n?\n◉\n⋮",
+  "second-tab": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nWidgets walk 1200\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nSwing book\n$24,800.00\n▾\nNotebook\nFolder navigation\nRECENTS\nRoutine walk 1200\nWidgets walk 1200 (second note)\nWidgets walk 1200\nAdd thesis starter views\nAll notes\n3\nUnfiled\n3\nArchived\n0\nTrash\n0\n+ New folder\nRoutine walk 1200\nEditor toolbar\nAsk this note\nFind\nShare\nUnfiled\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n• List\n1. List\n❝\n</>\n―\n⊞ Insert\nNot reviewed\nDetails\n\n\n\n\nRoutine\nRemove\n\nFor Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkip this day\nP&L on days you finished it\n\nPre-market, then the open.\n\n?\n◉\n⋮"
+ }
+}

@@ -1,0 +1,274 @@
+{
+ "viewport": "1200",
+ "step": "W10.7",
+ "title": "share, private window: the account line for every dedicated widget and the calculator; a shared notes list reads 'Note 1…'",
+ "checks": [
+  {
+   "what": "no ready-made widget or calculator reaches the public page",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the account line stands in for them (adjacent private items share one line, by design)",
+   "ok": true,
+   "read": "8 account lines for 8 run(s) of adjacent private items"
+  },
+  {
+   "what": "the shared notes list reads 'Note 1…' in the public payload",
+   "ok": true,
+   "read": "[\"Note 1\", \"Note 2\", \"Note 3\", \"Note 4\"]"
+  },
+  {
+   "what": "the shared notes list in the editor (the archive image's source) reads 'Note 1…', not titles",
+   "ok": false,
+   "read": "titles drawn: ['Idea 1', 'Idea 2', 'Idea 3', 'Widgets walk']"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "the shared notes list, in the editor (what the archive image is drawn from)",
+   "text": "My notes list\nSnapshot\nas of Oct 25, 2026, 5:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nTSLA plan (1200)2026-10-25\n1\nIdea 3 (1200)2026-10-25\n1\nIdea 2 (1200)2026-10-25\n1\nIdea 1 (1200)2026-10-25\n1\nOlder note 12002026-10-25\n1\nFormulas and ready-made widgets 12002026-10-25\n1\nRoutine walk 12002026-10-25\n1\nWidgets walk 1200 (second note)2026-10-25\n1\nWidgets walk 12002026-10-25\n1\nShow as table\n\nSource: your manual trades"
+  },
+  {
+   "what": "public page",
+   "text": "Formulas and ready-made widgets 1200\n\n\n\n\narchived snapshot · Widget — My notes list · as of 2026-10-25 · captured Oct 25, 2026\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\nThis week's review.\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "public payload",
+   "text": "[\"paragraph\", \"widgetEmbed\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\"]"
+  },
+  {
+   "what": "shared notes list rows (public payload)",
+   "text": "[\"Note 1\", \"Note 2\", \"Note 3\", \"Note 4\", \"Note 5\", \"Note 6\", \"Note 7\", \"Note 8\", \"Note 9\"]"
+  },
+  {
+   "what": "public images",
+   "text": "[\"Widget \\u2014 My notes list \\u00b7 as of 2026-10-25 \\u00b7 captured Oct 25, 2026\"]"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [
+  {
+   "what": "archive of the shared notes list",
+   "value": {
+    "url": "/api/j2/notes/attachments/f6bca6db-1b0f-4755-b741-c8b047887081/71151df8c5b5455699c8fba626325f02/inline/03018d7ea7ff488f238af6d487e01081.png",
+    "w": 696,
+    "h": 383
+   }
+  },
+  {
+   "what": "public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8093/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  }
+ ],
+ "screenshots": [
+  "1200/W10_7-notes-list-archive.png",
+  "1200/W10_7-public.png",
+  "1200/W10_7-main.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 124,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 110,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "page_text": {
+  "main": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nWidgets walk 1200\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nSwing book\n$24,800.00\n▾\nNotebook\nFolder navigation\nRECENTS\nFormulas and ready-made widgets 1200\nOlder note 1200\nRoutine walk 1200\nWidgets walk 1200 (second note)\nWidgets walk 1200\nAdd thesis starter views\nAll notes\n9\nUnfiled\n9\nArchived\n0\nTrash\n0\n+ New folder\nFormulas and ready-made widgets 1200\nEditor toolbar\nAsk this note\nFind\nShare\nUnfiled\nShare link created. Copy the address above.\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n• List\n1. List\n❝\n</>\n―\n⊞ Insert\nNot reviewed\nDetails\n\n\n\n\n‹\nMore\nMy notes list\nSnapshot\nas of Oct 25, 2026, 5:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nTSLA plan (1200)2026-10-25\n1\nIdea 3 (1200)2026-10-25\n1\nIdea 2 (1200)2026-10-25\n1\nIdea 1 (1200)2026-10-25\n1\nOlder note 12002026-10-25\n1\nFormulas and ready-made widgets 12002026-10-25\n1\nRoutine walk 12002026-10-25\n1\nWidgets walk 1200 (second note)2026-10-25\n1\nWidgets walk 12002026-10-25\n1\nShow as table\n\nSource: your manual trades\n\nPosition size calculator\nRemove\nSymbol\nEntry\nStop\nRisk per trade (%)\nAccount size for this note\n\n100 shares of NVDA, $100 at risk (1% of the account).\n\nPosition value: $4,800 (48% of the account).\n\nSized against this note's $10,000.\n\n100 shares of NVDA, $100 at risk (1% of the account).\n\n‹\nMore\nTilt check\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nChange\nTilt check needs entry and exit times; your trades have dates only.\n\nYour closed trades in the Journal.\n\n‹\nMore\n\n\n\n\n‹\nMore\n‹\nMore\n‹\nMore\n\n\n\n\n‹\nMore\n\n\n\n\n‹\nMore\n\n\n\n\n‹\nMore\n\n\n\n\n‹\nMore\n\n\n\n\n‹\nMore\n\n\n\n\n‹\nMore\nPlan vs actual\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\n\nAAPLLong\n\nThis trade isn't linked to a plan. Link one from the trade's page.\n\nYour closed trades in the Journal.\n\nThis week's review.\n\n?\n◉\n⋮"
+ }
+}

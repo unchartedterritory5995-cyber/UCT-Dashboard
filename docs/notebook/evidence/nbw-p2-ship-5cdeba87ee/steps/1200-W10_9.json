@@ -1,0 +1,129 @@
+{
+ "viewport": "1200",
+ "step": "W10.9",
+ "title": "set NOTEBOOK_WIDGETS_W10_ENABLED=0, reload: snapshots kept, See it now and the calculator say 'Not available right now.', /shelf cards revision 1, nothing else changes",
+ "checks": [
+  {
+   "what": "the sandbox serves wave 10 off",
+   "ok": true,
+   "read": "False"
+  },
+  {
+   "what": "the placed wave 10 widgets keep their snapshots (still drawn)",
+   "ok": true,
+   "read": "12 frames"
+  },
+  {
+   "what": "See it now on Tilt check says 'Not available right now.'",
+   "ok": true,
+   "read": "Tilt check\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nChange\n\nNot available right now.\n\nTilt check needs entry and exit times; your trades have dates only.\n\nYour clos"
+  },
+  {
+   "what": "See it now on Return on risk says 'Not available right now.'",
+   "ok": true,
+   "read": "Net P&L and Return on risk (average), last 90 days\nOnly you\nas of Oct 25, 2026, 5:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nNot available right now.\n\nAll my accounts · Last 90 days\n\nNet P&L\n+$7"
+  },
+  {
+   "what": "the calculator says 'Not available right now.' (no inputs)",
+   "ok": true,
+   "read": "3 sentences"
+  },
+  {
+   "what": "nothing else in the note changed (its body is byte-identical)",
+   "ok": true,
+   "read": "same=True"
+  },
+  {
+   "what": "the visit wrote nothing to the note",
+   "ok": true,
+   "read": "[\"POST http://127.0.0.1:8093/api/j2/notes/71151df8c5b5455699c8fba626325f02/opened\"]"
+  },
+  {
+   "what": "/shelf cards show revision 1 (the Equity curve card's r1 words)",
+   "ok": true,
+   "read": "Equity curve\nNet P&L day by day over the last 90 days."
+  }
+ ],
+ "rendered": [
+  {
+   "what": "placed widgets",
+   "text": "My notes list\nSnapshot\nas of Oct 25, 2026, 5:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nTSLA plan (1200)2026-10-25\n1\nIdea 3 (1200)2026-10-25 || Tilt check\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nChange\nTilt check needs entry and exit times; your trades have dates onl || Net P&L by strategy, last 90 days\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nLong Call\n+$10 || Revenge trades\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nNone of the days you traded in the last 30 trading days could be che || Notes and Sum of a property, last 90 days\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNotes\n || Net P&L and Return on risk (average), last 90 days\nOnly you\nas of Oct 25, 2026, 5:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 day || Risk left today\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nSet a daily loss limit in your account settings to see room left.\n\n || Prop-firm rules\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nChange\nDaily loss: none used today; $500 left.\nMax drawdown: at you || Pre-market game plan\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nMorning wire\nThe morning wire has not published yet today.\nNam || Alerts that fired\nOnly y"
+  },
+  {
+   "what": "note body",
+   "text": "‹\nMore\nMy notes list\nSnapshot\nas of Oct 25, 2026, 5:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nTSLA plan (1200)2026-10-25\n1\nIdea 3 (1200)2026-10-25\n1\nIdea 2 (1200)2026-10-25\n1\nIdea 1 (1200)2026-10-25\n1\nOlder note 12002026-10-25\n1\nFormulas and ready-made widgets 12002026-10-25\n1\nRoutine walk 12002026-10-25\n1\nWidgets walk 1200 (second note)2026-10-25\n1\nWidgets walk 12002026-10-25\n1\nShow as table\n\nSource: your manual trades\n\nPosition size calculator\nRemove\n\nNot available right now.\n\n‹\nMore\nTilt check\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nChange\n\nNot available right now.\n\nTilt check needs entry and exit times; your trades have dates only.\n\nYour closed trades in the Journal.\n\n‹\nMore\nNet P&L by strategy, last 90 days\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nLong Call\n+$100.00\nLong Put\n+$80.00\nShow as table\n\nSource: your manual trades\n\n\n\n\n‹\nMore\nRevenge trades\nOnly you\nas of Oct 25, 2026, 5:41 PM ET\nNot shown on shared pages\nSee it now\nNone of the days you traded in the last 30 trading days could be checked; your trades have dates only.\nSep 14, 2026: No trades\nSep 15, 2026: No trades\nSep 16, 2026: No trades\nSep 17, 2026: No trades\nSep 18, 2026: No trades\nSep 21, 2026: No trades\nSep 22, 2026: No trades\nSep 23, 2026: No trades\nSep 24, 2026: No trades\nSep 25, 2026: No trades\nSep 28, 2026: No trades\nSep 29, 2026: No trades\nSep 30, 2026: No trades\nOct 1, 2026:"
+  },
+  {
+   "what": "Equity curve card",
+   "text": "Equity curve\nNet P&L day by day over the last 90 days."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "http": 404,
+    "method": "POST",
+    "url": "http://127.0.0.1:8093/api/j2/notebook-shelf-widgets/myTiltCheck"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+   },
+   {
+    "http": 404,
+    "method": "POST",
+    "url": "http://127.0.0.1:8093/api/j2/widget-definitions/run"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 26,
+   "small": [],
+   "smallCount": 0,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W10_9-main.png"
+ ]
+}

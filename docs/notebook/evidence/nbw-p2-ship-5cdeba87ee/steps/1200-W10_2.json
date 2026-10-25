@@ -1,0 +1,111 @@
+{
+ "viewport": "1200",
+ "step": "W10.2",
+ "title": "type a broken formula (If([net] > 0, 1), read the inline sentence, fix it with the keyboard only",
+ "checks": [
+  {
+   "what": "an inline sentence says what is wrong, without a request",
+   "ok": true,
+   "read": "A ( is missing its )."
+  },
+  {
+   "what": "fixed with the keyboard only, the formula is valid",
+   "ok": true,
+   "read": "If([net] > 0, 1, 0)"
+  },
+  {
+   "what": "focus stayed in the Formula box throughout",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "inline sentence",
+   "text": "A ( is missing its )."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 7,
+   "small": [
+    {
+     "label": "Keep my changes",
+     "tag": "BUTTON",
+     "w": 121,
+     "h": 34
+    },
+    {
+     "label": "Discard them",
+     "tag": "BUTTON",
+     "w": 98,
+     "h": 34
+    },
+    {
+     "label": "Keep editing",
+     "tag": "BUTTON",
+     "w": 94,
+     "h": 34
+    },
+    {
+     "label": "Show as table",
+     "tag": "BUTTON",
+     "w": 398,
+     "h": 34
+    },
+    {
+     "label": "Undo",
+     "tag": "BUTTON",
+     "w": 58,
+     "h": 34
+    },
+    {
+     "label": "Save",
+     "tag": "BUTTON",
+     "w": 55,
+     "h": 34
+    }
+   ],
+   "smallCount": 6,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W10_2-main.png"
+ ]
+}

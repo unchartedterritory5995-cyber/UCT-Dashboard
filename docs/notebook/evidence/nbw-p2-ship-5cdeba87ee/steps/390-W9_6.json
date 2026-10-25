@@ -1,0 +1,72 @@
+{
+ "viewport": "390",
+ "step": "W9.6",
+ "title": "flip 'P&L on days you finished it' on a member with trades",
+ "checks": [
+  {
+   "what": "the comparison was read (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "it ends with the caveat",
+   "ok": true,
+   "read": "For Sun Oct 25\nOff day\n\nNo days with trades yet.\n\nA comparison, not proof.\n\nP&L on days you finished it"
+  },
+  {
+   "what": "the flip wrote nothing to the note",
+   "ok": true,
+   "read": "[\"POST http://127.0.0.1:8093/api/j2/notes/bb6968ae68f0498e9e3398113667a463/opened\", \"PUT http://127.0.0.1:8093/api/j2/notes/bb6968ae68f0498e9e3398113667a463\", \"PUT http://127.0.0.1:8093/api/j2/notes/bb6968ae68f0498e9e3398113667a463\"]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "block, P&L side",
+   "text": "For Sun Oct 25\nOff day\n\nNo days with trades yet.\n\nA comparison, not proof.\n\nP&L on days you finished it"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 8,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W9_6-main.png",
+  "390/W9_6-second-tab.png"
+ ]
+}

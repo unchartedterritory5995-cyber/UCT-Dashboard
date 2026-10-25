@@ -1,0 +1,268 @@
+{
+ "viewport": "1200",
+ "step": "W10.1",
+ "title": "/build: Closed trades, 'Add your own field', [Net P&L] / [Risk $] with autocomplete, first-row line and skip notice, Average, save, insert",
+ "checks": [
+  {
+   "what": "autocomplete offers Net P&L",
+   "ok": true,
+   "read": "Net P&L"
+  },
+  {
+   "what": "the box reads the label syntax",
+   "ok": true,
+   "read": "[Net P&L] / [Risk $]"
+  },
+  {
+   "what": "the first-row line shows",
+   "ok": true,
+   "read": "First trade: 1.5"
+  },
+  {
+   "what": "the skip notice names the trade left out (no Risk $)",
+   "ok": true,
+   "read": "[Risk $] is empty on 1 trade; those are skipped"
+  },
+  {
+   "what": "the widget measures Return on risk as an average",
+   "ok": true,
+   "read": "Net P&L and Return on risk (average) for closed trades in the last 90 days, all accounts. 6 trades."
+  },
+  {
+   "what": "the widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the formula widget is placed in the note",
+   "ok": true,
+   "read": "Net P&L and Return on risk (average), last 90 days\nOnly you\nas of Oct 25, 2026, 5:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNet P&L\n+$700.00\nfrom 6 trades\nReturn"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "autocomplete after [Net",
+   "text": "Net P&L"
+  },
+  {
+   "what": "autocomplete after [Risk",
+   "text": "Risk $"
+  },
+  {
+   "what": "first-row line",
+   "text": "First trade: 1.5"
+  },
+  {
+   "what": "skip notice",
+   "text": "[Risk $] is empty on 1 trade; those are skipped"
+  },
+  {
+   "what": "summary",
+   "text": "Net P&L and Return on risk (average) for closed trades in the last 90 days, all accounts. 6 trades."
+  },
+  {
+   "what": "saved plan",
+   "text": "[{\"id\": \"f1\", \"name\": \"Return on risk\", \"expr\": \"[net] / [risk_dollars]\", \"format\": \"number\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 95,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 79,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W10_1-main.png"
+ ]
+}

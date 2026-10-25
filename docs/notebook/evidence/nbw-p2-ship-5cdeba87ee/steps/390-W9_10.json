@@ -1,0 +1,119 @@
+{
+ "viewport": "390",
+ "step": "W9.10",
+ "title": "share the note, open the link in a private window: the account line in place of each block",
+ "checks": [
+  {
+   "what": "no routine or tracker block reaches the public page",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the account line stands in for them (adjacent private items share one line, by design)",
+   "ok": true,
+   "read": "2 account lines for 2 run(s) of adjacent private items (3 blocks)"
+  },
+  {
+   "what": "no routine or tracker name, item or value on the public page",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "blocks in the note",
+   "text": "3"
+  },
+  {
+   "what": "public page",
+   "text": "Routine walk 390\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\nPre-market, then the open.\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "public payload",
+   "text": "[\"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\", \"paragraph\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "screenshots": [
+  "390/W9_10-public.png",
+  "390/W9_10-main.png",
+  "390/W9_10-second-tab.png"
+ ],
+ "notes": [
+  {
+   "what": "public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8093/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 60,
+   "small": [
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 3,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ }
+}
