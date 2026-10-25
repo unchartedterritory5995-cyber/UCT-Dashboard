@@ -117,7 +117,8 @@ def test_unpaid_402_own_sentence(conn):
 def test_every_200_is_no_store(conn):
     r = _client().get(BASE + "/shelf")
     assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
-    assert {e["id"] for e in r.json()["examples"]} == {e["id"] for e in wshelf.examples()}
+    assert {e["id"] for e in r.json()["examples"]} == {
+        e["id"] for e in wshelf.examples(allowed=wdr._shelf_allowed())}
 
 
 # -- runs ----------------------------------------------------------------------------------------
@@ -186,7 +187,7 @@ def test_preview_answers_sample_and_default_name(conn):
 
 def test_examples_counts_one_preview(conn, monkeypatch):
     seen = []
-    monkeypatch.setattr(wrun, "run_examples", lambda uid, ids: seen.append(ids) or {"cards": {}})
+    monkeypatch.setattr(wrun, "run_examples", lambda uid, ids, **kw: seen.append(ids) or {"cards": {}})
     monkeypatch.setattr(wrun, "run_plan", lambda *a, **k: {"notice": None})
     monkeypatch.setattr(wdr, "_wants_sample", lambda uid: False)
     c = _client()
@@ -700,9 +701,9 @@ def test_shelf_route_lists_rev_and_summary(conn, tmp_path):
     from api.services.journal_two.widget_engine import sources as wsources
     c = _client()
     rows = c.get(BASE + "/shelf").json()["examples"]
-    assert len(rows) == len(wshelf.examples()) >= 23
+    assert len(rows) == len(wshelf.examples(allowed=wdr._shelf_allowed())) >= 23
     for e in rows:
-        assert e["rev"] == 1, e["id"]
+        assert e["rev"] == wshelf.latest_rev(e["id"], allowed=wdr._shelf_allowed()), e["id"]
         unit = wsources.CATALOG.sources[e["plan"]["source"]].unit
         assert e["summary"] == wplan.summary(e["plan"], wsources.CATALOG, None, unit), e["id"]
         assert e["summary"].strip()
@@ -1074,3 +1075,69 @@ def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path, w9):
         assert r.status_code == 200 and fx["id"] in r.json()["cards"]
         plain_id = wshelf.examples()[0]["id"]
         assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200  # control
+
+
+# -- Task 10.13: the wave 10 shelf revisions, the new entries and the dedicated list ---------------
+
+#: The seven dedicated kinds as `GET /shelf` lists them, in spec section 8 order (Task 10.13, verbatim).
+DEDICATED = [
+    ("myTiltCheck", "Tilt check", "Trades soon after a loss compared with the rest."),
+    ("myRevengeClean", "Revenge trades", "Clean days in the last 30 trading days."),
+    ("myPlanVsActual", "Plan vs actual", "One trade's plan against its fills."),
+    ("myRiskLeftToday", "Risk left today", "Your daily loss limit against today's P&L and open risk."),
+    ("myPropFirm", "Prop-firm rules", "Room left under your daily loss and max drawdown limits."),
+    ("myGamePlan", "Pre-market game plan",
+     "The wire's read, your names reporting today and your open risk."),
+    ("myAlertsFired", "Alerts that fired", "Your alerts since the last session."),
+]
+
+W10_NEW_IDS = ("shelf:mae-vs-mfe", "shelf:process-vs-results", "shelf:goals-progress")
+
+
+def test_shelf_dedicated_list_only_when_wave10_on(conn, monkeypatch):
+    from api.services.journal_two import shelf_kind_names
+    c = _client()
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
+    off = c.get(BASE + "/shelf")
+    assert off.status_code == 200 and "dedicated" not in off.json()
+    rows = {e["id"]: e for e in off.json()["examples"]}
+    assert not set(W10_NEW_IDS) & set(rows)                  # each needs wave 10: not offered
+    assert rows["shelf:equity-curve"]["rev"] == 1 and len(rows) == 23
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    on = c.get(BASE + "/shelf")
+    assert on.status_code == 200 and on.headers["cache-control"] == "no-store"
+    body = on.json()
+    assert [(d["kind"], d["name"], d["description"]) for d in body["dedicated"]] == DEDICATED
+    for d in body["dedicated"]:
+        assert set(d) == {"kind", "name", "description", "keywords"}, d["kind"]
+        assert d["keywords"] and all(isinstance(k, str) and k.strip() for k in d["keywords"]), d
+    rows = {e["id"]: e for e in body["examples"]}
+    assert set(W10_NEW_IDS) <= set(rows) and rows["shelf:equity-curve"]["rev"] == 2
+    assert len(rows) == 26
+    # one owner: the router serves `shelf_kind_names`' tables, it restates none of them
+    assert [d["kind"] for d in body["dedicated"]] == list(shelf_kind_names.KINDS)
+    monkeypatch.setitem(shelf_kind_names.DESCRIPTIONS, "myTiltCheck", "Moved at the source.")
+    moved = c.get(BASE + "/shelf").json()["dedicated"][0]
+    assert moved["description"] == "Moved at the source."
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    assert "dedicated" not in c.get(BASE + "/shelf").json()          # switched back off: hidden
+
+
+def test_examples_run_the_newest_allowed_revision(conn, monkeypatch):
+    """With wave 10 off a revised id's examples card runs its revision 1 (never the dark 404), and a
+    new id with no allowed revision is the dark 404; on, the card is revision 2."""
+    c = _unraising()
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
+    r = c.post(BASE + "/examples", json={"ids": ["shelf:equity-curve", "shelf:win-rate"]})
+    assert r.status_code == 200, r.text
+    card = r.json()["cards"]["shelf:equity-curve"]
+    assert card["def"] == wshelf.revision("shelf:equity-curve", 1)["plan"]
+    for new in W10_NEW_IDS:
+        r = c.post(BASE + "/examples", json={"ids": [new]})
+        assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail, new
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    r = c.post(BASE + "/examples", json={"ids": ["shelf:equity-curve", *W10_NEW_IDS]})
+    assert r.status_code == 200, r.text
+    cards = r.json()["cards"]
+    assert cards["shelf:equity-curve"]["def"] == wshelf.revision("shelf:equity-curve", 2)["plan"]
+    assert cards["shelf:mae-vs-mfe"]["def"]["display"]["quadrants"] == "excursion"

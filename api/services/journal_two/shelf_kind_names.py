@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from api.services.journal_two import tool_errors
 
-__all__ = ["KINDS", "WAVE", "TITLES", "ParamError"]
+__all__ = ["KINDS", "WAVE", "TITLES", "DESCRIPTIONS", "KEYWORDS", "ParamError"]
 
 #: The release wave whose flag (`NOTEBOOK_WIDGETS_W10_ENABLED`) gates every dedicated kind.
 WAVE = 10
@@ -29,6 +29,29 @@ TITLES = {
     "myPropFirm": "Prop-firm rules",
     "myGamePlan": "Pre-market game plan",
     "myAlertsFired": "Alerts that fired",
+}
+
+#: Each kind's one-line description in the ready-made widget list (`GET /api/j2/widget-definitions/shelf`'s
+#: `dedicated`, Task 10.13, spec section 8). Written ONCE, here; the router reads it and restates none of it.
+DESCRIPTIONS = {
+    "myTiltCheck": "Trades soon after a loss compared with the rest.",
+    "myRevengeClean": "Clean days in the last 30 trading days.",
+    "myPlanVsActual": "One trade's plan against its fills.",
+    "myRiskLeftToday": "Your daily loss limit against today's P&L and open risk.",
+    "myPropFirm": "Room left under your daily loss and max drawdown limits.",
+    "myGamePlan": "The wire's read, your names reporting today and your open risk.",
+    "myAlertsFired": "Your alerts since the last session.",
+}
+
+#: The words a member may search the ready-made list with to find each kind (Task 10.13).
+KEYWORDS = {
+    "myTiltCheck": ("tilt", "after a loss", "emotional trading", "cooling off"),
+    "myRevengeClean": ("revenge trading", "clean days", "discipline", "overtrading"),
+    "myPlanVsActual": ("trade review", "execution", "fills", "slippage"),
+    "myRiskLeftToday": ("daily loss limit", "max loss", "risk", "open risk"),
+    "myPropFirm": ("prop firm", "funded account", "trailing drawdown", "daily loss limit"),
+    "myGamePlan": ("pre-market", "morning", "earnings today", "watchlist"),
+    "myAlertsFired": ("alerts", "notifications", "triggered", "fired"),
 }
 
 

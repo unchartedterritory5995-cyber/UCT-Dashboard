@@ -97,7 +97,7 @@ def test_revisions_contiguous_from_one():
         m = _FILE_RE.fullmatch(p.name)
         assert m, p.name
         revs.setdefault(m["slug"], []).append(int(m["rev"]))
-    assert len(revs) == 23
+    assert len(revs) == 26                                  # 23 wave 8 ids + 3 new (Task 10.13)
     for slug, rs in revs.items():
         assert sorted(rs) == list(range(1, len(rs) + 1)), slug
     order = _manifest()["order"]
@@ -296,6 +296,60 @@ def add_commit_revisions(repo: Path, rel_dir: str, names: list[str]) -> tuple[di
     return out, problems
 
 
+#: Task 10.13: 23 wave 8 revision 1s, six revision 2s and three new revision 1s.
+SHELF_FILES = 32
+
+
+def append_only_violations(first: dict, local: dict) -> list[str]:
+    """What `local` (the manifest now) did to `first` (the manifest as its add commit stored it):
+    every first entry must still be there, in the same place with the same hash, new entries only
+    after them; every first id keeps its relative order."""
+    out = []
+    old, new = first["files"], local["files"]
+    if new[:len(old)] != old:
+        out.append("files: an entry was edited, removed or moved; only append new entries")
+    kept = [i for i in local["order"] if i in set(first["order"])]
+    if kept != first["order"]:
+        out.append("order: a released id was removed or moved")
+    return out
+
+
+def test_append_only_violations_sees_an_edit_a_removal_and_a_move():
+    first = {"files": [{"file": "a.r1.json", "sha256": "1" * 64}, {"file": "b.r1.json", "sha256": "2" * 64}],
+             "order": ["shelf:a", "shelf:b"]}
+    grown = copy.deepcopy(first)
+    grown["files"].append({"file": "a.r2.json", "sha256": "3" * 64})
+    grown["order"].insert(1, "shelf:c")
+    assert append_only_violations(first, grown) == []                       # appended: clean
+    edited = copy.deepcopy(grown)
+    edited["files"][0]["sha256"] = "9" * 64
+    assert append_only_violations(first, edited) == [
+        "files: an entry was edited, removed or moved; only append new entries"]
+    removed = copy.deepcopy(grown)
+    del removed["files"][1]
+    assert append_only_violations(first, removed) != []
+    moved = copy.deepcopy(grown)
+    moved["files"].insert(0, moved["files"].pop())                          # a new entry put first
+    assert append_only_violations(first, moved) != []
+    swapped = copy.deepcopy(grown)
+    swapped["order"] = ["shelf:b", "shelf:c", "shelf:a"]
+    assert append_only_violations(first, swapped) == ["order: a released id was removed or moved"]
+
+
+def test_manifest_append_only_and_hashes():
+    man = _manifest()
+    assert len(man["files"]) == len(_revision_files()) == SHELF_FILES
+    for entry in man["files"]:                                              # the hash rail, all 32
+        obj = json.loads((shelf.SHELF_DIR / entry["file"]).read_text(encoding="utf-8"))
+        assert shelf.canonical_hash(obj) == entry["sha256"], entry["file"]
+    first, problems = add_commit_revisions(REPO, SHELF_REL, ["MANIFEST.json"])
+    assert problems == [], problems
+    assert "MANIFEST.json" in first, "the manifest's add commit is missing (non-vacuity)"
+    assert len(first["MANIFEST.json"]["files"]) == 23                        # Task 10.8's manifest
+    assert append_only_violations(first["MANIFEST.json"], man) == []
+    # each committed revision file is its add commit's bytes: `test_revisions_match_their_add_commit`
+
+
 def test_revisions_match_their_add_commit():
     entries = _manifest()["files"]
     first, problems = add_commit_revisions(REPO, SHELF_REL, [e["file"] for e in entries] + ["MANIFEST.json"])
@@ -381,7 +435,8 @@ def test_add_commit_rail_follows_renames_and_refuses_shallow_boundaries(tmp_path
 def test_r1_files_match_wave8_shelf():
     old = json.loads(FIXTURE.read_text(encoding="utf-8"))
     assert old["version"] == 1 and len(old["examples"]) == 23
-    assert _manifest()["order"] == [e["id"] for e in old["examples"]]
+    wave8 = [e["id"] for e in old["examples"]]
+    assert [i for i in _manifest()["order"] if i in set(wave8)] == wave8   # new ids slot in between
     for e in old["examples"]:
         r1 = json.loads((shelf.SHELF_DIR / f"{e['id'][len(shelf.ID_PREFIX):]}.r1.json")
                         .read_text(encoding="utf-8"))

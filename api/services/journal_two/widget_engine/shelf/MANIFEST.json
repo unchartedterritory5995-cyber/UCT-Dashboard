@@ -15,14 +15,17 @@
     "shelf:pnl-by-hold-time",
     "shelf:r-multiple-distribution",
     "shelf:r-vs-pnl-scatter",
+    "shelf:mae-vs-mfe",
     "shelf:best-trades",
     "shelf:recent-trades",
     "shelf:accounts-side-by-side",
     "shelf:long-vs-short",
     "shelf:exit-quality",
     "shelf:month-in-review",
+    "shelf:process-vs-results",
     "shelf:weekly-scorecard",
     "shelf:fees-drag",
+    "shelf:goals-progress",
     "shelf:loss-streak"
   ],
   "files": [
@@ -117,6 +120,42 @@
     {
       "file": "loss-streak.r1.json",
       "sha256": "3787eee09ba6a218b1abd49d3a630bb8634ea64f631f82dd0d8524c1cfad670d"
+    },
+    {
+      "file": "equity-curve.r2.json",
+      "sha256": "d89f2912a4bfe8b5aa9ebc925f0ff9a1c75bf7a7fddcc760c335460d784c98df"
+    },
+    {
+      "file": "r-equity-curve.r2.json",
+      "sha256": "1ed929429a13319ebfae43eac80942f24d66216edb35d045621f36771faa610a"
+    },
+    {
+      "file": "pnl-by-hold-time.r2.json",
+      "sha256": "3a36fa9263e0c996ac54d82d5d57c758904b19ff2de0c527e0dd27e00cb93acf"
+    },
+    {
+      "file": "exit-quality.r2.json",
+      "sha256": "c988e26e50c33276b27dcab2b3f0de65c73588a147eaa44f78b846cde882de6d"
+    },
+    {
+      "file": "fees-drag.r2.json",
+      "sha256": "4b61a6b4db01e483b03aa9ae1426ab9302bb3b4a83a9cdaf8a16747da8980aad"
+    },
+    {
+      "file": "loss-streak.r2.json",
+      "sha256": "846c8b256daa3636fc601ae67c8ed7c2ea0cd35ee41c64bf2a05f9b92dcb3a38"
+    },
+    {
+      "file": "mae-vs-mfe.r1.json",
+      "sha256": "668656d64bde1cdaf451f31f28e202a0a1ce0566485390598ba8ce3086aea2fb"
+    },
+    {
+      "file": "process-vs-results.r1.json",
+      "sha256": "77ce95bb1dd3f23cc81c2590ef4ecf9d89a302043eb1d17a045b8753da12bf2f"
+    },
+    {
+      "file": "goals-progress.r1.json",
+      "sha256": "3490a64458f032c04a23798fdf5d210d67d8f58138a8102feb87245b844f0afa"
     }
   ]
 }

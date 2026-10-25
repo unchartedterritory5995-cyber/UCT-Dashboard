@@ -8,7 +8,7 @@ The services: `api/services/journal_two/widget_definitions.py` (storage, revisio
   POST /examples                 up to 8 shelf examples in one batch
   POST /drill                    the rows behind one cell
   GET  /vocabulary               the static catalog, or (?field=) the member's own values
-  GET  /shelf                    the ready-made examples
+  GET  /shelf                    the ready-made examples (and, while wave 10 is on, the dedicated kinds)
   GET  ""   POST ""              list / create
   GET  /{id}  PUT /{id}          read / save (If-Match: the widget's etag)
   POST /{id}/archive  /unarchive  /delete  /undelete
@@ -35,6 +35,10 @@ The rules:
     vocabulary lists none of them, the shelf hides examples that use them, and `/run`, `/preview`,
     `/examples`, `/drill` and a `POST`/`PUT` of a plan that uses them (`plan.uses_tools`) answer the
     same `public.not_found()` 404 (the client's `unavailable`). Stored widgets stay as they are.
+  * WAVE 10 SHELF (Task 10.13): `/shelf` and `/examples` serve, per id, the newest revision the flags
+    allow (`_shelf_allowed`), so a revised id falls back to its revision 1 while wave 10 is off and an
+    id whose every revision needs a dark wave is not listed (`/examples`: the dark 404). `/shelf` adds
+    `dedicated` (the seven ready-made dedicated kinds, from `shelf_kind_names`) only while wave 10 is on.
 """
 from __future__ import annotations
 
@@ -50,6 +54,7 @@ from api.services import auth_db
 from api.services import request_body_cap as body_cap
 from api.services.journal_two import notebook_widgets as nwidgets
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import shelf_kind_names
 from api.services.journal_two import widget_definitions as wdefs
 from api.services.journal_two import widget_request_body as wbody
 from api.services.journal_two.widget_engine import drill as wdrill
@@ -323,13 +328,18 @@ def run_examples(user: dict = Depends(require_paid), body: dict = Depends(json_b
     uid = _uid(user)
     _rate(PREVIEW_RATE, SCOPE_PREVIEW, uid, "rate_preview", S_RATE_PREVIEW)   # one hit per batch
     ids = body.get("ids")
-    if not (_tools_on() and _w10_on()) and isinstance(ids, list):
+    # Task 10.13: the newest revision the flags allow, the one `/shelf` lists. A known id with none
+    # (every revision needs a dark wave) is the dark 404; the gates stay as the defence behind it.
+    allowed = _shelf_allowed()
+    if isinstance(ids, list):
         for i in ids:
-            ex = wshelf.example(i) if isinstance(i, str) else None
+            ex = wshelf.example(i, allowed=allowed) if isinstance(i, str) else None
             if ex is not None:
                 _gate_tools(ex["plan"])
                 _gate_w10(ex["plan"])
-    return _ok(_engine_errors(lambda: wrun.run_examples(uid, ids)))
+            elif wshelf.known(i):
+                raise public.not_found()
+    return _ok(_engine_errors(lambda: wrun.run_examples(uid, ids, allowed=allowed)))
 
 
 @router.post("/drill")
@@ -481,9 +491,20 @@ def vocabulary(field: str | None = None, user: dict = Depends(require_paid)) -> 
     return _ok({"field": field, "values": values})
 
 
+def _dedicated() -> list[dict]:
+    """The seven ready-made dedicated kinds as the shelf lists them, in menu order: every word read
+    from `shelf_kind_names` (the one owner of their titles, descriptions and keywords)."""
+    return [{"kind": k, "name": shelf_kind_names.TITLES[k],
+             "description": shelf_kind_names.DESCRIPTIONS[k],
+             "keywords": list(shelf_kind_names.KEYWORDS[k])} for k in shelf_kind_names.KINDS]
+
+
 @router.get("/shelf")
 def shelf(user: dict = Depends(require_paid)) -> Any:
-    return _ok({"examples": wshelf.examples(allowed=_shelf_allowed())})
+    out: dict[str, Any] = {"examples": wshelf.examples(allowed=_shelf_allowed())}
+    if nwidgets.notebook_widgets_wave_on(shelf_kind_names.WAVE):     # the dedicated kinds' own wave
+        out["dedicated"] = _dedicated()
+    return _ok(out)
 
 
 # -- the member's widgets -------------------------------------------------------------------------

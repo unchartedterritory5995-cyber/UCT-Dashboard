@@ -1,0 +1,45 @@
+{
+  "id": "shelf:pnl-by-hold-time",
+  "rev": 2,
+  "name": "P&L by hold time",
+  "description": "Net P&L by how many minutes you held, from under 5 minutes to a day or more.",
+  "keywords": [
+    "holding period",
+    "hold time",
+    "duration",
+    "day trades vs swing",
+    "minutes held"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "formula:f1"
+    },
+    "view": {
+      "type": "bar",
+      "auto": false
+    },
+    "display": {
+      "title": "P&L by hold time",
+      "titleAuto": false,
+      "accent": "gold"
+    },
+    "formulas": [
+      {
+        "id": "f1",
+        "name": "Hold time in minutes",
+        "expr": "Bucket([hold_minutes], 5, 15, 60, 240, 1440)",
+        "format": "number"
+      }
+    ]
+  }
+}

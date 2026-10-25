@@ -1,0 +1,37 @@
+{
+  "id": "shelf:equity-curve",
+  "rev": 2,
+  "name": "Equity curve",
+  "description": "Your running net P&L over the last 90 days, with each drawdown shaded.",
+  "keywords": [
+    "equity",
+    "p&l curve",
+    "account growth",
+    "running p&l"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "day"
+    },
+    "view": {
+      "type": "line",
+      "auto": false
+    },
+    "display": {
+      "title": "Equity curve",
+      "titleAuto": false,
+      "accent": "gold",
+      "cumulative": true
+    }
+  }
+}
