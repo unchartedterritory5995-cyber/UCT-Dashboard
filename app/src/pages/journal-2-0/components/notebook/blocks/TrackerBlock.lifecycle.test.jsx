@@ -20,6 +20,14 @@ vi.mock('../../../lib/blocks/toolsApi', async (importOriginal) => {
 const { default: TrackerBlock } = await import('./TrackerBlock')
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
+/** The server's summary over the recent entries (trackers._summary): the readable values' average, the newest entry
+ *  when it has a value, and the count (never 0). The fake computes what the real server sends. */
+const summary = (recent) => {
+  const vals = recent.map((r) => r.value).filter((v) => typeof v === 'number' && Number.isFinite(v))
+  const last = recent[recent.length - 1]
+  return { average: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+    latest: last && typeof last.value === 'number' ? { ...last } : null, n: recent.length || null }
+}
 function serve(st) {
   const calls = []
   const dayOf = (d) => ({ day: d, value: st.values[d] ?? null, text: st.values[d] == null ? null : String(st.values[d]), writable: true })
@@ -34,7 +42,7 @@ function serve(st) {
         const recent = Object.keys(st.values).sort().map((d) => ({ day: d, value: st.values[d] }))
         out.trackers[id] = { tracker: { id, name: 'Mood', kind: 'scale', unit: null, archived: false, readOnly: false, settings: { days: 'any' } },
           days: Object.fromEntries(days.map((d) => { const r = d === 'today' ? st.today : d; return [r, dayOf(r)] })),
-          recent, average: null, latest: null, n: recent.length || null }
+          recent, ...summary(recent) }
       }
       return json(200, out)
     }

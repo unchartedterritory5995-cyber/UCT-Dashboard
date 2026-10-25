@@ -117,7 +117,10 @@ async function flushKind(kind, items) {
     const ids = [...new Set(items.map((i) => i.id))]
     const days = [...new Set(items.map((i) => i.day))].sort()      // sorted, so a split is the same split every time
     const idChunks = chunks(ids, IDS_PER_REQUEST)
-    const dayChunks = chunks(days, DAYS_PER_REQUEST)
+    // A tracker's summary (recent, average, latest, n) is bounded to the LATEST day of its request (W9-R13), so one
+    // request per day: batching a past note's day with a later one would hand the past block the later entries
+    // (Task 9.14 fix round 1). Routines carry no summary, so their days share requests.
+    const dayChunks = kind === 'tracker' ? days.map((d) => [d]) : chunks(days, DAYS_PER_REQUEST)
     const jobs = []
     for (const idChunk of idChunks) {
       for (const dayChunk of dayChunks) {
@@ -217,6 +220,7 @@ function onChannelMessage(ev) {
     lastAt.set(key, at)
   }
   notify(m.kind, String(m.id), String(m.day), m.entry)
+  toolChanged(m.kind, String(m.id))
 }
 
 function getChannel() {
@@ -239,7 +243,68 @@ function publish(kind, id, day, entry, sent) {
   const at = Math.max(Date.now(), lastAt.get(key) ?? 0)
   lastAt.set(key, at)
   notify(kind, id, day, entry)
+  toolChanged(kind, id)
   try { getChannel()?.postMessage({ kind, id, day, entry, at, seq: sent }) } catch { /* the page already has it */ }
+}
+
+// -- tool subscriptions (ruling W9-R40): a write for ANY day refreshes every placed block of that tool ----------
+// A block's summary (its recent entries, average, latest, count) spans many days, so a log for day Y moves a block
+// bound to day X. `subscribe` hears only its own day's entry; a TOOL subscriber is re-read from the SERVER (its own
+// day, so a past note's summary stays bounded to that day, W9-R13) once writes for the tool settle. Never a client
+// merge of another day's value. ⛔ This path never writes lastAt or lastSent: it is a reader, and a reader that
+// stamped would make a real write's broadcast look old.
+
+/** How long writes for one tool must be quiet before its subscribers are re-read once. */
+export const TOOL_SETTLE_MS = 300
+const toolSubs = new Set()           // { kind, id, day, fn }
+const toolTimers = new Map()         // `${kind}|${id}` -> timer
+
+function toolChanged(kind, id) {
+  if (![...toolSubs].some((s) => s.kind === kind && s.id === id)) return
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return   // the visibility re-read covers it
+  const key = `${kind}|${id}`
+  if (toolTimers.has(key)) clearTimeout(toolTimers.get(key))
+  toolTimers.set(key, setTimeout(() => {
+    toolTimers.delete(key)
+    reReadTool(kind, id)
+  }, TOOL_SETTLE_MS))
+}
+
+/** Every tool subscriber's own day, in one batched read; a result is handed on only if no write for that day
+ *  landed after the read began. */
+function reReadTool(kind, id) {
+  const jobs = []
+  for (const sub of [...toolSubs]) {
+    if (sub.kind !== kind || sub.id !== id) continue
+    const startedAt = Date.now()
+    jobs.push(readDay(kind, id, sub.day).then((r) => {
+      if (!r.ok || !toolSubs.has(sub)) return
+      if ((lastAt.get(stampKey(kind, id, r.resolvedDay)) ?? 0) >= startedAt) return
+      try { sub.fn({ entry: r.entry, tool: r.tool, extras: r.extras, resolvedDay: r.resolvedDay }) } catch { /* see notify */ }
+    }))
+  }
+  return Promise.all(jobs)
+}
+
+/**
+ * `fn({entry, tool, extras, resolvedDay})` runs with a fresh SERVER read of `day` (YYYY-MM-DD or 'today') after a
+ * write for any day of this tool lands here or in another tab, or after the tool is restored.
+ * @returns {() => void} unsubscribe
+ */
+export function subscribeTool(kind, id, day, fn) {
+  const sub = { kind, id: String(id), day: String(day), fn }
+  toolSubs.add(sub)
+  getChannel()
+  setVisibilityListener(true)
+  return () => {
+    toolSubs.delete(sub)
+    if (!subs.size && !toolSubs.size) setVisibilityListener(false)
+    const key = `${kind}|${sub.id}`
+    if (![...toolSubs].some((s) => `${s.kind}|${s.id}` === key) && toolTimers.has(key)) {
+      clearTimeout(toolTimers.get(key))
+      toolTimers.delete(key)
+    }
+  }
 }
 
 /** Re-read the chosen subscriptions (one batched read); apply a result only if no write for its day landed
@@ -262,6 +327,11 @@ function reReadSubs(pick, withTool = false) {
 function reReadAll() {
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
   reReadSubs(() => true)
+  // The tool subscribers too (W9-R40: a change made while this tab was hidden was not re-read then), in the same tick,
+  // so the batch is still one request per kind.
+  const tools = new Map()
+  for (const s of toolSubs) tools.set(`${s.kind}|${s.id}`, s)
+  for (const s of tools.values()) reReadTool(s.kind, s.id)
 }
 
 let visibilityOn = false
@@ -318,7 +388,7 @@ export function subscribe(kind, id, day, fn) {
   }
   return () => {
     subs.delete(sub)
-    if (!subs.size) setVisibilityListener(false)
+    if (!subs.size && !toolSubs.size) setVisibilityListener(false)
     if (![...subs].some((x) => x.day === 'today')) disarmMidnight()
   }
 }
@@ -401,7 +471,10 @@ export async function unarchive(kind, id) {
       ? await fetch(`/api/j2/routines/${enc(id)}/unarchive`, { method: 'POST', credentials: 'include' })
       : await fetch(`/api/j2/trackers/${enc(id)}/unarchive`, { method: 'POST', credentials: 'include' })
     const out = await settle(res)
-    if (out.ok) await reReadSubs((s) => s.kind === kind && s.id === String(id), true)
+    if (out.ok) {
+      await reReadSubs((s) => s.kind === kind && s.id === String(id), true)
+      toolChanged(kind, String(id))
+    }
     return out
   } catch {
     return networkFailure()

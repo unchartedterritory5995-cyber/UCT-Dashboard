@@ -1,6 +1,6 @@
 // The routine block (Notebook widgets phase 2, wave 9, Task 9.13). Asserted by RENDERED TEXT after the action has
 // settled, never by state: a sentence a member cannot read is not a sentence.
-import { Profiler } from 'react'
+import { Profiler, useState } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -626,5 +626,48 @@ describe('RoutineBlock, fix round 1', () => {
     expect(b.getAttribute('aria-haspopup')).toBe('menu')
     fireEvent.click(b)
     expect(screen.getByRole('menu')).toBeTruthy()
+  })
+})
+
+describe('RoutineBlock, Task 9.14 fix round 1 (I-3: a stale Retry after a bind switch)', () => {
+  it('a tick fails while following today, the member picks "Use this note\'s day": the Retry is gone and nothing is written there', async () => {
+    const { calls } = serve({ today: '2026-10-28', tickStatus: [500] })
+    function Host() {
+      const [params, setP] = useState({ routineId: 'r1', day: '', bind: 'today', display: 'items' })
+      return <RoutineBlock params={params} setParams={(patch) => { setP((x) => ({ ...x, ...patch })); return true }} editable editor={editorWith('2026-10-26')} />
+    }
+    render(<Host />)
+    await waitFor(() => expect(screen.getByText('For Wed Oct 28')).toBeTruthy())
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mark key levels' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow("Use this note's day"))
+    await waitFor(() => expect(screen.getByText('For Mon Oct 26')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(screen.queryByText(TOOL_COPY.tickFailed)).toBeNull()
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(calls.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['/api/j2/routines/r1/days/2026-10-28/items/i2'])
+  })
+
+  it('a read key changed from OUTSIDE the block (no menu: another tab, an undo) drops the Retry too', async () => {
+    const { calls } = serve({ tickStatus: [500] })
+    const { rerender } = mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mark key levels' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy())
+    rerender(<RoutineBlock params={{ ...PARAMS, day: '2026-10-26' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(screen.getByText('For Mon Oct 26')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(calls.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['/api/j2/routines/r1/days/2026-10-27/items/i2'])
+  })
+
+  it('M-7: a state is said by the ONE live region (no second status element)', async () => {
+    for (const [over, text] of [[{ readStatus: 500 }, TOOL_COPY.readFailedRoutine], [{ readStatus: 404 }, TOOL_COPY.flagOff], [{ foreign: true }, TOOL_COPY.missing]]) {
+      serve(over)
+      const { container, unmount } = mount()
+      await waitFor(() => expect(screen.getByText(text)).toBeTruthy())
+      expect(container.querySelectorAll('[role="status"], [aria-live]')).toHaveLength(1)
+      unmount()
+    }
   })
 })

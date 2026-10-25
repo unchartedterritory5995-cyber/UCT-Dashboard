@@ -1,11 +1,12 @@
 // The tracker block (Notebook widgets phase 2, wave 9, Task 9.14). Asserted by RENDERED TEXT after the action has
 // settled, never by state: a sentence a member cannot read is not a sentence.
-import { Profiler } from 'react'
+import { Profiler, useState } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import TrackerBlock, { CHECKIN_LINE, EMPTY_LINE, TRADING_ONLY } from './TrackerBlock'
+import { DURATION_HINT } from '../../../lib/blocks/trackerValues'
 import { TOOL_COPY } from '../../../lib/blocks/toolsApi'
 import { contrast } from '../../../../../styles/__tests__/contrastMath'
 import { themeVars, resolveVars, parseColor, THEMES } from '../../../a11y/cssAudit'
@@ -32,6 +33,14 @@ function clean(kind, raw) {
   return finite
 }
 
+/** The server's summary over the recent entries (trackers._summary): the readable values' average, the newest entry
+ *  when it has a value, and the count (never 0). The fake computes what the real server sends. */
+const summary = (recent) => {
+  const vals = recent.map((r) => r.value).filter((v) => typeof v === 'number' && Number.isFinite(v))
+  const last = recent[recent.length - 1]
+  return { average: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+    latest: last && typeof last.value === 'number' ? { ...last } : null, n: recent.length || null }
+}
 /** A fake trackers server over `fetch`, holding one tracker (or a built-in check-in). */
 function serve(over = {}) {
   const st = {
@@ -57,7 +66,7 @@ function serve(over = {}) {
         out.trackers[id] = {
           tracker: { id, name: st.name, kind: st.kind, unit: st.unit, archived: st.archived, readOnly: st.readOnly, settings: { days: st.days } },
           days: Object.fromEntries(real.map((d) => [d, dayOf(d)])),
-          recent, average: null, latest: null, n: recent.length || null,
+          recent, ...summary(recent),
         }
       }
       return json(200, out)
@@ -67,6 +76,7 @@ function serve(over = {}) {
       const s = st.logStatus.length ? st.logStatus.shift() : 200
       if (s !== 200) return json(s, {})
       if (st.readOnly) return json(409, { detail: { code: 'read_only', message: CHECKIN_LINE } })
+      if (st.forceRefusal) return json(400, { detail: st.forceRefusal })
       const day = decodeURIComponent(m[2])
       const { value } = JSON.parse(init.body)
       if (value === null) delete st.values[day]
@@ -239,9 +249,30 @@ describe('TrackerBlock', () => {
     srv = serve({ kind: 'duration', name: 'Sleep' })
     u = mount()
     await waitFor(() => expect(input()).toBeTruthy())
-    await typeEnter('about seven')                                       // not h:mm: sent as typed, refused
-    await waitFor(() => expect(screen.getByText('Enter a number.')).toBeTruthy())
-    expect(srv.puts()[0].body).toEqual({ value: 'about seven' })
+    await typeEnter('abc')                                               // W9-R41: refused here, no request
+    await waitFor(() => expect(screen.getByText(DURATION_HINT)).toBeTruthy())
+    expect(DURATION_HINT).toBe('Enter a time like 1:30.')
+    expect(srv.puts()).toHaveLength(0)
+    expect(input().getAttribute('aria-invalid')).toBe('true')
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(screen.queryByText('Enter a number.')).toBeNull()
+    await typeEnter('90')                                                // whole minutes
+    await waitFor(() => expect(srv.puts()).toHaveLength(1))
+    expect(srv.puts()[0].body).toEqual({ value: 90 })
+    await waitFor(() => expect(within(dayLine()).getByText('1h 30m')).toBeTruthy())
+    await typeEnter('1:30')                                              // the same time as h:mm: unchanged, nothing sent
+    await typeEnter('2:15')
+    await waitFor(() => expect(srv.puts()).toHaveLength(2))
+    expect(srv.puts()[1].body).toEqual({ value: 135 })
+    u.unmount()
+    // A server "not a number" refusal on a duration says the duration's words, never "Enter a number."
+    srv = serve({ kind: 'duration', name: 'Sleep', forceRefusal: { code: 'invalid', message: 'Enter a number.' } })
+    u = mount()
+    await waitFor(() => expect(input()).toBeTruthy())
+    await typeEnter('1:30')
+    await waitFor(() => expect(screen.getByText(DURATION_HINT)).toBeTruthy())
+    expect(srv.puts()[0].body).toEqual({ value: 90 })
+    expect(screen.queryByText('Enter a number.')).toBeNull()
     u.unmount()
   })
 
@@ -259,16 +290,18 @@ describe('TrackerBlock', () => {
     expect(dots).toEqual(shown.filter((d) => d !== all[20]))           // the last 30, the gap drawn as nothing
     expect(dots).toHaveLength(29)
     expect(svg.getAttribute('role')).toBe('img')
-    expect(svg.getAttribute('aria-label')).toBe(`Sleep, the last 30 entries (${'Sun Sep 6'} to ${'Mon Oct 5'}), from 6h 45m to 7h 14m`)
+    expect(svg.getAttribute('aria-label')).toBe(`Sleep, the last 30 entries (${'Sun Sep 6'} to ${'Mon Oct 5'}), from 6h 45m to 7h 14m. 1 day with no value.`)
     // No point is drawn at the bottom for the gap: every dot's value is a real one.
     const ys = [...svg.querySelectorAll('circle')].map((c) => Number(c.getAttribute('cy')))
     expect(Math.max(...ys)).toBeLessThanOrEqual(96)
     expect(srv.reads()).toHaveLength(1)
     // The table: the SAME 30 points, the gap written as "No data".
     expect(container.querySelector('table')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Show as table' }).getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
-    expect(screen.getByRole('button', { name: 'Show as table' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Hide table' }).getAttribute('aria-expanded')).toBe('true')   // M-2
     const table = screen.getByRole('table')
+    expect(within(table).getAllByRole('rowheader')).toHaveLength(30)                                       // M-2: the day heads its row
     expect(within(table).getByText('Sleep, as a table')).toBeTruthy()
     const rows = within(table).getAllByRole('row').slice(1)
     expect(rows).toHaveLength(30)
@@ -276,7 +309,7 @@ describe('TrackerBlock', () => {
     const gap = rows.find((r) => r.textContent.startsWith('Mon Sep 21'))
     expect(gap.textContent).toBe('Mon Sep 21No data')
     expect(rows.at(-1).textContent).toBe('Mon Oct 5' + '7h 14m')
-    fireEvent.click(screen.getByRole('button', { name: 'Show as table' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hide table' }))
     expect(container.querySelector('table')).toBeNull()
   })
 
@@ -284,21 +317,21 @@ describe('TrackerBlock', () => {
     let srv = serve({ values: { '2026-10-22': 420, '2026-10-23': 450, '2026-10-26': 435, '2026-10-27': 450 } })
     let u = mount()
     await waitFor(() => expect(screen.getByText('Average 7h 19m from 4 entries')).toBeTruthy())
-    expect(screen.getByText('Latest 7h 30m')).toBeTruthy()
+    expect(screen.getByText('Latest 7h 30m (Tue Oct 27)')).toBeTruthy()          // M-1: the server's latest, with its day
     u.unmount()
     // One entry: singular.
     srv = serve({ kind: 'number', unit: 'cups', values: { '2026-10-27': 2 } })
     u = mount()
     await waitFor(() => expect(screen.getByText('Average 2 cups from 1 entry')).toBeTruthy())
     u.unmount()
-    // A logged value moves the summary at once (no second read): the merge follows the server's rule.
+    // A logged value moves the summary through ONE server re-read (W9-R40): the server's numbers, never a client sum.
     srv = serve({ values: { '2026-10-26': 420 } })
     u = mount()
     await waitFor(() => expect(screen.getByText('Average 7h from 1 entry')).toBeTruthy())
     await typeEnter('8:00')
     await waitFor(() => expect(screen.getByText('Average 7h 30m from 2 entries')).toBeTruthy())
-    expect(screen.getByText('Latest 8h')).toBeTruthy()
-    expect(srv.reads()).toHaveLength(1)
+    expect(screen.getByText('Latest 8h (Tue Oct 27)')).toBeTruthy()
+    expect(srv.reads()).toHaveLength(2)
     u.unmount()
     // Empty: the sentence, no average, no latest, no chart and no 0 anywhere.
     serve({ values: {} })
@@ -418,7 +451,7 @@ describe('TrackerBlock', () => {
     )
     await waitFor(() => expect(input()).toBeTruthy())
     await typeEnter('7:30')
-    await waitFor(() => expect(screen.getByText('Latest 7h 30m')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Latest 7h 30m (Tue Oct 27)')).toBeTruthy())
     const settled = commits
     await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
     expect(commits).toBe(settled)                                   // nothing keeps rendering once settled
@@ -438,7 +471,7 @@ describe('TrackerBlock', () => {
     const a = screen.getByTestId('a'), b = screen.getByTestId('b')
     fireEvent.click(within(a).getByRole('button', { name: '5' }))
     await waitFor(() => expect(within(b).getByRole('button', { name: '5' }).getAttribute('aria-pressed')).toBe('true'))
-    expect(within(b).getByText('Average 5 from 1 entry')).toBeTruthy()
+    await waitFor(() => expect(within(b).getByText('Average 5 from 1 entry')).toBeTruthy())
   })
 
   it('a fixed-day block ignores an entry for another day', async () => {
@@ -463,7 +496,7 @@ describe('TrackerBlock', () => {
     const { setParams, unmount } = mount({ params: { ...PARAMS, day: '2026-10-26' } })
     await waitFor(() => expect(input()).toBeTruthy())
     await typeEnter('7:00')
-    await waitFor(() => expect(screen.getByText('Latest 7h')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Latest 7h (Mon Oct 26)')).toBeTruthy())
     expect(setParams).not.toHaveBeenCalled()                          // ⛔ a read and a log never write the note
     fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
     fireEvent.click(menuRow('Follow today'))
@@ -568,7 +601,7 @@ describe('TrackerBlock', () => {
     serve({ values: { '2026-10-27': 420 } })
     const setParams = vi.fn()
     mount({ editable: false, setParams })
-    await waitFor(() => expect(screen.getByText('Latest 7h')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Latest 7h (Tue Oct 27)')).toBeTruthy())
     expect(input()).toBeNull()
     expect(screen.queryByRole('button', { name: 'Tracker options' })).toBeNull()
     expect(setParams).not.toHaveBeenCalled()
@@ -621,5 +654,221 @@ describe('TrackerBlock', () => {
     // control: a colour that fails is seen failing
     const dark = vars.dark
     expect(contrast(parseColor(resolveVars('var(--border)', dark)).rgb, parseColor(resolveVars('var(--bg-elevated)', dark)).rgb)).toBeLessThan(3)
+  })
+})
+
+describe('TrackerBlock, fix round 1', () => {
+  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 450)) })   // past TOOL_SETTLE_MS
+
+  it('I-2 (W9-R40): a block on the same page bound to ANOTHER day updates its average, count and chart after a log', async () => {
+    const srv = serve({ values: { '2026-10-26': 420 } })
+    render(
+      <>
+        <div data-testid="today"><TrackerBlock params={PARAMS} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+        <div data-testid="later"><TrackerBlock params={{ ...PARAMS, day: '2026-10-28' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+      </>,
+    )
+    const later = screen.getByTestId('later')
+    await waitFor(() => expect(within(later).getByText('Average 7h from 1 entry')).toBeTruthy())
+    expect(srv.reads()).toHaveLength(2)                                      // one request per day (W9-R13)
+    const box = screen.getByTestId('today').querySelector('[data-value-input]')
+    fireEvent.change(box, { target: { value: '8:00' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(within(later).getByText('Average 7h 30m from 2 entries')).toBeTruthy())
+    expect(within(later).getByText('Latest 8h (Tue Oct 27)')).toBeTruthy()
+    expect(later.querySelectorAll('[data-tracker-chart] circle')).toHaveLength(2)
+    expect(within(later).queryByText('8h')).toBeNull()                       // its OWN day's value is untouched
+    await settle()
+    expect(srv.reads()).toHaveLength(4)                                      // ONE re-read round: a request per day
+  })
+
+  it('I-2: a block for a PAST day does not move after a later day is logged (the server bounds its summary)', async () => {
+    const srv = serve({ values: { '2026-10-22': 420 } })
+    render(
+      <>
+        <div data-testid="past"><TrackerBlock params={{ ...PARAMS, day: '2026-10-23' }} setParams={vi.fn()} editable editor={editorWith('2026-10-23')} /></div>
+        <div data-testid="now"><TrackerBlock params={PARAMS} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+      </>,
+    )
+    const past = screen.getByTestId('past'), now = screen.getByTestId('now')
+    await waitFor(() => expect(within(past).getByText('Average 7h from 1 entry')).toBeTruthy())
+    const box = now.querySelector('[data-value-input]')
+    fireEvent.change(box, { target: { value: '9:00' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(within(now).getByText('Average 8h from 2 entries')).toBeTruthy())   // control: it moved
+    await settle()
+    expect(within(past).getByText('Average 7h from 1 entry')).toBeTruthy()
+    expect(within(past).getByText('Latest 7h (Thu Oct 22)')).toBeTruthy()
+    expect(past.querySelectorAll('[data-tracker-chart] circle')).toHaveLength(1)
+    expect(srv.reads().length).toBe(4)                                       // two days, read twice: never more
+  })
+
+  it('I-3: a log fails while following today, the member picks "Use this note\'s day": the Retry is gone and nothing is written there', async () => {
+    const srv = serve({ kind: 'scale', name: 'Mood', today: '2026-10-28', logStatus: [500] })
+    function Host() {
+      const [params, setP] = useState({ trackerId: 't1', day: '', bind: 'today', display: 'chart' })
+      return <TrackerBlock params={params} setParams={(patch) => { setP((x) => ({ ...x, ...patch })); return true }} editable editor={editorWith('2026-10-26')} />
+    }
+    render(<Host />)
+    await waitFor(() => expect(screen.getByText('For Wed Oct 28')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: '4' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
+    fireEvent.click(menuRow("Use this note's day"))
+    await waitFor(() => expect(screen.getByText('For Mon Oct 26')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(screen.queryByText("Didn't save. Retry?")).toBeNull()
+    expect(pressed('4')).toBe('false')
+    await settle()
+    expect(srv.puts().map((c) => c.url)).toEqual(['/api/j2/trackers/t1/days/2026-10-28'])   // never the note's day
+    expect(srv.st.values['2026-10-26']).toBeUndefined()
+  })
+
+  it('I-3: a read key changed from OUTSIDE the block (no menu: another tab, an undo) drops the Retry too', async () => {
+    const srv = serve({ kind: 'scale', name: 'Mood', logStatus: [500] })
+    const { rerender } = mount()
+    await waitFor(() => expect(screen.getByRole('button', { name: '4' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: '4' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy())
+    rerender(<TrackerBlock params={{ ...PARAMS, day: '2026-10-26' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(screen.getByText('For Mon Oct 26')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(srv.puts().map((c) => c.url)).toEqual(['/api/j2/trackers/t1/days/2026-10-27'])
+  })
+
+  it('I-3: a log answer that lands AFTER the day changed is dropped (no Retry for the old day on the new one)', async () => {
+    const srv = serve({ kind: 'scale', name: 'Mood' })
+    const { rerender } = mount()
+    await waitFor(() => expect(screen.getByRole('button', { name: '4' })).toBeTruthy())
+    const inner = globalThis.fetch
+    let answer
+    globalThis.fetch = vi.fn((url, init = {}) => ((init.method === 'PUT')
+      ? new Promise((resolve) => { answer = () => resolve(json(500, {})) })
+      : inner(url, init)))
+    fireEvent.click(screen.getByRole('button', { name: '4' }))
+    await waitFor(() => expect(answer).toBeTypeOf('function'))
+    rerender(<TrackerBlock params={{ ...PARAMS, day: '2026-10-26' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(screen.getByText('For Mon Oct 26')).toBeTruthy())
+    await act(async () => { answer(); await new Promise((r) => setTimeout(r, 20)) })
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(screen.queryByText("Didn't save. Retry?")).toBeNull()
+    expect(srv.puts()).toHaveLength(0)                                   // control: the gated PUT never reached the fake
+  })
+
+  it('I-3: a settings change clears a pending sentence even when the day stays (Show vs P&L)', async () => {
+    serve({ kind: 'scale', name: 'Mood', logStatus: [500] })
+    const setParams = vi.fn()
+    mount({ setParams })
+    await waitFor(() => expect(screen.getByRole('button', { name: '4' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: '4' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
+    fireEvent.click(menuRow('Show vs P&L'))
+    expect(setParams).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+
+  it('I-4: a missed session breaks the line, and the text alternative counts the days with no value', async () => {
+    // A trading-day tracker: Wed Oct 21 is missed (a gap); the weekend between Fri and Mon is not a session (no gap).
+    const values = { '2026-10-19': 400, '2026-10-20': 410, '2026-10-22': 420, '2026-10-23': 430, '2026-10-26': 440 }
+    serve({ kind: 'duration', days: 'trading', values })
+    let r = mount({ params: { ...PARAMS, day: '2026-10-26' } })
+    await waitFor(() => expect(r.container.querySelector('[data-tracker-chart] svg')).toBeTruthy())
+    let svg = r.container.querySelector('[data-tracker-chart] svg')
+    expect(svg.querySelectorAll('polyline')).toHaveLength(2)                 // [Mon, Tue] and [Thu, Fri, Mon]
+    expect(svg.querySelectorAll('circle')).toHaveLength(5)
+    expect(svg.getAttribute('aria-label')).toMatch(/\. 1 day with no value\.$/)
+    r.unmount()
+    // The same entries on an any-day tracker: Wed, Sat and Sun are all missed days.
+    serve({ kind: 'duration', days: 'any', values })
+    r = mount({ params: { ...PARAMS, day: '2026-10-26' } })
+    await waitFor(() => expect(r.container.querySelector('[data-tracker-chart] svg')).toBeTruthy())
+    svg = r.container.querySelector('[data-tracker-chart] svg')
+    expect(svg.querySelectorAll('polyline')).toHaveLength(3)
+    expect(svg.getAttribute('aria-label')).toMatch(/\. 3 days with no value\.$/)
+  })
+
+  it('M-3 (H14): with the chart\'s ResizeObserver driven and past its settle window, nothing keeps rendering', async () => {
+    const realRO = globalThis.ResizeObserver
+    const observers = []
+    globalThis.ResizeObserver = class { constructor(cb) { this.cb = cb; observers.push(this) } observe() {} disconnect() {} }
+    try {
+      serve({ values: { '2026-10-26': 420, '2026-10-27': 450 } })
+      let commits = 0
+      const { container } = render(
+        <Profiler id="tracker" onRender={() => { commits += 1 }}>
+          <TrackerBlock params={PARAMS} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />
+        </Profiler>,
+      )
+      await waitFor(() => expect(container.querySelector('[data-tracker-chart] svg')).toBeTruthy())
+      expect(observers.length).toBeGreaterThan(0)                              // control: the shared measure observes
+      act(() => { for (const o of observers) o.cb([{ contentRect: { width: 320 } }]) })
+      await waitFor(() => expect(container.querySelector('[data-tracker-chart] svg').getAttribute('width')).toBe('320'))
+      act(() => { for (const o of observers) o.cb([{ contentRect: { width: 330 } }]) })   // a small flip, then back
+      act(() => { for (const o of observers) o.cb([{ contentRect: { width: 320 } }]) })
+      await act(async () => { await new Promise((res) => setTimeout(res, 450)) })        // past SETTLE_MS
+      const settled = commits
+      await act(async () => { await new Promise((res) => setTimeout(res, 450)) })
+      expect(commits).toBe(settled)
+      expect(commits).toBeLessThanOrEqual(14)
+    } finally {
+      globalThis.ResizeObserver = realRO
+    }
+  })
+
+  it('M-6: a recent list whose values are all unreadable shows the empty line, never a blank body', async () => {
+    serve({ values: { '2026-10-26': null, '2026-10-27': null } })
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY_LINE)).toBeTruthy())
+    expect(container.querySelector('[data-tracker-chart]')).toBeNull()
+    expect(container.textContent).not.toMatch(/Average|Latest/)
+  })
+
+  it('M-7: a state is said by the ONE live region (no second status element)', async () => {
+    for (const [over, text] of [[{ readStatus: 500 }, TOOL_COPY.readFailedTracker], [{ readStatus: 404 }, TOOL_COPY.flagOff], [{ foreign: true }, TOOL_COPY.missing]]) {
+      serve(over)
+      const { container, unmount } = mount()
+      await waitFor(() => expect(screen.getByText(text)).toBeTruthy())
+      expect(container.querySelectorAll('[role="status"], [aria-live]')).toHaveLength(1)
+      expect(container.querySelector('[data-tracker-live]').textContent).toMatch(new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+      unmount()
+    }
+  })
+
+  it('M-8: a comma decimal logs as a number', async () => {
+    const srv = serve({ kind: 'number', name: 'Coffee', unit: 'cups' })
+    mount()
+    await waitFor(() => expect(input()).toBeTruthy())
+    await typeEnter('2,5')
+    await waitFor(() => expect(within(dayLine()).getByText('2.5 cups')).toBeTruthy())
+    expect(srv.puts().map((c) => c.body)).toEqual([{ value: 2.5 }])
+  })
+
+  it('M-4: the vs P&L sentence refreshes on a tool change, and its read failure has a Retry', async () => {
+    const srv = serve({ values: { '2026-10-27': 420 } })
+    let pnlFail = 1
+    const inner = globalThis.fetch
+    globalThis.fetch = vi.fn((url, init) => {
+      if (/vs-pnl$/.test(url) && pnlFail > 0) { pnlFail -= 1; return Promise.resolve(json(500, {})) }
+      return inner(url, init)
+    })
+    const pnlCalls = () => globalThis.fetch.mock.calls.filter(([u]) => /vs-pnl$/.test(u)).length
+    render(
+      <>
+        <div data-testid="p"><TrackerBlock params={{ ...PARAMS, display: 'pnl' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} /></div>
+        <div data-testid="c"><TrackerBlock params={{ ...PARAMS, day: '2026-10-26' }} setParams={vi.fn()} editable editor={editorWith('2026-10-26')} /></div>
+      </>,
+    )
+    const p = screen.getByTestId('p')
+    await waitFor(() => expect(within(p).getByText(TOOL_COPY.readFailedTracker)).toBeTruthy())
+    fireEvent.click(p.querySelector('[data-pnl-retry]'))
+    await waitFor(() => expect(within(p).getByText(/A comparison, not proof\.$/)).toBeTruthy())
+    const before = pnlCalls()
+    const box = screen.getByTestId('c').querySelector('[data-value-input]')
+    fireEvent.change(box, { target: { value: '6:00' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(pnlCalls()).toBe(before + 1))
+    expect(within(p).getByText(/A comparison, not proof\.$/)).toBeTruthy()   // no "Loading…" flash while it refreshes
+    expect(srv.puts()).toHaveLength(1)
   })
 })

@@ -715,3 +715,169 @@ describe('resolvedTodayIfCurrent (ruling W9-R35)', () => {
     off()
   })
 })
+
+describe('subscribeTool (Task 9.14 fix round 1, ruling W9-R40): a write for ANY day re-reads every block of the tool', () => {
+  /** A trackers server: days answered from `values`, the summary bounded to the latest requested day (W9-R13). */
+  function trackerServer(values = {}) {
+    const calls = []
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      calls.push({ url, method: init.method || 'GET', body: init.body ? JSON.parse(init.body) : null })
+      if (url === '/api/j2/trackers/days') {
+        const { ids, days } = JSON.parse(init.body)
+        const upto = [...days].sort().at(-1)
+        const recent = Object.keys(values).filter((d) => d <= upto).sort().map((d) => ({ day: d, value: values[d] }))
+        return json(200, { trackers: Object.fromEntries(ids.map((id) => [id, {
+          tracker: { id, kind: 'number' }, days: Object.fromEntries(days.map((d) => [d, { day: d, value: values[d] ?? null }])),
+          recent, average: recent.length ? recent.reduce((a, r) => a + r.value, 0) / recent.length : null, latest: recent.at(-1) || null, n: recent.length || null }])) })
+      }
+      const m = /^\/api\/j2\/trackers\/t1\/days\/([^/]+)$/.exec(url)
+      if (m) { values[m[1]] = JSON.parse(init.body).value; return json(200, { day: m[1], value: values[m[1]] }) }
+      return json(404, {})
+    })
+    return { calls, reads: () => calls.filter((c) => c.url === '/api/j2/trackers/days') }
+  }
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+  // A test's last change can leave a settle timer in the module it imported; let it run out here, so it never reads
+  // through the NEXT test's fetch.
+  afterEach(async () => { await wait(400) })
+
+  it('a log for another day re-reads the tool subscriber\'s OWN day and hands over the server summary', async () => {
+    const api = await freshApi()
+    const { reads } = trackerServer({ '2026-10-20': 5 })
+    const got = []
+    api.subscribeTool('tracker', 't1', '2026-10-28', (u) => got.push(u))
+    const same = vi.fn()
+    api.subscribe('tracker', 't1', '2026-10-28', same)
+    await api.logValue('t1', '2026-10-21', 7)
+    expect(same).not.toHaveBeenCalled()                               // control: the day subscription is per day
+    expect(got).toEqual([])                                           // settles first
+    await wait(api.TOOL_SETTLE_MS + 60)
+    expect(reads().map((c) => c.body)).toEqual([{ ids: ['t1'], days: ['2026-10-28'] }])   // its own day
+    expect(got).toHaveLength(1)
+    expect(got[0].extras.recent).toEqual([{ day: '2026-10-20', value: 5 }, { day: '2026-10-21', value: 7 }])
+    expect(got[0].extras.average).toBe(6)
+    expect(got[0].extras.n).toBe(2)
+    expect(got[0].entry.day).toBe('2026-10-28')
+  })
+
+  it('three logs cost ONE read (one request per subscribed day, made once)', async () => {
+    const api = await freshApi()
+    const { reads } = trackerServer()
+    const fn = vi.fn()
+    api.subscribeTool('tracker', 't1', '2026-10-28', fn)
+    api.subscribeTool('tracker', 't1', '2026-10-23', fn)               // a second block, another day: same request
+    await api.logValue('t1', '2026-10-21', 1)
+    await api.logValue('t1', '2026-10-22', 2)
+    await api.logValue('t1', '2026-10-23', 3)
+    await wait(api.TOOL_SETTLE_MS + 60)
+    // ONE re-read: a request per subscribed day (a tracker summary is bounded to its request's latest day, W9-R13).
+    expect(reads().map((c) => c.body)).toEqual([{ ids: ['t1'], days: ['2026-10-23'] }, { ids: ['t1'], days: ['2026-10-28'] }])
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('a broadcast from another tab, for any day, re-reads; an older broadcast does not', async () => {
+    const api = await freshApi()
+    const { reads } = trackerServer()
+    const fn = vi.fn()
+    api.subscribeTool('tracker', 't1', '2026-10-28', fn)
+    const other = new FakeBC('uct-nb-tools')
+    other.postMessage({ kind: 'tracker', id: 't1', day: '2026-10-21', entry: { day: '2026-10-21', value: 4 }, at: Date.now(), seq: 1 })
+    await wait(api.TOOL_SETTLE_MS + 60)
+    expect(reads()).toHaveLength(1)
+    expect(fn).toHaveBeenCalledTimes(1)
+    other.postMessage({ kind: 'tracker', id: 't1', day: '2026-10-21', entry: { day: '2026-10-21', value: 3 }, at: 1, seq: 0 })
+    await wait(api.TOOL_SETTLE_MS + 60)
+    expect(reads()).toHaveLength(1)                                   // dropped by the order check: no re-read
+  })
+
+  it('a tool re-read that started before a newer write for its day is discarded', async () => {
+    const api = await freshApi()
+    trackerServer()
+    const fn = vi.fn()
+    const off = api.subscribeTool('tracker', 't1', '2026-10-28', fn)
+    let answer
+    const realFetch = globalThis.fetch
+    await api.logValue('t1', '2026-10-21', 1)
+    globalThis.fetch = vi.fn((url, init) => (url === '/api/j2/trackers/days'
+      ? new Promise((resolve) => { answer = () => realFetch(url, init).then(resolve) })
+      : realFetch(url, init)))
+    await wait(api.TOOL_SETTLE_MS + 60)                               // the re-read is on the wire
+    expect(answer).toBeTypeOf('function')
+    await wait(5)
+    await api.logValue('t1', '2026-10-28', 9)                        // a newer write for the subscriber's day lands
+    answer()                                                          // the OLD read answers late
+    await wait(20)
+    expect(fn).not.toHaveBeenCalled()
+    off()                                                             // and the second write's pending re-read goes with it
+  })
+
+  it('never stamps lastAt: after a tool re-read, a real broadcast newer than the last write still lands', async () => {
+    const api = await freshApi()
+    trackerServer()
+    const day = vi.fn()
+    api.subscribe('tracker', 't1', '2026-10-28', day)
+    const tool = vi.fn()
+    api.subscribeTool('tracker', 't1', '2026-10-28', tool)
+    await api.logValue('t1', '2026-10-28', 1)
+    const between = Date.now() + 1
+    await wait(api.TOOL_SETTLE_MS + 60)
+    expect(tool).toHaveBeenCalledTimes(1)                             // the tool re-read ran (after `between`)
+    day.mockClear()
+    new FakeBC('uct-nb-tools').postMessage({ kind: 'tracker', id: 't1', day: '2026-10-28', entry: { day: '2026-10-28', value: 2 }, at: between, seq: 1 })
+    expect(day).toHaveBeenCalledWith({ day: '2026-10-28', value: 2 })
+  })
+
+  it('a hidden tab re-reads nothing on a change (the visibility re-read covers it), and the visibility re-read does', async () => {
+    const api = await freshApi()
+    const { reads } = trackerServer()
+    const fn = vi.fn()
+    api.subscribeTool('tracker', 't1', '2026-10-28', fn)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    try {
+      await api.logValue('t1', '2026-10-21', 1)
+      await wait(api.TOOL_SETTLE_MS + 60)
+      expect(reads()).toHaveLength(0)
+    } finally {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    }
+    fireVisible()
+    await wait(20)
+    expect(reads()).toHaveLength(1)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('a restore re-reads the tool subscribers; an unsubscribed one hears nothing', async () => {
+    const api = await freshApi()
+    const { reads } = trackerServer()
+    globalThis.fetch = ((inner) => vi.fn((url, init) => (url === '/api/j2/trackers/t1/unarchive' ? Promise.resolve(json(200, { id: 't1' })) : inner(url, init))))(globalThis.fetch)
+    const fn = vi.fn()
+    const off = api.subscribeTool('tracker', 't1', '2026-10-28', fn)
+    expect((await api.unarchive('tracker', 't1')).ok).toBe(true)
+    await wait(api.TOOL_SETTLE_MS + 60)
+    expect(fn).toHaveBeenCalledTimes(1)
+    off()
+    await api.logValue('t1', '2026-10-21', 1)
+    await wait(api.TOOL_SETTLE_MS + 60)
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(reads()).toHaveLength(1)
+  })
+})
+
+describe('tracker reads are one request per day (Task 9.14 fix round 1, W9-R13)', () => {
+  it('two tracker days in one tick are two requests, each summary bounded to its own day; routines still share one', async () => {
+    const api = await freshApi()
+    const seen = []
+    globalThis.fetch = vi.fn(async (url, init) => {
+      const { ids, days } = JSON.parse(init.body)
+      seen.push({ url, days })
+      if (url.includes('/routines/')) return json(200, routineAnswer(ids, days))
+      return json(200, { trackers: { t1: { tracker: { id: 't1' }, days: Object.fromEntries(days.map((d) => [d, { day: d }])), recent: [{ day: days[0] }], n: 1 } } })
+    })
+    const [a, b] = await Promise.all([api.readDay('tracker', 't1', '2026-10-23'), api.readDay('tracker', 't1', '2026-10-27'),
+      api.readDay('routine', 'r1', '2026-10-23'), api.readDay('routine', 'r1', '2026-10-27')])
+    expect(seen.filter((c) => c.url.includes('/trackers/')).map((c) => c.days)).toEqual([['2026-10-23'], ['2026-10-27']])
+    expect(seen.filter((c) => c.url.includes('/routines/')).map((c) => c.days)).toEqual([['2026-10-23', '2026-10-27']])
+    expect(a.extras.recent).toEqual([{ day: '2026-10-23' }])
+    expect(b.extras.recent).toEqual([{ day: '2026-10-27' }])
+  })
+})

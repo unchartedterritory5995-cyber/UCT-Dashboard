@@ -196,24 +196,36 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   }, [])
 
   // N-5: the day a write goes to is read when it is SENT (a Retry made after ET midnight writes to the new day), and a
-  // follow-today block that moves to a new day drops what was pending for the old one: its sentence and its Retry.
+  // block whose day moves drops what was pending for the old one (its sentence and its Retry): a follow-today block
+  // at ET midnight, and (Task 9.14 fix round 1, I-3) ANY block whose read key changes, a bind switch among them, so a
+  // Retry can never write the old day's tick to the new day. An answer that lands after the switch is dropped too.
   const writeDayRef = useRef(null)
   writeDayRef.current = cur?.day ?? null
+  const baseRef = useRef(base)
+  baseRef.current = base
   const shownDay = useRef(null)
+  const shownBase = useRef(base)
   const curDay = cur?.day
   useEffect(() => {
     if (!curDay) return
     if (follow && shownDay.current && shownDay.current !== curDay) { setFeedback(null); setOverrides({}) }
     shownDay.current = curDay
   }, [curDay, follow])
+  useEffect(() => {
+    if (shownBase.current === base) return
+    shownBase.current = base
+    setFeedback(null)
+    setOverrides({})
+  }, [base])
   const sendTick = useCallback(async (item, on) => {
     const writeDay = writeDayRef.current
     if (!writeDay) return
     const mine = ++seq.current
+    const sentFor = baseRef.current
     setFeedback(null)
     setOverrides((o) => ({ ...o, [item.id]: { on, seq: mine } }))
     const out = await tick(routineId, writeDay, item.id, on)
-    if (!alive.current) return
+    if (!alive.current || baseRef.current !== sentFor) return
     // Only the newest tick of this item clears its override: an older answer never overwrites a newer press.
     setOverrides((o) => {
       if (o[item.id]?.seq !== mine) return o
@@ -228,11 +240,13 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   const sendSkip = useCallback(async (skipped) => {
     const writeDay = writeDayRef.current
     if (!writeDay) return
+    const sentFor = baseRef.current
     setFeedback(null)
     setSkipBusy(true)
     const out = await setSkipped(routineId, writeDay, skipped)
     if (!alive.current) return
     setSkipBusy(false)
+    if (baseRef.current !== sentFor) return
     if (out.ok) { adoptAnswer(out.entry); return }
     failed(out, () => sendSkip(skipped), '[data-skip]')
   }, [routineId, adoptAnswer, failed])
@@ -282,9 +296,11 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
       else setFeedback({ text: TOOL_COPY.tickFailed, retry: followToday })
       return
     }
+    setFeedback(null)
     setParams?.({ bind: 'today', day: '' }, { searchText: toolSearchText('routine', name, day, 'today') })
   }
   const useNoteDay = () => {
+    setFeedback(null)
     setParams?.({ bind: 'note-day', day: noteDay }, { searchText: toolSearchText('routine', name, noteDay, 'note-day') })
   }
   const restore = async () => {
@@ -315,25 +331,22 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   }
 
   // -- the body -------------------------------------------------------------------------------------------------
-  let body
+  // Task 9.14 fix round 1 (M-7): a state's sentence (not available, offline, a read failure) is said BY the one live
+  // region, never by a second status element of its own.
+  let body = null
+  let stateLine = null
   if (!routineId) {
-    body = <p className={styles.muted} role="status">{TOOL_COPY.missing}</p>
+    stateLine = { text: TOOL_COPY.missing }
   } else if (!cur) {
     body = <BlockLoading />
   } else if (cur.status === 'offline') {
-    body = <p className={styles.muted} role="status">{TOOL_COPY.offline}</p>
+    stateLine = { text: TOOL_COPY.offline }
   } else if (cur.status === 'unavailable') {
-    body = <p className={styles.muted} role="status">{TOOL_COPY.flagOff}</p>
+    stateLine = { text: TOOL_COPY.flagOff }
   } else if (cur.status === 'missing') {
-    body = <p className={styles.muted} role="status">{TOOL_COPY.missing}</p>
+    stateLine = { text: TOOL_COPY.missing }
   } else if (cur.status === 'failed') {
-    body = (
-      <div className={styles.error} role="status">
-        <p>{TOOL_COPY.readFailedRoutine}</p>
-        <button type="button" data-read-retry="" className={`btn btn-ghost ${own.tap}`}
-          onClick={() => { focusAfterRead.current = true; setAttempt((n) => n + 1) }}>Retry</button>
-      </div>
-    )
+    stateLine = { text: TOOL_COPY.readFailedRoutine, readRetry: true }
   } else {
     const entry = cur.entry || {}
     const items = Array.isArray(entry.items) ? entry.items.filter((it) => it && typeof it.id === 'string' && it.text) : []
@@ -381,7 +394,7 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   }
 
   // M-2: going offline while ready is said ONCE, here; a failure's sentence waits until the connection is back.
-  const live = offline && cur?.status === 'ready' ? { text: TOOL_COPY.offline } : feedback
+  const live = stateLine || (offline && cur?.status === 'ready' ? { text: TOOL_COPY.offline } : feedback)
   return (
     <div className={own.wrap} data-routine-block="" ref={wrap}>
       {menuItems.length > 0 && (
@@ -397,6 +410,10 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
       <div className={own.feedback} role="status" aria-live="polite" data-routine-live="">
         {live && <span>{live.text}</span>}
         {live?.retry && <button type="button" className={`btn btn-ghost ${own.tap}`} onClick={retry}>Retry</button>}
+        {live?.readRetry && (
+          <button type="button" data-read-retry="" className={`btn btn-ghost ${own.tap}`}
+            onClick={() => { focusAfterRead.current = true; setAttempt((n) => n + 1) }}>Retry</button>
+        )}
       </div>
       {menu && (
         <ContextPopover open onClose={closeMenu} anchor={menu} title={name || 'Routine'} items={menuItems} />

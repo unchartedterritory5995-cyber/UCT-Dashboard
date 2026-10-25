@@ -23,9 +23,9 @@ import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import { isTradingDay } from '../../../../../lib/marketClock/sessionCalendar'
 import { todayET } from '../../../lib/calendar'
-import { TOOL_COPY, isOffline, logValue, readDay, resolvedTodayIfCurrent, subscribe, unarchive, vsPnl } from '../../../lib/blocks/toolsApi'
+import { TOOL_COPY, isOffline, logValue, readDay, resolvedTodayIfCurrent, subscribe, subscribeTool, unarchive, vsPnl } from '../../../lib/blocks/toolsApi'
 import { dayWords, editorNoteDay, forDayLabel, readKeyOf, toolSearchText } from '../../../lib/blocks/toolDays'
-import { entriesText, inputText, mergeRecent, summaryOf, typedValue, valueText } from '../../../lib/blocks/trackerValues'
+import { DURATION_HINT, entriesText, inputText, typedValue, valueText } from '../../../lib/blocks/trackerValues'
 import { BlockLoading } from './blockStates'
 import TrackerChart from './TrackerChart'
 import styles from './Blocks.module.css'
@@ -50,9 +50,16 @@ const READ_STATE = { offline: 'offline', unavailable: 'unavailable', missing: 'm
  *  be refused again). */
 const SERVER_SENTENCE = new Set(['invalid', 'read_only', 'count_cap', 'conflict'])
 
-/** A ready read with one day's entry taken in: the day's value merged into the recent entries (so the average, the
- *  latest and the chart move with it). The ONE place an adopted or answered entry lands. */
-const withEntry = (r, day, entry) => ({ ...r, entry, day, recent: mergeRecent(r.recent, day, entry?.value) })
+/** The server's "not a number" sentence, which a duration box never shows (W9-R41: it says DURATION_HINT). */
+const S_NOT_A_NUMBER = 'Enter a number.'
+const finite = (v) => typeof v === 'number' && Number.isFinite(v)
+/** The server's summary (W9-R40, M-5): the recent entries, average, latest and count exactly as it sent them. */
+const summaryFrom = (x) => ({
+  recent: Array.isArray(x?.recent) ? x.recent.filter((e) => e && typeof e.day === 'string') : [],
+  average: finite(x?.average) ? x.average : null,
+  latest: x?.latest && typeof x.latest.day === 'string' && finite(x.latest.value) ? x.latest : null,
+  n: Number.isInteger(x?.n) && x.n > 0 ? x.n : null,
+})
 
 /** The value a yes/no or scale button sends (yes/no as the bool the route takes). */
 const sendOf = (kind, v) => (kind === 'yesno' ? v === 1 : v)
@@ -69,7 +76,7 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   const isTouch = useIsTouch()
 
   const [attempt, setAttempt] = useState(0)
-  // { base, attempt, status: 'ready'|'offline'|'unavailable'|'missing'|'failed', entry?, tool?, day?, recent? }. A read
+  // { base, attempt, status: 'ready'|'offline'|'unavailable'|'missing'|'failed', entry?, tool?, day?, summary? }. A read
   // for another (tracker, day, attempt) is read as loading, so a settings change never shows the old day's value.
   const [read, setRead] = useState(null)
   const [pending, setPending] = useState(null)          // { value, seq }: a log on its way (a button shows it pressed)
@@ -77,7 +84,8 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   const [offline, setOffline] = useState(isOffline())
   const [feedback, setFeedback] = useState(null)         // { text, retry?, focus?, invalid? }
   const [menu, setMenu] = useState(null)                 // the ⋯ menu's anchor while open
-  const [pnl, setPnl] = useState(null)                   // { key, ok, sentence? }: the vs P&L read
+  const [pnl, setPnl] = useState(null)                   // { tracker, ok, sentence? }: the vs P&L read
+  const [pnlTick, setPnlTick] = useState(0)              // bumped by a tool change or a vs P&L Retry (M-4)
   const wrap = useRef(null)
   const menuButton = useRef(null)
   const alive = useRef(true)
@@ -96,8 +104,7 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     readDay('tracker', trackerId, readKey).then((r) => {
       if (!live) return
       if (r.ok) {
-        const recent = Array.isArray(r.extras?.recent) ? r.extras.recent : []
-        setRead({ base, attempt, status: 'ready', entry: r.entry, tool: r.tool, day: r.resolvedDay, recent })
+        setRead({ base, attempt, status: 'ready', entry: r.entry, tool: r.tool, day: r.resolvedDay, summary: summaryFrom(r.extras) })
       } else setRead({ base, attempt, status: READ_STATE[r.code] || 'failed' })
     })
     return () => { live = false }
@@ -116,8 +123,30 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
         const next = tool && typeof tool === 'object' ? { ...r, tool } : r
         const day = isDay(entry.day) ? entry.day : r.day
         if (!follow && day !== r.day) return r
-        return withEntry(next, day, entry)
+        return { ...next, entry, day }
       })
+    })
+  }, [trackerId, readKey, base, follow])
+
+  // W9-R40: a log for ANY day of this tracker (here, in another block or another tab) or a restore. The layer re-reads
+  // THIS block's own day from the server and hands over the summary with it, so the average, latest, count and chart
+  // are the server's, bounded to this block's day (a past note's summary never moves, W9-R13).
+  useEffect(() => {
+    if (!trackerId) return undefined
+    return subscribeTool('tracker', trackerId, readKey, (u) => {
+      if (!alive.current || !u || typeof u !== 'object') return
+      setRead((r) => {
+        if (!r || r.base !== base || r.status !== 'ready') return r
+        const e = u.entry && typeof u.entry === 'object' ? u.entry : null
+        const day = isDay(e?.day) ? e.day : r.day
+        if (!follow && day !== r.day) return r              // an answer about another day: none of it is this block's
+        const next = { ...r, day }
+        if (e) next.entry = e
+        if (u.tool && typeof u.tool === 'object') next.tool = u.tool
+        if (u.extras && typeof u.extras === 'object') next.summary = summaryFrom(u.extras)
+        return next
+      })
+      setPnlTick((n) => n + 1)
     })
   }, [trackerId, readKey, base, follow])
 
@@ -148,16 +177,17 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     el?.focus?.()
   }, [cur])
 
-  // vs P&L (display 'pnl'): one GET per (tracker, attempt) while it is shown.
+  // vs P&L (display 'pnl'): one GET per (tracker, attempt, tool change) while it is shown. The last sentence stays on
+  // screen while a fresh one is read, so a refresh never flashes "Loading…".
   const ready = cur?.status === 'ready'
-  const pnlKey = `${trackerId}|${attempt}`
+  const pnlKey = `${trackerId}|${attempt}|${pnlTick}`
   useEffect(() => {
     if (display !== 'pnl' || !ready || !trackerId) return undefined
     let live = true
     vsPnl('tracker', trackerId).then((r) => {
       if (!live) return
       const sentence = r.ok && typeof r.data?.sentence === 'string' ? r.data.sentence : ''
-      setPnl({ key: pnlKey, ok: !!sentence, sentence })
+      setPnl({ tracker: trackerId, ok: !!sentence, sentence })
     })
     return () => { live = false }
   }, [display, ready, trackerId, pnlKey])
@@ -166,7 +196,7 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     setRead((r) => {
       if (!r || r.base !== base || r.status !== 'ready') return r
       if (isDay(entry?.day) && entry.day !== r.day) return r
-      return withEntry(r, r.day, entry)
+      return { ...r, entry }
     })
   }, [base])
 
@@ -177,34 +207,47 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     if (out.code === 'window') { setFeedback({ text: TOOL_COPY.window }); return }
     if (out.code === 'missing') { setFeedback({ text: TOOL_COPY.missing }); return }
     if (SERVER_SENTENCE.has(out.code) && out.message && out.message !== TOOL_COPY.tickFailed) {
-      setFeedback({ text: out.message, invalid: out.code === 'invalid' })
+      // W9-R41: a duration box never says "Enter a number."; the over-24-hours sentence is shown as it is.
+      const text = out.code === 'invalid' && kindRef.current === 'duration' && out.message === S_NOT_A_NUMBER ? DURATION_HINT : out.message
+      setFeedback({ text, invalid: out.code === 'invalid' })
       return
     }
     setFeedback({ text: TOOL_COPY.tickFailed, retry, focus })
   }, [])
 
-  // The day a log goes to is read when it is SENT (a Retry made after ET midnight logs to the new day), and a
-  // follow-today block that moves to a new day drops what was pending for the old one: its sentence, its Retry, the
-  // pressed value on its way and the typed text.
+  // The day a log goes to is read when it is SENT (a Retry made after ET midnight logs to the new day). A block whose
+  // day moves drops what was pending for the old one (its sentence, its Retry, the pressed value on its way and the
+  // typed text): a follow-today block at ET midnight, and ANY block whose read key changes (I-3: a bind switch), so a
+  // Retry can never log the old day's value to the new day. An answer that lands after the switch is dropped too.
   const writeDayRef = useRef(null)
   writeDayRef.current = cur?.day ?? null
+  const baseRef = useRef(base)
+  baseRef.current = base
   const shownDay = useRef(null)
+  const shownBase = useRef(base)
   const curDay = cur?.day
+  const dropPending = useCallback(() => { setFeedback(null); setPending(null); setDraft(null) }, [])
   useEffect(() => {
     if (!curDay) return
-    if (follow && shownDay.current && shownDay.current !== curDay) { setFeedback(null); setPending(null); setDraft(null) }
+    if (follow && shownDay.current && shownDay.current !== curDay) dropPending()
     shownDay.current = curDay
-  }, [curDay, follow])
+  }, [curDay, follow, dropPending])
+  useEffect(() => {
+    if (shownBase.current === base) return
+    shownBase.current = base
+    dropPending()
+  }, [base, dropPending])
 
   const busy = pending !== null
   const send = useCallback(async (value, focus) => {
     const writeDay = writeDayRef.current
     if (!writeDay) return
     const mine = ++seq.current
+    const sentFor = baseRef.current
     setFeedback(null)
     setPending({ value, seq: mine })
     const out = await logValue(trackerId, writeDay, value)
-    if (!alive.current) return
+    if (!alive.current || baseRef.current !== sentFor) return
     // Only the newest log clears the pending value: an older answer never overwrites a newer press.
     setPending((x) => (x?.seq === mine ? null : x))
     setDraft(null)                                       // stored or refused, the box shows what is stored
@@ -225,6 +268,9 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   const name = typeof tool.name === 'string' ? tool.name : ''
   const archived = tool.archived === true
   const builtIn = tool.readOnly === true
+  const kind = KINDS.has(tool.kind) ? tool.kind : 'number'
+  const kindRef = useRef(kind)
+  kindRef.current = kind
   const announce = useCallback((text) => { if (alive.current) setFeedback({ text }) }, [])
 
   const openMenu = () => {
@@ -254,13 +300,16 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
       else setFeedback({ text: TOOL_COPY.tickFailed, retry: followToday })
       return
     }
+    setFeedback(null)
     setParams?.({ bind: 'today', day: '' }, { searchText: toolSearchText('tracker', name, day, 'today') })
   }
   const useNoteDay = () => {
+    setFeedback(null)
     setParams?.({ bind: 'note-day', day: noteDay }, { searchText: toolSearchText('tracker', name, noteDay, 'note-day') })
   }
   const setDisplay = (next) => {
     const day = cur?.day || noteDay
+    setFeedback(null)
     setParams?.({ display: next }, { searchText: toolSearchText('tracker', name, day, bind) })
   }
   const restore = async () => {
@@ -292,33 +341,29 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
 
   // -- the body: what sits above the controls, the controls, the ONE live region, and what sits below -------------
   // Each is a fixed slot of the block, so the live region is the same element in every state (never remounted).
+  // M-7: a state's sentence (not available, offline, a read failure) is said BY the one live region, never by a second
+  // status element of its own.
   let top = null
   let control = null
   let bottom = null
+  let stateLine = null
   if (!trackerId) {
-    top = <p className={styles.muted} role="status">{TOOL_COPY.missing}</p>
+    stateLine = { text: TOOL_COPY.missing }
   } else if (!cur) {
     top = <BlockLoading />
   } else if (cur.status === 'offline') {
-    top = <p className={styles.muted} role="status">{TOOL_COPY.offline}</p>
+    stateLine = { text: TOOL_COPY.offline }
   } else if (cur.status === 'unavailable') {
-    top = <p className={styles.muted} role="status">{TOOL_COPY.flagOff}</p>
+    stateLine = { text: TOOL_COPY.flagOff }
   } else if (cur.status === 'missing') {
-    top = <p className={styles.muted} role="status">{TOOL_COPY.missing}</p>
+    stateLine = { text: TOOL_COPY.missing }
   } else if (cur.status === 'failed') {
-    top = (
-      <div className={styles.error} role="status">
-        <p>{TOOL_COPY.readFailedTracker}</p>
-        <button type="button" data-read-retry="" className={`btn btn-ghost ${own.tap}`}
-          onClick={() => { focusAfterRead.current = true; setAttempt((n) => n + 1) }}>Retry</button>
-      </div>
-    )
+    stateLine = { text: TOOL_COPY.readFailedTracker, readRetry: true }
   } else {
     const entry = cur.entry || {}
-    const kind = KINDS.has(tool.kind) ? tool.kind : 'number'
     const unit = typeof tool.unit === 'string' && tool.unit ? tool.unit : null
     const stored = typeof entry.value === 'number' && Number.isFinite(entry.value) ? entry.value : null
-    const summary = summaryOf(cur.recent)
+    const summary = cur.summary || summaryFrom(null)
     const writable = entry.writable !== false
     const controls = editable && !archived && !builtIn && writable
     const inert = offline || busy
@@ -339,6 +384,7 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     const commitInput = (text) => {
       if (inert) return
       const t = typedValue(kind, text)
+      if (t.refused) { setDraft(null); setFeedback({ text: t.refused, invalid: true }); return }   // W9-R41: no request
       if (t.clear) {
         if (stored === null) { setDraft(null); return }
         send(null, '[data-value-input]')
@@ -379,6 +425,8 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     }
     const avg = kind === 'yesno' ? null : valueText(kind, summary.average, unit)
     const latest = summary.latest ? valueText(kind, summary.latest.value, unit) : null
+    // M-6: entries whose values are all unreadable are no entries to show: the empty line, never a blank body.
+    const hasValues = summary.recent.some((e) => finite(e.value))
     top = (
       <>
         <p className={own.dayLine}>
@@ -390,14 +438,22 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
         {shut && <p className={styles.muted}>{shut}</p>}
       </>
     )
-    if (summary.n) {
+    const shownPnl = pnl?.tracker === trackerId ? pnl : null
+    if (summary.n && hasValues) {
       bottom = (
         <>
           {avg && <p className={own.line} data-average="">{`Average ${avg} ${entriesText(summary.n)}`}</p>}
-          {latest && <p className={own.line} data-latest="">{`Latest ${latest}`}</p>}
+          {latest && <p className={own.line} data-latest="">{`Latest ${latest} (${dayWords(summary.latest.day)})`}</p>}
           {display === 'pnl'
-            ? <p className={own.line} data-vs-pnl="">{pnl?.key === pnlKey ? (pnl.ok ? pnl.sentence : TOOL_COPY.readFailedTracker) : 'Loading…'}</p>
-            : <TrackerChart points={cur.recent} kind={kind} unit={unit} name={name} />}
+            ? (
+              <div className={own.pnlRow} data-vs-pnl="">
+                <p className={own.line}>{!shownPnl ? 'Loading…' : shownPnl.ok ? shownPnl.sentence : TOOL_COPY.readFailedTracker}</p>
+                {shownPnl && !shownPnl.ok && (
+                  <button type="button" data-pnl-retry="" className={`btn btn-ghost ${own.tap}`} onClick={() => setPnlTick((n) => n + 1)}>Retry</button>
+                )}
+              </div>
+            )
+            : <TrackerChart points={summary.recent} kind={kind} unit={unit} name={name} trading={tool.settings?.days === 'trading'} />}
         </>
       )
     } else if (!builtIn) {
@@ -406,7 +462,7 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   }
 
   // Going offline while ready is said ONCE, in the live region; a failure's sentence waits until the connection is back.
-  const live = offline && ready ? { text: TOOL_COPY.offline } : feedback
+  const live = stateLine || (offline && ready ? { text: TOOL_COPY.offline } : feedback)
   return (
     <div className={own.wrap} data-tracker-block="" ref={wrap}>
       {menuItems.length > 0 ? (
@@ -423,6 +479,10 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
       <div id={liveId} className={own.feedback} role="status" aria-live="polite" data-tracker-live="">
         {live && <span>{live.text}</span>}
         {live?.retry && <button type="button" className={`btn btn-ghost ${own.tap}`} onClick={retry}>Retry</button>}
+        {live?.readRetry && (
+          <button type="button" data-read-retry="" className={`btn btn-ghost ${own.tap}`}
+            onClick={() => { focusAfterRead.current = true; setAttempt((n) => n + 1) }}>Retry</button>
+        )}
       </div>
       {bottom}
       {menu ? <ContextPopover open onClose={closeMenu} anchor={menu} title={name || 'Tracker'} items={menuItems} /> : null}

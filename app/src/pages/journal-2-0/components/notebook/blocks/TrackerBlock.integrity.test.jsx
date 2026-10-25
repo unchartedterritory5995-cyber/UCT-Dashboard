@@ -27,6 +27,14 @@ afterAll(() => { globalThis.BroadcastChannel = realBC })
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
 const fmt = (v) => (v == null ? null : `${Math.floor(v / 60)}h${v % 60 ? ` ${v % 60}m` : ''}`)
+/** The server's summary over the recent entries (trackers._summary): the readable values' average, the newest entry
+ *  when it has a value, and the count (never 0). The fake computes what the real server sends. */
+const summary = (recent) => {
+  const vals = recent.map((r) => r.value).filter((v) => typeof v === 'number' && Number.isFinite(v))
+  const last = recent[recent.length - 1]
+  return { average: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+    latest: last && typeof last.value === 'number' ? { ...last } : null, n: recent.length || null }
+}
 function serve(over = {}) {
   const st = { values: {}, today: '2026-10-27', archived: false, ...over }
   const calls = []
@@ -43,7 +51,7 @@ function serve(over = {}) {
         out.trackers[id] = {
           tracker: { id, name: 'Sleep', kind: 'duration', unit: null, archived: st.archived, readOnly: false, settings: { days: 'any' } },
           days: Object.fromEntries(days.map((d) => { const real = d === 'today' ? st.today : d; return [real, dayOf(real)] })),
-          recent, average: null, latest: null, n: recent.length || null,
+          recent, ...summary(recent),
         }
       }
       return json(200, out)
@@ -98,7 +106,7 @@ describe('⛔⛔ the tracker block never writes the note', () => {
     const before = JSON.stringify(trackerAttrs(ed))
     fireEvent.change(box(), { target: { value: '7:30' } })
     fireEvent.keyDown(box(), { key: 'Enter' })
-    await waitFor(() => expect(screen.getByText('Latest 7h 30m')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Latest 7h 30m (Mon Oct 26)')).toBeTruthy())
     expect(calls.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['/api/j2/trackers/t1/days/2026-10-26'])
     expect(st.values['2026-10-26']).toBe(450)                                                        // control: it logged
     fireEvent.change(box(), { target: { value: '' } })                                               // and a clear
@@ -110,15 +118,33 @@ describe('⛔⛔ the tracker block never writes the note', () => {
   })
 
   it('adopted_value_from_another_tab_makes_no_doc_change', async () => {
-    const { toNotes } = serve()
+    const { toNotes, st } = serve()
     const { ed, changes } = mounted()
     editors.push(ed)
     await waitFor(() => expect(box()).toBeTruthy(), { timeout: 4000 })
     const other = new FakeBC('uct-nb-tools')                                                          // the other tab
     const entry = { day: '2026-10-26', value: 480, text: '8h', writable: true }
+    st.values['2026-10-26'] = 480                                                                    // the other tab's write, on the server
     act(() => { other.postMessage({ kind: 'tracker', id: 't1', day: '2026-10-26', entry, at: Date.now() + 1, seq: 1 }) })
     await waitFor(() => expect(box().value).toBe('8:00'))
-    expect(screen.getByText('Latest 8h')).toBeTruthy()
+    await waitFor(() => expect(screen.getByText('Latest 8h (Mon Oct 26)')).toBeTruthy())
+    expect(changes).toHaveLength(0)
+    expect(toNotes()).toEqual([])
+  })
+
+  it('I-2 (W9-R40): a broadcast from another tab for ANOTHER day refreshes this block from the server, with no doc change', async () => {
+    const { st, toNotes, calls } = serve({ values: { '2026-10-20': 420 } })
+    const { ed, changes } = mounted()
+    editors.push(ed)
+    await waitFor(() => expect(screen.getByText('Average 7h from 1 entry')).toBeTruthy(), { timeout: 4000 })
+    const readsBefore = calls.filter((c) => c.url === '/api/j2/trackers/days').length
+    st.values['2026-10-23'] = 480                                                                    // the other tab's write, on the server
+    const other = new FakeBC('uct-nb-tools')
+    act(() => { other.postMessage({ kind: 'tracker', id: 't1', day: '2026-10-23', entry: { day: '2026-10-23', value: 480, text: '8h', writable: true }, at: Date.now() + 1, seq: 1 }) })
+    await waitFor(() => expect(screen.getByText('Average 7h 30m from 2 entries')).toBeTruthy())
+    expect(screen.getByText('Latest 8h (Fri Oct 23)')).toBeTruthy()
+    expect(box().value).toBe('')                                                                     // its own day (Mon Oct 26) is untouched
+    expect(calls.filter((c) => c.url === '/api/j2/trackers/days').length).toBe(readsBefore + 1)      // a server re-read, never a merge
     expect(changes).toHaveLength(0)
     expect(toNotes()).toEqual([])
   })
