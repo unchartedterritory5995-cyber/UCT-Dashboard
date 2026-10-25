@@ -69,6 +69,21 @@ export function clearDraft(uid, target) {
 }
 
 /**
+ * Remove the kept draft only when one of `sessions` kept it (consolidation, 8.16 N1). "Discard them" throws away the
+ * member's OWN changes: those this open kept, or the draft it resumed. A draft another open kept, which this open
+ * offered and the member never chose, stays (and is offered again).
+ */
+export function clearOwnDraft(uid, sessions) {
+  const own = sessions instanceof Set ? sessions : new Set(sessions || [])
+  try {
+    const raw = window.localStorage.getItem(keyOf(uid))
+    const d = raw ? JSON.parse(raw) : null
+    if (!isRecord(d) || !own.has(typeof d.session === 'string' && d.session ? d.session : null)) return
+    window.localStorage.removeItem(keyOf(uid))
+  } catch { /* nothing to clear */ }
+}
+
+/**
  * A save from the builder open `session` landed after that builder closed (fix 4, NEW-5). Only THAT open's draft is
  * touched; a draft another open kept since is never this save's to clear. When the draft holds exactly what was
  * saved (`savedKey`), it goes. When it holds edits made after the save went out, those edits now belong to the
@@ -91,20 +106,30 @@ export function settleDraft(uid, { session, savedKey, target, etag = null }) {
   } catch { /* the draft stays as it was */ }
 }
 
-// The saves still out, by the builder open that sent them: settles `true` when that save landed, `false` when not.
-// In memory on purpose: a reload ends the save with the page, so nothing here can outlive what it describes.
+// The saves still out, by the builder open that sent them: each settles `{landed, id, name}` (`landed` false when the
+// save failed; `id` and `name` are the widget it saved). In memory on purpose: a reload ends the save with the page,
+// so nothing here can outlive what it describes.
 const inFlight = new Map()
+
+const settled = (got) => {
+  if (!got?.ok) return { landed: false, id: null, name: '' }
+  const data = isRecord(got.data) ? got.data : {}
+  return {
+    landed: true, id: typeof data.id === 'string' && data.id ? data.id : null,
+    name: typeof data.name === 'string' ? data.name : '',
+  }
+}
 
 /** Record `promise` (a save's answer) as the open `session`'s save in flight until it settles. */
 export function trackSave(session, promise) {
   if (typeof session !== 'string' || !session) return promise
-  const landed = Promise.resolve(promise).then((got) => !!got?.ok, () => false)
+  const landed = Promise.resolve(promise).then(settled, () => settled(null))
   inFlight.set(session, landed)
   landed.then(() => { if (inFlight.get(session) === landed) inFlight.delete(session) })
   return promise
 }
 
-/** The save the open `session` still has out (a promise of whether it landed), or null. */
+/** The save the open `session` still has out (a promise of `{landed, id, name}`), or null. */
 export function saveInFlight(session) {
   return (typeof session === 'string' && inFlight.get(session)) || null
 }

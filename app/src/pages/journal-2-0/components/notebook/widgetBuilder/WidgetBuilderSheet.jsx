@@ -12,7 +12,7 @@ import {
   indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow,
 } from './builderCatalog'
 import {
-  readDraft, writeDraft, clearDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
+  readDraft, writeDraft, clearDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
 } from './builderDraft'
 import SourceSection from './sections/SourceSection'
 import WhichOnesSection, { RangePicker, FieldPicker, FilterEditor } from './sections/WhichOnesSection'
@@ -61,7 +61,10 @@ import styles from './WidgetBuilderSheet.module.css'
  * only as a new widget (fix 1, I-7). Saved work is never a draft: once a widget is saved (its placement still owed),
  * only the edits made SINCE count, and they are kept for THAT widget, so resuming them edits it and never saves a
  * second one (fix 4, NEW-1). A draft is stamped with the open that kept it, and a later open holds its resume offer
- * while that open's save is still out (fix 4, NEW-5). Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z redoes, at the top
+ * while that open's save is still out (fix 4, NEW-5). "Discard them" drops only the member's own changes (this open's
+ * draft, or the one it resumed), never a draft that was offered and not chosen (8.16 N1). A held offer never reloads,
+ * resumes over, or takes focus from a member at work in the sheet: edited, or focus moved from where it was at open
+ * (8.15 M-1, M-2). Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z redoes, at the top
  * level and outside a text field (a field keeps its own undo); Ctrl/Cmd+Enter saves, except while a filter is being
  * edited.
  *
@@ -90,6 +93,11 @@ export const BACK_TO_EXAMPLES = 'Back to examples'
 export const BACK_HELD_SAVED = 'Your widget is saved. Add it to the note, or close.'
 /** Fix 1, m-6: said when a card opens in the builder. */
 const openedText = (name) => `Opened ${name}.`
+/** Consolidation (8.15 M-4): opened to resume a draft whose save was still out, and that save landed as a new widget.
+ *  The member is told where their widget is, never handed a blank builder with nothing said. */
+const savedInMyToolsText = (name) => (name ? `Saved in My tools as “${name}”.` : 'Saved in My tools.')
+/** ...and the edits made after it went out were kept for that widget: they are offered from its own Edit. */
+export const SAVED_EDITS_KEPT = 'Your later changes are kept with it. Open it from My tools to resume them.'
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 /** Edits that make a saved widget out of date: the plan and the name, as one value. */
@@ -227,6 +235,13 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   // Fix 4, NEW-5: this open's token, stamped on the draft it keeps and on the saves it sends.
   const session = useRef(null)
   if (session.current === null) session.current = newSession()
+  // Consolidation (8.16 N1): the session of the draft this open RESUMED (undefined: none). That draft is the member's
+  // own choice, so "Discard them" may drop it; a draft merely offered, and never chosen, is not theirs to drop.
+  const resumedFrom = useRef(undefined)
+  // Consolidation (8.15 M-2): what had focus when the builder became ready. Focus anywhere else in the sheet means the
+  // member is at work there (a half-typed date, the top-N box, arrowing a radio group), dirty or not.
+  const openFocus = useRef(null)
+  const [notice, setNotice] = useState('')     // M-4: "Saved in My tools as ..." after a held save landed
   const leftRef = useRef(false)       // the member left (R-38): the builder is going, whatever a save answers later
   const saveBtnRef = useRef(null)
   const away = () => !mounted.current || leftRef.current
@@ -332,21 +347,57 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
    *  still out: offering it now could save the same widget twice. Wait for that save, then offer what is left: no
    *  draft once it landed (or one retargeted to the widget it saved), the draft itself if it failed. When it landed
    *  on the widget this builder opened, the builder reopens, so it edits the newer version. */
-  function holdOffer(pending, def) {
-    pending.then((landed) => {
+  function holdOffer(pending, def, auto = start === 'resume') {
+    pending.then((res) => {
       if (away()) return
-      const clean = !stateRef.current.dirty
+      const landed = !!res?.landed
+      // Consolidation (8.15 M-1, M-2): "clean" is not just "nothing dispatched". A member at work in the sheet (focus
+      // moved inside it) keeps what they have: no reload under them, and no draft resumed over them.
+      const clean = !typing()
       if (landed && def && clean) { setLoadTick((n) => n + 1); return }
       const again = readDraft(uid, draftTarget)
-      if (!again) return
-      if (start === 'resume' && clean) resumeDraft(again, def)
+      if (!again) {
+        // M-4: asked to resume, and the held save landed as a NEW widget: say where it is (and where its later edits
+        // went, when they were kept for it), rather than a blank builder that says nothing.
+        if (landed && !def && auto && res.id) {
+          const kept = readDraft(uid, res.id)
+          setNotice(kept ? `${savedInMyToolsText(res.name)} ${SAVED_EDITS_KEPT}` : savedInMyToolsText(res.name))
+        }
+        return
+      }
+      if (auto && clean) resumeDraft(again, def)
       else setOffer(again)
     })
+  }
+
+  /** The kept draft offered again (after "Keep my changes" or "Discard them" on the way back to the examples): held,
+   *  exactly as at open, while the open that kept it still has a save out (NEW-5); never resumed on its own. */
+  function reoffer() {
+    const kept = readDraft(uid, draftTarget)
+    const pending = kept ? saveInFlight(kept.session) : null
+    if (pending) {
+      setOffer(null)
+      holdOffer(pending, target.def, false)
+      return
+    }
+    setOffer(kept)
+  }
+
+  /** The member is at work in the sheet: something is edited, or focus has moved inside the sheet from where it was
+   *  when the builder became ready (8.15 M-2: a half-entered date, the top-N box, arrowing a radio group, none of which
+   *  is dispatched yet). The sheet's own panel, which the Sheet focuses on open, is not work. */
+  function typing() {
+    if (stateRef.current.dirty) return true
+    const a = typeof document !== 'undefined' ? document.activeElement : null
+    const panel = rootRef.current?.closest('[data-sheet-panel]') || rootRef.current
+    if (!a || !panel || a === panel || !panel.contains(a)) return false
+    return a !== openFocus.current
   }
 
   /** Resume a kept draft. A draft of a widget that has been saved since (its etag moved) is never saved over the
    *  newer version: it can only become a new widget (fix 1, I-7). */
   function resumeDraft(kept, def = target.def) {
+    resumedFrom.current = typeof kept.session === 'string' && kept.session ? kept.session : null
     dispatch({ type: 'loadPlan', plan: kept.plan, keepBase: true })
     const was = Number.isInteger(kept.etag) ? kept.etag : null
     const isStale = !!def && was !== null && Number.isInteger(def.etag) && def.etag !== was
@@ -354,10 +405,16 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     setStale(isStale)
   }
 
-  // The resume offer takes focus when it appears, so it is read out (fix 1: "announce and focus"); an offer held
-  // back (NEW-5) never takes it from a member who has started editing.
+  // M-2: where focus was when the builder became ready. Declared BEFORE the offer's focus effect, so an offer shown
+  // at open (which takes focus next) is not mistaken for the member's own move.
   useEffect(() => {
-    if (phase === 'ready' && offer && !stateRef.current.dirty) offerRef.current?.focus()
+    if (phase === 'ready') openFocus.current = typeof document !== 'undefined' ? document.activeElement : null
+  }, [phase])
+
+  // The resume offer takes focus when it appears, so it is read out (fix 1: "announce and focus"); an offer held
+  // back (NEW-5) never takes it from a member who has started editing, or who is at work in the sheet (M-2).
+  useEffect(() => {
+    if (phase === 'ready' && offer && !typing()) offerRef.current?.focus()
   }, [phase, offer])
 
   // Fix 4, NEW-2: saved but gone, the sections are inert, so focus goes to the one thing left to do: Close.
@@ -450,13 +507,14 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     screenSeen.current = screen
     const root = rootRef.current
     if (!root) return
-    if (screen === 'builder') {
-      root.querySelector('[data-builder-section] [data-builder-heading]')?.focus()
-      return
+    if (screen === 'builder') root.querySelector('[data-builder-section] [data-builder-heading]')?.focus()
+    else {
+      const el = galleryOpener.current
+      if (el && el.isConnected && root.contains(el)) el.focus()
+      else root.querySelector('[data-gallery-heading]')?.focus()
     }
-    const el = galleryOpener.current
-    if (el && el.isConnected && root.contains(el)) el.focus()
-    else root.querySelector('[data-gallery-heading]')?.focus()
+    // M-2: the builder put focus here, not the member, so this is where "at work" is measured from on this screen.
+    openFocus.current = document.activeElement
   }, [screen])
   const galleryRef = useRef(null)
   galleryRef.current = {
@@ -542,7 +600,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const requestClose = () => {
     if (saving) return
     if (unsaved()) {
-      if (level.kind !== 'ask') push({ kind: 'ask' }, null)
+      // 8.16 N2: X or the backdrop while "Back to examples" asks: the member now wants to CLOSE, so the question
+      // becomes the closing one, whose "Keep my changes" closes the sheet (never a trip back to the gallery).
+      if (level.kind === 'ask' && level.to) setLevel({ kind: 'ask' })
+      else if (level.kind !== 'ask') push({ kind: 'ask' }, null)
       return
     }
     close()
@@ -563,6 +624,13 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     clearDraft(uid, draftTarget)
     const s = savedRef.current
     if (s && s.defId !== draftTarget) clearDraft(uid, s.defId)
+  }
+  /** "Discard them" (8.16 N1): only the member's OWN changes go: a draft this open kept (its session) or the one it
+   *  resumed. A draft offered and never chosen stays, and is offered again. */
+  const dropOwnDrafts = () => {
+    const own = new Set([session.current])
+    if (resumedFrom.current !== undefined) own.add(resumedFrom.current)
+    clearOwnDraft(uid, own)
   }
   // R-38: leaving without closing (browser navigation, the note's editor destroyed) keeps unsaved edits as a draft,
   // offered again on the next open. The door asks through `registerLeave`; a clean builder writes nothing.
@@ -779,6 +847,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       if (away()) return
       if (!got.ok) { refused(got); return }
       if (apply === SAVE_NEW) {
+        // 8.15 M-5: the stale draft is now its own new widget. Its question is answered: the banner goes and Save
+        // stops saying "Save as a new widget" (it places the saved widget, if its place is still owed).
+        staleEtag.current = null
+        setStale(false)
         savedRef.current = owed(got.data, fromNode ? 'replace' : null, st)
         await placeSaved()
         return
@@ -920,13 +992,20 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
               onClick={() => {
                 if (!keepDraft()) { setSaveMsg(KEEP_FAILED); return }
                 if (!toG) { close(); return }
-                setOffer(readDraft(uid, draftTarget))
+                reoffer()
                 toGallery()
               }}>
               Keep my changes
             </button>
             <button type="button" className={styles.btn}
-              onClick={() => { dropDrafts(); if (toG) toGallery(); else close() }}>
+              onClick={() => {
+                dropOwnDrafts()
+                if (!toG) { close(); return }
+                // 8.16 N1: a draft the member never chose (offered on the gallery before they opened a card) is still
+                // there, so the gallery offers it again.
+                reoffer()
+                toGallery()
+              }}>
               Discard them
             </button>
             <button type="button" className={styles.btn} onClick={back}>Keep editing</button>
@@ -980,6 +1059,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
             </div>
           )}
           {target.missing && <p className={styles.notice}>{SAVED_COPY_SENTENCE}</p>}
+          {/* Always mounted, so the sentence is read out when it arrives (a late, held save). */}
+          <p className={notice ? styles.notice : styles.srOnly} role="status" data-testid="builder-notice">{notice}</p>
           <SourceSection cat={cat} plan={plan} accounts={accounts} onSource={onSource}
             onAccounts={(acc) => dispatch({ type: 'setAccounts', accounts: acc })} />
           <WhichOnesSection cat={cat} plan={plan} accounts={accounts}
