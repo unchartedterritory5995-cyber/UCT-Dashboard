@@ -94,8 +94,9 @@ export function isTextControl(el) {
  * * `height` and `inset` (how far the visual viewport's bottom sits above the layout viewport's: the keyboard on
  *   iOS) become `--vvh` / `--vv-inset` on the panel, so the footer with Save stays above the keyboard.
  */
-/** The DEVICE's orientation (fix 2): `screen.orientation`, else the orientation media query. Never the window's
- *  aspect, which a resizes-content keyboard flips (a 390 x 300 window is a portrait phone with its keyboard up). */
+/** The DEVICE's orientation (fix 2): `screen.orientation`. Where that is missing, the orientation media query,
+ *  which is VIEWPORT-based (it compares the viewport's width and height, so a resizes-content keyboard can flip it),
+ *  and last the window's aspect. Only `screen.orientation` is immune to the keyboard. */
 export function orientationOf() {
   const type = typeof screen !== 'undefined' ? screen.orientation?.type : null
   if (typeof type === 'string' && type) return type.startsWith('landscape') ? 'landscape' : 'portrait'
@@ -105,8 +106,9 @@ export function orientationOf() {
   return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'
 }
 
-/** The tallest the viewport can be in an orientation, from the screen: so a builder that OPENS with the keyboard
- *  already up (focus was in a field) still reads it as up, instead of taking the shortened height as the baseline. */
+/** The tallest the viewport can be in an orientation, from the screen. Used ONLY when a text field is focused as the
+ *  builder opens (the keyboard can already be up then), never otherwise: a desktop or tablet window is routinely
+ *  shorter than its screen, and a seed there would read a keyboard that does not exist (fix 3, I-2). */
 function screenSeed(orient) {
   const w = typeof screen !== 'undefined' ? Number(screen.width) || 0 : 0
   const h = typeof screen !== 'undefined' ? Number(screen.height) || 0 : 0
@@ -120,13 +122,17 @@ export function useViewport() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
     const vv = window.visualViewport || null
+    // A text field focused as the builder opens: the only time the screen may seed the baseline.
+    let seedOnce = isTextControl(document.activeElement)
     const read = () => {
       const h = vv ? vv.height : window.innerHeight
       const orient = orientationOf()
       const b = base.current
-      b[orient] = Math.max(b[orient], screenSeed(orient), window.innerHeight || 0, h || 0)
+      b[orient] = Math.max(b[orient], seedOnce ? screenSeed(orient) : 0, window.innerHeight || 0, h || 0)
+      seedOnce = false
       const inset = vv ? Math.max(0, Math.round(window.innerHeight - (vv.offsetTop || 0) - vv.height)) : 0
-      const keyboardOpen = !!b[orient] && h < KEYBOARD_RATIO * b[orient]
+      // A soft keyboard is up only while a text field has focus: a short viewport alone is a short window.
+      const keyboardOpen = isTextControl(document.activeElement) && !!b[orient] && h < KEYBOARD_RATIO * b[orient]
       setView((v) => (v.keyboardOpen === keyboardOpen && v.height === h && v.inset === inset ? v
         : { keyboardOpen, height: h, inset }))
     }
@@ -134,10 +140,14 @@ export function useViewport() {
     vv?.addEventListener('resize', read)
     vv?.addEventListener('scroll', read)
     window.addEventListener('resize', read)
+    document.addEventListener('focusin', read)
+    document.addEventListener('focusout', read)
     return () => {
       vv?.removeEventListener('resize', read)
       vv?.removeEventListener('scroll', read)
       window.removeEventListener('resize', read)
+      document.removeEventListener('focusin', read)
+      document.removeEventListener('focusout', read)
     }
   }, [])
   return view
@@ -163,7 +173,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const [accounts, setAccounts] = useState(() => new Map())
   const [target, setTarget] = useState({ mode: 'new', def: null, missing: false })
   const [tooNew, setTooNew] = useState('')
-  const [state, dispatch] = useReducer(reducer, undefined, () => initState(blankPlan()))
+  const [state, rawDispatch] = useReducer(reducer, undefined, () => initState(blankPlan()))
+  // Fix 3, minor 4: once saved-but-gone (R-39), the widget is saved and edits would go nowhere, so none are taken.
+  const goneRef = useRef(false)
+  const dispatch = useCallback((a) => { if (!goneRef.current) rawDispatch(a) }, [])
   const [level, setLevel] = useState({ kind: 'main' })
   const [offer, setOffer] = useState(null)
   const [stale, setStale] = useState(false)
@@ -361,7 +374,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const close = useCallback((focusTo) => { onClose?.(focusTo) }, [onClose])
   const requestClose = () => {
     if (saving) return
-    if (gone) { close(); return }
+    if (gone || savedRef.current) { close(); return }
     if (phase === 'ready' && stateRef.current.dirty) {
       if (level.kind !== 'ask') push({ kind: 'ask' }, null)
       return
@@ -378,7 +391,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   // offered again on the next open. The door asks through `registerLeave`; a clean builder writes nothing.
   const leaveRef = useRef(null)
   leaveRef.current = () => {
-    if (phase === 'ready' && !gone && stateRef.current.dirty) keepDraft()
+    // Fix 3, I-1: a widget already saved (its placement owed) is not a draft; keeping it would save it twice.
+    // (Escape cannot reach "Keep your changes?" in that state either: requestClose closes at once.)
+    if (phase === 'ready' && !gone && !savedRef.current && stateRef.current.dirty) keepDraft()
   }
   useEffect(() => {
     if (typeof registerLeave === 'function') registerLeave(() => leaveRef.current?.())
@@ -511,6 +526,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       setSaving(true)
       const put = await putJson(`/${encodeURIComponent(s.defId)}`,
         { plan: st.plan, ...nameFor(st), apply: UPDATE_ALL, ...(noteId ? { origin: noteId } : {}) }, s.etag)
+      // Fix 3, I-1: saved work is never a draft, even when the builder closed while the save was out.
+      if (put.ok) clearDraft(uid, draftTarget)
       if (!mounted.current) return
       if (!put.ok) { refused(put); return }
       s = { ...s, defRev: put.data.rev, etag: put.data.etag, planKey: planKeyOf(st) }
@@ -533,6 +550,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       savedRef.current = null
       setSaving(false)
       setLevel({ kind: 'main' })
+      goneRef.current = true
       setGone(true)
       setSaveMsg(SAVED_NOT_IN_NOTE)
       return
@@ -566,6 +584,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       setSaving(true)
       const got = await putJson(`/${encodeURIComponent(def.id)}`,
         { plan, ...nameFor(st), apply, ...(noteId ? { origin: noteId } : {}) }, def.etag)
+      if (got.ok) clearDraft(uid, draftTarget)
       if (!mounted.current) return
       if (!got.ok) { refused(got); return }
       if (apply === SAVE_NEW) {
@@ -584,6 +603,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     }
     setSaving(true)
     const got = await postJson('', { plan, ...nameFor(st) })
+    if (got.ok) clearDraft(uid, draftTarget)
     if (!mounted.current) return
     if (!got.ok) { refused(got); return }
     let how = null
@@ -705,7 +725,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     }
     content = (
       <>
-        <div hidden={k !== 'main'} className={styles.sections}>
+        <div hidden={k !== 'main'} className={styles.sections} inert={gone || undefined} aria-disabled={gone || undefined}
+          data-testid="builder-sections">
           {offer && (
             <div className={styles.offer} role="group" aria-label={RESUME_OFFER}>
               <p className={styles.offerText}>{RESUME_OFFER}</p>

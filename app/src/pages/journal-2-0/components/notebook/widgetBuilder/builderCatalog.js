@@ -93,7 +93,7 @@ export function unboundedTokens(cat) {
 export const rangeIsUnbounded = (cat, range) => isRecord(range) && unboundedTokens(cat).includes(range.token)
 
 /** The views a second split ("then by") can show in: validate_plan's own `THEN_VIEWS`, sent as data. */
-export const thenViews = (cat) => (Array.isArray(cat?.viewRules?.thenViews) ? cat.viewRules.thenViews : ['table'])
+export const thenViews = (cat) => (Array.isArray(cat?.viewRules?.thenViews) ? cat.viewRules.thenViews : [])
 /** A second split can be added: the view is still the suggested one (it then becomes a table) or can show it. */
 export const thenAllowed = (cat, plan) => !!plan.view?.auto || thenViews(cat).includes(plan.view?.type)
 
@@ -114,7 +114,6 @@ export const CHECK_TESTS = Object.freeze({
   split_in: (c, plan) => !!plan.split && (c.fields || []).includes(plan.split.by),
   source_in: (c, plan) => (c.sources || []).includes(plan.source),
   no_split_measures: (c, plan) => !plan.split && (plan.measures || []).length === c.measures,
-  no_then: (c, plan) => !(plan.split && plan.split.then),
 })
 
 /** The reason a view cannot show this plan, or null: the first server check that applies to the view and fails. */
@@ -154,8 +153,14 @@ export function fitView(cat, plan) {
   let next = withDefault({ ...plan, view: plan.view || { type: 'number', auto: true } })
   if (next.view.auto || viewReason(cat, next, next.view.type)) {
     next = withDefault({ ...next, view: { type: autoView(cat, next), auto: true } })
+    // The suggestion itself can fail (a comparison against "all time", or of open positions): drop the comparison
+    // and suggest again, so the plan always leaves here with a view that can show it.
+    if (viewReason(cat, next, next.view.type)) {
+      next = { ...next, compare: null }
+      next = { ...next, view: { type: autoView(cat, next), auto: true } }
+    }
   }
-  // A view that survived the checks above can show the comparison it names; any other view compares nothing.
+  // Only a comparison view keeps a comparison (and the checks above passed it); every other view compares nothing.
   return next.view.type === 'compare' ? next : { ...next, compare: null }
 }
 

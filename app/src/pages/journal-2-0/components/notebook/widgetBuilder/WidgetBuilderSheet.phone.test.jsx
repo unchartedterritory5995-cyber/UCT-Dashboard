@@ -51,6 +51,9 @@ afterEach(() => {
   for (const k of SCREEN_KEYS) delete window.screen[k]
 })
 
+/** Focus the builder's Name field (a text control: the keyboard can be up). */
+const focusField = () => act(() => { screen.getByLabelText('Name').focus() })
+
 async function openBuilder() {
   const onClose = vi.fn()
   render(<WidgetBuilderSheet uid="u1" onClose={onClose} />)
@@ -74,6 +77,7 @@ describe('WidgetBuilderSheet at 390 px', () => {
 
   it('the summary hides while the keyboard is open', async () => {
     await openBuilder()
+    focusField()                                                    // the keyboard rises for a focused field
     expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
     act(() => vv.resize(Math.floor(844 * KEYBOARD_RATIO) - 1))       // the keyboard takes the bottom of the screen
     expect(screen.queryByTestId('builder-summary-bar')).toBeNull()
@@ -86,6 +90,7 @@ describe('WidgetBuilderSheet at 390 px', () => {
 
   it('I-3a: the Android shape (resizes-content: the WINDOW shrinks too) also reads as the keyboard open', async () => {
     await openBuilder()
+    focusField()
     expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
     act(() => {
       Object.defineProperty(window, 'innerHeight', { configurable: true, value: 400 })
@@ -104,6 +109,7 @@ describe('WidgetBuilderSheet at 390 px', () => {
   it('fix 2: a resizes-content keyboard that makes the window wider than tall is still a PORTRAIT keyboard', async () => {
     setScreen({ type: 'portrait-primary', width: 390, height: 844 })
     await openBuilder()
+    focusField()
     expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
     act(() => {
       Object.defineProperty(window, 'innerHeight', { configurable: true, value: 300 })   // 390 x 300: wider than tall
@@ -113,12 +119,66 @@ describe('WidgetBuilderSheet at 390 px', () => {
     expect(screen.queryByTestId('builder-summary-bar')).toBeNull()
   })
 
-  it('fix 2: a builder that OPENS with the keyboard already up reads it as up (the screen seeds the baseline)', async () => {
+  it('fix 2: a builder that OPENS from a focused field with the keyboard up reads it as up (the screen seeds)', async () => {
     setScreen({ type: 'portrait-primary', width: 390, height: 844 })
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 400 })
     vv.height = 400
+    const outside = document.createElement('input')
+    document.body.appendChild(outside)
+    outside.focus()                                                  // the note's field had the keyboard up
     await openBuilder()
+    focusField()
     expect(screen.queryByTestId('builder-summary-bar')).toBeNull()
+    outside.remove()
+  })
+
+  it('fix 3, I-2: a window shorter than its screen with nothing focused keeps the preview (no phantom keyboard)', async () => {
+    setScreen({ type: 'landscape-primary', width: 1920, height: 1080 })
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 600 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 780 })
+    vv.height = 780
+    await openBuilder()
+    expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+    focusField()                                                     // no seed was taken: still no keyboard
+    expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+  })
+
+  it('fix 3, I-2: the same window opened from a focused field, with a short viewport, hides the preview', async () => {
+    setScreen({ type: 'landscape-primary', width: 1920, height: 1080 })
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 600 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 780 })
+    vv.height = 780
+    const outside = document.createElement('input')
+    document.body.appendChild(outside)
+    outside.focus()
+    await openBuilder()
+    focusField()
+    expect(screen.queryByTestId('builder-summary-bar')).toBeNull()
+    outside.remove()
+  })
+
+  it('fix 3, I-2: the screen seeds only the reading AT OPEN, never a later orientation', async () => {
+    setScreen({ type: 'portrait-primary', width: 390, height: 844 })
+    const outside = document.createElement('input')
+    document.body.appendChild(outside)
+    outside.focus()                                                  // seeded at open (portrait)
+    await openBuilder()
+    focusField()
+    act(() => {                                                      // rotate: a landscape window, no keyboard
+      setScreen({ type: 'landscape-primary', width: 390, height: 844 })
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 844 })
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 280 })
+      vv.height = 280
+      window.dispatchEvent(new Event('resize'))
+    })
+    expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
+    outside.remove()
+  })
+
+  it('fix 3, I-2: a short viewport with NO focused text field is not a keyboard', async () => {
+    await openBuilder()
+    act(() => vv.resize(300))
+    expect(screen.getByTestId('builder-summary-bar')).toBeInTheDocument()
   })
 
   it('I-3b: the panel carries the visual viewport height (--vvh) and the keyboard inset (--vv-inset)', async () => {

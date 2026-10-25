@@ -312,44 +312,58 @@ describe('Task 8.15 fix 1', () => {
     expect(within(screen.getByTestId('built-table-alt')).getByText('Flag')).toBeInTheDocument()
   })
 
-  it('I-14: member words across the filter editor, the save question, the keep question and the descriptions', async () => {
+  // The member-words sweep (I-14, split by fix 3): the panel's text, every aria-label, and every description.
+  const BANNED = /\b(definitions?|shelf|built widgets?|sources?|plans?|scopes?)\b/i
+  const sweepPanel = () => {
+    const panel = document.querySelector('[data-sheet-panel]')
+    const described = [...panel.querySelectorAll('[aria-describedby]')].flatMap((el) => el.getAttribute('aria-describedby')
+      .split(' ').map((id) => document.getElementById(id)?.textContent || ''))
+    const labels = [...panel.querySelectorAll('[aria-label]')].map((el) => el.getAttribute('aria-label'))
+    const all = [panel.textContent, ...labels, ...described].join(' ').replace(/trading plan/gi, '')
+    expect(all).not.toMatch(BANNED)
+  }
+
+  // Every field of every kind of row, in chunks of 10 fields so each test stays well inside the default timeout;
+  // the chunks of one kind of row add up to its field count (asserted below), so none is skipped.
+  const CHUNK = 10
+  const CHUNKS = CATALOG.sources.flatMap((src) => Array.from({ length: Math.ceil(src.fields.length / CHUNK) },
+    (_, c) => [`${src.label} ${c * CHUNK + 1}-${Math.min(src.fields.length, (c + 1) * CHUNK)}`, src, c * CHUNK]))
+  it.each(CATALOG.sources.map((s) => [s.label, s]))('I-14: the sweep covers every field of %s', (_label, src) => {
+    const covered = CHUNKS.filter(([, s]) => s === src).reduce((n, [, s, from]) => n + Math.min(CHUNK, s.fields.length - from), 0)
+    expect(covered).toBe(src.fields.length)
+  })
+  it.each(CHUNKS)('I-14: member words in the filter editors of %s', async (_label, src, from) => {
+    await openBuilder()
+    fireEvent.click(screen.getByRole('radio', { name: src.label }))
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    expect(within(screen.getByRole('list', { name: 'Fields' })).getAllByRole('button')).toHaveLength(src.fields.length)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    let walked = 0
+    const to = Math.min(src.fields.length, from + CHUNK)
+    for (let i = from; i < to; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+      fireEvent.click(within(screen.getByRole('list', { name: 'Fields' })).getAllByRole('button')[i])
+      await flush()
+      sweepPanel()
+      walked += 1
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+    }
+    expect(walked).toBe(to - from)
+  })
+
+  it('I-14: member words in the save question and the "Keep your changes?" question', async () => {
     route('GET', (u) => u.endsWith(`${DEFS}/d-1`), () => answer(SAVED))
     await openBuilder({ from: { defId: 'd-1', getPos: () => 1 } })
-    const banned = /\b(definitions?|shelf|built widgets?|sources?|plans?|scopes?)\b/i
-    const sweep = () => {
-      const panel = document.querySelector('[data-sheet-panel]')
-      const described = [...panel.querySelectorAll('[aria-describedby]')].flatMap((el) => el.getAttribute('aria-describedby')
-        .split(' ').map((id) => document.getElementById(id)?.textContent || ''))
-      const labels = [...panel.querySelectorAll('[aria-label]')].map((el) => el.getAttribute('aria-label'))
-      const all = [panel.textContent, ...labels, ...described].join(' ').replace(/trading plan/gi, '')
-      expect(all).not.toMatch(banned)
-    }
-    // every field's filter editor, on the real catalog
-    // every field of EVERY kind of row (fix 2: not only the first)
-    let walked = 0
-    for (const src of CATALOG.sources) {
-      fireEvent.click(screen.getByRole('radio', { name: src.label }))
-      for (let i = 0; i < src.fields.length; i += 1) {
-        fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
-        fireEvent.click(within(screen.getByRole('list', { name: 'Fields' })).getAllByRole('button')[i])
-        await flush()
-        sweep()
-        walked += 1
-        fireEvent.keyDown(document.body, { key: 'Escape' })
-      }
-    }
-    expect(walked).toBe(CATALOG.sources.reduce((n, s) => n + s.fields.length, 0))
-    fireEvent.click(screen.getByRole('radio', { name: CATALOG.sources[0].label }))
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'X' } })
     fireEvent.click(saveButton())
     await flush()
     expect(screen.getByText('This widget is in 14 notes.')).toBeInTheDocument()
-    sweep()
+    sweepPanel()
     fireEvent.keyDown(document.body, { key: 'Escape' })
     fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(screen.getByText(KEEP_QUESTION)).toBeInTheDocument()
-    sweep()
-  }, 90000)
+    sweepPanel()
+  })
 
   it('R-35: the builder evaluates the SERVER’s view rules: change the rules and the answer changes', () => {
     const cat = indexCatalog(CATALOG)
@@ -430,7 +444,7 @@ describe('Task 8.15 fix 1', () => {
     const off = screen.getByRole('button', { name: /^Expectancy \(R\)/ })
     expect(off).toHaveAttribute('aria-disabled', 'true')
     expect(off).not.toBeDisabled()
-    off.focus()
+    act(() => off.focus())
     expect(document.activeElement).toBe(off)
     expect(off).toHaveAccessibleDescription(/Average R per trade/)
     fireEvent.click(off)

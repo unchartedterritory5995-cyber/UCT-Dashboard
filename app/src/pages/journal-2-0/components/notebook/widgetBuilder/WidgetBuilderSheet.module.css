@@ -127,7 +127,7 @@
 }
 .sectionHeading:focus-visible,
 .pickerTitle:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--ut-gold));
+  outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -228,7 +228,7 @@
 .thumb:has(:focus-visible),
 .swatch:has(:focus-visible),
 .check:has(:focus-visible) {
-  outline: 2px solid var(--focus-ring, var(--ut-gold));
+  outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
 
