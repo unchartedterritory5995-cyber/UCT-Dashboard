@@ -70,7 +70,7 @@ from api.services.journal_two.filters import DAY_SQL as _DAY
 from api.services.journal_two.measures import DEFAULT_MIN_N, MEASURES, SMALL_SAMPLE_N
 from api.services.journal_two.notebook_widgets import iso_utc as _iso_utc, num as _num, origin as _origin
 from api.services.journal_two.routine_insights import money
-from api.services.journal_two.shelf_kind_names import ParamError
+from api.services.journal_two.shelf_kind_names import TITLES as KIND_TITLES, ParamError
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_definitions import read_conn as _read
@@ -105,12 +105,8 @@ KIND_TILT = "myTiltCheck"
 KIND_REVENGE = "myRevengeClean"
 KIND_RISK_LEFT = "myRiskLeftToday"
 KIND_PROP_FIRM = "myPropFirm"
-TITLES = {
-    KIND_TILT: "Tilt check",
-    KIND_REVENGE: "Revenge trades",
-    KIND_RISK_LEFT: "Risk left today",
-    KIND_PROP_FIRM: "Prop-firm rules",
-}
+#: The titles, from the constants leaf (Task 10.14: one authority for every dedicated title).
+TITLES = {k: KIND_TITLES[k] for k in (KIND_TILT, KIND_REVENGE, KIND_RISK_LEFT, KIND_PROP_FIRM)}
 PARAMS = {
     KIND_TILT: ("from", "to"),
     KIND_REVENGE: (),

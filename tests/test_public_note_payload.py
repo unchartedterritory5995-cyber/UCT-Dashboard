@@ -1111,6 +1111,20 @@ def test_wave2_param_keys_are_the_ones_the_builders_emit():
     assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge")
 
 
+def _optin_account_kinds() -> list[str]:
+    """Task 10.14: the account kinds a member's `share` switch can show, i.e. "member-optin". `ACCOUNT_KINDS` also
+    holds the seven ready-made dedicated kinds (`shelf_kind_names.KINDS`), which are "private": always the neutral
+    line, with no EMBED_PARAM_KEYS row at all. Derived from both tables, never restated, and checked here: every
+    account kind is exactly one of the two."""
+    from api.services.journal_two import notebook_widgets as nw, shelf_kind_names
+    dedicated = set(shelf_kind_names.KINDS)
+    optin = sorted(nw.ACCOUNT_KINDS - dedicated)
+    assert dedicated <= nw.ACCOUNT_KINDS and len(optin) == 8                    # non-vacuity on both halves
+    assert {pnp.MARKET_DATA_VENDORS[("widgetEmbed", k)] for k in optin} == {"member-optin"}
+    assert {pnp.MARKET_DATA_VENDORS[("widgetEmbed", k)] for k in dedicated} == {"private"}
+    return optin
+
+
 def _cap_honesty_keys(kind: str) -> set[str]:
     """The keys notebook_widgets.cap_payload ITSELF adds to a `kind` payload, read off its real output (fix
     F1b, review M-4): the too-large form, a trimmed list, and (for a kind that publishes `mistakes`) a
@@ -1132,8 +1146,7 @@ def _cap_honesty_keys(kind: str) -> set[str]:
 
 
 def test_m4_every_cap_honesty_key_reaches_a_shown_account_widget():
-    from api.services.journal_two import notebook_widgets as nw
-    for kind in sorted(nw.ACCOUNT_KINDS):
+    for kind in _optin_account_kinds():
         added = _cap_honesty_keys(kind)
         assert {"tooLarge", "empty", "truncated"} <= added, (kind, added)     # control: the fixtures hit the cap
         assert added <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, added - set(pnp.EMBED_PARAM_KEYS[kind]))
@@ -1144,7 +1157,7 @@ def test_m4_every_cap_honesty_key_reaches_a_shown_account_widget():
 def test_m4_the_too_large_sentence_reaches_a_public_reader(mode):
     """A shown account widget whose data hit the cap is published WITH its sentence, never as a blank frame."""
     from api.services.journal_two import notebook_widgets as nw
-    for kind in sorted(nw.ACCOUNT_KINDS):
+    for kind in _optin_account_kinds():
         node = _widget(kind)
         payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
                                   "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
@@ -1351,7 +1364,7 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
                   "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"},
                   "builtWidget": {"measures", "value", "compare", "rows", "series", "points", "cells"}}
     from api.services.journal_two import notebook_widgets as nw
-    assert set(structured) == set(nw.ACCOUNT_KINDS) == set(pnp.EMBED_ROW_KEYS)
+    assert set(structured) == set(_optin_account_kinds()) == set(pnp.EMBED_ROW_KEYS)
     for kind, keys in structured.items():
         assert set(pnp.EMBED_ROW_KEYS[kind]) == keys, kind
         assert keys <= set(pnp.EMBED_PARAM_KEYS[kind]), kind
@@ -1380,7 +1393,7 @@ _R64_NEVER = {"list", "from", "to", "definitionId", "tradeId", "accountId", "pos
 def test_r64_the_never_keys_are_in_no_account_allowlist():
     from api.services.journal_two import notebook_widgets as nw
     assert set(nw.SETTING_KEYS) - {"symbol", "month"} <= _R64_NEVER         # control: every request key is covered
-    for kind in sorted(nw.ACCOUNT_KINDS):
+    for kind in _optin_account_kinds():
         assert not set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER, (kind, set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER)
 
 
@@ -1388,8 +1401,12 @@ def test_r64_the_never_keys_are_in_no_account_allowlist():
 def test_r64_stored_request_and_provenance_keys_reach_a_public_page_only_through_the_allowlist(mode):
     """Every account kind with EVERY stored key set: share off is the neutral line and nothing else; share on
     publishes only that kind's EMBED_PARAM_KEYS, so a request key or sourceDetail/priceBasis reaches a stranger
-    only where the member-optin table already names that exact key."""
-    from api.services.journal_two import notebook_widgets as nw
+    only where the member-optin table already names that exact key.
+
+    Task 10.14: the seven dedicated kinds are account kinds too, and "private": share ON is the neutral line as
+    well, so a stored key can never reach a stranger through one of them."""
+    from api.services.journal_two import notebook_widgets as nw, shelf_kind_names
+    assert set(shelf_kind_names.KINDS) <= nw.ACCOUNT_KINDS                       # the seven are walked here too
     for kind in sorted(nw.ACCOUNT_KINDS):
         for share in (None, False, True):
             node = _widget(kind)
@@ -1397,7 +1414,7 @@ def test_r64_stored_request_and_provenance_keys_reach_a_public_page_only_through
                                            **({} if share is None else {"share": share}))
             out = reduce(doc(node), mode)
             blob = json.dumps(out)
-            if share is not True:
+            if share is not True or kind in shelf_kind_names.KINDS:
                 assert texts_in(out) == [ACCOUNT_LINE] and "widgetEmbed" not in types_in(out), (kind, share)
                 assert "SECRET" not in blob and "1999" not in blob and "ZZQQ" not in blob, (kind, share)
                 continue

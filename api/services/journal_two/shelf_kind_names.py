@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from api.services.journal_two import tool_errors
 
-__all__ = ["KINDS", "WAVE", "ParamError"]
+__all__ = ["KINDS", "WAVE", "TITLES", "ParamError"]
 
 #: The release wave whose flag (`NOTEBOOK_WIDGETS_W10_ENABLED`) gates every dedicated kind.
 WAVE = 10
@@ -17,6 +17,19 @@ WAVE = 10
 #: The seven kinds, in menu order.
 KINDS = ("myTiltCheck", "myRevengeClean", "myPlanVsActual", "myRiskLeftToday", "myPropFirm", "myGamePlan",
          "myAlertsFired")
+
+#: Each kind's member-facing title (Task 10.14). Written ONCE, here: the builder modules' `TITLES` and so
+#: `shelf_kinds.TITLES` read these, and `notebook_widgets.KIND_TITLE` (which the client's `WIDGET_KINDS` is railed
+#: against) reads them at import without pulling in a builder.
+TITLES = {
+    "myTiltCheck": "Tilt check",
+    "myRevengeClean": "Revenge trades",
+    "myPlanVsActual": "Plan vs actual",
+    "myRiskLeftToday": "Risk left today",
+    "myPropFirm": "Prop-firm rules",
+    "myGamePlan": "Pre-market game plan",
+    "myAlertsFired": "Alerts that fired",
+}
 
 
 class ParamError(tool_errors.ToolError):

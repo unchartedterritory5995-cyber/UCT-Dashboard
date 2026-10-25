@@ -62,7 +62,7 @@ from api.services import session_calendar
 from api.services.journal_two import plan_grading, sample_marker, trading_days, widget_definitions
 from api.services.journal_two import shelf_discipline
 from api.services.journal_two.notebook_widgets import iso_utc as _iso_utc, num as _num, origin as _origin
-from api.services.journal_two.shelf_kind_names import ParamError
+from api.services.journal_two.shelf_kind_names import TITLES as KIND_TITLES, ParamError
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import plan as wplan
 
@@ -74,11 +74,8 @@ __all__ = ["ParamError", "PARAMS", "TITLES", "BUILDERS", "clean_params", "my_pla
 KIND_PLAN_VS_ACTUAL = "myPlanVsActual"
 KIND_GAME_PLAN = "myGamePlan"
 KIND_ALERTS_FIRED = "myAlertsFired"
-TITLES = {
-    KIND_PLAN_VS_ACTUAL: "Plan vs actual",
-    KIND_GAME_PLAN: "Pre-market game plan",
-    KIND_ALERTS_FIRED: "Alerts that fired",
-}
+#: The titles, from the constants leaf (Task 10.14: one authority for every dedicated title).
+TITLES = {k: KIND_TITLES[k] for k in (KIND_PLAN_VS_ACTUAL, KIND_GAME_PLAN, KIND_ALERTS_FIRED)}
 PARAMS = {
     KIND_PLAN_VS_ACTUAL: ("tradeId",),
     KIND_GAME_PLAN: (),

@@ -4,8 +4,8 @@ widgets (ruling W10-R4) -- and `shelf_kinds`, the registry it reads.
 `require_paid` is NEVER overridden here, only what it reads, so the real gate decides. The builders are the real
 Task 10.10 / 10.11 functions unless a test swaps `notebook_widgets.build` for a recorder (no data is read then).
 
-⛔ Until Task 10.14 the seven kinds have no `KIND_WAVE` or `_BUILDERS` rows. The `_kind_rows` fixture installs them
-with `monkeypatch.setitem`; Task 10.14 deletes those two lines.
+Task 10.14 landed the seven kinds' rows in `notebook_widgets` (`KIND_WAVE`, `KIND_TITLE`, `ACCOUNT_KINDS`, `_BUILDERS`,
+`source_detail`), so this file installs nothing: every test runs against the real tables.
 """
 from __future__ import annotations
 
@@ -47,14 +47,6 @@ def _fresh_limiter():
 def _clean_env(monkeypatch):
     for w in range(1, 11):
         monkeypatch.delenv(f"NOTEBOOK_WIDGETS_W{w}_ENABLED", raising=False)
-
-
-@pytest.fixture(autouse=True)
-def _kind_rows(monkeypatch):
-    """⛔ Task 10.14 deletes these two lines (the rows land in notebook_widgets then)."""
-    for k in shelf_kinds.KINDS:
-        monkeypatch.setitem(nw.KIND_WAVE, k, 10)
-        monkeypatch.setitem(nw._BUILDERS, k, shelf_kinds.BUILDERS[k])
 
 
 def _app():
@@ -222,15 +214,61 @@ def test_a_duplicate_kind_raises_at_import_time():
 
 
 @pytest.mark.parametrize("first", ["shelf_kinds", "shelf_discipline", "shelf_compose", "shelf_kind_names",
-                                   "public_note_payload"])
+                                   "public_note_payload", "notebook_widgets"])
 def test_every_import_order_loads(first):
-    """The three modules import each other; every entry point must load them all, with one ParamError."""
+    """The modules import each other; every entry point must load them all, with one ParamError. Task 10.14:
+    `notebook_widgets` is an entry point too, and its dispatch table holds the very builders `shelf_kinds` holds."""
     code = (f"import api.services.journal_two.{first}\n"
             "from api.services.journal_two import shelf_kinds as k, shelf_discipline as d, shelf_compose as c\n"
+            "from api.services.journal_two import notebook_widgets as nw\n"
             "assert d.ParamError is k.ParamError is c.ParamError\n"
-            "assert set(k.BUILDERS) == set(k.KINDS)\nprint('OK')\n")
+            "assert set(k.BUILDERS) == set(k.KINDS)\n"
+            "assert all(nw._BUILDERS[x] is k.BUILDERS[x] for x in k.KINDS)\nprint('OK')\n")
     r = _run_py(code)
     assert r.stdout.strip().endswith("OK"), (r.stdout, r.stderr)
+
+
+# -- Task 10.14: the seven rows in notebook_widgets ------------------------------------------------------
+
+def test_dedicated_rows_registered_in_notebook_widgets():
+    """The seven kinds' rows in the phase 1 tables, each read from its one authority, never restated: the wave
+    and the kind list from `shelf_kind_names`, the title `shelf_kinds.TITLES[k]`, the builder
+    `shelf_kinds.BUILDERS[k]` itself (identity), and `source_detail` `shelf_kinds.SOURCE_DETAIL[k]`."""
+    from api.services.journal_two import shelf_kind_names
+    for k in SEVEN:
+        assert nw.KIND_WAVE[k] == shelf_kind_names.WAVE == 10, k
+        assert nw.KIND_TITLE[k] == shelf_kinds.TITLES[k], k
+        assert k in nw.ACCOUNT_KINDS, k
+        assert nw._BUILDERS[k] is shelf_kinds.BUILDERS[k], k
+        for src in ("broker", "manual", "mixed", None):
+            assert nw.source_detail(k, {"source": src}) == shelf_kinds.SOURCE_DETAIL[k], (k, src)
+    assert set(SEVEN) <= set(nw.KIND_WAVE)                                               # non-vacuity
+
+
+def test_dedicated_titles_have_one_authority():
+    """A title is written once, in the constants leaf: neither builder module, `shelf_kinds` nor `notebook_widgets`
+    spells one (each derives it), so a renamed widget cannot leave a stale copy behind. The control proves the scan
+    sees the leaf's own literals."""
+    from api.services.journal_two import shelf_kind_names
+    titles = set(shelf_kind_names.TITLES.values())
+    assert set(shelf_kind_names.TITLES) == set(SEVEN) and len(titles) == 7
+
+    def literals(mod):
+        tree = ast.parse((ROOT / "api" / "services" / "journal_two" / f"{mod}.py").read_text(encoding="utf-8"))
+        return {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+
+    assert titles <= literals("shelf_kind_names")                                        # control
+    for mod in ("shelf_discipline", "shelf_compose", "shelf_kinds", "notebook_widgets"):
+        assert not titles & literals(mod), (mod, titles & literals(mod))
+    assert shelf_kinds.TITLES == shelf_kind_names.TITLES
+
+
+def test_a_dedicated_payload_names_its_source_through_the_door(monkeypatch):
+    """Carry-over 3: the door's payload carries the kind's own source sentence, never an empty string."""
+    _on(monkeypatch)
+    r = _post(_client({**PAID, "id": "u-nobody-1014"}), "myAlertsFired")
+    assert r.status_code == 200, r.text
+    assert r.json()["sourceDetail"] == shelf_kinds.SOURCE_DETAIL["myAlertsFired"] == "Your alert history."
 
 
 def test_clean_params_dispatches_per_kind():

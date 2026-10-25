@@ -621,7 +621,7 @@ def test_the_server_kind_titles_match_the_client_widget_kinds():
     start = src.index("export const WIDGET_KINDS")
     block = src[start:src.index("])", start)]
     client = dict(re.findall(r"\{ id: '(\w+)'.*?title: '([^']+)'", block, flags=re.S))
-    assert len(client) == 16                                                             # non-vacuity
+    assert len(client) == 23                                                             # non-vacuity
     assert nw.KIND_TITLE == client
     assert set(js.SNAPSHOT_SLOT_KINDS) <= set(nw.KIND_TITLE)
 
@@ -639,17 +639,28 @@ def _client_widget_rows():
 
 def test_account_kinds_agree_client_server_and_public_table():
     """Final review M-4: "account kind" has three authorities -- the client's `account: true` (drives the
-    archive rule and the lock chip), the server's ACCOUNT_KINDS, and the public table's member-optin rows.
-    A client flag drifting to false would archive a private widget to a PNG, so all three are railed."""
+    archive rule and the lock chip), the server's ACCOUNT_KINDS, and the public table's rows.
+    A client flag drifting to false would archive a private widget to a PNG, so all three are railed.
+
+    Task 10.14: an account kind is one of TWO public kinds, and the rule is stated for each. The phase 1 account
+    kinds (and the built widget) are "member-optin": neutral unless the member switches `share` on, then only
+    their EMBED_PARAM_KEYS. The seven ready-made dedicated kinds (`shelf_kind_names.KINDS`) are "private": the
+    neutral line on every public page, `share` or not, so they have no allowlist at all."""
     import re
     from api.services.journal_two import notebook_widgets as nw, public_note_payload as public
+    from api.services.journal_two import shelf_kind_names
     rows = _client_widget_rows()
-    assert len(rows) == 16                                                               # non-vacuity
+    assert len(rows) == 23                                                               # non-vacuity
     client = {k for k, body in rows.items() if re.search(r"\baccount: true\b", body)}
-    optin = {d for (t, d), v in public.MARKET_DATA_VENDORS.items() if t == "widgetEmbed" and v == "member-optin"}
-    assert len(client) == 8                                                              # non-vacuity
-    assert client == set(nw.ACCOUNT_KINDS) == optin
-    assert set(nw.ACCOUNT_KINDS) <= set(public.EMBED_PARAM_KEYS)
+    widget_rows = {d: v for (t, d), v in public.MARKET_DATA_VENDORS.items() if t == "widgetEmbed"}
+    optin = {d for d, v in widget_rows.items() if v == "member-optin"}
+    dedicated = set(shelf_kind_names.KINDS)
+    assert len(client) == 15 and len(optin) == 8 and len(dedicated) == 7                 # non-vacuity
+    assert client == set(nw.ACCOUNT_KINDS)
+    assert set(nw.ACCOUNT_KINDS) == optin | dedicated and not optin & dedicated
+    assert {k: widget_rows[k] for k in dedicated} == {k: "private" for k in dedicated}
+    assert optin <= set(public.EMBED_PARAM_KEYS)
+    assert not dedicated & set(public.EMBED_PARAM_KEYS) and not dedicated & set(public.EMBED_ROW_KEYS)
 
 
 def test_client_waves_match_the_server_kind_wave():
@@ -662,7 +673,7 @@ def test_client_waves_match_the_server_kind_wave():
         m = re.search(r"\bwave: (\d+)", body)
         assert m, k
         client[k] = int(m.group(1))
-    assert len(client) == 16                                                             # non-vacuity
+    assert len(client) == 23                                                             # non-vacuity
     assert client == nw.KIND_WAVE
 
 
