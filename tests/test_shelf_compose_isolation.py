@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from tests.test_shelf_compose import (  # noqa: F401  (S is a fixture)
     A, B, MON, S, _conn, _earn, _prep, _wire, et_epoch, ind_fire, link, open_strategy, position,
-    s7_fire, trade,
+    price_fire, s7_fire, trade,
 )
 
 
@@ -42,6 +42,7 @@ def test_member_b_never_reaches_a(S, monkeypatch):
     for i in range(60):
         ind_fire(B, at=et_epoch("2026-10-23", "17:00") + i, sym=f"BI{i}")
         s7_fire(B, at=et_epoch("2026-10-23", "17:00") + i, sym=f"BS{i}")
+        price_fire(B, at=et_epoch("2026-10-23", "17:00") + i, sym=f"BP{i}")   # fix 2 M-4
     after = _answers(S, a_trade)
     assert after == before
     # B's own trade, asked for by A, is absent with its one notice.

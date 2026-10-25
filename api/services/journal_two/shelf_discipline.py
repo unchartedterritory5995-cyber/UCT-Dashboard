@@ -886,7 +886,7 @@ def read_open_positions(user_id: str, conn: sqlite3.Connection) -> tuple[list[di
     when there were more). The ONE read both risk widgets use (fix 10.11 M8). Raises on an
     unreadable store: the caller says so, never "No open positions."."""
     from api.services.journal_two import positions as j2_positions
-    rows = list(j2_positions.list_open_positions(user_id, conn) or [])
+    rows = list(j2_positions.list_open_positions(user_id, conn, limit=READ_LIMIT) or [])  # W10-R45
     keep = READ_LIMIT - 1
     return rows[:keep], len(rows) > keep
 

@@ -462,7 +462,7 @@ def test_merges_both_logs_newest_first_cap_40(S):
     kinds = {r["kind"] for r in got["rows"]}
     assert kinds == {"indicator", "document-arrival"}
     assert got["rows"][0]["what"] == "New 8-K — S29"                       # the log's own text
-    assert got["rows"][1]["what"] == "RSI above its alert level (71.0)"    # composed, no threshold
+    assert got["rows"][1]["what"] == "RSI above its alert level (71.00)"   # composed, no threshold
     assert got["rows"][2]["what"] == "Alert fired"                         # S7, no detail: fallback
     assert any("40" in ln for ln in got["lines"])
 
@@ -607,7 +607,7 @@ def test_alert_rows_read_real_text(S):
     s7_fire(A, at=et_epoch("2026-10-26", "04:00"), sym="AMD")                    # no detail
     rows = S.my_alerts_fired(A, {}, MON)["rows"]
     assert [r["what"] for r in rows] == [
-        "RSI above 70 (71.0)",
+        "RSI above 70.00 (71.00)",
         "Apple Inc. filed a 8-K on 2026-10-26.",
         "Goldman upgraded MSFT (Hold to Buy) on 2026-10-26.",
         "Alert fired",
@@ -633,11 +633,11 @@ def test_indicator_text_words_every_condition(S):
         assert txt.startswith("RSI ") and "_" not in txt, txt
         assert not any(f in txt for f in FORBIDDEN), txt
     assert S._indicator_text({"indicator": "macd", "condition": "cross_zero", "value": 0.4,
-                              "threshold": 0.0}) == "MACD crossed zero (0.4)"
+                              "threshold": 0.0}) == "MACD crossed zero (0.40)"
     assert S._indicator_text({"indicator": "macd", "condition": "above", "value": 1.2,
-                              "threshold": 0.0}) == "MACD above zero (1.2)"
+                              "threshold": 0.0}) == "MACD above zero (1.20)"
     assert S._indicator_text({"indicator": "bb", "condition": "touch_upper", "value": 184.234,
-                              "threshold": 180.0}) == "BB touched the upper band (184.23)"
+                              "threshold": 180.0}) == "Bollinger Bands touched the upper band (184.23)"
     assert S._indicator_text({"indicator": "", "condition": "above"}) == "Alert fired"
 
 
@@ -749,16 +749,33 @@ def test_risk_left_total_says_and_1_other(S):
 
 # -- reporting (M3, M7) -----------------------------------------------------------------------
 
+def _prep_real_earnings(monkeypatch, payload, wire=None):
+    """The wire part faked; the earnings part is the REAL prep read over a held earnings cache, so
+    the member's names are read once, inside prep_part, as in production (fix round 2 M-3)."""
+    from api.services import engine
+    from api.services.cache import cache
+    from api.services.journal_two import trader_blocks as tb
+    real = tb.prep_part
+
+    def part(user_id, name, **k):
+        return (wire or _wire()) if name == "wire" else real(user_id, name, **k)
+    monkeypatch.setattr(tb, "prep_part", part)
+    monkeypatch.setattr(cache, "get", lambda key, *a, **k: payload if key == engine.EARNINGS_CACHE_KEY
+                        else None)
+
+
 def test_names_unread_never_reads_none_of_your_names(S, monkeypatch, tmp_path):
     """M3: names that could not be read are said so, never "None of your names report today"."""
     from api.services.journal_two import positions
-    _prep(monkeypatch, _wire(), _earn(missing="no_names"))
+    _prep_real_earnings(monkeypatch, {"date": "2026-10-26", "bmo": [{"sym": "XOM"}], "amc": [],
+                                      "amc_tonight": []})
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "no-such-dir"))           # every source fails
     got = S.my_game_plan(A, {}, MON)["reporting"]
-    assert got["lines"] == ["Your names couldn't be read right now."] and got["names"] is None
+    # Fix round 2 M-3: exactly one sentence, and no lists.
+    assert got["lines"] == ["Your names couldn't be read right now."]
+    assert got["names"] is None and got["lastNight"] is None
     # Partial: the watchlist reads, positions do not.
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
-    _prep(monkeypatch, _wire(), _earn())
     with _conn() as c:
         c.execute("INSERT INTO users (id, email, password_hash, display_name, role)"
                   " VALUES (?, 'a@example.test', 'x', 'x', 'member')", (A,))
@@ -845,3 +862,183 @@ def test_every_row_line_is_labelled(S):
         link(c, A, tid, {"entry": 100.0, "stop": 96.0, "target": 110.0})
     got = S.my_plan_vs_actual(A, {"tradeId": tid}, MON)
     assert [ln.split(":")[0] for ln in got["lines"]] == ["Entry", "Stop", "Target", "R"]
+
+
+# ── fix round 2 ───────────────────────────────────────────────────────────────────────────────
+
+def test_followed_plan_and_size_are_the_trade_pages(S, monkeypatch):
+    """I-1 (probe q1): one 20-share entry closed as two 10-share trades. The widget's followedPlan
+    and size are what the trade page's grading gives, through ONE `plan_grading.entered_shares`."""
+    from api.services.journal_two import plan_grading
+    with _conn() as c:
+        t1 = trade(c, A, entry=100.0, exit_=105.0, stop=95.0, shares=10, r=1.0)
+        trade(c, A, entry=100.0, exit_=106.0, stop=95.0, shares=10, r=1.2)
+        link(c, A, t1, {"entry": 100.0, "stop": 95.0, "target": 110.0, "shares": 20})
+    asked = []
+    real = plan_grading.entered_shares
+
+    def spy(*a, **k):
+        asked.append(a[2]["id"])
+        return real(*a, **k)
+    monkeypatch.setattr(plan_grading, "entered_shares", spy)
+    w = S.my_plan_vs_actual(A, {"tradeId": t1}, MON)
+    with _conn() as c:
+        page = plan_grading.grade_payload(c, A, plan_grading.get_trade(c, A, t1),
+                                          with_candidates=False)
+    assert asked == [t1, t1]                         # both the widget and the trade page asked it
+    checks = page["checks"]
+    assert checks["followedPlan"] is True and checks["size"]["actual"] == 20.0
+    assert w["followedPlan"] == checks["followedPlan"]
+    assert w["size"] == {k: checks["size"].get(k) for k in ("state", "planned", "actual",
+                                                            "deltaPct")}
+    # CONTROL: a single 10-share entry against a 20-share plan is missed in both.
+    with _conn() as c:
+        t3 = trade(c, A, entry=100.0, exit_=105.0, stop=95.0, shares=10, r=1.0, symbol="AMD")
+        link(c, A, t3, {"entry": 100.0, "stop": 95.0, "target": 110.0, "shares": 20})
+    w3 = S.my_plan_vs_actual(A, {"tradeId": t3}, MON)
+    assert w3["followedPlan"] is False and w3["size"]["state"] == "missed"
+
+
+def test_open_positions_sql_carries_the_limit(S, monkeypatch):
+    """M-1 (W10-R45): the open-positions read is bounded IN the SQL, and the kept set is the same
+    rows in the same order as before."""
+    from api.services.journal_two import positions
+    from api.services.journal_two import shelf_discipline as D
+    with _conn() as c:
+        for sym in ("MSFT", "AAPL", "TSLA", "AMD", "NVDA"):
+            position(c, A, symbol=sym, entry=100, stop=99, shares=10)
+    monkeypatch.setattr(D, "READ_LIMIT", 4)
+    c = _conn()
+    seen: list[str] = []
+    c.set_trace_callback(seen.append)
+    try:
+        kept, capped = D.read_open_positions(A, c)
+        everything = positions.list_open_positions(A, c)      # every other caller: the default
+    finally:
+        c.close()
+    reads = [s for s in seen if "FROM j2_positions" in s]
+    assert len(reads) == 2
+    assert "LIMIT 4" in reads[0] and "ORDER BY symbol ASC, entry_date DESC" in reads[0]
+    assert "LIMIT" not in reads[1]                         # CONTROL: the default is unbounded
+    assert [p["symbol"] for p in kept] == [p["symbol"] for p in everything][:3]
+    assert capped is True and len(everything) == 5
+    # Both SELECTs take the limit (the account filter's too), in the same order.
+    with _conn() as c:
+        position(c, A, acc="acc9", symbol="ZZZ", entry=10, stop=9, shares=1)
+        position(c, A, acc="acc9", symbol="AAA", entry=10, stop=9, shares=1)
+    one = positions.list_open_positions(A, account_id="acc9", limit=1)
+    assert [p["symbol"] for p in one] == ["AAA"]
+    assert len(positions.list_open_positions(A, account_id="acc9")) == 2
+
+
+@pytest.mark.parametrize("ind,threshold,value,expect", [
+    ("price_vs_ma", 45.5, 45.57, "Price vs MA above 45.50 (45.57)"),
+    ("williams_r", 45.5, 45.57, "Williams %R above 45.50 (45.57)"),
+    ("adx.minusDI", 45.5, 45.57, "−DI above 45.50 (45.57)"),
+    ("sar.priceCrossedSar", 45.5, 45.57, "Price crossed SAR this bar"),
+    ("obv", 1500000.0, 45.57, "OBV above 1,500,000 (45.57)"),
+    ("obv", 1500000.0, 1500000.4, "OBV above 1,500,000.0 (1,500,000.4)"),
+    ("u_a1b2c3d4e5f6.value", 45.5, 45.57, "Your indicator above 45.50 (45.57)"),
+    ("close", 45.5, 45.57, "Price (Close) above 45.50 (45.57)"),
+    ("close", 45.5, 45.501, "Price (Close) above 45.500 (45.501)"),
+    ("CLOSE", 145.0, 145.256, "Price (Close) above 145.00 (145.26)"),
+    ("rsi", 1e-7, 2e-7, "RSI above 0.0000001 (0.0000002)"),
+])
+def test_indicator_wording_uses_display_labels(S, ind, threshold, value, expect):
+    """M-2 (probe q4): the indicator's own label, never a raw upper-cased address or a hash; no
+    exponent; thousands separators; value and threshold never print alike when they differ."""
+    got = S._indicator_text({"indicator": ind, "condition": "above", "value": value,
+                             "threshold": threshold})
+    assert got == expect
+    assert "e+" not in got and "e-" not in got and "u_a1b2" not in got
+
+
+def test_member_indicator_reads_its_stored_name(S, monkeypatch):
+    from api.services import user_definitions
+    monkeypatch.setattr(user_definitions, "get", lambda uid, def_id, version=None: (
+        {"definition": {"meta": {"name": "My Average"}}} if (uid, def_id) == (A, "u_a1b2c3d4e5f6")
+        else None))
+    assert S._indicator_text({"indicator": "u_a1b2c3d4e5f6.value", "condition": "below",
+                              "value": 9.5, "threshold": 10.0}, user_id=A) == \
+        "My Average below 10.00 (9.50)"
+    # Another member's formula of the same id is never read as A's: the hash never shows.
+    assert S._indicator_text({"indicator": "u_a1b2c3d4e5f6.value", "condition": "below",
+                              "value": 9.5, "threshold": 10.0}, user_id=B) == \
+        "Your indicator below 10.00 (9.50)"
+
+
+def price_fire(uid, *, at, sym="AAPL", target=100.0, direction="above", price=101.25):
+    """A watchlist price alert's fire, as `watchlist_price_alerts.open_fire` writes it: an
+    `alert_fires` row with NO `alert_predicates` row (CP3: projection, not mirror)."""
+    from api.services.alert_taxonomy import receipts, watchlist_price_alerts as wpa
+    k = next(_KEY)
+    assert receipts.record_fire(
+        wpa.predicate_id_for(k), wpa.TRIGGER_TYPE, uid, sym, wpa.fire_key_for(k),
+        triggering_value=price, source_data_class="quote", as_of=at, fired_at=at,
+        detail={"symbol": sym, "legacy_alert_id": k, "level": target, "target_price": target,
+                "direction": direction, "level_kind": "price", "drawing_id": None,
+                "rule": wpa.LEGACY_RULE, "source": "watchlist_alert"}) is not None
+
+
+def test_price_alerts_count(S):
+    """M-4 (W10-R44): a member whose only alert was a watchlist price alert sees it."""
+    from api.services.alert_taxonomy import receipts
+    price_fire(A, at=et_epoch("2026-10-26", "07:00"), sym="AAPL", target=100.0, price=101.25)
+    price_fire(A, at=et_epoch("2026-10-26", "06:00"), sym="TSLA", target=200.0,
+               direction="below", price=199.5)
+    price_fire(B, at=et_epoch("2026-10-26", "06:30"), sym="BBB")              # B's: never A's
+    got = S.my_alerts_fired(A, {}, MON)
+    assert [r["what"] for r in got["rows"]] == ["Price above $100.00 ($101.25)",
+                                                "Price below $200.00 ($199.50)"]
+    assert [r["symbol"] for r in got["rows"]] == ["AAPL", "TSLA"]
+    assert got["lines"] == ["2 alerts fired since the last session."]
+    # Every other caller of the feed reader is unchanged: no price alerts there.
+    assert receipts.list_fires_for_feed(A) == []
+    assert len(receipts.list_fires_for_feed(A, include_price_alerts=True)) == 2
+    # CONTROL: a member with no fires still reads the empty sentence.
+    assert S.my_alerts_fired("u-nobody", {}, MON)["lines"] == [
+        "No alerts fired since the last session."]
+
+
+def test_price_alerts_bounded_under_the_same_cap(S):
+    base = et_epoch("2026-10-23", "16:05")
+    for i in range(50):
+        price_fire(A, at=base + i, sym=f"P{i}")
+    got = S.my_alerts_fired(A, {}, MON)
+    assert len(got["rows"]) == 40 and got["capped"] is True
+    assert got["lines"][0] == "Showing the newest 40 of at least 50 alerts since the last session."
+
+
+def test_names_are_read_once(S, monkeypatch):
+    """M-3: the names behind today's and last night's lists are read ONCE, and the sentence about
+    an unread name comes from that same read."""
+    from api.services import member_interest
+    calls = []
+    real = member_interest.interest_for
+
+    def counted(*a, **k):
+        calls.append(a)
+        return real(*a, **k)
+    monkeypatch.setattr(member_interest, "interest_for", counted)
+    _prep_real_earnings(monkeypatch, {"date": "2026-10-26", "bmo": [], "amc": [], "amc_tonight": []})
+    got = S.my_game_plan(A, {}, MON)["reporting"]
+    assert len(calls) == 1
+    assert got["lines"] == ["None of your names report today."]
+
+
+def test_some_names_unread_beside_names_that_report(S, monkeypatch, tmp_path):
+    """M-3: a list shown while some names were unread says so, and never contradicts the list."""
+    from api.services.journal_two import positions
+    with _conn() as c:
+        c.execute("INSERT INTO users (id, email, password_hash, display_name, role)"
+                  " VALUES (?, 'a@example.test', 'x', 'x', 'member')", (A,))
+        c.execute("INSERT INTO watchlists (id, user_id, name) VALUES ('w1', ?, 'Mine')", (A,))
+        c.execute("INSERT INTO watchlist_items (id, watchlist_id, sym) VALUES ('i1', 'w1', 'AMD')")
+    monkeypatch.setattr(positions, "list_open_positions",
+                        lambda *a, **k: (_ for _ in ()).throw(sqlite3.OperationalError("x")))
+    _prep_real_earnings(monkeypatch, {"date": "2026-10-26", "bmo": [{"sym": "AMD"}], "amc": [],
+                                      "amc_tonight": []})
+    got = S.my_game_plan(A, {}, MON)["reporting"]
+    assert [n["symbol"] for n in got["names"]] == ["AMD"]
+    assert got["lines"] == ["AMD reports before the open.",
+                            "Some of your names couldn't be read right now."]

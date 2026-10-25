@@ -49,7 +49,8 @@ Refusals are `ParamError` (`tool_errors.ToolError`, W9-R14). It is the SAME clas
 in `shelf_kinds.py` and the import keeps working through the re-export.
 
 Private names imported from other modules (for 10.12's tidy-up): `notebook_widgets._iso_utc` /
-`_num` / `_origin`. Every other name used is public.
+`_num` / `_origin`, and `alert_user_series._definition_label` (a member formula's own name, the
+one rule `indicator_alert_service` reads it by too). Every other name used is public.
 """
 from __future__ import annotations
 
@@ -317,6 +318,8 @@ def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
                     c, user_id, link["noteId"]):
                 link = None                                    # a sample is never the member's plan
             exc = _excursion(c, user_id, ref)
+            # I-1: the shares ENTERED, from the one function the trade page's grading asks too.
+            entered, _closes = plan_grading.entered_shares(c, user_id, t)
     finally:
         c.close()
     base: dict[str, Any] = {"asOf": _iso_utc(now_dt), "source": _origin([t["source"]]),
@@ -328,14 +331,17 @@ def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
     plan = link.get("plan") or {}
     trade = {"side": t["side"], "entryPrice": float(t["entry_price"]),
              "exitPrice": float(t["exit_price"]), "shares": float(t["shares"])}
-    checks = plan_grading.grade_checks(plan, trade, mfe_price=_num(exc.get("mfePrice")))
+    checks = plan_grading.grade_checks(plan, trade, mfe_price=_num(exc.get("mfePrice")),
+                                       entered_shares=entered)
     realized, true_r = _realized_r(t, exc)
     rows = [_entry_row(checks, plan, t["side"], trade["entryPrice"]),
             _stop_row(checks, plan, t),
             _target_row(checks, plan, trade["exitPrice"]),
             _r_row(checks, plan, realized, true_r)]
+    size = checks.get("size") or {}
     base.update(rows=rows, lines=[r["text"] for r in rows],
-                followedPlan=checks.get("followedPlan"))
+                followedPlan=checks.get("followedPlan"),
+                size={k: size.get(k) for k in ("state", "planned", "actual", "deltaPct")})
     if checks.get("sideMismatch"):
         base["lines"].append("The plan's stop is on the other side of its entry for this trade.")
     return base
@@ -369,22 +375,17 @@ def _wire_part(user_id: str, now_dt: datetime, today: date, memo: dict) -> dict:
     return out
 
 
-def _names_unread(user_id: str) -> tuple[bool, bool]:
-    """(some of the member's own names could not be read, none of them could be): asked only when
-    the earnings answer came back empty, so "none of your names report" is never said about names
-    that were never read (fix M3). `member_interest.interest_for`'s `failed`, the UCT 20 left out
-    as in `trader_blocks._my_names`."""
+def _names_unread(memo: dict) -> tuple[bool, bool]:
+    """(some of the member's own names could not be read, none of them could be), from the SAME read
+    that produced today's and last night's lists: `trader_blocks._my_names` leaves the sources it
+    could not read in the shared read budget (`trader_blocks.NAMES_FAILED`, fix round 2 M-3). No
+    record means no names read was attempted or every source answered: nothing is said."""
     from api.services import member_interest
-    try:
-        got = member_interest.interest_for(user_id) or {}
-    except Exception:  # noqa: BLE001 -- interest_for never raises; an unreadable read is unread
-        return True, True
-    failed = [f for f in got.get("failed") or [] if f not in _OWN_SOURCES_SKIP]
-    if not failed:
-        return False, False
-    by = got.get("by_source") or {}
-    have = any(by.get(n) for n in member_interest.SOURCES if n not in _OWN_SOURCES_SKIP)
-    return True, not have
+    from api.services.journal_two import trader_blocks
+    own = [n for n in member_interest.SOURCES if n not in _OWN_SOURCES_SKIP]
+    failed = {f for f in (memo.get(trader_blocks.NAMES_FAILED) or []) if f in own}
+    none_read = bool(own) and failed >= set(own)
+    return bool(failed) and not none_read, none_read
 
 
 def _symbols(rows: Any) -> list[str]:
@@ -407,6 +408,10 @@ def _reporting_part(user_id: str, now_dt: datetime, today: date, memo: dict) -> 
     snap = snap if isinstance(snap, dict) else {}
     if snap.get("missing") in _EARNINGS_UNREAD_GAPS:
         out["lines"] = [S_EARNINGS_UNREAD]                  # the read did not answer
+        return out
+    some, none_read = _names_unread(memo)
+    if none_read:
+        out["lines"] = [S_NAMES_UNREAD]                     # one sentence, no lists (M3, M-3)
         return out
     names: list[dict] = []
     seen: set[str] = set()
@@ -434,13 +439,10 @@ def _reporting_part(user_id: str, now_dt: datetime, today: date, memo: dict) -> 
                 if out.get("lastNightTruncated") else "")
         lines.append(f"Reported last night: {', '.join(out['lastNight'])}{more}.")
     if not names:
-        some, none_read = _names_unread(user_id)
-        if none_read:
-            out["names"] = out["lastNight"] = None
-            out["lines"] = [S_NAMES_UNREAD]                 # never "none of your names" (M3)
-            return out
         lines.insert(0, S_EARNINGS_NONE if not some else
                      f"{S_NAMES_SOME_UNREAD} None of the others report today.")
+    elif some:
+        lines.append(S_NAMES_SOME_UNREAD)                   # the list shown is not all of them
     out["lines"] = lines
     return out
 
@@ -533,44 +535,107 @@ def _text(v: Any) -> str | None:
     return v.strip() if isinstance(v, str) and v.strip() else None
 
 
-def _level(v: float) -> str:
-    """A threshold in words where a figure would read as a zero ("zero"), else the figure."""
-    return "zero" if v == 0 else f"{v:g}"
+#: The most decimals a reading is widened to so that it never prints like its threshold.
+_MAX_PLACES = 10
+#: A member's own formula with no name of its own (never its `u_<hash>` id).
+S_OWN_INDICATOR = "Your indicator"
 
 
-def _reading(v: float) -> str:
-    return f"{v:,.1f}" if abs(v) < 100 else f"{v:,.2f}"
+def _places(v: float) -> int:
+    """Thousands and up read whole (with separators); anything smaller reads to 2 decimals."""
+    return 0 if abs(v) >= 1000 else 2
 
 
-def _indicator_text(f: dict) -> str:
-    """An indicator or price fire in words, from the log's own fields (W10-R37): "RSI above 70
-    (71.0)". A condition that names its own level ("crossed zero", the bands) carries no number
-    for it; "Alert fired" only when the log says nothing usable."""
+def _fig(v: float, places: int) -> str:
+    """A figure with thousands separators, never exponent notation."""
+    return f"{v:,.{places}f}"
+
+
+def _pair(threshold: float | None, value: float | None) -> tuple[str | None, str | None]:
+    """(threshold, reading) as text (fix round 2 M-2): no exponent, separators from 1,000, two
+    decimals under 100, and widened together until two DIFFERENT numbers never print alike. A 0
+    threshold reads "zero"."""
+    pt = _places(threshold) if threshold is not None else 0
+    pv = _places(value) if value is not None else 0
+    if threshold is not None and value is not None and threshold != value:
+        while _fig(threshold, pt) == _fig(value, pv) and max(pt, pv) < _MAX_PLACES:
+            pt, pv = pt + 1, pv + 1
+    t = None if threshold is None else ("zero" if threshold == 0 else _fig(threshold, pt))
+    return t, (None if value is None else _fig(value, pv))
+
+
+def _member_formula_label(address: str, user_id: str | None, names: dict | None) -> str:
+    """A member formula's own stored name, read for THAT member only (`user_definitions.get` is
+    scoped by `user_id`); never its `u_<hash>` id."""
+    from api.services import alert_user_series, user_definitions
+    def_id = address.partition(".")[0]
+    cache = names if names is not None else {}
+    if def_id not in cache:
+        label = None
+        if user_id:
+            try:
+                row = user_definitions.get(user_id, def_id)
+            except Exception:  # noqa: BLE001 -- an unreadable name is the plain words, never a failure
+                row = None
+            if row:
+                got = alert_user_series._definition_label(row.get("definition") or {}, def_id)
+                label = got if got and got != def_id else None
+        cache[def_id] = label or S_OWN_INDICATOR
+    return cache[def_id]
+
+
+def _indicator_label(address: str, user_id: str | None, names: dict | None) -> str:
+    """The indicator's own display label (`ALERT_LABELS`, the one the alert dropdown and the alert
+    row read); a member formula's stored name; else the address in plain words, never a raw
+    upper-cased address."""
+    from api.services import alert_user_series
+    from api.services import indicator_alert_evaluator as ev
+    if address in ev.ALERT_LABELS:
+        return ev.ALERT_LABELS[address]
+    if alert_user_series.is_user_address(address) or address.startswith("u_"):
+        return _member_formula_label(address, user_id, names)
+    words = " ".join(w for w in address.replace(".", " ").replace("_", " ").split())
+    return (words[:1].upper() + words[1:]) if words else S_OWN_INDICATOR
+
+
+def _indicator_text(f: dict, *, user_id: str | None = None, names: dict | None = None) -> str:
+    """An indicator or price fire in words, from the log's own fields (W10-R37, fix round 2 M-2):
+    "RSI above 70.00 (71.00)". The label is the indicator's own; a condition that names its own level
+    ("crossed zero", the bands) or needs no number (an event) carries no threshold; an event reads
+    its own condition label alone; "Alert fired" only when the log says nothing usable."""
+    from api.services import indicator_alert_evaluator as ev
     ind = _text(f.get("indicator"))
     cond = _text(f.get("condition"))
     if not ind or not cond:
         return WHAT_FALLBACK
-    words = _CONDITION_WORDS.get(cond, cond.replace("_", " "))
-    text = f"{ind.upper()} {words}"
-    thr = _num(f.get("threshold"))
-    if thr is not None and cond not in _NO_THRESHOLD:
-        text += f" {_level(thr)}"
-    elif cond not in _NO_THRESHOLD:
+    address = ev.resolve_address(ind)
+    entry = next((c for c in ev.ALERT_CONDITIONS.get(address) or [] if c.get("value") == cond), None)
+    if address in ev.EVENT_ADDRESSES and entry and _text(entry.get("label")):
+        return entry["label"]                        # "Price crossed SAR this bar": its own words
+    text = f"{_indicator_label(address, user_id, names)} " \
+           f"{_CONDITION_WORDS.get(cond, cond.replace('_', ' '))}"
+    needs = cond not in _NO_THRESHOLD and (entry is None or entry.get("needs_threshold", True))
+    thr = _num(f.get("threshold")) if needs else None
+    t, v = _pair(thr, _num(f.get("value")))
+    if t is not None:
+        text += f" {t}"
+    elif needs:
         text += " its alert level"
-    val = _num(f.get("value"))
-    if val is not None:
-        text += f" ({_reading(val)})"
+    if v is not None:
+        text += f" ({v})"
     return text
 
 
 def _indicator_rows(user_id: str) -> list[dict]:
     from api.services import alert_fired_log
     out = []
+    names: dict = {}                                 # one name read per member formula
     for f in alert_fired_log.list_fires(user_id, ALERT_READ_LIMIT):
         if str(f.get("user_id")) != str(user_id):
             continue                                        # belt and braces: the read is scoped
         out.append({"_t": _num(f.get("fired_at")), "symbol": _text(f.get("sym")),
-                    "what": _indicator_text(f), "kind": "indicator"})
+                    "what": _indicator_text(f, user_id=user_id, names=names),
+                    "kind": "indicator"})
     return out
 
 
@@ -581,11 +646,31 @@ def _shapers() -> dict:
             rating_change.TYPE_ID: rating_change.alert_shape_for_fire}
 
 
+def _price_text(f: dict) -> str | None:
+    """A watchlist price alert in words, from the fire's own stored detail (W10-R44): "Price above
+    $100.00 ($101.25)". None when the detail names no level."""
+    d = f.get("detail") if isinstance(f.get("detail"), dict) else {}
+    level = _num(d.get("level"))
+    level = level if level is not None else _num(d.get("target_price"))
+    if level is None:
+        return None
+    words = _CONDITION_WORDS.get(str(d.get("direction") or ""), "reached")
+    text = f"Price {words} {_price(level)}"
+    hit = _num(f.get("triggering_value"))
+    return text + (f" ({_price(hit)})" if hit is not None else "")
+
+
+#: trigger type -> composes a fire's text from its own stored detail, after its shape and its
+#: detail's title/message (the price alert has neither).
+_COMPOSERS = {"price-level": _price_text}
+
+
 def _taxonomy_text(f: dict, shapers: dict) -> str:
-    """A filing or rating fire in its own words (W10-R37): the type's shape (built from the fire's
-    frozen detail) -- its message, then its title -- then the detail's own title or message, then
-    "Alert fired". A fire whose detail holds none of the fields its shape reads (`_SHAPE_NEEDS`)
-    is not shaped: the shape would invent "an unknown date" for facts the log never held."""
+    """A filing, rating or price fire in its own words (W10-R37, W10-R44): the type's shape (built
+    from the fire's frozen detail) -- its message, then its title -- then the detail's own title or
+    message, then the words composed from the detail, then "Alert fired". A fire whose detail holds
+    none of the fields its shape reads (`_SHAPE_NEEDS`) is not shaped: the shape would invent "an
+    unknown date" for facts the log never held."""
     d = f.get("detail") if isinstance(f.get("detail"), dict) else {}
     shape = shapers.get(f.get("trigger_type"))
     if shape is not None and any(d.get(k) for k in _SHAPE_NEEDS.get(f.get("trigger_type"), ())):
@@ -596,16 +681,27 @@ def _taxonomy_text(f: dict, shapers: dict) -> str:
                 return what
         except Exception:  # noqa: BLE001 -- an unshapeable fire falls back, never fails the list
             pass
-    return _text(d.get("title")) or _text(d.get("message")) or WHAT_FALLBACK
+    what = _text(d.get("title")) or _text(d.get("message"))
+    if what:
+        return what
+    compose = _COMPOSERS.get(f.get("trigger_type"))
+    if compose is not None:
+        try:
+            what = compose(f)
+        except Exception:  # noqa: BLE001
+            what = None
+    return what or WHAT_FALLBACK
 
 
 def _taxonomy_rows(user_id: str) -> list[dict]:
     from api.services.alert_taxonomy import receipts
     shapers = _shapers()
     out = []
-    for f in receipts.list_fires_for_feed(user_id, limit=ALERT_READ_LIMIT):
+    # W10-R44: the member's watchlist price alerts too (no predicate row); this widget only.
+    for f in receipts.list_fires_for_feed(user_id, limit=ALERT_READ_LIMIT,
+                                          include_price_alerts=True):
         d = f.get("detail") if isinstance(f.get("detail"), dict) else {}
-        sym = _text(d.get("ticker")) or _text(f.get("entity_ref"))
+        sym = _text(d.get("ticker")) or _text(d.get("symbol")) or _text(f.get("entity_ref"))
         out.append({"_t": _num(f.get("fired_at")), "symbol": sym.upper() if sym else None,
                     "what": _taxonomy_text(f, shapers),
                     "kind": _text(f.get("trigger_type")) or "alert"})
