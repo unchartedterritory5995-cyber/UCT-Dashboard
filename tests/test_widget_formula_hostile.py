@@ -201,7 +201,7 @@ FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__", "getattr", "setattr"
                    "locals", "vars", "delattr"}
 FORBIDDEN_MODULES = {"importlib", "subprocess", "os", "sys", "pickle", "marshal", "ctypes",
                      "builtins", "socket", "sqlite3", "io", "pathlib", "time", "random"}
-ALLOWED_IMPORTS = {"__future__", "math", "dataclasses", "datetime", "typing",
+ALLOWED_IMPORTS = {"__future__", "math", "bisect", "dataclasses", "datetime", "typing",
                    "api.services.journal_two.widget_engine.plan"}
 
 

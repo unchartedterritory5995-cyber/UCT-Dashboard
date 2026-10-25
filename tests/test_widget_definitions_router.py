@@ -404,6 +404,34 @@ def test_crud_round_trip_and_ownership(conn, monkeypatch):
     assert r.status_code == 409 and r.json()["detail"] == {"code": "count_cap", "message": wdefs.S_CAP}
 
 
+def test_a_lone_surrogate_in_a_name_is_400_never_500(conn):
+    """Task 10.2 fix 2: the body is sent as ASCII JSON carrying an escaped lone surrogate, the
+    way a browser can send it. Every name route answers 400 with the sentence."""
+    import json as _json
+    want = {"code": "invalid", "message": wdefs.S_BAD_CHARACTER}
+    c = _client()
+
+    def send(method, url, body, headers=None):
+        raw = _json.dumps(body)  # ensure_ascii: the surrogate travels as an escape
+        return c.request(method, url, content=raw.encode("ascii"),
+                         headers={"content-type": "application/json", **(headers or {})})
+
+    bad = "a" + chr(0xD800)
+    assert "ud800" in _json.dumps({"name": bad})  # the body carries the escape, not the byte
+    r = send("POST", BASE, {"name": bad, "plan": raw_plan()})
+    assert r.status_code == 400 and r.json()["detail"] == want
+    saved = wdefs.create(UID, "Mine", raw_plan())
+    url = f"{BASE}/{saved['id']}"
+    r = send("PUT", url, {"name": bad, "apply": "only"}, {"If-Match": str(saved["etag"])})
+    assert r.status_code == 400 and r.json()["detail"] == want
+    r = send("POST", f"{url}/revs/1/name", {"name": bad})
+    assert r.status_code == 400 and r.json()["detail"] == want
+    assert wdefs.get(UID, saved["id"])["name"] == "Mine"
+    # Control: the same route accepts an ordinary escaped character.
+    r = send("PUT", url, {"name": "a" + chr(0xE9), "apply": "only"}, {"If-Match": str(saved["etag"])})
+    assert r.status_code == 200 and r.json()["name"] == "a" + chr(0xE9)
+
+
 def test_every_route_is_a_sync_def():
     import inspect
     for r in wdr.router.routes:

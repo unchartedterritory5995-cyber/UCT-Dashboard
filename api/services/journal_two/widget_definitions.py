@@ -67,6 +67,7 @@ from api.services.journal_two.widget_engine.plan import (
     PLAN_VERSION,
     PlanError,
     PlanTooNew,
+    S_BAD_CHARACTER,
     default_name,
     needed_version,
     summary as plan_summary,
@@ -218,10 +219,15 @@ def _read(conn: sqlite3.Connection | None) -> Iterator[sqlite3.Connection]:
 
 
 def _clean_name(name: Any, refusal: str = S_BAD_NAME) -> str:
+    """The one door every stored name walks through: a widget's name on create and update (a
+    rename included) and a revision's name. A lone surrogate (JSON can carry one) has no UTF-8
+    form, so the INSERT would fail as a server error: it is refused with a sentence instead."""
     if name is None:
         return ""
     if not isinstance(name, str):
         raise WidgetError(refusal)
+    if any(0xD800 <= ord(ch) <= 0xDFFF for ch in name):
+        raise WidgetError(S_BAD_CHARACTER)
     return name.strip()[:MAX_TEXT]
 
 

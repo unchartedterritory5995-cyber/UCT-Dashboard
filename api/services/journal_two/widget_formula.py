@@ -34,6 +34,7 @@ whitespace trimmed. `display()` turns keys back into labels for the member.
 from __future__ import annotations
 
 import math
+from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Callable, Literal, Mapping, Sequence
@@ -123,9 +124,9 @@ ERRORS: dict[str, str] = {
     "unclosed_text": "A quote is missing its closing \".",
     "text_too_long": "Text in a formula can be at most 200 characters.",
     "bad_number": "{x} isn't a number a formula can use.",
-    "unexpected": "Something is missing near \"{x}\".",
+    "unexpected": "Something is missing near {x}.",
     "chained_compare": "Two comparisons can't be chained; join them with And.",
-    "trailing": "There is something extra at the end: \"{x}\".",
+    "trailing": "There is something extra at the end: {x}.",
     "unknown_field": "[{x}] isn't a field here.",
     "tag_field": "[{label}] holds several values; use it as a filter instead.",
     "unknown_function": "{x} isn't a function. Try If, Round or SumIf.",
@@ -214,18 +215,27 @@ _FOLDED_FUNCTIONS = {name.lower(): name for name in FUNCTIONS}
 #: later encode would fail). Fixed lists, no Unicode tables, so both twins agree on every engine.
 _FORBIDDEN_RANGES = (
     (0x0000, 0x0008), (0x000B, 0x001F), (0x007F, 0x009F), (0x00AD, 0x00AD), (0x061C, 0x061C),
-    (0x180E, 0x180E), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0xD800, 0xDFFF),
-    (0xFEFF, 0xFEFF), (0xFFF9, 0xFFFB), (0xE0000, 0xE007F),
+    (0x115F, 0x1160), (0x180E, 0x180E), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F),
+    (0x2800, 0x2800), (0x3164, 0x3164), (0xD800, 0xDFFF), (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF),
+    (0xFFA0, 0xFFA0), (0xFFF9, 0xFFFB), (0xE0000, 0xE007F), (0xE0100, 0xE01EF),
 )
+#: The Hangul fillers (U+115F, U+1160, U+3164, U+FFA0), the blank Braille pattern (U+2800) and
+#: the variation selectors (U+FE00-FE0F, U+E0100-E01EF) render as nothing, so they are refused
+#: with the rest: a field name or a text must not hide a character the member cannot see.
 #: Space-like characters: allowed inside a text or a field name (where they are just text, and
 #: never trimmed: trimming is space and tab only), but written as U+XXXX when quoted back so a
 #: sentence never shows a blank.
 _SPACE_LIKE_RANGES = (
-    (0x00A0, 0x00A0), (0x1680, 0x1680), (0x2000, 0x200A), (0x2028, 0x2029), (0x202F, 0x202F),
-    (0x205F, 0x205F), (0x3000, 0x3000),
+    (0x00A0, 0x00A0), (0x1680, 0x1680), (0x2000, 0x200A), (0x202F, 0x202F), (0x205F, 0x205F),
+    (0x3000, 0x3000),
 )
-#: Everything written as U+XXXX in a sentence: the two lists above plus tab and newline.
-_INVISIBLE_RANGES = _FORBIDDEN_RANGES + _SPACE_LIKE_RANGES + ((0x0009, 0x000A),)
+#: Line terminators. Each ends a text and a field name exactly as a newline does
+#: (unclosed_text, unclosed_field): JavaScript treats U+2028 and U+2029 as line terminators,
+#: so the two twins agree only if both refuse them inside a token the same way.
+_LINE_ENDS = frozenset("\n\u2028\u2029")
+#: Everything written as U+XXXX in a sentence: the two lists above, tab and the line ends.
+_INVISIBLE_RANGES = (_FORBIDDEN_RANGES + _SPACE_LIKE_RANGES
+                     + ((0x0009, 0x000A), (0x2028, 0x2029)))
 
 
 def _fold(s: str) -> str:
@@ -246,12 +256,32 @@ def _in(ranges: tuple, c: str) -> bool:
     return any(lo <= o <= hi for lo, hi in ranges)
 
 
+def _table(ranges: tuple) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    ordered = sorted(ranges)
+    return tuple(lo for lo, _ in ordered), tuple(hi for _, hi in ordered)
+
+
+_FORBIDDEN_TABLE = _table(_FORBIDDEN_RANGES)
+_INVISIBLE_TABLE = _table(_INVISIBLE_RANGES)
+
+
+def _member(table: tuple, c: str) -> bool:
+    """`_in` by binary search (the ranges do not overlap): the tokenizer asks this of every
+    character inside a text or a field name, so it must not walk the list."""
+    o = ord(c)
+    if 0x20 <= o <= 0x7E:  # printable ASCII is on neither list
+        return False
+    los, his = table
+    i = bisect_right(los, o) - 1
+    return i >= 0 and o <= his[i]
+
+
 def _invisible(c: str) -> bool:
-    return _in(_INVISIBLE_RANGES, c)
+    return _member(_INVISIBLE_TABLE, c)
 
 
 def _forbidden(c: str) -> bool:
-    return _in(_FORBIDDEN_RANGES, c)
+    return _member(_FORBIDDEN_TABLE, c)
 
 
 def _code(c: str) -> str:
@@ -283,6 +313,12 @@ def _shown(x: str) -> str:
         out.append(ch)
     s = "".join(out).strip(" ")[:SHOWN_MAX]
     return "".join(_code(c) if _invisible(c) else c for c in s)
+
+
+def _quoted(x: str) -> str:
+    """`x` in double quotes, unless it is a quoted text already (`1 "x"` reads `"x"`, not
+    `""x""`)."""
+    return x if x.startswith('"') else f'"{x}"'
 
 
 def _err(code: str, pos: int, **fill: str) -> FormulaError:
@@ -399,7 +435,7 @@ def _tokenize(s: str) -> list[_Tok]:
             j = i + 1
             buf: list[str] = []
             while True:
-                if j >= n or s[j] == "\n":
+                if j >= n or s[j] in _LINE_ENDS:
                     raise _err("unclosed_text", i)
                 if _forbidden(s[j]):
                     raise _err("bad_char", j, x=_shown_char(s[j]))
@@ -418,7 +454,7 @@ def _tokenize(s: str) -> list[_Tok]:
             continue
         if c == "[":
             j = i + 1
-            while j < n and s[j] not in "[]\n":
+            while j < n and s[j] not in "[]" and s[j] not in _LINE_ENDS:
                 if _forbidden(s[j]):
                     raise _err("bad_char", j, x=_shown_char(s[j]))
                 j += 1
@@ -481,8 +517,8 @@ class _Parser:
 
     def _unexpected(self, t: _Tok | None) -> FormulaError:
         if t is None:
-            return _err("unexpected", len(self.src), x=_shown(self.toks[-1].text))
-        return _err("unexpected", t.pos, x=_shown(t.text))
+            return _err("unexpected", len(self.src), x=_quoted(_shown(self.toks[-1].text)))
+        return _err("unexpected", t.pos, x=_quoted(_shown(t.text)))
 
     def _is_op(self, t: _Tok | None, ops: frozenset) -> bool:
         return t is not None and t.kind == "op" and t.text in ops
@@ -491,7 +527,7 @@ class _Parser:
         node = self._expr()
         t = self._peek()
         if t is not None:
-            raise _err("trailing", t.pos, x=_shown(self.src[t.pos:]))
+            raise _err("trailing", t.pos, x=_quoted(_shown(self.src[t.pos:])))
         return node
 
     def _expr(self) -> tuple:
@@ -567,7 +603,7 @@ class _Parser:
             self.i += 1
             nxt = self._peek()
             if nxt is None or nxt.kind != "(":
-                raise _err("unexpected", t.pos, x=_shown(t.text))
+                raise _err("unexpected", t.pos, x=_quoted(_shown(t.text)))
             self.i += 1
             args: list[tuple] = []
             if self._peek() is not None and self._peek().kind == ")":
@@ -1081,17 +1117,19 @@ def compile_formula(expr: str, fields: Mapping[str, FieldInfo]) -> Compiled:
     )
 
 
-def display_name(fi: FieldInfo, fields: Mapping[str, FieldInfo]) -> str:
+def display_name(fi: FieldInfo, fields: Mapping[str, FieldInfo], *,
+                 _st: "_State | None" = None) -> str:
     """What a member sees inside the brackets for `fi`: its label, unless the label would not
     resolve back to `fi` (it equals another field's key, it is shared, it is too long, it carries
-    a bracket, a newline, a refused character or outer spaces) -- then its key. So
-    `compile_formula(display(c))` always gives back `c`."""
+    a bracket, a line end, a refused character or outer spaces) -- then its key. So
+    `compile_formula(display(c))` always gives back `c`. `_st` lets `display` build the lookup
+    once per call rather than once per field reference."""
     label = fi.label
-    st = _State(fields)
+    st = _st if _st is not None else _State(fields)
     ok = (
         isinstance(label, str) and label
         and label == label.strip(" \t") and len(label) <= NAME_MAX
-        and not any(ch in "[]\n" or _forbidden(ch) for ch in label)
+        and not any(ch in "[]" or ch in _LINE_ENDS or _forbidden(ch) for ch in label)
     )
     if ok:
         folded = _fold(label)
@@ -1110,12 +1148,16 @@ def display(canonical: str, fields: Mapping[str, FieldInfo]) -> str:
     except FormulaError:
         return "".join("\ufffd" if 0xD800 <= ord(c) <= 0xDFFF else c for c in canonical)
     by_key = {fi.key: fi for fi in fields.values()}
+    st = _State(fields)  # ONE lookup per call: a formula may name hundreds of fields
+    names: dict[str, str] = {}
     out: list[str] = []
     last = 0
     for t in toks:
         if t.kind == "field" and t.value in by_key:
+            if t.value not in names:
+                names[t.value] = display_name(by_key[t.value], fields, _st=st)
             out.append(canonical[last:t.pos])
-            out.append("[" + display_name(by_key[t.value], fields) + "]")
+            out.append("[" + names[t.value] + "]")
             last = t.end
     out.append(canonical[last:])
     return "".join(out)

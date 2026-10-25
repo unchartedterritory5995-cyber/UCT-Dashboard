@@ -297,8 +297,15 @@ def test_forbidden_and_space_like_lists_partition_the_invisible_list():
         forbidden = wf._forbidden(ch)
         space = wf._in(wf._SPACE_LIKE_RANGES, ch)
         assert not (forbidden and space), hex(ord(ch))
-        assert wf._invisible(ch) == (forbidden or space or ch in "\t\n"), hex(ord(ch))
+        assert wf._invisible(ch) == (forbidden or space or ch in "\t\n\u2028\u2029"), hex(ord(ch))
+        # The binary-search lookup answers exactly what a walk of the ranges answers.
+        assert wf._forbidden(ch) == wf._in(wf._FORBIDDEN_RANGES, ch), hex(ord(ch))
+        assert wf._invisible(ch) == wf._in(wf._INVISIBLE_RANGES, ch), hex(ord(ch))
     assert not wf._forbidden("\t") and wf._forbidden("\r") and not wf._forbidden(chr(0xA0))
+    for o in (0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800, 0xFE00, 0xFE0F, 0xE0100, 0xE01EF):
+        assert wf._forbidden(chr(o)), hex(o)
+    assert not wf._forbidden(chr(0x2764)) and not wf._forbidden(chr(0x1F600))
+    assert wf._LINE_ENDS == frozenset("\n\u2028\u2029")
 
 
 def test_sentences_name_odd_characters_and_hint_at_brackets():
@@ -321,6 +328,48 @@ def test_significant_digits_ignore_trailing_zeros_and_refuse_infinity():
     assert _error("1234567890123456").code == "bad_number"
     assert _error("1" + "0" * 309).code == "bad_number"     # would parse to Infinity
     assert wf.eval_row(_compile("1" + "0" * 307), {}) == 1e307
+
+
+def test_display_builds_one_lookup_per_call_and_stays_fast(monkeypatch):
+    """240 field references against 2,000 fields: one _State per call (not one per reference),
+    and well under 20 ms (measured about 2.2 ms on this box, so the bound is ~9x loose)."""
+    fields = {f"f{i}": wf.FieldInfo(f"f{i}", f"Field {i}", "number") for i in range(2000)}
+    canonical = " + ".join(f"[f{i * 7}]" for i in range(240))
+    built = []
+    real = wf._State
+
+    def counting(fs):
+        built.append(1)
+        return real(fs)
+    monkeypatch.setattr(wf, "_State", counting)
+    shown = wf.display(canonical, fields)
+    assert len(built) == 1
+    assert shown.startswith("[Field 0] + [Field 7]")
+    monkeypatch.setattr(wf, "_State", real)
+    best = min(_timed(lambda: wf.display(canonical, fields)) for _ in range(5))
+    assert best < 0.020, f"{best * 1000:.1f} ms"
+
+
+def _timed(fn) -> float:
+    import time
+    t0 = time.perf_counter()
+    fn()
+    return time.perf_counter() - t0
+
+
+def test_quoted_member_text_never_doubles_the_quotes():
+    assert _error('1 "x"').sentence == 'There is something extra at the end: "x".'
+    assert _error("1 2").sentence == 'There is something extra at the end: "2".'
+    assert _error('Abs("x" "y")').sentence == 'Something is missing near "y".'
+    assert _error("1 +").sentence == 'Something is missing near "+".'
+
+
+def test_line_separators_end_a_text_and_a_field_like_a_newline():
+    for end in ("\n", "\u2028", "\u2029"):
+        assert (_error('"a' + end + 'b"').code, _error('"a' + end + 'b"').pos) == ("unclosed_text", 0)
+        assert (_error("[a" + end + "b]").code, _error("[a" + end + "b]").pos) == ("unclosed_field", 0)
+    assert _error("1\u20282").code == "bad_char"
+    assert wf.eval_row(_compile("1\n+ 2"), {}) == 3  # a newline between tokens is whitespace
 
 
 def test_display_name_never_breaks_the_round_trip():
