@@ -131,3 +131,22 @@
 {"pass": 2, "setup": "High Volume Edge", "sym": "DUOL", "asof": "2023-11-09", "verdict": "cut", "owner_words": "PEG"}
 {"pass": 2, "setup": "High Volume Edge", "sym": "GM", "asof": "2025-10-21", "verdict": "cut", "owner_words": "PEG/HVC"}
 {"pass": 2, "setup": "High Volume Edge", "sym": "AXON", "asof": "2024-08-07", "verdict": "cut", "owner_words": "(earnings day, filed as a PEG with the owner informed; no objection)"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "NAVN", "asof": "2026-03-26", "verdict": "keep", "owner_words": "Yes this is perfect", "grade": "great", "nuance": ["the HVE template: a lesser-known fresh IPO, a sudden massive day (12.9x, bigger than the IPO day), the close becomes the level"]}
+{"pass": 3, "setup": "High Volume Edge", "sym": "MRNA", "asof": "2026-08-19", "verdict": "keep", "owner_words": "Keep (great)", "grade": "great"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "FUN", "asof": "2022-02-01", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "VRDN", "asof": "2024-09-10", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "INOD", "asof": "2024-05-08", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "TVTX", "asof": "2021-08-16", "verdict": "cut", "owner_words": "Cut"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "EVGO", "asof": "2024-10-03", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "RUM", "asof": "2024-01-23", "verdict": "keep", "owner_words": "Keep (great)", "grade": "great"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "LIFE", "asof": "2021-09-13", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "VKTX", "asof": "2022-12-19", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "DYN", "asof": "2024-01-03", "verdict": "cut", "owner_words": "Cut"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "CRBU", "asof": "2023-07-06", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "ERAS", "asof": "2026-01-07", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "CLPT", "asof": "2025-09-24", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "WVE", "asof": "2024-09-24", "verdict": "cut", "owner_words": "I like the 2nd one better the one that comes a little later in the chart shown", "nuance": ["swap: the owner wants the SECOND surge (early October 2024) as the WVE example; look it up on bars and add it"]}
+{"pass": 3, "setup": "High Volume Edge", "sym": "WVE", "asof": "2024-10-16", "verdict": "owner_chosen", "owner_words": "I like the 2nd one better the one that comes a little later in the chart shown", "nuance": ["verified on bars: 2024-10-16 +74.1%, gap 40.7%, 12.7x the 50-day volume, a new record (1.1x the prior max), close at 82% of range, detector fires; forward: -8% min close vs HVC, +12% max, +5% at 20 sessions. To add, import, render and grade."]}
+{"pass": 3, "setup": "High Volume Edge", "sym": "NTLA", "asof": "2021-06-28", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "APLD", "asof": "2024-09-05", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 3, "setup": "High Volume Edge", "sym": "FSLY", "asof": "2026-02-12", "verdict": "keep", "owner_words": "This. This is 100% A+", "grade": "great", "nuance": ["an earnings-day HVE that counts: 27x volume, five times the record, after a long slide"]}
