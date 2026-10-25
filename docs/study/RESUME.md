@@ -476,6 +476,23 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   (remove only with `cmd /c rmdir`). After the merge deploys: open an HVE draft on `/admin/pattern-review?mode=study`
   (Skill = setup.family3.hve) and check the ray + AVWAP on the firm's renderer; send the owner the render.
 
+- **2026-10-25 Slingshot E4H line (own branch `feat/study-slingshot-e4h`, worktree `C:\Users\pgosz\uct-worktrees\study-hve-overlay`,
+  commit ea1a8b2d02, PR #462 https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/462, MERGED 3891770a19
+  on the owner's "Merge now"; web deploy + verification recorded in the memory note):** owner ruling on the first
+  Slingshot review chart (VRT 2023-08-21, graded "Perfect" = great): "I want the 4EMA on the chart so we can see
+  exactly where and when the slingshot triggered and why." The firm's detector judges the trigger against
+  E4H = EMA(high, 4) (`api/services/pattern_engine/detectors/uct/uct_slingshot.py`). `app/src/pages/study/slingshotOverlay.js`
+  (pure): `isSlingshotItem` (skill `setup.family4.slingshot`, else the setup name) · `slingshotInstances` -> ONE
+  `movingAverage` engine instance (source `high`, period 4, `ema`, gold #dcbb5e, 2px, id `study:slingshot-e4h`) on
+  StockChart's existing `indicatorInstances` beside the house averages (the overlay slots are hard-wired to the
+  close, so the engine instance is the path). `studySettingsOverride(chartOpts, houseSettings, extras)` merges
+  `extras.instances` by id; DrillPlayer + StudyReview pass `slingshotInstances(item)`; drawn before AND after the
+  reveal (an indicator the member reads, not the answer). Tests: slingshotOverlay.test.js validates the instance
+  with the real `validateInstance`; 20 study test files pass (--maxWorkers=1); hygiene clean.
+  SLINGSHOT REVIEW ORDER on /admin/pattern-review?mode=study (Skill = setup.family4.slingshot, 42 drafts):
+  1-16 detector fixtures, 17-26 pass-1 (QCOM, BBWI, CBZ, RTX, XOM, PANW, TEAM, HAS, FIGS, INTA), 27-42 pass-2
+  sorted by item id: VRT, APP, TXN, DUOL, PAAS, TCOM, then the other ten. VRT graded; 15 pass-2 + 10 pass-1 remain.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
