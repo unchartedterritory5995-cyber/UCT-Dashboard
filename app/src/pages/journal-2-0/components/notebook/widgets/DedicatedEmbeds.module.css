@@ -1,0 +1,195 @@
+/* Wave 10 (Task 10.15): the seven ready-made ("dedicated") widget embeds. Real tokens only. Every chart says what
+   it shows in TEXT as well as in colour: a bar past its limit is HATCHED and its legend says "Past the limit"; a
+   revenge cell carries its label ("Clean", "Revenge re-entry", "Not checked") as text a screen reader reads, and a
+   flagged cell is hatched. Text colour for a sign is the D-A4 ink (--success-ink / --danger-ink), never the fill. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.line {
+  margin: 0;
+}
+.quiet {
+  color: var(--text-dim);
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.heading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+/* One bar: its label, the 44 px SVG, its legend. */
+.barRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.barLabel {
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+.bar {
+  display: block;
+  width: 100%;
+  height: 44px;
+}
+.track {
+  fill: var(--bg-hover);
+}
+.used {
+  fill: var(--ind-warn);
+}
+.rate {
+  fill: var(--info);
+}
+.limitMark {
+  stroke: var(--text-bright);
+  stroke-width: 2;
+}
+.hatchLine {
+  stroke: var(--ind-warn);
+  stroke-width: 2;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.swatch {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--text-dim);
+}
+.swUsed {
+  background: var(--ind-warn);
+}
+.swLeft {
+  background: var(--bg-hover);
+}
+.swPast {
+  background: repeating-linear-gradient(45deg, var(--ind-warn) 0 2px, transparent 2px 5px);
+}
+.pastText {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--text-dim);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+/* Revenge trades: one cell per session, ten to a row (a 390 px phone fits ten at about 30 px). */
+.cells {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cell {
+  position: relative;
+  height: 22px;
+  border: 1px solid var(--text-dim);
+  border-radius: var(--radius-sm);
+}
+.cellClean {
+  background: var(--bg-hover);
+}
+.cellFlagged {
+  background: repeating-linear-gradient(45deg, var(--ind-warn) 0 3px, transparent 3px 6px);
+}
+.cellNotChecked {
+  border-style: dashed;
+  background: transparent;
+}
+.swClean {
+  background: var(--bg-hover);
+}
+.swFlagged {
+  background: repeating-linear-gradient(45deg, var(--ind-warn) 0 2px, transparent 2px 5px);
+}
+.swNotChecked {
+  border-style: dashed;
+  background: transparent;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.tools {
+  display: flex;
+  justify-content: flex-end;
+}
+/* "Show as table": a frame button, floored at the 44 px target at every width (styles/tapFloor.test.js). */
+.tableToggle {
+  cursor: pointer;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+}
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.alert {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.alertAt {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.alertSym {
+  font-weight: 600;
+}

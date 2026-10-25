@@ -377,3 +377,27 @@ describe('"Your own fields" floors every control at 44px at every width', () => 
     }
   })
 })
+
+// Wave 10 (Task 10.15): the seven ready-made widget embeds. Their one control of their own is "Show as table" (the
+// n/a reasons and See it now are the snapshot frame's, floored above); it is floored at 390, 820 AND 1200 px, derived
+// from the stylesheet so a control added tomorrow is covered the day it lands.
+const DEDICATED_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgets', 'DedicatedEmbeds.module.css')
+
+describe('the dedicated widget embeds floor every control at 44px at every width', () => {
+  it('the embeds have clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(DEDICATED_CSS, 'utf8')))
+    expect(classes).toContain('.tableToggle')
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(DEDICATED_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('every bar is drawn 44 px tall', () => {
+    const css = stripComments(readFileSync(DEDICATED_CSS, 'utf8'))
+    expect(/\.bar\s*\{[^}]*height:\s*44px/.test(withoutMedia(css))).toBe(true)
+  })
+})

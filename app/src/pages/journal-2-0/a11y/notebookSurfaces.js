@@ -450,4 +450,16 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/notebook/styles/ExamplePreviewSheet.jsx': { recipe: 'example-preview-sheet', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/ExamplesInUse.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/StyleItemPreview.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  // Notebook widgets wave 10 Task 10.15: the seven ready-made ("dedicated") widget embeds and their shared parts, under
+  // components/notebook/widgets/ (outside the derived population; lazy, in the snapshot chunk). Each embed has its own
+  // recipe, and the rail adds one per kind and state (brand-new member, past the limit, a part gap, a capped list,
+  // Show as table); rail a11y/dedicatedEmbeds.a11y.test.jsx. DedicatedParts renders inside every one of them.
+  'components/notebook/widgets/TiltCheckEmbed.jsx': { recipe: 'dedicated-tilt-check', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/RevengeCleanEmbed.jsx': { recipe: 'dedicated-revenge-clean', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/PlanVsActualEmbed.jsx': { recipe: 'dedicated-plan-vs-actual', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/RiskLeftTodayEmbed.jsx': { recipe: 'dedicated-risk-left-today', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/PropFirmEmbed.jsx': { recipe: 'dedicated-prop-firm', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/GamePlanEmbed.jsx': { recipe: 'dedicated-game-plan', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/AlertsFiredEmbed.jsx': { recipe: 'dedicated-alerts-fired', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/DedicatedParts.jsx': { recipe: 'dedicated-risk-left-today', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
 })

@@ -1,0 +1,1726 @@
+{
+  "alerts_capped": {
+    "kind": "myAlertsFired",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "lines": [
+        "Showing the newest 40 of 60 alerts since the last session."
+      ],
+      "rows": [
+        {
+          "at": "2026-10-23T20:34:30Z",
+          "kind": "document-arrival",
+          "symbol": "S29",
+          "what": "New 8-K — S29"
+        },
+        {
+          "at": "2026-10-23T20:34:00Z",
+          "kind": "indicator",
+          "symbol": "I29",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:33:30Z",
+          "kind": "document-arrival",
+          "symbol": "S28",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:33:00Z",
+          "kind": "indicator",
+          "symbol": "I28",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:32:30Z",
+          "kind": "document-arrival",
+          "symbol": "S27",
+          "what": "New 8-K — S27"
+        },
+        {
+          "at": "2026-10-23T20:32:00Z",
+          "kind": "indicator",
+          "symbol": "I27",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:31:30Z",
+          "kind": "document-arrival",
+          "symbol": "S26",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:31:00Z",
+          "kind": "indicator",
+          "symbol": "I26",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:30:30Z",
+          "kind": "document-arrival",
+          "symbol": "S25",
+          "what": "New 8-K — S25"
+        },
+        {
+          "at": "2026-10-23T20:30:00Z",
+          "kind": "indicator",
+          "symbol": "I25",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:29:30Z",
+          "kind": "document-arrival",
+          "symbol": "S24",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:29:00Z",
+          "kind": "indicator",
+          "symbol": "I24",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:28:30Z",
+          "kind": "document-arrival",
+          "symbol": "S23",
+          "what": "New 8-K — S23"
+        },
+        {
+          "at": "2026-10-23T20:28:00Z",
+          "kind": "indicator",
+          "symbol": "I23",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:27:30Z",
+          "kind": "document-arrival",
+          "symbol": "S22",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:27:00Z",
+          "kind": "indicator",
+          "symbol": "I22",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:26:30Z",
+          "kind": "document-arrival",
+          "symbol": "S21",
+          "what": "New 8-K — S21"
+        },
+        {
+          "at": "2026-10-23T20:26:00Z",
+          "kind": "indicator",
+          "symbol": "I21",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:25:30Z",
+          "kind": "document-arrival",
+          "symbol": "S20",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:25:00Z",
+          "kind": "indicator",
+          "symbol": "I20",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:24:30Z",
+          "kind": "document-arrival",
+          "symbol": "S19",
+          "what": "New 8-K — S19"
+        },
+        {
+          "at": "2026-10-23T20:24:00Z",
+          "kind": "indicator",
+          "symbol": "I19",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:23:30Z",
+          "kind": "document-arrival",
+          "symbol": "S18",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:23:00Z",
+          "kind": "indicator",
+          "symbol": "I18",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:22:30Z",
+          "kind": "document-arrival",
+          "symbol": "S17",
+          "what": "New 8-K — S17"
+        },
+        {
+          "at": "2026-10-23T20:22:00Z",
+          "kind": "indicator",
+          "symbol": "I17",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:21:30Z",
+          "kind": "document-arrival",
+          "symbol": "S16",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:21:00Z",
+          "kind": "indicator",
+          "symbol": "I16",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:20:30Z",
+          "kind": "document-arrival",
+          "symbol": "S15",
+          "what": "New 8-K — S15"
+        },
+        {
+          "at": "2026-10-23T20:20:00Z",
+          "kind": "indicator",
+          "symbol": "I15",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:19:30Z",
+          "kind": "document-arrival",
+          "symbol": "S14",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:19:00Z",
+          "kind": "indicator",
+          "symbol": "I14",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:18:30Z",
+          "kind": "document-arrival",
+          "symbol": "S13",
+          "what": "New 8-K — S13"
+        },
+        {
+          "at": "2026-10-23T20:18:00Z",
+          "kind": "indicator",
+          "symbol": "I13",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:17:30Z",
+          "kind": "document-arrival",
+          "symbol": "S12",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:17:00Z",
+          "kind": "indicator",
+          "symbol": "I12",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:16:30Z",
+          "kind": "document-arrival",
+          "symbol": "S11",
+          "what": "New 8-K — S11"
+        },
+        {
+          "at": "2026-10-23T20:16:00Z",
+          "kind": "indicator",
+          "symbol": "I11",
+          "what": "RSI above its alert level (71.00)"
+        },
+        {
+          "at": "2026-10-23T20:15:30Z",
+          "kind": "document-arrival",
+          "symbol": "S10",
+          "what": "Alert fired"
+        },
+        {
+          "at": "2026-10-23T20:15:00Z",
+          "kind": "indicator",
+          "symbol": "I10",
+          "what": "RSI above its alert level (71.00)"
+        }
+      ],
+      "since": "2026-10-23T20:00:00Z",
+      "source": "manual",
+      "sourceDetail": "Your alert history.",
+      "truncated": 20
+    }
+  },
+  "alerts_new": {
+    "kind": "myAlertsFired",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "lines": [
+        "No alerts fired since the last session."
+      ],
+      "rows": [],
+      "since": "2026-10-23T20:00:00Z",
+      "source": "manual",
+      "sourceDetail": "Your alert history."
+    }
+  },
+  "alerts_normal": {
+    "kind": "myAlertsFired",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "lines": [
+        "2 alerts fired since the last session."
+      ],
+      "rows": [
+        {
+          "at": "2026-10-23T20:40:00Z",
+          "kind": "document-arrival",
+          "symbol": "AAPL",
+          "what": "New 8-K — AAPL"
+        },
+        {
+          "at": "2026-10-23T20:30:00Z",
+          "kind": "indicator",
+          "symbol": "NVDA",
+          "what": "RSI above its alert level (71.00)"
+        }
+      ],
+      "since": "2026-10-23T20:00:00Z",
+      "source": "manual",
+      "sourceDetail": "Your alert history."
+    }
+  },
+  "alerts_one_log_gap": {
+    "kind": "myAlertsFired",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "lines": [
+        "1 alert fired since the last session.",
+        "Some alerts couldn't be read right now."
+      ],
+      "rows": [
+        {
+          "at": "2026-10-23T20:40:00Z",
+          "kind": "document-arrival",
+          "symbol": "AAPL",
+          "what": "New 8-K — AAPL"
+        }
+      ],
+      "since": "2026-10-23T20:00:00Z",
+      "source": "manual",
+      "sourceDetail": "Your alert history."
+    }
+  },
+  "game_capped": {
+    "kind": "myGamePlan",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "day": "2026-10-26",
+      "lines": [
+        "Tech leads into earnings week.",
+        "Exposure: 80%.",
+        "N0 reports before the open.",
+        "N1 reports before the open.",
+        "N2 reports before the open.",
+        "N3 reports before the open.",
+        "N4 reports before the open.",
+        "N5 reports before the open.",
+        "N6 reports before the open.",
+        "N7 reports before the open.",
+        "N8 reports before the open.",
+        "N9 reports before the open.",
+        "2 more names report today.",
+        "2 open positions.",
+        "Open risk to stops: $250.",
+        "1 position has no stop set and is not in the open risk.",
+        "Includes 2 positions not linked to an account."
+      ],
+      "reporting": {
+        "lastNight": [],
+        "lines": [
+          "N0 reports before the open.",
+          "N1 reports before the open.",
+          "N2 reports before the open.",
+          "N3 reports before the open.",
+          "N4 reports before the open.",
+          "N5 reports before the open.",
+          "N6 reports before the open.",
+          "N7 reports before the open.",
+          "N8 reports before the open.",
+          "N9 reports before the open.",
+          "2 more names report today."
+        ],
+        "names": [
+          {
+            "symbol": "N0",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N1",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N2",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N3",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N4",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N5",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N6",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N7",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N8",
+            "when": "before the open"
+          },
+          {
+            "symbol": "N9",
+            "when": "before the open"
+          }
+        ],
+        "truncated": 2
+      },
+      "risk": {
+        "lines": [
+          "2 open positions.",
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk.",
+          "Includes 2 positions not linked to an account."
+        ],
+        "noStop": 1,
+        "openOptions": null,
+        "openPositions": 2,
+        "openRisk": 250.0,
+        "riskLines": [
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk."
+        ],
+        "unlinked": 2,
+        "unread": null
+      },
+      "source": "manual",
+      "sourceDetail": "The morning wire, the earnings calendar and your open positions.",
+      "wire": {
+        "exposure": 80.0,
+        "headline": "Tech leads into earnings week.",
+        "lines": [
+          "Tech leads into earnings week.",
+          "Exposure: 80%."
+        ],
+        "regime": "uptrend",
+        "wireDate": "2026-10-26"
+      }
+    }
+  },
+  "game_new": {
+    "kind": "myGamePlan",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "day": "2026-10-26",
+      "lines": [
+        "The morning wire has not published yet today.",
+        "None of your names report today.",
+        "No open positions."
+      ],
+      "reporting": {
+        "lastNight": [],
+        "lines": [
+          "None of your names report today."
+        ],
+        "names": []
+      },
+      "risk": {
+        "lines": [
+          "No open positions."
+        ],
+        "noStop": null,
+        "openOptions": null,
+        "openPositions": null,
+        "openRisk": null,
+        "riskLines": [
+          "No open positions."
+        ],
+        "unlinked": null,
+        "unread": null
+      },
+      "source": "manual",
+      "sourceDetail": "The morning wire, the earnings calendar and your open positions.",
+      "wire": {
+        "exposure": null,
+        "headline": null,
+        "lines": [
+          "The morning wire has not published yet today."
+        ],
+        "regime": null,
+        "wireDate": null
+      }
+    }
+  },
+  "game_normal": {
+    "kind": "myGamePlan",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "day": "2026-10-26",
+      "lines": [
+        "Tech leads into earnings week.",
+        "Exposure: 80%.",
+        "NVDA reports before the open.",
+        "AMD reports after the close.",
+        "2 open positions.",
+        "Open risk to stops: $250.",
+        "1 position has no stop set and is not in the open risk.",
+        "Includes 2 positions not linked to an account."
+      ],
+      "reporting": {
+        "lastNight": [],
+        "lines": [
+          "NVDA reports before the open.",
+          "AMD reports after the close."
+        ],
+        "names": [
+          {
+            "symbol": "NVDA",
+            "when": "before the open"
+          },
+          {
+            "symbol": "AMD",
+            "when": "after the close"
+          }
+        ]
+      },
+      "risk": {
+        "lines": [
+          "2 open positions.",
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk.",
+          "Includes 2 positions not linked to an account."
+        ],
+        "noStop": 1,
+        "openOptions": null,
+        "openPositions": 2,
+        "openRisk": 250.0,
+        "riskLines": [
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk."
+        ],
+        "unlinked": 2,
+        "unread": null
+      },
+      "source": "manual",
+      "sourceDetail": "The morning wire, the earnings calendar and your open positions.",
+      "wire": {
+        "exposure": 80.0,
+        "headline": "Tech leads into earnings week.",
+        "lines": [
+          "Tech leads into earnings week.",
+          "Exposure: 80%."
+        ],
+        "regime": "uptrend",
+        "wireDate": "2026-10-26"
+      }
+    }
+  },
+  "game_reporting_gap": {
+    "kind": "myGamePlan",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "day": "2026-10-26",
+      "lines": [
+        "Tech leads into earnings week.",
+        "Exposure: 80%.",
+        "Earnings dates couldn't be read right now.",
+        "2 open positions.",
+        "Open risk to stops: $250.",
+        "1 position has no stop set and is not in the open risk.",
+        "Includes 2 positions not linked to an account."
+      ],
+      "reporting": {
+        "lastNight": null,
+        "lines": [
+          "Earnings dates couldn't be read right now."
+        ],
+        "names": null
+      },
+      "risk": {
+        "lines": [
+          "2 open positions.",
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk.",
+          "Includes 2 positions not linked to an account."
+        ],
+        "noStop": 1,
+        "openOptions": null,
+        "openPositions": 2,
+        "openRisk": 250.0,
+        "riskLines": [
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk."
+        ],
+        "unlinked": 2,
+        "unread": null
+      },
+      "source": "manual",
+      "sourceDetail": "The morning wire, the earnings calendar and your open positions.",
+      "wire": {
+        "exposure": 80.0,
+        "headline": "Tech leads into earnings week.",
+        "lines": [
+          "Tech leads into earnings week.",
+          "Exposure: 80%."
+        ],
+        "regime": "uptrend",
+        "wireDate": "2026-10-26"
+      }
+    }
+  },
+  "game_wire_gap": {
+    "kind": "myGamePlan",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "day": "2026-10-26",
+      "lines": [
+        "The morning wire couldn't be read right now.",
+        "NVDA reports before the open.",
+        "2 open positions.",
+        "Open risk to stops: $250.",
+        "1 position has no stop set and is not in the open risk.",
+        "Includes 2 positions not linked to an account."
+      ],
+      "reporting": {
+        "lastNight": [],
+        "lines": [
+          "NVDA reports before the open."
+        ],
+        "names": [
+          {
+            "symbol": "NVDA",
+            "when": "before the open"
+          }
+        ]
+      },
+      "risk": {
+        "lines": [
+          "2 open positions.",
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk.",
+          "Includes 2 positions not linked to an account."
+        ],
+        "noStop": 1,
+        "openOptions": null,
+        "openPositions": 2,
+        "openRisk": 250.0,
+        "riskLines": [
+          "Open risk to stops: $250.",
+          "1 position has no stop set and is not in the open risk."
+        ],
+        "unlinked": 2,
+        "unread": null
+      },
+      "source": "manual",
+      "sourceDetail": "The morning wire, the earnings calendar and your open positions.",
+      "wire": {
+        "exposure": null,
+        "headline": null,
+        "lines": [
+          "The morning wire couldn't be read right now."
+        ],
+        "regime": null,
+        "wireDate": null
+      }
+    }
+  },
+  "prop_clipped": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2012-02-07",
+      "daily": null,
+      "flaggedCounted": 0,
+      "lines": [
+        "Counting from Feb 7, 2012, the oldest day this widget reads.",
+        "Max drawdown: $500 below your peak; $500 left."
+      ],
+      "notes": [],
+      "since": "1990-01-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": {
+        "current": 100.0,
+        "drawdown": 500.0,
+        "left": 500.0,
+        "limit": 1000.0,
+        "peak": 600.0
+      }
+    }
+  },
+  "prop_foreign_account": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2026-10-01",
+      "daily": {
+        "left": 300.0,
+        "limit": 500.0,
+        "todayNet": -200.0,
+        "used": 200.0
+      },
+      "flaggedCounted": 0,
+      "lines": [
+        "Daily loss: $200 of $500 used; $300 left.",
+        "Max drawdown: $500 below your peak; $500 left."
+      ],
+      "notes": [],
+      "notices": [
+        "That account is no longer in your Journal; showing all accounts."
+      ],
+      "since": "2026-10-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": {
+        "current": 100.0,
+        "drawdown": 500.0,
+        "left": 500.0,
+        "limit": 1000.0,
+        "peak": 600.0
+      }
+    }
+  },
+  "prop_new": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2026-10-01",
+      "daily": null,
+      "flaggedCounted": 0,
+      "lines": [
+        "No trades since Oct 1.",
+        "Enter your daily loss limit and max drawdown to see room left."
+      ],
+      "notes": [],
+      "since": "2026-10-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": null
+    }
+  },
+  "prop_new_limits": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2026-10-01",
+      "daily": {
+        "left": 500.0,
+        "limit": 500.0,
+        "todayNet": 0.0,
+        "used": 0.0
+      },
+      "flaggedCounted": 0,
+      "lines": [
+        "No trades since Oct 1."
+      ],
+      "notes": [],
+      "since": "2026-10-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": {
+        "current": 0.0,
+        "drawdown": 0.0,
+        "left": 1000.0,
+        "limit": 1000.0,
+        "peak": 0.0
+      }
+    }
+  },
+  "prop_no_limits": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2026-10-01",
+      "daily": null,
+      "flaggedCounted": 0,
+      "lines": [
+        "Enter your daily loss limit and max drawdown to see room left."
+      ],
+      "notes": [],
+      "since": "2026-10-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": null
+    }
+  },
+  "prop_normal": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2026-10-01",
+      "daily": {
+        "left": 300.0,
+        "limit": 500.0,
+        "todayNet": -200.0,
+        "used": 200.0
+      },
+      "flaggedCounted": 0,
+      "lines": [
+        "Daily loss: $200 of $500 used; $300 left.",
+        "Max drawdown: $500 below your peak; $500 left."
+      ],
+      "notes": [],
+      "since": "2026-10-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": {
+        "current": 100.0,
+        "drawdown": 500.0,
+        "left": 500.0,
+        "limit": 1000.0,
+        "peak": 600.0
+      }
+    }
+  },
+  "prop_past": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2026-10-01",
+      "daily": {
+        "left": -300.0,
+        "limit": 500.0,
+        "todayNet": -800.0,
+        "used": 800.0
+      },
+      "flaggedCounted": 0,
+      "lines": [
+        "Past your daily loss limit by $300.",
+        "Past your max drawdown by $100."
+      ],
+      "notes": [],
+      "since": "2026-10-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": {
+        "current": -500.0,
+        "drawdown": 1100.0,
+        "left": -100.0,
+        "limit": 1000.0,
+        "peak": 600.0
+      }
+    }
+  },
+  "pva_new": {
+    "kind": "myPlanVsActual",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "available": false,
+      "lines": [
+        "Not available."
+      ],
+      "rows": [],
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "tradeId": null
+    }
+  },
+  "pva_no_stop": {
+    "kind": "myPlanVsActual",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "available": true,
+      "followedPlan": true,
+      "lines": [
+        "Entry: Planned $100.00, filled $100.00; filled at the plan.",
+        "Stop: Planned $96.00. No stop set on the trade.",
+        "Target: Planned $110.00, exited at $110.00.",
+        "R: Planned 2.5R, realized R not recorded.",
+        "Size: planned 10 shares, entered 10."
+      ],
+      "rows": [
+        {
+          "actual": 100.0,
+          "label": "Entry",
+          "planned": 100.0,
+          "slippage": 0.0,
+          "slippagePct": 0.0,
+          "state": "kept",
+          "text": "Entry: Planned $100.00, filled $100.00; filled at the plan."
+        },
+        {
+          "actual": null,
+          "label": "Stop",
+          "planned": 96.0,
+          "state": "kept",
+          "text": "Stop: Planned $96.00. No stop set on the trade."
+        },
+        {
+          "actual": 110.0,
+          "label": "Target",
+          "planned": 110.0,
+          "state": "hit",
+          "text": "Target: Planned $110.00, exited at $110.00."
+        },
+        {
+          "actual": null,
+          "label": "R",
+          "planned": 2.5,
+          "source": null,
+          "text": "R: Planned 2.5R, realized R not recorded."
+        }
+      ],
+      "side": "Long",
+      "size": {
+        "actual": 10.0,
+        "deltaPct": 0.0,
+        "planned": 10,
+        "state": "kept"
+      },
+      "source": "broker",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "symbol": "AMD",
+      "tradeId": "ca7e6e96-66df-4924-8308-5d828984c2b9"
+    }
+  },
+  "pva_no_target": {
+    "kind": "myPlanVsActual",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "available": true,
+      "followedPlan": true,
+      "lines": [
+        "Entry: Planned $100.00, filled $100.00; filled at the plan.",
+        "Stop: Planned $96.00, your stop $95.00.",
+        "Target: Not in the plan; exited at $110.00.",
+        "R: Not in the plan; realized R not recorded.",
+        "Size: planned 10 shares, entered 10."
+      ],
+      "rows": [
+        {
+          "actual": 100.0,
+          "label": "Entry",
+          "planned": 100.0,
+          "slippage": 0.0,
+          "slippagePct": 0.0,
+          "state": "kept",
+          "text": "Entry: Planned $100.00, filled $100.00; filled at the plan."
+        },
+        {
+          "actual": 95.0,
+          "label": "Stop",
+          "planned": 96.0,
+          "state": "kept",
+          "text": "Stop: Planned $96.00, your stop $95.00."
+        },
+        {
+          "actual": 110.0,
+          "label": "Target",
+          "planned": null,
+          "state": "none",
+          "text": "Target: Not in the plan; exited at $110.00."
+        },
+        {
+          "actual": null,
+          "label": "R",
+          "planned": null,
+          "source": null,
+          "text": "R: Not in the plan; realized R not recorded."
+        }
+      ],
+      "side": "Long",
+      "size": {
+        "actual": 10.0,
+        "deltaPct": 0.0,
+        "planned": 10,
+        "state": "kept"
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "symbol": "TSLA",
+      "tradeId": "9900d6b2-7d8a-4666-ac6f-71937c5c6b48"
+    }
+  },
+  "pva_normal": {
+    "kind": "myPlanVsActual",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "available": true,
+      "followedPlan": true,
+      "lines": [
+        "Entry: Planned $100.00, filled $100.50; $0.50 (0.5%) worse than the plan.",
+        "Stop: Planned $96.00, your stop $95.00.",
+        "Target: Planned $110.00, exited at $108.00.",
+        "R: Planned 2.5R, realized 1.5R.",
+        "Size: planned 10 shares, entered 10."
+      ],
+      "rows": [
+        {
+          "actual": 100.5,
+          "label": "Entry",
+          "planned": 100.0,
+          "slippage": 0.5,
+          "slippagePct": 0.005,
+          "state": "kept",
+          "text": "Entry: Planned $100.00, filled $100.50; $0.50 (0.5%) worse than the plan."
+        },
+        {
+          "actual": 95.0,
+          "label": "Stop",
+          "planned": 96.0,
+          "state": "kept",
+          "text": "Stop: Planned $96.00, your stop $95.00."
+        },
+        {
+          "actual": 108.0,
+          "label": "Target",
+          "planned": 110.0,
+          "state": null,
+          "text": "Target: Planned $110.00, exited at $108.00."
+        },
+        {
+          "actual": 1.5,
+          "label": "R",
+          "planned": 2.5,
+          "source": "stop",
+          "text": "R: Planned 2.5R, realized 1.5R."
+        }
+      ],
+      "side": "Long",
+      "size": {
+        "actual": 10.0,
+        "deltaPct": 0.0,
+        "planned": 10,
+        "state": "kept"
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "symbol": "NVDA",
+      "tradeId": "41a27d6f-5aa9-4172-b358-cd822d545f3b"
+    }
+  },
+  "pva_unlinked": {
+    "kind": "myPlanVsActual",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "available": true,
+      "lines": [
+        "This trade isn't linked to a plan. Link one from the trade's page."
+      ],
+      "rows": [],
+      "side": "Long",
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "symbol": "META",
+      "tradeId": "60522277-25f7-4f73-9bec-99a23fe8ad62"
+    }
+  },
+  "revenge_capped": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 29,
+      "clean": 27,
+      "flagged": [
+        {
+          "day": "2026-10-07",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        }
+      ],
+      "from": "2026-09-14",
+      "lines": [
+        "27 of 29 clean (1 day with dates only was not checked)"
+      ],
+      "notChecked": 1,
+      "notRead": 0,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "truncated": 1,
+      "window": 30
+    }
+  },
+  "revenge_dates_only": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 0,
+      "clean": 0,
+      "flagged": [],
+      "from": "2026-09-14",
+      "lines": [
+        "None of the last 30 trading days could be checked; your trades have dates only."
+      ],
+      "notChecked": 30,
+      "notRead": 0,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "window": 30
+    }
+  },
+  "revenge_every_day": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 30,
+      "clean": 0,
+      "flagged": [
+        {
+          "day": "2026-10-23",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-22",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-21",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-20",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-19",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-16",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-15",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-14",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-13",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-12",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-09",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-08",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-07",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-06",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-05",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-02",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-10-01",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-30",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-29",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-28",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-25",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-24",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-23",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-22",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-21",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-18",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-17",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-16",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-15",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-14",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        }
+      ],
+      "from": "2026-09-14",
+      "lines": [
+        "Revenge re-entries on every checked day in the last 30 trading days."
+      ],
+      "notChecked": 0,
+      "notRead": 0,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "window": 30
+    }
+  },
+  "revenge_new": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 30,
+      "clean": 30,
+      "flagged": [],
+      "from": "2026-09-14",
+      "lines": [
+        "No trades in the last 30 trading days."
+      ],
+      "notChecked": 0,
+      "notRead": 0,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "window": 30
+    }
+  },
+  "revenge_normal": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 29,
+      "clean": 27,
+      "flagged": [
+        {
+          "day": "2026-10-07",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        },
+        {
+          "day": "2026-09-17",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        }
+      ],
+      "from": "2026-09-14",
+      "lines": [
+        "27 of 29 clean (1 day with dates only was not checked)"
+      ],
+      "notChecked": 1,
+      "notRead": 0,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "window": 30
+    }
+  },
+  "revenge_not_read": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 12,
+      "clean": 12,
+      "flagged": [],
+      "from": "2026-09-14",
+      "lines": [
+        "12 of 12 clean",
+        "18 days were not checked: this widget reads your newest 4 trades."
+      ],
+      "notChecked": 0,
+      "notRead": 18,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "window": 30
+    }
+  },
+  "risk_capped": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-c0",
+          "afterStops": 50.0,
+          "left": 250.0,
+          "limit": 400.0,
+          "limitPct": 2.0,
+          "lines": [
+            "Room left today: $250 of $400.",
+            "Open risk to stops: $200.",
+            "If every stop is hit: $50 left."
+          ],
+          "name": "Account 1",
+          "net": -150.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": 200.0,
+          "used": 150.0
+        },
+        {
+          "accountId": "acc-c1",
+          "afterStops": 200.0,
+          "left": 400.0,
+          "limit": 400.0,
+          "limitPct": 2.0,
+          "lines": [
+            "Room left today: $400 of $400.",
+            "Open risk to stops: $200.",
+            "If every stop is hit: $200 left."
+          ],
+          "name": "Account 2",
+          "net": 0.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": 200.0,
+          "used": 0.0
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [
+        "1 more account: $200 at risk.",
+        "Open risk to stops in total: $600 (Account 1 $200, Account 2 $200, 1 more account $200)."
+      ],
+      "openRisk": 600.0,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "truncated": 1
+    }
+  },
+  "risk_new": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [
+        "Set a daily loss limit in your account settings to see room left."
+      ],
+      "openRisk": null,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
+  "risk_none_used": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-n",
+          "afterStops": null,
+          "left": 500.0,
+          "limit": 500.0,
+          "limitPct": 5.0,
+          "lines": [
+            "Room left today: $500 of $500.",
+            "No open positions."
+          ],
+          "name": "Main",
+          "net": 0.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": null,
+          "used": 0.0
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [],
+      "openRisk": null,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
+  "risk_normal": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-r",
+          "afterStops": 50.0,
+          "left": 300.0,
+          "limit": 500.0,
+          "limitPct": 5.0,
+          "lines": [
+            "Room left today: $300 of $500.",
+            "Open risk to stops: $250.",
+            "If every stop is hit: $50 left.",
+            "1 position has no stop set and is not in the open risk."
+          ],
+          "name": "Main",
+          "net": -200.0,
+          "noStop": 1,
+          "openOptions": 0,
+          "openRisk": 250.0,
+          "used": 200.0
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [
+        "Open risk to stops in total: $250."
+      ],
+      "openRisk": 250.0,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
+  "risk_past": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-p",
+          "afterStops": -350.0,
+          "left": -100.0,
+          "limit": 500.0,
+          "limitPct": 5.0,
+          "lines": [
+            "Past your daily loss limit by $100.",
+            "Open risk to stops: $250.",
+            "If every stop is hit: $350 past your limit."
+          ],
+          "name": "Main",
+          "net": -600.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": 250.0,
+          "used": 600.0
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [
+        "Open risk to stops in total: $250."
+      ],
+      "openRisk": 250.0,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
+  "risk_unlinked": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-g",
+          "afterStops": 400.0,
+          "left": 500.0,
+          "limit": 500.0,
+          "limitPct": 5.0,
+          "lines": [
+            "Room left today: $500 of $500.",
+            "This account holds nothing open.",
+            "If every stop is hit, including positions not linked to an account: $400 left."
+          ],
+          "name": "Swing",
+          "net": 0.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": null,
+          "used": 0.0
+        },
+        {
+          "accountId": null,
+          "lines": [
+            "Open risk to stops: $100."
+          ],
+          "name": "Not linked to an account",
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": 100.0
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [
+        "Open risk to stops in total: $100 (Not linked to an account $100)."
+      ],
+      "openRisk": 100.0,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
+  "tilt_big": {
+    "kind": "myTiltCheck",
+    "payload": {
+      "after": {
+        "avg": 6.666666666666667,
+        "n": 9,
+        "net": 60.0,
+        "sample": "small",
+        "text": "9 trades, 67% win rate, +$7 average",
+        "winRate": 0.6666666666666666
+      },
+      "asOf": "2026-10-24T16:00:00Z",
+      "datesOnly": 1,
+      "estimated": 0,
+      "from": "2026-07-27",
+      "lines": [
+        "Within 30 min after a loss: 9 trades, 67% win rate, +$7 average.",
+        "Other trades: 19 trades, 53% win rate, +$9 average.",
+        "A comparison, not proof.",
+        "1 trade with dates only is not counted."
+      ],
+      "noResult": 0,
+      "other": {
+        "avg": 8.947368421052632,
+        "n": 19,
+        "net": 170.0,
+        "sample": "small",
+        "text": "19 trades, 53% win rate, +$9 average",
+        "winRate": 0.5263157894736842
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-24",
+      "windowMinutes": 30
+    }
+  },
+  "tilt_capped": {
+    "kind": "myTiltCheck",
+    "payload": {
+      "after": {
+        "avg": null,
+        "n": 0,
+        "net": null,
+        "sample": "hide",
+        "text": "no trades",
+        "winRate": null
+      },
+      "asOf": "2026-10-24T16:00:00Z",
+      "capped": true,
+      "datesOnly": 0,
+      "estimated": 0,
+      "from": "2026-07-27",
+      "lines": [
+        "Counting the newest 3 trades, from Oct 20.",
+        "Within 30 min after a loss: no trades.",
+        "Other trades: Not enough trades yet (3).",
+        "A comparison, not proof."
+      ],
+      "noResult": 0,
+      "other": {
+        "avg": null,
+        "n": 3,
+        "net": -70.0,
+        "sample": "hide",
+        "text": "Not enough trades yet (3)",
+        "winRate": null
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-24",
+      "windowMinutes": 30
+    }
+  },
+  "tilt_dates_only": {
+    "kind": "myTiltCheck",
+    "payload": {
+      "after": {
+        "avg": null,
+        "n": 0,
+        "net": null,
+        "sample": "hide",
+        "text": "no trades",
+        "winRate": null
+      },
+      "asOf": "2026-10-24T16:00:00Z",
+      "datesOnly": 2,
+      "estimated": 0,
+      "from": "2026-07-27",
+      "lines": [
+        "Tilt check needs entry and exit times; your trades have dates only."
+      ],
+      "noResult": 0,
+      "other": {
+        "avg": null,
+        "n": 0,
+        "net": null,
+        "sample": "hide",
+        "text": "no trades",
+        "winRate": null
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-24",
+      "windowMinutes": 30
+    }
+  },
+  "tilt_new": {
+    "kind": "myTiltCheck",
+    "payload": {
+      "after": {
+        "avg": null,
+        "n": 0,
+        "net": null,
+        "sample": "hide",
+        "text": "no trades",
+        "winRate": null
+      },
+      "asOf": "2026-10-24T16:00:00Z",
+      "datesOnly": 0,
+      "estimated": 0,
+      "from": "2026-07-27",
+      "lines": [
+        "No closed trades in this range."
+      ],
+      "noResult": 0,
+      "other": {
+        "avg": null,
+        "n": 0,
+        "net": null,
+        "sample": "hide",
+        "text": "no trades",
+        "winRate": null
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-24",
+      "windowMinutes": 30
+    }
+  },
+  "tilt_normal": {
+    "kind": "myTiltCheck",
+    "payload": {
+      "after": {
+        "avg": -20.0,
+        "n": 5,
+        "net": -100.0,
+        "sample": "small",
+        "text": "5 trades, 40% win rate, −$20 average",
+        "winRate": 0.4
+      },
+      "asOf": "2026-10-24T16:00:00Z",
+      "datesOnly": 0,
+      "estimated": 0,
+      "from": "2026-07-27",
+      "lines": [
+        "Within 30 min after a loss: 5 trades, 40% win rate, −$20 average.",
+        "Other trades: 6 trades, 67% win rate, +$20 average.",
+        "A comparison, not proof."
+      ],
+      "noResult": 0,
+      "other": {
+        "avg": 20.0,
+        "n": 6,
+        "net": 120.0,
+        "sample": "small",
+        "text": "6 trades, 67% win rate, +$20 average",
+        "winRate": 0.6666666666666666
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-24",
+      "windowMinutes": 30
+    }
+  }
+}
