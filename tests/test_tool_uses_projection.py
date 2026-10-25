@@ -101,6 +101,17 @@ def test_a_nested_built_widget_is_found(conn):
     assert [r["tool_id"] for r in _rows(conn, n["id"])] == [d]
 
 
+def test_a_stored_body_with_non_list_content_still_syncs(conn):
+    # _refuse_unbuildable keeps this off every write door; a body stored before it
+    # existed must not 500 the sidecar walk, and its siblings are still projected.
+    from api.services.journal_two import notes as svc
+    d = _def(conn)
+    n = _note(conn)
+    body = {"type": "doc", "content": [{"type": "paragraph", "content": 5}, _built(d)]}
+    svc._sync_note_sidecars(conn, A, n["id"], body, "")
+    assert _rows(conn, n["id"]) == [{"user_id": A, "kind": "widget", "tool_id": d, "rev": 1}]
+
+
 def test_the_projection_names_the_same_kind_the_widget_service_declares():
     from api.services.journal_two import notebook_widgets, notes
     assert notes._BUILT_WIDGET_ID == notebook_widgets.BUILT_KIND

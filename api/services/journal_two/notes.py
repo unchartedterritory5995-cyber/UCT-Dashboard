@@ -554,8 +554,13 @@ def _sync_note_sidecars(
             eid = attrs.get("excerptId") if isinstance(attrs, dict) else None
             if isinstance(eid, str) and eid:
                 excerpt_ids.append(eid)
-        for child in node.get("content", []) or []:
-            walk(child)
+        # Same guard as the other walks in this file: _refuse_unbuildable keeps a
+        # non-list content off every member write path, and this keeps a stored
+        # body that predates it from 500ing the save.
+        children = node.get("content")
+        if isinstance(children, list):
+            for child in children:
+                walk(child)
     if isinstance(body_json, dict):
         walk(body_json)
 
