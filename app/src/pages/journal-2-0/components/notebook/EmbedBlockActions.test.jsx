@@ -106,14 +106,17 @@ describe('where it shows (the stylesheet is the authority; jsdom applies none)',
   const here = dirname(fileURLToPath(import.meta.url))
   const css = readFileSync(resolve(here, 'WidgetEmbedView.module.css'), 'utf8').replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '')
   const view = readFileSync(resolve(here, 'WidgetEmbedView.jsx'), 'utf8')
+  // W10-R75: the touch block exactly. A bare '@media (max-width: 1024px)' also matched the earlier
+  // '@media (max-width: 1024px), (hover: none) {' block (O4, 83752cd46e) and read the wrong rules.
+  const TOUCH_BLOCK = '@media (max-width: 1024px) {'
 
   it('hidden by default, so a desktop never sees it', () => {
-    const base = css.slice(0, css.indexOf('@media (max-width: 1024px)'))
+    const base = css.slice(0, css.indexOf(TOUCH_BLOCK))
     expect(base).toMatch(/\.blockActions\s*\{[^}]*display:\s*none/)
   })
 
   it('at 1024 px and below the toolbar and the button are shown, and the button is a 44 px target', () => {
-    const at = css.indexOf('@media (max-width: 1024px)')
+    const at = css.indexOf(TOUCH_BLOCK)
     expect(at).toBeGreaterThan(-1)
     const block = css.slice(at, css.indexOf('\n}\n', at) + 3)
     expect(block).toMatch(/\.toolbar\s*\{[^}]*display:\s*inline-flex/)
