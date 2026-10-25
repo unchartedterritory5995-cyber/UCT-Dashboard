@@ -881,3 +881,40 @@ describe('tracker reads are one request per day (Task 9.14 fix round 1, W9-R13)'
     expect(b.extras.recent).toEqual([{ day: '2026-10-27' }])
   })
 })
+
+describe('subscribeTool ordering (Task 9.14 fix round 2, MIN-1): re-reads are ordered among themselves', () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+  afterEach(async () => { await wait(400) })
+
+  it('two re-reads (writes to OTHER days) that answer out of order: only the newer one is applied', async () => {
+    const api = await freshApi()
+    const values = {}
+    const gates = []
+    globalThis.fetch = vi.fn((url, init = {}) => {
+      if (url === '/api/j2/trackers/days') {
+        const { ids, days } = JSON.parse(init.body)
+        const snapshot = JSON.parse(JSON.stringify(values))         // what the server held when this read was made
+        const body = { trackers: Object.fromEntries(ids.map((id) => [id, {
+          tracker: { id }, days: Object.fromEntries(days.map((d) => [d, { day: d, value: null }])),
+          recent: Object.keys(snapshot).sort().map((d) => ({ day: d, value: snapshot[d] })), n: Object.keys(snapshot).length || null }])) }
+        return new Promise((resolve) => { gates.push(() => resolve(json(200, body))) })
+      }
+      const m = /^\/api\/j2\/trackers\/t1\/days\/([^/]+)$/.exec(url)
+      values[m[1]] = JSON.parse(init.body).value
+      return Promise.resolve(json(200, { day: m[1], value: values[m[1]] }))
+    })
+    const got = []
+    const off = api.subscribeTool('tracker', 't1', '2026-10-28', (u) => got.push(u.extras.n))
+    await api.logValue('t1', '2026-10-20', 1)
+    await wait(api.TOOL_SETTLE_MS + 60)                               // re-read R1 is on the wire (n: 1)
+    await api.logValue('t1', '2026-10-21', 2)
+    await wait(api.TOOL_SETTLE_MS + 60)                               // re-read R2 is on the wire (n: 2)
+    expect(gates).toHaveLength(2)
+    gates[1]()                                                        // R2, the newer one, answers first
+    await wait(5)
+    gates[0]()                                                        // R1, older, answers late
+    await wait(5)
+    expect(got).toEqual([2])                                          // the stale summary never overwrites it
+    off()
+  })
+})

@@ -258,6 +258,7 @@ function publish(kind, id, day, entry, sent) {
 export const TOOL_SETTLE_MS = 300
 const toolSubs = new Set()           // { kind, id, day, fn }
 const toolTimers = new Map()         // `${kind}|${id}` -> timer
+const toolGen = new Map()            // `${kind}|${id}|${day}` -> the newest re-read round started for it (MIN-1)
 
 function toolChanged(kind, id) {
   if (![...toolSubs].some((s) => s.kind === kind && s.id === id)) return
@@ -271,14 +272,25 @@ function toolChanged(kind, id) {
 }
 
 /** Every tool subscriber's own day, in one batched read; a result is handed on only if no write for that day
- *  landed after the read began. */
+ *  landed after the read began, and only if no LATER re-read round was started for that day since (re-reads caused by
+ *  writes to other days are ordered among themselves by this generation, so a late, older answer never overwrites a
+ *  fresher summary). One generation per `kind|id|day` per round, so two blocks on one day share it. */
 function reReadTool(kind, id) {
   const jobs = []
+  const round = new Map()
   for (const sub of [...toolSubs]) {
     if (sub.kind !== kind || sub.id !== id) continue
+    const genKey = `${kind}|${id}|${sub.day}`
+    if (!round.has(genKey)) {
+      const g = (toolGen.get(genKey) ?? 0) + 1
+      toolGen.set(genKey, g)
+      round.set(genKey, g)
+    }
+    const gen = round.get(genKey)
     const startedAt = Date.now()
     jobs.push(readDay(kind, id, sub.day).then((r) => {
       if (!r.ok || !toolSubs.has(sub)) return
+      if (toolGen.get(genKey) !== gen) return
       if ((lastAt.get(stampKey(kind, id, r.resolvedDay)) ?? 0) >= startedAt) return
       try { sub.fn({ entry: r.entry, tool: r.tool, extras: r.extras, resolvedDay: r.resolvedDay }) } catch { /* see notify */ }
     }))

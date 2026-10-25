@@ -872,3 +872,31 @@ describe('TrackerBlock, fix round 1', () => {
     expect(srv.puts()).toHaveLength(1)
   })
 })
+
+describe('TrackerBlock, fix round 2 (MIN-2: the vs P&L read follows only an applied, changed summary)', () => {
+  it('a tab return with nothing new and an answer the block discards cost no vs P&L GET; a real change costs one', async () => {
+    const { st } = serve({ values: { '2026-10-27': 420 } })
+    const pnlGets = () => globalThis.fetch.mock.calls.filter(([u]) => /vs-pnl$/.test(u)).length
+    mount({ params: { ...PARAMS, display: 'pnl' } })
+    await waitFor(() => expect(screen.getByText(/A comparison, not proof\.$/)).toBeTruthy())
+    expect(pnlGets()).toBe(1)
+    const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 450)) })
+    // A tab return with nothing new: the tool re-read lands, the summary is the same.
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await settle()
+    expect(pnlGets()).toBe(1)
+    // An answer about another day (a fixed-day block discards it whole).
+    st.values['2026-10-26'] = 300
+    st.entryDay = '2026-10-28'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await settle()
+    expect(pnlGets()).toBe(1)
+    expect(screen.queryByText('Average 6h from 2 entries')).toBeNull()     // and nothing of it was shown
+    // A real change for this block: one GET.
+    st.entryDay = undefined
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await waitFor(() => expect(screen.getByText('Average 6h from 2 entries')).toBeTruthy())
+    await settle()
+    expect(pnlGets()).toBe(2)
+  })
+})

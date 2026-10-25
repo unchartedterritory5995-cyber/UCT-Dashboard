@@ -671,3 +671,45 @@ describe('RoutineBlock, Task 9.14 fix round 1 (I-3: a stale Retry after a bind s
     }
   })
 })
+
+describe('RoutineBlock, Task 9.14 fix round 2 (IMP-1: an answer that lands after the day changed is dropped)', () => {
+  /** Hold every PUT until the test answers it (as a 500). */
+  function gatePuts() {
+    const inner = globalThis.fetch
+    const gates = []
+    globalThis.fetch = vi.fn((url, init = {}) => (init.method === 'PUT'
+      ? new Promise((resolve) => { gates.push(() => resolve(json(500, {}))) })
+      : inner(url, init)))
+    return gates
+  }
+
+  it('a TICK answered after the read key changed shows no Retry and is never resent to the new day', async () => {
+    serve()
+    const { rerender } = mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    const gates = gatePuts()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mark key levels' }))
+    await waitFor(() => expect(gates).toHaveLength(1))
+    rerender(<RoutineBlock params={{ ...PARAMS, day: '2026-10-26' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(screen.getByText('For Mon Oct 26')).toBeTruthy())
+    await act(async () => { gates[0](); await new Promise((r) => setTimeout(r, 20)) })
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(screen.queryByText(TOOL_COPY.tickFailed)).toBeNull()
+    expect(globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'PUT')).toHaveLength(1)   // no second PUT
+  })
+
+  it('a SKIP answered after the read key changed shows no Retry and is never resent to the new day', async () => {
+    serve()
+    const { rerender } = mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    const gates = gatePuts()
+    fireEvent.click(screen.getByRole('button', { name: 'Skip this day' }))
+    await waitFor(() => expect(gates).toHaveLength(1))
+    rerender(<RoutineBlock params={{ ...PARAMS, day: '2026-10-26' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(screen.getByText('For Mon Oct 26')).toBeTruthy())
+    await act(async () => { gates[0](); await new Promise((r) => setTimeout(r, 20)) })
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(screen.queryByText(TOOL_COPY.tickFailed)).toBeNull()
+    expect(globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'PUT')).toHaveLength(1)
+  })
+})

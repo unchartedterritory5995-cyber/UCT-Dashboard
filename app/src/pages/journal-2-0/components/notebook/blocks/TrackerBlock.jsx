@@ -96,6 +96,8 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
   const cur = read && read.base === base && read.attempt === attempt ? read : null
+  const readRef = useRef(read)
+  readRef.current = read
 
   // The read: one per (tracker, day, attempt), batched by the layer with every other block's.
   useEffect(() => {
@@ -133,20 +135,28 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   // are the server's, bounded to this block's day (a past note's summary never moves, W9-R13).
   useEffect(() => {
     if (!trackerId) return undefined
+    // An answer the block applies is ALSO the vs P&L read's input: it is re-read only when the summary it shows actually
+    // changed (MIN-2), never for an answer the block discards and never on a tab's return with nothing new.
+    const applies = (r, e) => {
+      if (!r || r.base !== base || r.status !== 'ready') return false
+      const day = isDay(e?.day) ? e.day : r.day
+      return follow || day === r.day                       // an answer about another day: none of it is this block's
+    }
     return subscribeTool('tracker', trackerId, readKey, (u) => {
       if (!alive.current || !u || typeof u !== 'object') return
+      const e = u.entry && typeof u.entry === 'object' ? u.entry : null
+      const before = readRef.current
+      if (!applies(before, e)) return
+      const summary = u.extras && typeof u.extras === 'object' ? summaryFrom(u.extras) : null
       setRead((r) => {
-        if (!r || r.base !== base || r.status !== 'ready') return r
-        const e = u.entry && typeof u.entry === 'object' ? u.entry : null
-        const day = isDay(e?.day) ? e.day : r.day
-        if (!follow && day !== r.day) return r              // an answer about another day: none of it is this block's
-        const next = { ...r, day }
+        if (!applies(r, e)) return r
+        const next = { ...r, day: isDay(e?.day) ? e.day : r.day }
         if (e) next.entry = e
         if (u.tool && typeof u.tool === 'object') next.tool = u.tool
-        if (u.extras && typeof u.extras === 'object') next.summary = summaryFrom(u.extras)
+        if (summary) next.summary = summary
         return next
       })
-      setPnlTick((n) => n + 1)
+      if (summary && JSON.stringify(summary) !== JSON.stringify(before.summary)) setPnlTick((n) => n + 1)
     })
   }, [trackerId, readKey, base, follow])
 
