@@ -1242,3 +1242,31 @@ describe('wave 6 snapshot kinds (Task 20)', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/myScreenToday?definitionId=u%3A2', expect.anything())
   })
 })
+
+// Wave 9 (Task 9.19): /routine and /track are direct commands. Their items are found by a TITLE PREFIX
+// (rankedBlockItems), so Enter on the typed word takes the picker item, never a keyword-only neighbour; with the wave
+// off they are not offered at all (the bare list rails live in SlashMenu.tools.test.jsx).
+describe('/routine and /track (wave 9)', () => {
+  afterEach(() => __resetNotebookFlags())
+  const ed = { storage: { uctJournalWidgets: { uid: 'u1' } } }
+  it('the typed word ranks its picker item first; off, nothing answers', async () => {
+    const { toolItems, __resetTools } = await import('./SlashMenu')
+    __resetTools()
+    const real = global.fetch
+    global.fetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }))
+    try {
+      expect(toolItems('routine', ed)).toEqual([])
+      expect(slashItems('routine', ed, toolItems('routine', ed)).map((i) => i.title)).not.toContain('Routine (remembered daily)')
+      latchNotebookFlags({ notebook_widgets_w9_enabled: true })
+      const r = rankedBlockItems(toolItems('rou', ed), 'rou')
+      expect(r[0].title).toBe('Routine (remembered daily)')
+      expect(slashItems('routine', ed, toolItems('routine', ed))[0].title).toBe('Routine (remembered daily)')
+      expect(slashItems('track', ed, toolItems('track', ed))[0].title).toBe('Tracker (one value a day)')
+      // "habit" is a keyword of both: neither title starts with it, so both answer, in menu order.
+      expect(toolItems('habit', ed).map((i) => i.title)).toEqual(['Routine (remembered daily)', 'Tracker (one value a day)'])
+    } finally {
+      global.fetch = real
+      __resetTools()
+    }
+  })
+})

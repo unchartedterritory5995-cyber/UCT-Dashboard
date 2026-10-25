@@ -490,12 +490,26 @@ export async function unarchive(kind, id) {
   }
 }
 
+const toolListListeners = new Set()
+
+/** Hear that a routine or tracker changed on this page (`fn(kind)`), from `toolEdited`. Idempotent (a Set). Read
+ *  through toolsCrud.onToolsChanged (Task 9.19). @returns {() => void} stop hearing */
+export function onToolEdited(fn) {
+  if (typeof fn === 'function') toolListListeners.add(fn)
+  return () => { toolListListeners.delete(fn) }
+}
+
 /** The tool itself changed (an editor's save, archive, delete or undelete; a restore above): every placed block of it
  *  on this page re-reads its day and hears the tool with its entry (its name, items, archived state), and every tool
  *  subscriber (a tracker's summary) re-reads once. The ONE refresh path for a tool-level change; it writes nothing.
  *  ⚠️ This page only: nothing is broadcast, so another tab catches up on its next return to the front (W9-R44). */
 export async function toolEdited(kind, id) {
   if (kind !== 'routine' && kind !== 'tracker') return
+  // Ruling W9-R49: the ONE notifier for a tool change. Every write lands here (toolsCrud's writes, a block's restore),
+  // so the list listeners (the / menu's Mine rows, through toolsCrud.onToolsChanged) hear it once, before any read.
+  for (const fn of [...toolListListeners]) {
+    try { fn(kind) } catch { /* the listener's own */ }
+  }
   await reReadSubs((s) => s.kind === kind && s.id === String(id), true)
   toolChanged(kind, String(id))
 }

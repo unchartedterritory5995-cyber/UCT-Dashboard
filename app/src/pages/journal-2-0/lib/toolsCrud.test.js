@@ -98,10 +98,15 @@ describe('I-1: a landed save, archive, delete or undelete re-reads the tool’s 
     await undeleteTool('tracker', 't2')
     expect(api.toolEdited.mock.calls).toEqual([['routine', 'r1'], ['tracker', 't1'], ['routine', 'r2'], ['tracker', 't2']])
     await getTool('routine', 'r1')
-    await duplicateTool('routine', 'r1')                      // a copy is a NEW tool: no placed block shows it yet
     fetchMock.mockResolvedValueOnce(json(409, { detail: { code: 'conflict', message: 'stale' } }))
     await saveTool('routine', 'r1', 1, {})
     expect(api.toolEdited).toHaveBeenCalledTimes(4)
+    // W9-R49: toolEdited is the ONE notifier for a tool change, so a copy (a NEW tool) lands there too, once, with
+    // the copy's own id (the / menu's Mine rows hear it; no placed block shows it yet, so nothing re-reads).
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'r1-copy' }))
+    await duplicateTool('routine', 'r1')
+    expect(api.toolEdited.mock.calls.at(-1)).toEqual(['routine', 'r1-copy'])
+    expect(api.toolEdited).toHaveBeenCalledTimes(5)
   })
 
   it('a refresh that throws never fails the write', async () => {

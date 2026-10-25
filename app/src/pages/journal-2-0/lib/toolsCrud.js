@@ -21,9 +21,13 @@
 // ⛔ ONE refresh path: after a save, an archive, a delete or an undelete lands, `toolEdited` (toolsApi, the same step
 // `unarchive` runs) re-reads every placed block of that tool on this page, so a block shows its new name and items at
 // once. Never a second mechanism here.
+// ⛔ ONE change notice for a LIST (Task 9.19, ruling W9-R49): `onToolsChanged(fn)` hears every tool write on this page
+// (a create, save, archive, delete, undelete, duplicate or restore, here or a block's own restore), so the / menu's Mine
+// rows drop their cached list. It is toolsApi's `onToolEdited`: `toolEdited` is the one notifier, and each write here
+// reaches it exactly once (a create or duplicate through `landed` with the new tool's id).
 // ⛔ These writes land in the routine and tracker tables, NEVER a note. Each fetch names its method literally (the door
 // rails read methods from the call site), with the kind choosing between two literal URLs.
-import { TOOL_COPY, isOffline, toolEdited, unarchive } from './blocks/toolsApi'
+import { TOOL_COPY, isOffline, onToolEdited, toolEdited, unarchive } from './blocks/toolsApi'
 
 export const CRUD_COPY = Object.freeze({
   offline: "You're offline. Try again when you're back online.",
@@ -82,6 +86,18 @@ async function call(kind, send, { isRead = false, pick = (d) => d } = {}) {
   }
 }
 
+/** Hear that the member's routines or trackers changed on this page (`fn(kind)`): toolsApi's one notifier (W9-R49).
+ *  Idempotent (a Set). @returns {() => void} stop hearing */
+export function onToolsChanged(fn) {
+  return onToolEdited(fn)
+}
+
+/** The answer of a write that MAKES a tool (a create, a duplicate): it lands like any write, keyed to the new id. */
+async function added(kind, pending) {
+  const out = await pending
+  return out.ok ? landed(kind, out.data?.id, Promise.resolve(out)) : out
+}
+
 const listOf = (key) => (body) => (Array.isArray(body[key]) ? body[key] : undefined)
 
 // ── reads ─────────────────────────────────────────────────────────────────────────────────────────
@@ -133,9 +149,9 @@ function bodyOf(body) {
 export function createTool(kind, body) {
   const payload = bodyOf(body)
   if (payload === null) return Promise.resolve(KINDS.has(kind) ? network() : unknownKind())
-  return call(kind, () => (kind === 'routine'
+  return added(kind, call(kind, () => (kind === 'routine'
     ? fetch('/api/j2/routines', { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload })
-    : fetch('/api/j2/trackers', { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload })))
+    : fetch('/api/j2/trackers', { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload }))))
 }
 
 /** A write's answer, after which the tool's placed blocks on this page re-read (never awaited: the caller's answer
@@ -200,7 +216,7 @@ export function undeleteTool(kind, id) {
 
 /** A new live copy, "<name> copy" (no history is copied). Refused at the count cap. */
 export function duplicateTool(kind, id) {
-  return call(kind, () => (kind === 'routine'
+  return added(kind, call(kind, () => (kind === 'routine'
     ? fetch(`/api/j2/routines/${enc(id)}/duplicate`, { method: 'POST', credentials: 'include' })
-    : fetch(`/api/j2/trackers/${enc(id)}/duplicate`, { method: 'POST', credentials: 'include' })))
+    : fetch(`/api/j2/trackers/${enc(id)}/duplicate`, { method: 'POST', credentials: 'include' }))))
 }

@@ -31,6 +31,7 @@ import { tier3Enabled } from '../../lib/tier3Flag'
 import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
 import { widgetsWaveOn, WIDGET_CHUNK_LOST, doorLostSentence } from '../../lib/notebookWidgetsFlags'
 import { captureEnabled } from '../../../../widgets/captureRelease'
+import { insertToolBlock } from '../../lib/toolEmbed'
 import styles from './SlashMenu.module.css'
 
 // Notebook P2a: a trader block (and the market context stamp) in the Planning a trade group, dark behind the
@@ -665,6 +666,75 @@ export function builtItems(query, editor) {
 export const __builtLoad = () => built.wait()
 export const __resetBuilt = () => built.reset()
 
+// ── Notebook widgets phase 2 (wave 9, Task 9.19): routines and trackers in the "Mine" group. "Routine (remembered
+// daily)" (/routine) and "Tracker (one value a day)" (/track) open the tool picker; after the widget rows come the
+// member's own routines then trackers (at most BARE_ROWS of each on a bare `/`, every match when typed), each inserting
+// its block at once, bound to the note's day (lib/toolEmbed, the one insert). The lists come through lib/toolsCrud (the
+// ONE routine and tracker client) in this background loader, keyed to the member; that client and the picker are
+// reached only by dynamic import (first-open bytes). A write through that client drops the rows (its one hook).
+const toPicker = (kind) => ({ editor, range }) => {
+  editor.chain().focus().deleteRange(range).run()
+  return import('./routines/openToolPicker.js')
+    .then((m) => { m.openToolPicker({ editor, kind, ...routerOf(editor) }) }, () => doorLost(editor))
+}
+const PICKER_ROWS = Object.freeze({
+  routine: {
+    title: 'Routine (remembered daily)', cmd: 'routine', description: 'Tick it every trading day; it never changes the note',
+    keywords: ['routine', 'habit', 'daily', 'pre-market', 'rules', 'process'], command: toPicker('routine'),
+  },
+  tracker: {
+    title: 'Tracker (one value a day)', cmd: 'track', description: 'Log sleep, focus or anything once a day',
+    keywords: ['track', 'tracker', 'sleep', 'mood', 'log', 'habit'], command: toPicker('tracker'),
+  },
+})
+const TOOL_ROW_WORDS = Object.freeze({
+  routine: { keywords: ['routine'], description: "Your routine, for this note's day" },
+  tracker: { keywords: ['tracker'], description: "Your tracker, for this note's day" },
+})
+const liveTool = (t) => t && typeof t === 'object' && typeof t.id === 'string' && t.id && !t.archived && !t.deleted
+const tools = background(() => Promise.all([import('../../lib/toolsCrud'), widgetsFetch()]).then(async ([c, f]) => {
+  // A create, save, archive, delete or restore through the client anywhere in this tab drops the rows.
+  c.onToolsChanged(dropTools)
+  const [r, t] = await Promise.all([c.listTools('routine'), c.listTools('tracker')])
+  if (!r.ok && !t.ok) throw r
+  return { f, routine: r.ok ? r.data.filter(liveTool) : [], tracker: t.ok ? t.data.filter(liveTool) : [] }
+}))
+function dropTools() { tools.drop() }
+function toolRow(kind, tool) {
+  const title = typeof tool.name === 'string' && tool.name.trim() ? tool.name.trim() : kind === 'routine' ? 'Routine' : 'Tracker'
+  return { title, toolId: tool.id, ...TOOL_ROW_WORDS[kind],
+    command: ({ editor, range }) => { insertToolBlock(editor, kind, tool, range) } }
+}
+/** The member's routine and tracker rows (wave 9), with the two picker items. Typed, every match in menu order: the
+ *  ONE ranking is mineGroupItems', over the whole Mine group (widgets and tools together). */
+export function toolItems(query, editor) {
+  if (!widgetsWaveOn(9)) return []
+  const v = tools.kick(editor)
+  const q = String(query || '').trim().toLowerCase()
+  const rows = (kind) => (v ? v[kind].map((t) => toolRow(kind, t)) : [])
+  if (!q) {
+    const n = v ? v.f.BARE_ROWS : 0
+    return [PICKER_ROWS.routine, ...rows('routine').slice(0, n), PICKER_ROWS.tracker, ...rows('tracker').slice(0, n)]
+      .map((it) => ({ ...it, group: 'tools' }))
+  }
+  return [PICKER_ROWS.routine, PICKER_ROWS.tracker, ...rows('routine'), ...rows('tracker')].filter((it) => blockItemMatches(it, q))
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __toolsLoad = () => tools.wait()
+export const __resetTools = () => tools.reset()
+
+/** The Mine group: the widget rows (wave 8), then the routine and tracker rows (wave 9) before "Manage my tools". With
+ *  wave 9 off this is builtItems' answer exactly. Typed, the two lists are ranked together. */
+export function mineGroupItems(query, editor) {
+  const widgets = builtItems(query, editor)
+  const own = toolItems(query, editor)
+  if (!own.length) return widgets
+  const q = String(query || '').trim().toLowerCase()
+  if (q) return rankedBlockItems([...widgets, ...own], q)
+  const manage = widgets.findIndex((it) => it.cmd === TOOLS_ROW.cmd)
+  return manage < 0 ? [...widgets, ...own] : [...widgets.slice(0, manage), ...own, ...widgets.slice(manage)]
+}
+
 export function snapshotWidgetItems(query) {
   const raw = String(query || '').trim()
   const tokens = raw.split(/\s+/).filter(Boolean)
@@ -1014,11 +1084,11 @@ export function slashItems(query, editor, mine = []) {
     ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
 }
 
-/** The menu's rows for one query, as the Suggestion asks for them. Waves 5, 6 and 8 add the member's own rows
- *  (builtItems, mineItems, pickItems): whatever is loaded, never awaited. M-3: the caches are keyed to the signed-in
- *  member the editor holds. */
+/** The menu's rows for one query, as the Suggestion asks for them. Waves 5, 6, 8 and 9 add the member's own rows
+ *  (mineGroupItems, mineItems, pickItems): whatever is loaded, never awaited. M-3: the caches are keyed to the
+ *  signed-in member the editor holds. */
 export const menuItems = (query, editor) => slashItems(query, editor,
-  [...builtItems(query, editor), ...mineItems(query, editor), ...pickItems(query, editor)])
+  [...mineGroupItems(query, editor), ...mineItems(query, editor), ...pickItems(query, editor)])
 
 export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)

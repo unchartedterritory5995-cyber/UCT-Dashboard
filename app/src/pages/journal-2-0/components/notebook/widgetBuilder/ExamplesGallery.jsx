@@ -1,5 +1,8 @@
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { DEFS_URL, getJson, postJson } from '../../../lib/builtWidgets'
+import { widgetsWaveOn, doorLostSentence } from '../../../lib/notebookWidgetsFlags'
+import { insertToolBlock } from '../../../lib/toolEmbed'
+import { BuilderDoor } from './builderDoor'
 import useMediaQuery from '../../../../../hooks/useMediaQuery'
 import { useIsPhone } from '../../../../../hooks/useBreakpoint'
 import ExampleCard from './ExampleCard'
@@ -27,6 +30,10 @@ import styles from './ExamplesGallery.module.css'
  *     coming back online) asks once more for those cards only. A failed list read is read again on 'online' too.
  *   * `sample: true` (fewer than 5 closed trades): a "Sample data" ribbon on every answered card and a banner with
  *     Link broker and Log a trade. The server resolves a sample card's range against the sample book's own last day.
+ *   * Wave 9 (Task 9.19, spec 5.2 step 1): on sample data, a first step that needs no trades sits above the cards,
+ *     "Set up your pre-market routine (1 minute)". It opens the routine editor on the ready-made pre-market routine
+ *     (a dynamic import: the editor stays off this chunk); from a note's builder the builder gives way to it, and
+ *     saving puts the routine at the caret (the door: builderDoor.js).
  *
  * The two live regions (the search's count, the refused-batch line) are ALWAYS mounted and only their text changes,
  * so a screen reader hears them; the count is debounced. Escape in a non-empty search clears it (`clearSearchRef`,
@@ -47,6 +54,9 @@ export const NO_MATCH = 'No examples match. Try another word, or start blank.'
 export const SHELF_LOADING = 'Loading the examples…'
 export const SHELF_FAILED = "Couldn't load the examples. Try again, or start blank."
 export const CARDS_FAILED = "Couldn't draw these previews. Open one to see it live."
+/** Task 9.19: the first step for a member on sample data (spec 5.2 step 1). */
+export const FIRST_STEP = 'Set up your pre-market routine (1 minute)'
+export const FIRST_STEP_HINT = 'A short list you tick every trading day. It needs no trades.'
 /** At most this many cards per `POST /examples` (the server's MAX_EXAMPLES). */
 export const BATCH = 8
 /** A busy batch is asked for once more after this long, and never again. */
@@ -98,6 +108,7 @@ function ExamplesGallery({
   const order = useRef([])                // the cards in display order (the top-up follows it)
   const shelfState = useRef(shelf.status)
   const io = useRef(null)
+  const door = useContext(BuilderDoor)
 
   const shown = useMemo(() => rankExamples(shelf.list, query), [shelf.list, query])
   useEffect(() => { order.current = shown.map((e) => e.id) }, [shown])
@@ -272,6 +283,31 @@ function ExamplesGallery({
 
   const motion = !reduce
 
+  /** The first step: the builder gives way (from a note's door) and the routine editor opens on the ready-made
+   *  pre-market routine; saving it puts it at the caret when there is a note to put it in. */
+  const firstStep = () => {
+    const editor = door?.editor || null
+    const go = () => import('../routines/openRoutineEditor').then((m) => {
+      m.openRoutineEditor({
+        starter: 'premarket', editor,
+        onSaved: editor ? (routine) => { insertToolBlock(editor, 'routine', routine) } : undefined,
+        returnFocus: editor?.view?.dom || null,
+      })
+    }, () => {
+      // A lost chunk is said, never silent: here while the gallery is still up, else in the note's own toast (the
+      // builder has already given way).
+      if (mounted.current) setNote(doorLostSentence())
+      else editor?.storage?.uctJournalWidgets?.notify?.(doorLostSentence(), 'error')
+    })
+    if (typeof door?.close === 'function') {
+      door.close()
+      // After the builder's own unmount (its close waits a tick), so its Sheet hands focus back before the next one.
+      setTimeout(go, 0)
+    } else {
+      go()
+    }
+  }
+
   return (
     <div className={styles.gallery} hidden={hidden} data-testid="examples-gallery" ref={rootEl}>
       <h3 className={styles.title} tabIndex={-1} data-gallery-heading="">{GALLERY_TITLE}</h3>
@@ -300,6 +336,14 @@ function ExamplesGallery({
           <div className={styles.actions}>
             <a className={styles.linkBtn} href={LINK_BROKER_HREF} onClick={(e) => onLink(LINK_BROKER_HREF, e)}>{LINK_BROKER}</a>
             <a className={styles.linkBtn} href={LOG_TRADE_HREF} onClick={(e) => onLink(LOG_TRADE_HREF, e)}>{LOG_TRADE}</a>
+          </div>
+        </div>
+      )}
+      {sample && widgetsWaveOn(9) && (
+        <div className={styles.offer} role="group" aria-label={FIRST_STEP} data-testid="first-step">
+          <p className={styles.hint}>{FIRST_STEP_HINT}</p>
+          <div className={styles.actions}>
+            <button type="button" className={styles.btnPrimary} onClick={firstStep}>{FIRST_STEP}</button>
           </div>
         </div>
       )}

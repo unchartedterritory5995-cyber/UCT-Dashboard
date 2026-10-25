@@ -225,6 +225,20 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
+/* The tool picker's list (Task 9.19): one full-width row per routine or tracker. */
+.pickList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.pickList .btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
 .footer {
   display: flex;
   justify-content: flex-end;

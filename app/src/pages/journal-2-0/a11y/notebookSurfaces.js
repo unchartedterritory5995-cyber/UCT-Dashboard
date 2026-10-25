@@ -260,6 +260,9 @@ export const SURFACES = Object.freeze({
   'components/notebook/myTools/TrackersTab.jsx': { recipe: 'my-tools-trackers' },
   'components/notebook/myTools/UsedInList.jsx': { coveredBy: 'my-tools-tool-used-in' },
   'components/notebook/myTools/PanelHead.jsx': { coveredBy: 'my-tools-tool-used-in' },
+  // Wave 9 Task 9.19: the tool picker /routine and /track open (rail a11y/toolPicker.a11y.test.jsx: a list with New
+  // routine; none yet; a list that cannot be read, with Try again).
+  'components/notebook/routines/ToolPicker.jsx': { recipe: 'tool-picker' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

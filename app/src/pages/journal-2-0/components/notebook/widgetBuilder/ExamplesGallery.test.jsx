@@ -22,8 +22,15 @@ import BuiltWidgetEmbed from '../widgets/BuiltWidgetEmbed'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import { __resetBuiltCaches, FAILURE_COPY } from '../../../lib/builtWidgets'
 import { installFetch, answer, refusal, payload, callsTo, bodyOf, deferred } from './__fixtures__/builderFixtures'
+import { openWidgetBuilder } from './openWidgetBuilder'
+import { openRoutineEditor } from '../routines/openRoutineEditor'
+import { FIRST_STEP } from './ExamplesGallery'
 
-vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 8 }))
+// Wave 8 on; wave 9 only where a test turns it on (Task 9.19's first step).
+const waves = vi.hoisted(() => ({ nine: false }))
+vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 8 || (w === 9 && waves.nine) }))
+// The routine editor is its own rail (routines/RoutineEditorSheet.test.jsx): here only WHAT the first step asks of it.
+vi.mock('../routines/openRoutineEditor', () => ({ openRoutineEditor: vi.fn(() => () => {}) }))
 
 /** The ready-made widgets the server serves, read from the server's own file (never a copy). */
 const SHELF = JSON.parse(readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine',
@@ -678,5 +685,80 @@ describe('ExamplesGallery: Start from an example', () => {
     await flush()
     expect(shelfCalls()).toHaveLength(3)
     expect(within(screen.getByRole('list', { name: 'Examples' })).getAllByRole('listitem')).toHaveLength(SHELF.length)
+  })
+})
+
+// Task 9.19 (spec 5.2 step 1): a member on sample data is offered a first step that needs no trades, the pre-market
+// routine, above the cards, while wave 9 is on. From a note's builder, saving that routine puts it at the caret.
+describe('ExamplesGallery: the first step on sample data', () => {
+  afterEach(() => { waves.nine = false; vi.mocked(openRoutineEditor).mockClear() })
+  const sampleAnswers = (sample) => route('POST', (u) => u === `${DEFS}/examples`,
+    (u, init) => examplesAnswer(JSON.parse(init.body).ids, { sample }))
+  /** A note editor that records the chain an insert runs. */
+  function noteEditor() {
+    const calls = []
+    const chain = {
+      focus: () => chain, deleteRange: () => chain,
+      insertWidgetEmbed: (...args) => { calls.push(args); return chain },
+      run: () => true,
+    }
+    const ed = { isEditable: true, isDestroyed: false, on: () => {}, off: () => {}, chain: () => chain,
+      storage: { uctJournalWidgets: { noteId: 'n-1', uid: 'u1', noteDay: () => '2026-10-27' } } }
+    return { ed, calls }
+  }
+
+  it('first_run_card_only_on_sample_and_w9_on', async () => {
+    // Wave 9 off, on sample data: no first step.
+    sampleAnswers(true)
+    let view = await openGallery()
+    await inView(IDS.slice(0, 2))
+    expect(screen.getByText(SAMPLE_BANNER)).toBeInTheDocument()            // non-vacuity: this IS sample data
+    expect(screen.queryByText(FIRST_STEP)).toBeNull()
+    view.unmount()
+    // Wave 9 on, the member's own trades (no sample): no first step either.
+    waves.nine = true
+    routes.splice(0, 1)
+    sampleAnswers(false)
+    view = await openGallery()
+    await inView(IDS.slice(0, 2))
+    expect(screen.queryByText(SAMPLE_BANNER)).toBeNull()
+    expect(screen.queryByText(FIRST_STEP)).toBeNull()
+    view.unmount()
+    // Wave 9 on, on sample data: the step, above the cards, before any card is opened.
+    routes.splice(0, 1)
+    sampleAnswers(true)
+    view = await openGallery()
+    await inView(IDS.slice(0, 2))
+    const step = screen.getByRole('button', { name: FIRST_STEP })
+    expect(FIRST_STEP).toBe('Set up your pre-market routine (1 minute)')
+    const list = screen.getByRole('list', { name: 'Examples' })
+    expect(step.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(step)
+    await flush()
+    expect(openRoutineEditor).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(openRoutineEditor).mock.calls[0][0]).toMatchObject({ starter: 'premarket' })
+    view.unmount()
+  })
+
+  it('from a note: the builder gives way to the routine editor, and saving puts the routine at the caret', async () => {
+    waves.nine = true
+    sampleAnswers(true)
+    const { ed, calls } = noteEditor()
+    await act(async () => { openWidgetBuilder({ editor: ed, start: 'examples', uid: 'u1' }) })
+    await flush()
+    await flush()
+    await inView(IDS.slice(0, 2))
+    fireEvent.click(screen.getByRole('button', { name: FIRST_STEP }))
+    await flush()
+    await flush()
+    // One sheet at a time: the builder closed, and the editor opened from a ready-made pre-market routine.
+    expect(document.querySelector('[data-widget-builder-root]')).toBeNull()
+    expect(openRoutineEditor).toHaveBeenCalledTimes(1)
+    const args = vi.mocked(openRoutineEditor).mock.calls[0][0]
+    expect(args).toMatchObject({ starter: 'premarket', editor: ed })
+    expect(calls).toHaveLength(0)                                          // nothing goes in before the save
+    args.onSaved({ id: 'r-new', name: 'Pre-market routine' })
+    expect(calls).toEqual([['routine', { routineId: 'r-new', day: '2026-10-27', bind: 'note-day', display: 'items' },
+      { searchText: '[routine: Pre-market routine · For Tue Oct 27]' }]])
   })
 })

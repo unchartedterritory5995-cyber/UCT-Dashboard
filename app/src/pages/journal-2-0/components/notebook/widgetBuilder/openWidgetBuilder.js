@@ -20,6 +20,7 @@
 import { Component, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import WidgetBuilderSheet from './WidgetBuilderSheet'
+import { BuilderDoor } from './builderDoor'
 
 let _open = null
 
@@ -76,10 +77,12 @@ export function openWidgetBuilder({ editor = null, from = null, start, uid, retu
     window.removeEventListener('popstate', onLeave)
   }
   // The signed-in member keys the kept draft (`uct.nb.widgetDraft.<uid>`), as the slash menu's caches are keyed.
-  root.render(createElement(BuilderBoundary, { onError: () => close() }, createElement(WidgetBuilderSheet, {
-    editor, from, start, uid: uid ?? editor?.storage?.uctJournalWidgets?.uid, onClose: close,
-    navigate: typeof navigate === 'function' ? navigate : null,
-    registerLeave: (fn) => { leave = fn },
-  })))
+  // Task 9.19: the door (the note's editor and this close) for the examples gallery's first step (builderDoor.js).
+  root.render(createElement(BuilderBoundary, { onError: () => close() }, createElement(BuilderDoor.Provider,
+    { value: { editor, close } }, createElement(WidgetBuilderSheet, {
+      editor, from, start, uid: uid ?? editor?.storage?.uctJournalWidgets?.uid, onClose: close,
+      navigate: typeof navigate === 'function' ? navigate : null,
+      registerLeave: (fn) => { leave = fn },
+    }))))
   return close
 }

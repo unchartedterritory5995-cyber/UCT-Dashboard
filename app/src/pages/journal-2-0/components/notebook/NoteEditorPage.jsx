@@ -140,6 +140,7 @@ import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
+import { noteDayOf } from '../../lib/blocks/toolDays'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import TickerCardSlot from './widgets/TickerCardSlot'
@@ -2913,6 +2914,9 @@ export default function NoteEditorPage({
         // P2a Task 10 (lib/blocks/priceStampsRun.js): the note's ticker, read live when a stamp runs (a
         // bare-word line names it), off the ref that holds this render's note.
         noteTicker: () => canvasNoteRef.current?.ticker,
+        // Wave 9 (Task 9.19): the day this note belongs to (its daily date, else the ET day it was created), read live
+        // off the same ref, so a routine or tracker block placed from / or the tool picker is bound to it.
+        noteDay: () => noteDayOf(canvasNoteRef.current),
         // One sentence in this note's own toast, for an editor command that could not do what
         // was asked (the /vs lookup). Commands cannot take React props.
         notify: (message, tone = 'error') => setUploadToast({ message, tone }),
