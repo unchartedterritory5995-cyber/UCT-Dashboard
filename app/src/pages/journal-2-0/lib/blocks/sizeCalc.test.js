@@ -57,6 +57,9 @@ describe('sizeFor', () => {
     expect(sizeFor({ entry: 1e308, stop: 1, riskPct: 10, accountSize: 1e308 })).toEqual(check)
     expect(sizeFor({ entry: 100, stop: 100 - 1e-12, riskPct: 1, accountSize: 1e6 })).toEqual(check)   // stop 1e-12 away
     expect(JSON.stringify(sizeFor({ ...ok, accountSize: 1e300 }))).not.toMatch(/Infinity|null/)
+    // each guard alone: too many shares though the dollars print, and printable shares worth too many dollars
+    expect(sizeFor({ entry: 0.5, stop: 0.5 - 1e-12, riskPct: 1, accountSize: 1e6 })).toEqual(check)
+    expect(sizeFor({ entry: 1e15, stop: 1e15 - 1, riskPct: 1, accountSize: 1e6 })).toEqual(check)
     // control: a large but printable size still sizes
     expect(sizeFor({ entry: 100, stop: 99, riskPct: 1, accountSize: 1e9 })).toMatchObject({ ok: true, shares: 10000000 })
   })
