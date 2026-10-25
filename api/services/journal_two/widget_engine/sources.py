@@ -1467,7 +1467,8 @@ PROPERTY_FILTER_TYPES: dict[str, dict] = {
     "text": {"valueType": "text", "ops": ("contains", "eq"), "label": "Text"},
     "url": {"valueType": "text", "ops": ("contains", "eq"), "label": "Link"},
     "select": {"valueType": "enum", "ops": ("eq",), "label": "Select"},
-    "multi_select": {"valueType": "enum", "ops": ("contains",), "label": "Multi-select"},
+    # "eq" on a multi-select is "holds this option" (`property_conditions`), as a saved plan may ask
+    "multi_select": {"valueType": "enum", "ops": ("contains", "eq"), "label": "Multi-select"},
 }
 
 #: The note property types a property sum (`plan.PROP_MEASURES`) adds up: `_summed_properties`
@@ -1516,6 +1517,11 @@ def _property_filters(conn: sqlite3.Connection, user_id: str, plan: dict,
         d = member_property(conn, user_id, f.get("prop"))
         if d is None:
             _notice(notices, S_PROP_GONE)
+            continue
+        # W10-R66: only a comparison the served table offers for this property's type (a hand-made
+        # plan with "gt" on a select would order option ids): dropped with the unfit notice
+        if f.get("op") not in PROPERTY_FILTER_TYPES.get(d.get("type"), {}).get("ops", ()):
+            _notice(notices, S_PROP_FILTER_UNFIT)
             continue
         try:
             sql, ps = note_properties.property_filter_sql(

@@ -5,7 +5,7 @@ import { useIsTouch } from '../../../../../../hooks/useBreakpoint'
 import { money, moneySigned, rMultiple } from '../../../../../../lib/journal-2-0/format'
 import { drillBuilt, failureText } from '../../../../lib/builtWidgets'
 import { tradeHref } from './builtModel'
-import { noteHref, openNoteInPlace } from '../../routines/toolEditorLib'
+import { noteHref, openNoteInPlace } from '../../../../lib/noteHref'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s } from '../SnapshotFrame'
 
@@ -31,8 +31,7 @@ export const DRILL_MORE = (n) => `and ${n} more`
  *  trades tab opens the strategy its `openTrade` parameter names, `TradeJournalTab`), the door a note's linked
  *  strategy already uses (`NoteEditorPage`). */
 export const optionHref = (id) => `/journal?j2tab=journal&openTrade=${encodeURIComponent(String(id))}`
-/** A drilled note opens in the note editor's own navigation (`toolEditorLib.noteHref`, the one owner of the note
- *  link). */
+/** A drilled note opens in the note editor's own navigation (`lib/noteHref.js`, the one owner of the note link). */
 export const drillNoteHref = noteHref
 const TITLE = (what) => (what ? `Behind ${what}` : 'The rows behind this')
 const PANEL_W = 360

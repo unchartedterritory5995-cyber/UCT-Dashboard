@@ -123,21 +123,9 @@ export const deletedSentence = (name) => `“${name}” moved to Recently delete
 // ⛔ THE owner of the note link, the note count and the edited line: myTools/myToolsLib re-exports these (it may
 // import this file; this file may not import it, since My tools stays lazy on its own, MyToolsSheet.test.jsx).
 
-export const noteHref = (id) => `/journal/notebook?note=${encodeURIComponent(String(id))}`
-
-/** Open a note from the editor (mounted on its OWN root, outside the app's router): a plain left click pushes the
- *  location the way the router's own history does and tells the router with `popstate`; a modified click is the
- *  browser's, since the row is a real link. Returns true when it navigated in place. */
-export function openNoteInPlace(e, id) {
-  if (!e || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false
-  if (typeof window === 'undefined' || !window.history?.pushState) return false
-  e.preventDefault()
-  const prev = window.history.state
-  const idx = prev && typeof prev === 'object' && Number.isInteger(prev.idx) ? prev.idx + 1 : 0
-  window.history.pushState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx }, '', noteHref(id))
-  window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
-  return true
-}
+// The note link and the in-place note navigation live in `lib/noteHref.js` (no dependency, so a built widget's drill
+// panel can import them without putting this lazy file on the eager path, rule 9.16); re-exported here unchanged.
+export { noteHref, openNoteInPlace } from '../../../lib/noteHref'
 
 /** "Edited today", "Edited Oct 24" (with the year outside the current one); '' for an unreadable stamp. */
 export function editedText(iso, now = new Date()) {

@@ -500,6 +500,48 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Conviction' }))
   })
 
+  // ── fix 2 ──
+  it('try_again_on_a_property_list_keeps_focus (m-new-3)', async () => {
+    // each list's first read fails and its retry succeeds: filter list, then the sum's list
+    const replies = [false, true, false, true]
+    route('GET', (u) => u.endsWith('/vocabulary?field=property'), () => (replies.shift() === false
+      ? refusal(500, 'failed') : answer({ field: 'property', values: PROPERTIES })))
+    await onSource('Notes')
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Property' }))
+    await flush()
+    let retry = screen.getByRole('button', { name: 'Try again' })
+    retry.focus()
+    fireEvent.click(retry)
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Which property' }))
+    await flush()
+    // the measure picker's property list, the same
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the widget' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Notes. Change measures' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Sum of a property/ }))
+    await flush()
+    retry = screen.getByRole('button', { name: 'Try again' })
+    retry.focus()
+    fireEvent.click(retry)
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Sum of a property' }))
+    await flush()
+    expect(screen.getByRole('list', { name: 'Properties to add up' })).toBeInTheDocument()
+  })
+
+  it('a_type_picked_from_options_is_the_served_valueType (m-new-1)', async () => {
+    // the server says text values are picked from options: a text property missing from the definitions can then
+    // not be shown, and says so (never an empty pick list)
+    catalog = w10With((notes) => { notes.fields.find((f) => f.key === 'property').propertyTypes.text.valueType = 'enum' })
+    route('GET', (u) => u === '/api/j2/property-defs',
+      () => answer({ propertyDefs: PROPERTY_DEFS.propertyDefs.filter((d) => d.id !== P_WHY) }))
+    await onSource('Notes')
+    await pickProperty('Why')
+    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load this property.")
+    expect(screen.queryByText('Nothing to pick from yet.')).toBeNull()
+  })
+
   // ── fix 1, m-2 / m-3 ──
   it('a_select_missing_from_the_definitions_says_it_could_not_load', async () => {
     route('GET', (u) => u === '/api/j2/property-defs',

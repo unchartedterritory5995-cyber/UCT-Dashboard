@@ -786,3 +786,24 @@ def test_property_sum_types_are_the_ones_summed(conn):
                                          notices)
         assert (got == [prop]) is summed
         assert (sources.S_PROP_NOT_NUMBER in notices) is (not summed)
+
+
+def test_a_comparison_outside_the_served_table_does_not_run(conn):
+    """Fix 2 (W10-R66, the engine half): a hand-made plan asking a property a comparison the served
+    table does not offer for its type is dropped with the unfit notice and never narrows, even where
+    the lower authority would build it ("contains" on a date is a LIKE over the stored text); the
+    same plan with a served comparison does narrow."""
+    pid = add_prop(conn, UID, "Review date", "date")
+    assert "contains" in sources.PROPERTY_OPS
+    assert "contains" not in sources.PROPERTY_FILTER_TYPES["date"]["ops"]
+    # the lower authority WOULD answer it: the guard is the served table, not a refusal below
+    sql, _ = note_properties.property_filter_sql(
+        UID, sources.property_conditions(pid, "contains", ["2026-10"], "date"), conn, strict=True)
+    assert "LIKE" in sql
+    add_n(conn, UID, props={pid: "2026-10-20"})
+    add_n(conn, UID, props={pid: "2026-09-01"})
+    add_n(conn, UID)
+    bad = run_out(raw(filters=[{"field": "property", "op": "contains", "values": ["2026-10"], "prop": pid}]))
+    assert bad["count"] == 3 and bad["notice"] == sources.S_PROP_FILTER_UNFIT
+    good = run_out(raw(filters=[{"field": "property", "op": "gte", "values": ["2026-10-01"], "prop": pid}]))
+    assert good["count"] == 1 and not good["notice"]

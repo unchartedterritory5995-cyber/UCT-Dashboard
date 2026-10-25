@@ -243,8 +243,10 @@ export function PropertyFilterEditor(props) {
   const row = prop ? state?.list.find((x) => x.id === prop) || null : null
   const known = state?.defs instanceof Map ? state.defs.get(prop) : undefined
   const def = known || (row ? { name: row.name, type: row.type, options: [] } : null)
-  const needsOptions = def?.type === 'select' || def?.type === 'multi_select'
-  let step = 'pick'
+  // a type whose value is picked from its options: the served table says so (`valueType: 'enum'`)
+  const needsOptions = propertyTypeOf(field, def?.type)?.valueType === 'enum'
+  // the first step while it (re)loads is its own step, so a "Try again" that removes itself hands focus on (fix 2)
+  let step = state === null ? 'pick-loading' : 'pick'
   if (prop) {
     if (state === null) step = 'loading'
     else if (state.defs instanceof Map && !known && !row) step = 'removed'
@@ -268,7 +270,7 @@ export function PropertyFilterEditor(props) {
   const retry = <button type="button" className={styles.btn} onClick={() => setTick((n) => n + 1)}>Try again</button>
   const change = <button type="button" className={styles.btn} onClick={() => { lastProp.current = prop; setProp(null) }}>Change property</button>
   let body
-  if (step === 'pick') {
+  if (step === 'pick' || step === 'pick-loading') {
     body = (
       <>
         <PickerHead title="Which property" onBack={onBack} />

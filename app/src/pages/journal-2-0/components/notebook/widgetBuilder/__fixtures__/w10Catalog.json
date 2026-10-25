@@ -2586,7 +2586,8 @@
             "multi_select": {
               "label": "Multi-select",
               "ops": [
-                "contains"
+                "contains",
+                "eq"
               ],
               "valueType": "enum"
             },

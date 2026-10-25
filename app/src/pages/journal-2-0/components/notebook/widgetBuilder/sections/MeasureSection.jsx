@@ -64,6 +64,16 @@ export function PropertyMeasurePicker({ cat, plan, measureKey, onToggle, onToolN
   const [tick, setTick] = useState(0)
   const fullId = useId()
   const types = propTypesOf(cat.measures.get(measureKey)) || []
+  // Fix 2, m-new-3: a "Try again" removes itself; focus goes to the list's heading, never the page.
+  const rootRef = useRef(null)
+  const firstLoad = useRef(true)
+  const loading = state === null
+  useLayoutEffect(() => {
+    if (firstLoad.current) { firstLoad.current = false; return }
+    const root = rootRef.current
+    if (!root || root.contains(document.activeElement)) return
+    root.querySelector('[data-picker-heading]')?.focus()
+  }, [loading])
   useEffect(() => {
     let alive = true
     setState(null)
@@ -84,7 +94,7 @@ export function PropertyMeasurePicker({ cat, plan, measureKey, onToggle, onToolN
   const on = (id) => plan.measures.some((x) => x.key === measureKey && x.prop === id)
   const full = plan.measures.length >= cat.maxMeasures
   return (
-    <div>
+    <div ref={rootRef}>
       <PickerHead title={m?.label || measureKey} onBack={onBack} />
       {m?.meaning && <p className={styles.sectionHint}>{m.meaning}</p>}
       {full && <p className={styles.reason} id={fullId}>{reasonOf(cat, 'too_many_measures')}</p>}
