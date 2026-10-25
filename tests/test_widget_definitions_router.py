@@ -753,3 +753,110 @@ def test_vocabulary_serves_the_routine_state_codes_and_the_validator_agrees(conn
         wplan.validate_plan(cases[("routine_history", "state")][1]("not_done"), wsources.CATALOG)
     assert _served_codes(c, "trading_days", "routine_done")[0] == {"value": "done",
                                                                    "label": "Finished"}
+
+
+# -- wave 10 (ruling W10-R46, Task 10.4 fix round 1): the gate and the interim engine guard ------
+
+def _w10_plans():
+    """The review's three repro plans, plus the two display options that would run wrong."""
+    return {
+        "aggregate formula measure": dict(_plan(
+            formulas=[{"id": "f1", "name": "Wins n", "expr": "CountIf([net] > 0)"}]),
+            measures=[{"formula": "f1"}]),
+        "row formula measure": dict(_plan(
+            formulas=[{"id": "f1", "name": "Double", "expr": "[net] * 2"}]),
+            measures=[{"formula": "f1", "agg": "sum"}]),
+        "row formula filter": _plan(
+            formulas=[{"id": "f1", "name": "Big", "expr": "[net] > 0"}],
+            filters=[{"field": "formula:f1", "op": "is", "values": [True]}]),
+        "cumulative": _plan(split={"by": "day"}, view={"type": "line"},
+                            display={"cumulative": True}),
+        "stop after": _plan(measures=("current_streak",), display={"stopAfter": 2}),
+    }
+
+
+def _unraising(user=PAID):
+    app = FastAPI()
+    app.include_router(wdr.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(user)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(user)
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def _doors(c, p, saved):
+    """Every door `_gate_tools` guards, for plan `p`: (name, response)."""
+    yield "run", c.post(BASE + "/run", json={"def": p})
+    yield "preview", c.post(BASE + "/preview", json={"plan": p})
+    yield "drill", c.post(BASE + "/drill", json={"def": p, "cell": {}})
+    yield "create", c.post(BASE, json={"plan": p})
+    yield "save", c.put(f"{BASE}/{saved['id']}", json={"plan": p, "apply": "only"},
+                        headers={"If-Match": str(saved["etag"])})
+
+
+def test_w10_plans_are_the_dark_404_at_every_door_while_w10_is_off(conn, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    c = _unraising()
+    saved = wdefs.create(UID, "Mine", _plan())
+    plans = _w10_plans()
+    assert all(wplan.uses_wave10(p) for p in plans.values())
+    for name, p in plans.items():
+        for door, r in _doors(c, p, saved):
+            assert r.status_code == 404, (name, door, r.status_code, r.text[:200])
+            assert r.json()["detail"] == public.not_found().detail, (name, door)
+    n = conn.execute("SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?",
+                     (UID,)).fetchone()[0]
+    assert n == 1                                                   # nothing v3 was stored
+    # controls: a v1 plan runs, and a v2 tool plan runs once wave 9 is on, with wave 10 still off
+    assert c.post(BASE + "/run", json={"def": _plan()}).status_code == 200
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    r = c.post(BASE + "/run", json={"def": _tool_plans()[0]})
+    assert r.status_code == 200 and r.json()["def"]["v"] == 2
+
+
+def test_w10_plans_are_a_400_never_a_500_while_w10_is_on(conn, monkeypatch):
+    """The interim engine guard (`run._W10_PENDING`, remove in 10.5/10.6): with wave 10 ON the
+    engine cannot apply these yet, so each is the plan-level sentence, never a crash and never a
+    number drawn differently from the one the stored plan asks for."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    c = _unraising()
+    for name, p in _w10_plans().items():
+        made = c.post(BASE, json={"plan": p})
+        assert made.status_code == 200 and made.json()["plan"]["v"] == 3, (name, made.text[:200])
+        for door, body in (("/run", {"def": p}), ("/run", {"defId": made.json()["id"]}),
+                           ("/preview", {"plan": p}), ("/drill", {"def": p, "cell": {}})):
+            r = c.post(BASE + door, json=body)
+            assert r.status_code == 400, (name, door, r.status_code, r.text[:200])
+            assert r.json()["detail"] == {"code": "invalid", "message": wplan.S_UNREADABLE}
+    # controls: v1 and v2 plans still run with wave 10 on
+    assert c.post(BASE + "/run", json={"def": _plan()}).status_code == 200
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    assert c.post(BASE + "/run", json={"def": _tool_plans()[0]}).status_code == 200
+
+
+def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path):
+    from tests.test_widget_shelf_files import planted
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    c = _unraising()
+    made = c.post(BASE, json={"plan": _w10_plans()["row formula measure"]}).json()
+    url = f"{BASE}/{made['id']}"
+    plain = c.put(url, json={"plan": _plan(), "apply": "only"},
+                  headers={"If-Match": str(made["etag"])}).json()
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    r = c.post(f"{url}/revs/1/restore", headers={"If-Match": str(plain["etag"])})
+    assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+    renamed = c.put(url, json={"name": "Renamed", "apply": "only"},
+                    headers={"If-Match": str(plain["etag"])})
+    assert renamed.status_code == 200                                # a rename-only PUT passes
+    ex = {"id": "shelf:formula-test", "rev": 1, "name": "F", "description": "d", "keywords": [],
+          "plan": _w10_plans()["aggregate formula measure"]}
+    with planted(tmp_path, [ex], new_ids=(ex["id"],)):
+        r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})
+        assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+        assert ex["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+        r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})
+        assert r.status_code == 400 and r.json()["detail"]["message"] == wplan.S_UNREADABLE
+        plain_id = wshelf.examples()[0]["id"]
+        assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200  # control

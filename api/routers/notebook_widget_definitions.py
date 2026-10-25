@@ -225,7 +225,7 @@ def _shelf_allowed():
     """`allowed(plan)` for the shelf, read from the flags NOW: a plan that needs a dark wave is not
     offered (`not (uses_tools and not w9) and not (uses_wave10 and not w10)`)."""
     w9 = nwidgets.notebook_widgets_wave_on(TOOLS_WAVE)
-    w10 = nwidgets.notebook_widgets_wave_on(10)
+    w10 = _w10_on()
 
     def allowed(plan: Any) -> bool:
         return not (wplan.uses_tools(plan) and not w9) and not (wplan.uses_wave10(plan) and not w10)
@@ -280,6 +280,18 @@ def _gate_tools(plan: Any) -> None:
         raise public.not_found()
 
 
+def _w10_on() -> bool:
+    return nwidgets.notebook_widgets_wave_on(10)
+
+
+def _gate_w10(plan: Any) -> None:
+    """A plan that uses wave 10 (`plan.uses_wave10`: a formula, options or notes, a wave 10 display
+    option) is the dark 404 while wave 10 is off: the `_gate_tools` shape, brought forward from
+    Task 10.9 by ruling W10-R46. Applied at every door `_gate_tools` is."""
+    if wplan.uses_wave10(plan) and not _w10_on():
+        raise public.not_found()
+
+
 def _with_notices(payload: dict, notices: list[str]) -> dict:
     if notices:
         payload["notice"] = " ".join([*notices, *([payload["notice"]] if payload.get("notice") else [])])
@@ -295,6 +307,7 @@ def run_widget(user: dict = Depends(require_paid), body: dict = Depends(json_bod
     settings = _settings(body)
     plan, def_id, def_rev, latest, notices = _resolve(uid, body)
     _gate_tools(plan)
+    _gate_w10(plan)
     payload = _engine_errors(lambda: wrun.run_plan(
         uid, plan, settings, lane="run", def_id=def_id, def_rev=def_rev, latest_rev=latest))
     return _ok(_with_notices(payload, notices))
@@ -317,6 +330,7 @@ def preview_widget(user: dict = Depends(require_paid), body: dict = Depends(json
     if not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
     _gate_tools(plan)
+    _gate_w10(plan)
     settings = _settings(body)
 
     def _go() -> dict:
@@ -334,11 +348,12 @@ def run_examples(user: dict = Depends(require_paid), body: dict = Depends(json_b
     uid = _uid(user)
     _rate(PREVIEW_RATE, SCOPE_PREVIEW, uid, "rate_preview", S_RATE_PREVIEW)   # one hit per batch
     ids = body.get("ids")
-    if not _tools_on() and isinstance(ids, list):
+    if not (_tools_on() and _w10_on()) and isinstance(ids, list):
         for i in ids:
             ex = wshelf.example(i) if isinstance(i, str) else None
             if ex is not None:
                 _gate_tools(ex["plan"])
+                _gate_w10(ex["plan"])
     return _ok(_engine_errors(lambda: wrun.run_examples(uid, ids)))
 
 
@@ -349,6 +364,7 @@ def drill_widget(user: dict = Depends(require_paid), body: dict = Depends(json_b
     settings = _settings(body)
     plan, _def_id, _def_rev, _latest, notices = _resolve(uid, body)
     _gate_tools(plan)
+    _gate_w10(plan)
     snap = body.get("snapshotCount")
     snap = snap if isinstance(snap, int) and not isinstance(snap, bool) else None
     snap_at = body.get("snapshotAt") if isinstance(body.get("snapshotAt"), str) else None
@@ -510,6 +526,7 @@ def create_widget(user: dict = Depends(require_paid), body: dict = Depends(json_
     if not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
     _gate_tools(plan)
+    _gate_w10(plan)
     name = body.get("name")
     return _ok(_engine_errors(lambda: wdefs.create(_uid(user), name, plan)))
 
@@ -536,6 +553,7 @@ def save_widget(def_id: str, request: Request, user: dict = Depends(require_paid
     if plan is not None and not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
     _gate_tools(plan)
+    _gate_w10(plan)
     origin = body.get("origin") if isinstance(body.get("origin"), str) else None
     return _ok(_engine_errors(lambda: wdefs.update(
         uid, def_id, if_match=etag, name=body.get("name"), plan=plan, apply=body.get("apply"),
@@ -589,9 +607,10 @@ def restore_rev(def_id: str, rev: int, request: Request, user: dict = Depends(re
         raise public.not_found()
     # W9-R16: restoring a revision that reads routines or trackers is the dark 404 while wave 9 is
     # off (a rename-only PUT carries no plan and is allowed).
-    if not _tools_on():
+    if not (_tools_on() and _w10_on()):
         for r in wdefs.revs(uid, def_id) or []:
             if r.get("rev") == rev:
                 _gate_tools(r.get("plan"))
+                _gate_w10(r.get("plan"))
     etag = _if_match(request)
     return _ok(_engine_errors(lambda: wdefs.restore_rev(uid, def_id, rev, if_match=etag)))

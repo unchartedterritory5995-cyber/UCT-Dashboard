@@ -470,8 +470,11 @@ def test_every_field_is_typed_with_ops_for_its_type():
 
 
 def test_every_source_has_a_measure_and_the_catalog_satisfies_the_plan_protocol():
-    # Task 10.4: plan.SOURCES names wave 10's two sources before Tasks 10.6 and 10.7 add them here
+    # Task 10.4: plan.SOURCES names wave 10's two sources before Tasks 10.6 and 10.7 add them here.
+    # ⛔ EXPIRES: the only sources the catalog may still lack are those two; once 10.7 lands the
+    # difference must be EMPTY (10.7 tightens this to `== set()`).
     assert set(sources.SOURCES) <= set(plan.SOURCES)
+    assert set(plan.SOURCES) - set(sources.SOURCES) <= plan.WAVE10_SOURCES
     for key in sources.SOURCES:
         assert sources.CATALOG.measures_for(key), key
     assert "avg_true_r" not in sources.CATALOG.measures

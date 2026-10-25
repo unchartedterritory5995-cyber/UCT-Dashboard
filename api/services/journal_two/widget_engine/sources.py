@@ -45,17 +45,15 @@ from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
-    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange, formula_field_infos,
-    plan_refs,
+    OPS_BOOL, OPS_ENUM, OPS_NUMBER, RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS,
+    ResolvedRange, formula_field_infos, plan_refs,
 )
 
 # ── field vocabulary ───────────────────────────────────────────────────────────────────────────
 
-OPS_ENUM = ("in", "not_in")
+# OPS_ENUM, OPS_NUMBER and OPS_BOOL are plan's (one authority: formula filters use them too).
 OPS_TEXT = ("in", "contains")
-OPS_NUMBER = ("eq", "gt", "gte", "lt", "lte", "between")
 OPS_DAY = OPS_NUMBER
-OPS_BOOL = ("is",)
 OPS_TAG = ("has_any",)
 _OPS_BY_TYPE = {"enum": OPS_ENUM, "text": OPS_TEXT, "number": OPS_NUMBER, "day": OPS_DAY,
                 "bool": OPS_BOOL, "tag": OPS_TAG}

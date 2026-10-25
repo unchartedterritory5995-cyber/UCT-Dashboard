@@ -51,6 +51,8 @@ BOOL_AGGS = ("count", "share")
 #: The range tokens a goal target follows, and the account goal each one reads.
 GOAL_TOKENS = {"today": "daily", "this_week": "weekly", "this_month": "monthly", "ytd": "yearly"}
 STOP_AFTER_MAX = 20
+#: The data an account goal follows (a goal target reads the accounts' goals against these).
+GOAL_SOURCES = ("closed_trades", "trading_days")
 QUADRANTS = ("excursion",)
 #: Measures that add up one of the member's note properties (`prop`, a uuid4).
 PROP_MEASURES = frozenset({"property_sum"})
@@ -70,6 +72,10 @@ REF_KINDS = ("routine", "tracker")
 #: The built-in trackers (the member's check-ins), a valid `tracker` ref beside a uuid4.
 BUILTIN_TRACKER_REFS = frozenset({"checkin:mood", "checkin:focus"})
 # Used when a field does not declare its own `ops`.
+#: Filter ops by field type. `sources` takes these three from here; formula filters use them too.
+OPS_ENUM = ("in", "not_in")
+OPS_NUMBER = ("eq", "gt", "gte", "lt", "lte", "between")
+OPS_BOOL = ("is",)
 DEFAULT_OPS = ("eq", "gt", "gte", "lt", "lte", "between", "in", "not_in", "has_any",
                "contains", "is")
 _COMPARE_OPS = frozenset({"eq", "gt", "gte", "lt", "lte"})
@@ -150,6 +156,9 @@ S_CUMULATIVE = "A running total works on a line of totals, like Net P&L or Total
 S_GOAL_RANGE = "A goal target needs today, this week, this month or year to date."
 S_GOAL_MEASURE = "A goal target works with Net P&L."
 S_GOAL_AND_TARGET = "Pick a number target or your goal, not both."
+# Fix round 1 (M2): Net P&L picked on data a goal does not follow (options strategies once 10.6
+# widens net_pnl) names the data, never the measure the member got right.
+S_GOAL_SOURCE = "A goal target works on closed trades or trading days."
 S_STOP_AFTER = "Stop after works with the current streak."
 S_STOP_AFTER_RANGE = "Stop after must be 1 to 20 losses."
 S_QUADRANTS = "Quadrant labels need a scatter plot."
@@ -429,7 +438,7 @@ def formula_field_infos(fields: Mapping[str, Any]) -> dict:
 def formula_measure_kind(compiled: Any, agg: str | None) -> str:
     """A formula measure's kind (Task 10.5's `measure_of` reads the same answer): a row formula's
     `agg` decides it; an aggregate formula is `count` when it is exactly one CountIf, `sum` when
-    exactly one SumIf, else `average`."""
+    exactly one SumIf, `rate` when exactly one Share, else `average`."""
     if agg is not None:
         return {"sum": "sum", "avg": "average", "min": "extreme", "max": "extreme",
                 "count": "count", "share": "rate"}[agg]
@@ -439,6 +448,8 @@ def formula_measure_kind(compiled: Any, agg: str | None) -> str:
             return "count"
         if tree[2] == "SumIf":
             return "sum"
+        if tree[2] == "Share":
+            return "rate"
     return "average"
 
 
@@ -468,9 +479,14 @@ def _compile_formulas(raw: dict, catalog: Catalog) -> tuple[list[dict], dict]:
         if not isinstance(fid, str) or not _FORMULA_ID_RE.fullmatch(fid) or fid in compiled:
             raise PlanError(S_UNREADABLE)
         name = f.get("name")
-        name = name.strip(" \t") if isinstance(name, str) else ""
+        # The widget name's trim (`str.strip`: NBSP, U+3000 and the line ends too), then no
+        # character the member cannot see: one zero-width or format character would defeat the
+        # unique-name and not-a-label rules (fix round 1, M3; the twin needs the same rule).
+        name = name.strip() if isinstance(name, str) else ""
         if not name:
             raise PlanError(S_FORMULA_NAME)
+        if any(wf._invisible(ch) for ch in name):
+            raise PlanError(S_BAD_CHARACTER)
         if len(name) > wf.NAME_MAX:
             raise PlanError(S_FORMULA_NAME_LONG)
         if _fold(name) in taken:
@@ -486,6 +502,11 @@ def _compile_formulas(raw: dict, catalog: Catalog) -> tuple[list[dict], dict]:
             raise
         if not set(c.fields) <= readable:      # defence: a formula reads only its source's fields
             raise PlanError(S_UNKNOWN_FIELD)
+        # The STORED form is measured too (fix round 1, I-2): canonicalising writes keys, and a key
+        # can be longer than its label (`[Risk $]` -> `[risk_dollars]`), so a formula typed under
+        # the limit could be stored over it and refused on every later load.
+        if len(c.canonical) > wf.MAX_LENGTH:
+            raise wf.FormulaError("too_long", wf.ERRORS["too_long"], wf.MAX_LENGTH, fid)
         compiled[fid] = c
         entries.append({"id": fid, "name": name, "expr": c.canonical, "format": fmt})
     return entries, compiled
@@ -502,9 +523,9 @@ def _formula_ref(name: Any, compiled: dict) -> Any:
     return c
 
 
-#: The filter ops of a row formula, by its result type.
-_FORMULA_OPS = {"number": ("eq", "gt", "gte", "lt", "lte", "between"), "text": ("in", "not_in"),
-                "bool": ("is",)}
+#: The filter ops of a row formula, by its result type: the same tuples `sources` gives its fields
+#: (fix round 1, M4: one authority, here, because plan cannot import sources).
+_FORMULA_OPS = {"number": OPS_NUMBER, "text": OPS_ENUM, "bool": OPS_BOOL}
 
 
 def _check_prop(prop: Any, sentence: str) -> str:
@@ -662,9 +683,10 @@ def _check_display_w10(rd: dict, display: dict, plan: dict, catalog: Catalog,
         _need(rd["targetGoal"] is True)
         if display["target"] is not None:
             raise PlanError(S_GOAL_AND_TARGET)
-        if (measures != [{"key": "net_pnl"}]
-                or plan["source"] not in ("closed_trades", "trading_days")):
+        if measures != [{"key": "net_pnl"}]:
             raise PlanError(S_GOAL_MEASURE)
+        if plan["source"] not in GOAL_SOURCES:
+            raise PlanError(S_GOAL_SOURCE)
         if plan["range"].get("token") not in GOAL_TOKENS:
             raise PlanError(S_GOAL_RANGE)
         _need(vtype == "progress")

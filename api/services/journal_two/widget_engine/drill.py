@@ -202,6 +202,7 @@ def drill(user_id: str, plan: dict, settings: Any, cell: Any, *, snapshot_count:
     now = now or datetime.now(timezone.utc)
     today = nw._today_et(now)
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
+    wrun.refuse_w10_pending(base)                     # W10-R46: remove in 10.5/10.6
     viewer = wrun.tool_viewer(base, wrun.clean_settings(settings))
     want = clean_cell(cell)
     src = wsources.SOURCES[base["source"]]

@@ -99,6 +99,47 @@ _SAMPLE_LANES = frozenset({"preview", "example"})
 NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES | wplan.WAVE10_SOURCES
 
 
+#: ⛔ INTERIM GUARD (ruling W10-R46) -- remove in 10.5/10.6, when the engine applies these. Plan
+#: format 3 VALIDATES formulas and four display options (Task 10.4) before the engine EXECUTES them:
+#: a formula measure, filter or split would answer a 500 (`m["key"]`, an unknown field), and the
+#: display options would run but be silently ignored (a running total drawn as daily values). So a
+#: plan that uses any of them is refused with a member sentence, never run. Each entry is removed by
+#: the task that makes the engine apply it; `test_w10_pending_guard_expires_with_its_entries` rails
+#: that the set only shrinks to empty and then this guard goes.
+_W10_PENDING = frozenset({"formula_measure", "formula_filter", "formula_split",
+                          "cumulative", "targetGoal", "stopAfter", "quadrants"})
+
+
+def w10_pending(plan: Any) -> list[str]:
+    """Which `_W10_PENDING` features a (validated) plan uses, in a fixed order. Total."""
+    if not isinstance(plan, dict):
+        return []
+    used: list[str] = []
+    measures = plan.get("measures")
+    if isinstance(measures, list) and any(isinstance(m, dict) and "formula" in m for m in measures):
+        used.append("formula_measure")
+    filters = plan.get("filters")
+    if isinstance(filters, list) and any(
+            isinstance(f, dict) and str(f.get("field", "")).startswith(wplan.FORMULA_PREFIX)
+            for f in filters):
+        used.append("formula_filter")
+    split = plan.get("split")
+    if isinstance(split, dict) and any(
+            str(split.get(k) or "").startswith(wplan.FORMULA_PREFIX) for k in ("by", "then")):
+        used.append("formula_split")
+    display = plan.get("display")
+    if isinstance(display, dict):
+        used.extend(k for k in ("cumulative", "targetGoal", "stopAfter", "quadrants") if k in display)
+    return [u for u in used if u in _W10_PENDING]
+
+
+def refuse_w10_pending(plan: Any) -> None:
+    """Raise `PlanError(S_UNREADABLE)` when the plan uses a wave 10 feature the engine cannot apply
+    yet (`_W10_PENDING`): a 400 with a member sentence, never a crash or a wrong number."""
+    if w10_pending(plan):
+        raise PlanError(wplan.S_UNREADABLE)
+
+
 def _never_sample(plan: dict) -> bool:
     return plan.get("source") in NO_SAMPLE_SOURCES or wplan.uses_tools(plan)
 
@@ -282,10 +323,15 @@ _STRATEGIES_STAMP = "SELECT MAX(updated_at), COUNT(*) FROM j2_option_strategies 
 _CHECKINS_STAMP = "SELECT COUNT(*), MAX(created_at) FROM j2_note_checkins WHERE user_id = ?"
 _DAY_NOTES_STAMP = "SELECT COUNT(*) FROM j2_day_notes WHERE user_id = ?"
 # Wave 10 (Task 10.4): the notes source reads the member's notes, folders, note kinds and property
-# definitions (a renamed folder or a retyped property moves a group or a filter).
+# definitions. Folders and kinds have no `updated_at`, so their stamp carries the names themselves
+# (ordered by id): a renamed or moved folder, or a renamed kind, moves it (fix round 1, M5); a
+# retyped property moves the properties' MAX(updated_at).
 _NOTES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_notes WHERE user_id = ?"
-_NOTE_FOLDERS_STAMP = "SELECT COUNT(*) FROM j2_note_folders WHERE user_id = ?"
-_NOTE_KINDS_STAMP = "SELECT COUNT(*) FROM j2_note_kinds WHERE user_id = ?"
+_NOTE_FOLDERS_STAMP = ("SELECT COUNT(*), group_concat(id || '/' || parent_id || '/' || name,"
+                       " char(31)) FROM (SELECT id, parent_id, name FROM j2_note_folders"
+                       " WHERE user_id = ? ORDER BY id)")
+_NOTE_KINDS_STAMP = ("SELECT COUNT(*), group_concat(id || '/' || name, char(31))"
+                     " FROM (SELECT id, name FROM j2_note_kinds WHERE user_id = ? ORDER BY id)")
 _NOTE_PROPERTIES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_note_properties WHERE user_id = ?"
 _NOTE_STAMPS = (_NOTES_STAMP, _NOTE_FOLDERS_STAMP, _NOTE_KINDS_STAMP, _NOTE_PROPERTIES_STAMP)
 # Wave 9 (Task 9.8): routines and trackers. Beyond the brief's COUNT / MAX(updated_at), each also
@@ -848,6 +894,7 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
     today = nw._today_et(now)
 
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
+    refuse_w10_pending(base)                          # W10-R46: remove in 10.5/10.6
     if sample and _never_sample(base):
         sample = False                                # W9-R5: the member's own routines and trackers
     viewer = tool_viewer(base, clean_settings(settings))
@@ -1009,6 +1056,7 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
         ex = wshelf.example(sid)
         if ex is None:
             raise PlanError(S_UNKNOWN_EXAMPLE)
+        refuse_w10_pending(ex["plan"])                # W10-R46: remove in 10.5/10.6
         items.append((sid, ex["plan"]))
     now = now or datetime.now(timezone.utc)
     srcs = list(dict.fromkeys(p["source"] for _sid, p in items))

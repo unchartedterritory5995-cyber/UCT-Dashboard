@@ -675,16 +675,32 @@ def test_the_stamps_of_the_two_new_sources(conn):
         notes = wrun.data_stamp(conn, UID, "notes")
     finally:
         conn.set_trace_callback(None)
-    tables = [s.split(" FROM ")[1].split()[0] for s in seen]
-    assert tables == ["j2_option_strategies", "j2_accounts", "j2_notes", "j2_note_folders",
-                      "j2_note_kinds", "j2_note_properties"]
-    assert all("WHERE user_id = " in s for s in seen)
+    want = ["j2_option_strategies", "j2_accounts", "j2_notes", "j2_note_folders",
+            "j2_note_kinds", "j2_note_properties"]
+    assert len(seen) == len(want)
+    for sql, table in zip(seen, want):
+        assert f"FROM {table} WHERE user_id = " in sql, (table, sql)
     assert opt.startswith("o|") and notes.startswith("n|")
     assert opt != wrun.data_stamp(conn, UID, "closed_trades")
     conn.execute("INSERT INTO j2_notes (id, user_id, title, created_at, updated_at)"
                  " VALUES ('n1', ?, 't', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z')", (UID,))
     conn.commit()
-    assert wrun.data_stamp(conn, UID, "notes") != notes                   # a new note moves it
+    after_note = wrun.data_stamp(conn, UID, "notes")
+    assert after_note != notes                                           # a new note moves it
+    # fix round 1, M5: folders and kinds carry their names, so a RENAME moves the stamp
+    conn.execute("INSERT INTO j2_note_folders (id, user_id, name, created_at)"
+                 " VALUES ('f1', ?, 'Ideas', '2026-10-01T00:00:00Z')", (UID,))
+    conn.execute("INSERT INTO j2_note_kinds (id, user_id, name, created_at)"
+                 " VALUES ('k1', ?, 'Thesis', '2026-10-01T00:00:00Z')", (UID,))
+    conn.commit()
+    before = wrun.data_stamp(conn, UID, "notes")
+    conn.execute("UPDATE j2_note_folders SET name = 'Theses' WHERE id = 'f1'")
+    conn.commit()
+    renamed_folder = wrun.data_stamp(conn, UID, "notes")
+    assert renamed_folder != before
+    conn.execute("UPDATE j2_note_kinds SET name = 'Setup' WHERE id = 'k1'")
+    conn.commit()
+    assert wrun.data_stamp(conn, UID, "notes") != renamed_folder
 
 
 def test_engine_constants_in_the_vectors_are_the_servers():
@@ -706,3 +722,121 @@ def conn(monkeypatch, tmp_path):
         yield c
     finally:
         c.close()
+
+
+# -- fix round 1 ----------------------------------------------------------------------------------
+
+def test_the_stored_canonical_formula_is_held_to_the_length_limit():
+    """I-2: `[Risk $]` canonicalises to `[risk_dollars]`, so 1,997 typed characters store as 3,329.
+    The stored form is refused as that formula's too_long, at the limit's position; a formula whose
+    stored form fits round-trips."""
+    typed = "+".join(["[Risk $]"] * 222)
+    c = wf.compile_formula(typed, S.formula_fields("closed_trades"))
+    assert (len(typed), len(c.canonical)) == (1997, 3329)            # the review's measurement
+    e = refused(ct(formulas=[F(expr=typed)], measures=[{"formula": "f1", "agg": "sum"}]))
+    assert isinstance(e, wf.FormulaError)
+    assert (e.code, e.pos, e.formula_id) == ("too_long", wf.MAX_LENGTH, "f1")
+    assert e.sentence == wf.ERRORS["too_long"]
+    fits = "+".join(["[Risk $]"] * 133)                              # 133 * 14 + 132 = 1,994
+    p = P.validate_plan(ct(formulas=[F(expr=fits)], measures=[{"formula": "f1", "agg": "sum"}]),
+                        CAT)
+    assert len(p["formulas"][0]["expr"]) == 1994 <= wf.MAX_LENGTH
+    assert P.validate_plan(copy.deepcopy(p), CAT) == p               # the stored plan reloads
+
+
+def test_every_formula_measure_kind():
+    """M1: every kind `formula_measure_kind` can answer, each from the shape that gives it."""
+    ff = S.formula_fields("closed_trades")
+
+    def kind(expr, agg=None):
+        return P.formula_measure_kind(wf.compile_formula(expr, ff), agg)
+
+    assert {a: kind("[net]", a) for a in P.ROW_AGGS} == {
+        "sum": "sum", "avg": "average", "min": "extreme", "max": "extreme"}
+    assert {a: kind("[r] > 1", a) for a in P.BOOL_AGGS} == {"count": "count", "share": "rate"}
+    assert kind("CountIf([r] > 0)") == "count"
+    assert kind("SumIf([net], [r] > 0)") == "sum"
+    assert kind("Share([r] > 0)") == "rate"
+    assert kind("AvgIf([net], [r] > 0)") == "average"
+    assert kind("SumIf([net], [r] > 0) / CountIf([r] > 0)") == "average"   # not exactly one call
+    assert kind("CountIf([r] > 0) * 2") == "average"
+
+
+def test_a_goal_on_data_it_does_not_follow_names_the_data():
+    """M2: Net P&L picked correctly on options strategies (once 10.6 widens net_pnl) is told about
+    the data, never "works with Net P&L"."""
+    cat = _W10Catalog()
+    cat.measures["net_pnl"] = _M("Net P&L", frozenset({"options_strategies", "closed_trades"}),
+                                 "sum")
+    goal = {"v": 1, "measures": [{"key": "net_pnl"}], "view": {"type": "progress"},
+            "range": {"token": "this_week"}, "display": {"targetGoal": True}}
+    e = refused(dict(goal, source="options_strategies"), cat)
+    assert e.sentence == P.S_GOAL_SOURCE != P.S_GOAL_MEASURE
+    assert "Net P&L" not in e.sentence
+    assert refused(dict(goal, source="options_strategies", measures=[{"key": "strategies"}]),
+                   cat).sentence == P.S_GOAL_MEASURE
+    assert P.GOAL_SOURCES == ("closed_trades", "trading_days")
+    # control: the same goal on closed trades is accepted
+    cat.sources["closed_trades"] = _Src("Closed trades", _fields(_F("day", "Day", "day")))
+    assert P.validate_plan(dict(goal, source="closed_trades"), cat)["display"]["targetGoal"]
+
+
+def test_formula_names_refuse_what_the_member_cannot_see():
+    """M3: the widget name's trim, then no invisible, format or line-end character, so one
+    zero-width character cannot dodge the unique-name and not-a-label rules."""
+    def named(n):
+        return ct(formulas=[F(name=n)], measures=[{"formula": "f1", "agg": "avg"}])
+
+    for bad in ("Net P&L\u200b", "Setup\u2060", "a\nb", "a\tb", "Edge\u00a0x", "x\u202ey"):
+        assert refused(named(bad)).sentence == P.S_BAD_CHARACTER, repr(bad)
+    for blank in ("\u00a0", "\u3000", " \u2028 ", "\n\t"):
+        assert refused(named(blank)).sentence == P.S_FORMULA_NAME, repr(blank)
+    assert P.validate_plan(named("\u3000Edge\u00a0"), CAT)["formulas"][0]["name"] == "Edge"
+    assert P.validate_plan(named("Exit eff 🚀"), CAT)["formulas"][0]["name"] == "Exit eff 🚀"
+
+
+def test_formula_filter_ops_are_the_field_ops():
+    """M4: one authority: formula filters take the very tuples `sources` gives its fields."""
+    assert P._FORMULA_OPS["number"] is S.OPS_NUMBER is P.OPS_NUMBER
+    assert P._FORMULA_OPS["text"] is S.OPS_ENUM is P.OPS_ENUM
+    assert P._FORMULA_OPS["bool"] is S.OPS_BOOL is P.OPS_BOOL
+    assert S.CLOSED_FIELDS["net"].ops is P.OPS_NUMBER
+    assert S.CLOSED_FIELDS["setup"].ops is P.OPS_ENUM
+    assert S.CLOSED_FIELDS["had_stop"].ops is P.OPS_BOOL
+
+
+def _pending_plans() -> dict:
+    """One validated plan per `_W10_PENDING` entry."""
+    line = dict(split={"by": "day"}, view={"type": "line"})
+    raws = {
+        "formula_measure": ct(formulas=[F()], measures=[{"formula": "f1", "agg": "avg"}]),
+        "formula_filter": ct(formulas=[F(expr="[r] > 1")],
+                             filters=[{"field": "formula:f1", "op": "is", "values": [True]}]),
+        "formula_split": ct(formulas=[F(expr="[setup]")], split={"by": "formula:f1"}),
+        "cumulative": ct(**line, display={"cumulative": True}),
+        "targetGoal": ct(view={"type": "progress"}, range={"token": "this_week"},
+                         display={"targetGoal": True}),
+        "stopAfter": V3_RAWS["stop after"],
+        "quadrants": V3_RAWS["quadrants"],
+    }
+    return {k: P.validate_plan(copy.deepcopy(r), LENIENT) for k, r in raws.items()}
+
+
+def test_w10_pending_guard_expires_with_its_entries():
+    """W10-R46: the interim engine guard. ⛔ EXPIRES: remove in 10.5/10.6. Each entry of
+    `run._W10_PENDING` is detected on its own and refused with the plan-level sentence; the task
+    that makes the engine apply a feature deletes its entry (and its row here); when the set is
+    empty the guard and this rail go."""
+    plans = _pending_plans()
+    assert set(plans) == set(wrun._W10_PENDING)                       # every entry has a probe
+    for name, p in plans.items():
+        assert wrun.w10_pending(p) == [name], name
+        with pytest.raises(P.PlanError) as e:
+            wrun.refuse_w10_pending(p)
+        assert e.value.sentence == P.S_UNREADABLE
+    # controls: plain, tool and formula-declared-but-unused plans are not pending
+    for p in (P.validate_plan(ct(), CAT), P.validate_plan(ct(formulas=[F()]), CAT),
+              {"v": 2, "source": "routine_history"}, None, [], "x", {"measures": "x"}):
+        assert wrun.w10_pending(p) == []
+        wrun.refuse_w10_pending(p)
+
