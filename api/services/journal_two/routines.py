@@ -1125,6 +1125,49 @@ def history_for(conn: sqlite3.Connection, user_id: str, rids: str | list[str], u
     return out
 
 
+def row_capacity(conn: sqlite3.Connection, user_id: str, rids: list[str], lo: date, upto: date,
+                 today: date, *, per_item: bool = False, limit: int | None = None) -> int:
+    """A SOUND UPPER BOUND on how many history rows `rids` (the session member's, not deleted) can
+    have from `lo` to `min(upto, today)` (ruling W9-R39): the sum of each routine's
+    `routine_days.scheduled_capacity`, times its item count when `per_item` (one row per item a
+    day). From the routines, their schedules and the traded set alone: no tick is read and no
+    history is built. With `limit`, it stops adding once the sum passes it. Reads only."""
+    ids = [i for i in dict.fromkeys(rids or []) if isinstance(i, str) and i]
+    if not ids or not user_id:
+        return 0
+    marks = ",".join("?" for _ in ids)
+    rows = []
+    for row in conn.execute(f"SELECT * FROM {_R} WHERE user_id = ? AND deleted_at IS NULL"
+                            f" AND id IN ({marks})", (user_id, *ids)).fetchall():
+        try:
+            rows.append((row, routine_days.parse_items(_raw_items(row))))
+        except (ValueError, KeyError, TypeError):
+            continue                   # left out by history_for too
+    cut = min(upto, today)
+    if not rows:
+        return 0
+    first = max(min(_created_day(r) for r, _ in rows), lo, DAY_MIN)
+    if cut < first:
+        return 0
+    scheds = _load_schedules(conn, user_id, [r["id"] for r, _ in rows])
+    traders = [r for r, _ in rows if any(s.get("kind") == "traded" for _, s in scheds[r["id"]])]
+    traded: list[str] = []
+    if traders:
+        t_first = max(min(_created_day(r) for r in traders), lo, DAY_MIN)
+        if t_first <= cut:
+            traded = sorted(traded_days(conn, user_id, t_first.isoformat(), cut.isoformat()))
+    index = routine_days.SessionIndex(first, cut)
+    total = 0
+    for r, items in rows:
+        n = routine_days.scheduled_capacity(
+            schedules=scheds[r["id"]], created=_created_day(r), archived=_archived_day(r),
+            traded_sorted=traded, lo=lo, hi=cut, today=today, index=index)
+        total += n * (max(len(items), 1) if per_item else 1)
+        if limit is not None and total > limit:
+            break
+    return total
+
+
 def _one_entry(c: sqlite3.Connection, user_id: str, row: sqlite3.Row, d: date,
                today: date, now_dt: datetime) -> dict:
     """The one DayEntry a write answers, the same shape `read_days` answers (with `suggested`)."""

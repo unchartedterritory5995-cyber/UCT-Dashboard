@@ -17,6 +17,7 @@ Pure: no I/O, and no clock except the `today` the caller passes.
 """
 from __future__ import annotations
 
+import bisect
 import math
 from collections import defaultdict
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ from typing import Iterable, Literal
 from api.services.journal_two import trading_days
 from api.services.journal_two.measures import DEFAULT_MIN_N, Measure, MeasureValue
 from api.services.journal_two.notebook_widgets import _num
+from api.services.journal_two.widget_engine import compile as wcompile
 
 #: The write window reaches this many trading sessions back (ruling W9-R1).
 WINDOW_SESSIONS = 7
@@ -281,7 +283,8 @@ def has_scheduled_day(*, items: list[Item], schedules: list[tuple[str, dict]], c
 
     Decided from the schedules, created, archived, the traded set and the items alone, never from
     ticks. Cheap: traded days and today are checked one by one; an `every` or `weekdays` stretch
-    stops at its first session that holds an item, and skips spans where no item is valid."""
+    stops at its first session that holds an item, and skips spans where no item is valid. Its
+    loops ask `wcompile.check_deadline()` every `_CHECK_EVERY` steps."""
     lo = max(lo, created)
     if archived is not None:
         hi = min(hi, archived)
@@ -294,7 +297,11 @@ def has_scheduled_day(*, items: list[Item], schedules: list[tuple[str, dict]], c
                 and bool(items_on(items, d)))
 
     lo_s, hi_s = lo.isoformat(), hi.isoformat()
+    steps = 0
     for t in traded or ():
+        steps += 1
+        if steps % _CHECK_EVERY == 0:
+            wcompile.check_deadline()
         if isinstance(t, str) and lo_s <= t <= hi_s:
             try:
                 d = date.fromisoformat(t)
@@ -325,12 +332,18 @@ def has_scheduled_day(*, items: list[Item], schedules: list[tuple[str, dict]], c
             # an unreadable effective day: walk the whole span, day by day, with the exact rule
             d = lo
             while d <= hi:
+                steps += 1
+                if steps % _CHECK_EVERY == 0:
+                    wcompile.check_deadline()
                 if runs_on(d):
                     return True
                 d += timedelta(days=1)
             return False
         d = start
         while d <= end:
+            steps += 1
+            if steps % _CHECK_EVERY == 0:
+                wcompile.check_deadline()
             nxt = _next_item_day(items, d)
             if nxt is None or nxt > end:
                 break
@@ -338,6 +351,88 @@ def has_scheduled_day(*, items: list[Item], schedules: list[tuple[str, dict]], c
                 return True
             d = nxt + timedelta(days=1)
     return False
+
+
+_CHECK_EVERY = 256
+
+
+class SessionIndex:
+    """The sessions of `[lo, hi]`, built once, so many routines' stretches are counted by bisection
+    (all, or only some weekdays) instead of a walk each. Asks the deadline while it builds."""
+
+    def __init__(self, lo: date, hi: date) -> None:
+        self.all: list[str] = []
+        self.by_weekday: dict[int, list[str]] = {w: [] for w in range(5)}
+        d, n = lo, 0
+        while d <= hi:
+            n += 1
+            if n % _CHECK_EVERY == 0:
+                wcompile.check_deadline()
+            if trading_days.is_session(d):
+                iso = d.isoformat()
+                self.all.append(iso)
+                if d.weekday() < 5:
+                    self.by_weekday[d.weekday()].append(iso)
+            d += timedelta(days=1)
+
+    @staticmethod
+    def _between(xs: list[str], a: str, b: str) -> int:
+        return bisect.bisect_right(xs, b) - bisect.bisect_left(xs, a)
+
+    def count(self, a: date, b: date, weekdays: Iterable[int] | None = None) -> int:
+        if b < a:
+            return 0
+        a_s, b_s = a.isoformat(), b.isoformat()
+        if weekdays is None:
+            return self._between(self.all, a_s, b_s)
+        return sum(self._between(self.by_weekday[w], a_s, b_s)
+                   for w in set(weekdays) if w in self.by_weekday)
+
+
+def scheduled_capacity(*, schedules: list[tuple[str, dict]], created: date, archived: date | None,
+                       traded_sorted: list[str], lo: date, hi: date, today: date,
+                       index: SessionIndex) -> int:
+    """A SOUND UPPER BOUND on the routine's scheduled days in `[lo, hi]` (ruling W9-R39), from its
+    schedules alone, never its ticks or its items: the sessions of its `every` stretches, the chosen
+    weekdays' sessions of its `weekdays` stretches, the traded days of its `traded` stretches, all
+    within `[created, archived]`, plus one for today. Every scheduled day is one of those, so the
+    true count never exceeds it. `index` must cover `[max(lo, created), hi]`; `traded_sorted` is
+    the traded set, sorted."""
+    lo = max(lo, created)
+    if archived is not None:
+        hi = min(hi, archived)
+    if hi < lo:
+        return 0
+
+    def traded_in(a: date, b: date) -> int:
+        if b < a:
+            return 0
+        return SessionIndex._between(traded_sorted, a.isoformat(), b.isoformat())
+
+    extra = 1 if lo <= today <= hi else 0
+    effs: dict[str, dict] = {}
+    for eff, sched in schedules or []:
+        effs.setdefault(str(eff)[:10], sched)
+    keys = sorted(effs)
+    total = 0
+    for i, key in enumerate(keys):
+        sched = effs[key] or {}
+        kind = sched.get("kind")
+        try:
+            a = max(lo, date.fromisoformat(key))
+            b = hi if i + 1 == len(keys) else min(
+                hi, date.fromisoformat(keys[i + 1]) - timedelta(days=1))
+        except ValueError:
+            # an unreadable effective day: every session and every traded day of the span
+            return index.count(lo, hi) + traded_in(lo, hi) + extra
+        if kind == "every":
+            total += index.count(a, b)
+        elif kind == "weekdays":
+            total += index.count(a, b, [w for w in sched.get("days") or ()
+                                        if isinstance(w, int)])
+        elif kind == "traded":
+            total += traded_in(a, b)
+    return total + extra
 
 
 # ── consistency ────────────────────────────────────────────────────────────────────────────────

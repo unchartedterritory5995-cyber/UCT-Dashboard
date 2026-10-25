@@ -844,8 +844,8 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 # day and its 20th counted day before the range (`routine_days.window_floor`, W9-R25), so its
 # rolling consistency equals the routine's own read and one sparse routine widens nothing else;
 # a routine with no scheduled day in the window is not read at all (W9-R36); a first window reads
-# only the newest sessions that can hold the cap, and when its rows per session cannot reach the cap
-# over the whole range, the whole range is read once (W9-R38); at most `MAX_ROUTINES`
+# only the newest sessions that can hold the cap, and when a schedule-only upper bound on the whole
+# range's rows is within the cap, the whole range is read once (W9-R39); at most `MAX_ROUTINES`
 # routines (the most recently used) are read; the item expansion stops at the newest
 # `SCAN_ROWS + 1` rows; the Python loops ask `wcompile.check_deadline()`.
 
@@ -1047,19 +1047,19 @@ def scan_routines(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 
     # W9-R17: read only the newest sessions that can hold the cap, widening the window (doubling)
     # until it does or it reaches the range's start or the oldest routine: older days are never
-    # built. A window that already covers everything is the last one. W9-R38: when the rows per
-    # session so far project that even the whole span cannot reach the cap, the next build is the
-    # whole span, once (the rows are the same either way; only the work differs).
+    # built. A window that already covers everything is the last one. W9-R39 (replacing W9-R38's
+    # density projection, which a quiet recent window fooled): when a sound upper bound on the rows
+    # the whole range can hold, from the schedules alone (`routines.row_capacity`), is within the
+    # cap, the next build is the whole range, once; otherwise the window keeps doubling. The rows
+    # are the same either way; only the work differs.
     out: list[dict] = []
     if ids:
         oldest = conn.execute(
             "SELECT MIN(created_at) FROM j2_routines WHERE user_id = ? AND id IN"
             f" ({','.join('?' * len(ids))})", (user_id, *ids)).fetchone()[0]
         oldest_day = (timeutil.compute_trading_day_et(oldest) or "")[:10]
-        span_from = max(lo or "", oldest_day)
-        span = (len(trading_days.sessions(date.fromisoformat(span_from), cut).days)
-                if span_from and span_from <= cut.isoformat() else 0)
         k = -(-(wcompile.SCAN_ROWS + 1) // len(ids))
+        bound: int | None = None
         project_whole = False
         while True:
             t = trading_days.nth_session_before(cut + timedelta(days=1), k).isoformat()
@@ -1068,8 +1068,11 @@ def scan_routines(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             out = rows_from(lo if whole else t)
             if whole or len(out) > wcompile.SCAN_ROWS:
                 break
-            # rows / k sessions, over `span` sessions, cannot pass SCAN_ROWS: build it all now
-            project_whole = len(out) * span <= wcompile.SCAN_ROWS * k
+            if bound is None:                               # once, and only when needed
+                bound = j2_routines.row_capacity(
+                    conn, user_id, ids, date.fromisoformat(lo) if lo else j2_routines.DAY_MIN,
+                    cut, today, per_item=by_item, limit=wcompile.SCAN_ROWS)
+            project_whole = bound <= wcompile.SCAN_ROWS
             k = min(2 * k, routine_days.MAX_HISTORY_SESSIONS)
     traded_lo = min(traded) if traded else None
     capped = len(out) > wcompile.SCAN_ROWS

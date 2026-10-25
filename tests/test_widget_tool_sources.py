@@ -1049,9 +1049,9 @@ def _monthly_seed(c, years, n):
 
 
 def test_a_window_that_projects_short_of_the_cap_builds_the_whole_range_once(conn, monkeypatch):
-    """W9-R38: 30 routines on a traded schedule, the member trading once a month for 4 years
-    (about 1,470 rows, far under the cap): the first window's rows per session project short of the
-    cap, so the next build is the whole range: two builds, never the doubling's four."""
+    """W9-R38/W9-R39: 30 routines on a traded schedule, the member trading once a month for 4 years
+    (about 1,470 rows, far under the cap): the schedule-only bound (about 1,470) is within the cap,
+    so the build after the first window is the whole range: two builds, never the doubling's four."""
     firsts = _monthly_seed(conn, 4, 30)
     built = {"states": 0, "calls": 0}
     real_hist, real_for = routines.routine_days.history, routines.history_for
@@ -1077,9 +1077,9 @@ def test_a_window_that_projects_short_of_the_cap_builds_the_whole_range_once(con
 
 
 def test_a_window_that_projects_past_the_cap_keeps_doubling(conn, monkeypatch):
-    """W9-R38 control: 30 Monday routines over 4 years (about 6,200 rows, past the cap): the first
-    window holds only about 1,000, but its rows per session project past the cap, so the window
-    keeps doubling and the whole range is built only once doubling reaches it."""
+    """W9-R39 control: 30 Monday routines over 4 years (about 6,200 rows, past the cap): the first
+    window holds only about 1,000 and the schedule bound is past the cap, so the window keeps
+    doubling and the whole range is built only once doubling reaches it."""
     start = TODAY - timedelta(days=4 * 365)
     for i in range(30):
         _routine_sql(conn, f"W{i:02d}", {"kind": "weekdays", "days": [0]}, start)
@@ -1106,3 +1106,161 @@ def test_window_floor_reads_the_window_at_call_time(monkeypatch):
     monkeypatch.setattr(RD, "CONSISTENCY_WINDOW", 5)
     assert RD.window_floor(**kw) == trading_days.nth_session_before(before, 5)
     assert RD.window_floor(n=7, **kw) == trading_days.nth_session_before(before, 7)
+
+
+# ── fix round 5 ──────────────────────────────────────────────────────────────────────────────
+
+def test_scheduled_capacity_is_a_sound_upper_bound():
+    """W9-R39: the schedule-only capacity is never below the scheduled days the history holds in
+    the span (seeded random routines, the same shapes as the W9-R36 check), and it is exact for a
+    plain every-day routine."""
+    import random
+    from api.services.journal_two import routine_days as RD
+    rnd = random.Random(9839)
+    base, today = date(2026, 6, 1), date(2026, 10, 21)
+    span = (today - base).days
+    index = RD.SessionIndex(base, today)
+    tight = 0
+    for _ in range(400):
+        def day(lo_=0, hi_=span):
+            return base + timedelta(days=rnd.randint(lo_, hi_))
+        scheds = []
+        for _k in range(rnd.randint(1, 3)):
+            kind = rnd.choice(("every", "weekdays", "traded"))
+            s = {"kind": kind}
+            if kind == "weekdays":
+                s["days"] = rnd.sample(range(7), rnd.randint(0, 3))
+            scheds.append((day().isoformat(), s))
+        scheds.sort(key=lambda x: x[0])
+        items = RD.parse_items([{"id": "i", "text": "x", "from": day().isoformat()}])
+        traded = frozenset(day().isoformat() for _k in range(rnd.randint(0, 6)))
+        created = day()
+        archived = day() if rnd.random() < 0.3 else None
+        lo = day()
+        hi = min(today, lo + timedelta(days=rnd.randint(0, 90)))
+        cap = RD.scheduled_capacity(schedules=scheds, created=created, archived=archived,
+                                    traded_sorted=sorted(traded), lo=lo, hi=hi, today=today,
+                                    index=index)
+        held = 0 if hi < created else sum(
+            1 for s in RD.history(items=items, schedules=scheds, ticks_by_day={},
+                                  skipped_days=frozenset(), created=created, upto=hi,
+                                  today=today, traded=traded, done_share=1.0, archived=archived)
+            if s.state != "off" and s.day >= lo.isoformat())
+        assert held <= cap, (held, cap, scheds, created, archived, lo, hi, sorted(traded))
+        tight += held == cap
+    assert tight >= 20                                          # control: often exact, not huge
+    every = [("2026-06-01", {"kind": "every"})]
+    assert RD.scheduled_capacity(schedules=every, created=base, archived=None, traded_sorted=[],
+                                 lo=date(2026, 10, 5), hi=date(2026, 10, 16), today=today,
+                                 index=index) == 10
+
+
+def _scan_counting(c, monkeypatch, raw):
+    built = {"states": 0, "calls": 0}
+    real_hist, real_for = routines.routine_days.history, routines.history_for
+
+    def hist(**kw):
+        out = real_hist(**kw)
+        built["states"] += len(out)
+        return out
+
+    def hfor(*a, **kw):
+        built["calls"] += 1
+        return real_for(*a, **kw)
+    monkeypatch.setattr(routines.routine_days, "history", hist)
+    monkeypatch.setattr(sources.j2_routines, "history_for", hfor)
+    p = plan.validate_plan(raw, sources.CATALOG)
+    rr = plan.resolve_range(p["range"], TODAY)
+    with run.deadline(c):                                       # the answer, under the deadline
+        sc = sources.scan(c, p, {}, rr, UID, today=TODAY)
+    monkeypatch.setattr(routines.routine_days, "history", real_hist)
+    monkeypatch.setattr(sources.j2_routines, "history_for", real_for)
+    return sc, built
+
+
+def test_routines_archived_a_year_ago_keep_doubling(conn, monkeypatch):
+    """W9-R39: 60 every-day routines over 10 years, all archived a year ago. The newest window holds
+    no row, which a density projection read as "the whole range is small" (round 4: about 136k
+    states, too long). The schedule bound is far past the cap, so the window doubles as round 3 did
+    (round 3: 3 builds, 8,760 states), and the answer comes under the deadline."""
+    start = TODAY - timedelta(days=3650)
+    arch = (TODAY - timedelta(days=365)).isoformat() + "T20:00:00Z"
+    for i in range(60):
+        rid, _ = _routine_sql(conn, f"A{i:02d}", {"kind": "every"}, start)
+        conn.execute("UPDATE j2_routines SET archived_at = ? WHERE id = ?", (arch, rid))
+    conn.commit()
+    for split in (None, {"by": "item"}):
+        kw = {"split": split} if split else {}
+        sc, built = _scan_counting(conn, monkeypatch, rplan(range={"token": "all"}, **kw))
+        assert sc.capped is True and len(sc.rows) == wcompile.SCAN_ROWS
+        assert built["calls"] <= 3 and built["states"] <= 8760, (split, built)
+
+
+def test_routines_switched_to_traded_a_year_ago_keep_doubling(conn, monkeypatch):
+    """W9-R39: 60 routines every day for 9 years, then on a traded schedule for the last year with
+    no trade. Round 3: 3 builds, 53,520 states; never more than that."""
+    start = TODAY - timedelta(days=3650)
+    switch = (TODAY - timedelta(days=360)).isoformat()
+    for i in range(60):
+        rid, _ = _routine_sql(conn, f"E{i:02d}", {"kind": "every"}, start)
+        conn.execute("INSERT INTO j2_routine_schedules (user_id, routine_id, effective_from,"
+                     " schedule_json) VALUES (?, ?, ?, ?)",
+                     (UID, rid, switch, '{"kind": "traded"}'))
+    conn.commit()
+    sc, built = _scan_counting(conn, monkeypatch, rplan(range={"token": "all"}))
+    assert sc.capped is True and len(sc.rows) == wcompile.SCAN_ROWS
+    assert built["calls"] <= 3 and built["states"] <= 53520, built
+
+
+def test_row_capacity_reads_no_tick_and_builds_no_history(conn, monkeypatch):
+    """W9-R39: the bound comes from the schedules alone; for the 4-year monthly seed it is the
+    traded days (plus today) per routine, about 1,440, within the cap."""
+    firsts = _monthly_seed(conn, 4, 30)
+    monkeypatch.setattr(routines.routine_days, "history",
+                        lambda **kw: (_ for _ in ()).throw(AssertionError("built a history")))
+    executed: list[str] = []
+    conn.set_trace_callback(executed.append)
+    try:
+        ids = [r[0] for r in conn.execute("SELECT id FROM j2_routines WHERE user_id = ?", (UID,))]
+        n = routines.row_capacity(conn, UID, ids, routines.DAY_MIN, TODAY, TODAY)
+    finally:
+        conn.set_trace_callback(None)
+    assert not [q for q in executed if "j2_routine_ticks" in q or "j2_routine_days" in q]
+    assert n == 30 * (len(firsts) + 1) and n <= wcompile.SCAN_ROWS
+
+
+def test_the_schedule_checks_ask_the_deadline():
+    """Round 5 M1: `has_scheduled_day`'s loops and the bound's session index ask
+    `wcompile.check_deadline()`, so an expired run stops inside them."""
+    from api.services.journal_two import routine_days as RD
+    items = RD.parse_items([{"id": "i", "text": "x", "from": "2016-01-04"}])
+    far = frozenset((date(2000, 1, 1) + timedelta(days=i)).isoformat() for i in range(2000))
+    kw = dict(items=items, schedules=[("2016-01-04", {"kind": "traded"})],
+              created=date(2016, 1, 4), archived=None, traded=far, lo=date(2016, 1, 4),
+              hi=date(2026, 10, 23), today=TODAY)
+    assert RD.has_scheduled_day(**kw) is False                  # control: it runs to the end
+    with wcompile.python_deadline(lambda: True):
+        with pytest.raises(wcompile.ScanTooLong):
+            RD.has_scheduled_day(**kw)
+        with pytest.raises(wcompile.ScanTooLong):
+            RD.SessionIndex(date(2016, 1, 4), date(2026, 10, 23))
+    # an every-day stretch whose items are each valid on one Saturday only: a long walk, no session
+    sats = [date(2016, 1, 9) + timedelta(weeks=w) for w in range(600)]
+    walk = dict(kw, schedules=[("2016-01-04", {"kind": "every"})], traded=frozenset(),
+                items=RD.parse_items([{"id": f"s{w}", "text": "x", "from": d.isoformat(),
+                                       "to": (d + timedelta(days=1)).isoformat()}
+                                      for w, d in enumerate(sats)]))
+    assert RD.has_scheduled_day(**walk) is False                # control: it walks to the end
+    with wcompile.python_deadline(lambda: True):
+        with pytest.raises(wcompile.ScanTooLong):
+            RD.has_scheduled_day(**walk)
+
+
+def test_row_capacity_counts_one_row_per_item_when_split_by_item(conn):
+    """W9-R39: split by item, a day is one row per item, so the bound is times the item count."""
+    _routine_sql(conn, "Three", {"kind": "every"}, date(2026, 10, 5), n_items=3)
+    conn.commit()
+    ids = [r[0] for r in conn.execute("SELECT id FROM j2_routines WHERE user_id = ?", (UID,))]
+    lo, hi = date(2026, 10, 5), date(2026, 10, 23)
+    one = routines.row_capacity(conn, UID, ids, lo, hi, TODAY)
+    assert one == 15 and routines.row_capacity(conn, UID, ids, lo, hi, TODAY, per_item=True) == 45
