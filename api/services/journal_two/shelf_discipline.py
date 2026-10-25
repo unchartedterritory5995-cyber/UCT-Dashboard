@@ -804,19 +804,31 @@ def _heat(user_id: str, account_id: str | None, size: float, positions: list[dic
 
 
 #: What a group with nothing in it reads as.
-_NO_RISK = {"ok": True, "risk": None, "real": 0, "noStop": 0}
+_NO_RISK = {"ok": True, "risk": None, "real": 0, "noStop": 0, "unread": 0}
 
 
-def _risk_of(heat: dict) -> dict:
-    """{ok, risk, real, noStop}: `risk` is the dollars to the REAL stops, or None when no position
-    has one -- a group of placeholder stops only has no KNOWN risk, never a made-up 0 -- or when
-    heat could not run (`ok` False)."""
+def _risk_of(heat: dict, n_positions: int = 0) -> dict:
+    """{ok, risk, real, noStop, unread}: `risk` is the dollars to the REAL stops, or None when no
+    position has one -- a group of placeholder stops only has no KNOWN risk, never a made-up 0 --
+    or when heat could not run (`ok` False). `unread` counts the positions heat skipped (a blank
+    symbol, a non-numeric entry or share count): never silently out of the open risk."""
     if not heat.get("ok"):
-        return {"ok": False, "risk": None, "real": 0, "noStop": 0}
-    real = [p for p in heat.get("per_position") or [] if not p.get("placeholder_stop")]
+        return {"ok": False, "risk": None, "real": 0, "noStop": 0, "unread": 0}
+    per = heat.get("per_position") or []
+    real = [p for p in per if not p.get("placeholder_stop")]
     risk = _num(math.fsum(_num(p.get("risk_dollars")) or 0.0 for p in real)) if real else None
     return {"ok": True, "risk": risk, "real": len(real),
-            "noStop": len(heat.get("placeholder_stops") or [])}
+            "noStop": len(heat.get("placeholder_stops") or []),
+            "unread": max(0, int(n_positions) - len(per))}
+
+
+def _unread_line(n: int) -> str:
+    return (f"{_plural(n, 'position', 'positions')} couldn't be read and "
+            f"{_is_are(n)} not in the open risk.")
+
+
+#: The total line names at most this many blocks; the rest are "and N others".
+TOTAL_NAMES = 3
 
 
 def _known_sum(values) -> float | None:
@@ -855,6 +867,8 @@ def _risk_lines(info: dict, open_options: int, anything_open: bool,
         lines.append(f"{_plural(no_stop, 'position', 'positions')} "
                      f"{'has' if no_stop == 1 else 'have'} no stop set and "
                      f"{_is_are(no_stop)} not in the open risk.")
+    if info.get("unread"):
+        lines.append(_unread_line(info["unread"]))
     if open_options:
         lines.append(f"{_plural(open_options, 'open options trade', 'open options trades')} "
                      f"{_is_are(open_options)} not in the open risk.")
@@ -955,7 +969,7 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
         # Heat over EVERY group: accounts with no limit, with no size, past the cap, and unlinked.
         info: dict[str | None, dict] = {}
         for key, group in _counted(list(grouped.items())):
-            info[key] = _risk_of(_heat(user_id, key, sizes.get(key) or 1.0, group))
+            info[key] = _risk_of(_heat(user_id, key, sizes.get(key) or 1.0, group), len(group))
         block_accs = [a for a in accs
                       if a["id"] in limited_ids or grouped.get(a["id"]) or opens.get(a["id"])]
         shown, rest = block_accs[:ROW_CAP], block_accs[ROW_CAP:]
@@ -1008,11 +1022,16 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
                     "If every stop is hit")]
                 _place_after(own["lines"], _after_line(after, True))
     # The true total: every group's known risk (I-2: unknown-only is None, never 0).
-    total = _known_sum(i["risk"] for i in info.values()) if positions_ok else None
+    # A group heat could not read makes the total unknown: never a silently smaller total.
+    heat_ok = positions_ok and all(i["ok"] for i in info.values())
+    total = _known_sum(i["risk"] for i in info.values()) if heat_ok else None
     rest_risk = _known_sum(info.get(a["id"], _NO_RISK)["risk"] for a in rest)
+    unread_n = sum(i.get("unread", 0) for i in info.values())
     lines: list[str] = []
-    if not positions_ok:
+    if not heat_ok:
         lines.append(S_RISK_UNREAD)
+    if unread_n:
+        lines.append(_unread_line(unread_n))
     if not limited_ids:
         lines.append(S_RISK_NO_LIMIT)
     elif all(b.get("limit") is None for b in blocks if b.get("accountId") in limited_ids):
@@ -1039,7 +1058,14 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
         line = f"Open risk to stops in total: {_amount(total)}"
         if len(parts) > 1 or any(b["accountId"] is None and b.get("openRisk") is not None
                                  for b in blocks):
-            line += " (" + ", ".join(f"{name} {_amount(v)}" for name, v in parts) + ")"
+            named = parts
+            if len(parts) > TOTAL_NAMES:
+                # The largest few by risk; every block still carries its own number.
+                named = sorted(parts, key=lambda p: -p[1])[:TOTAL_NAMES]
+            text = ", ".join(f"{name} {_amount(v)}" for name, v in named)
+            if len(parts) > len(named):
+                text += f", and {len(parts) - len(named)} others"
+            line += " (" + text + ")"
         lines.append(line + ".")
     out: dict[str, Any] = {
         "asOf": _iso_utc(now_dt),

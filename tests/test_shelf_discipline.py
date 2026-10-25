@@ -8,6 +8,7 @@ times are written in ET and stored as UTC instants (the way the broker and the a
 from __future__ import annotations
 
 import dataclasses
+import math
 import importlib
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -963,7 +964,7 @@ def test_total_risk_includes_accounts_past_the_cap(S):
     assert got["openRisk"] == 450.0
     assert "5 more accounts: $50 at risk." in got["lines"]
     assert got["lines"][-1].startswith("Open risk to stops in total: $450 (")
-    assert got["lines"][-1].endswith(", 5 more accounts $50).")
+    assert got["lines"][-1].endswith(", and 38 others).")       # 40 blocks + "5 more accounts"
 
 
 def test_placeholder_only_open_risk_is_unknown_never_zero(S):
@@ -1072,3 +1073,64 @@ def test_flagged_by_hand_overflow_and_no_result_by_et_day(S, monkeypatch):
     got = S.my_risk_left_today(A, {}, TUE_R)
     assert "Only your newest 2 trades excluded from analytics are counted." in got["lines"]
     assert "Includes 2 trades you excluded from analytics." in got["accounts"][0]["lines"]
+
+
+
+# ── round 3 ────────────────────────────────────────────────────────────────────────────────────
+
+def test_an_unreadable_group_makes_the_total_unknown(S, monkeypatch):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        position(c, A, acc="acc-a", symbol="AAPL", entry=100.0, stop=95.0, shares=20)   # $100
+        position(c, A, acc=None, symbol="TSLA", entry=200.0, stop=190.0, shares=40)     # $400
+        c.commit()
+    real = S._heat
+
+    def heat(user_id, account_id, size, positions):
+        return {"ok": False} if account_id is None else real(user_id, account_id, size, positions)
+
+    monkeypatch.setattr(S, "_heat", heat)
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert got["openRisk"] is None
+    assert got["lines"][0] == "Your open positions couldn't be read right now."
+    assert not any(ln.startswith("Open risk to stops in total") for ln in got["lines"])
+    main, unlinked = got["accounts"]
+    assert main["openRisk"] == 100.0                     # a readable block keeps its own number
+    assert unlinked["openRisk"] is None
+    assert unlinked["lines"] == ["Your open positions couldn't be read right now."]
+
+
+def test_a_position_heat_skips_is_counted(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        position(c, A, acc="acc-a", symbol="AAPL", entry=100.0, stop=95.0, shares=20)   # $100
+        position(c, A, acc="acc-a", symbol="", entry=100.0, stop=95.0, shares=20)       # skipped
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    main = got["accounts"][0]
+    assert main["openRisk"] == 100.0
+    assert "1 position couldn't be read and is not in the open risk." in main["lines"]
+    assert "1 position couldn't be read and is not in the open risk." in got["lines"]
+
+
+def test_total_line_names_the_largest_three(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0, name="Main")
+        account(c, A, "acc-s", pct=None, size=10000.0, name="Swing")
+        position(c, A, acc="acc-a", symbol="AAPL", entry=100.0, stop=70.0, shares=100)   # $3,000
+        position(c, A, acc="acc-s", symbol="MSFT", entry=100.0, stop=75.0, shares=100)   # $2,500
+        position(c, A, acc=None, symbol="TSLA", entry=200.0, stop=190.0, shares=40)      # $400
+        for i in range(37):            # 39 accounts + unlinked: 40 blocks, none past the cap
+            account(c, A, f"acc-{i:02d}", pct=None, size=10000.0, name=f"Small {i:02d}")
+            position(c, A, acc=f"acc-{i:02d}", symbol="AMD", entry=100.0, stop=99.0,
+                     shares=108 if i < 20 else 107)
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    small = math.fsum(108.0 if i < 20 else 107.0 for i in range(37))
+    assert got["openRisk"] == 3000.0 + 2500.0 + 400.0 + small
+    assert got["lines"][-1] == (
+        f"Open risk to stops in total: ${int(5900 + small):,} (Main $3,000, Swing $2,500, "
+        "Not linked to an account $400, and 37 others).")
+    # Every block still carries its own number.
+    assert "truncated" not in got
+    assert math.fsum(b["openRisk"] for b in got["accounts"]) == got["openRisk"]
