@@ -61,6 +61,14 @@ describe('block_used', () => {
     expect(sent()).toEqual([])
   })
 
+  it('wave 9: a routine block (a trader block with no BLOCK_KINDS row) inserts, and fires nothing', () => {
+    const { ed, sent } = setup()
+    expect(WIDGET_REGISTRY.routine.block).toBe(true)                            // control: it IS a block
+    ed.chain().focus('end').insertWidgetEmbed('routine', { routineId: 'r1', day: '2026-10-27' }).run()
+    expect(embeds(ed)).toEqual(['routine'])                                     // control: it inserted
+    expect(sent()).toEqual([])
+  })
+
   it("the block's params never ride along", () => {
     const { ed, sent } = setup()
     ed.chain().focus('end').insertWidgetEmbed('positionSizing', { entry: 123.45, stop: 120, grade: 'A+' }).run()

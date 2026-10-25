@@ -65,6 +65,8 @@ const IDS = [
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview',
   // P2 Tier 3 Task 3: the mood and focus check-in, same binding.
   'moodCheckIn',
+  // Notebook widgets phase 2, wave 9 (Task 9.13): the routine block, a LIVE trader block (W9-R4), same binding.
+  'routine',
 ]
 const G040_KINDS = ['screener', 'cot', 'modelbook']
 // Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
@@ -74,8 +76,11 @@ const NOTEBOOK_WIDGET_KINDS = ['myWatchlistToday', 'myNamesReporting', 'tickerCa
   'builtWidget']
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
+// Wave 9 (W9-R4): live trader blocks. `block: true` like BLOCK_IDS, but no journalBlocks BLOCK_KINDS row (no
+// catalog search line, no style settings), so the catalog rails below read BLOCK_IDS only.
+const TOOL_BLOCK_IDS = ['routine']
 // The ids a /charts board can hold — everything except the capture-only kinds.
-const CAPTURE_ONLY = [...G040_KINDS, ...NOTEBOOK_WIDGET_KINDS, ...BLOCK_IDS]
+const CAPTURE_ONLY = [...G040_KINDS, ...NOTEBOOK_WIDGET_KINDS, ...BLOCK_IDS, ...TOOL_BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
 
 describe('widget registry — metadata pins', () => {
@@ -104,6 +109,7 @@ describe('widget registry — metadata pins', () => {
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
+      routine: 'Routine',
     })
   })
 
@@ -128,6 +134,7 @@ describe('widget registry — metadata pins', () => {
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
+      routine: 'Routine',
     })
   })
 
@@ -152,6 +159,7 @@ describe('widget registry — metadata pins', () => {
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
+      routine: 'Routine',
     })
   })
 
@@ -207,6 +215,7 @@ describe('widget registry — metadata pins', () => {
       prepLevels: { w: 6, h: 4, minW: 3, minH: 2 },
       tradeReview: { w: 6, h: 4, minW: 3, minH: 2 },
       moodCheckIn: { w: 6, h: 4, minW: 3, minH: 2 },
+      routine: { w: 6, h: 4, minW: 3, minH: 2 },
     })
   })
 
@@ -904,7 +913,7 @@ describe('widget registry — journal embed bindings', () => {
 
   it('⛔ IR-B2: every block id has exactly ONE BLOCK_COMPONENTS entry, and no non-block id has one', () => {
     const blocks = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].block === true)
-    expect(blocks).toEqual(BLOCK_IDS)
+    expect(blocks).toEqual([...BLOCK_IDS, ...TOOL_BLOCK_IDS])
     expect(blockBindingProblems(blocks, blockComponentKeys())).toEqual([])
   })
 
@@ -939,6 +948,22 @@ describe('widget registry — journal embed bindings', () => {
     expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps, captureOnly: false })).toThrow(/block entry must be captureOnly/)
     expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps, block: 'yes' })).toThrow(/block must be true when present/)
     expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps })).not.toThrow()            // control: the real shape passes
+  })
+
+  it('wave 9 (Task 9.13): routine is captureOnly and a block, in no menu, bound ONCE in BLOCK_COMPONENTS, its line [routine]', () => {
+    const w = WIDGET_REGISTRY.routine
+    expect(w, 'routine is registered').toBeDefined()
+    expect(w.captureOnly).toBe(true)
+    expect(w.block).toBe(true)
+    expect(isTraderBlock('routine')).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false), 'routine menus').toBe(true)
+    expect(blockComponentKeys().filter((k) => k === 'routine')).toEqual(['routine'])          // IR-B2: exactly once
+    expect(paramsPlainText('routine', {})).toBe('[routine]')
+    expect(paramsPlainText('routine', { routineId: 'r1', day: '2026-10-27', bind: 'today' })).toBe('[routine]')
+    expect(w.paramsSchema.map((f) => [f.key, f.type, f.default])).toEqual([
+      ['routineId', 'string', ''], ['day', 'string', ''], ['bind', 'string', 'note-day'], ['display', 'string', 'items'],
+    ])
+    expect(BLOCK_KINDS.find((k) => k.id === 'routine'), 'W9-R4: no BLOCK_KINDS row').toBeUndefined()
   })
 
   it('S20: a block\'s plain text IS its catalog search line', () => {

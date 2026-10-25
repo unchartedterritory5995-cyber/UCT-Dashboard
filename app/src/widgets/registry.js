@@ -1044,6 +1044,17 @@ const PANEL_MANIFESTS = {
     { key: 'focus', type: 'string', default: '' },
     { key: 'day', type: 'string', default: '' },
   ], '[mood and focus check-in]'),
+  // Notebook widgets phase 2, wave 9 (Task 9.13): the routine block. Its body is live (it reads and ticks the
+  // routine's day through lib/blocks/toolsApi), and its params hold only its own settings: which routine, which
+  // day (`bind`: note-day | next-trading-day | week | today) and the display. The fixed line below is the
+  // registry's own; the block writes the name-and-day search text explicitly (toolSearchText), at insert and on
+  // each settings change, because this module imports nothing from lib/blocks.
+  routine: blockManifest('Routine', [
+    { key: 'routineId', type: 'string', default: '' },
+    { key: 'day', type: 'string', default: '' },
+    { key: 'bind', type: 'string', default: 'note-day' },
+    { key: 'display', type: 'string', default: 'items' },
+  ], '[routine]'),
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(

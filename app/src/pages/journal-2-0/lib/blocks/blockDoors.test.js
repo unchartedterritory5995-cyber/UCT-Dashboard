@@ -47,6 +47,8 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  *   · P2b Task 8 — lib/blocks/rulesApi.js, the rule edit (a rule's words, its note, its before-entry switch).
  *   · Wave 9 Task 9.12 — lib/blocks/toolsApi.js, its five named calls (the routine and tracker batch reads, a tick,
  *     a skip, a logged value).
+ *   · Wave 9 Task 9.13 — components/notebook/blocks/RoutineBlock.jsx, its one named call (Restore, in the ⋯ menu of
+ *     an archived routine).
  * Never a whole file, never a note URL (the last case below refuses both).
  */
 export const WRITE_EXCEPTIONS = {
@@ -77,6 +79,11 @@ export const WRITE_EXCEPTIONS = {
       why: 'A read sent as POST so ids never reach a query string; it writes nothing, and never a note.' },
     { method: 'PUT', url: '/api/j2/trackers/{}/days/{}',
       why: 'Writes one value to the tracker values table (j2_tracker_values); never a note.' },
+  ],
+  // Wave 9 Task 9.13: Restore in an archived routine block's ⋯ menu.
+  'app/src/pages/journal-2-0/components/notebook/blocks/RoutineBlock.jsx': [
+    { method: 'POST', url: '/api/j2/routines/{}/unarchive',
+      why: "Clears the routine's archived stamp in j2_routines (the routine's own row); never a note." },
   ],
 }
 
@@ -123,6 +130,12 @@ export const IMPORT_ALLOW = {
   // P2 Tier 3 Task 3 (ruling R-T3-V2): the check-in's day is todayET, the Journal's ONE Intl-based ET
   // date (never local time, and never lib/tradeCanvas's second copy). calendar.js has no imports.
   'app/src/pages/journal-2-0/lib/calendar': "todayET: the ET date of the check-in's first pick; pure date math over Intl, no imports, no network, no writes",
+  // Wave 9 Task 9.13 (the routine block): its ⋯ menu and icons, and the two doors that menu opens. Each door is a
+  // DYNAMIC import, its own lazy chunk, reached only when the member picks it (never on the Notebook's first open).
+  'app/src/components/mobile/ContextPopover': "the app's ONE action menu (an anchored menu, a bottom sheet on touch); UI only, no network, no writes",
+  'app/src/components/ui/UIcon': "the app's icon set (inline SVG); no imports beyond React, no network, no writes",
+  'app/src/pages/journal-2-0/components/notebook/routines/openRoutineEditor': "the routine editor's door, a lazy import from the ⋯ menu (Task 9.16 builds the editor; until then it only says the editor is not available); never a note write",
+  'app/src/pages/journal-2-0/components/notebook/myTools/openMyTools': "My tools' door (Task 8.17), a lazy import from the ⋯ menu's Manage…, opened on the Routines tab; My tools never writes into a note",
 }
 
 /**

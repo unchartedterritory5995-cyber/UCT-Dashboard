@@ -30,7 +30,10 @@ export function useBlockParams({ attrs, updateAttributes, editable }) {
     const resolved = typeof patch === 'function' ? patch(latest.current) : patch
     const params = { ...latest.current, ...resolved }
     latest.current = params
-    const next = { params, searchText: paramsPlainText(attrs.widgetId, params) }
+    // Wave 9 (Task 9.13): a live block (routine, tracker) passes `{ searchText }`, its name-and-day line, in the
+    // SAME call; any other block's line is the registry's.
+    const own = typeof opts?.searchText === 'string' && opts.searchText ? opts.searchText : null
+    const next = { params, searchText: own ?? paramsPlainText(attrs.widgetId, params) }
     if (typeof opts?.capturedAt === 'string' && opts.capturedAt) next.capturedAt = opts.capturedAt
     if (opts?.clearArchive === true) next.fallback = null
     updateAttributes(next)

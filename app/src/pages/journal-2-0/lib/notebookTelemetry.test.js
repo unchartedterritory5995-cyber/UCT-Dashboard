@@ -8,7 +8,7 @@ import {
 import { ADAPTERS } from './importer/registry'
 import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
 import { LISTED_ITEM_TYPES } from './styleLibrary'
-import { BLOCK_KINDS } from './journalBlocks'
+import { BLOCK_KINDS, TOOL_BLOCK_LABELS } from './journalBlocks'
 import { WIDGET_IDS, isTraderBlock } from '../../../widgets/registry'
 
 const QUERY = 'nvda earnings gap'
@@ -162,9 +162,13 @@ describe('P5 - style_applied, style_created and block_used', () => {
   })
 
   it('every trader block in the registry is a block_used kind, so none can be sent as "other"', () => {
-    const blocks = WIDGET_IDS.filter(isTraderBlock)
+    // Wave 9 (W9-R4): the live blocks (routine, tracker) have no BLOCK_KINDS row, so they are not in the enum and
+    // insertWidgetEmbed sends nothing for them (widgetEmbedNode.blockUsed.test.jsx); every other block is.
+    const blocks = WIDGET_IDS.filter((id) => isTraderBlock(id) && !Object.hasOwn(TOOL_BLOCK_LABELS, id))
     expect(blocks.length).toBeGreaterThanOrEqual(10)                 // control: the registry was read
     for (const id of blocks) expect(EVENT_SCHEMAS.block_used.kind.values.has(id), id).toBe(true)
+    expect(WIDGET_IDS.filter(isTraderBlock)).toContain('routine')    // control: a live block IS registered
+    for (const id of Object.keys(TOOL_BLOCK_LABELS)) expect(EVENT_SCHEMAS.block_used.kind.values.has(id), id).toBe(false)
   })
 
   it('a style id, a name or a typed word cannot ride along', () => {

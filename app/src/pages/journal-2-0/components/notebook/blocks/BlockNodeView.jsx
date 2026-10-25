@@ -23,6 +23,7 @@ export const BLOCK_COMPONENTS = {
   prepLevels: () => import('./PrepLevelsBlock'),
   tradeReview: () => import('./TradeReviewBlock'),
   moodCheckIn: () => import('./MoodCheckInBlock'),
+  routine: () => import('./RoutineBlock'),
 }
 
 /** A body that throws (or whose chunk fails twice) shows BLOCK_ERROR_SENTENCE inside the block's own

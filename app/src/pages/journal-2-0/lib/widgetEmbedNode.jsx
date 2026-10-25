@@ -5,6 +5,7 @@ import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
 import { isTraderBlock } from '../../../widgets/registry'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
+import { BLOCK_KINDS } from './journalBlocks'
 
 // ⚠️ NEVER remove this extension from buildExtensions(): TipTap DROPS unknown
 // node types at parse time, so unregistering it would silently delete every
@@ -186,7 +187,11 @@ export const WidgetEmbed = Node.create({
           .run()
         // P5 Task 6: a trader block inserted for real (not an editor.can() dry run, which has no dispatch) counts
         // once as block_used. The eager registry decides what a block is (F8); only its id leaves, never params.
-        if (ok && dispatch && isTraderBlock(widgetId)) trackNotebookEvent(NOTEBOOK_EVENTS.BLOCK_USED, { kind: widgetId })
+        // Wave 9 (Task 9.13): and only a BLOCK_KINDS id, the event's closed enum, so a live block (routine, tracker:
+        // W9-R4, no BLOCK_KINDS row) is never sent as an out-of-enum kind.
+        if (ok && dispatch && isTraderBlock(widgetId) && BLOCK_KINDS.some((k) => k.id === widgetId)) {
+          trackNotebookEvent(NOTEBOOK_EVENTS.BLOCK_USED, { kind: widgetId })
+        }
         return ok
       },
       // insertContent leaves a NodeSelection ON a freshly inserted atom, so

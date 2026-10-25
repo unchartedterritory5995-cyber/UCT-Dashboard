@@ -118,7 +118,9 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
       // crammed into a short box (owner feedback after first prod use).
       height: Number.isFinite(extra.layout?.height) ? extra.layout.height : null,
     },
-    searchText: paramsPlainText(widgetId, params),
+    // Wave 9 (Task 9.13): a live block names its routine and day (lib/blocks/toolDays.toolSearchText), which the
+    // registry's fixed line cannot; an explicit non-empty `extra.searchText` wins.
+    searchText: typeof extra.searchText === 'string' && extra.searchText ? extra.searchText : paramsPlainText(widgetId, params),
   }
 }
 
