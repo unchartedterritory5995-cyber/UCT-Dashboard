@@ -430,8 +430,14 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
     // its comparisons are the server's for text; its value is typed, never a list of the member's property names
     expect([...screen.getByLabelText('Comparison').options].map((o) => o.value))
       .toEqual(PROP_FIELD.propertyTypes.text.ops.filter((o) => PROP_FIELD.ops.includes(o)))
-    expect(screen.queryByRole('list', { name: 'Why values' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Conviction' })).toBeNull()
+    // under every comparison ("contains" and "is" alike), never a list of the member's property names
+    for (const op of [...PROP_FIELD.propertyTypes.text.ops].reverse()) {
+      fireEvent.change(screen.getByLabelText('Comparison'), { target: { value: op } })
+      await flush()
+      expect(screen.queryByRole('list', { name: 'Why values' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Conviction' })).toBeNull()
+      expect(screen.getByLabelText('Type a why')).toBeInTheDocument()
+    }
     fireEvent.change(screen.getByLabelText('Type a why'), { target: { value: 'fomo' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
