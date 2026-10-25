@@ -22,9 +22,18 @@ const IMG_URL = '/api/j2/notes/attachments/u1/n1/inline/abc123.png'
 
 let NOTES
 const updateMock = vi.fn()
+// Every PUT the page makes goes through here, so the afterEach can see one still in flight when its test ends.
+const putsInFlight = new Set()
+const trackedUpdate = (...args) => {
+  const put = new Promise((resolve) => resolve(updateMock(...args)))
+  putsInFlight.add(put)
+  const settled = () => putsInFlight.delete(put)
+  put.then(settled, settled)
+  return put
+}
 const readMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: (id) => ({ note: NOTES[id], isLoading: false, error: null, update: updateMock, refresh: vi.fn() }),
+  useJ2Note: (id) => ({ note: NOTES[id], isLoading: false, error: null, update: trackedUpdate, refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -46,6 +55,12 @@ const mkNote = (id, extra = {}) => ({
 })
 
 beforeEach(() => {
+  // ⛔ The paste is a member edit, so the page autosaves the new image on its own debounce (AUTOSAVE_MS, 800 ms, a
+  // real setTimeout). On real timers that save landed whenever the box was slow enough, and a "nothing written" check
+  // that happened to run after it went red -- a different test each time, always the same shape. The clock is the
+  // test's now: `shouldAdvanceTime` keeps findBy/waitFor and the page's own short waits working, and `landAutosave`
+  // DRIVES the debounce to its end, so a save lands exactly where a test says it does, never by load.
+  vi.useFakeTimers({ shouldAdvanceTime: true })
   localStorage.clear()
   __resetNotebookFlags()
   NOTES = { n1: mkNote('n1'), n2: mkNote('n2') }
@@ -57,12 +72,43 @@ beforeEach(() => {
     if (String(url).endsWith('/images')) return { ok: true, status: 200, json: async () => ({ url: IMG_URL, width: 800, height: 600 }) }
     return { ok: true, status: 200, json: async () => ({}) }
   })
+  warnSpy = vi.spyOn(console, 'warn')
 })
-afterEach(() => {
-  cleanup()
-  vi.clearAllMocks()
-  __resetNotebookFlags()
-  localStorage.clear()
+// Past every backoff step of a failed save (1, 2, 4, 8, 15, 30 s) with room to spare.
+const DEAD_PAGE_HORIZON_MS = 65_000
+let warnSpy
+const retryWarnings = () => warnSpy.mock.calls.filter(([m]) => /autosave failed \(retry/.test(String(m))).length
+afterEach(async () => {
+  // ⛔⛔ NO TEST MAY LEAVE A DEAD PAGE BEHIND. This file installs no IndexedDB, so the offline layer is off here, and
+  // with it off a page whose unmount flush FAILS correctly keeps its retry (W8-R59): nothing durable holds the words.
+  // That retry then writes into whichever test runs next. ⚰️ It did: "the ticker write is refused" refused EVERY
+  // write, and its dead page's retry landed a body save in "a locked note takes no tag" whenever the box was slow.
+  // So the test's page is unmounted here, its own flush is allowed to land, and the clock is driven past every
+  // backoff step: any PUT after that, any retry armed after the unmount, or any PUT still in flight is a leak, and it
+  // fails THIS test by name rather than the next one by timing.
+  let leak = null
+  try {
+    const retriesBefore = retryWarnings()
+    cleanup() // the page unmounts: a pending debounce goes out now, once (the "save on unmount" flush)
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    const callsAfterFlush = updateMock.mock.calls.length
+    await act(async () => { await vi.advanceTimersByTimeAsync(DEAD_PAGE_HORIZON_MS) })
+    leak = {
+      putsAfterUnmount: updateMock.mock.calls.slice(callsAfterFlush).map(([patch]) => Object.keys(patch).sort()),
+      retriesArmedAfterUnmount: retryWarnings() - retriesBefore,
+      putsStillInFlight: putsInFlight.size,
+    }
+  } finally {
+    putsInFlight.clear()
+    warnSpy.mockRestore()
+    vi.useRealTimers()
+    vi.clearAllMocks()
+    __resetNotebookFlags()
+    localStorage.clear()
+  }
+  expect(leak, 'a dead editor page outlived its test').toEqual({
+    putsAfterUnmount: [], retriesArmedAfterUnmount: 0, putsStillInFlight: 0,
+  })
 })
 
 const switchesOn = () => latchNotebookFlags({
@@ -100,6 +146,30 @@ const imageAttrs = (editor) => {
   return out
 }
 const chip = (name) => screen.findByRole('button', { name })
+// The image alts in a body the page SENT (a save's bodyJson), as opposed to the editor's live state.
+const altsIn = (json) => {
+  const out = []
+  const walk = (n) => { if (n?.type === 'image') out.push(n.attrs?.alt); (n?.content || []).forEach(walk) }
+  walk(json)
+  return out
+}
+// The keys of every write the page made, in order: a body autosave is ['baseUpdatedAt', 'bodyJson'], a ticker write ['ticker'].
+const writeShapes = () => updateMock.mock.calls.map(([patch]) => Object.keys(patch).sort())
+const BODY_SAVE = ['baseUpdatedAt', 'bodyJson']
+/** Run the clock past the autosave debounce (AUTOSAVE_MS = 800) so any save already scheduled lands NOW, and settle it. */
+const landAutosave = () => act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+/**
+ * The paste's own save, landed and checked, then taken out of the log. It is the image the member pasted, saved by
+ * the page's autosave -- one body save, the image in it with NO alt and no ticker anywhere -- so it is asserted here
+ * rather than raced, and every "nothing written" check after this counts what the CHIP wrote and nothing else.
+ */
+async function landThePasteSave(editor) {
+  await waitFor(() => expect(imageAttrs(editor)).toHaveLength(1))
+  await landAutosave()
+  expect(writeShapes()).toEqual([BODY_SAVE])
+  expect(altsIn(updateMock.mock.calls[0][0].bodyJson)).toEqual([''])
+  updateMock.mockClear()
+}
 // The ticker field lives in the collapsed details region; open it so the field itself can be read.
 const openDetails = () => fireEvent.click(screen.getByRole('button', { name: /^(add )?details$/i }))
 const tickerField = () => screen.getByRole('textbox', { name: 'Ticker' })
@@ -173,6 +243,8 @@ describe('the offer', () => {
     const { editor } = await renderEditor()
     await pasteImage()
     expect(await chip('Tag NVDA · Daily')).toBeTruthy()
+    await landThePasteSave(editor)
+    await landAutosave() // a full debounce with the chip up: an offer that wrote anything would land here
     expect(updateMock).not.toHaveBeenCalled()
     expect(imageAttrs(editor)[0].alt).toBe('')
   })
@@ -190,8 +262,10 @@ describe('the offer', () => {
     const { editor } = await renderEditor()
     await pasteImage()
     await chip('Tag NVDA · Daily')
+    await landThePasteSave(editor)
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss screenshot tag' }))
     await waitFor(() => expect(screen.queryByRole('toolbar', { name: 'Screenshot tag' })).toBeNull())
+    await landAutosave() // anything Dismiss changed in the body would be saved by now
     expect(updateMock).not.toHaveBeenCalled()
     expect(imageAttrs(editor)[0].alt).toBe('')
   })
@@ -240,10 +314,15 @@ describe('accepting', () => {
     openDetails()
     expect(tickerField().value).toBe('')
     await pasteImage()
-    fireEvent.click(await chip('Tag NVDA · Daily'))
+    const accept = await chip('Tag NVDA · Daily')
+    await landThePasteSave(editor)
+    fireEvent.click(accept)
     expect(await screen.findByText("Tagged the screenshot NVDA · Daily and set this note's ticker to NVDA.")).toBeTruthy()
-    expect(updateMock).toHaveBeenCalledTimes(1)
-    expect(updateMock).toHaveBeenCalledWith({ ticker: 'NVDA' })
+    await landAutosave()
+    // Exactly two writes, in order: the ticker ONCE through the metadata door, then the note's own autosave of the alt.
+    expect(writeShapes()).toEqual([['ticker'], BODY_SAVE])
+    expect(updateMock.mock.calls[0]).toEqual([{ ticker: 'NVDA' }])
+    expect(altsIn(updateMock.mock.calls[1][0].bodyJson)).toEqual(['NVDA daily chart'])
     expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
     expect(screen.queryByRole('toolbar', { name: 'Screenshot tag' })).toBeNull()
     expect(tickerField().value).toBe('NVDA')
@@ -253,9 +332,14 @@ describe('accepting', () => {
     NOTES.n1 = mkNote('n1', { ticker: 'AMD' })
     const { editor } = await renderEditor()
     await pasteImage()
-    fireEvent.click(await chip('Tag image NVDA · Daily'))
+    const accept = await chip('Tag image NVDA · Daily')
+    await landThePasteSave(editor)
+    fireEvent.click(accept)
     expect(await screen.findByText('Tagged the screenshot NVDA · Daily.')).toBeTruthy()
-    expect(updateMock).not.toHaveBeenCalled()
+    await landAutosave()
+    // The ONLY write is the note's own autosave of the new alt: no ticker write, no metadata door.
+    expect(writeShapes()).toEqual([BODY_SAVE])
+    expect(altsIn(updateMock.mock.calls[0][0].bodyJson)).toEqual(['NVDA daily chart'])
     expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
   })
   it('⛔ I2: a ticker TYPED into the field but not saved yet is the note\'s ticker -- labelled only, never overwritten', async () => {
@@ -264,12 +348,16 @@ describe('accepting', () => {
     openDetails()
     await pasteImage()
     await chip('Tag NVDA · Daily') // control: before the member types, the note has no ticker and the chip offers both
+    await landThePasteSave(editor)
     fireEvent.change(tickerField(), { target: { value: 'aapl' } }) // typed, NOT blurred: not saved
     // The chip's words follow the field at once: it will label the image only.
     expect(await chip('Tag image NVDA · Daily')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Tag image NVDA · Daily' }))
     expect(await screen.findByText('Tagged the screenshot NVDA · Daily.')).toBeTruthy()
-    expect(updateMock).not.toHaveBeenCalled()
+    await landAutosave()
+    // The ONLY write is the note's own autosave of the new alt: the typed ticker is never written over.
+    expect(writeShapes()).toEqual([BODY_SAVE])
+    expect(altsIn(updateMock.mock.calls[0][0].bodyJson)).toEqual(['NVDA daily chart'])
     expect(tickerField().value).toBe('aapl')
     expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
   })
@@ -289,9 +377,14 @@ describe('accepting', () => {
     readMock.mockResolvedValue({ symbol: 'NOT A TICKER', timeframe: null, alt: 'NOT A TICKER chart' })
     const { editor } = await renderEditor()
     await pasteImage()
-    fireEvent.click(await chip('Tag NOT A TICKER'))
+    const accept = await chip('Tag NOT A TICKER')
+    await landThePasteSave(editor)
+    fireEvent.click(accept)
     expect(await screen.findByText("Tagged the screenshot NOT A TICKER. Couldn't set the note's ticker; nothing else changed.")).toBeTruthy()
-    expect(updateMock).not.toHaveBeenCalled()
+    await landAutosave()
+    // The ONLY write is the note's own autosave of the alt: the refused symbol never reaches the ticker door's write.
+    expect(writeShapes()).toEqual([BODY_SAVE])
+    expect(altsIn(updateMock.mock.calls[0][0].bodyJson)).toEqual(['NOT A TICKER chart'])
     expect(imageAttrs(editor)[0].alt).toBe('NOT A TICKER chart')
   })
   it('no timeframe: the alt and the toast name the symbol alone', async () => {
@@ -306,7 +399,14 @@ describe('accepting', () => {
   })
   it('the ticker write is refused: the alt STAYS, and the toast says what did and did not happen', async () => {
     switchesOn()
-    updateMock.mockRejectedValue(new Error('boom'))
+    // ⛔ Only the TICKER write is refused. ⚰️ This used `mockRejectedValue`, which refused EVERY write, the note's own
+    // body autosave included -- so the unmount flush at cleanup failed too, and with no IndexedDB in this file the
+    // dead page correctly kept its retry (W8-R59) and wrote this test's body into the NEXT test. The afterEach below
+    // now catches that shape by name.
+    updateMock.mockImplementation(async (patch) => {
+      if ('ticker' in patch) throw new Error('boom')
+      return { ...NOTES.n1, ...patch, updatedAt: '2026-10-01T14:09:00.000000+00:00' }
+    })
     const { editor } = await renderEditor()
     openDetails()
     await pasteImage()
@@ -319,13 +419,21 @@ describe('accepting', () => {
   })
   it('a locked note takes no tag: a sentence, no alt, no ticker', async () => {
     switchesOn()
-    const { editor } = await renderEditor()
+    const { editor, rerender } = await renderEditor()
     await pasteImage()
     await chip('Tag NVDA · Daily')
+    await landThePasteSave(editor)
+    // The lock arrives while the chip is up, the way the product delivers one: the note hook hands back the locked
+    // note and the page renders it. ⚰️ This only mutated NOTES and relied on SOME later render to pick it up, so the
+    // press read `locked` from whichever render had happened by then: in the full file the refusal was "it is no
+    // longer in this note" (the uneditable editor refusing the label), run alone it was the locked sentence, and the
+    // old /Couldn't tag the screenshot/ matcher passed only the first -- the wrong reason, by timing.
     NOTES.n1 = mkNote('n1', { locked: true })
-    act(() => { editor.setEditable(false) }) // the lock arrives while the chip is up
+    rerender('n1')
+    act(() => { editor.setEditable(false) })
     fireEvent.click(screen.getByRole('button', { name: 'Tag NVDA · Daily' }))
-    expect(await screen.findByText(/Couldn't tag the screenshot/)).toBeTruthy()
+    expect(await screen.findByText('This note is locked — unlock it in the Notebook first')).toBeTruthy()
+    await landAutosave()
     expect(updateMock).not.toHaveBeenCalled()
     expect(imageAttrs(editor)[0].alt).toBe('')
   })
@@ -416,9 +524,12 @@ describe('N1: the screenshot tag door survives a failed chunk fetch', () => {
     chunkRetry.importUrl = vi.fn().mockRejectedValue(chromeError())
     const { editor } = await renderEditor()
     await pasteImage()
-    fireEvent.click(await chip('Tag NVDA · Daily'))
+    const accept = await chip('Tag NVDA · Daily')
+    await landThePasteSave(editor)
+    fireEvent.click(accept)
     expect(await screen.findByText(
       "Couldn't tag the screenshot. Reload the page to try again. Nothing changed.", {}, { timeout: 3000 })).toBeTruthy()
+    await landAutosave()
     expect(updateMock).not.toHaveBeenCalled()
     expect(imageAttrs(editor)[0].alt).toBe('')
   })

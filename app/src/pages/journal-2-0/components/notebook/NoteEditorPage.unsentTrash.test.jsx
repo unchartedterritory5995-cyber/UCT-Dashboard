@@ -110,7 +110,11 @@ describe('Delete with unsent words (the 404 path)', () => {
     const dialog = await screen.findByRole('dialog', { name: /words the server doesn.t have yet/ })
     expect(dialog.textContent).toContain('Not on the server yet: the note’s text.')
     expect(server.log).not.toContain('DELETE')
-    expect(document.activeElement.textContent).toBe('Send first')
+    // ⛔ Focus moves to Send first in the dialog's MOUNT EFFECT, which React runs after the commit that put the dialog
+    // in the DOM. `findByRole` resolves on that commit, so under load this read could land between the two and see
+    // the focus still on the page behind. Wait for the focus itself: the same assertion, now read once it has settled.
+    await waitFor(() => expect(document.activeElement.textContent).toBe('Send first'))
+    expect(dialog.contains(document.activeElement)).toBe(true)
   })
 
   it('Send first: the words land (PUT 200) BEFORE the trash -- no 404, nothing stranded', async () => {
@@ -172,11 +176,21 @@ describe('Delete with unsent words (the 404 path)', () => {
   it('words TYPED a moment ago (still inside the debounce, not in the store) stop the trash too', async () => {
     verdicts.mockResolvedValue(CLEAN)            // the store has not seen them yet
     const editor = await renderEditor()
+    // ⛔ The typed words must still be UNSENT when Delete asks. ⚰️ On real timers the 800 ms autosave of them landed
+    // first whenever the box was slow (measured: a 1 s pause before Delete gives ["PUT 200","DELETE"] and no dialog --
+    // the right answer for words that ARE sent, and the wrong scenario for this rail). So no PUT may LAND until the
+    // dialog has asked: an autosave that fires meanwhile stays in flight, and in-flight words are unsent words too.
+    let releasePuts
+    const putsHeld = new Promise((resolve) => { releasePuts = resolve })
+    const landPut = updateMock.getMockImplementation()
+    updateMock.mockImplementation(async (patch) => { await putsHeld; return landPut(patch) })
     act(() => { editor.commands.insertContentAt(editor.state.doc.content.size - 1, ' and a thought') })
     await confirmDelete()
     const dialog = await screen.findByRole('dialog', { name: /words the server doesn.t have yet/ })
+    expect(server.log, 'control: no PUT has landed; the typed words are not on the server').toEqual([])
     expect(dialog.textContent).toContain('Not on the server yet: the note’s text.')
     expect(server.log, 'the note was trashed with the member\'s words still in the editor').not.toContain('DELETE')
+    releasePuts() // the network answers from here on
     fireEvent.click(screen.getByRole('button', { name: 'Send first' }))
     await waitFor(() => expect(server.log).toContain('DELETE'))
     expect(server.log.slice(0, server.log.indexOf('DELETE'))).toContain('PUT 200')
