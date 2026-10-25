@@ -12,9 +12,8 @@ import { join, relative } from 'node:path'
 
 const NOTEBOOK = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook')
 
-// ⛔ PENDING, not exempt: My tools has the same defect and the Task 8.17 agent is fixing it in parallel. The
-// CONTROLLER removes this entry once 8.17 lands; nothing else may be added here.
-export const PENDING = Object.freeze(['myTools/myTools.module.css'])
+// No exemption list: My tools' copy of the defect was fixed in Task 8.17 fix 2 (629b505e6f), and a new one fails
+// here by file and line.
 
 function cssFiles(dir = NOTEBOOK, out = []) {
   for (const name of readdirSync(dir)) {
@@ -46,17 +45,14 @@ describe('no outline uses the --focus-ring box-shadow value', () => {
     const bad = []
     for (const f of files) {
       const rel = relative(NOTEBOOK, f).replace(/\\/g, '/')
-      if (PENDING.includes(rel)) continue
       for (const line of outlineFocusRing(readFileSync(f, 'utf8'))) bad.push(`${rel}:${line}`)
     }
     expect(bad).toEqual([])
   })
 
-  it('the pending list holds only My tools files, and each still exists', () => {
-    for (const rel of PENDING) {
-      expect(rel.startsWith('myTools/')).toBe(true)
-      expect(statSync(join(NOTEBOOK, rel)).isFile()).toBe(true)
-    }
+  it('My tools is inside the walk (the stylesheet that was once pending is now checked)', () => {
+    const rels = cssFiles().map((f) => relative(NOTEBOOK, f).replace(/\\/g, '/'))
+    expect(rels).toContain('myTools/myTools.module.css')
   })
 
   it('CONTROL: a planted outline with var(--focus-ring) is SEEN; a box-shadow or a gold outline is not', () => {
