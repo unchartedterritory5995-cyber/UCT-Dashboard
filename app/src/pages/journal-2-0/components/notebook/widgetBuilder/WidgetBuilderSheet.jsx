@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
-import { useIsPhone } from '../../../../../hooks/useBreakpoint'
+import { useHasCoarsePointer, useIsPhone } from '../../../../../hooks/useBreakpoint'
 import { normalizeParams, paramsPlainText } from '../../../../../widgets/registry'
 import {
   BUILT_KIND, DEFS_URL, FAILED_SENTENCE, FAILURE_COPY, builtRefreshParams, failureText, getJson, loadAccounts,
@@ -10,7 +10,9 @@ import { reducer, initState, blankPlan, nameOf, changeKind, DEFAULT_RANGE } from
 import {
   indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow,
 } from './builderCatalog'
-import { readDraft, writeDraft, clearDraft } from './builderDraft'
+import {
+  readDraft, writeDraft, clearDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
+} from './builderDraft'
 import SourceSection from './sections/SourceSection'
 import WhichOnesSection, { RangePicker, FieldPicker, FilterEditor } from './sections/WhichOnesSection'
 import MeasureSection, { MeasurePicker } from './sections/MeasureSection'
@@ -48,8 +50,12 @@ import styles from './WidgetBuilderSheet.module.css'
  *
  * Escape goes back one picker level, then asks "Keep your changes?" only when something changed; a kept draft is
  * offered again ("Resume your unsaved widget") within 24 h, and a draft of a widget that changed since is saved
- * only as a new widget (fix 1, I-7). Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z redoes, at the top level and outside a
- * text field (a field keeps its own undo); Ctrl/Cmd+Enter saves, except while a filter is being edited.
+ * only as a new widget (fix 1, I-7). Saved work is never a draft: once a widget is saved (its placement still owed),
+ * only the edits made SINCE count, and they are kept for THAT widget, so resuming them edits it and never saves a
+ * second one (fix 4, NEW-1). A draft is stamped with the open that kept it, and a later open holds its resume offer
+ * while that open's save is still out (fix 4, NEW-5). Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z redoes, at the top
+ * level and outside a text field (a field keeps its own undo); Ctrl/Cmd+Enter saves, except while a filter is being
+ * edited.
  *
  * ⛔ Member words: this file's copy never says "definition", "shelf", "built widget", "source", "plan" or "scope".
  */
@@ -73,12 +79,15 @@ export const SAVED_NOT_IN_NOTE = 'Saved in My tools. It is no longer in this not
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 /** Edits that make a saved widget out of date: the plan and the name, as one value. */
-const planKeyOf = (st) => JSON.stringify([st.plan, st.nameTouched])
+const planKeyOf = (st) => draftKey(st.plan, st.nameTouched)
 
 /** A text field, where Ctrl/Cmd+Z belongs to the field (fix 1, I-6). */
 export function isTextControl(el) {
   if (!el || typeof el !== 'object') return false
   if (el.isContentEditable) return true
+  // A contenteditable (the note itself) by its attribute too, where `isContentEditable` is not implemented.
+  const ce = typeof el.closest === 'function' ? el.closest('[contenteditable]') : null
+  if (ce && String(ce.getAttribute('contenteditable')).toLowerCase() !== 'false') return true
   const tag = String(el.tagName || '').toUpperCase()
   if (tag === 'TEXTAREA') return true
   if (tag !== 'INPUT') return false
@@ -108,7 +117,9 @@ export function orientationOf() {
 
 /** The tallest the viewport can be in an orientation, from the screen. Used ONLY when a text field is focused as the
  *  builder opens (the keyboard can already be up then), never otherwise: a desktop or tablet window is routinely
- *  shorter than its screen, and a seed there would read a keyboard that does not exist (fix 3, I-2). */
+ *  shorter than its screen, and a seed there would read a keyboard that does not exist (fix 3, I-2). And only where a
+ *  soft keyboard can exist at all: a coarse pointer, or a visual viewport already shorter than the window (the iOS
+ *  keyboard). A narrow desktop window opened from the note (a contenteditable) with a mouse is neither (fix 4, NEW-3). */
 function screenSeed(orient) {
   const w = typeof screen !== 'undefined' ? Number(screen.width) || 0 : 0
   const h = typeof screen !== 'undefined' ? Number(screen.height) || 0 : 0
@@ -116,14 +127,18 @@ function screenSeed(orient) {
   return orient === 'landscape' ? Math.min(w, h) : Math.max(w, h)
 }
 
-export function useViewport() {
+export function useViewport(coarse = false) {
   const [view, setView] = useState({ keyboardOpen: false, height: null, inset: 0 })
   const base = useRef({ portrait: 0, landscape: 0 })
+  // Only the reading at open matters: the screen may seed the baseline on the first read alone.
+  const coarseAtOpen = useRef(coarse)
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
     const vv = window.visualViewport || null
-    // A text field focused as the builder opens: the only time the screen may seed the baseline.
+    // A text field focused as the builder opens, on a device that can have a soft keyboard: the only time the screen
+    // may seed the baseline.
     let seedOnce = isTextControl(document.activeElement)
+      && (!!coarseAtOpen.current || (!!vv && vv.height < (window.innerHeight || 0)))
     const read = () => {
       const h = vv ? vv.height : window.innerHeight
       const orient = orientationOf()
@@ -164,7 +179,7 @@ function keptAgo(at, now = Date.now()) {
 
 export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose, registerLeave }) {
   const phone = useIsPhone()
-  const viewport = useViewport()
+  const viewport = useViewport(useHasCoarsePointer())
   const keyboardOpen = phone && viewport.keyboardOpen
   const [phase, setPhase] = useState('loading')          // loading | ready | failed | tooNew
   const [loadCode, setLoadCode] = useState('')
@@ -195,6 +210,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const savedRef = useRef(null)       // a widget saved whose place in the note is still owed
   const stateRef = useRef(state)
   stateRef.current = state
+  // Fix 4, NEW-5: this open's token, stamped on the draft it keeps and on the saves it sends.
+  const session = useRef(null)
+  if (session.current === null) session.current = newSession()
+  const leftRef = useRef(false)       // the member left (R-38): the builder is going, whatever a save answers later
+  const saveBtnRef = useRef(null)
+  const away = () => !mounted.current || leftRef.current
 
   useEffect(() => () => { mounted.current = false }, [])
 
@@ -268,7 +289,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
         setTarget({ mode, def, missing })
         dispatch({ type: 'loadPlan', plan, autoName: '' })
         const kept = readDraft(uid, draftTarget)
-        if (kept && start === 'resume') resumeDraft(kept, def)
+        const pending = kept ? saveInFlight(kept.session) : null
+        if (pending) holdOffer(pending, def)
+        else if (kept && start === 'resume') resumeDraft(kept, def)
         else if (kept) setOffer(kept)
         setPhase('ready')
       } catch (e) {
@@ -280,6 +303,22 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     return () => { alive = false }
   }, [loadTick]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Fix 4, NEW-5 (the choice: HOLD the offer, never label it). The draft was kept by an earlier open whose save is
+   *  still out: offering it now could save the same widget twice. Wait for that save, then offer what is left: no
+   *  draft once it landed (or one retargeted to the widget it saved), the draft itself if it failed. When it landed
+   *  on the widget this builder opened, the builder reopens, so it edits the newer version. */
+  function holdOffer(pending, def) {
+    pending.then((landed) => {
+      if (away()) return
+      const clean = !stateRef.current.dirty
+      if (landed && def && clean) { setLoadTick((n) => n + 1); return }
+      const again = readDraft(uid, draftTarget)
+      if (!again) return
+      if (start === 'resume' && clean) resumeDraft(again, def)
+      else setOffer(again)
+    })
+  }
+
   /** Resume a kept draft. A draft of a widget that has been saved since (its etag moved) is never saved over the
    *  newer version: it can only become a new widget (fix 1, I-7). */
   function resumeDraft(kept, def = target.def) {
@@ -290,10 +329,16 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     setStale(isStale)
   }
 
-  // The resume offer takes focus when it appears, so it is read out (fix 1: "announce and focus").
+  // The resume offer takes focus when it appears, so it is read out (fix 1: "announce and focus"); an offer held
+  // back (NEW-5) never takes it from a member who has started editing.
   useEffect(() => {
-    if (phase === 'ready' && offer) offerRef.current?.focus()
+    if (phase === 'ready' && offer && !stateRef.current.dirty) offerRef.current?.focus()
   }, [phase, offer])
+
+  // Fix 4, NEW-2: saved but gone, the sections are inert, so focus goes to the one thing left to do: Close.
+  useEffect(() => {
+    if (gone) saveBtnRef.current?.focus()
+  }, [gone])
 
   // ── the live preview ──────────────────────────────────────────────────────────────────────────
   // The name and subtitle do not change what is counted, so typing them never re-runs the preview.
@@ -372,10 +417,16 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
 
   // ── closing, and the kept draft ───────────────────────────────────────────────────────────────
   const close = useCallback((focusTo) => { onClose?.(focusTo) }, [onClose])
+  /** Edits that are not saved: since the save, once a widget is saved with its placement owed (fix 4, NEW-1);
+   *  else since the builder opened. Saved but gone (R-39) takes no edits, so it has none. */
+  const unsaved = () => {
+    if (phase !== 'ready' || gone) return false
+    const s = savedRef.current
+    return s ? planKeyOf(stateRef.current) !== s.planKey : !!stateRef.current.dirty
+  }
   const requestClose = () => {
     if (saving) return
-    if (gone || savedRef.current) { close(); return }
-    if (phase === 'ready' && stateRef.current.dirty) {
+    if (unsaved()) {
       if (level.kind !== 'ask') push({ kind: 'ask' }, null)
       return
     }
@@ -383,17 +434,30 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }
   const keepDraft = () => {
     const st = stateRef.current
+    const s = savedRef.current
+    // Fix 4, NEW-1: after a save whose placement is owed, the edits since belong to THAT widget: the draft targets it,
+    // with its etag, so resuming it edits that widget (a PUT) and never saves a second one.
     // N-2: a stale draft keeps the etag it was KEPT at, so it stays stale (and save-as-new only) when resumed again.
-    const etag = staleEtag.current !== null ? staleEtag.current : target.def?.etag
-    return writeDraft(uid, { plan: st.plan, nameTouched: st.nameTouched, target: draftTarget, etag })
+    const to = s ? s.defId : draftTarget
+    const etag = s ? s.etag : staleEtag.current !== null ? staleEtag.current : target.def?.etag
+    return writeDraft(uid, { plan: st.plan, nameTouched: st.nameTouched, target: to, etag, session: session.current })
+  }
+  /** This builder's drafts go: the one it opened with and, once a widget is saved, that widget's ("Discard them",
+   *  and when the work is done). */
+  const dropDrafts = () => {
+    clearDraft(uid, draftTarget)
+    const s = savedRef.current
+    if (s && s.defId !== draftTarget) clearDraft(uid, s.defId)
   }
   // R-38: leaving without closing (browser navigation, the note's editor destroyed) keeps unsaved edits as a draft,
   // offered again on the next open. The door asks through `registerLeave`; a clean builder writes nothing.
   const leaveRef = useRef(null)
   leaveRef.current = () => {
-    // Fix 3, I-1: a widget already saved (its placement owed) is not a draft; keeping it would save it twice.
-    // (Escape cannot reach "Keep your changes?" in that state either: requestClose closes at once.)
-    if (phase === 'ready' && !gone && !savedRef.current && stateRef.current.dirty) keepDraft()
+    leftRef.current = true
+    // Fix 3, I-1: a widget already saved (its placement owed) is not a draft; keeping it would save it twice. Fix 4,
+    // NEW-1: but the edits made since that save are, kept for that widget (also while they are being saved: a save
+    // that then fails leaves them kept).
+    if (unsaved()) keepDraft()
   }
   useEffect(() => {
     if (typeof registerLeave === 'function') registerLeave(() => leaveRef.current?.())
@@ -472,8 +536,21 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }
 
   // ── save ───────────────────────────────────────────────────────────────────────────────────────
-  const finish = (focusTo) => {
+  /** Every save is recorded as this open's save in flight, so a later open can wait for it (NEW-5). */
+  const sent = (promise) => trackSave(session.current, promise)
+  /** A save landed: the draft it made redundant goes. Saved work is never a draft, even when the builder closed
+   *  while the save was out (fix 3, I-1). Once the builder has gone, only THIS open's draft is settled, and edits it
+   *  holds beyond what was saved are kept for the saved widget (fix 4, NEW-1, NEW-5). */
+  const settleSaved = (savedId, etag, st) => {
+    if (away()) {
+      settleDraft(uid, { session: session.current, savedKey: planKeyOf(st), target: savedId, etag })
+      return
+    }
     clearDraft(uid, draftTarget)
+    if (savedId && savedId !== draftTarget) clearDraft(uid, savedId)
+  }
+  const finish = (focusTo) => {
+    dropDrafts()
     savedRef.current = null
     setSaving(false)
     close(focusTo)
@@ -524,11 +601,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     const st = stateRef.current
     if (planKeyOf(st) !== s.planKey) {
       setSaving(true)
-      const put = await putJson(`/${encodeURIComponent(s.defId)}`,
-        { plan: st.plan, ...nameFor(st), apply: UPDATE_ALL, ...(noteId ? { origin: noteId } : {}) }, s.etag)
-      // Fix 3, I-1: saved work is never a draft, even when the builder closed while the save was out.
-      if (put.ok) clearDraft(uid, draftTarget)
-      if (!mounted.current) return
+      const put = await sent(putJson(`/${encodeURIComponent(s.defId)}`,
+        { plan: st.plan, ...nameFor(st), apply: UPDATE_ALL, ...(noteId ? { origin: noteId } : {}) }, s.etag))
+      if (put.ok) settleSaved(s.defId, put.data.etag, st)
+      if (away()) return
       if (!put.ok) { refused(put); return }
       s = { ...s, defRev: put.data.rev, etag: put.data.etag, planKey: planKeyOf(st) }
       savedRef.current = s
@@ -536,7 +612,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     if (!s.how || !canWriteNote) { finish(); return }
     setSaving(true)
     const got = await runBuilt({ defId: s.defId, defRev: s.defRev })
-    if (!mounted.current) return
+    if (away()) return
     if (!got.ok) {
       setSaving(false)
       setLevel({ kind: 'main' })
@@ -546,7 +622,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     if (s.how === 'replace' && !replaceNode(got.data)) {
       // R-39: the widget is saved, but the placed widget it was to replace is gone. Say so, in the open sheet (the
       // footer's alert, read out); Save becomes Close. Nothing is written to the note.
-      clearDraft(uid, draftTarget)
+      dropDrafts()
       savedRef.current = null
       setSaving(false)
       setLevel({ kind: 'main' })
@@ -582,10 +658,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       }
       const apply = choice || UPDATE_ALL
       setSaving(true)
-      const got = await putJson(`/${encodeURIComponent(def.id)}`,
-        { plan, ...nameFor(st), apply, ...(noteId ? { origin: noteId } : {}) }, def.etag)
-      if (got.ok) clearDraft(uid, draftTarget)
-      if (!mounted.current) return
+      const got = await sent(putJson(`/${encodeURIComponent(def.id)}`,
+        { plan, ...nameFor(st), apply, ...(noteId ? { origin: noteId } : {}) }, def.etag))
+      if (got.ok) settleSaved(got.data.id || def.id, got.data.etag, st)
+      if (away()) return
       if (!got.ok) { refused(got); return }
       if (apply === SAVE_NEW) {
         savedRef.current = owed(got.data, fromNode ? 'replace' : null, st)
@@ -602,9 +678,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       return
     }
     setSaving(true)
-    const got = await postJson('', { plan, ...nameFor(st) })
-    if (got.ok) clearDraft(uid, draftTarget)
-    if (!mounted.current) return
+    const got = await sent(postJson('', { plan, ...nameFor(st) }))
+    if (got.ok) settleSaved(got.data.id, got.data.etag, st)
+    if (away()) return
     if (!got.ok) { refused(got); return }
     let how = null
     if (canWriteNote) how = mode === 'copy' && getPos ? 'replace' : 'insert'
@@ -656,8 +732,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const unit = cat ? sourceOf(cat, plan)?.unit || 'trades' : 'trades'
   const byNeed = cat ? coverageByNeed(cat, plan, preview.payload) : new Map()
   const saveLabel = gone ? 'Close' : stale ? 'Save as a new widget' : target.mode === 'copy' ? 'Save as a copy' : 'Save'
-  // Undo and Redo belong to the top level: inside a picker they are shown but say they are not available.
-  const historyOff = level.kind !== 'main'
+  // Undo and Redo belong to the top level: inside a picker they are shown but say they are not available; so too
+  // once saved but gone (NEW-2), where no edit is taken.
+  const historyOff = level.kind !== 'main' || gone
 
   let content
   if (phase === 'loading') {
@@ -715,7 +792,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
               onClick={() => { if (keepDraft()) close(); else setSaveMsg(KEEP_FAILED) }}>
               Keep my changes
             </button>
-            <button type="button" className={styles.btn} onClick={() => { clearDraft(uid, draftTarget); close() }}>
+            <button type="button" className={styles.btn} onClick={() => { dropDrafts(); close() }}>
               Discard them
             </button>
             <button type="button" className={styles.btn} onClick={back}>Keep editing</button>
@@ -778,7 +855,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const pane = phase === 'ready' ? (
     <PreviewPane payload={preview.payload} status={preview.status} error={preview.error} name={name} unit={unit}
       phone={phone} keyboardOpen={keyboardOpen} onRetry={() => setRetryTick((n) => n + 1)}
-      canSuggestRange={!isRightNow(cat, plan) && plan.range?.token !== DEFAULT_RANGE.token}
+      canSuggestRange={!isRightNow(cat, plan) && plan.range?.token !== DEFAULT_RANGE.token} suggestOff={gone}
       onSuggestRange={() => edit({ type: 'setRange', range: { ...DEFAULT_RANGE } }, { range: { ...DEFAULT_RANGE } })} />
   ) : null
 
@@ -797,7 +874,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
         </button>
       </div>
       {saveMsg && <p className={styles.footerMsg} role="alert">{saveMsg}</p>}
-      <button type="button" className={styles.btnPrimary} onClick={() => save()}
+      <button type="button" className={styles.btnPrimary} onClick={() => save()} ref={saveBtnRef}
         disabled={saving || phase !== 'ready'} aria-busy={saving} aria-keyshortcuts="Control+Enter Meta+Enter"
         data-testid="builder-save">
         {saving ? 'Saving…' : saveLabel}

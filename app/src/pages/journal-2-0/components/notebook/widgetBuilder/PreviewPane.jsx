@@ -58,7 +58,7 @@ function useAnnounced(summary) {
   return said
 }
 
-function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSuggestRange }) {
+function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSuggestRange, suggestOff }) {
   const [asTable, setAsTable] = useState(false)
   const failed = status === 'error' && error
   const text = failed ? failureText(error.code, error.message) : ''
@@ -69,7 +69,7 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
           <>
             <p className={styles.previewMsg}>{text}</p>
             <PreviewActions code={error.code} onRetry={onRetry} onSuggestRange={onSuggestRange}
-              canSuggestRange={canSuggestRange} />
+              canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
           </>
         ) : <p className={styles.sectionHint}>Working out your preview…</p>}
       </div>
@@ -86,7 +86,7 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
         <div className={styles.previewFail}>
           <p className={styles.previewMsg}>{text}</p>
           <PreviewActions code={error.code} onRetry={onRetry} onSuggestRange={onSuggestRange}
-            canSuggestRange={canSuggestRange} />
+            canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
         </div>
       )}
       <div className={`${styles.previewView} ${failed ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
@@ -111,12 +111,16 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
   )
 }
 
-function PreviewActions({ code, onRetry, onSuggestRange, canSuggestRange }) {
+/** `suggestOff`: the range suggestion is shown but says it is not available (saved but gone, fix 4, NEW-2). The builder
+ *  itself takes no edit then (its one guard), so the click needs none here. */
+function PreviewActions({ code, onRetry, onSuggestRange, canSuggestRange, suggestOff }) {
   if (code === 'offline' || code === 'superseded') return null
   return (
     <div className={styles.pickerActions}>
       {code === 'too_long' && canSuggestRange && (
-        <button type="button" className={styles.btn} onClick={onSuggestRange}>Last 90 days</button>
+        <button type="button" className={styles.btn} aria-disabled={suggestOff || undefined} onClick={onSuggestRange}>
+          Last 90 days
+        </button>
       )}
       <button type="button" className={styles.btn} onClick={onRetry}>
         <UIcon name="refresh" size={14} gold={false} aria-hidden="true" />
@@ -127,7 +131,7 @@ function PreviewActions({ code, onRetry, onSuggestRange, canSuggestRange }) {
 }
 
 export default function PreviewPane({
-  payload, status, error, name, unit, phone, keyboardOpen, onRetry, onSuggestRange, canSuggestRange,
+  payload, status, error, name, unit, phone, keyboardOpen, onRetry, onSuggestRange, canSuggestRange, suggestOff = false,
 }) {
   const [open, setOpen] = useState(false)
   const bodyId = useId()
@@ -136,7 +140,7 @@ export default function PreviewPane({
   const summary = typeof payload?.summary === 'string' ? payload.summary : ''
   const body = (
     <PreviewBody payload={payload} status={status} error={error} onRetry={onRetry}
-      onSuggestRange={onSuggestRange} canSuggestRange={canSuggestRange} />
+      onSuggestRange={onSuggestRange} canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
   )
   const live = (
     <p className={styles.srOnly} role="status" aria-live="polite" data-testid="builder-live">{said}</p>
