@@ -10,8 +10,6 @@
 // refuses). Each recipe asserts what painted before axe runs. `fetch` is the
 // builder's fake server (widgetBuilder/__fixtures__).
 import { describe, beforeEach, afterEach, vi, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import { axeSurface } from './surface'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from '../components/notebook/widgetBuilder/WidgetBuilderSheet'
@@ -22,10 +20,10 @@ import { FORMULA_CATALOG } from '../components/notebook/widgetBuilder/__fixtures
 import {
   TOOL_CATALOG, ROUTINES, TRACKERS, S_ONE_REF, S_UNKNOWN_RANGE,
 } from '../components/notebook/widgetBuilder/__fixtures__/toolCatalog'
+import { SHELF_EXAMPLES } from '../components/notebook/widgetBuilder/__fixtures__/shelfExamples'
 
 const DEFS = '/api/j2/widget-definitions'
-const SHELF = JSON.parse(readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine',
-  'shelf.json'), 'utf8')).examples
+const SHELF = SHELF_EXAMPLES   // the wave 8 shelf, read from the revision files (shelf.json is retired)
 
 class AllInView {
   constructor(cb) { this.cb = cb; this.els = new Set() }

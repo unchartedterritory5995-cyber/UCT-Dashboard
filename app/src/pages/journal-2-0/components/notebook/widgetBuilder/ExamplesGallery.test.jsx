@@ -26,6 +26,7 @@ import { openWidgetBuilder } from './openWidgetBuilder'
 import { openRoutineEditor } from '../routines/openRoutineEditor'
 import { FIRST_STEP } from './ExamplesGallery'
 import { TOOL_SAVED_NOT_ADDED } from '../../../lib/toolEmbed'
+import { SHELF_EXAMPLES } from './__fixtures__/shelfExamples'
 
 // Wave 8 on; wave 9 only where a test turns it on (Task 9.19's first step).
 const waves = vi.hoisted(() => ({ nine: false }))
@@ -34,8 +35,7 @@ vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()
 vi.mock('../routines/openRoutineEditor', () => ({ openRoutineEditor: vi.fn(() => () => {}) }))
 
 /** The ready-made widgets the server serves, read from the server's own file (never a copy). */
-const SHELF = JSON.parse(readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine',
-  'shelf.json'), 'utf8')).examples
+const SHELF = SHELF_EXAMPLES   // the wave 8 shelf, read from the revision files (shelf.json is retired)
 const IDS = SHELF.map((e) => e.id)
 const DEFS = '/api/j2/widget-definitions'
 const EMPTY_CLOSED = 'No closed trades in this range. Widen the range, or log a trade.'

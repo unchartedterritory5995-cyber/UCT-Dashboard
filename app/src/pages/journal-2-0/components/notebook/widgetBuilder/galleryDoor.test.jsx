@@ -13,11 +13,11 @@ import { installFetch } from '../myTools/__fixtures__/myToolsFixtures'
 import { CATALOG, payload } from './__fixtures__/builderFixtures'
 import { GALLERY_TITLE, LINK_BROKER_HREF } from './ExamplesGallery'
 import { __resetBuiltCaches } from '../../../lib/builtWidgets'
+import { SHELF_EXAMPLES } from './__fixtures__/shelfExamples'
 
 vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 8 }))
 
-const SHELF = JSON.parse(readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine',
-  'shelf.json'), 'utf8')).examples
+const SHELF = SHELF_EXAMPLES   // the wave 8 shelf, read from the revision files (shelf.json is retired)
 const SAVED_W1 = { id: 'w1', name: 'Net P&L by setup', rev: 2, placedRev: 2, etag: 3, archived: false, usedIn: 0,
   lastAnswer: null, summary: 'Net P&L by setup.', plan: { v: 1, source: 'closed_trades', range: { token: 'last_90d' },
     measures: [{ key: 'net_pnl' }], split: { by: 'setup' } } }

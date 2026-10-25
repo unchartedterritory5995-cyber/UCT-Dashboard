@@ -3,8 +3,6 @@
 // each with a test that fails without its fix. Asserted by rendered text, focus and the requests on the wire.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, act } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import WidgetBuilderSheet, {
   PREVIEW_DEBOUNCE_MS, RESUME_OFFER, KEEP_QUESTION, BACK_TO_EXAMPLES, STALE_DRAFT, SAVED_NOT_PLACED,
   SAVED_EDITS_KEPT, KEEP_REPLACES,
@@ -16,11 +14,11 @@ import { __resetBuiltCaches } from '../../../lib/builtWidgets'
 import {
   installFetch, answer, refusal, deferred, payload, callsTo, SUMMARY, CATALOG,
 } from './__fixtures__/builderFixtures'
+import { SHELF_EXAMPLES } from './__fixtures__/shelfExamples'
 
 vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 8 }))
 
-const SHELF = JSON.parse(readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine',
-  'shelf.json'), 'utf8')).examples
+const SHELF = SHELF_EXAMPLES   // the wave 8 shelf, read from the revision files (shelf.json is retired)
 const DEFS = '/api/j2/widget-definitions'
 const flush = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 

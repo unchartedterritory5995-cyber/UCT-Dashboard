@@ -6,14 +6,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
 import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from './WidgetBuilderSheet'
 import { DRAFT_PREFIX } from './builderDraft'
 import BuiltWidgetEmbed from '../widgets/BuiltWidgetEmbed'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import { __resetBuiltCaches } from '../../../lib/builtWidgets'
 import { installFetch, answer, refusal, payload, callsTo, bodyOf, SUMMARY } from './__fixtures__/builderFixtures'
+import { SHELF_EXAMPLES } from './__fixtures__/shelfExamples'
 
 vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 8 }))
 
@@ -35,8 +34,7 @@ const COPY = {
 }
 
 const DEFS = '/api/j2/widget-definitions'
-const SHELF = JSON.parse(readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine',
-  'shelf.json'), 'utf8')).examples
+const SHELF = SHELF_EXAMPLES   // the wave 8 shelf, read from the revision files (shelf.json is retired)
 
 const flush = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
