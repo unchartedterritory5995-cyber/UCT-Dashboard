@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
+import UIcon from '../../../../../components/ui/UIcon'
 import { useHasCoarsePointer, useIsPhone } from '../../../../../hooks/useBreakpoint'
 import { normalizeParams, paramsPlainText } from '../../../../../widgets/registry'
 import {
@@ -20,6 +21,7 @@ import SplitSection, { SplitPicker } from './sections/SplitSection'
 import ViewSection from './sections/ViewSection'
 import NameSection from './sections/NameSection'
 import PreviewPane from './PreviewPane'
+import ExamplesGallery from './ExamplesGallery'
 import SaveQuestion, { UPDATE_ALL, SAVE_NEW, preselectAnswer } from './SaveQuestion'
 import styles from './WidgetBuilderSheet.module.css'
 
@@ -47,6 +49,12 @@ import styles from './WidgetBuilderSheet.module.css'
  *     transaction (one undo brings the original back), or is inserted at the caret from /build.
  *   * a refusal (a conflict, the count cap, offline) keeps everything and says why; a conflict also keeps the draft.
  *   * saved but not yet placed (the run failed): Save places it; edits made since are saved first (fix 1, I-2).
+ *
+ * Start (Task 8.16): opened with `start: 'examples'` for a NEW widget, the sheet first shows "Start from an example"
+ * (ExamplesGallery: the ready-made widgets as cards, plus "Start blank"). Opening a card loads its plan into the builder
+ * as a NEW widget (one that is saved, inserted at the caret from a note); "Back to examples" returns while nothing has
+ * been edited. No preview runs and nothing saves while the gallery shows. Focus moves to the builder's first heading on
+ * the way in and back to the card (or Start blank) on the way out. A kept draft is offered on the gallery itself.
  *
  * Escape goes back one picker level, then asks "Keep your changes?" only when something changed; a kept draft is
  * offered again ("Resume your unsaved widget") within 24 h, and a draft of a widget that changed since is saved
@@ -76,6 +84,9 @@ export const LOAD_FAILED = "Couldn't open the widget builder."
 export const SAVED_COPY_SENTENCE = 'Running from the saved copy in this note.'
 /** Fix 2, R-39: saved, but the placed widget it was meant to replace is gone (or is another widget now). */
 export const SAVED_NOT_IN_NOTE = 'Saved in My tools. It is no longer in this note.'
+/** Task 8.16: from the builder back to "Start from an example", while nothing has been edited. */
+export const BACK_TO_EXAMPLES = 'Back to examples'
+export const BACK_TO_EXAMPLES_HELD = 'Undo your changes to go back to the examples, or save this widget.'
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 /** Edits that make a saved widget out of date: the plan and the name, as one value. */
@@ -177,7 +188,7 @@ function keptAgo(at, now = Date.now()) {
   return `${h} hour${h === 1 ? '' : 's'} ago`
 }
 
-export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose, registerLeave }) {
+export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose, registerLeave, navigate = null }) {
   const phone = useIsPhone()
   const viewport = useViewport(useHasCoarsePointer())
   const keyboardOpen = phone && viewport.keyboardOpen
@@ -216,6 +227,14 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const leftRef = useRef(false)       // the member left (R-38): the builder is going, whatever a save answers later
   const saveBtnRef = useRef(null)
   const away = () => !mounted.current || leftRef.current
+  // Task 8.16: the start screen. 'examples' only for a NEW widget opened with `start: 'examples'`.
+  const [screen, setScreen] = useState(() => (start === 'examples' && !from?.defId && !from?.shelfId ? 'examples' : 'builder'))
+  const onGallery = screen === 'examples'
+  const [fromGallery, setFromGallery] = useState(false)
+  const galleryOpener = useRef(null)    // the card (or Start blank) that opened the builder: focus returns to it
+  const blankRef = useRef(null)         // the plan "Start blank" starts from
+  const screenSeen = useRef(screen)
+  const backHeldId = useId()
 
   useEffect(() => () => { mounted.current = false }, [])
 
@@ -282,6 +301,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           }
         } else {
           plan = { ...blankPlan(), measures: defaultMeasuresFor(c, 'closed_trades').map((k) => ({ key: k })) }
+          blankRef.current = plan
         }
         if (!alive) return
         setCat(c)
@@ -369,10 +389,11 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }, [])
 
   useEffect(() => {
-    if (phase !== 'ready') return undefined
+    // Task 8.16: no preview runs while the start screen shows (the cards carry their own results).
+    if (phase !== 'ready' || onGallery) return undefined
     const t = setTimeout(runPreview, PREVIEW_DEBOUNCE_MS)
     return () => clearTimeout(t)
-  }, [phase, previewKey, retryTick, runPreview])
+  }, [phase, previewKey, retryTick, runPreview, onGallery])
 
   // "Pausing the preview for a moment" resumes on its own; offline resumes when the browser is back.
   const errCode = preview.status === 'error' ? preview.error?.code : null
@@ -414,6 +435,81 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       || root.querySelector('[data-builder-level] button, [data-builder-level] input')
     head?.focus()
   }, [level])
+
+  // ── the start screen (Task 8.16) ───────────────────────────────────────────────────────────────
+  // Focus follows the screen: into the builder, its first section's heading; back out, the card that opened it.
+  useEffect(() => {
+    if (screenSeen.current === screen) return
+    screenSeen.current = screen
+    const root = rootRef.current
+    if (!root) return
+    if (screen === 'builder') {
+      root.querySelector('[data-builder-section] [data-builder-heading]')?.focus()
+      return
+    }
+    const el = galleryOpener.current
+    if (el && el.isConnected && root.contains(el)) el.focus()
+    else root.querySelector('[data-gallery-heading]')?.focus()
+  }, [screen])
+  const galleryRef = useRef(null)
+  galleryRef.current = {
+    open: (ex, el) => {
+      galleryOpener.current = el || null
+      // A ready-made widget as the start of a NEW one: its plan, history empty, nothing edited yet.
+      dispatch({ type: 'loadPlan', plan: ex.plan, autoName: typeof ex.name === 'string' ? ex.name : '' })
+      setFromGallery(true)
+      setScreen('builder')
+    },
+    blank: (el) => {
+      galleryOpener.current = el || null
+      if (blankRef.current) dispatch({ type: 'loadPlan', plan: blankRef.current, autoName: '' })
+      setFromGallery(true)
+      setScreen('builder')
+    },
+    resume: () => {
+      const kept = offer
+      if (!kept) return
+      galleryOpener.current = null
+      resumeDraft(kept)
+      setOffer(null)
+      setFromGallery(true)
+      setScreen('builder')
+    },
+    fresh: () => {
+      clearDraft(uid, draftTarget)
+      setOffer(null)
+      rootRef.current?.querySelector('[data-gallery-heading]')?.focus()
+    },
+    link: (to, e) => {
+      // A modified click (a new tab) is the browser's. Otherwise the builder closes and the app goes there: through
+      // the router when the door was given one, else the History API plus the popstate the router listens for.
+      if (e && (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return
+      e?.preventDefault()
+      close()
+      if (typeof navigate === 'function') { navigate(to); return }
+      try {
+        window.history.pushState({}, '', to)
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      } catch {
+        window.location.assign(to)
+      }
+    },
+  }
+  // Stable for the (memoized) gallery: it never re-renders because the builder did.
+  const galleryProps = useMemo(() => ({
+    onOpen: (ex, el) => galleryRef.current.open(ex, el),
+    onBlank: (el) => galleryRef.current.blank(el),
+    onResume: () => galleryRef.current.resume(),
+    onFresh: () => galleryRef.current.fresh(),
+    onLink: (to, e) => galleryRef.current.link(to, e),
+  }), [])
+  const galleryResume = useMemo(() => (offer ? { text: RESUME_OFFER, kept: `Kept ${keptAgo(offer.at)}.` } : null), [offer])
+  // Held while anything is edited (going back would drop it) and once a widget is saved (its place is still owed).
+  const backHeld = state.dirty || gone || !!savedRef.current
+  const backToExamples = () => {
+    if (backHeld) return
+    setScreen('examples')
+  }
 
   // ── closing, and the kept draft ───────────────────────────────────────────────────────────────
   const close = useCallback((focusTo) => { onClose?.(focusTo) }, [onClose])
@@ -690,7 +786,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
 
   // ── keys: Escape backs out one level; Ctrl/Cmd+Z / Shift+Z / Enter ─────────────────────────────
   const keysRef = useRef(null)
-  keysRef.current = { level, back, save, answer, phase }
+  keysRef.current = { level, back, save, answer, phase: onGallery ? 'gallery' : phase }
   useEffect(() => {
     const isTop = () => {
       const panel = rootRef.current?.closest('[data-sheet-panel]')
@@ -802,9 +898,23 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     }
     content = (
       <>
-        <div hidden={k !== 'main'} className={styles.sections} inert={gone || undefined} aria-disabled={gone || undefined}
-          data-testid="builder-sections">
-          {offer && (
+        {screen === 'examples' || fromGallery ? (
+          <ExamplesGallery hidden={!onGallery} resume={onGallery ? galleryResume : null} resumeRef={offerRef}
+            {...galleryProps} />
+        ) : null}
+        <div hidden={k !== 'main' || onGallery} className={styles.sections} inert={gone || undefined}
+          aria-disabled={gone || undefined} data-testid="builder-sections">
+          {fromGallery && (
+            <div className={styles.backRow}>
+              <button type="button" className={styles.btn} onClick={backToExamples}
+                aria-disabled={backHeld || undefined} aria-describedby={state.dirty ? backHeldId : undefined}>
+                <UIcon name="chevronLeft" size={16} gold={false} aria-hidden="true" />
+                <span>{BACK_TO_EXAMPLES}</span>
+              </button>
+              {state.dirty && <p className={styles.sectionHint} id={backHeldId}>{BACK_TO_EXAMPLES_HELD}</p>}
+            </div>
+          )}
+          {offer && !onGallery && (
             <div className={styles.offer} role="group" aria-label={RESUME_OFFER}>
               <p className={styles.offerText}>{RESUME_OFFER}</p>
               <p className={styles.sectionHint}>{`Kept ${keptAgo(offer.at)}.`}</p>
@@ -852,7 +962,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     )
   }
 
-  const pane = phase === 'ready' ? (
+  const pane = phase === 'ready' && !onGallery ? (
     <PreviewPane payload={preview.payload} status={preview.status} error={preview.error} name={name} unit={unit}
       phone={phone} keyboardOpen={keyboardOpen} onRetry={() => setRetryTick((n) => n + 1)}
       canSuggestRange={!isRightNow(cat, plan) && plan.range?.token !== DEFAULT_RANGE.token} suggestOff={gone}
@@ -884,8 +994,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
 
   return (
     <Sheet open onClose={requestClose} title={<h2 className={styles.dialogTitle}>{title}</h2>} labelledByTitle
-      maxWidth={1080} className={styles.panel} bodyClassName={styles.body} footer={phase === 'tooNew' ? null : footer}>
-      <div ref={rootRef} className={styles.layout} data-testid="widget-builder">
+      maxWidth={1080} className={styles.panel} bodyClassName={styles.body}
+      footer={phase === 'tooNew' || (phase === 'ready' && onGallery) ? null : footer}>
+      <div ref={rootRef} className={`${styles.layout} ${phase === 'ready' && onGallery ? styles.layoutGallery : ''}`}
+        data-testid="widget-builder">
         {phone && pane}
         <div className={styles.controls}>{content}</div>
         {!phone && pane && <div className={styles.previewCol}>{pane}</div>}

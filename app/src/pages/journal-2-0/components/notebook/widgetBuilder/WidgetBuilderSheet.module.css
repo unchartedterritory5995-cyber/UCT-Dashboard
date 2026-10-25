@@ -73,6 +73,13 @@
   }
 }
 
+/* Task 8.16: "Start from an example" takes the whole width (no preview column beside it). */
+@media (min-width: 641px) {
+  .layout.layoutGallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .controls {
   padding: var(--space-md) var(--space-lg) var(--space-xl);
 }
@@ -100,6 +107,14 @@
   border: 1px solid var(--border-accent);
   font-size: var(--text-sm);
   color: var(--text-bright);
+}
+
+/* Task 8.16: "Back to examples", above the first section when the builder was opened from a card. */
+.backRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 /* ── sections ── */
@@ -201,6 +216,7 @@
   color: var(--text-secondary, var(--text-muted));
 }
 .btn:disabled,
+.btn[aria-disabled='true'],
 .btnPrimary:disabled,
 .iconBtn:disabled,
 .iconBtn[aria-disabled='true'],

@@ -171,6 +171,15 @@ describe('the builder stylesheet against its markup', () => {
     }
   })
 
+  it('Task 8.16: the start screen stylesheet guards every class it renders with `hidden`', () => {
+    // The gallery's files import ExamplesGallery.module.css, so they are checked against THAT sheet.
+    const gallery = ['ExamplesGallery.jsx', 'ExampleCard.jsx', 'miniPreview.jsx'].map((f) => readFileSync(join(DIR, f), 'utf8'))
+    const galleryCss = readFileSync(join(DIR, 'ExamplesGallery.module.css'), 'utf8')
+    expect([...hiddenClasses(gallery.join('\n'))]).toContain('gallery')               // non-vacuity
+    expect(hiddenDefects(gallery, galleryCss)).toEqual([])
+    expect(galleryCss).not.toMatch(/:focus-within/)
+  })
+
   it('the touch panel is sized from the visual viewport (--vvh) and sits above the keyboard (--vv-inset)', () => {
     expect(CSS).toMatch(/\.panel\.panel\s*\{[^}]*max-height:\s*min\(92dvh,\s*var\(--vvh/)
     expect(CSS).toMatch(/margin-bottom:\s*var\(--vv-inset/)

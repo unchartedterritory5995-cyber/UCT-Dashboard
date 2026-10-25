@@ -208,3 +208,21 @@ describe('My tools floors every control at 44px at every width', () => {
     expect(unflooredAt(touchOnly, 1200)).toEqual(['.a'])
   })
 })
+
+// Wave 8 (Task 8.16): "Start from an example", the builder's start screen. Its cards, Start blank, the sample banner's
+// two links and Try again are 44 px at EVERY width (the My tools bar), derived from its own stylesheet as above.
+const GALLERY_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgetBuilder', 'ExamplesGallery.module.css')
+
+describe('the examples gallery floors every control at 44px at every width', () => {
+  it('the gallery has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(GALLERY_CSS, 'utf8')))
+    for (const c of ['.card', '.btn', '.btnPrimary', '.linkBtn']) expect(classes).toContain(c)
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(GALLERY_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+})
