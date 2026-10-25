@@ -1302,6 +1302,11 @@ export default function NoteEditorPage({
   }, [chromeMsg])
   const saveTimerRef = useRef(null)
   const retryTimerRef = useRef(null)
+  // ⛔ W8-R56: false once this page has unmounted. A save that fails AFTER that (the unmount flush, or one already in
+  // flight) must never arm a retry: nobody would ever clear it, and the dead page would keep PUTting from its stale
+  // baseline -- a second writer that can 409 into a fork of a note the member has since reopened. The durable working
+  // copy and the outbox still hold the unsent words (the record stays dirty until a save lands), so they send them.
+  const mountedRef = useRef(true)
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
   const attachFileInputRef = useRef(null)
@@ -4043,7 +4048,7 @@ export default function NoteEditorPage({
           // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
           // after one would push the local document over the server version
           // the fork exists to protect — the exact overwrite this gate closes.
-          if (outcome) retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
+          if (outcome && mountedRef.current) retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
           return
         }
       }
@@ -4114,6 +4119,8 @@ export default function NoteEditorPage({
       }
       const attempt = retryAttemptsRef.current
       if (attempt === 0) reportSaveFailed(e, true)
+      // W8-R56: an unmounted page schedules nothing (see `mountedRef`); its words are the durable copy's to send.
+      if (!mountedRef.current) return
       const delay = RETRY_BACKOFFS_MS[Math.min(attempt, RETRY_BACKOFFS_MS.length - 1)]
       retryAttemptsRef.current = attempt + 1
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
@@ -4142,14 +4149,19 @@ export default function NoteEditorPage({
   commitSaveRef.current = commitSave
 
   // Save on unmount if dirty.
-  useEffect(() => () => {
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current)
-      retryTimerRef.current = null
-    }
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current)
-      commitSaveRef.current()
+  useEffect(() => {
+    mountedRef.current = true // StrictMode re-runs this effect after its cleanup: the page is live again
+    return () => {
+      // Lowered BEFORE the flush below, so a flush that fails is already a dead page's failure (W8-R56).
+      mountedRef.current = false
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current)
+        retryTimerRef.current = null
+      }
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+        commitSaveRef.current()
+      }
     }
   }, [])
 
