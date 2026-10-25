@@ -48,6 +48,7 @@ import {
   recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
+import { FAILED as DURABLE_FAILED } from '../../lib/offline/durableWriter'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
@@ -1303,10 +1304,18 @@ export default function NoteEditorPage({
   const saveTimerRef = useRef(null)
   const retryTimerRef = useRef(null)
   // ⛔ W8-R56: false once this page has unmounted. A save that fails AFTER that (the unmount flush, or one already in
-  // flight) must never arm a retry: nobody would ever clear it, and the dead page would keep PUTting from its stale
-  // baseline -- a second writer that can 409 into a fork of a note the member has since reopened. The durable working
-  // copy and the outbox still hold the unsent words (the record stays dirty until a save lands), so they send them.
+  // flight) must not arm a retry WHEN the durable copy owns the words: nobody would ever clear the timer, and the dead
+  // page would keep PUTting from its stale baseline -- a second writer that can 409 into a fork of a note the member
+  // has since reopened. The durable working copy and the outbox hold the unsent words (the record stays dirty until a
+  // save lands), so the next mount or the drain sends them.
   const mountedRef = useRef(true)
+  // ⛔ W8-R56 I1: ...but ONLY when the durable copy really holds them. `supported` is the offline layer's own
+  // predicate (useDurableNote: switched on, storage available, an account and a note); a writer whose last commit
+  // FAILED holds nothing either. Off either way, the dead page's retry is the only thing still carrying the words
+  // (the localStorage draft can be overwritten by another tab and is cleared by its first landed save), so it keeps
+  // the old behaviour: a conflicted copy beats a loss. Every timer arm in the save chain asks THIS question.
+  const leftToTheDurableCopy = () => !mountedRef.current
+    && durableRef.current?.supported === true && durableRef.current?.status !== DURABLE_FAILED
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
   const attachFileInputRef = useRef(null)
@@ -2030,6 +2039,8 @@ export default function NoteEditorPage({
     }
     retryAttemptsRef.current = 0
     conflictRetriedRef.current = false // fresh edit = fresh conflict budget
+    // W8-R56 M2: a dead page arms no debounce the cleanup can no longer clear (unreachable today; same question as below).
+    if (leftToTheDurableCopy()) return
     saveTimerRef.current = setTimeout(() => commitSaveRef.current(), AUTOSAVE_MS)
   }
 
@@ -4048,7 +4059,7 @@ export default function NoteEditorPage({
           // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
           // after one would push the local document over the server version
           // the fork exists to protect — the exact overwrite this gate closes.
-          if (outcome && mountedRef.current) retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
+          if (outcome && !leftToTheDurableCopy()) retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
           return
         }
       }
@@ -4119,8 +4130,8 @@ export default function NoteEditorPage({
       }
       const attempt = retryAttemptsRef.current
       if (attempt === 0) reportSaveFailed(e, true)
-      // W8-R56: an unmounted page schedules nothing (see `mountedRef`); its words are the durable copy's to send.
-      if (!mountedRef.current) return
+      // W8-R56: an unmounted page whose words the durable copy holds schedules nothing (see `leftToTheDurableCopy`).
+      if (leftToTheDurableCopy()) return
       const delay = RETRY_BACKOFFS_MS[Math.min(attempt, RETRY_BACKOFFS_MS.length - 1)]
       retryAttemptsRef.current = attempt + 1
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
