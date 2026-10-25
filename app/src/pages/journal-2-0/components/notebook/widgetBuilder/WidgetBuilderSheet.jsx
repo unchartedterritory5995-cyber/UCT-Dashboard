@@ -13,7 +13,7 @@ import {
 } from './builderCatalog'
 import {
   readDraft, writeDraft, clearDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
-  newCreateKey, createKeyOf,
+  newCreateKey, pendingOf,
 } from './builderDraft'
 import SourceSection from './sections/SourceSection'
 import WhichOnesSection, { RangePicker, FieldPicker, FilterEditor } from './sections/WhichOnesSection'
@@ -41,8 +41,9 @@ import styles from './WidgetBuilderSheet.module.css'
  *
  * Save:
  *   * new: `POST ""`, then, opened from a note, the saved widget is run and inserted at the caret. The POST carries
- *     `Idempotency-Key` (ruling R-43): one key per widget this open creates, kept in its draft, so the same POST sent
- *     again after a reload answers the widget it already made; newer edits it carried are then saved to that widget.
+ *     `Idempotency-Key` (rulings R-43, R-48): a fresh key per request, kept in the draft with that request, and reused
+ *     only to send the SAME unconfirmed request again (a timeout, a reload), so it answers the widget it already made;
+ *     edits made since are then saved to that widget. A `save_new` PUT is keyed the same way (R-49).
  *   * edit, in more than one note: SaveQuestion ("This widget is in 14 notes."). "Update all" PUTs `apply:
  *     update_all` and writes NO note; "Save as a new widget" PUTs `apply: save_new` and replaces only the source
  *     note's widget. In one note or none (ruling R-36): saved without asking (`update_all`), and when the builder was
@@ -245,10 +246,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   // member is at work there (a half-typed date, the top-N box, arrowing a radio group), dirty or not.
   const openFocus = useRef(null)
   const [notice, setNotice] = useState('')     // M-4: "Saved in My tools as ..." after a held save landed
-  // Ruling R-43: the create POST's Idempotency-Key. Made at this open's first create POST and kept for every retry (a
-  // POST that timed out may still have landed), stored in the draft, and taken over from a resumed draft, so a POST
-  // re-sent after a reload answers the widget the first one made.
-  const createKey = useRef(null)
+  // Rulings R-43, R-48, R-49: the open's one UNCONFIRMED save that makes a widget (the create POST or a `save_new`
+  // PUT): `{key, kind, body, planKey, defId, etag}`. Its Idempotency-Key is fresh for every new request and is reused
+  // only to send that SAME request again (a retry after a timeout; the draft resumed after a reload), so the server
+  // answers the widget it may already have made. Cleared as soon as an answer confirms the outcome (it landed, or the
+  // server refused it), and whenever the builder starts a new widget (a card, Start blank, back to the examples).
+  const pendingSave = useRef(null)
   const leftRef = useRef(false)       // the member left (R-38): the builder is going, whatever a save answers later
   const saveBtnRef = useRef(null)
   const away = () => !mounted.current || leftRef.current
@@ -405,8 +408,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
    *  newer version: it can only become a new widget (fix 1, I-7). */
   function resumeDraft(kept, def = target.def) {
     resumedFrom.current = typeof kept.session === 'string' && kept.session ? kept.session : null
-    const key = createKeyOf(kept)
-    if (key) createKey.current = key
+    // R-48: a resumed draft brings back its OWN unconfirmed request (or none): never another widget's.
+    pendingSave.current = pendingOf(kept.pending)
     dispatch({ type: 'loadPlan', plan: kept.plan, keepBase: true })
     const was = Number.isInteger(kept.etag) ? kept.etag : null
     const isStale = !!def && was !== null && Number.isInteger(def.etag) && def.etag !== was
@@ -586,6 +589,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   /** To the gallery, clean: the builder starts over from the blank plan, so a later close asks nothing. */
   const toGallery = () => {
     opener.current = null
+    // R-48: back to the examples, whatever starts next (a card, Start blank) is a NEW widget and a new request: nothing
+    // an earlier start sent may answer for it. (The gallery is reached only here or at open, so this is the one guard.)
+    pendingSave.current = null
     setLevel({ kind: 'main' })
     if (blankRef.current) dispatch({ type: 'loadPlan', plan: blankRef.current, autoName: '' })
     setOpened('')
@@ -627,18 +633,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     const etag = s ? s.etag : staleEtag.current !== null ? staleEtag.current : target.def?.etag
     return writeDraft(uid, {
       plan: st.plan, nameTouched: st.nameTouched, target: to, etag, session: session.current,
-      key: s ? null : createKey.current,
+      pending: s ? null : pendingSave.current,
     })
   }
-  /** This builder's drafts go: the one it opened with and, once a widget is saved, that widget's ("Discard them",
-   *  and when the work is done). */
-  const dropDrafts = () => {
-    clearDraft(uid, draftTarget)
-    const s = savedRef.current
-    if (s && s.defId !== draftTarget) clearDraft(uid, s.defId)
-  }
-  /** "Discard them" (8.16 N1): only the member's OWN changes go: a draft this open kept (its session) or the one it
-   *  resumed. A draft offered and never chosen stays, and is offered again. */
+  /** "Discard them" (8.16 N1), and every finish (ruling R-47): only the member's OWN changes go: a draft this open kept
+   *  (its session) or the one it resumed. A draft another open kept, offered and never chosen, stays and is offered
+   *  again. */
   const dropOwnDrafts = () => {
     const own = new Set([session.current])
     if (resumedFrom.current !== undefined) own.add(resumedFrom.current)
@@ -735,17 +735,18 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const sent = (promise) => trackSave(session.current, promise)
   /** A save landed: the draft it made redundant goes. Saved work is never a draft, even when the builder closed
    *  while the save was out (fix 3, I-1). Once the builder has gone, only THIS open's draft is settled, and edits it
-   *  holds beyond what was saved are kept for the saved widget (fix 4, NEW-1, NEW-5). */
+   *  holds beyond what was saved are kept for the saved widget (fix 4, NEW-1, NEW-5). Ruling R-47: in every case only
+   *  this open's own draft goes (its session, or the draft it resumed); a draft another open kept is never this
+   *  save's to clear, and is still offered. */
   const settleSaved = (savedId, etag, st, savedKey = planKeyOf(st)) => {
     if (away()) {
       settleDraft(uid, { session: session.current, savedKey, target: savedId, etag })
       return
     }
-    clearDraft(uid, draftTarget)
-    if (savedId && savedId !== draftTarget) clearDraft(uid, savedId)
+    dropOwnDrafts()
   }
   const finish = (focusTo) => {
-    dropDrafts()
+    dropOwnDrafts()
     savedRef.current = null
     setSaving(false)
     close(focusTo)
@@ -817,7 +818,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     if (s.how === 'replace' && !replaceNode(got.data)) {
       // R-39: the widget is saved, but the placed widget it was to replace is gone. Say so, in the open sheet (the
       // footer's alert, read out); Save becomes Close. Nothing is written to the note.
-      dropDrafts()
+      dropOwnDrafts()
       savedRef.current = null
       setSaving(false)
       setLevel({ kind: 'main' })
@@ -829,9 +830,46 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     if (s.how !== 'replace') insertNode(got.data)
     finish(placedDom(s.defId))
   }
-  const owed = (data, how, st) => ({
-    defId: data.id, defRev: data.rev, etag: data.etag, how, planKey: planKeyOf(st),
+  /** A widget saved whose place is still owed. `planKey`: the edits it holds (what the request that made it sent).
+   *  A replayed request answers the widget as it is now; its etag is the one it was MADE at, so saving later edits to
+   *  it meets a change made since in another tab as a conflict, never overwrites it. */
+  const owed = (data, how, planKey) => ({
+    defId: data.id, defRev: data.rev, how, planKey,
+    etag: data.replayed === true && Number.isInteger(data.createdEtag) ? data.createdEtag : data.etag,
   })
+  /** The server's answer settles what happened to the request: it landed, or it was refused. Only a lost answer (no
+   *  status: the network, a timeout) or a bare 5xx from in front of the app leaves it unknown. */
+  const confirmed = (got) => got.ok || (Number.isInteger(got.status) && (got.status < 500 || got.code !== 'failed'))
+  /**
+   * Send the open's save that MAKES a widget (`kind`: 'create' | 'save_new'), keyed (rulings R-43, R-48, R-49). The
+   * unconfirmed request still pending for the same thing is sent AGAIN AS IT WAS (same key, same body), never with
+   * newer edits under its key: if it had landed, the server answers that widget, and the edits since are saved to it
+   * next (placeSaved). If the server refuses it, the newer edits go as a NEW request with a fresh key. Any confirmed
+   * answer ends the pending request; a lost one keeps it, in the draft too, to be sent again.
+   */
+  const sendKeyed = async (kind, body, st, { defId = null, etag = null } = {}) => {
+    const fresh = () => ({ key: newCreateKey(), kind, body, planKey: planKeyOf(st), defId, etag })
+    let p = pendingSave.current
+    if (!p || p.kind !== kind || (kind === 'save_new' && p.defId !== defId)) p = fresh()
+    const go = (q) => {
+      pendingSave.current = q
+      const req = q.kind === 'create'
+        ? postJson('', q.body, { idempotencyKey: q.key })
+        : putJson(`/${encodeURIComponent(q.defId)}`, q.body, q.etag, { idempotencyKey: q.key })
+      // The landed save settles its draft BEFORE the save counts as settled for a later open waiting on it (NEW-5).
+      return sent(req.then((got) => {
+        if (got.ok) settleSaved(got.data.id, owed(got.data, null, q.planKey).etag, st, q.planKey)
+        return got
+      }))
+    }
+    let got = await go(p)
+    if (!got.ok && confirmed(got) && p.planKey !== planKeyOf(st) && !away()) {
+      p = fresh()
+      got = await go(p)
+    }
+    if (confirmed(got) && pendingSave.current === p) pendingSave.current = null
+    return { got, p }
+  }
   const save = async (choice) => {
     if (gone) { close(); return }
     if (saving || phase !== 'ready' || !cat) return
@@ -852,24 +890,28 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
         return
       }
       const apply = choice || UPDATE_ALL
+      const body = { plan, ...nameFor(st), apply, ...(noteId ? { origin: noteId } : {}) }
       setSaving(true)
-      const got = await sent(putJson(`/${encodeURIComponent(def.id)}`,
-        { plan, ...nameFor(st), apply, ...(noteId ? { origin: noteId } : {}) }, def.etag))
-      if (got.ok) settleSaved(got.data.id || def.id, got.data.etag, st)
-      if (away()) return
-      if (!got.ok) { refused(got); return }
       if (apply === SAVE_NEW) {
+        // Ruling R-49: a save as a new widget MAKES a widget, so it is keyed like the create POST.
+        const { got, p } = await sendKeyed('save_new', body, st, { defId: def.id, etag: def.etag })
+        if (away()) return
+        if (!got.ok) { refused(got); return }
         // 8.15 M-5: the stale draft is now its own new widget. Its question is answered: the banner goes and Save
         // stops saying "Save as a new widget" (it places the saved widget, if its place is still owed).
         staleEtag.current = null
         setStale(false)
-        savedRef.current = owed(got.data, fromNode ? 'replace' : null, st)
+        savedRef.current = owed(got.data, fromNode ? 'replace' : null, p.planKey)
         await placeSaved()
         return
       }
+      const got = await sent(putJson(`/${encodeURIComponent(def.id)}`, body, def.etag))
+      if (got.ok) settleSaved(got.data.id || def.id, got.data.etag, st)
+      if (away()) return
+      if (!got.ok) { refused(got); return }
       // Ruling R-36: in one note or none, opened from that placed widget, the member sees the new version there.
       if (usedIn <= 1 && fromNode) {
-        savedRef.current = owed(got.data, 'replace', st)
+        savedRef.current = owed(got.data, 'replace', planKeyOf(st))
         await placeSaved()
         return
       }
@@ -877,21 +919,14 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       return
     }
     setSaving(true)
-    if (!createKey.current) createKey.current = newCreateKey()
-    const got = await sent(postJson('', { plan, ...nameFor(st) }, { idempotencyKey: createKey.current }))
-    // R-43: the key had already made this widget (a reload, a retry after a timeout). When this POST carried edits made
-    // since, the widget does not hold them yet: they are saved to it next (placeSaved PUTs them, If-Match the etag the
-    // key made it with, so a change from another tab since is a conflict, never overwritten), and a builder that has
-    // gone keeps them as that widget's draft.
-    const replay = got.ok && got.data.replayed === true
-    const behind = replay && got.data.samePlan === false
-    const etagThen = behind && Number.isInteger(got.data.createdEtag) ? got.data.createdEtag : got.ok ? got.data.etag : null
-    if (got.ok) settleSaved(got.data.id, etagThen, st, behind ? null : planKeyOf(st))
+    // R-43 / R-48: keyed. A request that had landed (a reload, a retry after a timeout) answers the widget it made; the
+    // edits made since are then saved to it (placeSaved), and a builder that has gone keeps them as its draft.
+    const { got, p } = await sendKeyed('create', { plan, ...nameFor(st) }, st)
     if (away()) return
     if (!got.ok) { refused(got); return }
     let how = null
     if (canWriteNote) how = mode === 'copy' && getPos ? 'replace' : 'insert'
-    savedRef.current = behind ? { ...owed(got.data, how, st), etag: etagThen, planKey: null } : owed(got.data, how, st)
+    savedRef.current = owed(got.data, how, p.planKey)
     await placeSaved()
   }
 

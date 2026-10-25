@@ -80,7 +80,8 @@ __all__ = [
     "WidgetError", "NotFound", "Conflict", "PlanError", "PlanTooNew",
     "create", "get", "update", "list_defs", "revs", "name_rev", "restore_rev",
     "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run", "used_in_notes",
-    "CREATE_KEY_TTL_S", "clean_create_key", "create_with_key",
+    "CREATE_KEY_TTL_S", "S_KEY_REUSED", "KeyReused", "clean_create_key", "create_with_key",
+    "update_with_key",
 ]
 
 COUNT_CAP = 100
@@ -384,75 +385,134 @@ def create(user_id: str, name: str | None, plan: dict, *, catalog: Any = None,
         return _get_in(c, user_id, def_id)
 
 
-# -- the builder's create key (wave 8 consolidation, ruling R-43) -------------------
+# -- the builder's create key (wave 8 consolidation, rulings R-43, R-48, R-49) ------
 #
-# The builder sends `Idempotency-Key: <uuid4>` on its create POST: one key per widget being
-# created, kept in the member's draft with the open that made it. A page reloaded while that
-# POST was out cannot know whether it landed, so resuming the draft re-sends the SAME key, and
-# the key's row here answers the widget it already made instead of a second one. Kept in their
-# own functions (never inside `create` or `_clean_name`), so the plain create path is untouched.
+# The builder sends `Idempotency-Key: <uuid4>` on the two saves that MAKE a widget: the create
+# POST and the `save_new` PUT. One key is one request: the client makes a fresh key for every new
+# save and reuses it only to send that same, unconfirmed request again (a retry after a timeout, or
+# the draft resumed after a reload). The key's row here remembers which widget the request made and
+# a hash of what it carried, for 24 hours:
+#   * the same key with the same payload answers the widget it already made (never a second one);
+#   * the same key with a DIFFERENT payload is refused (409 `conflict`, `S_KEY_REUSED`): a key
+#     never lets one widget's save land on, or return, another widget (R-48).
+# Kept in their own functions (never inside `create`, `update` or `_clean_name`).
 
 CREATE_KEY_TTL_S = 24 * 60 * 60
 _KEYS = "j2_widget_create_keys"
 _CREATE_KEY_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+S_KEY_REUSED = "That save was already sent with different changes. Save again to send these."
+
+
+class KeyReused(WidgetError):
+    """The same Idempotency-Key with a different payload (R-48): 409 `conflict`."""
+
+    status = 409
+
+    def __init__(self, sentence: str = S_KEY_REUSED):
+        super().__init__(sentence)
 
 
 def clean_create_key(raw: Any) -> str | None:
     """The key as a lowercase uuid4, or None for anything else. A malformed key is IGNORED, never
-    refused: the POST then behaves exactly as it did before keys existed."""
+    refused: the save then behaves exactly as it did before keys existed."""
     if not isinstance(raw, str):
         return None
     key = raw.strip().lower()
     return key if _CREATE_KEY_RE.fullmatch(key) else None
 
 
-def _plan_sha(valid: dict) -> str:
-    """The validated plan's fingerprint, key order aside (two POSTs of one plan agree)."""
-    canon = json.dumps(valid, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+def _payload_sha(payload: dict) -> str:
+    """What a keyed request carried, key order aside (two sends of one request agree). A save_new's
+    payload names the widget it copies (`from`), so it can never match a create's."""
+    canon = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+
+
+def _keyed(c: sqlite3.Connection, user_id: str, key: str, sha: str, now_dt: datetime) -> dict | None:
+    """Inside the write transaction: expire old keys, then answer a remembered request. None when
+    the key is new (or its widget has since been deleted, which forgets it); the widget it made,
+    with `replayed` and `createdEtag`, when the payload matches; KeyReused when it does not."""
+    c.execute(f"DELETE FROM {_KEYS} WHERE created_at < ?",
+              (_iso(now_dt - timedelta(seconds=CREATE_KEY_TTL_S)),))
+    row = c.execute(
+        f"SELECT definition_id, payload_sha, etag FROM {_KEYS} WHERE user_id = ? AND key = ?",
+        (user_id, key),
+    ).fetchone()
+    if row is None:
+        return None
+    if row["payload_sha"] != sha:
+        raise KeyReused()
+    made = _get_in(c, user_id, row["definition_id"])
+    if made is None:
+        c.execute(f"DELETE FROM {_KEYS} WHERE user_id = ? AND key = ?", (user_id, key))
+        return None
+    return {**made, "replayed": True, "createdEtag": row["etag"]}
+
+
+def _remember(c: sqlite3.Connection, user_id: str, key: str, sha: str, made: dict,
+              now_dt: datetime) -> None:
+    c.execute(
+        f"INSERT INTO {_KEYS} (user_id, key, definition_id, payload_sha, etag, created_at)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, key, made["id"], sha, made["etag"], _iso(now_dt)),
+    )
 
 
 def create_with_key(user_id: str, name: str | None, plan: dict, *, key: Any,
                     catalog: Any = None, now: datetime | None = None,
                     conn: sqlite3.Connection | None = None) -> dict:
-    """`create`, made idempotent by the builder's key (ruling R-43).
+    """`create`, made idempotent by the builder's key (rulings R-43, R-48).
 
     * No usable key: exactly `create`.
-    * A key this member used in the last `CREATE_KEY_TTL_S` for a widget that still exists: that
-      SAME widget, as `get` reads it now, plus `replayed: True`, `samePlan` (whether this POST's
-      plan is the one the key created) and `createdEtag` (the widget's etag when the key created
-      it). Nothing is written and the count cap is not asked: no widget is made. A replay with a
-      different plan carries edits made after the first POST went out; the client saves them to
-      this widget with If-Match `createdEtag`, so a change made since in another tab is a conflict.
+    * A key this member used in the last `CREATE_KEY_TTL_S` with the SAME plan and name, for a
+      widget that still exists: that same widget as it reads now, plus `replayed: True` and
+      `createdEtag` (its etag when the key made it). Nothing is written and the count cap is not
+      asked: no widget is made.
+    * The same key with a different plan or name: `KeyReused` (409), nothing written.
     * A key whose widget has since been deleted: forgotten, and a new widget is made under it.
-    The key is per member: another member's identical key is a different row and a different widget.
-    Expired keys (every member's) are deleted in the same write transaction.
+    Keys are per member; expired keys (every member's) are deleted in the same transaction.
     """
     k = clean_create_key(key)
     if k is None:
         return create(user_id, name, plan, catalog=catalog, now=now, conn=conn)
     cat = _catalog(catalog)
-    sha = _plan_sha(validate_plan(plan, cat))        # PlanTooNew / PlanError carry sentences
+    valid = validate_plan(plan, cat)                 # PlanTooNew / PlanError carry sentences
+    sha = _payload_sha({"plan": valid, "name": _clean_name(name)})
     now_dt = _now(now)
-    cutoff = _iso(now_dt - timedelta(seconds=CREATE_KEY_TTL_S))
     with _write(conn) as c:
-        c.execute(f"DELETE FROM {_KEYS} WHERE created_at < ?", (cutoff,))
-        row = c.execute(
-            f"SELECT definition_id, plan_sha, etag FROM {_KEYS} WHERE user_id = ? AND key = ?",
-            (user_id, k),
-        ).fetchone()
-        if row is not None:
-            made = _get_in(c, user_id, row["definition_id"])
-            if made is not None:
-                return {**made, "replayed": True, "samePlan": row["plan_sha"] == sha,
-                        "createdEtag": row["etag"]}
-            c.execute(f"DELETE FROM {_KEYS} WHERE user_id = ? AND key = ?", (user_id, k))
+        again = _keyed(c, user_id, k, sha, now_dt)
+        if again is not None:
+            return again
         made = create(user_id, name, plan, catalog=cat, now=now_dt, conn=c)   # joins this transaction
-        c.execute(
-            f"INSERT INTO {_KEYS} (user_id, key, definition_id, plan_sha, etag, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (user_id, k, made["id"], sha, made["etag"], _iso(now_dt)),
-        )
+        _remember(c, user_id, k, sha, made, now_dt)
+        return made
+
+
+def update_with_key(user_id: str, def_id: str, *, key: Any, if_match: int,
+                    name: str | None = None, plan: dict | None = None,
+                    apply: Literal["update_all", "save_new", "only"],
+                    origin: str | None = None, catalog: Any = None, now: datetime | None = None,
+                    conn: sqlite3.Connection | None = None) -> dict:
+    """`update`, with the key honoured for `save_new` only (ruling R-49): that answer MAKES a
+    widget, so a repeat of the same request answers the copy it already made. The key is looked
+    up BEFORE If-Match, so the retry of a request that landed is a replay, never a conflict. Any
+    other answer, or no usable key, is exactly `update`."""
+    k = clean_create_key(key)
+    if k is None or apply != "save_new":
+        return update(user_id, def_id, if_match=if_match, name=name, plan=plan, apply=apply,
+                      origin=origin, catalog=catalog, now=now, conn=conn)
+    cat = _catalog(catalog)
+    valid = validate_plan(plan, cat) if plan is not None else None
+    sha = _payload_sha({"from": def_id, "plan": valid,
+                        "name": _clean_name(name) if name is not None else None})
+    now_dt = _now(now)
+    with _write(conn) as c:
+        again = _keyed(c, user_id, k, sha, now_dt)
+        if again is not None:
+            return again
+        made = update(user_id, def_id, if_match=if_match, name=name, plan=plan, apply=apply,
+                      origin=origin, catalog=cat, now=now_dt, conn=c)
+        _remember(c, user_id, k, sha, made, now_dt)
         return made
 
 

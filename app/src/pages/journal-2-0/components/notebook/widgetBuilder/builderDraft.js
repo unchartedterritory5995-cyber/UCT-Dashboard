@@ -1,7 +1,7 @@
 // Notebook widgets phase 2 (wave 8, Task 8.15): the builder's kept draft.
 //
 // One draft per member, in this browser only: `localStorage['uct.nb.widgetDraft.<uid>']` = `{v, at, plan,
-// nameTouched, target, etag, session, key}`. It is a CONVENIENCE (spec 5.2: "Keep your changes?" -> "Resume your unsaved widget"
+// nameTouched, target, etag, session, pending}`. It is a CONVENIENCE (spec 5.2: "Keep your changes?" -> "Resume your unsaved widget"
 // within 24 h), so every read and write is wrapped: a private window, blocked storage or a full quota loses the
 // draft, never the builder. `target` is the widget being edited (its id), or null for a new one, so reopening a
 // widget offers only its own draft and /build offers only a new widget's.
@@ -10,9 +10,11 @@
 // settle only its own open's draft (`settleDraft`), never one a later open kept; and a later open holds its resume
 // offer while the earlier open's save is still out (`saveInFlight`), so resuming can never save the same widget twice.
 //
-// `key` (ruling R-43) is the create key of the widget the open is creating (new, or a copy of a ready-made or gone
-// one): the `Idempotency-Key` it sent (or will send) on the create POST. A draft kept as an edit carries none. A reload ends `saveInFlight` with the page, so a draft resumed after one may belong to a POST that
-// landed; resuming re-sends the same key, and the server answers the widget it already made, never a second one.
+// `pending` (rulings R-43, R-48, R-49) is the open's one unconfirmed save that MAKES a widget (the create POST or a
+// `save_new` PUT): `{key, kind, body, planKey, defId, etag}`, its `Idempotency-Key` and exactly what it sent. A reload
+// ends `saveInFlight` with the page, so a draft resumed after one may belong to a request that landed; resuming sends
+// that SAME request again under its key, and the server answers the widget it already made, never a second one. A key
+// is never reused for anything else: a different payload under it is refused by the server.
 
 export const DRAFT_PREFIX = 'uct.nb.widgetDraft.'
 export const DRAFT_TTL_MS = 24 * 60 * 60 * 1000
@@ -45,18 +47,26 @@ export function newCreateKey() {
 }
 
 const CREATE_KEY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-/** A kept draft's create key, or null when it has none (or an unreadable one). */
-export const createKeyOf = (d) => (isRecord(d) && typeof d.key === 'string' && CREATE_KEY_RE.test(d.key) ? d.key : null)
+/** An unconfirmed keyed save as kept (`{key, kind, body, planKey, defId, etag}`), or null when it is unreadable. */
+export function pendingOf(p) {
+  if (!isRecord(p) || typeof p.key !== 'string' || !CREATE_KEY_RE.test(p.key) || !isRecord(p.body)) return null
+  if (p.kind !== 'create' && p.kind !== 'save_new') return null
+  if (p.kind === 'save_new' && (typeof p.defId !== 'string' || !p.defId)) return null
+  return {
+    key: p.key, kind: p.kind, body: p.body, planKey: typeof p.planKey === 'string' ? p.planKey : null,
+    defId: p.kind === 'save_new' ? p.defId : null, etag: Number.isInteger(p.etag) ? p.etag : null,
+  }
+}
 
 /** Keep the draft. `etag` is the widget's save sequence when the draft was kept (null for a new widget), so a
  *  resumed draft can tell that the widget changed since (fix 1, I-7). Answers whether the write landed. */
-export function writeDraft(uid, { plan, nameTouched, target, etag = null, session = null, key = null }, now = Date.now()) {
+export function writeDraft(uid, { plan, nameTouched, target, etag = null, session = null, pending = null }, now = Date.now()) {
   try {
     window.localStorage.setItem(keyOf(uid), JSON.stringify({
       v: VERSION, at: now, plan, nameTouched: !!nameTouched, target: target || null,
       etag: Number.isInteger(etag) ? etag : null, session: typeof session === 'string' && session ? session : null,
-      // R-43: the create key of the widget this open is creating (a new one, or a copy); null for an edit.
-      key: typeof key === 'string' && CREATE_KEY_RE.test(key) ? key : null,
+      // R-43 / R-48: the open's unconfirmed save that makes a widget, sent again as-is on resume; null otherwise.
+      pending: pendingOf(pending),
     }))
     return true
   } catch {
@@ -125,9 +135,9 @@ export function settleDraft(uid, { session, savedKey, target, etag = null }) {
       window.localStorage.removeItem(keyOf(uid))
       return
     }
-    // Retargeted to the saved widget, the draft is an EDIT of it now: its create key has done its job.
+    // Retargeted to the saved widget, the draft is an EDIT of it now: its keyed save landed and has done its job.
     window.localStorage.setItem(keyOf(uid), JSON.stringify({
-      ...d, target: target || null, etag: Number.isInteger(etag) ? etag : null, key: target ? null : d.key ?? null,
+      ...d, target: target || null, etag: Number.isInteger(etag) ? etag : null, pending: null, key: undefined,
     }))
   } catch { /* the draft stays as it was */ }
 }

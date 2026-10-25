@@ -463,7 +463,7 @@ def test_create_key_two_posts_with_one_key_make_one_widget(W):
     assert len(_defs(A)) == 1                                   # never a second widget
     assert _keys(A) == [(KEY, first["id"])]
     assert "replayed" not in first
-    assert again["replayed"] is True and again["samePlan"] is True and again["createdEtag"] == first["etag"]
+    assert again["replayed"] is True and again["createdEtag"] == first["etag"]
     # the replay is the widget as it is NOW (renamed since), not a copy of the first answer
     W.update(A, first["id"], if_match=first["etag"], name="Renamed", apply="only", catalog=CAT,
              now=T0 + timedelta(minutes=5))
@@ -497,14 +497,19 @@ def test_create_key_malformed_is_ignored_and_the_post_behaves_as_before(W):
     assert again["replayed"] is True and len(_defs(A)) == 9
 
 
-def test_create_key_replay_with_newer_edits_says_so_and_writes_nothing(W):
+def test_create_key_with_a_different_payload_is_refused_and_writes_nothing(W):
+    """R-48: a key never lets one widget's save land on, or return, another widget."""
     first = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
-    newer = W.create_with_key(A, "Edge, more", plan("win_rate"), key=KEY, catalog=CAT, now=T0)
-    assert newer["id"] == first["id"] and newer["replayed"] is True and newer["samePlan"] is False
-    assert newer["plan"]["measures"] == [{"key": "net_pnl"}]   # the stored widget is untouched
-    assert newer["createdEtag"] == first["etag"] and newer["etag"] == first["etag"]
+    for name, p in (("Edge", plan("win_rate")), ("Other name", plan()), (None, plan())):
+        with pytest.raises(W.KeyReused) as e:
+            W.create_with_key(A, name, p, key=KEY, catalog=CAT, now=T0)
+        assert e.value.sentence == W.S_KEY_REUSED and e.value.status == 409
+    assert _defs(A) == [(first["id"],)]                         # never a second widget, never an update
+    assert W.get(A, first["id"])["plan"]["measures"] == [{"key": "net_pnl"}]
     assert [r[0] for r in _rows("SELECT rev FROM j2_widget_definition_revs WHERE definition_id = ?",
                                 (first["id"],))] == [1]
+    # and the same payload still answers the original
+    assert W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)["id"] == first["id"]
 
 
 def test_create_key_replay_never_asks_the_count_cap(W, monkeypatch):
@@ -562,3 +567,54 @@ def test_account_purge_removes_the_create_keys(W):
     assert report["ok"] is True
     assert _keys(A) == []
     assert [r[0] for r in _keys()] == [B]                       # the other member's key is untouched
+
+
+# -- the save_new PUT's key (ruling R-49) ----------------------------------------
+
+KEY2 = "7a1c2e3f-4b5d-4e6f-a7b8-c9d0e1f2a3b4"
+
+
+def test_save_new_key_two_puts_make_one_copy(W):
+    src = _mk(W, name="Edge")
+    copy = W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], name="Edge 2", plan=plan(),
+                             apply="save_new", catalog=CAT, now=T0)
+    again = W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], name="Edge 2", plan=plan(),
+                              apply="save_new", catalog=CAT, now=T0)
+    assert copy["id"] != src["id"] and again["id"] == copy["id"] and again["replayed"] is True
+    assert len(_defs(A)) == 2                                   # the source and ONE copy
+    assert _keys(A) == [(KEY2, copy["id"])]
+
+
+def test_save_new_key_is_looked_up_before_if_match(W):
+    """The source changed after the first send landed: the retry is still a replay, never a 409."""
+    src = _mk(W, name="Edge")
+    copy = W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], plan=plan(), apply="save_new",
+                             catalog=CAT, now=T0)
+    W.update(A, src["id"], if_match=src["etag"], name="Renamed", apply="only", catalog=CAT,
+             now=T0 + timedelta(minutes=2))
+    again = W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], plan=plan(), apply="save_new",
+                              catalog=CAT, now=T0 + timedelta(minutes=3))
+    assert again["id"] == copy["id"] and len(_defs(A)) == 2
+
+
+def test_save_new_key_with_a_different_payload_is_refused(W):
+    src = _mk(W, name="Edge")
+    other = _mk(W, name="Other")
+    W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], plan=plan(), apply="save_new",
+                      catalog=CAT, now=T0)
+    for def_id, etag, p in ((src["id"], src["etag"], plan("win_rate")), (other["id"], other["etag"], plan())):
+        with pytest.raises(W.KeyReused):
+            W.update_with_key(A, def_id, key=KEY2, if_match=etag, plan=p, apply="save_new",
+                              catalog=CAT, now=T0)
+    # a create with that key is a different request too
+    with pytest.raises(W.KeyReused):
+        W.create_with_key(A, "Edge", plan(), key=KEY2, catalog=CAT, now=T0)
+    assert len(_defs(A)) == 3
+
+
+def test_save_new_key_is_ignored_for_every_other_answer(W):
+    src = _mk(W, name="Edge")
+    got = W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], name="Renamed", apply="only",
+                            catalog=CAT, now=T0)
+    assert got["id"] == src["id"] and "replayed" not in got
+    assert _keys() == []

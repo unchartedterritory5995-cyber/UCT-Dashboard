@@ -10,7 +10,7 @@ The services: `api/services/journal_two/widget_definitions.py` (storage, revisio
   GET  /vocabulary               the static catalog, or (?field=) the member's own values
   GET  /shelf                    the ready-made examples
   GET  ""   POST ""              list / create (Idempotency-Key: the builder's create key, R-43)
-  GET  /{id}  PUT /{id}          read / save (If-Match: the widget's etag)
+  GET  /{id}  PUT /{id}          read / save (If-Match: the widget's etag; save_new: Idempotency-Key)
   POST /{id}/archive  /unarchive  /delete  /undelete
   GET  /{id}/used-in  /{id}/revs
   POST /{id}/revs/{rev}/name  /{id}/revs/{rev}/restore (If-Match)
@@ -182,7 +182,7 @@ def _engine_errors(fn):
         raise _err(400, "invalid", e.sentence)
     except wdefs.NotFound:
         raise public.not_found()
-    except wdefs.Conflict as e:
+    except (wdefs.Conflict, wdefs.KeyReused) as e:
         raise _err(409, "conflict", e.sentence)
     except wdefs.WidgetError as e:
         if e.sentence == wdefs.S_CAP:
@@ -463,8 +463,9 @@ def list_widgets(view: str = "live", user: dict = Depends(require_paid)) -> Any:
 @router.post("")
 def create_widget(request: Request, user: dict = Depends(require_paid),
                   body: dict = Depends(json_body)) -> Any:
-    """Create. The builder's `Idempotency-Key` header (ruling R-43, a uuid4) makes a repeat POST
-    answer the widget the key already made (200, `replayed: true`); a malformed key is ignored."""
+    """Create. The builder's `Idempotency-Key` header (rulings R-43, R-48, a uuid4) makes a repeat
+    of the same POST answer the widget the key already made (200, `replayed: true`); the same key
+    with a different payload is 409 `conflict`; a malformed key is ignored."""
     plan = body.get("plan")
     if not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
@@ -495,9 +496,11 @@ def save_widget(def_id: str, request: Request, user: dict = Depends(require_paid
     if plan is not None and not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
     origin = body.get("origin") if isinstance(body.get("origin"), str) else None
-    return _ok(_engine_errors(lambda: wdefs.update(
-        uid, def_id, if_match=etag, name=body.get("name"), plan=plan, apply=body.get("apply"),
-        origin=origin)))
+    # Ruling R-49: a `save_new` makes a widget, so its Idempotency-Key is honoured like the POST's.
+    key = request.headers.get("idempotency-key")
+    return _ok(_engine_errors(lambda: wdefs.update_with_key(
+        uid, def_id, key=key, if_match=etag, name=body.get("name"), plan=plan,
+        apply=body.get("apply"), origin=origin)))
 
 
 @router.post("/{def_id}/archive")

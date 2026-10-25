@@ -330,24 +330,62 @@ describe('8.15 M-5: a stale draft saved as a new widget, its place in the note s
   })
 })
 
-describe('ruling R-43: the create POST carries one idempotency key, and a reload mid-POST never makes a second widget', () => {
-  it('every create POST sends Idempotency-Key (a uuid4); a retry after a failure re-sends the SAME key', async () => {
+const lostAnswer = () => Promise.reject(new Error('the network dropped the answer'))
+const bodyTitle = (call) => JSON.parse(call[1].body).plan.display.title
+
+describe('rulings R-43 / R-48: one key per request, reused only to send that SAME unconfirmed request again', () => {
+  it('a lost answer (it may have landed): the retry re-sends the same key and the same body', async () => {
     let n = 0
-    route('POST', (u) => u === DEFS, () => { n += 1; return n === 1 ? refusal(500, 'failed') : answer(NEW_SAVED) })
+    route('POST', (u) => u === DEFS, () => { n += 1; return n === 1 ? lostAnswer() : answer(NEW_SAVED) })
     route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
     await door().open()
     name('First')
     clickSave()
     await flush()
-    clickSave()                                                                  // the first may have landed (a timeout)
+    clickSave()
     await flush()
     expect(posts()).toHaveLength(2)
     expect(keyOf(posts()[0])).toMatch(UUID4)
     expect(keyOf(posts()[1])).toBe(keyOf(posts()[0]))
+    expect(posts()[1][1].body).toBe(posts()[0][1].body)
     expect(callsTo(spy, 'POST', (u) => u.endsWith('/preview')).every((c) => !('Idempotency-Key' in c[1].headers))).toBe(true)
   })
 
-  it('a reload mid-POST: resuming the draft re-sends the stored key and gets the SAME widget', async () => {
+  it('a CONFIRMED refusal ends the request: the next save is a new request with a fresh key', async () => {
+    let n = 0
+    route('POST', (u) => u === DEFS, () => { n += 1; return n === 1 ? refusal(409, 'count_cap', 'cap') : answer(NEW_SAVED) })
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    await door().open()
+    name('First')
+    clickSave()
+    await flush()
+    clickSave()
+    await flush()
+    expect(posts()).toHaveLength(2)
+    expect(keyOf(posts()[1])).toMatch(UUID4)
+    expect(keyOf(posts()[1])).not.toBe(keyOf(posts()[0]))
+  })
+
+  it('R-48: a request that timed out (and may have landed), then a DIFFERENT card saved: a second widget, never an update', async () => {
+    let n = 0
+    route('POST', (u) => u === DEFS, () => { n += 1; return n === 1 ? lostAnswer() : answer({ ...NEW_SAVED, id: 'd-10' }) })
+    await openGallery()
+    fireEvent.click(screen.getByTestId('example-card-shelf:profit-factor'))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    clickSave()
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: BACK_TO_EXAMPLES }))
+    await flush()
+    fireEvent.click(screen.getByTestId(`example-card-${SHELF[0].id === 'shelf:profit-factor' ? SHELF[1].id : SHELF[0].id}`))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    clickSave()
+    await flush()
+    expect(posts()).toHaveLength(2)
+    expect(keyOf(posts()[1])).not.toBe(keyOf(posts()[0]))                       // its own key: a new widget
+    expect(callsTo(spy, 'PUT', () => true)).toHaveLength(0)                     // nothing saved over the first
+  })
+
+  it('a reload mid-POST: resuming the draft re-sends the stored request and gets the SAME widget', async () => {
     route('POST', (u) => u === DEFS, () => new Promise(() => {}))                // the first POST never answers here
     route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
     const a = door()
@@ -358,22 +396,23 @@ describe('ruling R-43: the create POST carries one idempotency key, and a reload
     a.leave()
     await flush()
     const sentKey = keyOf(posts()[0])
-    expect(draft()).toMatchObject({ target: null, key: sentKey })               // the key is kept with the draft
+    expect(draft().pending).toMatchObject({ kind: 'create', key: sentKey })     // the request is kept with the draft
     __forgetSavesInFlight()                                                      // the page reloads
-    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, replayed: true, samePlan: true, createdEtag: 7 }))
+    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, replayed: true, createdEtag: 7 }))
     await door().open()
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
     clickSave()
     await flush()
     expect(posts()).toHaveLength(2)
-    expect(keyOf(posts()[1])).toBe(sentKey)                                      // the same key, so the same widget
-    expect(callsTo(spy, 'PUT', () => true)).toHaveLength(0)                     // nothing newer to save to it
+    expect(keyOf(posts()[1])).toBe(sentKey)
+    expect(posts()[1][1].body).toBe(posts()[0][1].body)                          // the SAME request, never new edits
+    expect(callsTo(spy, 'PUT', () => true)).toHaveLength(0)
     const runs = callsTo(spy, 'POST', (u) => u.endsWith('/run'))
-    expect(JSON.parse(runs[runs.length - 1][1].body).defId).toBe('d-9')          // and that widget is the one placed
+    expect(JSON.parse(runs[runs.length - 1][1].body).defId).toBe('d-9')
     expect(draft()).toBeNull()
   })
 
-  it('resumed, then edited further: the edits are saved to that same widget, If-Match the etag the key made it at', async () => {
+  it('resumed, then edited: the old request goes again AS IT WAS, then the edits are saved to that widget', async () => {
     route('POST', (u) => u === DEFS, () => new Promise(() => {}))
     route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
     const a = door()
@@ -384,37 +423,64 @@ describe('ruling R-43: the create POST carries one idempotency key, and a reload
     a.leave()
     await flush()
     __forgetSavesInFlight()
-    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, etag: 9, replayed: true, samePlan: false, createdEtag: 7 }))
+    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, etag: 9, replayed: true, createdEtag: 7 }))
     route('PUT', (u) => u.endsWith('/d-9'), () => answer({ ...NEW_SAVED, rev: 2, etag: 10 }))
     await door().open()
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
     name('Later')
     clickSave()
     await flush()
+    expect(posts().map(keyOf)).toEqual([keyOf(posts()[0]), keyOf(posts()[0])])
+    expect(bodyTitle(posts()[1])).toBe('First')                                  // never 'Later' under the old key
     const put = callsTo(spy, 'PUT', (u) => u.endsWith('/d-9'))
     expect(put).toHaveLength(1)
-    expect(put[0][1].headers['If-Match']).toBe('7')                             // a change since elsewhere conflicts
+    expect(put[0][1].headers['If-Match']).toBe('7')                             // the etag the key made it at
     expect(JSON.parse(put[0][1].body).plan.display.title).toBe('Later')
-    expect(posts().map(keyOf)).toEqual([keyOf(posts()[0]), keyOf(posts()[0])])
   })
 
-  it("a builder that has gone keeps those newer edits as that widget's draft, never drops them", async () => {
-    const post = deferred()
-    route('POST', (u) => u === DEFS, () => post.promise)
+  it('resumed, edited, and the old request is REFUSED: the edits go as a new request with a fresh key', async () => {
+    route('POST', (u) => u === DEFS, () => new Promise(() => {}))
     const a = door()
     await a.open()
-    name('Newer')
+    name('First')
     clickSave()
     await flush()
     a.leave()
     await flush()
-    await act(async () => { post.resolve({ ...NEW_SAVED, replayed: true, samePlan: false, createdEtag: 7 }) })
+    __forgetSavesInFlight()
+    let n = 0
+    route('POST', (u) => u === DEFS, () => { n += 1; return n === 1 ? refusal(400, 'invalid', 'Bad') : answer({ ...NEW_SAVED, name: 'Later' }) })
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    await door().open()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    name('Later')
+    clickSave()
     await flush()
-    expect(draft()).toMatchObject({ target: 'd-9', etag: 7, key: null })          // an edit of d-9 now, at etag 7
+    expect(posts()).toHaveLength(3)
+    expect(bodyTitle(posts()[1])).toBe('First')
+    expect(keyOf(posts()[1])).toBe(keyOf(posts()[0]))
+    expect(bodyTitle(posts()[2])).toBe('Later')
+    expect(keyOf(posts()[2])).not.toBe(keyOf(posts()[0]))
+  })
+
+  it('a builder that has gone keeps edits made after the request went out as that widget\'s draft', async () => {
+    const post = deferred()
+    route('POST', (u) => u === DEFS, () => post.promise)
+    const a = door()
+    await a.open()
+    name('First')
+    clickSave()
+    await flush()
+    name('Newer')
+    a.leave()
+    await flush()
+    await act(async () => { post.resolve({ ...NEW_SAVED, etag: 9, replayed: true, createdEtag: 7 }) })
+    await flush()
+    expect(draft()).toMatchObject({ target: 'd-9', etag: 7, pending: null })    // an edit of d-9, at etag 7
     expect(draft().plan.display.title).toBe('Newer')
   })
 
-  it('a copy (a ready-made widget placed in the note) keeps its key too: a reload mid-POST never makes two copies', async () => {
+  it('a copy (a ready-made widget placed in the note) keeps its request too: a reload never makes two copies', async () => {
     const from = { shelfId: 'shelf:profit-factor', getPos: null }
     route('POST', (u) => u === DEFS, () => new Promise(() => {}))
     route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
@@ -426,9 +492,9 @@ describe('ruling R-43: the create POST carries one idempotency key, and a reload
     a.leave()
     await flush()
     const sentKey = keyOf(posts()[0])
-    expect(draft()).toMatchObject({ target: 'shelf:profit-factor', key: sentKey })
+    expect(draft()).toMatchObject({ target: 'shelf:profit-factor', pending: { key: sentKey } })
     __forgetSavesInFlight()
-    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, replayed: true, samePlan: true, createdEtag: 7 }))
+    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, replayed: true, createdEtag: 7 }))
     await door(from).open()
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
     clickSave()
@@ -436,11 +502,10 @@ describe('ruling R-43: the create POST carries one idempotency key, and a reload
     expect(posts().map(keyOf)).toEqual([sentKey, sentKey])
   })
 
-  it('a draft of a saved widget carries no create key (it is resumed as an edit)', async () => {
+  it('a draft of a saved widget carries no pending request (it is resumed as an edit)', async () => {
     route('POST', (u) => u === DEFS, () => answer(NEW_SAVED))
     route('POST', (u) => u.endsWith('/run'), () => refusal(503, 'busy', 'x'))
-    const onClose = vi.fn()
-    render(<WidgetBuilderSheet uid="u1" onClose={onClose} editor={door().editor} />)
+    render(<WidgetBuilderSheet uid="u1" onClose={vi.fn()} editor={door().editor} />)
     await flush(); await flush(PREVIEW_DEBOUNCE_MS)
     name('Owed')
     clickSave()
@@ -448,6 +513,106 @@ describe('ruling R-43: the create POST carries one idempotency key, and a reload
     name('Since')
     fireEvent.keyDown(document.body, { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: 'Keep my changes' }))
-    expect(draft()).toMatchObject({ target: 'd-9', key: null })
+    expect(draft()).toMatchObject({ target: 'd-9', pending: null })
+  })
+})
+
+describe('ruling R-49: "Save as a new widget" (a save_new PUT) makes a widget, so it is keyed the same way', () => {
+  /** Edit d-1 from a stale draft, so Save is "Save as a new widget". */
+  async function staleOpen() {
+    route('GET', (u) => u.endsWith(`${DEFS}/d-1`), () => answer(SAVED))
+    window.localStorage.setItem(`${DRAFT_PREFIX}u1`, JSON.stringify({ v: 1, at: Date.now() - 60000,
+      plan: { ...SAVED.plan, display: { ...SAVED.plan.display, title: 'Kept', titleAuto: false } }, nameTouched: true,
+      target: 'd-1', etag: 5 }))
+    const d = door({ defId: 'd-1', getPos: null })
+    await d.open()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    return d
+  }
+  const puts = () => callsTo(spy, 'PUT', (u) => u.endsWith('/d-1'))
+
+  it('a lost answer: the retry re-sends the same key and body; an update_all PUT carries no key', async () => {
+    let n = 0
+    route('PUT', (u) => u.endsWith('/d-1'), () => { n += 1; return n === 1 ? lostAnswer() : answer({ ...SAVED, id: 'd-2', rev: 1, usedIn: 0 }) })
+    await staleOpen()
+    clickSave()
+    await flush()
+    clickSave()
+    await flush()
+    expect(puts()).toHaveLength(2)
+    expect(JSON.parse(puts()[0][1].body).apply).toBe('save_new')
+    expect(keyOf(puts()[0])).toMatch(UUID4)
+    expect(keyOf(puts()[1])).toBe(keyOf(puts()[0]))
+    expect(puts()[1][1].body).toBe(puts()[0][1].body)
+  })
+
+  it('a reload mid-PUT: resuming re-sends the same save_new under its key, so there is ONE copy', async () => {
+    route('PUT', (u) => u.endsWith('/d-1'), () => new Promise(() => {}))
+    const d = await staleOpen()
+    clickSave()
+    await flush()
+    d.leave()
+    await flush()
+    const sentKey = keyOf(puts()[0])
+    expect(draft()).toMatchObject({ target: 'd-1', etag: 5, pending: { kind: 'save_new', key: sentKey, defId: 'd-1' } })
+    __forgetSavesInFlight()
+    route('PUT', (u) => u.endsWith('/d-1'), () => answer({ ...SAVED, id: 'd-2', rev: 1, usedIn: 0, replayed: true, createdEtag: 1 }))
+    await door({ defId: 'd-1', getPos: null }).open()                          // the draft as the leave kept it
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    expect(screen.getByTestId('builder-save')).toHaveTextContent('Save as a new widget')
+    clickSave()
+    await flush()
+    expect(puts().map(keyOf)).toEqual([sentKey, sentKey])
+    expect(puts()[1][1].body).toBe(puts()[0][1].body)
+  })
+
+  it('the edit PUT (update_all) carries no key', async () => {
+    route('GET', (u) => u.endsWith(`${DEFS}/d-1`), () => answer({ ...SAVED, usedIn: 0 }))
+    route('PUT', (u) => u.endsWith('/d-1'), () => answer({ ...SAVED, rev: 4, etag: 8 }))
+    await door({ defId: 'd-1', getPos: null }).open()
+    name('Edited')
+    clickSave()
+    await flush()
+    expect(puts()).toHaveLength(1)
+    expect('Idempotency-Key' in puts()[0][1].headers).toBe(false)
+  })
+})
+
+describe('ruling R-47: a finish clears only its own open\'s draft', () => {
+  it('open A keeps a draft; open B offers it, the member ignores it and saves a different widget; A\'s draft survives', async () => {
+    const a = render(<WidgetBuilderSheet uid="u1" onClose={vi.fn()} />)
+    await flush(); await flush(PREVIEW_DEBOUNCE_MS)
+    name('Draft of A')
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my changes' }))
+    a.unmount()
+    const kept = draft()
+    expect(kept.plan.display.title).toBe('Draft of A')
+    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, name: 'B' }))
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    await door().open()
+    expect(screen.getByText(RESUME_OFFER)).toBeInTheDocument()                    // offered...
+    name('B')                                                                      // ...and ignored
+    clickSave()
+    await flush()
+    expect(posts()).toHaveLength(1)
+    expect(draft()).toMatchObject({ session: kept.session, target: null })       // A's draft is still stored
+    expect(draft().plan.display.title).toBe('Draft of A')
+    for (const close of opened.splice(0)) act(() => close())
+    await flush()
+    await door().open()
+    expect(screen.getByText(RESUME_OFFER)).toBeInTheDocument()                    // and still offered
+  })
+
+  it('control: B RESUMED A\'s draft and saved it: then it was B\'s to clear, and it goes', async () => {
+    keepDraftA()
+    route('POST', (u) => u === DEFS, () => answer(NEW_SAVED))
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    await door().open()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    clickSave()
+    await flush()
+    expect(posts()).toHaveLength(1)
+    expect(draft()).toBeNull()
   })
 })

@@ -108,11 +108,15 @@ export async function postJson(path, body, { etag, idempotencyKey } = {}) {
 }
 
 /** `PUT DEFS_URL + path` carrying `If-Match: <etag>` (ruling R-15: the widget's `etag`, its save sequence, never
- *  its `rev`). A missing etag is sent as no header, which the server answers 428 = conflict (R-27). */
-export async function putJson(path, body, etag) {
+ *  its `rev`). A missing etag is sent as no header, which the server answers 428 = conflict (R-27). `idempotencyKey`
+ *  (ruling R-49: a save as a new widget) is sent as `Idempotency-Key`. */
+export async function putJson(path, body, etag, { idempotencyKey } = {}) {
   if (isOffline()) return offline()
   const t = withTimeout()
-  const headers = { 'Content-Type': 'application/json', ...ifMatchHeader(etag) }
+  const headers = {
+    'Content-Type': 'application/json', ...ifMatchHeader(etag),
+    ...(typeof idempotencyKey === 'string' && idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+  }
   try {
     const res = await fetch(`${DEFS_URL}${path}`, {
       method: 'PUT', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...t.signal,

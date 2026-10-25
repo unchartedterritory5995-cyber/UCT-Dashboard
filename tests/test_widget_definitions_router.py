@@ -565,7 +565,7 @@ def test_create_with_one_idempotency_key_twice_makes_one_widget(conn):
     again = c.post(BASE, json={"name": "Edge", "plan": raw_plan()}, headers={"Idempotency-Key": KEY})
     assert first.status_code == 200 and again.status_code == 200
     assert again.json()["id"] == first.json()["id"]
-    assert again.json()["replayed"] is True and again.json()["samePlan"] is True
+    assert again.json()["replayed"] is True
     assert again.json()["createdEtag"] == first.json()["etag"]
     assert again.headers["cache-control"] == "no-store"
     assert _count(conn, "SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?", (UID,)) == 1
@@ -595,14 +595,29 @@ def test_a_malformed_key_is_ignored_and_the_post_behaves_as_before(conn):
     assert _count(conn, "SELECT COUNT(*) FROM j2_widget_create_keys") == 0
 
 
-def test_a_replay_carrying_newer_edits_says_so_and_the_widget_is_unchanged(conn):
+def test_the_same_key_with_a_different_payload_is_409_and_nothing_changes(conn):
     c = _client()
     first = c.post(BASE, json={"name": "Edge", "plan": raw_plan()}, headers={"Idempotency-Key": KEY}).json()
-    newer = c.post(BASE, json={"name": "Edge", "plan": raw_plan(measures=("win_rate",))},
-                   headers={"Idempotency-Key": KEY}).json()
-    assert newer["id"] == first["id"] and newer["samePlan"] is False
-    assert newer["plan"]["measures"] == [{"key": "net_pnl"}]
-    # the client then saves those edits to that widget with If-Match createdEtag: it lands
-    put = c.put(f"{BASE}/{first['id']}", json={"plan": raw_plan(measures=("win_rate",)), "apply": "update_all"},
-                headers={"If-Match": str(newer["createdEtag"])})
-    assert put.status_code == 200 and put.json()["plan"]["measures"] == [{"key": "win_rate"}]
+    r = c.post(BASE, json={"name": "Edge", "plan": raw_plan(measures=("win_rate",))},
+               headers={"Idempotency-Key": KEY})
+    assert r.status_code == 409
+    assert r.json()["detail"] == {"code": "conflict", "message": wdefs.S_KEY_REUSED}
+    assert _count(conn, "SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?", (UID,)) == 1
+    assert c.get(f"{BASE}/{first['id']}").json()["plan"]["measures"] == [{"key": "net_pnl"}]
+    same = c.post(BASE, json={"name": "Edge", "plan": raw_plan()}, headers={"Idempotency-Key": KEY})
+    assert same.status_code == 200 and same.json()["id"] == first["id"]
+
+
+def test_save_new_put_honours_the_key(conn):
+    c = _client()
+    src = c.post(BASE, json={"name": "Edge", "plan": raw_plan()}).json()
+    body = {"name": "Edge 2", "plan": raw_plan(), "apply": "save_new"}
+    hdr = {"If-Match": str(src["etag"]), "Idempotency-Key": KEY}
+    one = c.put(f"{BASE}/{src['id']}", json=body, headers=hdr)
+    two = c.put(f"{BASE}/{src['id']}", json=body, headers=hdr)
+    assert one.status_code == 200 and two.status_code == 200
+    assert two.json()["id"] == one.json()["id"] != src["id"] and two.json()["replayed"] is True
+    assert _count(conn, "SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?", (UID,)) == 2
+    bad = c.put(f"{BASE}/{src['id']}", json={**body, "name": "Else"}, headers=hdr)
+    assert bad.status_code == 409 and _code(bad) == "conflict"
+    assert _count(conn, "SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?", (UID,)) == 2

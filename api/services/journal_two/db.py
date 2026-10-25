@@ -2187,20 +2187,20 @@ _PHASE_2_ALTERS = [
     " ON j2_tool_uses(user_id, kind, tool_id)",
     "CREATE INDEX IF NOT EXISTS idx_j2_tool_uses_note"
     " ON j2_tool_uses(note_id)",
-    # Notebook widgets phase 2, wave 8 consolidation (ruling R-43): the builder's create POST
-    # carries an `Idempotency-Key` (a uuid4, one per widget being created, kept in the member's
-    # draft), and this table remembers which widget each key made, for 24 hours
-    # (widget_definitions.CREATE_KEY_TTL_S). A repeat POST with the same key -- a page reloaded
-    # while the first one was out, then the draft resumed -- answers that same widget and never
-    # creates a second. `plan_sha` / `etag` are the plan the key created and its save sequence,
-    # so a replay can say whether it carried newer edits. ⛔ user-scoped: the key is unique per
-    # member, never across members, and the table is purged with the account
-    # (account_purge._DIRECT_USER_TABLES).
+    # Notebook widgets phase 2, wave 8 consolidation (rulings R-43, R-48, R-49): the builder's
+    # two saves that MAKE a widget (the create POST, the `save_new` PUT) carry an
+    # `Idempotency-Key` (a uuid4, one per request, kept in the member's draft), and this table
+    # remembers which widget each key made and a hash of what the request carried, for 24 hours
+    # (widget_definitions.CREATE_KEY_TTL_S). The same request sent again -- a page reloaded while
+    # it was out, then the draft resumed -- answers that same widget and never creates a second;
+    # the same key with a different payload is refused. `etag` is the widget's save sequence when
+    # the key made it. ⛔ user-scoped: the key is unique per member, never across members, and the
+    # table is purged with the account (account_purge._DIRECT_USER_TABLES).
     """CREATE TABLE IF NOT EXISTS j2_widget_create_keys (
         user_id       TEXT NOT NULL,
         key           TEXT NOT NULL,
         definition_id TEXT NOT NULL,
-        plan_sha      TEXT NOT NULL,
+        payload_sha   TEXT NOT NULL,
         etag          INTEGER NOT NULL,
         created_at    TEXT NOT NULL,
         PRIMARY KEY (user_id, key)

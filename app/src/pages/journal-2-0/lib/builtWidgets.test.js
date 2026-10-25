@@ -145,6 +145,15 @@ describe('postJson idempotency (ruling R-43)', () => {
     await postJson('', { plan: {} }, { idempotencyKey: '' })
     for (const call of fetchSpy.mock.calls.slice(1)) expect('Idempotency-Key' in call[1].headers).toBe(false)
   })
+
+  it('putJson sends it too (R-49: a save as a new widget), beside If-Match', async () => {
+    fetchSpy.mockResolvedValue(reply(200, { id: 'd-2' }))
+    await putJson('/d-1', { apply: 'save_new' }, 7, { idempotencyKey: '3f2b8c1e-9d4a-4b7e-8f21-6a5c0d9e1b72' })
+    expect(fetchSpy.mock.calls[0][1].headers).toEqual({ 'Content-Type': 'application/json', 'If-Match': '7',
+      'Idempotency-Key': '3f2b8c1e-9d4a-4b7e-8f21-6a5c0d9e1b72' })
+    await putJson('/d-1', { apply: 'update_all' }, 7)
+    expect('Idempotency-Key' in fetchSpy.mock.calls[1][1].headers).toBe(false)
+  })
 })
 
 describe('putJson / ifMatchHeader (ruling R-15: the etag, never rev)', () => {
