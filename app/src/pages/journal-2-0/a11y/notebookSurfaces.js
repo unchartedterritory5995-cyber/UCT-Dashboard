@@ -229,6 +229,9 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/TradeReviewBlock.jsx': { recipe: 'trader-block-review' },
   // P2 Tier 3 Task 3: the mood and focus check-in (rail a11y/traderBlockCheckin.a11y.test.jsx).
   'components/notebook/blocks/MoodCheckInBlock.jsx': { recipe: 'trader-block-checkin' },
+  // Wave 9 Task 9.13: the routine block (rail a11y/traderBlockRoutine.a11y.test.jsx: editable, menu, read-only,
+  // archived, read failure, offline).
+  'components/notebook/blocks/RoutineBlock.jsx': { recipe: 'trader-block-routine' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },
