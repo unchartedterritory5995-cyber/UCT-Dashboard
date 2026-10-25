@@ -160,3 +160,21 @@ export const load = () => import('../components/notebook/routines/openRoutineEdi
     expect(hits(closure)).toEqual([])
   })
 })
+
+// Task 9.6c review m-3, armed at the be->impl merge: the per-intent key helper (`lib/idempotencyKeys.js`, the
+// R-50 keyedSender) rides only with toolsCrud and the builder's lazy doors, never in the first-open closure.
+const IDEM = path.join(SRC, 'pages', 'journal-2-0', 'lib', 'idempotencyKeys.js')
+
+describe('the idempotency key helper stays out of the first-open closure', () => {
+  it('no first-open file reaches lib/idempotencyKeys.js statically', () => {
+    expect(fs.existsSync(IDEM)).toBe(true)
+    expect(CLOSURE.has(IDEM) ? chainTo(CLOSURE, IDEM) : null).toBe(null)
+  })
+
+  it('CONTROL: a planted static import of it in a first-open root is caught', () => {
+    const planted = `${fs.readFileSync(NOTEBOOK_SURFACE, 'utf8')}
+import '../lib/idempotencyKeys.js'
+`
+    expect(staticClosure(STARTS, new Map([[NOTEBOOK_SURFACE, planted]])).has(IDEM)).toBe(true)
+  })
+})

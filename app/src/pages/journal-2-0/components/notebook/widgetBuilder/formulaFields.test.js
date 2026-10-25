@@ -183,14 +183,14 @@ describe('the first-row line', () => {
   })
 })
 
-// ── the copied sentences and tables, bound to the server's own file ───────────────────────────────────────────────
-// `formulaFields.js` copies plan.py's sentences verbatim. This reads the plan.py in THIS tree: once the backend merge
-// lands wave 10's plan.py here (PLAN_VERSION = 3), every copy must equal its constant there; until then the file must
-// still be the pre-wave-10 one (so the binding cannot be skipped by a plan.py that says v3 without the sentences).
-// TODO(10.9, ruling W10-R53): this binding is vacuous until the backend merge. Task 10.9 adds a `plan_sentences`
-// section to the shared vectors file (tests/fixtures/widgetFormulaVectors.json), railed against plan.py in be; the
-// next re-copy here then asserts every copy in formulaFields.js equals that section, and this file-read goes.
+// ── the copied sentences and tables, bound to the server ─────────────────────────────────────────────────────────
+// `formulaFields.js` copies plan.py's sentences verbatim. Ruling W10-R53 (Task 10.9, armed at the be->impl merge): the
+// copies are bound through the shared vectors file's `plan_sentences` section, which be's
+// `test_plan_sentences_in_the_vectors_are_plan_py_constants` rails against plan.py. The two aggregate tables have no
+// vectors section, so they are still read from the plan.py in this tree (the merged one: PLAN_VERSION 3).
 const PLAN_PY = join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine', 'plan.py')
+// The shared vectors file, read from the repo (cwd is app/), never imported into a bundle.
+const DOC = JSON.parse(readFileSync(join(process.cwd(), '..', 'tests', 'fixtures', 'widgetFormulaVectors.json'), 'utf8'))
 const SENTENCES = [
   ['S_FORMULA_NAME', S_FORMULA_NAME], ['S_FORMULA_NAME_LONG', S_FORMULA_NAME_LONG],
   ['S_FORMULA_NAME_TAKEN', S_FORMULA_NAME_TAKEN], ['S_BAD_CHARACTER', S_BAD_CHARACTER], ['S_GOAL_SOURCE', S_GOAL_SOURCE],
@@ -202,19 +202,22 @@ function pyConstant(src, name) {
 }
 
 describe("the copied sentences are the server's", () => {
-  const src = readFileSync(PLAN_PY, 'utf8')
-  const version = Number(/^PLAN_VERSION = (\d+)\s*$/m.exec(src)?.[1])
-
-  it('wave 10 server in this tree: every copy equals its constant; before the merge: the file is pre-wave-10', () => {
-    expect(Number.isInteger(version)).toBe(true)
-    if (version >= 3) {
-      for (const [name, value] of SENTENCES) expect(pyConstant(src, name), name).toBe(value)
-      expect(src).toMatch(/^ROW_AGGS = \("sum", "avg", "min", "max"\)/m)
-      expect(src).toMatch(/^BOOL_AGGS = \("count", "share"\)/m)
-    } else {
-      expect(version).toBeLessThan(3)
-      expect(src).not.toMatch(/S_GOAL_SOURCE/)
+  it("every copy equals the vectors' plan_sentences (W10-R53)", () => {
+    const shared = DOC.plan_sentences
+    expect(shared && typeof shared === 'object').toBe(true)
+    for (const [name, value] of SENTENCES) {
+      expect(Object.hasOwn(shared, name), name).toBe(true)     // a copy the section does not carry is not bound
+      expect(value, name).toBe(shared[name])
     }
+  })
+
+  it('the aggregate tables equal plan.py (the merged, wave 10 one)', () => {
+    const src = readFileSync(PLAN_PY, 'utf8')
+    expect(Number(/^PLAN_VERSION = (\d+)\s*$/m.exec(src)?.[1])).toBeGreaterThanOrEqual(3)
+    expect(src).toMatch(/^ROW_AGGS = \("sum", "avg", "min", "max"\)/m)
+    expect(src).toMatch(/^BOOL_AGGS = \("count", "share"\)/m)
+    expect(ROW_AGGS).toEqual(['sum', 'avg', 'min', 'max'])
+    expect(BOOL_AGGS).toEqual(['count', 'share'])
   })
 
   it('CONTROL: the reader finds a constant in either quote style, and a changed sentence is seen', () => {
