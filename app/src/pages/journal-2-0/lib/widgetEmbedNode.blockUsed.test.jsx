@@ -71,6 +71,14 @@ describe('block_used', () => {
     expect(sent()).toEqual([])
   })
 
+  it('wave 9 (Task 9.14): a tracker block inserts, and fires nothing (the same guard)', () => {
+    const { ed, sent } = setup()
+    expect(WIDGET_REGISTRY.tracker.block).toBe(true)                            // control: it IS a block
+    ed.chain().focus('end').insertWidgetEmbed('tracker', { trackerId: 't1', day: '2026-10-27' }).run()
+    expect(embeds(ed)).toEqual(['tracker'])                                     // control: it inserted
+    expect(sent()).toEqual([])
+  })
+
   it('M-1: the guard reads the event enum, and the eager node never imports lib/journalBlocks (first-open bytes)', () => {
     const src = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/lib/widgetEmbedNode.jsx'), 'utf8')
     expect(src).toMatch(/EVENT_SCHEMAS\.block_used\.kind\.values\.has\(widgetId\)/)

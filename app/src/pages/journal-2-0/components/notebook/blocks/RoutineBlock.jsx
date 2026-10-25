@@ -21,10 +21,9 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
-import { isTradingDay } from '../../../../../lib/marketClock/sessionCalendar'
 import { todayET } from '../../../lib/calendar'
 import { TOOL_COPY, isOffline, readDay, resolvedTodayIfCurrent, setSkipped, subscribe, tick, unarchive } from '../../../lib/blocks/toolsApi'
-import { forDayLabel, toolSearchText } from '../../../lib/blocks/toolDays'
+import { editorNoteDay, forDayLabel, readKeyOf, sessionAfter, toolSearchText, weekLastSession } from '../../../lib/blocks/toolDays'
 import { BlockLoading } from './blockStates'
 import styles from './Blocks.module.css'
 import own from './RoutineBlock.module.css'
@@ -41,48 +40,8 @@ export const futureLine = (day) => `You can tick this on ${forDayLabel(day).repl
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 const isDay = (d) => typeof d === 'string' && DAY_RE.test(d)
-
-function addDays(day, n) {
-  const t = new Date(`${day}T00:00:00Z`)
-  t.setUTCDate(t.getUTCDate() + n)
-  return t.toISOString().slice(0, 10)
-}
-/** The session strictly after `day` (the shared market calendar; weekdays past its horizon). */
-export function sessionAfter(day) {
-  let d = day
-  for (let i = 0; i < 15; i += 1) {
-    d = addDays(d, 1)
-    if (isTradingDay(d)) return d
-  }
-  return addDays(day, 1)
-}
-/** The last trading day of `day`'s Monday-to-Friday week. */
-export function weekLastSession(day) {
-  const mon = addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7))
-  for (let i = 4; i >= 0; i -= 1) {
-    const d = addDays(mon, i)
-    if (isTradingDay(d)) return d
-  }
-  return addDays(mon, 4)
-}
-
-/** The note's own day, from the editor (Task 9.19 stores it, as a day or a function of none); else today ET. */
-function noteDayOf(editor) {
-  const v = editor?.storage?.uctJournalWidgets?.noteDay
-  let d = null
-  try { d = typeof v === 'function' ? v() : v } catch { d = null }
-  return isDay(d) ? d : todayET()
-}
-
-/** The day this block reads (W9-R33). */
-function readKeyOf(p, noteDay) {
-  if (p.bind === 'today') return 'today'
-  if (isDay(p.day)) return p.day
-  if (p.bind === 'next-trading-day') return sessionAfter(noteDay)
-  if (p.bind === 'week') return weekLastSession(noteDay)
-  return noteDay
-}
-
+// The day helpers are lib/blocks/toolDays' (the tracker block reads its day by the same rule); re-exported here.
+export { sessionAfter, weekLastSession }
 
 /** A read's failure code -> the block's state. */
 const READ_STATE = { offline: 'offline', unavailable: 'unavailable', missing: 'missing' }
@@ -135,7 +94,7 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   const routineId = typeof p.routineId === 'string' ? p.routineId : ''
   const bind = typeof p.bind === 'string' ? p.bind : 'note-day'
   const follow = bind === 'today'
-  const noteDay = noteDayOf(editor)
+  const noteDay = editorNoteDay(editor)
   const readKey = readKeyOf(p, noteDay)
   const base = `${routineId}|${readKey}`
   const isTouch = useIsTouch()

@@ -139,6 +139,9 @@ export const IMPORT_ALLOW = {
   'app/src/hooks/useBreakpoint': "useIsTouch, the same media query ContextPopover reads to pick a menu or a sheet; no network, no writes",
   'app/src/lib/marketClock/sessionCalendar': "isTradingDay over the ONE market calendar the server reads too (market_calendar.json); pure, no network, no writes",
   'app/src/pages/journal-2-0/components/notebook/myTools/openMyTools': "My tools' door (Task 8.17), a lazy import from the ⋯ menu's Manage…, opened on the Routines tab; My tools never writes into a note",
+  // Wave 9 Task 9.14 (the tracker block): its chart's width is the built views' ONE measure, whose hysteresis stops a
+  // ResizeObserver loop (rule H14), so the block writes no observer of its own.
+  'app/src/pages/journal-2-0/components/notebook/widgets/builtViews/svg': "useChartWidth and the scale helpers of the built widget views (inline-SVG layout math and one ResizeObserver); no network, no writes",
 }
 
 /**

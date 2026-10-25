@@ -67,6 +67,8 @@ const IDS = [
   'moodCheckIn',
   // Notebook widgets phase 2, wave 9 (Task 9.13): the routine block, a LIVE trader block (W9-R4), same binding.
   'routine',
+  // Wave 9 (Task 9.14): the tracker block, the routine's twin.
+  'tracker',
 ]
 const G040_KINDS = ['screener', 'cot', 'modelbook']
 // Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
@@ -78,7 +80,7 @@ const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
 // Wave 9 (W9-R4): live trader blocks. `block: true` like BLOCK_IDS, but no journalBlocks BLOCK_KINDS row (no
 // catalog search line, no style settings), so the catalog rails below read BLOCK_IDS only.
-const TOOL_BLOCK_IDS = ['routine']
+const TOOL_BLOCK_IDS = ['routine', 'tracker']
 // The ids a /charts board can hold — everything except the capture-only kinds.
 const CAPTURE_ONLY = [...G040_KINDS, ...NOTEBOOK_WIDGET_KINDS, ...BLOCK_IDS, ...TOOL_BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
@@ -110,6 +112,7 @@ describe('widget registry — metadata pins', () => {
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
       routine: 'Routine',
+      tracker: 'Tracker',
     })
   })
 
@@ -135,6 +138,7 @@ describe('widget registry — metadata pins', () => {
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
       routine: 'Routine',
+      tracker: 'Tracker',
     })
   })
 
@@ -160,6 +164,7 @@ describe('widget registry — metadata pins', () => {
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
       routine: 'Routine',
+      tracker: 'Tracker',
     })
   })
 
@@ -216,6 +221,7 @@ describe('widget registry — metadata pins', () => {
       tradeReview: { w: 6, h: 4, minW: 3, minH: 2 },
       moodCheckIn: { w: 6, h: 4, minW: 3, minH: 2 },
       routine: { w: 6, h: 4, minW: 3, minH: 2 },
+      tracker: { w: 6, h: 4, minW: 3, minH: 2 },
     })
   })
 
@@ -964,6 +970,23 @@ describe('widget registry — journal embed bindings', () => {
       ['routineId', 'string', ''], ['day', 'string', ''], ['bind', 'string', 'note-day'], ['display', 'string', 'items'],
     ])
     expect(BLOCK_KINDS.find((k) => k.id === 'routine'), 'W9-R4: no BLOCK_KINDS row').toBeUndefined()
+  })
+
+  it('wave 9 (Task 9.14): tracker is captureOnly and a block, in no menu, bound ONCE in BLOCK_COMPONENTS, its line [tracker]', () => {
+    const w = WIDGET_REGISTRY.tracker
+    expect(w, 'tracker is registered').toBeDefined()
+    expect(w.captureOnly).toBe(true)
+    expect(w.block).toBe(true)
+    expect(isTraderBlock('tracker')).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false), 'tracker menus').toBe(true)
+    expect(blockComponentKeys().filter((k) => k === 'tracker')).toEqual(['tracker'])          // IR-B2: exactly once
+    expect(WIDGET_IDS.indexOf('tracker')).toBe(WIDGET_IDS.indexOf('routine') + 1)             // the row after routine
+    expect(paramsPlainText('tracker', {})).toBe('[tracker]')
+    expect(paramsPlainText('tracker', { trackerId: 't1', day: '2026-10-27', bind: 'today', display: 'pnl' })).toBe('[tracker]')
+    expect(w.paramsSchema.map((f) => [f.key, f.type, f.default])).toEqual([
+      ['trackerId', 'string', ''], ['day', 'string', ''], ['bind', 'string', 'note-day'], ['display', 'string', 'chart'],
+    ])
+    expect(BLOCK_KINDS.find((k) => k.id === 'tracker'), 'W9-R4: no BLOCK_KINDS row').toBeUndefined()
   })
 
   it('S20: a block\'s plain text IS its catalog search line', () => {

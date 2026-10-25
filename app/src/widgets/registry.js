@@ -1055,6 +1055,15 @@ const PANEL_MANIFESTS = {
     { key: 'bind', type: 'string', default: 'note-day' },
     { key: 'display', type: 'string', default: 'items' },
   ], '[routine]'),
+  // Wave 9 (Task 9.14): the tracker block, the routine's twin. Live (it reads and logs the tracker's day through
+  // lib/blocks/toolsApi); its params are its own settings only: which tracker, which day, and `display` (`chart` or
+  // `pnl`). Its name-and-day search text is written by the block, as the routine's is.
+  tracker: blockManifest('Tracker', [
+    { key: 'trackerId', type: 'string', default: '' },
+    { key: 'day', type: 'string', default: '' },
+    { key: 'bind', type: 'string', default: 'note-day' },
+    { key: 'display', type: 'string', default: 'chart' },
+  ], '[tracker]'),
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(

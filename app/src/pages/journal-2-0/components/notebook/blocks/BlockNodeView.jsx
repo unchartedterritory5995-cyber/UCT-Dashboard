@@ -24,6 +24,7 @@ export const BLOCK_COMPONENTS = {
   tradeReview: () => import('./TradeReviewBlock'),
   moodCheckIn: () => import('./MoodCheckInBlock'),
   routine: () => import('./RoutineBlock'),
+  tracker: () => import('./TrackerBlock'),
 }
 
 /** A body that throws (or whose chunk fails twice) shows BLOCK_ERROR_SENTENCE inside the block's own

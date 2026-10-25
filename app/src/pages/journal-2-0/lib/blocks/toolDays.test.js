@@ -1,6 +1,6 @@
 // Day helpers for routine and tracker blocks (Notebook widgets phase 2, wave 9, Task 9.12).
 import { describe, it, expect } from 'vitest'
-import { noteDayOf, weekMonday, forDayLabel, toolSearchText, localTimeBeside } from './toolDays'
+import { noteDayOf, weekMonday, forDayLabel, toolSearchText, localTimeBeside, dayWords, sessionAfter, weekLastSession, editorNoteDay, readKeyOf } from './toolDays'
 import { todayET } from '../calendar'
 
 describe('noteDayOf', () => {
@@ -67,5 +67,27 @@ describe('localTimeBeside', () => {
     expect(localTimeBeside('9:00', oct)).toMatch(/^9:00 ET( · \d{1,2}:\d{2} your time)?$/)
     expect(localTimeBeside('soon', oct)).toBe('soon')
     expect(localTimeBeside('25:00', oct)).toBe('25:00')
+  })
+})
+
+describe('the day a routine or tracker block reads (Task 9.14: one rule, shared by both blocks)', () => {
+  it('readKeyOf: today, its own day, else from the note day (W9-R33)', () => {
+    expect(readKeyOf({ bind: 'today', day: '2026-10-20' }, '2026-10-27')).toBe('today')
+    expect(readKeyOf({ bind: 'note-day', day: '2026-10-20' }, '2026-10-27')).toBe('2026-10-20')
+    expect(readKeyOf({ bind: 'note-day', day: '' }, '2026-10-27')).toBe('2026-10-27')
+    expect(readKeyOf({ bind: 'next-trading-day', day: '' }, '2026-11-25')).toBe('2026-11-27')   // Thanksgiving closed
+    expect(readKeyOf({ bind: 'next-trading-day', day: '' }, '2026-10-23')).toBe('2026-10-26')   // Friday -> Monday
+    expect(readKeyOf({ bind: 'week', day: '' }, '2026-10-27')).toBe('2026-10-30')
+    expect(readKeyOf({ bind: 'week', day: '' }, '2027-03-24')).toBe('2027-03-25')               // Good Friday closed
+    expect(readKeyOf(null, '2026-10-27')).toBe('2026-10-27')
+    expect(sessionAfter('2026-10-23')).toBe('2026-10-26')
+    expect(weekLastSession('2026-10-26')).toBe('2026-10-30')
+  })
+  it('editorNoteDay: a day or a function of none, else today ET; dayWords drops the For', () => {
+    expect(editorNoteDay({ storage: { uctJournalWidgets: { noteDay: '2026-10-26' } } })).toBe('2026-10-26')
+    expect(editorNoteDay({ storage: { uctJournalWidgets: { noteDay: () => '2026-10-25' } } })).toBe('2026-10-25')
+    expect(editorNoteDay({ storage: { uctJournalWidgets: { noteDay: () => { throw new Error('x') } } } })).toBe(todayET())
+    expect(editorNoteDay(null)).toBe(todayET())
+    expect(dayWords('2026-10-30')).toBe('Fri Oct 30')
   })
 })

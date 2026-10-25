@@ -2,6 +2,7 @@
 // note belongs to, the "For Tue Oct 27" line, the search text a block contributes, and a release time shown
 // beside the member's own clock. Pure functions: no network, no storage, no state.
 import { etDayOf, todayET } from '../calendar'
+import { isTradingDay } from '../../../../lib/marketClock/sessionCalendar'
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -49,6 +50,57 @@ export function forDayLabel(day, bind) {
   if (!t) return ''
   if (bind === 'week') return `For the week of ${short(partsOf(weekMonday(day)))}`
   return `For ${WEEKDAYS[t.getUTCDay()]} ${short(t)}`
+}
+
+/** `Tue Oct 27`: the day as a block's sentences name it (forDayLabel without its "For "). */
+export function dayWords(day) {
+  return forDayLabel(day).replace(/^For /, '')
+}
+
+function addDays(day, n) {
+  const t = new Date(`${day}T00:00:00Z`)
+  t.setUTCDate(t.getUTCDate() + n)
+  return t.toISOString().slice(0, 10)
+}
+
+/** The session strictly after `day` (the shared market calendar; weekdays past its horizon). */
+export function sessionAfter(day) {
+  let d = day
+  for (let i = 0; i < 15; i += 1) {
+    d = addDays(d, 1)
+    if (isTradingDay(d)) return d
+  }
+  return addDays(day, 1)
+}
+
+/** The last trading day of `day`'s Monday-to-Friday week. */
+export function weekLastSession(day) {
+  const mon = addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7))
+  for (let i = 4; i >= 0; i -= 1) {
+    const d = addDays(mon, i)
+    if (isTradingDay(d)) return d
+  }
+  return addDays(mon, 4)
+}
+
+/** The note's own day, from the editor (Task 9.19 stores it, as a day or a function of none); else today ET. */
+export function editorNoteDay(editor) {
+  const v = editor?.storage?.uctJournalWidgets?.noteDay
+  let d = null
+  try { d = typeof v === 'function' ? v() : v } catch { d = null }
+  return typeof d === 'string' && DAY_RE.test(d) ? d : todayET()
+}
+
+/** The day a routine or tracker block reads (ruling W9-R33): 'today' (the server resolves it) when it follows
+ *  today; else its own day; else from the note's day, `next-trading-day` the session after it, `week` that week's
+ *  last trading day, and `note-day` the day itself. */
+export function readKeyOf(params, noteDay) {
+  const p = params || {}
+  if (p.bind === 'today') return 'today'
+  if (typeof p.day === 'string' && DAY_RE.test(p.day)) return p.day
+  if (p.bind === 'next-trading-day') return sessionAfter(noteDay)
+  if (p.bind === 'week') return weekLastSession(noteDay)
+  return noteDay
 }
 
 /** The line a block adds to a note's search text, e.g. `[routine: Pre-market routine · For Tue Oct 27]`. */
