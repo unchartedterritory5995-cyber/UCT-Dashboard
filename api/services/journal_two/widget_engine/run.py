@@ -314,11 +314,17 @@ _DAY_NOTES_STAMP = "SELECT COUNT(*) FROM j2_day_notes WHERE user_id = ?"
 # themselves (ordered by id): a renamed or moved folder, or a renamed kind, moves it (fix round 1,
 # M5); a retyped property moves the properties' MAX(updated_at). Task 10.7 (10.4 N-4): the digest
 # is a fixed-size sha256 (`_digest_stamp`), never the names joined (2,000 folders made 238 KB).
-_NOTES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_notes WHERE user_id = ?"
+# Task 10.7 fix round 1 (I-3): trashing, archiving and restoring a note set only `deleted_at` /
+# `archived_at` (`notes.delete_note`, `set_note_archived`), and deleting a property only its
+# `deleted_at`, so those columns are in the stamp too (a count AND a newest value: a restore clears
+# one, a trash sets one).
+_NOTES_STAMP = ("SELECT COUNT(*), MAX(updated_at), COUNT(deleted_at), MAX(deleted_at),"
+                " COUNT(archived_at), MAX(archived_at) FROM j2_notes WHERE user_id = ?")
 _NOTE_FOLDERS_STAMP = ("SELECT id, parent_id, name FROM j2_note_folders WHERE user_id = ?"
                        " ORDER BY id")
 _NOTE_KINDS_STAMP = "SELECT id, name FROM j2_note_kinds WHERE user_id = ? ORDER BY id"
-_NOTE_PROPERTIES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_note_properties WHERE user_id = ?"
+_NOTE_PROPERTIES_STAMP = ("SELECT COUNT(*), MAX(updated_at), COUNT(deleted_at), MAX(deleted_at)"
+                          " FROM j2_note_properties WHERE user_id = ?")
 #: The stamps read as a digest of their rows (the others read one row of aggregates).
 _DIGEST_STAMPS = frozenset({_NOTE_FOLDERS_STAMP, _NOTE_KINDS_STAMP})
 _NOTE_STAMPS = (_NOTES_STAMP, _NOTE_FOLDERS_STAMP, _NOTE_KINDS_STAMP, _NOTE_PROPERTIES_STAMP)

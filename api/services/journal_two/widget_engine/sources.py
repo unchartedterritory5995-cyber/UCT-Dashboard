@@ -1429,7 +1429,7 @@ def scan_options(conn: sqlite3.Connection, plan: dict, settings: dict | None,
 S_PROP_GONE = "That property isn't available; it is not used in this widget."
 S_PROP_NOT_NUMBER = "That property isn't a number you can add up."
 #: A filter whose value no longer fits its property (the member retyped it): dropped, never a 400.
-S_PROP_FILTER_UNFIT = "That property filter doesn't fit the property; it is not used in this widget."
+S_PROP_FILTER_UNFIT = "That filter can't be used with this property; it is not used in this widget."
 
 #: The one ET-day and ET-hour authority (W10-R52); never a second conversion.
 _note_day = timeutil.compute_trading_day_et
@@ -1443,8 +1443,12 @@ _PROPERTY_OP = {"eq": "eq", "gt": "gt", "gte": "gte", "lt": "lt", "lte": "lte",
                 "contains": "contains", "is": "eq"}
 
 
-def property_conditions(prop: str, op: str, values: list) -> list[dict]:
-    """One plan property filter as `note_properties.property_filter_sql` conditions."""
+def property_conditions(prop: str, op: str, values: list,
+                        prop_type: str | None = None) -> list[dict]:
+    """One plan property filter as `note_properties.property_filter_sql` conditions. On a
+    multi-select, "is" one option (`eq`) asks whether the list holds it (`contains`)."""
+    if op == "eq" and prop_type == "multi_select":
+        return [{"propertyId": prop, "op": "contains", "value": values[0]}]
     if op == "between":
         return [{"propertyId": prop, "op": "gte", "value": values[0]},
                 {"propertyId": prop, "op": "lte", "value": values[1]}]
@@ -1475,15 +1479,39 @@ def _property_filters(conn: sqlite3.Connection, user_id: str, plan: dict,
     for f in plan.get("filters") or []:
         if f.get("field") != PROPERTY_FIELD:
             continue
-        if member_property(conn, user_id, f.get("prop")) is None:
+        d = member_property(conn, user_id, f.get("prop"))
+        if d is None:
             _notice(notices, S_PROP_GONE)
             continue
         try:
             sql, ps = note_properties.property_filter_sql(
-                user_id, property_conditions(f["prop"], f["op"], f.get("values") or []), conn,
-                strict=False)
+                user_id, property_conditions(f["prop"], f["op"], f.get("values") or [],
+                                             d.get("type")), conn, strict=False)
         except note_properties.PropertyValidationError:
             _notice(notices, S_PROP_FILTER_UNFIT)
+            continue
+        frags.append(sql)
+        params.extend(ps)
+    return "".join(frags), params
+
+
+def _kind_filters(conn: sqlite3.Connection, user_id: str, plan: dict) -> tuple[str, list]:
+    """W10-R60: a kind filter naming ONE kind narrows in SQL through the one property filter
+    authority (`builtin:note_kind` equals it). Any other kind filter (several kinds, "is not")
+    is applied by its Python twin over the same value (`row["kind"]`), which also re-checks this
+    one. A kind that is not one of the member's is refused by the authority: no SQL, and the twin
+    leaves no row (an honest empty answer)."""
+    frags: list[str] = []
+    params: list = []
+    for f in plan.get("filters") or []:
+        vals = f.get("values") or []
+        if f.get("field") != "kind" or f.get("op") != "in" or len(vals) != 1:
+            continue
+        try:
+            sql, ps = note_properties.property_filter_sql(
+                user_id, [{"propertyId": j2_note_kinds.NOTE_KIND_PROPERTY, "op": "eq",
+                           "value": vals[0]}], conn, strict=False)
+        except note_properties.PropertyValidationError:
             continue
         frags.append(sql)
         params.extend(ps)
@@ -1541,8 +1569,9 @@ NOTE_FIELDS: dict[str, Field] = {f.key: f for f in [
        none_label="No folder"),
     _f("tag", "Tag", "tag", sql="n.tags", split=True, none_label="No tags"),
     _f("ticker", "Ticker", "text", sql="n.ticker", split=True, ci=True, none_label="No ticker"),
-    _f("kind", "Note kind", "enum", sql="n.kind_id", split=True, label_from="kind_name",
-       none_label="No kind"),
+    # W10-R60: the note's CURRENT kind (the `builtin:note_kind` property), never the creation-time
+    # `kind_id`; a one-value filter narrows in SQL through `property_filter_sql` (`_kind_filters`)
+    _f("kind", "Note kind", "enum", split=True, label_from="kind_name", none_label="No kind"),
     # filter only, and only with `prop`; its type is the named property's (the authority checks it)
     Field(PROPERTY_FIELD, "Property", None, PROPERTY_OPS, False, None, lambda r: None,
           scan_applied=True),
@@ -1554,7 +1583,9 @@ def scan_notes(conn: sqlite3.Connection, plan: dict, settings: dict | None,
     """The member's notes written in the range, newest first, at most `SCAN_ROWS`."""
     acc = owned_account_id(conn, user_id, wcompile.account_param(plan, settings))
     notices: list[str] = []
-    extra = _property_filters(conn, user_id, plan, notices)
+    p_sql, p_params = _property_filters(conn, user_id, plan, notices)
+    k_sql, k_params = _kind_filters(conn, user_id, plan)
+    extra = (p_sql + k_sql, p_params + k_params)
     summed = _summed_properties(conn, user_id, plan, notices)
     sql, params = wcompile.compile_scan(NOTES, plan, settings, rng, user_id, extra=extra)
     raw = _dicts(conn.execute(sql, params))
@@ -1590,7 +1621,9 @@ def scan_notes(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         if i % _CHECK_EVERY == 0:
             wcompile.check_deadline()
         fid = r.get("folder_id") or None
-        kid = r.get("kind_id") or None
+        props = note_properties._parse_properties_json(r.get("properties_json"))
+        kid = props.get(j2_note_kinds.NOTE_KIND_PROPERTY) or None
+        kid = kid if isinstance(kid, str) else None
         hour_c, hour_u = _note_hour(r.get("created_at")), _note_hour(r.get("updated_at"))
         row = {
             "_tid": r["id"],
@@ -1611,7 +1644,6 @@ def scan_notes(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             "flagged": False,
         }
         if summed:
-            props = note_properties._parse_properties_json(r.get("properties_json"))
             for prop in summed:
                 row[wmeasures.prop_key(prop)] = _prop_number(props, prop)
         if titles is not None:

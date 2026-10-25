@@ -31,6 +31,7 @@ from tests.test_widget_sources import (  # noqa: F401 -- `conn` is a fixture use
 
 RUN_NOW = datetime(2026, 10, 29, 15, 30, tzinfo=timezone.utc)      # ET day = 2026-10-29
 RUN_TODAY = date(2026, 10, 29)
+NOTE_KIND = "builtin:note_kind"
 OTHER = "u-wnotes-other"
 
 
@@ -47,15 +48,17 @@ def _fresh_state(monkeypatch):
 
 def add_n(c, uid, *, created="2026-10-20T15:00:00Z", updated=None, folder=None, tags=None,
           ticker=None, kind=None, props=None, deleted=None, archived=None, import_source=None,
-          title="A note", account=None, nid=None, commit=True):
+          title="A note", account=None, nid=None, commit=True, created_kind=None):
     nid = nid or str(uuid.uuid4())
+    if kind is not None:
+        props = {**(props or {}), NOTE_KIND: kind}
     c.execute(
         "INSERT INTO j2_notes (id, user_id, account_id, folder_id, title, body_json, body_plain,"
         " ticker, tags, kind_id, properties_json, created_at, updated_at, deleted_at, archived_at,"
         " import_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (nid, uid, account, folder, title,
          json.dumps({"type": "doc", "content": [{"type": "text", "text": "BODY-CANARY"}]}),
-         "BODY-CANARY plain", ticker, json.dumps(tags or []), kind,
+         "BODY-CANARY plain", ticker, json.dumps(tags or []), created_kind,
          json.dumps(props) if props else None, created, updated or created, deleted, archived,
          import_source))
     if commit:
@@ -110,17 +113,41 @@ def groups(res):
 
 def test_trashed_and_sample_notes_excluded(conn):
     live = add_n(conn, UID)
-    archived = add_n(conn, UID, archived="2026-10-22T00:00:00Z")
+    other = add_n(conn, UID)
+    add_n(conn, UID, archived="2026-10-22T00:00:00Z")                 # archived (W10-R59)
     add_n(conn, UID, deleted="2026-10-22T00:00:00Z")                  # trashed
+    add_n(conn, UID, archived="2026-10-22T00:00:00Z", deleted="2026-10-23T00:00:00Z")  # both
     add_n(conn, UID, import_source="sample")                          # the sample notebook
     _p, sc, res = scan_eval(conn, raw())
-    assert {r["_tid"] for r in sc.rows} == {live, archived}           # archived is still written
+    assert {r["_tid"] for r in sc.rows} == {live, other}
     assert res.count == 2 and res.total.cells[0].value == 2.0
     out = run_out(raw())
     assert out["count"] == 2 and out["value"]["v1"] == 2.0
+    # the notes list's own count, for the same book, with the sample left out
+    assert j2_notes.count_notes(UID, exclude_sample=True, conn=conn) == 2
     # control: an imported note that is not the sample is the member's own
     add_n(conn, UID, import_source="notion")
     assert scan_eval(conn, raw())[2].count == 3
+    assert j2_notes.count_notes(UID, exclude_sample=True, conn=conn) == 3
+
+
+def test_the_scan_asks_the_notes_lists_own_predicate(conn, monkeypatch):
+    """W10-R59: derived from `notes._notes_filter_sql`, never restated: a rule the list learns
+    reaches the widget. Control: the widget's SQL carries exactly the list's clause."""
+    p = plan.validate_plan(raw(), sources.CATALOG)
+    rng = plan.resolve_range(p["range"], RUN_TODAY)
+    where, _params = j2_notes._notes_filter_sql(UID, exclude_sample=True)
+    sql, params = wcompile.compile_scan(sources.NOTES, p, {}, rng, UID)
+    assert ("FROM j2_notes n" + where) in sql and "archived_at IS NULL" in where
+    real = j2_notes._notes_filter_sql
+
+    def taught(user_id, **kw):
+        s, ps = real(user_id, **kw)
+        return s + " AND ticker IS NOT 'LEARNED'", ps
+
+    monkeypatch.setattr(j2_notes, "_notes_filter_sql", taught)
+    sql2, _ = wcompile.compile_scan(sources.NOTES, p, {}, rng, UID)
+    assert "ticker IS NOT 'LEARNED'" in sql2
 
 
 def test_created_day_is_et(conn):
@@ -147,9 +174,10 @@ def test_created_day_is_et(conn):
 def test_split_by_folder_kind_tag_ticker_with_none_labels(conn):
     ideas = add_folder(conn, UID, "Ideas")
     setup = add_kind(conn, UID, "Setup")
-    add_n(conn, UID, folder=ideas, kind=setup, tags=["earnings", "swing"], ticker="NVDA")
+    add_n(conn, UID, folder=ideas, kind=setup, tags=["earnings", "swing"], ticker="NVDA",
+          created_kind="trade_plan")                       # created as a trade plan: not read
     add_n(conn, UID, folder=ideas, kind="thesis", tags=["earnings"], ticker="NVDA")
-    add_n(conn, UID, folder="", kind=None, tags=[], ticker="")
+    add_n(conn, UID, folder="", kind=None, tags=[], ticker="", created_kind="thesis")
     by = lambda key: groups(scan_eval(conn, raw(split={"by": key}, view={"type": "bar"}))[2])  # noqa: E731
     assert by("folder") == {"Ideas": 2.0, "No folder": 1.0}
     assert by("kind") == {"Setup": 1.0, "Thesis": 1.0, "No kind": 1.0}
@@ -164,6 +192,40 @@ def test_split_by_folder_kind_tag_ticker_with_none_labels(conn):
                                          "values": ["nvda"]}]))[2].count == 2   # case-insensitive
     assert scan_eval(conn, raw(filters=[{"field": "kind", "op": "in",
                                          "values": ["thesis"]}]))[2].count == 1
+    assert scan_eval(conn, raw(filters=[{"field": "kind", "op": "in",
+                                         "values": ["thesis", setup]}]))[2].count == 2
+    assert scan_eval(conn, raw(filters=[{"field": "kind", "op": "not_in",
+                                         "values": ["thesis"]}]))[2].count == 2
+    assert scan_eval(conn, raw(filters=[{"field": "kind", "op": "in",
+                                         "values": ["trade_plan"]}]))[2].count == 0
+
+
+def test_a_note_whose_kind_changed_lands_in_its_new_kind(conn, monkeypatch):
+    """W10-R60: `kind_id` is provenance and never updated; the current kind is the
+    `builtin:note_kind` property, set through the note's own write door."""
+    seen: list[str] = []
+    note = j2_notes.create_note(UID, {"title": "plan"}, conn=conn,
+                                properties={NOTE_KIND: "thesis"})
+    conn.commit()
+    by = lambda: groups(scan_eval(conn, raw(split={"by": "kind"},             # noqa: E731
+                                            view={"type": "bar"}))[2])
+    assert by() == {"Thesis": 1.0}
+    j2_notes.update_note(UID, note["id"], {"properties": {NOTE_KIND: "trade_plan"}}, conn=conn)
+    conn.commit()
+    assert conn.execute("SELECT kind_id FROM j2_notes WHERE id = ?", (note["id"],)).fetchone()[0] \
+        in (None, "thesis")                                 # the provenance column did not follow
+    assert by() == {"Trade plan": 1.0}
+    # a one-kind filter narrows in SQL through the one property filter authority
+    conn.set_trace_callback(seen.append)
+    try:
+        res = scan_eval(conn, raw(filters=[{"field": "kind", "op": "in",
+                                            "values": ["trade_plan"]}]))[2]
+    finally:
+        conn.set_trace_callback(None)
+    assert res.count == 1
+    assert any("json_extract(properties_json" in s and "builtin:note_kind" in s for s in seen)
+    assert scan_eval(conn, raw(filters=[{"field": "kind", "op": "in",
+                                         "values": ["thesis"]}]))[2].count == 0
 
 
 def test_property_filter_through_property_filter_sql(conn, monkeypatch):
@@ -306,7 +368,8 @@ def test_scan_uses_an_index(conn):
         for ex in (("", []), extra):
             sql, params = wcompile.compile_scan(sources.NOTES, p, {}, rng, UID, extra=ex)
             details = _query_plan(conn, sql, params)
-            assert any(d.startswith("SEARCH n USING INDEX") for d in details), details
+            assert any(d.startswith("SEARCH n USING INDEX") and "(user_id=?" in d
+                       for d in details), details
             assert not any(re.match(r"SCAN (n|j2_notes)\b", d) for d in details), details
     # control: the check can fail -- the same scan forbidden its indexes is a full SCAN
     sql, params = wcompile.compile_scan(sources.NOTES, plan.validate_plan(raw(), sources.CATALOG),
@@ -489,6 +552,34 @@ def test_the_folder_and_kind_stamps_are_bounded_and_move_on_a_rename(conn):
     assert wrun.data_stamp(conn, UID, "notes") == same
 
 
+def test_a_cached_card_follows_trash_archive_restore_and_a_deleted_property(conn):
+    """I-3: the notes stamp reads what those writes change, so the cached card follows them."""
+    a = add_n(conn, UID)
+    b = add_n(conn, UID)
+    assert run_out(raw())["count"] == 2
+    j2_notes.delete_note(UID, a, conn=conn)
+    conn.commit()
+    assert run_out(raw())["count"] == 1                                # trashed
+    j2_notes.restore_note(UID, a, conn=conn)
+    conn.commit()
+    assert run_out(raw())["count"] == 2                                # restored
+    j2_notes.set_note_archived(UID, b, True, conn=conn)
+    conn.commit()
+    assert run_out(raw())["count"] == 1                                # archived
+    j2_notes.set_note_archived(UID, b, False, conn=conn)
+    conn.commit()
+    assert run_out(raw())["count"] == 2                                # unarchived
+    pid = add_prop(conn, UID)
+    conn.execute("UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+                 (json.dumps({pid: 5}), a))
+    conn.commit()
+    flt = raw(filters=[{"field": "property", "op": "gte", "values": [1], "prop": pid}])
+    assert run_out(flt)["count"] == 1 and not run_out(flt)["notice"]
+    note_properties.delete_property_def(UID, pid, conn=conn)
+    after = run_out(flt)
+    assert after["count"] == 2 and after["notice"] == sources.S_PROP_GONE
+
+
 def test_narrow_asks_the_cards_check():
     """10.6 re-review N-1: a "last N trades" card cut from a covering scan writes its formula filter
     over the rows with the card's own `check` (the run's budget). Dropping it goes red."""
@@ -527,6 +618,8 @@ def test_an_unfit_property_filter_is_one_notice_and_no_narrowing(conn):
     add_n(conn, UID)
     out = run_out(raw(filters=[{"field": "property", "op": "gte", "values": [3], "prop": txt}]))
     assert out["count"] == 2 and out["notice"] == sources.S_PROP_FILTER_UNFIT
+    assert sources.S_PROP_FILTER_UNFIT == (
+        "That filter can't be used with this property; it is not used in this widget.")
     ok = run_out(raw(filters=[{"field": "property", "op": "contains", "values": ["break"],
                                "prop": txt}]))
     assert ok["count"] == 1 and not ok["notice"]
@@ -577,6 +670,17 @@ def test_select_checkbox_and_date_properties_filter_through_the_authority(conn):
         res = scan_eval(conn, raw(filters=[f]))[2]
         assert res.count == 1 == j2_notes.count_notes(UID, property_filter=cond,
                                                       exclude_sample=True, conn=conn), f
+    setups = note_properties.create_property_def(
+        UID, "Setups", "multi_select", [{"id": "flag", "label": "Flag"},
+                                        {"id": "base", "label": "Base"}], conn=conn)["id"]
+    add_n(conn, UID, props={setups: ["flag", "base"]})
+    add_n(conn, UID, props={setups: ["base"]})
+    out = run_out(raw(filters=[{"field": "property", "op": "eq", "values": ["flag"],
+                                "prop": setups}]))
+    assert out["count"] == 1 and not out["notice"]
+    assert out["count"] == j2_notes.count_notes(
+        UID, property_filter=[{"propertyId": setups, "op": "contains", "value": "flag"}],
+        exclude_sample=True, conn=conn)
     # every op the plan offers maps onto the authority's own operators
     for op in sources.PROPERTY_OPS:
         vals = [1, 2] if op == "between" else [True] if op == "is" else [1]

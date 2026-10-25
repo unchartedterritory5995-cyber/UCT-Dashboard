@@ -630,3 +630,6 @@ def test_member_b_notes_folders_kinds_and_properties_never_reach_a(two):
     assert {g.label: g.values.cells[0].value for g in res_b.groups} == {
         "B-FOLDER-CANARY": 3.0, "No folder": 1.0} and res_b.count == 4
     assert note_properties.get_property_def(A, pb, conn=c) is None
+    # an A note naming B's kind id (by hand) reads as no kind; A's own kinds read for A
+    assert kb not in {r.get("kind") for r in run(c, raw_plan(source="notes", measures=("notes",),
+                                                             range=RANGE), uid=A)[0].rows}

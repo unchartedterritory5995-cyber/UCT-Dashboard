@@ -103,7 +103,7 @@ OPTION_DAY = ("COALESCE(o.trading_day_et, substr(o.closed_at, 1, 10), "
 #: Task 10.7: one note, for measuring. ⛔ No body, plain text or title column (railed by a trace):
 #: a list or a drill reads the titles apart, by id (`sources.note_titles`).
 NOTE_COLUMNS = (
-    "n.id, n.created_at, n.updated_at, n.folder_id, n.tags, n.ticker, n.kind_id, n.properties_json"
+    "n.id, n.created_at, n.updated_at, n.folder_id, n.tags, n.ticker, n.properties_json"
 )
 
 #: Per ET day: equity net (pnl_dollar - fees), count, wins, losses, best and worst trade.
@@ -221,6 +221,18 @@ def _option_range(rng: Any) -> tuple[str, list]:
     return f" AND {OPTION_DAY} <= ?", [_shift(rng.to_day, 1)]
 
 
+def note_membership_sql(user_id: str) -> tuple[str, list]:
+    """` WHERE ...` and its params for the notes a notes widget reads: the notes list's own
+    everyday question (`notes._notes_filter_sql`: not trashed, not archived) with the sample
+    notebook left out (`exclude_sample=True`, `sample_marker.not_sample_sql`). Derived, never
+    restated, so the widget and the list cannot disagree about which notes exist."""
+    from api.services.journal_two import notes as j2_notes        # notes imports the engine
+    sql, params = j2_notes._notes_filter_sql(user_id, exclude_sample=True)
+    if sample_marker.not_sample_sql() not in sql:
+        raise RuntimeError("the notes predicate lost the sample marker")
+    return sql, list(params)
+
+
 def _note_range(rng: Any) -> tuple[str, list]:
     """The notes pre-filter on `created_at` (a UTC instant): the range widened by one day each side
     (an ET day's notes are stamped on that UTC date or the next); Python cuts it to the ET day."""
@@ -286,16 +298,18 @@ def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
                 + f" ORDER BY {OPTION_DAY} DESC, o.id DESC LIMIT {SCAN_LIMIT}")
         return sql, [user_id] + a_params + f_params + r_params
     if key == "notes":
-        # Trash and the sample notebook are never read; every property filter is `extra`.
-        sql = (f"SELECT {NOTE_COLUMNS} FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL"
-               " AND " + sample_marker.not_sample_sql("n"))
+        # W10-R59: the notes the member's notes list holds -- not trashed, not archived -- by the
+        # list's OWN predicate (`notes._notes_filter_sql`, never restated), and never the sample
+        # notebook. Every property filter is `extra`.
+        n_sql, n_params = note_membership_sql(user_id)
+        sql = f"SELECT {NOTE_COLUMNS} FROM j2_notes n" + n_sql
         a_sql, a_params = _account_fragment("n.account_id", acc, user_id)
         f_sql, f_params = _filters(source, plan)
         x_sql, x_params = extra
         r_sql, r_params = _note_range(rng)
         sql += (a_sql + f_sql + x_sql + r_sql
                 + f" ORDER BY n.created_at DESC, n.id DESC LIMIT {SCAN_LIMIT}")
-        return sql, [user_id] + a_params + f_params + list(x_params) + r_params
+        return sql, n_params + a_params + f_params + list(x_params) + r_params
     if key == "trading_days":
         if not rng.from_day:
             raise ValueError("the trading-days scan needs a bounded range")
