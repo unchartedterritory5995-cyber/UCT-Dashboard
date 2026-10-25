@@ -2,7 +2,7 @@
  "version": 1,
  "about": "Shared vectors for the widget formula dialect (Task 10.2). The server (api/services/journal_two/widget_formula.py) and the client twin (app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js) must reproduce every entry exactly. Read with a file read; never import into a bundle.",
  "conventions": {
-  "emoji_in_text": "Ruling W10-R30. Inside a TEXT literal only (never a field name), three refused characters are allowed where they build an ordinary emoji. Neighbours are code points INSIDE the text (the quotes are not neighbours). (1) U+FE0E or U+FE0F when the previous code point is visible: not U+0020, not on the shown_text (invisible) list, not refused. (2) U+200D when the code points on BOTH sides are emoji: U+1F000-1FAFF, U+2600-27BF, U+2300-23FF, U+2B00-2BFF, plus U+1F3FB-1F3FF (skin tones). So a ZWJ after U+FE0F (as in heart-on-fire) is refused. (3) U+20E3 (keycap) when the previous code point is 0-9, # or *, or is U+FE0E/U+FE0F whose previous code point is 0-9, # or *. Anything else is refused as bad_char at its position, and U+E0100-E01EF are refused everywhere.",
+  "emoji_in_text": "Ruling W10-R30. Inside a TEXT literal only (never a field name), three refused characters are allowed where they build an ordinary emoji. Neighbours are code points INSIDE the text: the opening and closing quotes are not neighbours, but an escaped quote (\"\" inside the text) is: its second quote mark is the previous code point and counts as visible, so \"a\"\"<FE0F>\" is allowed. (1) U+FE0E or U+FE0F when the previous code point is visible: not U+0020, not on the shown_text (invisible) list, not refused. (2) U+200D when the code points on BOTH sides are emoji: U+1F000-1FAFF, U+2600-27BF, U+2300-23FF, U+2B00-2BFF, plus U+1F3FB-1F3FF (skin tones). So a ZWJ after U+FE0F (as in heart-on-fire) is refused. (3) U+20E3 (keycap) when the previous code point is 0-9, # or *, or is U+FE0E/U+FE0F whose previous code point is 0-9, # or *. Anything else is refused as bad_char at its position (a joiner whose next code point is missing because the text never closes is refused at its own position, before unclosed_text), and U+E0100-E01EF are refused everywhere.",
   "line_ends": "U+000A, U+2028 and U+2029 are line terminators: inside a text each one is unclosed_text (pos of the opening quote), inside a field name unclosed_field (pos of the [); outside a token U+2028/U+2029 are bad_char, a newline is whitespace.",
   "quoted": "unexpected and trailing quote {x} in double quotes unless {x} itself starts with a double quote (a text literal), which is shown as it stands.",
   "positions": "pos and every length count Unicode code points (Python indices; Array.from in JS).",
@@ -12,13 +12,13 @@
   "floats": "numbers compare with abs or relative tolerance 1e-9; a bool never equals a number.",
   "zero": "an expected 0 must be +0: compare with Object.is in JS (Python checks math.copysign). No answer is ever -0.",
   "significant_digits": "a literal has at most 15 significant digits: leading zeros, trailing zeros of the fraction and trailing zeros of a whole number do not count; a literal whose value is not finite is refused as bad_number.",
-  "forbidden_characters": "refused anywhere, inside a text or a field name too, as bad_char at their own position: U+0000-0008, U+000B-001F, U+007F-009F, U+00AD, U+061C, U+180E, U+115F-1160, U+180E, U+200B-200F, U+202A-202E, U+2060-206F, U+2800, U+3164, U+D800-DFFF (lone surrogates), U+FE00-FE0F, U+FEFF, U+FFA0, U+FFF9-FFFB, U+E0000-E007F, U+E0100-E01EF, U+20E3. Tab is allowed inside a text. See emoji_in_text for the only exceptions.",
+  "forbidden_characters": "refused anywhere, inside a text or a field name too, as bad_char at their own position: U+0000-0008, U+000B-001F, U+007F-009F, U+00AD, U+034F, U+061C, U+115F-1160, U+17B4-17B5, U+180B-180F, U+200B-200F, U+202A-202E, U+2060-206F, U+20E3, U+2800, U+3164, U+D800-DFFF (lone surrogates), U+FE00-FE0F, U+FEFF, U+FFA0, U+FFF9-FFFB, U+1BCA0-1BCA3, U+1D173-1D17A, U+E0000-E0FFF (tags, the supplementary variation selectors and the unassigned rest of the block). Tab is allowed inside a text. See emoji_in_text for the only exceptions.",
   "bad_char_shown": "bad_char's {x} is the character itself when it is printable ASCII, U+XXXX when it is invisible (the shown_text list plus the forbidden list and U+2028-2029), else its glyph followed by ' (U+XXXX)'.",
   "null": "null is 'no data'. No result is ever NaN or Infinity, and -0 is 0.",
   "special_floats": "a row value {\"$float\": \"nan\"|\"inf\"|\"-inf\"} decodes to that float.",
   "build": "a build is a list of [text, times] segments, concatenated in order.",
   "rows": "eval_group rows is a rowsets name or an inline list.",
-  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 code points, then each invisible character written as U+XXXX (the forbidden_characters list, tab and newline, U+2028-2029, and the space-like U+00A0, U+1680, U+2000-200A, U+202F, U+205F, U+3000). Whitespace for collapsing is space, tab and newline only."
+  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 code points, then each invisible character written as U+XXXX, EXCEPT (ruling W10-R31) a U+FE0E/FE0F, U+200D or U+20E3 that builds an allowed emoji by the emoji_in_text rule, judged on the whole collapsed text before the clip with every code point counting as a neighbour: it is shown as typed (the forbidden_characters list, tab and newline, U+2028-2029, and the space-like U+00A0, U+1680, U+2000-200A, U+202F, U+205F, U+3000). Whitespace for collapsing is space, tab and newline only."
  },
  "constants": {
   "MAX_LENGTH": 2000,
@@ -3439,6 +3439,54 @@
    "pos": 2
   },
   {
+   "expr": "1 \"\u2764\ufe0f\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"\u2764\ufe0f\".",
+   "pos": 2
+  },
+  {
+   "expr": "1 \"\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\".",
+   "pos": 2
+  },
+  {
+   "expr": "1 \"1\ufe0f\u20e3 \u2764\ufe0e\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"1\ufe0f\u20e3 \u2764\ufe0e\".",
+   "pos": 2
+  },
+  {
+   "expr": "Abs(1 \"\u2764\ufe0f\")",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"\u2764\ufe0f\".",
+   "pos": 6
+  },
+  {
+   "expr": "1 \"aaaaaaaaaaaaaaaaa\ud83d\udc68\u200d\ud83d\udc69\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"aaaaaaaaaaaaaaaaa\ud83d\udc68\u200d.",
+   "pos": 2
+  },
+  {
+   "expr": "1 \"a\u00a0\u2764\ufe0f\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"aU+00A0\u2764\ufe0f\".",
+   "pos": 2
+  },
+  {
+   "expr": "\"a\u034fb\"",
+   "code": "bad_char",
+   "sentence": "U+034F can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "[\udb43\udfff]",
+   "code": "bad_char",
+   "sentence": "U+E0FFF can't be used in a formula.",
+   "pos": 1
+  },
+  {
    "expr": "[net] \"a\"\"b\"",
    "code": "trailing",
    "sentence": "There is something extra at the end: \"a\"\"b\".",
@@ -5200,6 +5248,109 @@
    "ok": false,
    "code": "bad_char",
    "pos": 2
+  },
+  {
+   "name": "joiner at the end of an unclosed text",
+   "expr": "\"\ud83d\udc68\u200d",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "keycap after a selected letter",
+   "expr": "\"a\ufe0f\u20e3\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 3
+  },
+  {
+   "name": "keycap after a keycap",
+   "expr": "\"1\u20e3\u20e3\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 3
+  },
+  {
+   "name": "selector after a keycap",
+   "expr": "\"1\u20e3\ufe0f\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 3
+  },
+  {
+   "name": "two joiners in a row",
+   "expr": "\"\ud83d\udc68\u200d\u200d\ud83d\udc69\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "selector after an escaped quote",
+   "expr": "\"a\"\"\ufe0f\"",
+   "ok": true,
+   "canonical": "\"a\"\"\ufe0f\""
+  },
+  {
+   "name": "joiner before a skin-tone modifier",
+   "expr": "\"\ud83d\udc69\u200d\ud83c\udffd\"",
+   "ok": true,
+   "canonical": "\"\ud83d\udc69\u200d\ud83c\udffd\""
+  },
+  {
+   "name": "combining grapheme joiner in text",
+   "expr": "\"a\u034fb\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "Khmer inherent vowel in a field",
+   "expr": "[\u17b4]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "Mongolian selector in text",
+   "expr": "\"a\u180bb\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "Mongolian selector U+180F in text",
+   "expr": "\"a\u180fb\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "musical format control in text",
+   "expr": "\"\ud834\udd73\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "shorthand format control in a field",
+   "expr": "[a\ud82f\udca0]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "unassigned tag code point in text",
+   "expr": "\"\udb40\udc80\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "unassigned tag code point late in the block",
+   "expr": "\"\udb43\udfff\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
   },
   {
    "name": "dingbat without a selector is text",
