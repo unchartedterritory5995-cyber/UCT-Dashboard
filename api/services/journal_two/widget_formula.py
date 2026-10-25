@@ -310,7 +310,9 @@ def _emoji_part_ok(s: str, start: int, j: int) -> bool:
     is allowed when it is part of an ordinary emoji. Only code points INSIDE the text count as
     neighbours (the quotes do not):
       * U+FE0E / U+FE0F after a visible character that is not a space and not refused;
-      * U+200D (zero-width joiner) when the code points on BOTH sides are emoji (`_EMOJI_RANGES`);
+      * U+200D (zero-width joiner) when the code point after it is an emoji (`_EMOJI_RANGES`)
+        and the one before it is an emoji, or is U+FE0E/U+FE0F whose own previous code point is
+        an emoji (ruling W10-R48: heart on fire, the rainbow flag, eye in speech bubble);
       * U+20E3 (keycap) after 0-9, # or *, optionally with U+FE0E/U+FE0F between (1, FE0F, 20E3).
     Everything else stays refused."""
     c = s[j]
@@ -319,6 +321,8 @@ def _emoji_part_ok(s: str, start: int, j: int) -> bool:
         return prev is not None and prev != " " and not _invisible(prev)
     if c == _ZWJ:
         nxt = s[j + 1] if j + 1 < len(s) else None
+        if prev in _PRESENTATION_SELECTORS:      # W10-R48: an emoji's selector before the joiner
+            prev = s[j - 2] if j - 2 > start else None
         return prev is not None and nxt is not None and _emoji(prev) and _emoji(nxt)
     if c == _KEYCAP:
         if prev in _PRESENTATION_SELECTORS:

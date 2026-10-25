@@ -818,7 +818,11 @@ def test_formula_names_keep_a_members_emoji():
           "\U0001F44D\U0001F3FD days",                              # thumbs up + skin tone
           "\U0001F468\u200d\U0001F469\u200d\U0001F467 family",    # ZWJ family
           "1\ufe0f\u20e3 setup", "#\u20e3 tag",                    # keycaps
-          "\u2764\ufe0e text heart"]                                # text presentation
+          "\u2764\ufe0e text heart",                                # text presentation
+          # W10-R48: a joiner after an emoji's variation selector
+          "\u2764\ufe0f\u200d\U0001F525 hot",                       # heart on fire
+          "\U0001F3F3\ufe0f\u200d\U0001F308 flag",                  # rainbow flag
+          "\U0001F441\ufe0f\u200d\U0001F5E8\ufe0f eye"]            # eye in speech bubble
     for n in ok:
         assert P.validate_plan(named(n), CAT)["formulas"][0]["name"] == n, repr(n)
     bad = ["\ufe0f wins",                                           # a leading selector
@@ -827,6 +831,10 @@ def test_formula_names_keep_a_members_emoji():
            "\U0001F468\u200d",                                     # a trailing joiner
            "\u200d\U0001F468",                                     # a leading joiner
            "x\u20e3",                                               # a keycap on a letter
+           "\u2764\ufe0f\u200d",                                    # VS16 + ZWJ, nothing after
+           "\u2764\ufe0f\u200d x",                                  # ... a space after
+           "a\u200d\U0001F525",                                     # ZWJ after plain text
+           "a\ufe0f\u200d\U0001F525",                               # VS16 on a letter, then ZWJ
            "Net P&L\u200b", "wins\u2060", "a\u00adb", "\u202ewins", "a\u00a0b", "a\nb"]
     for n in bad:
         assert refused(named(n)).sentence == P.S_BAD_CHARACTER, repr(n)

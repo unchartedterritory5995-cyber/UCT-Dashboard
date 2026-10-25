@@ -380,14 +380,22 @@ def test_ordinary_emoji_are_text_but_never_a_field_name():
     allowed inside a text only where they build one; a field name refuses them all."""
     heart, fe0f, zwj, keycap = chr(0x2764), chr(0xFE0F), chr(0x200D), chr(0x20E3)
     family = chr(0x1F468) + zwj + chr(0x1F469) + zwj + chr(0x1F467)
+    # W10-R48: a joiner may follow an emoji's variation selector (heart on fire, rainbow flag,
+    # eye in speech bubble)
+    on_fire = heart + fe0f + zwj + chr(0x1F525)
+    rainbow = chr(0x1F3F3) + fe0f + zwj + chr(0x1F308)
+    eye = chr(0x1F441) + fe0f + zwj + chr(0x1F5E8) + fe0f
     for label in (heart + fe0f + " Win", family, "1" + fe0f + keycap, "#" + keycap,
-                  chr(0x1F469) + chr(0x1F3FD) + zwj + chr(0x1F4BB)):
+                  chr(0x1F469) + chr(0x1F3FD) + zwj + chr(0x1F4BB), on_fire, rainbow, eye):
         c = _compile('If([net] > 0, "' + label + '", "Loss")')
         assert wf.eval_row(c, {"net": 1}) == label
         assert wf.display(c.canonical, FIELDS) == c.canonical.replace("[net]", "[Net P&L]")
     for expr, pos in ((' " ' + fe0f + '"', 3), ('"a' + zwj + 'b"', 2),
                       ('"' + family[:2] + '"', 2),               # a joiner with nothing after
-                      ('"' + heart + fe0f + zwj + chr(0x1F525) + '"', 3),  # strict: FE0F side
+                      ('"' + heart + fe0f + zwj + '"', 3),        # VS16 + ZWJ, nothing after
+                      ('"a' + zwj + chr(0x1F525) + '"', 2),        # ZWJ after plain text
+                      ('"a' + fe0f + zwj + chr(0x1F525) + '"', 3),  # VS16 after text, then ZWJ
+                      ('"' + fe0f + zwj + chr(0x1F525) + '"', 1),   # a leading selector
                       ('"a' + keycap + '"', 2), ("[" + family + "]", 2),
                       ("[" + heart + fe0f + "]", 2), ('"' + heart + chr(0xE0100) + '"', 2)):
         e = _error(expr)
