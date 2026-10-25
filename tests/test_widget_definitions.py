@@ -439,3 +439,126 @@ def test_resolve_for_run_prefers_placed_rev(W):
     W.archive(A, d["id"], now=T0 + timedelta(minutes=5))
     assert W.resolve_for_run(A, d["id"], 3)[1] == 3
     assert W.resolve_for_run(A, "no-such-id", 1) == (None, None, None)
+
+
+# -- the builder's create key (wave 8 consolidation, ruling R-43) ---------------
+
+KEY = "3f2b8c1e-9d4a-4b7e-8f21-6a5c0d9e1b72"
+
+
+def _keys(uid=None):
+    if uid is None:
+        return _rows("SELECT user_id, key, definition_id FROM j2_widget_create_keys ORDER BY user_id")
+    return _rows("SELECT key, definition_id FROM j2_widget_create_keys WHERE user_id = ?", (uid,))
+
+
+def _defs(uid):
+    return _rows("SELECT id FROM j2_widget_definitions WHERE user_id = ?", (uid,))
+
+
+def test_create_key_two_posts_with_one_key_make_one_widget(W):
+    first = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    again = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0 + timedelta(minutes=3))
+    assert again["id"] == first["id"]
+    assert len(_defs(A)) == 1                                   # never a second widget
+    assert _keys(A) == [(KEY, first["id"])]
+    assert "replayed" not in first
+    assert again["replayed"] is True and again["samePlan"] is True and again["createdEtag"] == first["etag"]
+    # the replay is the widget as it is NOW (renamed since), not a copy of the first answer
+    W.update(A, first["id"], if_match=first["etag"], name="Renamed", apply="only", catalog=CAT,
+             now=T0 + timedelta(minutes=5))
+    third = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0 + timedelta(minutes=6))
+    assert third["name"] == "Renamed" and third["etag"] > first["etag"] and third["createdEtag"] == first["etag"]
+
+
+def test_create_key_is_per_member(W):
+    a = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    b = W.create_with_key(B, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    assert a["id"] != b["id"]
+    assert len(_defs(A)) == 1 and len(_defs(B)) == 1
+    assert sorted(_keys()) == sorted([(A, KEY, a["id"]), (B, KEY, b["id"])])
+    assert "replayed" not in b                                  # B's key never answers A's widget
+    # and each member's repeat finds its OWN widget, never the other's (nor a second one of its own)
+    assert W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)["id"] == a["id"]
+    assert W.create_with_key(B, "Edge", plan(), key=KEY, catalog=CAT, now=T0)["id"] == b["id"]
+    assert len(_defs(A)) == 1 and len(_defs(B)) == 1
+
+
+def test_create_key_malformed_is_ignored_and_the_post_behaves_as_before(W):
+    for bad in (None, "", "not-a-key", KEY.replace("-4b7e-", "-1b7e-"), KEY + "0", 12345, " " * 3,
+                "3f2b8c1e9d4a4b7e8f216a5c0d9e1b72"):
+        made = W.create_with_key(A, "Edge", plan(), key=bad, catalog=CAT, now=T0)
+        assert "replayed" not in made
+    assert len(_defs(A)) == 8                                   # each one a plain create
+    assert _keys() == []                                        # and nothing remembered
+    # case and surrounding space are not a different key
+    W.create_with_key(A, "Edge", plan(), key=f"  {KEY.upper()} ", catalog=CAT, now=T0)
+    again = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    assert again["replayed"] is True and len(_defs(A)) == 9
+
+
+def test_create_key_replay_with_newer_edits_says_so_and_writes_nothing(W):
+    first = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    newer = W.create_with_key(A, "Edge, more", plan("win_rate"), key=KEY, catalog=CAT, now=T0)
+    assert newer["id"] == first["id"] and newer["replayed"] is True and newer["samePlan"] is False
+    assert newer["plan"]["measures"] == [{"key": "net_pnl"}]   # the stored widget is untouched
+    assert newer["createdEtag"] == first["etag"] and newer["etag"] == first["etag"]
+    assert [r[0] for r in _rows("SELECT rev FROM j2_widget_definition_revs WHERE definition_id = ?",
+                                (first["id"],))] == [1]
+
+
+def test_create_key_replay_never_asks_the_count_cap(W, monkeypatch):
+    first = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    monkeypatch.setattr(W, "COUNT_CAP", 1)
+    assert W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)["id"] == first["id"]
+    with pytest.raises(W.WidgetError) as e:                     # a NEW key still meets the cap
+        W.create_with_key(A, "Edge", plan(), key=KEY.replace("3f2b", "4f2b"), catalog=CAT, now=T0)
+    assert e.value.sentence == W.S_CAP
+    assert _keys(A) == [(KEY, first["id"])]                     # a refused create remembers nothing
+
+
+def test_create_key_expires_after_24_hours(W):
+    first = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    inside = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT,
+                               now=T0 + timedelta(seconds=W.CREATE_KEY_TTL_S))
+    assert inside["id"] == first["id"]
+    later = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT,
+                              now=T0 + timedelta(seconds=W.CREATE_KEY_TTL_S + 1))
+    assert later["id"] != first["id"] and "replayed" not in later
+    assert _keys(A) == [(KEY, later["id"])]                     # the expired row went; the new one is kept
+    # expired keys of OTHER members go in the same sweep
+    W.create_with_key(B, "Edge", plan(), key=KEY, catalog=CAT, now=T0 + timedelta(days=2))
+    W.create_with_key(A, "Edge", plan(), key=KEY.replace("3f2b", "5f2b"), catalog=CAT,
+                      now=T0 + timedelta(days=3, seconds=1))
+    assert [r[0] for r in _keys()] == [A]
+
+
+def test_create_key_of_a_deleted_widget_makes_a_new_one(W):
+    first = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    W.archive(A, first["id"], now=T0)
+    assert W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)["id"] == first["id"]   # archived: same
+    W.soft_delete(A, first["id"], typed_name="Edge", now=T0)
+    fresh = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    assert fresh["id"] != first["id"] and "replayed" not in fresh
+    assert _keys(A) == [(KEY, fresh["id"])]
+
+
+def test_create_key_an_invalid_plan_is_refused_and_remembers_nothing(W):
+    with pytest.raises(W.PlanError):
+        W.create_with_key(A, "Edge", {"v": 1, "source": "nope", "measures": []}, key=KEY, catalog=CAT, now=T0)
+    assert _keys() == [] and _defs(A) == []
+
+
+def test_account_purge_removes_the_create_keys(W):
+    from api.services.journal_two import account_purge as ap
+    W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    W.create_with_key(B, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    assert "j2_widget_create_keys" in ap._DIRECT_USER_TABLES
+    c = _conn()
+    try:
+        report = ap.purge_user_data(A, c)
+    finally:
+        c.close()
+    assert report["ok"] is True
+    assert _keys(A) == []
+    assert [r[0] for r in _keys()] == [B]                       # the other member's key is untouched

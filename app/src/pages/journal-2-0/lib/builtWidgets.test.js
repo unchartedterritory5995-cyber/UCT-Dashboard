@@ -101,6 +101,18 @@ describe('postJson', () => {
   })
 })
 
+describe('postJson idempotency (ruling R-43)', () => {
+  it('sends Idempotency-Key only when one is given (the create POST of the builder), never a blank one', async () => {
+    fetchSpy.mockResolvedValue(reply(200, { id: 'd-1' }))
+    await postJson('', { plan: {} }, { idempotencyKey: '3f2b8c1e-9d4a-4b7e-8f21-6a5c0d9e1b72' })
+    expect(fetchSpy.mock.calls[0][1].headers['Idempotency-Key']).toBe('3f2b8c1e-9d4a-4b7e-8f21-6a5c0d9e1b72')
+    expect(fetchSpy.mock.calls[0][1].headers['Content-Type']).toBe('application/json')
+    await postJson('/preview', { plan: {} })
+    await postJson('', { plan: {} }, { idempotencyKey: '' })
+    for (const call of fetchSpy.mock.calls.slice(1)) expect('Idempotency-Key' in call[1].headers).toBe(false)
+  })
+})
+
 describe('putJson / ifMatchHeader (ruling R-15: the etag, never rev)', () => {
   it('sends If-Match with the etag, and no header for a missing one', async () => {
     fetchSpy.mockResolvedValue(reply(200, { etag: 8 }))

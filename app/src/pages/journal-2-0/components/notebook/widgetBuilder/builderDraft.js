@@ -1,7 +1,7 @@
 // Notebook widgets phase 2 (wave 8, Task 8.15): the builder's kept draft.
 //
 // One draft per member, in this browser only: `localStorage['uct.nb.widgetDraft.<uid>']` = `{v, at, plan,
-// nameTouched, target, etag, session}`. It is a CONVENIENCE (spec 5.2: "Keep your changes?" -> "Resume your unsaved widget"
+// nameTouched, target, etag, session, key}`. It is a CONVENIENCE (spec 5.2: "Keep your changes?" -> "Resume your unsaved widget"
 // within 24 h), so every read and write is wrapped: a private window, blocked storage or a full quota loses the
 // draft, never the builder. `target` is the widget being edited (its id), or null for a new one, so reopening a
 // widget offers only its own draft and /build offers only a new widget's.
@@ -9,6 +9,10 @@
 // `session` (fix 4, NEW-5) is the builder open that kept the draft. A save that lands AFTER its builder closed may
 // settle only its own open's draft (`settleDraft`), never one a later open kept; and a later open holds its resume
 // offer while the earlier open's save is still out (`saveInFlight`), so resuming can never save the same widget twice.
+//
+// `key` (ruling R-43) is the create key of the widget the open is creating (new, or a copy of a ready-made or gone
+// one): the `Idempotency-Key` it sent (or will send) on the create POST. A draft kept as an edit carries none. A reload ends `saveInFlight` with the page, so a draft resumed after one may belong to a POST that
+// landed; resuming re-sends the same key, and the server answers the widget it already made, never a second one.
 
 export const DRAFT_PREFIX = 'uct.nb.widgetDraft.'
 export const DRAFT_TTL_MS = 24 * 60 * 60 * 1000
@@ -25,13 +29,34 @@ export function newSession() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+/** The create POST's `Idempotency-Key` (ruling R-43): a uuid4, made once for the widget a builder open is creating and
+ *  kept in its draft, so a POST re-sent after a reload answers the widget it already made. Built from
+ *  `crypto.getRandomValues` (available outside a secure context, unlike `crypto.randomUUID`); `Math.random` only where
+ *  there is no `crypto` at all. */
+export function newCreateKey() {
+  const b = new Uint8Array(16)
+  const c = typeof globalThis !== 'undefined' ? globalThis.crypto : null
+  if (c && typeof c.getRandomValues === 'function') c.getRandomValues(b)
+  else for (let i = 0; i < 16; i += 1) b[i] = Math.floor(Math.random() * 256)
+  b[6] = (b[6] & 0x0f) | 0x40          // version 4
+  b[8] = (b[8] & 0x3f) | 0x80          // the RFC 4122 variant
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
+const CREATE_KEY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+/** A kept draft's create key, or null when it has none (or an unreadable one). */
+export const createKeyOf = (d) => (isRecord(d) && typeof d.key === 'string' && CREATE_KEY_RE.test(d.key) ? d.key : null)
+
 /** Keep the draft. `etag` is the widget's save sequence when the draft was kept (null for a new widget), so a
  *  resumed draft can tell that the widget changed since (fix 1, I-7). Answers whether the write landed. */
-export function writeDraft(uid, { plan, nameTouched, target, etag = null, session = null }, now = Date.now()) {
+export function writeDraft(uid, { plan, nameTouched, target, etag = null, session = null, key = null }, now = Date.now()) {
   try {
     window.localStorage.setItem(keyOf(uid), JSON.stringify({
       v: VERSION, at: now, plan, nameTouched: !!nameTouched, target: target || null,
       etag: Number.isInteger(etag) ? etag : null, session: typeof session === 'string' && session ? session : null,
+      // R-43: the create key of the widget this open is creating (a new one, or a copy); null for an edit.
+      key: typeof key === 'string' && CREATE_KEY_RE.test(key) ? key : null,
     }))
     return true
   } catch {
@@ -100,15 +125,16 @@ export function settleDraft(uid, { session, savedKey, target, etag = null }) {
       window.localStorage.removeItem(keyOf(uid))
       return
     }
+    // Retargeted to the saved widget, the draft is an EDIT of it now: its create key has done its job.
     window.localStorage.setItem(keyOf(uid), JSON.stringify({
-      ...d, target: target || null, etag: Number.isInteger(etag) ? etag : null,
+      ...d, target: target || null, etag: Number.isInteger(etag) ? etag : null, key: target ? null : d.key ?? null,
     }))
   } catch { /* the draft stays as it was */ }
 }
 
 // The saves still out, by the builder open that sent them: each settles `{landed, id, name}` (`landed` false when the
 // save failed; `id` and `name` are the widget it saved). In memory on purpose: a reload ends the save with the page,
-// so nothing here can outlive what it describes.
+// so nothing here can outlive what it describes (the POST's idempotency key covers the reload, ruling R-43).
 const inFlight = new Map()
 
 const settled = (got) => {
@@ -132,4 +158,9 @@ export function trackSave(session, promise) {
 /** The save the open `session` still has out (a promise of `{landed, id, name}`), or null. */
 export function saveInFlight(session) {
   return (typeof session === 'string' && inFlight.get(session)) || null
+}
+
+/** Tests only: what a page reload does to the registry (every save in flight is forgotten with the page). */
+export function __forgetSavesInFlight() {
+  inFlight.clear()
 }

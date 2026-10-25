@@ -52,7 +52,9 @@ validates takes `catalog=` so a caller or a test can pass its own.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import sqlite3
 import time as _time
 import uuid
@@ -78,6 +80,7 @@ __all__ = [
     "WidgetError", "NotFound", "Conflict", "PlanError", "PlanTooNew",
     "create", "get", "update", "list_defs", "revs", "name_rev", "restore_rev",
     "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run", "used_in_notes",
+    "CREATE_KEY_TTL_S", "clean_create_key", "create_with_key",
 ]
 
 COUNT_CAP = 100
@@ -379,6 +382,78 @@ def create(user_id: str, name: str | None, plan: dict, *, catalog: Any = None,
         def_id = _insert_new(c, user_id, clean, valid, summary_text, ts,
                              source_gallery_id, source_version)
         return _get_in(c, user_id, def_id)
+
+
+# -- the builder's create key (wave 8 consolidation, ruling R-43) -------------------
+#
+# The builder sends `Idempotency-Key: <uuid4>` on its create POST: one key per widget being
+# created, kept in the member's draft with the open that made it. A page reloaded while that
+# POST was out cannot know whether it landed, so resuming the draft re-sends the SAME key, and
+# the key's row here answers the widget it already made instead of a second one. Kept in their
+# own functions (never inside `create` or `_clean_name`), so the plain create path is untouched.
+
+CREATE_KEY_TTL_S = 24 * 60 * 60
+_KEYS = "j2_widget_create_keys"
+_CREATE_KEY_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+
+
+def clean_create_key(raw: Any) -> str | None:
+    """The key as a lowercase uuid4, or None for anything else. A malformed key is IGNORED, never
+    refused: the POST then behaves exactly as it did before keys existed."""
+    if not isinstance(raw, str):
+        return None
+    key = raw.strip().lower()
+    return key if _CREATE_KEY_RE.fullmatch(key) else None
+
+
+def _plan_sha(valid: dict) -> str:
+    """The validated plan's fingerprint, key order aside (two POSTs of one plan agree)."""
+    canon = json.dumps(valid, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+
+
+def create_with_key(user_id: str, name: str | None, plan: dict, *, key: Any,
+                    catalog: Any = None, now: datetime | None = None,
+                    conn: sqlite3.Connection | None = None) -> dict:
+    """`create`, made idempotent by the builder's key (ruling R-43).
+
+    * No usable key: exactly `create`.
+    * A key this member used in the last `CREATE_KEY_TTL_S` for a widget that still exists: that
+      SAME widget, as `get` reads it now, plus `replayed: True`, `samePlan` (whether this POST's
+      plan is the one the key created) and `createdEtag` (the widget's etag when the key created
+      it). Nothing is written and the count cap is not asked: no widget is made. A replay with a
+      different plan carries edits made after the first POST went out; the client saves them to
+      this widget with If-Match `createdEtag`, so a change made since in another tab is a conflict.
+    * A key whose widget has since been deleted: forgotten, and a new widget is made under it.
+    The key is per member: another member's identical key is a different row and a different widget.
+    Expired keys (every member's) are deleted in the same write transaction.
+    """
+    k = clean_create_key(key)
+    if k is None:
+        return create(user_id, name, plan, catalog=catalog, now=now, conn=conn)
+    cat = _catalog(catalog)
+    sha = _plan_sha(validate_plan(plan, cat))        # PlanTooNew / PlanError carry sentences
+    now_dt = _now(now)
+    cutoff = _iso(now_dt - timedelta(seconds=CREATE_KEY_TTL_S))
+    with _write(conn) as c:
+        c.execute(f"DELETE FROM {_KEYS} WHERE created_at < ?", (cutoff,))
+        row = c.execute(
+            f"SELECT definition_id, plan_sha, etag FROM {_KEYS} WHERE user_id = ? AND key = ?",
+            (user_id, k),
+        ).fetchone()
+        if row is not None:
+            made = _get_in(c, user_id, row["definition_id"])
+            if made is not None:
+                return {**made, "replayed": True, "samePlan": row["plan_sha"] == sha,
+                        "createdEtag": row["etag"]}
+            c.execute(f"DELETE FROM {_KEYS} WHERE user_id = ? AND key = ?", (user_id, k))
+        made = create(user_id, name, plan, catalog=cat, now=now_dt, conn=c)   # joins this transaction
+        c.execute(
+            f"INSERT INTO {_KEYS} (user_id, key, definition_id, plan_sha, etag, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, k, made["id"], sha, made["etag"], _iso(now_dt)),
+        )
+        return made
 
 
 def get(user_id: str, def_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:

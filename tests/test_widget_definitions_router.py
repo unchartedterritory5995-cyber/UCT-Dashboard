@@ -548,3 +548,61 @@ def test_depth_cap_is_at_the_limit_not_below(conn):
     bad = c.post(BASE + "/examples", content=('{"ids": [], "pad": ' + nest(wdr.MAX_BODY_DEPTH) + '}').encode(),
                  headers={"content-type": "application/json"})
     assert bad.status_code == 400 and _code(bad) == "invalid"
+
+
+# -- the builder's create key (wave 8 consolidation, ruling R-43) --------------------------------
+
+KEY = "3f2b8c1e-9d4a-4b7e-8f21-6a5c0d9e1b72"
+
+
+def _count(conn, sql, args=()):
+    return conn.execute(sql, args).fetchone()[0]
+
+
+def test_create_with_one_idempotency_key_twice_makes_one_widget(conn):
+    c = _client()
+    first = c.post(BASE, json={"name": "Edge", "plan": raw_plan()}, headers={"Idempotency-Key": KEY})
+    again = c.post(BASE, json={"name": "Edge", "plan": raw_plan()}, headers={"Idempotency-Key": KEY})
+    assert first.status_code == 200 and again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert again.json()["replayed"] is True and again.json()["samePlan"] is True
+    assert again.json()["createdEtag"] == first.json()["etag"]
+    assert again.headers["cache-control"] == "no-store"
+    assert _count(conn, "SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?", (UID,)) == 1
+    assert [w["id"] for w in c.get(BASE).json()["widgets"]] == [first.json()["id"]]
+
+
+def test_the_same_key_from_two_members_makes_two_widgets(conn):
+    add_user(conn, OTHER)
+    mine = _client().post(BASE, json={"plan": raw_plan()}, headers={"Idempotency-Key": KEY})
+    theirs = _client({**PAID, "id": OTHER}).post(BASE, json={"plan": raw_plan()}, headers={"Idempotency-Key": KEY})
+    assert mine.json()["id"] != theirs.json()["id"]
+    assert "replayed" not in theirs.json()
+    assert _client().post(BASE, json={"plan": raw_plan()}, headers={"Idempotency-Key": KEY}).json()["id"] == mine.json()["id"]
+    again = _client({**PAID, "id": OTHER}).post(BASE, json={"plan": raw_plan()}, headers={"Idempotency-Key": KEY})
+    assert again.json()["id"] == theirs.json()["id"]
+    assert _count(conn, "SELECT COUNT(*) FROM j2_widget_create_keys WHERE key = ?", (KEY,)) == 2
+
+
+def test_a_malformed_key_is_ignored_and_the_post_behaves_as_before(conn):
+    c = _client()
+    for bad in ("nope", KEY + "x", "", "   "):
+        r = c.post(BASE, json={"plan": raw_plan()}, headers={"Idempotency-Key": bad})
+        assert r.status_code == 200 and "replayed" not in r.json()
+    r = c.post(BASE, json={"plan": raw_plan()})                      # no header at all
+    assert r.status_code == 200 and "replayed" not in r.json()
+    assert _count(conn, "SELECT COUNT(*) FROM j2_widget_definitions WHERE user_id = ?", (UID,)) == 5
+    assert _count(conn, "SELECT COUNT(*) FROM j2_widget_create_keys") == 0
+
+
+def test_a_replay_carrying_newer_edits_says_so_and_the_widget_is_unchanged(conn):
+    c = _client()
+    first = c.post(BASE, json={"name": "Edge", "plan": raw_plan()}, headers={"Idempotency-Key": KEY}).json()
+    newer = c.post(BASE, json={"name": "Edge", "plan": raw_plan(measures=("win_rate",))},
+                   headers={"Idempotency-Key": KEY}).json()
+    assert newer["id"] == first["id"] and newer["samePlan"] is False
+    assert newer["plan"]["measures"] == [{"key": "net_pnl"}]
+    # the client then saves those edits to that widget with If-Match createdEtag: it lands
+    put = c.put(f"{BASE}/{first['id']}", json={"plan": raw_plan(measures=("win_rate",)), "apply": "update_all"},
+                headers={"If-Match": str(newer["createdEtag"])})
+    assert put.status_code == 200 and put.json()["plan"]["measures"] == [{"key": "win_rate"}]

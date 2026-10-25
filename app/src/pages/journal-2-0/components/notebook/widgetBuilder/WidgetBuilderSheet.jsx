@@ -13,6 +13,7 @@ import {
 } from './builderCatalog'
 import {
   readDraft, writeDraft, clearDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
+  newCreateKey, createKeyOf,
 } from './builderDraft'
 import SourceSection from './sections/SourceSection'
 import WhichOnesSection, { RangePicker, FieldPicker, FilterEditor } from './sections/WhichOnesSection'
@@ -39,7 +40,9 @@ import styles from './WidgetBuilderSheet.module.css'
  * every engine state: the widget is valid whether or not the preview could run.
  *
  * Save:
- *   * new: `POST ""`, then, opened from a note, the saved widget is run and inserted at the caret.
+ *   * new: `POST ""`, then, opened from a note, the saved widget is run and inserted at the caret. The POST carries
+ *     `Idempotency-Key` (ruling R-43): one key per widget this open creates, kept in its draft, so the same POST sent
+ *     again after a reload answers the widget it already made; newer edits it carried are then saved to that widget.
  *   * edit, in more than one note: SaveQuestion ("This widget is in 14 notes."). "Update all" PUTs `apply:
  *     update_all` and writes NO note; "Save as a new widget" PUTs `apply: save_new` and replaces only the source
  *     note's widget. In one note or none (ruling R-36): saved without asking (`update_all`), and when the builder was
@@ -242,6 +245,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   // member is at work there (a half-typed date, the top-N box, arrowing a radio group), dirty or not.
   const openFocus = useRef(null)
   const [notice, setNotice] = useState('')     // M-4: "Saved in My tools as ..." after a held save landed
+  // Ruling R-43: the create POST's Idempotency-Key. Made at this open's first create POST and kept for every retry (a
+  // POST that timed out may still have landed), stored in the draft, and taken over from a resumed draft, so a POST
+  // re-sent after a reload answers the widget the first one made.
+  const createKey = useRef(null)
   const leftRef = useRef(false)       // the member left (R-38): the builder is going, whatever a save answers later
   const saveBtnRef = useRef(null)
   const away = () => !mounted.current || leftRef.current
@@ -398,6 +405,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
    *  newer version: it can only become a new widget (fix 1, I-7). */
   function resumeDraft(kept, def = target.def) {
     resumedFrom.current = typeof kept.session === 'string' && kept.session ? kept.session : null
+    const key = createKeyOf(kept)
+    if (key) createKey.current = key
     dispatch({ type: 'loadPlan', plan: kept.plan, keepBase: true })
     const was = Number.isInteger(kept.etag) ? kept.etag : null
     const isStale = !!def && was !== null && Number.isInteger(def.etag) && def.etag !== was
@@ -616,7 +625,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     // N-2: a stale draft keeps the etag it was KEPT at, so it stays stale (and save-as-new only) when resumed again.
     const to = s ? s.defId : draftTarget
     const etag = s ? s.etag : staleEtag.current !== null ? staleEtag.current : target.def?.etag
-    return writeDraft(uid, { plan: st.plan, nameTouched: st.nameTouched, target: to, etag, session: session.current })
+    return writeDraft(uid, {
+      plan: st.plan, nameTouched: st.nameTouched, target: to, etag, session: session.current,
+      key: s ? null : createKey.current,
+    })
   }
   /** This builder's drafts go: the one it opened with and, once a widget is saved, that widget's ("Discard them",
    *  and when the work is done). */
@@ -724,9 +736,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   /** A save landed: the draft it made redundant goes. Saved work is never a draft, even when the builder closed
    *  while the save was out (fix 3, I-1). Once the builder has gone, only THIS open's draft is settled, and edits it
    *  holds beyond what was saved are kept for the saved widget (fix 4, NEW-1, NEW-5). */
-  const settleSaved = (savedId, etag, st) => {
+  const settleSaved = (savedId, etag, st, savedKey = planKeyOf(st)) => {
     if (away()) {
-      settleDraft(uid, { session: session.current, savedKey: planKeyOf(st), target: savedId, etag })
+      settleDraft(uid, { session: session.current, savedKey, target: savedId, etag })
       return
     }
     clearDraft(uid, draftTarget)
@@ -865,13 +877,21 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       return
     }
     setSaving(true)
-    const got = await sent(postJson('', { plan, ...nameFor(st) }))
-    if (got.ok) settleSaved(got.data.id, got.data.etag, st)
+    if (!createKey.current) createKey.current = newCreateKey()
+    const got = await sent(postJson('', { plan, ...nameFor(st) }, { idempotencyKey: createKey.current }))
+    // R-43: the key had already made this widget (a reload, a retry after a timeout). When this POST carried edits made
+    // since, the widget does not hold them yet: they are saved to it next (placeSaved PUTs them, If-Match the etag the
+    // key made it with, so a change from another tab since is a conflict, never overwritten), and a builder that has
+    // gone keeps them as that widget's draft.
+    const replay = got.ok && got.data.replayed === true
+    const behind = replay && got.data.samePlan === false
+    const etagThen = behind && Number.isInteger(got.data.createdEtag) ? got.data.createdEtag : got.ok ? got.data.etag : null
+    if (got.ok) settleSaved(got.data.id, etagThen, st, behind ? null : planKeyOf(st))
     if (away()) return
     if (!got.ok) { refused(got); return }
     let how = null
     if (canWriteNote) how = mode === 'copy' && getPos ? 'replace' : 'insert'
-    savedRef.current = owed(got.data, how, st)
+    savedRef.current = behind ? { ...owed(got.data, how, st), etag: etagThen, planKey: null } : owed(got.data, how, st)
     await placeSaved()
   }
 

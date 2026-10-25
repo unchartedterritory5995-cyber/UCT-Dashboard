@@ -9,7 +9,7 @@ import WidgetBuilderSheet, {
   PREVIEW_DEBOUNCE_MS, RESUME_OFFER, KEEP_QUESTION, BACK_TO_EXAMPLES, STALE_DRAFT, SAVED_NOT_PLACED,
   SAVED_EDITS_KEPT,
 } from './WidgetBuilderSheet'
-import { DRAFT_PREFIX, writeDraft } from './builderDraft'
+import { DRAFT_PREFIX, writeDraft, __forgetSavesInFlight } from './builderDraft'
 import { openWidgetBuilder } from './openWidgetBuilder'
 import { blankPlan } from './builderState'
 import { __resetBuiltCaches } from '../../../lib/builtWidgets'
@@ -49,6 +49,9 @@ const SAVED = { id: 'd-1', name: 'Mine', rev: 3, placedRev: 3, etag: 7, archived
 const NEW_SAVED = { ...SAVED, id: 'd-9', name: 'First', rev: 1, usedIn: 0 }
 const name = (v) => fireEvent.change(screen.getByLabelText('Name'), { target: { value: v } })
 const clickSave = () => fireEvent.click(screen.getByTestId('builder-save'))
+const posts = () => callsTo(spy, 'POST', (u) => u === DEFS)
+const keyOf = (call) => call[1].headers['Idempotency-Key']
+const UUID4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const gets = (id) => callsTo(spy, 'GET', (u) => u.endsWith(`${DEFS}/${id}`)).length
 
 /** A note editor and its door (openWidgetBuilder), which can be left (the editor destroyed). */
@@ -324,5 +327,127 @@ describe('8.15 M-5: a stale draft saved as a new widget, its place in the note s
     expect(screen.getByRole('alert')).toHaveTextContent(SAVED_NOT_PLACED)       // saved; its placement is owed
     expect(screen.queryByText(STALE_DRAFT)).toBeNull()
     expect(screen.getByTestId('builder-save')).toHaveTextContent(/^Save$/)
+  })
+})
+
+describe('ruling R-43: the create POST carries one idempotency key, and a reload mid-POST never makes a second widget', () => {
+  it('every create POST sends Idempotency-Key (a uuid4); a retry after a failure re-sends the SAME key', async () => {
+    let n = 0
+    route('POST', (u) => u === DEFS, () => { n += 1; return n === 1 ? refusal(500, 'failed') : answer(NEW_SAVED) })
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    await door().open()
+    name('First')
+    clickSave()
+    await flush()
+    clickSave()                                                                  // the first may have landed (a timeout)
+    await flush()
+    expect(posts()).toHaveLength(2)
+    expect(keyOf(posts()[0])).toMatch(UUID4)
+    expect(keyOf(posts()[1])).toBe(keyOf(posts()[0]))
+    expect(callsTo(spy, 'POST', (u) => u.endsWith('/preview')).every((c) => !('Idempotency-Key' in c[1].headers))).toBe(true)
+  })
+
+  it('a reload mid-POST: resuming the draft re-sends the stored key and gets the SAME widget', async () => {
+    route('POST', (u) => u === DEFS, () => new Promise(() => {}))                // the first POST never answers here
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    const a = door()
+    await a.open()
+    name('First')
+    clickSave()
+    await flush()
+    a.leave()
+    await flush()
+    const sentKey = keyOf(posts()[0])
+    expect(draft()).toMatchObject({ target: null, key: sentKey })               // the key is kept with the draft
+    __forgetSavesInFlight()                                                      // the page reloads
+    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, replayed: true, samePlan: true, createdEtag: 7 }))
+    await door().open()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    clickSave()
+    await flush()
+    expect(posts()).toHaveLength(2)
+    expect(keyOf(posts()[1])).toBe(sentKey)                                      // the same key, so the same widget
+    expect(callsTo(spy, 'PUT', () => true)).toHaveLength(0)                     // nothing newer to save to it
+    const runs = callsTo(spy, 'POST', (u) => u.endsWith('/run'))
+    expect(JSON.parse(runs[runs.length - 1][1].body).defId).toBe('d-9')          // and that widget is the one placed
+    expect(draft()).toBeNull()
+  })
+
+  it('resumed, then edited further: the edits are saved to that same widget, If-Match the etag the key made it at', async () => {
+    route('POST', (u) => u === DEFS, () => new Promise(() => {}))
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    const a = door()
+    await a.open()
+    name('First')
+    clickSave()
+    await flush()
+    a.leave()
+    await flush()
+    __forgetSavesInFlight()
+    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, etag: 9, replayed: true, samePlan: false, createdEtag: 7 }))
+    route('PUT', (u) => u.endsWith('/d-9'), () => answer({ ...NEW_SAVED, rev: 2, etag: 10 }))
+    await door().open()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    name('Later')
+    clickSave()
+    await flush()
+    const put = callsTo(spy, 'PUT', (u) => u.endsWith('/d-9'))
+    expect(put).toHaveLength(1)
+    expect(put[0][1].headers['If-Match']).toBe('7')                             // a change since elsewhere conflicts
+    expect(JSON.parse(put[0][1].body).plan.display.title).toBe('Later')
+    expect(posts().map(keyOf)).toEqual([keyOf(posts()[0]), keyOf(posts()[0])])
+  })
+
+  it("a builder that has gone keeps those newer edits as that widget's draft, never drops them", async () => {
+    const post = deferred()
+    route('POST', (u) => u === DEFS, () => post.promise)
+    const a = door()
+    await a.open()
+    name('Newer')
+    clickSave()
+    await flush()
+    a.leave()
+    await flush()
+    await act(async () => { post.resolve({ ...NEW_SAVED, replayed: true, samePlan: false, createdEtag: 7 }) })
+    await flush()
+    expect(draft()).toMatchObject({ target: 'd-9', etag: 7, key: null })          // an edit of d-9 now, at etag 7
+    expect(draft().plan.display.title).toBe('Newer')
+  })
+
+  it('a copy (a ready-made widget placed in the note) keeps its key too: a reload mid-POST never makes two copies', async () => {
+    const from = { shelfId: 'shelf:profit-factor', getPos: null }
+    route('POST', (u) => u === DEFS, () => new Promise(() => {}))
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload()))
+    const a = door(from)
+    await a.open()
+    name('My copy')
+    clickSave()
+    await flush()
+    a.leave()
+    await flush()
+    const sentKey = keyOf(posts()[0])
+    expect(draft()).toMatchObject({ target: 'shelf:profit-factor', key: sentKey })
+    __forgetSavesInFlight()
+    route('POST', (u) => u === DEFS, () => answer({ ...NEW_SAVED, replayed: true, samePlan: true, createdEtag: 7 }))
+    await door(from).open()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    clickSave()
+    await flush()
+    expect(posts().map(keyOf)).toEqual([sentKey, sentKey])
+  })
+
+  it('a draft of a saved widget carries no create key (it is resumed as an edit)', async () => {
+    route('POST', (u) => u === DEFS, () => answer(NEW_SAVED))
+    route('POST', (u) => u.endsWith('/run'), () => refusal(503, 'busy', 'x'))
+    const onClose = vi.fn()
+    render(<WidgetBuilderSheet uid="u1" onClose={onClose} editor={door().editor} />)
+    await flush(); await flush(PREVIEW_DEBOUNCE_MS)
+    name('Owed')
+    clickSave()
+    await flush()
+    name('Since')
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my changes' }))
+    expect(draft()).toMatchObject({ target: 'd-9', key: null })
   })
 })

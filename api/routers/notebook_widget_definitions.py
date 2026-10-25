@@ -9,7 +9,7 @@ The services: `api/services/journal_two/widget_definitions.py` (storage, revisio
   POST /drill                    the rows behind one cell
   GET  /vocabulary               the static catalog, or (?field=) the member's own values
   GET  /shelf                    the ready-made examples
-  GET  ""   POST ""              list / create
+  GET  ""   POST ""              list / create (Idempotency-Key: the builder's create key, R-43)
   GET  /{id}  PUT /{id}          read / save (If-Match: the widget's etag)
   POST /{id}/archive  /unarchive  /delete  /undelete
   GET  /{id}/used-in  /{id}/revs
@@ -461,12 +461,16 @@ def list_widgets(view: str = "live", user: dict = Depends(require_paid)) -> Any:
 
 
 @router.post("")
-def create_widget(user: dict = Depends(require_paid), body: dict = Depends(json_body)) -> Any:
+def create_widget(request: Request, user: dict = Depends(require_paid),
+                  body: dict = Depends(json_body)) -> Any:
+    """Create. The builder's `Idempotency-Key` header (ruling R-43, a uuid4) makes a repeat POST
+    answer the widget the key already made (200, `replayed: true`); a malformed key is ignored."""
     plan = body.get("plan")
     if not isinstance(plan, dict):
         raise _err(400, "invalid", wplan.S_UNREADABLE)
     name = body.get("name")
-    return _ok(_engine_errors(lambda: wdefs.create(_uid(user), name, plan)))
+    key = request.headers.get("idempotency-key")
+    return _ok(_engine_errors(lambda: wdefs.create_with_key(_uid(user), name, plan, key=key)))
 
 
 def _found(item: Any) -> Any:

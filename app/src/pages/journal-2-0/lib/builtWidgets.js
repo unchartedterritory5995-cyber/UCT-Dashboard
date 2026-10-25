@@ -77,15 +77,19 @@ const lost = () => ({ ok: false, code: isOffline() ? 'offline' : 'failed', messa
 const offline = () => ({ ok: false, code: 'offline', message: FAILURE_COPY.offline })
 
 /** `POST DEFS_URL + path` with a JSON body. Never throws: `{ok: true, data}` or `{ok: false, code, message}`.
- *  Offline makes no request at all. ⛔ Each fetch below names its method LITERALLY: the door rail
- *  (lib/offline/doorEnumeration.test.js) reads methods from the call site. */
-export async function postJson(path, body) {
+ *  Offline makes no request at all. `idempotencyKey` (ruling R-43: the builder's create POST) is sent as
+ *  `Idempotency-Key`, so a repeat of that POST answers the widget it already made. ⛔ Each fetch below names its
+ *  method LITERALLY: the door rail (lib/offline/doorEnumeration.test.js) reads methods from the call site. */
+export async function postJson(path, body, { idempotencyKey } = {}) {
   if (isOffline()) return offline()
   const t = withTimeout()
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(typeof idempotencyKey === 'string' && idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+  }
   try {
     const res = await fetch(`${DEFS_URL}${path}`, {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body ?? {}), ...t.signal,
+      method: 'POST', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...t.signal,
     })
     return await answer(res)
   } catch {
