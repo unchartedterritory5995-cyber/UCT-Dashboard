@@ -41,6 +41,7 @@ function serve(st) {
     }
     const m = /^\/api\/j2\/routines\/r1\/days\/([^/]+)\/items\/([^/]+)$/.exec(url)
     if (m && method === 'PUT') {
+      if (st.failTicks > 0) { st.failTicks -= 1; return json(500, {}) }
       st.ticks[m[1]] = { ...(st.ticks[m[1]] || {}), [m[2]]: JSON.parse(init.body).ticked }
       return json(200, entry(m[1]))
     }
@@ -89,5 +90,27 @@ describe('I-1: a follow-today block across ET midnight', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Read the morning wire' }))
     await act(async () => { await vi.advanceTimersByTimeAsync(50) })
     expect(calls.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['/api/j2/routines/r1/days/2026-10-27/items/i1'])
+  })
+
+  it("N-5: a Retry pending at 23:59 never writes to yesterday: midnight clears it, and the next tick is the new day's", async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-27T03:59:00Z'))          // 23:59 ET on Mon Oct 26
+    const st = { today: '2026-10-27', ticks: {}, failTicks: 1 }
+    const calls = serve(st)
+    render(<RoutineBlock params={{ routineId: 'r1', day: '', bind: 'today' }} setParams={vi.fn()} editable editor={editor} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mark key levels' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+    st.today = '2026-10-28'
+    await act(async () => { await vi.advanceTimersByTimeAsync(2 * 60 * 1000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    expect(screen.getByText('For Wed Oct 28')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()       // the old day's Retry is gone
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mark key levels' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    const puts = calls.filter((c) => c.method === 'PUT').map((c) => c.url)
+    expect(puts).toEqual(['/api/j2/routines/r1/days/2026-10-27/items/i2', '/api/j2/routines/r1/days/2026-10-28/items/i2'])
+    expect(st.ticks['2026-10-27']).toBeUndefined()                           // nothing ever landed on yesterday
   })
 })

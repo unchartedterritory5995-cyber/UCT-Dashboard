@@ -689,3 +689,29 @@ describe('unarchive (Task 9.13 fix round 1, ruling W9-R31)', () => {
     expect(other).not.toHaveBeenCalled()
   })
 })
+
+describe('resolvedTodayIfCurrent (ruling W9-R35)', () => {
+  it("is the server's day while it is still that ET day, null on a new ET day, and never asks the server", async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-26T15:00:00Z'))             // 11:00 ET, Mon Oct 26
+    const api = await freshApi()
+    expect(api.resolvedTodayIfCurrent()).toBeNull()                 // nothing heard yet
+    globalThis.fetch = vi.fn(async (url, init) => { const b = JSON.parse(init.body); return json(200, routineAnswer(b.ids, b.days)) })
+    const r = await api.readDay('routine', 'a', 'today')
+    expect(r.ok).toBe(true)
+    expect(api.resolvedTodayIfCurrent()).toBe('2026-10-26')
+    // A 'today' subscriber exists, so a re-resolve WOULD send a read (the control below proves it would be seen).
+    const off = api.subscribe('routine', 'a', 'today', () => {})
+    await new Promise((res) => setTimeout(res, 5))
+    const asked = globalThis.fetch.mock.calls.length
+    vi.setSystemTime(new Date('2026-10-27T04:30:00Z'))             // 00:30 ET, Tue Oct 27
+    expect(api.resolvedTodayIfCurrent()).toBeNull()
+    expect(api.resolvedTodayIfCurrent()).toBeNull()
+    await new Promise((res) => setTimeout(res, 5))
+    expect(globalThis.fetch.mock.calls.length).toBe(asked)          // read-only: no re-resolve was started
+    fireVisible()                                                   // control: the layer's own re-read IS seen
+    await new Promise((res) => setTimeout(res, 5))
+    expect(globalThis.fetch.mock.calls.length).toBeGreaterThan(asked)
+    off()
+  })
+})

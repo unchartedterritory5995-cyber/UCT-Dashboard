@@ -17,13 +17,13 @@
 // ⛔ ONE live region, mounted for the block's whole life: a sentence set by a control (or by the menu, which closes
 //    as it acts) is still on screen after that control is gone, and the offline sentence is said there once.
 // ⛔ A busy or offline control is `aria-disabled` with a guard in its handler, never `disabled`, so focus stays on it.
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import { isTradingDay } from '../../../../../lib/marketClock/sessionCalendar'
 import { todayET } from '../../../lib/calendar'
-import { TOOL_COPY, isOffline, readDay, setSkipped, subscribe, tick, unarchive } from '../../../lib/blocks/toolsApi'
+import { TOOL_COPY, isOffline, readDay, resolvedTodayIfCurrent, setSkipped, subscribe, tick, unarchive } from '../../../lib/blocks/toolsApi'
 import { forDayLabel, toolSearchText } from '../../../lib/blocks/toolDays'
 import { BlockLoading } from './blockStates'
 import styles from './Blocks.module.css'
@@ -83,13 +83,6 @@ function readKeyOf(p, noteDay) {
   return noteDay
 }
 
-// The server's 'today', as last heard on THIS ET day (M-5): "Follow today" while offline uses it, and with none it
-// is not offered. It never guesses a calendar day.
-let lastToday = null
-const rememberToday = (day) => { if (isDay(day)) lastToday = { et: todayET(), day } }
-const cachedToday = () => (lastToday && lastToday.et === todayET() ? lastToday.day : null)
-/** Test seam: forget the cached 'today'. */
-export function __forgetToday() { lastToday = null }
 
 /** A read's failure code -> the block's state. */
 const READ_STATE = { offline: 'offline', unavailable: 'unavailable', missing: 'missing' }
@@ -161,6 +154,7 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   const alive = useRef(true)
   const seq = useRef(0)
   const focusAfterRead = useRef(false)
+  const toolSeen = useRef(null)            // the tool a restore's re-read handed this block (N-2)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
   const cur = read && read.base === base && read.attempt === attempt ? read : null
@@ -172,7 +166,6 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     readDay('routine', routineId, readKey).then((r) => {
       if (!live) return
       if (r.ok) {
-        if (readKey === 'today') rememberToday(r.resolvedDay)
         setRead({ base, attempt, status: 'ready', entry: r.entry, tool: r.tool, day: r.resolvedDay })
       } else setRead({ base, attempt, status: READ_STATE[r.code] || 'failed' })
     })
@@ -187,7 +180,7 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     if (!routineId) return undefined
     return subscribe('routine', routineId, readKey, (entry, tool) => {
       if (!alive.current || !entry || typeof entry !== 'object') return
-      if (follow) rememberToday(entry.day)
+      if (tool && typeof tool === 'object') toolSeen.current = tool
       setRead((r) => {
         if (!r || r.base !== base || r.status !== 'ready') return r
         const next = tool && typeof tool === 'object' ? { ...r, tool } : r
@@ -213,8 +206,9 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     return () => { window.removeEventListener('offline', off); window.removeEventListener('online', on) }
   }, [])
 
-  // After a read Retry, once the read has landed: the block's first control, else the ⋯ button.
-  useEffect(() => {
+  // After a read Retry, once the read has landed: the block's first control, else the ⋯ button. A layout effect, so
+  // the focus moves in the same commit that shows the control (N-3).
+  useLayoutEffect(() => {
     if (!focusAfterRead.current || !cur) return
     focusAfterRead.current = false
     const root = wrap.current
@@ -242,8 +236,19 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     setFeedback({ text: TOOL_COPY.tickFailed, retry, focus })
   }, [])
 
-  const writeDay = cur?.day
+  // N-5: the day a write goes to is read when it is SENT (a Retry made after ET midnight writes to the new day), and a
+  // follow-today block that moves to a new day drops what was pending for the old one: its sentence and its Retry.
+  const writeDayRef = useRef(null)
+  writeDayRef.current = cur?.day ?? null
+  const shownDay = useRef(null)
+  const curDay = cur?.day
+  useEffect(() => {
+    if (!curDay) return
+    if (follow && shownDay.current && shownDay.current !== curDay) { setFeedback(null); setOverrides({}) }
+    shownDay.current = curDay
+  }, [curDay, follow])
   const sendTick = useCallback(async (item, on) => {
+    const writeDay = writeDayRef.current
     if (!writeDay) return
     const mine = ++seq.current
     setFeedback(null)
@@ -259,9 +264,10 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     })
     if (out.ok) { adoptAnswer(out.entry); return }
     failed(out, () => sendTick(item, on), `[data-item-id="${item.id.replace(/["\\]/g, '\\$&')}"]`)
-  }, [routineId, writeDay, adoptAnswer, failed])
+  }, [routineId, adoptAnswer, failed])
 
   const sendSkip = useCallback(async (skipped) => {
+    const writeDay = writeDayRef.current
     if (!writeDay) return
     setFeedback(null)
     setSkipBusy(true)
@@ -270,7 +276,7 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     setSkipBusy(false)
     if (out.ok) { adoptAnswer(out.entry); return }
     failed(out, () => sendSkip(skipped), '[data-skip]')
-  }, [routineId, writeDay, adoptAnswer, failed])
+  }, [routineId, adoptAnswer, failed])
 
   const retry = () => {
     const f = feedback
@@ -308,9 +314,9 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     let day = null
     if (!isOffline()) {
       const r = await readDay('routine', routineId, 'today')
-      if (r.ok && isDay(r.resolvedDay)) { day = r.resolvedDay; rememberToday(day) }
+      if (r.ok && isDay(r.resolvedDay)) day = r.resolvedDay
     }
-    day = day || cachedToday()
+    day = day || resolvedTodayIfCurrent()
     if (!alive.current) return
     if (!day) {
       if (isOffline()) setOffline(true)
@@ -324,11 +330,16 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   }
   const restore = async () => {
     setFeedback(null)
+    toolSeen.current = null
     const out = await unarchive('routine', routineId)
     if (!alive.current) return
-    // The layer re-reads every placed block of this routine (this one too). This block also reads afresh: a write
-    // that landed meanwhile makes the layer drop its re-read, and the tool's `archived` must still come back.
-    if (out.ok) { setAttempt((n) => n + 1); return }
+    // The layer re-reads every placed block of this routine (this one too), handing each the tool. Only when that
+    // re-read did not reach this block (a write that landed meanwhile makes the layer drop it) does it read afresh,
+    // so a normal Restore shows no loading screen and sends no second read (N-2).
+    if (out.ok) {
+      if (toolSeen.current?.archived !== false) setAttempt((n) => n + 1)
+      return
+    }
     failed(out, restore, null)
   }
 
@@ -338,7 +349,7 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     menuItems.push({ label: 'Manage…', onClick: manage })
     if (cur?.status === 'ready') {
       if (follow) menuItems.push({ label: "Use this note's day", onClick: useNoteDay })
-      else if (offline && !cachedToday()) menuItems.push({ label: 'Follow today', disabled: true, hint: TOOL_COPY.offline })
+      else if (offline && !resolvedTodayIfCurrent()) menuItems.push({ label: 'Follow today', disabled: true, hint: TOOL_COPY.offline })
       else menuItems.push({ label: 'Follow today', onClick: followToday })
     }
     if (archived) menuItems.push({ label: 'Restore', onClick: restore })

@@ -188,6 +188,10 @@ function resolveToday() {
   return et
 }
 
+/** The server's resolved 'today' while it is still this ET day, else null. Read-only: never asks the server.
+ *  (Ruling W9-R35: the ONE authority a block reads; a block keeps no copy of its own.) */
+export function resolvedTodayIfCurrent() { return todayCache && todayCache.et === todayET() ? todayCache.day : null }
+
 function reResolveToday() {
   if (resolving) return
   resolving = true

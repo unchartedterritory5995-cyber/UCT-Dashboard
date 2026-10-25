@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import RoutineBlock, { NOT_DONE_TIP, __forgetToday } from './RoutineBlock'
+import RoutineBlock, { NOT_DONE_TIP } from './RoutineBlock'
 import { TOOL_COPY } from '../../../lib/blocks/toolsApi'
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
@@ -566,37 +566,6 @@ describe('RoutineBlock, fix round 1', () => {
     expect(screen.queryByText(/^You can tick this on /)).toBeNull()
   })
 
-  it('M-5: Follow today offline with no cached day is disabled; it never guesses a day', async () => {
-    __forgetToday()
-    serve()
-    const { setParams } = mount()
-    await waitFor(() => expect(boxes()).toHaveLength(6))
-    act(() => { setOnline(false); window.dispatchEvent(new Event('offline')) })
-    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
-    const row = menuRow('Follow today')
-    expect(row.disabled).toBe(true)
-    fireEvent.click(row)
-    expect(setParams).not.toHaveBeenCalled()
-  })
-
-  it("M-5: Follow today offline uses the server's day heard earlier on this ET day", async () => {
-    __forgetToday()
-    serve({ today: '2026-10-29' })
-    const t = mount({ params: { routineId: 'r1', day: '', bind: 'today' } })    // a follow-today read seeds it
-    await waitFor(() => expect(screen.getByText('For Thu Oct 29')).toBeTruthy())
-    t.unmount()
-    const srv = serve({ today: '2026-10-29' })
-    const { setParams } = mount()
-    await waitFor(() => expect(boxes()).toHaveLength(6))
-    act(() => { setOnline(false); window.dispatchEvent(new Event('offline')) })
-    const sent = srv.calls.length
-    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
-    fireEvent.click(menuRow('Follow today'))
-    await waitFor(() => expect(setParams).toHaveBeenCalledTimes(1))
-    expect(setParams.mock.calls[0]).toEqual([{ bind: 'today', day: '' }, { searchText: '[routine: Pre-market routine · For Thu Oct 29]' }])
-    expect(srv.calls.length).toBe(sent)                              // offline: no request was tried
-  })
-
   it("M-7: the server's read_only sentence is shown, with no Retry", async () => {
     serve({ tickRefusal: { code: 'read_only', message: 'This routine is archived.' } })
     mount()
@@ -613,6 +582,40 @@ describe('RoutineBlock, fix round 1', () => {
     expect(rule, '.text rule').toBeTruthy()
     expect(rule[1]).toMatch(/overflow-wrap:\s*anywhere/)
     expect(rule[1]).toMatch(/min-width:\s*0/)
+  })
+
+  it('N-4: on touch the ⋯ button says a dialog opens (the Sheet), and a dialog opens', async () => {
+    const mm = window.matchMedia
+    window.matchMedia = (q) => ({ matches: true, media: q, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return false } })
+    try {
+      serve()
+      mount()
+      await waitFor(() => expect(boxes()).toHaveLength(6))
+      const b = screen.getByRole('button', { name: 'Routine options' })
+      expect(b.getAttribute('aria-haspopup')).toBe('dialog')
+      fireEvent.click(b)
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy())
+      expect(screen.queryByRole('menu')).toBeNull()
+    } finally {
+      window.matchMedia = mm
+    }
+  })
+
+  it('N-2: a Restore whose re-read reached the block sends ONE read and never shows the loading line', async () => {
+    const { reads } = serve({ archived: true, writable: false })
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(TOOL_COPY.archivedRoutine)).toBeTruthy())
+    const before = reads().length
+    let sawLoading = false
+    const mo = new MutationObserver(() => { if (container.textContent.includes('Loading…')) sawLoading = true })
+    mo.observe(container, { childList: true, subtree: true, characterData: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow('Restore'))
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    mo.disconnect()
+    expect(reads().length - before).toBe(1)                          // the layer's re-read, and no second one
+    expect(sawLoading).toBe(false)
   })
 
   it('M-9: the ⋯ button says a menu opens on a fine pointer, and a menu opens', async () => {
