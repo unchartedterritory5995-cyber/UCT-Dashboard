@@ -84,6 +84,15 @@ describe('duplicateTool sends one key per intent', () => {
     expect(new Set([keyOf(0), keyOf(1), keyOf(2), keyOf(3)]).size).toBe(4)
   })
 
+  it('a 4xx with no readable body is still a confirmed answer (the app answered): the next press takes a new key', async () => {
+    const id = fresh()
+    fetchMock.mockResolvedValueOnce(bare(400)).mockResolvedValueOnce(bare(413))
+    expect(await duplicateTool('routine', id)).toEqual({ ok: false, code: 'network', message: CRUD_COPY.network })
+    await duplicateTool('routine', id)
+    await duplicateTool('routine', id)
+    expect(new Set([keyOf(0), keyOf(1), keyOf(2)]).size).toBe(3)
+  })
+
   it('a 409 for a reused key shows the server\'s sentence verbatim, and the next press works under a fresh key', async () => {
     const id = fresh()
     fetchMock
