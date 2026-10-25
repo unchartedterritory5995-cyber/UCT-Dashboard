@@ -172,7 +172,9 @@ export const TOPICS = [
   },
   {
     id: 'similarity', title: 'Finding similar historical charts',
-    words: [/\b(similar|look(s)? like|analog(ue)?s?|same pattern|resembl)\w*/],
+    // (P2-B: never a bare "look like" — "make the left chart look like the right one" is about a chart's
+    // settings, not a historical-similarity search)
+    words: [/\b(similar|analog(ue)?s?|same pattern|resembl)\w*/],
     caps: [], productHas: false,
     planned: { when: 'Stage 5', what: 'finding historical setups that look like a chart you pick, with what happened next' },
   },

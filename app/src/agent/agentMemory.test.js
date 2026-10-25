@@ -44,6 +44,17 @@ describe('memory — retention and invalidation', () => {
     expect(m.latestResults().symbols).toEqual(['AAA'])
   })
 
+  it('F2: undoing the last change\'s OWN Undo entry forgets it; undoing an older entry does not', () => {
+    const m = createMemory()
+    m.noteChange({ ops: [{ action: 'chart.setTimeframe', args: {}, target: 'c1' }], epoch: 'e1', undoId: 'u2' })
+    m.noteUndone('u1')                                                   // an older change was undone
+    expect(m.lastChange('e1')?.undoId).toBe('u2')
+    m.noteUndone('u2')
+    expect(m.lastChange('e1')).toBeNull()
+    expect(m.forModel()?.last_change).toBeUndefined()
+    expect(m.subject('chart', 'e1').ref).toBe('c1')                      // the chart itself is still there
+  })
+
   it('the model sees tickers (first MODEL_ITEMS, in order) and action names — never args or values', () => {
     const m = createMemory()
     m.noteResults({ source: 'screener.run', label: 'Semis', symbols: [...Array(30)].map((_, i) => `S${i}`) })

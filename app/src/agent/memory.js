@@ -15,7 +15,8 @@
 //   result sets   the newest MAX_SETS, MAX_ITEMS tickers each, for MEMORY_TTL_MS (30 min)
 //   subjects      the chart / indicator a change last touched; dropped when the board's layout
 //                 changes (its refs belong to that board) or after MEMORY_TTL_MS
-//   last change   the ops of the last successful plan (for "do the same …"), same rules as subjects
+//   last change   the ops of the last successful plan (for "do the same …"), same rules as subjects,
+//                 with the id of ITS Undo entry (null when it had none); undoing that entry forgets it
 //   corrections   the member's last MAX_CORRECTIONS "no, I meant …" lines (context for the model)
 //   cleared       on a new chat, a chat switch and a reload (session-only by design: nothing persists)
 // Content-free toward the server: the model may receive tickers and labels from here, never values.
@@ -32,7 +33,7 @@ const upper = (s) => String(s || '').trim().toUpperCase()
 export function createMemory({ now = () => Date.now() } = {}) {
   let sets = []                 // newest first: { id, source, label, symbols, at }
   let subjects = { chart: null, indicator: null }
-  let last = null               // { ops: [{ action, args, target }], at, epoch }
+  let last = null               // { ops: [{ action, args, target }], at, epoch, undoId }
   let corrections = []          // [{ said, at }]
   let seq = 0
   let visit = null              // the host's layout-visit count when memory last looked (`seeBoard`)
@@ -51,13 +52,23 @@ export function createMemory({ now = () => Date.now() } = {}) {
       return set
     },
 
-    /** A committed change. `ops` carry their resolved target refs; `epoch` = the board it ran on. */
-    noteChange({ ops, epoch = null, chartSymbol = null }) {
+    /** A committed change. `ops` carry their resolved target refs; `epoch` = the board it ran on;
+     *  `undoId` = the id of the Undo entry that reverses exactly this change (null: it has none). */
+    noteChange({ ops, epoch = null, chartSymbol = null, undoId = null }) {
       const clean = (ops || []).filter(o => o?.action).map(o => ({ action: o.action, args: o.args || {}, target: o.target || null }))
       if (!clean.length) return
-      last = { ops: clean, at: now(), epoch }
+      last = { ops: clean, at: now(), epoch, undoId: undoId || null }
       const charts = [...new Set(clean.map(o => o.target).filter(t => typeof t === 'string'))]
+      // ⛔ P2-B F10: a change on SEVERAL charts leaves no single subject — "it" afterwards is a question,
+      // never the chart an EARLIER change happened to leave behind
       if (charts.length === 1) subjects.chart = { ref: charts[0], symbol: chartSymbol ? upper(chartSymbol) : null, at: now(), epoch }
+      else if (charts.length > 1) subjects.chart = null
+    },
+
+    /** An Undo entry was reversed. If it was the last change's, that change is no longer "the last
+     *  change": "do the same …" and a correction must not repeat or reverse it again. */
+    noteUndone(undoId) {
+      if (undoId && last && last.undoId === undoId) last = null
     },
 
     /** The indicator a change added or edited (from the mutation module's own report). */

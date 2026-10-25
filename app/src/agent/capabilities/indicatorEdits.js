@@ -109,6 +109,25 @@ export function inputsOfArgs(list) {
 }
 const addRequest = (defId, inputs) => (inputs ? { op: 'add', defId, inputs } : { op: 'add', defId })
 
+// ⛔ F4 (Phase 2 audit 2026-10-25): the Agent WRITES only what it advertises (SETTABLE). A setting the
+// definition declares as a colour, a source or text is refused here, before Indicators is asked — paint
+// and data links stay in the settings dialog until Indicators ships its own validated ops for them
+// (docs/agent/PHASE2-SHARED-CONTRACT.md). An undeclared key is left to Indicators' own refusal.
+const UNSETTABLE_WORD = { color: 'colours', source: 'data sources', text: 'text' }
+export function unsettableInput(defId, inputs) {
+  if (!inputs) return null
+  let declared = []
+  try { declared = (nativeRegistry.getDefinition(defId) || {}).inputs || [] } catch { declared = [] }
+  for (const key of Object.keys(inputs)) {
+    const d = declared.find(i => i && i.key === key)
+    if (d && !SETTABLE.has(d.type)) {
+      return `I can't change an indicator's ${UNSETTABLE_WORD[d.type] || `“${d.label || key}” setting`} yet — use that indicator's settings on the chart.`
+    }
+  }
+  return null
+}
+const defIdOfInstance = (st, instanceId) => ((st.rows || []).find(r => r.instanceId === instanceId) || {}).defId || null
+
 /** "period 20, MA type EMA" — the settings AS STORED, with the definition's own labels. */
 export function settingsPhrase(defId, values) {
   if (!values || typeof values !== 'object') return ''
@@ -555,7 +574,7 @@ export function registerIndicatorEditCapabilities() {
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
       const ins = inputsOfArgs(inputs)
       if (!ins.ok) return refusalSentence({ reason: REASONS.BAD_INPUT, detail: { why: ins.why } })
-      return oneChange(st) || planCheck(st, addRequest(defId, ins.inputs))
+      return oneChange(st) || unsettableInput(defId, ins.inputs) || planCheck(st, addRequest(defId, ins.inputs))
     },
     apply(st, { defId, inputs }) {
       const ins = inputsOfArgs(inputs)
@@ -648,7 +667,8 @@ export function registerIndicatorEditCapabilities() {
       const len = /^#(\d{1,4})/.exec(String(instance || ''))
       if (!t.ok && len && t.reason === REASONS.NOT_FOUND) return `No indicator on ${st.chart} shows ${len[1]}. Say which one to change.`
       if (!t.ok) return refusalSentence(t, { chart: st.chart })
-      return oneChange(st) || planCheck(st, { op: 'setInputs', instanceId: t.instanceId, inputs: ins.inputs })
+      return oneChange(st) || unsettableInput(defIdOfInstance(st, t.instanceId), ins.inputs)
+        || planCheck(st, { op: 'setInputs', instanceId: t.instanceId, inputs: ins.inputs })
     },
     apply(st, { instance, inputs }) {
       const req = updateRequest(st, instance, inputs)

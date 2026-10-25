@@ -219,6 +219,45 @@ describe('NL-1 flag ON: the model reads every ordinary request', () => {
     expect(body.context.conversation_memory.subject_chart).toBe(refOf(body, 'L'))
   })
 
+  // ⛔ F1 (Phase 2 audit 2026-10-25): a correction reverses the last change's OWN Undo entry or nothing —
+  // never the newest entry when that is an older change
+  it('F1: after the member already undid the last change, a correction reverses NOTHING older — the new change is only proposed', async () => {
+    await nl1On()
+    const b = oneChart()
+    const { say, transcript } = mount(b)
+    script = (body, n) => (n === 1 ? setTf(body, 'L', '5') : n === 2 ? setTf(body, 'L', 'W') : setTf(body, 'L', '15', { correction: { replaces: 'last_change' } }))
+    await say('switch to 5 minutes')
+    await waitFor(() => expect(tf(b, 'L')).toBe('5'))
+    await say('now weekly')
+    await waitFor(() => expect(tf(b, 'L')).toBe('W'))
+    await say('undo')                                        // the weekly change is reversed; the 5-minute one stays
+    await waitFor(() => expect(tf(b, 'L')).toBe('5'))
+    await say('no I meant 15')
+    await waitFor(() => expect(transcript()).toMatch(/didn't reverse my earlier change/))
+    expect(tf(b, 'L')).toBe('5')                             // the OLDER 5-minute change was NOT undone
+    expect(turns[2].context.conversation_memory?.last_change_detail).toBeUndefined()
+  })
+
+  it('F1: when the last change has no Undo entry of its own, a correction never reverses the change before it', async () => {
+    await nl1On()
+    const b = oneChart()
+    const { say, transcript } = mount(b)
+    b.host.epoch = () => 'user:1'                            // a saved layout: every change is persisted
+    let saveOk = true
+    b.host.persist = async () => (saveOk ? { ok: true } : { ok: false, reason: 'not-saved' })
+    script = (body, n) => (n === 1 ? setTf(body, 'L', '5') : n === 2 ? setTf(body, 'L', 'W') : setTf(body, 'L', '15', { correction: { replaces: 'last_change' } }))
+    await say('switch to 5 minutes')
+    await waitFor(() => expect(tf(b, 'L')).toBe('5'))
+    // the next change lands, but its save is not confirmed: a receipt with no Undo
+    saveOk = false
+    await say('now weekly')
+    await waitFor(() => expect(tf(b, 'L')).toBe('W'))
+    saveOk = true
+    await say('no I meant 15')
+    await waitFor(() => expect(transcript()).toMatch(/didn't reverse my earlier change/))
+    expect(tf(b, 'L')).toBe('W')                             // neither the weekly nor the 5-minute change reversed
+  })
+
   it('a correction with no earlier change of the Agent undoes nothing and only proposes', async () => {
     await nl1On()
     const b = oneChart()

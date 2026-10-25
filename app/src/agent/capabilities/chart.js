@@ -23,7 +23,8 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { CHART_THEMES, CHART_THEME_BY_ID, applyThemeToOneChart } from '../../components/chart/chartThemes'
 import { primaryChartTypeFor } from '../../components/chart/engine/sourceCapability'
-import { canonicalFamily, canonicalProduct, canonicalSourceCapability } from '../../hooks/useMarketIndicators'
+import { canonicalFamily, canonicalProduct, canonicalSourceCapability, marketIndicatorRecord } from '../../hooks/useMarketIndicators'
+import { breadthRecord } from '../../hooks/useBreadthSymbols'
 import { isEconomicId } from '../../components/chart/engine/econMark'
 import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
@@ -34,6 +35,7 @@ import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
+import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
@@ -85,6 +87,20 @@ function capabilityFor(sym) {
     : fam === 'unknown' ? null : canonicalSourceCapability(sym, fam === 'security' || fam === 'volatility')
   return { econ: false, cap }
 }
+// ⛔ F7 (Phase 2 audit 2026-10-25): a breadth / market-indicator series draws with the SURFACE's own
+// `breadthChartType` and never reads `chartType` (pane/ChartPane.jsx `isBreadthLike`, the header's
+// Line/Candles button) — so the Agent writes and reports the key the canvas actually reads. Same
+// predicate as ChartPane: a breadth record, or a market-indicator series that is not volatility / a product.
+export function isBreadthLikeSymbol(sym) {
+  if (!sym) return false
+  try {
+    if (breadthRecord(sym)) return true
+    const mi = marketIndicatorRecord(sym)
+    return !!mi && mi.source_type !== 'volatility' && mi.kind !== 'product'
+  } catch { return false }
+}
+const typeKeyOf = (sym) => (isBreadthLikeSymbol(sym) ? 'breadthChartType' : 'chartType')
+const chartTypeOf = (cs, sym) => (cs?.[typeKeyOf(sym)] || 'candles')
 function hasIntradayBars(sym) {
   if (!sym) return true
   if (isEconomicId(sym)) return false
@@ -103,6 +119,18 @@ export const sessionOf = (cs, tf) => (isIntraday(tf)
 // ChartPane's `extEnabled`: the D/W/M Extended button is live only in the pre/post window.
 export const extWindowOpen = () => { const s = getExtSessionCached()?.session; return s === 'pre' || s === 'post' }
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+/** chart.compare's resulting list: clear, then removals, then additions (the panel's own entry shape). */
+function comparisonsAfter(st, { add, remove, clear }) {
+  let list = clear ? [] : (Array.isArray(st.cs?.comparisonSymbols) ? [...st.cs.comparisonSymbols] : [])
+  const drop = new Set((remove || []).map(x => String(x).trim().toUpperCase()))
+  list = list.filter(x => !drop.has(String(x.sym).toUpperCase()))
+  for (const raw of add || []) {
+    const sym = String(raw || '').trim().toUpperCase()
+    if (!sym || list.some(x => x.sym === sym)) continue
+    list = [...list, { sym, enabled: true, color: pickComparisonColor(list.length, list.map(x => x.color)), scaleMode: 'new' }]
+  }
+  return list
+}
 
 // ── chart.setSetting helpers (generated from the product's descriptor table) ──
 const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off')
@@ -226,11 +254,16 @@ export const chartKind = {
     if ('settings' in item.patch) p.settings = item.before.stored ?? null
     if ('tf' in item.patch) p.tf = item.before.tf
     if ('symbol' in item.patch) p.symbol = item.before.symbol
-    // Undo a date jump = jump back to where the right edge was.
+    // Undo a date jump = jump back to where the right edge was. When that edge was never read there
+    // is no Undo for the change — and the receipt says why (chart.goToDate's undoNote, F6).
     if ('goto' in item.patch) { if (item.before.view?.rightMs == null) return null; p.goto = item.before.view.rightMs }
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
+  // ⛔ F6: a date jump's Undo is stale once the member has moved the view since — scrolling back
+  // would overwrite where they are now. Every other chart change ignores the view.
+  fingerprintFor: (host, snap, item) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol,
+    ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -286,7 +319,7 @@ export function describeChart(snap, shortRef) {
   return {
     ref: shortRef, label: snap.label, position: snap.position || null,
     symbol: snap.symbol, timeframe: snap.tf, timeframeLabel: tfLabel(snap.tf),
-    chartType: cs.chartType || 'candles', volume: volState(cs),
+    chartType: chartTypeOf(cs, snap.symbol), volume: volState(cs),
     background: cs.bgMode === 'gradient' ? 'gradient' : (cs.background || null),
     upColor: cs.candles?.upColor || null, downColor: cs.candles?.downColor || null,
     extendedHours: sessionOf(cs, snap.tf) === 'extended',
@@ -334,9 +367,9 @@ const CAPABILITIES = [
       return null
     },
     fast: ({ core }) => { const type = firstMatch(TYPE_WORDS, core); return type ? { type } : null },
-    apply: (st, { type }) => (st.cs.chartType === type ? st : { ...st, cs: set(st.cs, { chartType: type }) }),
-    describe: (b, a) => (b.cs.chartType === a.cs.chartType ? null : `Changed chart to ${chartTypeLabel(a.cs.chartType)}`),
-    noop: (b, a) => `Already ${chartTypeLabel(a.cs.chartType)}`,
+    apply: (st, { type }) => (chartTypeOf(st.cs, st.symbol) === type ? st : { ...st, cs: set(st.cs, { [typeKeyOf(st.symbol)]: type }) }),
+    describe: (b, a) => (chartTypeOf(b.cs, b.symbol) === chartTypeOf(a.cs, a.symbol) ? null : `Changed chart to ${chartTypeLabel(chartTypeOf(a.cs, a.symbol))}`),
+    noop: (b, a) => `Already ${chartTypeLabel(chartTypeOf(a.cs, a.symbol))}`,
   },
   {
     name: 'chart.setTimeframe',
@@ -668,6 +701,8 @@ const CAPABILITIES = [
       if (ms > Date.now() + DAY_MS) return 'That date is in the future.'
       return null
     },
+    // ⛔ F6: said on the receipt whenever this change came with no Undo (the earlier view was unknown)
+    undoNote: "I couldn't read where the chart was scrolled before, so this can't be undone here — scroll the chart back, or jump to another date.",
     apply: (st, { date }) => ({ ...st, goto: dateMs(date) }),
     describe: (b, a) => (a.goto != null ? `Moved the view to ${fmtDay(a.goto)} — the right edge shows the last bar on or before it (view only; later bars are still there)` : null),
   },
@@ -695,19 +730,15 @@ const CAPABILITIES = [
       if (list.includes(String(st.symbol || '').toUpperCase())) return `The chart already shows ${st.symbol} — compare it against a different symbol.`
       const bad = list.find(x => env?.unknownSymbols?.has(x))
       if (bad) return `UCT has no symbol “${bad}”.`
+      // ⛔ F5: the product's published ceiling (chartCeilings.MAX_COMPARISONS), counted on the RESULT —
+      // after removals and duplicates. Never blocks a change that leaves fewer than the chart has now.
       const cur = Array.isArray(st.cs?.comparisonSymbols) ? st.cs.comparisonSymbols.length : 0
-      if (cur + list.length > 10) return 'That would be more than 10 comparisons on one chart.'
+      const after = comparisonsAfter(st, { add, remove, clear }).length
+      if (after > MAX_COMPARISONS && after > cur) return `A chart can compare at most ${MAX_COMPARISONS} symbols — this one would have ${after}. Remove some first.`
       return null
     },
     apply(st, { add, remove, clear }) {
-      let list = clear ? [] : (Array.isArray(st.cs?.comparisonSymbols) ? [...st.cs.comparisonSymbols] : [])
-      const drop = new Set((remove || []).map(x => String(x).trim().toUpperCase()))
-      list = list.filter(x => !drop.has(String(x.sym).toUpperCase()))
-      for (const raw of add || []) {
-        const sym = String(raw || '').trim().toUpperCase()
-        if (!sym || list.some(x => x.sym === sym)) continue
-        list = [...list, { sym, enabled: true, color: pickComparisonColor(list.length, list.map(x => x.color)), scaleMode: 'new' }]
-      }
+      const list = comparisonsAfter(st, { add, remove, clear })
       const next = { ...st.cs, comparisonSymbols: list, preset: 'custom' }
       if (clear) next.compareHideBase = false
       if (list.length && next.percentScale) { next.percentScale = false; next.logScale = false }
@@ -718,7 +749,9 @@ const CAPABILITIES = [
       if (sameJson(was, now)) return null
       return now.length ? `Comparing ${a.symbol || 'this chart'} with ${now.join(', ')}` : 'Removed every comparison from this chart'
     },
-    noop: () => 'Those comparisons are already there',
+    // ⛔ F5: the no-op says what was asked — "remove QQQ" when QQQ isn't compared is not "already there"
+    noop: (b, a, args) => ((args?.add || []).length ? 'Those comparisons are already there'
+      : (args?.remove || []).length ? 'None of those is being compared on this chart' : 'This chart has no comparisons'),
   },
   {
     // ── chart.addCustomTimeframe: the timeframe menu's "Custom interval" (ChartPane.addCustomTf):

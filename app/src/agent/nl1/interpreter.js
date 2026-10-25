@@ -36,7 +36,9 @@ export function nl1Enabled() {
 // fillers, no typo tolerance: anything else is the model's to read. Each acts only when there is
 // something to act on (the caller checks: a proposal to confirm, something pending to cancel).
 const EXACT = {
-  undo: new Set(['undo', 'undo that', 'undo it', 'undo the last change']),
+  // (P2-B: the plain Undo's whole-message wordings — the model has no Undo action, so "undo that last
+  // change" sent to it could only be answered in words or re-planned as reverse ops)
+  undo: new Set(['undo', 'undo that', 'undo it', 'undo the last change', 'undo that last change', 'undo my last change', 'undo that change', 'undo last change']),
   confirm: new Set(['confirm', 'do it', 'apply', 'apply it', 'yes', 'yes do it', 'go ahead']),
   dismiss: new Set(['cancel', 'cancel it', 'cancel that', 'never mind', 'nevermind']),
 }
@@ -190,7 +192,9 @@ export const withoutWordingApprovals = (ops) => (ops || []).map(o => {
  * A CORRECTION ("no, I meant 15 minutes") may reverse the Agent's previous change only when ALL hold:
  *   • the envelope says so (`correction.replaces === 'last_change'`) and plans the new change;
  *   • the session's last change is fresh and on this board (memory.lastChange);
- *   • the newest Undo entry exists — the change was reversible and is the Agent's own.
+ *   • the newest Undo entry IS that change's own entry (memory records its id). Not the case when
+ *     the last change had no Undo (not reversible, not saved) or the member already undid it — then
+ *     the newest entry is an OLDER change, and reversing it would undo something they never corrected.
  * Whether it is UNCHANGED since is decided by the Undo itself (fingerprints, protection, board sync):
  * a refusal there means nothing is undone and the new change is only proposed.
  */
@@ -200,6 +204,6 @@ export function correctionPlan({ env, memory, epoch, undoStack }) {
   const last = memory?.lastChange?.(epoch)
   const entry = (undoStack || [])[undoStack?.length - 1] || null
   if (!last) return { ok: false, reason: "there's no recent change of mine in this chat to replace" }
-  if (!entry) return { ok: false, reason: "my last change can't be undone" }
+  if (!entry || !last.undoId || entry.id !== last.undoId) return { ok: false, reason: "my last change can't be undone" }
   return { ok: true, undoId: entry.id }
 }
