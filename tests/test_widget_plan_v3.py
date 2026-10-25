@@ -143,7 +143,10 @@ V3_RAWS = {
     "cumulative": ct(split={"by": "day"}, view={"type": "line"}, measures=[{"key": "net_pnl"}],
                      display={"cumulative": True}),
     "stop after": ct(measures=[{"key": "current_streak"}], display={"stopAfter": 3}),
-    "quadrants": ct(measures=[{"key": "total_r"}, {"key": "net_pnl"}],
+    # Task 10.9 (10.18 m6): quadrants only on the excursion pair, |MAE| across and MFE up, in R
+    "quadrants": ct(formulas=[F("f1", "MAE", "Abs([mae_r])", format="r"),
+                              F("f2", "MFE", "[mfe_r]", format="r")],
+                    measures=[{"formula": "f1", "agg": "avg"}, {"formula": "f2", "agg": "avg"}],
                     view={"type": "scatter"}, display={"quadrants": "excursion"}),
 }
 
@@ -542,6 +545,8 @@ def test_display_options_rules():
         (ct(display={"quadrants": "excursion"}), CAT, P.S_QUADRANTS),
         (ct(measures=[{"key": "total_r"}, {"key": "net_pnl"}], view={"type": "scatter"},
             display={"quadrants": "corners"}), CAT, P.S_UNREADABLE),
+        (ct(measures=[{"key": "total_r"}, {"key": "net_pnl"}], view={"type": "scatter"},
+            display={"quadrants": "excursion"}), CAT, P.S_QUADRANTS_PAIR),
     ]
     for raw, cat, sentence in cases:
         assert refused(raw, cat).sentence == sentence, raw

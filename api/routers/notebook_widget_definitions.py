@@ -37,8 +37,15 @@ The rules:
     same `public.not_found()` 404 (the client's `unavailable`). Stored widgets stay as they are.
   * WAVE 10 SHELF (Task 10.13): `/shelf` and `/examples` serve, per id, the newest revision the flags
     allow (`_shelf_allowed`), so a revised id falls back to its revision 1 while wave 10 is off and an
-    id whose every revision needs a dark wave is not listed (`/examples`: the dark 404). `/shelf` adds
+    id whose every revision needs a dark wave is not listed (`/examples` drops its card). `/shelf` adds
     `dedicated` (the seven ready-made dedicated kinds, from `shelf_kind_names`) only while wave 10 is on.
+  * WAVE 10 (Task 10.9): `_gate_w10` (`plan.uses_wave10`: a formula, options or notes, a wave 10 display
+    option) answers the dark 404 at every door `_gate_tools` guards while wave 10 is off; a rename-only
+    `PUT` passes (W9-R16). The vocabulary lists the two sources, their fields (`hourKey`, `needsTimes`,
+    `prop`), the formula functions, limits and formats and the display options only while it is on, and
+    `?field=` the member's options, folders, kinds, note tags, note tickers and properties. A formula
+    refusal is 400 `formula` with `formulaId` and `pos`. `/examples` drops a card whose every revision
+    needs a dark wave (the gallery draws its bare shape) instead of refusing the batch.
 """
 from __future__ import annotations
 
@@ -52,11 +59,16 @@ from fastapi.responses import JSONResponse
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import auth_db
 from api.services import request_body_cap as body_cap
+from api.services.journal_two import note_kinds as j2_note_kinds
+from api.services.journal_two import note_properties
 from api.services.journal_two import notebook_widgets as nwidgets
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import sample_marker
 from api.services.journal_two import shelf_kind_names
 from api.services.journal_two import widget_definitions as wdefs
+from api.services.journal_two import widget_formula as wf
 from api.services.journal_two import widget_request_body as wbody
+from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import drill as wdrill
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import run as wrun
@@ -67,6 +79,8 @@ from api.services.journal_two.widget_engine.plan import PlanError, PlanTooNew
 WAVE = 8
 #: Routines and trackers as builder sources (Task 9.8).
 TOOLS_WAVE = 9
+#: Formulas, options strategies, notes and the wave 10 display options (Task 10.9).
+W10_WAVE = 10
 MAX_BODY = 32 * 1024
 #: A body nesting deeper than this is refused before anything copies or walks it (fix round 1, I-1).
 MAX_BODY_DEPTH = 32
@@ -93,6 +107,12 @@ S_VOCAB_FIELD = "That field isn't available here."
 VOCAB_FIELDS = ("setup", "mistake", "emotion", "symbol", "account")
 #: Listed only while wave 9 is on: `{id, name}` of the member's routines / trackers.
 VOCAB_TOOL_FIELDS = ("routine", "tracker")
+#: Listed only while wave 10 is on: options `underlying` (text) and `strategy` (`{value, label}`), notes
+#: `folder` and `kind` (`{id, name}`), `note_tag` and `ticker` (text), `property` (`{id, name, type}`).
+VOCAB_W10_FIELDS = ("underlying", "strategy", "folder", "kind", "note_tag", "ticker", "property")
+#: The words the builder shows for `plan.FORMULA_FORMATS` (served `[{key, label}]`, the shape
+#: `builderCatalog.indexCatalog` reads; railed to name exactly the plan's formats, in its order).
+FORMAT_LABELS = {"number": "Number", "money": "Money", "percent": "Percent", "r": "R"}
 VOCAB_MAX = 200
 
 NO_STORE = {"Cache-Control": "no-store"}
@@ -167,6 +187,9 @@ def _engine_errors(fn):
         raise _err(409, "superseded", S_SUPERSEDED)
     except PlanTooNew as e:
         raise _err(409, "too_new", e.sentence)
+    except wf.FormulaError as e:             # a PlanError subclass: before it
+        raise HTTPException(status_code=400, headers=dict(NO_STORE), detail={
+            "code": "formula", "message": e.sentence, "formulaId": e.formula_id, "pos": e.pos})
     except PlanError as e:
         raise _err(400, "invalid", e.sentence)
     except wdefs.NotFound:
@@ -261,7 +284,7 @@ def _gate_tools(plan: Any) -> None:
 
 
 def _w10_on() -> bool:
-    return nwidgets.notebook_widgets_wave_on(10)
+    return nwidgets.notebook_widgets_wave_on(W10_WAVE)
 
 
 def _gate_w10(plan: Any) -> None:
@@ -328,17 +351,22 @@ def run_examples(user: dict = Depends(require_paid), body: dict = Depends(json_b
     uid = _uid(user)
     _rate(PREVIEW_RATE, SCOPE_PREVIEW, uid, "rate_preview", S_RATE_PREVIEW)   # one hit per batch
     ids = body.get("ids")
-    # Task 10.13: the newest revision the flags allow, the one `/shelf` lists. A known id with none
-    # (every revision needs a dark wave) is the dark 404; the gates stay as the defence behind it.
+    # Task 10.13: the newest revision the flags allow, the one `/shelf` lists; the gates stay as the
+    # defence behind it. Task 10.9: a known id with none (every revision needs a dark wave) is DROPPED
+    # (the gallery draws that card's bare shape), so one stale card never takes the batch down; an id
+    # no shelf knows is still refused by the engine.
     allowed = _shelf_allowed()
     if isinstance(ids, list):
+        kept = []
         for i in ids:
             ex = wshelf.example(i, allowed=allowed) if isinstance(i, str) else None
             if ex is not None:
                 _gate_tools(ex["plan"])
                 _gate_w10(ex["plan"])
-            elif wshelf.known(i):
-                raise public.not_found()
+            elif isinstance(i, str) and wshelf.known(i):
+                continue
+            kept.append(i)
+        ids = kept
     return _ok(_engine_errors(lambda: wrun.run_examples(uid, ids, allowed=allowed)))
 
 
@@ -379,13 +407,23 @@ def _field_values(f: Any) -> list[dict] | None:
     return [{"value": v, "label": f.fmt(v) if f.fmt else str(v)} for v in vals]
 
 
-def _field_row(f: Any) -> dict:
+def _field_row(f: Any, w10: bool = False) -> dict:
+    """One field. While wave 10 is on it also carries `hourKey` (a day field's ET hour, the dialect's
+    `Hour([day])`) and `needsTimes` when set, and `prop: true` on the note-property field (a filter
+    on it names a property; its `type` is null: the named property's own, `?field=property`)."""
     row = {"key": f.key, "label": f.label, "type": f.type, "ops": list(f.ops),
            "split": bool(f.split), "filter": bool(getattr(f, "filterable", True)),
            "refKind": getattr(f, "ref_kind", None)}
     values = _field_values(f)
     if values is not None:
         row["values"] = values
+    if w10:
+        if getattr(f, "hour_key", None):
+            row["hourKey"] = f.hour_key
+        if getattr(f, "needs_times", False):
+            row["needsTimes"] = True
+        if f.key == wplan.PROPERTY_FIELD:
+            row["prop"] = True
     return row
 
 
@@ -393,7 +431,9 @@ def _static_vocabulary(tools: bool = False, w10: bool = False) -> dict:
     """The catalog. With `tools` False (wave 9 off) no routine or tracker source, no field that
     names one (`refKind`) and no routine or tracker measure is listed. With `w10` False (wave 10
     off, Task 10.6) no wave 10 source is listed, nor a measure only it offers, nor its key in a
-    shared measure's `sources` (Task 10.9 owns the rest of the wave 10 vocabulary)."""
+    shared measure's `sources`. With `w10` on (Task 10.9) the field rows carry `hourKey`, `needsTimes`
+    and `prop`, and the catalog adds the formula `functions`, `formulaLimits` and `formats` and the
+    `displayOptions`, each read from its owner (`widget_formula`, `plan`)."""
     cat = wsources.CATALOG
 
     def offered_source(key: str) -> bool:
@@ -406,7 +446,7 @@ def _static_vocabulary(tools: bool = False, w10: bool = False) -> dict:
             continue
         sources.append({
             "key": s.key, "label": s.label, "description": s.description, "unit": s.unit,
-            "fields": [_field_row(f) for f in s.fields.values()
+            "fields": [_field_row(f, w10) for f in s.fields.values()
                        if tools or not getattr(f, "ref_kind", None)],
             "measures": sorted(cat.measures_for(s.key)),
         })
@@ -415,13 +455,21 @@ def _static_vocabulary(tools: bool = False, w10: bool = False) -> dict:
                  "sources": sorted(k for k in m.sources if offered_source(k))}
                 for m in cat.measures.values()
                 if any(offered_source(k) for k in m.sources)]
-    return {
+    out = {
         "sources": sources,
         "measures": measures,
         "views": list(cat.views),
         "ranges": [{"token": t, "label": wplan._TOKEN_LABELS.get(t, t)} for t in cat.range_tokens],
         "accents": list(cat.accents),
     }
+    if w10:
+        out["functions"] = [dict(d) for d in wf.FUNCTION_DOCS]
+        out["formulaLimits"] = {"length": wf.MAX_LENGTH, "tokens": wf.MAX_TOKENS,
+                                "depth": wf.MAX_DEPTH, "count": wf.MAX_FORMULAS,
+                                "name": wf.NAME_MAX}
+        out["formats"] = [{"key": k, "label": FORMAT_LABELS[k]} for k in wplan.FORMULA_FORMATS]
+        out["displayOptions"] = list(wplan.WAVE10_DISPLAY)
+    return out
 
 
 def _tag_values(conn: sqlite3.Connection, user_id: str, col: str) -> list[str]:
@@ -434,10 +482,62 @@ def _tag_values(conn: sqlite3.Connection, user_id: str, col: str) -> list[str]:
     return list(seen)
 
 
+def _w10_member_values(conn: sqlite3.Connection, user_id: str, field: str) -> list[Any]:
+    """`?field=` for the wave 10 fields: the member's own rows only (`user_id = ?`). Notes as the
+    notes source reads them (`compile.note_membership_sql`): trash, archive and the sample notebook
+    never give a value. `kind` lists the kinds a note's current kind can be (W10-R60: built-in
+    and the member's own)."""
+    if field == "property":
+        # the notes scan's own rule (`sources.member_property`): the member's own definition, not a
+        # built-in, user-set, not calculated (a deleted one is not listed by `list_property_defs`)
+        return [{"id": d["id"], "name": d["name"], "type": d["type"]}
+                for d in note_properties.list_property_defs(user_id, conn)
+                if not note_properties.is_builtin_property_id(d["id"])
+                and d.get("source") == "user_set" and not d.get("computed")][:VOCAB_MAX]
+    if field == "folder":
+        return [{"id": r[0], "name": r[1]} for r in conn.execute(
+            "SELECT id, name FROM j2_note_folders WHERE user_id = ? ORDER BY name, id",
+            (user_id,)).fetchall()][:VOCAB_MAX]
+    if field == "kind":
+        return [{"id": k["id"], "name": k["name"]}
+                for k in j2_note_kinds.list_kinds(user_id, conn)][:VOCAB_MAX]
+    if field == "strategy":
+        fmt = wsources.CATALOG.sources["options_strategies"].fields["strategy"].fmt
+        codes = sorted({r[0] for r in conn.execute(
+            "SELECT DISTINCT strategy_type FROM j2_option_strategies WHERE user_id = ?"
+            " AND strategy_type IS NOT NULL", (user_id,)) if isinstance(r[0], str) and r[0]})
+        return [{"value": c, "label": fmt(c) if fmt else c} for c in codes][:VOCAB_MAX]
+    if field == "underlying":
+        vals = [r[0] for r in conn.execute(
+            "SELECT DISTINCT underlying FROM j2_option_strategies WHERE user_id = ?"
+            " AND underlying IS NOT NULL", (user_id,))]
+        return sorted({v for v in vals if isinstance(v, str) and v},
+                      key=lambda s: (s.lower(), s))[:VOCAB_MAX]
+    # the notes the notes widget reads (W10-R59: the notes list's own predicate, never restated)
+    where, params = wcompile.note_membership_sql(user_id)
+    if sample_marker.not_sample_sql() not in where:           # an example note is never offered
+        raise RuntimeError("the notes predicate lost the sample marker")
+    if field == "ticker":
+        vals = [r[0] for r in conn.execute(
+            "SELECT DISTINCT ticker FROM j2_notes" + where + " AND ticker IS NOT NULL", params)]
+    else:                                                    # note_tag
+        seen: dict[str, None] = {}
+        for (raw,) in conn.execute(
+                "SELECT tags FROM j2_notes" + where + " AND tags IS NOT NULL", params):
+            for t in wsources._tags(raw):
+                if t.strip():
+                    seen.setdefault(t, None)
+        vals = list(seen)
+    return sorted({v for v in vals if isinstance(v, str) and v},
+                  key=lambda s: (s.lower(), s))[:VOCAB_MAX]
+
+
 def _member_values(user_id: str, field: str) -> list[Any]:
     conn = auth_db.get_connection()
     try:
         with wrun.deadline(conn):
+            if field in VOCAB_W10_FIELDS:
+                return _w10_member_values(conn, user_id, field)
             if field == "routine":
                 return [{"id": r[0], "name": r[1]} for r in conn.execute(
                     "SELECT id, name FROM j2_routines WHERE user_id = ? AND deleted_at IS NULL"
@@ -483,9 +583,11 @@ def _member_values(user_id: str, field: str) -> list[Any]:
 @router.get("/vocabulary")
 def vocabulary(field: str | None = None, user: dict = Depends(require_paid)) -> Any:
     tools = _tools_on()
+    w10 = _w10_on()
     if field is None:
-        return _ok(_static_vocabulary(tools, _w10_on()))
-    if field not in VOCAB_FIELDS + (VOCAB_TOOL_FIELDS if tools else ()):
+        return _ok(_static_vocabulary(tools, w10))
+    if field not in (VOCAB_FIELDS + (VOCAB_TOOL_FIELDS if tools else ())
+                     + (VOCAB_W10_FIELDS if w10 else ())):
         raise _err(400, "invalid", S_VOCAB_FIELD)
     values = _engine_errors(lambda: _member_values(_uid(user), field))
     return _ok({"field": field, "values": values})

@@ -54,6 +54,11 @@ STOP_AFTER_MAX = 20
 #: The data an account goal follows (a goal target reads the accounts' goals against these).
 GOAL_SOURCES = ("closed_trades", "trading_days")
 QUADRANTS = ("excursion",)
+#: 10.18 m6: "excursion" captions trades as "gave it back" / "stopped too tight", true only of the
+#: excursion pair: the first measure the absolute MAE, the second the MFE, each a formula in R (the
+#: `shelf:mae-vs-mfe` shape). Canonical expressions, compared with their whitespace removed.
+EXCURSION_PAIR = ("Abs([mae_r])", "[mfe_r]")
+EXCURSION_SOURCE = "closed_trades"
 #: Measures that add up one of the member's note properties (`prop`, a uuid4).
 PROP_MEASURES = frozenset({"property_sum"})
 #: The filter field that names one note property (`prop`); it may appear more than once.
@@ -162,6 +167,7 @@ S_GOAL_SOURCE = "A goal target works on closed trades or trading days."
 S_STOP_AFTER = "Stop after works with the current streak."
 S_STOP_AFTER_RANGE = "Stop after must be 1 to 20 losses."
 S_QUADRANTS = "Quadrant labels need a scatter plot."
+S_QUADRANTS_PAIR = "Quadrant labels need MAE across and MFE up, both in R."
 
 
 class PlanError(ValueError):
@@ -700,8 +706,22 @@ def _check_measure(m: Any, source: str, catalog: Catalog, compiled: dict) -> dic
     return {"key": key}
 
 
+def _excursion_pair(plan: dict, formulas: list[dict]) -> bool:
+    """Is the plan the excursion pair (`EXCURSION_PAIR`, in that order, both in R, on closed
+    trades)? The only scatter whose quadrant captions are true (10.18 m6)."""
+    measures = plan["measures"]
+    if plan["source"] != EXCURSION_SOURCE or len(measures) != len(EXCURSION_PAIR):
+        return False
+    by_id = {f["id"]: f for f in formulas}
+    for m, want in zip(measures, EXCURSION_PAIR):
+        f = by_id.get(m.get("formula"))
+        if f is None or f.get("format") != "r" or "".join(f["expr"].split()) != want:
+            return False
+    return True
+
+
 def _check_display_w10(rd: dict, display: dict, plan: dict, catalog: Catalog,
-                       compiled: dict) -> None:
+                       compiled: dict, formulas: list[dict] = ()) -> None:
     """Ruling W10-R3: the four wave 10 display keys, each written only when set."""
     vtype = plan["view"]["type"]
     measures = plan["measures"]
@@ -734,6 +754,8 @@ def _check_display_w10(rd: dict, display: dict, plan: dict, catalog: Catalog,
         _need(isinstance(q, str) and q in QUADRANTS)
         if vtype != "scatter":
             raise PlanError(S_QUADRANTS)
+        if not _excursion_pair(plan, list(formulas)):
+            raise PlanError(S_QUADRANTS_PAIR)
         display["quadrants"] = q
 
 
@@ -944,7 +966,7 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         "filters": filters, "measures": measures, "split": split, "view": view,
         "sort": sort, "compare": compare, "display": display,
     }
-    _check_display_w10(rd, display, plan, catalog, compiled)
+    _check_display_w10(rd, display, plan, catalog, compiled, formulas)
     # W10-R3: `formulas` is written only when the plan has one.
     if formulas:
         plan["formulas"] = formulas

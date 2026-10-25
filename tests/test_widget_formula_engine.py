@@ -580,7 +580,10 @@ def test_stop_after_lines_exact_never_zero(conn):
 def test_quadrants_are_echoed(conn):
     for d in days(3):
         add_trade(conn, UID, day=d, pnl=10.0, r=1.0)
-    p, sc, res = evaluate(conn, fp(measures=[{"key": "total_r"}, {"key": "net_pnl"}],
+    p, sc, res = evaluate(conn, fp(measures=[{"formula": "f1", "agg": "avg"},
+                                             {"formula": "f2", "agg": "avg"}],
+                                   formulas=[F("f1", "MAE", "Abs([mae_r])", "r"),
+                                             F("f2", "MFE", "[mfe_r]", "r")],
                                    view={"type": "scatter"}, display={"quadrants": "excursion"}))
     assert build(p, res, sc)["quadrants"] == "excursion"
 

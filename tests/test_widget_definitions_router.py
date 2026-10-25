@@ -602,7 +602,7 @@ def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch, tmp_path):
         monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
         c = _client()
         r = c.post(BASE + "/examples", json={"ids": [tool["id"]]})
-        assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+        assert r.status_code == 200 and r.json()["cards"] == {}      # Task 10.9: dropped, not run
         assert tool["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
         plain_id = wshelf.examples()[0]["id"]
         assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200   # control
@@ -1066,7 +1066,7 @@ def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path, w9):
           "keywords": [], "plan": _w10_plans()["row formula filter"]}
     with planted(tmp_path, [ex, fx], new_ids=(ex["id"], fx["id"])):
         r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})
-        assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+        assert r.status_code == 200 and r.json()["cards"] == {}      # Task 10.9: dropped, not run
         assert ex["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
         monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
         r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})          # Task 10.5 runs it
@@ -1125,7 +1125,8 @@ def test_shelf_dedicated_list_only_when_wave10_on(conn, monkeypatch):
 
 def test_examples_run_the_newest_allowed_revision(conn, monkeypatch):
     """With wave 10 off a revised id's examples card runs its revision 1 (never the dark 404), and a
-    new id with no allowed revision is the dark 404; on, the card is revision 2."""
+    new id with no allowed revision is dropped from the batch (Task 10.9: the gallery draws its bare
+    shape; it was the dark 404 for the whole batch in 10.13); on, the card is revision 2."""
     c = _unraising()
     monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
     r = c.post(BASE + "/examples", json={"ids": ["shelf:equity-curve", "shelf:win-rate"]})
@@ -1134,7 +1135,7 @@ def test_examples_run_the_newest_allowed_revision(conn, monkeypatch):
     assert card["def"] == wshelf.revision("shelf:equity-curve", 1)["plan"]
     for new in W10_NEW_IDS:
         r = c.post(BASE + "/examples", json={"ids": [new]})
-        assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail, new
+        assert r.status_code == 200 and r.json()["cards"] == {}, new
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
     r = c.post(BASE + "/examples", json={"ids": ["shelf:equity-curve", *W10_NEW_IDS]})
     assert r.status_code == 200, r.text

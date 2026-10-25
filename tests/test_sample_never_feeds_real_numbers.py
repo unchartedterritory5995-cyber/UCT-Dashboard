@@ -432,6 +432,10 @@ GUARDED = {
                                              "that places a routine is not a note the member uses it in",
     "api/services/journal_two/trackers.py": "a tracker's \"used in N notes\" count and list: an example note "
                                              "that places a tracker is not a note the member uses it in",
+    "api/routers/notebook_widget_definitions.py": "the builder's note tag and ticker pickers (Task 10.9): the "
+                                                  "values the notes widget can count (its own predicate, "
+                                                  "compile.note_membership_sql), so an example note's tag "
+                                                  "is never offered as one the member wrote",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.
