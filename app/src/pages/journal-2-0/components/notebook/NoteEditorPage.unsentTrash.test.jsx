@@ -110,7 +110,11 @@ describe('Delete with unsent words (the 404 path)', () => {
     const dialog = await screen.findByRole('dialog', { name: /words the server doesn.t have yet/ })
     expect(dialog.textContent).toContain('Not on the server yet: the note’s text.')
     expect(server.log).not.toContain('DELETE')
-    expect(document.activeElement.textContent).toBe('Send first')
+    // ⛔ Focus moves to Send first in the dialog's MOUNT EFFECT, which React runs after the commit that put the dialog
+    // in the DOM. `findByRole` resolves on that commit, so under load this read could land between the two and see
+    // the focus still on the page behind. Wait for the focus itself: the same assertion, now read once it has settled.
+    await waitFor(() => expect(document.activeElement.textContent).toBe('Send first'))
+    expect(dialog.contains(document.activeElement)).toBe(true)
   })
 
   it('Send first: the words land (PUT 200) BEFORE the trash -- no 404, nothing stranded', async () => {
