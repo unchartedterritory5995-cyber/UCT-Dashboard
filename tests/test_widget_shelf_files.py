@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -244,12 +245,20 @@ def test_add_commit_rail_sees_an_edit_after_add():
 UNSHALLOW = "git fetch --unshallow"
 
 
+def _throwaway_env() -> dict:
+    """The environment for a THROWAWAY repo: every GIT_* variable removed. With GIT_DIR set (a
+    reviewer pointing the rails at the real repository), `git -C <tmp> init` re-initialises THAT
+    repository as bare and the `config` calls below write their test identity into it. That
+    corrupted the shared repo config on 2026-10-25 (core.bare = true, user = t)."""
+    return {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+
+
 def _git_at(repo: Path, *args: str) -> subprocess.CompletedProcess:
     exe = shutil.which("git")
     if exe is None:
         pytest.fail("git is not on PATH, so committed revisions cannot be checked; install git")
     return subprocess.run([exe, "-C", str(repo), *args], capture_output=True, text=True,
-                          encoding="utf-8", errors="replace")
+                          encoding="utf-8", errors="replace", env=_throwaway_env())
 
 
 def _ok(r: subprocess.CompletedProcess, what: str) -> str:
@@ -393,6 +402,16 @@ def _repo(path: Path) -> Path:
     for k, v in (("user.name", "t"), ("user.email", "t@example.test"), ("core.autocrlf", "false")):
         _ok(_git_at(path, "config", k, v), "config")
     return path
+
+
+def test_a_throwaway_repo_never_touches_the_repo_named_by_GIT_DIR(tmp_path, monkeypatch):
+    victim = _repo(tmp_path / "victim")                     # stands in for the real repository
+    before = (victim / ".git" / "config").read_bytes()
+    monkeypatch.setenv("GIT_DIR", str(victim / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(victim))
+    made = _repo(tmp_path / "made")
+    assert (made / ".git").is_dir(), "the throwaway repo was not created where it was asked for"
+    assert (victim / ".git" / "config").read_bytes() == before, "GIT_DIR's repo config was rewritten"
 
 
 def _commit(repo: Path, msg: str) -> None:
