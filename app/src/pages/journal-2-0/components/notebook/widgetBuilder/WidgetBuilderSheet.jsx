@@ -879,10 +879,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     setSaving(false)
     close(focusTo)
   }
-  const refused = (got) => {
+  /** A save refused. `sent` is the plan that request carried (fix 1, m-3): a `formula` refusal's position counts into
+   *  ITS text, never into an edit that settled while the request was out. */
+  const refused = (got, sent) => {
     setSaving(false)
     setLevel({ kind: 'main' })
-    formulaRefused(got, stateRef.current.plan)
+    formulaRefused(got, sent)
     if (got.code === 'offline') { setSaveMsg(OFFLINE_SAVE); return }
     let text = failureText(got.code, got.message) || FAILED_SENTENCE
     if (got.code === 'conflict' && !keepDraft()) text = `${text} ${KEEP_FAILED}`
@@ -930,7 +932,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
         { plan: st.plan, ...nameFor(st), apply: UPDATE_ALL, ...(noteId ? { origin: noteId } : {}) }, s.etag))
       if (put.ok) settleSaved(s.defId, put.data.etag, st)
       if (away()) return
-      if (!put.ok) { refused(put); return }
+      if (!put.ok) { refused(put, st.plan); return }
       s = { ...s, defRev: put.data.rev, etag: put.data.etag, planKey: planKeyOf(st) }
       savedRef.current = s
     }
@@ -1025,7 +1027,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
         // Ruling R-49: a save as a new widget MAKES a widget, so it is keyed like the create POST.
         const { got, p } = await sendKeyed('save_new', body, st, { defId: def.id, etag: def.etag })
         if (away()) return
-        if (!got.ok) { refused(got); return }
+        if (!got.ok) { refused(got, p.body?.plan || plan); return }
         // 8.15 M-5: the stale draft is now its own new widget. Its question is answered: the banner goes and Save
         // stops saying "Save as a new widget" (it places the saved widget, if its place is still owed).
         staleEtag.current = null
@@ -1037,7 +1039,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       const got = await sent(putJson(`/${encodeURIComponent(def.id)}`, body, def.etag))
       if (got.ok) settleSaved(got.data.id || def.id, got.data.etag, st)
       if (away()) return
-      if (!got.ok) { refused(got); return }
+      if (!got.ok) { refused(got, plan); return }
       // Ruling R-36: in one note or none, opened from that placed widget, the member sees the new version there.
       if (usedIn <= 1 && fromNode) {
         savedRef.current = owed(got.data, 'replace', planKeyOf(st))
@@ -1052,7 +1054,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     // edits made since are then saved to it (placeSaved), and a builder that has gone keeps them as its draft.
     const { got, p } = await sendKeyed('create', { plan, ...nameFor(st) }, st)
     if (away()) return
-    if (!got.ok) { refused(got); return }
+    // The request that went out: a resent unconfirmed one carries its own (older) plan.
+    if (!got.ok) { refused(got, p.body?.plan || plan); return }
     let how = null
     if (canWriteNote) how = mode === 'copy' && getPos ? 'replace' : 'insert'
     savedRef.current = owed(got.data, how, p.planKey)
@@ -1316,6 +1319,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
 
   const pane = phase === 'ready' && !onGallery ? (
     <PreviewPane payload={preview.payload} status={preview.status} error={preview.error} name={name} unit={unit}
+      stale={previewBlocked}
       phone={phone} keyboardOpen={keyboardOpen} onRetry={() => setRetryTick((n) => n + 1)}
       canSuggestRange={!isRightNow(cat, plan) && plan.range?.token !== DEFAULT_RANGE.token} suggestOff={gone}
       onSuggestRange={() => edit({ type: 'setRange', range: { ...DEFAULT_RANGE } }, { range: { ...DEFAULT_RANGE } })} />

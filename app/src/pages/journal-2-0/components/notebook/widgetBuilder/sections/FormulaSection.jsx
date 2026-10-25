@@ -201,6 +201,7 @@ export default function FormulaSection({
           ? sErr : null
         const probe = probes?.get(f.id)
         const probeShown = r.ok && !serverShown && probe && probe.sentExpr === storedNow ? probe.probe : null
+        const firstLine = probeShown ? probeLine(probeShown, { kind: r.compiled.kind, format: f.format, unit }) : ''
         const nameErr = nameProblem(cat, draftPlan, f.id)
         const open = list?.id === f.id
         const ok = r.ok && compiled.get(f.id)?.ok && compiled.get(f.id).compiled.canonical === storedNow
@@ -252,7 +253,7 @@ export default function FormulaSection({
                 {r.ok && serverShown && (
                   <p className={styles.error} data-pos={errPos ?? undefined}>{serverShown.sentence}</p>
                 )}
-                {probeShown && <p className={styles.first}>{probeLine(probeShown, { kind: r.compiled.kind, format: f.format, unit })}</p>}
+                {firstLine && <p className={styles.first}>{firstLine}</p>}
                 {probeShown && probeShown.notice && <p className={b.coverage}>{probeShown.notice}</p>}
               </div>
             </div>

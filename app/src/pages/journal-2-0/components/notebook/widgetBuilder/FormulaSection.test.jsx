@@ -6,7 +6,7 @@ import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS, KEEP_QUESTION } from './WidgetBuilderSheet'
 import { __resetBuiltCaches } from '../../../lib/builtWidgets'
 import { compileFormula, LIMITS } from '../../../lib/widgetFormula/widgetFormula'
-import { installFetch, answer, payload, callsTo, bodyOf } from './__fixtures__/builderFixtures'
+import { installFetch, answer, payload, callsTo, bodyOf, deferred } from './__fixtures__/builderFixtures'
 import { FORMULA_CATALOG } from './__fixtures__/formulaCatalog'
 import {
   S_FIELD_CAP, S_FORMULA_NAME, S_FORMULA_NAME_LONG, S_FORMULA_NAME_TAKEN, S_BAD_CHARACTER, catalogFields,
@@ -147,6 +147,112 @@ describe('FormulaSection', () => {
     expect(onClose).not.toHaveBeenCalled()
     expect(screen.queryByText(KEEP_QUESTION)).toBeNull()
     expect(box.value).toBe('SumIf([Net P&L], [')
+    // Fix 1, I-1: the list closed, the NEXT Escape is the builder's own next level (an edited widget asks to keep its
+    // changes): exactly one level per press, never swallowed by the section.
+    fireEvent.keyDown(box, { key: 'Escape' })
+    expect(screen.getByText(KEEP_QUESTION)).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('ArrowUp from the first option wraps to the LAST, ArrowDown from the last to the first (fix 1, m-1)', async () => {
+    await openBuilder()
+    const g = await addField('Edge', '', { wait: false })
+    const box = boxOf(g)
+    fireEvent.change(box, { target: { value: '[' } })
+    const opts = within(listbox()).getAllByRole('option')
+    expect(opts.length).toBeGreaterThanOrEqual(3)
+    fireEvent.keyDown(box, { key: 'ArrowUp' })
+    expect(box).toHaveAttribute('aria-activedescendant', opts.at(-1).id)
+    fireEvent.keyDown(box, { key: 'ArrowUp' })
+    expect(box).toHaveAttribute('aria-activedescendant', opts.at(-2).id)
+    fireEvent.keyDown(box, { key: 'ArrowDown' })
+    fireEvent.keyDown(box, { key: 'ArrowDown' })
+    expect(box).toHaveAttribute('aria-activedescendant', opts[0].id)
+  })
+
+  it('Escape at each level the section opens goes back one: Filter by this, then the builder (fix 1, I-1)', async () => {
+    const { onClose } = await openBuilder()
+    const g = await addField('Half', '[Net P&L] / 2')
+    const filterBtn = within(g).getByRole('button', { name: 'Filter by this' })
+    fireEvent.click(filterBtn)
+    expect(screen.getByRole('heading', { name: 'Half' })).toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    expect(screen.queryByRole('heading', { name: 'Half' })).toBeNull()
+    expect(document.activeElement).toBe(filterBtn)              // back to the control that opened it
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    expect(screen.getByText(KEEP_QUESTION)).toBeInTheDocument()
+  })
+
+  it('a clean builder with the section mounted closes on Escape at once (fix 1, I-1)', async () => {
+    const { onClose } = await openBuilder()
+    expect(screen.getByRole('button', { name: 'Add your own field' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Add your own field' }), { key: 'Escape' })
+    expect(screen.queryByText(KEEP_QUESTION)).toBeNull()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('an edit settles after 400 ms, not on each key: two edits 350 ms apart are ONE undo step (fix 1, m-2)', async () => {
+    await openBuilder()
+    const g = await addField('Half', '[Net P&L] / 2')
+    fireEvent.change(boxOf(g), { target: { value: '[Net P&L] / 3' } })
+    await flush(PREVIEW_DEBOUNCE_MS - 50)
+    expect(previews().length).toBe(2)                            // nothing settled yet
+    fireEvent.change(boxOf(g), { target: { value: '[Net P&L] / 4' } })
+    await settle()
+    expect(lastPlan().formulas[0].expr).toBe('[net] / 4')
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await flush()
+    expect(boxOf(fieldGroups()[0]).value).toBe('[Net P&L] / 2')
+  })
+
+  it('a refused SAVE lands on its field, bound to the text that save SENT (fix 1, m-3)', async () => {
+    const message = 'Something is missing near "[Shares]".'
+    const refusal = () => answer({ detail: { code: 'formula', message, formulaId: 'f1', pos: 8 } }, 400)
+    let pending = null
+    route('POST', (u) => u.endsWith('/api/j2/widget-definitions'), () => (pending ? pending.promise : refusal()))
+    await openBuilder()
+    const g = await addField('Two', '[Net P&L] / [Shares]')
+    fireEvent.click(screen.getByTestId('builder-save'))
+    await flush()
+    expect(within(g).getByText(message)).toHaveAttribute('data-pos', '12')
+    // An edit that settles while the next save is out: the refusal counts into the SENT text, so it is not shown
+    // against the new one.
+    pending = deferred()
+    fireEvent.click(screen.getByTestId('builder-save'))
+    await flush()
+    fireEvent.change(boxOf(g), { target: { value: '[Net P&L] / [Shares] / 2' } })
+    await flush(PREVIEW_DEBOUNCE_MS)
+    await act(async () => { pending.resolve({ detail: { code: 'formula', message, formulaId: 'f1', pos: 8 } }, 400) })
+    await flush()
+    expect(within(g).queryByText(message)).toBeNull()
+    // ...and back to the text that was sent, it is that text's error again.
+    fireEvent.change(boxOf(g), { target: { value: '[Net P&L] / [Shares]' } })
+    expect(within(g).getByText(message)).toBeInTheDocument()
+  })
+
+  it('a refused field marks the preview stale (dimmed, no sentence of its own) until it is fixed (fix 1, m-6)', async () => {
+    await openBuilder()
+    const view = () => screen.getByTestId('builder-preview-view')
+    expect(view().className).not.toMatch(/dimmed/)
+    const g = await addField('Edge', '[nope]')
+    expect(view().className).toMatch(/dimmed/)
+    expect(view()).toHaveAttribute('data-stale')
+    fireEvent.change(boxOf(g), { target: { value: '[Net P&L]' } })
+    await settle()
+    expect(view().className).not.toMatch(/dimmed/)
+    expect(view()).not.toHaveAttribute('data-stale')
+  })
+
+  it('a probe with no value shows no first-row line; the server notice speaks (fix 1, m-5)', async () => {
+    route('POST', (u) => u.endsWith('/preview'), (u, init) => answer(payload(JSON.parse(init.body).plan.formulas ? {
+      probe: [{ id: 'f1', first: null, skipped: 47, notice: '[Risk $] is empty on 47 trades; those are skipped' }],
+    } : {})))
+    await openBuilder()
+    const g = await addField('Edge', '[Net P&L] / [Risk $]')
+    expect(within(g).getByText('[Risk $] is empty on 47 trades; those are skipped')).toBeInTheDocument()
+    expect(within(g).queryByText(/^First /)).toBeNull()
+    expect(g.textContent).not.toMatch(/no data/)
   })
 
   it('the caret is UTF-16: an emoji before it never shifts an inserted suggestion (10.3 M1)', async () => {

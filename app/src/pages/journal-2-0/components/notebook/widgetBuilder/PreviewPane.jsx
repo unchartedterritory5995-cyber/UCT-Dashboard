@@ -21,6 +21,8 @@ import styles from './WidgetBuilderSheet.module.css'
  *
  * ⛔ THE LAST GOOD RESULT STAYS. A preview that fails (busy, took too long, the preview pausing, offline) keeps the
  * last answer on screen, dimmed, with the failure's own sentence (lib/builtWidgets failureText) — never a blank.
+ * `stale` (Task 10.16 fix 1, m-6): no preview could be asked for (one of the member's own fields is refused, and says
+ * why beside it): the last answer is dimmed the same way, with no sentence of its own.
  * ⛔ The live region announces ONLY the summary sentence, a second after it settles (spec 5.11), never a table, a
  * failure or "Updating".
  *
@@ -58,7 +60,7 @@ function useAnnounced(summary) {
   return said
 }
 
-function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSuggestRange, suggestOff }) {
+function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSuggestRange, suggestOff, stale }) {
   const [asTable, setAsTable] = useState(false)
   const failed = status === 'error' && error
   const text = failed ? failureText(error.code, error.message) : ''
@@ -89,7 +91,8 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
             canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
         </div>
       )}
-      <div className={`${styles.previewView} ${failed ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
+      <div className={`${styles.previewView} ${failed || stale ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
+        data-stale={stale ? '' : undefined}
         data-testid="builder-preview-view">
         {payload.title && <p className={styles.previewTitle}>{payload.title}</p>}
         {(payload.scopeLabel || payload.rangeLabel) && (
@@ -132,6 +135,7 @@ function PreviewActions({ code, onRetry, onSuggestRange, canSuggestRange, sugges
 
 export default function PreviewPane({
   payload, status, error, name, unit, phone, keyboardOpen, onRetry, onSuggestRange, canSuggestRange, suggestOff = false,
+  stale = false,
 }) {
   const [open, setOpen] = useState(false)
   const bodyId = useId()
@@ -140,7 +144,7 @@ export default function PreviewPane({
   const summary = typeof payload?.summary === 'string' ? payload.summary : ''
   const body = (
     <PreviewBody payload={payload} status={status} error={error} onRetry={onRetry}
-      onSuggestRange={onSuggestRange} canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
+      onSuggestRange={onSuggestRange} canSuggestRange={canSuggestRange} suggestOff={suggestOff} stale={stale} />
   )
   const live = (
     <p className={styles.srOnly} role="status" aria-live="polite" data-testid="builder-live">{said}</p>
@@ -156,7 +160,7 @@ export default function PreviewPane({
           <>
             <button type="button" className={styles.summaryBar} aria-expanded={open} aria-controls={bodyId}
               onClick={() => setOpen((v) => !v)} data-testid="builder-summary-bar">
-              <span className={`${styles.summaryText} ${status === 'error' ? styles.dimmed : ''}`}>
+              <span className={`${styles.summaryText} ${status === 'error' || stale ? styles.dimmed : ''}`}>
                 {summaryLine(name, payload, unit)}
               </span>
               <UIcon name={open ? 'chevronUp' : 'chevronDown'} size={16} gold={false} aria-hidden="true" />

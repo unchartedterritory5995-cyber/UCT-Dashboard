@@ -33,6 +33,8 @@ export const unitWord = (unit) => (unit === 'days' ? 'days' : unit === 'position
 const NOUNS = {
   trades: ['trade', 'trades'], decisive: ['decisive trade', 'decisive trades'], days: ['day', 'days'],
   entries: ['entry', 'entries'], positions: ['position', 'positions'],
+  // Wave 10: options strategies (be sources OPTIONS, unit "strategies") and notes (Task 10.7).
+  strategies: ['strategy', 'strategies'], notes: ['note', 'notes'],
 }
 /** A count in the measure's OWN unit ("1 trade", "12 decisive trades", "3 days"). */
 export function countNoun(unit, n) {

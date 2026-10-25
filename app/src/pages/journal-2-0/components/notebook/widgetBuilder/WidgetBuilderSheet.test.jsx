@@ -15,6 +15,7 @@ import {
   installFetch, answer, refusal, deferred, payload, callsTo, bodyOf, SUMMARY, CATALOG,
 } from './__fixtures__/builderFixtures'
 import { TOOL_CATALOG } from './__fixtures__/toolCatalog'
+import { FORMULA_CATALOG } from './__fixtures__/formulaCatalog'
 
 const flush = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
@@ -518,5 +519,33 @@ describe('WidgetBuilderSheet', () => {
     act(() => close1())
     await flush()
     expect(document.querySelectorAll('[data-widget-builder-root]')).toHaveLength(0)
+  })
+})
+
+// Task 10.16 fix 1 (I-1): the builder's Escape rule with "Your own fields" MOUNTED (a catalog that offers formats, as
+// Task 10.9's will): the section must never take an Escape it has no list open for.
+describe('WidgetBuilderSheet with "Your own fields" offered', () => {
+  beforeEach(() => { route('GET', (u) => u.endsWith('/vocabulary'), () => answer(FORMULA_CATALOG)) })
+
+  it('escape_backs_one_level_then_asks_keep, the section mounted', async () => {
+    const { onClose } = await openBuilder()
+    expect(screen.getByRole('region', { name: 'Your own fields' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Mine' } })
+    const chip = screen.getByRole('button', { name: /Date range/ })
+    fireEvent.click(chip)
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    expect(screen.queryByRole('heading', { name: 'Date range' })).toBeNull()
+    expect(document.activeElement).toBe(chip)
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    expect(screen.getByText(KEEP_QUESTION)).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('escape with nothing changed closes without asking, the section mounted', async () => {
+    const { onClose } = await openBuilder()
+    expect(screen.getByRole('button', { name: 'Add your own field' })).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.queryByText(KEEP_QUESTION)).toBeNull()
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

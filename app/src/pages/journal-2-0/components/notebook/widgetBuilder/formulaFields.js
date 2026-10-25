@@ -9,6 +9,7 @@
 // ⛔ LAZY. Only the builder's chunk imports this (it imports the formula twin). Nothing eager may.
 //
 // ⛔ Member text (field names, formula names) is never an object key: everything groups with `Map`.
+import { countNoun } from '../widgets/builtViews/builtModel'
 import {
   LIMITS, ERRORS, compileFormula, displayFormula, formulaNameCharsOk, codePointToUtf16,
 } from '../../../lib/widgetFormula/widgetFormula'
@@ -276,11 +277,10 @@ export function withoutFormulaRefs(plan, id) {
 }
 
 /** The first-row line under a valid formula, from the preview's `probe` (be aggregate._formula_notes): "First trade:
- *  0.42"; for a formula that adds up rows, its value over every counted row. */
-const ONE = new Map([['trades', 'trade'], ['decisive', 'trade'], ['days', 'day'], ['positions', 'position'],
-  ['strategies', 'strategy'], ['notes', 'note']])
+ *  0.42"; for a formula that adds up rows, its value over every counted row. The noun is the source's own unit, from
+ *  the ONE noun table (`builtModel.countNoun`). No value is no line ('' ): the server's skip notice says why. */
 export function probeValueText(value, format) {
-  if (value === null || value === undefined) return 'no data'
+  if (value === null || value === undefined) return ''
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'number' && Number.isFinite(value)) {
     const plain = value.toLocaleString('en-US', { maximumFractionDigits: 4 })
@@ -297,8 +297,9 @@ export function probeValueText(value, format) {
 export function probeLine(probe, { kind, format, unit }) {
   if (!isRecord(probe)) return ''
   const shown = probeValueText(probe.first, format)
-  if (kind === 'aggregate') return `All ${unit || 'trades'}: ${shown}`
-  return `First ${ONE.get(unit) || 'trade'}: ${shown}`
+  if (!shown) return ''
+  if (kind === 'aggregate') return `All ${countNoun(unit, 2)}: ${shown}`
+  return `First ${countNoun(unit, 1)}: ${shown}`
 }
 
 /**

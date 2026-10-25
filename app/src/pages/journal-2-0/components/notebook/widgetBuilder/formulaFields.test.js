@@ -156,13 +156,28 @@ describe('positions in the box are UTF-16 (10.3 M1)', () => {
 })
 
 describe('the first-row line', () => {
+  it('the noun is the source unit, from the one noun table: a tracker counts entries (fix 1, m-4)', () => {
+    expect(probeLine({ first: 3 }, { kind: 'row', format: 'number', unit: 'entries' })).toBe('First entry: 3')
+    expect(probeLine({ first: 3 }, { kind: 'aggregate', format: 'number', unit: 'entries' })).toBe('All entries: 3')
+    expect(probeLine({ first: 3 }, { kind: 'row', format: 'number', unit: 'positions' })).toBe('First position: 3')
+    expect(probeLine({ first: 3 }, { kind: 'row', format: 'number', unit: 'strategies' })).toBe('First strategy: 3')
+    expect(probeLine({ first: 3 }, { kind: 'row', format: 'number', unit: 'notes' })).toBe('First note: 3')
+    // Every unit the real catalog serves has its own word (never the trades fallback for another unit).
+    const units = new Set([...CAT.sources.values()].map((s) => s.unit))
+    for (const unit of [...units, 'entries', 'strategies']) {
+      const line = probeLine({ first: 1 }, { kind: 'row', format: 'number', unit })
+      if (unit !== 'trades') expect(line, unit).not.toBe('First trade: 1')
+    }
+  })
+
   it('reads the probe by the field format, for one row or every row', () => {
     expect(probeLine({ first: 0.42 }, { kind: 'row', format: 'number', unit: 'trades' })).toBe('First trade: 0.42')
     expect(probeLine({ first: -12.5 }, { kind: 'row', format: 'money', unit: 'trades' })).toBe('First trade: -$12.50')
     expect(probeLine({ first: 0.25 }, { kind: 'row', format: 'percent', unit: 'days' })).toBe('First day: 25%')
     expect(probeLine({ first: 1.5 }, { kind: 'row', format: 'r', unit: 'trades' })).toBe('First trade: 1.5R')
     expect(probeLine({ first: true }, { kind: 'row', format: 'number', unit: 'trades' })).toBe('First trade: Yes')
-    expect(probeLine({ first: null }, { kind: 'row', format: 'number', unit: 'trades' })).toBe('First trade: no data')
+    // No value, no line (fix 1, m-5): the server's skip notice is what the member reads.
+    expect(probeLine({ first: null }, { kind: 'row', format: 'number', unit: 'trades' })).toBe('')
     expect(probeLine({ first: 31 }, { kind: 'aggregate', format: 'number', unit: 'trades' })).toBe('All trades: 31')
     expect(probeLine(null, {})).toBe('')
   })
@@ -172,6 +187,9 @@ describe('the first-row line', () => {
 // `formulaFields.js` copies plan.py's sentences verbatim. This reads the plan.py in THIS tree: once the backend merge
 // lands wave 10's plan.py here (PLAN_VERSION = 3), every copy must equal its constant there; until then the file must
 // still be the pre-wave-10 one (so the binding cannot be skipped by a plan.py that says v3 without the sentences).
+// TODO(10.9, ruling W10-R53): this binding is vacuous until the backend merge. Task 10.9 adds a `plan_sentences`
+// section to the shared vectors file (tests/fixtures/widgetFormulaVectors.json), railed against plan.py in be; the
+// next re-copy here then asserts every copy in formulaFields.js equals that section, and this file-read goes.
 const PLAN_PY = join(process.cwd(), '..', 'api', 'services', 'journal_two', 'widget_engine', 'plan.py')
 const SENTENCES = [
   ['S_FORMULA_NAME', S_FORMULA_NAME], ['S_FORMULA_NAME_LONG', S_FORMULA_NAME_LONG],
