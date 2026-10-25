@@ -133,7 +133,9 @@ export const IMPORT_ALLOW = {
   // DYNAMIC import, its own lazy chunk, reached only when the member picks it (never on the Notebook's first open).
   'app/src/components/mobile/ContextPopover': "the app's ONE action menu (an anchored menu, a bottom sheet on touch); UI only, no network, no writes",
   'app/src/components/ui/UIcon': "the app's icon set (inline SVG); no imports beyond React, no network, no writes",
-  'app/src/pages/journal-2-0/components/notebook/routines/openRoutineEditor': "the routine editor's door, a lazy import from the ⋯ menu (Task 9.16 builds the editor; until then it only says the editor is not available); never a note write",
+  'app/src/pages/journal-2-0/components/notebook/routines/openRoutineEditor': "the routine editor's door (Task 9.16), a lazy import from the ⋯ menu; the editor writes the routine's own row through lib/toolsCrud, never a note",
+  // Task 9.16 fix round 1 (ruling W9-R47): the tracker block's "Edit tracker", the same lazy door for a tracker.
+  'app/src/pages/journal-2-0/components/notebook/routines/openTrackerEditor': "the tracker editor's door (Task 9.16), a lazy import from the ⋯ menu, editors only; the editor writes the tracker's own row through lib/toolsCrud, never a note",
   // Task 9.13 fix round 1: the ⋯ button names what opens (M-9: a menu, or a sheet on touch, ContextPopover's own
   // test), and the day a `next-trading-day` or `week` block reads (W9-R33) comes from the shared market calendar.
   'app/src/hooks/useBreakpoint': "useIsTouch, the same media query ContextPopover reads to pick a menu or a sheet; no network, no writes",

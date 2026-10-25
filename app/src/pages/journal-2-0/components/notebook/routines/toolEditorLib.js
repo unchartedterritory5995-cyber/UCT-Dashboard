@@ -27,9 +27,7 @@ export const COPY = Object.freeze({
   archivedRoutine: TOOL_COPY.archivedRoutine,
   archivedTracker: TOOL_COPY.archivedTracker,
   builtin: 'Mood and focus come from your check-ins.',
-  kindFixed: "A tracker's type can't change. Make a new tracker instead.",
   importNone: 'Your day notes have no rules to import yet.',
-  importFull: 'A routine can hold up to 25 items.',
   remindLine: 'Through the alert bell only.',
   notInNote: 'Not in any note',
   usedInLoading: 'Loading the notes…',
@@ -38,17 +36,71 @@ export const COPY = Object.freeze({
   loadFailed: "Can't open this right now.",
 })
 
-/** Client-side refusals, in the same words the server uses for the same rule. */
-export const CHECK = Object.freeze({
-  routineName: 'Give the routine a name.',
-  trackerName: 'Give the tracker a name.',
-  nameLong: `A name can be at most ${NAME_MAX} characters.`,
-  noItems: 'Add at least one item.',
-  tooMany: `A routine can hold up to ${ITEMS_MAX} items.`,
-  itemLong: `An item can be at most ${ITEM_MAX} characters.`,
-  noWeekday: 'Pick at least one weekday.',
-  unitLong: `A unit can be at most ${UNIT_MAX} characters.`,
+/**
+ * THE server's refusal sentences, each with the field it belongs beside (null: no one field, so the notice line).
+ * ONE table: field placement (`fieldOf`) and the client's own checks (`CHECK`) are both read from it, never retyped.
+ * ⛔ The server sends no field with a refusal (every field refusal is `code: "invalid"` with its sentence: ToolError
+ * carries status, code and sentence only), so placement is an EXACT match on these sentences. A sentence the server
+ * rewords is no longer matched and shows in the notice line (never lost). routines/__fixtures__/serverSentences.json is
+ * the server's text, extracted from its source, and toolEditorLib.test.js pins this table to it word for word.
+ * Owner follow-up: a `field` on ToolError would let the client key on it instead.
+ */
+export const SERVER_SENTENCES = Object.freeze({
+  routine: Object.freeze({
+    S_BAD_NAME: ['Give the routine a name.', 'name'],
+    S_NAME_LONG: ['A name can be at most 80 characters.', 'name'],
+    S_NO_ITEMS: ['Add at least one item.', 'items'],
+    S_TOO_MANY_ITEMS: ['A routine can hold up to 25 items.', 'items'],
+    S_ITEM_LONG: ['An item can be at most 200 characters.', 'items'],
+    S_BAD_SCHEDULE: ['Pick when this routine runs.', 'schedule'],
+    S_BAD_SHARE: ['Pick how much of the routine counts as done.', 'doneShare'],
+    S_BAD_TIME: ['Pick a reminder time in 5-minute steps.', 'reminder'],
+    S_BAD_SETTINGS: ["These routine settings couldn't be saved.", null],
+    S_CAP: ['You have 30 routines. Archive one in My tools to make room.', null],
+    S_CONFLICT: ['Changed in another tab. Reload to see the newer version.', null],
+    S_ARCHIVE_FIRST: ['Archive this routine before deleting it.', null],
+    S_TYPE_NAME: ["Type the routine's name exactly to delete it.", null],
+  }),
+  tracker: Object.freeze({
+    S_BAD_NAME: ['Give the tracker a name.', 'name'],
+    S_NAME_LONG: ['A name can be at most 80 characters.', 'name'],
+    S_UNIT: ['A unit can be at most 16 characters.', 'unit'],
+    S_KIND: ['Pick a tracker type.', 'kind'],
+    S_KIND_FIXED: ["A tracker's type can't change. Make a new tracker instead.", 'kind'],
+    S_BAD_DAYS: ['Pick which days this tracker logs.', 'days'],
+    S_BAD_SETTINGS: ["These tracker settings couldn't be saved.", null],
+    S_CAP: ['You have 30 trackers. Archive one in My tools to make room.', null],
+    S_CONFLICT: ['Changed in another tab. Reload to see the newer version.', null],
+    S_ARCHIVE_FIRST: ['Archive this tracker before deleting it.', null],
+    S_TYPE_NAME: ["Type the tracker's name exactly to delete it.", null],
+  }),
 })
+const said = (kind, key) => SERVER_SENTENCES[kind][key][0]
+
+/** The field a server refusal belongs beside, by its exact sentence; null shows it in the notice line. */
+export function fieldOf(kind, message) {
+  const table = SERVER_SENTENCES[kind]
+  const m = String(message || '').trim()
+  if (!table || !m) return null
+  const hit = Object.values(table).find(([text]) => text === m)
+  return hit ? hit[1] : null
+}
+
+/** The client's own checks before a request, in the SERVER'S words for the same rule (read from the table above). */
+export const CHECK = Object.freeze({
+  routineName: said('routine', 'S_BAD_NAME'),
+  trackerName: said('tracker', 'S_BAD_NAME'),
+  nameLong: said('routine', 'S_NAME_LONG'),
+  noItems: said('routine', 'S_NO_ITEMS'),
+  tooMany: said('routine', 'S_TOO_MANY_ITEMS'),
+  itemLong: said('routine', 'S_ITEM_LONG'),
+  noWeekday: said('routine', 'S_BAD_SCHEDULE'),
+  unitLong: said('tracker', 'S_UNIT'),
+  kindFixed: said('tracker', 'S_KIND_FIXED'),
+})
+
+/** Length as the server counts it (Python's `len`): code points, so an emoji is one character, not two. */
+export const charCount = (s) => [...String(s ?? '')].length
 
 export const notesWord = (n) => `${n} note${n === 1 ? '' : 's'}`
 export const usedInText = (n) => `Used in ${notesWord(n)}`
@@ -56,23 +108,6 @@ export const usedInHeading = (name, n) => `“${name}” is in ${notesWord(n)}`
 /** What archiving does (Task 9.18's sentence, shared). */
 export const archiveSentence = (n) => (n > 0 ? `It stays in your ${notesWord(n)}. Its history is kept.` : 'Its history is kept.')
 export const deletedSentence = (name) => `“${name}” moved to Recently deleted. It's kept for ${RECENTLY_DELETED_DAYS} days.`
-
-/**
- * Which field a server refusal belongs beside. The SENTENCE is the server's and is shown exactly as it came; this only
- * chooses where it shows, from the words a field's refusal is about. Anything else shows in the footer.
- */
-export function fieldOf(message) {
-  const m = String(message || '')
-  if (/\bunit\b/i.test(m)) return 'unit'
-  if (/\btracker type\b|\btype can't change\b/i.test(m)) return 'kind'
-  if (/\bwhich days\b/i.test(m)) return 'days'
-  if (/\breminder\b/i.test(m)) return 'reminder'
-  if (/\bcounts as done\b/i.test(m)) return 'doneShare'
-  if (/\bwhen this routine runs\b|\bweekday/i.test(m)) return 'schedule'
-  if (/\bitems?\b/i.test(m)) return 'items'
-  if (/\bname\b/i.test(m) && !/\btype the\b/i.test(m)) return 'name'
-  return null
-}
 
 // ── the notes a tool is in ──────────────────────────────────────────────────────────────────────
 // ⛔ Not imported from myTools/myToolsLib: My tools stays lazy on its own (MyToolsSheet.test.jsx rails that nothing
@@ -218,11 +253,11 @@ export function checkRoutine(d) {
   const out = {}
   const name = d.name.trim()
   if (!name) out.name = CHECK.routineName
-  else if (name.length > NAME_MAX) out.name = CHECK.nameLong
+  else if (charCount(name) > NAME_MAX) out.name = CHECK.nameLong
   const items = d.items.filter((it) => it.text.trim())
   if (!items.length) out.items = CHECK.noItems
   else if (items.length > ITEMS_MAX) out.items = CHECK.tooMany
-  else if (items.some((it) => it.text.trim().length > ITEM_MAX)) out.items = CHECK.itemLong
+  else if (items.some((it) => charCount(it.text.trim()) > ITEM_MAX)) out.items = CHECK.itemLong
   if (d.schedule === 'weekdays' && !d.days.length) out.schedule = CHECK.noWeekday
   return out
 }
@@ -273,8 +308,8 @@ export function checkTracker(d) {
   const out = {}
   const name = d.name.trim()
   if (!name) out.name = CHECK.trackerName
-  else if (name.length > NAME_MAX) out.name = CHECK.nameLong
-  if (d.kind === 'number' && d.unit.trim().length > UNIT_MAX) out.unit = CHECK.unitLong
+  else if (charCount(name) > NAME_MAX) out.name = CHECK.nameLong
+  if (d.kind === 'number' && charCount(d.unit.trim()) > UNIT_MAX) out.unit = CHECK.unitLong
   return out
 }
 

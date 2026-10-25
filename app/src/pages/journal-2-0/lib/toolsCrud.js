@@ -16,15 +16,19 @@
 // unreadable `network`.
 //
 // ⛔ ONE restore write (ruling W9-R42): `unarchiveTool` is lib/blocks/toolsApi's `unarchive`, which also re-reads every
-// placed block of the tool on this page and tells the other tabs. This file never fetches `/unarchive` itself.
+// placed block of the tool ON THIS PAGE (it broadcasts nothing: another tab catches up when it returns to the front,
+// W9-R44). This file never fetches `/unarchive` itself.
+// ⛔ ONE refresh path: after a save, an archive, a delete or an undelete lands, `toolEdited` (toolsApi, the same step
+// `unarchive` runs) re-reads every placed block of that tool on this page, so a block shows its new name and items at
+// once. Never a second mechanism here.
 // ⛔ These writes land in the routine and tracker tables, NEVER a note. Each fetch names its method literally (the door
 // rails read methods from the call site), with the kind choosing between two literal URLs.
-import { TOOL_COPY, isOffline, unarchive } from './blocks/toolsApi'
+import { TOOL_COPY, isOffline, toolEdited, unarchive } from './blocks/toolsApi'
 
 export const CRUD_COPY = Object.freeze({
   offline: "You're offline. Try again when you're back online.",
   network: "That didn't go through. Try again.",
-  paid: 'Routines and trackers need a paid plan.',
+  paid: 'Routines and trackers require a paid plan', // the router's own 402 sentence (notebook_routines.require_paid)
   rate: 'Too many changes in a minute. Try again shortly.',
   conflict: 'Changed in another tab. Reload to see the newer version.',
 })
@@ -134,21 +138,31 @@ export function createTool(kind, body) {
     : fetch('/api/j2/trackers', { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload })))
 }
 
+/** A write's answer, after which the tool's placed blocks on this page re-read (never awaited: the caller's answer
+ *  does not wait on a block's read, and a refresh that fails changes nothing). */
+async function landed(kind, id, pending) {
+  const out = await pending
+  if (out.ok) {
+    try { Promise.resolve(toolEdited(kind, id)).catch(() => {}) } catch { /* a refresh never fails the write */ }
+  }
+  return out
+}
+
 /** Edit a tool, carrying `If-Match: <etag>` (R-15). A stale etag answers `conflict` and writes nothing. */
 export function saveTool(kind, id, etag, body) {
   const payload = bodyOf(body)
   if (payload === null) return Promise.resolve(KINDS.has(kind) ? network() : unknownKind())
   const headers = { ...JSON_HEADERS, ...ifMatch(etag) }
-  return call(kind, () => (kind === 'routine'
+  return landed(kind, id, call(kind, () => (kind === 'routine'
     ? fetch(`/api/j2/routines/${enc(id)}`, { method: 'PUT', credentials: 'include', headers, body: payload })
-    : fetch(`/api/j2/trackers/${enc(id)}`, { method: 'PUT', credentials: 'include', headers, body: payload })))
+    : fetch(`/api/j2/trackers/${enc(id)}`, { method: 'PUT', credentials: 'include', headers, body: payload }))))
 }
 
 /** Archive: hidden from `/`, every placed block turns read-only, and all history is kept. */
 export function archiveTool(kind, id) {
-  return call(kind, () => (kind === 'routine'
+  return landed(kind, id, call(kind, () => (kind === 'routine'
     ? fetch(`/api/j2/routines/${enc(id)}/archive`, { method: 'POST', credentials: 'include' })
-    : fetch(`/api/j2/trackers/${enc(id)}/archive`, { method: 'POST', credentials: 'include' })))
+    : fetch(`/api/j2/trackers/${enc(id)}/archive`, { method: 'POST', credentials: 'include' }))))
 }
 
 /** Restore an archived tool. W9-R42: the block layer's one restore write, whose answer is the tool. */
@@ -157,6 +171,8 @@ export async function unarchiveTool(kind, id) {
   try {
     const out = await unarchive(kind, id)
     if (out?.ok) return { ok: true, data: out.entry }
+    // M-5: one offline sentence in the editor (the block layer's own says "Ticks save…", which is not a restore).
+    if (out?.code === 'offline') return offline()
     return {
       ok: false,
       code: typeof out?.code === 'string' && out.code ? out.code : 'network',
@@ -170,16 +186,16 @@ export async function unarchiveTool(kind, id) {
 /** Move an ARCHIVED tool to Recently deleted (30 days); the server checks the typed name again. */
 export function deleteTool(kind, id, typedName) {
   const payload = bodyOf({ typedName: String(typedName ?? '') })
-  return call(kind, () => (kind === 'routine'
+  return landed(kind, id, call(kind, () => (kind === 'routine'
     ? fetch(`/api/j2/routines/${enc(id)}/delete`, { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload })
-    : fetch(`/api/j2/trackers/${enc(id)}/delete`, { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload })))
+    : fetch(`/api/j2/trackers/${enc(id)}/delete`, { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload }))))
 }
 
 /** Bring a recently deleted tool back (it comes back archived). */
 export function undeleteTool(kind, id) {
-  return call(kind, () => (kind === 'routine'
+  return landed(kind, id, call(kind, () => (kind === 'routine'
     ? fetch(`/api/j2/routines/${enc(id)}/undelete`, { method: 'POST', credentials: 'include' })
-    : fetch(`/api/j2/trackers/${enc(id)}/undelete`, { method: 'POST', credentials: 'include' })))
+    : fetch(`/api/j2/trackers/${enc(id)}/undelete`, { method: 'POST', credentials: 'include' }))))
 }
 
 /** A new live copy, "<name> copy" (no history is copied). Refused at the count cap. */

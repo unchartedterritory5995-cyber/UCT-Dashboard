@@ -3,6 +3,7 @@
 // a refusal with `net.refuseNext(method, path, status, detail)`; every request is recorded in `net.calls`.
 import { vi } from 'vitest'
 
+// A WHOLE copy of the server's ready-made routines (`routines.STARTERS`, Task 9.4), negatives and numbers included.
 export const STARTERS = [
   { key: 'premarket', name: 'Pre-market routine', items: [
     { text: 'Read the morning wire', negative: false, suggest: null },
@@ -14,10 +15,21 @@ export const STARTERS = [
   { key: 'preentry', name: 'Pre-entry checks', items: [
     { text: 'The setup is in my playbook', negative: false, suggest: null },
     { text: 'My stop is set before entry', negative: false, suggest: null },
+    { text: 'Size fits my risk per trade', negative: false, suggest: null },
+    { text: 'The market is not against the trade', negative: false, suggest: null },
   ] },
-  { key: 'eod', name: 'End-of-day review', items: [{ text: 'Log every trade', negative: false, suggest: null }] },
+  { key: 'eod', name: 'End-of-day review', items: [
+    { text: 'Log every trade', negative: false, suggest: null },
+    { text: 'Tag setups and mistakes', negative: false, suggest: null },
+    { text: 'Save a screenshot of my best and worst trade', negative: false, suggest: null },
+    { text: 'Write one lesson', negative: false, suggest: null },
+    { text: "Build tomorrow's watchlist", negative: false, suggest: null },
+  ] },
   { key: 'rules', name: 'Rules I keep', items: [
+    { text: 'Stop on every trade', negative: false, suggest: { rule: 'stop_every_trade' } },
     { text: 'Max 3 trades', negative: false, suggest: { rule: 'max_trades', n: 3 } },
+    { text: 'Stayed under my daily loss limit', negative: false, suggest: { rule: 'under_daily_loss_limit' } },
+    { text: 'No trade within 10 min of a loss', negative: true, suggest: { rule: 'no_trade_after_loss', n: 10 } },
     { text: 'No revenge trades', negative: true, suggest: { rule: 'no_revenge' } },
   ] },
 ]

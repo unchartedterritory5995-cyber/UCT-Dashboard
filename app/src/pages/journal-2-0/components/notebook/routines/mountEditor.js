@@ -8,6 +8,9 @@
 //     tracker that cannot be read closes the editor and the line says why (`handOff`), rather than an empty sheet.
 // It closes itself when the note's editor is destroyed (the member left the note) or on browser navigation, and an
 // error inside the editor closes it rather than leaving a dead sheet that blocks the next open.
+// ⚠️ Ruling W9-R47 (M-7), an OWNER FOLLOW-UP, not built: Back and leaving the note close WITHOUT asking, so a dirty
+// draft is lost there (Escape, Cancel, ×, the backdrop and drag all ask). Asking, or keeping a session draft, is the
+// owner's call.
 //
 // ⛔ LAZY. Only the two openers import this file, and only dynamic imports reach the openers.
 import { Component, createElement } from 'react'

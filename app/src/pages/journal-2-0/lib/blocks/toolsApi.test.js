@@ -690,6 +690,25 @@ describe('unarchive (Task 9.13 fix round 1, ruling W9-R31)', () => {
   })
 })
 
+describe('toolEdited (Task 9.16 fix round 1, I-1): the one refresh after an editor save, archive or undelete', () => {
+  it('re-reads every placed block of that tool with its tool, sends no write, and touches no other tool', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async (url, init) => {
+      const body = JSON.parse(init.body)
+      return json(200, routineAnswer(body.ids, body.days))
+    })
+    const a = vi.fn(), other = vi.fn()
+    api.subscribe('routine', 'r1', '2026-10-23', a)
+    api.subscribe('routine', 'r2', '2026-10-23', other)
+    await api.toolEdited('routine', 'r1')
+    expect(a).toHaveBeenCalledWith({ state: 'open', day: '2026-10-23' }, { id: 'r1', name: 'R r1' })
+    expect(other).not.toHaveBeenCalled()
+    expect(globalThis.fetch.mock.calls.map(([u, i]) => `${i.method} ${u}`)).toEqual(['POST /api/j2/routines/days'])
+    await api.toolEdited('widget', 'x')                          // an unknown kind reads nothing
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('resolvedTodayIfCurrent (ruling W9-R35)', () => {
   it("is the server's day while it is still that ET day, null on a new ET day, and never asks the server", async () => {
     vi.useFakeTimers({ toFake: ['Date'] })

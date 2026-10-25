@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import ToolEditor from './ToolEditor'
 import {
-  COPY, TRACKER_DAYS, TRACKER_KINDS, UNIT_MAX, blankTracker, checkTracker, kindWords, trackerBody, trackerDraft,
+  CHECK, COPY, TRACKER_DAYS, charCount, TRACKER_KINDS, UNIT_MAX, blankTracker, checkTracker, kindWords, trackerBody, trackerDraft,
 } from './toolEditorLib'
 import styles from './routines.module.css'
 
@@ -20,7 +20,7 @@ export const TRACKER_SPEC = Object.freeze({
   body: trackerBody,
   check: checkTracker,
   // The unit's length is said as it is typed, beside the field, not only at Save.
-  liveCheck: (d) => (d.kind === 'number' && d.unit.trim().length > UNIT_MAX ? { unit: checkTracker(d).unit } : null),
+  liveCheck: (d) => (d.kind === 'number' && charCount(d.unit.trim()) > UNIT_MAX ? { unit: checkTracker(d).unit } : null),
 })
 
 export default function TrackerEditorSheet({ trackerId = null, ...rest }) {
@@ -75,7 +75,7 @@ function TrackerForm({ draft, setDraft, error, mode }) {
             </label>
           ))}
         </div>
-        {fixed && <p className={styles.hint} id={`${id}-fixed`}>{COPY.kindFixed}</p>}
+        {fixed && <p className={styles.hint} id={`${id}-fixed`}>{CHECK.kindFixed}</p>}
         <ErrorLine e={errKind} />
       </fieldset>
 

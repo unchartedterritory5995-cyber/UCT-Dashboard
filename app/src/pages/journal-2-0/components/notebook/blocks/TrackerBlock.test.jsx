@@ -88,6 +88,11 @@ function serve(over = {}) {
     }
     m = /^\/api\/j2\/trackers\/([^/]+)\/unarchive$/.exec(url)
     if (m && method === 'POST') { st.archived = false; return json(200, { id: st.id }) }
+    // The tracker editor's own read (Task 9.16's door, ruling W9-R47).
+    if (url === `/api/j2/trackers/${st.id}` && method === 'GET' && st.editorReadable) {
+      return json(200, { id: st.id, name: st.name, kind: st.kind, unit: st.unit, settings: { days: st.days }, etag: 1,
+        archived: st.archived, readOnly: st.readOnly, usedIn: 1 })
+    }
     m = /^\/api\/j2\/trackers\/([^/]+)\/vs-pnl$/.exec(url)
     if (m && method === 'GET') return json(200, { buckets: [], sentence: 'Sleep under 6h: avg day −$210 (9 days); 6h-8h: +$95 (22 days). A comparison, not proof.' })
     return json(404, {})
@@ -968,5 +973,35 @@ describe('TrackerBlock, Task 9.15 (vs P&L: the shared panel)', () => {
     await act(async () => { await new Promise((res) => setTimeout(res, 20)) })
     expect(setParams).not.toHaveBeenCalled()
     expect(srv.calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/trackers/days')).toEqual([])
+  })
+})
+
+// Task 9.16 fix round 1 (M-8, ruling W9-R47): "Edit tracker" opens the REAL tracker editor on THIS tracker. A write
+// door, so editors only; a check-in tracker has nothing to edit and gets no such row.
+describe('TrackerBlock, Edit tracker (W9-R47)', () => {
+  it('opens the editor on this tracker: its own name and type in the editor', async () => {
+    serve({ editorReadable: true })
+    mount()
+    await waitFor(() => expect(input()).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
+    fireEvent.click(menuRow('Edit tracker'))
+    expect(await screen.findByRole('heading', { name: 'Edit tracker' })).toBeTruthy()
+    expect((await screen.findByRole('textbox', { name: 'Name' })).value).toBe('Sleep')
+    expect(screen.getByRole('radio', { name: 'Duration' }).checked).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Edit tracker' })).toBeNull())
+  })
+
+  it('a reader gets no menu at all, and a check-in tracker gets no Edit tracker row', async () => {
+    serve()
+    const { unmount } = mount({ editable: false })
+    await waitFor(() => expect(screen.queryByText(/^For /)).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Tracker options' })).toBeNull()
+    unmount()
+    serve({ id: 'checkin:mood', name: 'Check-in mood', kind: 'scale', readOnly: true, values: { '2026-10-27': 3 } })
+    mount({ params: { ...PARAMS, trackerId: 'checkin:mood' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Tracker options' }))
+    expect(screen.queryByText('Edit tracker')).toBeNull()
+    expect(screen.getByText('Manage…')).toBeTruthy()
   })
 })

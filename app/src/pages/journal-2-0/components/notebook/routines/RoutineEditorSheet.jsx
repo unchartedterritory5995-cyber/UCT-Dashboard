@@ -4,7 +4,7 @@ import { importDayRules, starters as readStarters } from '../../../lib/toolsCrud
 import { localTimeBeside } from '../../../lib/blocks/toolDays'
 import ToolEditor from './ToolEditor'
 import {
-  COPY, DONE_SHARES, ITEMS_MAX, REMINDER_TIMES, SCHEDULES, SUGGEST_RULES, WEEKDAYS, blankItem, blankRoutine,
+  CHECK, COPY, DONE_SHARES, ITEMS_MAX, REMINDER_TIMES, SCHEDULES, SUGGEST_RULES, WEEKDAYS, blankItem, blankRoutine,
   checkRoutine, routineBody, routineDraft, ruleOf, scheduleWords, starterDraft, suggestWords, timeLabel,
 } from './toolEditorLib'
 import styles from './routines.module.css'
@@ -16,7 +16,8 @@ import styles from './routines.module.css'
  * and one reminder, OFF by default, through the alert bell only.
  *
  * Opened by `openRoutineEditor` (its own root). `routineId` edits a routine; none makes a new one, from `starter`
- * (a ready-made routine's key) when given. `zone` is a test seam for the reminder's "your time" (default: the browser).
+ * (a ready-made routine's key) when given. `zone` and `now` are test seams for the reminder's "your time" line (default:
+ * the browser's zone and clock), so a test never reads the wall clock.
  */
 export const ROUTINE_SPEC = Object.freeze({
   kind: 'routine',
@@ -28,10 +29,10 @@ export const ROUTINE_SPEC = Object.freeze({
   check: checkRoutine,
 })
 
-export default function RoutineEditorSheet({ routineId = null, starter = null, zone, ...rest }) {
+export default function RoutineEditorSheet({ routineId = null, starter = null, zone, now, ...rest }) {
   return (
     <ToolEditor spec={ROUTINE_SPEC} toolId={routineId} {...rest}
-      renderForm={(p) => <RoutineForm {...p} starter={starter} zone={zone} />}
+      renderForm={(p) => <RoutineForm {...p} starter={starter} zone={zone} now={now} />}
       renderSummary={(tool) => <RoutineSummary tool={tool} />} />
   )
 }
@@ -77,7 +78,7 @@ function ErrorLine({ e }) {
   return e ? <p className={styles.fieldError} id={e.id}>{e.text}</p> : null
 }
 
-function RoutineForm({ draft, setDraft, error, mode, say, rebase, starter, zone }) {
+function RoutineForm({ draft, setDraft, error, mode, say, rebase, starter, zone, now }) {
   const id = useId()
   const isNew = mode === 'new'
 
@@ -169,10 +170,10 @@ function RoutineForm({ draft, setDraft, error, mode, say, rebase, starter, zone 
     const labels = got.data.filter((l) => typeof l === 'string' && l.trim())
     if (!labels.length) { say(COPY.importNone); return }
     const { added, over } = mergeLabels(draftRef.current.items, labels)
-    if (!added) { say(over ? COPY.importFull : 'Your day rules are already in this routine.'); return }
+    if (!added) { say(over ? CHECK.tooMany : 'Your day rules are already in this routine.'); return }
     setDraft((d) => ({ ...d, items: mergeLabels(d.items, labels).items }))
     const said = `Added ${added} rule${added === 1 ? '' : 's'} from your day notes.`
-    say(over ? `${said} ${COPY.importFull}` : said)
+    say(over ? `${said} ${CHECK.tooMany}` : said)
   }
 
   // ── the rest ────────────────────────────────────────────────────────────────────────────────
@@ -276,7 +277,7 @@ function RoutineForm({ draft, setDraft, error, mode, say, rebase, starter, zone 
           <button type="button" className={styles.btn} onClick={importRules} aria-disabled={importing || undefined}
             aria-busy={importing || undefined}>Import my day rules</button>
         </div>
-        {full && <p className={styles.hint} id={`${id}-full`}>{COPY.importFull}</p>}
+        {full && <p className={styles.hint} id={`${id}-full`}>{CHECK.tooMany}</p>}
       </fieldset>
 
       <fieldset className={styles.fieldset} data-field-box="">
@@ -333,7 +334,7 @@ function RoutineForm({ draft, setDraft, error, mode, say, rebase, starter, zone 
               onChange={(e) => setDraft((d) => ({ ...d, reminderTime: e.target.value }))}>
               {REMINDER_TIMES.map((t) => <option key={t} value={t}>{timeLabel(t)}</option>)}
             </select>
-            <p className={styles.sentence} id={`${id}-local`}>{localTimeBeside(timeLabel(draft.reminderTime), new Date(), zone)}</p>
+            <p className={styles.sentence} id={`${id}-local`}>{localTimeBeside(timeLabel(draft.reminderTime), now instanceof Date ? now : new Date(), zone)}</p>
             <p className={styles.hint} id={`${id}-bell`}>{COPY.remindLine}</p>
           </div>
         )}

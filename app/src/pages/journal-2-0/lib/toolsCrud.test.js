@@ -2,8 +2,8 @@
 // If-Match, body) or what the caller gets back ({ok, data} | {ok: false, code, message}); nothing reads module state.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const api = vi.hoisted(() => ({ unarchive: vi.fn() }))
-vi.mock('./blocks/toolsApi', async (orig) => ({ ...(await orig()), unarchive: api.unarchive }))
+const api = vi.hoisted(() => ({ unarchive: vi.fn(), toolEdited: vi.fn() }))
+vi.mock('./blocks/toolsApi', async (orig) => ({ ...(await orig()), unarchive: api.unarchive, toolEdited: api.toolEdited }))
 
 import {
   listTools, getTool, createTool, saveTool, archiveTool, unarchiveTool, deleteTool, undeleteTool, duplicateTool,
@@ -19,6 +19,7 @@ beforeEach(() => {
   fetchMock = vi.fn(async () => json(200, {}))
   globalThis.fetch = fetchMock
   api.unarchive.mockReset()
+  api.toolEdited.mockReset()
 })
 afterEach(() => { setOnline(true) })
 
@@ -85,6 +86,33 @@ describe('toolsCrud: the routes and the bodies', () => {
     expect(await unarchiveTool('tracker', 't1')).toEqual({ ok: false, code: 'count_cap', message: 'SERVER: the cap.' })
     api.unarchive.mockRejectedValueOnce(new Error('boom'))
     expect((await unarchiveTool('tracker', 't1')).ok).toBe(false)
+  })
+})
+
+describe('I-1: a landed save, archive, delete or undelete re-reads the tool’s placed blocks (toolsApi.toolEdited)', () => {
+  it('after each landed write, once, for that tool; never after a refusal or a read', async () => {
+    fetchMock.mockResolvedValue(json(200, { id: 'r1' }))
+    await saveTool('routine', 'r1', 1, { name: 'X' })
+    await archiveTool('tracker', 't1')
+    await deleteTool('routine', 'r2', 'Name')
+    await undeleteTool('tracker', 't2')
+    expect(api.toolEdited.mock.calls).toEqual([['routine', 'r1'], ['tracker', 't1'], ['routine', 'r2'], ['tracker', 't2']])
+    await getTool('routine', 'r1')
+    await duplicateTool('routine', 'r1')                      // a copy is a NEW tool: no placed block shows it yet
+    fetchMock.mockResolvedValueOnce(json(409, { detail: { code: 'conflict', message: 'stale' } }))
+    await saveTool('routine', 'r1', 1, {})
+    expect(api.toolEdited).toHaveBeenCalledTimes(4)
+  })
+
+  it('a refresh that throws never fails the write', async () => {
+    api.toolEdited.mockImplementationOnce(() => { throw new Error('boom') })
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'r1' }))
+    expect(await saveTool('routine', 'r1', 1, {})).toEqual({ ok: true, data: { id: 'r1' } })
+  })
+
+  it('M-5: an offline restore says the editor’s offline sentence, not the block’s "Ticks save…"', async () => {
+    api.unarchive.mockResolvedValueOnce({ ok: false, code: 'offline', message: TOOL_COPY.offline })
+    expect(await unarchiveTool('routine', 'r1')).toEqual({ ok: false, code: 'offline', message: CRUD_COPY.offline })
   })
 })
 

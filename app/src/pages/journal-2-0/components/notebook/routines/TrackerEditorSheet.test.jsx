@@ -76,11 +76,11 @@ describe('a new tracker', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Sleep' } })
     fireEvent.click(radio('Number'))
     fireEvent.change(screen.getByRole('textbox', { name: 'Unit' }), { target: { value: 'hrs' } })
-    net.refuseNext('POST', '/api/j2/trackers', 400, { code: 'invalid', message: 'SERVER: A unit can be at most 16 characters.' })
+    net.refuseNext('POST', '/api/j2/trackers', 400, { code: 'invalid', message: 'A unit can be at most 16 characters.' })
     save()
     const unit = screen.getByRole('textbox', { name: 'Unit' })
     await waitFor(() => expect(unit.getAttribute('aria-invalid')).toBe('true'))
-    expect(unit.closest('[data-field-box]').textContent).toContain('SERVER: A unit can be at most 16 characters.')
+    expect(unit.closest('[data-field-box]').textContent).toContain('A unit can be at most 16 characters.')
   })
 
   it('the count cap shows the server\'s sentence and keeps the draft', async () => {

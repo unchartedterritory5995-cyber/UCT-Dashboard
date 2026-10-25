@@ -294,6 +294,14 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     setMenu(null)
     menuButton.current?.focus?.()
   }
+  // Ruling W9-R47 (Task 9.16 fix round 1, M-8): "Edit tracker" opens the tracker editor, a lazy door like the routine
+  // block's "Edit routine". Editors only: the editor writes the tracker's own row (never a note). A check-in tracker
+  // has nothing to edit, so it has no such row.
+  const editTracker = () => {
+    import('../routines/openTrackerEditor')
+      .then((m) => m.openTrackerEditor({ editor, trackerId, announce }))
+      .catch(() => announce(TOOL_COPY.flagOff))
+  }
   const manage = () => {
     import('../myTools/openMyTools')
       .then((m) => m.openMyTools({ editor, tab: 'trackers', defId: trackerId }))
@@ -341,6 +349,7 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
 
   const menuItems = []
   if (editable && trackerId) {
+    if (!String(trackerId).startsWith('checkin:')) menuItems.push({ label: 'Edit tracker', onClick: editTracker })
     menuItems.push({ label: 'Manage…', onClick: manage })
     if (ready) {
       if (follow) menuItems.push({ label: "Use this note's day", onClick: useNoteDay })

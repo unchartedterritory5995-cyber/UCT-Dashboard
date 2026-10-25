@@ -71,6 +71,18 @@ function serve(over = {}) {
       st.state = st.skipped ? 'skipped' : undefined
       return json(200, entryFrom(st, decodeURIComponent(m[2])))
     }
+    // The editor's own read and save (Task 9.16's door): the routine itself, with If-Match on its etag.
+    if (url === `/api/j2/routines/${st.id}` && method === 'GET' && st.editorReadable) {
+      return json(200, { id: st.id, name: st.name, items: st.items, etag: st.etag ?? 1, archived: st.archived, usedIn: 1,
+        schedule: { kind: 'every' }, settings: { done_share: 1, strict: false, reminder: null } })
+    }
+    if (url === `/api/j2/routines/${st.id}` && method === 'PUT' && st.editorReadable) {
+      const body = JSON.parse(init.body)
+      st.name = body.name
+      st.items = body.items.map((it, i) => ({ id: it.id || `new${i}`, text: it.text, negative: it.negative }))
+      st.etag = (st.etag ?? 1) + 1
+      return json(200, { id: st.id, name: st.name, items: st.items, etag: st.etag })
+    }
     m = /^\/api\/j2\/routines\/([^/]+)\/vs-pnl$/.exec(url)
     if (m && method === 'GET') return json(200, st.pnl ?? ROUTINE_PNL)
     m = /^\/api\/j2\/routines\/([^/]+)\/unarchive$/.exec(url)
@@ -375,7 +387,7 @@ describe('RoutineBlock', () => {
     expect(setParams).not.toHaveBeenCalled()                         // ⛔ a read, a skip and a tick never write the note
   })
 
-  it('Edit routine (until Task 9.16) says "Not available right now." in the block, after the menu has closed', async () => {
+  it('Edit routine on a routine the editor cannot read: the editor closes and the block line says why, after the menu closed', async () => {
     serve()
     mount()
     await waitFor(() => expect(boxes()).toHaveLength(6))
@@ -384,6 +396,30 @@ describe('RoutineBlock', () => {
     await waitFor(() => expect(screen.getByText(TOOL_COPY.flagOff)).toBeTruthy())
     expect(screen.queryByText('Edit routine')).toBeNull()            // the menu is gone; the sentence is not
     expect(boxes()).toHaveLength(6)
+  })
+
+  // Task 9.16 fix round 1 (I-2, I-1): the door opens the REAL editor with THIS routine (its own name and items in the
+  // editor's fields), and a save there shows in the block at once, with no reload (toolsApi.toolEdited).
+  it('Edit routine opens the editor on this routine, and its save shows in the block with no reload', async () => {
+    const { st } = serve({ editorReadable: true })
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow('Edit routine'))
+    expect(await screen.findByRole('heading', { name: 'Edit routine' })).toBeTruthy()
+    const name = await screen.findByRole('textbox', { name: 'Name' })
+    expect(name.value).toBe('Pre-market routine')                   // the editor read THIS routine (r1)
+    expect(screen.getAllByRole('textbox', { name: /^Item \d+$/ }).map((i) => i.value)).toEqual(ITEMS.map((i) => i.text))
+    fireEvent.change(name, { target: { value: 'Morning prep' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add an item' }))
+    const items = screen.getAllByRole('textbox', { name: /^Item \d+$/ })
+    fireEvent.change(items[items.length - 1], { target: { value: 'Check futures' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Edit routine' })).toBeNull())
+    expect(st.name).toBe('Morning prep')
+    expect(await screen.findByRole('checkbox', { name: 'Check futures' })).toBeTruthy()
+    expect(screen.getByRole('list', { name: 'Morning prep' })).toBeTruthy()
+    expect(boxes()).toHaveLength(7)
   })
 
   it('the day settings: each is ONE setParams call carrying its search text', async () => {

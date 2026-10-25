@@ -483,14 +483,21 @@ export async function unarchive(kind, id) {
       ? await fetch(`/api/j2/routines/${enc(id)}/unarchive`, { method: 'POST', credentials: 'include' })
       : await fetch(`/api/j2/trackers/${enc(id)}/unarchive`, { method: 'POST', credentials: 'include' })
     const out = await settle(res)
-    if (out.ok) {
-      await reReadSubs((s) => s.kind === kind && s.id === String(id), true)
-      toolChanged(kind, String(id))
-    }
+    if (out.ok) await toolEdited(kind, id)
     return out
   } catch {
     return networkFailure()
   }
+}
+
+/** The tool itself changed (an editor's save, archive, delete or undelete; a restore above): every placed block of it
+ *  on this page re-reads its day and hears the tool with its entry (its name, items, archived state), and every tool
+ *  subscriber (a tracker's summary) re-reads once. The ONE refresh path for a tool-level change; it writes nothing.
+ *  ⚠️ This page only: nothing is broadcast, so another tab catches up on its next return to the front (W9-R44). */
+export async function toolEdited(kind, id) {
+  if (kind !== 'routine' && kind !== 'tracker') return
+  await reReadSubs((s) => s.kind === kind && s.id === String(id), true)
+  toolChanged(kind, String(id))
 }
 
 /** Day P&L against the tool (a GET). @returns {Promise<{ok: true, data} | {ok: false, code}>} */

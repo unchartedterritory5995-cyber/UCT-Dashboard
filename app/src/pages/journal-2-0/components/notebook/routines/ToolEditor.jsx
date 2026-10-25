@@ -186,7 +186,7 @@ export default function ToolEditor({
       return
     }
     if (got.code === 'conflict') { say(got.message || COPY.conflict, { reload: true }); return }
-    const f = got.code === 'invalid' ? fieldOf(got.message) : null
+    const f = got.code === 'invalid' ? fieldOf(kind, got.message) : null
     if (f && fieldEl(f)) {
       setErrors({ [f]: { text: got.message, source: 'server' } })
       focusNext.current = fieldEl(f)
@@ -263,7 +263,7 @@ export default function ToolEditor({
   const rebase = useCallback((d) => setDraft(d, { rebase: true }), [setDraft])
 
   let content
-  if (phase === 'loading') content = <p className={styles.hint} role="status">{COPY.loading}</p>
+  if (phase === 'loading') content = <p className={styles.hint}>{COPY.loading}</p>   // M-6: no second live region
   else if (phase === 'failed') {
     content = (
       <div className={styles.stateBox}>

@@ -13,6 +13,8 @@ vi.mock('../../../../../hooks/useBreakpoint', () => ({
 }))
 
 const setOnline = (v) => Object.defineProperty(globalThis.navigator, 'onLine', { value: v, configurable: true })
+// The reminder's local line reads a pinned instant and zone, never the wall clock (a Monday, EDT against CDT).
+const NOW = new Date('2026-10-26T14:00:00Z')
 const S_CAP = 'You have 30 routines. Archive one in My tools to make room.'
 const S_CONFLICT = 'Changed in another tab. Reload to see the newer version.'
 
@@ -27,7 +29,7 @@ afterEach(() => { cleanup(); setOnline(true) })
 function mount(props = {}) {
   const onClose = vi.fn()
   const onSaved = vi.fn()
-  render(<RoutineEditorSheet onClose={onClose} onSaved={onSaved} zone="America/Chicago" {...props} />)
+  render(<RoutineEditorSheet onClose={onClose} onSaved={onSaved} zone="America/Chicago" now={NOW} {...props} />)
   return { onClose, onSaved }
 }
 const itemInputs = () => screen.queryAllByRole('textbox', { name: /^Item \d+$/ })
@@ -175,7 +177,7 @@ describe('a new routine', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Chosen weekdays' }))
     for (const d of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) fireEvent.click(screen.getByRole('button', { name: d }))
     save()
-    expect(await screen.findByText('Pick at least one weekday.')).toBeTruthy()
+    expect(await screen.findByText('Pick when this routine runs.')).toBeTruthy()
     expect(net.sent('POST', '/api/j2/routines')).toHaveLength(0)
   })
 
@@ -218,7 +220,7 @@ describe('a new routine', () => {
   it('field_refusal_beside_field', async () => {
     mount({ starter: 'premarket' })
     await waitFor(() => expect(itemInputs()).toHaveLength(5))
-    const S = 'SERVER: A name can be at most 80 characters, from the server.'
+    const S = 'A name can be at most 80 characters.'   // the server's own sentence (placement is an exact match)
     net.refuseNext('POST', '/api/j2/routines', 400, { code: 'invalid', message: S })
     save()
     const name = screen.getByRole('textbox', { name: 'Name' })
@@ -228,7 +230,7 @@ describe('a new routine', () => {
     expect(name.closest('[data-field-box]').contains(err)).toBe(true)    // beside the field, not only in the footer
     expect(document.activeElement).toBe(name)
     // an item refusal lands by the items
-    const S2 = 'SERVER: An item can be at most 200 characters.'
+    const S2 = 'An item can be at most 200 characters.'
     net.refuseNext('POST', '/api/j2/routines', 400, { code: 'invalid', message: S2 })
     save()
     const items = await screen.findByRole('group', { name: 'Items' })

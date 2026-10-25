@@ -1,0 +1,34 @@
+{
+  "_source": "nbw-p2-be e113887a6c: api/services/journal_two/{routines,trackers,tracker_days}.py, api/routers/notebook_routines.py",
+  "routine": {
+    "S_BAD_NAME": "Give the routine a name.",
+    "S_NAME_LONG": "A name can be at most 80 characters.",
+    "S_NO_ITEMS": "Add at least one item.",
+    "S_TOO_MANY_ITEMS": "A routine can hold up to 25 items.",
+    "S_ITEM_LONG": "An item can be at most 200 characters.",
+    "S_BAD_SCHEDULE": "Pick when this routine runs.",
+    "S_BAD_SHARE": "Pick how much of the routine counts as done.",
+    "S_BAD_TIME": "Pick a reminder time in 5-minute steps.",
+    "S_BAD_SETTINGS": "These routine settings couldn't be saved.",
+    "S_CAP": "You have 30 routines. Archive one in My tools to make room.",
+    "S_CONFLICT": "Changed in another tab. Reload to see the newer version.",
+    "S_ARCHIVE_FIRST": "Archive this routine before deleting it.",
+    "S_TYPE_NAME": "Type the routine's name exactly to delete it."
+  },
+  "tracker": {
+    "S_BAD_NAME": "Give the tracker a name.",
+    "S_NAME_LONG": "A name can be at most 80 characters.",
+    "S_BAD_DAYS": "Pick which days this tracker logs.",
+    "S_BAD_SETTINGS": "These tracker settings couldn't be saved.",
+    "S_KIND_FIXED": "A tracker's type can't change. Make a new tracker instead.",
+    "S_CAP": "You have 30 trackers. Archive one in My tools to make room.",
+    "S_CONFLICT": "Changed in another tab. Reload to see the newer version.",
+    "S_ARCHIVE_FIRST": "Archive this tracker before deleting it.",
+    "S_TYPE_NAME": "Type the tracker's name exactly to delete it.",
+    "S_UNIT": "A unit can be at most 16 characters.",
+    "S_KIND": "Pick a tracker type."
+  },
+  "router": {
+    "S_PAID": "Routines and trackers require a paid plan"
+  }
+}

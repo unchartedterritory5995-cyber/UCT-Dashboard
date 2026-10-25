@@ -13,14 +13,16 @@ import RoutineEditorSheet from '../components/notebook/routines/RoutineEditorShe
 import TrackerEditorSheet from '../components/notebook/routines/TrackerEditorSheet'
 import { installServer, routine, tracker } from '../components/notebook/routines/__fixtures__/toolsServer'
 
+// The reminder's local line reads a pinned instant and zone, never the wall clock (a Monday, EDT against CDT).
+const NOW = new Date('2026-10-26T14:00:00Z')
 const items = () => screen.getAllByRole('textbox', { name: /^Item \d+$/ })
 
 axeSurface('routine-editor', async () => {
   installServer()
-  render(<RoutineEditorSheet onClose={() => {}} zone="America/Chicago" />)
+  render(<RoutineEditorSheet onClose={() => {}} zone="America/Chicago" now={NOW} />)
   const chips = await screen.findByRole('group', { name: 'Start from' })
   fireEvent.click(within(chips).getByRole('button', { name: 'Rules I keep' }))
-  expect(items()).toHaveLength(2)
+  expect(items()).toHaveLength(5)
   fireEvent.click(screen.getByRole('radio', { name: 'Chosen weekdays' }))
   fireEvent.click(screen.getByRole('button', { name: 'Wed' }))
   fireEvent.click(screen.getByRole('switch', { name: 'Remind me' }))
@@ -31,7 +33,7 @@ axeSurface('routine-editor', async () => {
 
 axeSurface('routine-editor-edit', async () => {
   const net = installServer({ tools: { r1: routine() } })
-  render(<RoutineEditorSheet routineId="r1" onClose={() => {}} zone="America/Chicago" />)
+  render(<RoutineEditorSheet routineId="r1" onClose={() => {}} zone="America/Chicago" now={NOW} />)
   const name = await screen.findByRole('textbox', { name: 'Name' })
   net.refuseNext('PUT', '/api/j2/routines/r1', 400, { code: 'invalid', message: 'A name can be at most 80 characters.' })
   fireEvent.change(name, { target: { value: 'Prep' } })
