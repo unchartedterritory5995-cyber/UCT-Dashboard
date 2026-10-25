@@ -529,6 +529,15 @@ def test_a_lone_surrogate_in_a_name_is_400_never_500(conn):
     r = send("POST", f"{url}/revs/1/name", {"name": bad})
     assert r.status_code == 400 and r.json()["detail"] == want
     assert wdefs.get(UID, saved["id"])["name"] == "Mine"
+    # The be->impl merge: the keyed doors (R-43 create, R-49 save_new) hash the request BEFORE `_clean_name` runs,
+    # so the surrogate must be refused there too, never reach the hash's UTF-8 encode (a 500).
+    key = {"Idempotency-Key": "3f2b8c1e-9d4a-4b7e-8f21-6a5c0d9e1b72"}
+    r = send("POST", BASE, {"name": bad, "plan": raw_plan()}, key)
+    assert r.status_code == 400 and r.json()["detail"] == want
+    r = send("PUT", url, {"name": bad, "plan": raw_plan(), "apply": "save_new"},
+             {"If-Match": str(saved["etag"]), **key})
+    assert r.status_code == 400 and r.json()["detail"] == want
+    assert conn.execute("SELECT COUNT(*) FROM j2_widget_create_keys").fetchone()[0] == 0
     # Control: the same route accepts an ordinary escaped character.
     r = send("PUT", url, {"name": "a" + chr(0xE9), "apply": "only"}, {"If-Match": str(saved["etag"])})
     assert r.status_code == 200 and r.json()["name"] == "a" + chr(0xE9)

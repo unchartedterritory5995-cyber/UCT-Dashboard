@@ -494,6 +494,7 @@ def create_with_key(user_id: str, name: str | None, plan: dict, *, key: Any,
         return create(user_id, name, plan, catalog=catalog, now=now, conn=conn)
     cat = _catalog(catalog)
     validate_plan(plan, cat)                         # PlanTooNew / PlanError carry sentences
+    _clean_name(name)                                # a lone surrogate: its sentence, before the hash encodes it
     sha = _payload_sha({"plan": plan, "name": name})
     now_dt = _now(now)
     with _write(conn) as c:
@@ -521,6 +522,7 @@ def update_with_key(user_id: str, def_id: str, *, key: Any, if_match: int,
     cat = _catalog(catalog)
     if plan is not None:
         validate_plan(plan, cat)                     # PlanTooNew / PlanError carry sentences
+    _clean_name(name)                                # a lone surrogate: its sentence, before the hash encodes it
     sha = _payload_sha({"from": def_id, "plan": plan, "name": name})
     now_dt = _now(now)
     with _write(conn) as c:
