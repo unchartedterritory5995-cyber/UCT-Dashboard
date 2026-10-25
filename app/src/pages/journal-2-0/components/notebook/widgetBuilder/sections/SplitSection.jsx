@@ -2,12 +2,15 @@ import { useEffect, useId, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
 import { splitFields, reasonOf, thenAllowed, refKindOf, refName } from '../builderCatalog'
+import { measureLabel } from '../formulaFields'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
  * "Split it by": optional, one field, and a second ("then by") for tables only. With a split the member can order
  * the groups by a measure and keep the top N (at most 40). A second split is offered while the view is a table or
  * still the suggested one (it then becomes a table); otherwise it is disabled with the engine's own sentence.
+ * The member's own row fields that give text or yes/no split too (wave 10, Task 10.16): the sheet hands this section
+ * a catalog whose fields include them (`formulaFields.withFormulaFields`), and they read by their own names.
  */
 export default function SplitSection({ cat, plan, toolNames, onOpen, onClear, onSort }) {
   const thenReasonId = useId()
@@ -69,7 +72,7 @@ export default function SplitSection({ cat, plan, toolNames, onOpen, onClear, on
                 }}>
                 <option value="">In their own order</option>
                 {plan.measures.map((pm, i) => {
-                  const label = cat.measures.get(pm.key)?.label || pm.key
+                  const label = measureLabel(cat, plan, pm)
                   return [
                     <option key={`${i}d`} value={`${i}:desc`}>{`${label}, highest first`}</option>,
                     <option key={`${i}a`} value={`${i}:asc`}>{`${label}, lowest first`}</option>,

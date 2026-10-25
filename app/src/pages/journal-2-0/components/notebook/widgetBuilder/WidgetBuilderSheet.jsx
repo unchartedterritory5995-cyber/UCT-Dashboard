@@ -23,6 +23,10 @@ import SplitSection, { SplitPicker } from './sections/SplitSection'
 import RefPicker from './sections/RefPicker'
 import ViewSection from './sections/ViewSection'
 import NameSection from './sections/NameSection'
+import FormulaSection from './sections/FormulaSection'
+import {
+  catalogFields, compiledOf, formulaProblems, withFormulaFields, withoutFormulaRefs, formulasOf, measureId,
+} from './formulaFields'
 import PreviewPane from './PreviewPane'
 import ExamplesGallery from './ExamplesGallery'
 import SaveQuestion, { UPDATE_ALL, SAVE_NEW, preselectAnswer } from './SaveQuestion'
@@ -61,6 +65,12 @@ import styles from './WidgetBuilderSheet.module.css'
  * as a NEW widget (one that is saved, inserted at the caret from a note); "Back to examples" returns while nothing has
  * been edited. No preview runs and nothing saves while the gallery shows. Focus moves to the builder's first heading on
  * the way in and back to the card (or Start blank) on the way out. A kept draft is offered on the gallery itself.
+ *
+ * Your own fields (wave 10, Task 10.16): "Your own fields" sits under "What to measure" (FormulaSection). Its row
+ * formulas join the source's fields for "Which ones" and "Split it by" (`withFormulaFields`), a formula measure is
+ * named by its own name, and no preview runs while the formula twin refuses one of them (it has already said why,
+ * without a request). The server's `formula` error, by formula id and position, and the preview's `probe` reach the
+ * field they name. Save settles the boxes first. Escape closes an open autocomplete list before anything else.
  *
  * Escape goes back one picker level, then asks "Keep your changes?" only when something changed; a kept draft is
  * offered again ("Resume your unsaved widget") within 24 h, and a draft of a widget that changed since is saved
@@ -279,6 +289,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const backHeldId = useId()
   const [opened, setOpened] = useState('')      // "Opened Win rate." (fix 1, m-6), read out on the way in
   const clearSearchRef = useRef(null)           // the gallery's "Escape clears a non-empty search" (fix 1, m-4)
+  // Task 10.16: "Your own fields". The section closes its autocomplete list on Escape (`formulaEscRef`) and settles its
+  // boxes before a save (`formulaFlushRef`); the preview's `probe` and the server's `formula` errors reach it here.
+  const formulaEscRef = useRef(null)
+  const formulaFlushRef = useRef(null)
+  const [formulaFeedback, setFormulaFeedback] = useState(() => ({ probes: new Map(), errors: new Map() }))
+  const [flushSave, setFlushSave] = useState(null)
 
   useEffect(() => () => { mounted.current = false }, [])
 
@@ -455,6 +471,28 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     return JSON.stringify({ ...p, display: { ...p.display, title: '', titleAuto: true, subtitle: '' } })
   }, [state.plan])
 
+  // Task 10.16: the formulas compiled against the source's fields (the twin), the catalog the sections read (the
+  // source's fields plus the plan's row formulas), and whether the twin refuses one (then no preview is asked for).
+  const formulaKey = JSON.stringify(state.plan.formulas || [])
+  const formulaFields = useMemo(() => (cat ? catalogFields(cat, state.plan) : new Map()),
+    [cat, state.plan.source]) // eslint-disable-line react-hooks/exhaustive-deps
+  const compiled = useMemo(() => (cat ? compiledOf(cat, state.plan) : new Map()),
+    [cat, state.plan.source, formulaKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const viewCat = useMemo(() => (cat ? withFormulaFields(cat, state.plan, compiled) : cat),
+    [cat, state.plan.source, compiled]) // eslint-disable-line react-hooks/exhaustive-deps
+  const previewBlocked = !!cat && formulaProblems(cat, state.plan, compiled).size > 0
+
+  /** The server's `formula` refusal, on the field it names, with the text it was sent (its `pos` counts into that). */
+  const formulaRefused = (got, plan) => {
+    if (got?.code !== 'formula' || typeof got.formulaId !== 'string') return
+    const sent = formulasOf(plan).find((f) => f.id === got.formulaId)
+    if (!sent) return
+    setFormulaFeedback((fb) => ({
+      probes: fb.probes,
+      errors: new Map([[got.formulaId, { sentence: got.message, pos: got.pos, sent: sent.expr }]]),
+    }))
+  }
+
   const runPreview = useCallback(async () => {
     seq.current += 1
     const n = seq.current
@@ -465,6 +503,13 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     if (!mounted.current || n !== seq.current) return
     if (got.ok) {
       setPreview({ payload: got.data, status: 'ok', error: null })
+      // Each formula's first-row line, kept with the text it was run for (a changed box waits for the next preview).
+      const sent = new Map(formulasOf(plan).map((f) => [f.id, f.expr]))
+      const probes = new Map()
+      for (const p of Array.isArray(got.data.probe) ? got.data.probe : []) {
+        if (p && typeof p.id === 'string' && sent.has(p.id)) probes.set(p.id, { probe: p, sentExpr: sent.get(p.id) })
+      }
+      setFormulaFeedback({ probes, errors: new Map() })
       if (typeof got.data.defaultName === 'string') dispatch({ type: 'followName', name: got.data.defaultName })
       return
     }
@@ -474,14 +519,17 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       return
     }
     setPreview((p) => ({ ...p, status: 'error', error: { code: got.code, message: got.message } }))
-  }, [])
+    formulaRefused(got, plan)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Task 8.16: no preview runs while the start screen shows (the cards carry their own results).
     if (phase !== 'ready' || onGallery) return undefined
+    // Task 10.16: a formula the twin refuses has its sentence already; asking the server would be a request for it.
+    if (previewBlocked) return undefined
     const t = setTimeout(runPreview, PREVIEW_DEBOUNCE_MS)
     return () => clearTimeout(t)
-  }, [phase, previewKey, retryTick, runPreview, onGallery])
+  }, [phase, previewKey, retryTick, runPreview, onGallery, previewBlocked])
 
   // "Pausing the preview for a moment" resumes on its own; offline resumes when the browser is back.
   const errCode = preview.status === 'error' ? preview.error?.code : null
@@ -718,22 +766,45 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     edit({ type: 'setRange', range }, { range })
     back()
   }
-  const onToggleMeasure = (key) => {
-    const cur = state.plan.measures.map((m) => m.key)
-    let keys
-    if (cur.includes(key)) {
+  /** A measure in or out: a catalog one (`{key}`) or one of the member's own fields (`{formula, agg?}`). */
+  const toggleMeasure = (m) => {
+    const cur = state.plan.measures
+    const id = measureId(m)
+    let measures
+    if (cur.some((x) => measureId(x) === id)) {
       if (cur.length <= 1) return
-      keys = cur.filter((k) => k !== key)
+      measures = cur.filter((x) => measureId(x) !== id)
     } else {
       if (cur.length >= cat.maxMeasures) return
-      keys = [...cur, key]
+      measures = [...cur, m]
     }
     const s = state.plan.sort
-    const sort = s && s.measure >= keys.length ? { ...s, measure: 0 } : s
-    const next = fitted({ measures: keys.map((k) => ({ key: k })), sort })
-    dispatch({ type: 'setMeasures', measures: keys, sort, view: next.view, compare: next.compare })
+    const sort = s && s.measure >= measures.length ? { ...s, measure: 0 } : s
+    const next = fitted({ measures, sort })
+    dispatch({ type: 'setMeasures', measures, sort, view: next.view, compare: next.compare })
   }
-  const onRemoveMeasure = (i) => onToggleMeasure(state.plan.measures[i]?.key)
+  const onToggleMeasure = (key) => toggleMeasure({ key })
+  const onRemoveMeasure = (i) => { const m = state.plan.measures[i]; if (m) toggleMeasure(m) }
+  // ── your own fields (Task 10.16) ──
+  const formulasHeading = () => rootRef.current?.querySelector('[data-builder-section="formulas"] [data-builder-heading]') || null
+  const onFormulaAdd = (format) => dispatch({ type: 'formula/add', formula: { name: '', expr: '', format } })
+  const onFormulaEdit = (id, patch) => dispatch({ type: 'formula/edit', id, patch })
+  const onFormulaRemove = (id) => {
+    const p = stateRef.current.plan
+    const refs = withoutFormulaRefs(p, id)
+    // The widget measured only this field: it falls back to what a new widget starts with, in the same step.
+    const fallback = refs.measures.length ? undefined : defaultMeasuresFor(cat, p.source)
+    const measures = refs.measures.length ? refs.measures : fallback.map((k) => ({ key: k }))
+    const next = fitted({ ...refs, measures, sort: refs.split ? p.sort : null })
+    dispatch({ type: 'formula/remove', id, measures: fallback, view: next.view, compare: next.compare })
+    // The field and its Remove are gone: focus goes to the section's own heading.
+    formulasHeading()?.focus()
+  }
+  const onFormulaSplit = (key) => {
+    if (state.plan.split?.by === key) onClearSplit('by')
+    else onSplit('by', key)
+  }
+  const onFormulaFilter = (key, el) => push({ kind: 'filter', field: key }, el)
   const onSplit = (slot, key, ref = null) => {
     const cur = state.plan.split
     let split
@@ -811,6 +882,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const refused = (got) => {
     setSaving(false)
     setLevel({ kind: 'main' })
+    formulaRefused(got, stateRef.current.plan)
     if (got.code === 'offline') { setSaveMsg(OFFLINE_SAVE); return }
     let text = failureText(got.code, got.message) || FAILED_SENTENCE
     if (got.code === 'conflict' && !keepDraft()) text = `${text} ${KEEP_FAILED}`
@@ -928,6 +1000,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const save = async (choice) => {
     if (gone) { close(); return }
     if (saving || phase !== 'ready' || !cat) return
+    // Task 10.16: a box still settling is settled first, and the save runs on the plan that holds it.
+    if (formulaFlushRef.current?.()) { setFlushSave({ choice }); return }
     setSaveMsg('')
     if (savedRef.current) { await placeSaved(); return }
     const st = stateRef.current
@@ -985,6 +1059,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     await placeSaved()
   }
 
+  useEffect(() => {
+    if (!flushSave) return
+    setFlushSave(null)
+    save(flushSave.choice)
+  }, [flushSave]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── keys: Escape backs out one level; Ctrl/Cmd+Z / Shift+Z / Enter ─────────────────────────────
   const keysRef = useRef(null)
   keysRef.current = {
@@ -993,6 +1073,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     // back to the gallery (asking first when edited), unless a saved widget's place is still owed.
     escape: (target) => {
       if (onGallery) return !!clearSearchRef.current?.(target)
+      // Task 10.16: an open autocomplete list is the level Escape leaves first.
+      if (formulaEscRef.current?.()) return true
       if (!fromGallery || phase !== 'ready' || backHeld || level.kind !== 'main') return false
       backToExamples(rootRef.current?.querySelector('[data-builder-back]') || null)
       return true
@@ -1068,10 +1150,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     let picker = null
     if (k === 'range') picker = <RangePicker cat={cat} plan={plan} onPick={onRange} onBack={back} />
     else if (k === 'field') {
-      picker = <FieldPicker cat={cat} plan={plan} onBack={back}
+      picker = <FieldPicker cat={viewCat} plan={plan} onBack={back}
         onPick={(field) => {
           // A field that names a routine or tracker asks which one first (Task 9.17).
-          const kind = refKindOf(sourceOf(cat, plan)?.fields.get(field))
+          const kind = refKindOf(sourceOf(viewCat, plan)?.fields.get(field))
           setLevel(kind ? { kind: 'ref', refKind: kind, for: 'filter', field, index: undefined }
             : { kind: 'filter', field, index: undefined })
         }} />
@@ -1092,9 +1174,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       )
     } else if (k === 'filter') {
       const initial = Number.isInteger(level.index) ? { ...plan.filters[level.index], index: level.index } : undefined
-      const refKind = refKindOf(sourceOf(cat, plan)?.fields.get(level.field))
+      const refKind = refKindOf(sourceOf(viewCat, plan)?.fields.get(level.field))
       picker = (
-        <FilterEditor key={`${level.field}-${level.index ?? 'new'}-${level.ref ?? ''}`} cat={cat} plan={plan}
+        <FilterEditor key={`${level.field}-${level.index ?? 'new'}-${level.ref ?? ''}`} cat={viewCat} plan={plan}
           fieldKey={level.field} initial={initial} draft={level.draft} refValue={level.ref} accounts={accounts}
           toolNames={toolNames} onToolNames={mergeToolNames} onApply={onApplyFilter} onBack={back}
           onChangeRef={refKind ? (draft) => setLevel({
@@ -1110,9 +1192,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     } else if (k === 'measure') {
       picker = <MeasurePicker cat={cat} plan={plan} byNeed={byNeed} onToggle={onToggleMeasure} onBack={back} />
     } else if (k === 'split') {
-      picker = <SplitPicker cat={cat} plan={plan} slot={level.slot} onBack={back}
+      picker = <SplitPicker cat={viewCat} plan={plan} slot={level.slot} onBack={back}
         onPick={(key) => {
-          const kind = key ? refKindOf(sourceOf(cat, plan)?.fields.get(key)) : null
+          const kind = key ? refKindOf(sourceOf(viewCat, plan)?.fields.get(key)) : null
           if (kind) setLevel({ kind: 'ref', refKind: kind, for: 'split', slot: level.slot, field: key })
           else onSplit(level.slot, key)
         }} />
@@ -1207,14 +1289,20 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           <p className={notice ? styles.notice : styles.srOnly} role="status" data-testid="builder-notice">{notice}</p>
           <SourceSection cat={cat} plan={plan} accounts={accounts} onSource={onSource}
             onAccounts={(acc) => dispatch({ type: 'setAccounts', accounts: acc })} />
-          <WhichOnesSection cat={cat} plan={plan} accounts={accounts} toolNames={toolNames}
+          <WhichOnesSection cat={viewCat} plan={plan} accounts={accounts} toolNames={toolNames}
             onOpenRange={(el) => push({ kind: 'range' }, el)}
             onAddFilter={(el) => push({ kind: 'field' }, el)}
             onEditFilter={(i, el) => push({ kind: 'filter', field: plan.filters[i].field, index: i }, el)}
             onRemoveFilter={onRemoveFilterAt} />
           <MeasureSection cat={cat} plan={plan} byNeed={byNeed} onOpen={(el) => push({ kind: 'measure' }, el)}
             onRemove={onRemoveMeasure} />
-          <SplitSection cat={cat} plan={plan} toolNames={toolNames} onOpen={(slot, el) => push({ kind: 'split', slot }, el)}
+          {(cat.formats.length > 0 || formulasOf(plan).length > 0) && (
+            <FormulaSection cat={cat} plan={plan} compiled={compiled} fields={formulaFields} unit={unit}
+              settleMs={PREVIEW_DEBOUNCE_MS} probes={formulaFeedback.probes} serverErrors={formulaFeedback.errors}
+              onAdd={onFormulaAdd} onEdit={onFormulaEdit} onRemove={onFormulaRemove} onMeasure={toggleMeasure}
+              onSplit={onFormulaSplit} onFilter={onFormulaFilter} escapeRef={formulaEscRef} flushRef={formulaFlushRef} />
+          )}
+          <SplitSection cat={viewCat} plan={plan} toolNames={toolNames} onOpen={(slot, el) => push({ kind: 'split', slot }, el)}
             onClear={onClearSplit} onSort={(sort) => dispatch({ type: 'setSort', sort })} />
           <ViewSection cat={cat} plan={plan} unit={unit} onView={onView} onCompare={onCompare} onDisplay={onDisplay} />
           <NameSection name={name} nameTouched={state.nameTouched} subtitle={plan.display.subtitle}

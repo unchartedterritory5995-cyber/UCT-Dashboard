@@ -281,6 +281,9 @@ export const SURFACES = Object.freeze({
   'components/notebook/widgetBuilder/sections/WhichOnesSection.jsx': { recipe: 'widget-builder-filter-editor' },
   'components/notebook/widgetBuilder/sections/RefPicker.jsx': { recipe: 'widget-builder-ref-taken' },
   'components/notebook/widgetBuilder/SaveQuestion.jsx': { recipe: 'widget-builder-save-question' },
+  // Wave 10 Task 10.16: "Your own fields" (rail a11y/widgetBuilder.a11y.test.jsx: a valid field with its offers and the
+  // autocomplete list open; a field in its error state).
+  'components/notebook/widgetBuilder/sections/FormulaSection.jsx': { recipe: 'widget-builder-formulas' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

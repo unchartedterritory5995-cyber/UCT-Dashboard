@@ -118,6 +118,18 @@ describe('one client for every caller (wave 8 consolidation: My tools reads and 
     expect(await getJson('/x')).toEqual({ ok: false, code: 'failed', message: '', status: 200 })
   })
 
+  it('a formula refusal (wave 10, 400 `formula`) carries its formula id and position, and its own sentence', async () => {
+    const message = "[nope] isn't a field here."
+    fetchSpy.mockResolvedValueOnce(reply(400, { detail: { code: 'formula', message, formulaId: 'f2', pos: 7 } }))
+    expect(await postJson('/preview', {})).toEqual({ ok: false, code: 'formula', message, status: 400, formulaId: 'f2', pos: 7 })
+    expect(failureText('formula', message)).toBe(message)
+    // A position that is not a whole number is not passed on; another code never carries the formula fields.
+    fetchSpy.mockResolvedValueOnce(reply(400, { detail: { code: 'formula', message, formulaId: 'f1', pos: '3' } }))
+    expect(await postJson('/preview', {})).toEqual({ ok: false, code: 'formula', message, status: 400, formulaId: 'f1' })
+    fetchSpy.mockResolvedValueOnce(reply(400, { detail: { code: 'invalid', message: 'x', formulaId: 'f1', pos: 3 } }))
+    expect(await postJson('/preview', {})).toEqual({ ok: false, code: 'invalid', message: 'x', status: 400 })
+  })
+
   it('POST carries If-Match for an etag (a version restore), with the same headers, credentials and body as before', async () => {
     fetchSpy.mockResolvedValue(reply(200, { etag: 9 }))
     await postJson('/d-1/revs/2/restore', {}, { etag: 8 })

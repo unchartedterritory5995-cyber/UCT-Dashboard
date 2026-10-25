@@ -11,7 +11,9 @@ import styles from '../WidgetBuilderSheet.module.css'
 /**
  * "Which ones": the date range chip first, then the filter chips (spec 5.2). Each chip is a button NAMED BY ITS
  * SENTENCE ("Setup is Flag or VCP") that opens it for editing, beside its own "Remove filter: <sentence>" button
- * (spec 5.11). Open positions have no range: they are what is open right now (ruling R-17).
+ * (spec 5.11). Open positions have no range: they are what is open right now (ruling R-17). A filter may be on one of
+ * the member's own row fields (wave 10, Task 10.16: `formula:<id>`): the sheet hands this section a catalog whose
+ * fields include them (`formulaFields.withFormulaFields`), so its chip, its editor and "+ Filter" treat it as a field.
  */
 export default function WhichOnesSection({ cat, plan, accounts, toolNames, onOpenRange, onAddFilter, onEditFilter, onRemoveFilter }) {
   const src = sourceOf(cat, plan)

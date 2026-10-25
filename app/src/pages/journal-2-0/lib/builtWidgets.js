@@ -40,11 +40,12 @@ export const FAILURE_COPY = Object.freeze({
 export const FAILED_SENTENCE = "Couldn't refresh. The saved snapshot is unchanged."
 
 /** The member sentence for a failed call. `superseded` is internal (the caller already has a newer request in
- *  flight) and answers '' so the caller shows nothing; `invalid` shows the server's own sentence. */
+ *  flight) and answers '' so the caller shows nothing; `invalid` and `formula` show the server's own sentence. */
 export function failureText(code, message) {
   if (code === 'superseded') return ''
   if (typeof code === 'string' && Object.hasOwn(FAILURE_COPY, code)) return FAILURE_COPY[code]
-  if (code === 'invalid' && typeof message === 'string' && message.trim()) return message.trim()
+  // `invalid` and `formula` (wave 10: one of the member's own fields) carry the server's own sentence.
+  if ((code === 'invalid' || code === 'formula') && typeof message === 'string' && message.trim()) return message.trim()
   return FAILED_SENTENCE
 }
 
@@ -65,7 +66,10 @@ async function refusal(res) {
   const code = isRecord(detail) && typeof detail.code === 'string' && detail.code ? detail.code : 'failed'
   const message = isRecord(detail) && typeof detail.message === 'string' ? detail.message
     : (typeof detail === 'string' ? detail : '')
-  return { ok: false, code, message, status }
+  // Wave 10: a formula refusal (400 `formula`) names the formula and the code point its problem starts at.
+  const formula = code === 'formula' && isRecord(detail) && typeof detail.formulaId === 'string' && detail.formulaId
+    ? { formulaId: detail.formulaId, ...(Number.isInteger(detail.pos) && detail.pos >= 0 ? { pos: detail.pos } : {}) } : {}
+  return { ok: false, code, message, status, ...formula }
 }
 
 function withTimeout() {

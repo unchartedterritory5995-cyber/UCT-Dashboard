@@ -2,12 +2,15 @@ import { useId, useRef, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
 import { THEMES, measuresFor, coverageText, reasonOf } from '../builderCatalog'
+import { measureLabel, measureId } from '../formulaFields'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
  * "What to measure": the picked measures (1 to 3) as chips, each with its coverage on this member's data when it
  * needs a per-row value ("R known on 23 of 47 trades", from the last preview), and "+ Measure" to open the picker.
- * The last measure cannot be removed: a widget measures something.
+ * The last measure cannot be removed: a widget measures something. A measure may be one of the member's own fields
+ * (wave 10, Task 10.16), named by its own name ("Exit efficiency (average)"); it is added and taken out from "Your own
+ * fields", and its chip opens the same picker.
  */
 export default function MeasureSection({ cat, plan, byNeed, onOpen, onRemove }) {
   const lastId = useId()
@@ -16,11 +19,11 @@ export default function MeasureSection({ cat, plan, byNeed, onOpen, onRemove }) 
     <Section id="measure" title="What to measure">
       <ul className={styles.filterList}>
         {plan.measures.map((pm, i) => {
-          const m = cat.measures.get(pm.key)
-          const label = m?.label || pm.key
+          const m = pm.key ? cat.measures.get(pm.key) : null
+          const label = measureLabel(cat, plan, pm)
           const cov = coverageText(cat, m, byNeed)
           return (
-            <li key={pm.key} className={styles.measureItem}>
+            <li key={measureId(pm)} className={styles.measureItem}>
               <div className={styles.filterItem}>
                 <button type="button" className={styles.chip} aria-label={`${label}. Change measures`}
                   onClick={(e) => onOpen(e.currentTarget)}>

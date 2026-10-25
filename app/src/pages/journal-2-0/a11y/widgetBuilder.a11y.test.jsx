@@ -5,17 +5,20 @@
 // population, so a new builder file fails surfaceCoverage by name. The levels a member meets: the main level with a
 // preview; the examples screen with cards in view; a filter being edited; "Which routine" with a routine already
 // taken (the others aria-disabled with the engine's sentence); the date ranges on a routine source (last N trades
-// aria-disabled); and the Update-all question. Each recipe asserts what painted before axe runs. `fetch` is the
+// aria-disabled); and the Update-all question. Wave 10 (Task 10.16): "Your own fields" with a valid field, its offers
+// and the autocomplete list open; and a field in its error state (the dialect's sentence, and a name the server
+// refuses). Each recipe asserts what painted before axe runs. `fetch` is the
 // builder's fake server (widgetBuilder/__fixtures__).
 import { describe, beforeEach, afterEach, vi, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import { axeSurface } from './surface'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from '../components/notebook/widgetBuilder/WidgetBuilderSheet'
 import { __resetBuiltCaches } from '../lib/builtWidgets'
 import { installFetch, answer, payload, SUMMARY } from '../components/notebook/widgetBuilder/__fixtures__/builderFixtures'
 import { blankPlan } from '../components/notebook/widgetBuilder/builderState'
+import { FORMULA_CATALOG } from '../components/notebook/widgetBuilder/__fixtures__/formulaCatalog'
 import {
   TOOL_CATALOG, ROUTINES, TRACKERS, S_ONE_REF, S_UNKNOWN_RANGE,
 } from '../components/notebook/widgetBuilder/__fixtures__/toolCatalog'
@@ -125,5 +128,38 @@ describe('a11y: the widget builder (wave 9, Task 9.17 fix 1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     fireEvent.click(screen.getByTestId('builder-save'))
     expect(await screen.findByText('This widget is in 14 notes.')).toBeTruthy()
+  })
+
+  axeSurface('widget-builder-formulas', async () => {
+    route('GET', (u) => u.endsWith('/vocabulary'), () => answer(FORMULA_CATALOG))
+    await openBuilder()
+    fireEvent.click(screen.getByRole('button', { name: 'Add your own field' }))
+    const g = screen.getByTestId('formula-field')
+    fireEvent.change(within(g).getByLabelText('Name'), { target: { value: 'Green' } })
+    fireEvent.change(within(g).getByLabelText('Formula'), { target: { value: '[Net P&L] > 0' } })
+    await wait(PREVIEW_DEBOUNCE_MS * 2 + 100)
+    expect(within(g).getByRole('group', { name: 'Add as a measure' })).toBeTruthy()
+    expect(within(g).getByRole('button', { name: 'Split by this' })).toBeTruthy()
+    // The autocomplete list open, its first option active.
+    fireEvent.change(within(g).getByLabelText('Formula'), { target: { value: '[Net P&L] > 0 And [' } })
+    const list = screen.getByRole('listbox', { name: 'Suggestions' })
+    expect(within(list).getAllByRole('option').length).toBeGreaterThan(3)
+    expect(within(g).getByLabelText('Formula')).toHaveAttribute('aria-activedescendant')
+    await wait(PREVIEW_DEBOUNCE_MS + 50)       // the box settles inside the recipe, not under axe
+    expect(screen.getByRole('listbox', { name: 'Suggestions' })).toBeTruthy()
+  })
+
+  axeSurface('widget-builder-formula-error', async () => {
+    route('GET', (u) => u.endsWith('/vocabulary'), () => answer(FORMULA_CATALOG))
+    await openBuilder()
+    fireEvent.click(screen.getByRole('button', { name: 'Add your own field' }))
+    const g = screen.getByTestId('formula-field')
+    fireEvent.change(within(g).getByLabelText('Name'), { target: { value: 'Net P&L' } })
+    fireEvent.change(within(g).getByLabelText('Formula'), { target: { value: '[nope] / 2' } })
+    expect(within(g).getByText("[nope] isn't a field here.")).toBeTruthy()
+    expect(within(g).getByText('That name is already used.')).toBeTruthy()
+    expect(within(g).getByLabelText('Formula')).toHaveAttribute('aria-invalid', 'true')
+    await wait(PREVIEW_DEBOUNCE_MS + 50)       // settled: still refused, and no preview was asked for
+    expect(within(g).getByText("[nope] isn't a field here.")).toBeTruthy()
   })
 })

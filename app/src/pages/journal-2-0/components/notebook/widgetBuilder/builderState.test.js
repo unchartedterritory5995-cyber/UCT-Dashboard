@@ -1,7 +1,7 @@
 // Wave 8 (Task 8.15): the builder's state. Undo and redo swap whole plans, the name follows the server's automatic
 // name until the member types one, and history keeps at most 100 steps.
 import { describe, it, expect } from 'vitest'
-import { reducer, initState, blankPlan, nameOf, HISTORY_CAP, changeKind } from './builderState'
+import { reducer, initState, blankPlan, nameOf, HISTORY_CAP, changeKind, PLAN_VERSION, normalizePlan } from './builderState'
 
 const start = () => initState(blankPlan())
 const run = (state, ...actions) => actions.reduce(reducer, state)
@@ -99,5 +99,80 @@ describe('builderState', () => {
     expect(changeKind(a, { ...a, filters: [{ field: 'setup', op: 'in', values: ['Flag'], overridable: false }] })).toBe('content')
     expect(changeKind(a, { ...a, measures: [{ key: 'win_rate' }] })).toBe('content')
     expect(changeKind(a, { ...a, split: { by: 'setup', then: null } })).toBe('content')
+  })
+})
+
+// Wave 10 (Task 10.16): "Your own fields" in the plan (be plan.py W10-R2, W10-R3).
+describe('builderState: your own fields', () => {
+  const add = (s, formula = { name: 'Exit eff', expr: '[r] / 2', format: 'number' }) => reducer(s, { type: 'formula/add', formula })
+
+  it('plan_version_three_only_when_used', () => {
+    expect(PLAN_VERSION).toBe(3)
+    // A plan that uses no formula writes no `formulas` key and keeps its own format: the dict it was in wave 9.
+    const plain = start().plan
+    expect(Object.hasOwn(plain, 'formulas')).toBe(false)
+    expect(plain.v).toBe(1)
+    expect(Object.hasOwn(normalizePlan({ ...blankPlan(), formulas: [] }), 'formulas')).toBe(false)
+    // The format is what the plan NEEDS (be needed_version): 2 only for a routine or tracker read.
+    expect(normalizePlan({ ...blankPlan(), v: 2 }).v).toBe(1)
+    expect(normalizePlan({ ...blankPlan(), source: 'routine_history' }).v).toBe(2)
+    // One formula: format 3 and the key.
+    const one = add(start())
+    expect(one.plan.v).toBe(3)
+    expect(one.plan.formulas).toEqual([{ id: 'f1', name: 'Exit eff', expr: '[r] / 2', format: 'number' }])
+    // Removing the last one takes the key and format 3 away again.
+    const none = reducer(one, { type: 'formula/remove', id: 'f1' })
+    expect(Object.hasOwn(none.plan, 'formulas')).toBe(false)
+    expect(none.plan.v).toBe(1)
+    expect(none.dirty).toBe(false)              // back to what was opened
+    // A stored v3 plan with no formula reads as the format it needs.
+    expect(normalizePlan({ ...blankPlan(), v: 3 }).v).toBe(1)
+  })
+
+  it('formula ids are the lowest free of f1..f5, and the cap is five', () => {
+    let s = start()
+    for (let i = 0; i < 7; i += 1) s = add(s, { name: `F${i}`, expr: '1', format: 'number' })
+    expect(s.plan.formulas.map((f) => f.id)).toEqual(['f1', 'f2', 'f3', 'f4', 'f5'])
+    s = reducer(s, { type: 'formula/remove', id: 'f2' })
+    s = add(s, { name: 'Again', expr: '2', format: 'money' })
+    expect(s.plan.formulas.map((f) => f.id)).toEqual(['f1', 'f3', 'f4', 'f5', 'f2'])
+  })
+
+  it('undo_restores_formula: each settled edit is one step, and undo brings the formula back', () => {
+    let s = add(start())
+    s = reducer(s, { type: 'formula/edit', id: 'f1', patch: { expr: '[r] / 3' } })
+    s = reducer(s, { type: 'formula/edit', id: 'f1', patch: { name: 'Third' } })
+    expect(s.past).toHaveLength(3)
+    const back = reducer(s, { type: 'undo' })
+    expect(back.plan.formulas[0]).toMatchObject({ name: 'Exit eff', expr: '[r] / 3' })
+    expect(reducer(back, { type: 'undo' }).plan.formulas[0].expr).toBe('[r] / 2')
+    // An edit to a field the plan does not have is nothing.
+    expect(reducer(s, { type: 'formula/edit', id: 'f4', patch: { name: 'x' } })).toBe(s)
+  })
+
+  it('a formula measure is kept as {formula, agg}; removing the field removes what reads it, in one step', () => {
+    let s = add(start())
+    s = reducer(s, { type: 'setMeasures', measures: ['net_pnl', { formula: 'f1', agg: 'avg' }] })
+    s = reducer(s, { type: 'addFilter', filter: { field: 'formula:f1', op: 'gt', values: [1], overridable: false } })
+    s = reducer(s, { type: 'setSplit', split: { by: 'formula:f1', then: null } })
+    expect(s.plan.measures).toEqual([{ key: 'net_pnl' }, { formula: 'f1', agg: 'avg' }])
+    expect(normalizePlan(s.plan).measures).toEqual(s.plan.measures)
+    const gone = reducer(s, { type: 'formula/remove', id: 'f1' })
+    expect(gone.plan.measures).toEqual([{ key: 'net_pnl' }])
+    expect(gone.plan.filters).toEqual([])
+    expect(gone.plan.split).toBe(null)
+    expect(gone.past).toHaveLength(s.past.length + 1)
+    expect(reducer(gone, { type: 'undo' }).plan).toEqual(s.plan)
+    // The only measure was the formula's: the sheet's fallback takes its place, never an empty widget.
+    let only = reducer(add(start()), { type: 'setMeasures', measures: [{ formula: 'f1', agg: 'sum' }] })
+    expect(reducer(only, { type: 'formula/remove', id: 'f1' })).toBe(only)
+    only = reducer(only, { type: 'formula/remove', id: 'f1', measures: ['net_pnl'] })
+    expect(only.plan.measures).toEqual([{ key: 'net_pnl' }])
+  })
+
+  it('another source drops the fields with the filters, in the same step', () => {
+    const s = reducer(add(start()), { type: 'setSource', source: 'trading_days', measures: ['net_pnl'] })
+    expect(Object.hasOwn(s.plan, 'formulas')).toBe(false)
+    expect(reducer(s, { type: 'undo' }).plan.formulas).toHaveLength(1)
   })
 })

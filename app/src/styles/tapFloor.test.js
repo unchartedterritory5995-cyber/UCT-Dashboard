@@ -348,3 +348,32 @@ describe('My tools: the Routines and Trackers rows are 56px on phone', () => {
     expect(minHeightAt('@media (max-width: 640px) { .row { min-height: 40px; } }\n.row { min-height: 56px; }', '.row', 390)).toBe(56)
   })
 })
+
+// Wave 10 (Task 10.16): "Your own fields" in the widget builder. The My tools bar: every clickable class (derived
+// from the stylesheet, as above: the autocomplete options, "Add as a measure", "Split by this", "Filter by this",
+// Remove) is floored at 390, 820 AND 1200 px, and the Name, Formula and Format fields are floored too, at 16 px type
+// or larger so a phone does not zoom into them.
+const FORMULA_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgetBuilder', 'sections', 'FormulaSection.module.css')
+
+describe('"Your own fields" floors every control at 44px at every width', () => {
+  it('the section has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(FORMULA_CSS, 'utf8')))
+    for (const c of ['.option', '.offer', '.remove']) expect(classes).toContain(c)
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(FORMULA_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('the Name, Formula and Format fields are floored too, at 16px type or larger', () => {
+    const css = readFileSync(FORMULA_CSS, 'utf8')
+    const floored = tapTargetClasses(withoutMedia(stripComments(css)))
+    for (const c of ['.input', '.box']) {
+      expect(floored, `${c} has no 44px floor`).toContain(c)
+      expect(baseFontSize(css, c)).toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+    }
+  })
+})

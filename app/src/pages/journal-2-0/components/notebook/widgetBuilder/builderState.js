@@ -13,9 +13,18 @@
 //     back to the plan.
 //   * `dirty` is "differs from what the builder opened with", so undoing every edit is clean again.
 //   * Consecutive name keystrokes are ONE history step (undo removes the word, not its last letter).
+//   * Wave 10 (Task 10.16): "Your own fields" are `plan.formulas` (`{id, name, expr, format}`, the expression stored
+//     CANONICAL, ruling W10-R2), written ONLY when the plan has one (W10-R3), and a plan that has one is format 3. A
+//     formula measure is `{formula, agg?}`; a filter or split on a row formula names it `formula:<id>`. Each settled
+//     edit of a field (the box debounces, as the preview does) is one history step.
 
 export const HISTORY_CAP = 100
-export const PLAN_VERSION = 1
+/** The newest plan format the builder writes (be plan.PLAN_VERSION, wave 10). A plan is written as the format it
+ *  NEEDS (`neededVersion`), so a widget that uses no formula is the dict it was in wave 9. */
+export const PLAN_VERSION = 3
+/** be plan.MAX_FORMULAS and plan._FORMULA_ID_RE. */
+export const FORMULA_CAP = 5
+export const FORMULA_IDS = Object.freeze(['f1', 'f2', 'f3', 'f4', 'f5'])
 export const DEFAULT_RANGE = Object.freeze({ token: 'last_90d' })
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -35,11 +44,31 @@ export function displayOf(plan) {
   }
 }
 
+/** One measure: a catalog measure `{key}` or a formula measure `{formula, agg?}` (be plan._check_measure). A bare
+ *  string is a catalog key. */
+export function toMeasure(m) {
+  if (typeof m === 'string') return { key: m }
+  if (!isRecord(m)) return null
+  if (typeof m.formula === 'string' && m.formula) {
+    return { formula: m.formula, ...(typeof m.agg === 'string' && m.agg ? { agg: m.agg } : {}) }
+  }
+  return typeof m.key === 'string' ? { key: m.key } : null
+}
+
+/** The plan's formula entries, each `{id, name, expr, format}`, in order. */
+function formulasIn(p) {
+  if (!Array.isArray(p.formulas)) return []
+  return p.formulas.filter((f) => isRecord(f) && typeof f.id === 'string').map((f) => ({
+    id: f.id, name: typeof f.name === 'string' ? f.name : '', expr: typeof f.expr === 'string' ? f.expr : '',
+    format: typeof f.format === 'string' && f.format ? f.format : 'number',
+  }))
+}
+
 /** A plan with every part present, so the sections never test for a missing key. */
 export function normalizePlan(raw) {
   const p = isRecord(raw) ? clone(raw) : {}
-  return {
-    v: Number.isInteger(p.v) ? p.v : PLAN_VERSION,
+  const formulas = formulasIn(p)
+  const plan = {
     source: typeof p.source === 'string' && p.source ? p.source : 'closed_trades',
     accounts: isRecord(p.accounts) && typeof p.accounts.id === 'string' ? { id: p.accounts.id } : 'all',
     range: isRecord(p.range) ? p.range : { ...DEFAULT_RANGE },
@@ -48,8 +77,7 @@ export function normalizePlan(raw) {
       // Wave 9: the routine or tracker a filter on a `refKind` field reads (plan.py `_check_ref`).
       ...(isRef(f.ref) ? { ref: f.ref } : {}),
     })) : [],
-    measures: Array.isArray(p.measures) ? p.measures.filter((m) => isRecord(m) && typeof m.key === 'string')
-      .map((m) => ({ key: m.key })) : [],
+    measures: Array.isArray(p.measures) ? p.measures.map(toMeasure).filter(Boolean) : [],
     split: isRecord(p.split) && typeof p.split.by === 'string'
       ? {
         by: p.split.by, then: typeof p.split.then === 'string' ? p.split.then : null,
@@ -62,12 +90,41 @@ export function normalizePlan(raw) {
     sort: isRecord(p.sort) ? { measure: p.sort.measure ?? 0, dir: p.sort.dir || 'desc', top: p.sort.top ?? 10 } : null,
     compare: isRecord(p.compare) ? p.compare : null,
     display: displayOf(p),
+    // W10-R3: written only when the plan has one.
+    ...(formulas.length ? { formulas } : {}),
   }
+  return { v: neededVersion(plan), ...plan }
+}
+
+/** The sources whose rows are routine or tracker days (be plan.TOOL_SOURCES). */
+const TOOL_SOURCE_KEYS = new Set(['routine_history', 'tracker_history'])
+
+/**
+ * The plan format a plan needs, as the server decides it (be plan.needed_version; the server writes this whatever the
+ * sender wrote, W9-R3 / W10-R3): 3 with a formula, 2 when it reads a routine or tracker source or names one (`ref`),
+ * else 1. ⚠️ The other wave 10 reasons for 3 (two sources, four display options) are the server's alone until the
+ * tasks that build them extend this.
+ */
+export function neededVersion(plan) {
+  if (Array.isArray(plan?.formulas) && plan.formulas.length) return PLAN_VERSION
+  const refs = (plan?.filters || []).some((f) => isRef(f?.ref)) || isRef(plan?.split?.ref) || isRef(plan?.split?.ref2)
+  return TOOL_SOURCE_KEYS.has(plan?.source) || refs ? 2 : 1
+}
+
+/** The plan's formulas (never missing). */
+export const formulasOfPlan = (plan) => (Array.isArray(plan?.formulas) ? plan.formulas : [])
+
+/** `plan` with `formulas` as given: the key, and format 3, only while there is one (W10-R3). */
+function withFormulas(plan, formulas) {
+  const next = { ...plan }
+  delete next.formulas
+  if (formulas.length) next.formulas = formulas
+  return { ...next, v: neededVersion(next) }
 }
 
 /** A new widget: Net P&L of closed trades in the last 90 days. */
 export function blankPlan() {
-  return normalizePlan({ v: PLAN_VERSION, source: 'closed_trades', measures: [{ key: 'net_pnl' }] })
+  return normalizePlan({ v: 1, source: 'closed_trades', measures: [{ key: 'net_pnl' }] })
 }
 
 /** True when the member has named the widget (the plan's title is theirs, not the automatic one). */
@@ -90,7 +147,9 @@ export const nameOf = (state) => (state.nameTouched ? state.plan.display.title :
 const capped = (list) => (list.length > HISTORY_CAP ? list.slice(list.length - HISTORY_CAP) : list)
 
 /** Apply a plan change as one undoable step (or none, when nothing changed). */
-function commit(state, nextPlan, { nameTouched = state.nameTouched, type, coalesce = false } = {}) {
+function commit(state, edited, { nameTouched = state.nameTouched, type, coalesce = false } = {}) {
+  // The format follows what the plan now needs (a routine source, a formula), never what it was opened as.
+  const nextPlan = { ...edited, v: neededVersion(edited) }
   const key = snapshotKey(nextPlan, nameTouched)
   if (key === snapshotKey(state.plan, state.nameTouched)) return state
   const extend = coalesce && state.lastType === type && state.past.length > 0
@@ -117,9 +176,10 @@ export function reducer(state, action) {
       // Another kind of row has other fields: its filters, split and order do not carry over. The sheet may also
       // reset the accounts and the range the new source cannot take (wave 9: a routine or tracker source), in the
       // same undo step.
-      return commit(state, withPlan(state, {
+      // Its own fields read the old fields too (Task 10.16): they go with them, in the same step (undo brings them back).
+      return commit(state, withPlan({ ...state, plan: withFormulas(state.plan, []) }, {
         source: a.source,
-        measures: Array.isArray(a.measures) ? a.measures.map((k) => ({ key: k })) : state.plan.measures,
+        measures: Array.isArray(a.measures) ? a.measures.map(toMeasure).filter(Boolean) : state.plan.measures,
         filters: [], split: null, sort: null, compare: null, view: { type: 'number', auto: true },
         ...(a.accounts !== undefined ? { accounts: isRecord(a.accounts) ? { id: a.accounts.id } : 'all' } : {}),
         ...(isRecord(a.range) ? { range: a.range } : {}),
@@ -143,7 +203,49 @@ export function reducer(state, action) {
         { type: a.type })
     }
     case 'setMeasures':
-      return commit(state, withPlan(state, { measures: a.measures.map((k) => ({ key: k })) }, a), { type: a.type })
+      return commit(state, withPlan(state, { measures: a.measures.map(toMeasure).filter(Boolean) }, a), { type: a.type })
+    case 'formula/add': {
+      // The lowest free id, f1 to f5; at the cap, nothing.
+      const list = formulasOfPlan(state.plan)
+      const used = new Set(list.map((f) => f.id))
+      const id = FORMULA_IDS.find((x) => !used.has(x))
+      if (!id || list.length >= FORMULA_CAP) return state
+      const f = isRecord(a.formula) ? a.formula : {}
+      const entry = {
+        id, name: typeof f.name === 'string' ? f.name : '', expr: typeof f.expr === 'string' ? f.expr : '',
+        format: typeof f.format === 'string' && f.format ? f.format : 'number',
+      }
+      return commit(state, withFormulas(state.plan, [...list, entry]), { type: a.type })
+    }
+    case 'formula/edit': {
+      // One settled edit of one field (its name, its box or its format): one step.
+      const list = formulasOfPlan(state.plan)
+      if (!list.some((f) => f.id === a.id) || !isRecord(a.patch)) return state
+      const patch = {}
+      for (const k of ['name', 'expr', 'format']) if (typeof a.patch[k] === 'string') patch[k] = a.patch[k]
+      return commit(state, withFormulas(state.plan, list.map((f) => (f.id === a.id ? { ...f, ...patch } : f))),
+        { type: a.type })
+    }
+    case 'formula/remove': {
+      // The field and everything that reads it (its measures, a split by it, filters on it) in ONE step; the sheet
+      // passes what the plan falls back to (`measures`, when none would be left) and the view it fits.
+      const list = formulasOfPlan(state.plan)
+      if (!list.some((f) => f.id === a.id)) return state
+      const key = `formula:${a.id}`
+      let measures = state.plan.measures.filter((m) => m.formula !== a.id)
+      if (!measures.length && Array.isArray(a.measures)) measures = a.measures.map(toMeasure).filter(Boolean)
+      if (!measures.length) return state
+      const filters = state.plan.filters.filter((f) => f.field !== key)
+      let split = state.plan.split
+      if (split && split.by === key) split = null
+      else if (split && split.then === key) {
+        split = { ...split, then: null }
+        delete split.ref2
+      }
+      const sort = split && state.plan.sort && state.plan.sort.measure < measures.length ? state.plan.sort : null
+      const base = withFormulas(state.plan, list.filter((f) => f.id !== a.id))
+      return commit(state, withPlan({ ...state, plan: base }, { measures, filters, split, sort }, a), { type: a.type })
+    }
     case 'setSplit':
       return commit(state, withPlan(state, { split: a.split }, a), { type: a.type })
     case 'setSort':

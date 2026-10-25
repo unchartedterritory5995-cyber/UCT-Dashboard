@@ -135,6 +135,11 @@ export function indexCatalog(raw) {
     maxMeasures: Number.isInteger(c.maxMeasures) ? c.maxMeasures : 3,
     maxFilters: Number.isInteger(c.maxFilters) ? c.maxFilters : 8,
     topMax: Number.isInteger(c.topMax) ? c.topMax : 40,
+    // Wave 10 (Task 10.16): the formats a member's own field can show in (Task 10.9 serves them while wave 10 is on;
+    // none: the builder offers no "Your own fields"). Each `{key, label}`.
+    formats: (Array.isArray(c.formats) ? c.formats : []).map((f) => (typeof f === 'string' ? { key: f, label: f }
+      : isRecord(f) && typeof f.key === 'string' ? { key: f.key, label: typeof f.label === 'string' && f.label ? f.label : f.key }
+        : null)).filter(Boolean),
   }
 }
 
