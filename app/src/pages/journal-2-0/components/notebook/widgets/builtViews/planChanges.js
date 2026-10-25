@@ -12,6 +12,8 @@ import { VIEW_LABELS } from '../../widgetBuilder/builderCatalog'
 
 /** Said when the two revisions differ in nothing a member can see. */
 export const NOTHING_VISIBLE = 'Nothing you can see changes in this update.'
+/** A custom title that the newer revision drops: the widget is named automatically again (review m-2). */
+export const TITLE_AUTO_AGAIN = 'Is named automatically again, not by its own title.'
 /** Said when the note keeps no copy of its own plan to compare with (a plan over 4 KB is stored by reference). */
 export const NO_COPY = "This note doesn't keep a copy of its settings to compare with."
 
@@ -71,6 +73,7 @@ export function planChanges(before, after) {
   const tBefore = dBefore.titleAuto === false ? str(dBefore.title) : ''
   const tAfter = dAfter.titleAuto === false ? str(dAfter.title) : ''
   if (tBefore !== tAfter && tAfter) out.push(`Is titled ${quoted(tAfter)}.`)
+  else if (tBefore && !tAfter) out.push(TITLE_AUTO_AGAIN)
   if (str(dBefore.subtitle) !== str(dAfter.subtitle)) out.push('Has a different subtitle.')
   if (!same(dBefore.target, dAfter.target)) {
     out.push(typeof dAfter.target === 'number' ? `Has a target of ${dAfter.target.toLocaleString('en-US')}.`

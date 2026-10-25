@@ -181,7 +181,9 @@ export default function FormulaSection({
     // `listKey` is the list's identity and size: moving the active option does not re-place it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listKey, fit])
-  // The keyboard opening (or closing) moves the visual viewport: the focused box is fitted again, after layout.
+  // The keyboard opening (or closing) RESIZES the visual viewport: the focused box is fitted again, after layout.
+  // Never on its scroll: a member panning or zooming with the keyboard up keeps where they put it (review m-5). With
+  // no visualViewport, the window's resize stands in for it.
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
     const vv = window.visualViewport || null
@@ -191,14 +193,11 @@ export default function FormulaSection({
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => { if (focused.current) fit(focused.current) })
     }
-    vv?.addEventListener('resize', again)
-    vv?.addEventListener('scroll', again)
-    window.addEventListener('resize', again)
+    const target = vv || window
+    target.addEventListener('resize', again)
     return () => {
       cancelAnimationFrame(raf)
-      vv?.removeEventListener('resize', again)
-      vv?.removeEventListener('scroll', again)
-      window.removeEventListener('resize', again)
+      target.removeEventListener('resize', again)
     }
   }, [fit])
 

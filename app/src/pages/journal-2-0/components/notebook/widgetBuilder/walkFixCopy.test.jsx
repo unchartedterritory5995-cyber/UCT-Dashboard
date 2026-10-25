@@ -12,9 +12,10 @@ import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from './WidgetBuilderSheet'
 import { __resetBuiltCaches } from '../../../lib/builtWidgets'
 import { installFetch, answer } from './__fixtures__/builderFixtures'
 import { W10_CATALOG } from './__fixtures__/w10Catalog'
-import { countNoun, unitWord } from '../widgets/builtViews/builtModel'
+import { countNoun, unitWord, KNOWN_UNITS } from '../widgets/builtViews/builtModel'
+import { normalizeParams } from '../../../../../widgets/registry'
 import HowMadeSheet, { UPDATED_VERSION } from '../widgets/builtViews/HowMadeSheet'
-import { planChanges, NOTHING_VISIBLE, NO_COPY } from '../widgets/builtViews/planChanges'
+import { planChanges, NOTHING_VISIBLE, NO_COPY, TITLE_AUTO_AGAIN } from '../widgets/builtViews/planChanges'
 
 const flush = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
@@ -112,5 +113,31 @@ describe('W10.4: "Updated version available" says what changes', () => {
       latest={{ rev: 2, summary: 'New sentence.', plan }} />)
     expect(screen.getByTestId('built-how-latest')).toHaveTextContent('New sentence.')
     expect(screen.queryByTestId('built-how-changes')).toBeNull()             // the sentences already say it
+  })
+})
+
+// ── fix round 3 (review-walk-fix.md) ──────────────────────────────────────────────────────────────────
+describe('round 3: m-2, m-3 and the publicHidden stamp', () => {
+  it('m-2: a custom title the update drops is said ("named automatically again")', () => {
+    const plan = rev('win-rate', 1).plan
+    const custom = { ...plan, display: { ...plan.display, title: 'My win rate', titleAuto: false } }
+    const auto = { ...plan, display: { ...plan.display, title: '', titleAuto: true } }
+    expect(planChanges(custom, auto)).toContain(TITLE_AUTO_AGAIN)
+    expect(planChanges(auto, auto)).toEqual([])                       // control
+  })
+
+  it('m-3: every unit the catalog serves (sources and measures) has its own noun; an unknown one is neutral', () => {
+    const served = new Set([...W10_CATALOG.sources.map((s) => s.unit),
+      ...(W10_CATALOG.measures || []).map((m) => m.unit).filter(Boolean)])
+    expect(served.size).toBeGreaterThan(3)
+    for (const u of served) expect(KNOWN_UNITS, u).toContain(u)
+    expect(countNoun('lightyears', 2)).toBe('rows')
+    expect(countNoun('lightyears', 1)).toBe('row')
+    expect(unitWord('lightyears')).toBe('rows')
+    expect(countNoun(undefined, 2)).toBe('trades')                    // an older payload's unit-less trade measure
+  })
+
+  it('the publicHidden stamp is kept when a payload is inserted into a note (normalizeParams)', () => {
+    expect(normalizeParams('builtWidget', { title: 'x', publicHidden: true })).toMatchObject({ publicHidden: true })
   })
 })

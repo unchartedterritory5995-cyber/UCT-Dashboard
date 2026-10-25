@@ -33,9 +33,15 @@ const NOUNS = {
   // Wave 10: options strategies (be sources OPTIONS, unit "strategies") and notes (Task 10.7).
   strategies: ['strategy', 'strategies'], notes: ['note', 'notes'],
 }
+/** The noun for a unit this table does not know (a source added later): neutral, never "trades" (the W10.3 walk
+ *  fix, review m-3). A measure with NO unit at all is an older payload's trade measure, and still says trades. */
+export const NEUTRAL_NOUN = Object.freeze(['row', 'rows'])
+/** Every unit this table names (railed against the units the catalog serves). */
+export const KNOWN_UNITS = Object.freeze(Object.keys(NOUNS))
 /** A count in the measure's OWN unit ("1 trade", "12 decisive trades", "3 days"). */
 export function countNoun(unit, n) {
-  const pair = typeof unit === 'string' && Object.hasOwn(NOUNS, unit) ? NOUNS[unit] : NOUNS.trades
+  const pair = unit === undefined || unit === null || unit === '' ? NOUNS.trades
+    : typeof unit === 'string' && Object.hasOwn(NOUNS, unit) ? NOUNS[unit] : NEUTRAL_NOUN
   return n === 1 ? pair[0] : pair[1]
 }
 

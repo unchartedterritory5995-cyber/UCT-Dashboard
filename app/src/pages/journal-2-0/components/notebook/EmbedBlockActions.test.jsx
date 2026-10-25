@@ -109,9 +109,28 @@ describe('where it shows (the stylesheet is the authority; jsdom applies none)',
   // W10-R75: the touch block exactly. A bare '@media (max-width: 1024px)' also matched the earlier
   // '@media (max-width: 1024px), (hover: none) {' block (O4, 83752cd46e) and read the wrong rules.
   const TOUCH_BLOCK = '@media (max-width: 1024px) {'
+  /** The stylesheet with every `@media ... { ... }` block removed (balanced braces). */
+  const withoutMedia = (text) => {
+    let out = ''
+    let i = 0
+    while (i < text.length) {
+      const at = text.indexOf('@media', i)
+      if (at < 0) { out += text.slice(i); break }
+      out += text.slice(i, at)
+      let j = text.indexOf('{', at)
+      let depth = 0
+      for (; j < text.length; j += 1) {
+        if (text[j] === '{') depth += 1
+        else if (text[j] === '}') { depth -= 1; if (depth === 0) break }
+      }
+      i = j + 1
+    }
+    return out
+  }
 
   it('hidden by default, so a desktop never sees it', () => {
-    const base = css.slice(0, css.indexOf(TOUCH_BLOCK))
+    // Review m-6: the BASE rules only, with EVERY media block cut out, so a rule inside one cannot satisfy it.
+    const base = withoutMedia(css)
     expect(base).toMatch(/\.blockActions\s*\{[^}]*display:\s*none/)
   })
 

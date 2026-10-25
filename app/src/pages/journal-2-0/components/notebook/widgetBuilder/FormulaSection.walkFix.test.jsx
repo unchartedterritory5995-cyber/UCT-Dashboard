@@ -188,3 +188,37 @@ describe('"Give the field a name." waits for the member (W10.8)', () => {
     expect(within(g).getByText(S_FORMULA_NAME)).toBeInTheDocument()
   })
 })
+
+describe('round 3, m-5: a member panning with the keyboard up keeps where they put it', () => {
+  it('a visual viewport SCROLL never pulls the box back; a RESIZE (the keyboard) fits it again', async () => {
+    const listeners = {}
+    vi.stubGlobal('visualViewport', {
+      height: 400, offsetTop: 0,
+      addEventListener: (type, fn) => { (listeners[type] ||= []).push(fn) },
+      removeEventListener: (type, fn) => { listeners[type] = (listeners[type] || []).filter((f) => f !== fn) },
+    })
+    await openBuilder()
+    const g = await addBlankField()
+    const box = boxOf(g)
+    const body = box.closest('[data-testid="widget-builder"]').parentElement
+    body.style.overflowY = 'auto'
+    let top = 0
+    Object.defineProperty(body, 'scrollTop', { configurable: true, get: () => top, set: (v) => { top = v } })
+    body.getBoundingClientRect = () => ({ top: 60, bottom: 395, left: 0, right: 390, width: 390, height: 335 })
+    let y = 200                                                     // the box's top before any scroll
+    box.getBoundingClientRect = () => ({ top: y - top, bottom: y + 60 - top, left: 16, right: 374, width: 358, height: 60 })
+    act(() => { box.focus() })
+    expect(top).toBe(0)                                              // in view: nothing moves
+    // The member pans: the box is now out of the band. Every scroll listener runs (the sheet's own keyboard
+    // reading listens too); none of them moves the box.
+    y = 600
+    for (const fn of listeners.scroll || []) fn()
+    await act(async () => { await new Promise((r) => requestAnimationFrame(r)) })
+    expect(top).toBe(0)
+    // The keyboard resizes the visual viewport: the box is fitted again, after a frame.
+    expect(listeners.resize?.length).toBeGreaterThan(0)
+    for (const fn of listeners.resize) fn()
+    await act(async () => { await new Promise((r) => requestAnimationFrame(r)) })
+    expect(top).toBe(600 + 60 + REVEAL_MARGIN - 395)
+  })
+})
