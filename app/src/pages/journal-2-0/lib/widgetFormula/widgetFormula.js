@@ -250,6 +250,11 @@ const trimSpaceTab = (s) => stripCps(Array.from(s), SPACE_TAB).join('')
  * Ruling W10-R30: inside the text literal opened at `start`, the refused character at `j` is
  * allowed when it is part of an ordinary emoji. Only code points INSIDE the text count as
  * neighbours (the opening quote does not). `s` is a code point array.
+ *   * U+FE0E / U+FE0F after a visible character that is not a space;
+ *   * U+200D when the code point after it is an emoji and the one before it is an emoji, or is
+ *     U+FE0E/U+FE0F whose own previous code point is an emoji (ruling W10-R48: heart on fire,
+ *     the rainbow flag, eye in speech bubble). A selector after a non-emoji licenses no joiner;
+ *   * U+20E3 after 0-9, # or *, optionally with U+FE0E/U+FE0F between.
  */
 function emojiPartOk(s, start, j) {
   const c = s[j]
@@ -259,6 +264,8 @@ function emojiPartOk(s, start, j) {
   }
   if (c === ZWJ) {
     const nxt = j + 1 < s.length ? s[j + 1] : null
+    // W10-R48: an emoji's selector before the joiner; the emoji it presents is the neighbour.
+    if (prev !== null && PRESENTATION_SELECTORS.has(prev)) prev = j - 2 > start ? s[j - 2] : null
     return prev !== null && nxt !== null && emoji(prev) && emoji(nxt)
   }
   if (c === KEYCAP) {
@@ -266,6 +273,26 @@ function emojiPartOk(s, start, j) {
     return prev !== null && KEYCAP_BASES.has(prev)
   }
   return false
+}
+
+/**
+ * A formula NAME's characters, exactly as the server screens them (`plan._name_chars_ok`, ruling
+ * W10-R47): nothing the member cannot see, EXCEPT the parts of an ordinary emoji, judged by the
+ * text-literal rule above (`emojiPartOk`, the ONE emoji helper) with EVERY code point of the name a
+ * neighbour (`start = -1`; a text literal excludes its quotes). Skin tones are ordinary code points.
+ * Still refused: other format characters, zero-width spaces, a joiner outside an emoji, bidi
+ * controls, NBSP and the other space-like characters, tab and the line ends, a lone surrogate.
+ * The caller trims the name first (the server's `str.strip`). Never throws.
+ */
+export function formulaNameCharsOk(name) {
+  if (typeof name !== 'string') return false
+  const s = Array.from(name)
+  for (let j = 0; j < s.length; j += 1) {
+    const ch = s[j]
+    if (!invisible(ch)) continue
+    if (!(forbidden(ch) && emojiPartOk(s, -1, j))) return false
+  }
+  return true
 }
 
 const code = (c) => `U+${cp(c).toString(16).toUpperCase().padStart(4, '0')}`
