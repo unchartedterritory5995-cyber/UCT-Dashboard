@@ -14,6 +14,11 @@
  * store whose writes fail, nothing durable holds the words. Their only other home is the localStorage draft, which
  * another tab on the same note overwrites and clears. So the dead page keeps the OLD retry there: a conflicted copy
  * beats a loss. Both branches are railed below.
+ *
+ * ⛔⛔ W8-R58/R59 (round 4): the decision reads the STORE at the moment of the catch, never the last render. A
+ * durable write refused AT the unmount flush never re-renders a dead page, so a render-time read saw the pre-flush
+ * status and dropped the retry while the store held older words (reproduced, then railed below). The retry is
+ * dropped ONLY when the stored record is dirty and holds exactly what the save sent; every doubt keeps it.
  */
 import { StrictMode } from 'react'
 import { render, screen, act, fireEvent } from '@testing-library/react'
@@ -52,9 +57,12 @@ let warn
 let fresh // what GET /api/j2/notes/n1 answers during a reconcile
 let fetchLog
 
+// ⛔ `serialize: true` models IndexedDB's queuing: a transaction created after a readwrite on the same store runs
+// after it. The dead page's store read depends on exactly that to see the durable flush's own write; without it the
+// fake would answer the read out of order and the rails would be testing a store no browser has.
 function installStore(opts = {}) {
   __resetNotebookConnections()
-  factory = createFakeIndexedDbFactory(opts)
+  factory = createFakeIndexedDbFactory({ serialize: true, ...opts })
   globalThis.indexedDB = factory
 }
 
@@ -95,6 +103,23 @@ async function renderEditor({ strict = false } = {}) {
 const type = (value) => fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value } })
 const advance = (ms) => act(async () => { await vi.advanceTimersByTimeAsync(ms); await settleIdb(6) })
 const store = (name) => factory.databases.get(ACCOUNT_DB)?.dump(name) ?? []
+const accountDb = () => factory.databases.get(ACCOUNT_DB)
+/** Make the notes store misbehave from now on: `kind` is 'refuse-writes', 'throw-reads' or 'hang-reads'. */
+function sabotageNotes(kind) {
+  const db = accountDb()
+  const realTx = db.transaction.bind(db)
+  db.transaction = (names, mode = 'readonly') => {
+    const list = Array.isArray(names) ? names : [names]
+    if (list.includes('notes')) {
+      if (kind === 'refuse-writes' && mode === 'readwrite') throw new Error('fake: notes refused the write (armed at flush)')
+      if (kind === 'throw-reads' && mode === 'readonly') throw new Error('fake: notes read failed')
+      if (kind === 'hang-reads' && mode === 'readonly') {
+        return { objectStore: () => ({ get: () => ({}) }) } // the request never answers
+      }
+    }
+    return realTx(names, mode)
+  }
+}
 const retryWarnings = () => warn.mock.calls.filter(([m]) => /autosave failed \(retry/.test(String(m)))
 const networkBack = () => {
   updateMock.mockReset()
@@ -102,12 +127,14 @@ const networkBack = () => {
 }
 
 /** Type, let the durable window close, unmount (the flush goes out and fails offline), then bring the network back. */
-async function typeLeaveOffline(words) {
+async function typeLeaveOffline(words, { seed = null, sabotage = null } = {}) {
   const { unmount } = await renderEditor()
   updateMock.mockRejectedValue(offline())
   type(words)
   await advance(300) // the durable window closes; the 800 ms server debounce is still pending
   expect(updateMock).not.toHaveBeenCalled()
+  if (seed) accountDb().seed('notes', seed(store('notes')[0]))
+  if (sabotage) sabotageNotes(sabotage)
   unmount() // "Save on unmount if dirty": the flush goes out now and fails after the cleanup has run
   await advance(50)
   expect(updateMock).toHaveBeenCalledTimes(1) // the flush ran, once
@@ -202,3 +229,70 @@ describe('⛔ W8-R56 I1, nothing durable holds the words -- the dead page KEEPS 
     expect(updateMock.mock.calls[0][0].title).toBe('typed while the store refuses writes')
   })
 })
+
+describe('⛔ W8-R59 -- the dead page reads the STORE, live, and only proof drops the retry', () => {
+  it('the durable write is REFUSED at the unmount flush: the retry is kept and the words reach the server', async () => {
+    const { unmount } = await renderEditor()
+    updateMock.mockRejectedValue(offline())
+    type('first words')
+    await advance(300) // committed: the last render saw a healthy writer
+    expect(store('notes')[0].title).toBe('first words')
+    type('second words, never on disk')
+    sabotageNotes('refuse-writes') // armed at flush time: the unmount flush's durable write is refused
+    unmount()
+    await advance(50)
+    expect(store('notes').map((r) => r.title)).toEqual(['first words']) // control: the store does NOT hold them
+    networkBack()
+    await advance(1_100)
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toContain('second words, never on disk')
+  })
+
+  it('the store read THROWS: doubt keeps the retry', async () => {
+    await typeLeaveOffline('typed, then the store read fails', { sabotage: 'throw-reads' })
+    await advance(1_100)
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toContain('typed, then the store read fails')
+  })
+
+  it('the store read never answers: the bounded read TIMES OUT, and doubt keeps the retry', async () => {
+    await typeLeaveOffline('typed, then the store hangs', { sabotage: 'hang-reads' })
+    await advance(2_000 + 1_100) // the read's bound, then the 1 s backoff
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toContain('typed, then the store hangs')
+  })
+
+  it('the record holds NEWER content (another write landed): the retry is kept, and the newer words stay stored', async () => {
+    await typeLeaveOffline('my older words', {
+      seed: (rec) => ({ ...rec, title: 'newer words from tab B', dirty: 1 }),
+    })
+    await advance(1_100)
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toContain('my older words') // kept: the dead page sends its own
+    expect(store('notes')[0].title).toBe('newer words from tab B') // and nothing it did touched the newer record
+  })
+
+  it('the layer is switched OFF mid-session over an exact dirty record: no drain will send it, so the retry is kept', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    const onBack = vi.fn()
+    const tree = () => <MemoryRouter><NoteEditorPage noteId="n1" onBack={onBack} /></MemoryRouter>
+    const view = render(tree())
+    await screen.findByPlaceholderText('Title')
+    await act(async () => { await settleIdb(4) })
+    updateMock.mockRejectedValue(offline())
+    type('typed, then the layer went off')
+    await advance(300) // the record now holds exactly these words, dirty
+    expect(store('notes')[0]).toMatchObject({ title: 'typed, then the layer went off', dirty: 1 })
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0') // the member switches the layer off: nothing will drain that record
+    view.rerender(tree()) // a fresh element, so the page renders and reads the switch (the same one would bail out)
+    await act(async () => { await settleIdb(4) })
+    view.unmount()
+    await advance(50)
+    networkBack()
+    await advance(1_100)
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toContain('typed, then the layer went off')
+  })
+
+  it('the record holds exactly these words but is CLEAN (nothing owed): doubt keeps the retry', async () => {
+    await typeLeaveOffline('typed, record says synced', { seed: (rec) => ({ ...rec, dirty: 0 }) })
+    await advance(1_100)
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toContain('typed, record says synced')
+  })
+})
+

@@ -45,10 +45,9 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import {
   useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
-  recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq,
+  recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq, connectNotebookDb,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
-import { FAILED as DURABLE_FAILED } from '../../lib/offline/durableWriter'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
@@ -88,7 +87,7 @@ import { fallbackNodes } from '../../lib/tagTree'
 import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
 import UnsentTrashDialog from './UnsentTrashDialog'
 import { noteHasUnsentWork } from '../../lib/offline/noteHasUnsentWork'
-import { openNotebookDb } from '../../lib/offline/notebookDb'
+import { openNotebookDb, getNote as getDurableRecord } from '../../lib/offline/notebookDb'
 import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
 import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
 import { holdsUnsentWork } from '../../lib/noteBatch'
@@ -296,6 +295,9 @@ function parseYouTubeId(url) {
 }
 
 const AUTOSAVE_MS = 800
+// W8-R59: how long a dead page waits on the durable store before treating the read as doubt (and keeping its retry).
+const STORE_READ_TIMEOUT_MS = 2000
+const STORE_READ_TIMED_OUT = Symbol('store read timed out')
 // Backoff schedule for transient (5xx / network) save failures.
 // After the last entry, retries continue at the cap forever (or until the
 // user edits / closes the tab). 4xx errors bypass retry entirely.
@@ -1308,13 +1310,32 @@ export default function NoteEditorPage({
   // has since reopened. The durable working copy and the outbox hold the unsent words (the record stays dirty until a
   // save lands), so the next mount or the drain sends them.
   const mountedRef = useRef(true)
-  // ⛔ W8-R56 I1: ...but ONLY when the durable copy really holds them. `supported` is the offline layer's own
-  // predicate (useDurableNote: switched on, storage available, an account and a note); a writer whose last commit
-  // FAILED holds nothing either. Off either way, the dead page's retry is the only thing still carrying the words
-  // (the localStorage draft can be overwritten by another tab and is cleared by its first landed save), so it keeps
-  // the old behaviour: a conflicted copy beats a loss. Every timer arm in the save chain asks THIS question.
-  const leftToTheDurableCopy = () => !mountedRef.current
-    && durableRef.current?.supported === true && durableRef.current?.status !== DURABLE_FAILED
+  // ⛔⛔ W8-R59 (rulings W8-R58/R59): ...but ONLY when the durable copy PROVABLY holds them, read from the STORE at
+  // the moment of the decision -- never from the last render. ⚰️ Round 2 read `durable.status` (React state): a
+  // durable write refused AT the unmount flush never re-renders a dead page, so the gate saw the pre-flush status,
+  // dropped the retry, and the words lived only in the localStorage draft another tab overwrites and clears.
+  // Drop the retry ONLY if the stored record is dirty AND holds exactly what this save sent (title, subtitle and the
+  // serialised body). Anything else is doubt -- the layer off, no account, a read error, a timeout, a missing or clean
+  // record, different content -- and doubt keeps the old retry: a conflicted copy beats a loss.
+  // The read is a readonly transaction on the notes store, so IndexedDB queues it BEHIND any readwrite already
+  // created there (the durable flush's own write). One created before ours finishes first; one that has not yet been
+  // created reads as "different content" and keeps the retry. Both directions are safe.
+  const deadPageWordsAreStored = async (sent) => {
+    if (mountedRef.current || durableRef.current?.supported !== true || !user?.id) return false
+    let timer = null
+    try {
+      const read = (async () => getDurableRecord(await connectNotebookDb(user.id), noteId))()
+      const timedOut = new Promise((resolve) => { timer = setTimeout(() => resolve(STORE_READ_TIMED_OUT), STORE_READ_TIMEOUT_MS) })
+      const rec = await Promise.race([read, timedOut])
+      if (!rec || rec === STORE_READ_TIMED_OUT || !rec.dirty) return false
+      return (rec.title || '') === (sent.title || '') && (rec.subtitle || '') === (sent.subtitle || '')
+        && JSON.stringify(rec.bodyJson ?? null) === JSON.stringify(sent.bodyJson ?? null)
+    } catch {
+      return false
+    } finally {
+      if (timer) clearTimeout(timer) // a decision schedules nothing: the bound is cleared either way
+    }
+  }
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
   const attachFileInputRef = useRef(null)
@@ -2038,8 +2059,6 @@ export default function NoteEditorPage({
     }
     retryAttemptsRef.current = 0
     conflictRetriedRef.current = false // fresh edit = fresh conflict budget
-    // W8-R56 M2: a dead page arms no debounce the cleanup can no longer clear (unreachable today; same question as below).
-    if (leftToTheDurableCopy()) return
     saveTimerRef.current = setTimeout(() => commitSaveRef.current(), AUTOSAVE_MS)
   }
 
@@ -4052,7 +4071,11 @@ export default function NoteEditorPage({
           // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
           // after one would push the local document over the server version
           // the fork exists to protect — the exact overwrite this gate closes.
-          if (outcome && !leftToTheDurableCopy()) retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
+          // ⛔ A mounted page decides synchronously (no await), exactly as before: nothing may slip between a live
+          // page's failure and its retry. Only a dead page waits on the store.
+          if (outcome && (mountedRef.current || !(await deadPageWordsAreStored({ title, subtitle, bodyJson })))) {
+            retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
+          }
           return
         }
       }
@@ -4123,8 +4146,8 @@ export default function NoteEditorPage({
       }
       const attempt = retryAttemptsRef.current
       if (attempt === 0) reportSaveFailed(e, true)
-      // W8-R56: an unmounted page whose words the durable copy holds schedules nothing (see `leftToTheDurableCopy`).
-      if (leftToTheDurableCopy()) return
+      // W8-R59: an unmounted page whose words the STORE provably holds schedules nothing (`deadPageWordsAreStored`).
+      if (!mountedRef.current && await deadPageWordsAreStored({ title, subtitle, bodyJson })) return
       const delay = RETRY_BACKOFFS_MS[Math.min(attempt, RETRY_BACKOFFS_MS.length - 1)]
       retryAttemptsRef.current = attempt + 1
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
