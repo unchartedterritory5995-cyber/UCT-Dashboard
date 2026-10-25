@@ -16,6 +16,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -240,31 +241,139 @@ def test_add_commit_rail_sees_an_edit_after_add():
     assert add_commit_violations(entry, lambda f: None, lambda f: edited) == []      # not committed
 
 
-def test_revisions_match_their_add_commit():
-    ls = _git("ls-files", "--", SHELF_REL)
-    if ls.returncode != 0:
-        pytest.fail(f"git ls-files failed ({ls.stderr.strip()}); run `{FETCH}`")
-    tracked = {Path(p).name for p in ls.stdout.splitlines() if p.strip()}
-    assert len(tracked) >= 24, "the committed shelf is missing (non-vacuity: 23 revisions + manifest)"
+UNSHALLOW = "git fetch --unshallow"
 
-    def added(name: str):
+
+def _git_at(repo: Path, *args: str) -> subprocess.CompletedProcess:
+    exe = shutil.which("git")
+    if exe is None:
+        pytest.fail("git is not on PATH, so committed revisions cannot be checked; install git")
+    return subprocess.run([exe, "-C", str(repo), *args], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
+
+
+def _ok(r: subprocess.CompletedProcess, what: str) -> str:
+    if r.returncode != 0:
+        pytest.fail(f"git failed: {what} ({r.stderr.strip()})")
+    return r.stdout
+
+
+def _shallow_boundaries(repo: Path) -> tuple[bool, set[str]]:
+    """`(is_shallow, the shallow file's commits)` (ruling W10-R40: shallow alone is not a failure)."""
+    shallow = _ok(_git_at(repo, "rev-parse", "--is-shallow-repository"), "is-shallow").strip() == "true"
+    path = Path(_ok(_git_at(repo, "rev-parse", "--git-path", "shallow"), "git-path shallow").strip())
+    if not path.is_absolute():
+        path = repo / path
+    shas = set(path.read_text(encoding="utf-8").split()) if path.is_file() else set()
+    return shallow, shas
+
+
+def add_commit_revisions(repo: Path, rel_dir: str, names: list[str]) -> tuple[dict, list[str]]:
+    """For each committed file `rel_dir/<name>`: the revision its ADD commit stored, following
+    renames (`--follow`, read at the path it had then). Returns `({name: obj}, problems)`; a file
+    whose add commit is a shallow boundary is a problem (its real add commit is not here), never a
+    silent pass. Uncommitted files are left out. Git errors fail the test."""
+    tracked = {Path(p).name for p in
+               _ok(_git_at(repo, "ls-files", "--", rel_dir), "ls-files").splitlines() if p.strip()}
+    shallow, boundaries = _shallow_boundaries(repo)
+    out, problems = {}, []
+    for name in names:
         if name not in tracked:
-            return None
-        rel = f"{SHELF_REL}/{name}"
-        log = _git("log", "--diff-filter=A", "--format=%H", "-1", "--", rel)
-        sha = log.stdout.strip()
-        if log.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", sha):
-            pytest.fail(f"git could not find the commit that added {rel} ({log.stderr.strip()})")
-        text = _show(sha, rel)
-        if text is None:
-            pytest.fail(f"git could not read {sha}:{rel}")
-        return json.loads(text)
+            continue
+        rel = f"{rel_dir}/{name}"
+        lines = [l for l in _ok(_git_at(repo, "log", "--follow", "--diff-filter=A", "--format=%H",
+                                        "--name-only", "-1", "--", rel), f"log {rel}").splitlines()
+                 if l.strip()]
+        if len(lines) < 2 or not re.fullmatch(r"[0-9a-f]{40}", lines[0]):
+            pytest.fail(f"git could not find the commit that added {rel}: {lines!r}")
+        sha, then = lines[0], lines[-1]
+        if sha in boundaries or (shallow and not _ok(
+                _git_at(repo, "rev-list", "--parents", "-n", "1", sha), "parents").split()[1:]):
+            problems.append(f"{name}: its add commit {sha[:10]} is a shallow boundary, so the "
+                            f"real add commit is not here; run `{UNSHALLOW}`")
+            continue
+        out[name] = json.loads(_ok(_git_at(repo, "show", f"{sha}:{then}"), f"show {sha}:{then}"))
+    return out, problems
+
+
+def test_revisions_match_their_add_commit():
+    entries = _manifest()["files"]
+    first, problems = add_commit_revisions(REPO, SHELF_REL, [e["file"] for e in entries] + ["MANIFEST.json"])
+    assert problems == [], problems
+    assert len(first) >= 23, "the committed shelf is missing (non-vacuity: 23 revisions)"
 
     def local(name: str):
         return json.loads((shelf.SHELF_DIR / name).read_text(encoding="utf-8"))
 
-    bad = add_commit_violations(_manifest()["files"], added, local)
+    bad = add_commit_violations(entries, first.get, local)
     assert bad == [], bad
+
+
+def _repo(path: Path) -> Path:
+    path.mkdir()
+    _ok(_git_at(path, "init", "-q", "-b", "main"), "init")
+    for k, v in (("user.name", "t"), ("user.email", "t@example.test"), ("core.autocrlf", "false")):
+        _ok(_git_at(path, "config", k, v), "config")
+    return path
+
+
+def _commit(repo: Path, msg: str) -> None:
+    _ok(_git_at(repo, "add", "-A"), "add")
+    _ok(_git_at(repo, "commit", "-q", "-m", msg), "commit")
+
+
+def test_add_commit_rail_follows_renames_and_refuses_shallow_boundaries(tmp_path, monkeypatch):
+    rev = lambda name: {"id": "shelf:x", "rev": 1, "name": name, "description": "d",
+                        "keywords": [], "plan": {}}
+    src = _repo(tmp_path / "src")
+    for i in range(2):                                             # history older than the add
+        (src / f"base{i}.txt").write_text(str(i), encoding="utf-8")
+        _commit(src, f"base {i}")
+    d = src / "shelf"
+    d.mkdir()
+    (d / "old.r1.json").write_text(json.dumps(rev("first")), encoding="utf-8")
+    _commit(src, "add")
+    (d / "old.r1.json").write_text(json.dumps(rev("edited")), encoding="utf-8")
+    _commit(src, "edit before the rename")
+    (d / "old.r1.json").rename(d / "x.r1.json")
+    _commit(src, "rename")
+    (src / "other.txt").write_text("x", encoding="utf-8")
+    _commit(src, "unrelated")
+    entry = [{"file": "x.r1.json", "sha256": shelf.canonical_hash(rev("edited"))}]
+    local = lambda f: json.loads((d / f).read_text(encoding="utf-8"))
+
+    # the rename is followed back to the add commit, so the pre-rename edit is caught
+    first, problems = add_commit_revisions(src, "shelf", ["x.r1.json", "uncommitted.r1.json"])
+    assert problems == [] and first["x.r1.json"]["name"] == "first"
+    assert add_commit_violations(entry, first.get, local) == ["x.r1.json: differs from its add commit"]
+    # control: a file added once and never edited is clean in the same repo
+    clean = [{"file": "x.r1.json", "sha256": shelf.canonical_hash(rev("first"))}]
+    assert add_commit_violations(clean, first.get, lambda f: rev("first")) == []
+
+    # a shallow clone whose boundary is the commit that appears to add the file: red, never a pass
+    shallow = tmp_path / "shallow"
+    _ok(_git_at(tmp_path, "clone", "-q", "--depth", "1", (src.as_uri()), str(shallow)), "clone")
+    _, problems = add_commit_revisions(shallow, "shelf", ["x.r1.json"])
+    assert len(problems) == 1 and UNSHALLOW in problems[0], problems
+    # each leg of the boundary test on its own: the shallow file's list, then "shallow + no parents"
+    real = _shallow_boundaries(shallow)
+    assert real[0] is True and real[1]
+    for only in ((False, real[1]), (True, set())):
+        monkeypatch.setattr(sys.modules[__name__], "_shallow_boundaries", lambda repo, o=only: o)
+        _, problems = add_commit_revisions(shallow, "shelf", ["x.r1.json"])
+        assert len(problems) == 1 and UNSHALLOW in problems[0], (only, problems)
+    monkeypatch.undo()
+    # ... and so is one cut at the edit (the add commit is out of reach) ...
+    cut = tmp_path / "cut"
+    _ok(_git_at(tmp_path, "clone", "-q", "--depth", "3", (src.as_uri()), str(cut)), "clone")
+    _, problems = add_commit_revisions(cut, "shelf", ["x.r1.json"])
+    assert len(problems) == 1 and UNSHALLOW in problems[0], problems
+    # ... while a shallow clone whose boundary is OLDER than the add commit is fine (W10-R40)
+    deep = tmp_path / "deep"
+    _ok(_git_at(tmp_path, "clone", "-q", "--depth", "5", (src.as_uri()), str(deep)), "clone")
+    assert _shallow_boundaries(deep)[0] is True
+    first, problems = add_commit_revisions(deep, "shelf", ["x.r1.json"])
+    assert problems == [] and first["x.r1.json"]["name"] == "first"
 
 
 # -- revision 1 is the wave 8 shelf, unchanged --------------------------------------------------------
