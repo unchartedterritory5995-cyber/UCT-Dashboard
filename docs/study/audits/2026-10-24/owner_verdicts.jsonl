@@ -99,3 +99,19 @@
 {"pass": 3, "setup": "Launchpad", "sym": "HON", "asof": "2026-01-08", "verdict": "keep", "owner_words": "I am good with that. Some of these will crossover with BaseBreakouts btw and that is fine", "grade": "good", "nuance": ["RULE: a launchpad may also qualify as a Base Breakout; that overlap is fine."]}
 {"pass": 3, "setup": "Launchpad", "sym": "Z", "asof": "2025-07-01", "verdict": "cut", "owner_words": "Pass just do not like the look idk"}
 {"pass": 3, "setup": "Launchpad", "sym": "CELH", "asof": "2023-05-01", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 4, "setup": "Launchpad", "sym": "ODFL", "asof": "2023-06-27", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 4, "setup": "Launchpad", "sym": "ASND", "asof": "2023-11-29", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 4, "setup": "Launchpad", "sym": "VEEV", "asof": "2024-08-21", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 4, "setup": "Launchpad", "sym": "MGNI", "asof": "2024-11-11", "verdict": "cut", "owner_words": "No it is more of a breakout"}
+{"pass": 4, "setup": "Launchpad", "sym": "WSM", "asof": "2026-01-02", "verdict": "cut", "owner_words": "Nah, I want it above", "nuance": ["RULE: the trigger must put price ABOVE ALL the moving averages, the 8/21/50 bundle AND the 200-day. A pop that leaves price inside the chunk or still under the 200 is not the launch (WSM cleared the 8/21/50 but not the 200; ADSK closed inside the chunk)."]}
+{"pass": 4, "setup": "Launchpad", "sym": "ADSK", "asof": "2023-05-31", "verdict": "cut", "owner_words": "I want it above the MAs", "nuance": ["RULE: the trigger must put price ABOVE ALL the moving averages, the 8/21/50 bundle AND the 200-day. A pop that leaves price inside the chunk or still under the 200 is not the launch (WSM cleared the 8/21/50 but not the 200; ADSK closed inside the chunk)."]}
+{"pass": 4, "setup": "Launchpad", "sym": "KMX", "asof": "2024-11-21", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 4, "setup": "Launchpad", "sym": "PWR", "asof": "2022-03-08", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 4, "setup": "Launchpad", "sym": "TOL", "asof": "2026-06-09", "verdict": "keep", "owner_words": "Keep (good)", "grade": "good"}
+{"pass": 4, "setup": "Launchpad", "sym": "MGM", "asof": "2023-07-10", "verdict": "keep", "owner_words": "Eh C-", "grade": "okay", "nuance": ["C- kept as okay, consistent with SMH."]}
+{"pass": 4, "setup": "Launchpad", "sym": "TTEK", "asof": "2023-06-01", "verdict": "cut", "owner_words": "Cut"}
+{"pass": 4, "setup": "Launchpad", "sym": "ALLE", "asof": "2023-12-08", "verdict": "keep", "owner_words": "Good, why do you keep saying 200 overhead", "grade": "good"}
+{"pass": 4, "setup": "Launchpad", "sym": "SCCO", "asof": "2023-07-13", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 4, "setup": "Launchpad", "sym": "AME", "asof": "2022-10-28", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 4, "setup": "Launchpad", "sym": "LI", "asof": "2025-02-06", "verdict": "keep", "owner_words": "Keep (great)", "grade": "great"}
+{"pass": 4, "setup": "Launchpad", "sym": "SW", "asof": "2026-06-11", "verdict": "cut", "owner_words": "Cut"}
