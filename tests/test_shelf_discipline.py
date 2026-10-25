@@ -351,7 +351,7 @@ def test_line_exact_and_never_zero_of(S):
             trade(c, A, day=d.isoformat(), pnl=-50)
         c.commit()
     got = S.my_revenge_clean_days(A, {}, NOW)
-    assert got["lines"] == ["None of the last 30 trading days could be checked; "
+    assert got["lines"] == ["None of the days you traded in the last 30 trading days could be checked; "
                             "your trades have dates only."]
     no_zero_strings(got)
 
@@ -1206,3 +1206,53 @@ def test_revenge_days_hold_all_four_states(S):
     assert (got["clean"], got["checked"], got["notChecked"], got["noTrades"]) == (1, 2, 1, 27)
     assert got["lines"] == ["1 of 2 clean (1 day with dates only was not checked)"]
     _check_days(S, got)
+
+
+def test_revenge_one_dates_only_day_says_only_the_days_traded(S):
+    """W10-R57: one dates-only day and 29 days with no trades: the sentence speaks of the days traded only."""
+    window = [d.isoformat() for d in S.finished_sessions(NOW)]
+    with _conn() as c:
+        trade(c, A, day=window[-1], pnl=-50)
+        c.commit()
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    assert (got["noTrades"], got["notChecked"], got["checked"]) == (29, 1, 0)
+    assert got["lines"] == ["None of the days you traded in the last 30 trading days could be checked; "
+                            "your trades have dates only."]
+    assert got["lines"] == [S.S_REVENGE_NONE_CHECKED]
+    _check_days(S, got)
+
+
+def test_revenge_dates_only_day_is_said_beside_a_crowded_day(S, monkeypatch):
+    """N-3: checked == 0 with a crowded day present still says the dates-only day, never the
+    "none of the days you traded" sentence (not every traded day is dates-only)."""
+    window = [d.isoformat() for d in S.finished_sessions(NOW)]
+    with _conn() as c:
+        trade(c, A, day=window[-1], pnl=-50)                                       # dates only
+        trade(c, A, day=window[-2], pnl=-50, entry="10:00", exit_="10:10")
+        trade(c, A, day=window[-2], pnl=20, entry="10:30", exit_="10:40")
+        c.commit()
+    monkeypatch.setattr(S, "MAX_BUCKET", 1)
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    assert (got["checked"], got["notChecked"], got["tooMany"]) == (0, 1, 1)
+    assert got["lines"] == ["1 day with dates only was not checked.",
+                            "1 day was not checked: too many trades in one symbol to check."]
+    _check_days(S, got)
+
+
+def test_revenge_capped_list_says_how_many_are_not_shown(S, monkeypatch):
+    """N-2: the re-entries list is capped; the server says how many it left out."""
+    window = [d.isoformat() for d in S.finished_sessions(NOW)]
+    with _conn() as c:
+        for k in window[-3:]:
+            trade(c, A, day=k, pnl=-50, entry="10:00", exit_="10:10")
+            trade(c, A, day=k, pnl=20, entry="10:30", exit_="10:40")
+        c.commit()
+    monkeypatch.setattr(S, "ROW_CAP", 1)
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    assert len(got["flagged"]) == 1 and got["truncated"] == 2
+    assert got["lines"][-1] == "2 more re-entries not shown."
+    monkeypatch.setattr(S, "ROW_CAP", 2)
+    assert S.my_revenge_clean_days(A, {}, NOW)["lines"][-1] == "1 more re-entry not shown."
+    monkeypatch.setattr(S, "ROW_CAP", 40)
+    full = S.my_revenge_clean_days(A, {}, NOW)
+    assert "truncated" not in full and not any("not shown" in ln for ln in full["lines"])

@@ -138,8 +138,11 @@ DAY_NO_TRADES = "no_trades"
 DAY_NOT_CHECKED = "not_checked"
 DAY_STATES = (DAY_CLEAN, DAY_FLAGGED, DAY_NO_TRADES, DAY_NOT_CHECKED)
 S_REVENGE_EVERY_DAY = "Revenge re-entries on every checked day in the last 30 trading days."
-S_REVENGE_NONE_CHECKED = ("None of the last 30 trading days could be checked; "
+#: W10-R57: only the days that HAD trades (W10-R54: a day with no trades has nothing to check).
+S_REVENGE_NONE_CHECKED = ("None of the days you traded in the last 30 trading days could be checked; "
                           "your trades have dates only.")
+#: The re-entries list is capped at ROW_CAP; the rest are counted, never silently dropped (N-2).
+S_REVENGE_MORE_FLAGGED = "{more} not shown."
 
 S_RISK_NO_LIMIT = "Set a daily loss limit in your account settings to see room left."
 S_RISK_NO_SIZE = "Set your account size to turn your daily loss limit into dollars."
@@ -690,7 +693,13 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
     if not traded:
         lines = [S_REVENGE_NO_TRADES]
     elif checked == 0:
-        lines = [S_REVENGE_NONE_CHECKED] if not (not_read or crowded or older_unread) else []
+        if not (not_read or crowded or older_unread):
+            lines = [S_REVENGE_NONE_CHECKED]
+        else:
+            # Some days were cut, crowded or too old to read: the dates-only days are still said (N-3); the
+            # "none of the days you traded" sentence would be false here, since not every traded day is dates-only.
+            lines = [f"{_plural(not_checked, 'day', 'days')} with dates only "
+                     f"{'was' if not_checked == 1 else 'were'} not checked."] if not_checked else []
     elif clean == 0:
         lines = [S_REVENGE_EVERY_DAY]
     else:
@@ -722,6 +731,8 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
     }
     if len(flags) > ROW_CAP:
         out["truncated"] = len(flags) - ROW_CAP
+        lines.append(S_REVENGE_MORE_FLAGGED.format(
+            more=_plural(out["truncated"], "more re-entry", "more re-entries")))
     return out
 
 
