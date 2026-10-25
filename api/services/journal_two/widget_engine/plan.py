@@ -71,11 +71,11 @@ AGG_WORDS = {"sum": "total", "avg": "average", "min": "lowest", "max": "highest"
 REF_KINDS = ("routine", "tracker")
 #: The built-in trackers (the member's check-ins), a valid `tracker` ref beside a uuid4.
 BUILTIN_TRACKER_REFS = frozenset({"checkin:mood", "checkin:focus"})
-# Used when a field does not declare its own `ops`.
 #: Filter ops by field type. `sources` takes these three from here; formula filters use them too.
 OPS_ENUM = ("in", "not_in")
 OPS_NUMBER = ("eq", "gt", "gte", "lt", "lte", "between")
 OPS_BOOL = ("is",)
+# Used when a field does not declare its own `ops`.
 DEFAULT_OPS = ("eq", "gt", "gte", "lt", "lte", "between", "in", "not_in", "has_any",
                "contains", "is")
 _COMPARE_OPS = frozenset({"eq", "gt", "gte", "lt", "lte"})
@@ -435,6 +435,26 @@ def formula_field_infos(fields: Mapping[str, Any]) -> dict:
     return out
 
 
+def _name_chars_ok(name: str) -> bool:
+    """A formula name's characters (fix round 2, ruling W10-R47): nothing the member cannot see,
+    EXCEPT the parts of an ordinary emoji, by the dialect's own text-literal rule (W10-R30,
+    `widget_formula._emoji_part_ok`, with every code point of the name a neighbour):
+      * U+FE0E / U+FE0F after a visible character that is not a space and not refused;
+      * U+200D when the code points on BOTH sides are emoji (`widget_formula._EMOJI_RANGES`);
+      * U+20E3 after 0-9, # or *, optionally with U+FE0E/U+FE0F between.
+    Skin-tone modifiers (U+1F3FB-1F3FF) are ordinary emoji code points, never refused. Everything
+    else invisible stays refused: other format characters, zero-width spaces, a joiner outside an
+    emoji, bidi controls, NBSP and the other space-like characters, tab and the line ends."""
+    from api.services.journal_two import widget_formula as wf   # widget_formula imports us
+
+    for j, ch in enumerate(name):
+        if not wf._invisible(ch):
+            continue
+        if not (wf._forbidden(ch) and wf._emoji_part_ok(name, -1, j)):
+            return False
+    return True
+
+
 def formula_measure_kind(compiled: Any, agg: str | None) -> str:
     """A formula measure's kind (Task 10.5's `measure_of` reads the same answer): a row formula's
     `agg` decides it; an aggregate formula is `count` when it is exactly one CountIf, `sum` when
@@ -485,7 +505,7 @@ def _compile_formulas(raw: dict, catalog: Catalog) -> tuple[list[dict], dict]:
         name = name.strip() if isinstance(name, str) else ""
         if not name:
             raise PlanError(S_FORMULA_NAME)
-        if any(wf._invisible(ch) for ch in name):
+        if not _name_chars_ok(name):
             raise PlanError(S_BAD_CHARACTER)
         if len(name) > wf.NAME_MAX:
             raise PlanError(S_FORMULA_NAME_LONG)

@@ -737,6 +737,18 @@ def test_the_stored_canonical_formula_is_held_to_the_length_limit():
     assert isinstance(e, wf.FormulaError)
     assert (e.code, e.pos, e.formula_id) == ("too_long", wf.MAX_LENGTH, "f1")
     assert e.sentence == wf.ERRORS["too_long"]
+    # N-2, the boundary: a stored form of exactly 2,000 is accepted, 2,001 refused (typed far
+    # shorter, so only the canonical check can decide). 133 * 14 + 132 = 1,994, plus padding.
+    for pad, stored_ok in ((6, True), (7, False)):
+        expr = "[Risk $]" + " " * pad + "+" + "+".join(["[Risk $]"] * 132)
+        assert len(expr) < 1300
+        raw = ct(formulas=[F(expr=expr)], measures=[{"formula": "f1", "agg": "sum"}])
+        if stored_ok:
+            got = P.validate_plan(raw, CAT)["formulas"][0]["expr"]
+            assert len(got) == wf.MAX_LENGTH == 2000
+        else:
+            e = refused(raw)
+            assert (e.code, e.pos, e.formula_id) == ("too_long", 2000, "f1")
     fits = "+".join(["[Risk $]"] * 133)                              # 133 * 14 + 132 = 1,994
     p = P.validate_plan(ct(formulas=[F(expr=fits)], measures=[{"formula": "f1", "agg": "sum"}]),
                         CAT)
@@ -795,6 +807,34 @@ def test_formula_names_refuse_what_the_member_cannot_see():
     assert P.validate_plan(named("Exit eff 🚀"), CAT)["formulas"][0]["name"] == "Exit eff 🚀"
 
 
+def test_formula_names_keep_a_members_emoji():
+    """Fix round 2, ruling W10-R47: the parts of an ordinary emoji are allowed in a name (the
+    dialect's text-literal rule); every other invisible character is still refused."""
+    def named(n, *more):
+        fs = [F(name=n)] + [F(f"f{i + 2}", m) for i, m in enumerate(more)]
+        return ct(formulas=fs, measures=[{"formula": "f1", "agg": "avg"}])
+
+    ok = ["\u2764\ufe0f wins",                                     # heart + VS16
+          "\U0001F44D\U0001F3FD days",                              # thumbs up + skin tone
+          "\U0001F468\u200d\U0001F469\u200d\U0001F467 family",    # ZWJ family
+          "1\ufe0f\u20e3 setup", "#\u20e3 tag",                    # keycaps
+          "\u2764\ufe0e text heart"]                                # text presentation
+    for n in ok:
+        assert P.validate_plan(named(n), CAT)["formulas"][0]["name"] == n, repr(n)
+    bad = ["\ufe0f wins",                                           # a leading selector
+           "x \ufe0f",                                              # a selector after a space
+           "a\u200db",                                              # a joiner outside an emoji
+           "\U0001F468\u200d",                                     # a trailing joiner
+           "\u200d\U0001F468",                                     # a leading joiner
+           "x\u20e3",                                               # a keycap on a letter
+           "Net P&L\u200b", "wins\u2060", "a\u00adb", "\u202ewins", "a\u00a0b", "a\nb"]
+    for n in bad:
+        assert refused(named(n)).sentence == P.S_BAD_CHARACTER, repr(n)
+    # a zero-width-suffixed duplicate is still refused
+    assert refused(named("Edge", "Edge\u200b")).sentence == P.S_BAD_CHARACTER
+    assert refused(named("Edge", "edge")).sentence == P.S_FORMULA_NAME_TAKEN
+
+
 def test_formula_filter_ops_are_the_field_ops():
     """M4: one authority: formula filters take the very tuples `sources` gives its fields."""
     assert P._FORMULA_OPS["number"] is S.OPS_NUMBER is P.OPS_NUMBER
@@ -813,6 +853,8 @@ def _pending_plans() -> dict:
         "formula_filter": ct(formulas=[F(expr="[r] > 1")],
                              filters=[{"field": "formula:f1", "op": "is", "values": [True]}]),
         "formula_split": ct(formulas=[F(expr="[setup]")], split={"by": "formula:f1"}),
+        "formula_split_then": ct(formulas=[F(expr="[setup]")], view={"type": "table"},
+                                 split={"by": "side", "then": "formula:f1"}),
         "cumulative": ct(**line, display={"cumulative": True}),
         "targetGoal": ct(view={"type": "progress"}, range={"token": "this_week"},
                          display={"targetGoal": True}),
@@ -828,9 +870,11 @@ def test_w10_pending_guard_expires_with_its_entries():
     that makes the engine apply a feature deletes its entry (and its row here); when the set is
     empty the guard and this rail go."""
     plans = _pending_plans()
-    assert set(plans) == set(wrun._W10_PENDING)                       # every entry has a probe
+    assert set(plans) - {"formula_split_then"} == set(wrun._W10_PENDING)   # every entry a probe
+    assert set(P.WAVE10_DISPLAY) <= wrun._W10_PENDING                  # derived from the one list
     for name, p in plans.items():
-        assert wrun.w10_pending(p) == [name], name
+        want = "formula_split" if name == "formula_split_then" else name
+        assert wrun.w10_pending(p) == [want], name
         with pytest.raises(P.PlanError) as e:
             wrun.refuse_w10_pending(p)
         assert e.value.sentence == P.S_UNREADABLE

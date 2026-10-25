@@ -835,8 +835,12 @@ def test_w10_plans_are_a_400_never_a_500_while_w10_is_on(conn, monkeypatch):
     assert c.post(BASE + "/run", json={"def": _tool_plans()[0]}).status_code == 200
 
 
-def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path):
+@pytest.mark.parametrize("w9", ["0", "1"])
+def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path, w9):
+    """Restore and examples gate in a loop that runs when EITHER wave is off. Fix round 2 (N-1):
+    W9 ON with W10 OFF is the production combination, where a loop keyed on wave 9 alone skips."""
     from tests.test_widget_shelf_files import planted
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", w9)
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
     c = _unraising()
     made = c.post(BASE, json={"plan": _w10_plans()["row formula measure"]}).json()

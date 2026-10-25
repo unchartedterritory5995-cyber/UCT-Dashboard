@@ -107,7 +107,7 @@ NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES | wplan.WAVE10_SOURCES
 #: the task that makes the engine apply it; `test_w10_pending_guard_expires_with_its_entries` rails
 #: that the set only shrinks to empty and then this guard goes.
 _W10_PENDING = frozenset({"formula_measure", "formula_filter", "formula_split",
-                          "cumulative", "targetGoal", "stopAfter", "quadrants"})
+                          *wplan.WAVE10_DISPLAY})
 
 
 def w10_pending(plan: Any) -> list[str]:
@@ -129,7 +129,7 @@ def w10_pending(plan: Any) -> list[str]:
         used.append("formula_split")
     display = plan.get("display")
     if isinstance(display, dict):
-        used.extend(k for k in ("cumulative", "targetGoal", "stopAfter", "quadrants") if k in display)
+        used.extend(k for k in wplan.WAVE10_DISPLAY if k in display)   # the one display list
     return [u for u in used if u in _W10_PENDING]
 
 
