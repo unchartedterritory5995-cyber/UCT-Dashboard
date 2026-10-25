@@ -1243,10 +1243,6 @@ def _title(v: Any) -> str:
     return str(v)[:1].upper() + str(v)[1:] if v else str(v)
 
 
-#: Net and R are None while a strategy is open, in SQL as in Python (so the SQL narrowing can
-#: never keep or drop a row the Python twin would not).
-_O_OPEN_NULL = "CASE WHEN o.status = 'open' THEN NULL ELSE {} END"
-
 OPTION_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("day", "Day", "day", split=True),
     _f("weekday", "Weekday", "enum", split=True, bucket=WEEKDAYS),
@@ -1258,8 +1254,11 @@ OPTION_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("status", "Status", "enum", sql="o.status", split=True, bucket=OPTION_STATUSES,
        fmt=_title),
     _f("dte_entry", "Days to expiry at entry", "number"),
-    _f("net", "Net P&L", "number", sql=_O_OPEN_NULL.format("o.pnl_dollar")),
-    _f("r", "R", "number", sql=_O_OPEN_NULL.format("o.r_multiple")),
+    # Net and R are None on an open row (`scan_options`). A SQL number filter may keep an open
+    # row with a stored figure, never drop one Python keeps: every number op is False on None,
+    # and `aggregate` re-applies each filter in Python.
+    _f("net", "Net P&L", "number", sql="o.pnl_dollar"),
+    _f("r", "R", "number", sql="o.r_multiple"),
     _f("result", "Result", "enum", sql="o.result", split=True,
        fmt=lambda v: _RESULT_LABELS.get(v, str(v)), bucket=("Win", "Loss", "BE")),
     _f("setup", "Setup", "enum", sql="o.setup", split=True, none_label="No setup"),

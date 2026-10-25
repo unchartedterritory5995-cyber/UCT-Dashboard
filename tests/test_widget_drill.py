@@ -260,3 +260,18 @@ def test_formula_split_filter_and_scatter_drill(conn):
                 view={"type": "scatter"})
     assert [r["symbol"] for r in _drill(mixed, {"d": "2026-10-21", "x": 30.0, "y": 1.0})["rows"]] \
         == ["W2"]
+
+
+def test_scatter_point_needs_both_values_and_ignores_the_sort_trim(conn):
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=2.0, symbol="A1")
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=3.0, symbol="A2")    # same x, other y
+    add_trade(conn, UID, day="2026-10-20", pnl=500, r=9.0, symbol="BIG")
+    pts = _fp(measures=[{"formula": "f3", "agg": "sum"}, {"formula": "f4", "agg": "sum"}],
+              view={"type": "scatter"})
+    assert [r["symbol"] for r in _drill(pts, {"d": "2026-10-20", "x": 200.0, "y": 6.0})["rows"]] \
+        == ["A2"]
+    # a plan sorted to its top 1 still drills any point it drew (the trim is the widget's, the
+    # drill reads every row of the day)
+    top1 = dict(pts, sort={"measure": 0, "dir": "desc", "top": 1})
+    assert [r["symbol"] for r in _drill(top1, {"d": "2026-10-20", "x": 200.0, "y": 4.0})["rows"]] \
+        == ["A1"]

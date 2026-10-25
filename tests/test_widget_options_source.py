@@ -176,10 +176,11 @@ def test_open_rows_carry_no_net_or_r_even_if_stored(conn):
     conn.commit()
     _p, sc, res = scan_eval(conn, raw(measures=("strategies", "net_pnl")))
     assert sc.rows[0]["net"] is None and sc.rows[0]["r"] is None
-    # the SQL side agrees with the Python side: a net filter never keeps an open strategy
+    # a net filter never keeps an open strategy: the SQL may read it (a stored figure), Python's
+    # twin of the filter drops it, as it drops every None
     _p, sc, res = scan_eval(conn, raw(measures=("strategies",), filters=[
         {"field": "net", "op": "gt", "values": [0]}]))
-    assert sc.rows == [] and res.count == 0
+    assert res.count == 0 and res.total.cells[0].value == 0.0
 
 
 def test_dte_entry_from_earliest_leg(conn):
@@ -377,3 +378,12 @@ def test_vocabulary_hides_options_while_wave10_is_off():
         assert "options_strategies" in {s["key"] for s in on["sources"]}
         assert "options_strategies" in next(m for m in on["measures"]
                                             if m["key"] == "net_pnl")["sources"]
+
+
+def test_rows_ordered_by_et_day_not_the_sql_day(conn):
+    """The SQL orders by the stamped day else the UTC date; a legacy row closed 00:30 UTC on Oct 21
+    is Oct 20 ET, so it must sort AFTER a stamped Oct 21 strategy, whatever their ids."""
+    late = add_opt(conn, UID, closed_at="2026-10-21T00:30:00Z", pnl=5.0, stamp=False, sid="zzz")
+    newer = add_opt(conn, UID, closed_at="2026-10-21T19:00:00Z", pnl=5.0, sid="aaa")
+    _p, sc, _res = scan_eval(conn, raw(measures=("strategies",)))
+    assert [(r["_tid"], r["day"]) for r in sc.rows] == [(newer, "2026-10-21"), (late, "2026-10-20")]
