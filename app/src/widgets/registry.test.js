@@ -564,7 +564,8 @@ const CAPTURE_FIXTURES = {
   },
   myRevengeClean: {
     asOf: '2026-10-24T14:05:00Z', source: 'manual', from: '2026-09-12', to: '2026-10-23', window: 30, clean: 27,
-    checked: 29, notChecked: 2, notRead: 0, tooMany: 0, olderNotRead: 0,
+    checked: 29, notChecked: 2, notRead: 0, tooMany: 0, olderNotRead: 0, noTrades: 0,
+    days: [{ day: '2026-10-23', state: 'clean' }],
     flagged: [{ day: '2026-10-21', symbol: 'TSLA', minutesApart: 7 }], lines: ['27 of 29 days clean.'], truncated: 3,
     share: false,
   },
@@ -714,7 +715,8 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
     expect(types('myRiskLeftToday')).toMatchObject({ accounts: 'json', openRisk: 'number', positionsCapped: 'boolean' })
     expect(types('myGamePlan')).toMatchObject({ wire: 'json', reporting: 'json', risk: 'json' })
     expect(types('myAlertsFired')).toMatchObject({ since: 'string', rows: 'json', capped: 'boolean' })
-    expect(types('myRevengeClean')).toMatchObject({ clean: 'number', checked: 'number', flagged: 'json' })
+    expect(types('myRevengeClean')).toMatchObject({ clean: 'number', checked: 'number', flagged: 'json',
+      noTrades: 'number', days: 'json' })   // W10-R54 (Task 10.15 round 1): the dated strip
     // no phase 1 row carries `settings` (W10-R1: phase 1 params unchanged)
     for (const k of WIDGET_KINDS.filter((x) => !x.dedicated)) {
       expect(WIDGET_REGISTRY[k.id].paramsSchema.some((f) => f.key === 'settings'), k.id).toBe(false)

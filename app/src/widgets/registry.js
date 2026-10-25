@@ -1008,7 +1008,7 @@ const PANEL_MANIFESTS = {
   myTiltCheck: _dedicated('Tilt check', 'tilt check',
     'windowMinutes:n after:j other:j datesOnly:n estimated:n noResult:n capped:b'),
   myRevengeClean: _dedicated('Revenge trades', 'revenge trades',
-    'window:n clean:n checked:n notChecked:n notRead:n tooMany:n olderNotRead:n flagged:j truncated:n'),
+    'window:n clean:n checked:n notChecked:n notRead:n tooMany:n olderNotRead:n noTrades:n days:j flagged:j truncated:n'),
   myPlanVsActual: _dedicated('Plan vs actual', 'plan vs actual', 'available:b tradeId symbol side rows:j followedPlan:b size:j'),
   myRiskLeftToday: _dedicated('Risk left today', 'risk left today',
     'day session accounts:j openRisk:n flaggedCounted:n truncated:n positionsCapped:b'),

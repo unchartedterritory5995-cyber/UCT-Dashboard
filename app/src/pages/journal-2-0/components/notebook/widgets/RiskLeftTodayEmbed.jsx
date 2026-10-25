@@ -51,7 +51,13 @@ export default function RiskLeftTodayEmbed({ attrs, height = 360, editable = fal
           <Lines lines={b.lines} />
         </section>
       ))}
-      {asTable && charted && blocks.map((b, i) => <Lines key={b.accountId || `u-${i}`} lines={b.lines} />)}
+      {asTable && charted && blocks.map((b, i) => (
+        // Table form keeps each account's heading over its own sentences (review M-7).
+        <section key={b.accountId || `u-${i}`} className={d.section} data-testid="risk-block">
+          {b.name && <h3 className={d.heading}>{b.name}</h3>}
+          <Lines lines={b.lines} />
+        </section>
+      ))}
       <Lines lines={p.lines} testId="risk-lines" />
       {charted && toggle}
     </DedicatedShell>

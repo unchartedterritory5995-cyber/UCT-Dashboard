@@ -81,6 +81,20 @@ const STATES = [
   ['dedicated-alerts-new', 'alerts_new', false],
   ['dedicated-alerts-capped', 'alerts_capped', false],
   ['dedicated-alerts-one-log-gap', 'alerts_one_log_gap', false],
+  // Fix round 1 (review M-12, I-1, I-3): the states round 0 had no fixture for.
+  ['dedicated-revenge-mixed', 'revenge_mixed', false],
+  ['dedicated-revenge-mixed-table', 'revenge_mixed', true],
+  ['dedicated-revenge-new-table', 'revenge_new', true],
+  ['dedicated-tilt-zero', 'tilt_zero', false],
+  ['dedicated-tilt-zero-table', 'tilt_zero', true],
+  ['dedicated-risk-no-size', 'risk_no_size', false],
+  ['dedicated-risk-mixed', 'risk_mixed', false],
+  ['dedicated-risk-mixed-table', 'risk_mixed', true],
+  ['dedicated-risk-unread', 'risk_unread', false],
+  ['dedicated-prop-excluded', 'prop_excluded', false],
+  ['dedicated-prop-no-limits', 'prop_no_limits', false],
+  ['dedicated-game-risk-gap', 'game_risk_gap', false],
+  ['dedicated-alerts-both-gap', 'alerts_both_gap', false],
 ]
 
 describe('wave 10 Task 10.15 surfaces (the dedicated widget embeds)', () => {

@@ -34,10 +34,14 @@ export function Lines({ lines, testId, className = '' }) {
   )
 }
 
-/** A money cell: "no data" for an unknown, `zero` ("none") for a carried zero, else the phase 1 formatter. */
-export function moneyCell(v, { signed = false, zero = NONE } = {}) {
+/** A money cell: "no data" for an unknown, `zero` ("none") for a carried zero, else the phase 1 formatter.
+ *  `whole: true` decides "zero" the way the server's sentence does (whole dollars, half up: `_whole`), so a +$0.30
+ *  average reads "about even" in the table exactly as it does in the sentence (review M-10). */
+export function moneyCell(v, { signed = false, zero = NONE, whole = false } = {}) {
   if (!isNum(v)) return <span className={s.none}>{NO_DATA}</span>
-  if (Math.round(v * 100) === 0) return <span className={s.none}>{zero}</span>
+  if (whole ? Math.floor(Math.abs(v) + 0.5) === 0 : Math.round(v * 100) === 0) {
+    return <span className={s.none}>{zero}</span>
+  }
   return signed ? fmtMoneySigned(v) : fmtPrice(v)
 }
 
@@ -101,7 +105,7 @@ export function LimitBar({ label, limit, used, left, testId }) {
         aria-hidden="true" focusable="false">
         <defs>
           <pattern id={hatch} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" className={d.hatchLine} />
+            <line x1="0" y1="0" x2="0" y2="6" className={d.hatchLine} data-hatch-line="" />
           </pattern>
         </defs>
         <rect className={d.track} x="0" y="0" width={BAR_W} height={BAR_H} />
@@ -110,7 +114,14 @@ export function LimitBar({ label, limit, used, left, testId }) {
         {pastW > 0 && (
           <rect data-bar-past="" x={x(limit)} y="0" width={pastW} height={BAR_H} fill={`url(#${hatch})`} />
         )}
-        {past && <line className={d.limitMark} x1={x(limit)} y1="0" x2={x(limit)} y2={BAR_H} />}
+        {past && (
+          <>
+            <line className={d.limitMarkUsed} vectorEffect="non-scaling-stroke" x1={x(limit) - 1} y1="0"
+              x2={x(limit) - 1} y2={BAR_H} />
+            <line className={d.limitMark} data-limit-mark="" vectorEffect="non-scaling-stroke" x1={x(limit) + 1} y1="0"
+              x2={x(limit) + 1} y2={BAR_H} />
+          </>
+        )}
       </svg>
       <ul className={d.legend}>
         <li className={d.legendItem}><span className={`${d.swatch} ${d.swUsed}`} />Used</li>

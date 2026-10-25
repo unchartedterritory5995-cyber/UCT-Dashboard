@@ -1,4 +1,17 @@
 {
+  "alerts_both_gap": {
+    "kind": "myAlertsFired",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "lines": [
+        "Some alerts couldn't be read right now."
+      ],
+      "rows": [],
+      "since": "2026-10-23T20:00:00Z",
+      "source": "manual",
+      "sourceDetail": "Your alert history."
+    }
+  },
   "alerts_capped": {
     "kind": "myAlertsFired",
     "payload": {
@@ -590,6 +603,55 @@
       }
     }
   },
+  "game_risk_gap": {
+    "kind": "myGamePlan",
+    "payload": {
+      "asOf": "2026-10-26T12:30:00Z",
+      "day": "2026-10-26",
+      "lines": [
+        "Tech leads into earnings week.",
+        "Exposure: 80%.",
+        "NVDA reports before the open.",
+        "Your open positions couldn't be read right now."
+      ],
+      "reporting": {
+        "lastNight": [],
+        "lines": [
+          "NVDA reports before the open."
+        ],
+        "names": [
+          {
+            "symbol": "NVDA",
+            "when": "before the open"
+          }
+        ]
+      },
+      "risk": {
+        "lines": [
+          "Your open positions couldn't be read right now."
+        ],
+        "noStop": null,
+        "openOptions": null,
+        "openPositions": null,
+        "openRisk": null,
+        "riskLines": [],
+        "unlinked": null,
+        "unread": null
+      },
+      "source": "manual",
+      "sourceDetail": "The morning wire, the earnings calendar and your open positions.",
+      "wire": {
+        "exposure": 80.0,
+        "headline": "Tech leads into earnings week.",
+        "lines": [
+          "Tech leads into earnings week.",
+          "Exposure: 80%."
+        ],
+        "regime": "uptrend",
+        "wireDate": "2026-10-26"
+      }
+    }
+  },
   "game_wire_gap": {
     "kind": "myGamePlan",
     "payload": {
@@ -666,6 +728,39 @@
         "current": 100.0,
         "drawdown": 500.0,
         "left": 500.0,
+        "limit": 1000.0,
+        "peak": 600.0
+      }
+    }
+  },
+  "prop_excluded": {
+    "kind": "myPropFirm",
+    "payload": {
+      "accountId": null,
+      "asOf": "2026-10-23T18:00:00Z",
+      "countingFrom": "2026-10-01",
+      "daily": {
+        "left": 500.0,
+        "limit": 500.0,
+        "todayNet": 0.0,
+        "used": 0.0
+      },
+      "flaggedCounted": 1,
+      "lines": [
+        "Daily loss: none used today; $500 left.",
+        "Max drawdown: $370 below your peak; $630 left.",
+        "Includes 1 trade you excluded from analytics."
+      ],
+      "notes": [
+        "1 trade dated on a weekend or holiday is counted on the session before."
+      ],
+      "since": "2026-10-01",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal.",
+      "trailing": {
+        "current": 230.0,
+        "drawdown": 370.0,
+        "left": 630.0,
         "limit": 1000.0,
         "peak": 600.0
       }
@@ -899,7 +994,7 @@
       "source": "broker",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "AMD",
-      "tradeId": "ca7e6e96-66df-4924-8308-5d828984c2b9"
+      "tradeId": "b2fb9f4b-653f-4dfb-a4ce-9d46542fc729"
     }
   },
   "pva_no_target": {
@@ -957,7 +1052,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "TSLA",
-      "tradeId": "9900d6b2-7d8a-4666-ac6f-71937c5c6b48"
+      "tradeId": "c1458785-d5b8-40d5-a018-d33c76b17f2c"
     }
   },
   "pva_normal": {
@@ -1015,7 +1110,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "NVDA",
-      "tradeId": "41a27d6f-5aa9-4172-b358-cd822d545f3b"
+      "tradeId": "c333ba16-b994-40bd-95b7-9db8a726f8fa"
     }
   },
   "pva_unlinked": {
@@ -1031,15 +1126,137 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "META",
-      "tradeId": "60522277-25f7-4f73-9bec-99a23fe8ad62"
+      "tradeId": "0188b385-56fb-4edc-a537-7ce5da9c8403"
     }
   },
   "revenge_capped": {
     "kind": "myRevengeClean",
     "payload": {
       "asOf": "2026-10-24T16:00:00Z",
-      "checked": 29,
-      "clean": 27,
+      "checked": 9,
+      "clean": 7,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "clean"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "clean"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "no_trades"
+        }
+      ],
       "flagged": [
         {
           "day": "2026-10-07",
@@ -1049,8 +1266,9 @@
       ],
       "from": "2026-09-14",
       "lines": [
-        "27 of 29 clean (1 day with dates only was not checked)"
+        "7 of 9 clean (1 day with dates only was not checked)"
       ],
+      "noTrades": 20,
       "notChecked": 1,
       "notRead": 0,
       "olderNotRead": 0,
@@ -1068,11 +1286,134 @@
       "asOf": "2026-10-24T16:00:00Z",
       "checked": 0,
       "clean": 0,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "not_checked"
+        }
+      ],
       "flagged": [],
       "from": "2026-09-14",
       "lines": [
         "None of the last 30 trading days could be checked; your trades have dates only."
       ],
+      "noTrades": 0,
       "notChecked": 30,
       "notRead": 0,
       "olderNotRead": 0,
@@ -1089,6 +1430,128 @@
       "asOf": "2026-10-24T16:00:00Z",
       "checked": 30,
       "clean": 0,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "flagged"
+        }
+      ],
       "flagged": [
         {
           "day": "2026-10-23",
@@ -1245,7 +1708,158 @@
       "lines": [
         "Revenge re-entries on every checked day in the last 30 trading days."
       ],
+      "noTrades": 0,
       "notChecked": 0,
+      "notRead": 0,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "window": 30
+    }
+  },
+  "revenge_mixed": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 2,
+      "clean": 1,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "clean"
+        }
+      ],
+      "flagged": [
+        {
+          "day": "2026-10-22",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        }
+      ],
+      "from": "2026-09-14",
+      "lines": [
+        "1 of 2 clean (1 day with dates only was not checked)"
+      ],
+      "noTrades": 27,
+      "notChecked": 1,
       "notRead": 0,
       "olderNotRead": 0,
       "source": "manual",
@@ -1259,13 +1873,136 @@
     "kind": "myRevengeClean",
     "payload": {
       "asOf": "2026-10-24T16:00:00Z",
-      "checked": 30,
-      "clean": 30,
+      "checked": 0,
+      "clean": 0,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "no_trades"
+        }
+      ],
       "flagged": [],
       "from": "2026-09-14",
       "lines": [
         "No trades in the last 30 trading days."
       ],
+      "noTrades": 30,
       "notChecked": 0,
       "notRead": 0,
       "olderNotRead": 0,
@@ -1280,8 +2017,130 @@
     "kind": "myRevengeClean",
     "payload": {
       "asOf": "2026-10-24T16:00:00Z",
-      "checked": 29,
-      "clean": 27,
+      "checked": 9,
+      "clean": 7,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "clean"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "clean"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "flagged"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "no_trades"
+        }
+      ],
       "flagged": [
         {
           "day": "2026-10-07",
@@ -1296,8 +2155,9 @@
       ],
       "from": "2026-09-14",
       "lines": [
-        "27 of 29 clean (1 day with dates only was not checked)"
+        "7 of 9 clean (1 day with dates only was not checked)"
       ],
+      "noTrades": 20,
       "notChecked": 1,
       "notRead": 0,
       "olderNotRead": 0,
@@ -1312,14 +2172,137 @@
     "kind": "myRevengeClean",
     "payload": {
       "asOf": "2026-10-24T16:00:00Z",
-      "checked": 12,
-      "clean": 12,
+      "checked": 3,
+      "clean": 3,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "clean"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "no_trades"
+        }
+      ],
       "flagged": [],
       "from": "2026-09-14",
       "lines": [
-        "12 of 12 clean",
+        "3 of 3 clean",
         "18 days were not checked: this widget reads your newest 4 trades."
       ],
+      "noTrades": 9,
       "notChecked": 0,
       "notRead": 18,
       "olderNotRead": 0,
@@ -1385,6 +2368,55 @@
       "truncated": 1
     }
   },
+  "risk_mixed": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-m1",
+          "afterStops": null,
+          "left": 400.0,
+          "limit": 500.0,
+          "limitPct": 5.0,
+          "lines": [
+            "Room left today: $400 of $500.",
+            "No open positions."
+          ],
+          "name": "Sized",
+          "net": -100.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": null,
+          "used": 100.0
+        },
+        {
+          "accountId": "acc-m2",
+          "afterStops": null,
+          "left": null,
+          "limit": null,
+          "limitPct": 5.0,
+          "lines": [
+            "Set your account size to turn your daily loss limit into dollars.",
+            "No open positions."
+          ],
+          "name": "Unsized",
+          "net": 0.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": null,
+          "used": null
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [],
+      "openRisk": null,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
   "risk_new": {
     "kind": "myRiskLeftToday",
     "payload": {
@@ -1394,6 +2426,40 @@
       "flaggedCounted": 0,
       "lines": [
         "Set a daily loss limit in your account settings to see room left."
+      ],
+      "openRisk": null,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
+  "risk_no_size": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-s",
+          "afterStops": null,
+          "left": null,
+          "limit": null,
+          "limitPct": 5.0,
+          "lines": [
+            "Set your account size to turn your daily loss limit into dollars.",
+            "No open positions."
+          ],
+          "name": "Main",
+          "net": 0.0,
+          "noStop": 0,
+          "openOptions": 0,
+          "openRisk": null,
+          "used": null
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [
+        "Set your account size to turn your daily loss limit into dollars."
       ],
       "openRisk": null,
       "session": "2026-10-23",
@@ -1549,6 +2615,39 @@
       "sourceDetail": "Your accounts, trades and open positions in the Journal."
     }
   },
+  "risk_unread": {
+    "kind": "myRiskLeftToday",
+    "payload": {
+      "accounts": [
+        {
+          "accountId": "acc-r",
+          "afterStops": null,
+          "left": 300.0,
+          "limit": 500.0,
+          "limitPct": 5.0,
+          "lines": [
+            "Room left today: $300 of $500."
+          ],
+          "name": "Main",
+          "net": -200.0,
+          "noStop": null,
+          "openOptions": 0,
+          "openRisk": null,
+          "used": 200.0
+        }
+      ],
+      "asOf": "2026-10-23T18:00:00Z",
+      "day": "2026-10-23",
+      "flaggedCounted": 0,
+      "lines": [
+        "Your open positions couldn't be read right now."
+      ],
+      "openRisk": null,
+      "session": "2026-10-23",
+      "source": "manual",
+      "sourceDetail": "Your accounts, trades and open positions in the Journal."
+    }
+  },
   "tilt_big": {
     "kind": "myTiltCheck",
     "payload": {
@@ -1590,10 +2689,10 @@
     "payload": {
       "after": {
         "avg": null,
-        "n": 0,
-        "net": null,
+        "n": 2,
+        "net": 50.0,
         "sample": "hide",
-        "text": "no trades",
+        "text": "Not enough trades yet (2)",
         "winRate": null
       },
       "asOf": "2026-10-24T16:00:00Z",
@@ -1603,17 +2702,17 @@
       "from": "2026-07-27",
       "lines": [
         "Counting the newest 3 trades, from Oct 20.",
-        "Within 30 min after a loss: no trades.",
-        "Other trades: Not enough trades yet (3).",
+        "Within 30 min after a loss: Not enough trades yet (2).",
+        "Other trades: Not enough trades yet (1).",
         "A comparison, not proof."
       ],
       "noResult": 0,
       "other": {
         "avg": null,
-        "n": 3,
-        "net": -70.0,
+        "n": 1,
+        "net": -30.0,
         "sample": "hide",
-        "text": "Not enough trades yet (3)",
+        "text": "Not enough trades yet (1)",
         "winRate": null
       },
       "source": "manual",
@@ -1716,6 +2815,41 @@
         "sample": "small",
         "text": "6 trades, 67% win rate, +$20 average",
         "winRate": 0.6666666666666666
+      },
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-24",
+      "windowMinutes": 30
+    }
+  },
+  "tilt_zero": {
+    "kind": "myTiltCheck",
+    "payload": {
+      "after": {
+        "avg": -20.0,
+        "n": 5,
+        "net": -100.0,
+        "sample": "small",
+        "text": "5 trades, no wins, −$20 average",
+        "winRate": 0.0
+      },
+      "asOf": "2026-10-24T16:00:00Z",
+      "datesOnly": 0,
+      "estimated": 0,
+      "from": "2026-07-27",
+      "lines": [
+        "Within 30 min after a loss: 5 trades, no wins, −$20 average.",
+        "Other trades: 6 trades, 50% win rate, +$12 average.",
+        "A comparison, not proof."
+      ],
+      "noResult": 0,
+      "other": {
+        "avg": 11.666666666666666,
+        "n": 6,
+        "net": 70.0,
+        "sample": "small",
+        "text": "6 trades, 50% win rate, +$12 average",
+        "winRate": 0.5
       },
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",

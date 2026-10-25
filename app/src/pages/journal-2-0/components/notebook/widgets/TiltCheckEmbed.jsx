@@ -32,9 +32,11 @@ function RateBar({ label, group }) {
   )
 }
 
+/** A win rate: "no wins" for a carried 0 (the server's own words), "<1%" for a real rate that rounds to 0%. */
 function rateCell(v) {
   if (!isNum(v)) return <NoData />
-  return v === 0 ? <span className={s.none}>no wins</span> : fmtRatioPct(v)
+  if (v === 0) return <span className={s.none}>no wins</span>
+  return v > 0 && v < 0.005 ? '<1%' : fmtRatioPct(v)
 }
 
 function TiltTable({ p }) {
@@ -48,13 +50,20 @@ function TiltTable({ p }) {
         <tbody>
           {TILT_GROUPS.map(([key, label]) => {
             const g = groupOf(p, key)
+            // A group the server hides (fewer trades than its minimum) shows only the server's words, never
+            // the figures the server withheld (review M-8).
+            if (!g || g.sample === 'hide') {
+              return (
+                <tr key={key}><th scope="row">{label}</th><td colSpan={4}>{g?.text || <NoData />}</td></tr>
+              )
+            }
             return (
               <tr key={key}>
                 <th scope="row">{label}</th>
-                <td>{isNum(g?.n) && g.n > 0 ? String(g.n) : <span className={s.none}>none</span>}</td>
-                <td>{rateCell(g?.winRate)}</td>
-                <td>{moneyCell(g?.avg, { signed: true, zero: ABOUT_EVEN })}</td>
-                <td>{moneyCell(g?.net, { signed: true, zero: ABOUT_EVEN })}</td>
+                <td>{isNum(g.n) && g.n > 0 ? String(g.n) : <span className={s.none}>none</span>}</td>
+                <td>{rateCell(g.winRate)}</td>
+                <td>{moneyCell(g.avg, { signed: true, zero: ABOUT_EVEN, whole: true })}</td>
+                <td>{moneyCell(g.net, { signed: true, zero: ABOUT_EVEN, whole: true })}</td>
               </tr>
             )
           })}

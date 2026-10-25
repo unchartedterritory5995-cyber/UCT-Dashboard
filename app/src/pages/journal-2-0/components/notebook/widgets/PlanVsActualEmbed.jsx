@@ -6,11 +6,12 @@ import { fmtPrice, snapshotStyles as s } from './SnapshotFrame'
 import { DedicatedShell, Lines, isNum, strings, dedicatedStyles as d } from './DedicatedParts'
 
 export const KIND = 'myPlanVsActual'
-/** A figure the plan or the trade does not have: shown as a dash, read as "not set". */
-const NOT_SET = 'not set'
+/** A figure the plan or the trade does not have: the words "not set", visible, never a dash or the other column's
+ *  figure (review M-5). */
+export const NOT_SET = 'not set'
 
 function figure(row, v) {
-  if (!isNum(v)) return <span className={s.none} aria-label={NOT_SET}>—</span>
+  if (!isNum(v)) return <span className={s.none}>{NOT_SET}</span>
   return row?.label === 'R' ? rMultiple(v) : fmtPrice(v)
 }
 
@@ -38,8 +39,8 @@ export default function PlanVsActualEmbed({ attrs, height = 320, editable = fals
               {rows.map((r, i) => (
                 <tr key={i} data-row={r.label}>
                   <th scope="row">{r.label}</th>
-                  <td>{figure(r, r.planned)}</td>
-                  <td>{figure(r, r.actual)}</td>
+                  <td data-col="planned">{figure(r, r.planned)}</td>
+                  <td data-col="actual">{figure(r, r.actual)}</td>
                   <td className={d.line}>{r.text}</td>
                 </tr>
               ))}

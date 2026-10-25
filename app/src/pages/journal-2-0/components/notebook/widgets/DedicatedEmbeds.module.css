@@ -63,6 +63,12 @@
 .rate {
   fill: var(--info);
 }
+/* The limit mark is TWO strokes, each at least 3:1 against the side it borders (review M-11): the page surface beside
+   the solid used fill (--ind-warn; dark ~7:1, light ~3.7:1) and the bright ink beside the track and hatch. */
+.limitMarkUsed {
+  stroke: var(--bg-surface);
+  stroke-width: 2;
+}
 .limitMark {
   stroke: var(--text-bright);
   stroke-width: 2;
@@ -132,14 +138,31 @@
   border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
 }
+/* Clean: a solid border, a fill and a centred mark. The mark, not the fill, is what tells it from "No trades". */
 .cellClean {
   background: var(--bg-hover);
+}
+.cellClean::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: var(--text-bright);
 }
 .cellFlagged {
   background: repeating-linear-gradient(45deg, var(--ind-warn) 0 3px, transparent 3px 6px);
 }
 .cellNotChecked {
   border-style: dashed;
+  background: transparent;
+}
+/* No trades (W10-R54): a dotted outline, no fill and no mark: not clean, not checked. */
+.cellNoTrades {
+  border-style: dotted;
   background: transparent;
 }
 .swClean {
@@ -151,6 +174,19 @@
 .swNotChecked {
   border-style: dashed;
   background: transparent;
+}
+.swNoTrades {
+  border-style: dotted;
+  background: transparent;
+}
+/* The strip's first and last days, at its two ends. */
+.stripEnds {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-dim);
 }
 .srOnly {
   position: absolute;
