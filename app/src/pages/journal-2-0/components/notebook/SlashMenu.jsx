@@ -307,6 +307,9 @@ export const ITEMS = [
   traderItem('preEntryChecklist'),
   traderItem('priceStamps'),
   traderItem('positionSizing'),
+  // Wave 10 (Task 10.20): /size, the position size calculator, while wave 10 is on.
+  traderItem('sizeCalc', { cmd: 'size', description: 'Shares for your entry, stop and risk',
+    keywords: ['size', 'shares', 'risk', 'calculator', 'position'], available: () => widgetsWaveOn(10) }),
   // P2b Task 12: My rules, the Daily prep pack and the post-trade review block. Each says what it
   // shows, so six neighbouring rows can be told apart (Task 12 review, finding 6).
   traderItem('myRules', { description: 'Your trading rules and their versions' }),

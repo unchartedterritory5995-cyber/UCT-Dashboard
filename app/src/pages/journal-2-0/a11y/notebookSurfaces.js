@@ -216,6 +216,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PreEntryChecklistBlock.jsx': { recipe: 'trader-block-checklist' },
   'components/notebook/blocks/PriceStampsBlock.jsx': { recipe: 'trader-block-stamps' },
   'components/notebook/blocks/PositionSizingBlock.jsx': { recipe: 'trader-block-sizing' },
+  // Wave 10 Task 10.20: the position size calculator (rail a11y/traderBlockSizeCalc.a11y.test.jsx).
+  'components/notebook/blocks/SizeCalcBlock.jsx': { recipe: 'trader-block-size-calc' },
   // P2b Task 2 stubs: each body task (8, 10, 11) swaps its own line for its own recipe.
   // Task 8: the My rules body (rail a11y/traderBlockMyRules.a11y.test.jsx).
   'components/notebook/blocks/MyRulesBlock.jsx': { recipe: 'trader-block-my-rules' },

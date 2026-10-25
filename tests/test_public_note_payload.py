@@ -1793,6 +1793,39 @@ def test_dedicated_kinds_and_size_calc_account_line_in_every_public_mode(mode, w
         assert texts_in(out) == [ACCOUNT_LINE], (mode, widget_id, share, out)
 
 
+_SIZE_CANARIES = ("SIZE-CANARY-SYM", "54321.75", "123.45", "117.65", "0.875", "ATTR-CANARY-1020")
+
+
+def _size_calc_block(share) -> dict:
+    """A position size calculator exactly as the block stores it (Task 10.20): only what the member typed."""
+    node = _widget("sizeCalc")
+    a = node["attrs"]
+    a["mode"] = "live"
+    a["params"] = {"symbol": "SIZE-CANARY-SYM", "entry": 123.45, "stop": 117.65, "riskPct": 0.875,
+                   "accountSize": 54321.75}
+    if share is not None:
+        a["params"]["share"] = share
+    a["searchText"] = "[position size calculator]"
+    a["caption"] = "ATTR-CANARY-1020"
+    a["tradeRef"] = "ATTR-CANARY-1020"
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_size_calc_account_line(mode):
+    """Task 10.20 (W10-R8), on Task 10.12's row: the calculator is the ACCOUNT line in every public mode, share or
+    not; never the symbol, the levels, the risk or the account size the member typed, and never the market line."""
+    for share in (None, False, True):
+        out = reduce(doc(p(t("before")), _size_calc_block(share), p(t("after"))), mode)
+        assert texts_in(out) == ["before", ACCOUNT_LINE, "after"], (mode, share, out)
+        assert pnp.NEUTRAL_LINE not in texts_in(out), (mode, share)
+        assert "widgetEmbed" not in types_in(out), (mode, share)
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _SIZE_CANARIES), (mode, share, blob)
+        for key in ("riskPct", "accountSize", "symbol"):
+            assert key not in blob, (mode, share, key)
+
+
 def test_example_mode_reports_the_dedicated_line_and_still_drops_routines():
     """W10-R49 is scoped to the seven and the calculator: a routine or tracker is still dropped in an example
     (W9), and the example's change report says which line replaced the widget."""

@@ -39,7 +39,7 @@ import {
 import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 import { GROUPS as COT_RAIL_GROUPS } from '../pages/cot/cotRead'
 import { SCREENER_CAPTURE_ROW_CAP, COT_CAPTURE_GROUPS, registerPanel } from './registry'
-import { BLOCK_KINDS, blockSearch } from '../pages/journal-2-0/lib/journalBlocks'
+import { BLOCK_KINDS, blockSearch, TOOL_BLOCK_LABELS, blockLabel } from '../pages/journal-2-0/lib/journalBlocks'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
@@ -63,6 +63,8 @@ const IDS = [
   // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
   // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
   'preEntryChecklist', 'priceStamps', 'positionSizing',
+  // Wave 10 (Task 10.20): the position size calculator, a live trader block (W10-R8), the row after positionSizing.
+  'sizeCalc',
   // Notebook P2b (part b): six more blocks, same binding.
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview',
   // P2 Tier 3 Task 3: the mood and focus check-in, same binding.
@@ -84,7 +86,8 @@ const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
 // Wave 9 (W9-R4): live trader blocks. `block: true` like BLOCK_IDS, but no journalBlocks BLOCK_KINDS row (no
 // catalog search line, no style settings), so the catalog rails below read BLOCK_IDS only.
-const TOOL_BLOCK_IDS = ['routine', 'tracker']
+// Wave 10 (Task 10.20, W10-R8): the position size calculator is one too (a TOOL_BLOCK_LABELS row, no catalog row).
+const TOOL_BLOCK_IDS = ['routine', 'tracker', 'sizeCalc']
 // The ids a /charts board can hold — everything except the capture-only kinds.
 const CAPTURE_ONLY = [...G040_KINDS, ...NOTEBOOK_WIDGET_KINDS, ...BLOCK_IDS, ...TOOL_BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
@@ -119,6 +122,7 @@ describe('widget registry — metadata pins', () => {
       myGamePlan: 'Pre-market game plan',
       myAlertsFired: 'Alerts that fired',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      sizeCalc: 'Position size calculator',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
@@ -152,6 +156,7 @@ describe('widget registry — metadata pins', () => {
       myGamePlan: 'Pre-market game plan',
       myAlertsFired: 'Alerts that fired',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      sizeCalc: 'Position size calculator',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
@@ -185,6 +190,7 @@ describe('widget registry — metadata pins', () => {
       myGamePlan: 'Pre-market game plan',
       myAlertsFired: 'Alerts that fired',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      sizeCalc: 'Position size calculator',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
@@ -245,6 +251,7 @@ describe('widget registry — metadata pins', () => {
       preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
       priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
       positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
+      sizeCalc: { w: 6, h: 4, minW: 3, minH: 2 },
       myRules: { w: 6, h: 4, minW: 3, minH: 2 },
       prepWire: { w: 6, h: 4, minW: 3, minH: 2 },
       prepEarnings: { w: 6, h: 4, minW: 3, minH: 2 },
@@ -352,7 +359,9 @@ describe('widget registry — workspace host bindings', () => {
     // An unbound panel a member could add would render nothing; a bound one would be
     // a workspace widget wearing a capture's name. Both directions, by name.
     const captureOnly = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].captureOnly === true)
-    expect(captureOnly).toEqual(CAPTURE_ONLY)
+    // In menu order (IDS): sizeCalc (Task 10.20) sits after positionSizing, not at the end of TOOL_BLOCK_IDS.
+    expect(captureOnly).toEqual(IDS.filter(id => CAPTURE_ONLY.includes(id)))
+    expect([...captureOnly].sort()).toEqual([...CAPTURE_ONLY].sort())
     for (const id of captureOnly) {
       expect(WORKSPACE_WIDGETS[id], `${id} is capture-only and must not be bound in WidgetHost`).toBeUndefined()
       for (const [menu, on] of Object.entries(WIDGET_REGISTRY[id].menus)) {
@@ -1051,7 +1060,9 @@ describe('widget registry — journal embed bindings', () => {
 
   it('⛔ IR-B2: every block id has exactly ONE BLOCK_COMPONENTS entry, and no non-block id has one', () => {
     const blocks = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].block === true)
-    expect(blocks).toEqual([...BLOCK_IDS, ...TOOL_BLOCK_IDS])
+    // In menu order (IDS): sizeCalc sits after positionSizing, so the two lists are not simply concatenated.
+    expect(blocks).toEqual(IDS.filter((id) => [...BLOCK_IDS, ...TOOL_BLOCK_IDS].includes(id)))
+    expect([...blocks].sort()).toEqual([...BLOCK_IDS, ...TOOL_BLOCK_IDS].sort())
     expect(blockBindingProblems(blocks, blockComponentKeys())).toEqual([])
   })
 
@@ -1119,6 +1130,28 @@ describe('widget registry — journal embed bindings', () => {
       ['trackerId', 'string', ''], ['day', 'string', ''], ['bind', 'string', 'note-day'], ['display', 'string', 'chart'],
     ])
     expect(BLOCK_KINDS.find((k) => k.id === 'tracker'), 'W9-R4: no BLOCK_KINDS row').toBeUndefined()
+  })
+
+  it('size_calc_block_row: wave 10 (Task 10.20) sizeCalc is captureOnly and a block, in no menu, bound ONCE, after positionSizing', () => {
+    const w = WIDGET_REGISTRY.sizeCalc
+    expect(w, 'sizeCalc is registered').toBeDefined()
+    expect(w.labels).toEqual({ header: 'Position size calculator', menu: 'Position size calculator', tab: 'Position size calculator' })
+    expect(w.captureOnly).toBe(true)
+    expect(w.block).toBe(true)
+    expect(isTraderBlock('sizeCalc')).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false), 'sizeCalc menus').toBe(true)
+    expect(blockComponentKeys().filter((k) => k === 'sizeCalc')).toEqual(['sizeCalc'])          // IR-B2: exactly once
+    expect(WIDGET_IDS.indexOf('sizeCalc')).toBe(WIDGET_IDS.indexOf('positionSizing') + 1)       // the row after positionSizing
+    expect(w.paramsSchema.map((f) => [f.key, f.type])).toEqual([
+      ['symbol', 'string'], ['entry', 'number'], ['stop', 'number'], ['riskPct', 'number'], ['accountSize', 'number'],
+    ])
+    expect(paramsPlainText('sizeCalc', {})).toBe('[position size calculator]')
+    // the plain text never carries what the member typed (their account size is private, W10-R8)
+    expect(paramsPlainText('sizeCalc', { symbol: 'NVDA', entry: 100, stop: 95, riskPct: 1, accountSize: 54321 }))
+      .toBe('[position size calculator]')
+    expect(BLOCK_KINDS.find((k) => k.id === 'sizeCalc'), 'no BLOCK_KINDS row (a TOOL_BLOCK_LABELS row instead)').toBeUndefined()
+    expect(TOOL_BLOCK_LABELS.sizeCalc).toBe('Position size calculator')
+    expect(blockLabel('sizeCalc')).toBe('Position size calculator')
   })
 
   it('S20: a block\'s plain text IS its catalog search line', () => {

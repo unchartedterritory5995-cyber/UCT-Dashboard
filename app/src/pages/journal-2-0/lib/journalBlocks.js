@@ -94,7 +94,8 @@ export const SNAPSHOT_BLOCK_LABELS = Object.freeze({
 
 // Notebook widgets phase 2, wave 9 (W9-R4): the live trader blocks. NOT journal-style kinds (never in
 // BLOCK_KINDS, never offered by the style editor) and not snapshot kinds; this only names the block a note holds.
-export const TOOL_BLOCK_LABELS = Object.freeze({ routine: 'Routine', tracker: 'Tracker' })
+// Wave 10 (W10-R8): the position size calculator, the same kind of block.
+export const TOOL_BLOCK_LABELS = Object.freeze({ routine: 'Routine', tracker: 'Tracker', sizeCalc: 'Position size calculator' })
 
 /** A block's member-facing name; an id this bundle does not know reads as a newer-version block. */
 export function blockLabel(id) {

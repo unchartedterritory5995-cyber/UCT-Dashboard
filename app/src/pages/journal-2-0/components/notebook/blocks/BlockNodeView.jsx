@@ -16,6 +16,7 @@ export const BLOCK_COMPONENTS = {
   preEntryChecklist: () => import('./PreEntryChecklistBlock'),
   priceStamps: () => import('./PriceStampsBlock'),
   positionSizing: () => import('./PositionSizingBlock'),
+  sizeCalc: () => import('./SizeCalcBlock'),
   myRules: () => import('./MyRulesBlock'),
   prepWire: () => import('./PrepWireBlock'),
   prepEarnings: () => import('./PrepEarningsBlock'),

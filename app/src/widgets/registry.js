@@ -1037,6 +1037,12 @@ const PANEL_MANIFESTS = {
     { key: 'regimeId', type: 'enum', options: ['green', 'amber', 'orange', 'red'] },
     { key: 'regimeAsOf', type: 'string' },
   ], '[position sizing]'),
+  // Wave 10 (Task 10.20, W10-R8): the position size calculator, a live trader block (no catalog row). Params are only
+  // what the member typed; the account size is read live, and the line never names a number.
+  sizeCalc: blockManifest('Position size calculator', [
+    { key: 'symbol', type: 'string' }, { key: 'entry', type: 'number' }, { key: 'stop', type: 'number' },
+    { key: 'riskPct', type: 'number' }, { key: 'accountSize', type: 'number' },
+  ], '[position size calculator]'),
   // P2 Tier 1 (part b): capture-only blocks bound in BLOCK_COMPONENTS only (IR-B2, part b).
   myRules: blockManifest('My rules', [
     { key: 'which', type: 'enum', options: ['active', 'all'], default: 'active' },

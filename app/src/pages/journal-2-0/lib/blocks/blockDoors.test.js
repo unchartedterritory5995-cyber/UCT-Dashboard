@@ -144,6 +144,8 @@ export const IMPORT_ALLOW = {
   // Wave 9 Task 9.14 (the tracker block): its chart's width is the built views' ONE measure, whose hysteresis stops a
   // ResizeObserver loop (rule H14), so the block writes no observer of its own.
   'app/src/pages/journal-2-0/components/notebook/widgets/builtViews/svg': "useChartWidth and the scale helpers of the built widget views (inline-SVG layout math and one ResizeObserver); no network, no writes",
+  // Wave 10 Task 10.20 (the position size calculator): with wave 10 off it says "Not available right now."
+  'app/src/pages/journal-2-0/lib/notebookWidgetsFlags': 'widgetsWaveOn: the calculator makes no request, so it learns the wave from the latched flag',
 }
 
 /**
