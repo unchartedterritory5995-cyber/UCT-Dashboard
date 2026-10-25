@@ -192,3 +192,47 @@ def test_hostile_text_matches_exactly_once_seeded(conn):  # noqa: F811
     res = aggregate.evaluate(sc.rows, p, sources.CATALOG)
     assert sorted(g.key for g in res.groups) == sorted(CORPUS)
     assert all(len(g.label) <= 60 for g in res.groups)
+
+
+# -- wave 10 (Task 10.4): a member formula never reaches SQL ---------------------------------------
+
+def _formula_plan(source: str, value: str) -> dict:
+    """Two formulas carrying `value`: an aggregate whose text literal is the value, and a row formula
+    named by it (names are at most 60 characters)."""
+    quoted = '"' + value.replace('"', '""') + '"'
+    field_ = {"closed_trades": "setup", "trading_days": "weekday"}[source]
+    num = {"closed_trades": "net", "trading_days": "day_net"}[source]
+    formulas = [
+        {"id": "f1", "name": "Count of it", "expr": f"CountIf([{field_}] = {quoted})"},
+        {"id": "f2", "name": value[:60].strip() or "x",
+         "expr": f"If([{field_}] = {quoted}, [{num}], 0)", "format": "money"},
+    ]
+    raw = raw_plan(source=source, measures=(), formulas=formulas,
+                   range={"from": "2026-09-01", "to": "2026-10-23"})
+    raw["measures"] = [{"formula": "f1"}, {"formula": "f2", "agg": "sum"}]
+    return plan.validate_plan(raw, sources.CATALOG)
+
+
+@pytest.mark.parametrize("source", ["closed_trades", "trading_days"])
+def test_formula_text_is_never_sql_text(conn, source):  # noqa: F811
+    executed: list[str] = []
+    seen_plans = 0
+    for value in CORPUS:
+        p = _formula_plan(source, value)
+        assert p["v"] == 3 and value in p["formulas"][0]["expr"].replace('""', '"')
+        seen_plans += 1
+        rng = plan.ResolvedRange("2026-09-01", "2026-10-23", None, "x")
+        sql, params = wcompile.compile_scan(sources.SOURCES[source], p, {}, rng, UID)
+        for planted in (value, p["formulas"][0]["expr"], p["formulas"][1]["expr"],
+                        p["formulas"][1]["name"]):
+            assert planted not in sql, (source, value)
+            assert planted not in params, (source, value)
+        conn.set_trace_callback(executed.append)
+        try:
+            sources.scan(conn, p, {}, rng, UID, today=TODAY)
+        finally:
+            conn.set_trace_callback(None)
+    assert seen_plans == len(CORPUS) and executed
+    for sql in executed:                     # not even as a bound parameter
+        for value in CORPUS:
+            assert value not in sql, (source, value, sql[:200])

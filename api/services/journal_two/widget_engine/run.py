@@ -94,8 +94,9 @@ _SUPERSEDE_LANES = frozenset({"preview"})
 _SAMPLE_LANES = frozenset({"preview", "example"})
 #: Ruling W9-R5: routine and tracker history never read the sample book (a member with no trades
 #: and ten ticked days sees their own ten days). A plan that names a routine or tracker (`ref`) is
-#: read from the member's rows too: the sample book has no routines or trackers.
-NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES
+#: read from the member's rows too: the sample book has no routines or trackers. Ruling W10-R6:
+#: options strategies and notes never read the sample book either.
+NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES | wplan.WAVE10_SOURCES
 
 
 def _never_sample(plan: dict) -> bool:
@@ -280,6 +281,13 @@ _POSITIONS_STAMP = (
 _STRATEGIES_STAMP = "SELECT MAX(updated_at), COUNT(*) FROM j2_option_strategies WHERE user_id = ?"
 _CHECKINS_STAMP = "SELECT COUNT(*), MAX(created_at) FROM j2_note_checkins WHERE user_id = ?"
 _DAY_NOTES_STAMP = "SELECT COUNT(*) FROM j2_day_notes WHERE user_id = ?"
+# Wave 10 (Task 10.4): the notes source reads the member's notes, folders, note kinds and property
+# definitions (a renamed folder or a retyped property moves a group or a filter).
+_NOTES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_notes WHERE user_id = ?"
+_NOTE_FOLDERS_STAMP = "SELECT COUNT(*) FROM j2_note_folders WHERE user_id = ?"
+_NOTE_KINDS_STAMP = "SELECT COUNT(*) FROM j2_note_kinds WHERE user_id = ?"
+_NOTE_PROPERTIES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_note_properties WHERE user_id = ?"
+_NOTE_STAMPS = (_NOTES_STAMP, _NOTE_FOLDERS_STAMP, _NOTE_KINDS_STAMP, _NOTE_PROPERTIES_STAMP)
 # Wave 9 (Task 9.8): routines and trackers. Beyond the brief's COUNT / MAX(updated_at), each also
 # sums what a same-second edit can change (a tick undone, a skip undone, a value rewritten, a
 # schedule replaced on its own day, a routine edited).
@@ -338,6 +346,10 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str,
         return routines() + "|" + many((_TRADES_STAMP, _POSITIONS_STAMP, _STRATEGIES_STAMP))
     if source_key == "tracker_history":
         return trackers() + "|" + _one(conn, _CHECKINS_STAMP, user_id)
+    if source_key == "options_strategies":
+        return "o|" + many((_STRATEGIES_STAMP, _ACCOUNTS_STAMP))
+    if source_key == "notes":
+        return "n|" + many(_NOTE_STAMPS)
     trades = many((_TRADES_STAMP, _EXCURSIONS_STAMP, _ADHERENCE_STAMP, _ACCOUNTS_STAMP))
     if source_key == "open_positions":
         return "p|" + _one(conn, _POSITIONS_STAMP, user_id) + "|" + _one(conn, _ACCOUNTS_STAMP, user_id)

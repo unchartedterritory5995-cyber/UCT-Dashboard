@@ -614,9 +614,12 @@ def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch, tmp_path):
 # -- shelf revisions (Task 10.8) -----------------------------------------------------------------
 
 def test_shelf_wave10_fallback_only_before_plan_v3():
-    """`_shelf_allowed`'s getattr fallback for `plan.uses_wave10` is safe only while no plan format
-    3 can validate; Task 10.4 deletes it."""
-    assert wplan.PLAN_VERSION < 3 or hasattr(wplan, "uses_wave10")
+    """Task 10.4 landed plan format 3 and `plan.uses_wave10`, and deleted `_shelf_allowed`'s getattr
+    fallback: the router asks `wplan.uses_wave10` directly."""
+    assert wplan.PLAN_VERSION == 3 and hasattr(wplan, "uses_wave10")
+    import inspect
+    src = inspect.getsource(wdr._shelf_allowed)
+    assert "wplan.uses_wave10(plan)" in src and "getattr" not in src
 
 
 def _two_revs(tmp_path, **plan_changes):

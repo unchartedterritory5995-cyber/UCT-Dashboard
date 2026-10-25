@@ -470,7 +470,9 @@ def test_every_field_is_typed_with_ops_for_its_type():
 
 
 def test_every_source_has_a_measure_and_the_catalog_satisfies_the_plan_protocol():
-    for key in plan.SOURCES:
+    # Task 10.4: plan.SOURCES names wave 10's two sources before Tasks 10.6 and 10.7 add them here
+    assert set(sources.SOURCES) <= set(plan.SOURCES)
+    for key in sources.SOURCES:
         assert sources.CATALOG.measures_for(key), key
     assert "avg_true_r" not in sources.CATALOG.measures
     assert sources.CATALOG.accents[0] == "gold"

@@ -45,7 +45,8 @@ from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
-    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange, plan_refs,
+    RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange, formula_field_infos,
+    plan_refs,
 )
 
 # ── field vocabulary ───────────────────────────────────────────────────────────────────────────
@@ -138,6 +139,9 @@ class Field:
     strict_choices: bool = False
     #: a row key holding a group's sort position (tracker buckets read low to high)
     order_from: str | None = None
+    #: wave 10: a day field whose row also carries its ET hour under this key (the formula
+    #: dialect's `Hour([day])` reads it; None: the day has no time of day)
+    hour_key: str | None = None
 
 
 def _f(key, label, ftype, *, sql=None, py=None, split=False, **kw) -> Field:
@@ -343,7 +347,7 @@ _T_ORIGIN = ("CASE WHEN t.source = 'broker' THEN 'broker' WHEN t.source = 'csv' 
              " ELSE 'manual' END")
 
 CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [
-    _f("day", "Day", "day", sql=_DAY, split=True),
+    _f("day", "Day", "day", sql=_DAY, split=True, hour_key="hour_et"),
     _f("hour_et", "ET hour", "number", sql="t.hour_et", split=True, fmt=_hour_label,
        missing="no time"),
     _f("weekday", "Weekday", "enum", sql=_T_WEEKDAY, py=lambda r: _weekday(r.get("day")),
@@ -1303,6 +1307,13 @@ class WidgetCatalog:
 
 
 CATALOG = WidgetCatalog()
+
+
+def formula_fields(source: str) -> dict:
+    """{key: widget_formula.FieldInfo} a member formula over `source` may name (Task 10.4): every
+    filterable field, an enum typed `text` and a tag typed `tag` (so the dialect refuses it by
+    name). One conversion, `plan.formula_field_infos`, which the plan validator runs too."""
+    return formula_field_infos(SOURCES[source].fields)
 
 
 def scan(conn: sqlite3.Connection, plan: dict, settings: dict | None, rng: ResolvedRange,

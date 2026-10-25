@@ -244,7 +244,7 @@ def test_missing_version_refused():
 
 def test_too_new_refused_with_reload_sentence():
     raw = full_plan()
-    raw["v"] = P.PLAN_VERSION + 1          # wave 9: PLAN_VERSION is 2 (ruling W9-R3)
+    raw["v"] = P.PLAN_VERSION + 1          # wave 10: PLAN_VERSION is 3 (ruling W10-R3)
     for fn in (lambda: P.upgrade_plan(raw), lambda: P.validate_plan(raw, CAT)):
         with pytest.raises(P.PlanTooNew) as ei:
             fn()
@@ -257,7 +257,7 @@ def test_too_new_refused_with_reload_sentence():
 def test_upgrade_is_identity_for_v1():
     p = full_plan()
     assert P.upgrade_plan(p) == p
-    assert P.PLAN_VERSION == 2             # wave 9 (W9-R3); a wave 8 plan is still v1
+    assert P.PLAN_VERSION == 3             # wave 10 (W10-R3); a wave 8 plan is still v1
     assert P.validate_plan(p, CAT)["v"] == 1
 
 

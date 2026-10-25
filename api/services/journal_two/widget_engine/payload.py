@@ -56,6 +56,9 @@ S_EMPTY: dict[str, str] = {
     # wave 9 (Task 9.8)
     "routine_history": "Start ticking your routine; history shows here from day one.",
     "tracker_history": "Log your first value; the chart starts with it.",
+    # wave 10 (Task 10.4: the shared rows; the sources are Tasks 10.6 and 10.7)
+    "options_strategies": "No options strategies in this range.",
+    "notes": "No notes match.",
 }
 S_ALL_ACCOUNTS = "All my accounts"
 S_ONE_ACCOUNT = "One account"
@@ -104,9 +107,11 @@ _RESULT_CODE = {"Win": "win", "Loss": "loss", "BE": "be"}
 #: The rows each source's scan cap holds (the cap the `capped` flag refers to).
 _CAP_ROWS = {"closed_trades": wcompile.SCAN_ROWS, "open_positions": wcompile.SCAN_ROWS,
              "trading_days": wsources.MAX_SESSIONS, "routine_history": wcompile.SCAN_ROWS,
-             "tracker_history": wcompile.SCAN_ROWS}
+             "tracker_history": wcompile.SCAN_ROWS, "options_strategies": wcompile.SCAN_ROWS,
+             "notes": wcompile.SCAN_ROWS}
 _CAP_UNIT = {"closed_trades": "trades", "open_positions": "positions", "trading_days": "sessions",
-             "routine_history": "days", "tracker_history": "entries"}
+             "routine_history": "days", "tracker_history": "entries",
+             "options_strategies": "strategies", "notes": "notes"}
 
 
 # -- small helpers ---------------------------------------------------------------------------------

@@ -454,6 +454,9 @@ EXEMPT = {
     "api/routers/notebook_chart_alerts.py": "reads one chart block of a note the member has open, on their click",
     "api/routers/notebook_journal_styles.py": "the price-stamp route's ownership check on the one note the member "
                                               "is typing in; a yes/no, never a count",
+    "api/services/journal_two/widget_engine/run.py": "the widget result cache's freshness stamp (COUNT and "
+                                                     "MAX(updated_at) of notes, folders, kinds, properties); it "
+                                                     "only decides when to recompute, never a shown number",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",

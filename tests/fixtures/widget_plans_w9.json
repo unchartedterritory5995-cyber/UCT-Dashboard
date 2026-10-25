@@ -1,0 +1,7994 @@
+{
+ "about": "Task 10.4 Step 1: every plan the wave 8 and wave 9 tests validate (tests/test_widget_plan.py, tests/test_widget_tool_sources.py, captured by wrapping plan.validate_plan during a run of both files BEFORE plan format 3 landed) and every shelf r1 plan, with the dict each validated to. catalog 'stub' is tests.test_widget_plan.CAT, 'real' is sources.CATALOG. Frozen: never re-record.",
+ "plans": [
+  {
+   "catalog": "real",
+   "name": "test plan 1",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 2",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 3",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "7e5fdb6b-a3ae-4437-9faa-586c90eef039",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "7e5fdb6b-a3ae-4437-9faa-586c90eef039",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 4",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 5",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 6",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "item",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "item",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 7",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "state",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "state",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 8",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 9",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": {
+     "by": "tracker",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": {
+     "by": "tracker",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 10",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 11",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "23deb70b-fc1c-4710-8a5d-dc0389b5b940",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "23deb70b-fc1c-4710-8a5d-dc0389b5b940",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 12",
+   "raw": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "22940822-947c-4698-89b2-d7fce104090e",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "22940822-947c-4698-89b2-d7fce104090e",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 13",
+   "raw": {
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "title": "Weekly scorecard",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "this_week"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Weekly scorecard",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "this_week"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 14",
+   "raw": {
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "title": "Win rate",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Win rate",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 15",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Accounts side by side",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "account"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Accounts side by side",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "account",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 16",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Average win vs average loss",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "avg_win"
+     },
+     {
+      "key": "avg_loss"
+     },
+     {
+      "key": "payoff"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Average win vs average loss",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_win"
+     },
+     {
+      "key": "avg_loss"
+     },
+     {
+      "key": "payoff"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 17",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Best trades",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 0,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Best trades",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 0,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 18",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Daily P&L bars",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "day"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Daily P&L bars",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "day",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 19",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Equity curve",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "day"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Equity curve",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "day",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 20",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Exit quality",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "avg_hold_days"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "result"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Exit quality",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "avg_hold_days"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "result",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 21",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Expectancy",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "expectancy"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Expectancy",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "expectancy"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 22",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Long vs short",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "side"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Long vs short",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "side",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 23",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Month in review",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "this_month"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Month in review",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "this_month"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 24",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "P&L by hold time",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "hold_bucket"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "P&L by hold time",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "hold_bucket",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 25",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "P&L by time of day",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "hour_et"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "P&L by time of day",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "hour_et",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 26",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "P&L by weekday",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "weekday"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "P&L by weekday",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "weekday",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 27",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Performance by symbol",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "wins"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 2,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "symbol"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Performance by symbol",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "wins"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 2,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "symbol",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 28",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Profit factor",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "profit_factor"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Profit factor",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "profit_factor"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 29",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "R equity curve",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "day"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "R equity curve",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "day",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 30",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "R vs P&L scatter",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "total_r"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "scatter"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "R vs P&L scatter",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "total_r"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "scatter"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 31",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "R-multiple distribution",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "r_bucket"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "R-multiple distribution",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "r_bucket",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 32",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Recent trades",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_20_trades"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Recent trades",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_20_trades"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 33",
+   "raw": {
+    "display": {
+     "accent": "orange",
+     "title": "Fees drag",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "fees"
+     },
+     {
+      "key": "gross_pnl"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "orange",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Fees drag",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "fees"
+     },
+     {
+      "key": "gross_pnl"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 34",
+   "raw": {
+    "display": {
+     "accent": "red",
+     "title": "Loss streak",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "current_streak"
+     },
+     {
+      "key": "max_loss_streak"
+     },
+     {
+      "key": "max_win_streak"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "red",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Loss streak",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "current_streak"
+     },
+     {
+      "key": "max_loss_streak"
+     },
+     {
+      "key": "max_win_streak"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 35",
+   "raw": {
+    "display": {
+     "accent": "red",
+     "title": "Max drawdown",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "max_drawdown"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "red",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Max drawdown",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "max_drawdown"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 36",
+   "raw": {
+    "filters": [
+     {
+      "field": "routine",
+      "op": "in",
+      "values": [
+       "ef8f3bb5-62f2-4d55-83fe-f44167c6d774"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "routine",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       "ef8f3bb5-62f2-4d55-83fe-f44167c6d774"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 37",
+   "raw": {
+    "filters": [
+     {
+      "field": "routine_done",
+      "op": "in",
+      "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6",
+      "values": [
+       "done"
+      ]
+     },
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "ref": "1d116f15-721e-4676-9a03-6a2a87cc9ae7",
+      "values": [
+       6
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "routine_done",
+      "op": "in",
+      "overridable": false,
+      "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6",
+      "values": [
+       "done"
+      ]
+     },
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "1d116f15-721e-4676-9a03-6a2a87cc9ae7",
+      "values": [
+       6
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 38",
+   "raw": {
+    "filters": [
+     {
+      "field": "state",
+      "op": "in",
+      "values": [
+       "done"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "state",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       "done"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 39",
+   "raw": {
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "23deb70b-fc1c-4710-8a5d-dc0389b5b940"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "23deb70b-fc1c-4710-8a5d-dc0389b5b940",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 40",
+   "raw": {
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "ref": "640c8cbe-da0f-44c4-b696-22640cf3250b",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-30"
+    },
+    "source": "trading_days",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "640c8cbe-da0f-44c4-b696-22640cf3250b",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-30"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 41",
+   "raw": {
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "ref": "7fc0c61f-97e2-438e-913a-d0599c5e79f9",
+      "values": [
+       420
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "7fc0c61f-97e2-438e-913a-d0599c5e79f9",
+      "values": [
+       420
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 42",
+   "raw": {
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "22940822-947c-4698-89b2-d7fce104090e"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf",
+      "values": [
+       0
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "22940822-947c-4698-89b2-d7fce104090e",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 43",
+   "raw": {
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "ref": "checkin:mood",
+      "values": [
+       1
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tracker_value",
+      "op": "gte",
+      "overridable": false,
+      "ref": "checkin:mood",
+      "values": [
+       1
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 44",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-12",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "16319cc7-fa6d-4e6a-aaa7-3099ff619532"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-12",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "16319cc7-fa6d-4e6a-aaa7-3099ff619532",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 45",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 46",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "0cb64c88-e9cf-4b6a-acac-823750610e57"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "0cb64c88-e9cf-4b6a-acac-823750610e57",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 47",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "11114014-86fd-4a3e-8a67-2b296d516aee"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "11114014-86fd-4a3e-8a67-2b296d516aee",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 48",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "4f92539c-0d55-4eaf-998b-235842ee40b2"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "4f92539c-0d55-4eaf-998b-235842ee40b2",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 49",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "baa3f966-7d3d-4351-a35a-b3832113cbf1"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "baa3f966-7d3d-4351-a35a-b3832113cbf1",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 50",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "c5e22ba5-9a1a-4410-abdf-852ca3a2ffbd"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "c5e22ba5-9a1a-4410-abdf-852ca3a2ffbd",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 51",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "ce349267-7041-4ec6-90d2-c4254cfe1067"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "ce349267-7041-4ec6-90d2-c4254cfe1067",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 52",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "ef8f3bb5-62f2-4d55-83fe-f44167c6d774"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "ef8f3bb5-62f2-4d55-83fe-f44167c6d774",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 53",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "08d1defa-34bc-4dfb-a670-fc7c75cd3d4a",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 54",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "0c005e04-610d-4565-89f2-5f1f76bb8fd6",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 55",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "7fc0c61f-97e2-438e-913a-d0599c5e79f9"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "7fc0c61f-97e2-438e-913a-d0599c5e79f9",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 56",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "a2669de7-8b64-47eb-8955-5f3b47e2d1cf",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 57",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "checkin:focus"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "checkin:focus",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 58",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "checkin:mood"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "checkin:mood",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 59",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "weekday",
+     "ref2": "0c005e04-610d-4565-89f2-5f1f76bb8fd6",
+     "then": "routine_done"
+    },
+    "v": 1,
+    "view": {
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "weekday",
+     "ref2": "0c005e04-610d-4565-89f2-5f1f76bb8fd6",
+     "then": "routine_done"
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 60",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-30"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "973b4162-8dfe-4904-86aa-6eca419431bd"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-30"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "973b4162-8dfe-4904-86aa-6eca419431bd",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 61",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-30"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "640c8cbe-da0f-44c4-b696-22640cf3250b"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-30"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "tracker_bucket",
+     "ref": "640c8cbe-da0f-44c4-b696-22640cf3250b",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 62",
+   "raw": {
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "7e5fdb6b-a3ae-4437-9faa-586c90eef039"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_day_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": {
+     "by": "routine_done",
+     "ref": "7e5fdb6b-a3ae-4437-9faa-586c90eef039",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 63",
+   "raw": {
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 64",
+   "raw": {
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "closed_trades",
+    "v": 2
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 65",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_consistency"
+     },
+     {
+      "key": "routine_completion_pct"
+     },
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_consistency"
+     },
+     {
+      "key": "routine_completion_pct"
+     },
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 66",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_consistency"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_consistency"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 67",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2025-10-24",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "item"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2025-10-24",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "item",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 68",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2025-10-24",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2025-10-24",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 69",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-09-01",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-09-01",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 70",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "item"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "item",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 71",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "state"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "state",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 72",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 73",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "state"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "state",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 74",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 75",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "item"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "item",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 76",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-23"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 77",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "item"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "item",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 78",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "state"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "state",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 79",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "item"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "item",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 80",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 81",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "routine_history",
+    "split": {
+     "by": "state"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": {
+     "by": "state",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 82",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 83",
+   "raw": {
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "source": "routine_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "routine_days_done"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "routine_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 84",
+   "raw": {
+    "measures": [
+     {
+      "key": "tracker_avg"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "tracker_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_avg"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 85",
+   "raw": {
+    "measures": [
+     {
+      "key": "tracker_avg"
+     }
+    ],
+    "source": "tracker_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_avg"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 86",
+   "raw": {
+    "measures": [
+     {
+      "key": "tracker_entries"
+     },
+     {
+      "key": "tracker_avg"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "source": "tracker_history",
+    "split": {
+     "by": "tracker"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_entries"
+     },
+     {
+      "key": "tracker_avg"
+     }
+    ],
+    "range": {
+     "from": "2026-10-05",
+     "to": "2026-10-23"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": {
+     "by": "tracker",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 87",
+   "raw": {
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "source": "tracker_history",
+    "split": {
+     "by": "tracker"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "from": "2026-10-22",
+     "to": "2026-10-22"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": {
+     "by": "tracker",
+     "then": null
+    },
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 88",
+   "raw": {
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "tracker_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_entries"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "test plan 89",
+   "raw": {
+    "measures": [
+     {
+      "key": "tracker_latest"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-21"
+    },
+    "source": "tracker_history",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "tracker_latest"
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-21"
+    },
+    "sort": null,
+    "source": "tracker_history",
+    "split": null,
+    "v": 2,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 90",
+   "raw": {
+    "accounts": {
+     "id": "acct-1"
+    },
+    "compare": {
+     "from": "2026-09-01",
+     "mode": "range",
+     "to": "2026-09-24"
+    },
+    "display": {
+     "accent": "green",
+     "showN": false,
+     "subtitle": "Oct",
+     "target": 2500,
+     "title": "My 😀 setups",
+     "titleAuto": false
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "overridable": true,
+      "values": [
+       "long"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "from": "2026-10-01",
+     "to": "2026-10-24"
+    },
+    "sort": {
+     "dir": "asc",
+     "measure": 1,
+     "top": 12
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "setup",
+     "then": "ticker"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": {
+     "id": "acct-1"
+    },
+    "compare": {
+     "from": "2026-09-01",
+     "mode": "range",
+     "to": "2026-09-24"
+    },
+    "display": {
+     "accent": "green",
+     "showN": false,
+     "subtitle": "Oct",
+     "target": 2500,
+     "title": "My 😀 setups",
+     "titleAuto": false
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "overridable": true,
+      "values": [
+       "long"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "from": "2026-10-01",
+     "to": "2026-10-24"
+    },
+    "sort": {
+     "dir": "asc",
+     "measure": 1,
+     "top": 12
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "setup",
+     "then": "ticker"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 91",
+   "raw": {
+    "accounts": {
+     "id": "acct-1"
+    },
+    "compare": {
+     "from": "2026-09-01",
+     "mode": "range",
+     "to": "2026-09-24"
+    },
+    "display": {
+     "accent": "green",
+     "showN": false,
+     "subtitle": "Oct",
+     "target": 2500,
+     "title": "My setups",
+     "titleAuto": false
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "overridable": true,
+      "values": [
+       "long"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "from": "2026-10-01",
+     "to": "2026-10-24"
+    },
+    "sort": {
+     "dir": "asc",
+     "measure": 1,
+     "top": 12
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "setup",
+     "then": "ticker"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": {
+     "id": "acct-1"
+    },
+    "compare": {
+     "from": "2026-09-01",
+     "mode": "range",
+     "to": "2026-09-24"
+    },
+    "display": {
+     "accent": "green",
+     "showN": false,
+     "subtitle": "Oct",
+     "target": 2500,
+     "title": "My setups",
+     "titleAuto": false
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "overridable": true,
+      "values": [
+       "long"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "from": "2026-10-01",
+     "to": "2026-10-24"
+    },
+    "sort": {
+     "dir": "asc",
+     "measure": 1,
+     "top": 12
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "setup",
+     "then": "ticker"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 92",
+   "raw": {
+    "compare": {
+     "mode": "previous"
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "this_week"
+    },
+    "source": "trading_days",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "this_week"
+    },
+    "sort": null,
+    "source": "trading_days",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 93",
+   "raw": {
+    "display": {
+     "title": "Mine"
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "values": [
+       "long"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "sort": {
+     "top": 5
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Mine",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       "long"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 0,
+     "top": 5
+    },
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 94",
+   "raw": {
+    "filters": [
+     {
+      "field": "exit_day",
+      "op": "between",
+      "overridable": false,
+      "values": [
+       "2026-10-01",
+       "2026-10-24"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "exit_day",
+      "op": "between",
+      "overridable": false,
+      "values": [
+       "2026-10-01",
+       "2026-10-24"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 95",
+   "raw": {
+    "filters": [
+     {
+      "field": "exit_day",
+      "op": "gte",
+      "overridable": false,
+      "values": [
+       "2026-10-01"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "exit_day",
+      "op": "gte",
+      "overridable": false,
+      "values": [
+       "2026-10-01"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 96",
+   "raw": {
+    "filters": [
+     {
+      "field": "flagged",
+      "op": "is",
+      "overridable": false,
+      "values": [
+       false
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "flagged",
+      "op": "is",
+      "overridable": false,
+      "values": [
+       false
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 97",
+   "raw": {
+    "filters": [
+     {
+      "field": "hour_et",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       9,
+       10
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "hour_et",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       9,
+       10
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 98",
+   "raw": {
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "between",
+      "overridable": false,
+      "values": [
+       1,
+       2.5
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "between",
+      "overridable": false,
+      "values": [
+       1,
+       2.5
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 99",
+   "raw": {
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "between",
+      "overridable": false,
+      "values": [
+       2,
+       2
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "between",
+      "overridable": false,
+      "values": [
+       2,
+       2
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 100",
+   "raw": {
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "eq",
+      "overridable": false,
+      "values": [
+       1
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "eq",
+      "overridable": false,
+      "values": [
+       1
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 101",
+   "raw": {
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "lt",
+      "overridable": false,
+      "values": [
+       -0.5
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "r_mult",
+      "op": "lt",
+      "overridable": false,
+      "values": [
+       -0.5
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 102",
+   "raw": {
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       "long",
+       "short"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       "long",
+       "short"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 103",
+   "raw": {
+    "filters": [
+     {
+      "field": "side",
+      "op": "not_in",
+      "overridable": false,
+      "values": [
+       "short"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "side",
+      "op": "not_in",
+      "overridable": false,
+      "values": [
+       "short"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 104",
+   "raw": {
+    "filters": [
+     {
+      "field": "tags",
+      "op": "has_any",
+      "overridable": false,
+      "values": [
+       "a+",
+       "breakout"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "tags",
+      "op": "has_any",
+      "overridable": false,
+      "values": [
+       "a+",
+       "breakout"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 105",
+   "raw": {
+    "filters": [
+     {
+      "field": "ticker",
+      "op": "contains",
+      "overridable": false,
+      "values": [
+       "NV"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "ticker",
+      "op": "contains",
+      "overridable": false,
+      "values": [
+       "NV"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 106",
+   "raw": {
+    "filters": [
+     {
+      "field": "venue",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       "arca"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [
+     {
+      "field": "venue",
+      "op": "in",
+      "overridable": false,
+      "values": [
+       "arca"
+      ]
+     }
+    ],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 107",
+   "raw": {
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_50_trades"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "hour_et"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_50_trades"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "hour_et",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 108",
+   "raw": {
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "split": {
+     "by": "setup"
+    },
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "setup",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "stub",
+   "name": "test plan 109",
+   "raw": {
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "",
+     "titleAuto": true
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:accounts-side-by-side r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Accounts side by side",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "account"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Accounts side by side",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "account",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:avg-win-vs-loss r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Average win vs average loss",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "avg_win"
+     },
+     {
+      "key": "avg_loss"
+     },
+     {
+      "key": "payoff"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Average win vs average loss",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "avg_win"
+     },
+     {
+      "key": "avg_loss"
+     },
+     {
+      "key": "payoff"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:best-trades r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Best trades",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 0,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Best trades",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 0,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:daily-pnl-bars r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Daily P&L bars",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "day"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Daily P&L bars",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_30d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "day",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:equity-curve r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Equity curve",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "day"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Equity curve",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "day",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:exit-quality r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Exit quality",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "avg_hold_days"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "result"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Exit quality",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "avg_hold_days"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "result",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:expectancy r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Expectancy",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "expectancy"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Expectancy",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "expectancy"
+     },
+     {
+      "key": "expectancy_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:fees-drag r1",
+   "raw": {
+    "display": {
+     "accent": "orange",
+     "title": "Fees drag",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "fees"
+     },
+     {
+      "key": "gross_pnl"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "orange",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Fees drag",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "fees"
+     },
+     {
+      "key": "gross_pnl"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:long-vs-short r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Long vs short",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "side"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Long vs short",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "side",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:loss-streak r1",
+   "raw": {
+    "display": {
+     "accent": "red",
+     "title": "Loss streak",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "current_streak"
+     },
+     {
+      "key": "max_loss_streak"
+     },
+     {
+      "key": "max_win_streak"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "red",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Loss streak",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "current_streak"
+     },
+     {
+      "key": "max_loss_streak"
+     },
+     {
+      "key": "max_win_streak"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:max-drawdown r1",
+   "raw": {
+    "display": {
+     "accent": "red",
+     "title": "Max drawdown",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "max_drawdown"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "red",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Max drawdown",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "max_drawdown"
+     }
+    ],
+    "range": {
+     "token": "all"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:month-in-review r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Month in review",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "this_month"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Month in review",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "trades"
+     },
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "this_month"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:performance-by-symbol r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Performance by symbol",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "wins"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 2,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "symbol"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Performance by symbol",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     },
+     {
+      "key": "wins"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": {
+     "dir": "desc",
+     "measure": 2,
+     "top": 10
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "symbol",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "table"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:pnl-by-hold-time r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "P&L by hold time",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "hold_bucket"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "P&L by hold time",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "hold_bucket",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:pnl-by-time-of-day r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "P&L by time of day",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "hour_et"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "P&L by time of day",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "hour_et",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:pnl-by-weekday r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "P&L by weekday",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "weekday"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "P&L by weekday",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "weekday",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:profit-factor r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Profit factor",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "profit_factor"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Profit factor",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "profit_factor"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": true,
+     "type": "number"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:r-equity-curve r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "R equity curve",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "day"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "R equity curve",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "day",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "line"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:r-multiple-distribution r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "R-multiple distribution",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "split": {
+     "by": "r_bucket"
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "R-multiple distribution",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": {
+     "by": "r_bucket",
+     "then": null
+    },
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "bar"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:r-vs-pnl-scatter r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "R vs P&L scatter",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "total_r"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "scatter"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "R vs P&L scatter",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "total_r"
+     },
+     {
+      "key": "net_pnl"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "scatter"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:recent-trades r1",
+   "raw": {
+    "display": {
+     "accent": "gold",
+     "title": "Recent trades",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_20_trades"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": null,
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Recent trades",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "total_r"
+     }
+    ],
+    "range": {
+     "token": "last_20_trades"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "list"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:weekly-scorecard r1",
+   "raw": {
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "title": "Weekly scorecard",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "this_week"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Weekly scorecard",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "net_pnl"
+     },
+     {
+      "key": "win_rate"
+     },
+     {
+      "key": "trades"
+     }
+    ],
+    "range": {
+     "token": "this_week"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   }
+  },
+  {
+   "catalog": "real",
+   "name": "shelf:win-rate r1",
+   "raw": {
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "title": "Win rate",
+     "titleAuto": false
+    },
+    "measures": [
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "source": "closed_trades",
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   },
+   "valid": {
+    "accounts": "all",
+    "compare": {
+     "mode": "previous"
+    },
+    "display": {
+     "accent": "gold",
+     "showN": true,
+     "subtitle": "",
+     "target": null,
+     "title": "Win rate",
+     "titleAuto": false
+    },
+    "filters": [],
+    "measures": [
+     {
+      "key": "win_rate"
+     }
+    ],
+    "range": {
+     "token": "last_90d"
+    },
+    "sort": null,
+    "source": "closed_trades",
+    "split": null,
+    "v": 1,
+    "view": {
+     "auto": false,
+     "type": "compare"
+    }
+   }
+  }
+ ]
+}
