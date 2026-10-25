@@ -169,7 +169,11 @@ function useValueList(field, onToolNames) {
         // live preview line read the same `toolNames`).
         if (REF_KINDS.includes(field.key)) onToolNames?.(field.key, list.map((o) => ({ id: o.value, name: o.label })))
       },
-      () => { if (alive) setState({ list: [], failed: true }) },
+      () => {
+        if (!alive) return
+        setState({ list: [], failed: true })
+        if (REF_KINDS.includes(field.key)) onToolNames?.(field.key, null)     // W9-R51
+      },
     )
     return () => { alive = false }
     // onToolNames is the sheet's merge; a new identity must not re-read the list.
@@ -240,6 +244,8 @@ export function FilterEditor({
     setTyped('')
   }
   const sentence = filterSentence(field, filter, { accounts, toolNames })
+  // What the filter is about: the routine or tracker it names (W9-R51 wording when the list failed), else the field.
+  const subject = ref ? refName(field, ref, toolNames) : field.label
 
   let body
   if (type === 'bool') {
@@ -339,7 +345,7 @@ export function FilterEditor({
 
   return (
     <div>
-      <PickerHead title={ref ? refName(field, ref, toolNames) : field.label} onBack={onBack} />
+      <PickerHead title={subject} onBack={onBack} />
       {ref && onChangeRef && (
         <button type="button" className={styles.btn} onClick={() => onChangeRef({ op, values, overridable })}>
           {refKind === 'tracker' ? 'Change tracker' : 'Change routine'}
@@ -349,7 +355,7 @@ export function FilterEditor({
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={opId}>Comparison</label>
           <select id={opId} className={styles.select} value={op} onChange={(e) => setOpTo(e.target.value)}>
-            {ops.map((o) => <option key={o} value={o}>{`${field.label} ${opLabel(o, type)}`}</option>)}
+            {ops.map((o) => <option key={o} value={o}>{`${subject} ${opLabel(o, type)}`}</option>)}
           </select>
         </div>
       )}

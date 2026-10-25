@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from './WidgetBuilderSheet'
 import { normalizePlan } from './builderState'
-import { filterSentence, valueLabel, refName, indexCatalog } from './builderCatalog'
+import { filterSentence, valueLabel, refName, indexCatalog, NAMES_FAILED } from './builderCatalog'
 import { __resetBuiltCaches, loadVocabulary } from '../../../lib/builtWidgets'
 import { installFetch, answer, callsTo, bodyOf } from './__fixtures__/builderFixtures'
 import {
@@ -250,6 +250,12 @@ describe('fix round 1 (Task 9.17)', () => {
     expect(valueLabel(rh, R1, { toolNames: known })).toBe('Morning prep')
     expect(valueLabel(rh, R2, { toolNames: known })).toBe('A removed routine')
     expect(valueLabel(rh, R2, {})).toBe('Routine')
+    // W9-R51: a list that could not be read says so, never the field label.
+    const failed = { routine: NAMES_FAILED, tracker: NAMES_FAILED }
+    expect(filterSentence(td, filter, { toolNames: failed })).toBe("A routine that couldn't be loaded is Done")
+    expect(valueLabel(rh, R2, { toolNames: failed })).toBe("A routine that couldn't be loaded")
+    expect(refName(cat.sources.get('trading_days').fields.get('tracker_bucket'), T1, failed))
+      .toBe("A tracker that couldn't be loaded")
   })
 
   it('a typed routine value never shows its id, even when the list could not load (M-3)', async () => {
@@ -262,9 +268,51 @@ describe('fix round 1 (Task 9.17)', () => {
     await flush()
     fireEvent.change(screen.getByLabelText('Type a routine'), { target: { value: R2 } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
-    expect(document.querySelector('[data-builder-level]')).toHaveTextContent('Routine is Routine')
+    // W9-R51: the failed read says so; never "Routine is Routine", never the id.
+    expect(document.querySelector('[data-builder-level]')).toHaveTextContent("Routine is A routine that couldn't be loaded")
+    expect(document.body.textContent).not.toContain('Routine is Routine')
     expect(document.body.textContent).not.toContain(R2)
     expect(document.body.innerHTML).not.toContain(`Remove ${R2}`)
+  })
+
+  it('failed_list_read_says_it_could_not_be_loaded (W9-R51)', async () => {
+    // An opened widget whose routine list cannot be read: its chips say so, the editor line too.
+    routes.unshift(['GET', (u) => u.includes('/vocabulary?field=routine'), () => answer({ detail: { code: 'failed' } }, 500)])
+    const plan = { v: 2, source: 'trading_days', accounts: 'all', range: { token: 'last_90d' },
+      filters: [{ field: 'routine_done', op: 'in', values: ['done'], overridable: false, ref: R1 }],
+      measures: [{ key: 'day_net_pnl' }], split: { by: 'routine_done', then: null, ref: R1 },
+      view: { type: 'table', auto: true }, sort: null, compare: null,
+      display: { title: '', titleAuto: true, subtitle: '', accent: 'gold', showN: true, target: null } }
+    routes.unshift(['GET', (u) => u.endsWith('/widget-definitions/d-8'), () => answer({
+      id: 'd-8', name: 'Prep', rev: 1, placedRev: 1, etag: 1, archived: false, usedIn: 0, lastAnswer: null, summary: '', plan })])
+    render(<WidgetBuilderSheet uid="u1" onClose={vi.fn()} from={{ defId: 'd-8' }} />)
+    await flush()
+    await flush(PREVIEW_DEBOUNCE_MS)
+    const chip = "A routine that couldn't be loaded is Done"
+    expect(screen.getByRole('button', { name: chip })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Split by A routine that couldn't be loaded. Change" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: chip }))
+    expect(document.querySelector('[data-builder-level]')).toHaveTextContent(chip)
+    expect(document.body.textContent).not.toMatch(/Routine done is|Routine is Routine/)
+    expect(document.body.textContent).not.toContain(R1)
+  })
+
+  it('a later failed read never forgets names already read (W9-R51)', async () => {
+    await openBuilder()
+    fireEvent.click(screen.getByRole('radio', { name: 'Routine history' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine' }))
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: 'Morning prep' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    routes.unshift(['GET', (u) => u.includes('/vocabulary?field=routine'), () => answer({ detail: { code: 'failed' } }, 500)])
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine' }))
+    await flush()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'Routine is Morning prep' })).toBeInTheDocument()
   })
 
   it('an opened widget with a Routine filter names the routine on its chip', async () => {

@@ -9,7 +9,7 @@ import {
 } from '../../../lib/builtWidgets'
 import { reducer, initState, blankPlan, nameOf, changeKind, DEFAULT_RANGE } from './builderState'
 import {
-  indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow, refKindOf, planRefs, kindsNamed,
+  indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow, refKindOf, planRefs, kindsNamed, NAMES_FAILED,
   TOOL_SOURCES, isTradeCountRange,
 } from './builderCatalog'
 import {
@@ -219,8 +219,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   // Wave 9 (Task 9.17): the member's routine and tracker names by id, for the chips that name one. Filled by
   // "Which routine" / "Which tracker" as they load, and read once per kind a plan already names (an opened widget).
   const [toolNames, setToolNames] = useState(() => ({}))
+  // A failed read (`list === null`) records NAMES_FAILED (W9-R51), but never overwrites a list already read.
   const mergeToolNames = useCallback((kind, list) => {
-    setToolNames((cur) => ({ ...cur, [kind]: new Map(list.map((r) => [String(r.id), r.name])) }))
+    setToolNames((cur) => {
+      if (list === null) return cur[kind] instanceof Map ? cur : { ...cur, [kind]: NAMES_FAILED }
+      return { ...cur, [kind]: new Map(list.map((r) => [String(r.id), r.name])) }
+    })
   }, [])
   const [target, setTarget] = useState({ mode: 'new', def: null, missing: false })
   const [tooNew, setTooNew] = useState('')
@@ -672,7 +676,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
 
   // ── names for the routines or trackers a plan already names (an opened widget, a Routine filter) ────
   const neededKinds = cat
-    ? kindsNamed(cat, state.plan).filter((k) => !(toolNames[k] instanceof Map)).join(',') : ''
+    ? kindsNamed(cat, state.plan).filter((k) => toolNames[k] === undefined).join(',') : ''
   useEffect(() => {
     if (!neededKinds) return undefined
     let alive = true
@@ -684,7 +688,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
             .map((v) => ({ id: String(v.id), name: typeof v.name === 'string' && v.name ? v.name : String(v.id) }))
           mergeToolNames(kind, list)
         },
-        () => {},          // the chip keeps the field's own label; the preview still reads the server's answer
+        () => { if (alive) mergeToolNames(kind, null) },     // the chips say the list couldn't be loaded
       )
     }
     return () => { alive = false }

@@ -70,14 +70,29 @@ export function kindsNamed(cat, plan) {
   return [...out]
 }
 
-/** The name a ref reads by: the member's own name for it, "A removed routine" once their list is known and lacks it,
- *  or the field's label while the list loads. `names` is `{routine: Map, tracker: Map}` of id -> name. */
+/** `toolNames[kind]` once the member's list could not be read (ruling W9-R51). */
+export const NAMES_FAILED = 'failed'
+
+/** The words an id reads by when its name is not to hand: the ONE place for them. */
+export const REF_WORDS = Object.freeze({
+  routine: Object.freeze({ removed: 'A removed routine', failed: "A routine that couldn't be loaded" }),
+  tracker: Object.freeze({ removed: 'A removed tracker', failed: "A tracker that couldn't be loaded" }),
+})
+
+/** The name an id of `kind` reads by, from `names[kind]`: the member's own name; "A removed routine" once their list
+ *  is known and lacks it; "A routine that couldn't be loaded" when the list failed (W9-R51); `loading` (the field's
+ *  label) while it loads. Never the id. */
+function nameFor(kind, id, names, loading) {
+  const known = names ? names[kind] : undefined
+  if (known instanceof Map) return known.has(String(id)) ? known.get(String(id)) : REF_WORDS[kind].removed
+  if (known === NAMES_FAILED) return REF_WORDS[kind].failed
+  return loading
+}
+
+/** The name a ref reads by (see `nameFor`). `names` is `{routine, tracker}`: a Map of id -> name, or NAMES_FAILED. */
 export function refName(field, ref, names) {
   const kind = refKindOf(field)
-  const known = kind && names && names[kind] instanceof Map ? names[kind] : null
-  if (known && known.has(String(ref))) return known.get(String(ref))
-  if (known) return kind === 'tracker' ? 'A removed tracker' : 'A removed routine'
-  return field?.label || ''
+  return kind ? nameFor(kind, ref, names, field?.label || '') : field?.label || ''
 }
 
 /**
@@ -266,15 +281,8 @@ export function valueLabel(field, value, { accounts, toolNames } = {}) {
   }
   if (field?.key === 'account' && accounts instanceof Map && accounts.has(String(value))) return accounts.get(String(value))
   // A routine history's Routine, a tracker history's Tracker: the member's own name for the id, never the id
-  // (fix 1, I-2/M-3): "A removed routine" once their list is known and lacks it, the field's label while it loads.
-  if (REF_KINDS.includes(field?.key)) {
-    const names = toolNames ? toolNames[field.key] : null
-    if (names instanceof Map) {
-      if (names.has(String(value))) return names.get(String(value))
-      return field.key === 'tracker' ? 'A removed tracker' : 'A removed routine'
-    }
-    return field.label || String(value)
-  }
+  // (fix 1, I-2/M-3; W9-R51), read exactly as a ref is.
+  if (REF_KINDS.includes(field?.key)) return nameFor(field.key, value, toolNames, field.label || '')
   return String(value)
 }
 
