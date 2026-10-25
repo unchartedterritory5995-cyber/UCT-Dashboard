@@ -1,0 +1,36 @@
+{
+  "id": "shelf:pnl-by-weekday",
+  "rev": 1,
+  "name": "P&L by weekday",
+  "description": "Net P&L for each day of the week.",
+  "keywords": [
+    "day of week",
+    "monday",
+    "friday",
+    "weekday"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "weekday"
+    },
+    "view": {
+      "type": "bar",
+      "auto": false
+    },
+    "display": {
+      "title": "P&L by weekday",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

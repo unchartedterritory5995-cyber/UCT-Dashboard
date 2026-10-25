@@ -1,0 +1,42 @@
+{
+  "id": "shelf:weekly-scorecard",
+  "rev": 1,
+  "name": "Weekly scorecard",
+  "description": "This week's net P&L, win rate and trades against last week.",
+  "keywords": [
+    "report card",
+    "review",
+    "week",
+    "weekly"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "this_week"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      },
+      {
+        "key": "win_rate"
+      },
+      {
+        "key": "trades"
+      }
+    ],
+    "view": {
+      "type": "compare",
+      "auto": false
+    },
+    "compare": {
+      "mode": "previous"
+    },
+    "display": {
+      "title": "Weekly scorecard",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

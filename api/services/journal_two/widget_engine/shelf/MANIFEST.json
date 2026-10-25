@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "order": [
+    "shelf:equity-curve",
+    "shelf:daily-pnl-bars",
+    "shelf:r-equity-curve",
+    "shelf:win-rate",
+    "shelf:profit-factor",
+    "shelf:expectancy",
+    "shelf:avg-win-vs-loss",
+    "shelf:performance-by-symbol",
+    "shelf:max-drawdown",
+    "shelf:pnl-by-time-of-day",
+    "shelf:pnl-by-weekday",
+    "shelf:pnl-by-hold-time",
+    "shelf:r-multiple-distribution",
+    "shelf:r-vs-pnl-scatter",
+    "shelf:best-trades",
+    "shelf:recent-trades",
+    "shelf:accounts-side-by-side",
+    "shelf:long-vs-short",
+    "shelf:exit-quality",
+    "shelf:month-in-review",
+    "shelf:weekly-scorecard",
+    "shelf:fees-drag",
+    "shelf:loss-streak"
+  ],
+  "files": [
+    {
+      "file": "equity-curve.r1.json",
+      "sha256": "6c5524405bc810bbbcba746eda05c041c5b643c3343dd7e561e484f2e9711974"
+    },
+    {
+      "file": "daily-pnl-bars.r1.json",
+      "sha256": "c85116caa8b20745e5051f38b0501733fb4bf38b4843596d8d51e3e4018d87aa"
+    },
+    {
+      "file": "r-equity-curve.r1.json",
+      "sha256": "f7c9cfb339a2597ec1f63d2bd92f578b922d4904d6136dc2c3fcd5af940b6e8e"
+    },
+    {
+      "file": "win-rate.r1.json",
+      "sha256": "39161aad3b82038f2ca6bc721f3ecdc6613a5d28acdc3231c976f498aa334732"
+    },
+    {
+      "file": "profit-factor.r1.json",
+      "sha256": "414903e7138e0291002ca9378a32a314cc162b7c11d4d9a19d69edaf940f83d3"
+    },
+    {
+      "file": "expectancy.r1.json",
+      "sha256": "d600a06e0d5a62ff0b599fedbc08574097963c75629387a6181d385a86d69493"
+    },
+    {
+      "file": "avg-win-vs-loss.r1.json",
+      "sha256": "88b4dcecf161a3a52335b73d15587476e8dcc6248ccba15bfcfd93a8965148e3"
+    },
+    {
+      "file": "performance-by-symbol.r1.json",
+      "sha256": "3ec71b998e2a16bd885a59f311a42e7564b60be6f81c788c4a224579f6207d0c"
+    },
+    {
+      "file": "max-drawdown.r1.json",
+      "sha256": "d4f60d2c523d298af0516e0162983839b8bf25afd732ca4203edb447af364872"
+    },
+    {
+      "file": "pnl-by-time-of-day.r1.json",
+      "sha256": "35da1045641e6274e9626e1d7b9ec8e4debd1d3a07c94b8fb29fa63da961446c"
+    },
+    {
+      "file": "pnl-by-weekday.r1.json",
+      "sha256": "50e70e262cbbf2df0f1b9b1f9e9ab990d46b13916be487c7f7575a0f341de671"
+    },
+    {
+      "file": "pnl-by-hold-time.r1.json",
+      "sha256": "99628f7f31d80f0111b7834a8780b66eeece917f4d7b84a12027ced269b530be"
+    },
+    {
+      "file": "r-multiple-distribution.r1.json",
+      "sha256": "5fd9d834fb47c176d73c90721f510ecc7a75679dbb6f693cdd3523e787e2750b"
+    },
+    {
+      "file": "r-vs-pnl-scatter.r1.json",
+      "sha256": "b33fe16c985988ca3cf0eb2182f896a9293bb9d9d2e86d7ef63092297c457721"
+    },
+    {
+      "file": "best-trades.r1.json",
+      "sha256": "79a852514ba2cc4d9d42251b3e68aeaf6b388b4aae663dd8d1fbb5aece85ba55"
+    },
+    {
+      "file": "recent-trades.r1.json",
+      "sha256": "20f02802c7ee696d6541615c6a78115eb41158f284082641d51c86ef2c200840"
+    },
+    {
+      "file": "accounts-side-by-side.r1.json",
+      "sha256": "0a249d9f868c19ebacebc00e4b8bd505586db49a5161143b2a13e1473a06bcf9"
+    },
+    {
+      "file": "long-vs-short.r1.json",
+      "sha256": "06e3bd8bf577b6ee0fcd804f046ce5ab0a629b44c7df180e15b4cacfa5dfae1f"
+    },
+    {
+      "file": "exit-quality.r1.json",
+      "sha256": "bad7f31a0f0ae8c9c9ce696332006d7c2d42e53041247e5d21632212d8981108"
+    },
+    {
+      "file": "month-in-review.r1.json",
+      "sha256": "fd35c94493cdb8372bfbe174f6fb7f5a945b56ac32a33765f6d398951e9b0aa4"
+    },
+    {
+      "file": "weekly-scorecard.r1.json",
+      "sha256": "2f1a6f77faf31d6e0a0307680144a20e9fc380e2c4447f81c19d8c5b5fd4bb21"
+    },
+    {
+      "file": "fees-drag.r1.json",
+      "sha256": "64e8741ba29423a9ae08b14d67a7fc415aeed73dac7a93d6a2563755cdb39777"
+    },
+    {
+      "file": "loss-streak.r1.json",
+      "sha256": "3787eee09ba6a218b1abd49d3a630bb8634ea64f631f82dd0d8524c1cfad670d"
+    }
+  ]
+}

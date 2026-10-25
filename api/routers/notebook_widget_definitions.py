@@ -221,19 +221,49 @@ def _settings(body: dict) -> Any:
     return s or {}
 
 
+def _shelf_allowed():
+    """`allowed(plan)` for the shelf, read from the flags NOW: a plan that needs a dark wave is not
+    offered (`not (uses_tools and not w9) and not (uses_wave10 and not w10)`)."""
+    w9 = nwidgets.notebook_widgets_wave_on(TOOLS_WAVE)
+    w10 = nwidgets.notebook_widgets_wave_on(10)
+    # `plan.uses_wave10` lands with Task 10.4 (lane F); until then no plan can need wave 10, since a
+    # plan format 3 does not validate yet.
+    uses_wave10 = getattr(wplan, "uses_wave10", None) or (lambda _p: False)
+
+    def allowed(plan: Any) -> bool:
+        return not (wplan.uses_tools(plan) and not w9) and not (uses_wave10(plan) and not w10)
+    return allowed
+
+
+def _shelf_rev(def_rev: Any) -> int:
+    """The revision a shelf placement pinned: an int from 1, else 1 (a wave 8 placement, W10-R5)."""
+    return def_rev if isinstance(def_rev, int) and not isinstance(def_rev, bool) and def_rev >= 1 else 1
+
+
 def _resolve(user_id: str, body: dict) -> tuple[dict, str | None, int | None, int | None, list[str]]:
     """`(plan, def_id, def_rev, latest_rev, notices)` for `/run` and `/drill`.
 
-    A `shelf:` id runs the shelf example. A `defId` that `resolve_for_run` finds for THIS member
-    runs its revision. Anything else (a foreign, deleted or unknown id, or no id) runs the frozen
-    `def` with the frozen-copy notice and `def_id=None` (run's M6 precondition)."""
+    A `shelf:` id runs exactly the revision the placement pinned (`defRev`, else revision 1), echoing
+    `defId`, the revision run and `latestRev` (the newest revision the flags allow) -- a newer
+    revision never changes what a pinned placement renders. An unknown revision runs the note's
+    frozen `def` with the frozen-copy notice if it has one, else the newest allowed revision. A
+    `defId` that `resolve_for_run` finds for THIS member runs its revision. Anything else (a
+    foreign, deleted or unknown id, or no id) runs the frozen `def` with the frozen-copy notice and
+    `def_id=None` (run's M6 precondition)."""
     def_id = body.get("defId")
     def_rev = body.get("defRev")
     frozen = body.get("def")
     if isinstance(def_id, str) and def_id.startswith(wshelf.ID_PREFIX):
-        ex = wshelf.example(def_id)
-        if ex is not None:
-            return ex["plan"], None, None, None, []
+        if wshelf.known(def_id):
+            allowed = _shelf_allowed()
+            latest = wshelf.latest_rev(def_id, allowed=allowed)
+            ex = wshelf.revision(def_id, _shelf_rev(def_rev))
+            if ex is None and not isinstance(frozen, dict):
+                ex = wshelf.example(def_id, allowed=allowed)
+                if ex is None:                       # every revision needs a dark wave
+                    raise public.not_found()
+            if ex is not None:
+                return ex["plan"], def_id, ex["rev"], latest, []
     elif isinstance(def_id, str) and def_id:
         plan, rev, latest = wdefs.resolve_for_run(user_id, def_id, def_rev)
         if plan is not None:
@@ -461,10 +491,7 @@ def vocabulary(field: str | None = None, user: dict = Depends(require_paid)) -> 
 
 @router.get("/shelf")
 def shelf(user: dict = Depends(require_paid)) -> Any:
-    exs = wshelf.examples()
-    if not _tools_on():
-        exs = [e for e in exs if not wplan.uses_tools(e.get("plan"))]
-    return _ok({"examples": exs})
+    return _ok({"examples": wshelf.examples(allowed=_shelf_allowed())})
 
 
 # -- the member's widgets -------------------------------------------------------------------------

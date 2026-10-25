@@ -1,0 +1,35 @@
+{
+  "id": "shelf:month-in-review",
+  "rev": 1,
+  "name": "Month in review",
+  "description": "This month's net P&L, trades and win rate.",
+  "keywords": [
+    "month",
+    "monthly",
+    "this month",
+    "recap"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "this_month"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      },
+      {
+        "key": "trades"
+      },
+      {
+        "key": "win_rate"
+      }
+    ],
+    "display": {
+      "title": "Month in review",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

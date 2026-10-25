@@ -1,0 +1,29 @@
+{
+  "id": "shelf:max-drawdown",
+  "rev": 1,
+  "name": "Max drawdown",
+  "description": "The deepest drop of your running P&L from its high, by day.",
+  "keywords": [
+    "DD",
+    "drawdown",
+    "peak to trough",
+    "worst run"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "all"
+    },
+    "measures": [
+      {
+        "key": "max_drawdown"
+      }
+    ],
+    "display": {
+      "title": "Max drawdown",
+      "titleAuto": false,
+      "accent": "red"
+    }
+  }
+}

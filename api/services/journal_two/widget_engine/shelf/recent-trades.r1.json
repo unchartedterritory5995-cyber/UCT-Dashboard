@@ -1,0 +1,36 @@
+{
+  "id": "shelf:recent-trades",
+  "rev": 1,
+  "name": "Recent trades",
+  "description": "Your last 20 closed trades with net P&L and R.",
+  "keywords": [
+    "latest trades",
+    "last trades",
+    "trade log",
+    "recent"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_20_trades"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      },
+      {
+        "key": "total_r"
+      }
+    ],
+    "view": {
+      "type": "list",
+      "auto": false
+    },
+    "display": {
+      "title": "Recent trades",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

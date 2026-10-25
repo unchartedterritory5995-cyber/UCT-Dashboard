@@ -1,0 +1,36 @@
+{
+  "id": "shelf:daily-pnl-bars",
+  "rev": 1,
+  "name": "Daily P&L bars",
+  "description": "One bar for each day you traded, last 30 days.",
+  "keywords": [
+    "daily p&l",
+    "day by day",
+    "bars",
+    "daily results"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_30d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "day"
+    },
+    "view": {
+      "type": "bar",
+      "auto": false
+    },
+    "display": {
+      "title": "Daily P&L bars",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

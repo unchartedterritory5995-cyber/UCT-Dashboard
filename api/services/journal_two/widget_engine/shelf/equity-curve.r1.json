@@ -1,0 +1,36 @@
+{
+  "id": "shelf:equity-curve",
+  "rev": 1,
+  "name": "Equity curve",
+  "description": "Net P&L day by day over the last 90 days.",
+  "keywords": [
+    "equity",
+    "p&l curve",
+    "account growth",
+    "running p&l"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "day"
+    },
+    "view": {
+      "type": "line",
+      "auto": false
+    },
+    "display": {
+      "title": "Equity curve",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

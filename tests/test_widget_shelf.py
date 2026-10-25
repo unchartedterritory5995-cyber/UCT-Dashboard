@@ -1,4 +1,4 @@
-"""Task 8.10 -- the ready-made widget examples (`shelf.json`) and `run.run_examples`.
+"""Task 8.10 -- the ready-made widget examples (now `shelf/` revision files, Task 10.8) and `run.run_examples`.
 
 Seeded through `auth_db.init_db` (the Task 8.5 fixtures in `tests.test_widget_sources`) on a temp
 sqlite file; nothing here reaches `C:\\data`.
@@ -74,8 +74,8 @@ def test_ids_namespaced_and_unique():
     ids = _ids()
     assert len(ids) == len(set(ids)) == SECTION_8_ROWS
     assert all(i.startswith("shelf:") and shelf._ID_RE.fullmatch(i) for i in ids)
-    raw = json.loads(shelf.SHELF_PATH.read_text(encoding="utf-8"))
-    assert raw["version"] == 1 and [e["id"] for e in raw["examples"]] == ids
+    raw = json.loads(shelf.MANIFEST_PATH.read_text(encoding="utf-8"))
+    assert raw["version"] == 1 and raw["order"] == ids
 
 
 def test_synonyms_present():
@@ -99,22 +99,39 @@ def test_member_copy_avoids_internal_words():
 
 
 def test_a_broken_example_fails_the_load(tmp_path):
-    raw = json.loads(shelf.SHELF_PATH.read_text(encoding="utf-8"))
-    raw["examples"][0]["plan"]["measures"] = [{"key": "no_such_measure"}]
-    bad = tmp_path / "shelf.json"
-    bad.write_text(json.dumps(raw), encoding="utf-8")
+    from tests.test_widget_shelf_files import planted, rev2_of
+    bad = rev2_of("shelf:equity-curve", measures=[{"key": "no_such_measure"}])
     with pytest.raises(shelf.ShelfError, match="shelf:equity-curve"):
-        shelf.load(bad)
-    raw["examples"][0]["plan"]["measures"] = [{"key": "net_pnl"}]
-    raw["examples"][1]["id"] = raw["examples"][0]["id"]
-    bad.write_text(json.dumps(raw), encoding="utf-8")
-    with pytest.raises(shelf.ShelfError, match="duplicate"):
-        shelf.load(bad)
-    raw["examples"][1]["id"] = "daily-pnl-bars"
-    bad.write_text(json.dumps(raw), encoding="utf-8")
-    with pytest.raises(shelf.ShelfError, match="shelf:<slug>"):
-        shelf.load(bad)
-    assert len(shelf.load()) == SECTION_8_ROWS                   # control: the real file loads
+        with planted(tmp_path, [bad]):
+            pass
+    shelf.load()
+    assert len(shelf.examples()) == SECTION_8_ROWS                # control: the real shelf loads
+
+
+def test_examples_newest_allowed_revision(tmp_path):
+    from tests.test_widget_shelf_files import planted, rev2_of
+    r2 = rev2_of("shelf:win-rate", range={"token": "last_30d"},
+                 display={"title": "Win rate, revision two", "titleAuto": False, "accent": "gold"})
+    refuse_r2 = lambda p: p["display"]["title"] != "Win rate, revision two"   # "needs wave 10"
+    with planted(tmp_path, [r2]):
+        served = {e["id"]: e for e in shelf.examples()}
+        assert served["shelf:win-rate"]["rev"] == 2
+        assert served["shelf:win-rate"]["plan"]["range"] == {"token": "last_30d"}
+        gated = {e["id"]: e for e in shelf.examples(allowed=refuse_r2)}
+        assert gated["shelf:win-rate"]["rev"] == 1                 # rev 1 is offered instead
+        assert gated["shelf:win-rate"]["plan"]["range"] == {"token": "last_90d"}
+        assert gated["shelf:win-rate"]["summary"] == wplan.summary(
+            gated["shelf:win-rate"]["plan"], sources.CATALOG, None,
+            sources.CATALOG.sources["closed_trades"].unit)
+        assert shelf.example("shelf:win-rate", allowed=refuse_r2)["rev"] == 1
+        assert shelf.latest_rev("shelf:win-rate", allowed=refuse_r2) == 1
+        assert shelf.latest_rev("shelf:win-rate") == 2
+        # an id with no allowed revision is left out, the rest keep their order
+        none = shelf.examples(allowed=lambda p: p["source"] != "closed_trades")
+        assert all(e["plan"]["source"] != "closed_trades" for e in none)
+        assert shelf.example("shelf:win-rate", allowed=lambda p: False) is None
+        assert shelf.latest_rev("shelf:win-rate", allowed=lambda p: False) is None
+        assert [e["id"] for e in shelf.examples(allowed=refuse_r2)] == [e["id"] for e in shelf.examples()]
 
 
 def test_example_lookup_hands_out_copies():
@@ -146,9 +163,11 @@ def _with_days_example(monkeypatch) -> str:
     plan = wplan.validate_plan({"v": 1, "source": "trading_days", "range": {"token": "last_30d"},
                                 "measures": [{"key": "avg_day_pnl"}, {"key": "green_day_pct"}]},
                                sources.CATALOG)
-    by_id = dict(shelf._BY_ID)
-    by_id[sid] = {"id": sid, "name": "Green days", "description": "d", "keywords": [], "plan": plan}
-    monkeypatch.setattr(shelf, "_BY_ID", by_id)
+    order, revisions = shelf._STATE
+    revisions = dict(revisions)
+    revisions[sid] = ({"id": sid, "rev": 1, "name": "Green days", "description": "d",
+                       "keywords": [], "plan": plan, "summary": "s"},)
+    monkeypatch.setattr(shelf, "_STATE", (order, revisions))
     return sid
 
 

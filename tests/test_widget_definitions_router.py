@@ -137,7 +137,8 @@ def test_run_saved_and_frozen_and_shelf(conn):
 
     ex = wshelf.examples()[0]
     s = c.post(BASE + "/run", json={"defId": ex["id"], "settings": {}})
-    assert s.status_code == 200 and s.json()["defId"] is None and s.json()["notice"] != wdr.S_FROZEN
+    assert s.status_code == 200 and s.json()["notice"] != wdr.S_FROZEN
+    assert (s.json()["defId"], s.json()["defRev"], s.json()["latestRev"]) == (ex["id"], 1, 1)
 
     gone = c.post(BASE + "/run", json={"defId": "nope", "settings": {}})
     assert gone.status_code == 400 and _code(gone) == "invalid"
@@ -592,25 +593,113 @@ def test_restore_of_a_tool_revision_is_refused_while_w9_off_and_rename_is_allowe
     assert again.status_code == 200
 
 
-def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch):
-    from api.services.journal_two.widget_engine import sources as wsources
-    tool = {"id": "shelf:routine-test", "name": "Routine", "description": "d", "keywords": [],
-            "plan": wplan.validate_plan(_tool_plans()[0], wsources.CATALOG)}
-    real_example, real_examples = wshelf.example, wshelf.examples
-    monkeypatch.setattr(wshelf, "example",
-                        lambda i: dict(tool) if i == tool["id"] else real_example(i))
-    monkeypatch.setattr(wshelf, "examples", lambda: real_examples() + [dict(tool)])
-    monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch, tmp_path):
+    from tests.test_widget_shelf_files import planted
+    tool = {"id": "shelf:routine-test", "rev": 1, "name": "Routine", "description": "d",
+            "keywords": [], "plan": _tool_plans()[0]}
+    with planted(tmp_path, [tool], new_ids=(tool["id"],)):
+        monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+        c = _client()
+        r = c.post(BASE + "/examples", json={"ids": [tool["id"]]})
+        assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
+        assert tool["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+        plain_id = wshelf.examples()[0]["id"]
+        assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200   # control
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+        r = c.post(BASE + "/examples", json={"ids": [tool["id"], plain_id]})
+        assert r.status_code == 200 and r.json()["cards"][tool["id"]]["sample"] is False
+        assert tool["id"] in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+
+
+# -- shelf revisions (Task 10.8) -----------------------------------------------------------------
+
+def _two_revs(tmp_path, **plan_changes):
+    from tests.test_widget_shelf_files import planted, rev2_of
+    changes = plan_changes or {"display": {"title": "Win rate, revision two", "titleAuto": False,
+                                           "accent": "gold"}}
+    return planted(tmp_path, [rev2_of("shelf:win-rate", **changes)])
+
+
+def test_shelf_run_pins_def_rev(conn, tmp_path):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
     c = _client()
-    r = c.post(BASE + "/examples", json={"ids": [tool["id"]]})
-    assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
-    assert tool["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
-    plain_id = real_examples()[0]["id"]
-    assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200   # control
-    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
-    r = c.post(BASE + "/examples", json={"ids": [tool["id"], plain_id]})
-    assert r.status_code == 200 and r.json()["cards"][tool["id"]]["sample"] is False
-    assert tool["id"] in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
+    with _two_revs(tmp_path):
+        one = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 1, "settings": {}})
+        two = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 2, "settings": {}})
+        assert one.status_code == two.status_code == 200
+        assert (one.json()["defRev"], one.json()["latestRev"]) == (1, 2)
+        assert (two.json()["defRev"], two.json()["latestRev"]) == (2, 2)
+        assert one.json()["title"] == "Win rate"                   # a newer rev does not move rev 1
+        assert two.json()["title"] == "Win rate, revision two"
+        assert one.json()["defId"] == two.json()["defId"] == "shelf:win-rate"
+        # an unknown revision: the note's frozen copy if it has one ...
+        frozen = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 9,
+                                             "def": _plan(), "settings": {}})
+        assert frozen.status_code == 200 and frozen.json()["notice"] == wdr.S_FROZEN
+        assert frozen.json()["defId"] is None
+        # ... else the newest revision the flags allow
+        newest = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 9, "settings": {}})
+        assert newest.status_code == 200 and newest.json()["defRev"] == 2
+        assert newest.json()["notice"] != wdr.S_FROZEN
+        drill = c.post(BASE + "/drill", json={"defId": "shelf:win-rate", "defRev": 1,
+                                              "settings": {}, "cell": {}})
+        assert drill.status_code != 500
+    unknown = c.post(BASE + "/run", json={"defId": "shelf:nope", "defRev": 1, "settings": {}})
+    assert unknown.status_code == 400 and _code(unknown) == "invalid"
+
+
+def test_shelf_run_without_def_rev_is_rev_one(conn, tmp_path):
+    c = _client()
+    with _two_revs(tmp_path):
+        for bad in (None, "2", True, 0, -3, 1.5, [2], {"rev": 2}):    # a wave 8 placement, or junk
+            body = {"defId": "shelf:win-rate", "settings": {}}
+            if bad is not None:
+                body["defRev"] = bad
+            r = c.post(BASE + "/run", json=body)
+            assert r.status_code == 200, bad
+            assert (r.json()["defRev"], r.json()["title"]) == (1, "Win rate"), bad
+        big = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 10 ** 30,
+                                          "settings": {}})
+        assert big.status_code == 200 and big.json()["defRev"] == 2     # unknown: the newest
+
+
+def test_shelf_payload_echoes_latest_rev(conn, tmp_path, monkeypatch):
+    from tests.test_widget_shelf_files import planted, rev2_of
+    c = _client()
+    r2 = rev2_of("shelf:win-rate")
+    r2["plan"] = dict(_tool_plans()[0], display={"title": "Win rate", "titleAuto": False,
+                                                 "accent": "gold"})
+    with planted(tmp_path, [r2]):
+        monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED", raising=False)
+        r = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 1, "settings": {}})
+        assert r.status_code == 200 and (r.json()["defRev"], r.json()["latestRev"]) == (1, 1)
+        shelf_row = next(e for e in c.get(BASE + "/shelf").json()["examples"]
+                         if e["id"] == "shelf:win-rate")
+        assert shelf_row["rev"] == 1                               # rev 2 needs a dark wave
+        pinned = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 2, "settings": {}})
+        assert pinned.status_code == 404                           # the tool gate still answers
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+        r = c.post(BASE + "/run", json={"defId": "shelf:win-rate", "defRev": 1, "settings": {}})
+        assert (r.json()["defRev"], r.json()["latestRev"]) == (1, 2)
+        assert r.json()["sourceKey"] == "closed_trades"            # still rev 1's plan
+        shelf_row = next(e for e in c.get(BASE + "/shelf").json()["examples"]
+                         if e["id"] == "shelf:win-rate")
+        assert shelf_row["rev"] == 2
+
+
+def test_shelf_route_lists_rev_and_summary(conn, tmp_path):
+    from api.services.journal_two.widget_engine import sources as wsources
+    c = _client()
+    rows = c.get(BASE + "/shelf").json()["examples"]
+    assert len(rows) == len(wshelf.examples()) >= 23
+    for e in rows:
+        assert e["rev"] == 1, e["id"]
+        unit = wsources.CATALOG.sources[e["plan"]["source"]].unit
+        assert e["summary"] == wplan.summary(e["plan"], wsources.CATALOG, None, unit), e["id"]
+        assert e["summary"].strip()
+    with _two_revs(tmp_path):
+        row = next(e for e in c.get(BASE + "/shelf").json()["examples"] if e["id"] == "shelf:win-rate")
+        assert row["rev"] == 2 and row["plan"]["display"]["title"] == "Win rate, revision two"
 
 
 def _served_codes(c, source, field):

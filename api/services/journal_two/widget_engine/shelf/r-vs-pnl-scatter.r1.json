@@ -1,0 +1,38 @@
+{
+  "id": "shelf:r-vs-pnl-scatter",
+  "rev": 1,
+  "name": "R vs P&L scatter",
+  "description": "Each trade as a point: its R across, its net P&L up, coloured by result.",
+  "keywords": [
+    "mae",
+    "mfe",
+    "excursion",
+    "scatter",
+    "each trade",
+    "r vs p&l"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "total_r"
+      },
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "view": {
+      "type": "scatter",
+      "auto": false
+    },
+    "display": {
+      "title": "R vs P&L scatter",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

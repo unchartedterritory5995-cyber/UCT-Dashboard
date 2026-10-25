@@ -1,0 +1,303 @@
+"""Task 10.8 -- the ready-made widgets as immutable revision files, and the hash rail (W10-R5).
+
+`api/services/journal_two/widget_engine/shelf/` holds one file per revision, `<slug>.r<N>.json`, and
+`MANIFEST.json` with the canonical-JSON SHA-256 of each. A released revision never changes: the
+manifest hash is checked when `shelf` is imported (a broken shelf fails the boot, never a member's
+card), and `test_released_revisions_never_change` compares this tree against `origin/master`'s
+manifest so an edited or removed released revision reds here.
+
+Everything that writes, writes into `tmp_path`; the real shelf directory is only ever read.
+"""
+from __future__ import annotations
+
+import contextlib
+import copy
+import json
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from api.services.journal_two.widget_engine import plan as wplan
+from api.services.journal_two.widget_engine import shelf, sources
+
+REPO = Path(__file__).resolve().parents[1]
+FIXTURE = REPO / "tests" / "fixtures" / "shelf_wave8.json"
+MANIFEST_REL = "api/services/journal_two/widget_engine/shelf/MANIFEST.json"
+OLD_SHELF_REL = "api/services/journal_two/widget_engine/shelf.json"
+FETCH = "git fetch origin master"
+_FILE_RE = re.compile(r"(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.r(?P<rev>[1-9][0-9]*)\.json")
+
+
+def _manifest() -> dict:
+    return json.loads(shelf.MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _revision_files() -> list[Path]:
+    return sorted(p for p in shelf.SHELF_DIR.iterdir() if p.is_file() and p != shelf.MANIFEST_PATH)
+
+
+@contextlib.contextmanager
+def planted(tmp_path: Path, revisions: list[dict], *, new_ids: tuple[str, ...] = ()):
+    """A copy of the real shelf with `revisions` added (each a full revision dict), loaded as THE
+    shelf for the block, then the real shelf reloaded. The tmp manifest is rewritten wholesale: it
+    is a throwaway copy, never a tracked file."""
+    d = tmp_path / "shelf"
+    shutil.copytree(shelf.SHELF_DIR, d, ignore=shutil.ignore_patterns("__pycache__"))
+    man = json.loads((d / "MANIFEST.json").read_text(encoding="utf-8"))
+    for r in revisions:
+        name = f"{r['id'][len(shelf.ID_PREFIX):]}.r{r['rev']}.json"
+        (d / name).write_text(json.dumps(r, indent=2), encoding="utf-8")
+        man["files"].append({"file": name, "sha256": shelf.canonical_hash(r)})
+    man["order"].extend(new_ids)
+    (d / "MANIFEST.json").write_text(json.dumps(man, indent=2), encoding="utf-8")
+    shelf.load(d)
+    try:
+        yield d
+    finally:
+        shelf.load()
+
+
+def rev2_of(shelf_id: str, **plan_changes) -> dict:
+    """Revision 2 of a real example: revision 1 with `plan_changes` merged into its plan."""
+    r1 = shelf.revision(shelf_id, 1)
+    assert r1 is not None, shelf_id
+    p = copy.deepcopy(r1["plan"])
+    p.update(plan_changes)
+    return {"id": shelf_id, "rev": 2, "name": r1["name"], "description": r1["description"],
+            "keywords": list(r1["keywords"]), "plan": p}
+
+
+# -- the manifest and the files ----------------------------------------------------------------------
+
+def test_manifest_hashes_match_files():
+    man = _manifest()
+    assert man["version"] == 1 and len(man["files"]) >= 23            # non-vacuity: 23 wave 8 rows
+    for entry in man["files"]:
+        obj = json.loads((shelf.SHELF_DIR / entry["file"]).read_text(encoding="utf-8"))
+        assert shelf.canonical_hash(obj) == entry["sha256"], entry["file"]
+        assert re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]), entry["file"]
+
+
+def test_every_file_listed_and_every_entry_exists():
+    listed = [e["file"] for e in _manifest()["files"]]
+    on_disk = [p.name for p in _revision_files()]
+    assert on_disk, "the shelf directory holds no revision files"
+    assert len(listed) == len(set(listed)), "a file is listed twice"
+    assert sorted(listed) == sorted(on_disk)
+    assert shelf.MANIFEST_PATH.is_file() and not (shelf.SHELF_DIR.parent / "shelf.json").exists()
+
+
+def test_revisions_contiguous_from_one():
+    revs: dict[str, list[int]] = {}
+    for p in _revision_files():
+        m = _FILE_RE.fullmatch(p.name)
+        assert m, p.name
+        revs.setdefault(m["slug"], []).append(int(m["rev"]))
+    assert len(revs) == 23
+    for slug, rs in revs.items():
+        assert sorted(rs) == list(range(1, len(rs) + 1)), slug
+    order = _manifest()["order"]
+    assert len(order) == len(set(order)) and set(order) == {shelf.ID_PREFIX + s for s in revs}
+
+
+def test_file_name_id_rev_agree():
+    for p in _revision_files():
+        m = _FILE_RE.fullmatch(p.name)
+        obj = json.loads(p.read_text(encoding="utf-8"))
+        assert list(obj) == ["id", "rev", "name", "description", "keywords", "plan"], p.name
+        assert obj["id"] == shelf.ID_PREFIX + m["slug"] and obj["rev"] == int(m["rev"]), p.name
+        assert shelf.revision(obj["id"], obj["rev"])["name"] == obj["name"]
+
+
+def test_canonical_hash_ignores_line_endings(tmp_path):
+    src = (shelf.SHELF_DIR / "win-rate.r1.json").read_text(encoding="utf-8")
+    lf = src.replace("\r\n", "\n")
+    crlf = lf.replace("\n", "\r\n")
+    assert "\r\n" in crlf and "\r" not in lf                       # the two copies really differ
+    (tmp_path / "lf.json").write_bytes(lf.encode("utf-8"))
+    (tmp_path / "crlf.json").write_bytes(crlf.encode("utf-8"))
+    a = json.loads((tmp_path / "lf.json").read_bytes().decode("utf-8"))
+    b = json.loads((tmp_path / "crlf.json").read_bytes().decode("utf-8"))
+    assert shelf.canonical_hash(a) == shelf.canonical_hash(b)
+    b["name"] += "!"                                              # control: content still moves it
+    assert shelf.canonical_hash(a) != shelf.canonical_hash(b)
+
+
+# -- released revisions never change (the rail against origin/master) --------------------------------
+
+def released_violations(released: dict, local: dict, base: dict | None) -> list[str]:
+    """What this tree did to revisions `released` (origin/master's manifest) already published.
+
+    `base` is the manifest at merge-base(HEAD, origin/master), or None when the base had none. A
+    released file missing here because master released it AFTER this branch's base is the world
+    moving, not a violation (merge master). A released file whose hash differs here, where this
+    branch's copy is still the base's copy, was changed on master, not by this branch."""
+    mine = {e["file"]: e["sha256"] for e in local["files"]}
+    at_base = {e["file"]: e["sha256"] for e in (base or {}).get("files", [])}
+    out = []
+    for e in released["files"]:
+        f, sha = e["file"], e["sha256"]
+        if f in mine:
+            if mine[f] != sha and at_base.get(f) != mine[f]:
+                out.append(f"{f}: changed after release")
+        elif f in at_base:
+            out.append(f"{f}: removed after release")
+    return out
+
+
+def test_released_violations_sees_a_changed_or_removed_revision():
+    local = {"files": [{"file": "a.r1.json", "sha256": "1" * 64}, {"file": "b.r1.json", "sha256": "2" * 64}]}
+    assert released_violations(local, local, local) == []                       # identical: clean
+    edited = {"files": [{"file": "a.r1.json", "sha256": "9" * 64}, local["files"][1]]}
+    assert released_violations(local, edited, local) == ["a.r1.json: changed after release"]
+    assert released_violations(local, {"files": [local["files"][1]]}, local) == [
+        "a.r1.json: removed after release"]
+    # the world moving is not a violation: master released c after this branch's base ...
+    ahead = {"files": local["files"] + [{"file": "c.r1.json", "sha256": "3" * 64}]}
+    assert released_violations(ahead, local, local) == []
+    assert released_violations(ahead, local, None) == []
+    # ... and master editing a revision this branch never touched is master's, not this branch's
+    assert released_violations(edited, local, local) == []
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    exe = shutil.which("git")
+    if exe is None:
+        pytest.fail(f"git is not on PATH, so released revisions cannot be checked; install git and run `{FETCH}`")
+    return subprocess.run([exe, "-C", str(REPO), *args], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
+
+
+def _show(ref: str, rel: str) -> str | None:
+    if _git("cat-file", "-e", f"{ref}:{rel}").returncode != 0:
+        return None
+    r = _git("show", f"{ref}:{rel}")
+    if r.returncode != 0:
+        pytest.fail(f"git could not read {ref}:{rel} ({r.stderr.strip()}); run `{FETCH}`")
+    return r.stdout
+
+
+def test_released_revisions_never_change():
+    head = _git("rev-parse", "--verify", "--quiet", "origin/master^{commit}")
+    if head.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", head.stdout.strip()):
+        pytest.fail(f"origin/master cannot be read here, so released revisions are unchecked; run `{FETCH}`")
+    # non-vacuity: git reads origin/master's tree (an absent manifest below means absent, not broken)
+    if _git("cat-file", "-e", "origin/master:api").returncode != 0:
+        pytest.fail(f"origin/master's tree cannot be read; run `{FETCH}`")
+    released = _show("origin/master", MANIFEST_REL)
+    if released is None:
+        # the shelf.json era: nothing is released as a revision file yet, so the rail is the
+        # conversion rail (`test_r1_files_match_wave8_shelf`). If master still carries the wave 8
+        # file, the history fixture must be that file.
+        old = _show("origin/master", OLD_SHELF_REL)
+        if old is not None:
+            assert json.loads(old) == json.loads(FIXTURE.read_text(encoding="utf-8"))
+        return
+    base_sha = _git("merge-base", "HEAD", "origin/master")
+    if base_sha.returncode != 0:
+        pytest.fail(f"no merge-base with origin/master ({base_sha.stderr.strip()}); run `{FETCH}`")
+    base = _show(base_sha.stdout.strip(), MANIFEST_REL)
+    bad = released_violations(json.loads(released), _manifest(), json.loads(base) if base else None)
+    assert bad == [], bad
+
+
+# -- revision 1 is the wave 8 shelf, unchanged --------------------------------------------------------
+
+def test_r1_files_match_wave8_shelf():
+    old = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    assert old["version"] == 1 and len(old["examples"]) == 23
+    assert _manifest()["order"] == [e["id"] for e in old["examples"]]
+    for e in old["examples"]:
+        r1 = json.loads((shelf.SHELF_DIR / f"{e['id'][len(shelf.ID_PREFIX):]}.r1.json")
+                        .read_text(encoding="utf-8"))
+        for k in ("name", "description", "keywords"):
+            assert r1[k] == e[k], (e["id"], k)
+        assert (wplan.validate_plan(copy.deepcopy(r1["plan"]), sources.CATALOG)
+                == wplan.validate_plan(copy.deepcopy(e["plan"]), sources.CATALOG)), e["id"]
+        assert shelf.revision(e["id"], 1)["plan"] == wplan.validate_plan(copy.deepcopy(e["plan"]),
+                                                                        sources.CATALOG)
+
+
+# -- a broken shelf fails the load ---------------------------------------------------------------------
+
+def _copy(tmp_path: Path) -> Path:
+    d = tmp_path / "shelf"
+    shutil.copytree(shelf.SHELF_DIR, d, ignore=shutil.ignore_patterns("__pycache__"))
+    return d
+
+
+def test_broken_file_fails_load(tmp_path):
+    d = _copy(tmp_path)
+    shelf.load(d)                                                 # control: the copy loads
+    shelf.load()
+    f = d / "win-rate.r1.json"
+    raw = f.read_bytes()
+    i = raw.index(b"Win rate")
+    f.write_bytes(raw[:i] + b"Win Rate" + raw[i + len(b"Win rate"):])   # one byte edited
+    with pytest.raises(shelf.ShelfError, match=r"win-rate\.r1\.json"):
+        shelf.load(d)
+    assert shelf.revision("shelf:win-rate", 1)["name"] == "Win rate"    # the real shelf stands
+
+
+def test_broken_shelf_shapes_fail_load(tmp_path):
+    d = _copy(tmp_path)
+    man_path = d / "MANIFEST.json"
+    man = json.loads(man_path.read_text(encoding="utf-8"))
+
+    def write(m):
+        man_path.write_text(json.dumps(m), encoding="utf-8")
+
+    (d / "stray.r1.json").write_text("{}", encoding="utf-8")       # a file nobody listed
+    with pytest.raises(shelf.ShelfError, match="stray.r1.json"):
+        shelf.load(d)
+    (d / "stray.r1.json").unlink()
+    m = copy.deepcopy(man)
+    m["files"].append({"file": "gone.r1.json", "sha256": "0" * 64})  # an entry with no file
+    write(m)
+    with pytest.raises(shelf.ShelfError, match="gone.r1.json"):
+        shelf.load(d)
+    m = copy.deepcopy(man)
+    m["order"] = m["order"][1:]                                     # an id the order forgets
+    write(m)
+    with pytest.raises(shelf.ShelfError, match="order"):
+        shelf.load(d)
+    # a gap: revision 3 with no revision 2
+    r3 = rev2_of("shelf:win-rate")
+    r3["rev"] = 3
+    (d / "win-rate.r3.json").write_text(json.dumps(r3), encoding="utf-8")
+    m = copy.deepcopy(man)
+    m["files"].append({"file": "win-rate.r3.json", "sha256": shelf.canonical_hash(r3)})
+    write(m)
+    with pytest.raises(shelf.ShelfError, match="contiguous"):
+        shelf.load(d)
+    # a file whose name and rev disagree
+    (d / "win-rate.r3.json").rename(d / "win-rate.r2.json")
+    m["files"][-1]["file"] = "win-rate.r2.json"
+    write(m)
+    with pytest.raises(shelf.ShelfError, match=r"win-rate\.r2\.json"):
+        shelf.load(d)
+    # a plan that does not validate (hash updated, so only the plan is wrong)
+    bad = rev2_of("shelf:win-rate", measures=[{"key": "no_such_measure"}])
+    (d / "win-rate.r2.json").write_text(json.dumps(bad), encoding="utf-8")
+    m["files"][-1]["sha256"] = shelf.canonical_hash(bad)
+    write(m)
+    with pytest.raises(shelf.ShelfError, match="shelf:win-rate"):
+        shelf.load(d)
+    write(man)
+    (d / "win-rate.r2.json").unlink()
+    shelf.load(d)                                                   # control: restored, it loads
+    shelf.load()
+
+
+def test_planted_revision_two_is_served_and_pinned(tmp_path):
+    r2 = rev2_of("shelf:win-rate", range={"token": "last_30d"})
+    with planted(tmp_path, [r2]):
+        assert shelf.latest_rev("shelf:win-rate") == 2
+        assert shelf.example("shelf:win-rate")["rev"] == 2
+        assert shelf.revision("shelf:win-rate", 1)["plan"]["range"] == {"token": "last_90d"}
+        assert shelf.revision("shelf:win-rate", 2)["plan"]["range"] == {"token": "last_30d"}
+        assert shelf.revision("shelf:win-rate", 3) is None
+    assert shelf.latest_rev("shelf:win-rate") == 1                  # the real shelf is back
