@@ -866,10 +866,10 @@ describe('ExamplesGallery: wave 10, ready-made and dedicated widgets straight in
     await inView([...W10_IDS, ...DEDICATED.map((d) => `dedicated:${d.kind}`)])
     expect(sentBatches().length).toBeGreaterThan(0)                     // non-vacuity: batches did go out
     for (const ids of sentBatches()) expect(ids.every((id) => id.startsWith('shelf:'))).toBe(true)
+    expect(screen.queryByText('How this is made')).toBeNull()             // m-4: asked while the gallery is up
     fireEvent.click(risk)
     await settleInsert()
     expect(builderOpen()).toBe(false)
-    expect(screen.queryByText('How this is made')).toBeNull()
     expect(callsTo(fetchSpy, 'POST', (u) => u === '/api/j2/notebook-shelf-widgets/myRiskLeftToday')).toHaveLength(1)
     expect(callsTo(fetchSpy, 'GET', (u) => u.startsWith('/api/j2/notebook-widgets/'))).toHaveLength(0)
     const [node] = placed()
@@ -934,12 +934,24 @@ describe('ExamplesGallery: wave 10, ready-made and dedicated widgets straight in
     }
   })
 
-  it('wave 10 off: no dedicated cards even when the list names them', async () => {
+  it('wave 10 off: no dedicated cards and no Add to note, even from a note; on, both (fix round 1, I-1)', async () => {
     waves.ten = false
     await openFromNote()
     expect(screen.queryByText('Risk left today')).toBeNull()
     expect(screen.queryByTestId('example-card-dedicated:myTiltCheck')).toBeNull()
-    // CONTROL: the ready-made cards still offer Add to note (a note is there).
+    expect(screen.queryAllByText(ADD_TO_NOTE)).toHaveLength(0)
+    expect(screen.queryByTestId('example-add-shelf:equity-curve')).toBeNull()
+    // Non-vacuity: the ready-made cards themselves are there (only the wave 10 button is not).
+    expect(within(screen.getByRole('list', { name: 'Examples' })).getAllByRole('listitem')).toHaveLength(W10_IDS.length)
+    expect(callsTo(fetchSpy, 'POST', (u) => u === `${DEFS}/run`)).toHaveLength(0)
+    expect(Object.keys(window.localStorage).filter((k) => k.startsWith('uct.nb.widgetUses'))).toEqual([])
+    // ON: the same note, the same cards, now with the button on every ready-made card and the dedicated cards.
+    act(() => { closeBuilder() })
+    await flush()
+    ed.destroy()
+    waves.ten = true
+    await openFromNote()
     expect(screen.getAllByText(ADD_TO_NOTE)).toHaveLength(W10_IDS.length)
+    expect(card('dedicated:myTiltCheck')).toBeInTheDocument()
   })
 })

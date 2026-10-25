@@ -372,7 +372,8 @@ function ExamplesGallery({
       .then((r) => { if (r && r.ok) recordUse(uid, id) }, () => {})
     if (typeof door?.close === 'function') {
       door.close(editor.view?.dom || null)
-      setTimeout(go, 0)
+      // m-3: a door whose close is refused must not leave every later card ignored.
+      setTimeout(() => { go().finally(() => { placing.current = false }) }, 0)
     } else {
       go().finally(() => { placing.current = false })
     }
@@ -460,7 +461,7 @@ function ExamplesGallery({
         <section className={styles.pick} aria-labelledby={`${searchId}-pick`} data-testid="trade-pick">
           <h4 className={styles.pickTitle} id={`${searchId}-pick`} tabIndex={-1} ref={pickHeading}>{PICK_TITLE}</h4>
           <p className={styles.hint}>{PICK_HINT}</p>
-          {pick.status === 'loading' && <p className={styles.hint}>{TRADES_LOADING}</p>}
+          {pick.status === 'loading' && <p className={styles.hint} role="status">{TRADES_LOADING}</p>}
           {pick.status === 'failed' && (
             <div className={styles.note}>
               <p className={styles.noteText} role="alert">{TRADES_FAILED}</p>
@@ -489,7 +490,7 @@ function ExamplesGallery({
             <ExampleCard key={ex.id} example={ex} card={STATIC_CARD} sample={false} motion={motion} onOpen={openDedicated} />
           ) : (
             <ExampleCard key={ex.id} example={ex} card={cards.get(ex.id)} sample={sample} motion={motion}
-              onOpen={onOpen} observe={observe} onAdd={canPlace ? addShelf : undefined} />
+              onOpen={onOpen} observe={observe} onAdd={canPlace && widgetsWaveOn(10) ? addShelf : undefined} />
           )))}
         </ul>
       ) : <p className={styles.hint}>{NO_MATCH}</p>)}

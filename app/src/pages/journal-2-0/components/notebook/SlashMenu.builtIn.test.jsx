@@ -151,6 +151,20 @@ describe('a bare / (spec 8)', () => {
     expect(group(await loaded('', member('u2')), 'widgets')[0]).toBe('Equity curve')
   })
 
+  it('m-2: a storage that throws leaves the defaults alone, and an insert still counts nothing and throws nothing', async () => {
+    installNet()
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('private mode') })
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
+    try {
+      expect(() => recordUse('u1', 'shelf:profit-factor')).not.toThrow()
+      expect(group(await loaded(''), 'widgets')[0]).toBe('Equity curve')
+      expect(get).toHaveBeenCalled()                                       // non-vacuity: the storage WAS asked
+    } finally {
+      get.mockRestore()
+      set.mockRestore()
+    }
+  })
+
   it('a shelf that cannot be read leaves the defaults that need none', async () => {
     installNet({ shelf: () => json(500, {}) })
     expect(group(await loaded(''), 'widgets'))
@@ -176,10 +190,11 @@ describe('typing searches every card', () => {
     installNet()
     const hit = async (q) => titles(await loaded(q))
     // The synonyms: the shelf's keywords and WIDGET_KINDS' keywords.
-    expect(await hit('hit rate')).toContain('Win rate')
-    expect(await hit('PF')).toContain('Profit factor')
-    expect(await hit('DD')).toContain('Max drawdown')
-    expect(await hit('funded')).toContain('Prop-firm rules')
+    // m-5: FIRST, not merely found, so Enter takes it.
+    expect((await hit('hit rate'))[0]).toBe('Win rate')
+    expect((await hit('PF'))[0]).toBe('Profit factor')
+    expect((await hit('DD'))[0]).toBe('Max drawdown')
+    expect((await hit('funded'))[0]).toBe('Prop-firm rules')
     expect(await hit(SERVED_WORD)).toContain('Tilt check')
     // A name match leads a keyword match, wherever the keyword lives (a card, or a block).
     const dd = await hit('drawdown')

@@ -52,7 +52,9 @@ export function readUses(uid) {
   }
 }
 
-/** Count one insert of `id` (kept to the newest USES_KEEP ids). A storage that throws is left as it is. */
+/** Count one insert of `id` (kept to the newest USES_KEEP ids). A storage that throws is left as it is.
+ *  m-1: a whole-map read-modify-write, so two tabs inserting at the same instant can lose one count. Accepted: this is a
+ *  per-browser convenience (W10-R68), not a record; do not move it server-side under this name. */
 export function recordUse(uid, id) {
   if (!uid || typeof id !== 'string' || !id) return
   try {
