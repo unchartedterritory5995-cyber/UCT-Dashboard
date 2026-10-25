@@ -7,6 +7,8 @@ import { render, screen } from '@testing-library/react'
 import PatternOverlay from './PatternOverlay'
 import UctIntelligencePanel from './UctIntelligencePanel'
 import { layerAvailability, effectiveLayers, readUctIntelligence } from './uctIntelligence'
+import { visibleSetupDraws } from './cautionLayer'
+import { PATTERN_COLORS, SETUP_DRAW_STYLE, getOpacity, getStrokeDasharray } from './patternShapes/style'
 
 const DAILY = ['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16']
 
@@ -167,6 +169,35 @@ describe('the round-3 setup shapes draw with the pattern renderers', () => {
     expect(Number(neck.getAttribute('y2'))).toBeCloseTo(1000 - 34 * 10)
   })
 
+  it('an AVWAP reclaim draws its curve labelled AVWAP, never as a moving average', () => {
+    const avwap = shaped('draw:avwap-reclaim', 'horizontal_line', [A(0, 30), A(4, 28)],
+      { draw_ema: { kind: 'avwap', points: [A(0, 30), A(2, 29), A(4, 28)] } })
+    const { container } = draw({ setupDraws: [avwap], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:avwap-reclaim"]')
+    expect(g.querySelector('polyline[data-role="ema"]').getAttribute('points').split(' ').length).toBe(3)
+    expect(g.textContent).toMatch(/^AVWAP · /)
+    expect(g.textContent).not.toMatch(/EMA|SMA|undefined/)
+  })
+
+  it('an ascending triangle draws its two lines and circled touches, and no lane fill', () => {
+    const asc = shaped('draw:ascending-triangle', 'trendline_pair', [A(1, 40), A(4, 40), A(1, 34), A(4, 38)],
+      { line_spaces: ['lin', 'log'], draw_lanes: false,
+        draw_touches: [A(1, 39.9), A(2, 39.9), A(4, 39.9), A(1, 34), A(3, 37)] })
+    const { container } = draw({ setupDraws: [asc], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:ascending-triangle"]')
+    expect(g.querySelector('[data-role="upper"]')).toBeTruthy()
+    expect(g.querySelector('[data-role="lower"]')).toBeTruthy()
+    expect(g.querySelectorAll('[data-role="touch"]').length).toBe(5)
+    expect(g.querySelector('polygon')).toBeNull()
+  })
+
+  it('a pair row without draw_lanes keeps its lane fill and draws no touches', () => {
+    const { container } = draw({ setupDraws: [BEAR_FLAG], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:bear-flag"]')
+    expect(g.querySelector('polygon')).toBeTruthy()
+    expect(g.querySelector('[data-role="touch"]')).toBeNull()
+  })
+
   it('a bear flag draws its two lines AND its pole', () => {
     const { container } = draw({ setupDraws: [BEAR_FLAG], showSetupDraws: true })
     const g = container.querySelector('[data-setup-draw="draw:bear-flag"]')
@@ -290,5 +321,77 @@ describe('a moving-average curve row (golden / death cross) draws as the curve',
     expect(Number(pts[1].split(',')[1])).toBe(1000 - 21 * 10)
     expect(screen.getAllByText(/50 SMA/).length).toBe(1)
     expect(screen.getAllByText(/200 SMA/).length).toBe(1)
+  })
+})
+
+// The setup rows are served `status: "forming"`, `confidence: null`. On a pattern detection those mean provisional
+// (dashed '5,3', half opacity); the judged lab canvas (lab setup_triage/overlay_v3.py, used by release_g4 / setups_r2 /
+// setups_r3 / rectangle_v2) drew every setup SOLID at FULL opacity, so the setup layer draws them that way.
+describe('setup rows draw the way they were judged: solid, full opacity, whatever the forming stamp says', () => {
+  const strokes = (g) => [...g.querySelectorAll('[stroke-dasharray]')].map((e) => e.getAttribute('stroke-dasharray'))
+  const SQUEEZE = shaped('draw:bollinger-squeeze', 'rectangle', [A(1, 50), A(4, 48)])
+
+  it('a channel, a pennant (pole too), a box, a divergence, a trendline and a head-and-shoulders: no dash anywhere', () => {
+    const rows = [CHANNEL, PENNANT, DARVAS, DIVERGENCE, TRENDLINE, IHS, SQUEEZE]
+    const { container } = draw({ setupDraws: rows, showSetupDraws: true })
+    for (const r of rows) {
+      const g = container.querySelector(`[data-setup-draw="${r.pattern_id}"]`)
+      expect(g, r.pattern_id).toBeTruthy()
+      const s = strokes(g)
+      expect(s.length, r.pattern_id).toBeGreaterThan(0)
+      for (const v of s) expect(v, r.pattern_id).toBe('none')
+    }
+  })
+
+  it('the main stroke is at full opacity (the half-opacity null-confidence default is gone)', () => {
+    const { container } = draw({ setupDraws: [CHANNEL, DARVAS, DIVERGENCE], showSetupDraws: true })
+    const op = (sel) => Number(container.querySelector(sel).getAttribute('opacity'))
+    expect(op('[data-setup-draw="draw:channel"] [data-role="upper"]')).toBe(1)
+    expect(op('[data-setup-draw="draw:channel"] [data-role="lower"]')).toBe(1)
+    expect(op('[data-setup-draw="draw:darvas-box"] rect')).toBe(1)
+    expect(op('[data-setup-draw="draw:rsi-bullish-divergence"] [data-role="divergence"]')).toBe(1)
+    // the box keeps the judged faint fill (overlay_v3 rect fill alpha 0.08)
+    const fill = Number(container.querySelector('[data-setup-draw="draw:darvas-box"] rect').getAttribute('fill-opacity'))
+    expect(fill).toBeCloseTo(0.08, 6)
+  })
+
+  it('the Bollinger squeeze is the judged box: one rectangle over the squeeze bars, nothing else', () => {
+    const { container } = draw({ setupDraws: [SQUEEZE], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:bollinger-squeeze"]')
+    expect(g.querySelectorAll('rect').length).toBe(1)
+    expect(g.querySelectorAll('path, line, polyline').length).toBe(0)
+  })
+
+  it('a caution row draws solid amber too (the caution spec names no dash)', () => {
+    const wedge = { ...shaped('draw:rising-wedge', 'trendline_pair', [A(0, 30), A(4, 36), A(0, 26), A(4, 34)],
+      { line_spaces: ['log', 'log'] }), direction: 'bearish' }
+    const { container } = draw({ setupDraws: [wedge], showCautionDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:rising-wedge"]')
+    expect(g.getAttribute('data-caution')).toBe('true')
+    expect(g.innerHTML).toContain(PATTERN_COLORS.caution)
+    for (const v of strokes(g)) expect(v).toBe('none')
+    expect(Number(g.querySelector('[data-role="upper"]').getAttribute('opacity'))).toBe(1)
+    expect(g.textContent).toContain('Possible rising wedge: watch the lower trendline if you hold')
+  })
+
+  it('the 2-anchor horizontal line keeps its judged touch-count dash (overlay_v3: solid only at 3+ touches)', () => {
+    const { container } = draw({ setupDraws: [DONCH], showSetupDraws: true })
+    expect(container.querySelector('[data-setup-draw="draw:donchian_breakout"] line').getAttribute('stroke-dasharray'))
+      .toBe('6,4')
+  })
+
+  it('the forming state itself is untouched: an unmarked forming row is still dashed and faint', () => {
+    expect(getStrokeDasharray({ status: 'forming' })).toBe('5,3')
+    expect(getOpacity({ status: 'forming', confidence: null })).toBe(0.5)
+    expect(getStrokeDasharray({ status: 'forming', setup_draw_style: SETUP_DRAW_STYLE })).toBe('none')
+    expect(getOpacity({ status: 'forming', confidence: null, setup_draw_style: SETUP_DRAW_STYLE })).toBe(1)
+  })
+
+  it('the marker is set by the setup layer, on every row it returns, and the server row is not modified', () => {
+    const rows = [CHANNEL, { ...DIVERGENCE, pattern_id: 'draw:double-top', direction: 'bearish' }]
+    const out = visibleSetupDraws(rows, { setups: true, caution: true })
+    expect(out.map((r) => r.setup_draw_style)).toEqual([SETUP_DRAW_STYLE, SETUP_DRAW_STYLE])
+    expect(CHANNEL.setup_draw_style).toBeUndefined()
+    expect(CHANNEL.status).toBe('forming')
   })
 })

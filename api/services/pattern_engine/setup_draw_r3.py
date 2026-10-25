@@ -12,6 +12,16 @@ two packets of 25 random liquid held-out charts each (bar: mean >= 2.3 AND >= 70
     bear_flag                A 2.32 / 96%   B 2.34 / 88%    (bearish)
     bollinger_squeeze        A 2.42 / 84%   B 2.30 / 88%
     major_trendlines         A 2.48 / 92%   B 2.74 / 96%
+    rsi_bearish_divergence   A 2.52 / 100%  B 2.80 / 100%   (bearish, RSI(14) panel)
+    symmetrical_triangle     A 2.78 / 100%  B 2.78 / 100%
+    rising_wedge             A 2.60 / 100%  B 2.78 / 96%    (bearish)
+    avwap_reclaim            A 2.54 / 92%   B 2.36 / 96%
+    nr7                      A 2.58 / 100%  B 2.48 / 92%
+    head_shoulders           A 2.52 / 100%  B 2.54 / 88%    (bearish)
+    triple_top               A 2.46 / 92%   B 2.34 / 84%    (bearish)
+    triple_bottom            A 2.40 / 92%   B 2.38 / 92%
+    wyckoff_spring           A 2.44 / 92%   B 2.68 / 96%    (second packet drawn separately)
+    ascending_triangle       A 2.72 / 96%   B 2.52 / 92%    (second packet drawn separately)
 Every constant and every line of detection code below is the judged code, frozen (comments removed). The parity
 rail tests/test_setup_draw_r3_parity.py pins this module's output, as-of every bar of embedded synthetic series, to
 the judged code's output: change a constant and it goes red. A new round is a new constant AND a new blind check,
@@ -327,6 +337,148 @@ def bollinger_squeeze(tk, b, why=None):
             'box_h_atr': round((top - flo) / a0, 2), 'dets': [det]}
 
 
+RD_CONF = 2
+
+RD_FRESH = 6
+
+RD_NEWEXT = 60
+
+RD_SEP_MIN, RD_SEP_MAX = 8, 40
+
+RD_SWING_ATR = 1.0
+
+RD_PX_ATR = 0.2
+
+RD_OB, RD_OS = 65.0, 35.0
+
+RD_RSI_GAP = 5.0
+
+RD_BAR_ATR = 2.5
+
+RDB_FRESH = 4
+
+RDB_RSI_GAP = 8.0
+
+RDB_SWING_ATR = 1.5
+
+RDB_SEP_MIN = 10
+
+RDB_PX_ATR = 0.3
+
+RDB_ALIVE_ATR = 2.0
+
+RDB_CLEAN = 10
+
+RDB_RSI_SNAP = 2
+
+def _rsi_div(tk, b, why, bear):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 120:
+        return _say(why, 'no_atr')
+    r = _rsi(b)
+    key = 'h' if bear else 'l'
+    sgn = 1 if bear else -1
+
+    def ext(j):
+        return sgn * b[j][key]
+    fresh, gap, swing_k, sep_min, px_k = ((RDB_FRESH, RDB_RSI_GAP, RDB_SWING_ATR, RDB_SEP_MIN, RDB_PX_ATR) if bear
+                                          else (RD_FRESH, RD_RSI_GAP, RD_SWING_ATR, RD_SEP_MIN, RD_PX_ATR))
+    for j2 in range(ia - RD_CONF, ia - fresh - 1, -1):
+        if not all(ext(j2) > ext(x) for x in range(j2 - 3, j2)):
+            continue
+        if not all(ext(j2) >= ext(x) for x in range(j2 + 1, ia + 1)):
+            continue
+        if ext(j2) < max(ext(x) for x in range(ia - RD_NEWEXT, ia + 1)):
+            continue
+        if b[j2]['h'] - b[j2]['l'] > RD_BAR_ATR * atr:
+            return _say(why, 'rd_wide_second_bar')
+        best = None
+        for j1 in range(j2 - sep_min, j2 - RD_SEP_MAX - 1, -1):
+            if j1 < 3 or not all(ext(j1) > ext(x) for x in list(range(j1 - 3, j1)) + list(range(j1 + 1, j1 + 4))):
+                continue
+            if any(ext(x) > ext(j1) for x in range(j1 + 1, j2)):
+                continue
+
+            if bear:
+                swing = b[j1]['h'] - min(b[x]['l'] for x in range(j1 + 1, j2))
+            else:
+                swing = max(b[x]['h'] for x in range(j1 + 1, j2)) - b[j1]['l']
+            if swing < swing_k * atr:
+                continue
+            if bear and any(ext(x) > ext(j1) for x in range(max(0, j1 - RDB_CLEAN), j1)):
+                continue
+
+            if best is None or ext(j1) > ext(best):
+                best = j1
+        if best is None:
+            return _say(why, 'rd_no_first_point')
+        j1 = best
+        if sgn * (b[j2][key] - b[j1][key]) < px_k * atr:
+            return _say(why, 'rd_marginal_price')
+        q1, q2 = j1, j2
+        if bear:
+
+            def _snap(j):
+                c_ = [x for x in range(j - RDB_RSI_SNAP, min(ia, j + RDB_RSI_SNAP) + 1) if r[x] is not None]
+                return max(c_, key=lambda x: (r[x], -abs(x - j))) if c_ else j
+            q1, q2 = _snap(j1), _snap(j2)
+            if b[ia]['c'] < b[j2]['h'] - RDB_ALIVE_ATR * atr:
+                return _say(why, 'rd_resolved')
+        r1, r2 = r[q1], r[q2]
+        if r1 is None or r2 is None:
+            return _say(why, 'rd_no_rsi')
+        if bear and not (r1 >= RD_OB and r2 <= r1 - gap):
+            return _say(why, 'rd_rsi')
+        if not bear and not (r1 <= RD_OS and r2 >= r1 + RD_RSI_GAP):
+            return _say(why, 'rd_rsi')
+        g = deal_gate(tk, b, ia)
+        if g:
+            return _say(why, g)
+        pid = 'rsi_bearish_divergence' if bear else 'rsi_bullish_divergence'
+        name = 'RSI bearish divergence' if bear else 'RSI bullish divergence'
+        det = _row(pid, name, b, 'neckline', [(j1, b[j1][key]), (j2, b[j2][key])],
+                   'bearish' if bear else 'bullish')
+        panel = {'rsi': [None if v is None else round(v, 3) for v in r], 'p1': q1, 'p2': q2}
+        return {'shape': pid, 'sep': j2 - j1, 'second_age': ia - j2, 'rsi1': round(r1, 1), 'rsi2': round(r2, 1),
+                'px_diff_atr': round(sgn * (b[j2][key] - b[j1][key]) / atr, 2), 'dets': [det], 'panel': panel}
+    return _say(why, 'rd_no_second_point')
+
+
+def rsi_bearish_divergence(tk, b, why=None):
+    return _rsi_div(tk, b, why, True)
+
+
+WY_WINDOWS = (60, 50, 40, 30)
+
+WY_TOUCH_ATR = 0.5
+
+WY_SEP = 5
+
+WY_DRIFT = 0.25
+
+WY_FRESH = 3
+
+WY_DEPTH_ATR = 2.0
+
+WY_MINH, WY_MAXH = 0.06, 0.35
+
+WY_BACK_ATR = 0.25
+
+WYS_WINDOWS = (60, 50, 40)
+
+WYS_BACK_ATR = 0.5
+
+WYS_CLOSE_POS = 0.5
+
+WYS_DRIFT = 0.15
+
+WYS_TOUCH = 3
+
+WYS_CLUSTER_ATR = 0.25
+
+WYS_PRE_ATR = 1.0
+
 def _drift(cl):
     n = len(cl)
     mx = (n - 1) / 2
@@ -336,7 +488,313 @@ def _drift(cl):
     return abs(num / den) * (n - 1) if den else 0.0
 
 
+def _wyckoff(tk, b, why, spring):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 120:
+        return _say(why, 'no_atr')
+    hi_p, lo_p = _pivots(b)
+    for k in range(ia - WY_FRESH + 1, ia + 1):
+        for W in (WYS_WINDOWS if spring else WY_WINDOWS):
+            r0, r1 = k - W, k - 1
+            S = min(b[j]['l'] for j in range(r0, r1 + 1))
+            R = max(b[j]['h'] for j in range(r0, r1 + 1))
+            if not (WY_MINH <= (R - S) / S <= WY_MAXH):
+                continue
+            if spring and not (b[k]['l'] < S - 0.1 * atr and b[k]['l'] >= S - WY_DEPTH_ATR * atr):
+                continue
+            if not spring and not (b[k]['h'] > R + 0.1 * atr and b[k]['h'] <= R + WY_DEPTH_ATR * atr):
+                continue
+
+            if spring and min(b[j]['l'] for j in range(k, ia + 1)) < S - WY_DEPTH_ATR * atr:
+                continue
+            if not spring and max(b[j]['h'] for j in range(k, ia + 1)) > R + WY_DEPTH_ATR * atr:
+                continue
+            ts_ = [p for p in lo_p if r0 <= p <= r1 and b[p]['l'] <= S + WY_TOUCH_ATR * atr]
+            tr_ = [p for p in hi_p if r0 <= p <= r1 and b[p]['h'] >= R - WY_TOUCH_ATR * atr]
+            if not ts_ or not tr_ or ts_[-1] - ts_[0] < WY_SEP or tr_[-1] - tr_[0] < WY_SEP:
+                continue
+            if spring:
+
+
+                if len(ts_) < WYS_TOUCH:
+                    continue
+                med = sorted(b[p]['l'] for p in ts_)[len(ts_) // 2]
+                if med - S > WYS_CLUSTER_ATR * atr:
+                    continue
+                if any(b[j]['c'] < S - WYS_PRE_ATR * atr for j in range(max(0, r0 - W), r0)):
+                    continue
+            cl = [b[j]['c'] for j in range(r0, r1 + 1)]
+            if _drift(cl) > (WYS_DRIFT if spring else WY_DRIFT) * (R - S):
+                continue
+            if sum(1 for c in cl if S <= c <= R) < 0.9 * len(cl):
+                continue
+            beyond = [(b[j]['c'] < S) if spring else (b[j]['c'] > R) for j in range(k, ia + 1)]
+            run = mx = 0
+            for x in beyond:
+                run = run + 1 if x else 0
+                mx = max(mx, run)
+            if mx > 2:
+                continue
+            c = b[ia]['c']
+
+            if spring and not (S + WYS_BACK_ATR * atr <= c <= S + 0.5 * (R - S)):
+                continue
+            if spring and (b[ia]['h'] - b[ia]['l'] <= 0 or
+                           (c - b[ia]['l']) / (b[ia]['h'] - b[ia]['l']) < WYS_CLOSE_POS):
+                continue
+            if not spring and not (R - 0.5 * (R - S) <= c <= R - WY_BACK_ATR * atr):
+                continue
+            g = deal_gate(tk, b, ia)
+            if g:
+                return _say(why, g)
+            lvl = S if spring else R
+            touches = ts_ if spring else tr_
+            pid = 'wyckoff_spring' if spring else 'wyckoff_upthrust'
+            anch = [(touches[0], lvl), (ia, lvl), (k, lvl)]
+            det = _row(pid, 'Wyckoff spring' if spring else 'Wyckoff upthrust', b, 'horizontal_line', anch,
+                       'bullish' if spring else 'bearish')
+            det['touch_count'] = len(touches) + 1
+            return {'shape': pid, 'range_bars': W, 'level': round(lvl, 4), 'height_pct': round(100 * (R - S) / S, 1),
+                    'probe_bars_ago': ia - k, 'touches': len(touches), 'dets': [det]}
+    return _say(why, 'wy_none')
+
+
+def wyckoff_spring(tk, b, why=None):
+    return _wyckoff(tk, b, why, True)
+
+
+AV_LOOK = 150
+
+AV_MIN_AGE = 20
+
+AV_DECL_ATR = 4.0
+
+AV_BELOW_N, AV_BELOW = 10, 7
+
+AV_FRESH = 3
+
+AV_CHOP, AV_CROSS = 30, 2
+
+AV_EXT_ATR = 1.0
+
+AV_GAP_ATR = 0.5
+
+AV_PRIOR_ABOVE = 2
+
+AV_CLEAR_ATR = 0.3
+
+AV_UNDER_N = 15
+
+AV_UNDER_ATR = 0.2
+
+AV_POKE_ATR = 0.25
+
+def avwap_reclaim(tk, b, why=None):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 200:
+        return _say(why, 'no_atr')
+    lo = ia - AV_LOOK
+    H = max(b[j]['h'] for j in range(lo, ia + 1))
+    A = max(j for j in range(lo, ia + 1) if b[j]['h'] == H)
+    if ia - A < AV_MIN_AGE:
+        return _say(why, 'av_anchor_recent')
+    if H - min(b[j]['l'] for j in range(A, ia + 1)) < AV_DECL_ATR * atr:
+        return _say(why, 'av_no_decline')
+    pv = vv = 0.0
+    av = {}
+    for j in range(A, ia + 1):
+        tp = (b[j]['h'] + b[j]['l'] + b[j]['c']) / 3
+        pv += tp * b[j]['v']
+        vv += b[j]['v']
+        if vv <= 0:
+            return _say(why, 'av_no_volume')
+        av[j] = pv / vv
+    k = None
+    for j in range(ia, ia - AV_FRESH, -1):
+        if b[j]['c'] > av[j] and b[j - 1]['c'] <= av[j - 1]:
+            k = j
+            break
+    if k is None or k - A < AV_BELOW_N + 2:
+        return _say(why, 'av_no_reclaim')
+    if any(b[j]['c'] <= av[j] for j in range(k, ia + 1)):
+        return _say(why, 'av_lost')
+    if sum(1 for j in range(A + 3, k) if b[j]['c'] > av[j]) > AV_PRIOR_ABOVE:
+        return _say(why, 'av_not_first_reclaim')
+    if sum(1 for j in range(k - AV_BELOW_N, k) if b[j]['c'] < av[j]) < AV_BELOW:
+        return _say(why, 'av_not_below')
+    cr = 0
+    for j in range(max(A + 1, k - AV_CHOP), k):
+        if (b[j]['c'] > av[j]) != (b[j - 1]['c'] > av[j - 1]):
+            cr += 1
+    if cr > AV_CROSS:
+        return _say(why, 'av_chop')
+    if b[ia]['c'] > av[ia] + AV_EXT_ATR * atr:
+        return _say(why, 'av_extended')
+    if b[ia]['c'] < av[ia] + AV_CLEAR_ATR * atr:
+        return _say(why, 'av_marginal')
+    pre = range(k - AV_UNDER_N, k)
+    if k - AV_UNDER_N <= A or any(b[j]['c'] >= av[j] for j in pre):
+        return _say(why, 'av_not_under')
+    if sum(av[j] - b[j]['c'] for j in pre) / AV_UNDER_N < AV_UNDER_ATR * atr:
+        return _say(why, 'av_hugging')
+    if any(b[j]['h'] > av[j] + AV_POKE_ATR * atr for j in pre):
+        return _say(why, 'av_earlier_poke')
+    if b[k]['o'] > av[k] + AV_GAP_ATR * atr:
+        return _say(why, 'av_gap_overshoot')
+    g = deal_gate(tk, b, ia)
+    if g:
+        return _say(why, g)
+    pts = [{'t': _t(b, j), 'price': round(av[j], 4)} for j in range(A, ia + 1)]
+    det = _row('avwap_reclaim', 'AVWAP reclaim', b, 'horizontal_line', [(A, av[A]), (ia, av[ia])], 'bullish',
+               {'draw_ema': {'points': pts}})
+    return {'shape': 'avwap_reclaim', 'anchor_age': ia - A, 'reclaim_bars_ago': ia - k, 'crossings': cr,
+            'close_vs_avwap_atr': round((b[ia]['c'] - av[ia]) / atr, 2), 'dets': [det]}
+
+
+CV_LOOK = 100
+
+CV_MIN_SPAN = 15
+
 CV_TOL_ATR = 0.3
+
+CV_MIN_TOUCH = 5
+
+CV_MOVE_ATR = 1.0
+
+CV_CONV = 0.65
+
+CV_SEP = 4
+
+CV_SYM_BAL = 2.5
+
+CV_RW_CONV = 0.5
+
+CV_RW_LEAD = 3
+
+CV_RW_TOUCH = 3
+
+CV_RW_LOOK = 80
+
+def _converging(tk, b, why, kind):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 200:
+        return _say(why, 'no_atr')
+    hi_p, lo_p = _pivots(b)
+    j_hi = ia - 2
+    lo_w = ia - (CV_RW_LOOK if kind == 'rising_wedge' else CV_LOOK)
+    space = 'lin' if kind in ('symmetrical_triangle', 'rising_wedge') else 'log'
+    from_high = kind in ('symmetrical_triangle', 'falling_wedge')
+    key = 'h' if from_high else 'l'
+    vals = [(b[j][key], j) for j in range(lo_w, ia - 7)]
+    if not vals:
+        return _say(why, 'cv_none')
+    A = (max(vals) if from_high else min(vals, key=lambda x: (x[0], -x[1])))[1]
+    if from_high and any(b[j]['h'] > b[A]['h'] for j in range(A + 1, ia + 1)):
+        return _say(why, 'cv_exceeded')
+    if not from_high and any(b[j]['l'] < b[A]['l'] for j in range(A + 1, ia + 1)):
+        return _say(why, 'cv_exceeded')
+    if ia - A < CV_MIN_SPAN:
+        return _say(why, 'cv_short')
+    if from_high:
+        if A not in hi_p:
+            return _say(why, 'cv_start_not_pivot')
+        ru = _best_line(b, hi_p, A, j_hi, 'up', atr, CV_TOL_ATR, CV_SEP, must_first=A, space=space)
+        rl = _best_line(b, lo_p, A + 1, j_hi, 'lo', atr, CV_TOL_ATR, CV_SEP, space=space)
+    elif kind == 'rising_wedge':
+
+
+        if A not in lo_p:
+            return _say(why, 'cv_start_not_pivot')
+        ru = _best_line(b, hi_p, A + 1, j_hi, 'up', atr, CV_TOL_ATR, CV_SEP, space=space)
+        if ru is None:
+            return _say(why, 'cv_no_lines')
+        rl = _best_line(b, lo_p, max(A, ru[3] - CV_RW_LEAD), j_hi, 'lo', atr, CV_TOL_ATR, CV_SEP, space=space)
+    else:
+        if A not in lo_p:
+            return _say(why, 'cv_start_not_pivot')
+        rl = _best_line(b, lo_p, A, j_hi, 'lo', atr, CV_TOL_ATR, CV_SEP, must_first=A)
+        ru = _best_line(b, hi_p, A + 1, j_hi, 'up', atr, CV_TOL_ATR, CV_SEP)
+    if ru is None or rl is None:
+        return _say(why, 'cv_no_lines')
+    nu, _, U, u1, u2, tu = ru
+    nl, _, Lw, l1, l2, tl = rl
+    if nu < 2 or nl < 2 or nu + nl < CV_MIN_TOUCH:
+        return _say(why, 'cv_touches')
+    if kind == 'rising_wedge':
+        if nl < CV_RW_TOUCH:
+            return _say(why, 'cv_touches')
+        A = min(u1, l1)
+        if ia - A < CV_MIN_SPAN:
+            return _say(why, 'cv_short')
+
+    if _alternations(tu, tl) < 3:
+        return _say(why, 'cv_no_alternation')
+
+    if not (_interior(tu, A, ia) and _interior(tl, A, ia)):
+        return _say(why, 'cv_no_interior_touch')
+
+    for j in range(A, j_hi + 1):
+        if space == 'lin':
+            if b[j]['h'] > U.at(j) + CV_TOL_ATR * atr:
+                return _say(why, 'cv_high_outside')
+            if b[j]['l'] < Lw.at(j) - CV_TOL_ATR * atr:
+                return _say(why, 'cv_low_outside')
+            continue
+        if math.log(b[j]['h']) > math.log(U.at(j)) + _tol(b, j, atr, CV_TOL_ATR):
+            return _say(why, 'cv_high_outside')
+        if math.log(b[j]['l']) < math.log(Lw.at(j)) - _tol(b, j, atr, CV_TOL_ATR):
+            return _say(why, 'cv_low_outside')
+    du = U.at(ia) - U.at(A)
+    dl = Lw.at(ia) - Lw.at(A)
+    mv = CV_MOVE_ATR * atr
+    if kind == 'symmetrical_triangle' and not (du <= -mv and dl >= mv):
+        return _say(why, 'cv_slopes')
+    if kind == 'symmetrical_triangle' and max(abs(du), abs(dl)) > CV_SYM_BAL * min(abs(du), abs(dl)):
+        return _say(why, 'cv_sym_unbalanced')
+    if kind == 'falling_wedge' and not (du <= -mv and dl <= -max(mv, 0.25 * abs(du)) and U.m < Lw.m):
+        return _say(why, 'cv_slopes')
+    if kind == 'rising_wedge' and not (dl >= mv and du >= max(mv, 0.25 * dl) and Lw.m > U.m):
+        return _say(why, 'cv_slopes')
+    w0 = U.at(A) - Lw.at(A)
+    w1 = U.at(ia) - Lw.at(ia)
+    if w0 <= 0 or w1 <= 0 or w1 > (CV_RW_CONV if kind == 'rising_wedge' else CV_CONV) * w0:
+        return _say(why, 'cv_not_converging')
+    if U.at(ia + 3) <= Lw.at(ia + 3):
+        return _say(why, 'cv_apex_passed')
+    c = b[ia]['c']
+    for j in range(A, ia if kind == 'symmetrical_triangle' else ia - 1):
+        if b[j]['c'] > U.at(j) + CV_TOL_ATR * atr or b[j]['c'] < Lw.at(j) - CV_TOL_ATR * atr:
+            return _say(why, 'cv_close_outside')
+    if c > U.at(ia):
+        if kind == 'rising_wedge' or c > U.at(ia) + 1.5 * atr:
+            return _say(why, 'cv_left_up')
+    if c < Lw.at(ia):
+        if kind == 'falling_wedge' or c < Lw.at(ia) - 1.5 * atr:
+            return _say(why, 'cv_left_down')
+    g = deal_gate(tk, b, ia)
+    if g:
+        return _say(why, g)
+    s_u = A if from_high else u1
+    s_l = l1 if from_high else (l1 if kind == 'rising_wedge' else A)
+    name = {'symmetrical_triangle': 'Symmetrical triangle', 'falling_wedge': 'Falling wedge',
+            'rising_wedge': 'Rising wedge'}[kind]
+    direc = {'symmetrical_triangle': 'neutral', 'falling_wedge': 'bullish', 'rising_wedge': 'bearish'}[kind]
+    det = _line_rows_pair(kind, name, b, [(s_u, U.at(s_u)), (ia, U.at(ia))], [(s_l, Lw.at(s_l)), (ia, Lw.at(ia))],
+                          direc, space=space)
+    return {'shape': kind, 'span': ia - A, 'touches_upper': nu, 'touches_lower': nl,
+            'conv': round(w1 / w0, 2), 'dets': [det]}
+
+
+def symmetrical_triangle(tk, b, why=None):
+    return _converging(tk, b, why, 'symmetrical_triangle')
+
+
+def rising_wedge(tk, b, why=None):
+    return _converging(tk, b, why, 'rising_wedge')
+
 
 DT_LOOK = 80
 
@@ -440,6 +898,12 @@ HS_TIME_R3 = (0.6, 1.67)
 
 HS_HEAD_R3 = 1.5
 
+HST_SH_LVL_ATR = 0.75
+
+HST_SPIKE_ATR = 0.5
+
+HST_NL_SLOPE = 0.15
+
 def _hs(tk, b, why, inverse):
     ia = len(b) - 1
     atr = _atr(b, ia)
@@ -498,6 +962,15 @@ def _hs(tk, b, why, inverse):
                     continue
                 if abs(n1p - n2p) > HS_NL_SLOPE_R3 * hd:
                     continue
+                if not inverse:
+
+                    if abs(b[LS][key] - b[RS][key]) > HST_SH_LVL_ATR * atr or abs(n1p - n2p) > HST_NL_SLOPE * hd:
+                        continue
+                    if any(not any(abs(b[x][key] - b[j][key]) <= HST_SPIKE_ATR * atr
+                                   for x in range(j - 2, j + 3) if x != j and 0 <= x <= ia) for j in (LS, H, RS)):
+                        continue
+                    if any(-sgn * (b[j]['c'] - NL(j)) > 0 for j in range(N1, RS)):
+                        continue
                 pre = [b[j][ck] for j in range(max(0, LS - 40), LS)]
                 if not pre:
                     continue
@@ -531,6 +1004,162 @@ def _hs(tk, b, why, inverse):
 
 def inverse_head_shoulders(tk, b, why=None):
     return _hs(tk, b, why, True)
+
+
+def head_shoulders(tk, b, why=None):
+    return _hs(tk, b, why, False)
+
+
+MX_EQ = 0.03
+
+MX_EQ_ATR = 0.6
+
+MX_SWING_ATR = 2.0
+
+MX_SEP = 10
+
+MX_MIN_SPAN = 30
+
+MX_NL_EQ = 0.3
+
+MX_TREND_ATR = 3.0
+
+MX_NL_ATR = 1.5
+
+DTOP_MAX_SPAN = 120
+
+MX_FRESH = 20
+
+MX_PRE = 15
+
+MX_SPAN = 150
+
+DTOP_DECL = 0.10
+
+MX3_EQ_ATR = 0.4
+
+MX3_FRESH = 10
+
+MX3_NL_ATR = 1.0
+
+MX3_SPIKE_ATR = 0.5
+
+MX3_EQ2_ATR = 0.3
+
+MX3_NL2_ATR = 0.5
+
+MX3_INSIDE_ATR = 0.25
+
+def _multi(tk, b, why, n_ext, top):
+    ia = len(b) - 1
+    atr = _atr(b, ia)
+    if atr is None or ia < 200:
+        return _say(why, 'no_atr')
+    hi_p, lo_p = _pivots(b)
+    ext_p = hi_p if top else lo_p
+    sgn = 1 if top else -1
+    key, ck = ('h', 'l') if top else ('l', 'h')
+
+    def e(j):
+        return sgn * b[j][key]
+    lasts = [p for p in ext_p if ia - (MX3_FRESH if n_ext == 3 else MX_FRESH) <= p <= ia - 3]
+    for E3 in reversed(lasts):
+        if any(e(j) > e(E3) for j in range(E3 + 1, ia + 1)):
+            continue
+        cands = [p for p in ext_p if E3 - MX_SPAN <= p <= E3 - MX_SEP]
+
+        def chain(last, need):
+            if need == 0:
+                return [[]]
+            res = []
+            for p in reversed([q for q in cands if q <= last - MX_SEP]):
+                for rest in chain(p, need - 1):
+                    res.append(rest + [p])
+                if len(res) > 40:
+                    break
+            return res
+        for prev in chain(E3, n_ext - 1):
+            E = prev + [E3]
+            ps = [b[j][key] for j in E]
+            if max(ps) / min(ps) - 1 > MX_EQ or max(ps) - min(ps) > (MX3_EQ2_ATR if n_ext == 3 else MX_EQ_ATR) * atr:
+                continue
+            if n_ext == 3:
+                least = min(e(j) for j in E)
+                near = {x for j in E for x in (j - 1, j, j + 1)}
+                if any(e(j) > least + MX3_INSIDE_ATR * atr for j in range(E[0], E[-1] + 1) if j not in near):
+                    continue
+            if n_ext == 3 and any(
+                    not any(abs(b[x][key] - b[j][key]) <= MX3_SPIKE_ATR * atr for x in range(j - 2, j + 3)
+                            if x != j and 0 <= x <= ia) for j in E):
+                continue
+            if E[-1] - E[0] < MX_MIN_SPAN or (n_ext == 2 and E[-1] - E[0] > DTOP_MAX_SPAN):
+                continue
+
+            if n_ext == 3 and not (1 / 3 <= (E[1] - E[0]) / (E[2] - E[1]) <= 3):
+                continue
+            ext_most = max(e(j) for j in E)
+            if any(e(j) > ext_most + 1e-12 for j in range(E[0], E[-1] + 1)):
+                continue
+            if any(e(j) > e(E[0]) for j in range(max(0, E[0] - MX_PRE), E[0])):
+                continue
+            N = []
+            ok = True
+            for a_, z_ in zip(E, E[1:]):
+                cj = (min if top else max)(range(a_ + 1, z_), key=lambda j: b[j][ck])
+                sw = sgn * (min(b[a_][key], b[z_][key]) - b[cj][ck]) if top else (b[cj][ck] - max(b[a_][key], b[z_][key]))
+                if sw < MX_SWING_ATR * atr:
+                    ok = False
+                    break
+                if n_ext == 2 and top and (b[a_][key] - b[cj][ck]) / b[a_][key] < DTOP_DECL:
+                    ok = False
+                    break
+                N.append(cj)
+            if not ok:
+                continue
+            ph = max(abs(b[n_][ck] - b[E[0]][key]) for n_ in N)
+            if n_ext == 3 and abs(b[N[0]][ck] - b[N[1]][ck]) > min(MX_NL_EQ * ph, MX3_NL2_ATR * atr):
+                continue
+            pre = [b[j][ck] for j in range(max(0, E[0] - 40), E[0])]
+            if not pre or (max(pre) - b[E[0]]['l'] if not top else b[E[0]]['h'] - min(pre)) < MX_TREND_ATR * atr:
+                continue
+
+            if n_ext == 3:
+                def NL(x, N=N):
+                    return b[N[0]][ck] + (b[N[1]][ck] - b[N[0]][ck]) * (x - N[0]) / (N[1] - N[0])
+            else:
+                def NL(x, N=N):
+                    return b[N[0]][ck]
+            c = b[ia]['c']
+            thr = -sgn * (c - NL(ia))
+
+            if n_ext == 3 and thr <= 0 and any(-sgn * (b[j]['c'] - NL(j)) > 0 for j in range(E3 + 1, ia)):
+                continue
+            if thr > 0:
+                first = next((j for j in range(E3 + 1, ia + 1) if -sgn * (b[j]['c'] - NL(j)) > 0), None)
+                if first is None or first < ia - 2 or thr > 1.5 * atr:
+                    continue
+            g = deal_gate(tk, b, ia)
+            if g:
+                return _say(why, g)
+            pid = {(3, False): 'triple_bottom', (3, True): 'triple_top', (2, True): 'double_top'}[(n_ext, top)]
+            name = {'triple_bottom': 'Triple bottom', 'triple_top': 'Triple top', 'double_top': 'Double top'}[pid]
+            anch = []
+            for k_, j in enumerate(E):
+                anch.append((j, b[j][key]))
+                if k_ < len(N):
+                    anch.append((N[k_], b[N[k_]][ck]))
+            det = _row(pid, name, b, 'neckline', anch, 'bearish' if top else 'bullish')
+            return {'shape': pid, 'span': E[-1] - E[0], 'last_age': ia - E3,
+                    'spread_pct': round(100 * (max(ps) / min(ps) - 1), 2), 'broke': thr > 0, 'dets': [det]}
+    return _say(why, 'mx_none')
+
+
+def triple_bottom(tk, b, why=None):
+    return _multi(tk, b, why, 3, False)
+
+
+def triple_top(tk, b, why=None):
+    return _multi(tk, b, why, 3, True)
 
 
 BF_POLE_MAX = 12
@@ -687,6 +1316,28 @@ def major_trendlines(tk, b, why=None):
             'span': ia - tt[0], 'dets': [det]}
 
 
+NR_CLEAR = 0.55
+
+def nr7(tk, b, why=None):
+    ia = len(b) - 1
+    if ia < 30:
+        return _say(why, 'short')
+    r = [b[j]['h'] - b[j]['l'] for j in range(ia - 6, ia + 1)]
+    if not (r[-1] > 0 and all(r[-1] < x for x in r[:-1])):
+        return _say(why, 'nr7_no')
+    if r[-1] > NR_CLEAR * min(r[:-1]):
+        return _say(why, 'nr7_not_clear')
+
+
+    if any(b[j]['l'] > b[ia]['h'] or b[j]['h'] < b[ia]['l'] for j in range(ia - 6, ia)):
+        return _say(why, 'nr7_not_coiled')
+    g = deal_gate(tk, b, ia)
+    if g:
+        return _say(why, g)
+    det = _row('nr7', 'NR7', b, 'rectangle', [(ia - 6, b[ia]['h']), (ia - 1, b[ia]['l'])], 'neutral')
+    return {'shape': 'nr7', 'range_vs_min_prior': round(r[-1] / min(r[:-1]), 3), 'dets': [det]}
+
+
 OB_POKE_ATR, OB_RANGE_ATR = 0.2, 1.0
 
 def outside_bar(tk, b, why=None):
@@ -712,6 +1363,250 @@ def outside_bar(tk, b, why=None):
             'poke_dn_atr': round((b[ia - 1]['l'] - b[ia]['l']) / atr, 3), 'dets': [det]}
 
 
+# ================================================================== ascending triangle
+# The judged code is the earlier ascending-triangle release's frozen round-3 detector, called unchanged, with its
+# result then FILTERED by the round-3 fix (AT3_*). Its names carry a _g3 prefix here so they cannot collide with the
+# helpers above; the code and constants are verbatim.
+G3_PAD = 0.10
+G3_BUY_ZONE = 0.05
+G3_BRK = 3
+G3_SMA_LONG, G3_SMA_RISE_BARS = 200, 20
+AT_PIV_W = 3
+AT_MIN_LEN, AT_MAX_LEN = 20, 60
+AT_TOP_TOL = 0.02
+AT_MIN_TOP = 3
+AT_MIN_LOW = 2
+AT_TOUCH_SEP = 5
+AT_MAX_GAP = 0.05
+AT_MAX_CONV = 0.85
+AT_MAX_DEPTH = 0.35
+AT_PRIOR_ADV = 0.20
+AT_PRIOR_LOOK = 60
+AT_SUPPORT_BREAK_ATR = 0.5
+AT_BREAKOUT_VOL = 1.4
+AT_LEFT_BARS = 20
+AT_DRAW_ROUND = 3
+AT3_FLAT_ATR = 0.3
+AT3_SPIKE_ATR = 0.25
+AT3_RISE_ATR = 0.3
+AT3_LOW_RISE_ATR = 0.5
+
+
+def _g3_atr(b, e, n=14):
+    k = max(1, e - n + 1)
+    trs = [max(b[j]['h'], b[j - 1]['c']) - min(b[j]['l'], b[j - 1]['c']) for j in range(k, e + 1)]
+    a = sum(trs) / len(trs) if trs else 0.0
+    return a if a > 0 else None
+
+
+def _g3_sma(b, e, n):
+    if e + 1 < n:
+        return None
+    return sum(x['c'] for x in b[e - n + 1:e + 1]) / n
+
+
+def _g3_avg_vol(b, e, n=50):
+    w = b[max(0, e - n):e]
+    return sum(x['v'] for x in w) / len(w) if w else 0.0
+
+
+def _g3_setup_gate(b, i):
+    """Close above a RISING 200-day SMA and not deal-pinned (the pending-deal NAME lists are the patterns route's
+    deal_hold)."""
+    from api.services import deal_status
+    s = _g3_sma(b, i, G3_SMA_LONG)
+    s0 = _g3_sma(b, i - G3_SMA_RISE_BARS, G3_SMA_LONG)
+    if s is None or s0 is None:
+        return 'short_history'
+    if b[i]['c'] <= s:
+        return 'below_200d'
+    if s <= s0:
+        return 'falling_200d'
+    if deal_status.price_pinned([(x['t'], x['o'], x['h'], x['l'], x['c']) for x in b[max(0, i - 299):i + 1]]) \
+            is not None:
+        return 'deal_pin'
+    return None
+
+
+def _g3_breakout(b, e, i, buy, vol_min):
+    if b[e + 1]['c'] <= buy:
+        return 'none'
+    if any(b[j]['c'] < buy for j in range(e + 1, i + 1)):
+        return 'failed_breakout'
+    av = _g3_avg_vol(b, e + 1)
+    if av <= 0 or b[e + 1]['v'] < vol_min * av:
+        return 'light_breakout'
+    return 'ok'
+
+
+def _g3_line_at(p1, p2, x):
+    (x1, y1), (x2, y2) = p1, p2
+    if x2 == x1:
+        return y1
+    return math.exp(math.log(y1) + (math.log(y2) - math.log(y1)) * (x - x1) / (x2 - x1))
+
+
+def _g3_triangle_at(b, e, why):
+    from api.services.pattern_engine.primitives.pivots import detect_pivots
+    lo_i = max(0, e - AT_MAX_LEN - 2 * AT_PIV_W)
+    seg = b[lo_i:e + 1]
+    pv = detect_pivots(seg, window=AT_PIV_W)
+    highs = [(p['bar_index'] + lo_i, p['price']) for p in pv if p['type'] == 'high']
+    lows = [(p['bar_index'] + lo_i, p['price']) for p in pv if p['type'] == 'low']
+    atr = _g3_atr(b, e)
+    if not atr:
+        return _say(why, 'no_atr')
+    last_r = None
+    for L in range(AT_MAX_LEN, AT_MIN_LEN - 1, -1):
+        s = e - L + 1
+        if s < AT_PRIOR_LOOK + 20:
+            continue
+        H = max(x['h'] for x in b[s:e + 1])
+        tops = [j for j, p in highs if s <= j <= e and p >= H * (1 - AT_TOP_TOL)]
+        dist = []
+        for j in tops:
+            if not dist or j - dist[-1] >= AT_TOUCH_SEP:
+                dist.append(j)
+        if len(dist) < AT_MIN_TOP:
+            last_r = 'top_touches'
+            continue
+        if b[s]['h'] >= H * (1 - AT_TOP_TOL) and s not in tops:
+            last_r = 'window_starts_on_top'
+            continue
+        hj = max(range(s, e + 1), key=lambda j: b[j]['h'])
+        if hj not in dist and hj < e - AT_PIV_W + 1:
+            last_r = 'top_not_a_touch'
+            continue
+        if max(x['h'] for x in b[max(0, dist[0] - AT_LEFT_BARS):dist[0]]) > H:
+            last_r = 'under_prior_high'
+            continue
+        lw = [(j, p) for j, p in lows if dist[0] < j <= e]
+        if len(lw) < AT_MIN_LOW:
+            last_r = 'low_touches'
+            continue
+        if any(lw[k + 1][1] <= lw[k][1] for k in range(len(lw) - 1)):
+            last_r = 'lows_not_rising'
+            continue
+        if not any(dist[0] < j < dist[-1] for j, _ in lw):
+            last_r = 'no_low_between_tops'
+            continue
+        p1, p2 = lw[0], lw[-1]
+        if p2[0] - p1[0] < AT_TOUCH_SEP:
+            last_r = 'low_touches'
+            continue
+        if any(b[j]['c'] < _g3_line_at(p1, p2, j) - AT_SUPPORT_BREAK_ATR * atr for j in range(p1[0], e + 1)):
+            last_r = 'support_broken'
+            continue
+        if (H - p1[1]) / H > AT_MAX_DEPTH:
+            last_r = 'too_deep'
+            continue
+        sup_s, sup_e = _g3_line_at(p1, p2, s), _g3_line_at(p1, p2, e)
+        if sup_e >= H:
+            last_r = 'apex_passed'
+            continue
+        if (H - sup_e) / H > AT_MAX_GAP:
+            last_r = 'not_converged'
+            continue
+        if H - sup_s <= 0 or (H - sup_e) / (H - sup_s) > AT_MAX_CONV:
+            last_r = 'not_narrowing'
+            continue
+        pre = b[s - AT_PRIOR_LOOK:s]
+        adv = b[s]['c'] / min(x['l'] for x in pre) - 1
+        if adv < AT_PRIOR_ADV:
+            last_r = 'no_prior_advance'
+            continue
+        return {'s': s, 'e': e, 'H': H, 'tops': dist, 'lows': [j for j, _ in lw], 'p1': p1, 'p2': p2, 'atr': atr,
+                'adv': adv, 'len': L, 'sup_e': sup_e}
+    return _say(why, last_r or 'no_window')
+
+
+def _g3_ascending_triangle(b, why):
+    n = len(b)
+    ia = n - 1
+    g = _g3_setup_gate(b, ia)
+    if g:
+        return _say(why, g)
+    found = None
+    reasons = []
+    for brk in range(G3_BRK, -1, -1):
+        e = ia - brk
+        t = _g3_triangle_at(b, e, reasons)
+        if t is None:
+            continue
+        buy = round(t['H'] + G3_PAD, 2)
+        if brk > 0:
+            r = _g3_breakout(b, e, ia, buy, AT_BREAKOUT_VOL)
+            if r == 'none':
+                continue
+            if r != 'ok':
+                return _say(why, r)
+        elif b[ia]['c'] > buy:
+            continue
+        found = (brk, t, buy)
+        break
+    if found is None:
+        return _say(why, reasons[-1] if reasons else 'no_triangle')
+    brk, t, buy = found
+    c = b[ia]['c']
+    if c > buy * (1 + G3_BUY_ZONE):
+        return _say(why, 'extended')
+    if brk == 0 and c < _g3_line_at(t['p1'], t['p2'], ia) - AT_SUPPORT_BREAK_ATR * t['atr']:
+        return _say(why, 'support_broken')
+    return {'shape': 'ascending-triangle', 'draw_round': AT_DRAW_ROUND, 'i': ia, 'start_i': t['s'],
+            'end_i': t['e'], 'pivot': buy, 'top_high': round(t['H'], 4),
+            'top_i': list(t['tops']), 'low_i': list(t['lows']),
+            'low1_i': t['p1'][0], 'low1': round(t['p1'][1], 4), 'low2_i': t['p2'][0],
+            'low2': round(t['p2'][1], 4), 'len': t['len'], 'top_touches': len(t['tops']),
+            'low_touches': len(t['lows']), 'depth': round((t['H'] - t['p1'][1]) / t['H'], 4),
+            'prior_advance': round(t['adv'], 3), 'gap_at_end': round((t['H'] - t['sup_e']) / t['H'], 4),
+            'breakout_bars': brk, 'close_vs_pivot': round(c / buy - 1, 4),
+            'label': 'Ascending triangle · Buy point %.2f' % buy}
+
+
+def _asc_r3_ok(b, d, why):
+    atr = _g3_atr(b, len(b) - 1)
+    ti = [j for j in (d.get('top_i') or []) if 0 <= j < len(b)]
+    if atr is None or len(ti) < 3:
+        return _say(why, 'at3_touches') or False
+    hs = sorted((b[j]['h'] for j in ti), reverse=True)
+    top = d['top_high']
+    if any(abs(h - top) > AT3_FLAT_ATR * atr for h in hs):
+        return _say(why, 'at3_not_flat') or False
+    if hs[0] - hs[1] > AT3_SPIKE_ATR * atr:
+        return _say(why, 'at3_spike_top') or False
+    xs = sorted(ti)
+    ys = [b[j]['h'] for j in xs]
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    den = sum((x - mx) ** 2 for x in xs)
+    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / den if den else 0.0
+    if slope * (xs[-1] - xs[0]) > AT3_RISE_ATR * atr:
+        return _say(why, 'at3_rising_highs') or False
+    if d['low2'] - d['low1'] < AT3_LOW_RISE_ATR * atr:
+        return _say(why, 'at3_flat_support') or False
+    return True
+
+
+def ascending_triangle(tk, b, why=None):
+    """The judged picture: ONE flat line at the buy point (top high + $0.10) from the first top touch to the as-of
+    bar, the rising (log-space) support line from the first support low to the as-of bar, hollow circles on the top
+    and low touches; no lane fill. Drawn as a trendline_pair: upper = the buy-point line, lower = the support."""
+    d = _g3_ascending_triangle(b, why)
+    if d is None or not _asc_r3_ok(b, d, why):
+        return None
+    ia = len(b) - 1
+    p1, p2 = (d['low1_i'], d['low1']), (d['low2_i'], d['low2'])
+    touches = [{'t': _t(b, j), 'price': round(float(b[j]['h']), 4)} for j in d['top_i']] + \
+              [{'t': _t(b, j), 'price': round(float(b[j]['l']), 4)} for j in d['low_i']]
+    det = _row('ascending_triangle', 'Ascending triangle', b, 'trendline_pair',
+               [(min(d['top_i']), d['pivot']), (ia, d['pivot']), p1, (ia, _g3_line_at(p1, p2, ia))], 'bullish',
+               {'line_spaces': ['lin', 'log'], 'draw_lanes': False, 'draw_touches': touches},
+               sub='converging_pair', start=d['start_i'])
+    out = {'shape': 'ascending_triangle', **{k: v for k, v in d.items() if not k.endswith('_i') and k != 'i'}}
+    out['dets'] = [det]
+    return out
+
+
 # ================================================================== entry points
 #: setup key -> detector. One authority; auto_structures reads SETUPS / DETECT / DRAW_ROUNDS.
 DETECT = {
@@ -721,6 +1616,16 @@ DETECT = {
     "bear_flag": bear_flag,
     "bollinger_squeeze": bollinger_squeeze,
     "major_trendlines": major_trendlines,
+    "rsi_bearish_divergence": rsi_bearish_divergence,
+    "symmetrical_triangle": symmetrical_triangle,
+    "rising_wedge": rising_wedge,
+    "avwap_reclaim": avwap_reclaim,
+    "nr7": nr7,
+    "head_shoulders": head_shoulders,
+    "triple_top": triple_top,
+    "triple_bottom": triple_bottom,
+    "wyckoff_spring": wyckoff_spring,
+    "ascending_triangle": ascending_triangle,
 }
 SETUPS = tuple(DETECT)
 DRAW_ROUNDS = {s: R3_DRAW_ROUND for s in SETUPS}

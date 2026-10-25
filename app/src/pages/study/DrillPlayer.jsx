@@ -32,6 +32,7 @@ import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFa
 import useStudySession from './useStudySession'
 import useHouseChart from './useHouseChart'
 import { studySettingsOverride } from './studyChartLook'
+import { slingshotInstances } from './slingshotOverlay'
 import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
@@ -129,7 +130,12 @@ export default function DrillPlayer({
   const chartItem = chartItemId ? s.items.find((it) => it.id === chartItemId) || item : null
   const chartOpts = chartItem?.prompt_json?.chart
   const houseSettings = useHouseChart(fetcher)
-  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts, houseSettings), [chartOpts, houseSettings])
+  // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
+  // before and after the reveal: the line the trigger is judged against.
+  const settingsOverride = useMemo(
+    () => studySettingsOverride(chartOpts, houseSettings, { instances: slingshotInstances(chartItem) }),
+    [chartOpts, houseSettings, chartItem],
+  )
   const entryDate = chartBars?.[0]?.t ?? null
   const exitDate = chartBars?.length ? chartBars[chartBars.length - 1].t : null
 

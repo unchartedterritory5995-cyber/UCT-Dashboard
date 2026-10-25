@@ -402,54 +402,20 @@ const AWAITING_A_DECISION = {
   // excuse" this register's own header warns about, so this is dated and
   // re-argued rather than re-greened.
   //
-  // ── WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS ───────
-  //   (2026-09-14, owner ruling 0.2 of the a7.5 prompt)
-  //
-  // ⚠️ THESE EIGHT WERE NEVER MEASURED BY ANY EARLIER SCOPE. a7.4 ran the FULL
-  // vitest suite for the first time on this branch; this rail lives under
-  // `components/screener/`, which the wave's scoped runs
-  // (`chart/{engine,builder,pane}` + `src/hooks`) never reached. So the rail was
-  // not newly broken — it was newly RUN, and it was right both times.
-  //
-  // ⛔ THE REASON IS DATED AND THE EXPIRY IS AN EVENT, which is the only kind
-  // this register accepts: **Wave 2 is in flight, and reachability for all eight
-  // is decided at Wave 2 close.** Whichever of them the wave does not mount is
-  // deleted then — not re-parked. The owner holds a per-module veto on these
-  // entries; any module vetoed comes straight back out and goes red again.
-  //
-  // ⭐ WHY THEY ARE NOT ONE THING: six are R0 renderer primitives built ahead of
-  // the drawing path they serve, one is the RUNTIME lane's clock (and is
-  // therefore held off the pane by the same ruling D2 as the block above), and
-  // one is an instrument like `oosHarness.js`. Recording them as a single
-  // undifferentiated batch is how a register becomes the parking space its own
-  // header warns about.
-  'app/src/components/chart/engine/textLayout.js':
-    'R0.1 RENDERER PRIMITIVE — the text engine lightweight-charts lacks. Built '
-    + 'ahead of the drawing path that consumes it. Wave 2 in flight; '
-    + 'reachability decided at Wave 2 close (2026-09-14).',
-  // ⭐ `objectPool.js` WAS HERE AND IS NOW WIRED (RC-B, 2026-09-22), so its
-  // entry is gone rather than renewed. `objectRuntime.beginObjects` imports
-  // `POOL_LIMITS` + `resolveCapacity` and takes its capacity policy from them.
-  // ⚰️ Its expiry — "Wave 2 close, 2026-09-14" — had PASSED while the module
-  // still sat here, and nothing failed on the date: that is the whole of
-  // `lesson_built_tested_green_and_unreachable` with a deadline attached. The
-  // correct FIFO lived in this repo, with tests, while the runtime it belonged
-  // to refused at the cap and kept the OLDEST objects — which is what made
-  // `liquidity-pools` draw a year-stale chart against TradingView.
-  'app/src/components/chart/engine/versionRender.js':
-    'R0.3 RENDERER PRIMITIVE — the version-dependent renderer. Same wave, same '
-    + 'expiry.',
-  'app/src/components/chart/engine/lwcHazards.js':
-    'R0.4 RENDERER PRIMITIVE — the lightweight-charts traps as code rather than '
-    + 'folklore. Same wave, same expiry.',
-  'app/src/components/chart/engine/zorder.js':
-    'R0.5 RENDERER PRIMITIVE — Pine\'s nine z-buckets onto lightweight-charts\' '
-    + 'four slots. Same wave, same expiry.',
-  'app/src/components/chart/builder/memberPane/seriesCompare.js':
-    'T5 — per-series vendor agreement. An INSTRUMENT, not a member surface, in '
-    + 'the same class as `oosHarness.js`: invoked by tooling and tests, with no '
-    + 'member route by design. Confirm at Wave 2 close and move it to the '
-    + 'instrument clause if it is still one.',
+  // (A "WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS" block
+  // stood here from 2026-09-14 until 2026-10-24, when its expiry lapsed for the
+  // third time and the per-module decision it promised was finally taken. Four
+  // R0 primitives were DELETED, none of them reached by production code:
+  // `textLayout.js` R0.1, `versionRender.js` R0.3, `lwcHazards.js` R0.4 and
+  // `zorder.js` R0.5. Recover any of them from `ded5ac3b2a`, the last master
+  // commit that holds them (`git show ded5ac3b2a:<path>`). The disagreements they had
+  // with the shipped renderer are recorded as open parity items in
+  // `docs/pine/PARITY-ROOT-CAUSE.md`. `lwcHazards.test.js`'s createPriceLine
+  // sweep, the one part that guarded production code, lives on in
+  // `engine/__tests__/priceLineStyleSweep.test.js`. The block's instrument,
+  // `seriesCompare.js`, moved to `engine/__tests__/`, which is test
+  // infrastructure, so it needs no entry. `objectPool.js`, `colorInt.js` and
+  // `pineRuntimeClock.js` had left the block earlier, wired.)
   //
   // ── JOYSTICK HUB, PHASE 1 → WIRED IN PHASE 3 WAVE A (2026-09-09) ─────────
   //
@@ -792,20 +758,9 @@ const PARKING_EXPIRES = {
   // tested by time; do not read its absence as evidence the mechanism works.
   'THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09)': '2026-11-30',
   "THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20)": '2026-11-30',
-  // ⚰️ THIS IS THE BLOCK THAT LAPSED, and it is renewed SHORT on purpose.
-  // `objectPool.js` has been removed from it (RC-B wired it), but five
-  // primitives remain — and three of them, `zorder.js`, `colorInt.js` and
-  // `textLayout.js`, are named in `docs/pine/PARITY-ROOT-CAUSE.md` as the next
-  // seams where a house concept stands in for a Pine one with nothing measuring
-  // the difference. They are the same shape as the defect that cost this.
-  // ⚰️ IT LAPSED AGAIN ON 2026-10-06, and is renewed ONCE more, SHORT, on
-  // 2026-10-09 by the Notebook session sweeping master's red rails. Wave 2 merged
-  // 2026-09-19 (`e855f62cdb`) without the per-module decision this block promises,
-  // so the decision is still owed, and it is the Pine workstream's (owner veto per
-  // module), not a sweeper's. Deleting was not done because `zorder.js` is still
-  // being edited on the in-flight `pine/s1-strategy-broker` branch (34da5eb926,
-  // 2026-10-05). Next lapse: WIRE or DELETE each module; do not renew again.
-  'WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS': '2026-10-23',
+  // (The WAVE 2 block's expiry, 2026-10-23, was deleted 2026-10-24 with the
+  // block: it lapsed three times, and on the third its five modules were
+  // deleted or moved to test infrastructure rather than renewed.)
   'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
@@ -880,7 +835,7 @@ describe('🔴 S4 — a parking note may not outlive its own expiry', () => {
     expect(parked.length).toBeGreaterThan(4)
     // a path known to be in there, named rather than counted
     const all = parked.flatMap((b) => b.paths)
-    expect(all).toContain('app/src/components/chart/engine/zorder.js')
+    expect(all).toContain('app/src/components/chart/engine/runtime/lower.js')
     expect(all.length).toBe(Object.keys(AWAITING_A_DECISION).length)
   })
 

@@ -7,7 +7,7 @@
 //                             always written. The button and the panel's toggle are two doors onto it;
 //                             there is no second copy to drift.
 //   `uctIntelligence.added` — the indicator is on the chart (its panel shows). Absent = never added.
-//   `uctIntelligence.labels / .supportResistance / .candles / .setups` — the sub-layers.
+//   `uctIntelligence.labels / .supportResistance / .candles / .setups / .caution` — the sub-layers.
 //
 // ⭐ A MEMBER WHO NEVER ADDS IT SEES EXACTLY WHAT THEY SAW BEFORE. Every reader here answers an absent
 // `uctIntelligence` with today's behaviour: labels ON (the overlay always drew them), nothing else, and
@@ -17,13 +17,22 @@
 // a dead switch. Each gate is ONE signal the server owns, so a release lights the toggle with no client
 // edit:
 //   supportResistance — the patterns payload carries `levels_sr` (the textbook support/resistance layer;
-//                       present only while the server releases it to this viewer).
+//                       present only while the server releases it to this viewer). A released block with
+//                       nothing to draw (`withheld` "too_few_levels" / "out_of_frame" / any other reason, or
+//                       empty zones and lines) shows the toggle QUIET: disabled, unchecked, hinted "No clear
+//                       levels on this chart" (`supportResistanceEmpty`). The member's stored choice is kept.
 //   candles           — the patterns payload carries `candle_marks` (no route serves it today).
 //   setups            — the Research Technical tab's release (`research_technical_tab_enabled`): the
 //                       confirmed-setup list the panel reads is that tab's list, so it ships with it.
 //                       OR the patterns payload carries `setup_draws` (the setup-drawing lines; present
 //                       only while the server releases them to this viewer). The toggle drives both; the
 //                       list itself still shows only with the Technical tab's release.
+//   caution           — the patterns payload carries `setup_draws` (owner decision 7, 2026-10-24). The bearish
+//                       setups (server-marked `direction: "bearish"`, auto_structures.CAUTION_SETUP_IDS) are an
+//                       opt-in layer, OFF by default: off, they are neither drawn nor listed; on, they draw in an
+//                       amber risk style with exit wording (cautionLayer.js). Bullish setups never depend on it.
+
+import { hasLevelsSr } from './patternShapes/srLevelsGeometry'
 
 export const UCT_INTELLIGENCE_ID = 'uctIntelligence'
 
@@ -50,7 +59,7 @@ export const UCT_INTELLIGENCE_ROW = Object.freeze({
   singleton: true,
 })
 
-const SUB_KEYS = ['labels', 'supportResistance', 'candles', 'setups']
+const SUB_KEYS = ['labels', 'supportResistance', 'candles', 'setups', 'caution']
 
 /** The stored block, sanitised: booleans only, unknown keys dropped. null when absent or malformed
  *  (so `mergeChartSettings` can leave the key out entirely). */
@@ -77,6 +86,8 @@ export function readUctIntelligence(settings) {
     supportResistance: ui.supportResistance === true,
     candles: ui.candles === true,
     setups: ui.setups === true,
+    // OFF by default (decision 7): only an explicit true opts in
+    caution: ui.caution === true,
   }
 }
 
@@ -114,10 +125,15 @@ export function setUctIntelligenceLayer(settings, key, value) {
  *  signals (`levelsSr`, `candleMarks`, `setupDraws`: undefined when the key is absent); `setupsReleased`
  *  the Technical tab's release flag. */
 export function layerAvailability({ levelsSr, candleMarks, setupsReleased, setupDraws } = {}) {
+  const srReleased = levelsSr !== undefined && levelsSr !== null
   return {
-    supportResistance: levelsSr !== undefined && levelsSr !== null,
+    supportResistance: srReleased,
+    // Released, but this chart has nothing to draw (withheld "too_few_levels", "out_of_frame", ...): the toggle
+    // shows quiet. ONE rule with the overlay: hasLevelsSr is what PatternOverlay draws from.
+    supportResistanceEmpty: srReleased && !hasLevelsSr(levelsSr),
     candles: candleMarks !== undefined && candleMarks !== null,
     setups: setupsReleased === true || Array.isArray(setupDraws),
+    caution: Array.isArray(setupDraws),
   }
 }
 
@@ -130,8 +146,10 @@ export function effectiveLayers(settings, availability) {
     added: s.added,
     autoPatterns: s.autoPatterns,
     labels: s.labels,
-    supportResistance: s.added && s.supportResistance && a.supportResistance === true,
+    supportResistance: s.added && s.supportResistance && a.supportResistance === true
+      && a.supportResistanceEmpty !== true,
     candles: s.added && s.candles && a.candles === true,
     setups: s.added && s.setups && a.setups === true,
+    caution: s.added && s.caution && a.caution === true,
   }
 }

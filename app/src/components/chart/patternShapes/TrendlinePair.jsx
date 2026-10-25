@@ -166,6 +166,10 @@ export default function TrendlinePair({ detection, tToX, priceToY, onClick }) {
   const roles = detection?.geometry?.anchor_roles
   const hasRoles = Array.isArray(roles) && roles.length === anchors.length
   const spaces = detection?.geometry?.extras?.line_spaces || []
+  // A row may ask for no lane fill and for hollow circles on its touches (the round-3 ascending triangle was
+  // judged drawn that way: two lines, the touches circled, nothing between them).
+  const lanes = detection?.geometry?.extras?.draw_lanes !== false
+  const touches = Array.isArray(detection?.geometry?.extras?.draw_touches) ? detection.geometry.extras.draw_touches : []
 
   const x1 = tToX(a.t)
   const x2 = tToX(b.t)
@@ -184,11 +188,18 @@ export default function TrendlinePair({ detection, tToX, priceToY, onClick }) {
   return wrap(
     <>
       {/* Translucent fill between the two lines — gives channels a "lane" feel */}
-      <polygon points={lane} fill={style.color} opacity={style.opacity * 0.08} />
+      {lanes && <polygon points={lane} fill={style.color} opacity={style.opacity * 0.08} />}
       <path data-role="upper" d={toPath(upper)} fill="none" stroke={style.color} strokeWidth={style.sw}
         strokeDasharray={style.dash} opacity={style.opacity} filter={style.glow} />
       <path data-role="lower" d={toPath(lower)} fill="none" stroke={style.color} strokeWidth={style.sw}
         strokeDasharray={style.dash} opacity={style.opacity} filter={style.glow} />
+      {touches.map((p, i) => {
+        const x = tToX(p.t)
+        const y = priceToY(p.price)
+        if (x == null || y == null) return null
+        return <circle key={`touch${i}`} data-role="touch" cx={x} cy={y} r={4} fill="none" stroke={style.color}
+          strokeWidth={1.3} opacity={style.opacity} />
+      })}
       {/* Label at the end of the upper line — slightly offset so it doesn't sit on the candle */}
       <text x={x2 + 8} y={y2 + 4} fontSize="11" fill={style.color} opacity={style.opacity}>
         {hasRoles ? (ROLE_LABELS[roles[1]] || formatLabel(detection)) : formatLabel(detection)}

@@ -14,12 +14,15 @@ import UctIntelligencePanel, { setupDisplayName } from './UctIntelligencePanel'
 import PatternToolbarButton from './PatternToolbarButton'
 
 const NONE = layerAvailability({})
-const ALL = layerAvailability({ levelsSr: [], candleMarks: [], setupsReleased: true })
+// a DRAWABLE levels_sr block (two zones): an empty one is released but quiet (srAvailability.test.jsx)
+const DRAWABLE_SR = { zones: [{ role: 'Support', bot: 1, top: 2 }, { role: 'Resistance', bot: 5, top: 6 }], trendlines: [] }
+const ALL = layerAvailability({ levelsSr: DRAWABLE_SR, candleMarks: [], setupsReleased: true })
 
 describe('state model — a chart that never added it is exactly as before', () => {
   it('defaults: not added, Auto patterns follows showPatterns, labels ON, gated layers OFF', () => {
     expect(readUctIntelligence({})).toEqual({
       added: false, autoPatterns: false, labels: true, supportResistance: false, candles: false, setups: false,
+      caution: false,
     })
     expect(readUctIntelligence({ showPatterns: true }).autoPatterns).toBe(true)
   })
@@ -74,7 +77,9 @@ describe('add / remove / layer writes', () => {
 
 describe('gating — a released layer is one signal, and unreleased means OFF', () => {
   it('nothing is released today without its signal', () => {
-    expect(NONE).toEqual({ supportResistance: false, candles: false, setups: false })
+    expect(NONE).toEqual({
+      supportResistance: false, supportResistanceEmpty: false, candles: false, setups: false, caution: false,
+    })
   })
 
   it('S/R lights from the PRESENCE of levels_sr (even empty), never from a hardcoded flag', () => {

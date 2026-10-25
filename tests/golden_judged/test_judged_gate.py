@@ -30,7 +30,12 @@ PENDING = [f for f in FAMILIES if f["status"] == "pending_port"]
 #: Their judged cases are still replayed, with the member literal set back to the judged round, so the code stays
 #: guarded for the day a new passed round re-releases it; and the literal itself must stay None.
 WITHDRAWN_FAMS = [f for f in FAMILIES if f["status"] == "withdrawn"]
-WITHDRAWN = [(f["family"], c) for f in WITHDRAWN_FAMS for c in f["cases"] if "retired" not in c]
+#: Families SUPERSEDED by a newer passed round of the same drawing (the member literal moved on to that round). Their
+#: judged cases are replayed exactly like a withdrawn family's -- the literal set back to the judged round -- because
+#: setting it back is the rollback lever; only the "literal is None" assertion does not apply to them.
+SUPERSEDED_FAMS = [f for f in FAMILIES if f["status"] == "superseded"]
+REPLAYED_FAMS = WITHDRAWN_FAMS + SUPERSEDED_FAMS
+WITHDRAWN = [(f["family"], c) for f in REPLAYED_FAMS for c in f["cases"] if "retired" not in c]
 
 #: Judged cases the CURRENT master does not reproduce, each a finding with its measured cause. Kept RED-visible as
 #: strict xfails: the gate still fails the moment any OTHER case regresses, and fails here too once one of these is
@@ -58,6 +63,10 @@ for _cid in ("double-bottom-a-001", "double-bottom-b-018"):
 for _cid in ("double-bottom-a-010", "inside-day-b2-018"):
     KNOWN_RED[_cid] = ("a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, "
                        "within 1 ATR of the judged line; the judges saw the drawing alone")
+# 72 setup-line cases left KNOWN_RED 2026-10-24 (descending-triangle 21, bollinger-squeeze 16, rectangle 14,
+# bear-flag 13, inverse-head-shoulders 8): their rounds sampled on the recert rule (close > $5 and a 20-day average
+# dollar volume >= $5M), and the member frame was a one-day $20M floor. Each family is now served on the frame it was
+# certified on (auto_structures.SETUP_FRAME_BY_ID), so they reproduce.
 
 
 def _ids(items):
@@ -78,7 +87,7 @@ def test_a_withdrawn_drawing_still_draws_as_judged_when_its_round_is_set(family,
     if case["id"] in KNOWN_RED:
         request.applymarker(pytest.mark.xfail(strict=True, reason=KNOWN_RED[case["id"]]))
     from api.services import auto_structures as AS
-    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == family)
+    fam = next(f for f in REPLAYED_FAMS if f["family"] == family and case in f["cases"])
     monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])
     payload, bars = MP.member_payload(monkeypatch, case)
     bad = JG.failures(case, payload, bars)
@@ -92,13 +101,62 @@ def test_a_withdrawn_drawing_is_not_served_to_members(monkeypatch):
     assert WITHDRAWN_FAMS, "no withdrawn family: delete this test with the last one"
     for f in WITHDRAWN_FAMS:
         assert getattr(AS, f["member_literal"]) is None, (f["family"], getattr(AS, f["member_literal"]))
-    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "sr")
-    case = next(c for c in fam["cases"] if c["expect"]["zones"])
+    # the door is real: a withdrawn case that draws as judged with its round set is red with the literal None
+    for f in WITHDRAWN_FAMS:
+        for c in f["cases"]:
+            if "retired" in c or c["id"] in KNOWN_RED:
+                continue
+            monkeypatch.setattr(AS, f["member_literal"], f["judged_round"])
+            payload, bars = MP.member_payload(monkeypatch, c)
+            if JG.failures(c, payload, bars):
+                continue
+            monkeypatch.setattr(AS, f["member_literal"], None)
+            payload, bars = MP.member_payload(monkeypatch, c)
+            assert JG.failures(c, payload, bars), (f["family"], c["id"])
+            return
+    raise AssertionError("no withdrawn case draws as judged with its round set: the control cannot run")
+
+
+def _cups(payload):
+    return [r for r in payload.get("structures", []) if r["pattern_id"] == "bc:cup-with-handle"]
+
+
+def test_the_withdrawn_cup_is_not_served_to_members_and_comes_back_with_its_round(monkeypatch):
+    """Owner decision 4 (2026-10-24): the cup is withdrawn from members (strict blind 1.98 on n = 20 is not
+    certifiable). With MEMBER_CUP_TIER_ROUND None a judged cup chart serves the member no cup; the re-enable control
+    (the literal back to the judged round, which is what a passed n >= 60 packet would ship) serves it again."""
+    from api.services import auto_structures as AS
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "cup")
+    assert fam["member_literal"] == "MEMBER_CUP_TIER_ROUND" and AS.MEMBER_CUP_TIER_ROUND is None
+    case = next(c for c in fam["cases"] if c["id"] == "cup-d1-001")
     payload, _bars = MP.member_payload(monkeypatch, case)
-    assert "levels_sr" not in payload
-    monkeypatch.setattr(AS, "MEMBER_SR_ROUND", fam["judged_round"])     # control: the door is real
+    assert not _cups(payload)
+    monkeypatch.setattr(AS, "MEMBER_CUP_TIER_ROUND", fam["judged_round"])     # re-enable control
     payload, _bars = MP.member_payload(monkeypatch, case)
-    assert payload.get("levels_sr", {}).get("zones")
+    assert _cups(payload)
+
+
+def _darvas(payload):
+    return [r for r in payload.get("setup_draws") or [] if r.get("pattern_id") == "draw:darvas-box"]
+
+
+def test_the_withdrawn_darvas_box_is_not_served_to_members_and_comes_back_with_its_round(monkeypatch):
+    """Outcome replay 2026-10-24: win8 lift -5.1pp [-6.7,-3.4] vs matched breakout (NEGATIVE), so the darvas box is
+    withdrawn from members. With MEMBER_DARVAS_BOX_ROUND None a judged darvas chart serves the member no darvas box;
+    the re-enable control (the literal back to the judged round) serves it again."""
+    from api.services import auto_structures as AS
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "darvas_box")
+    assert fam["member_literal"] == "MEMBER_DARVAS_BOX_ROUND" and AS.MEMBER_DARVAS_BOX_ROUND is None
+    for case in fam["cases"]:
+        monkeypatch.setattr(AS, "MEMBER_DARVAS_BOX_ROUND", fam["judged_round"])     # re-enable control
+        payload, bars = MP.member_payload(monkeypatch, case)
+        if not _darvas(payload) or JG.failures(case, payload, bars):
+            continue
+        monkeypatch.setattr(AS, "MEMBER_DARVAS_BOX_ROUND", None)
+        payload, _bars = MP.member_payload(monkeypatch, case)
+        assert not _darvas(payload), case["id"]
+        return
+    raise AssertionError("no darvas case draws with the round set: the control cannot run")
 
 
 @pytest.mark.parametrize("family,case", RETIRED, ids=_ids(RETIRED))
@@ -116,6 +174,9 @@ def _first_green(fam, monkeypatch, need=lambda c: True):
     for wf in WITHDRAWN_FAMS:
         if wf["family"] == fam:
             monkeypatch.setattr(AS, wf["member_literal"], wf["judged_round"])
+    for wf in SUPERSEDED_FAMS:
+        if wf["family"] == fam and not any(r["family"] == fam and r["status"] == "released" for r in FAMILIES):
+            monkeypatch.setattr(AS, wf["member_literal"], wf["judged_round"])
     for f, c in RELEASED + WITHDRAWN:
         if f == fam and c["id"] not in KNOWN_RED and need(c):
             payload, bars = MP.member_payload(monkeypatch, c)
@@ -132,6 +193,43 @@ def test_a_judged_price_moved_by_one_ATR_is_caught(fam, key, monkeypatch):
     case, payload, bars = _first_green(fam, monkeypatch)
     case["expect"][key] = float(case["expect"][key]) + MP.atr14(bars) * float(case["bars"]["scale"])
     assert any(key.split("_")[-1] in m or "price" in m for m in JG.failures(case, payload, bars))
+
+
+@pytest.mark.parametrize("fam", sorted(JG.SETUP_LINE_FAMILIES))
+def test_a_judged_setup_anchor_moved_by_one_ATR_is_caught(fam, monkeypatch):
+    """Control for the setup lens: the same chart against a judged anchor one ATR away is red (every setup-line
+    family), and so is the judged row moved off `setup_draws` onto another key, or removed."""
+    case, payload, bars = _first_green(fam, monkeypatch)
+    moved = json.loads(json.dumps(case))
+    det = moved["expect"]["dets"][-1]
+    det["anchors"][-1]["price"] = float(det["anchors"][-1]["price"]) + MP.atr14(bars) * float(case["bars"]["scale"])
+    assert any("price" in m for m in JG.failures(moved, payload, bars)), fam
+    pid = JG.SETUP_LINE_FAMILIES[fam]
+    mine = [r for r in payload["setup_draws"] if r["pattern_id"] == pid]
+    rest = [r for r in payload["setup_draws"] if r["pattern_id"] != pid]
+    elsewhere = {**payload, "setup_draws": rest, "structures": list(payload.get("structures") or []) + mine}
+    assert any(m.startswith("(1)") for m in JG.failures(case, elsewhere, bars)), fam
+    gone = {k: v for k, v in payload.items() if k != "setup_draws"}
+    assert any(m.startswith("(1)") and "ABSENT" in m for m in JG.failures(case, gone, bars)), fam
+
+
+def test_a_rectangle_sharing_its_top_with_a_higher_priority_line_is_caught(monkeypatch):
+    """Control for (3) on the rectangle (the one setup-line drawing the one-line-per-base pass settles): a drawn line
+    ranked ahead of it within 1 ATR of the box top over the box span is red, two ATR away it is not; and the
+    one_line_per_base retire rule reads the same distance over the box's own span."""
+    case, payload, bars = _first_green("rectangle", monkeypatch)
+    top, atr = JG._want_key("rectangle", case), MP.atr14(bars)
+    s0, s1 = MP.ymd(case, case["expect"]["dets"][0]["start"]), MP.ymd(case, case["expect"]["dets"][0]["end"])
+
+    def ceiling(p):
+        return {"pattern_id": "uct_flat_top_breakout", "start_t": s0, "end_t": s1,
+                "geometry": {"extras": {"draw_flat_top": {"price": p, "start_t": s0, "end_t": s1}}}}
+    near = {**payload, "detections": list(payload.get("detections") or []) + [ceiling(top + 0.5 * atr)]}
+    far = {**payload, "detections": list(payload.get("detections") or []) + [ceiling(top + 2.0 * atr)]}
+    assert any(m.startswith("(3)") for m in JG.failures(case, near, bars))
+    assert not any(m.startswith("(3)") for m in JG.failures(case, far, bars))
+    assert JG.RETIRE_RULES["one_line_per_base"](case, near, bars)
+    assert not JG.RETIRE_RULES["one_line_per_base"](case, far, bars)
 
 
 def test_an_SR_zone_moved_by_one_ATR_is_caught(monkeypatch):
@@ -179,8 +277,12 @@ def test_an_extra_base_drawing_is_judged_by_the_line_members_see(monkeypatch):
 def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkeypatch):
     """Control for the one_line_per_base retirement (precedence round e): on each retired donchian chart the line
     stays off AND a drawn base-family line still sits within 1 ATR. Putting the channel line back is red; taking the
-    base line away is red (its absence would then be unexplained)."""
-    cases = [c for f, c in RETIRED if f == "donchian_breakout"]
+    base line away is red (its absence would then be unexplained). The donchian is withdrawn (recert B), so the
+    control re-arms its member literal at the judged round: with it None the line would be absent trivially."""
+    from api.services import auto_structures as AS
+    fam = next(f for f in FAMILIES if f["family"] == "donchian_breakout")
+    monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])
+    cases = [c for c in fam["cases"] if "retired" in c]
     assert cases and all(c["retired"]["rule"] == "one_line_per_base" for c in cases)
     case = cases[0]
     payload, bars = MP.member_payload(monkeypatch, case)
@@ -193,7 +295,6 @@ def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkey
             "levels": {"entry": lvl}}
     again = {**payload, "setup_draws": list(payload.get("setup_draws") or []) + [back]}
     assert any("back on the member chart" in m for m in JG.retired_failures(case, again, bars))
-    from api.services import auto_structures as AS
     ahead = set(AS.ONE_LINE_PER_BASE_PRIORITY[:AS.ONE_LINE_PER_BASE_PRIORITY.index("draw:donchian_breakout")])
     bare = {k: ([r for r in v if r.get("pattern_id") not in ahead] if isinstance(v, list) else v)
             for k, v in payload.items()}
@@ -212,13 +313,13 @@ def test_a_donchian_line_retired_by_one_line_per_base_is_held_to_its_rule(monkey
 def test_a_retired_drawing_coming_back_is_caught(monkeypatch):
     """Control: the absence check is not vacuous -- the retired case's own judged drawing, put back on its chart, is
     red, and a chart where the retiring rule no longer holds is red."""
-    fam, case = next((f, c) for f, c in RETIRED if f == "shelf" and c["retired"]["rule"] == "trend_gate")
+    fam, case = next((f, c) for f, c in RETIRED if f == "double_bottom" and c["retired"]["rule"] == "trend_gate")
     payload, bars = MP.member_payload(monkeypatch, case)
     assert JG.retired_failures(case, payload, bars) == []
-    p = JG._unscale(case, case["expect"]["price"])
-    back = {"pattern_id": "draw:shelf-pivot", "start_t": MP.ymd(case, case["expect"]["start_t"]),
-            "end_t": int(bars[-1]["t"]), "geometry": {"extras": {"draw_shelf": {
-                "price": p, "start_t": MP.ymd(case, case["expect"]["start_t"]), "end_t": int(bars[-1]["t"])}}}}
+    p = JG._unscale(case, case["expect"]["pivot"])
+    s0 = int(bars[-int(case["expect"]["len"])]["t"])
+    back = {"pattern_id": "draw:double-bottom", "start_t": s0, "end_t": int(bars[-1]["t"]),
+            "geometry": {"extras": {"draw_shape": {"pivot": p, "start_t": s0, "end_t": int(bars[-1]["t"])}}}}
     again = {**payload, "structures": list(payload.get("structures") or []) + [back]}
     assert any("back on the member chart" in m for m in JG.retired_failures(case, again, bars))
     up = [dict(b) for b in bars]
@@ -233,7 +334,7 @@ def test_a_pivot_textbook_retirement_is_held_to_the_gate(monkeypatch):
     while the gate still fails its ungated row, and red the moment the gate would pass it (the absence is then
     unexplained) -- and the replay that explains it really runs the member route with the gate off."""
     from api.services.pattern_engine import textbook_gate as TG
-    for fam in ("shelf", "double_bottom"):
+    for fam in ("double_bottom",):        # the shelf is withdrawn (recert B); its retired cases are kept as written
         case = next(c for f, c in RETIRED if f == fam and c["retired"]["rule"] == "textbook_gate")
         payload, bars = MP.member_payload(monkeypatch, case)
         assert JG.retired_failures(case, payload, bars) == [], case["id"]
@@ -258,11 +359,21 @@ def test_a_textbook_line_off_the_buy_point_is_caught(monkeypatch):
 def test_the_replay_reaches_every_layer():
     """Non-vacuity: the fixtures exercise every released family, and the replayed route serves rows at all."""
     fams = {f for f, _c in RELEASED}
-    every = fams | {f["family"] for f in WITHDRAWN_FAMS}   # a family withdrawn by a recertification still replays
-    assert {"base", "double_bottom", "shelf", "cup", "inside_day", "donchian_breakout"} <= fams, fams
-    # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A)
-    assert {"sr", "remount", "u_and_r", "textbook"} <= every, every
+    every = fams | {f["family"] for f in REPLAYED_FAMS}    # a withdrawn or superseded family still replays
+    assert {"base", "double_bottom", "inside_day"} <= fams, fams
+    # shelf and donchian: withdrawn 2026-10-24 when their recert B textbook fix round failed
+    # textbook: withdrawn 2026-10-24 with the stateless base its numbers print on (recert A); sr: withdrawn at r2 and
+    # re-released at r7 the same day (recert D)
+    # cup: withdrawn 2026-10-24 (owner decision 4: strict blind 1.98 on n = 20; re-ships on an n >= 60 packet)
+    assert {"sr", "remount", "u_and_r", "textbook", "shelf", "donchian_breakout", "cup",
+            "darvas_box"} <= every, every
+    assert "sr" in fams, "sr is released at r7"
     assert any("line" in c["expect"] for f, c in RELEASED + WITHDRAWN if f == "textbook"), "no textbook round-2 line case"
+    # every setup-line family is a fixture (released, or withdrawn and replayed with its round set: the darvas box,
+    # withdrawn 2026-10-24 on its NEGATIVE outcome verdict), and each one reproduces at least one judged case today
+    assert set(JG.SETUP_LINE_FAMILIES) <= every, set(JG.SETUP_LINE_FAMILIES) - every
+    for fam in JG.SETUP_LINE_FAMILIES:
+        assert any(f == fam and c["id"] not in KNOWN_RED for f, c in RELEASED + WITHDRAWN), f"every {fam} case is KNOWN_RED"
 
 
 # ---------------------------------------------------------------------------- the baseline is the judged round
@@ -275,6 +386,17 @@ def test_each_released_family_is_still_served_at_the_round_the_judges_scored():
             continue
         got = getattr(AS, f["member_literal"])
         assert got == f["judged_round"], (f["family"], f["member_literal"], got, f["judged_round"])
+
+
+def test_a_superseded_family_is_one_a_released_family_replaced():
+    """A superseded fixture is the judged round a NEWER passed round of the same drawing replaced: its member literal
+    has moved off the judged round, onto the round a released fixture of the same literal records."""
+    from api.services import auto_structures as AS
+    for f in SUPERSEDED_FAMS:
+        got = getattr(AS, f["member_literal"])
+        assert got != f["judged_round"], (f["family"], got)
+        assert any(r["status"] == "released" and r["member_literal"] == f["member_literal"] and r["judged_round"] == got
+                   for r in FAMILIES), (f["family"], f["member_literal"], got)
 
 
 def test_a_pending_drawing_is_still_not_released_to_members():
@@ -320,7 +442,8 @@ def test_the_fixtures_are_symbol_free_and_small():
             assert set(c["bars"]["d"]) <= set("0123456789()"), (name, c["id"])
             meta = json.dumps({k: v for k, v in c.items() if k != "bars"})
             assert not re.search(r"\b(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b", meta), (name, c["id"])
-    assert total < 5_000_000, total
+    # 5.5 MB since the setups_r3 b2r / b4 families (10 cases each) joined; it was 5 MB with 4.94 MB used
+    assert total < 5_500_000, total
 
 
 def test_decoding_then_re_encoding_a_fixture_gives_it_back_exactly():
@@ -338,8 +461,12 @@ def test_decoding_then_re_encoding_a_fixture_gives_it_back_exactly():
 def test_a_stale_cup_box_is_served_only_when_the_cup_tier_draws_it(monkeypatch):
     """lab cup_served: a cup box the team display rounds mark stale is served (in the tier's form) only when the
     round-4 cup tier DRAWS it. The same judged chart with the tier's stamp withheld, or with no stamp, serves no cup."""
+    from api.services import auto_structures as AS
     from api.services.pattern_engine import cup_tier
-    case = next(c for f, c in RELEASED if c["id"] == "cup-d1-001")   # a team-stale box (rim_broken), tier-drawn
+    # the cup is withdrawn from members (owner decision 4): replayed with its member literal at the judged round
+    fam = next(f for f in WITHDRAWN_FAMS if f["family"] == "cup")
+    monkeypatch.setattr(AS, fam["member_literal"], fam["judged_round"])
+    case = next(c for f, c in WITHDRAWN if c["id"] == "cup-d1-001")   # a team-stale box (rim_broken), tier-drawn
     payload, _bars = MP.member_payload(monkeypatch, case)
     assert [r for r in payload["structures"] if r["pattern_id"] == "bc:cup-with-handle"]
     real = cup_tier.stamp

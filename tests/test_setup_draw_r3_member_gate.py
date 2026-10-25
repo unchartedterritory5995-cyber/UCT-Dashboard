@@ -1,6 +1,6 @@
 """Round-3 setup drawings: the member gate.
 
-Six setups (setup_draw_r3.py) ride the same `setup_draws` layer and the same AUTO_STRUCTURES_G4_SETUPS_ENABLED flag
+Sixteen setups (setup_draw_r3.py) ride the same `setup_draws` layer and the same AUTO_STRUCTURES_G4_SETUPS_ENABLED flag
 as rounds 1 and 2. A member is served a round-3 row only while ALL of these hold, each proved load-bearing on its
 own below: its MEMBER_<SETUP>_ROUND literal is an int equal to setup_draw_r3.R3_DRAW_ROUND and to the row's own
 draw_round stamp; its id is in registry.DISPLAY_MEMBER_SET; its draw_setup names its own judged shape; its geometry is
@@ -21,7 +21,9 @@ from api.services.pattern_engine.detectors import registry as REG
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "setup_draw_r3_parity.json")
 R3_IDS = {
     "draw:outside-bar", "draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
-    "draw:bollinger-squeeze", "draw:major-trendline",
+    "draw:bollinger-squeeze", "draw:major-trendline", "draw:rsi-bearish-divergence", "draw:symmetrical-triangle",
+    "draw:rising-wedge", "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
+    "draw:triple-bottom", "draw:wyckoff-spring", "draw:ascending-triangle",
 }
 LITERALS = {
     "MEMBER_OUTSIDE_BAR_ROUND": "draw:outside-bar",
@@ -30,6 +32,16 @@ LITERALS = {
     "MEMBER_BEAR_FLAG_ROUND": "draw:bear-flag",
     "MEMBER_BOLLINGER_SQUEEZE_ROUND": "draw:bollinger-squeeze",
     "MEMBER_MAJOR_TRENDLINES_ROUND": "draw:major-trendline",
+    "MEMBER_RSI_BEARISH_DIVERGENCE_ROUND": "draw:rsi-bearish-divergence",
+    "MEMBER_SYMMETRICAL_TRIANGLE_ROUND": "draw:symmetrical-triangle",
+    "MEMBER_RISING_WEDGE_ROUND": "draw:rising-wedge",
+    "MEMBER_AVWAP_RECLAIM_ROUND": "draw:avwap-reclaim",
+    "MEMBER_NR7_ROUND": "draw:nr7",
+    "MEMBER_HEAD_SHOULDERS_ROUND": "draw:head-shoulders",
+    "MEMBER_TRIPLE_TOP_ROUND": "draw:triple-top",
+    "MEMBER_TRIPLE_BOTTOM_ROUND": "draw:triple-bottom",
+    "MEMBER_WYCKOFF_SPRING_ROUND": "draw:wyckoff-spring",
+    "MEMBER_ASCENDING_TRIANGLE_ROUND": "draw:ascending-triangle",
 }
 
 
@@ -50,7 +62,7 @@ def _real_rows():
     for sr in _series():
         for asof, setups in sorted(sr["expected"].items(), key=lambda kv: int(kv[0])):
             i = int(asof)
-            if i < AS.SETUP_MIN_BARS or not (set(setups) & {AS._SETUP_DRAW_R3_FUNCS[k][0] for k in range(6)}):
+            if i < AS.SETUP_MIN_BARS or not (set(setups) & {m[0] for m in AS._SETUP_DRAW_R3_FUNCS}):
                 continue
             for r in AS.setup_draw_rows("ZZZ", _dicts(sr["rows"][:i + 1])):
                 if r["pattern_id"] in R3_IDS and r["pattern_id"] not in out:
@@ -173,3 +185,49 @@ def test_the_inverse_head_and_shoulders_is_a_five_point_neckline():
 def test_flag_off_serves_no_round_3_row(monkeypatch):
     monkeypatch.delenv("AUTO_STRUCTURES_G4_SETUPS_ENABLED", raising=False)
     assert AS.setup_draws_for("ZZZ") is None and AS.setup_draws_for("ZZZ", member=True) is None
+
+
+def test_the_bearish_divergence_carries_its_rsi_panel():
+    pn = ROWS["draw:rsi-bearish-divergence"]["geometry"]["extras"]["draw_panel"]
+    assert pn["kind"] == "rsi14" and len(pn["points"]) >= 2 and pn["p2"]["value"] < pn["p1"]["value"]
+
+
+def test_the_bearish_divergence_without_its_panel_is_withheld():
+    r = copy.deepcopy(ROWS["draw:rsi-bearish-divergence"])
+    del r["geometry"]["extras"]["draw_panel"]
+    assert AS.member_rows([r]) == []
+
+
+def test_the_avwap_reclaim_is_its_curve_labelled_avwap():
+    em = ROWS["draw:avwap-reclaim"]["geometry"]["extras"]["draw_ema"]
+    assert em["kind"] == "avwap" and "period" not in em and len(em["points"]) >= 2
+
+
+def test_the_avwap_reclaim_without_its_curve_is_withheld():
+    r = copy.deepcopy(ROWS["draw:avwap-reclaim"])
+    r["geometry"]["extras"]["draw_ema"]["points"] = r["geometry"]["extras"]["draw_ema"]["points"][:1]
+    assert AS.member_rows([r]) == []
+
+
+def test_the_converging_pairs_are_two_lines():
+    for pid in ("draw:symmetrical-triangle", "draw:rising-wedge"):
+        g = ROWS[pid]["geometry"]
+        assert len(g["anchors"]) == 4 and g["extras"]["line_spaces"] and "semantic_subtype" not in g
+
+
+def test_the_ascending_triangle_is_two_lines_with_its_touches_and_no_lane():
+    r = ROWS["draw:ascending-triangle"]
+    ex = r["geometry"]["extras"]
+    assert ex["draw_lanes"] is False and len(ex["draw_touches"]) >= 5
+    assert r["geometry"]["anchors"][0]["price"] == r["geometry"]["anchors"][1]["price"]     # the flat buy-point line
+    assert r["pattern_name"].startswith("Ascending triangle · Buy point ")
+
+
+def test_the_ascending_triangle_with_a_lane_or_without_touches_is_withheld():
+    for mut in ("lanes", "touches"):
+        r = copy.deepcopy(ROWS["draw:ascending-triangle"])
+        if mut == "lanes":
+            r["geometry"]["extras"]["draw_lanes"] = True
+        else:
+            r["geometry"]["extras"]["draw_touches"] = []
+        assert AS.member_rows([r]) == [], mut

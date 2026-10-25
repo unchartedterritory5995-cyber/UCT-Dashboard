@@ -495,7 +495,17 @@ CUP_ID = "bc:cup-with-handle"
 #: each), on the cup recognition tier (lab cup_tier_v2: 28 of 33 = 84.8%). A literal ON PURPOSE, not
 #: cup_tier.DRAW_ROUND: when the drawing code moves to a new round, members stop getting the cup
 #: until that round is confirmed and this is changed by hand.
-MEMBER_CUP_TIER_ROUND = 4
+#: WITHDRAWN FROM MEMBERS 2026-10-24 (owner decision 4, chart pattern product decisions): the strict blind
+#: recertification scored the cup 1.98 against the 2.3 bar on n = 20 charts. n = 20 cannot certify the drawing
+#: either way, so members do not get it. It re-ships (this literal back to CUP_TIER_JUDGED_ROUND) only when a
+#: pre-registered blind packet of n >= 60 cups clears the product bar (mean >= 2.3, >= 70% of charts >= 2,
+#: pooled >= 2.4). Admins keep the cup (the team chart never passes member_rows). Railed None by
+#: tests/golden_judged (cup.json.gz status "withdrawn") and tests/test_cup_withdrawn_from_members.py.
+MEMBER_CUP_TIER_ROUND = None
+#: The cup tier drawing round the blind packets judged (d1/d2 above, and lab cup_served for the stale boxes the
+#: tier draws). The team chart's stale-cup door reads THIS, not the member literal, so withdrawing the cup from
+#: members leaves the admin chart exactly as it was.
+CUP_TIER_JUDGED_ROUND = 4
 #: The tier name the stamp must carry.
 MEMBER_CUP_TIER_NAME = "cup_conf"
 
@@ -547,13 +557,16 @@ MEMBER_BASE_FORMING_ROUND = 1
 #: "3 weeks tight". None: round 1 FAILED its first blind packet 2026-10-23 (A 1.94 [1.64, 2.22]), and
 #: base_draw.state_drawing does not draw it at all (base_draw.DRAWN_STATES); None stays as the fail-closed gate.
 MEMBER_BASE_TIGHT_ROUND = None
-#: The STATELESS base (a bc:base row with no `state`: the judged base with its "Buy point X" line, before any
-#: breakout). None: WITHDRAWN from members 2026-10-24 after recertification A failed it on the strict textbook
-#: rubric three rounds running (lab recert/A_bases: r1 pooled 1.58; r2 packet A 2.08 with the textbook gate; r3
-#: packets A 2.22 and B 2.26 with the base's own floors, the last fix round PROTOCOL allows). Admins keep it. The
-#: breakout / extended states passed r2 and are unaffected. Re-release = a new passed blind round, with this set
-#: to that round (an int).
-MEMBER_BASE_STATELESS_ROUND = None
+#: The STATELESS base (a bc:base row with no `state`: the base with its "Buy point X" line, before any breakout).
+#: 6: RELEASED 2026-10-24 as the PLAIN base (base_draw.plain_drawing, PLAIN_ROUND, lab base_rebuild): a new geometry
+#: rebuilt from the textbook after recertification A failed the round-4/5 drawing three rounds running (r1 pooled
+#: 1.58; r2 A 2.08; r3 A 2.22 / B 2.26). Its pre-registered held-out round on the same strict rubric passed: packets
+#: A 2.74, B 2.86, C 2.56, D 2.62 (every one >= 96% of cases >= 2), pooled 2.695 [2.60, 2.79]. A member gets a
+#: stateless row only when it is the plain base stamped with this round (_member_base_state_ok), and base_draw_row
+#: draws the plain base only while this equals base_draw.PLAIN_ROUND. ROLLBACK: MEMBER_BASE_ROUND (5) serves the old
+#: round-5 stateless drawing again (the failed one); None withholds the stateless base from members altogether. The
+#: base STATES are drawn before it and never read it, so no literal here changes a state row.
+MEMBER_BASE_STATELESS_ROUND = 6
 
 
 def _member_base_state_ok(bd) -> bool:
@@ -561,7 +574,16 @@ def _member_base_state_ok(bd) -> bool:
     equal to its stamped `state_round`. Any other state is False (fail closed)."""
     st = bd.get("state")
     if st is None and "state" not in bd:
-        return type(MEMBER_BASE_STATELESS_ROUND) is int
+        # the stateless base of the released round: a plain base (base_draw.plain_drawing) stamped with that round;
+        # under any other int (a rollback to the old drawing's release) the old stateless drawing (no plain_round)
+        pr = bd.get("plain_round")
+        rnd = MEMBER_BASE_STATELESS_ROUND
+        if type(rnd) is not int:
+            return False
+        if pr is not None:
+            return type(pr) is int and pr == rnd
+        from api.services.pattern_engine import base_draw
+        return rnd != base_draw.PLAIN_ROUND
     rnd = {"breakout": MEMBER_BASE_BREAKOUT_ROUND, "extended": MEMBER_BASE_BREAKOUT_ROUND,
            "forming": MEMBER_BASE_FORMING_ROUND, "tight": MEMBER_BASE_TIGHT_ROUND}.get(st) if isinstance(st, str) else None
     sr = bd.get("state_round")
@@ -812,9 +834,10 @@ def _confirmed_shape(row) -> bool:
         return False
 
 
-def _confirmed_cup_tier(row) -> bool:
+def _confirmed_cup_tier(row, want=None) -> bool:
     """True when a bc:cup-with-handle row carries the confirmed cup tier drawing: not stale,
-    `extras.cup_tier` names the tier and MEMBER_CUP_TIER_ROUND (an int), nothing withheld, a pivot
+    `extras.cup_tier` names the tier and `want` (default MEMBER_CUP_TIER_ROUND, read per call; it must be an
+    int, so the withdrawn literal None is always False), nothing withheld, a pivot
     with a finite price and a span, a handle box with a finite top at or above a finite floor, and a
     rim reference exactly when the pivot is at the handle high. Anything else is False."""
     ex = ((row or {}).get("geometry") or {}).get("extras") or {}
@@ -824,7 +847,8 @@ def _confirmed_cup_tier(row) -> bool:
     if not isinstance(st, dict) or st.get("tier") != MEMBER_CUP_TIER_NAME:
         return False
     rnd = st.get("draw_round")
-    if not (type(rnd) is int and rnd == MEMBER_CUP_TIER_ROUND):
+    want = MEMBER_CUP_TIER_ROUND if want is None else want
+    if not (type(want) is int and type(rnd) is int and rnd == want):
         return False
     if st.get("withheld") is not None or "withheld" not in st:
         return False
@@ -1089,6 +1113,15 @@ def base_draw_row(sym: str, bars: list):
                 # draw that range back (a price held flat after a gap reads as a base "forming")
                 if d is not None and base_draw.floor_refuses(b, len(b) - 1, d):
                     d = None
+                if d is not None:
+                    return _base_row(sym, d, cur_round)
+            # no base STATE here (the states are asked exactly as before, so every state row is unchanged). While
+            # the released stateless round is the PLAIN base (base_draw.PLAIN_ROUND, lab base_rebuild) the stateless
+            # row is the plain drawing, or nothing where it does not draw; under any other literal (None = withheld,
+            # MEMBER_BASE_ROUND = a rollback) it is the round-5 drawing exactly as before
+            if MEMBER_BASE_STATELESS_ROUND == base_draw.PLAIN_ROUND and type(MEMBER_BASE_STATELESS_ROUND) is int:
+                p = base_draw.plain_drawing(b, len(b) - 1)
+                return _base_row(sym, p, cur_round) if p is not None else None
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
         if d is None and m is None:
@@ -1293,8 +1326,9 @@ def base_textbook_gate_fails(b, row):
 #: one-day spike, a shelf under an older higher peak, a short shelf straight after a parabolic run, a flat or barely
 #: turning 200-day and a right side drifting well under the pivot, so it also needs a REAL ceiling, a real stage-2
 #: uptrend and a right side within TG3_FORMING_BELOW of the pivot. The breakout states keep r2's gate unchanged
-#: (they passed it). The stateless base took the same floors in r3 (plus a lone-high floor) and still failed; it is
-#: withheld from members (MEMBER_BASE_STATELESS_ROUND) and keeps r2's gate only.
+#: (they passed it). The stateless base took the same floors in r3 (plus a lone-high floor) and still failed; it was
+#: rebuilt as the plain base (base_draw.plain_drawing, MEMBER_BASE_STATELESS_ROUND 6), whose own geometry carries its
+#: textbook floors, and this gate does not touch a stateless row.
 TG3_WICK_ATR = 0.6          # the region's high at most this many ATR(14) above its highest candle body
 TG3_PRIOR_BARS = 120        # no high in the 120 sessions before the region above its high x (1 + 3%)
 TG3_PRIOR_PCT = 0.03
@@ -1342,8 +1376,8 @@ def _textbook_base_floors(b, s, e, i, hi, a):
 def member_base_textbook_gate(sym: str, detections, structures) -> tuple:
     """(detections, structures) without any TEXTBOOK_GATE_IDS row that fails a textbook floor
     (`base_textbook_gate_fails`). A bc:base row is gated only when it carries a base STATE (breakout / extended /
-    forming): the stateless base is withheld from members by its own literal, so a re-release starts from the
-    drawing its judged cases record, with this gate re-decided by that release's round. Members only; order kept; the daily bars are read only when such a row is present,
+    forming): the stateless base is the plain base (base_draw.plain_drawing, released at MEMBER_BASE_STATELESS_ROUND
+    6), whose own geometry is its textbook floors, judged blind as served WITHOUT this gate. Members only; order kept; the daily bars are read only when such a row is present,
     at the last COMPLETE session. Removal only and fail OPEN: unreadable bars or an unreadable row keep the row."""
     det, st = list(detections or []), list(structures or [])
     if not any((r or {}).get("pattern_id") in TEXTBOOK_GATE_IDS for r in det + st):
@@ -1362,7 +1396,7 @@ def member_base_textbook_gate(sym: str, detections, structures) -> tuple:
         if (r or {}).get("pattern_id") not in TEXTBOOK_GATE_IDS:
             return False
         if (r or {}).get("pattern_id") == BASE_DRAW_ID and not _is_base_state_row(r):
-            return False    # the stateless base is withheld (MEMBER_BASE_STATELESS_ROUND), never gated here
+            return False    # the stateless base (the plain base) carries its own floors; it is judged ungated here
         try:
             return base_textbook_gate_fails(b, r) is not None
         except Exception:  # noqa: BLE001 -- an unreadable row is kept, as the floor keeps it
@@ -2396,7 +2430,9 @@ def _tier_drawn_stale_cup(det: dict, bars: list):
         ex = det["geometry"]["extras"]
         ex["team_stale_reason"] = ex.pop("stale_reason", None)
         ex.pop("stale", None)
-        if not _confirmed_cup_tier(det):
+        # the judged round, not the member literal: this door feeds the team chart too, so a cup withdrawn from
+        # members (MEMBER_CUP_TIER_ROUND None) stays on the admin chart as it was; member_rows still drops it
+        if not _confirmed_cup_tier(det, CUP_TIER_JUDGED_ROUND):
             return None
         return _cup_tier_member_row(det)
     except Exception:  # noqa: BLE001 -- fail closed: the stale row stays dropped
@@ -2451,7 +2487,13 @@ SHELF_PIVOT_ID = "draw:shelf-pivot"
 #: RELEASED to members 2026-10-23 at round "r4": blind judging round 4 (2.66 / 2.60), the independent verifier
 #: (SHIP WITH CONDITIONS C1-C5, built in 785c6ae448 + c059a0d61b) and the owner's live eye check (C6, 18 live
 #: shelf lines, 2026-10-22). Set it back to None to withdraw the line from members.
-MEMBER_SHELF_PIVOT_ROUND = "r4"
+#: WITHDRAWN from members 2026-10-24 (recert B): the strict textbook rubric failed it as served (round 1: 1.50 / 1.56 /
+#: 1.50 / 1.72, pooled 1.57), and the formal fix round with the textbook gate (pattern_engine.textbook_gate, whole
+#: bars.db history 1995-2026, four pre-registered packets of 25, two fresh blind judges each) failed narrowly:
+#: 2.26 / 2.44 / 2.32 / 2.54, pooled 2.39 (bar: every packet >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4).
+#: Evidence: lab/recert/B_pivots (PREREG_FR.txt, out/score_shelf_pivot_fr1.json). Admins keep the layer. Setting
+#: this back to "r4" needs a new passed blind round (tests/golden_judged: shelf.json.gz is "withdrawn" until then).
+MEMBER_SHELF_PIVOT_ROUND = None
 #: The frame the drawing round was judged on; outside it there is no line.
 SHELF_WINDOW = 600
 SHELF_MIN_BARS = 261
@@ -2914,18 +2956,19 @@ def member_drawn_for(sym: str):
     return drawn
 
 
-# ================================================================ textbook support / resistance (members: WITHDRAWN)
+# ================================================================ textbook support / resistance (members: round r7)
 #: The textbook support / resistance drawing round a member may be served (api/services/pattern_engine/sr_levels.py).
 #: A literal ON PURPOSE, never sr_levels.SR_ROUND: a member gets the layer only while this equals that frozen
 #: constant, so a new drawing round cannot release itself. Fail closed.
-#: None: WITHDRAWN from members 2026-10-24 (admins keep it under AUTO_STRUCTURES_SR_ENABLED). Round r2 first passed
-#: two packets of 25 (2.52 / 2.36) on a looser rubric. The recertification on the strict Edwards & Magee / Bulkowski
-#: rubric (four pre-registered packets of 25 per round, two fresh blind judges each) failed it, 2.04 / 1.98 / 2.02 /
-#: 2.20, pooled 2.06, mostly for an important nearby level left undrawn. Both permitted fix rounds failed too: r3
-#: pooled 2.055, r4 2.56 / 2.02 / 2.24 / 2.36, pooled 2.295 (bar: every packet >= 2.3 and >= 70% of charts >= 2,
-#: pooled >= 2.4). Evidence: lab/recert/D_levels_candles. Setting this back to a round string needs a new passed
-#: blind round of that round (tests/golden_judged: sr.json is "withdrawn" until then).
-MEMBER_SR_ROUND = None
+#: "r7": RELEASED 2026-10-24. Round r2 was withdrawn the same day after the strict Edwards & Magee / Bulkowski
+#: recertification failed it (pooled 2.06), and the fix rounds r3 (2.055), r4 (2.295), r5 (2.00) and r6 (2.345, every
+#: packet passed, pooled short) failed too. r7 = r6's model (two-touch levels, a broken level drawn in its new role
+#: only after a held retest, at most 3 levels) plus the serving rule that a chart with fewer than 2 levels gets no
+#: layer at all; it passed on 100 fresh charts, four pre-registered packets of 25 with two fresh blind judges each:
+#: 2.42 / 2.52 / 2.36 / 2.50, pooled 2.45 (bar: every packet >= 2.3 and >= 70% of charts >= 2, pooled >= 2.4). About
+#: half of liquid charts (51.8% measured) get a layer. Evidence: lab/recert/D_levels_candles/r7. Setting this to
+#: None withdraws it again (tests/golden_judged: sr.json is "released" at r7).
+MEMBER_SR_ROUND = "r7"
 #: The judged frame (the sampling rule of every judged chart): >= SR_MIN_BARS daily bars, and on the as-of session
 #: close > SR_MIN_CLOSE and close x volume >= SR_MIN_DOLLAR_VOLUME. Outside it there is no layer.
 SR_MIN_BARS = 261
@@ -3005,7 +3048,7 @@ def _sr_payload(d: dict) -> dict:
         "asof_t": int(d["asof"]),
         "atr": d["atr"],
         "zones": [{k: z[k] for k in ("role", "bot", "top", "label", "touches", "first_t", "last_t",
-                                     "broken_retested")} for z in d["zones"]],
+                                     "broken_retested", "state")} for z in d["zones"]],
         "trendlines": [{k: t[k] for k in ("side", "t1", "p1", "t2", "p2", "slope_per_bar", "label", "touches",
                                           "last_touch_t")} for t in d["trendlines"]],
     }
@@ -3016,7 +3059,8 @@ def _sr_payload(d: dict) -> dict:
 
 def _sr_withheld(bars: list, why: str) -> dict:
     """The block for a chart the released layer looked at and draws nothing on, by rule ("out_of_frame": outside
-    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer"."""
+    the judged frame; "short_history": too few bars). Present so the key means "released to this viewer". (A chart
+    with fewer than 2 levels carries "too_few_levels", from sr_levels.draw itself.)"""
     from api.services.pattern_engine import sr_levels
     return {"round": sr_levels.SR_ROUND, "asof_t": int(bars[-1]["t"]), "atr": None, "zones": [], "trendlines": [],
             "withheld": why}
@@ -3105,12 +3149,56 @@ _SETUP_DRAW_R3_FUNCS = (
     ("bear_flag", "draw:bear-flag", "Bear flag", "bear_flag"),
     ("bollinger_squeeze", "draw:bollinger-squeeze", "Bollinger squeeze", "bollinger_squeeze"),
     ("major_trendlines", "draw:major-trendline", "Major trendline", "major_trendlines"),
+    ("rsi_bearish_divergence", "draw:rsi-bearish-divergence", "RSI bearish divergence", "rsi_bearish_divergence"),
+    ("symmetrical_triangle", "draw:symmetrical-triangle", "Symmetrical triangle", "symmetrical_triangle"),
+    ("rising_wedge", "draw:rising-wedge", "Rising wedge", "rising_wedge"),
+    ("avwap_reclaim", "draw:avwap-reclaim", "AVWAP reclaim", "avwap_reclaim"),
+    ("nr7", "draw:nr7", "NR7", "nr7"),
+    ("head_shoulders", "draw:head-shoulders", "Head and shoulders", "head_shoulders"),
+    ("triple_top", "draw:triple-top", "Triple top", "triple_top"),
+    ("triple_bottom", "draw:triple-bottom", "Triple bottom", "triple_bottom"),
+    ("wyckoff_spring", "draw:wyckoff-spring", "Wyckoff spring", "wyckoff_spring"),
+    # the judged facts name the shape as the earlier release did ("ascending-triangle")
+    ("ascending_triangle", "draw:ascending-triangle", "Ascending triangle", "ascending-triangle"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
 #: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
 SETUP_DRAW_RECT_IDS = (RECTANGLE_DRAW_ID,)
 SETUP_DRAW_IDS = ("draw:remount", "draw:u_and_r", "draw:donchian_breakout") + SETUP_DRAW_R2_IDS + SETUP_DRAW_R3_IDS \
     + SETUP_DRAW_RECT_IDS
+#: The CAUTION layer (owner decision 7, chart pattern product decisions 2026-10-24): every bearish setup drawing a
+#: member may be served -- the ones whose judged drawing is bearish by construction (setup_draw_r2 / setup_draw_r3
+#: stamp `direction: "bearish"` on their det). The server keeps SENDING them and marks every one
+#: `direction: "bearish"` (`caution_direction`), so the client decides: the UCT Intelligence "Caution" sub-toggle,
+#: OFF by default, draws them in an amber exit/risk style; off, they are neither drawn nor listed. Never badged.
+#: The one authority on "is this a bearish setup": a setup row NOT in this set is never stamped bearish (a
+#: resistance-side major trendline is structure, not a bearish setup, and is served neutral).
+CAUTION_SETUP_IDS = frozenset({
+    "draw:wyckoff-upthrust",     # a failed probe above a trading range (the spring side is bullish and not served)
+    "draw:double-top",           # the bearish twin peaks (the judged shape is the top)
+    "draw:death-cross",          # a moving-average STATE (50-day below 200-day), shown as such, never a pattern
+    "draw:bear-flag",
+    "draw:descending-triangle",
+    "draw:rsi-bearish-divergence",
+    "draw:rising-wedge",
+    "draw:head-shoulders",
+    "draw:triple-top",
+})
+assert CAUTION_SETUP_IDS <= set(SETUP_DRAW_IDS), "a caution id must be a setup-drawing id"
+
+
+def caution_direction(row):
+    """`row` with its `direction` set by CAUTION_SETUP_IDS: "bearish" for a caution setup, and a setup row outside
+    the set that its drawing code stamped bearish (a resistance-side major trendline) served "neutral", so
+    `direction == "bearish"` means exactly "a caution-layer setup" to every client. Other rows pass unchanged."""
+    if not isinstance(row, dict):
+        return row
+    pid = row.get("pattern_id")
+    if pid in CAUTION_SETUP_IDS:
+        return row if row.get("direction") == "bearish" else {**row, "direction": "bearish"}
+    if pid in SETUP_DRAW_IDS and row.get("direction") == "bearish":
+        return {**row, "direction": "neutral"}
+    return row
 #: setup_draw key -> (row id, display name).
 _SETUP_DRAW_FUNCS = (
     ("remount", "draw:remount", "Remount"),
@@ -3133,7 +3221,12 @@ _SETUP_DRAW_FUNCS = (
 #: in both registry sets (the team chart keeps them); setting a literal back needs a new passed blind round.
 MEMBER_REMOUNT_ROUND = None
 MEMBER_U_AND_R_ROUND = None
-MEMBER_DONCHIAN_BREAKOUT_ROUND = 1
+#: donchian_breakout: owner released 2026-10-24 at round 1, then WITHDRAWN the same day by recert B: the strict textbook
+#: round DC1 failed it (1.62 / 1.44 / 1.66 / 1.40, pooled 1.53) and its fix round with a textbook gate (lab gate_dc,
+#: whole bars.db history 1995-2026, four packets of 25, two fresh judges each) failed too: 2.10 / 2.06 / 2.26 / 2.10,
+#: pooled 2.13 (mostly a close barely over the line, no real base under it, average volume). Evidence:
+#: lab/recert/B_pivots (PREREG_FR.txt, out/score_donchian_fr1.json).
+MEMBER_DONCHIAN_BREAKOUT_ROUND = None
 #: Round-2 setup drawings released to members: each passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 random liquid held-out charts each; bar: mean >= 2.3 AND >= 70% of charts >= 2):
 #:   rsi_bullish_divergence  A 2.56 / 96%   B 2.72 / 100%   (drawn on price AND on an RSI(14) panel)
@@ -3150,7 +3243,12 @@ MEMBER_RSI_BULLISH_DIVERGENCE_ROUND = 2
 MEMBER_WYCKOFF_UPTHRUST_ROUND = 2
 MEMBER_CHANNEL_ROUND = 2
 MEMBER_PENNANT_ROUND = 2
-MEMBER_DARVAS_BOX_ROUND = 2
+#: darvas_box WITHHELD from members 2026-10-24 (None): it passed its blind drawing packets, but its outcome verdict is
+#: NEGATIVE -- outcome replay 2026-10-24: win8 lift -5.1pp [-6.7,-3.4] vs matched breakout. A buy setup that trails a
+#: plain breakout misleads, so members do not get it. The id stays in both registry sets (admins keep the drawing);
+#: re-release = this literal back to 2 on a new outcome replay that clears a matched breakout. Railed by
+#: tests/test_negative_outcome_withheld.py and the judged gate (darvas_box.json.gz status "withdrawn").
+MEMBER_DARVAS_BOX_ROUND = None
 MEMBER_FALLING_WEDGE_ROUND = 2
 MEMBER_DOUBLE_TOP_ROUND = 2
 MEMBER_GOLDEN_CROSS_ROUND = 2
@@ -3162,6 +3260,16 @@ MEMBER_DEATH_CROSS_ROUND = 2
 #:   bear_flag               A 2.32 / 96%   B 2.34 / 88%    (bearish)
 #:   bollinger_squeeze       A 2.42 / 84%   B 2.30 / 88%
 #:   major_trendlines        A 2.48 / 92%   B 2.74 / 96%    (one line; semantic_subtype single_trendline)
+#:   rsi_bearish_divergence  A 2.52 / 100%  B 2.80 / 100%   (bearish; RSI(14) panel)
+#:   symmetrical_triangle    A 2.78 / 100%  B 2.78 / 100%
+#:   rising_wedge            A 2.60 / 100%  B 2.78 / 96%    (bearish)
+#:   avwap_reclaim           A 2.54 / 92%   B 2.36 / 96%    (the anchored VWAP curve)
+#:   nr7                     A 2.58 / 100%  B 2.48 / 92%
+#:   head_shoulders          A 2.52 / 100%  B 2.54 / 88%    (bearish)
+#:   triple_top              A 2.46 / 92%   B 2.34 / 84%    (bearish)
+#:   triple_bottom           A 2.40 / 92%   B 2.38 / 92%
+#:   wyckoff_spring          A 2.44 / 92%   B 2.68 / 96%    (second packet drawn in its own batch)
+#:   ascending_triangle      A 2.72 / 96%   B 2.52 / 92%    (second packet drawn in its own batch)
 #: Literals ON PURPOSE (never setup_draw_r3.R3_DRAW_ROUND): a new drawing round cannot release itself.
 MEMBER_OUTSIDE_BAR_ROUND = 3
 MEMBER_DESCENDING_TRIANGLE_ROUND = 3
@@ -3169,6 +3277,16 @@ MEMBER_INVERSE_HEAD_SHOULDERS_ROUND = 3
 MEMBER_BEAR_FLAG_ROUND = 3
 MEMBER_BOLLINGER_SQUEEZE_ROUND = 3
 MEMBER_MAJOR_TRENDLINES_ROUND = 3
+MEMBER_RSI_BEARISH_DIVERGENCE_ROUND = 3
+MEMBER_SYMMETRICAL_TRIANGLE_ROUND = 3
+MEMBER_RISING_WEDGE_ROUND = 3
+MEMBER_AVWAP_RECLAIM_ROUND = 3
+MEMBER_NR7_ROUND = 3
+MEMBER_HEAD_SHOULDERS_ROUND = 3
+MEMBER_TRIPLE_TOP_ROUND = 3
+MEMBER_TRIPLE_BOTTOM_ROUND = 3
+MEMBER_WYCKOFF_SPRING_ROUND = 3
+MEMBER_ASCENDING_TRIANGLE_ROUND = 3
 #: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
 #:   rectangle               A 2.44 / 100%  B 2.76 / 96%
@@ -3176,11 +3294,34 @@ MEMBER_MAJOR_TRENDLINES_ROUND = 3
 MEMBER_RECTANGLE_ROUND = 1
 #: How many sessions of RSI(14) the divergence's panel carries (the judged frame shows at most 250 bars).
 SETUP_RSI_PANEL_BARS = 250
-#: The judged frame (the sampling rule of every judged chart): >= SETUP_MIN_BARS daily bars, and on the as-of
-#: session close > SETUP_MIN_CLOSE and close x volume >= SETUP_MIN_DOLLAR_VOLUME. Outside it there is no drawing.
+#: The judged frames: each setup family is drawn only on the population its passed blind round SAMPLED (owner
+#: decision 2026-10-24: each family is served on the frame it was certified on). Both frames need >= SETUP_MIN_BARS
+#: daily bars and an as-of close > SETUP_MIN_CLOSE; they differ in the liquidity floor:
+#:   SETUP_FRAME_DAY    the as-of session's close x volume >= SETUP_MIN_DOLLAR_VOLUME (one day). The rule of
+#:                      release_g4 (donchian, remount, u_and_r), setups_r2 (every round-2 drawing) and setups_r3
+#:                      batches b1 (outside_bar) and b2 (major_trendlines), whose PREREGs sample "close > $5,
+#:                      close x volume >= $20M".
+#:   SETUP_FRAME_ADV20  the mean close x volume of the last SETUP_ADV_SESSIONS completed sessions (the as-of one
+#:                      included) >= SETUP_MIN_ADV_DOLLAR_VOLUME. The recert supply rule of setups_r3 b3 AMENDMENT S2
+#:                      (descending_triangle, inverse_head_shoulders, bear_flag, bollinger_squeeze) and
+#:                      rectangle_v2 PREREG_r2 (rectangle): "close > $5, 20-day average dollar volume >= $5M".
+#: Outside a family's frame there is no drawing of that family. SETUP_FRAME_BY_ID maps every setup-drawing id;
+#: an id missing from it is never drawn (fail closed).
 SETUP_MIN_BARS = 261
 SETUP_MIN_CLOSE = 5.0
 SETUP_MIN_DOLLAR_VOLUME = 20e6
+SETUP_ADV_SESSIONS = 20
+SETUP_MIN_ADV_DOLLAR_VOLUME = 5e6
+SETUP_FRAME_DAY = "day"
+SETUP_FRAME_ADV20 = "adv20"
+_SETUP_ADV20_IDS = ("draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
+                    "draw:bollinger-squeeze", RECTANGLE_DRAW_ID,
+                    # setups_r3 batches b2r and b4 (AMENDMENTs: the same recert supply rule)
+                    "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge",
+                    "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
+                    "draw:triple-bottom", "draw:wyckoff-spring", "draw:ascending-triangle")
+SETUP_FRAME_BY_ID = {pid: (SETUP_FRAME_ADV20 if pid in _SETUP_ADV20_IDS else SETUP_FRAME_DAY)
+                     for pid in SETUP_DRAW_IDS}
 _SETUP_CACHE: dict = {}
 _SETUP_LOCK = threading.Lock()
 
@@ -3212,6 +3353,16 @@ def _member_setup_round(pid):
         "draw:bear-flag": MEMBER_BEAR_FLAG_ROUND,
         "draw:bollinger-squeeze": MEMBER_BOLLINGER_SQUEEZE_ROUND,
         "draw:major-trendline": MEMBER_MAJOR_TRENDLINES_ROUND,
+        "draw:rsi-bearish-divergence": MEMBER_RSI_BEARISH_DIVERGENCE_ROUND,
+        "draw:symmetrical-triangle": MEMBER_SYMMETRICAL_TRIANGLE_ROUND,
+        "draw:rising-wedge": MEMBER_RISING_WEDGE_ROUND,
+        "draw:avwap-reclaim": MEMBER_AVWAP_RECLAIM_ROUND,
+        "draw:nr7": MEMBER_NR7_ROUND,
+        "draw:head-shoulders": MEMBER_HEAD_SHOULDERS_ROUND,
+        "draw:triple-top": MEMBER_TRIPLE_TOP_ROUND,
+        "draw:triple-bottom": MEMBER_TRIPLE_BOTTOM_ROUND,
+        "draw:wyckoff-spring": MEMBER_WYCKOFF_SPRING_ROUND,
+        "draw:ascending-triangle": MEMBER_ASCENDING_TRIANGLE_ROUND,
         RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
@@ -3312,6 +3463,16 @@ _R3_SHAPE_OF = {
     "draw:bear-flag": "trendline_pair",
     "draw:bollinger-squeeze": "rectangle",
     "draw:major-trendline": "trendline_pair",
+    "draw:rsi-bearish-divergence": "neckline",
+    "draw:symmetrical-triangle": "trendline_pair",
+    "draw:rising-wedge": "trendline_pair",
+    "draw:avwap-reclaim": "horizontal_line",
+    "draw:nr7": "rectangle",
+    "draw:head-shoulders": "neckline",
+    "draw:triple-top": "neckline",
+    "draw:triple-bottom": "neckline",
+    "draw:wyckoff-spring": "horizontal_line",
+    "draw:ascending-triangle": "trendline_pair",
 }
 _R3_ANCHORS = {
     "draw:outside-bar": 2,
@@ -3320,7 +3481,23 @@ _R3_ANCHORS = {
     "draw:bear-flag": 4,
     "draw:bollinger-squeeze": 2,
     "draw:major-trendline": 2,
+    "draw:rsi-bearish-divergence": 2,
+    "draw:symmetrical-triangle": 4,
+    "draw:rising-wedge": 4,
+    "draw:avwap-reclaim": 2,
+    "draw:nr7": 2,
+    "draw:head-shoulders": 5,
+    "draw:triple-top": 5,
+    "draw:triple-bottom": 5,
+    "draw:wyckoff-spring": 3,
+    "draw:ascending-triangle": 4,
 }
+#: round 3: the row whose judged drawing is the anchored VWAP CURVE (extras.draw_ema points), and the row whose
+#: judged picture carries an RSI(14) panel.
+_R3_CURVE_IDS = ("draw:avwap-reclaim",)
+_R3_RSI_PANEL_IDS = ("draw:rsi-bearish-divergence",)
+#: round 3: the row whose judged picture draws its touches and no lane (the ascending triangle).
+_R3_TOUCH_IDS = ("draw:ascending-triangle",)
 #: round 3: the rows whose judged drawing is ONE line (trendline_pair, semantic_subtype single_trendline).
 _R3_SINGLE_LINE_IDS = ("draw:major-trendline",)
 
@@ -3350,6 +3527,23 @@ def _confirmed_setup_draw_r3(r, want) -> bool:
         return False
     if pid in _R3_SINGLE_LINE_IDS and geom.get("semantic_subtype") != "single_trendline":
         return False
+    if pid in _R3_CURVE_IDS:
+        em = ex.get("draw_ema")
+        pts = em.get("points") if isinstance(em, dict) else None
+        if not (isinstance(pts, list) and len(pts) >= 2
+                and all(isinstance(p, dict) and p.get("t") is not None and _finite(p.get("price")) for p in pts)):
+            return False
+    if pid in _R3_TOUCH_IDS:
+        # the judged picture: two lines, no lane fill, hollow circles on the touches
+        tc = ex.get("draw_touches")
+        if ex.get("draw_lanes") is not False or not (isinstance(tc, list) and len(tc) >= 5 and all(
+                isinstance(p, dict) and p.get("t") is not None and _finite(p.get("price")) for p in tc)):
+            return False
+    if pid in _R3_RSI_PANEL_IDS:
+        pn = ex.get("draw_panel")
+        if not (isinstance(pn, dict) and pn.get("kind") == "rsi14" and isinstance(pn.get("points"), list)
+                and len(pn["points"]) >= 2 and all(_finite((pn.get(k) or {}).get("value")) for k in ("p1", "p2"))):
+            return False
     return True
 
 
@@ -3370,6 +3564,8 @@ def _setup_draw_r3_rows(sym: str, b: list) -> list:
             continue
         for k_det, det in enumerate(d["dets"]):
             row = _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r3, rnd=setup_draw_r3.R3_DRAW_ROUND)
+            if row is not None and isinstance(d.get("label"), str):
+                row["pattern_name"] = d["label"]     # the judged label (the ascending triangle prints its buy point)
             if row is not None:
                 out.append(row)
     return out
@@ -3406,10 +3602,14 @@ def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2, rnd=None):
     module (round 2 or 3); `rnd` its frozen round (default: round 2's)."""
     geom = det["geometry"]
     extras = {k: v for k, v in (geom.get("extras") or {}).items()
-              if k in ("line_spaces", "draw_pole", "draw_ema")}
+              if k in ("line_spaces", "draw_pole", "draw_ema", "draw_lanes", "draw_touches")}
     if "draw_ema" in extras:
         # the label EmaSegment prints ("50 SMA ..."): display decoration only, the points are the judged curve
-        extras["draw_ema"] = {**extras["draw_ema"], "kind": "sma", "period": _R2_CURVE_PERIODS[k_det]}
+        if pid == "draw:avwap-reclaim":
+            # the anchored VWAP curve, labelled as what it is (the judged picture had no label)
+            extras["draw_ema"] = {**extras["draw_ema"], "kind": "avwap"}
+        else:
+            extras["draw_ema"] = {**extras["draw_ema"], "kind": "sma", "period": _R2_CURVE_PERIODS[k_det]}
     extras.update({"draw_setup": setup_draw_r2.facts(d),
                    "draw_round": setup_draw_r2.R2_DRAW_ROUND if rnd is None else rnd})
     pn = d.get("panel")
@@ -3503,11 +3703,29 @@ def _setup_draw_rect_rows(sym: str, b: list) -> list:
     }]
 
 
-def setup_in_frame(bars) -> bool:
+def setup_in_frame(bars, frame=SETUP_FRAME_DAY) -> bool:
+    """Whether COMPLETED daily `bars` (the last one the as-of session) sit inside judged `frame` (see
+    SETUP_FRAME_BY_ID). An unknown frame is outside (fail closed)."""
     if len(bars or []) < SETUP_MIN_BARS:
         return False
     last = bars[-1]
-    return last["c"] > SETUP_MIN_CLOSE and last["c"] * last["v"] >= SETUP_MIN_DOLLAR_VOLUME
+    if not last["c"] > SETUP_MIN_CLOSE:
+        return False
+    if frame == SETUP_FRAME_DAY:
+        return last["c"] * (last["v"] or 0) >= SETUP_MIN_DOLLAR_VOLUME
+    if frame == SETUP_FRAME_ADV20:
+        tail = bars[-SETUP_ADV_SESSIONS:]
+        return sum(x["c"] * (x["v"] or 0) for x in tail) / SETUP_ADV_SESSIONS >= SETUP_MIN_ADV_DOLLAR_VOLUME
+    return False
+
+
+def setup_frames_held(bars) -> frozenset:
+    """The judged frames COMPLETED daily `bars` sit inside."""
+    return frozenset(f for f in (SETUP_FRAME_DAY, SETUP_FRAME_ADV20) if setup_in_frame(bars, f))
+
+
+def _in_frame(pid, held) -> bool:
+    return SETUP_FRAME_BY_ID.get(pid) in held
 
 
 def setup_draw_rows(sym: str, bars: list) -> list:
@@ -3519,10 +3737,13 @@ def setup_draw_rows(sym: str, bars: list) -> list:
     try:
         from api.services.pattern_engine import setup_draw
         b = list(bars or [])
-        if not setup_in_frame(b):
+        held = setup_frames_held(b)
+        if not held:
             return []
         sym = (sym or "").upper()
         for key, pid, name in _SETUP_DRAW_FUNCS:
+            if not _in_frame(pid, held):
+                continue
             try:
                 d = setup_draw.detect(key, b)
             except Exception:  # noqa: BLE001 -- a failing setup costs that setup only
@@ -3552,12 +3773,14 @@ def setup_draw_rows(sym: str, bars: list) -> list:
                 "status": "forming",
                 **display_policy(pid),
             })
-        out.extend(_setup_draw_r2_rows(sym, b))
-        out.extend(_setup_draw_r3_rows(sym, b))
-        out.extend(_setup_draw_rect_rows(sym, b))
+        for ids, rows_fn in ((SETUP_DRAW_R2_IDS, _setup_draw_r2_rows), (SETUP_DRAW_R3_IDS, _setup_draw_r3_rows),
+                             (SETUP_DRAW_RECT_IDS, _setup_draw_rect_rows)):
+            if any(_in_frame(pid, held) for pid in ids):
+                out.extend(r for r in rows_fn(sym, b) if _in_frame(r.get("pattern_id"), held))
     except Exception:  # noqa: BLE001 -- a drawing layer never breaks a read
         return []
-    return out
+    # the caution layer's one signal: direction "bearish" exactly on CAUTION_SETUP_IDS rows (owner decision 7)
+    return [caution_direction(r) for r in out]
 
 
 def setup_draws_for(sym: str, *, member: bool = False):

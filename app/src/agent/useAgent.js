@@ -25,7 +25,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice } from './deixis'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -87,17 +87,19 @@ export function translateRefs(ops, refMap) {
     return out
   })
 }
+// "undo that <noun> …" — the target kinds each noun names (F14)
+const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['chart'], widget: ['board', 'workspace'], drawing: ['drawing'], layout: ['layouts'] }
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
-function rememberChange(memory, host, ops) {
+function rememberChange(memory, host, ops, undoId = null) {
   try {
     const asChart = (o) => { const k = getTargetKind(getCapability(o.action)?.target); return k?.groupOf ? (k.groupOf(o.target) ?? o.target) : o.target }
     const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(o => ({ ...o, target: asChart(o) }))
     const refs = [...new Set(clean.map(o => o.target))]
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
-    memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym })
+    memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym, undoId })
     // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt
     const t = takeIndicatorTouch()
     if (t) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
@@ -310,6 +312,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // (pending_question) so a TYPED answer is read with the question in front of it
   const lastQuestionRef = useRef(null)      // the newest question shown (local or the model's)
   const pendingQuestionRef = useRef(null)   // the MODEL's open question: { text, choices: [{ label, ref }] }
+  // P2-B: the member's words the model's open question is ABOUT ("make the right chart cleaner" → "Hide volume"):
+  // an answer is read with them when deciding which charts the member named. Kept for the very next message only.
+  const askedForRef = useRef(null)
   if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -770,9 +775,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (!saved.ok) {
         push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
+        // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
+        rememberChange(memoryRef.current, host, ops, null)
         return
       }
-      const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
+      const next =[...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
       // OWNER 2026-10-12: a Save followed by ONE chart add says both in ONE message — this receipt is
       // HELD and becomes the add's lead (said first in its message; said on its own if the add never runs)
       const holdForAdd = next.length === 1 && !!next[0].awaitDefinition && !deferred.length
@@ -782,7 +789,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
-      rememberChange(memoryRef.current, host, ops)
+      // with ITS Undo entry (pushed above only when the save was confirmed): a correction reverses
+      // exactly this change or nothing (nl1/interpreter.correctionPlan)
+      rememberChange(memoryRef.current, host, ops, res.undo?.id || null)
       if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
     } else {
       // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
@@ -884,7 +893,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     return undefined
   }, [executeInner, definitionListed, host, push, record])
 
-  const doUndo = useCallback(async (undoId, { member, voice } = {}) => {
+  const doUndo = useCallback(async (undoId, { member, voice, about = null } = {}) => {
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
     if (!entry) {
@@ -892,6 +901,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'fast', undo: true, voice } })
       return
+    }
+    // ⛔ F14: "undo that indicator removal" when my newest change was not an indicator change → nothing
+    // is undone; the member hears what the newest change WAS (Undo never reaches past it to an older one)
+    if (about && !entry.items.some(it => (UNDO_ABOUT[about] || []).includes(it.kind))) {
+      const text = `My last change wasn't ${about === 'indicator' ? 'an' : 'a'} ${about} change — it was: ${entry.lines.join(' · ') || 'something else'}. Nothing was undone; say “undo” to take that back.`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'undo-refused-mismatch' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
+      return false
     }
     const guarded = undoProtectionRefusal(host, entry)
     if (guarded) {
@@ -913,6 +930,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (res.ok) {
       withdrawPending()
       undoRef.current = stack.filter(e => e.id !== entry.id)
+      memoryRef.current.noteUndone(entry.id)   // an undone change is no longer "the last change" (F2)
       setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undone: true } : x)))
       let saved = entry.epoch != null && host?.persist && !selfSaved(entry.items)
         ? await (async () => { try { const r = await host.persist(); return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' } } catch { return { ok: false, reason: 'not-saved' } } })()
@@ -1019,6 +1037,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     lockRef.current = true
     turnStart('send')
     saidRef.current = text
+    const askedFor = askedForRef.current
+    askedForRef.current = null
     push({ role: 'member', text, voice })
     setBusy(true)
     try {
@@ -1070,7 +1090,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
       const fast = answering ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
-      if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice })
+      if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
       if (fast?.kind === 'dismiss' && pendingRef.current) return dismiss({ member: text })
@@ -1139,12 +1159,23 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', refused: true, voice } })
           return
         }
-        // "both / all" → one op set per target; the multi-target policy makes it
-        // a proposal. A position hint narrows by the positions the kind
+        // "both / all" → one op set per target, applied as ONE change with one Undo
+        // (policy.js, owner 2026-10-12). A position hint narrows by the positions the kind
         // publishes; anything still ambiguous asks. A lone target needs no hint.
         if (fast.target?.all && charts.length > 1) {
+          // ⛔ P2-B: "all four charts" with three on the board (or "both" with four) — the member counted a
+          // different set than UCT can reach: asked, never a silent partial (or wider) change
+          if (fast.target.count && fast.target.count !== charts.length) {
+            const t = `I can reach ${charts.length} charts here, not ${fast.target.count} — say “all charts” to change these ${charts.length}, or name the ones you mean. Nothing has changed yet.`
+            push({ role: 'agent', text: t })
+            record({ member: text, outcome: t, outcomeData: { kind: 'clarify-count', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+            return
+          }
+          // charts on the board the Agent can't reach (inactive tabs, floating) are NAMED on the receipt
+          const away = (() => { try { return host?.charts?.unreachableCount?.() || 0 } catch { return 0 } })()
+          const awayNote = away ? `${away} other chart${away === 1 ? '' : 's'} on this board (an inactive chart tab, or a floating or popped-out chart) ${away === 1 ? 'was' : 'were'} not changed.` : null
           return await execute(charts.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),
-            { path: 'fast', mode: 'apply', member: text, voice })
+            { path: 'fast', mode: 'apply', member: text, voice, onTarget: awayNote })
         }
         let candidates = charts
         const noun = kind.noun || kind.name
@@ -1191,6 +1222,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
       let res, refMap, live, nl1Body = null, nl1Sel = null, rerouted = false
+      let answeredRefs = []        // the chart a reply to UCT's own question picked (screenUnnamedTargets)
       if (nl1) {
         // NL-1: the request's actions (nl1/selection.js: the core, pinned groups, groups its words add — every
         // other group named), every context section (none gated on the member's words), the session memory
@@ -1205,6 +1237,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const asked = pendingQuestionRef.current || (p?.kind === 'target' ? lastQuestionRef.current : null) || authoringAsked
         if (p?.kind === 'target') pendingRef.current = null
         pendingQuestionRef.current = null
+        const picked = asked ? pickedChoice(text, asked.choices || []) : null
+        if (picked) answeredRefs = [picked]
         const nl1Args = { host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host), isProtectedLayout: (e) => isProtected(e),
           pendingQuestion: asked ? { text: asked.text, choices: (asked.choices || []).map(c => ({ label: c.label, ref: c.ref || null })), groups: asked.groups || [] } : null,
           pendingProposal: p?.kind === 'proposal' ? p : null }
@@ -1349,6 +1383,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (!streamed) push({ role: 'agent', text: env.reply, sources })
         return
       }
+      // the member's words this question is about stay with it, for the answer (screenUnnamedTargets)
+      if (env.disposition === 'clarify') askedForRef.current = [askedFor, text].filter(Boolean).join(' ')
       if (env.disposition === 'clarify' && nl1) {
         // NL-1: choices carry the context ref they stand for; kept (as real refs) for the next message, so
         // a click on a choice — or "the right one", "2", "AMD" typed — is read against them
@@ -1402,6 +1438,27 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: null, outcome: deictic.ask.text, outcomeData: { kind: 'clarify-deictic', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
       }
+      // ⛔ P2-B (owner decision 7, 2026-10-25): with several charts on the board, the model's plan changes only
+      // charts the member identified (words, click, an answer). One unidentified chart → "Which chart?" (their
+      // pick resumes THIS plan); several → the change is only proposed. Never the model's guess, never silent.
+      let disposition = env.disposition
+      const unnamed = screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      if (unnamed?.ask) {
+        const kinds = kindsOf(screened.ops)
+        if (kinds.length === 1) {
+          pendingRef.current = { kind: 'target', ops: screened.ops, path: 'model', mode: disposition, member: text, voice, epoch: epochOf(host) }
+          push({ role: 'question', text: unnamed.ask.text, choices: unnamed.ask.choices, local: true })
+        } else {
+          push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
+        }
+        record({ member: null, outcome: unnamed.ask.text, outcomeData: { kind: 'clarify-unnamed-chart', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      if (unnamed?.propose && disposition === 'apply') {
+        mark('escalate', 'unnamed-charts')
+        push({ role: 'agent', text: unnamed.note })
+        disposition = 'propose'
+      }
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
       const screenedOps = screenNewChart(screened.ops, text).ops
       // NL-1: no wording-dependent approval shortcut — every indicator save shows its approval card
@@ -1414,6 +1471,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (nl1 && env.correction) {
         // a plan held for approval (above) never reverses anything by itself: the earlier change stays
         const cp = unsentWords.length ? { ok: false, reason: 'part of your request needs actions I couldn’t include' }
+          : unnamed?.propose ? { ok: false, reason: 'I wasn’t sure which charts you meant' }
           : correctionPlan({ env, memory: memoryRef.current, epoch: epochOf(host), undoStack: undoRef.current })
         const reversed = cp?.ok ? await doUndo(cp.undoId, { member: null, voice }) : false
         if (!reversed) {
@@ -1422,7 +1480,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           return
         }
       }
-      await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
+      await execute(ops, { path: 'model', mode: disposition, member: null, voice })
     } finally {
       lockRef.current = false
       setBusy(false)

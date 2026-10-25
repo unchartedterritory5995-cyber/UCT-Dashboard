@@ -252,8 +252,10 @@ describe('fast path (capability-contributed phrases)', () => {
     expect(fastParse('make the left chart weekly')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: 'W' } }], target: { position: 'left' } })
     expect(fastParse('change the right chart to bars').target).toEqual({ position: 'right' })
     expect(fastParse('switch the right chart to extended hours').ops[0]).toEqual({ action: 'chart.setSession', args: { mode: 'extended' } })
-    expect(fastParse('hide volume on both charts')).toEqual({ kind: 'ops', ops: [{ action: 'volume.setState', args: { state: 'hidden' } }], target: { all: true } })
+    // P2-B: "both" is a COUNT (two), checked against the board by the panel
+    expect(fastParse('hide volume on both charts')).toEqual({ kind: 'ops', ops: [{ action: 'volume.setState', args: { state: 'hidden' } }], target: { all: true, count: 2 } })
     expect(fastParse('make all charts weekly').target).toEqual({ all: true })
+    expect(fastParse('change all four charts to daily')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: 'D' } }], target: { all: true, count: 4 } })
     expect(fastParse('put NVDA on the left')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setSymbol', args: { symbol: 'NVDA' } }], target: { position: 'left' } })
     expect(fastParse('change symbol to tsla').ops[0]).toEqual({ action: 'chart.setSymbol', args: { symbol: 'TSLA' } })
     expect(fastParse('top-left chart daily').target).toEqual({ position: 'top-left' })

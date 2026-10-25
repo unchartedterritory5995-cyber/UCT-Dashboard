@@ -1,11 +1,12 @@
-"""Textbook support / resistance (drawing round r2): the ported layer reproduces the frozen lab generator EXACTLY.
+"""Textbook support / resistance (drawing round r7): the ported layer reproduces the frozen lab generator EXACTLY.
 
-Fixture tests/fixtures/sr_levels_parity.json.gz: 252 charts -- all 50 judged packet charts (packets A and B, with the
-member pattern prices the judges saw), 101 seeded DEV days (< 2025-05-15), 98 seeded held-out days, 3 pinned
-controls. Half of the random days carry pattern prices placed inside a drawn zone / at a drawn trendline, so the
-patterns-win suppression and the next-candidate replacement are exercised. Each case carries the 300 daily bars
-(up to 300) ending at its as-of bar and the lab's own answer, computed on the FULL history (the generator asserted the 300-bar
-window gives the identical answer).
+Fixture tests/fixtures/sr_levels_parity.json.gz: 352 charts -- all 100 judged r7 packet charts (packets A-D, with the
+member pattern prices the judges saw; expect computed on the FULL history and asserted identical on the stored 300
+bars at generation), and every chart of the round-r2 fixture (the 50 r2 packet charts, 101 seeded DEV days
+(< 2025-05-15), 98 seeded held-out days, 3 pinned controls) with its expect recomputed by the r7 generator. Half of the
+random days carry pattern prices placed inside a drawn zone / at a drawn trendline, so the patterns-win suppression and
+the next-candidate replacement are exercised. expect = lab recert/D_levels_candles/r7/sr6.py + the r7 serving rule
+(fewer than MIN_LEVELS zones -> no layer, withheld "too_few_levels").
 
 The rail must be able to fail: the controls at the bottom move ONE parameter and assert it goes red.
 """
@@ -29,7 +30,7 @@ def cases():
 
 
 def _strip(d):
-    """Everything except the round stamp (the lab stamps 'sr_textbook_r2', the port 'r2')."""
+    """Everything except the round stamp (the lab stamps 'r6', the model it froze; the port 'r7')."""
     return None if d is None else {k: v for k, v in d.items() if k != "round"}
 
 
@@ -45,24 +46,30 @@ def _mismatches():
 def test_the_fixture_is_what_it_says():
     cs = cases()
     ids = [c["id"] for c in cs]
-    assert len(cs) == 252 and len(set(ids)) == 252
-    assert sum(i.startswith("R2_A/") for i in ids) == 25
-    assert sum(i.startswith("R2_B/") for i in ids) == 25
+    assert len(cs) == 352 and len(set(ids)) == 352
+    for pk in "ABCD":
+        assert sum(i.startswith("R7_%s/" % pk) for i in ids) == 25
+    assert sum(c["origin"] == "packet" for c in cs) == 100
+    assert sum(c["origin"] == "packet_r2" for c in cs) == 50
     assert sum(c["origin"] == "dev" for c in cs) == 101 and all(c["asof"] < 20250515 for c in cs if c["origin"] == "dev")
     assert sum(c["origin"] == "held" for c in cs) == 98 and all(c["asof"] >= 20250515 for c in cs if c["origin"] == "held")
     assert sum(c["origin"] == "pinned" for c in cs) == 3
     # non-vacuity: every branch the rules have is on the rail
     e = [c["expect"] for c in cs]
-    assert sum(len(d["zones"]) for d in e) == 298
-    assert sum(len(d["trendlines"]) for d in e) == 15
-    assert sum(d["suppressed_by_pattern"]["zones"] + d["suppressed_by_pattern"]["trendlines"] for d in e) == 236
-    assert sum(z["broken_retested"] for d in e for z in d["zones"]) == 255
-    assert sum(not z["broken_retested"] for d in e for z in d["zones"]) > 0
+    assert sum(len(d["zones"]) for d in e) == 559
+    assert sum(len(d["trendlines"]) for d in e) == 3
+    assert sum(d["suppressed_by_pattern"]["zones"] + d["suppressed_by_pattern"]["trendlines"] for d in e) == 769
+    assert sum(z["broken_retested"] for d in e for z in d["zones"]) == 121
+    assert sum(z["state"] == "confirmed" for d in e for z in d["zones"]) == 121
+    assert sum(z["state"] == "intact" for d in e for z in d["zones"]) == 438
     assert sum(d.get("withheld") == "pinned" for d in e) == 3
-    assert sum(not d["zones"] and not d["trendlines"] for d in e) == 60
+    assert sum(d.get("withheld") == "too_few_levels" for d in e) == 126
+    # every judged chart is a SERVED chart (>= MIN_LEVELS zones), every other chart either serves >= 2 or nothing
+    assert all(len(c["expect"]["zones"]) >= 2 for c in cs if c["origin"] == "packet")
+    assert all(len(d["zones"]) == 0 or len(d["zones"]) >= 2 for d in e)
     assert {z["role"] for d in e for z in d["zones"]} == {"Support", "Resistance"}
-    assert {t["side"] for d in e for t in d["trendlines"]} == {"support", "resistance"}
-    assert all(261 <= len(c["bars"]) <= 300 for c in cs) and sum(len(c["bars"]) == 300 for c in cs) > 200
+    assert {t["side"] for d in e for t in d["trendlines"]} == {"support"}
+    assert all(261 <= len(c["bars"]) <= 300 for c in cs) and sum(len(c["bars"]) == 300 for c in cs) > 300
 
 
 def test_the_port_reproduces_every_case_exactly():
@@ -72,10 +79,10 @@ def test_the_port_reproduces_every_case_exactly():
 
 
 def test_the_judged_packet_labels_are_on_the_rail():
-    """The 50 judged charts by label: the exact text a member reads."""
+    """The 100 judged r7 charts by label: the exact text a member reads."""
     labels = [z["label"] for c in cases() if c["origin"] == "packet" for z in S.draw(c["bars"], None, c["pattern_pivots"])["zones"]]
     want = [z["label"] for c in cases() if c["origin"] == "packet" for z in c["expect"]["zones"]]
-    assert labels == want and len(labels) >= 40
+    assert labels == want and len(labels) >= 200
 
 
 def test_the_drawing_reads_only_bars_up_to_the_as_of_bar():
@@ -115,9 +122,12 @@ def test_bars_needed_covers_the_window():
 
 # ---------------------------------------------------------------- the rail can fail
 @pytest.mark.parametrize("key,value", [
-    ("ZONE_HALF", 0.30), ("MIN_TOUCH", 4), ("BREAK", 0.04), ("ZONE_GAP_ATR", 1.0), ("VIS_GAP", 0.10),
+    ("ZONE_HALF", 0.30), ("MIN_TOUCH", 4), ("ZONE_GAP_ATR", 1.0), ("VIS_GAP", 0.10),
     ("ZONE_NEAR", 0.12), ("ZONE_NEAR_FALLBACK", 0.20), ("SNAP_ITERS", 1), ("RR_PRE_TOUCH", 3), ("MAX_PER_SIDE", 3),
     ("TL_TOL", 0.25), ("TL_MIN_MOVE", 1.0), ("TL_MAX_AGE", 90), ("PATTERN_ATR", 0.5), ("PINNED_ATR_PCT", 0.01),
+    # round r7's own rules
+    ("BRK_ATR", 1.5), ("BRK_PCT", 0.05), ("RETEST_MIN", 1), ("PAIR_GAP", 10), ("PAIR_GAP_SHORT", 7), ("CONG_K", 3),
+    ("CONG_MIN", 4), ("GAP_ATR", 0.5), ("BEST_WIN", 3.0), ("MAX_ZONES", 4), ("MIN_LEVELS", 1),
 ])
 def test_control_moving_one_parameter_goes_red(monkeypatch, key, value):
     monkeypatch.setattr(S, key, value)

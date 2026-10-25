@@ -5,7 +5,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import PatternOverlay, { SHELF_PIVOT_COLOR } from './PatternOverlay'
-import { SR_SUPPORT_COLOR, SR_RESISTANCE_COLOR, SR_EXTEND_PX, srLevelsGeometry } from './patternShapes/srLevelsGeometry'
+import {
+  SR_SUPPORT_COLOR, SR_RESISTANCE_COLOR, SR_EXTEND_PX, SR_CONFIRMED_SUFFIX, srLevelsGeometry, srLabelItems, srZoneLabel,
+} from './patternShapes/srLevelsGeometry'
 import { stackLabelsAround, textBox, boxesOverlap } from './patternShapes/labelLayout'
 import { computeLabelLayout } from './patternLabelLayout'
 import { levelsSrAvailable } from './autoStructuresGate'
@@ -78,6 +80,41 @@ describe('the textbook S/R layer draws zones as thin labelled bands', () => {
     const t = container.querySelector('[data-sr-role="Support"] [data-role="sr-zone-label"]')
     expect(Number(t.getAttribute('x'))).toBe(40 + SR_EXTEND_PX + 4)
     expect(t.getAttribute('fill')).toBe(SR_SUPPORT_COLOR)
+  })
+
+  it('a CONFIRMED zone carries the judged " | broken & retested (confirmed)" suffix; an intact one does not', () => {
+    const sr = { ...SR, zones: [
+      { ...SR.zones[0], state: 'intact' },
+      { ...SR.zones[1], state: 'confirmed' },
+    ] }
+    const { container } = draw([], { levelsSr: sr })
+    const labels = [...container.querySelectorAll('[data-role="sr-zone-label"]')].map((t) => t.textContent)
+    // the exact strings the r7 judges read (lab r7/build7.py _render_src), member label "Role a-b" as the base
+    expect(labels).toEqual(['Resistance 18.00-18.45', 'Support 15.00-15.50 | broken & retested (confirmed)'])
+    expect(SR_CONFIRMED_SUFFIX).toBe(' | broken & retested (confirmed)')
+    const conf = container.querySelector('[data-sr-state="confirmed"]')
+    expect(conf.getAttribute('data-sr-role')).toBe('Support')
+    // the judged band was drawn like an intact one: the label is the only difference
+    const bands = [...container.querySelectorAll('[data-role="sr-zone-band"]')]
+    for (const k of ['stroke-dasharray', 'fill-opacity', 'stroke-opacity', 'stroke-width']) {
+      expect(bands[0].getAttribute(k)).toBe(bands[1].getAttribute(k))
+    }
+    // the label-collision pass lays out the same text the layer prints
+    const items = srLabelItems(sr, (t) => ({ 20261012: 0, 20261013: 10, 20261015: 30, 20261016: 40 })[t] ?? null,
+      (p) => 1000 - p * 10)
+    expect(items.map((i) => i.text)).toContain('Support 15.00-15.50 | broken & retested (confirmed)')
+  })
+
+  it('the server state is the only signal: broken_retested alone, or a non-confirmed state, adds nothing', () => {
+    expect(srZoneLabel({ label: 'Support 1-2', broken_retested: true })).toBe('Support 1-2')
+    expect(srZoneLabel({ label: 'Support 1-2', state: 'intact' })).toBe('Support 1-2')
+    expect(srZoneLabel({ label: 'Support 1-2', state: 'broken' })).toBe('Support 1-2')
+    expect(srZoneLabel({ label: 'Resistance 3-4', state: 'confirmed' }))
+      .toBe('Resistance 3-4 | broken & retested (confirmed)')
+    // never twice, should the server ever start printing it itself
+    expect(srZoneLabel({ label: 'Support 1-2 | broken & retested (confirmed)', state: 'confirmed' }))
+      .toBe('Support 1-2 | broken & retested (confirmed)')
+    expect(srZoneLabel({ label: '', state: 'confirmed' })).toBe('')
   })
 
   it('draws a trendline as a dashed line through the as-of bar and a little past it, labelled', () => {

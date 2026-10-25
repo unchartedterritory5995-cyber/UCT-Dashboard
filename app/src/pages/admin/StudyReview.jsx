@@ -37,6 +37,8 @@ import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
+import { hveAnnotations, isHveItem } from '../study/hveOverlay'
+import { slingshotInstances } from '../study/slingshotOverlay'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import { modalLayerOpen } from '../../lib/topLayer'
@@ -532,7 +534,12 @@ export default function StudyReview() {
   // picture the member will actually see. Fails open to the defaults.
   const { data: houseData } = useSWR(HOUSE_CHART_URL, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false })
   const houseSettings = houseData?.chart_settings || null
-  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts, houseSettings), [chartOpts, houseSettings])
+  // A Slingshot draft carries the E4H (4-EMA of highs) beside the house
+  // averages, exactly as the member's chart does (owner ruling 2026-10-25).
+  const settingsOverride = useMemo(
+    () => studySettingsOverride(chartOpts, houseSettings, { instances: slingshotInstances(sel) }),
+    [chartOpts, houseSettings, sel],
+  )
   const markers = useMemo(() => {
     if (!sel?.asof) return null
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]
@@ -546,6 +553,14 @@ export default function StudyReview() {
     if (lv.target != null) out.push({ price: lv.target, color: '#2faf68', lineStyle: 2, title: `Target ${fmtNum(lv.target)}` })
     return out.length ? out : null
   }, [sel])
+  // A High Volume Edge item carries the member's reveal drawings on the review
+  // card too: the ray from the HVC and the AVWAP off that candle (owner ruling
+  // 2026-10-25), drawn from the same stored bars the chart shows, so the
+  // reviewer grades the picture the member gets. Other skills: no layer.
+  const annotations = useMemo(() => {
+    if (!sel || !isHveItem(sel) || !chartBars) return null
+    return hveAnnotations(sel, chartBars)
+  }, [sel, chartBars])
 
   if (error) return <div className={styles.empty}>Could not load the review queue ({error.message}).</div>
   if (!data) return <div className={styles.empty}>Loading the review queue…</div>
@@ -717,6 +732,8 @@ export default function StudyReview() {
                     settingsOverride={settingsOverride}
                     markers={markers}
                     priceLines={priceLines}
+                    annotations={annotations}
+                    annotationsVisible={!!annotations}
                   />
                 </div>
                 <p className={styles.strip}>

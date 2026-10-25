@@ -26,9 +26,8 @@
 //                            (planGroupPlacement), unlinking, compensation and
 //                            Undo are exactly those of "add 4 charts on …".
 //
-// ⛔ widget.remove is deliberately NOT here: undoing an arbitrary removal needs an
-// exact-restore writer the product does not have. Undoing a widget THIS AGENT
-// just created only needs to close that exact id — which is all this uses.
+// widget.remove lives with the board's other writes (capabilities/board.js), whose Undo restores
+// the removed widget exactly. Undoing a widget THIS file created only closes that exact id.
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'

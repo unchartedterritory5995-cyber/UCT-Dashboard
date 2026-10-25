@@ -1,7 +1,8 @@
 // app/src/components/chart/patternShapes/srLevelsGeometry.js — where the textbook support / resistance layer draws.
 //
 // The server's `levels_sr` block (auto_structures.levels_sr_for, drawing round r2, AUTO_STRUCTURES_SR_ENABLED):
-//   zones:      [{role: 'Support'|'Resistance', bot, top, label, touches, first_t, last_t, broken_retested}]
+//   zones:      [{role: 'Support'|'Resistance', bot, top, label, touches, first_t, last_t, broken_retested,
+//                 state: 'intact'|'confirmed'}]
 //   trendlines: [{side: 'support'|'resistance', t1, p1, t2, p2, slope_per_bar, label, touches, last_touch_t}]
 //   asof_t:     the last COMPLETED session the layer was drawn at
 // A zone is a thin band (bot..top, about half an ATR) from the first bar that reached it to just past the as-of bar;
@@ -13,6 +14,19 @@ export const SR_SUPPORT_COLOR = '#1e88e5'
 export const SR_RESISTANCE_COLOR = '#e65100'
 /** Pixels the drawing runs past the as-of bar (the next-session slot of the judged render). */
 export const SR_EXTEND_PX = 40
+
+/** The suffix a CONFIRMED zone (broken, then a held retest from the new side: sr_levels `state: "confirmed"`) carries,
+ *  exactly as the r7 blind judges saw it (lab recert/D_levels_candles/r7/build7.py `_render_src`: " | broken & retested
+ *  (confirmed)", printed only when `state == 'confirmed'`). The judged band itself was drawn like an intact one, so the
+ *  label is the only difference. */
+export const SR_CONFIRMED_SUFFIX = ' | broken & retested (confirmed)'
+
+/** A zone's label: the server's "Support a-b" / "Resistance a-b", plus the confirmed suffix on a confirmed zone. */
+export function srZoneLabel(z) {
+  const base = String(z?.label || '')
+  if (!base || z?.state !== 'confirmed' || base.endsWith(SR_CONFIRMED_SUFFIX)) return base
+  return base + SR_CONFIRMED_SUFFIX
+}
 
 export function srColor(roleOrSide) {
   return String(roleOrSide || '').toLowerCase() === 'support' ? SR_SUPPORT_COLOR : SR_RESISTANCE_COLOR
@@ -48,8 +62,8 @@ export function srLevelsGeometry(sr, tToX, priceToY) {
     const h = Math.max(1, Math.abs(yBot - yTop))
     out.zones.push({
       key: `sr:z${i}`, role: z.role, color: srColor(z.role), x1, x2, y0, h,
-      label: String(z.label || ''), labelX: x2 + 4, labelY: y0 + h / 2 + 3,
-      retested: !!z.broken_retested, touches: z.touches,
+      label: srZoneLabel(z), labelX: x2 + 4, labelY: y0 + h / 2 + 3,
+      retested: !!z.broken_retested, confirmed: z.state === 'confirmed', touches: z.touches,
     })
   })
   ;(sr.trendlines || []).forEach((t, i) => {

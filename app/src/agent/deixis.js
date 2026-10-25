@@ -104,6 +104,98 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   return { ask: { text: sel ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: candidates.map(c => ({ ref: c.ref, label: c.label })) } }
 }
 
+// ── P2-B (owner decision 7, 2026-10-25): every chart a MODEL plan changes must be one the member's
+// own words, click or answer identified — on a board of several charts, never the model's guess ──
+const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top right|bottom left|bottom right|left|right|top|bottom|upper|lower)\b/gi
+// "both", "all (four) charts", "every chart", "all of them" — a SET of charts (never "remove all comparisons")
+const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b)/i
+const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
+const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4 }
+const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** The answer to a question UCT asked, read against its choices: an exact label, "2", "the second (one)". */
+export function pickedChoice(text, choices = []) {
+  const t = String(text || '').trim().toLowerCase().replace(/[.!]+$/, '')
+  if (!t || !choices.length) return null
+  const byLabel = choices.filter(c => c?.ref && String(c.label || '').trim().toLowerCase() === t)
+  if (byLabel.length === 1) return byLabel[0].ref
+  const m = /^(?:the\s+)?(\d|first|second|third|fourth|1st|2nd|3rd|4th)(?:\s+(?:one|chart))?$/.exec(t)
+  const n = m ? (Number(m[1]) || ORDINAL[m[1]]) : 0
+  return n >= 1 && n <= choices.length ? choices[n - 1]?.ref || null : null
+}
+
+/** The charts on this board the member's words NAME: a position word that fits exactly one chart, or a
+ *  symbol exactly one chart shows ("put RSI on NVDA"). Short tickers count only as typed in capitals. */
+export function chartsNamedBy(text, charts = []) {
+  const s = String(text || '')
+  const named = new Set()
+  for (const m of s.matchAll(POS_WORDS)) {
+    const w = m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')
+    const parts = w.split('-')
+    const hits = charts.filter(c => c.position && parts.every(p => c.position.split('-').includes(p)))
+    if (hits.length === 1) named.add(hits[0].ref)
+  }
+  const bySym = new Map()
+  for (const c of charts) { const k = String(c.symbol || '').toUpperCase(); if (k) bySym.set(k, [...(bySym.get(k) || []), c]) }
+  for (const [sym, list] of bySym) {
+    if (list.length !== 1) continue
+    const re = new RegExp(`(?:^|[^A-Za-z0-9.])${escapeRe(sym)}(?![A-Za-z0-9])`, sym.length <= 2 ? '' : 'i')
+    if (re.test(s)) named.add(list[0].ref)
+  }
+  return named
+}
+
+/**
+ * A model plan on a board of several charts, for a request that does NOT point at a chart (pointing words
+ * are screenDeicticOps'): each chart-backed change must land on a chart the member identified — named by
+ * position or symbol, picked as an answer (`pickedRefs`), "all / every / both", or the chart they CLICKED
+ * (the owner's bare-command rule, 2026-10-12). Otherwise:
+ *   one chart changed      → { ask } "Which chart do you mean?" (nothing runs; their pick resumes the plan)
+ *   several charts changed → { propose } the change is shown for approval, never applied at once
+ * → null when every changed chart is identified (or the board has one chart).
+ */
+export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability }) {
+  if (pointsAtChart(text, { chartOp: true })) return null
+  // an ANSWER to the model's question is read with the words that question was about (`context`)
+  const words = context ? `${text} ${context}` : String(text || '')
+  const charts = host?.charts?.list?.() || []
+  if (charts.length < 2) return null
+  const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
+  const targets = new Map()                                  // chart ref → the op kind's snapshots
+  for (const o of ops || []) {
+    const cap = getCapability(o?.action)
+    const kind = cap ? getTargetKind(cap.target) : null
+    if (!kind || cap.query || aliases.has(o.target)) continue
+    const list = kind.list(host) || []
+    const snap = list.find(s => s.ref === o.target)
+    const chart = snap ? chartRefOf(kind, snap) : null
+    if (chart) targets.set(chart, { list, action: o.action })
+  }
+  if (!targets.size) return null
+  // "all / every / both (four) charts": the member named the set — but a COUNT they said must match
+  // the charts this plan changes ("both" = two), else it is only proposed
+  const many = MANY_COUNT.exec(words)
+  if (many) {
+    const count = many[1] ? 2 : many[2] ? (COUNT_WORDS[many[2].toLowerCase()] || Number(many[2])) : null
+    return count && count !== targets.size
+      ? { propose: true, note: `You said ${count} charts, and this changes ${targets.size} — check it first; nothing has changed yet.` }
+      : null
+  }
+  const named = chartsNamedBy(words, charts)
+  // a picked choice may be the chart itself or a chart-backed entry of it (`ixe:<chart>`)
+  for (const r of pickedRefs || []) if (r) { named.add(r); named.add(String(r).replace(/^[a-z]+:/i, '')) }
+  const sel = selectedChart(host)
+  if (sel) named.add(sel)
+  const unnamed = [...targets.keys()].filter(c => !named.has(c))
+  if (!unnamed.length) return null
+  if (targets.size === 1) {
+    const { list, action } = targets.get(unnamed[0])
+    return { ask: { text: 'Which chart do you mean? Click a chart to select it, or pick one:', choices: list.map(c => ({ ref: c.ref, label: c.label })), action } }
+  }
+  const label = (ref) => charts.find(c => c.ref === ref)?.label || 'a chart'
+  return { propose: true, note: `I wasn't sure you meant ${unnamed.map(label).join(' and ')}, so check this first — nothing has changed yet.` }
+}
+
 /** The member's selected chart ref (live, still on this board) or null. */
 export function selectedChart(host) {
   try { return host?.charts?.selected?.() || null } catch { return null }

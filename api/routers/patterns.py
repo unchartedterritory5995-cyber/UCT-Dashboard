@@ -934,7 +934,10 @@ def get_detections(
                         rows, boxes, sd, atr=lambda: auto_structures.daily_atr14(sym))
                     if sd is not None:
                         mout["setup_draws"] = sd
-            return mout
+            # the "Measured edge" badge (api/services/measured_edge.py, the one authority; EMPTY until the
+            # re-measured edges land): a row carries `measured_edge` only for a listed type, never a bearish row
+            from api.services import measured_edge as _measured_edge
+            return _measured_edge.badge_payload(mout)
     # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
     # no `structures` / `drawn` key at all.
     if include_structures and is_admin:
@@ -973,6 +976,9 @@ def get_detections(
                 sd = auto_structures.setup_draws_for(sym)
                 if sd is not None:
                     out["setup_draws"] = sd
+            # the team chart shows the same "Measured edge" badges a member gets (measured_edge.py)
+            from api.services import measured_edge as _measured_edge
+            _measured_edge.badge_payload(out)
     return out
 
 

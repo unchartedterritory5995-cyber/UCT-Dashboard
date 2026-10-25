@@ -26,6 +26,7 @@ vi.mock('../../components/StockChart', () => ({
       <span>showBrandMark:{String(props.showBrandMark)}</span>
       <span>drawingTools:{String(props.showDrawingTools)}</span>
       <span>feeds:{String(props.settingsOverride?.markers?.news)}/{String(props.settingsOverride?.markers?.desk)}</span>
+      <span>instances:{(props.settingsOverride?.indicatorInstances || []).map((i) => i.instanceId).join('|') || '-'}</span>
     </div>
   ),
 }))
@@ -126,6 +127,20 @@ describe('DrillPlayer', () => {
     fireEvent.click(screen.getByTestId('primary-action'))
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Check'))
     expect(screen.getAllByTestId('primary-action')).toHaveLength(1)
+  })
+
+  it('carries the E4H (4-EMA of highs) on a Slingshot item\'s chart, before the answer, and on no other', async () => {
+    const set = tenSet()
+    set.items[0] = { ...spot('si_1'), skill_id: 'setup.family4.slingshot' }
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    await screen.findByTestId('stock-chart')
+    expect(screen.getByText('instances:study:slingshot-e4h')).toBeInTheDocument()
+  })
+
+  it('carries no E4H instance on a chart item of any other skill', async () => {
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(tenSet())} />)
+    await screen.findByTestId('stock-chart')
+    expect(screen.getByText('instances:-')).toBeInTheDocument()
   })
 
   it('mounts the chart with the lockdown recipe and keeps it mounted but hidden on a non-chart item', async () => {
