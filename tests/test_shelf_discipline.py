@@ -1113,6 +1113,22 @@ def test_a_position_heat_skips_is_counted(S):
     assert "1 position couldn't be read and is not in the open risk." in got["lines"]
 
 
+def test_a_block_holding_only_unreadable_positions_is_not_called_empty(S):
+    # A position heat cannot read is still open: the block says it couldn't be read and never
+    # also says it holds nothing.
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        position(c, A, acc="acc-a", symbol="", entry=100.0, stop=95.0, shares=20)       # skipped
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    main = got["accounts"][0]
+    assert main["openRisk"] is None
+    assert "1 position couldn't be read and is not in the open risk." in main["lines"]
+    for empty in (S.S_RISK_NO_POSITIONS, S.S_RISK_NONE_HERE):
+        assert empty not in main["lines"]
+        assert empty not in got["lines"]
+
+
 def test_total_line_names_the_largest_three(S):
     with _conn() as c:
         account(c, A, "acc-a", pct=5.0, size=10000.0, name="Main")

@@ -860,7 +860,7 @@ def _risk_lines(info: dict, open_options: int, anything_open: bool,
         lines.append(S_RISK_UNREAD)
     elif info["real"]:
         lines.append(f"Open risk to stops: {_amount(info['risk'])}.")
-    elif not info["noStop"] and not open_options:
+    elif not info["noStop"] and not open_options and not info.get("unread"):
         lines.append(S_RISK_NONE_HERE if anything_open else S_RISK_NO_POSITIONS)
     no_stop = info["noStop"]
     if no_stop:
