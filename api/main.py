@@ -229,6 +229,7 @@ from api.routers import analyst as analyst_router
 from api.routers import portfolio_heat as portfolio_heat_router
 from api.routers import notebook_widgets as notebook_widgets_router
 from api.routers import notebook_widget_definitions as notebook_widget_definitions_router
+from api.routers import notebook_shelf_widgets as notebook_shelf_widgets_router
 from api.routers import notebook_routines as notebook_routines_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
@@ -10287,6 +10288,7 @@ app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
 app.include_router(notebook_widgets_router.router)  # GET /api/j2/notebook-widgets/{kind}, dark per wave
 app.include_router(notebook_widget_definitions_router.router)  # /api/j2/widget-definitions/*, dark until wave 8
+app.include_router(notebook_shelf_widgets_router.router)  # POST /api/j2/notebook-shelf-widgets/{kind}, dark until wave 10
 app.include_router(notebook_routines_router.routines_router)  # /api/j2/routines/*, dark until wave 9
 app.include_router(notebook_routines_router.trackers_router)  # /api/j2/trackers/*, dark until wave 9
 app.include_router(filings_router.router, dependencies=_OPEN_READS)

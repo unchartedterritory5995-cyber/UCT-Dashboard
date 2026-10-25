@@ -1669,7 +1669,7 @@ def _acct_block(widget_id: str, share) -> dict:
 
 
 def test_account_line_blocks_set_and_vendor_rows():
-    assert pnp.ACCOUNT_LINE_BLOCKS == frozenset({"routine", "tracker"})
+    assert pnp.ACCOUNT_LINE_BLOCKS == frozenset({"routine", "tracker", "sizeCalc"})     # sizeCalc: Task 10.12
     assert "ACCOUNT_LINE_BLOCKS" in pnp.__all__
     for wid in ("routine", "tracker"):
         assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", wid)] == "private"
@@ -1707,3 +1707,107 @@ def test_no_routine_name_or_day_state_in_public_output(mode):
         assert canary not in blob, (mode, canary)
     for key in ("routineId", "trackerId", "bind", "display", "days", "searchText"):
         assert key not in blob, (mode, key)
+
+
+# ── Task 10.12: the seven dedicated kinds and the calculator are private; a notes list row is "Note <n>" ──
+
+_DEDICATED = ("myTiltCheck", "myRevengeClean", "myPlanVsActual", "myRiskLeftToday", "myPropFirm", "myGamePlan",
+              "myAlertsFired")
+_DED_CANARIES = ("DED-CANARY-ACCOUNT-1012", "DED-CANARY-LIMIT-1012", "DED-CANARY-LINE-1012", "ATTR-CANARY-1012")
+
+
+def _dedicated(widget_id: str, share) -> dict:
+    node = _widget(widget_id)
+    a = node["attrs"]
+    a["params"] = {"asOf": "2026-10-24T14:00:00Z", "source": "broker",
+                   "accountId": "DED-CANARY-ACCOUNT-1012", "dailyLoss": "DED-CANARY-LIMIT-1012",
+                   "lines": ["DED-CANARY-LINE-1012"], "rows": [{"label": "DED-CANARY-ACCOUNT-1012", "v1": 1.0}],
+                   "accountSize": 50000, "risk": 400}
+    if share is not None:
+        a["params"]["share"] = share
+    a["caption"] = "ATTR-CANARY-1012"
+    a["searchText"] = "ATTR-CANARY-1012"
+    return node
+
+
+def test_dedicated_vendor_rows_and_the_set():
+    from api.services.journal_two import shelf_kinds
+    assert pnp.DEDICATED_KINDS == frozenset(shelf_kinds.KINDS) == frozenset(_DEDICATED)    # one fact, two files
+    for wid in (*_DEDICATED, "sizeCalc"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", wid)] == "private", wid
+        assert pnp.market_data_verdict("widgetEmbed", wid) == pnp.NEUTRAL
+        assert not pnp._is_account_kind(wid), wid                 # the share switch can never open them
+        assert pnp._neutral_for_embed(wid) == pnp._neutral(ACCOUNT_LINE), wid
+        assert wid not in pnp.EMBED_PARAM_KEYS and wid not in pnp.EMBED_ROW_KEYS
+    assert "DEDICATED_KINDS" in pnp.__all__
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+@pytest.mark.parametrize("widget_id", [*_DEDICATED, "sizeCalc"])
+def test_dedicated_kinds_and_size_calc_account_line_in_every_public_mode(mode, widget_id):
+    """Share false AND true (and every not-quite-true value): the account line on share, publish and gallery,
+    dropped in an example (the private-embed rule); never a figure, an account, a limit or an attribute."""
+    for share in (None, False, True, "true", 1):
+        out = reduce(doc(_dedicated(widget_id, share)), mode)
+        assert "widgetEmbed" not in types_in(out), (mode, widget_id, share)
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _DED_CANARIES), (mode, widget_id, share)
+        if mode == "example":
+            assert ACCOUNT_LINE not in texts_in(out) and pnp.NEUTRAL_LINE not in texts_in(out)
+        else:
+            assert texts_in(out) == [ACCOUNT_LINE], (mode, widget_id, share, out)
+
+
+def _notes_list(**over: Any) -> dict:
+    node = _built(True)
+    node["attrs"]["params"].update({
+        "labelKind": "note", "label2Kind": None,
+        "rows": [{"label": "NOTE-CANARY-Earnings plan", "label2": "2026-10-01", **_VALUES, "flagged": False},
+                 {"label": "NOTE-CANARY-Monday", "label2": "2026-10-02", **_VALUES, "flagged": False},
+                 {"label": "NOTE-CANARY-Earnings plan", "label2": "2026-10-03", **_VALUES, "flagged": False},
+                 {"label": None, "label2": "2026-10-04", **_VALUES, "flagged": False}],
+        "series": [{"label": "NOTE-CANARY-Monday", "label2": None, **_VALUES, "flagged": False}],
+        "cells": [{"label": "NOTE-CANARY-Third", "v1": 1.0, "n1": 1, "s1": ""}]})
+    node["attrs"]["params"].update(over)
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_notes_list_rows_relabelled_note_n(mode):
+    """W10-R7: a shared notes list never publishes a note's title. The R-25 path: each distinct label becomes
+    "Note <n>", numbered in order of first appearance across rows, series and cells."""
+    out = reduce(doc(_notes_list()), mode)
+    assert "NOTE-CANARY" not in json.dumps(out)
+    params = find_embed(out)["attrs"]["params"]
+    assert [r["label"] for r in params["rows"]] == ["Note 1", "Note 2", "Note 1", None]
+    assert [r["label2"] for r in params["rows"]] == ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]
+    assert params["series"][0]["label"] == "Note 2"
+    assert params["cells"][0]["label"] == "Note 3"
+    assert params["labelKind"] == "note"
+    # control: with no marker the titles pass (the relabel is what removed them, not something else)
+    plain = find_embed(reduce(doc(_notes_list(labelKind=None)), mode))["attrs"]["params"]
+    assert plain["rows"][0]["label"] == "NOTE-CANARY-Earnings plan"
+    # the two kinds keep separate numbering
+    both = find_embed(reduce(doc(_notes_list(label2Kind="account", rows=[
+        {"label": "NOTE-CANARY-A", "label2": "ACCT-CANARY-X", **_VALUES, "flagged": False}])), mode))
+    row = both["attrs"]["params"]["rows"][0]
+    assert (row["label"], row["label2"]) == ("Note 1", "Account 1")
+
+
+def test_no_db_read_on_public_render(monkeypatch):
+    """A public render of the seven, the calculator and a notes list reads no database, in any mode."""
+    import importlib
+    opened = []
+
+    def boom(*a, **k):
+        opened.append(a)
+        raise AssertionError("a public render opened the database")
+
+    for name in ("api.services.auth_db", "api.services.journal_two.db"):
+        mod = importlib.import_module(name)
+        if hasattr(mod, "get_connection"):
+            monkeypatch.setattr(mod, "get_connection", boom)
+    body = doc(*[_dedicated(w, True) for w in (*_DEDICATED, "sizeCalc")], _notes_list())
+    for mode in ("share", "publish", "gallery", "example"):
+        reduce(body, mode)
+    assert opened == []

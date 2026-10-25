@@ -295,6 +295,9 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     # Not snapshot kinds and not "member-optin": `params.share` can never reveal them, in any mode.
     ("widgetEmbed", "routine"): "private",
     ("widgetEmbed", "tracker"): "private",
+    # Notebook widgets wave 10 (W10-R7, W10-R8): the position size calculator holds the member's account size and
+    # what they typed. Private like the rows of DEDICATED_KINDS below the table: never shown, `share` or not.
+    ("widgetEmbed", "sizeCalc"): "private",
     # Notebook widgets (Task 6): frozen snapshots fetched by their own slash items. Task 5 moves the two
     # account kinds to "member-optin"; until then they are the neutral private line.
     ("widgetEmbed", "myWatchlistToday"): "mixed",    # the member's list beside live prices
@@ -332,6 +335,17 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     # the neutral line until somebody decides what a stranger may see of a plan.
     ("tradeCanvas", None): "mixed",
 }
+
+#: Notebook widgets wave 10 (Task 10.12, W10-R7): the seven ready-made dedicated widgets. Each reads the
+#: member's own trades, accounts, limits or alerts, so each is "private": the account line on share, publish and
+#: gallery, dropped in an example, and `params.share` can never reveal one (they are not "member-optin").
+#: ⛔ ONE FACT IN TWO FILES: this is `shelf_kinds.KINDS`, restated because this module stays out of the engine's
+#: import closure (see the import note at the top). Railed equal by tests/test_public_note_payload.py.
+DEDICATED_KINDS: frozenset[str] = frozenset({
+    "myTiltCheck", "myRevengeClean", "myPlanVsActual", "myRiskLeftToday", "myPropFirm", "myGamePlan",
+    "myAlertsFired",
+})
+MARKET_DATA_VENDORS.update({("widgetEmbed", k): "private" for k in sorted(DEDICATED_KINDS)})
 
 #: vendor -> verdict. ⭐ Loosening Massive is this one line: "massive": SHOWN.
 VENDOR_VERDICT: dict[str, str] = {
@@ -590,15 +604,22 @@ def _allowed_item(item: Any, keys: Any) -> Any:
 _DROP = object()
 
 
+#: Label kind -> the word a public copy numbers it with. "account": ruling R-25. "note" (wave 10, W10-R7): a
+#: notes-source list row's label is the note's title, which a stranger never reads.
+RELABEL_WORDS: dict[str, str] = {"account": "Account", "note": "Note"}
+
+
 def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
     """Ruling R-25: even a SHARED built widget never publishes an account NAME. Where the payload says a label
     field is an account (`labelKind` / `label2Kind`), each distinct label becomes "Account N", numbered by first
     appearance across rows, series and cells so one account keeps one number. Two kinds never share a numbering
-    map. An unknown kind value is left alone (it is only ever "account")."""
+    map. Ruling W10-R7 adds "note" on the same path: a note's title becomes "Note N". Any other kind value is
+    left alone."""
     if widget_id != "builtWidget":
         return
     for kind_key, field in (("labelKind", "label"), ("label2Kind", "label2")):
-        if out.get(kind_key) != "account":
+        word = RELABEL_WORDS.get(out.get(kind_key)) if isinstance(out.get(kind_key), str) else None
+        if word is None:
             continue
         numbering: dict[str, str] = {}
         for list_key in ("rows", "series", "cells"):
@@ -607,7 +628,7 @@ def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
                     continue
                 name = str(item[field])
                 if name not in numbering:
-                    numbering[name] = f"Account {len(numbering) + 1}"
+                    numbering[name] = f"{word} {len(numbering) + 1}"
                 item[field] = numbering[name]
 
 
@@ -1361,7 +1382,7 @@ def _is_neutral(node: Any, line: str | None = None) -> bool:
 
 # W9-R4: trader blocks that print the ACCOUNT line (not the market line) when they are neutral. Deliberately
 # not in `_is_account_kind`, which is the share-switch door: nothing here can ever be switched on.
-ACCOUNT_LINE_BLOCKS = frozenset({"routine", "tracker"})
+ACCOUNT_LINE_BLOCKS = frozenset({"routine", "tracker", "sizeCalc"})
 
 
 def _is_account_kind(widget_id: Any) -> bool:
@@ -1369,8 +1390,10 @@ def _is_account_kind(widget_id: Any) -> bool:
 
 
 def _neutral_for_embed(widget_id: Any) -> dict:
-    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind."""
-    account = _is_account_kind(widget_id) or (isinstance(widget_id, str) and widget_id in ACCOUNT_LINE_BLOCKS)
+    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind, an account
+    block (ACCOUNT_LINE_BLOCKS) and a dedicated widget (DEDICATED_KINDS)."""
+    account = _is_account_kind(widget_id) or (isinstance(widget_id, str)
+                                              and (widget_id in ACCOUNT_LINE_BLOCKS or widget_id in DEDICATED_KINDS))
     return _neutral(ACCOUNT_NEUTRAL_LINE if account else NEUTRAL_LINE)
 
 
@@ -1901,7 +1924,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "ACCOUNT_LINE_BLOCKS", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "ACCOUNT_LINE_BLOCKS", "DEDICATED_KINDS", "RELABEL_WORDS", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "ATTR_POLICY", "EMBED_ROW_KEYS", "SCALAR_ITEMS", "PAIR_ITEMS", "allowed_params", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",

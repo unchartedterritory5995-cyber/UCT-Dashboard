@@ -340,6 +340,12 @@ def _num(v: Any) -> float | None:
     return f if f == f and f not in (float("inf"), float("-inf")) else None
 
 
+#: Public names for helpers other modules use (Task 10.12: no cross-module private imports; `origin` is below
+#: `_origin`). Each is the SAME object, so a number shown through `num` is a number shown through `_num`.
+num = _num
+iso_utc = _iso_utc
+
+
 #: Kind -> the payload key holding its one trimmable list (fix F1, audit I-2). A kind not named here has
 #: no list to trim: over the cap, it gets the too-large form.
 LIST_KEY: dict[str, str] = {
@@ -674,6 +680,10 @@ def _origin(sources: list) -> str:
     if any(flags):
         return "mixed"
     return "manual"
+
+
+#: Public name (Task 10.12), the same object.
+origin = _origin
 
 
 #: Ruling R60: the earliest day a widget reads. A date outside EARLIEST_DAY .. today + 1 year is a 400

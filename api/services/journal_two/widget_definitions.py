@@ -218,6 +218,10 @@ def _read(conn: sqlite3.Connection | None) -> Iterator[sqlite3.Connection]:
             c.close()
 
 
+#: The same context manager under a public name, for other modules (Task 10.12: no cross-module private imports).
+read_conn = _read
+
+
 def _clean_name(name: Any, refusal: str = S_BAD_NAME) -> str:
     """The one door every stored name walks through: a widget's name on create and update (a
     rename included) and a revision's name. A lone surrogate (JSON can carry one) has no UTF-8
