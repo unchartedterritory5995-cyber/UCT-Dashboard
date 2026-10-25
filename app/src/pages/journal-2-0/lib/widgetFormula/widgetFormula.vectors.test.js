@@ -15,6 +15,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 import {
   LIMITS, FUNCTIONS, FUNCTION_DOCS, ERRORS, ARITY_WORDS,
   compileFormula, displayFormula, displayName, evalRow, evalGroup, emptyFieldOf, skipNotice, suggest,
+  utf16ToCodePoint, codePointToUtf16,
 } from './widgetFormula.js'
 import { DOC, FIELDS, decode, build, fieldsOf, rowsOf, same } from './test-vectors.js'
 
@@ -30,7 +31,10 @@ const RAN = {
 describe('the file carries the same constants and copy as this module', () => {
   it('constants, functions, docs, arity words and error templates', () => {
     expect(DOC.version).toBe(1)
-    expect(LIMITS).toEqual(DOC.constants)
+    // every shared constant, exactly; SCAN_ROWS is the one client-only addition (skipNotice's bound)
+    const { SCAN_ROWS, ...shared } = LIMITS
+    expect(shared).toEqual(DOC.constants)
+    expect(SCAN_ROWS).toBe(5000)
     expect([...FUNCTIONS]).toEqual(DOC.functions)
     expect(FUNCTION_DOCS.map((d) => ({ ...d }))).toEqual(DOC.function_docs)
     expect({ ...ARITY_WORDS }).toEqual(DOC.arity_words)
@@ -166,7 +170,7 @@ describe('hostile_vectors_never_throw', () => {
   it('NON-VACUITY: the hostile list carries what the brief names', () => {
     const exprs = DOC.hostile.map(build)
     const joined = exprs.filter((e) => e.length < 5000).join('\n')
-    for (const needle of ['"', '--', ';', '$.', '%', '_', '\\', '\u0000', '‮', '［',
+    for (const needle of ['"', '--', ';', '$.', '%', '_', '\\', '\u0000', '\u202E', '\uFF3B',
       '__proto__', 'constructor', 'toString', '\uD800']) {
       expect(joined.includes(needle), JSON.stringify(needle)).toBe(true)
     }
@@ -268,8 +272,8 @@ const ALPHABET = [
   '[net]', '[risk $]', '[r]', '[setup]', '[had_stop]', '[day]', '[mistake]', '[hold minutes]',
   '[nope]', '[', ']', '[__proto__]', '0', '1', '2.5', '-', '+', '*', '/', '=', '<>', '<', '<=', '>',
   '>=', '(', ')', ',', '"Gap"', '""', '"', 'TRUE', 'false', ' ', '\n', '\t', ...FUNCTIONS, 'sumif',
-  'ROUND', 'foo', '1e5', '.', '$', '%', "'", '‮', '［', '\u{1F600}', '\u0000', '‍',
-  '️', '⃣', '\uD800', ' ', '[constructor]', 'Bucket([r], 0, 1)', 'Hour([day])',
+  'ROUND', 'foo', '1e5', '.', '$', '%', "'", '\u202E', '\uFF3B', '\u{1F600}', '\u0000', '\u200D',
+  '\uFE0F', '\u20E3', '\uD800', '\u2028', '[constructor]', 'Bucket([r], 0, 1)', 'Hour([day])',
 ]
 const LEAVES = ['[net]', '[risk $]', '[r]', '[hold minutes]', '1', '2.5', '0', '-1']
 const BOOLS = ['[had_stop]', 'TRUE', 'false']
@@ -388,6 +392,102 @@ describe('suggest_ranks_prefix_then_contains_and_caps_at_12', () => {
     expect(suggest(null, 0, FIELDS)).toEqual([])
     // prefix matches in the table's own order (Risk $ is declared before R), then contains
     expect(suggest('[r', 2, FIELDS).map((s) => s.label)).toEqual(['Risk $', 'R', 'Entry day'])
+  })
+})
+
+describe('suggest works in the textarea\'s UTF-16 units (round 1, M1/M2)', () => {
+  it('the repro: astral characters before the caret no longer shift it', () => {
+    const expr = '"\u{1F525}\u{1F525}\u{1F525}" + [Ne'
+    expect(expr.length).toBe(14)
+    const got = suggest(expr, expr.length, FIELDS)
+    expect(got.map((s) => s.label)).toEqual(['Net P&L'])
+    expect([got[0].from, got[0].to]).toEqual([11, 14])
+    const spliced = expr.slice(0, got[0].from) + got[0].insert + expr.slice(got[0].to)
+    expect(spliced).toBe('"\u{1F525}\u{1F525}\u{1F525}" + [Net P&L]')
+    // a caret the old code-point reading would have put past the bracket
+    const more = '"\u{1F525}\u{1F525}\u{1F525}" + [Ne] + 1'
+    expect(suggest(more, 14, FIELDS).map((s) => s.label)).toEqual(['Net P&L'])
+    // UTF-16 caret 7 is inside the text: nothing
+    expect(suggest(expr, 7, FIELDS)).toEqual([])
+  })
+
+  it('the helpers convert both ways, and a caret inside a surrogate pair counts the whole character', () => {
+    const t = 'a\u{1F525}b'
+    expect([0, 1, 2, 3, 4].map((u) => utf16ToCodePoint(t, u))).toEqual([0, 1, 2, 2, 3])
+    expect([0, 1, 2, 3].map((p) => codePointToUtf16(t, p))).toEqual([0, 1, 3, 4])
+    const r = compileFormula('"\u{1F525}" + §', FIELDS)
+    expect(r.pos).toBe(6)                                   // code points: the contract
+    expect(codePointToUtf16('"\u{1F525}" + §', r.pos)).toBe(7) // the textarea selection
+    expect(utf16ToCodePoint(null, 3)).toBe(0)
+    expect(codePointToUtf16(null, 3)).toBe(0)
+  })
+
+  it('inside a bracket the range runs through the closing ]', () => {
+    const got = suggest('[Net P&L]', 3, FIELDS)
+    expect(got.map((s) => s.label)).toEqual(['Net P&L'])
+    expect([got[0].from, got[0].to]).toEqual([0, 9])
+    const open = suggest('[Ne + 1', 3, FIELDS)
+    expect([open[0].from, open[0].to]).toEqual([0, 3])        // no ] follows: up to the caret
+    const next = suggest('[Ne [r]', 3, FIELDS)
+    expect([next[0].from, next[0].to]).toEqual([0, 3])        // a new [ is not this field's close
+  })
+
+  it('no suggestion inside a text literal, field or function', () => {
+    expect(suggest('"[Ne', 4, FIELDS)).toEqual([])
+    expect(suggest('"Su', 3, FIELDS)).toEqual([])
+    expect(suggest('"a""[Ne', 7, FIELDS)).toEqual([])          // an escaped quote stays in the text
+    expect(suggest('"a" + [Ne', 9, FIELDS).map((s) => s.label)).toEqual(['Net P&L']) // CONTROL: closed text
+  })
+})
+
+describe('a malformed field table never makes compileFormula throw (round 1, M4)', () => {
+  const good = { key: 'net', label: 'Net P&L', type: 'number', hourKey: null, needsTimes: false }
+  const tables = [
+    ['a null entry', [null, good]],
+    ['a number entry', [5, good]],
+    ['a string entry', ['net', good]],
+    ['a missing label', [{ key: 'u', type: 'number' }, good]],
+    ['a number label', [{ key: 'u', label: 7, type: 'number' }, good]],
+    ['a missing type', [{ key: 'u', label: 'U' }, good]],
+    ['a missing key', [{ label: 'U', type: 'number' }, good]],
+    ['an object label', [{ key: 'u', label: { toString: () => 'U' }, type: 'number' }, good]],
+    ['a non-string hour key', [{ key: 'd', label: 'D', type: 'day', hourKey: 5 }, good]],
+  ]
+  it.each(tables)('%s: the bad entry is absent, the good one still works', (_n, list) => {
+    const fields = new Map(list.map((f, i) => [`k${i}`, f]))
+    for (const expr of ['[net]', '[u]', '[undefined]', '[U]', 'Hour([d])', '[D] = "2026-10-05"', '[7]']) {
+      expect(() => compileFormula(expr, fields), expr).not.toThrow()
+    }
+    expect(compileFormula('[net] + 1', fields).ok).toBe(true)
+    expect(compileFormula('[undefined]', fields).code).toBe('unknown_field')
+    expect(compileFormula('[u]', fields).code).toBe('unknown_field')
+    expect(() => displayFormula('[u] + [net]', fields)).not.toThrow()
+    expect(() => suggest('[', 1, fields)).not.toThrow()
+    expect(suggest('[', 1, fields).map((s) => s.label)).toContain('Net P&L')
+  })
+
+  it('a table that is not a Map or an array is an empty table', () => {
+    for (const t of [null, undefined, 3, 'net', { net: good }]) {
+      expect(compileFormula('[net]', t).code).toBe('unknown_field')
+      expect(compileFormula('1 + 2', t).ok).toBe(true)
+    }
+  })
+
+  it('Hour on a day field whose hour key is not a string is hour_no_time, not a throw', () => {
+    const fields = new Map([['d', { key: 'd', label: 'D', type: 'day', hourKey: 5, needsTimes: false }]])
+    expect(compileFormula('Hour([d])', fields).code).toBe('hour_no_time')
+  })
+})
+
+describe('skipNotice takes whole numbers 1..SCAN_ROWS + 1 only (round 1, M5)', () => {
+  it('bounds and grouping', () => {
+    expect(skipNotice(LIMITS.SCAN_ROWS + 1, 'Risk $', 'trade', 'trades'))
+      .toBe('[Risk $] is empty on 5,001 trades; those are skipped')
+    expect(skipNotice(1000, null, 'trade', 'trades')).toBe('This formula has no value on 1,000 trades; those are skipped')
+    expect(skipNotice(999, null, 'trade', 'trades')).toBe('This formula has no value on 999 trades; those are skipped')
+    for (const bad of [0, -1, 1.5, LIMITS.SCAN_ROWS + 2, 1e21, Infinity, Number.NaN, '3', true, null]) {
+      expect(skipNotice(bad, 'Risk $', 'trade', 'trades'), String(bad)).toBe(null)
+    }
   })
 })
 

@@ -15,7 +15,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import * as acorn from 'acorn'
-import { runEveryVector } from './test-vectors.js'
+import { DOC, runEveryVector } from './test-vectors.js'
 
 const SRC = readFileSync(new URL('./widgetFormula.js', import.meta.url), 'utf8')
 
@@ -54,12 +54,14 @@ export function forbiddenConstructs(source) {
     if (n.type === 'CallExpression' || n.type === 'NewExpression') {
       const c = n.callee
       const name = c.type === 'Identifier' ? c.name : (c.type === 'MemberExpression' && !c.computed ? c.property.name : null)
-      if (['eval', 'Function', 'execScript', 'setPrototypeOf'].includes(name)) found.push(`${name}()${at}`)
+      if (['eval', 'Function', 'execScript', 'setPrototypeOf', 'constructor'].includes(name)) found.push(`${name}()${at}`)
       if (['setTimeout', 'setInterval'].includes(name)) found.push(`${name}()${at}`)
     }
     if (n.type === 'ImportExpression') found.push(`import()${at}`)
     if (n.type === 'Identifier' && (n.name === 'eval' || n.name === 'Function')) found.push(`identifier ${n.name}${at}`)
     if (n.type === 'MemberExpression' && n.computed && !isIndex(n.property)) found.push(`computed member access${at}`)
+    // `x.constructor` reaches Function from any value (`x.constructor.constructor("code")()`).
+    if (n.type === 'MemberExpression' && !n.computed && n.property.name === 'constructor') found.push(`.constructor${at}`)
     if (n.type === 'AssignmentExpression' && n.left.type === 'MemberExpression') {
       const p = n.left.property
       const key = n.left.computed ? (p.type === 'Literal' ? p.value : null) : p.name
@@ -96,6 +98,7 @@ describe('the widget formula twin never evaluates text', () => {
     ['__proto__ literal', 'return { __proto__: text }'],
     ['setPrototypeOf', 'Object.setPrototypeOf({}, text)'],
     ['an alias to eval', 'const e = eval; return e'],
+    ['the constructor chain', 'return x.constructor.constructor("1")()'],
   ])('CONTROL: the scan sees a planted %s', (_label, planted) => {
     expect(forbiddenConstructs(`${SRC}\nexport function planted(text) { ${planted} }\n`).length).toBeGreaterThan(0)
   })
@@ -131,5 +134,56 @@ describe('runtime: eval and Function are never reached while the vectors run', (
     const calls = trap()
     expect(() => globalThis.eval('1')).toThrow('eval reached')
     expect(calls.length).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Every invisible or refused character in the module is written as an escape, never raw: a raw
+// one cannot be seen in review, and an editor or a line-ending pass can change it silently. The
+// ranges are read from the shared vector file's own conventions (forbidden_characters and the
+// shown_text invisible list), never retyped here; tab and newline are source whitespace.
+
+function rangesFrom(text) {
+  const out = []
+  for (const m of text.matchAll(/U\+([0-9A-F]{4,6})(?:-([0-9A-F]{4,6}))?/g)) {
+    out.push([parseInt(m[1], 16), parseInt(m[2] || m[1], 16)])
+  }
+  return out
+}
+
+const INVISIBLE = [
+  ...rangesFrom(DOC.conventions.forbidden_characters),
+  ...rangesFrom(DOC.conventions.shown_text),
+]
+
+export function rawInvisibles(source) {
+  const found = []
+  let line = 1
+  for (const ch of source) {
+    const o = ch.codePointAt(0)
+    if (ch === '\n') { line += 1; continue }
+    if (ch === '\t') continue
+    if (INVISIBLE.some(([lo, hi]) => lo <= o && o <= hi)) found.push(`U+${o.toString(16).toUpperCase().padStart(4, '0')} at line ${line}`)
+  }
+  return found
+}
+
+describe('no raw invisible or refused character in the module source', () => {
+  it('the source holds none: each one is written as an escape', () => {
+    expect(rawInvisibles(SRC)).toEqual([])
+  })
+
+  it('NON-VACUITY: the ranges were read from the contract, and the escapes are really there', () => {
+    expect(INVISIBLE.length).toBeGreaterThan(20)
+    for (const o of [0x200D, 0xFE0F, 0x20E3, 0x2028, 0x00A0, 0xE0001]) {
+      expect(INVISIBLE.some(([lo, hi]) => lo <= o && o <= hi), o.toString(16)).toBe(true)
+    }
+    const bs = String.fromCharCode(92)
+    for (const esc of ['u200D', 'uFE0F', 'u20E3', 'u2028', 'uFFFD']) expect(SRC).toContain(bs + esc)
+  })
+
+  it.each([['a zero-width joiner', 0x200D], ['a variation selector', 0xFE0F], ['a line separator', 0x2028],
+    ['a no-break space', 0x00A0], ['a tag character', 0xE0041]])('CONTROL: a raw %s is caught', (_l, o) => {
+    expect(rawInvisibles(`${SRC}\nconst planted = '${String.fromCodePoint(o)}'\n`).length).toBe(1)
   })
 })

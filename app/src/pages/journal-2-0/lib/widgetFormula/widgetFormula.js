@@ -50,11 +50,14 @@ export const LIMITS = Object.freeze({
   SIG_DIGITS_MAX: 15,
   SHOWN_MAX: 20,
   BUCKET_PLACES_MAX: 4,
+  /** The most rows one scan reads (the bounded scan is `LIMIT SCAN_ROWS + 1`). Client only: it
+   *  bounds `skipNotice`, and is not one of the shared vector file's constants. */
+  SCAN_ROWS: 5000,
 })
 
 const {
   MAX_LENGTH, MAX_TOKENS, MAX_DEPTH, NAME_MAX, MAX_TEXT, BUCKET_EDGES_MAX, ROUND_DIGITS_MAX,
-  CHECK_EVERY, SIG_DIGITS_MAX, SHOWN_MAX, BUCKET_PLACES_MAX,
+  CHECK_EVERY, SIG_DIGITS_MAX, SHOWN_MAX, BUCKET_PLACES_MAX, SCAN_ROWS,
 } = LIMITS
 
 export const FUNCTIONS = Object.freeze([
@@ -83,17 +86,17 @@ const ARITY_WORDS_MAP = new Map(Object.entries(ARITY_WORDS))
 export const FUNCTION_DOCS = Object.freeze([
   { name: 'If', usage: 'If(condition, then, otherwise)',
     meaning: "One value when the condition holds, another when it doesn't." },
-  { name: 'And', usage: 'And(condition, condition, …)',
+  { name: 'And', usage: 'And(condition, condition, \u2026)',
     meaning: 'Yes when every condition holds.' },
-  { name: 'Or', usage: 'Or(condition, condition, …)',
+  { name: 'Or', usage: 'Or(condition, condition, \u2026)',
     meaning: 'Yes when any condition holds.' },
   { name: 'Not', usage: 'Not(condition)', meaning: 'The opposite of a condition.' },
   { name: 'Abs', usage: 'Abs(number)', meaning: 'The number without its sign.' },
   { name: 'Round', usage: 'Round(number, places)',
     meaning: 'Rounded to 0 to 6 decimal places (0 when left out).' },
-  { name: 'Min', usage: 'Min(number, number, …)',
+  { name: 'Min', usage: 'Min(number, number, \u2026)',
     meaning: 'The smallest of the values; empty values are skipped.' },
-  { name: 'Max', usage: 'Max(number, number, …)',
+  { name: 'Max', usage: 'Max(number, number, \u2026)',
     meaning: 'The largest of the values; empty values are skipped.' },
   { name: 'CountIf', usage: 'CountIf(condition)',
     meaning: 'How many rows meet the condition.' },
@@ -103,7 +106,7 @@ export const FUNCTION_DOCS = Object.freeze([
     meaning: 'The average of the value over the rows that meet the condition, or over all rows.' },
   { name: 'Share', usage: 'Share(condition)',
     meaning: 'The share of rows that meet the condition, from 0 to 1.' },
-  { name: 'Bucket', usage: 'Bucket(number, edge, …)',
+  { name: 'Bucket', usage: 'Bucket(number, edge, \u2026)',
     meaning: 'Puts a number into ranges: under the first edge, between edges, or the last edge or more.' },
   { name: 'Hour', usage: 'Hour(day)',
     meaning: 'The ET hour, 0 to 23; empty for trades with dates only.' },
@@ -184,10 +187,10 @@ const SPACE_LIKE_RANGES = [
   [0x3000, 0x3000],
 ]
 /** Line terminators: each ends a text and a field name exactly as a newline does. */
-const LINE_ENDS = new Set(['\n', ' ', ' '])
-const PRESENTATION_SELECTORS = new Set(['︎', '️'])
-const ZWJ = '‍'
-const KEYCAP = '⃣'
+const LINE_ENDS = new Set(['\n', '\u2028', '\u2029'])
+const PRESENTATION_SELECTORS = new Set(['\uFE0E', '\uFE0F'])
+const ZWJ = '\u200D'
+const KEYCAP = '\u20E3'
 const KEYCAP_BASES = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '#', '*'])
 
 function sortedTable(ranges) {
@@ -651,8 +654,8 @@ class State {
     this.byKey = new Map()
     this.byLabel = new Map()
     for (const fi of fieldValues(fields)) {
-      const fk = fold(String(fi.key))
-      const fl = fold(String(fi.label))
+      const fk = fold(fi.key)
+      const fl = fold(fi.label)
       if (!this.byKey.has(fk)) this.byKey.set(fk, fi)
       if (!this.byLabel.has(fl)) this.byLabel.set(fl, fi)
     }
@@ -665,11 +668,22 @@ class State {
   }
 }
 
-/** The field table's entries, in order: a Map (key -> field) or, defensively, an array. */
+/** A usable field-table entry: an object with a non-empty string key, a string label and a
+ *  string type. Anything else is treated as ABSENT (never coerced: a missing label must not
+ *  become the field "undefined"), so a malformed table can never make compileFormula throw. */
+function wellFormed(fi) {
+  return fi !== null && typeof fi === 'object'
+    && typeof fi.key === 'string' && fi.key.length > 0
+    && typeof fi.label === 'string' && typeof fi.type === 'string'
+}
+
+/** The field table's well-formed entries, in order: a Map (key -> field) or, defensively, an
+ *  array. */
 function fieldValues(fields) {
-  if (fields instanceof Map) return Array.from(fields.values())
-  if (Array.isArray(fields)) return fields.slice()
-  return []
+  let all = []
+  if (fields instanceof Map) all = Array.from(fields.values())
+  else if (Array.isArray(fields)) all = fields.slice()
+  return all.filter(wellFormed)
 }
 
 function resolveField(st, pos, name) {
@@ -985,7 +999,7 @@ function fnHour(node, checked, st) {
   const a = node.args[0]
   if (a.k !== 'field' || checked[0][0] !== 'day') throw err('needs_day', a.pos, { Fn: 'Hour' })
   const fi = resolveField(st, a.pos, a.name)
-  if (!fi.hourKey) throw err('hour_no_time', a.pos, { label: fi.label })
+  if (typeof fi.hourKey !== 'string' || !fi.hourKey) throw err('hour_no_time', a.pos, { label: fi.label })
   const dayKey = fi.key
   const hourKey = fi.hourKey
   // The hour is read from its own key, so it is a field this formula reads (emptyFieldOf names it
@@ -1110,6 +1124,7 @@ export function compileFormula(expr, fields) {
  * displayed text always gives back the canonical one.
  */
 export function displayName(fi, fields, st = null) {
+  if (!wellFormed(fi)) return ''
   const lookup = st || new State(fields)
   const { label } = fi
   let ok = typeof label === 'string' && label.length > 0 && label === trimSpaceTab(label)
@@ -1135,7 +1150,7 @@ export function displayFormula(canonical, fields) {
     toks = tokenize(src)
   } catch (e) {
     if (!(e instanceof FormulaError)) throw e
-    return src.map((c) => (cp(c) >= 0xD800 && cp(c) <= 0xDFFF ? '�' : c)).join('')
+    return src.map((c) => (cp(c) >= 0xD800 && cp(c) <= 0xDFFF ? '\uFFFD' : c)).join('')
   }
   const byKey = new Map()
   for (const fi of fieldValues(fields)) byKey.set(fi.key, fi)
@@ -1222,9 +1237,16 @@ function withCommas(n) {
   return out
 }
 
-/** The footnote for rows a formula skipped; null when nothing was skipped. */
+/**
+ * The footnote for rows a formula skipped; null when nothing was skipped. `n` must be a whole
+ * number from 1 to `SCAN_ROWS + 1` (no scan can skip more), else null; it is written with the
+ * server's thousands grouping (`5,001`), never an exponent.
+ *
+ * The one accepted divergence from the server: Python refuses the float `1.0` while JavaScript
+ * cannot tell `1.0` from `1`, so here both are 1.
+ */
 export function skipNotice(n, label, unitOne, unitMany) {
-  if (typeof n !== 'number' || !Number.isInteger(n) || n <= 0) return null
+  if (typeof n !== 'number' || !Number.isInteger(n) || n <= 0 || n > SCAN_ROWS + 1) return null
   const unit = n === 1 ? unitOne : unitMany
   if (label) return `[${label}] is empty on ${withCommas(n)} ${unit}; those are skipped`
   return `This formula has no value on ${withCommas(n)} ${unit}; those are skipped`
@@ -1250,46 +1272,84 @@ function rank(items, query, text) {
   return [prefix, contains]
 }
 
+/** The code point offset of the UTF-16 offset `units` in `text` (a textarea's `selectionStart`
+ *  counts UTF-16 units). An offset inside a surrogate pair counts that whole character. */
+export function utf16ToCodePoint(text, units) {
+  if (typeof text !== 'string') return 0
+  const u = Number.isInteger(units) ? Math.max(0, Math.min(units, text.length)) : text.length
+  return Array.from(text.slice(0, u)).length
+}
+
+/** The UTF-16 offset of the code point offset `points` in `text`: maps a compile error's `pos`
+ *  (code points, the shared contract) to a textarea selection. */
+export function codePointToUtf16(text, points) {
+  if (typeof text !== 'string') return 0
+  const cps = Array.from(text)
+  const p = Number.isInteger(points) ? Math.max(0, Math.min(points, cps.length)) : cps.length
+  return cps.slice(0, p).join('').length
+}
+
 /**
- * Autocomplete at `caret` (a code point offset): inside an open `[` the fields whose label matches
- * what is typed after it; on a bare word the functions whose name matches it, then the fields.
- * At most 12, prefix matches first, then contains matches. Each suggestion is `{insert, label,
- * kind}` plus the code point range `from`..`to` it replaces. A field is inserted by its display
- * name, so the text compiles back to the same field; a field that holds several values is never
- * offered (it cannot be used in a formula).
+ * Autocomplete at `caret`, a UTF-16 offset (a textarea's `selectionStart`). Inside an open `[`:
+ * the fields whose label matches what is typed after it; on a bare word: the functions whose
+ * name matches it, then the fields; inside a text literal: nothing. At most 12, prefix matches
+ * first, then contains matches. Each suggestion is `{insert, label, kind, from, to}`, where
+ * `from`..`to` is the UTF-16 range it replaces, so `value.slice(0, from) + insert +
+ * value.slice(to)` splices the textarea directly; inside a bracket the range runs through the
+ * closing `]` when one follows. A field is inserted by its display name, so the text compiles
+ * back to the same field; a field that holds several values is never offered.
  */
 export function suggest(expr, caret, fields) {
-  if (typeof expr !== 'string') return []
-  const src = Array.from(expr.length > 2 * MAX_LENGTH ? '' : expr)
-  const at = Number.isInteger(caret) ? Math.max(0, Math.min(caret, src.length)) : src.length
-  const usable = fieldValues(fields).filter((fi) => fi && fi.type !== 'tag' && COERCE.has(fi.type))
+  if (typeof expr !== 'string' || expr.length > 2 * MAX_LENGTH) return []
+  const src = Array.from(expr)
+  const at = utf16ToCodePoint(expr, Number.isInteger(caret) ? caret : expr.length)
+  const usable = fieldValues(fields).filter((fi) => fi.type !== 'tag' && COERCE.has(fi.type))
   const st = new State(fields)
-  const asField = (fi, from) => {
-    const name = displayName(fi, fields, st)
-    return { insert: `[${name}]`, label: String(fi.label), kind: 'field', from, to: at }
-  }
+  const units = (points) => codePointToUtf16(expr, points)
 
+  // One pass up to the caret: are we inside a text, and is a bracket open?
+  let inText = false
   let open = -1
-  for (let i = at - 1; i >= 0; i -= 1) {
+  for (let i = 0; i < at; i += 1) {
     const c = src[i]
-    if (c === ']' || LINE_ENDS.has(c)) break
-    if (c === '[') { open = i; break }
+    if (inText) {
+      if (c === '"' || LINE_ENDS.has(c)) inText = false
+      continue
+    }
+    if (c === '"') inText = true
+    else if (c === '[') open = i
+    else if (c === ']' || LINE_ENDS.has(c)) open = -1
   }
+  if (inText) return []
+
   if (open >= 0) {
+    let end = at
+    for (let j = at; j < src.length; j += 1) {
+      const c = src[j]
+      if (c === ']') { end = j + 1; break }
+      if (c === '[' || c === '"' || LINE_ENDS.has(c)) break
+    }
     const typed = stripCps(src.slice(open + 1, at), SPACE_TAB).join('')
-    const [prefix, contains] = rank(usable, typed, (fi) => String(fi.label))
-    return [...prefix, ...contains].slice(0, SUGGEST_MAX).map((fi) => asField(fi, open))
+    const [prefix, contains] = rank(usable, typed, (fi) => fi.label)
+    const from = units(open)
+    const to = units(end)
+    return [...prefix, ...contains].slice(0, SUGGEST_MAX).map((fi) => ({
+      insert: `[${displayName(fi, fields, st)}]`, label: fi.label, kind: 'field', from, to,
+    }))
   }
 
-  let from = at
-  while (from > 0 && isWordChar(src[from - 1])) from -= 1
-  const word = src.slice(from, at).join('')
+  let j = at
+  while (j > 0 && isWordChar(src[j - 1])) j -= 1
+  const word = src.slice(j, at).join('')
   if (!word || !isLetter(word.charAt(0))) return []
-  const asFunction = (name) => ({ insert: `${name}(`, label: name, kind: 'function', from, to: at })
+  const from = units(j)
+  const to = units(at)
+  const asFunction = (name) => ({ insert: `${name}(`, label: name, kind: 'function', from, to })
+  const asField = (fi) => ({ insert: `[${displayName(fi, fields, st)}]`, label: fi.label, kind: 'field', from, to })
   const [fnPrefix, fnContains] = rank(FUNCTIONS, word, (name) => name)
-  const [fiPrefix, fiContains] = rank(usable, word, (fi) => String(fi.label))
+  const [fiPrefix, fiContains] = rank(usable, word, (fi) => fi.label)
   return [
-    ...fnPrefix.map(asFunction), ...fiPrefix.map((fi) => asField(fi, from)),
-    ...fnContains.map(asFunction), ...fiContains.map((fi) => asField(fi, from)),
+    ...fnPrefix.map(asFunction), ...fiPrefix.map(asField),
+    ...fnContains.map(asFunction), ...fiContains.map(asField),
   ].slice(0, SUGGEST_MAX)
 }
