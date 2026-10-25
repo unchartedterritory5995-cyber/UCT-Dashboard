@@ -561,13 +561,14 @@ def test_a_leg_naming_a_strategy_is_that_strategys_leg(two):
 
 # -- wave 10 (Task 10.7): notes, their folders, kinds and property definitions ---------------------
 
-def test_member_b_notes_folders_kinds_and_properties_never_reach_a(two):
+def test_member_b_notes_folders_kinds_and_properties_never_reach_a(two, monkeypatch):
     """A's notes widget holds nothing of B's: B's notes (same days, folder name, kind name, tags
     and ticker), B's folder and kind NAMES (even on an A note that names B's ids, inserted by hand),
     and B's property definitions (a filter or a sum naming B's property id is the one unavailable
     notice, and never narrows). Every folder, kind and property read is scoped to A (traced)."""
     from api.services.journal_two import note_properties
     from tests.test_widget_notes_source import add_folder, add_kind, add_n, add_prop
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")       # W10-R62: kinds offered
     c, _acc_a, _acc_b = two
     fa = add_folder(c, A, "Ideas")
     fb = add_folder(c, B, "B-FOLDER-CANARY")

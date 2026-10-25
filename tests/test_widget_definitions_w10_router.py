@@ -65,6 +65,7 @@ def _fresh(monkeypatch):
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W8_ENABLED", "1")
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")          # production: W9 on, W10 off
     monkeypatch.delenv(W10_ENV, raising=False)
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")       # W10-R62: kinds offered
     yield
     wrun._reset_state()
     limiter.reset()
