@@ -31,10 +31,12 @@ const RAN = {
 describe('the file carries the same constants and copy as this module', () => {
   it('constants, functions, docs, arity words and error templates', () => {
     expect(DOC.version).toBe(1)
-    // every shared constant, exactly; SCAN_ROWS is the one client-only addition (skipNotice's bound)
+    // every shared constant, exactly; SCAN_ROWS (skipNotice's bound) is the server engine's scan cap,
+    // carried in the file's engine_constants so the two sides cannot drift (W10-R36)
     const { SCAN_ROWS, ...shared } = LIMITS
     expect(shared).toEqual(DOC.constants)
-    expect(SCAN_ROWS).toBe(5000)
+    expect(DOC.engine_constants.SCAN_ROWS).toEqual(expect.any(Number))
+    expect(SCAN_ROWS).toBe(DOC.engine_constants.SCAN_ROWS)
     expect([...FUNCTIONS]).toEqual(DOC.functions)
     expect(FUNCTION_DOCS.map((d) => ({ ...d }))).toEqual(DOC.function_docs)
     expect({ ...ARITY_WORDS }).toEqual(DOC.arity_words)
