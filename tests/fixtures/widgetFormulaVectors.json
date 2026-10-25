@@ -3,12 +3,19 @@
  "about": "Shared vectors for the widget formula dialect (Task 10.2). The server (api/services/journal_two/widget_formula.py) and the client twin (app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js) must reproduce every entry exactly. Read with a file read; never import into a bundle.",
  "conventions": {
   "positions": "pos and every length count Unicode code points (Python indices; Array.from in JS).",
+  "lengths": "every limit counts code points, never UTF-16 units: MAX_LENGTH, MAX_TEXT, NAME_MAX and the 20-character clip of {x}. An astral character (an emoji) counts once.",
+  "trim": "field names are trimmed of space (U+0020) and tab ONLY; the whole formula of space, tab and newline. NBSP, U+3000 and other space-like characters are never trimmed (JS String.prototype.trim would trim them: do not use it).",
+  "fold": "names match ASCII case-insensitively: only A-Z fold (never toLowerCase).",
   "floats": "numbers compare with abs or relative tolerance 1e-9; a bool never equals a number.",
+  "zero": "an expected 0 must be +0: compare with Object.is in JS (Python checks math.copysign). No answer is ever -0.",
+  "significant_digits": "a literal has at most 15 significant digits: leading zeros, trailing zeros of the fraction and trailing zeros of a whole number do not count; a literal whose value is not finite is refused as bad_number.",
+  "forbidden_characters": "refused anywhere, inside a text or a field name too, as bad_char at their own position: U+0000-0008, U+000B-001F, U+007F-009F, U+00AD, U+061C, U+180E, U+200B-200F, U+202A-202E, U+2060-206F, U+D800-DFFF (lone surrogates), U+FEFF, U+FFF9-FFFB, U+E0000-E007F. Tab is allowed; a newline ends a text.",
+  "bad_char_shown": "bad_char's {x} is the character itself when it is printable ASCII, U+XXXX when it is invisible (the shown_text list), else its glyph followed by ' (U+XXXX)'.",
   "null": "null is 'no data'. No result is ever NaN or Infinity, and -0 is 0.",
   "special_floats": "a row value {\"$float\": \"nan\"|\"inf\"|\"-inf\"} decodes to that float.",
   "build": "a build is a list of [text, times] segments, concatenated in order.",
   "rows": "eval_group rows is a rowsets name or an inline list.",
-  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 characters, then each invisible character written as U+XXXX (the fixed list: U+0000-001F, U+007F-009F, U+00A0, U+00AD, U+061C, U+1680, U+180E, U+2000-200F, U+2028-202F, U+205F-206F, U+3000, U+D800-DFFF, U+FEFF, U+FFF9-FFFB, U+E0000-E007F)."
+  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 code points, then each invisible character written as U+XXXX (the fixed list: U+0000-001F, U+007F-009F, U+00A0, U+00AD, U+061C, U+1680, U+180E, U+2000-200F, U+2028-202F, U+205F-206F, U+3000, U+D800-DFFF, U+FEFF, U+FFF9-FFFB, U+E0000-E007F). Whitespace for collapsing is space, tab and newline only."
  },
  "constants": {
   "MAX_LENGTH": 2000,
@@ -21,7 +28,8 @@
   "ROUND_DIGITS_MAX": 6,
   "CHECK_EVERY": 256,
   "SIG_DIGITS_MAX": 15,
-  "SHOWN_MAX": 20
+  "SHOWN_MAX": 20,
+  "BUCKET_PLACES_MAX": 4
  },
  "functions": [
   "If",
@@ -147,10 +155,12 @@
   "text_too_long": "Text in a formula can be at most 200 characters.",
   "bad_number": "{x} isn't a number a formula can use.",
   "unexpected": "Something is missing near \"{x}\".",
+  "chained_compare": "Two comparisons can't be chained; join them with And.",
   "trailing": "There is something extra at the end: \"{x}\".",
   "unknown_field": "[{x}] isn't a field here.",
   "tag_field": "[{label}] holds several values; use it as a filter instead.",
   "unknown_function": "{x} isn't a function. Try If, Round or SumIf.",
+  "bare_field": "Put field names in brackets, like [{x}].",
   "arg_count": "{Fn} takes {n}.",
   "needs_number": "{what} needs a number.",
   "needs_condition": "{what} needs a yes/no condition.",
@@ -162,6 +172,7 @@
   "field_outside_aggregate": "[{label}] needs to be inside CountIf, SumIf, AvgIf or Share when the formula adds up rows.",
   "aggregate_number": "A formula that adds up rows must give a number.",
   "bucket_edges": "Bucket's edges must be numbers, rising from left to right.",
+  "bucket_edge_places": "Bucket's edges can have at most 4 decimal places.",
   "round_digits": "Round's second value must be a whole number from 0 to 6.",
   "hour_no_time": "Hour needs a time; [{label}] has none here."
  },
@@ -760,9 +771,9 @@
    ]
   },
   {
-   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
-   "canonical": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
-   "display": "Bucket([Net P&L], -1000.50, 0.000, 007, 1234.56785)",
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.5678)",
+   "canonical": "Bucket([net], -1000.50, 0.000, 007, 1234.5678)",
+   "display": "Bucket([Net P&L], -1000.50, 0.000, 007, 1234.5678)",
    "kind": "row",
    "type": "text",
    "fields": [
@@ -773,14 +784,14 @@
     "Under -1000.5",
     "-1000.5 to 0",
     "0 to 7",
-    "7 to 1234.5679",
-    "1234.5679 or more"
+    "7 to 1234.5678",
+    "1234.5678 or more"
    ]
   },
   {
-   "expr": "Bucket([r], -0.00004, 0.12344, 0.99995)",
-   "canonical": "Bucket([r], -0.00004, 0.12344, 0.99995)",
-   "display": "Bucket([R], -0.00004, 0.12344, 0.99995)",
+   "expr": "Bucket([r], -0.0001, 0.12340000, 1.0000)",
+   "canonical": "Bucket([r], -0.0001, 0.12340000, 1.0000)",
+   "display": "Bucket([R], -0.0001, 0.12340000, 1.0000)",
    "kind": "row",
    "type": "text",
    "fields": [
@@ -788,10 +799,26 @@
    ],
    "needs_times": false,
    "bucket_labels": [
-    "Under 0",
-    "0 to 0.1234",
+    "Under -0.0001",
+    "-0.0001 to 0.1234",
     "0.1234 to 1",
     "1 or more"
+   ]
+  },
+  {
+   "expr": "Bucket([net], -0, 1000000000000000)",
+   "canonical": "Bucket([net], -0, 1000000000000000)",
+   "display": "Bucket([Net P&L], -0, 1000000000000000)",
+   "kind": "row",
+   "type": "text",
+   "fields": [
+    "net"
+   ],
+   "needs_times": false,
+   "bucket_labels": [
+    "Under 0",
+    "0 to 1000000000000000",
+    "1000000000000000 or more"
    ]
   },
   {
@@ -852,9 +879,10 @@
    "kind": "row",
    "type": "number",
    "fields": [
-    "day"
+    "day",
+    "hour_et"
    ],
-   "needs_times": false,
+   "needs_times": true,
    "bucket_labels": null
   },
   {
@@ -864,9 +892,25 @@
    "kind": "row",
    "type": "bool",
    "fields": [
-    "day"
+    "day",
+    "hour_et"
    ],
-   "needs_times": false,
+   "needs_times": true,
+   "bucket_labels": null
+  },
+  {
+   "expr": "If(Hour([day]) > 12, [r], [net])",
+   "canonical": "If(Hour([day]) > 12, [r], [net])",
+   "display": "If(Hour([Day]) > 12, [R], [Net P&L])",
+   "kind": "row",
+   "type": "number",
+   "fields": [
+    "day",
+    "hour_et",
+    "r",
+    "net"
+   ],
+   "needs_times": true,
    "bucket_labels": null
   },
   {
@@ -2148,25 +2192,32 @@
    "expect": "60 to 240"
   },
   {
-   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.5678)",
+   "row": {
+    "net": 1234.5677
+   },
+   "expect": "7 to 1234.5678"
+  },
+  {
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.5678)",
    "row": {
     "net": 1234.5678
    },
-   "expect": "7 to 1234.5679"
+   "expect": "1234.5678 or more"
   },
   {
-   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.5678)",
    "row": {
-    "net": 1234.5679
+    "net": -1000.5
    },
-   "expect": "1234.5679 or more"
+   "expect": "-1000.5 to 0"
   },
   {
-   "expr": "Bucket([net], -1000.50, 0.000, 007, 1234.56785)",
+   "expr": "Bucket([net], -0, 1000000000000000)",
    "row": {
-    "net": 1234.56785
+    "net": -0.0
    },
-   "expect": "1234.5679 or more"
+   "expect": "0 to 1000000000000000"
   },
   {
    "expr": "Hour([day])",
@@ -3205,9 +3256,15 @@
    "pos": 0
   },
   {
-   "expr": "1000000000000000",
+   "expr": "1234567890123456",
    "code": "bad_number",
-   "sentence": "1000000000000000 isn't a number a formula can use.",
+   "sentence": "1234567890123456 isn't a number a formula can use.",
+   "pos": 0
+  },
+  {
+   "expr": "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "code": "bad_number",
+   "sentence": "10000000000000000000 isn't a number a formula can use.",
    "pos": 0
   },
   {
@@ -3248,9 +3305,129 @@
   },
   {
    "expr": "1 < 2 < 3",
-   "code": "unexpected",
-   "sentence": "Something is missing near \"<\".",
+   "code": "chained_compare",
+   "sentence": "Two comparisons can't be chained; join them with And.",
    "pos": 6
+  },
+  {
+   "expr": "[r] > 1 = TRUE",
+   "code": "chained_compare",
+   "sentence": "Two comparisons can't be chained; join them with And.",
+   "pos": 8
+  },
+  {
+   "expr": "net + 1",
+   "code": "bare_field",
+   "sentence": "Put field names in brackets, like [net].",
+   "pos": 0
+  },
+  {
+   "expr": "[net] / risk_dollars",
+   "code": "bare_field",
+   "sentence": "Put field names in brackets, like [risk_dollars].",
+   "pos": 8
+  },
+  {
+   "expr": "SETUP = \"Gap\"",
+   "code": "bare_field",
+   "sentence": "Put field names in brackets, like [SETUP].",
+   "pos": 0
+  },
+  {
+   "expr": "Abs(r)",
+   "code": "bare_field",
+   "sentence": "Put field names in brackets, like [r].",
+   "pos": 4
+  },
+  {
+   "expr": "[net] + \uff3b",
+   "code": "bad_char",
+   "sentence": "\uff3b (U+FF3B) can't be used in a formula.",
+   "pos": 8
+  },
+  {
+   "expr": "\ud83d\ude00",
+   "code": "bad_char",
+   "sentence": "\ud83d\ude00 (U+1F600) can't be used in a formula.",
+   "pos": 0
+  },
+  {
+   "expr": "\u20ac5",
+   "code": "bad_char",
+   "sentence": "\u20ac (U+20AC) can't be used in a formula.",
+   "pos": 0
+  },
+  {
+   "expr": "\"a\u202eb\"",
+   "code": "bad_char",
+   "sentence": "U+202E can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"a\u0000b\"",
+   "code": "bad_char",
+   "sentence": "U+0000 can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"\u200b\"",
+   "code": "bad_char",
+   "sentence": "U+200B can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\"\ufeff\"",
+   "code": "bad_char",
+   "sentence": "U+FEFF can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\"a\rb\"",
+   "code": "bad_char",
+   "sentence": "U+000D can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "[ne\u200ft]",
+   "code": "bad_char",
+   "sentence": "U+200F can't be used in a formula.",
+   "pos": 3
+  },
+  {
+   "expr": "\"\ud800\"",
+   "code": "bad_char",
+   "sentence": "U+D800 can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "[a\udc00]",
+   "code": "bad_char",
+   "sentence": "U+DC00 can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "[\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00]",
+   "code": "unknown_field",
+   "sentence": "[\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00] isn't a field here.",
+   "pos": 0
+  },
+  {
+   "expr": "[\u00a0net\u00a0]",
+   "code": "unknown_field",
+   "sentence": "[U+00A0netU+00A0] isn't a field here.",
+   "pos": 0
+  },
+  {
+   "expr": "[\u3000Net P&L]",
+   "code": "unknown_field",
+   "sentence": "[U+3000Net P&L] isn't a field here.",
+   "pos": 0
+  },
+  {
+   "expr": "1 \"a\u00a0b\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"\"aU+00A0b\"\".",
+   "pos": 2
   },
   {
    "expr": "1 == 2",
@@ -3704,9 +3881,27 @@
   },
   {
    "expr": "Bucket([r], 0.00001, 0.00002)",
+   "code": "bucket_edge_places",
+   "sentence": "Bucket's edges can have at most 4 decimal places.",
+   "pos": 12
+  },
+  {
+   "expr": "Bucket([r], 0.00001)",
+   "code": "bucket_edge_places",
+   "sentence": "Bucket's edges can have at most 4 decimal places.",
+   "pos": 12
+  },
+  {
+   "expr": "Bucket([r], 1, -1234.56785)",
+   "code": "bucket_edge_places",
+   "sentence": "Bucket's edges can have at most 4 decimal places.",
+   "pos": 15
+  },
+  {
+   "expr": "Bucket([r], -0, 0)",
    "code": "bucket_edges",
    "sentence": "Bucket's edges must be numbers, rising from left to right.",
-   "pos": 21
+   "pos": 16
   },
   {
    "expr": "Bucket([r], 0.1, 0.10)",
@@ -3981,6 +4176,156 @@
    "pos": 0
   },
   {
+   "name": "trailing whole-number zeros are not significant",
+   "build": [
+    [
+     "1000000000000000",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": 1000000000000000.0
+  },
+  {
+   "name": "15 significant digits then zeros pass",
+   "build": [
+    [
+     "123456789012345000",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": 123456789012345000
+  },
+  {
+   "name": "trailing fraction zeros are not significant",
+   "build": [
+    [
+     "1.500000000000000000000",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": 1.5
+  },
+  {
+   "name": "a literal too large to be a number fails",
+   "build": [
+    [
+     "1",
+     1
+    ],
+    [
+     "0",
+     309
+    ]
+   ],
+   "ok": false,
+   "code": "bad_number",
+   "pos": 0
+  },
+  {
+   "name": "a literal just inside the number range passes",
+   "build": [
+    [
+     "1",
+     1
+    ],
+    [
+     "0",
+     307
+    ]
+   ],
+   "ok": true,
+   "value": 1e+307
+  },
+  {
+   "name": "text of 200 astral characters passes",
+   "build": [
+    [
+     "\"",
+     1
+    ],
+    [
+     "\ud83d\ude00",
+     200
+    ],
+    [
+     "\" = \"x\"",
+     1
+    ]
+   ],
+   "ok": true,
+   "value": false
+  },
+  {
+   "name": "text of 201 astral characters fails",
+   "build": [
+    [
+     "\"",
+     1
+    ],
+    [
+     "\ud83d\ude00",
+     201
+    ],
+    [
+     "\"",
+     1
+    ]
+   ],
+   "ok": false,
+   "code": "text_too_long",
+   "pos": 0
+  },
+  {
+   "name": "2000 code points with astral characters pass",
+   "build": [
+    [
+     "\"",
+     1
+    ],
+    [
+     "\ud83d\ude00",
+     198
+    ],
+    [
+     "\"",
+     1
+    ],
+    [
+     " ",
+     1800
+    ]
+   ],
+   "ok": true,
+   "value": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00"
+  },
+  {
+   "name": "2001 code points with astral characters fail",
+   "build": [
+    [
+     "\"",
+     1
+    ],
+    [
+     "\ud83d\ude00",
+     198
+    ],
+    [
+     "\"",
+     1
+    ],
+    [
+     " ",
+     1801
+    ]
+   ],
+   "ok": false,
+   "code": "too_long",
+   "pos": 2000
+  },
+  {
    "name": "leading zeros are not significant",
    "build": [
     [
@@ -4182,8 +4527,9 @@
   {
    "name": "NUL inside text",
    "expr": "\"\u0000\"",
-   "ok": true,
-   "canonical": "\"\u0000\""
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
   },
   {
    "name": "RTL override",
@@ -4196,8 +4542,8 @@
    "name": "RTL mark inside a field",
    "expr": "[net\u200f]",
    "ok": false,
-   "code": "unknown_field",
-   "pos": 0
+   "code": "bad_char",
+   "pos": 4
   },
   {
    "name": "zero-width space",
@@ -4501,6 +4847,86 @@
    "pos": 0
   },
   {
+   "name": "lone surrogate inside text",
+   "expr": "\"\ud800\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "lone low surrogate inside text",
+   "expr": "\"ab\udfff\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 3
+  },
+  {
+   "name": "lone surrogate in a field",
+   "expr": "[a\udc00]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "RTL override inside text",
+   "expr": "\"a\u202eb\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "bidi isolate inside text",
+   "expr": "\"\u2066x\u2069\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "zero-width joiner inside text",
+   "expr": "\"a\u200db\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "BOM inside text",
+   "expr": "\"\ufeff\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "tag character inside text",
+   "expr": "\"\udb40\udc41\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "NBSP inside text is text",
+   "expr": "\"a\u00a0b\"",
+   "ok": true,
+   "canonical": "\"a\u00a0b\""
+  },
+  {
+   "name": "ideographic space inside text is text",
+   "expr": "\"a\u3000b\"",
+   "ok": true,
+   "canonical": "\"a\u3000b\""
+  },
+  {
+   "name": "tab inside text is text",
+   "expr": "\"a\tb\"",
+   "ok": true,
+   "canonical": "\"a\tb\""
+  },
+  {
+   "name": "emoji inside text is text",
+   "expr": "\"\ud83d\ude00\"",
+   "ok": true,
+   "canonical": "\"\ud83d\ude00\""
+  },
+  {
    "name": "tab and newline between tokens",
    "expr": "[net]\t+\n1",
    "ok": true,
@@ -4613,7 +5039,7 @@
    "name": "chained equals",
    "expr": "[net] = [net] = [net]",
    "ok": false,
-   "code": "unexpected",
+   "code": "chained_compare",
    "pos": 14
   },
   {
@@ -4687,5 +5113,205 @@
    "notes",
    "This formula has no value on 2 notes; those are skipped"
   ]
+ ],
+ "empty_field": [
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": null
+   },
+   "expect": "hour_et"
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05"
+   },
+   "expect": "hour_et"
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": null,
+    "hour_et": 9
+   },
+   "expect": "day"
+  },
+  {
+   "expr": "Hour([day])",
+   "row": {
+    "day": "2026-10-05",
+    "hour_et": 9
+   },
+   "expect": null
+  },
+  {
+   "expr": "[net] / [risk_dollars] + [r]",
+   "row": {
+    "net": 1,
+    "risk_dollars": null,
+    "r": null
+   },
+   "expect": "risk_dollars"
+  },
+  {
+   "expr": "[net] / [risk_dollars] + [r]",
+   "row": {
+    "net": "x",
+    "risk_dollars": 1,
+    "r": 1
+   },
+   "expect": "net"
+  },
+  {
+   "expr": "[net] / [risk_dollars] + [r]",
+   "row": {
+    "net": 1,
+    "risk_dollars": 1,
+    "r": 1
+   },
+   "expect": null
+  },
+  {
+   "expr": "SumIf([hold_minutes], [had_stop])",
+   "row": {
+    "had_stop": true
+   },
+   "expect": "hold_minutes"
+  },
+  {
+   "expr": "1 + 1",
+   "row": {},
+   "expect": null
+  }
+ ],
+ "display_cases": [
+  {
+   "name": "a label equal to another field's key shows that field by its key",
+   "fields": [
+    {
+     "key": "r",
+     "label": "R multiple",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    },
+    {
+     "key": "risk",
+     "label": "R",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[risk] + [r]",
+   "display": "[risk] + [R multiple]"
+  },
+  {
+   "name": "a shared label: the first field keeps it, the second shows its key",
+   "fields": [
+    {
+     "key": "opened",
+     "label": "Day",
+     "type": "day",
+     "hour_key": null,
+     "needs_times": false
+    },
+    {
+     "key": "closed",
+     "label": "Day",
+     "type": "day",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[opened] < [closed]",
+   "display": "[Day] < [closed]"
+  },
+  {
+   "name": "a label holding a bracket shows the key",
+   "fields": [
+    {
+     "key": "odd",
+     "label": "Odd ] label",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[odd] * 2",
+   "display": "[odd] * 2"
+  },
+  {
+   "name": "a label with outer spaces shows the key",
+   "fields": [
+    {
+     "key": "pad",
+     "label": " Padded ",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[pad]",
+   "display": "[pad]"
+  },
+  {
+   "name": "a label longer than 60 characters shows the key",
+   "fields": [
+    {
+     "key": "long",
+     "label": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[long]",
+   "display": "[long]"
+  },
+  {
+   "name": "an unknown key stays as written",
+   "fields": [
+    {
+     "key": "net",
+     "label": "Net P&L",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[gone] + [net]",
+   "display": "[gone] + [Net P&L]"
+  },
+  {
+   "name": "text that no longer tokenizes is returned as stored",
+   "fields": [
+    {
+     "key": "net",
+     "label": "Net P&L",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[net] & 1",
+   "display": "[net] & 1"
+  },
+  {
+   "name": "a stored lone surrogate is replaced so the answer can be encoded",
+   "fields": [
+    {
+     "key": "net",
+     "label": "Net P&L",
+     "type": "number",
+     "hour_key": null,
+     "needs_times": false
+    }
+   ],
+   "canonical": "[net] \ud800",
+   "display": "[net] \ufffd"
+  }
  ]
 }
