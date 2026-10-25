@@ -220,6 +220,9 @@ _DIRECT_USER_TABLES = (
     "j2_routine_reminder_claims",
     "j2_trackers",
     "j2_tracker_values",
+    # Notebook widgets phase 2 (Task 9.6b) -- the routine and tracker Duplicate's Idempotency-Key
+    # rows (ids and a timestamp only). Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_tool_create_keys",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

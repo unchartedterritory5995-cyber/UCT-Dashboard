@@ -56,6 +56,11 @@ The rules:
     every write (`POST`/`PUT`) takes `SCOPE_WRITE` at `WRITE_RATE`; `POST /days` and every `GET`
     take `SCOPE_READ` at `READ_RATE`. Both routers share the two scopes. Per member.
   * Every route is a sync `def`; the body is read by the async dependency `json_body`.
+  * DUPLICATE IS IDEMPOTENT (Task 9.6b, ruling W9-R48): `POST /{id}/duplicate` reads an
+    `Idempotency-Key: <uuid4>` header (`tool_create_keys.duplicate_with_key`, the widget create
+    key's design). The same key on the same source answers the copy it already made (200, with
+    `replayed: true`); the same key on another source or kind is a 409 `conflict`; a missing or
+    malformed key is the plain duplicate. Per member, kept 24 h.
 """
 from __future__ import annotations
 
@@ -70,6 +75,7 @@ from api.services.journal_two import notebook_widgets as nwidgets
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import routine_insights as rinsights
 from api.services.journal_two import routines as rstore
+from api.services.journal_two import tool_create_keys as tkeys
 from api.services.journal_two import trackers as tstore
 from api.services.journal_two.json_depth import _json_depth_exceeds
 from api.services.journal_two.tool_errors import ToolError
@@ -312,10 +318,11 @@ def undelete_routine(rid: str, user: dict = Depends(require_paid)) -> Any:
 
 
 @routines_router.post("/{rid}/duplicate")
-def duplicate_routine(rid: str, user: dict = Depends(require_paid)) -> Any:
+def duplicate_routine(rid: str, request: Request, user: dict = Depends(require_paid)) -> Any:
     uid = _uid(user)
     _write_rate(uid)
-    return _ok(_store(lambda: rstore.duplicate(uid, rid)))
+    key = request.headers.get("idempotency-key")
+    return _ok(_store(lambda: tkeys.duplicate_with_key(uid, "routine", rid, key=key)))
 
 
 @routines_router.put("/{rid}/days/{day}/items/{item_id}")
@@ -438,10 +445,11 @@ def undelete_tracker(tid: str, user: dict = Depends(require_paid)) -> Any:
 
 
 @trackers_router.post("/{tid}/duplicate")
-def duplicate_tracker(tid: str, user: dict = Depends(require_paid)) -> Any:
+def duplicate_tracker(tid: str, request: Request, user: dict = Depends(require_paid)) -> Any:
     uid = _uid(user)
     _write_rate(uid)
-    return _ok(_store(lambda: tstore.duplicate(uid, tid)))
+    key = request.headers.get("idempotency-key")
+    return _ok(_store(lambda: tkeys.duplicate_with_key(uid, "tracker", tid, key=key)))
 
 
 @trackers_router.put("/{tid}/days/{day}")

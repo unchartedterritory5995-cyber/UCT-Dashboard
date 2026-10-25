@@ -268,7 +268,7 @@ def _store_calls_offending(source: str) -> tuple[int, list[str]]:
     tree = ast.parse(source)
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)
-             and n.func.value.id in ("rstore", "tstore", "rinsights")]
+             and n.func.value.id in ("rstore", "tstore", "rinsights", "tkeys")]
     bad = [ast.unparse(n) for n in calls
            if any(k.arg is None or k.arg == "now" for k in n.keywords)]
     return len(calls), bad

@@ -2267,6 +2267,24 @@ _PHASE_2_ALTERS = [
         updated_at TEXT NOT NULL,
         PRIMARY KEY (user_id, tracker_id, day)
     )""",
+    # Notebook widgets phase 2, Task 9.6b (ruling W9-R48): the routine and tracker Duplicate's
+    # Idempotency-Key. One row per (member, key): which kind and source the request copied and
+    # the copy it made (`new_id`), kept 24 h as a replay window (tool_create_keys.py; swept by the
+    # next keyed duplicate). A sibling of the widget create key table, not a reuse of it: that
+    # table keys a definition and a payload hash, this one a kind and a source. ⛔ user-scoped:
+    # unique per member, never across members, and purged with the account
+    # (account_purge._DIRECT_USER_TABLES).
+    """CREATE TABLE IF NOT EXISTS j2_tool_create_keys (
+        user_id    TEXT NOT NULL,
+        key        TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        source_id  TEXT NOT NULL,
+        new_id     TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, key)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_tool_create_keys_created"
+    " ON j2_tool_create_keys(created_at)",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
