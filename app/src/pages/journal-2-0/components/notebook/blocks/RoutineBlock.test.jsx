@@ -114,7 +114,7 @@ const checked = (name) => screen.getByRole('checkbox', { name }).getAttribute('a
 const menuRow = (label) => screen.getByText(label).closest('button')
 const NO_ZERO = [/\b0 (of|sessions)\b/, /0%/]
 
-/** Every text node, SPACE-separated: textContent runs "dates" and "0 of 6" together as "dates0 of 6", where 
+/** Every text node, SPACE-separated: textContent runs "dates" and "0 of 6" together as "dates0 of 6", where \b
  *  sees no boundary and a zero would slip past the check (a mutation proved it). */
 function textOf(el) {
   const out = []
