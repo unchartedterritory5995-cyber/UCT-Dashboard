@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useRef, useSt
 import { UPDATE_ALL, SAVE_NEW, preselectAnswer } from '../widgetBuilder/SaveQuestion'
 import PanelHead from './PanelHead'
 import RestoreQuestion from './RestoreQuestion'
-import { DEFS_URL, getJson, postJson, putJson } from '../../../lib/builtWidgets'
+import { DEFS_URL, getJson, keyedSender, postJson, putJson } from '../../../lib/builtWidgets'
 import { COPY, NO_RETRY, actionFailure, diffWords, readFailure, versionDate } from './myToolsLib'
 import styles from './myTools.module.css'
 
@@ -104,6 +104,8 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
   const [answer, setAnswer] = useState(null)
   const [revert, setRevert] = useState(null)        // {before}: the second step of "save as new" did not land
   const mounted = useRef(true)
+  // R-50: one keyed request per intent (see lib/builtWidgets keyedSender).
+  const [keyed] = useState(() => ({ current: keyedSender() }))
   const listRef = useRef(null)
   const returnRev = useRef(null)
   useEffect(() => () => { mounted.current = false }, [])
@@ -247,7 +249,13 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     if (busy || mode.kind !== 'question') return
     setBusy(true)
     setError(null)
-    const got = await putJson(`/${enc(d.id)}`, { apply: choice === UPDATE_ALL ? UPDATE_ALL : SAVE_NEW }, def.etag)
+    const body = { apply: choice === UPDATE_ALL ? UPDATE_ALL : SAVE_NEW }
+    // R-50: "Save as a new widget" MAKES a widget, so it is keyed: a retry after a lost answer is the same request (the
+    // server replays the copy it made), and a fresh answer after a confirmed one is a new intent with a new key.
+    const got = body.apply === SAVE_NEW
+      ? await keyed.current(`save_new:${d.id}:${mode.before ?? ''}`, body,
+        (idempotencyKey) => putJson(`/${enc(d.id)}`, body, def.etag, { idempotencyKey }))
+      : await putJson(`/${enc(d.id)}`, body, def.etag)
     if (!mounted.current) return
     if (!got.ok) { setBusy(false); refused(got); return }
     const used = Number.isInteger(def.usedIn) ? def.usedIn : 0

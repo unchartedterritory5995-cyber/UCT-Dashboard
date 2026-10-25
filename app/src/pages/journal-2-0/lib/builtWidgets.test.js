@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   BUILT_KIND, DEFS_URL, BUILT_CHANGE_KEYS, FAILURE_COPY, FAILED_SENTENCE,
-  postJson, putJson, getJson, ifMatchHeader, runBuilt, drillBuilt, builtRefreshParams, viewerSettingsOf, failureText,
+  postJson, putJson, getJson, ifMatchHeader, newIdempotencyKey, isIdempotencyKey, outcomeConfirmed, keyedSender, runBuilt, drillBuilt, builtRefreshParams, viewerSettingsOf, failureText,
   overridableFilter, loadAccounts, loadVocabulary, loadCatalog, loadDefinition, __resetBuiltCaches,
 } from './builtWidgets'
 
@@ -280,5 +280,37 @@ describe('the reads', () => {
     fetchSpy.mockResolvedValueOnce(reply(200, { ranges: [{ token: 'ytd', label: 'year to date' }] }))
     expect((await loadCatalog()).ranges[0].token).toBe('ytd')
     expect(fetchSpy.mock.calls[1][0]).toBe('/api/j2/widget-definitions/vocabulary')
+  })
+})
+
+describe('idempotency keys: one authority (round 2)', () => {
+  it('newIdempotencyKey makes uuid4s, distinct, without a secure context', () => {
+    const keys = new Set(Array.from({ length: 50 }, () => newIdempotencyKey()))
+    expect(keys.size).toBe(50)
+    for (const k of keys) expect(isIdempotencyKey(k)).toBe(true)
+    expect(isIdempotencyKey('not-a-key')).toBe(false)
+  })
+
+  it('outcomeConfirmed: landed or refused is known; a lost answer or a bare 5xx is not', () => {
+    expect(outcomeConfirmed({ ok: true, data: {} })).toBe(true)
+    expect(outcomeConfirmed({ ok: false, code: 'count_cap', status: 409 })).toBe(true)
+    expect(outcomeConfirmed({ ok: false, code: 'busy', status: 503 })).toBe(true)
+    expect(outcomeConfirmed({ ok: false, code: 'failed', status: 502 })).toBe(false)
+    expect(outcomeConfirmed({ ok: false, code: 'failed', message: '' })).toBe(false)
+    expect(outcomeConfirmed({ ok: false, code: 'offline', message: '' })).toBe(false)
+  })
+
+  it('keyedSender: same key while unconfirmed with the same body; fresh after a confirmed answer or another body', async () => {
+    const send = keyedSender()
+    const seen = []
+    const answers = [{ ok: false, code: 'failed' }, { ok: true, data: {} }, { ok: true, data: {} }, { ok: false, code: 'failed' }, { ok: true, data: {} }]
+    const go = (intent, body) => send(intent, body, async (k) => { seen.push(k); return answers.shift() })
+    await go('a', { x: 1 })            // lost
+    await go('a', { x: 1 })            // the retry: same key, lands
+    await go('a', { x: 1 })            // a new press after it landed: a new key
+    await go('b', { x: 1 })            // another intent: its own key (lost)
+    await go('b', { x: 2 })            // that intent with another body: a new key, never the old one's
+    expect(seen[1]).toBe(seen[0])
+    expect(new Set([seen[0], seen[2], seen[3], seen[4]]).size).toBe(4)
   })
 })

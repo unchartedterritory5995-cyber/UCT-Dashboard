@@ -3,7 +3,7 @@ import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import { VIEW_LABELS } from '../widgetBuilder/builderCatalog'
-import { DEFS_URL, getJson, postJson, putJson } from '../../../lib/builtWidgets'
+import { DEFS_URL, getJson, keyedSender, postJson, putJson } from '../../../lib/builtWidgets'
 import { ViewGlyph } from '../widgetBuilder/sections/ViewGlyph'
 import UsedInList from './UsedInList'
 import VersionHistory from './VersionHistory'
@@ -207,6 +207,8 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
   const [panelError, setPanelError] = useState(null)
   const [highlight, setHighlight] = useState(defId)
   const rootRef = useRef(null)
+  // R-50: one keyed request per intent (see lib/builtWidgets keyedSender).
+  const [keyed] = useState(() => ({ current: keyedSender() }))
   const returnTo = useRef(null)                     // the widget id whose row a panel was opened from
   const focusAfter = useRef(null)                   // {id?, heading?, fallback?, wait?}: where focus goes next
   const [, setTick] = useState(0)
@@ -415,7 +417,9 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
   }
   const duplicate = (d) => {
     const name = copyName(d.name)
-    act(d, () => postJson('', { name, plan: copiedPlan(d.plan, name) }), (w) => {
+    const body = { name, plan: copiedPlan(d.plan, name) }
+    // R-50: a duplicate MAKES a widget, so it is keyed: a press after a lost answer is the same request (one copy).
+    act(d, () => keyed.current(`duplicate:${d.id}`, body, (idempotencyKey) => postJson('', body, { idempotencyKey })), (w) => {
       say(`Made “${w?.name || name}”.`)
       if (w?.id) focusAfter.current = { id: w.id, wait: 'live' }
       refresh('live')

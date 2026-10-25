@@ -120,6 +120,18 @@ function walk(node, fn) {
  *  (`object`), whether it names a `from` the reader can SEE is a widget (`from`: an object literal or a non-empty
  *  string; a shorthand `from`, a variable, `null` or anything computed is UNKNOWN, since it may be null at run time:
  *  consolidation, 8.16 N3), and whether it names `start` (a spread `...(from ? {} : { start })` counts). */
+/** M-7: an object `from` is a widget only when it names one: a `defId` or `shelfId` whose value is not a literal
+ *  nothing (`null`, `''`, `undefined`). `{}` or `{ defId: null }` opens a NEW widget at run time. */
+function names(p) {
+  if (p.type !== 'Property' || p.computed) return false
+  const k = p.key.name || p.key.value
+  if (k !== 'defId' && k !== 'shelfId') return false
+  const v = p.value
+  if (v.type === 'Literal') return typeof v.value === 'string' && v.value !== ''
+  if (v.type === 'Identifier' && v.name === 'undefined') return false
+  return true
+}
+
 export function builderCalls(src, file = 'x.jsx') {
   const ast = JsxParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
   const out = []
@@ -137,7 +149,8 @@ export function builderCalls(src, file = 'x.jsx') {
         if (key === 'start') start = true
         if (key === 'from' && !p.shorthand) {
           const v = p.value
-          from = v.type === 'ObjectExpression' || (v.type === 'Literal' && typeof v.value === 'string' && v.value !== '')
+          from = (v.type === 'ObjectExpression' && v.properties.some(names))
+            || (v.type === 'Literal' && typeof v.value === 'string' && v.value !== '')
         }
         if (p.type === 'SpreadElement') walk(p.argument, (m) => { if (m.type === 'Property' && (m.key.name === 'start')) start = true })
       }
@@ -175,9 +188,14 @@ describe('every door that opens a NEW widget says where the builder starts', () 
       'openWidgetBuilder(opts)', 'openWidgetBuilder()', 'openWidgetBuilder({ ...opts })', 'openWidgetBuilder({ from })',
       'openWidgetBuilder({ from: target })', 'openWidgetBuilder({ from: null })', "openWidgetBuilder({ from: '' })",
       'openWidgetBuilder({ from: x ? { defId } : null })',
+      // M-7: an object that names no widget
+      'openWidgetBuilder({ from: {} })', 'openWidgetBuilder({ from: { getPos } })',
+      'openWidgetBuilder({ from: { defId: null } })', "openWidgetBuilder({ from: { shelfId: '' } })",
+      'openWidgetBuilder({ from: { defId: undefined } })',
     ]) expect(unproven(at(code)), code).toBe(true)
     for (const code of [
       'openWidgetBuilder({ from: { defId } })', "openWidgetBuilder({ from: 'shelf:win-rate' })",
+      'openWidgetBuilder({ from: { defId, getPos } })', "openWidgetBuilder({ from: { shelfId: 'shelf:x' } })",
       "openWidgetBuilder({ from, start: 'examples' })", "openWidgetBuilder({ from: target, start: 'blank' })",
     ]) expect(unproven(at(code)), code).toBe(false)
   })

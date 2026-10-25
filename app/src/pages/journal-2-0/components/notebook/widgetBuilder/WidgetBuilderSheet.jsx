@@ -5,15 +5,15 @@ import { useHasCoarsePointer, useIsPhone } from '../../../../../hooks/useBreakpo
 import { normalizeParams, paramsPlainText } from '../../../../../widgets/registry'
 import {
   BUILT_KIND, DEFS_URL, FAILED_SENTENCE, FAILURE_COPY, builtRefreshParams, failureText, getJson, loadAccounts,
-  loadCatalog, postJson, putJson, runBuilt,
+  loadCatalog, postJson, putJson, runBuilt, newIdempotencyKey, outcomeConfirmed,
 } from '../../../lib/builtWidgets'
 import { reducer, initState, blankPlan, nameOf, changeKind, DEFAULT_RANGE } from './builderState'
 import {
   indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow,
 } from './builderCatalog'
 import {
-  readDraft, writeDraft, clearDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
-  newCreateKey, pendingOf,
+  readDraft, writeDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
+  pendingOf, slotHeldByOther,
 } from './builderDraft'
 import SourceSection from './sections/SourceSection'
 import WhichOnesSection, { RangePicker, FieldPicker, FilterEditor } from './sections/WhichOnesSection'
@@ -81,6 +81,8 @@ export const RATE_RETRY_MS = 10000
 export const KEYBOARD_RATIO = 0.75
 
 export const KEEP_QUESTION = 'Keep your changes?'
+/** M-2: "Keep my changes" would replace the unsaved widget another open kept (the member keeps one). */
+export const KEEP_REPLACES = 'This replaces your other unsaved widget.'
 export const KEEP_FAILED = "Couldn't keep your changes in this browser. Save them, or they are lost when you close."
 export const RESUME_OFFER = 'Resume your unsaved widget'
 export const STALE_DRAFT = 'This widget changed since you left. Save your version as a new widget?'
@@ -556,7 +558,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       setScreen('builder')
     },
     fresh: () => {
-      clearDraft(uid, draftTarget)
+      // M-3: the draft that was OFFERED goes, never one another tab kept since in the same slot.
+      if (offer) clearOwnDraft(uid, [offer.session || null])
       setOffer(null)
       rootRef.current?.querySelector('[data-gallery-heading]')?.focus()
     },
@@ -639,11 +642,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   /** "Discard them" (8.16 N1), and every finish (ruling R-47): only the member's OWN changes go: a draft this open kept
    *  (its session) or the one it resumed. A draft another open kept, offered and never chosen, stays and is offered
    *  again. */
-  const dropOwnDrafts = () => {
+  const ownSessions = () => {
     const own = new Set([session.current])
     if (resumedFrom.current !== undefined) own.add(resumedFrom.current)
-    clearOwnDraft(uid, own)
+    return own
   }
+  const dropOwnDrafts = () => clearOwnDraft(uid, ownSessions())
   // R-38: leaving without closing (browser navigation, the note's editor destroyed) keeps unsaved edits as a draft,
   // offered again on the next open. The door asks through `registerLeave`; a clean builder writes nothing.
   const leaveRef = useRef(null)
@@ -837,9 +841,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     defId: data.id, defRev: data.rev, how, planKey,
     etag: data.replayed === true && Number.isInteger(data.createdEtag) ? data.createdEtag : data.etag,
   })
-  /** The server's answer settles what happened to the request: it landed, or it was refused. Only a lost answer (no
-   *  status: the network, a timeout) or a bare 5xx from in front of the app leaves it unknown. */
-  const confirmed = (got) => got.ok || (Number.isInteger(got.status) && (got.status < 500 || got.code !== 'failed'))
+  const confirmed = outcomeConfirmed
   /**
    * Send the open's save that MAKES a widget (`kind`: 'create' | 'save_new'), keyed (rulings R-43, R-48, R-49). The
    * unconfirmed request still pending for the same thing is sent AGAIN AS IT WAS (same key, same body), never with
@@ -848,7 +850,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
    * answer ends the pending request; a lost one keeps it, in the draft too, to be sent again.
    */
   const sendKeyed = async (kind, body, st, { defId = null, etag = null } = {}) => {
-    const fresh = () => ({ key: newCreateKey(), kind, body, planKey: planKeyOf(st), defId, etag })
+    const fresh = () => ({ key: newIdempotencyKey(), kind, body, planKey: planKeyOf(st), defId, etag })
     let p = pendingSave.current
     if (!p || p.kind !== kind || (kind === 'save_new' && p.defId !== defId)) p = fresh()
     const go = (q) => {
@@ -1038,10 +1040,13 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     } else if (k === 'ask') {
       // Fix 1, I-2: asked by "Back to examples" (`to: 'gallery'`), the choices lead to the gallery, never close.
       const toG = level.to === 'gallery'
+      // M-2: the member keeps ONE unsaved widget; keeping this one replaces another open's, so the question says so.
+      const replacesOther = slotHeldByOther(uid, ownSessions()) !== undefined
       picker = (
         <div>
           <h3 className={styles.pickerTitle} tabIndex={-1} data-picker-heading="">{KEEP_QUESTION}</h3>
           <p className={styles.sectionHint}>You can come back to them for a day.</p>
+          {replacesOther && <p className={styles.sectionHint} data-testid="keep-replaces">{KEEP_REPLACES}</p>}
           <div className={styles.pickerActions}>
             <button type="button" className={styles.btnPrimary}
               onClick={() => {
@@ -1097,7 +1102,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
                   Resume
                 </button>
                 <button type="button" className={styles.btn}
-                  onClick={() => { clearDraft(uid, draftTarget); setOffer(null) }}>
+                  onClick={() => { clearOwnDraft(uid, [offer.session || null]); setOffer(null) }}>
                   Start fresh
                 </button>
               </div>

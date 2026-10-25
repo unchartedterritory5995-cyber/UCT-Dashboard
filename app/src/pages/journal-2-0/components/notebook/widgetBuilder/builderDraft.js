@@ -16,6 +16,8 @@
 // that SAME request again under its key, and the server answers the widget it already made, never a second one. A key
 // is never reused for anything else: a different payload under it is refused by the server.
 
+import { isIdempotencyKey } from '../../../lib/builtWidgets'
+
 export const DRAFT_PREFIX = 'uct.nb.widgetDraft.'
 export const DRAFT_TTL_MS = 24 * 60 * 60 * 1000
 const VERSION = 1
@@ -31,25 +33,9 @@ export function newSession() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-/** The create POST's `Idempotency-Key` (ruling R-43): a uuid4, made once for the widget a builder open is creating and
- *  kept in its draft, so a POST re-sent after a reload answers the widget it already made. Built from
- *  `crypto.getRandomValues` (available outside a secure context, unlike `crypto.randomUUID`); `Math.random` only where
- *  there is no `crypto` at all. */
-export function newCreateKey() {
-  const b = new Uint8Array(16)
-  const c = typeof globalThis !== 'undefined' ? globalThis.crypto : null
-  if (c && typeof c.getRandomValues === 'function') c.getRandomValues(b)
-  else for (let i = 0; i < 16; i += 1) b[i] = Math.floor(Math.random() * 256)
-  b[6] = (b[6] & 0x0f) | 0x40          // version 4
-  b[8] = (b[8] & 0x3f) | 0x80          // the RFC 4122 variant
-  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
-}
-
-const CREATE_KEY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 /** An unconfirmed keyed save as kept (`{key, kind, body, planKey, defId, etag}`), or null when it is unreadable. */
 export function pendingOf(p) {
-  if (!isRecord(p) || typeof p.key !== 'string' || !CREATE_KEY_RE.test(p.key) || !isRecord(p.body)) return null
+  if (!isRecord(p) || !isIdempotencyKey(p.key) || !isRecord(p.body)) return null
   if (p.kind !== 'create' && p.kind !== 'save_new') return null
   if (p.kind === 'save_new' && (typeof p.defId !== 'string' || !p.defId)) return null
   return {
@@ -91,17 +77,8 @@ export function readDraft(uid, target = null, now = Date.now()) {
   return d
 }
 
-/** Remove the kept draft. With `target` (a widget id, or null for a new widget) only that widget's draft goes,
- *  so saving one widget never throws away another's unsaved work. */
-export function clearDraft(uid, target) {
-  try {
-    if (target !== undefined) {
-      const d = JSON.parse(window.localStorage.getItem(keyOf(uid)) || 'null')
-      if (isRecord(d) && (d.target || null) !== (target || null)) return
-    }
-    window.localStorage.removeItem(keyOf(uid))
-  } catch { /* nothing to clear */ }
-}
+// (A by-target `clearDraft` was removed in consolidation round 2: every clear is by session, `clearOwnDraft`, so a
+// draft another open kept is never cleared by accident: rulings N1, R-47, M-3.)
 
 /**
  * Remove the kept draft only when one of `sessions` kept it (consolidation, 8.16 N1). "Discard them" throws away the
@@ -116,6 +93,21 @@ export function clearOwnDraft(uid, sessions) {
     if (!isRecord(d) || !own.has(typeof d.session === 'string' && d.session ? d.session : null)) return
     window.localStorage.removeItem(keyOf(uid))
   } catch { /* nothing to clear */ }
+}
+
+/** The session of the draft in the member's ONE slot when another open kept it (not one of `sessions`), else
+ *  undefined. Keeping a draft replaces the slot, so the Keep question says so when it would replace another's (M-2). */
+export function slotHeldByOther(uid, sessions) {
+  const own = sessions instanceof Set ? sessions : new Set(sessions || [])
+  try {
+    const raw = window.localStorage.getItem(keyOf(uid))
+    const d = raw ? JSON.parse(raw) : null
+    if (!isRecord(d) || !isRecord(d.plan)) return undefined
+    const s = typeof d.session === 'string' && d.session ? d.session : null
+    return own.has(s) ? undefined : s
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -137,7 +129,7 @@ export function settleDraft(uid, { session, savedKey, target, etag = null }) {
     }
     // Retargeted to the saved widget, the draft is an EDIT of it now: its keyed save landed and has done its job.
     window.localStorage.setItem(keyOf(uid), JSON.stringify({
-      ...d, target: target || null, etag: Number.isInteger(etag) ? etag : null, pending: null, key: undefined,
+      ...d, target: target || null, etag: Number.isInteger(etag) ? etag : null, pending: null,
     }))
   } catch { /* the draft stays as it was */ }
 }

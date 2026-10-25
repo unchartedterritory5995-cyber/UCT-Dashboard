@@ -618,3 +618,58 @@ def test_save_new_key_is_ignored_for_every_other_answer(W):
                             catalog=CAT, now=T0)
     assert got["id"] == src["id"] and "replayed" not in got
     assert _keys() == []
+
+
+# -- round 2 (M-1, M-4) -----------------------------------------------------------
+
+def test_create_key_resend_after_a_validator_change_is_still_a_replay(W, monkeypatch):
+    """M-1: the hash is over the request AS SENT. A deploy that changes how a plan validates (a new default
+    field, a renamed token) between a lost answer and the resend must never refuse the resend."""
+    raw = plan()
+    first = W.create_with_key(A, "Edge", raw, key=KEY, catalog=CAT, now=T0)
+    real = W.validate_plan
+    monkeypatch.setattr(W, "validate_plan", lambda p, cat: {**real(p, cat), "newDefault": True})
+    again = W.create_with_key(A, "Edge", dict(raw), key=KEY, catalog=CAT, now=T0 + timedelta(minutes=5))
+    assert again["id"] == first["id"] and again["replayed"] is True
+    src = _mk(W, name="Src")
+    copy = W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], plan=plan(), apply="save_new",
+                             catalog=CAT, now=T0)
+    monkeypatch.setattr(W, "validate_plan", lambda p, cat: {**real(p, cat), "other": 1})
+    assert W.update_with_key(A, src["id"], key=KEY2, if_match=src["etag"], plan=plan(), apply="save_new",
+                             catalog=CAT, now=T0)["id"] == copy["id"]
+
+
+def test_create_key_two_sends_racing_make_one_widget(W):
+    """M-4: the second send waits on the first's write lock (BEGIN IMMEDIATE), then replays it."""
+    import threading
+    import time as _t
+    held = _conn()
+    held.execute("BEGIN IMMEDIATE")
+    first = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0, conn=held)  # in the open txn
+    out = {}
+
+    def second():
+        out["got"] = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+
+    t = threading.Thread(target=second)
+    t.start()
+    _t.sleep(0.3)
+    assert t.is_alive()                                         # waiting on the lock, not racing past it
+    held.commit()
+    held.close()
+    t.join(5)
+    assert out["got"]["id"] == first["id"] and out["got"]["replayed"] is True
+    assert len(_defs(A)) == 1
+
+
+def test_create_key_primary_key_is_the_backstop(W):
+    """M-4: even without the lock, one (member, key) can hold only one row."""
+    import sqlite3
+    made = W.create_with_key(A, "Edge", plan(), key=KEY, catalog=CAT, now=T0)
+    c = _conn()
+    try:
+        with pytest.raises(sqlite3.IntegrityError):
+            c.execute("INSERT INTO j2_widget_create_keys (user_id, key, definition_id, payload_sha, etag, created_at)"
+                      " VALUES (?, ?, ?, 'x', 1, ?)", (A, KEY, made["id"], T0.isoformat()))
+    finally:
+        c.close()

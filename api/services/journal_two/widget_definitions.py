@@ -396,6 +396,13 @@ def create(user_id: str, name: str | None, plan: dict, *, catalog: Any = None,
 #   * the same key with a DIFFERENT payload is refused (409 `conflict`, `S_KEY_REUSED`): a key
 #     never lets one widget's save land on, or return, another widget (R-48).
 # Kept in their own functions (never inside `create`, `update` or `_clean_name`).
+#
+# ⚠️ 24 h is a REPLAY window, not a retention promise (round 2, M-5): expired rows are deleted by the
+# next keyed save (any member's), inside its own transaction, and every lookup ignores them because the
+# delete runs first; with no keyed traffic they sit until then, or until the member's account purge
+# (account_purge._DIRECT_USER_TABLES). A row holds only ids, a hash and an etag: no member words.
+# Two sends of one key racing: `_write` takes BEGIN IMMEDIATE, so the second waits for the first and
+# then replays it; the (user_id, key) primary key is the backstop (railed in tests).
 
 CREATE_KEY_TTL_S = 24 * 60 * 60
 _KEYS = "j2_widget_create_keys"
@@ -422,8 +429,11 @@ def clean_create_key(raw: Any) -> str | None:
 
 
 def _payload_sha(payload: dict) -> str:
-    """What a keyed request carried, key order aside (two sends of one request agree). A save_new's
-    payload names the widget it copies (`from`), so it can never match a create's."""
+    """What a keyed request carried, AS SENT, key order aside: the raw plan and name from the request
+    body, never the validated plan (round 2, M-1). Two sends of one request are then the same payload
+    whatever the server does in between: a deploy that changes the validator or a catalog default can
+    never turn a legitimate resend into KeyReused. A save_new's payload names the widget it copies
+    (`from`), so it can never match a create's."""
     canon = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
@@ -476,8 +486,8 @@ def create_with_key(user_id: str, name: str | None, plan: dict, *, key: Any,
     if k is None:
         return create(user_id, name, plan, catalog=catalog, now=now, conn=conn)
     cat = _catalog(catalog)
-    valid = validate_plan(plan, cat)                 # PlanTooNew / PlanError carry sentences
-    sha = _payload_sha({"plan": valid, "name": _clean_name(name)})
+    validate_plan(plan, cat)                         # PlanTooNew / PlanError carry sentences
+    sha = _payload_sha({"plan": plan, "name": name})
     now_dt = _now(now)
     with _write(conn) as c:
         again = _keyed(c, user_id, k, sha, now_dt)
@@ -502,9 +512,9 @@ def update_with_key(user_id: str, def_id: str, *, key: Any, if_match: int,
         return update(user_id, def_id, if_match=if_match, name=name, plan=plan, apply=apply,
                       origin=origin, catalog=catalog, now=now, conn=conn)
     cat = _catalog(catalog)
-    valid = validate_plan(plan, cat) if plan is not None else None
-    sha = _payload_sha({"from": def_id, "plan": valid,
-                        "name": _clean_name(name) if name is not None else None})
+    if plan is not None:
+        validate_plan(plan, cat)                     # PlanTooNew / PlanError carry sentences
+    sha = _payload_sha({"from": def_id, "plan": plan, "name": name})
     now_dt = _now(now)
     with _write(conn) as c:
         again = _keyed(c, user_id, k, sha, now_dt)

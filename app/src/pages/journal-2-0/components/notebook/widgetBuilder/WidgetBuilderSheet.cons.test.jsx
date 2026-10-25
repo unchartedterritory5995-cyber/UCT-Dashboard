@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import WidgetBuilderSheet, {
   PREVIEW_DEBOUNCE_MS, RESUME_OFFER, KEEP_QUESTION, BACK_TO_EXAMPLES, STALE_DRAFT, SAVED_NOT_PLACED,
-  SAVED_EDITS_KEPT,
+  SAVED_EDITS_KEPT, KEEP_REPLACES,
 } from './WidgetBuilderSheet'
 import { DRAFT_PREFIX, writeDraft, __forgetSavesInFlight } from './builderDraft'
 import { openWidgetBuilder } from './openWidgetBuilder'
@@ -613,6 +613,70 @@ describe('ruling R-47: a finish clears only its own open\'s draft', () => {
     clickSave()
     await flush()
     expect(posts()).toHaveLength(1)
+    expect(draft()).toBeNull()
+  })
+})
+
+describe('round 2, M-2: the Keep question says when it replaces another open’s unsaved widget', () => {
+  it('draft A from another open is in the slot: the question says so; keeping then replaces it (the member was told)', async () => {
+    keepDraftA()
+    await openGallery()
+    fireEvent.click(screen.getByTestId('example-card-shelf:profit-factor'))
+    await flush()
+    name('My PF')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.getByTestId('keep-replaces')).toHaveTextContent(KEEP_REPLACES)
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my changes' }))
+    expect(draft().plan.display.title).toBe('My PF')
+  })
+
+  it('control: the slot holds nothing, or this open’s own draft: nothing extra is said', async () => {
+    await openGallery()
+    fireEvent.click(screen.getByTestId('example-card-shelf:profit-factor'))
+    await flush()
+    name('My PF')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByTestId('keep-replaces')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    fireEvent.click(screen.getByRole('button', { name: BACK_TO_EXAMPLES }))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my changes' }))     // the slot is now this open's
+    await flush()
+    fireEvent.click(screen.getByTestId('example-card-shelf:profit-factor'))
+    await flush()
+    name('Again')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByTestId('keep-replaces')).toBeNull()
+  })
+})
+
+describe('round 2, M-3: "Start fresh" removes the draft that was OFFERED, never one kept since in another tab', () => {
+  it('builder offer: another tab keeps draft B after A was offered; Start fresh on A leaves B', async () => {
+    keepDraftA()
+    render(<WidgetBuilderSheet uid="u1" onClose={vi.fn()} />)
+    await flush(); await flush(PREVIEW_DEBOUNCE_MS)
+    expect(screen.getByText(RESUME_OFFER)).toBeInTheDocument()
+    writeDraft('u1', { target: null, nameTouched: true, session: 's-B',
+      plan: { v: 1, source: 'closed_trades', range: { token: 'last_30d' }, measures: [{ key: 'net_pnl' }],
+        display: { title: 'Draft B', titleAuto: false } } })
+    fireEvent.click(screen.getByRole('button', { name: 'Start fresh' }))
+    expect(draft()).toMatchObject({ session: 's-B' })
+    expect(draft().plan.display.title).toBe('Draft B')
+  })
+
+  it('gallery offer: the same', async () => {
+    keepDraftA()
+    await openGallery()
+    writeDraft('u1', { target: null, nameTouched: true, session: 's-B',
+      plan: { v: 1, source: 'closed_trades', range: { token: 'last_30d' }, measures: [{ key: 'net_pnl' }],
+        display: { title: 'Draft B', titleAuto: false } } })
+    fireEvent.click(within(screen.getByTestId('examples-gallery')).getByRole('button', { name: 'Start fresh' }))
+    expect(draft()).toMatchObject({ session: 's-B' })
+  })
+
+  it('control: no other tab wrote meanwhile: Start fresh removes the offered draft', async () => {
+    keepDraftA()
+    await openGallery()
+    fireEvent.click(within(screen.getByTestId('examples-gallery')).getByRole('button', { name: 'Start fresh' }))
     expect(draft()).toBeNull()
   })
 })
