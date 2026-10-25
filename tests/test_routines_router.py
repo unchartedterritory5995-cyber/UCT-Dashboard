@@ -378,7 +378,39 @@ def test_count_cap_409_code():
     assert r.status_code == 400 and r.json()["detail"] == {"code": "invalid", "message": tstore.S_BAD_NAME}
 
 
-def test_body_over_8kb_refused_and_deep_body_refused():
+def test_the_largest_legal_routine_and_tracker_are_read_and_stored():
+    """Task 9.6d: the caps are measured from the stores' limits, so the largest body the stores
+    accept goes through, against the REAL stores. The routine one is over the parent's 8 KiB,
+    which refused it."""
+    c = _client()
+    wide = "\U0001F600"           # built here from the stores' limits, not from the router's copy
+    item = {"id": "0" * 36, "text": wide * rstore.ITEM_MAX, "negative": False,
+            "suggest": {"rule": wide * rstore._RULE_MAX, "n": 1000}}
+    fields = {"name": wide * rstore.NAME_MAX, "items": [item] * rstore.ITEMS_CAP,
+              "schedule": {"kind": "weekdays", "days": [0, 1, 2, 3, 4]},
+              "settings": {"done_share": 0.75, "strict": False,
+                           "reminder": {"on": False, "time_et": "23:55"}}}
+    raw = json.dumps({**fields, "sourceTemplateKey": wide * rstore._TEMPLATE_KEY_MAX}).encode()
+    assert len(raw) == nr.LARGEST["create_routine"] > 8 * 1024
+    r = c.post(RB, content=raw, headers={"content-type": "application/json"})
+    assert r.status_code == 200, r.text[:300]
+    made = r.json()
+    assert made["name"] == fields["name"] and len(made["items"]) == rstore.ITEMS_CAP
+    raw = json.dumps(fields).encode()
+    assert len(raw) == nr.LARGEST["save_routine"]
+    r = c.put(f"{RB}/{made['id']}", content=raw,
+              headers={"content-type": "application/json", "If-Match": str(made["etag"])})
+    assert r.status_code == 200, r.text[:300]
+    from api.services.journal_two import tracker_days
+    tracker = {"name": wide * tstore.NAME_MAX, "kind": "duration", "unit": wide * tracker_days.UNIT_MAX,
+               "settings": {"days": "trading"}}
+    raw = json.dumps({**tracker, "sourceTemplateKey": wide * tstore._TEMPLATE_KEY_MAX}).encode()
+    assert len(raw) == nr.LARGEST["create_tracker"]
+    r = c.post(TB, content=raw, headers={"content-type": "application/json"})
+    assert r.status_code == 200 and r.json()["unit"] == tracker["unit"], r.text[:300]
+
+
+def test_body_over_its_cap_refused_and_deep_body_refused():
     c = _client()
     big = {"name": "x" * (nr.MAX_BODY + 10), "items": ITEMS, "schedule": EVERY}
     r = c.post(RB, json=big)
@@ -397,7 +429,8 @@ def test_body_over_8kb_refused_and_deep_body_refused():
     # a chunked body (no Content-Length) is bounded too
     r = c.post(RB, content=iter([b'{"name": "', b"x" * (nr.MAX_BODY + 10), b'"}']))
     assert r.status_code == 413
-    assert nr.MAX_BODY == 8 * 1024 and nr.MAX_BODY_DEPTH == 16
+    assert nr.MAX_BODY_DEPTH == 16
+    assert nr.MAX_BODY == nr.CREATE_ROUTINE_BODY_MAX     # each route's own cap: test_routines_body_reader
 
 
 def test_write_rate_120_and_read_rate_60_separate_scopes(monkeypatch):
@@ -495,8 +528,9 @@ def test_a_parser_RecursionError_is_400_invalid(monkeypatch):
     the depth check sees it; the router must answer 400 `invalid`, never a 500."""
     def boom(*a, **k):
         raise RecursionError("maximum recursion depth exceeded")
-    import types                       # a shim for THIS module only: the client still decodes JSON
-    monkeypatch.setattr(nr, "json", types.SimpleNamespace(loads=boom))
+    import types                       # a shim for THE READER only: the client still decodes JSON
+    from api.services.journal_two import widget_request_body as wbody
+    monkeypatch.setattr(wbody, "json", types.SimpleNamespace(loads=boom))
     c = _client()
     for r in (c.post(RB, json={"name": "x"}),
               c.post(TB + "/days", json={"ids": [], "days": []})):
