@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { TIER1_IDS } from './tier1Library.fixture'
-import { render, cleanup, fireEvent, act } from '@testing-library/react'
+import { render, cleanup, fireEvent, act, within } from '@testing-library/react'
+import { _resetIndicatorHistoryForTests } from '../../indicatorHistoryStore'
 import { useState, Profiler } from 'react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
@@ -324,7 +325,7 @@ const mergeChartSettings = (x) => mergeChartSettingsReal(
 // The FLIP-B writer. Cases that used to move `cs.indicators.<id>.enabled` by hand
 // have to go through it for a flipped id, because that field stopped being the
 // switch — writing it by hand is now a test of a mirror, not of a control.
-const { setIndicatorEnabled, isIndicatorEnabled } = await import('../instanceControls')
+const { setIndicatorEnabled, isIndicatorEnabled, removeDefinition, definitionVisibility } = await import('../instanceControls')
 const { migrateLegacyToInstances, SHIPPED_STACK_ORDER } = await import('../instances')
 // THE ONE LIST. Imported, never re-derived — a second copy of `catalogRows()`
 // inside this file would be the sixteenth hand-written list wearing the name of
@@ -405,6 +406,27 @@ const draw = (settingsOverride, tf = 'D', defId) => render(
  * `.bindings()` directly asserted a LENGTH; those assertions are unchanged.
  */
 const bound = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
+
+/**
+ * ⭐ A1 (D3) — WHAT A DEFINITION-LEVEL OFF WRITES NOW, asserted the same way for every
+ * door that reaches `setIndicatorEnabled(…, false)` over a live instance (the chords,
+ * the right-click entries, the control): the SAME instance, inputs and all, now
+ * `hidden: true` + `hiddenVia: 'definition'`; NO tombstone, for it or for
+ * `legacy:<id>`; and the mirror NOT moved — it means "an instance exists", and a
+ * hidden one still does. The delete these doors used to perform is `removeDefinition`.
+ */
+const expectDefinitionHidden = (next, before, instanceId, defId, door) => {
+  const was = (before.indicatorInstances || []).find(i => i && i.instanceId === instanceId)
+  expect(was, `${door}: no ${instanceId} before the write — vacuous`).toBeTruthy()
+  const list = next.indicatorInstances || []
+  expect(list.find(i => i && i.instanceId === instanceId), `${door} did not HIDE the instance it was given`)
+    .toEqual({ ...was, hidden: true, hiddenVia: 'definition' })
+  expect(list.filter(i => i && i.deleted === true
+    && (i.instanceId === instanceId || i.instanceId === `legacy:${defId}`)),
+  `${door} tombstoned — A1 says OFF hides, it never deletes`).toEqual([])
+  expect(next.indicators?.[defId]?.enabled, `${door} moved the mirror on a hide`)
+    .toBe(before.indicators?.[defId]?.enabled)
+}
 
 /**
  * ⛔ AND THERE IS DELIBERATELY NO `bands()` TWIN OF THE ABOVE.
@@ -531,7 +553,11 @@ const renderChart = ({ settings = null, tf = 'D', ...props } = {}) => {
  *
  * @param want `{ region: 'price'|'volume'|'indicator'|'overlay'|'priceAxis', key? }`
  */
-const openContextMenu = (view, want) => {
+const openContextMenu = (view, want) => openContextMenuHit(view, want).sections
+
+/** …the whole payload — `region` too, which since A1 (C2) carries the pane's HOST
+ *  instance id (`region.hostKey`). `want.hostKey` narrows the scan to that pane. */
+const openContextMenuHit = (view, want) => {
   const el = H.chartContainers.at(-1)
   expect(el, 'no chart container was recorded — the chart never mounted').toBeTruthy()
   const captured = []
@@ -547,7 +573,8 @@ const openContextMenu = (view, want) => {
       if (!hit) continue
       if (hit.region.type !== want.region) continue
       if (want.key && hit.region.key !== want.key) continue
-      return hit.sections
+      if (want.hostKey && hit.region.hostKey !== want.hostKey) continue
+      return hit
     }
   } finally {
     delete el.getBoundingClientRect
@@ -946,20 +973,20 @@ describe('legacy suppression — an engine instance stands its legacy block down
     expect(rsiSeries()).toHaveLength(0)
   })
 
-  it('an instance the VALIDATOR drops never erases the indicator from the chart', () => {
-    // `bogus` is not a declared RSI input, so `normalizeInstances` drops the whole
-    // record. THE CLAIM IS UNCHANGED — a record nobody is going to draw must not
-    // be what decides the indicator disappears — but at Flip B the thing that
-    // saves it is the read-time migrator rather than the legacy block: the toggle
-    // still says RSI is on, so a projected `legacy:rsi` draws it exactly once.
-    draw({
-      ...RSI_ON,
-      indicatorInstances: [{ ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, bogus: 1 } }],
-    })
-    expect(rsiSeries(), 'RSI vanished, or was drawn twice').toHaveLength(1)
-    const bound = H.binderApis[0].bindings()
-    expect(bound).toHaveLength(1)
-    expect(bound[0].key, 'the DROPPED instance is what drew it').toContain('legacy:rsi')
+  it('⭐ A1.4 (owner Q5) — an instance the VALIDATOR drops is NAMED, never silently SUBSTITUTED', () => {
+    // `bogus` is not a declared RSI input, so `normalizeInstances` drops the whole record.
+    // ⚰️ Until A1.4 a projected DEFAULT `legacy:rsi` was drawn in its place — the member saw
+    // "RSI 14" where their own RSI had been, with nothing to say it was not theirs. Owner Q5
+    // (2026-10-13) replaced that substitution with the explicit notice: nothing is drawn under
+    // the name, the chart says "can't be shown", and Repair restores THEIR settings.
+    // ⛔ STILL TRUE: it is never drawn twice, and never from the unvalidated record.
+    const record = { ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, bogus: 1 } }
+    draw({ ...RSI_ON, indicatorInstances: [record] })
+    expect(rsiSeries(), 'a default RSI was substituted for the broken one').toHaveLength(0)
+    expect(bound().filter((b) => b.key.includes('rsi')), 'the binder bound something for RSI').toHaveLength(0)
+    const notice = document.querySelector('[data-testid="unavailable-chip"]')
+    expect(notice, 'the chart did not say the indicator cannot be shown').toBeTruthy()
+    expect(notice.textContent).toMatch(/1 indicator can.t be shown/)
   })
 
   it('…and with the toggle OFF too, it draws nothing rather than a broken series', () => {
@@ -2000,7 +2027,7 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     expect(H.binderApis[0].bindings()[0].series).toBe(before)
   })
 
-  it('the CONTROL turns it OFF and back ON, and never leaves TWO RSI lines', () => {
+  it('A1 (D3) — the CONTROL turns it OFF (hides) and back ON, and never leaves TWO RSI lines', () => {
     // ⭐ FLIP-B SEMANTICS, AND THE SUBSTANTIVE CHANGE FROM WHAT THIS CASE USED TO
     // ASSERT. It moved `cs.indicators.rsi.enabled` by hand, because under Flip A
     // that field was the switch. It is now the MIRROR: with a stored instance
@@ -2011,13 +2038,20 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     // surface calls — Ctrl+I, the checkbox, both right-click items. What must
     // hold in every combination is unchanged: the user never ends up looking at
     // two RSI lines or at an orphan.
+    //
+    // A1 (D3): OFF now HIDES — the SAME instance, inputs kept, marked
+    // `hiddenVia: 'definition'`, the mirror NOT written ("an instance exists" is still
+    // true). A hidden instance is REMOVED from the chart, not parked, so every
+    // line-count below is unchanged; ON shows back the byte-identical instance.
     const base = settings()
     const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(base)} />)
     expect(rsiSeries()).toHaveLength(1)
     const first = rsiSeries()[0].series
 
     const off = setIndicatorEnabled(base, 'rsi', false, registry)
-    expect(off.indicators.rsi.enabled, 'the mirror was not written').toBe(false)
+    expect(off.indicators.rsi, 'a HIDE wrote the mirror').toEqual(base.indicators.rsi)
+    expect(off.indicatorInstances, 'OFF did not hide the instance it was given')
+      .toEqual([{ ...RSI_INSTANCE, hidden: true, hiddenVia: 'definition' }])
     // `rsiSeries()` counts addSeries CALLS and never shrinks, so "the line went
     // away" has to be read off the REMOVAL and off what the binder still holds.
     view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
@@ -2026,6 +2060,7 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     expect(rsiSeries(), 'and nothing drew a replacement').toHaveLength(1)
 
     const backOn = setIndicatorEnabled(off, 'rsi', true, registry)
+    expect(backOn.indicatorInstances, 'ON did not show back EXACTLY what was hidden').toEqual([RSI_INSTANCE])
     view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(backOn)} />)
     expect(H.binderApis[0].bindings(), 'turned back on: the engine draws it again').toHaveLength(1)
     expect(rsiSeries(), 'turned back on: exactly one more, and nothing else drew its own').toHaveLength(2)
@@ -2233,19 +2268,13 @@ describe('the reserved band — the instance reserves it, and the engine lands i
       .toBe(false)
   })
 
-  it('a TOMBSTONE releases the band, and nothing is drawn into it', () => {
-    // The direction Flip A could not express: the toggle says ON, the instance
-    // list says the indicator was deleted, and the LAYOUT agrees with the
-    // instance list. The price pane gets the height back, which is what a user
-    // actually sees.
-    //
-    // ⚠️ THROUGH `setIndicatorEnabled`, NOT A HAND-WRITTEN TOMBSTONE. A tombstone
-    // on `engine-test:rsi` alone does NOT turn RSI off — the legacy toggle is
-    // still true and there is no `legacy:rsi` tombstone to block its projection,
-    // so the migrator puts it straight back. That is correct (it is the same rule
-    // `isIndicatorEnabled` applies) and it is precisely why "off" tombstones EVERY
-    // live instance AND reserves `legacy:<id>`. Writing the tombstone by hand here
-    // would have tested a shape no control can produce.
+  // A1 (D3): the CONTROL no longer tombstones, so this case splits in two. The
+  // control's OFF is a HIDE, and a hidden instance must release the band exactly as a
+  // deleted one does (hidden = removed, not parked). The tombstone half is kept,
+  // driven through `removeDefinition` — the writer that still deletes.
+  it('A1 (D3) — a HIDDEN instance releases the band, and nothing is drawn into it', () => {
+    // The toggle says ON, the instance says hidden, and the LAYOUT agrees with the
+    // instance. The price pane gets the height back, which is what a user sees.
     //
     // ⚠️ BB_CONTROL IS ON THE CHART AND IT IS LOAD-BEARING (B5 Task 4). With the
     // flag deleted, a chart whose only indicator has been tombstoned holds NO
@@ -2253,8 +2282,41 @@ describe('the reserved band — the instance reserves it, and the engine lands i
     // "no rsi band" would read as `undefined` because no engine ran, not because
     // the band was released. BB is a PRICE overlay: it keeps a live binder and a
     // real `paneMargins` object without reserving a band of its own.
-    const off = setIndicatorEnabled(settings({ indicators: { ...RSI_ON.indicators, ...BB_CONTROL } }),
-      'rsi', false, registry)
+    const on = settings({ indicators: { ...RSI_ON.indicators, ...BB_CONTROL } })
+    const off = setIndicatorEnabled(on, 'rsi', false, registry)
+    expect(off.indicatorInstances,
+      'the writer hid nothing — this case is vacuous').toEqual([{ ...RSI_INSTANCE, hidden: true, hiddenVia: 'definition' }])
+    expect(off.indicators.rsi, 'a HIDE wrote the mirror').toEqual(on.indicators.rsi)
+    draw(off)
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx, 'no sync happened — the released-band assertion would be vacuous').toBeTruthy()
+    expect(ctx.paneMargins.volume, 'the margins object is empty — so is the claim below').toBeTruthy()
+    expect(ctx.paneMargins.rsi, 'a band was reserved for a hidden indicator').toBeUndefined()
+    expect(bound().filter(b => b.key.includes('rsi'))).toHaveLength(0)
+    expect(rsiSeries()).toHaveLength(0)
+  })
+
+  it('a TOMBSTONE releases the band, and nothing is drawn into it (removeDefinition)', () => {
+    // The direction Flip A could not express: the toggle says ON, the instance
+    // list says the indicator was deleted, and the LAYOUT agrees with the
+    // instance list.
+    //
+    // ⚠️ THROUGH `removeDefinition`, NOT A HAND-WRITTEN TOMBSTONE. A tombstone
+    // on `engine-test:rsi` alone does NOT turn RSI off — the legacy toggle is
+    // still true and there is no `legacy:rsi` tombstone to block its projection,
+    // so the migrator puts it straight back. That is correct (it is the same rule
+    // `isIndicatorEnabled` applies) and it is precisely why the delete tombstones
+    // EVERY live instance AND reserves `legacy:<id>`. A1 (D4): that delete is
+    // `removeDefinition` now ("Remove all"), the old OFF verbatim.
+    //
+    // ⚠️ BB_CONTROL IS ON THE CHART AND IT IS LOAD-BEARING (B5 Task 4). With the
+    // flag deleted, a chart whose only indicator has been tombstoned holds NO
+    // instances and constructs no binder — so `H.syncCalls` would be empty and
+    // "no rsi band" would read as `undefined` because no engine ran, not because
+    // the band was released. BB is a PRICE overlay: it keeps a live binder and a
+    // real `paneMargins` object without reserving a band of its own.
+    const off = removeDefinition(settings({ indicators: { ...RSI_ON.indicators, ...BB_CONTROL } }),
+      'rsi', registry)
     expect(off.indicatorInstances.filter(i => i.deleted).length,
       'the writer produced no tombstone — this case is vacuous').toBeGreaterThan(0)
     draw(off)
@@ -2285,7 +2347,7 @@ describe('the reserved band — the instance reserves it, and the engine lands i
       'the fallback no longer overlaps volume — this case has stopped meaning anything').toBe(true)
   })
 
-  it('Ctrl+I hides an engine-drawn RSI — the keystroke, and what the keystroke writes', () => {
+  it('A1 (D3) — Ctrl+I hides an engine-drawn RSI — the keystroke, and what the keystroke writes', () => {
     // `keyboardShortcuts.INDICATOR_CHORDS` → StockChart's `toggle:` handler. (The
     // line number that used to be here — `keyboardShortcuts.js:99` — named the
     // hand-written row B4 Task 4 generated away; a comment holding a line number
@@ -2312,18 +2374,32 @@ describe('the reserved band — the instance reserves it, and the engine lands i
 
     expect(persisted.length, 'Ctrl+I persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
     const next = persisted.at(-1)
-    expect(next.indicators.rsi.enabled, 'the MIRROR was not written').toBe(false)
-    expect(next.indicatorInstances, 'the keystroke did not tombstone the instance')
-      .toContainEqual({ instanceId: 'engine-test:rsi', deleted: true })
+    // A1 (D3): the keystroke HIDES — kept, inputs and all; no tombstone; mirror unmoved.
+    expectDefinitionHidden(next, withControl, 'engine-test:rsi', 'rsi', 'Ctrl+I')
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(next)} />)
+    const shownWrites = []
+    const hiddenView = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
+      settingsOverride={legendAlways(next)} onSettingsPersist={(s) => shownWrites.push(s)} />)
     expect(rsiSeries(), "Ctrl+I left the engine's RSI on the chart").toHaveLength(0)
     expect(bound().filter(b => b.key.includes('rsi'))).toHaveLength(0)
     const after = H.syncCalls.at(-1)
     expect(after, 'no sync after Ctrl+I — the band assertion would be vacuous').toBeTruthy()
     expect(after.paneMargins.volume, 'the margins object is empty — so is the claim below').toBeTruthy()
     expect(after.paneMargins.rsi, 'Ctrl+I left the band reserved').toBeUndefined()
+
+    // A1 (D3): …and a SECOND press shows it again — the ORIGINAL instance byte for
+    // byte (marker gone), never an added copy, and ONE RSI line, never two.
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
+    expect(shownWrites.length, 'the second Ctrl+I persisted nothing').toBeGreaterThan(0)
+    const shown = shownWrites.at(-1)
+    expect(shown.indicatorInstances.find(i => i && i.instanceId === 'engine-test:rsi'),
+      'the second Ctrl+I did not show back the ORIGINAL instance').toEqual(RSI_INSTANCE)
+    expect(shown.indicatorInstances.filter(i => i && i.defId === 'rsi' && !i.deleted),
+      'the second Ctrl+I ADDED a copy instead of showing the hidden one').toHaveLength(1)
+    hiddenView.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(shown)} />)
+    expect(rsiSeries(), 'shown again: TWO RSI lines').toHaveLength(1)
   })
 })
 
@@ -2540,7 +2616,7 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     }
   })
 
-  it('Ctrl+B hides an engine-drawn BB — the keystroke, and what the keystroke writes', () => {
+  it('A1 (D3) — Ctrl+B hides an engine-drawn BB — the keystroke, and what the keystroke writes', () => {
     // ⚠️ BB's shortcut is Ctrl+**B** (`INDICATOR_CHORDS` → StockChart's
     // `toggle:bb`); Ctrl+I is RSI's. ⭐ AT FLIP B IT WRITES THE INSTANCE: the old
     // assertion "the keystroke must not rewrite the instance list" was Flip A's,
@@ -2557,14 +2633,27 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
 
     expect(persisted.length, 'Ctrl+B persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
     const next = persisted.at(-1)
-    expect(next.indicators.bb.enabled, 'the MIRROR was not written').toBe(false)
-    expect(next.indicatorInstances, 'the keystroke did not tombstone the instance')
-      .toContainEqual({ instanceId: 'legacy:bb', deleted: true })
+    // A1 (D3): the keystroke HIDES — kept, inputs and all; no tombstone; mirror unmoved.
+    expectDefinitionHidden(next, settings(), 'legacy:bb', 'bb', 'Ctrl+B')
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(next)} />)
+    const shownWrites = []
+    const hiddenView = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
+      settingsOverride={legendAlways(next)} onSettingsPersist={(s) => shownWrites.push(s)} />)
     expect(purple(), "Ctrl+B left the engine's bands on the chart").toHaveLength(0)
     expect(H.binderApis[0] ? H.binderApis[0].bindings() : []).toHaveLength(0)
+
+    // A1 (D3): a SECOND press shows back the ORIGINAL instance — and three lines, never six.
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'b' }) })
+    expect(shownWrites.length, 'the second Ctrl+B persisted nothing').toBeGreaterThan(0)
+    const shown = shownWrites.at(-1)
+    expect(shown.indicatorInstances.find(i => i && i.instanceId === 'legacy:bb'),
+      'the second Ctrl+B did not show back the ORIGINAL instance').toEqual(BB_INSTANCE)
+    expect(shown.indicatorInstances.filter(i => i && i.defId === 'bb' && !i.deleted),
+      'the second Ctrl+B ADDED a copy instead of showing the hidden one').toHaveLength(1)
+    hiddenView.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(shown)} />)
+    expect(purple(), 'shown again: SIX purple lines').toHaveLength(3)
   })
 
   it('the CONTROL turns BB off and back on, and never leaves SIX purple lines', () => {
@@ -3197,7 +3286,7 @@ describe('what pixels cannot see, for MACD', () => {
     }
   })
 
-  it('Ctrl+O hides an engine-drawn MACD — the keystroke, and what the keystroke writes', () => {
+  it('A1 (D3) — Ctrl+O hides an engine-drawn MACD — the keystroke, and what the keystroke writes', () => {
     // ⚠️ MACD's shortcut is Ctrl+**O** (`INDICATOR_CHORDS` → `matchShortcut`'s
     // generated Ctrl map → StockChart's `toggle:` dispatch). Ctrl+I is RSI's,
     // Ctrl+B is BB's. The three line numbers that used to be here all named code
@@ -3219,32 +3308,48 @@ describe('what pixels cannot see, for MACD', () => {
     // legacy toggle was the switch. After the flip the instance is the switch, so
     // a keystroke that only cleared the mirror would tick a box the chart
     // disagrees with, and the next paint would draw MACD straight back from the
-    // still-live instance. `setIndicatorEnabled` writes the TOMBSTONE and the
-    // mirror together, and both halves are asserted because either alone is a
-    // half-working control.
-    expect(next.indicators.macd.enabled, 'Ctrl+O did not clear the mirror').toBe(false)
-    expect(next.indicatorInstances, 'Ctrl+O left the instance live — the chart still draws it')
-      .toContainEqual({ instanceId: 'legacy:macd', deleted: true })
+    // still-live instance.
+    //
+    // A1 (D3): `setIndicatorEnabled` now HIDES the instance (kept, marked) instead of
+    // tombstoning it, and leaves the mirror alone — a hidden instance draws nothing,
+    // so "the chart still draws it" is asserted off the re-render below, unchanged.
+    expectDefinitionHidden(next, settings(), 'legacy:macd', 'macd', 'Ctrl+O')
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(next)} />)
+    const shownWrites = []
+    const hiddenView = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
+      settingsOverride={legendAlways(next)} onSettingsPersist={(s) => shownWrites.push(s)} />)
     expect(onMacdScale(), 'Ctrl+O left the engine\'s MACD on the chart').toHaveLength(0)
     // `bound()`, not `H.binderApis[0].bindings()`: since B5 Task 4 a chart holding
     // nothing constructs no binder at all, which is the same claim and stronger.
     expect(bound()).toHaveLength(0)
+
+    // A1 (D3): a SECOND press shows back the ORIGINAL instance — three series, never six.
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'o' }) })
+    expect(shownWrites.length, 'the second Ctrl+O persisted nothing').toBeGreaterThan(0)
+    const shown = shownWrites.at(-1)
+    expect(shown.indicatorInstances.find(i => i && i.instanceId === 'legacy:macd'),
+      'the second Ctrl+O did not show back the ORIGINAL instance').toEqual(MACD_INSTANCE)
+    expect(shown.indicatorInstances.filter(i => i && i.defId === 'macd' && !i.deleted),
+      'the second Ctrl+O ADDED a copy instead of showing the hidden one').toHaveLength(1)
+    hiddenView.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(shown)} />)
+    expect(onMacdScale(), 'shown again: SIX series').toHaveLength(3)
   })
 
-  it('toggling MACD OFF and back ON never leaves SIX series in the band', () => {
+  it('A1 (D3) — toggling MACD OFF (hide) and back ON never leaves SIX series in the band', () => {
     // ⭐ THE SWITCH IS THE INSTANCE NOW (Flip B). This case used to move
     // `cs.indicators.macd.enabled` BY HAND, which was Flip A's switch — after the
     // flip that field is a mirror, so a case still writing it directly measures a
     // mirror with a green tick. It goes through `setIndicatorEnabled`, the one
     // writer every control door shares, so what is asserted is what a user's
     // keystroke actually does.
+    //
+    // A1 (D3): OFF HIDES now (kept, marked, mirror unmoved) — and a hidden instance is
+    // REMOVED from the chart, so every count below is unchanged.
     const on = { ...MACD_ON, indicatorInstances: [MACD_INSTANCE] }
     const off = setIndicatorEnabled(on, 'macd', false, registry)
-    expect(off.indicatorInstances, 'the writer did not tombstone the instance')
-      .toContainEqual({ instanceId: 'legacy:macd', deleted: true })
+    expectDefinitionHidden(off, on, 'legacy:macd', 'macd', 'the writer')
 
     const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     expect(onMacdScale()).toHaveLength(3)
@@ -3257,6 +3362,7 @@ describe('what pixels cannot see, for MACD', () => {
     expect(H.syncCalls.at(-1).paneMargins.macd, 'off: the band is still reserved').toBeUndefined()
 
     const backOn = setIndicatorEnabled(off, 'macd', true, registry)
+    expect(backOn.indicatorInstances, 'ON did not show back EXACTLY what was hidden').toEqual([MACD_INSTANCE])
     view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(backOn)} />)
     expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws them again').toHaveLength(3)
     expect(onMacdScale(), 'toggled back on: three more, and nothing else added any').toHaveLength(6)
@@ -3691,7 +3797,7 @@ describe('what pixels cannot see, for VWAP', () => {
       .toBeGreaterThan(0)
   })
 
-  it('Alt+U hides an engine-drawn VWAP — the keystroke, and what the keystroke writes', () => {
+  it('A1 (D3) — Alt+U hides an engine-drawn VWAP — the keystroke, and what the keystroke writes', () => {
     // ⚠️ VWAP's shortcut is **Alt+U**, not a Ctrl chord. Ctrl+I is RSI's, Ctrl+O
     // is MACD's, Ctrl+B is BB's. It is ALSO the one chord `matchShortcut` can
     // never deliver — Alt is rejected on its first line so browser Alt shortcuts
@@ -3720,26 +3826,42 @@ describe('what pixels cannot see, for VWAP', () => {
     // `indicators.vwap.enabled` directly, which was right while that field was
     // the switch. VWAP is flipped now, so the instance is — and a keystroke that
     // only cleared the mirror would leave the line on the chart with the checkbox
-    // unticked. `setIndicatorEnabled` writes both.
-    expect(next.indicators.vwap.enabled, 'Alt+U did not clear the mirror').toBe(false)
-    expect(next.indicatorInstances, 'Alt+U left the instance live — the chart still draws it')
-      .toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
+    // unticked.
+    //
+    // A1 (D3): `setIndicatorEnabled` HIDES it now — kept, marked, mirror unmoved.
+    expectDefinitionHidden(next, settings(), 'legacy:vwap', 'vwap', 'Alt+U')
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(next)} />)
+    const shownWrites = []
+    const hiddenView = render(<StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
+      settingsOverride={legendAlways(next)} onSettingsPersist={(s) => shownWrites.push(s)} />)
     expect(bound(), 'Alt+U left the engine\'s VWAP on the chart').toHaveLength(0)
     expect(vwapLines(), 'Alt+U left a legacy VWAP behind instead').toHaveLength(0)
+
+    // A1 (D3): a SECOND press shows back the ORIGINAL instance — one cyan line, never two.
+    act(() => { fireEvent.keyDown(document, { altKey: true, code: 'KeyU' }) })
+    expect(shownWrites.length, 'the second Alt+U persisted nothing').toBeGreaterThan(0)
+    const shown = shownWrites.at(-1)
+    expect(shown.indicatorInstances.find(i => i && i.instanceId === 'legacy:vwap'),
+      'the second Alt+U did not show back the ORIGINAL instance').toEqual(VWAP_INSTANCE)
+    expect(shown.indicatorInstances.filter(i => i && i.defId === 'vwap' && !i.deleted),
+      'the second Alt+U ADDED a copy instead of showing the hidden one').toHaveLength(1)
+    hiddenView.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(shown)} />)
+    expect(bound(), 'shown again: the engine draws nothing').toHaveLength(1)
+    expect(liveVwapLines(), 'shown again: TWO cyan lines').toHaveLength(1)
   })
 
-  it('toggling VWAP OFF and back ON never leaves TWO cyan lines', () => {
+  it('A1 (D3) — toggling VWAP OFF (hide) and back ON never leaves TWO cyan lines', () => {
     // ⭐ THE SWITCH IS THE INSTANCE NOW (Flip B), so this goes through
     // `setIndicatorEnabled` rather than moving `cs.indicators.vwap.enabled` by
     // hand. A case that keeps writing that field after the flip is measuring a
     // mirror with a green tick.
+    //
+    // A1 (D3): OFF HIDES now (kept, marked, mirror unmoved); the line counts are unchanged.
     const on = settings()
     const off = setIndicatorEnabled(on, 'vwap', false, registry)
-    expect(off.indicatorInstances, 'the writer did not tombstone the instance')
-      .toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
+    expectDefinitionHidden(off, on, 'legacy:vwap', 'vwap', 'the writer')
 
     const view = render(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(on)} />,
@@ -3755,6 +3877,7 @@ describe('what pixels cannot see, for VWAP', () => {
     expect(liveVwapLines(), 'and nothing drew a replacement').toHaveLength(0)
 
     const backOn = setIndicatorEnabled(off, 'vwap', true, registry)
+    expect(backOn.indicatorInstances, 'ON did not show back EXACTLY what was hidden').toEqual([VWAP_INSTANCE])
     view.rerender(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(backOn)} />,
     )
@@ -4454,7 +4577,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     expect(items.find(i => i.id === 'ind-volumeProfile')).toBeTruthy()
   })
 
-  it('⭐ …and its entries READ and WRITE through the one reader and the one writer', () => {
+  it('A1 (D3) — ⭐ …and its entries READ and WRITE through the one reader and the one writer', () => {
     // ⛔ THE PREMISE `flipB.test.jsx` GATED STRUCTURALLY, NOW DRIVEN. That file
     // said this door "is only reachable through a real contextmenu on a canvas
     // region the jsdom double cannot produce". It is reachable; its three source
@@ -4471,6 +4594,10 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // (`rsi`), and the CARVED-OUT key it does not (`volumeProfile`, which has no
     // definition at all, so `setIndicatorEnabled` can only move its mirror).
     // Both must toggle off through the menu; only the first may write an instance.
+    //
+    // A1 (D3): "off" for the engine-owned id is a HIDE now — the instance is KEPT and
+    // marked, the mirror is NOT moved (it means "exists"), and nothing is tombstoned.
+    // The carved-out key has no instance to hide, so its OFF still moves the mirror.
     expect(registry.getDefinition('volumeProfile'),
       'volumeProfile gained a definition — this pair needs re-reading').toBeNull()
     for (const [id, flipped] of [['rsi', true], ['volumeProfile', false]]) {
@@ -4481,12 +4608,24 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
       expect(entry.checked, `${id} is ON and the menu says otherwise`).toBe(true)
       act(() => { entry.onSelect() })
       const next = view.lastSettings()
-      expect(isIndicatorEnabled(next, id, ENGINE_OWNED), id).toBe(false)
-      expect(next.indicators[id].enabled, `${id} mirror`).toBe(false)
-      // …and a FLIPPED id really did move the instance, which is the half a
-      // mirror-only write would have passed.
-      expect((next.indicatorInstances || []).some(i => i.instanceId === `legacy:${id}` && i.deleted),
-        `${id} instance`).toBe(flipped)
+      if (flipped) {
+        expect(isIndicatorEnabled(next, id, ENGINE_OWNED), `${id}: a hide is not a delete — it still EXISTS`).toBe(true)
+        expect(definitionVisibility(next, id, ENGINE_OWNED).state, id).toBe('hidden')
+        // ⚠️ The merged blob folds a flipped id's legacy section away, so the mirror may be
+        // ABSENT here; the claim is that a hide never wrote it FALSE.
+        expect(next.indicators?.[id]?.enabled, `${id} mirror moved on a hide`).not.toBe(false)
+        // …and the flipped id really did move the INSTANCE (the half a mirror-only
+        // write would have passed) — to hidden, kept, never a tombstone.
+        const inst = (next.indicatorInstances || []).find(i => i && i.instanceId === `legacy:${id}`)
+        expect(inst && inst.deleted, `${id} instance was tombstoned`).toBeFalsy()
+        expect(inst && inst.hidden, `${id} instance not hidden`).toBe(true)
+        expect(inst && inst.hiddenVia, `${id} hide not marked as the definition's`).toBe('definition')
+      } else {
+        expect(isIndicatorEnabled(next, id, ENGINE_OWNED), id).toBe(false)
+        expect(next.indicators[id].enabled, `${id} mirror`).toBe(false)
+        expect((next.indicatorInstances || []).some(i => i.instanceId === `legacy:${id}`),
+          `${id} instance`).toBe(false)
+      }
     }
   })
 
@@ -4587,7 +4726,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     expect(sec.items[0].id).toBe('i-hide')
   })
 
-  it('and Hide routes at the ONE writer, for a flipped id and an un-flipped one alike', () => {
+  it('A1 (D3/C2) — and Hide routes at the ONE writer, for a flipped id and an un-flipped one alike', () => {
     // ⚠️ BOTH ids, deliberately. A flipped id's writer moves the mirror anyway,
     // so a loop that only ran `rsi` would pass for the wrong reason — B3 measured
     // that a predicate no row consults cannot be caught lying about that row.
@@ -4599,23 +4738,114 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
       H.paneModel = { stackPx: PLOT.height - 40 }
       const cs = mergeChartSettings({ indicators: { [id]: { enabled: true } } })
       const view = renderChart({ settings: cs })
-      const sec = sectionOf(openContextMenu(view, { region: 'indicator', key: id }), 'region')
+      const hit = openContextMenuHit(view, { region: 'indicator', key: id })
+      const sec = sectionOf(hit.sections, 'region')
       expect(sec.items[0].id, id).toBe('i-hide')
+      // A1 (C2): the region names the pane's HOST instance, and Hide addresses IT.
+      expect(hit.region.hostKey, `${id}: the region carries no host instance`).toBe(`legacy:${id}`)
       act(() => { sec.items[0].onSelect() })
       const next = view.lastSettings()
-      expect(isIndicatorEnabled(next, id, ENGINE_OWNED), id).toBe(false)
-      // The MIRROR is what an un-flipped id's legacy block reads. Both, always.
-      expect(next.indicators[id].enabled, `${id} mirror`).toBe(false)
-      // ⛔ AND THE INSTANCE, WHICH IS THE HALF A RAW `setCs` PASSES. With no
-      // stored instance, `isIndicatorEnabled` falls back to the mirror — so a
-      // `setCs('indicators.rsi.enabled', false)` reads "off" on both assertions
-      // above and still leaves a FLIPPED id's projection drawing on the next
-      // paint. The tombstone is what actually turns it off, and it is only
-      // expected for a flipped id: an un-flipped one has a legacy block to read
-      // the mirror, so writing an instance for it would be the opposite defect.
-      expect((next.indicatorInstances || []).some(i => i.instanceId === `legacy:${id}` && i.deleted),
-        `${id} tombstone`).toBe(ENGINE_OWNED.has(id))
+      // A1 (D3/C2): Hide is a HIDE of the host instance (`setInstanceHidden`) — it
+      // still EXISTS, so the reader that means "exists" stays true and the mirror
+      // (which an un-flipped id's legacy block would read) is NOT moved.
+      expect(isIndicatorEnabled(next, id, ENGINE_OWNED), `${id}: Hide deleted it`).toBe(true)
+      expect(definitionVisibility(next, id, ENGINE_OWNED).state, `${id}: Hide left it visible`).toBe('hidden')
+      // ⚠️ The merged blob folds a flipped id's legacy section away, so the mirror may be
+      // ABSENT here; the claim is that a hide never wrote it FALSE.
+      expect(next.indicators?.[id]?.enabled, `${id} mirror moved on a hide`).not.toBe(false)
+      // ⛔ AND THE INSTANCE, WHICH IS THE HALF A RAW `setCs` PASSES. A
+      // `setCs('indicators.rsi.enabled', false)` moves the mirror and leaves the
+      // instance drawing on the next paint. The instance is what actually turns it
+      // off — HIDDEN now, never tombstoned — and it is a MEMBER hide of ONE
+      // instance, so it carries no definition marker.
+      const host = (next.indicatorInstances || []).find(i => i && i.instanceId === `legacy:${id}`)
+      expect(host && host.deleted, `${id} tombstone`).toBeFalsy()
+      expect(host && host.hidden, `${id} host not hidden`).toBe(true)
+      expect(host && 'hiddenVia' in host, `${id}: a one-instance hide wore the definition marker`).toBe(false)
+      expect(ENGINE_OWNED.has(id), `${id} is no longer engine-owned — re-read this case`).toBe(true)
     }
+  })
+
+})
+
+// ─── A1 DOORS (D3/C2) — THE RIGHT-CLICK MENU UNDER "OFF HIDES" ──────────────
+//
+// ⭐ The Indicators ▸ entries and the region's "Hide <label>" are definition- and
+// instance-level doors respectively. Under A1 neither deletes: a hidden study stays
+// LISTED (listing reads "exists"), reads unchecked with a " (hidden)" suffix, and
+// selecting it shows back exactly what was hidden; the region item hides the pane's
+// own HOST instance and nothing else.
+describe('A1 doors', () => {
+  const live = (cs, defId) => (cs.indicatorInstances || []).filter(i => i && i.defId === defId && !i.deleted)
+  const shortOf = (id) => catalogRows().find(r => r.id === id).shortName
+
+  it('A1 (D3) — a hidden study stays LISTED as "<short> (hidden)", unchecked; selecting it shows it back', () => {
+    // `rsi` is a quick-menu row; the Tier 1 id declares `meta.quickMenu: false` and is
+    // listed only while it EXISTS — so a hide must not drop it from the menu either.
+    const tier1 = TIER1_IDS[0]
+    expect(registry.getDefinition(tier1)?.meta?.quickMenu, `${tier1} is a quick-menu row — vacuous`).toBe(false)
+    for (const id of ['rsi', tier1]) {
+      cleanup(); H.reset()
+      const on = setIndicatorEnabled(mergeChartSettings(null), id, true, registry)
+      const hidden = setIndicatorEnabled(on, id, false, registry)
+      expect(definitionVisibility(hidden, id, ENGINE_OWNED).state, id).toBe('hidden')
+
+      const view = renderChart({ settings: hidden })
+      expect(bound().filter(b => b.key.includes(id)), `${id}: a hidden study still draws`).toHaveLength(0)
+      const items = submenuOf(sectionOf(openContextMenu(view, { region: 'price' }), 'region'), 'indicators')
+      const entry = items.find(i => i.id === 'ind-' + id)
+      expect(entry, `${id}: a hidden study fell out of the menu`).toBeTruthy()
+      expect(entry.label).toBe(`${shortOf(id)} (hidden)`)
+      expect(entry.checked, `${id}: a hidden study reads ticked`).toBe(false)
+
+      act(() => { entry.onSelect() })
+      const shown = view.lastSettings()
+      expect(definitionVisibility(shown, id, ENGINE_OWNED).state, id).toBe('shown')
+      // EXACTLY what was hidden, back — no added copy, marker gone.
+      expect(live(shown, id), `${id}: selecting it did not show back what was hidden`).toEqual(live(on, id))
+
+      cleanup(); H.reset()
+      const again = renderChart({ settings: shown })
+      const relisted = submenuOf(sectionOf(openContextMenu(again, { region: 'price' }), 'region'), 'indicators')
+        .find(i => i.id === 'ind-' + id)
+      expect(relisted.label).toBe(shortOf(id))
+      expect(relisted.checked).toBe(true)
+    }
+  })
+
+  it('A1 (C2) — region "Hide" on a pane hosted by ONE of two RSI hides ONLY that instance', () => {
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const a = { instanceId: 'engine-test:rsi-a', defId: 'rsi', hidden: false, inputs: { period: 7, color: '#7b68ee' } }
+    const b = { ...a, instanceId: 'engine-test:rsi-b', inputs: { period: 50, color: '#ff9800' } }
+    const settings = { indicators: { rsi: { enabled: true } }, indicatorInstances: [a, b] }
+    const view = renderChart({ settings })
+    expect(bound().filter(x => x.key.includes('rsi')).length, 'two RSI not both drawn — vacuous').toBeGreaterThan(1)
+
+    const hit = openContextMenuHit(view, { region: 'indicator', key: 'rsi' })
+    const hostId = hit.region.hostKey
+    expect([a.instanceId, b.instanceId], 'the region names no RSI host').toContain(hostId)
+    const [host, other] = hostId === a.instanceId ? [a, b] : [b, a]
+    const item = sectionOf(hit.sections, 'region').items[0]
+    expect(item.id).toBe('i-hide')
+    expect(item.label.startsWith(`Hide ${labelFor('rsi')}`), item.label).toBe(true)
+    expect(item.checked).toBe(true)
+
+    act(() => { item.onSelect() })
+    const next = view.lastSettings()
+    const byId = Object.fromEntries(live(next, 'rsi').map(i => [i.instanceId, i]))
+    expect(byId[host.instanceId], 'the host was not hidden').toMatchObject({ ...host, hidden: true })
+    expect('hiddenVia' in byId[host.instanceId], 'a one-instance hide wore the definition marker').toBe(false)
+    expect(byId[other.instanceId], 'Hide took the OTHER RSI with it').toEqual(other)
+    expect(definitionVisibility(next, 'rsi', ENGINE_OWNED)).toMatchObject({ state: 'shown', live: 2, visible: 1 })
+    expect(next.indicators?.rsi?.enabled, 'a hide moved the mirror').not.toBe(false)
+
+    // …and on the chart: the other copy still draws, the hidden one draws nothing.
+    cleanup(); H.reset()
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    renderChart({ settings: next })
+    const keys = bound().map(x => x.key)
+    expect(keys.some(k => k.includes(other.instanceId)), `the other RSI stopped drawing: ${keys}`).toBe(true)
+    expect(keys.some(k => k.includes(host.instanceId)), `the hidden RSI still draws: ${keys}`).toBe(false)
   })
 })
 
@@ -4787,12 +5017,16 @@ describe('B4 Task 5 — the share link is derived, not a hand-list of the pilots
     expect(Object.keys(state.indicators).length).toBeGreaterThan(4)
   })
 
-  it('and it answers through the ONE reader, so a tombstoned flipped id reads off', async () => {
+  it('A1 (D4) — and it answers through the ONE reader, so a tombstoned flipped id reads off', async () => {
     // The legacy mirror still says `enabled: true` after a hand-corruption; only
     // `isIndicatorEnabled` knows the INSTANCE wins for a flipped id. Reading the
     // raw flag here would put a deleted RSI back on the recipient's chart.
-    const off = setIndicatorEnabled(
-      mergeChartSettings({ indicators: { rsi: { enabled: true } } }), 'rsi', false, registry)
+    //
+    // A1 (D4): the TOMBSTONE comes from `removeDefinition` — the delete. The
+    // control's OFF (`setIndicatorEnabled(…, false)`) only hides since A1 (D3), and
+    // a hidden instance writes no tombstone for this case to disagree with.
+    const off = removeDefinition(
+      mergeChartSettings({ indicators: { rsi: { enabled: true } } }), 'rsi', registry)
     expect(off.indicators.rsi.enabled, 'control: the mirror moved with the instance').toBe(false)
     // ⚠️ A TOMBSTONE IS `{instanceId, deleted:true}` AND CARRIES NO `defId`
     // (`chartDefaults.instanceTombstone`), so it is found by its instance id.
@@ -6513,3 +6747,45 @@ describe('B1 — a member script\'s `barcolor` on the candles', () => {
     } finally { registry.uninstallUserDefinition(inst.defId) }
   })
 })
+
+// ⭐ A1.2 — THE UNDO TOAST, THROUGH THE REAL CHART. A chord hides RSI (A1.1), the chart
+// records it on its own surface's stack, the toast offers Undo, Undo writes the ORIGINAL
+// instance back through the chart's own sink, and Redo hides it again.
+describe('A1.2 — chord → toast → Undo / Redo, through the real chart', () => {
+  const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+  beforeEach(() => { _resetIndicatorHistoryForTests(); try { window.sessionStorage.clear() } catch { /* jsdom */ } })
+  it('Ctrl+I → "RSI hidden · Undo" → Undo restores the instance byte for byte → Redo hides it again', () => {
+    let cur = legendAlways({ ...RSI_ON, indicators: { ...RSI_ON.indicators, ...BB_CONTROL }, indicatorInstances: [RSI_INSTANCE] })
+    const writes = []
+    const el = () => (
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={cur} chartId="t1" indicatorHistoryKey="chart:t1"
+        onSettingsPersist={(s) => { writes.push(s); cur = s }} />
+    )
+    const view = render(el())
+    expect(document.querySelector('[data-testid="indicator-undo-toast"]'), 'a toast before any change').toBeNull()
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
+    view.rerender(el())
+    const toast = document.querySelector('[data-testid="indicator-undo-toast"]')
+    expect(toast, 'no Undo toast after Ctrl+I').toBeTruthy()
+    expect(toast.textContent).toMatch(/hidden/)
+    expect(writes.at(-1).indicatorInstances.find((i) => i && i.instanceId === 'engine-test:rsi').hidden).toBe(true)
+    act(() => { fireEvent.click(within(toast).getByRole('button', { name: 'Undo' })) })
+    expect(writes.at(-1).indicatorInstances.find((i) => i && i.instanceId === 'engine-test:rsi'),
+      'Undo did not restore the ORIGINAL instance').toEqual(RSI_INSTANCE)
+    view.rerender(el())
+    const redo = within(document.querySelector('[data-testid="indicator-undo-toast"]')).getByRole('button', { name: 'Redo' })
+    act(() => { fireEvent.click(redo) })
+    expect(writes.at(-1).indicatorInstances.find((i) => i && i.instanceId === 'engine-test:rsi').hidden).toBe(true)
+    view.unmount(); cleanup(); H.reset()
+  })
+
+  it('an input edit through the chart records nothing (no toast)', () => {
+    let cur = legendAlways({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
+    const el = () => <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={cur} chartId="t2" indicatorHistoryKey="chart:t2" onSettingsPersist={(s) => { cur = s }} />
+    const view = render(el())
+    act(() => { fireEvent.keyDown(document, { key: 'z', ctrlKey: true }) })
+    expect(document.querySelector('[data-testid="indicator-undo-toast"]')).toBeNull()
+    view.unmount(); cleanup(); H.reset()
+  })
+})
+

@@ -10,7 +10,7 @@
  * on UI STATE — the open-layout pointer the workspace persisted and the Dock's aria-current — and
  * the model is never called (the test fails on any /api/agent/turn).
  */
-import { render, screen, act, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, act, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -219,4 +219,42 @@ test('navigation is not Undo: "undo" after a non-layout change still reverses th
   await say('undo')
   expect(await screen.findByText(/nothing of mine to undo/, {}, { timeout: 15000 })).toBeTruthy()
   expect(activeId()).toBe(2)
+}, 45000)
+
+// ⭐ A1.3b (owner Q7) — a MEMBER's layout open is undoable with the Agent's rules: Undo
+// reopens the previous saved layout (here MAIN, an own layout that auto-saves, so nothing
+// was discarded).
+test('A1.3b — Dock open → "Switched to …" → Undo reopens the previous layout', async () => {
+  mount(MAIN)
+  await act(async () => { dockButton('Swing Board').click() })
+  await waitFor(() => expect(activeId()).toBe(2))
+  const toast = await screen.findByTestId('layout-undo-toast')
+  expect(toast.textContent).toMatch(/^Switched to “Swing Board”/)
+  await act(async () => { within(toast).getByRole('button', { name: 'Undo' }).click() })
+  await waitFor(() => expect(activeId()).toBe(1))
+  expect(modelCalls).toBe(0)
+}, 30000)
+
+// ⛔ Agent review (2026-10-13): an open that does NOT switch the board (a layout with no
+// widgets — applyTemplate returns early) must never say "Switched to …".
+test('A1.3b — a Dock open that does not land shows NO toast', async () => {
+  const EMPTY = { id: 4, name: 'Empty Board', scope: 'user', groups: null, layout: { cols: 24 } }
+  library = { global: [FIRM], mine: [MAIN, SWING, MACRO, EMPTY] }
+  mount(MAIN)
+  await act(async () => { dockButton('Empty Board').click() })
+  await new Promise((r) => setTimeout(r, 300))
+  expect(activeId()).toBe(1)
+  expect(screen.queryByTestId('layout-undo-toast')).toBeNull()
+}, 30000)
+
+// ⛔ Agent integration test (2026-10-13): the member's toast must not outlive the switch it names.
+test('A1.3b — the toast goes when the board moves on to another layout', async () => {
+  mount(MAIN)
+  await act(async () => { dockButton('Swing Board').click() })
+  await waitFor(() => expect(activeId()).toBe(2))
+  expect((await screen.findByTestId('layout-undo-toast')).textContent).toMatch(/^Switched to “Swing Board”/)
+  await say('open Macro Board')
+  await waitFor(() => expect(activeId()).toBe(3), { timeout: 15000 })
+  await waitFor(() => expect(screen.queryByText(/Switched to “Swing Board”/)).toBeNull())
+  expect(modelCalls).toBe(0)
 }, 45000)

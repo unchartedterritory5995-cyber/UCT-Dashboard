@@ -380,8 +380,20 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // with that one key dropped reproduces the prior digest byte-for-byte. The key is
   // read only for a breadth / indicator series, so no stock chart changes a pixel.
   // (Prior value: 206f81e6a93b20ca0c7dc72131ecec0e0a1e91847e1c0b9e43814a807aec8a19)
+  // 2026-10-25: re-pinned for 96194c642c (Round B fix 1: the chart calculator's
+  // `positionCalc.accountSize` default reads the one client unset account size,
+  // constants/accountSizeDefault.json = 100,000, railed to the server by
+  // tests/test_account_size_authority.py; it was a third default of 50,000). That commit
+  // left this rail red on master. ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED: every
+  // fixture's merged blob was dumped (sorted keys) on master 3891770a19 + A1 and on the
+  // same tree with only that default put back to 50000, and diffed: CHANGED ONLY
+  // `positionCalc.accountSize` 50000 → 100000 in the one fixture that stores no account
+  // size of its own (the others keep theirs). 0 added, 0 removed. With the default put
+  // back the prior digest reproduces byte-for-byte. The value feeds only the position
+  // calculator panel, so no chart draws a pixel differently.
+  // (Prior value: 10ee25844f50734faee52fe6e84abc7353c37c3afe250bc12a1198db7320f873)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '10ee25844f50734faee52fe6e84abc7353c37c3afe250bc12a1198db7320f873'
+    'c175de174f63cfe5ee622dc2cca3069965a7576b3925720f7cbf061a3707a8e8'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
