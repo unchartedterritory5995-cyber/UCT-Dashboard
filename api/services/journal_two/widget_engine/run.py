@@ -99,19 +99,26 @@ _SAMPLE_LANES = frozenset({"preview", "example"})
 NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES | wplan.WAVE10_SOURCES
 
 
-#: ⛔ INTERIM GUARD (ruling W10-R46) -- remove in 10.5/10.6, when the engine applies these. Plan
-#: format 3 VALIDATES formulas and four display options (Task 10.4) before the engine EXECUTES them:
-#: a formula measure, filter or split would answer a 500 (`m["key"]`, an unknown field), and the
-#: display options would run but be silently ignored (a running total drawn as daily values). So a
-#: plan that uses any of them is refused with a member sentence, never run. Each entry is removed by
-#: the task that makes the engine apply it; `test_w10_pending_guard_expires_with_its_entries` rails
-#: that the set only shrinks to empty and then this guard goes.
-_W10_PENDING = frozenset({"formula_measure", "formula_filter", "formula_split",
-                          *wplan.WAVE10_DISPLAY})
+#: ⛔ INTERIM GUARD (ruling W10-R46) -- each entry is removed by the task that makes its door
+#: apply the feature; `test_w10_pending_guard_expires_with_its_entries` rails that the sets only
+#: shrink to empty and then this guard goes. A plan using a pending feature is refused with a
+#: member sentence (400), never run into a 500 or a wrong number.
+#:
+#: The w10 feature names `w10_pending` detects (the display options from the one list).
+W10_FEATURES = ("formula_measure", "formula_filter", "formula_split", *wplan.WAVE10_DISPLAY)
+#: `/run`, `/preview` and `/examples` (Task 10.5 applies formula measures and splits, the running
+#: total, goal targets, stop-after and quadrants). A formula FILTER stays: the scan's SQL builder
+#: (`compile._filters`) refuses a `formula:` field today, and a last-N range must keep the newest
+#: N that pass it -- Task 10.6 removes this entry when the SQL side lands.
+_W10_PENDING = frozenset({"formula_filter"})
+#: `/drill` (drill.py calls `refuse_w10_pending` with this default): it reads splits and scatter
+#: measures by catalog key, so formulas wait for Task 10.6; it never reads the display options.
+_W10_DRILL_PENDING = frozenset({"formula_measure", "formula_filter", "formula_split"})
 
 
-def w10_pending(plan: Any) -> list[str]:
-    """Which `_W10_PENDING` features a (validated) plan uses, in a fixed order. Total."""
+def w10_pending(plan: Any, pending: frozenset | None = None) -> list[str]:
+    """Which of `pending` (default: every door's `_W10_PENDING` union `_W10_DRILL_PENDING`)
+    features a (validated) plan uses, in a fixed order. Total."""
     if not isinstance(plan, dict):
         return []
     used: list[str] = []
@@ -130,13 +137,15 @@ def w10_pending(plan: Any) -> list[str]:
     display = plan.get("display")
     if isinstance(display, dict):
         used.extend(k for k in wplan.WAVE10_DISPLAY if k in display)   # the one display list
-    return [u for u in used if u in _W10_PENDING]
+    pending = _W10_PENDING | _W10_DRILL_PENDING if pending is None else pending
+    return [u for u in used if u in pending]
 
 
-def refuse_w10_pending(plan: Any) -> None:
-    """Raise `PlanError(S_UNREADABLE)` when the plan uses a wave 10 feature the engine cannot apply
-    yet (`_W10_PENDING`): a 400 with a member sentence, never a crash or a wrong number."""
-    if w10_pending(plan):
+def refuse_w10_pending(plan: Any, pending: frozenset | None = None) -> None:
+    """Raise `PlanError(S_UNREADABLE)` when the plan uses a wave 10 feature this door cannot
+    apply yet: a 400 with a member sentence, never a crash or a wrong number. `pending` is the
+    door's set; the default is drill's (`_W10_DRILL_PENDING`, drill.py calls it bare)."""
+    if w10_pending(plan, _W10_DRILL_PENDING if pending is None else pending):
         raise PlanError(wplan.S_UNREADABLE)
 
 
@@ -162,6 +171,27 @@ class EngineTooLong(Exception):
     def __init__(self, sentence: str = TOO_LONG):
         super().__init__(sentence)
         self.sentence = sentence
+
+
+def _budget_clock() -> float:
+    return time.monotonic()
+
+
+class Budget:
+    """A run's time budget for the work it does in Python (W9-R17): started at admission, it
+    lasts `seconds`; `check()` raises `EngineTooLong` past it (`Superseded` once a newer preview
+    replaced this one). `aggregate.evaluate` calls it every `CHECK_EVERY` rows it walks."""
+
+    def __init__(self, seconds: float = DEADLINE_S, *,
+                 superseded: Callable[[], bool] = lambda: False):
+        self.end = _budget_clock() + seconds
+        self.superseded = superseded
+
+    def check(self) -> None:
+        if self.superseded():
+            raise Superseded()
+        if _budget_clock() > self.end:
+            raise EngineTooLong()
 
 
 class DailyCapReached(Exception):
@@ -405,6 +435,45 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str,
             days += "|" + routines() + "|" + trackers()
         return days
     return trades
+
+
+# -- goal targets (wave 10) ---------------------------------------------------------------------
+
+def _goal_target(conn: sqlite3.Connection, user_id: str, account_id: str | None,
+                 period: str) -> tuple[float | None, int]:
+    """(the member's `period` goal, how many accounts have none) from `j2_accounts.goals`, read
+    `WHERE user_id = ?` only. One of the member's accounts reads that account; None or an id that
+    is not theirs reads all their accounts (the existing rule), the target being the sum of the
+    goals set. A goal of 0 or less, or one that is not a number, is not a goal (no fabricated
+    zero target). No account holding the goal gives (None, accounts)."""
+    rows = conn.execute("SELECT id, goals FROM j2_accounts WHERE user_id = ? ORDER BY id",
+                        (user_id,)).fetchall()
+    mine = [r for r in rows if r[0] == account_id] if account_id else []
+    rows = mine or rows
+    total, have, missing = 0.0, 0, 0
+    for _aid, raw in rows:
+        try:
+            goals = json.loads(raw) if raw else {}
+        except (TypeError, ValueError):
+            goals = {}
+        g = nw._num(goals.get(period)) if isinstance(goals, dict) else None
+        if g is None or isinstance(goals.get(period), bool) or g <= 0:
+            missing += 1
+            continue
+        total += g
+        have += 1
+    return (total if have else None), missing
+
+
+def _goal_period(plan: dict) -> str | None:
+    """The goal period a `display.targetGoal` plan follows, or None."""
+    if not (plan.get("display") or {}).get("targetGoal"):
+        return None
+    return wplan.GOAL_TOKENS.get((plan.get("range") or {}).get("token"))
+
+
+def _w10_on() -> bool:
+    return nw.notebook_widgets_wave_on(10)
 
 
 # -- the daily counter -----------------------------------------------------------------------------
@@ -822,21 +891,23 @@ def _sample_scan(source_key: str) -> wsources.Scan:
 
 def _card(plan: dict, base: wsources.Scan, today: date, now: datetime, *, sample: bool,
           settings: dict | None = None, notices: list[str] | None = None,
-          def_id: Any = None, def_rev: Any = None, latest_rev: Any = None) -> dict:
+          def_id: Any = None, def_rev: Any = None, latest_rev: Any = None,
+          check: Callable[[], None] | None = None, w10: bool = False, goal: Any = None,
+          probe: bool = False) -> dict:
     """Evaluate one validated plan over `base` (a covering scan) and build its payload."""
     rng = wplan.resolve_range(plan["range"], today)
     crng = _compare_range(plan, rng, today)
     scan = _narrow(plan["source"], base, plan, rng)
-    result = waggregate.evaluate(scan.rows, plan, wsources.CATALOG)
+    result = waggregate.evaluate(scan.rows, plan, wsources.CATALOG, check=check)
     cresult = None
     if crng is not None:
         cscan = _narrow(plan["source"], base, plan, crng)
-        cresult = waggregate.evaluate(cscan.rows, plan, wsources.CATALOG)
+        cresult = waggregate.evaluate(cscan.rows, plan, wsources.CATALOG, check=check)
     return wpayload.build_payload(
         result=result, plan=plan, settings=settings or {}, def_id=def_id, def_rev=def_rev,
         latest_rev=latest_rev, rng=rng, scan=scan, sample=sample, now=now,
         compare_result=cresult, compare_label=crng.label if crng is not None else None,
-        account_name=None, notices=notices or [])
+        account_name=None, notices=notices or [], w10=w10, goal=goal, probe=probe)
 
 
 # -- the run ---------------------------------------------------------------------------------------
@@ -894,7 +965,7 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
     today = nw._today_et(now)
 
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
-    refuse_w10_pending(base)                          # W10-R46: remove in 10.5/10.6
+    refuse_w10_pending(base, _W10_PENDING)            # W10-R46: Task 10.6 empties it
     if sample and _never_sample(base):
         sample = False                                # W9-R5: the member's own routines and trackers
     viewer = tool_viewer(base, clean_settings(settings))
@@ -905,9 +976,12 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
         mine = preview_generation(user_id)
         superseded = lambda: _preview_gen_now(user_id) != mine          # noqa: E731
 
+    w10 = _w10_on()
+    probe = lane == "preview"
     if sample:
         return _run_sample(user_id, base, viewer, lane=lane, superseded=superseded, now=now,
-                           def_id=def_id, def_rev=def_rev, latest_rev=latest_rev)
+                           def_id=def_id, def_rev=def_rev, latest_rev=latest_rev, w10=w10,
+                           probe=probe)
 
     with _connection() as conn:
         with deadline(conn, superseded=superseded):
@@ -924,8 +998,9 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
         echo = dict(viewer)
         if "accountId" in echo and echo["accountId"] != acc:
             echo["accountId"] = None                  # a foreign id is treated as absent, never echoed
+        # wave 10: the flag (a max drawdown's days) and the preview's `probe` change the payload
         key = _cache_key(user_id, merged, echo, stamp, today.isoformat(), def_id, def_rev, latest_rev,
-                         notices)
+                         notices + _w10_key(w10, probe))
 
         hit = _CACHE.get(key)
         if hit is not None:
@@ -940,20 +1015,27 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
             crng = _compare_range(merged, rng, today)
             scan_settings = {"accountId": acc}
             with admit(user_id, lane):
+                budget = Budget(DEADLINE_S, superseded=superseded)     # started at admission
+                goal = None
                 with deadline(conn, superseded=superseded):
                     scan = wsources.scan(conn, merged, scan_settings, rng, user_id, today=today)
                     cscan = (wsources.scan(conn, merged, scan_settings, crng, user_id, today=today)
                              if crng is not None else None)
+                    period = _goal_period(merged)
+                    if period:
+                        goal = _goal_target(conn, user_id, acc, period)
                 if superseded():
                     raise Superseded()
-                result = waggregate.evaluate(scan.rows, merged, wsources.CATALOG)
-                cresult = (waggregate.evaluate(cscan.rows, merged, wsources.CATALOG)
+                result = waggregate.evaluate(scan.rows, merged, wsources.CATALOG,
+                                             check=budget.check)
+                cresult = (waggregate.evaluate(cscan.rows, merged, wsources.CATALOG,
+                                               check=budget.check)
                            if cscan is not None else None)
             out = wpayload.build_payload(
                 result=result, plan=merged, settings=echo, def_id=def_id, def_rev=def_rev,
                 latest_rev=latest_rev, rng=rng, scan=scan, sample=False, now=now,
                 compare_result=cresult, compare_label=crng.label if crng is not None else None,
-                account_name=account_name, notices=notices)
+                account_name=account_name, notices=notices, w10=w10, goal=goal, probe=probe)
             _CACHE.set(key, out, CACHE_TTL_S)
             if lane == "run":
                 count_run(user_id)
@@ -965,17 +1047,23 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
         return copy.deepcopy(value)
 
 
+def _w10_key(w10: bool, probe: bool) -> list[str]:
+    """The cache key's wave 10 part: empty for a wave 9 run, so its key is the one it was."""
+    return (["w10"] if w10 else []) + (["probe"] if probe else [])
+
+
 def _run_sample(user_id: str, base: dict, viewer: dict, *, lane: Lane,
                 superseded: Callable[[], bool], now: datetime, def_id: Any, def_rev: Any,
-                latest_rev: Any) -> dict:
-    """`run_plan(sample=True)`: the plan over the sample book (no database read)."""
+                latest_rev: Any, w10: bool = False, probe: bool = False) -> dict:
+    """`run_plan(sample=True)`: the plan over the sample book (no database read; a goal target
+    therefore reads no goal and says how to set one)."""
     today = sample_today()
     merged = wplan.validate_plan(_merge(base, viewer, None), wsources.CATALOG)
     echo = dict(viewer)
     if "accountId" in echo:
         echo["accountId"] = None                      # the book's accounts are never the member's
     key = _cache_key(user_id, merged, echo, "sample|" + _book()["digest"], today.isoformat(),
-                     def_id, def_rev, latest_rev, ["sample"])
+                     def_id, def_rev, latest_rev, ["sample"] + _w10_key(w10, probe))
     hit = _CACHE.get(key)
     if hit is not None:
         return copy.deepcopy(hit)
@@ -983,9 +1071,11 @@ def _run_sample(user_id: str, base: dict, viewer: dict, *, lane: Lane,
         if superseded():
             raise Superseded()
         with admit(user_id, lane):
+            budget = Budget(DEADLINE_S, superseded=superseded)
             book_scan = _sample_scan(merged["source"])
             out = _card(merged, book_scan, today, now, sample=True, settings=echo, def_id=def_id,
-                        def_rev=def_rev, latest_rev=latest_rev)
+                        def_rev=def_rev, latest_rev=latest_rev, check=budget.check, w10=w10,
+                        goal=(None, 0) if _goal_period(merged) else None, probe=probe)
         if superseded():
             raise Superseded()
         _CACHE.set(key, out, CACHE_TTL_S)
@@ -1056,7 +1146,7 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
         ex = wshelf.example(sid)
         if ex is None:
             raise PlanError(S_UNKNOWN_EXAMPLE)
-        refuse_w10_pending(ex["plan"])                # W10-R46: remove in 10.5/10.6
+        refuse_w10_pending(ex["plan"], _W10_PENDING)  # W10-R46: Task 10.6 empties it
         items.append((sid, ex["plan"]))
     now = now or datetime.now(timezone.utc)
     srcs = list(dict.fromkeys(p["source"] for _sid, p in items))
@@ -1070,6 +1160,7 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
     # that card alone (the sample book has none, and an item split changes the rows).
     own = {sid for sid, p in items if _never_sample(p)}
     real_today = nw._today_et(now)
+    w10 = _w10_on()
     with _connection() as conn:
         with deadline(conn):
             sample = wants_sample(conn, user_id)
@@ -1079,7 +1170,8 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
                       if not sample or tool_plan[s] is not None}
         today = sample_today() if sample else real_today
         blob = json.dumps([user_id, "examples", wanted, sample, stamps, today.isoformat(),
-                           real_today.isoformat(), _book()["digest"] if sample else None],
+                           real_today.isoformat(), _book()["digest"] if sample else None]
+                          + _w10_key(w10, False),
                           sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         key = "widget_examples::" + hashlib.sha1(blob.encode("utf-8")).hexdigest()
         hit = _CACHE.get(key)
@@ -1097,11 +1189,18 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
                 if crng is not None:
                     per_src[p["source"]].append(crng)
             with admit(user_id, "example"):
+                budget = Budget(DEADLINE_S)
                 covers: dict[str, wsources.Scan] = {}
                 mine: dict[str, wsources.Scan] = {}
+                goals: dict[str, Any] = {}
                 if sample:
                     covers = {s: _sample_scan(s) for s in per_src}
                 with deadline(conn):
+                    for sid, p in items:
+                        period = _goal_period(p)
+                        if period:
+                            goals[sid] = ((None, 0) if sample and sid not in own
+                                          else _goal_target(conn, user_id, None, period))
                     if not sample:
                         for s in per_src:
                             covers[s] = wsources.scan(conn, _cover_plan(s), {"accountId": None},
@@ -1116,8 +1215,11 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
                             conn, p, {"accountId": None},
                             _cover_range([rng] + ([crng] if crng is not None else []), real_today),
                             user_id, today=real_today)
-                cards = {sid: (_card(p, mine[sid], real_today, now, sample=False) if sid in own
-                               else _card(p, covers[p["source"]], today, now, sample=sample))
+                cards = {sid: (_card(p, mine[sid], real_today, now, sample=False,
+                                     check=budget.check, w10=w10, goal=goals.get(sid))
+                               if sid in own
+                               else _card(p, covers[p["source"]], today, now, sample=sample,
+                                          check=budget.check, w10=w10, goal=goals.get(sid)))
                          for sid, p in items}
             out = {"sample": sample, "cards": cards}
             _CACHE.set(key, out, CACHE_TTL_S)

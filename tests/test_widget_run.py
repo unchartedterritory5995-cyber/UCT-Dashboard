@@ -622,3 +622,60 @@ def test_run_50k_trades_under_budget(conn, monkeypatch, capsys):
               f"stamp+ownership {pre:.3f}s")
     assert out["capped"] is True and out["count"] == 5000
     assert timing["sql"] < 1.5 and py < 1.0
+
+
+# -- wave 10 (Task 10.5) -------------------------------------------------------------------------
+
+def _formula_plan(**kw):
+    raw = {"v": 1, "source": "closed_trades", "range": {"token": "last_30d"},
+           "formulas": [{"id": "f1", "name": "Double", "expr": "[net] * 2", "format": "money"}],
+           "measures": [{"formula": "f1", "agg": "sum"}]}
+    raw.update(kw)
+    return raw
+
+
+def test_a_formula_run_is_evaluated_under_the_run_budget(conn, monkeypatch):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    made = []
+    real = run.Budget
+
+    class Spy(real):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            made.append(self)
+
+    monkeypatch.setattr(run, "Budget", Spy)
+    out = _go(_formula_plan())
+    assert out["value"]["v1"] == 100.0 and len(made) == 1
+    assert made[0].end - run._budget_clock() <= run.DEADLINE_S
+
+
+def test_the_wave10_flag_and_the_preview_probe_are_in_the_cache_key(conn, monkeypatch):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    add_trade(conn, UID, day="2026-10-21", pnl=-80)
+    dd = _plan(measures=("max_drawdown",))
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    assert "drawdown" not in _go(dd)
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    assert _go(dd)["drawdown"]["trough"] == "2026-10-21"        # not the cached wave 9 payload
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    assert "drawdown" not in _go(dd)
+    plan = _formula_plan()
+    assert "probe" in _go(plan, lane="preview")
+    assert "probe" not in _go(plan)                              # the run never gets the probe
+    assert "probe" in _go(plan, lane="preview")
+
+
+def test_a_run_with_no_wave10_feature_keeps_its_cache_key(conn, monkeypatch):
+    """A wave 9 run's cache key is byte-for-byte the key it was before Task 10.5."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    keys = []
+    real = run._cache_key
+
+    def spy(*a, **k):
+        keys.append(a)
+        return real(*a, **k)
+
+    monkeypatch.setattr(run, "_cache_key", spy)
+    _go()
+    assert keys and keys[0][-1] == []                             # no notices, no wave 10 marks

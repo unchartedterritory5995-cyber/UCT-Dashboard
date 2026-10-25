@@ -265,16 +265,61 @@ def _total_r(rows):
     return _mv(sum(rs) if rs else None, len(rows), len(rs))
 
 
+#: A recovery is a return to the peak; float noise on an equal sum does not hold one back.
+_RECOVERY_EPS = 1e-9
+
+
+@dataclass(frozen=True)
+class DrawdownSpan:
+    """Where the max drawdown happened, as ET days (ISO) or None. `peak` is the last day the
+    running net stood at the peak the fall started from (None: the fall started from the range's
+    start, the peak floor of 0); `trough` the deepest day; `recovered` the first day after it
+    back at that peak (None: not recovered yet). All three are None when there is no drawdown."""
+    peak: str | None
+    trough: str | None
+    recovered: str | None
+
+
+_NO_SPAN = DrawdownSpan(None, None, None)
+
+
+def _drawdown_walk(rows) -> tuple[float, DrawdownSpan]:
+    """The ONE walk of the cumulative daily net curve (`_daily`) from its running peak (floor 0):
+    the deepest fall, and where it happened. `_max_drawdown` and `drawdown_span` both read this,
+    so the span can never describe a different curve from the number."""
+    curve = _daily(rows)
+    run = peak = max_dd = 0.0
+    peak_day: str | None = None
+    worst: tuple[str | None, str | None, float] = (None, None, 0.0)   # peak day, trough, peak
+    totals: list[tuple[str, float]] = []
+    for d, p in curve:
+        run += p
+        totals.append((d, run))
+        if run >= peak:
+            peak, peak_day = run, d
+        if run - peak < max_dd:
+            max_dd = run - peak
+            worst = (peak_day, d, peak)
+    if round(max_dd, 2) == 0:
+        return max_dd, _NO_SPAN
+    top_day, trough, top = worst
+    recovered = next((d for d, t in totals if d > trough and t >= top - _RECOVERY_EPS), None)
+    return max_dd, DrawdownSpan(top_day, trough, recovered)
+
+
+def drawdown_span(rows) -> DrawdownSpan:
+    """The days of `rows`' max drawdown (see `DrawdownSpan`), over the same `_daily` curve
+    `_max_drawdown` walks. A poisoned figure (NaN, infinity) gives no span, as it gives no value."""
+    if _poisoned(rows, ("net",)):
+        return _NO_SPAN
+    return _drawdown_walk(rows)[1]
+
+
 def _max_drawdown(rows):
     """Deepest fall of the cumulative daily net curve from its running peak, starting at 0."""
     if _poisoned(rows, ("net",)):
         return _mv(None, len(rows))
-    run = peak = max_dd = 0.0
-    for _d, p in _daily(rows):
-        run += p
-        peak = max(peak, run)
-        max_dd = min(max_dd, run - peak)
-    return _mv(round(max_dd, 2), len(rows))
+    return _mv(round(_drawdown_walk(rows)[0], 2), len(rows))
 
 
 def _best_trade(rows):

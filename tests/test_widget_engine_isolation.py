@@ -424,3 +424,52 @@ def test_the_routine_lookup_itself_is_scoped_to_the_member(monkeypatch, tmp_path
         assert sources._scan_routine_ids(c, B, only_b) == ([ids[B][0]], 1)
     finally:
         c.close()
+
+
+# -- wave 10 (Task 10.5): formulas and goals ----------------------------------------------------
+
+def _w10_run(monkeypatch, uid, raw, settings=None):
+    from datetime import datetime, timezone
+
+    from api.services.journal_two import notebook_widgets as nw
+    from api.services.journal_two.widget_engine import run as wrun
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "iso-w10",
+                                                    reserve=nw.WIDGET_POOL_RESERVE))
+    return wrun.run_plan(uid, raw, settings or {}, lane="run",
+                         now=datetime(2026, 10, 23, 20, 0, tzinfo=timezone.utc))
+
+
+def test_two_members_with_one_formula_plan_hash_never_share_a_cache_entry(two, monkeypatch):
+    from api.services.journal_two.widget_engine import run as wrun
+    wrun._reset_state()
+    raw = {"v": 1, "source": "closed_trades", "range": RANGE,
+           "formulas": [{"id": "f1", "name": "Double", "expr": "[net] * 2", "format": "money"}],
+           "measures": [{"formula": "f1", "agg": "sum"}]}
+    a = _w10_run(monkeypatch, A, raw)
+    b = _w10_run(monkeypatch, B, raw)
+    assert a["value"]["v1"] == 2 * (100 + 101 + 102)
+    assert b["value"]["v1"] == 2 * (7777 + 7778 + 7779 + 3 * 8888)
+    assert _w10_run(monkeypatch, A, raw)["value"]["v1"] == a["value"]["v1"]
+    wrun._reset_state()
+
+
+def test_member_b_goal_is_never_read_for_a(two, monkeypatch):
+    import json
+
+    from api.services.journal_two.widget_engine import run as wrun
+    from api.services.journal_two.widget_engine import sources as wsources
+    c, acc_a, acc_b = two
+    wrun._reset_state()
+    c.execute("UPDATE j2_accounts SET goals = ? WHERE id = ?", (json.dumps({"weekly": 9999}), acc_b))
+    c.commit()
+    assert wrun._goal_target(c, A, None, "weekly") == (None, 1)
+    assert wrun._goal_target(c, A, acc_b, "weekly") == (None, 1)       # B's id reads A's own
+    monkeypatch.setattr(wsources.CATALOG, "view_allowed", lambda plan: None)
+    raw = {"v": 1, "source": "closed_trades", "range": {"token": "this_week"},
+           "measures": [{"key": "net_pnl"}], "view": {"type": "progress"},
+           "display": {"targetGoal": True}}
+    for settings in ({}, {"accountId": acc_b}):
+        out = _w10_run(monkeypatch, A, raw, settings)
+        assert out["target"] is None and "9999" not in json.dumps(out)
+    assert _w10_run(monkeypatch, B, raw)["target"] == 9999.0
+    wrun._reset_state()

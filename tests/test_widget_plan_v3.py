@@ -873,22 +873,31 @@ def _pending_plans() -> dict:
 
 
 def test_w10_pending_guard_expires_with_its_entries():
-    """W10-R46: the interim engine guard. ⛔ EXPIRES: remove in 10.5/10.6. Each entry of
-    `run._W10_PENDING` is detected on its own and refused with the plan-level sentence; the task
-    that makes the engine apply a feature deletes its entry (and its row here); when the set is
-    empty the guard and this rail go."""
+    """W10-R46: the interim engine guard. ⛔ EXPIRES: each door's set only shrinks; the task that
+    makes a door apply a feature deletes its entry; when both sets are empty the guard and this
+    rail go. Task 10.5 applied formula measures and splits and the four display options at
+    `/run`, `/preview` and `/examples`; a formula FILTER waits for the SQL side (Task 10.6), and
+    `/drill` (also 10.6) still refuses formulas. Every feature is detected on its own."""
     plans = _pending_plans()
-    assert set(plans) - {"formula_split_then"} == set(wrun._W10_PENDING)   # every entry a probe
-    assert set(P.WAVE10_DISPLAY) <= wrun._W10_PENDING                  # derived from the one list
+    assert set(plans) - {"formula_split_then"} == set(wrun.W10_FEATURES)  # every feature a probe
+    assert set(P.WAVE10_DISPLAY) <= set(wrun.W10_FEATURES)             # from the one list
+    assert wrun._W10_PENDING == {"formula_filter"}
+    assert wrun._W10_DRILL_PENDING == {"formula_measure", "formula_filter", "formula_split"}
+    assert not set(P.WAVE10_DISPLAY) & (wrun._W10_PENDING | wrun._W10_DRILL_PENDING)
     for name, p in plans.items():
         want = "formula_split" if name == "formula_split_then" else name
-        assert wrun.w10_pending(p) == [want], name
-        with pytest.raises(P.PlanError) as e:
-            wrun.refuse_w10_pending(p)
-        assert e.value.sentence == P.S_UNREADABLE
+        assert wrun.w10_pending(p, frozenset(wrun.W10_FEATURES)) == [want], name
+        for door in (wrun._W10_PENDING, None):                      # None: drill's default
+            refused = want in (wrun._W10_DRILL_PENDING if door is None else door)
+            if refused:
+                with pytest.raises(P.PlanError) as e:
+                    wrun.refuse_w10_pending(p, door)
+                assert e.value.sentence == P.S_UNREADABLE
+            else:
+                wrun.refuse_w10_pending(p, door)
     # controls: plain, tool and formula-declared-but-unused plans are not pending
     for p in (P.validate_plan(ct(), CAT), P.validate_plan(ct(formulas=[F()]), CAT),
               {"v": 2, "source": "routine_history"}, None, [], "x", {"measures": "x"}):
-        assert wrun.w10_pending(p) == []
+        assert wrun.w10_pending(p, frozenset(wrun.W10_FEATURES)) == []
         wrun.refuse_w10_pending(p)
-
+        wrun.refuse_w10_pending(p, wrun._W10_PENDING)

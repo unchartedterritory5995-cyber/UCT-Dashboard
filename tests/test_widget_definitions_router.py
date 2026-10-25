@@ -814,25 +814,150 @@ def test_w10_plans_are_the_dark_404_at_every_door_while_w10_is_off(conn, monkeyp
     assert r.status_code == 200 and r.json()["def"]["v"] == 2
 
 
-def test_w10_plans_are_a_400_never_a_500_while_w10_is_on(conn, monkeypatch):
-    """The interim engine guard (`run._W10_PENDING`, remove in 10.5/10.6): with wave 10 ON the
-    engine cannot apply these yet, so each is the plan-level sentence, never a crash and never a
-    number drawn differently from the one the stored plan asks for."""
+def test_w10_plans_run_or_are_a_400_never_a_500_while_w10_is_on(conn, monkeypatch):
+    """With wave 10 ON (Task 10.5): formula measures and the display options run at `/run` and
+    `/preview`; a formula FILTER is still the plan-level sentence (the interim guard,
+    `run._W10_PENDING`, until Task 10.6's SQL side), and `/drill` still refuses a formula
+    (`run._W10_DRILL_PENDING`) while it shows the display-option plans' rows. Never a 500."""
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
     add_trade(conn, UID, day="2026-10-20", pnl=50)
     c = _unraising()
+    runs = {"aggregate formula measure", "row formula measure", "cumulative", "stop after"}
+    drills = {"cumulative", "stop after"}
     for name, p in _w10_plans().items():
         made = c.post(BASE, json={"plan": p})
         assert made.status_code == 200 and made.json()["plan"]["v"] == 3, (name, made.text[:200])
         for door, body in (("/run", {"def": p}), ("/run", {"defId": made.json()["id"]}),
                            ("/preview", {"plan": p}), ("/drill", {"def": p, "cell": {}})):
             r = c.post(BASE + door, json=body)
-            assert r.status_code == 400, (name, door, r.status_code, r.text[:200])
-            assert r.json()["detail"] == {"code": "invalid", "message": wplan.S_UNREADABLE}
+            ok = name in (drills if door == "/drill" else runs)
+            assert r.status_code == (200 if ok else 400), (name, door, r.status_code, r.text[:200])
+            if not ok:
+                assert r.json()["detail"] == {"code": "invalid", "message": wplan.S_UNREADABLE}
+    r = c.post(BASE + "/run", json={"def": _w10_plans()["row formula measure"]})
+    assert r.json()["value"]["v1"] == 100.0                     # [net] * 2, added up
+    assert r.json()["measures"][0]["key"] == "formula:f1"
     # controls: v1 and v2 plans still run with wave 10 on
     assert c.post(BASE + "/run", json={"def": _plan()}).status_code == 200
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
     assert c.post(BASE + "/run", json={"def": _tool_plans()[0]}).status_code == 200
+
+
+def _sweep_shapes():
+    """Every display option and formula shape (Task 10.5's rail): {name: raw plan}."""
+    def f(fid, name, expr, fmt="number"):
+        return {"id": fid, "name": name, "expr": expr, "format": fmt}
+
+    def mk(measures, formulas=(), source="closed_trades", rng=None, **kw):
+        raw = {"v": 1, "source": source, "measures": list(measures),
+               "range": rng or {"token": "last_90d"}}
+        if formulas:
+            raw["formulas"] = list(formulas)
+        raw.update(kw)
+        return raw
+
+    edge = f("f1", "Edge", "[net] / [risk_dollars]", "r")
+    green = f("f1", "Green", "[net] > 0")
+    shapes = {}
+    for agg, fmt in (("sum", "money"), ("avg", "r"), ("min", "percent"), ("max", "number")):
+        shapes[f"row {agg}"] = mk([{"formula": "f1", "agg": agg}], [dict(edge, format=fmt)])
+    shapes["bool share"] = mk([{"formula": "f1", "agg": "share"}], [green])
+    shapes["bool count"] = mk([{"formula": "f1", "agg": "count"}], [green])
+    shapes["text measure"] = mk([{"formula": "f1", "agg": "sum"}],
+                                [f("f1", "Wd", "Weekday([day])")])
+    for name, expr in (("countif", "CountIf([net] > 0)"), ("sumif", "SumIf([net], [r] > 0)"),
+                       ("share", "Share([net] > 0)"), ("avgif", "AvgIf([net])"),
+                       ("composite", "SumIf([net], [net] > 0) / CountIf([net] > 0)"),
+                       ("agg divide by zero", "SumIf([net]) / 0")):
+        shapes[f"aggregate {name}"] = mk([{"formula": "f1"}], [f("f1", "Agg", expr)])
+    shapes["hour"] = mk([{"formula": "f1", "agg": "avg"}], [f("f1", "Hr", "Hour([day])")])
+    shapes["hold minutes"] = mk([{"formula": "f1", "agg": "avg"}],
+                                [f("f1", "Hours", "[hold_minutes] / 60")])
+    shapes["divide by zero"] = mk([{"formula": "f1", "agg": "avg"}],
+                                  [f("f1", "Zero", "[net] / 0")])
+    shapes["five formulas"] = mk([{"formula": f"f{i}", "agg": "sum"} for i in (1, 2, 3)],
+                                 [f(f"f{i}", f"F{i}", f"[net] * {i}") for i in range(1, 6)])
+    shapes["declared unused"] = mk([{"key": "net_pnl"}], [edge])
+    shapes["text split"] = mk([{"key": "net_pnl"}], [f("f1", "Wd", "Weekday([day])")],
+                              split={"by": "formula:f1"}, view={"type": "bar"})
+    shapes["bucket split"] = mk([{"key": "trades"}], [f("f1", "Band", "Bucket([r], 0, 1)")],
+                                split={"by": "formula:f1"}, view={"type": "bar"})
+    shapes["bool filter"] = mk([{"key": "net_pnl"}], [green],
+                               filters=[{"field": "formula:f1", "op": "is", "values": [True]}])
+    shapes["number filter"] = mk([{"key": "net_pnl"}], [edge],
+                                 filters=[{"field": "formula:f1", "op": "gt", "values": [0]}])
+    for view, split in (("list", None), ("table", {"by": "setup"}), ("bar", {"by": "setup"}),
+                        ("heat", {"by": "day"}), ("line", {"by": "day"})):
+        shapes[f"formula on {view}"] = mk([{"formula": "f1", "agg": "sum"}], [edge],
+                                           split=split, view={"type": view})
+    shapes["formula compare"] = mk([{"formula": "f1", "agg": "sum"}], [edge],
+                                   view={"type": "compare"}, compare={"mode": "previous"})
+    shapes["cumulative"] = mk([{"key": "net_pnl"}], split={"by": "day"}, view={"type": "line"},
+                              display={"cumulative": True})
+    shapes["cumulative formula"] = mk([{"formula": "f1", "agg": "sum"}], [edge],
+                                      split={"by": "month"}, view={"type": "line"},
+                                      display={"cumulative": True})
+    shapes["goal"] = mk([{"key": "net_pnl"}], rng={"token": "this_week"},
+                        view={"type": "progress"}, display={"targetGoal": True})
+    shapes["stop after"] = mk([{"key": "current_streak"}], display={"stopAfter": 2})
+    shapes["quadrants"] = mk([{"formula": "f1", "agg": "avg"}, {"formula": "f2", "agg": "avg"}],
+                             [f("f1", "MAE", "Abs([mae_r])", "r"), f("f2", "MFE", "[mfe_r]", "r")],
+                             view={"type": "scatter"}, display={"quadrants": "excursion"})
+    shapes["drawdown number"] = mk([{"key": "max_drawdown"}])
+    shapes["drawdown compare"] = mk([{"key": "max_drawdown"}], view={"type": "compare"},
+                                    compare={"mode": "previous"})
+    shapes["days formula"] = mk([{"formula": "f1", "agg": "sum"}],
+                                [f("f1", "Double", "[day_net] * 2")], source="trading_days")
+    shapes["positions formula"] = mk([{"formula": "f1", "agg": "avg"}],
+                                     [f("f1", "Heat", "[unrealised] / [risk_dollars]")],
+                                     source="open_positions", rng={"token": "all"})
+    return shapes
+
+
+def test_every_w10_shape_answers_200_or_a_clean_400_never_a_500(conn, monkeypatch):
+    """Task 10.5's sweep: with wave 10 ON every formula shape and display option goes through
+    `/run`, `/preview` and `/drill`; each answers 200 (a payload with no NaN and no infinity) or a
+    clean 400 (`{code, message}`), never a 500."""
+    from api.limiter import limiter
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    acc = add_account(conn, UID, "Main")
+    days = ("2026-09-01", "2026-09-15", "2026-10-01", "2026-10-14", "2026-10-20", "2026-10-21",
+            "2026-10-22")
+    pnls = (120, -80, 45, -150, 300, -20, 60)
+    rs = (1.2, -0.8, None, -1.5, 3.0, -0.2, 0.6)
+    for i, d in enumerate(days):
+        add_trade(conn, UID, day=d, pnl=pnls[i], r=rs[i], setup=("Flag", "VCP", None)[i % 3],
+                  account=acc, hour=None if i == 2 else 10 + i, stop=100 if i == 2 else 95,
+                  entry_iso=d if i == 3 else None, exit_iso=d if i == 3 else None)
+    conn.execute("UPDATE j2_accounts SET goals = ? WHERE id = ?",
+                 (json.dumps({"weekly": 500}), acc))
+    conn.commit()
+    c = _unraising()
+    answered: dict[int, list] = {200: [], 400: []}
+    for name, p in _sweep_shapes().items():
+        for door, body in (("/run", {"def": p}), ("/preview", {"plan": p}),
+                           ("/drill", {"def": p, "cell": {}})):
+            limiter.reset()
+            r = c.post(BASE + door, json=body)
+            assert r.status_code in (200, 400), (name, door, r.status_code, r.text[:300])
+            if r.status_code == 400:
+                detail = r.json()["detail"]
+                assert set(detail) >= {"code", "message"} and detail["message"], (name, door)
+            else:
+                json.dumps(r.json(), allow_nan=False)
+            answered[r.status_code].append((name, door))
+        if (p.get("view") or {}).get("type") == "scatter":       # a scatter point's own drill
+            limiter.reset()
+            r = c.post(BASE + "/drill", json={"def": p, "cell": {"d": "2026-10-20", "x": 1,
+                                                                  "y": 1}})
+            assert r.status_code in (200, 400), (name, "point", r.status_code, r.text[:300])
+    ran = {n for n, d in answered[200] if d == "/run"}
+    # non-vacuity: what Task 10.5 applies runs; what it leaves to 10.6 (or refuses) is a 400
+    assert {"row avg", "bool share", "aggregate composite", "cumulative", "cumulative formula",
+            "stop after", "quadrants", "drawdown number", "days formula",
+            "positions formula", "formula on table", "five formulas"} <= ran, ran
+    assert {"bool filter", "number filter", "text measure"} & ran == set()
+    assert len(answered[200]) >= 40
 
 
 @pytest.mark.parametrize("w9", ["0", "1"])
@@ -855,12 +980,16 @@ def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path, w9):
     assert renamed.status_code == 200                                # a rename-only PUT passes
     ex = {"id": "shelf:formula-test", "rev": 1, "name": "F", "description": "d", "keywords": [],
           "plan": _w10_plans()["aggregate formula measure"]}
-    with planted(tmp_path, [ex], new_ids=(ex["id"],)):
+    fx = {"id": "shelf:formula-filter-test", "rev": 1, "name": "G", "description": "d",
+          "keywords": [], "plan": _w10_plans()["row formula filter"]}
+    with planted(tmp_path, [ex, fx], new_ids=(ex["id"], fx["id"])):
         r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})
         assert r.status_code == 404 and r.json()["detail"] == public.not_found().detail
         assert ex["id"] not in [e["id"] for e in c.get(BASE + "/shelf").json()["examples"]]
         monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
-        r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})
+        r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})          # Task 10.5 runs it
+        assert r.status_code == 200 and ex["id"] in r.json()["cards"]
+        r = c.post(BASE + "/examples", json={"ids": [fx["id"]]})          # 10.6 still owes this
         assert r.status_code == 400 and r.json()["detail"]["message"] == wplan.S_UNREADABLE
         plain_id = wshelf.examples()[0]["id"]
         assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200  # control
