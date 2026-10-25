@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import {
-  archiveTool, createTool, deleteTool, duplicateTool, getTool, saveTool, undeleteTool, unarchiveTool,
+  CRUD_COPY, archiveTool, createTool, deleteTool, duplicateTool, getTool, saveTool, undeleteTool, unarchiveTool,
 } from '../../../lib/toolsCrud'
 import { ArchivePanel, DeletePanel, DeletedPanel, ManageSection, UsedInPanel } from './ToolManage'
 import { COPY, fieldOf, restoredSentence } from './toolEditorLib'
@@ -226,6 +226,13 @@ export default function ToolEditor({
       if (dirty) return
       act(() => duplicateTool(kind, tool.id), (copy) => {
         adopt(copy)
+        // 9.6b m-3: a replayed copy reads as it is NOW, and another tab may have archived it. adopt() already shows an
+        // archived tool read-only with Restore; say so, and never "You are editing" a copy that cannot be edited.
+        if (copy?.archived === true) {
+          say(CRUD_COPY.copyArchived)
+          focusNext.current = '[data-manage="restore"]'
+          return
+        }
         say(`Made a copy. You are editing “${copy?.name || ''}”.`)
         focusNext.current = '[data-field="name"]'
       })

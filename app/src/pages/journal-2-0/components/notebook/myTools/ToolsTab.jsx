@@ -35,7 +35,8 @@ import styles from './myTools.module.css'
  * after a landed write, so nothing here refreshes a block); Restore from Archived is toolsCrud's `unarchiveTool`, the
  * block layer's one restore write (W9-R42); the archive and delete panels, and their sentences, are the editor's own
  * (routines/ToolManage). The server's sentences (the conflict, the count cap, the typed name) are shown as they came.
- * ⛔ Duplicate carries no idempotency key: the server's `/duplicate` reads none (report, Task 9.18).
+ * ⛔ Duplicate is keyed in lib/toolsCrud (Task 9.6c, W9-R48): a retry after a lost answer replays the copy, as it reads
+ *   NOW. A replayed copy that another tab archived meanwhile is shown in Archived, its row focused (9.6b m-3).
  * ⛔ ONE live region for the tab's whole life (`data-testid="my-tools-message"`), its child keyed per message.
  */
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -381,6 +382,14 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
     say(failText(got), 'error')
   }
   const duplicate = (d) => act(d, () => duplicateTool(kind, d.id), (t) => {
+    if (isRecord(t) && t.archived === true) {
+      // 9.6b m-3: a replayed copy that was archived in another tab is in Archived (Restore is its row's action).
+      say(CRUD_COPY.copyArchived)
+      if (t.id) focusAfter.current = { id: t.id, wait: 'archived' }
+      setFilter('archived')
+      refresh('archived')
+      return
+    }
     say(`Made “${(isRecord(t) && t.name) || `${d.name} copy`}”.`)
     if (isRecord(t) && t.id) focusAfter.current = { id: t.id, wait: 'active' }
     refresh('active')

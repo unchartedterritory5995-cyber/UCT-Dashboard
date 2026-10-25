@@ -25,9 +25,13 @@
 // (a create, save, archive, delete, undelete, duplicate or restore, here or a block's own restore), so the / menu's Mine
 // rows drop their cached list. It is toolsApi's `onToolEdited`: `toolEdited` is the one notifier, and each write here
 // reaches it exactly once (a create or duplicate through `landed` with the new tool's id).
+// ⛔ Duplicate is KEYED (Task 9.6c, ruling W9-R48): one `Idempotency-Key` per member intent `duplicate:<kind>:<id>`,
+// from lib/idempotencyKeys (the widget doors' one generator and rule, never a second). The same key is resent while
+// the earlier answer is unconfirmed, so a retry after a lost answer replays the copy instead of making a second one.
 // ⛔ These writes land in the routine and tracker tables, NEVER a note. Each fetch names its method literally (the door
 // rails read methods from the call site), with the kind choosing between two literal URLs.
 import { TOOL_COPY, isOffline, onToolEdited, toolEdited, unarchive } from './blocks/toolsApi'
+import { keyedSender } from './idempotencyKeys'
 
 export const CRUD_COPY = Object.freeze({
   offline: "You're offline. Try again when you're back online.",
@@ -35,6 +39,8 @@ export const CRUD_COPY = Object.freeze({
   paid: 'Routines and trackers require a paid plan', // the router's own 402 sentence (notebook_routines.require_paid)
   rate: 'Too many changes in a minute. Try again shortly.',
   conflict: 'Changed in another tab. Reload to see the newer version.',
+  // A replayed Duplicate (W9-R48) answers the copy as it reads NOW, which may be archived (9.6b m-3).
+  copyArchived: 'That copy was archived in another tab.',
 })
 
 const KINDS = new Set(['routine', 'tracker'])
@@ -214,9 +220,32 @@ export function undeleteTool(kind, id) {
     : fetch(`/api/j2/trackers/${enc(id)}/undelete`, { method: 'POST', credentials: 'include' }))))
 }
 
-/** A new live copy, "<name> copy" (no history is copied). Refused at the count cap. */
-export function duplicateTool(kind, id) {
-  return added(kind, call(kind, () => (kind === 'routine'
-    ? fetch(`/api/j2/routines/${enc(id)}/duplicate`, { method: 'POST', credentials: 'include' })
-    : fetch(`/api/j2/trackers/${enc(id)}/duplicate`, { method: 'POST', credentials: 'include' }))))
+/** Whether a Duplicate's answer is SETTLED, so the next press is a new intent with a new key: the server answered with
+ *  any 2xx, any 4xx (the 409 for a reused key included), or a 5xx carrying our own code. Unsettled, so a retry carries
+ *  the SAME key: no answer (offline, a network error, an aborted request) or a bare 5xx from in front of the app (read
+ *  as `network`). `got` is `{out, status}`: the toolsCrud result and the HTTP status (null when nothing came back). */
+export const duplicateSettled = (got) => !!got?.out && (got.out.ok === true
+  || (Number.isInteger(got.status) && (got.status < 500 || got.out.code !== 'network')))
+
+const sendDuplicate = keyedSender({ confirmed: duplicateSettled })
+
+/** A new live copy, "<name> copy" (no history is copied). Refused at the count cap. Sent under the intent's
+ *  `Idempotency-Key` (W9-R48): a repeat of an unconfirmed press replays the copy, `data.replayed: true`, as it reads NOW
+ *  (so it may be archived: the caller checks `data.archived`). A key already used for another tool is a 409 `conflict`
+ *  whose sentence is the server's; the next press takes a fresh key. */
+export async function duplicateTool(kind, id) {
+  if (!KINDS.has(kind)) return unknownKind()
+  const got = await sendDuplicate(`duplicate:${kind}:${String(id)}`, null, async (key) => {
+    let status = null
+    const headers = { 'Idempotency-Key': key }
+    const out = await call(kind, async () => {
+      const res = await (kind === 'routine'
+        ? fetch(`/api/j2/routines/${enc(id)}/duplicate`, { method: 'POST', credentials: 'include', headers })
+        : fetch(`/api/j2/trackers/${enc(id)}/duplicate`, { method: 'POST', credentials: 'include', headers }))
+      status = Number.isInteger(res?.status) ? res.status : null
+      return res
+    })
+    return { out, status }
+  })
+  return added(kind, Promise.resolve(got.out))
 }
