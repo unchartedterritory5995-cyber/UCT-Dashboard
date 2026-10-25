@@ -462,7 +462,15 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // reverted the corpus digests to the previous pin; the corpus spreads CHART_DEFAULTS, so
       // the one moving part is the new default key on every base — no door moved.
       // (Prior value: 8469f829356dab8ef6448a35ecac1ad59eb8c69686c0a7ec686652d13b2ddbd5)
-      .toBe('6f7743de23fdad1681d202f328898691c2d7151c59787de818b125cbb1fd45be')
+      // 2026-10-25: re-pinned for 96194c642c (`positionCalc.accountSize` default 50,000 →
+      // the one unset account size, 100,000; it left this rail red on master). ⛔ INVESTIGATED
+      // BY MEASUREMENT: both corpora were dumped (sorted keys) with and without only that
+      // default put back to 50000 and diffed — 760 elements each, CHANGED ONLY
+      // `positionCalc.accountSize`, 0 added, 0 removed; with it put back this literal and
+      // the A1 literal below reproduce byte-for-byte. The corpus spreads CHART_DEFAULTS;
+      // no door moved.
+      // (Prior value: 6f7743de23fdad1681d202f328898691c2d7151c59787de818b125cbb1fd45be)
+      .toBe('1caded5378e5fe9ae49615e5a953112103fe524e925967b543876d646e0df70e')
   })
 
   // ⭐ A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now
@@ -510,7 +518,11 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // removeDefinition one ONLY in its OFF elements, each of which is a pure hide.
     // Measured 2026-10-13 only AFTER that case passed and `corpus(offViaRemove)` reproduced
     // the prior literal (6f7743de…) byte for byte.
+    // 2026-10-25: re-pinned with the literal above for 96194c642c (accountSize default only;
+    // same measurement, same 760-element diff). The element-by-element case above still
+    // holds, so the toggle corpus still differs from the removeDefinition one ONLY in its
+    // OFF elements. (Prior value: 8ab5b272734563f15dd707eed76d45ea5527049ec3643a84db9523ac67e96063)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('8ab5b272734563f15dd707eed76d45ea5527049ec3643a84db9523ac67e96063')
+      .toBe('529f4941433a715525eca6c42b09a12b6a5f18bd9e734f6dcce5946cfaa5206d')
   })
 })
