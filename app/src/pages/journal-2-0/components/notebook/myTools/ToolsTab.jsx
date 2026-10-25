@@ -6,13 +6,14 @@ import {
   CRUD_COPY, archiveTool, deleteTool, duplicateTool, getTool, listTools, saveTool, undeleteTool, unarchiveTool,
 } from '../../../lib/toolsCrud'
 import {
-  CHECK, NAME_MAX, archiveSentence, charCount, deletedSentence, kindWords, scheduleWords,
+  BACK_LABEL, CHECK, COPY as TOOL_COPY, NAME_MAX, RECENTLY_DELETED_DAYS, archiveSentence, charCount, deletedSentence,
+  editedText, kindWords, restoredSentence, scheduleWords, usedCount, usedInText,
 } from '../routines/toolEditorLib'
 import { ArchivePanel, DeletePanel } from '../routines/ToolManage'
 import UsedInList from './UsedInList'
 import PanelHead from './PanelHead'
 import {
-  LIST_RENDER_MAX, RECENTLY_DELETED_DAYS, TOOL_FILTERS, TOOL_LIST_COPY, dayText, editedText, keptUntilText, usedInText,
+  LIST_RENDER_MAX, TOOL_FILTERS, TOOL_LIST_COPY, dayText, keptUntilText,
 } from './myToolsLib'
 import styles from './myTools.module.css'
 
@@ -61,7 +62,7 @@ function templateText(d) {
 const builtinsFirst = (xs) => [...xs.filter((t) => t.readOnly === true), ...xs.filter((t) => t.readOnly !== true)]
 
 function Row({ kind, d, filter, phone, touch, busy, menuOpen, onMenu, onPrimary, onUsedIn }) {
-  const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
+  const used = usedCount(d)
   const builtin = d.readOnly === true
   const primary = filter === 'active' ? 'Open' : 'Restore'
   const template = templateText(d)
@@ -78,7 +79,7 @@ function Row({ kind, d, filter, phone, touch, busy, menuOpen, onMenu, onPrimary,
             <>
               <span>{`Deleted ${dayText(d.deletedAt)}`}</span>
               <span aria-hidden="true">·</span>
-              <span>{keptUntilText(d.deletedAt)}</span>
+              <span>{keptUntilText(d.deletedAt, new Date(), RECENTLY_DELETED_DAYS)}</span>
             </>
           ) : builtin ? (
             <>
@@ -93,7 +94,7 @@ function Row({ kind, d, filter, phone, touch, busy, menuOpen, onMenu, onPrimary,
               {!phone && used > 0 ? (
                 <button type="button" className={styles.linkBtn} onClick={() => onUsedIn(d)}
                   aria-label={`${usedInText(used)}: list the notes with ${d.name}`}>{usedInText(used)}</button>
-              ) : <span>{usedInText(used)}</span>}
+              ) : <span>{used > 0 ? usedInText(used) : TOOL_COPY.notInNote}</span>}
               {editedText(d.updatedAt) && <><span aria-hidden="true">·</span><span>{editedText(d.updatedAt)}</span></>}
             </>
           )}
@@ -117,7 +118,7 @@ function Row({ kind, d, filter, phone, touch, busy, menuOpen, onMenu, onPrimary,
 
 /** Rename: the name only, `saveTool` with If-Match (the tool's etag). A stale tab gets the server's own sentence and
  *  Reload, which reads the tool again (a fresh etag) and keeps the name the member typed. */
-function RenamePanel({ kind, d: initial, onBack, onDone, onGone, say, backLabel }) {
+function RenamePanel({ kind, d: initial, onBack, onDone, onGone, onConflict, say, backLabel }) {
   const id = useId()
   const [d, setD] = useState(initial)
   const [name, setName] = useState(initial.name || '')
@@ -131,6 +132,7 @@ function RenamePanel({ kind, d: initial, onBack, onDone, onGone, say, backLabel 
     const text = failText(got)
     say(text, 'error')
     setError({ text, conflict: got.code === 'conflict' })
+    if (got.code === 'conflict') onConflict?.()
   }
   const save = async (e) => {
     e.preventDefault()
@@ -199,7 +201,7 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
   const watchers = useRef(new Set())
   const filterRef = useRef(filter)
   filterRef.current = filter
-  const backLabel = `Back to your ${kind}s`
+  const backLabel = BACK_LABEL.list(kind)
 
   useEffect(() => () => {
     mounted.current = false
@@ -253,10 +255,17 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
     setMenu(null)
     setView({ kind: k, d })
   }
+  // A panel that ended on a stale tab (a rename conflict) leaves a stale row: leaving it reads the list again, so the
+  // next Rename starts from the newer version (its etag) rather than conflicting a second time.
+  const staleOnLeave = useRef(false)
   const back = useCallback(() => {
     setPanelError(null)
     setView({ kind: 'list' })
-  }, [])
+    if (staleOnLeave.current) {
+      staleOnLeave.current = false
+      refresh(filterRef.current)
+    }
+  }, [refresh])
   useEffect(() => {
     if (view.kind !== 'list' || !returnTo.current) return
     if (!focusAfter.current) focusAfter.current = { id: returnTo.current, fallback: true }
@@ -396,7 +405,7 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
     refresh('active')
   }
   const archive = (d) => {
-    if ((d.usedIn || 0) > 0) push('archive', d)
+    if (usedCount(d) > 0) push('archive', d)
     else { setMenu(null); doArchive(d) }
   }
   const remove = async (d, typedName) => {
@@ -420,7 +429,7 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
   }
   const unarchive = (d) => act(d, () => unarchiveTool(kind, d.id), () => {
     focusPast('archived', d.id)
-    say(L.restored(d.name))
+    say(restoredSentence(d.name))
     refresh('archived')
   })
   const undelete = (d) => act(d, () => undeleteTool(kind, d.id), () => {
@@ -437,7 +446,7 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
   }
 
   const menuItems = (d) => {
-    const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
+    const used = usedCount(d)
     const usedIn = used > 0 ? [{ key: 'used', label: usedInText(used), onClick: () => push('usedIn', d) }] : []
     if (filter === 'deleted') return [{ key: 'restore', label: 'Restore', onClick: () => undelete(d) }]
     if (filter === 'archived') {
@@ -479,14 +488,15 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
     panel = <UsedInList d={view.d} kind={kind} onBack={back} onNavigate={onCloseAll} navigate={navigate} backLabel={backLabel} />
   } else if (view.kind === 'rename') {
     panel = <RenamePanel kind={kind} d={view.d} onBack={back} onGone={gone} say={say} backLabel={backLabel}
-      onDone={(t, text) => { say(text); back(); refresh('active') }} />
+      onConflict={() => { staleOnLeave.current = true }}
+      onDone={(t, text) => { staleOnLeave.current = false; say(text); back(); refresh('active') }} />
   } else if (view.kind === 'archive' || view.kind === 'delete') {
     const Panel = view.kind === 'archive' ? ArchivePanel : DeletePanel
     panel = (
       <div className={styles.pushPanel} data-testid={`my-tools-${view.kind}`}>
-        <Panel kind={kind} tool={view.d} busy={busyId === view.d.id} onBack={back}
+        <Panel kind={kind} tool={view.d} busy={busyId === view.d.id} onBack={back} backLabel={backLabel}
+          error={panelError || ''}
           onConfirm={view.kind === 'archive' ? () => doArchive(view.d) : (typed) => remove(view.d, typed)} />
-        {panelError && <p className={styles.inlineError}>{panelError}</p>}
       </div>
     )
   }

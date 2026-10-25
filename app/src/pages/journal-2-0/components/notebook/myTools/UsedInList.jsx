@@ -77,7 +77,9 @@ export default function UsedInList({ d, kind = 'widget', onBack, onNavigate, nav
       {state.status === 'error' && (
         <div className={styles.stateBox}>
           <p className={styles.sentence} data-testid="used-in-failed">
-            {isTool(kind) ? (state.message || TOOL_COPY.usedInFailed) : readFailure(state.code, COPY.usedInFailed)}
+            {/* A tool's: the editor's own sentence for a failed read (`network`); the server's for anything it said. */}
+            {isTool(kind) ? (state.code === 'network' || !state.message ? TOOL_COPY.usedInFailed : state.message)
+              : readFailure(state.code, COPY.usedInFailed)}
           </p>
           {!NO_RETRY.has(state.code) && <button type="button" className={styles.btn} onClick={retry}>Try again</button>}
         </div>

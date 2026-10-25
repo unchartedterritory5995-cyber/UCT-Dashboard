@@ -246,6 +246,20 @@ export const SURFACES = Object.freeze({
   'components/notebook/routines/TrackerEditorSheet.jsx': { recipe: 'tracker-editor' },
   'components/notebook/routines/ToolEditor.jsx': { coveredBy: 'routine-editor-edit' },
   'components/notebook/routines/ToolManage.jsx': { coveredBy: 'routine-editor-manage' },
+  // Wave 9 Task 9.18 (fix 1, I-1): My tools, in the derived population. Routines and Trackers (rail
+  // a11y/myToolsTools.a11y.test.jsx: the lists, the menu, rename with a conflict, archive, the typed-name delete, Used
+  // in, the check-in trackers first, Recently deleted, the phone sheet, offline) and the wave 8 Widgets tab (rail
+  // a11y/myToolsWidgets.a11y.test.jsx: the list, version history, the restore question, the typed-name delete).
+  'components/notebook/myTools/MyToolsSheet.jsx': { recipe: 'my-tools-widgets' },
+  'components/notebook/myTools/WidgetsTab.jsx': { coveredBy: 'my-tools-widgets' },
+  'components/notebook/myTools/VersionHistory.jsx': { recipe: 'my-tools-widget-history' },
+  'components/notebook/myTools/RestoreQuestion.jsx': { recipe: 'my-tools-widget-restore-question' },
+  'components/notebook/myTools/DeleteConfirm.jsx': { recipe: 'my-tools-widget-delete' },
+  'components/notebook/myTools/ToolsTab.jsx': { recipe: 'my-tools-routines' },
+  'components/notebook/myTools/RoutinesTab.jsx': { coveredBy: 'my-tools-routines' },
+  'components/notebook/myTools/TrackersTab.jsx': { recipe: 'my-tools-trackers' },
+  'components/notebook/myTools/UsedInList.jsx': { coveredBy: 'my-tools-tool-used-in' },
+  'components/notebook/myTools/PanelHead.jsx': { coveredBy: 'my-tools-tool-used-in' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },
@@ -412,10 +426,4 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/notebook/styles/ExamplePreviewSheet.jsx': { recipe: 'example-preview-sheet', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/ExamplesInUse.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/StyleItemPreview.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
-  // Wave 9 Task 9.18: My tools' Routines and Trackers tabs (components/notebook/myTools/, a lazy chunk outside the
-  // derived population): the lists, the menu, rename with a conflict, archive, the typed-name delete, Used in, the
-  // check-in trackers first, Recently deleted, the phone sheet and offline. Rail a11y/myToolsTools.a11y.test.jsx.
-  'components/notebook/myTools/ToolsTab.jsx': { recipe: 'my-tools-routines', railFile: 'a11y/myToolsTools.a11y.test.jsx' },
-  'components/notebook/myTools/RoutinesTab.jsx': { recipe: 'my-tools-routines', railFile: 'a11y/myToolsTools.a11y.test.jsx' },
-  'components/notebook/myTools/TrackersTab.jsx': { recipe: 'my-tools-trackers', railFile: 'a11y/myToolsTools.a11y.test.jsx' },
 })

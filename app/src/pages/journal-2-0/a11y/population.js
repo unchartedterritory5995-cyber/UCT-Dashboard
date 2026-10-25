@@ -15,7 +15,8 @@ const jsxIn = (rel) => readdirSync(join(J2_DIR, rel))
 
 /** Top-level components/notebook/*.jsx, the export/ and import/ subfolders,
  *  components/notebook/blocks/ (Notebook P2 trader blocks), components/notebook/routines/ (the routine and
- *  tracker editors, wave 9),
+ *  tracker editors, wave 9), components/notebook/myTools/ (My tools: the Widgets, Routines and Trackers tabs, wave 9
+ *  Task 9.18 fix 1; until then a new myTools file could ship unrailed),
  *  tabs/NotebookTab.jsx and the three Notebook Settings cards; never a test. */
 export function derivePopulation() {
   return [
@@ -24,6 +25,7 @@ export function derivePopulation() {
     ...jsxIn('components/notebook/import'),
     ...jsxIn('components/notebook/blocks'),
     ...jsxIn('components/notebook/routines'),
+    ...jsxIn('components/notebook/myTools'),
     'tabs/NotebookTab.jsx',
     'components/PersonalApiCard.jsx',
     'components/InboundEmailCard.jsx',

@@ -116,6 +116,7 @@ describe('My tools, Trackers tab', () => {
     expect(menuLabels()).not.toContain('Delete permanently')
     fireEvent.click(menuItem('Archive'))
     expect(await screen.findByText('It stays in your 1 note. Its history is kept.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to your trackers' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Archive tracker' }))
     await saysLive('Archived “Sleep”. Restore it from Archived.')
     showList('Archived')

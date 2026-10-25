@@ -2,7 +2,8 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
 import { usedIn as readUsedIn } from '../../../lib/toolsCrud'
 import {
-  COPY, editedText, noteHref, openNoteInPlace, RECENTLY_DELETED_DAYS, archiveSentence, deletedSentence, notesWord, usedInHeading, usedInText,
+  BACK_LABEL, COPY, editedText, noteHref, openNoteInPlace, RECENTLY_DELETED_DAYS, archiveSentence, deletedSentence, notesWord,
+  usedCount, usedInHeading, usedInText,
 } from './toolEditorLib'
 import styles from './routines.module.css'
 
@@ -17,13 +18,13 @@ import styles from './routines.module.css'
  */
 const noun = (kind) => (kind === 'tracker' ? 'tracker' : 'routine')
 
-function PanelHead({ id, title, onBack, kind, focus = true }) {
+function PanelHead({ id, title, onBack, kind, focus = true, backLabel }) {
   const ref = useRef(null)
   useEffect(() => { if (focus) ref.current?.focus() }, [focus])
   return (
     <div className={styles.panelHead}>
       {onBack && (
-        <button type="button" className={styles.backBtn} onClick={onBack} aria-label={`Back to the ${noun(kind)}`}>
+        <button type="button" className={styles.backBtn} onClick={onBack} aria-label={backLabel || BACK_LABEL.tool(kind)}>
           <UIcon name="chevronLeft" size={16} gold={false} />
           <span>Back</span>
         </button>
@@ -35,7 +36,7 @@ function PanelHead({ id, title, onBack, kind, focus = true }) {
 
 export function ManageSection({ kind, tool, dirty, busy, manage, archivedText }) {
   const id = useId()
-  const used = Number.isInteger(tool.usedIn) ? tool.usedIn : 0
+  const used = usedCount(tool)
   const held = dirty ? { 'aria-disabled': true, 'aria-describedby': `${id}-held` } : {}
   return (
     <section className={styles.manage} aria-labelledby={`${id}-h`}>
@@ -69,17 +70,19 @@ export function ManageSection({ kind, tool, dirty, busy, manage, archivedText })
   )
 }
 
-export function ArchivePanel({ kind, tool, busy, onBack, onConfirm }) {
+export function ArchivePanel({ kind, tool, busy, onBack, onConfirm, backLabel, error = '' }) {
   const id = useId()
-  const used = Number.isInteger(tool.usedIn) ? tool.usedIn : 0
+  const used = usedCount(tool)
+  const described = `${id}-what${error ? ` ${id}-err` : ''}`
   return (
     <section className={styles.panel} aria-labelledby={`${id}-h`}>
-      <PanelHead id={`${id}-h`} kind={kind} title={`Archive “${tool.name}”?`} onBack={onBack} />
+      <PanelHead id={`${id}-h`} kind={kind} title={`Archive “${tool.name}”?`} onBack={onBack} backLabel={backLabel} />
       <p className={styles.sentence} id={`${id}-what`}>{archiveSentence(used)}</p>
       <p className={styles.hint}>{`An archived ${noun(kind)} leaves the / menu. Restore brings it back.`}</p>
+      {error && <p className={styles.fieldError} id={`${id}-err`}>{error}</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
-        <button type="button" className={styles.btnPrimary} aria-describedby={`${id}-what`} aria-disabled={busy || undefined}
+        <button type="button" className={styles.btnPrimary} aria-describedby={described} aria-disabled={busy || undefined}
           aria-busy={busy || undefined} onClick={() => { if (!busy) onConfirm() }}>
           {`Archive ${noun(kind)}`}
         </button>
@@ -94,15 +97,15 @@ export function ArchivePanel({ kind, tool, busy, onBack, onConfirm }) {
  * type; the field AND the button are described by what deleting does and by why the button is off; Enter in the field
  * deletes once the name matches.
  */
-export function DeletePanel({ kind, tool, busy, onBack, onConfirm }) {
+export function DeletePanel({ kind, tool, busy, onBack, onConfirm, backLabel, error = '' }) {
   const id = useId()
   const [typed, setTyped] = useState('')
   const input = useRef(null)
   useEffect(() => { input.current?.focus() }, [])
   const name = String(tool.name || '')
   const matches = typed === name && name !== ''
-  const used = Number.isInteger(tool.usedIn) ? tool.usedIn : 0
-  const described = `${id}-what ${id}-gate`
+  const used = usedCount(tool)
+  const described = `${id}-what ${id}-gate${error ? ` ${id}-err` : ''}`
   const submit = (e) => {
     e.preventDefault()
     if (!matches || busy) return
@@ -110,7 +113,7 @@ export function DeletePanel({ kind, tool, busy, onBack, onConfirm }) {
   }
   return (
     <section className={styles.panel} aria-labelledby={`${id}-h`}>
-      <PanelHead id={`${id}-h`} kind={kind} title={`Delete “${name}” permanently?`} onBack={onBack} focus={false} />
+      <PanelHead id={`${id}-h`} kind={kind} title={`Delete “${name}” permanently?`} onBack={onBack} focus={false} backLabel={backLabel} />
       <form className={styles.form} onSubmit={submit}>
         <p className={styles.sentence} id={`${id}-what`}>
           {`It moves to Recently deleted for ${RECENTLY_DELETED_DAYS} days, then it is gone for good, with its history.`}
@@ -124,6 +127,7 @@ export function DeletePanel({ kind, tool, busy, onBack, onConfirm }) {
         <p className={styles.hint} id={`${id}-gate`}>
           {matches ? 'The name matches.' : 'Delete turns on when the name matches exactly.'}
         </p>
+        {error && <p className={styles.fieldError} id={`${id}-err`}>{error}</p>}
         <div className={styles.actions}>
           <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
           <button type="submit" className={styles.btnDanger} aria-disabled={!matches || busy || undefined}
@@ -183,7 +187,7 @@ export function UsedInPanel({ kind, tool, onBack, navigate = null, onNavigate })
   }
   const hid = useId()
   const notes = state.status === 'ok' ? state.notes : []
-  const count = state.status === 'ok' ? notes.length : (Number.isInteger(tool.usedIn) ? tool.usedIn : 0)
+  const count = state.status === 'ok' ? notes.length : (usedCount(tool))
   return (
     <section className={styles.panel} aria-labelledby={hid}>
       <PanelHead id={hid} kind={kind} title={usedInHeading(tool.name, count)} onBack={onBack} />

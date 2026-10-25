@@ -280,20 +280,46 @@ describe('the routine and tracker editors floor every control at 44px at every w
 // is a finger target as a whole, so it gets more than the 44px a single control gets.
 const TOOLS_TAB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'ToolsTab.jsx')
 
-/** The largest `min-height` in px that `cls` declares at `width` (its base rule or a media block that applies). */
-function minHeightAt(css, cls, width) {
-  const clean = stripComments(css)
-  let best = 0
-  for (const block of [withoutMedia(clean), mediaBodies(clean, width)]) {
-    const rule = /([^{}]+)\{([^{}]*)\}/g
-    let m
-    while ((m = rule.exec(block))) {
-      if (!m[1].split(',').map((p) => p.trim()).includes(cls)) continue
-      const mh = /min-height:\s*(\d+)px/.exec(m[2])
-      if (mh) best = Math.max(best, Number(mh[1]))
+/** Whether a `@media` condition applies at `width` (the same reading `mediaBodies` makes). */
+function mediaApplies(cond, width) {
+  const max = /max-width:\s*(\d+)px/.exec(cond)
+  const min = /min-width:\s*(\d+)px/.exec(cond)
+  return (!max || width <= Number(max[1])) && (!min || width >= Number(min[1]))
+}
+
+/** Every rule that applies at `width`, in SOURCE ORDER: base rules and the rules of each applying `@media` block,
+ *  interleaved as they are written (a later rule of the same selector wins the cascade). */
+function rulesInOrder(css, width) {
+  const out = []
+  let i = 0
+  while (i < css.length) {
+    const open = css.indexOf('{', i)
+    if (open < 0) break
+    const sel = css.slice(i, open).trim()
+    let depth = 1
+    let j = open + 1
+    while (j < css.length && depth) {
+      if (css[j] === '{') depth += 1
+      else if (css[j] === '}') depth -= 1
+      j += 1
     }
+    const body = css.slice(open + 1, j - 1)
+    if (sel.startsWith('@media')) { if (mediaApplies(sel, width)) out.push(...rulesInOrder(body, width)) } else if (!sel.startsWith('@')) out.push({ sel, body })
+    i = j
   }
-  return best
+  return out
+}
+
+/** The `min-height` in px that WINS for `cls` at `width`: the last applying declaration of it in source order (the
+ *  cascade for one selector), never the largest. 0 when nothing declares one. */
+function minHeightAt(css, cls, width) {
+  let won = 0
+  for (const { sel, body } of rulesInOrder(stripComments(css), width)) {
+    if (!sel.split(',').map((p) => p.trim()).includes(cls)) continue
+    const mh = /min-height:\s*(\d+)px/.exec(body)
+    if (mh) won = Number(mh[1])
+  }
+  return won
 }
 
 describe('My tools: the Routines and Trackers rows are 56px on phone', () => {
@@ -312,5 +338,13 @@ describe('My tools: the Routines and Trackers rows are 56px on phone', () => {
     expect(minHeightAt('.row { min-height: 44px; }', '.row', 390)).toBeLessThan(56)
     expect(minHeightAt('@media (min-width: 1025px) { .row { min-height: 56px; } }', '.row', 390)).toBeLessThan(56)
     expect(minHeightAt('.row { min-height: 56px; }', '.row', 390)).toBe(56)
+  })
+
+  it('CONTROL: the WINNING rule is read, so a phone override below 56px is SEEN under a 56px base', () => {
+    const lowered = '.row { min-height: 56px; }\n@media (max-width: 640px) { .row { min-height: 40px; } }'
+    expect(minHeightAt(lowered, '.row', 390)).toBe(40)
+    expect(minHeightAt(lowered, '.row', 820)).toBe(56)                // the phone block does not apply there
+    // Source order decides: a base rule written AFTER the media block wins at every width.
+    expect(minHeightAt('@media (max-width: 640px) { .row { min-height: 40px; } }\n.row { min-height: 56px; }', '.row', 390)).toBe(56)
   })
 })

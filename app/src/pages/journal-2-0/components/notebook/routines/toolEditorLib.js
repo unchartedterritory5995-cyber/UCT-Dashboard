@@ -103,15 +103,25 @@ export const CHECK = Object.freeze({
 export const charCount = (s) => [...String(s ?? '')].length
 
 export const notesWord = (n) => `${n} note${n === 1 ? '' : 's'}`
+/** How many notes place a tool: the server's `usedIn`, or 0 for anything that is not a whole number. THE one guard. */
+export const usedCount = (tool) => (Number.isInteger(tool?.usedIn) ? tool.usedIn : 0)
 export const usedInText = (n) => `Used in ${notesWord(n)}`
 export const usedInHeading = (name, n) => `“${name}” is in ${notesWord(n)}`
 /** What archiving does (Task 9.18's sentence, shared). */
 export const archiveSentence = (n) => (n > 0 ? `It stays in your ${notesWord(n)}. Its history is kept.` : 'Its history is kept.')
+/** The one restore sentence (the editor's Restore and My tools' Restore from Archived say the same words). */
+export const restoredSentence = (name) => `Restored “${name}”.`
+/** Where a panel's Back goes, said on the button: the tool (inside its editor) or the list (inside My tools). ONE
+ *  source for both labels; ToolManage takes the label as a prop and defaults to the editor's. */
+export const BACK_LABEL = Object.freeze({
+  tool: (kind) => `Back to the ${kind === 'tracker' ? 'tracker' : 'routine'}`,
+  list: (kind) => `Back to your ${kind === 'tracker' ? 'trackers' : 'routines'}`,
+})
 export const deletedSentence = (name) => `“${name}” moved to Recently deleted. It's kept for ${RECENTLY_DELETED_DAYS} days.`
 
 // ── the notes a tool is in ──────────────────────────────────────────────────────────────────────
-// ⛔ Not imported from myTools/myToolsLib: My tools stays lazy on its own (MyToolsSheet.test.jsx rails that nothing
-// outside myTools/ imports it statically), so the editors carry their own copy of the note link.
+// ⛔ THE owner of the note link, the note count and the edited line: myTools/myToolsLib re-exports these (it may
+// import this file; this file may not import it, since My tools stays lazy on its own, MyToolsSheet.test.jsx).
 
 export const noteHref = (id) => `/journal/notebook?note=${encodeURIComponent(String(id))}`
 

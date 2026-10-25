@@ -63,9 +63,12 @@ describe('My tools, Routines tab', () => {
     expect(r2).toHaveTextContent('Mon, Wed, Fri')
     expect(r2).toHaveTextContent('Not in any note')
     expect(within(r2).queryByRole('button', { name: /Used in/ })).toBeNull()
-    const r3 = rowOf('Trade-day review')
+    const r3 = rowOf('Trade-day check')
     expect(r3).toHaveTextContent('Only days I trade')
-    expect(r3).toHaveTextContent('From template: Trade review')
+    // The server sends the template's KEY only: the row says so in words, never the key itself.
+    expect(r3).toHaveTextContent('From a template')
+    expect(r3).not.toHaveTextContent(/review/i)
+    expect(r3).not.toHaveTextContent('From template:')
 
     // Used in: the notes, each a real link; Back returns focus to the row it came from.
     fireEvent.click(within(r1).getByRole('button', { name: /^Used in 2 notes/ }))
@@ -75,6 +78,14 @@ describe('My tools, Routines tab', () => {
     expect(sent('GET', 'routines/r1/used-in')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: /^Back/ }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Actions for Morning prep' })).toHaveFocus())
+  })
+
+  it('a template with a name (wave 11’s shape) reads "From template: <name>"', async () => {
+    net = installToolsFetch([['GET', 'routines?filter=active', () => ({
+      routines: [{ ...net.data.routines.active[2], sourceTemplateName: 'Trade review' }],
+    })]])
+    await openTab()
+    expect(rowOf('Trade-day check')).toHaveTextContent('From template: Trade review')
   })
 
   it('opens the routine editor from Open, and a new routine from New routine', async () => {
@@ -140,6 +151,40 @@ describe('My tools, Routines tab', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Actions for Morning prep' })).toHaveFocus())
   })
 
+  it('a rename conflict left with Cancel reads the list again (the next Rename starts from the newer etag)', async () => {
+    net = installToolsFetch([['PUT', 'routines/r1', () => refuse(409, 'conflict', S_CONFLICT)]])
+    await openTab()
+    await menuFor('Morning prep')
+    fireEvent.click(menuItem('Rename'))
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Name' }), { target: { value: 'Morning routine' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
+    await saysLive(S_CONFLICT)
+    const before = sent('GET', 'routines?filter=active').length
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(sent('GET', 'routines?filter=active').length).toBe(before + 1))
+  })
+
+  it('a read failure of the notes says the editor’s sentence, not the network one', async () => {
+    net = installToolsFetch([['GET', 'routines/r1/used-in', () => { throw new Error('down') }]])
+    await openTab()
+    fireEvent.click(within(rowOf('Morning prep')).getByRole('button', { name: /^Used in 2 notes/ }))
+    expect(await screen.findByTestId('used-in-failed')).toHaveTextContent("The notes couldn't be loaded just now.")
+    expect(screen.getByRole('button', { name: 'Back to your routines' })).toBeInTheDocument()
+  })
+
+  it('a malformed usedIn counts as no notes everywhere (ONE guard): no panel, no count', async () => {
+    net = installToolsFetch([
+      ['GET', 'routines?filter=active', () => ({ routines: [{ ...net.data.routines.active[0], usedIn: '2' }] })],
+      ['POST', 'routines/r1/archive', () => ({ id: 'r1', archived: true })],
+    ])
+    await openTab()
+    expect(rowOf('Morning prep')).toHaveTextContent('Not in any note')
+    await menuFor('Morning prep')
+    fireEvent.click(menuItem('Archive'))
+    await saysLive('Archived “Morning prep”.')
+    expect(screen.queryByRole('heading', { name: /^Archive “/ })).toBeNull()
+  })
+
   it('archive_sentence_with_count', async () => {
     net = installToolsFetch([
       ['POST', /^routines\/r[12]\/archive$/, (req) => ({ id: req.path.split('/')[1], archived: true })],
@@ -152,6 +197,9 @@ describe('My tools, Routines tab', () => {
     expect(await screen.findByRole('heading', { name: 'Archive “Morning prep”?' })).toBeInTheDocument()
     expect(screen.getByText('It stays in your 2 notes. Its history is kept.')).toBeInTheDocument()
     expect(sent('POST', 'routines/r1/archive')).toHaveLength(0)       // nothing until the member confirms
+    // Back says where it goes: the list (ToolManage's panel, labelled by My tools), never "the routine".
+    expect(screen.getByRole('button', { name: 'Back to your routines' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Back to the routine' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Archive routine' }))
     await saysLive('Archived “Morning prep”. Restore it from Archived.')
     expect(sent('POST', 'routines/r1/archive')).toHaveLength(1)
@@ -181,6 +229,7 @@ describe('My tools, Routines tab', () => {
     fireEvent.click(menuItem('Delete permanently'))
     const field = await screen.findByRole('textbox', { name: /Type Old routine to confirm/ })
     const del = screen.getByRole('button', { name: 'Delete permanently' })
+    expect(screen.getByRole('button', { name: 'Back to your routines' })).toBeInTheDocument()
     expect(del).toHaveAttribute('aria-disabled', 'true')
     expect(del).not.toBeDisabled()
     fireEvent.change(field, { target: { value: 'old routine' } })     // not exact
@@ -189,6 +238,9 @@ describe('My tools, Routines tab', () => {
     fireEvent.change(field, { target: { value: 'Old routine' } })
     fireEvent.click(del)
     await saysLive(S_TYPE_NAME)                                       // the server checks again; its sentence shows
+    // ...and the refusal is tied to the button that was refused, not only announced.
+    const refusal = await screen.findByText(S_TYPE_NAME, { selector: 'p:not([data-testid])' })
+    expect(screen.getByRole('button', { name: 'Delete permanently' }).getAttribute('aria-describedby').split(' ')).toContain(refusal.id)
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
     await saysLive('“Old routine” moved to Recently deleted. It\'s kept for 30 days.')
     const calls = sent('POST', 'routines/ra1/delete')
@@ -224,7 +276,7 @@ describe('My tools, Routines tab', () => {
     showList('Archived')
     await screen.findByRole('heading', { name: '1 archived' })
     fireEvent.click(within(rowOf('Old routine')).getByRole('button', { name: 'Restore Old routine' }))
-    await saysLive('Restored “Old routine” to your routines.')
+    await saysLive('Restored “Old routine”.')
     expect(sent('POST', 'routines/ra1/unarchive')).toHaveLength(1)
   })
 
@@ -242,7 +294,7 @@ describe('My tools, Routines tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Actions for Old routine' }))
     expect(sent('POST', 'routines/ra1/unarchive')).toHaveLength(1)
     release({ ok: true, status: 200, json: async () => ({ ...net.data.routines.archived[0], archived: false }) })
-    await saysLive('Restored “Old routine” to your routines.')
+    await saysLive('Restored “Old routine”.')
     expect(sent('POST', 'routines/ra1/unarchive')).toHaveLength(1)
   })
 

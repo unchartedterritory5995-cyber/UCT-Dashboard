@@ -4,7 +4,7 @@ import {
   archiveTool, createTool, deleteTool, duplicateTool, getTool, saveTool, undeleteTool, unarchiveTool,
 } from '../../../lib/toolsCrud'
 import { ArchivePanel, DeletePanel, DeletedPanel, ManageSection, UsedInPanel } from './ToolManage'
-import { COPY, fieldOf } from './toolEditorLib'
+import { COPY, fieldOf, restoredSentence } from './toolEditorLib'
 import styles from './routines.module.css'
 
 /**
@@ -239,7 +239,7 @@ export default function ToolEditor({
     }),
     restore: () => act(() => unarchiveTool(kind, tool.id), (t) => {
       adopt(t)
-      say(`Restored “${t?.name || name}”.`)
+      say(restoredSentence(t?.name || name))
       focusNext.current = '[data-field="name"]'
     }),
     remove: (el) => push('delete', el),

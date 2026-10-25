@@ -38,7 +38,7 @@ describe('a11y: My tools, Routines and Trackers (wave 9, Task 9.18)', () => {
     installToolsFetch()
     await open('routines')
     expect(rowOf('Morning prep')).toHaveTextContent('Every trading day')
-    expect(rowOf('Trade-day review')).toHaveTextContent('From template: Trade review')
+    expect(rowOf('Trade-day check')).toHaveTextContent('From a template')
     expect(screen.getByRole('button', { name: /^Used in 2 notes/ })).toBeTruthy()
     expect(screen.getByRole('group', { name: 'Show' })).toBeTruthy()
     await settle()

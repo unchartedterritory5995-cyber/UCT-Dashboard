@@ -17,9 +17,10 @@ export const ROUTINES = {
       usedIn: 0, updatedAt: '2025-02-10T17:00:00Z', sourceTemplateKey: null,
     },
     {
-      id: 'r3', name: 'Trade-day review', items: [{ id: 'i3', text: 'Log every trade' }], schedule: { kind: 'traded' },
+      // The server's shape (routines._shape): a template KEY and no name. It must read "From a template", never the key.
+      id: 'r3', name: 'Trade-day check', items: [{ id: 'i3', text: 'Log every trade' }], schedule: { kind: 'traded' },
       settings: {}, archived: false, deleted: false, etag: 2, usedIn: 1, updatedAt: '2025-02-01T17:00:00Z',
-      sourceTemplateKey: 'review', sourceTemplateName: 'Trade review',
+      sourceTemplateKey: 'review',
     },
   ],
   archived: [

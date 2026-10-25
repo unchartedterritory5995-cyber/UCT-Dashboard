@@ -6,6 +6,16 @@
 // Never the engine's own nouns. The server's sentences (count cap, conflict, archive first, type the name) are shown
 // VERBATIM (`actionFailure`), never retyped here.
 import { FAILURE_COPY, failureText } from '../../../lib/builtWidgets'
+// ⛔ ONE owner for what widgets and tools word alike (the note count, "Used in", "Not in any note", the edited line):
+// routines/toolEditorLib, which the editors read too (it cannot import this file: My tools stays lazy on its own).
+// The tools' own retention is its RECENTLY_DELETED_DAYS (the server's routines/trackers constant), NOT the widgets'
+// below (widget_definitions'): two server constants, each worded from its own.
+import {
+  COPY as TOOL_EDITOR_COPY, RECENTLY_DELETED_DAYS as TOOL_DELETED_DAYS, editedText, noteHref, notesWord, openNoteInPlace,
+  usedInHeading, usedInText as toolUsedInText,
+} from '../routines/toolEditorLib'
+
+export { editedText, noteHref, notesWord, openNoteInPlace, usedInHeading }
 
 /** The four tabs (spec 5.8). Wave 8 builds Widgets, wave 9 Routines and Trackers (Task 9.18); Templates says so and
  *  carries no controls (wave 11). */
@@ -41,11 +51,10 @@ const toolCopy = (one, many) => Object.freeze({
   offlineList: `You're offline. Your ${many} show here when you're back online.`,
   emptyActive: `No ${many} yet. Make one here.`,
   emptyArchived: `Nothing archived. An archived ${one} stays in its notes, read-only, with its history.`,
-  emptyDeleted: `Nothing deleted in the last ${RECENTLY_DELETED_DAYS} days.`,
+  emptyDeleted: `Nothing deleted in the last ${TOOL_DELETED_DAYS} days.`,
   make: `New ${one}`,
   editorFailed: `The ${one} editor couldn't open. Try again.`,
   heading: (n) => `${n} ${n === 1 ? one : many}`,
-  restored: (name) => `Restored “${name}” to your ${many}.`,
 })
 export const TOOL_LIST_COPY = Object.freeze({ routine: toolCopy('routine', 'routines'), tracker: toolCopy('tracker', 'trackers') })
 
@@ -76,16 +85,14 @@ export const COPY = Object.freeze({
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
-export const notesWord = (n) => `${n} note${n === 1 ? '' : 's'}`
 
 /** "Used in 3 notes" (a link to the notes), or "Not in any note" (nothing to list). */
-export const usedInText = (n) => (n > 0 ? `Used in ${notesWord(n)}` : 'Not in any note')
+export const usedInText = (n) => (n > 0 ? toolUsedInText(n) : TOOL_EDITOR_COPY.notInNote)
 
 /** Spec 5.6: archiving a widget that is in notes says what happens to those notes. */
 export const archiveSentence = (n) =>
   `It stays in your ${notesWord(n)} as a snapshot. See it now keeps working from its saved copy.`
 
-export const usedInHeading = (name, n) => `“${name}” is in ${notesWord(n)}`
 
 // ── dates ───────────────────────────────────────────────────────────────────────────────────────────
 
@@ -95,21 +102,12 @@ const parse = (iso) => {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-
 /** "Oct 24", or "Oct 24, 2025" outside the current year; '' for an unreadable stamp. */
 export function dayText(iso, now = new Date()) {
   const d = parse(iso)
   if (!d) return ''
   const opts = { month: 'short', day: 'numeric', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) }
   return new Intl.DateTimeFormat('en-US', opts).format(d)
-}
-
-/** "Edited today", "Edited Oct 24". */
-export function editedText(iso, now = new Date()) {
-  const d = parse(iso)
-  if (!d) return ''
-  return sameDay(d, now) ? 'Edited today' : `Edited ${dayText(iso, now)}`
 }
 
 /** A version's stamp, to the minute: "Oct 24, 3:12 PM" (with the year outside the current one). */
@@ -123,11 +121,12 @@ export function versionDate(iso, now = new Date()) {
   return new Intl.DateTimeFormat('en-US', opts).format(d)
 }
 
-/** "Kept until Nov 23" for a widget deleted at `iso`. */
-export function keptUntilText(iso, now = new Date()) {
+/** "Kept until Nov 23" for something deleted at `iso` and kept `days` (a widget: RECENTLY_DELETED_DAYS; a routine or
+ *  tracker: TOOL_DELETED_DAYS, which the tool tab passes). */
+export function keptUntilText(iso, now = new Date(), days = RECENTLY_DELETED_DAYS) {
   const d = parse(iso)
   if (!d) return ''
-  const until = new Date(d.getTime() + RECENTLY_DELETED_DAYS * 24 * 60 * 60 * 1000)
+  const until = new Date(d.getTime() + days * 24 * 60 * 60 * 1000)
   return `Kept until ${dayText(until.toISOString(), now)}`
 }
 
@@ -193,22 +192,7 @@ export const copyName = (name) => `${String(name || 'Widget')} copy`.slice(0, 20
 
 // ── the notes a widget is in ────────────────────────────────────────────────────────────────────────
 
-export const noteHref = (id) => `/journal/notebook?note=${encodeURIComponent(String(id))}`
-
-/** Open a note from My tools. My tools is mounted on its OWN root, outside the app's router, so it cannot call the
- *  router's navigate. A plain left click pushes the location the way the router's own history does (its state shape,
- *  the next index) and tells the router with the `popstate` it listens for; a modified click (a new tab, a new window)
- *  is left to the browser, since the row is a real link. Returns true when it navigated in place. */
-export function openNoteInPlace(e, id) {
-  if (!e || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false
-  if (typeof window === 'undefined' || !window.history?.pushState) return false
-  e.preventDefault()
-  const prev = window.history.state
-  const idx = isRecord(prev) && Number.isInteger(prev.idx) ? prev.idx + 1 : 0
-  window.history.pushState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx }, '', noteHref(id))
-  window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
-  return true
-}
+// The note link and its in-place open are toolEditorLib's (one owner; re-exported above).
 
 // ── what changed between two versions ───────────────────────────────────────────────────────────────
 
