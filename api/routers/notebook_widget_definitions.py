@@ -107,9 +107,11 @@ S_VOCAB_FIELD = "That field isn't available here."
 VOCAB_FIELDS = ("setup", "mistake", "emotion", "symbol", "account")
 #: Listed only while wave 9 is on: `{id, name}` of the member's routines / trackers.
 VOCAB_TOOL_FIELDS = ("routine", "tracker")
-#: Listed only while wave 10 is on: options `underlying` (text) and `strategy` (`{value, label}`), notes
-#: `folder` and `kind` (`{id, name}`), `note_tag` and `ticker` (text), `property` (`{id, name, type}`).
-VOCAB_W10_FIELDS = ("underlying", "strategy", "folder", "kind", "note_tag", "ticker", "property")
+#: Listed only while wave 10 is on: options `underlying` (text) and `strategy` (`{id, name}`: the code
+#: and its words, the shape the builder's member-value reader maps), notes `folder` and `kind`
+#: (`{id, name}`), `tag` and `ticker` (text), `property` (`{id, name, type}`). Each key is the notes or
+#: options source field's OWN key (the builder asks `?field=<field key>`; railed against the catalog).
+VOCAB_W10_FIELDS = ("underlying", "strategy", "folder", "kind", "tag", "ticker", "property")
 #: The words the builder shows for `plan.FORMULA_FORMATS` (served `[{key, label}]`, the shape
 #: `builderCatalog.indexCatalog` reads; railed to name exactly the plan's formats, in its order).
 FORMAT_LABELS = {"number": "Number", "money": "Money", "percent": "Percent", "r": "R"}
@@ -489,15 +491,16 @@ def _w10_member_values(conn: sqlite3.Connection, user_id: str, field: str) -> li
     never give a value. `kind` lists the kinds a note's current kind can be (W10-R60: built-in
     and the member's own)."""
     if field == "property":
-        # the notes scan's own rule (`sources.member_property`): the member's own definition, not a
-        # built-in, user-set, not calculated (a deleted one is not listed by `list_property_defs`)
+        # the notes scan's own rule, asked of its one owner (`sources.member_property`): the member's
+        # own definition, not a built-in, user-set, not calculated. Never restated here.
         return [{"id": d["id"], "name": d["name"], "type": d["type"]}
                 for d in note_properties.list_property_defs(user_id, conn)
-                if not note_properties.is_builtin_property_id(d["id"])
-                and d.get("source") == "user_set" and not d.get("computed")][:VOCAB_MAX]
+                if wsources.member_property(conn, user_id, d["id"]) is not None][:VOCAB_MAX]
     if field == "folder":
+        # the sample notebook's own folders are not offered (the notes source leaves its notes out)
         return [{"id": r[0], "name": r[1]} for r in conn.execute(
-            "SELECT id, name FROM j2_note_folders WHERE user_id = ? ORDER BY name, id",
+            "SELECT id, name FROM j2_note_folders WHERE user_id = ? AND "
+            + sample_marker.not_sample_sql() + " ORDER BY name, id",
             (user_id,)).fetchall()][:VOCAB_MAX]
     if field == "kind":
         return [{"id": k["id"], "name": k["name"]}
@@ -507,7 +510,7 @@ def _w10_member_values(conn: sqlite3.Connection, user_id: str, field: str) -> li
         codes = sorted({r[0] for r in conn.execute(
             "SELECT DISTINCT strategy_type FROM j2_option_strategies WHERE user_id = ?"
             " AND strategy_type IS NOT NULL", (user_id,)) if isinstance(r[0], str) and r[0]})
-        return [{"value": c, "label": fmt(c) if fmt else c} for c in codes][:VOCAB_MAX]
+        return [{"id": c, "name": fmt(c) if fmt else c} for c in codes][:VOCAB_MAX]
     if field == "underlying":
         vals = [r[0] for r in conn.execute(
             "SELECT DISTINCT underlying FROM j2_option_strategies WHERE user_id = ?"
@@ -521,14 +524,15 @@ def _w10_member_values(conn: sqlite3.Connection, user_id: str, field: str) -> li
     if field == "ticker":
         vals = [r[0] for r in conn.execute(
             "SELECT DISTINCT ticker FROM j2_notes" + where + " AND ticker IS NOT NULL", params)]
-    else:                                                    # note_tag
-        seen: dict[str, None] = {}
-        for (raw,) in conn.execute(
-                "SELECT tags FROM j2_notes" + where + " AND tags IS NOT NULL", params):
-            for t in wsources._tags(raw):
-                if t.strip():
-                    seen.setdefault(t, None)
-        vals = list(seen)
+    else:                                                    # tag
+        # bounded in SQL: at most VOCAB_MAX distinct tags, in the order the list is shown in
+        # (a malformed `tags` value reads as no tags, as `sources._tags` reads it)
+        found = [r[0] for r in conn.execute(
+            "SELECT DISTINCT je.value FROM j2_notes, json_each(CASE WHEN json_valid(j2_notes.tags)"
+            " THEN j2_notes.tags ELSE '[]' END) je" + where
+            + " AND je.type = 'text' AND trim(je.value) <> ''"
+            " ORDER BY lower(je.value), je.value LIMIT ?", [*params, VOCAB_MAX])]
+        return sorted(found, key=lambda s: (s.lower(), s))
     return sorted({v for v in vals if isinstance(v, str) and v},
                   key=lambda s: (s.lower(), s))[:VOCAB_MAX]
 
