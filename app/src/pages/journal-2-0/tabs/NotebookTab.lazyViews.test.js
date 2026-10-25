@@ -37,6 +37,8 @@ const LAZY = [
   '../components/notebook/SavedViewEditor',
   // Wave 7 Task 7.6: the connected-apps sync line, after first paint through `lazyView` (null fallback).
   '../components/connectors/NoteConnectorsTrustStrip',
+  // Notebook widgets phase 2 Task 8.18: the My tools header door (wave 8), its own root through openMyTools.
+  '../components/notebook/myTools/openMyTools.js',
   // Notebook P1: the kind picker is a lazyView of the journal-styles surfaces, whose ONE dynamic import
   // lives in components/notebook/styles/lazyStyles.js (rail: NoteEditorPage.styleChunks.test.js).
   // ⚰️ Wave 8 seam S8-3 put the first-run tour here too, through `lazyChunk` in a bare

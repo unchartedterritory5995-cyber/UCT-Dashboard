@@ -19,6 +19,8 @@
 import { isIdempotencyKey } from '../../../lib/builtWidgets'
 
 export const DRAFT_PREFIX = 'uct.nb.widgetDraft.'
+/** The offer of a kept draft, in the builder and on the / menu's "Build a widget" row (Task 8.18): one sentence. */
+export const RESUME_OFFER = 'Resume your unsaved widget'
 export const DRAFT_TTL_MS = 24 * 60 * 60 * 1000
 const VERSION = 1
 

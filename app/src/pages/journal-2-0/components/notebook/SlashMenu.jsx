@@ -349,6 +349,7 @@ export const SLASH_GROUPS = [
   { id: 'open', label: 'Before the open' },
   { id: 'plan', label: 'Planning a trade' },
   { id: 'review', label: 'Reviewing' },
+  { id: 'tools', label: 'Mine' },
   { id: 'mine', label: 'My presets' },
   { id: 'basics', label: 'Basics' },
   { id: 'more', label: 'More' },
@@ -598,6 +599,61 @@ export function pickItems(query, editor) {
 }
 export const __picksLoad = () => picks.wait()
 export const __resetPicks = () => picks.reset()
+
+// ── Notebook widgets phase 2 (wave 8, Task 8.18): the "Mine" group. "Build a widget" first, the member's own widgets
+// (at most BARE_ROWS on a bare `/`, every match when typed), "Manage my tools" last; `/widgets` opens the examples. The
+// list comes through lib/builtWidgets (the ONE widget HTTP client) in this background loader, keyed to the member; that
+// client, the builder and My tools are reached only by dynamic import (first-open bytes). A row inserts through
+// snapshotCommand, the one snapshot insert ("Adding <name>…", then "<name> added."), with a failure said in the
+// client's own words. The kept-draft offer is the builder's own reader (builderDraft.readDraft), never a second one.
+const built = background((uid) => Promise.all([import('../../lib/builtWidgets'), widgetsFetch(),
+  import('./widgetBuilder/builderDraft')]).then(async ([b, f, d]) => ({ b, f, d, uid, list: await b.loadWidgetList() })))
+const doorLost = (editor) => {
+  const r = lost()
+  editor?.storage?.uctJournalWidgets?.notify?.(r.message || "You're offline, so this could not open.", 'error')
+}
+const toBuilder = ({ editor, range }) => {
+  editor.chain().focus().deleteRange(range).run()
+  return import('./widgetBuilder/openWidgetBuilder.js')
+    .then((m) => { m.openWidgetBuilder({ editor, start: 'examples' }) }, () => doorLost(editor))
+}
+const TOOLS_ROW = {
+  title: 'Manage my tools', cmd: 'tools', keywords: ['tools', 'my tools', 'manage', 'widgets'],
+  description: 'Rename, copy, archive and restore your widgets',
+  command: ({ editor, range }) => {
+    editor.chain().focus().deleteRange(range).run()
+    return import('./myTools/openMyTools.js').then((m) => { m.openMyTools({ editor, tab: 'widgets' }) }, () => doorLost(editor))
+  },
+}
+const GALLERY_ROW = {
+  title: 'Widget examples', cmd: 'widgets', keywords: ['widgets', 'examples', 'gallery'],
+  description: 'Start from a ready-made widget', command: toBuilder,
+}
+function builtRow(v, w) {
+  const title = typeof w.name === 'string' && w.name.trim() ? w.name.trim() : 'Widget'
+  const kind = {
+    id: v.b.BUILT_KIND, title,
+    // Offline is said as the insert's own offline sentence; anything else in the client's words (a 402, busy, a cap).
+    capture: (params) => v.b.runBuilt(params).then((got) => (got.ok ? { ok: true, payload: got.data }
+      : got.code === 'offline' ? { ok: false, reason: 'offline' } : { ok: false, message: v.b.failureText(got.code, got.message) })),
+  }
+  return { title, defId: w.id, keywords: ['widget'], description: typeof w.summary === 'string' && w.summary ? w.summary : 'A widget you built',
+    command: snapshotCommand(kind, { defId: w.id }) }
+}
+export function builtItems(query, editor) {
+  if (!widgetsWaveOn(8)) return []
+  const v = built.kick(editor)
+  const q = String(query || '').trim().toLowerCase()
+  const kept = v && v.d.readDraft(v.uid, null)
+  const build = { title: 'Build a widget', cmd: 'build', keywords: ['build', 'widget', 'new widget', 'create'],
+    description: kept ? v.d.RESUME_OFFER : 'Start from an example, or from blank', command: toBuilder }
+  const rows = v ? v.list.map((w) => builtRow(v, w)) : []
+  if (!q) return [build, ...rows.slice(0, v ? v.f.BARE_ROWS : 0), TOOLS_ROW].map((it) => ({ ...it, group: 'tools' }))
+  return rankedBlockItems([GALLERY_ROW, build, ...rows, TOOLS_ROW], q)
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __builtLoad = () => built.wait()
+export const __resetBuilt = () => built.reset()
 
 export function snapshotWidgetItems(query) {
   const raw = String(query || '').trim()
@@ -948,6 +1004,12 @@ export function slashItems(query, editor, mine = []) {
     ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
 }
 
+/** The menu's rows for one query, as the Suggestion asks for them. Waves 5, 6 and 8 add the member's own rows
+ *  (builtItems, mineItems, pickItems): whatever is loaded, never awaited. M-3: the caches are keyed to the signed-in
+ *  member the editor holds. */
+export const menuItems = (query, editor) => slashItems(query, editor,
+  [...builtItems(query, editor), ...mineItems(query, editor), ...pickItems(query, editor)])
+
 export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
@@ -1038,9 +1100,7 @@ export const SlashMenuExtension = Extension.create({
         // guard in SlashList.onKeyDown) passes every key through.
         allowSpaces: true,
         command: slashCommand,
-        // Waves 5 and 6 add the member's own rows (mineItems, pickItems): whatever is loaded, never awaited.
-        // M-3: the caches are keyed to the signed-in member the editor holds.
-        items: ({ query, editor }) => slashItems(query, editor, [...mineItems(query, editor), ...pickItems(query, editor)]),
+        items: ({ query, editor }) => menuItems(query, editor),
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
           // this closure state must reset in onStart.

@@ -291,6 +291,15 @@ export async function loadDefinition(defId) {
   return got.data.plan
 }
 
+/** The member's widgets that are not archived (`GET DEFS_URL`, the Active list), for the / menu's Mine rows
+ *  (Task 8.18). Not cached here: the menu's own loader holds it per member. Rejects when unreadable. */
+export async function loadWidgetList() {
+  const got = await getJson(DEFS_URL)
+  if (!got.ok) throw refusedRead(got)
+  const list = Array.isArray(got.data.widgets) ? got.data.widgets : []
+  return list.filter((w) => isRecord(w) && typeof w.id === 'string' && w.id && w.archived !== true)
+}
+
 /** The member's own values for one whitelisted field (`setup`, `mistake`, `emotion`, `symbol`, `account`). */
 export function loadVocabulary(field) {
   const key = String(field || '')

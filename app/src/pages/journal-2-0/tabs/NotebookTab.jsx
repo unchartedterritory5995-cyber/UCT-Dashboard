@@ -64,6 +64,7 @@ import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
+import { widgetsWaveOn } from '../lib/notebookWidgetsFlags'
 // Tier 2 part B (R-T2B-7): the earnings follow-up card. The slot is small and static; the card itself is a lazy
 // chunk it fetches the first time a follow-up link is open (V12: a failed fetch leaves the Notebook standing).
 import { earningsFollowupEnabled } from '../lib/earningsFollowupFlag'
@@ -450,6 +451,14 @@ export default function NotebookTab() {
     setStylesOpen(true)
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); return p }, { replace: true })
   }, [searchParams, setSearchParams])
+  // Notebook widgets phase 2 (wave 8, Task 8.18): the My tools door, beside Styles, while wave 8 is on. My tools is
+  // lazy (its own root, the openMyTools door), so a static import here would put it on the Notebook's first open.
+  // Links out of it go through this tab's router (R-45).
+  const toolsOn = widgetsWaveOn(8)
+  const openTools = () => {
+    import('../components/notebook/myTools/openMyTools.js')
+      .then((m) => { m.openMyTools({ tab: 'widgets', uid: auth?.user?.id, navigate: (to) => navigate(to) }) }, () => {})
+  }
   const [exportOpen, setExportOpen] = useState(false)
   // Bumped on a successful import to force-remount FolderSidebar, which owns
   // its own useJ2NoteFolders() SWR hook — an import can create new folders
@@ -2553,6 +2562,12 @@ export default function NotebookTab() {
               <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog" data-tour="styles-button">
                 <UIcon name="sliders" size={16} gold={false} />
                 <span className={styles.actionLabel}>Styles</span>
+              </button>
+            )}
+            {toolsOn && (
+              <button type="button" className={styles.importBtn} onClick={openTools} aria-haspopup="dialog">
+                <UIcon name="wrench" size={16} gold={false} />
+                <span className={styles.actionLabel}>My tools</span>
               </button>
             )}
             <button

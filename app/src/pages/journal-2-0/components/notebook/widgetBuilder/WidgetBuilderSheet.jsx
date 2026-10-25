@@ -13,7 +13,7 @@ import {
 } from './builderCatalog'
 import {
   readDraft, writeDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
-  pendingOf, slotHeldByOther,
+  pendingOf, slotHeldByOther, RESUME_OFFER,
 } from './builderDraft'
 import SourceSection from './sections/SourceSection'
 import WhichOnesSection, { RangePicker, FieldPicker, FilterEditor } from './sections/WhichOnesSection'
@@ -84,7 +84,7 @@ export const KEEP_QUESTION = 'Keep your changes?'
 /** M-2: "Keep my changes" would replace the unsaved widget another open kept (the member keeps one). */
 export const KEEP_REPLACES = 'This replaces your other unsaved widget.'
 export const KEEP_FAILED = "Couldn't keep your changes in this browser. Save them, or they are lost when you close."
-export const RESUME_OFFER = 'Resume your unsaved widget'
+export { RESUME_OFFER }
 export const STALE_DRAFT = 'This widget changed since you left. Save your version as a new widget?'
 export const SAVED_NOT_PLACED = 'Your widget is saved, but it could not be added to the note yet.'
 export const OFFLINE_SAVE = "Offline. Your changes are kept here; save when you're back."
