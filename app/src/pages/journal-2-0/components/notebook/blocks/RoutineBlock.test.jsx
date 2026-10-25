@@ -307,7 +307,7 @@ describe('RoutineBlock', () => {
     mount({ editable: false, setParams })
     await waitFor(() => expect(screen.getByText('Read the morning wire')).toBeTruthy())
     expect(boxes()).toHaveLength(0)
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryAllByRole('button').map((b) => b.getAttribute('data-pnl-flip'))).toEqual([''])   // only the view flip (9.15 I-1)
     expect(screen.getByText('3 of the last 4 trading days')).toBeTruthy()
     expect(setParams).not.toHaveBeenCalled()
   })
@@ -814,11 +814,83 @@ describe('RoutineBlock, Task 9.15 (vs P&L and the from-your-trades hint)', () =>
     expect(screen.queryByText('1 of 6')).toBeTruthy()                       // the partial counts the member's tick only
   })
 
-  it('a reader (editable false) sees the hint as text beside the item, and no flip control', async () => {
-    serve({ suggested: ['i2'] })
-    mount({ editable: false })
+  it('a reader (editable false) sees the hint as text beside the item, and the flip, which writes nothing', async () => {
+    const { calls } = serve({ suggested: ['i2'] })
+    const setParams = vi.fn()
+    mount({ editable: false, setParams })
     await waitFor(() => expect(screen.getByText('Mark key levels')).toBeTruthy())
     expect(screen.getByText('Mark key levels').closest('li').textContent).toMatch(SUGGESTED)
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryAllByRole('button').map((b) => b.getAttribute('data-pnl-flip'))).toEqual([''])   // only the view flip (9.15 I-1)
+    fireEvent.click(flip())
+    await waitFor(() => expect(screen.getByText(LEAD)).toBeTruthy())
+    expect(setParams).not.toHaveBeenCalled()
+    expect(calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/routines/days')).toEqual([])
+  })
+
+  it('I-1: a reader of a display "pnl" block flips to the items, with no setParams and no write', async () => {
+    const { calls } = serve({ ticked: { i1: true } })
+    const setParams = vi.fn()
+    mount({ editable: false, setParams, params: { ...PARAMS, display: 'pnl' } })
+    await waitFor(() => expect(screen.getByText(LEAD)).toBeTruthy())
+    expect(screen.queryByText('Read the morning wire')).toBeNull()
+    fireEvent.click(flip())
+    await waitFor(() => expect(screen.getByText('Read the morning wire')).toBeTruthy())
+    expect(boxes()).toHaveLength(0)                                          // the items as text, never checkboxes
+    expect(flip().getAttribute('aria-pressed')).toBe('false')
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(setParams).not.toHaveBeenCalled()
+    expect(calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/routines/days')).toEqual([])
+  })
+
+  it('M-1: a tick that changes a FINISHED day\'s state re-reads the comparison once; one that does not, never', async () => {
+    // A past day (before today ET, as the comparison reads finished days only), 4 of 6 ticked.
+    serve({ ticked: { i1: true, i2: true, i3: true, i4: true } })
+    mount({ params: { ...PARAMS, day: '2026-10-20' } })
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(flip())
+    await waitFor(() => expect(screen.getByText(LEAD)).toBeTruthy())
+    expect(pnlGets()).toBe(1)
+    fireEvent.click(flip())
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'No revenge trades' }))     // 5 of 6: still not done
+    await waitFor(() => expect(screen.getByText('5 of 6')).toBeTruthy())
+    fireEvent.click(flip())
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(pnlGets()).toBe(1)
+    fireEvent.click(flip())
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Check earnings dates' }))  // 6 of 6: the day is Done
+    await waitFor(() => expect(screen.getByText('Done')).toBeTruthy())
+    expect(pnlGets()).toBe(1)                                                // hidden: it waits to be shown
+    fireEvent.click(flip())
+    await waitFor(() => expect(pnlGets()).toBe(2))
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(pnlGets()).toBe(2)
+  })
+
+  it('M-1: a state change on a day that is not finished yet never re-reads the comparison', async () => {
+    serve({ ticked: { i1: true, i2: true, i3: true, i4: true, i5: true } })
+    mount({ params: { ...PARAMS, day: '2099-01-05' } })
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(flip())
+    await waitFor(() => expect(screen.getByText(LEAD)).toBeTruthy())
+    fireEvent.click(flip())
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Check earnings dates' }))
+    await waitFor(() => expect(screen.getByText('Done')).toBeTruthy())
+    fireEvent.click(flip())
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(pnlGets()).toBe(1)
+  })
+
+  it('M-3: the flip has its own toggle class (never the Skip control\'s)', async () => {
+    serve()
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    const skipCls = screen.getByRole('button', { name: 'Skip this day' }).className.split(/\s+/)
+    const flipCls = flip().className.split(/\s+/)
+    expect(flipCls.filter((c) => /skip/i.test(c))).toEqual([])
+    expect(flipCls.some((c) => /toggle/i.test(c))).toBe(true)
+    expect(skipCls.some((c) => /toggle/i.test(c))).toBe(false)
   })
 })

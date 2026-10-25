@@ -607,6 +607,8 @@ describe('TrackerBlock', () => {
     await waitFor(() => expect(screen.getByText('Latest 7h (Tue Oct 27)')).toBeTruthy())
     expect(input()).toBeNull()
     expect(screen.queryByRole('button', { name: 'Tracker options' })).toBeNull()
+    // No WRITE control: the vs P&L flip (a view, 9.15 I-1) and the chart's own table toggle are the only buttons.
+    expect(screen.queryAllByRole('button').filter((b) => !b.hasAttribute('data-pnl-flip') && !/table$/.test(b.textContent))).toEqual([])
     expect(setParams).not.toHaveBeenCalled()
   })
 
@@ -948,7 +950,7 @@ describe('TrackerBlock, Task 9.15 (vs P&L: the shared panel)', () => {
     expect(container.querySelector('[data-tracker-chart]')).toBeNull()
   })
 
-  it("an empty tracker can flip too (the panel takes the empty line's place); a reader gets no flip control", async () => {
+  it("an empty tracker can flip too (the panel takes the empty line's place); a reader's flip writes nothing", async () => {
     serve({ values: {} })
     const { container, unmount } = mount()
     await waitFor(() => expect(screen.getByText(EMPTY_LINE)).toBeTruthy())
@@ -957,9 +959,14 @@ describe('TrackerBlock, Task 9.15 (vs P&L: the shared panel)', () => {
     expect(screen.queryByText(EMPTY_LINE)).toBeNull()
     expect(container.querySelectorAll('[role="status"], [aria-live]')).toHaveLength(1)   // still ONE live region
     unmount()
-    serve({ values: { '2026-10-27': 420 } })
-    mount({ editable: false })
-    await waitFor(() => expect(screen.getByText(/^Average/)).toBeTruthy())
-    expect(screen.queryByRole('button', { name: TRACKER_FLIP })).toBeNull()
+    const srv = serve({ values: { '2026-10-27': 420 } })
+    const setParams = vi.fn()
+    const r = mount({ editable: false, setParams, params: { ...PARAMS, display: 'pnl' } })
+    await waitFor(() => expect(screen.getByText(PNL_LEAD)).toBeTruthy())
+    fireEvent.click(flip())                                                  // I-1: a reader flips back to the chart
+    await waitFor(() => expect(r.container.querySelector('[data-tracker-chart] svg')).toBeTruthy())
+    await act(async () => { await new Promise((res) => setTimeout(res, 20)) })
+    expect(setParams).not.toHaveBeenCalled()
+    expect(srv.calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/trackers/days')).toEqual([])
   })
 })

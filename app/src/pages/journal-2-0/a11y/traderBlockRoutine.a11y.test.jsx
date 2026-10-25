@@ -80,7 +80,8 @@ axeSurface('trader-block-routine:readonly', async () => {
   const frame = await screen.findByRole('group', { name: 'Routine' })
   expect(await within(frame).findByText('Read the morning wire')).toBeTruthy()
   expect(within(frame).queryAllByRole('checkbox')).toEqual([])
-  expect(within(frame).queryAllByRole('button')).toEqual([])
+  // No write control: the vs P&L flip (a view, Task 9.15 I-1) is the one button a reader has.
+  expect(within(frame).queryAllByRole('button').map((b) => b.getAttribute('data-pnl-flip'))).toEqual([''])
 })
 
 axeSurface('trader-block-routine:archived', async () => {

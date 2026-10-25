@@ -492,7 +492,8 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
       {ready && panelMounted.current && (
         <VsPnlPanel kind="tracker" id={trackerId} refreshKey={`${attempt}|${pnlTick}`} hidden={!showPnl} />
       )}
-      {ready && editable && (
+      {/* I-1: the flip is a VIEW (it writes nothing), so a reader has it too: a locked note or a version preview. */}
+      {ready && (
         <button type="button" data-pnl-flip="" aria-pressed={showPnl}
           className={`btn btn-ghost ${own.tap} ${own.toggle} ${showPnl ? own.toggleOn : ''}`}
           onClick={() => setFlip({ display, on: !showPnl })}>

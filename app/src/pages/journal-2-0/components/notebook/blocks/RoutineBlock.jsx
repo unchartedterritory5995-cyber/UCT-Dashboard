@@ -42,7 +42,8 @@ export const NOT_DONE_TIP = 'Not enough items were ticked to count this day as d
 export const NEGATIVE_TICKED = "Didn't happen"
 export const SKIP_OFF = 'Skip this day'
 export const SKIP_ON = 'Skipped'
-/** The read-time hint beside an item the day's trades satisfy (routine_insights.SUGGEST_LINE, Task 9.7). */
+/** The read-time hint beside an item the day's trades satisfy (Task 9.7). Server owner: routine_insights.SUGGEST_LINE;
+ *  the 9.20 be->impl copy vector binds the two (ruling W9-R46). */
 export const SUGGESTED = 'From your trades: looks done'
 /** The ⋯ menu row that puts the items back first once the block opens on the comparison. */
 export const ROUTINE_FIRST = 'Show the routine first'
@@ -121,6 +122,9 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   if (flip.display !== display) setFlip({ display, on: display === 'pnl' })
   const showPnl = flip.display === display ? flip.on : display === 'pnl'
   const panelMounted = useRef(false)
+  // M-1: the comparison reads FINISHED days only (W9-R13), so a tick or Skip this block applied that changed a past
+  // day's state re-reads it (the tracker's pnlTick, in routine terms); a change to today or later never does.
+  const [pnlTick, setPnlTick] = useState(0)
 
   const [attempt, setAttempt] = useState(0)
   // { base, attempt, status: 'ready'|'offline'|'unavailable'|'missing'|'failed', entry?, tool?, day? }. A read for
@@ -140,6 +144,8 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
   const cur = read && read.base === base && read.attempt === attempt ? read : null
+  const readRef = useRef(read)
+  readRef.current = read
 
   // The read: one per (routine, day, attempt), batched by the layer with every other block's.
   useEffect(() => {
@@ -201,6 +207,11 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   }, [cur])
 
   const adoptAnswer = useCallback((entry) => {
+    const before = readRef.current
+    if (before && before.base === base && before.status === 'ready' && !(isDay(entry?.day) && entry.day !== before.day)) {
+      const day = isDay(entry?.day) ? entry.day : before.day
+      if (isDay(day) && day < todayET() && entry?.state !== before.entry?.state) setPnlTick((n) => n + 1)
+    }
     setRead((r) => {
       if (!r || r.base !== base || r.status !== 'ready') return r
       if (isDay(entry?.day) && entry.day !== r.day) return r
@@ -453,10 +464,11 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
         </div>
       )}
       {body}
-      {ready && panelMounted.current && <VsPnlPanel kind="routine" id={routineId} refreshKey={String(attempt)} hidden={!showPnl} />}
-      {ready && editable && (
+      {ready && panelMounted.current && <VsPnlPanel kind="routine" id={routineId} refreshKey={`${attempt}|${pnlTick}`} hidden={!showPnl} />}
+      {/* I-1: the flip is a VIEW (it writes nothing), so a reader has it too: a locked note or a version preview. */}
+      {ready && (
         <button type="button" data-pnl-flip="" aria-pressed={showPnl}
-          className={`btn btn-ghost ${own.tap} ${own.skip} ${showPnl ? own.skipOn : ''}`}
+          className={`btn btn-ghost ${own.tap} ${own.toggle} ${showPnl ? own.toggleOn : ''}`}
           onClick={() => setFlip({ display, on: !showPnl })}>
           {ROUTINE_FLIP}
         </button>
