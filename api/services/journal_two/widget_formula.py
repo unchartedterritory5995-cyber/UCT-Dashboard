@@ -124,10 +124,12 @@ ERRORS: dict[str, str] = {
     "text_too_long": "Text in a formula can be at most 200 characters.",
     "bad_number": "{x} isn't a number a formula can use.",
     "unexpected": "Something is missing near \"{x}\".",
+    "chained_compare": "Two comparisons can't be chained; join them with And.",
     "trailing": "There is something extra at the end: \"{x}\".",
     "unknown_field": "[{x}] isn't a field here.",
     "tag_field": "[{label}] holds several values; use it as a filter instead.",
     "unknown_function": "{x} isn't a function. Try If, Round or SumIf.",
+    "bare_field": "Put field names in brackets, like [{x}].",
     "arg_count": "{Fn} takes {n}.",
     "needs_number": "{what} needs a number.",
     "needs_condition": "{what} needs a yes/no condition.",
@@ -140,6 +142,7 @@ ERRORS: dict[str, str] = {
         "[{label}] needs to be inside CountIf, SumIf, AvgIf or Share when the formula adds up rows.",
     "aggregate_number": "A formula that adds up rows must give a number.",
     "bucket_edges": "Bucket's edges must be numbers, rising from left to right.",
+    "bucket_edge_places": "Bucket's edges can have at most 4 decimal places.",
     "round_digits": "Round's second value must be a whole number from 0 to 6.",
     "hour_no_time": "Hour needs a time; [{label}] has none here.",
 }
@@ -205,13 +208,24 @@ _TWO_CHAR_OPS = frozenset({"<>", "<=", ">="})
 _ASCII_LOWER = {c: c + 32 for c in range(65, 91)}
 _FOLDED_FUNCTIONS = {name.lower(): name for name in FUNCTIONS}
 
-#: Characters that would be invisible, or would reorder the sentence, if quoted back verbatim.
-#: A fixed list (no Unicode tables) so both twins answer the same on every engine.
-_INVISIBLE_RANGES = (
-    (0x0000, 0x001F), (0x007F, 0x009F), (0x00A0, 0x00A0), (0x00AD, 0x00AD), (0x061C, 0x061C),
-    (0x1680, 0x1680), (0x180E, 0x180E), (0x2000, 0x200F), (0x2028, 0x202F), (0x205F, 0x206F),
-    (0x3000, 0x3000), (0xD800, 0xDFFF), (0xFEFF, 0xFEFF), (0xFFF9, 0xFFFB), (0xE0000, 0xE007F),
+#: Characters refused ANYWHERE in a formula, inside a text or a field name too: controls (tab
+#: and newline excepted: tab is whitespace and a newline ends a text), bidi and zero-width
+#: formatting, the BOM, tag characters, and lone surrogates (which have no UTF-8 form, so every
+#: later encode would fail). Fixed lists, no Unicode tables, so both twins agree on every engine.
+_FORBIDDEN_RANGES = (
+    (0x0000, 0x0008), (0x000B, 0x001F), (0x007F, 0x009F), (0x00AD, 0x00AD), (0x061C, 0x061C),
+    (0x180E, 0x180E), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0xD800, 0xDFFF),
+    (0xFEFF, 0xFEFF), (0xFFF9, 0xFFFB), (0xE0000, 0xE007F),
 )
+#: Space-like characters: allowed inside a text or a field name (where they are just text, and
+#: never trimmed: trimming is space and tab only), but written as U+XXXX when quoted back so a
+#: sentence never shows a blank.
+_SPACE_LIKE_RANGES = (
+    (0x00A0, 0x00A0), (0x1680, 0x1680), (0x2000, 0x200A), (0x2028, 0x2029), (0x202F, 0x202F),
+    (0x205F, 0x205F), (0x3000, 0x3000),
+)
+#: Everything written as U+XXXX in a sentence: the two lists above plus tab and newline.
+_INVISIBLE_RANGES = _FORBIDDEN_RANGES + _SPACE_LIKE_RANGES + ((0x0009, 0x000A),)
 
 
 def _fold(s: str) -> str:
@@ -227,9 +241,31 @@ def _is_letter(c: str) -> bool:
     return ("A" <= c <= "Z") or ("a" <= c <= "z")
 
 
-def _invisible(c: str) -> bool:
+def _in(ranges: tuple, c: str) -> bool:
     o = ord(c)
-    return any(lo <= o <= hi for lo, hi in _INVISIBLE_RANGES)
+    return any(lo <= o <= hi for lo, hi in ranges)
+
+
+def _invisible(c: str) -> bool:
+    return _in(_INVISIBLE_RANGES, c)
+
+
+def _forbidden(c: str) -> bool:
+    return _in(_FORBIDDEN_RANGES, c)
+
+
+def _code(c: str) -> str:
+    return f"U+{ord(c):04X}"
+
+
+def _shown_char(c: str) -> str:
+    """One refused character: printable ASCII as itself, an invisible one as `U+XXXX`, any other
+    as its glyph followed by ` (U+XXXX)`, so a look-alike (a fullwidth bracket) can be told apart."""
+    if "!" <= c <= "~":
+        return c
+    if _invisible(c):
+        return _code(c)
+    return f"{c} ({_code(c)})"
 
 
 def _shown(x: str) -> str:
@@ -246,7 +282,7 @@ def _shown(x: str) -> str:
         in_ws = False
         out.append(ch)
     s = "".join(out).strip(" ")[:SHOWN_MAX]
-    return "".join(f"U+{ord(c):04X}" if _invisible(c) else c for c in s)
+    return "".join(_code(c) if _invisible(c) else c for c in s)
 
 
 def _err(code: str, pos: int, **fill: str) -> FormulaError:
@@ -307,12 +343,18 @@ class _Tok:
     value: Any     # float / unescaped text / bool / trimmed field name / None
 
 
+def _significant(run: str) -> str:
+    """The significant digits of a literal: leading zeros, trailing zeros of the fraction and
+    trailing zeros of a whole number do not count (`1000000000000000` has one)."""
+    whole, _, frac = run.partition(".")
+    return (whole + frac.rstrip("0")).strip("0")
+
+
 def _valid_number(run: str) -> bool:
     parts = run.split(".")
     if len(parts) > 2 or not all(p and all(_is_digit(c) for c in p) for p in parts):
         return False
-    frac = parts[1].rstrip("0") if len(parts) == 2 else ""
-    return len((parts[0] + frac).lstrip("0")) <= SIG_DIGITS_MAX
+    return len(_significant(run)) <= SIG_DIGITS_MAX and math.isfinite(float(run))
 
 
 def _tokenize(s: str) -> list[_Tok]:
@@ -359,6 +401,8 @@ def _tokenize(s: str) -> list[_Tok]:
             while True:
                 if j >= n or s[j] == "\n":
                     raise _err("unclosed_text", i)
+                if _forbidden(s[j]):
+                    raise _err("bad_char", j, x=_shown_char(s[j]))
                 if s[j] == '"':
                     if j + 1 < n and s[j + 1] == '"':
                         buf.append('"')
@@ -375,6 +419,8 @@ def _tokenize(s: str) -> list[_Tok]:
         if c == "[":
             j = i + 1
             while j < n and s[j] not in "[]\n":
+                if _forbidden(s[j]):
+                    raise _err("bad_char", j, x=_shown_char(s[j]))
                 j += 1
             if j >= n or s[j] != "]":
                 raise _err("unclosed_field", i)
@@ -408,7 +454,7 @@ def _tokenize(s: str) -> list[_Tok]:
             push(_Tok("op", i, i + 1, c, None))
             i += 1
             continue
-        raise _err("bad_char", i, x=_shown(c))
+        raise _err("bad_char", i, x=_shown_char(c))
     if opens:
         raise _err("unclosed_paren", opens[-1])
     return toks
@@ -424,9 +470,10 @@ def _tokenize(s: str) -> list[_Tok]:
 # Recursion happens only through `(`, whose depth the tokenizer has already capped.
 
 class _Parser:
-    def __init__(self, src: str, toks: list[_Tok]):
+    def __init__(self, src: str, toks: list[_Tok], st: "_State"):
         self.src = src
         self.toks = toks
+        self.st = st
         self.i = 0
 
     def _peek(self) -> _Tok | None:
@@ -456,7 +503,7 @@ class _Parser:
         right = self._additive()
         t2 = self._peek()
         if self._is_op(t2, _CMP_OPS):
-            raise self._unexpected(t2)
+            raise _err("chained_compare", t2.pos)
         return ("cmp", left[1], t.text, t.pos, left, right)
 
     def _chain(self, ops: frozenset, operand: Callable[[], tuple]) -> tuple:
@@ -513,6 +560,9 @@ class _Parser:
         if k == "name":
             name = _FOLDED_FUNCTIONS.get(_fold(t.text))
             if name is None:
+                folded = _fold(t.text)
+                if folded in self.st.by_key or folded in self.st.by_label:
+                    raise _err("bare_field", t.pos, x=_shown(t.text))
                 raise _err("unknown_function", t.pos, x=_shown(t.text))
             self.i += 1
             nxt = self._peek()
@@ -570,25 +620,28 @@ def _resolve(st: _State, pos: int, name: str) -> FieldInfo:
     return fi
 
 
-def _literal_edge(node: tuple) -> tuple[float, str] | None:
-    """A Bucket edge is `N` or `-N` with N a number literal: (value, printed label)."""
+#: A Bucket edge is printed in its label exactly as the number it is, so it may carry at most
+#: this many decimal places (trailing zeros do not count). An edge that would need rounding to
+#: print is refused rather than shown as a different number than the one that splits the rows.
+BUCKET_PLACES_MAX = 4
+
+
+def _literal_edge(node: tuple) -> tuple[float, str, bool] | None:
+    """A Bucket edge is `N` or `-N` with N a number literal: (value, label, prints exactly)."""
     neg = False
     if node[0] == "neg" and node[2] == 1:
         neg, node = True, node[3]
     if node[0] != "num":
         return None
     value = -node[2] if neg else node[2]
-    return value + 0.0, _edge_label(node[3], neg)
+    frac = node[3].partition(".")[2].rstrip("0")
+    return value + 0.0, _edge_label(node[3], neg), len(frac) <= BUCKET_PLACES_MAX
 
 
 def _edge_label(text: str, negative: bool) -> str:
-    """Prints a literal exactly: integers without decimals, else at most 4 decimals (half away
-    from zero, on the DIGITS, so no binary rounding is involved), trailing zeros trimmed."""
+    """The literal's own digits: leading zeros and trailing fraction zeros trimmed, no exponent,
+    a minus sign kept unless the number is zero."""
     whole, _, frac = text.partition(".")
-    if len(frac) > 4:
-        scaled = int(whole + frac[:4]) + (1 if frac[4] >= "5" else 0)
-        digits = str(scaled).rjust(5, "0")
-        whole, frac = digits[:-4], digits[-4:]
     whole = whole.lstrip("0") or "0"
     frac = frac.rstrip("0")
     out = whole + ("." + frac if frac else "")
@@ -898,7 +951,11 @@ def _fn_bucket(node, checked, st):
     printed: list[str] = []
     for a in args[1:]:
         e = _literal_edge(a)
-        if e is None or (edges and not e[0] > edges[-1]) or (printed and e[1] in printed):
+        if e is None:
+            raise _err("bucket_edges", a[1])
+        if not e[2]:
+            raise _err("bucket_edge_places", a[1])
+        if edges and not e[0] > edges[-1]:
             raise _err("bucket_edges", a[1])
         edges.append(e[0])
         printed.append(e[1])
@@ -926,6 +983,10 @@ def _fn_hour(node, checked, st):
     if not fi.hour_key:
         raise _err("hour_no_time", a[1], label=fi.label)
     day_key, hour_key = fi.key, fi.hour_key
+    # The hour is read from its own key, so it is a field this formula reads (empty_field_of
+    # names it on a dates-only row) and the formula needs times, like a hold-minutes field.
+    st.reads.setdefault(hour_key, _as_num)
+    st.needs_times = True
 
     def run(r):
         if _as_day(r.get(day_key)) is None:
@@ -995,8 +1056,8 @@ def compile_formula(expr: str, fields: Mapping[str, FieldInfo]) -> Compiled:
         raise _err("empty", 0)
     try:
         toks = _tokenize(expr)
-        tree = _Parser(expr, toks).parse()
         st = _State(fields)
+        tree = _Parser(expr, toks, st).parse()
         rtype, fn = _check(tree, st, False)
     except RecursionError:
         raise _err("too_deep", 0) from None
@@ -1020,22 +1081,41 @@ def compile_formula(expr: str, fields: Mapping[str, FieldInfo]) -> Compiled:
     )
 
 
+def display_name(fi: FieldInfo, fields: Mapping[str, FieldInfo]) -> str:
+    """What a member sees inside the brackets for `fi`: its label, unless the label would not
+    resolve back to `fi` (it equals another field's key, it is shared, it is too long, it carries
+    a bracket, a newline, a refused character or outer spaces) -- then its key. So
+    `compile_formula(display(c))` always gives back `c`."""
+    label = fi.label
+    st = _State(fields)
+    ok = (
+        isinstance(label, str) and label
+        and label == label.strip(" \t") and len(label) <= NAME_MAX
+        and not any(ch in "[]\n" or _forbidden(ch) for ch in label)
+    )
+    if ok:
+        folded = _fold(label)
+        ok = (st.by_key.get(folded) or st.by_label.get(folded)) is fi
+    return label if ok else fi.key
+
+
 def display(canonical: str, fields: Mapping[str, FieldInfo]) -> str:
-    """The canonical text with every known field key written as its label. A key no longer in
-    `fields` stays as written; text that no longer tokenizes is returned unchanged."""
+    """The canonical text with every known field key written as its display name. A key no
+    longer in `fields` stays as written; text that no longer tokenizes is returned as stored,
+    with any lone surrogate replaced so the answer can always be encoded."""
     if not isinstance(canonical, str):
         return ""
     try:
         toks = _tokenize(canonical)
     except FormulaError:
-        return canonical
+        return "".join("\ufffd" if 0xD800 <= ord(c) <= 0xDFFF else c for c in canonical)
     by_key = {fi.key: fi for fi in fields.values()}
     out: list[str] = []
     last = 0
     for t in toks:
         if t.kind == "field" and t.value in by_key:
             out.append(canonical[last:t.pos])
-            out.append("[" + by_key[t.value].label + "]")
+            out.append("[" + display_name(by_key[t.value], fields) + "]")
             last = t.end
     out.append(canonical[last:])
     return "".join(out)

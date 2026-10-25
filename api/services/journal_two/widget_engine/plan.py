@@ -73,6 +73,7 @@ S_START_AFTER_END = "The start date is after the end date."
 S_NO_VERSION = "This widget couldn't be read. Build it again to use it."
 S_UNREADABLE = "This widget's settings couldn't be read."
 S_TOO_LARGE = "This widget is too large to save."
+S_BAD_CHARACTER = "This widget has a character that can't be saved. Remove it and try again."
 S_UNKNOWN_SOURCE = "That data isn't available for a widget."
 S_UNKNOWN_FIELD = "That field isn't available here."
 S_UNKNOWN_OP = "That filter comparison isn't supported."
@@ -250,12 +251,20 @@ def upgrade_plan(raw: dict) -> dict:
 
 
 def plan_size_ok(raw: Any) -> bool:
-    """Compact JSON at most 16,384 bytes and JSON depth at most 16."""
+    """Compact JSON at most 16,384 bytes and JSON depth at most 16.
+
+    Raises `PlanError(S_BAD_CHARACTER)` when the plan holds text that has no UTF-8 form (a lone
+    surrogate such as U+D800 reaching us through JSON): every later encode -- the size here,
+    `plan_hash`, the stored row -- would otherwise fail as a server error."""
     try:
         blob = json.dumps(raw, separators=(",", ":"), ensure_ascii=False)
     except (TypeError, ValueError):
         return False
-    if len(blob.encode("utf-8")) > MAX_PLAN_BYTES:
+    try:
+        size = len(blob.encode("utf-8"))
+    except UnicodeEncodeError:
+        raise PlanError(S_BAD_CHARACTER) from None
+    if size > MAX_PLAN_BYTES:
         return False
     return not _json_depth_exceeds(raw, MAX_PLAN_DEPTH)
 

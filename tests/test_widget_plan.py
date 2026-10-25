@@ -535,6 +535,25 @@ def test_plan_size_cap():
     assert P.plan_size_ok(minimal(filters=d16))  # the boundary itself is fine
 
 
+def test_a_lone_surrogate_is_a_member_sentence_not_a_server_error():
+    """Task 10.2 fix 1: JSON can carry a lone surrogate; it has no UTF-8 form, so the size
+    check's encode (and every later one) would raise. It is refused with a sentence."""
+    bad = full_plan()
+    bad["display"]["title"] = "My " + chr(0xD800) + " setups"
+    with pytest.raises(P.PlanError) as ei:
+        P.plan_size_ok(bad)
+    assert str(ei.value) == P.S_BAD_CHARACTER
+    with pytest.raises(P.PlanError) as ei:
+        P.validate_plan(bad, CAT)
+    assert str(ei.value) == ("This widget has a character that can't be saved. "
+                             "Remove it and try again.")
+    # Control: a real astral character (a surrogate PAIR in JSON) is ordinary text.
+    ok = full_plan()
+    ok["display"]["title"] = "My " + chr(0x1F600) + " setups"
+    assert P.plan_size_ok(ok)
+    assert P.validate_plan(ok, CAT)["display"]["title"] == ok["display"]["title"]
+
+
 # -- wave 9 (Task 9.8): routine and tracker history, refs and the plan version -------------------
 
 RID = "0c005e04-610d-4565-89f2-5f1f76bb8fd6"

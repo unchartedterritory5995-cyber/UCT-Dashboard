@@ -96,9 +96,14 @@ def test_bucket_labels_and_edges():
     # Only a formula that IS one Bucket carries the natural split order.
     assert _compile("If(TRUE, Bucket([r], 0), \"x\")").bucket_labels is None
     assert _compile("(Bucket([r], 0))").bucket_labels == ("Under 0", "0 or more")
-    for bad in ("Bucket([r], 1, 1)", "Bucket([r], 2, 1)", "Bucket([r], [net])",
-                "Bucket([r], 0.00001, 0.00002)"):
+    for bad in ("Bucket([r], 1, 1)", "Bucket([r], 2, 1)", "Bucket([r], [net])"):
         assert _error(bad).code == "bucket_edges", bad
+    # An edge is printed exactly in its label, so one that would need rounding is refused.
+    for bad in ("Bucket([r], 0.00001)", "Bucket([r], 0.00001, 0.00002)", "Bucket([r], 1.23456)"):
+        e = _error(bad)
+        assert (e.code, e.sentence) == ("bucket_edge_places",
+                                        "Bucket's edges can have at most 4 decimal places."), bad
+    assert _compile("Bucket([r], 1.23450000)").bucket_labels == ("Under 1.2345", "1.2345 or more")
     assert wf.bucket_labels_for(["5"]) == ("Under 5", "5 or more")
 
 
@@ -113,6 +118,10 @@ def test_hour_reads_hour_key_and_refuses_without_one():
     assert (e.code, e.sentence, e.pos) == ("hour_no_time", "Hour needs a time; [Entry day] has none here.", 5)
     other = {"opened": wf.FieldInfo("opened", "Opened", "day", hour_key="opened_hour")}
     assert wf.eval_row(_compile("Hour([opened])", other), {"opened": "2026-01-02", "opened_hour": 4}) == 4
+    # The hour key is a field the formula reads, and the formula needs times.
+    assert c.fields == ("day", "hour_et") and c.needs_times is True
+    assert wf.empty_field_of(c, {"day": "2026-10-05", "hour_et": None}) == "hour_et"
+    assert _compile("Weekday([day])").needs_times is False
 
 
 def test_weekday_no_timezone():
@@ -256,6 +265,73 @@ def test_results_have_one_python_type_per_formula_type():
     for v in DOC["eval_group"]:
         got = wf.eval_group(_compile(v["expr"]), rows)
         assert got is None or type(got) is float
+
+
+def test_lone_surrogates_are_refused_everywhere_so_nothing_downstream_fails_to_encode():
+    lone = chr(0xD800)
+    for expr, pos in (('"' + lone + '"', 1), ("[a" + lone + "]", 2), (lone, 0),
+                      ('"ok" = "' + chr(0xDFFF) + '"', 8)):
+        e = _error(expr)
+        assert (e.code, e.pos) == ("bad_char", pos), expr
+        e.sentence.encode("utf-8")  # the sentence itself is always encodable
+    # Every sentence of every vector error encodes, and so does every canonical form.
+    for v in DOC["errors"] + DOC["hostile"]:
+        expr = "".join(t * n for t, n in v["build"]) if "build" in v else v["expr"]
+        try:
+            c = wf.compile_formula(expr, FIELDS)
+        except wf.FormulaError as err:
+            err.sentence.encode("utf-8")
+        else:
+            c.canonical.encode("utf-8")
+            wf.display(c.canonical, FIELDS).encode("utf-8")
+
+
+def test_forbidden_and_space_like_lists_partition_the_invisible_list():
+    """The sentence list is exactly the refused list plus the space-like list plus tab and
+    newline, so nothing is shown as U+XXXX that a member may legitimately type, untold."""
+    points = set(range(0x3100))  # every BMP list member lies below U+3100 ...
+    for lo, hi in wf._INVISIBLE_RANGES:  # ... plus each range's edges and neighbours
+        points |= {lo - 1, lo, hi, hi + 1}
+    every = [chr(o) for o in sorted(points) if 0 <= o <= 0x10FFFF]
+    for ch in every:
+        forbidden = wf._forbidden(ch)
+        space = wf._in(wf._SPACE_LIKE_RANGES, ch)
+        assert not (forbidden and space), hex(ord(ch))
+        assert wf._invisible(ch) == (forbidden or space or ch in "\t\n"), hex(ord(ch))
+    assert not wf._forbidden("\t") and wf._forbidden("\r") and not wf._forbidden(chr(0xA0))
+
+
+def test_sentences_name_odd_characters_and_hint_at_brackets():
+    assert _error("[net] + " + chr(0xFF3B)).sentence == (
+        chr(0xFF3B) + " (U+FF3B) can't be used in a formula.")
+    assert _error("&").sentence == "& can't be used in a formula."
+    assert _error(chr(0x202E)).sentence == "U+202E can't be used in a formula."
+    e = _error("1 < 2 < 3")
+    assert (e.code, e.pos, e.sentence) == (
+        "chained_compare", 6, "Two comparisons can't be chained; join them with And.")
+    e = _error("net + 1")
+    assert (e.code, e.sentence) == ("bare_field", "Put field names in brackets, like [net].")
+    assert _error("Setup").code == "bare_field"           # a label as a bare word
+    assert _error("netx + 1").code == "unknown_function"  # control: not a field word
+
+
+def test_significant_digits_ignore_trailing_zeros_and_refuse_infinity():
+    assert wf.eval_row(_compile("1000000000000000"), {}) == 1e15
+    assert wf.eval_row(_compile("1.500000000000000000000"), {}) == 1.5
+    assert _error("1234567890123456").code == "bad_number"
+    assert _error("1" + "0" * 309).code == "bad_number"     # would parse to Infinity
+    assert wf.eval_row(_compile("1" + "0" * 307), {}) == 1e307
+
+
+def test_display_name_never_breaks_the_round_trip():
+    fields = {"r": wf.FieldInfo("r", "R multiple", "number"),
+              "risk": wf.FieldInfo("risk", "R", "number")}  # risk's label is r's key
+    assert wf.display_name(fields["risk"], fields) == "risk"
+    assert wf.display_name(fields["r"], fields) == "R multiple"
+    c = _compile("[risk] - [r]", fields)
+    shown = wf.display(c.canonical, fields)
+    assert shown == "[risk] - [R multiple]"
+    assert _compile(shown, fields).canonical == c.canonical
 
 
 def test_a_separate_dialect_from_the_note_property_language():

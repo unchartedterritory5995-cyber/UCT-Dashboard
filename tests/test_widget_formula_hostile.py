@@ -61,7 +61,7 @@ def test_hostile_vectors_cover_the_named_classes():
     exprs = [build(v) for v in DOC["hostile"]]
     joined = "\n".join(e for e in exprs if len(e) < 5000)
     for needle in ('"', "--", ";", "$.", "%", "_", "\\", "\u0000", "‮", "［",
-                   "__proto__", "constructor", "toString"):
+                   "__proto__", "constructor", "toString", chr(0xD800)):
         assert needle in joined, needle
     assert any(e == "(" * 10000 for e in exprs)
     assert any(len(e) >= 1_000_000 for e in exprs)

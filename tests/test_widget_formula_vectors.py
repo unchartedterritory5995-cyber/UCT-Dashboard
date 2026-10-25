@@ -56,8 +56,12 @@ def same(got, expect) -> bool:
     if isinstance(expect, bool) or isinstance(got, bool):
         return type(got) is bool and type(expect) is bool and got == expect
     if isinstance(expect, (int, float)):
-        return (isinstance(got, float) and math.isfinite(got)
-                and math.isclose(got, expect, rel_tol=1e-9, abs_tol=1e-9))
+        if not (isinstance(got, float) and math.isfinite(got)):
+            return False
+        if expect == 0:
+            # +0 only: a -0 answer is a defect even though -0.0 == 0 (the twin uses Object.is).
+            return got == 0 and math.copysign(1.0, got) == 1.0
+        return math.isclose(got, expect, rel_tol=1e-9, abs_tol=1e-9)
     return got == expect
 
 
@@ -139,6 +143,42 @@ def test_the_file_carries_this_modules_constants_and_copy():
     assert DOC["function_docs"] == list(wf.FUNCTION_DOCS)
     assert DOC["arity_words"] == wf.ARITY_WORDS
     assert DOC["error_templates"] == wf.ERRORS
+
+
+def test_the_comparator_refuses_negative_zero():
+    """Control for the zero rule: -0.0 is not an answer for an expected 0."""
+    assert same(0.0, 0) and not same(-0.0, 0) and not same(-0.0, 0.0)
+    assert not same(False, 0) and not same(1e-12, 0)
+
+
+@pytest.mark.parametrize("v", DOC["empty_field"], ids=_ids(DOC["empty_field"]))
+def test_empty_field_vectors(v):
+    c = wf.compile_formula(v["expr"], FIELDS)
+    assert wf.empty_field_of(c, decode(v["row"])) == v["expect"]
+
+
+@pytest.mark.parametrize("v", DOC["display_cases"], ids=_ids(DOC["display_cases"], "name"))
+def test_display_case_vectors(v):
+    fields = fields_of({"fields": v["fields"]})
+    shown = wf.display(v["canonical"], fields)
+    assert shown == v["display"]
+    shown.encode("utf-8")  # always encodable
+    try:
+        c = wf.compile_formula(v["canonical"], fields)
+    except wf.FormulaError:
+        return  # a stored text that no longer compiles: display returned it as stored
+    assert wf.compile_formula(shown, fields).canonical == c.canonical
+
+
+def test_display_names_round_trip_over_the_vector_field_table():
+    """Every field of the shared table, shown by its display name, resolves back to itself."""
+    usable = {k: f for k, f in FIELDS.items() if f.type != "tag"}
+    for key, fi in usable.items():
+        name = wf.display_name(fi, FIELDS)
+        assert name == fi.label  # the table has no collisions, so every label is shown
+        c = wf.compile_formula(f"[{key}] = [{key}]", usable)
+        shown = wf.display(c.canonical, FIELDS)
+        assert wf.compile_formula(shown, usable).canonical == c.canonical
 
 
 @pytest.mark.parametrize("v", DOC["skip_notice"], ids=[str(v[:2]) for v in DOC["skip_notice"]])
