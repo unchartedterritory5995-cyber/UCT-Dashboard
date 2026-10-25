@@ -474,7 +474,7 @@ def scan_closed(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         # Keep the newest N rows that pass every filter; a flagged row (list view) is shown
         # but does not use up one of the N.
         from api.services.journal_two.widget_engine import aggregate
-        kept = aggregate.apply_filters(rows, plan, CLOSED)
+        kept = aggregate.apply_filters(rows, plan, CLOSED, check=wcompile.check_deadline)
         out, n = [], 0
         for r in kept:
             if n >= int(rng.last_n):
@@ -756,7 +756,7 @@ def scan_days(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         extremes.setdefault(d, []).extend(
             v for v in (_num(e.get("best")), _num(e.get("worst"))) if v is not None)
     for st in strategies:
-        raw_day = j2_calendar._row_et_day(st, "closed_at")
+        raw_day = strategy_close_day(st)              # W10-R52: the one ET-day authority
         if not raw_day or not (span_lo <= raw_day <= span_hi):
             continue
         d = _session_of(raw_day)
@@ -1267,15 +1267,39 @@ OPTION_FIELDS: dict[str, Field] = {f.key: f for f in [
 ]}
 
 
-def _option_day(r: dict) -> str | None:
-    """The ET day a strategy belongs to: its close (stamped, else from `closed_at`), or, while
-    open, its entry. Always `compute_trading_day_et`, never the UTC date."""
-    if r.get("status") == "open":
-        return timeutil.compute_trading_day_et(r.get("entry_date"))
-    stamped = r.get("trading_day_et")
+def _get(r: Any, key: str) -> Any:
+    """A column of a dict or a `sqlite3.Row` (absent: None)."""
+    try:
+        return r[key]
+    except (KeyError, IndexError):
+        return None
+
+
+def strategy_close_day(r: Any) -> str | None:
+    """Ruling W10-R52: the ET day a CLOSED strategy belongs to -- its stamped `trading_day_et`,
+    else `timeutil.compute_trading_day_et(closed_at)`, the one ET-day authority (the close path
+    stamps with it). Both widget sources read it: the options source and the trading-days fold.
+    Never `calendar.to_et_date`, which moves a UTC-midnight or bare-date close a day back."""
+    stamped = _get(r, "trading_day_et")
     if stamped:
         return str(stamped)[:10]
-    return timeutil.compute_trading_day_et(r.get("closed_at")) if r.get("closed_at") else None
+    closed = _get(r, "closed_at")
+    return timeutil.compute_trading_day_et(closed) if closed else None
+
+
+def _option_day(r: dict) -> str | None:
+    """The ET day a strategy belongs to: its close (`strategy_close_day`), or, while open, its
+    entry. A closed strategy with no close day falls back to its entry ET day, the order of the
+    SQL `COALESCE` (`compile.OPTION_DAY`), so it is listed, never dropped (fix round 1, m-4).
+    Always `compute_trading_day_et`, never the UTC date."""
+    if r.get("status") == "open":
+        return timeutil.compute_trading_day_et(r.get("entry_date"))
+    return strategy_close_day(r) or timeutil.compute_trading_day_et(r.get("entry_date"))
+
+
+def _sql_day(r: dict) -> str:
+    """The day the SQL ordered a row by (`compile.OPTION_DAY`): stamped, else the UTC dates."""
+    return str(r.get("trading_day_et") or r.get("closed_at") or r.get("entry_date") or "")[:10]
 
 
 def _leg_expiry(conn: sqlite3.Connection, user_id: str, ids: list[str]) -> dict[str, str]:
@@ -1324,8 +1348,18 @@ def scan_options(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             continue
         kept.append((d, r))
     kept.sort(key=lambda p: (p[0], str(p[1].get("id") or "")), reverse=True)
-    capped = over or len(kept) > wcompile.SCAN_ROWS
-    kept = kept[:wcompile.SCAN_ROWS]
+    capped = False
+    if over:
+        # Rows past the LIMIT have a SQL day no later than the last row read, and an ET day the
+        # same or one earlier. They can be in range only when that day is; then the honest
+        # "newest" set stops at that day (fix round 1, m-1).
+        last = _sql_day(raw[-1])
+        if rng.from_day is None or last >= rng.from_day:
+            capped = True
+            kept = [p for p in kept if p[0] >= last]
+    if len(kept) > wcompile.SCAN_ROWS:
+        capped = True
+        kept = kept[:wcompile.SCAN_ROWS]
     expiry = _leg_expiry(conn, user_id, [r["id"] for _d, r in kept])
     names = _account_names(conn, user_id)
     n = len(kept)

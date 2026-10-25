@@ -781,7 +781,8 @@ def _in_range(day: Any, rng: wplan.ResolvedRange) -> bool:
     return d <= rng.to_day and (rng.from_day is None or d >= rng.from_day)
 
 
-def _narrow(source_key: str, base: wsources.Scan, plan: dict, rng: wplan.ResolvedRange) -> wsources.Scan:
+def _narrow(source_key: str, base: wsources.Scan, plan: dict, rng: wplan.ResolvedRange,
+            check: Callable[[], None] | None = None) -> wsources.Scan:
     """One card's `Scan` cut from a scan that covers it (`base`: a wider range, no filters, flagged
     trades included): the card's range, its "last N trades", and the flagged-trade rule of its view,
     as `sources.scan` would have read them for the card alone. Filters, splits and measures are then
@@ -801,7 +802,7 @@ def _narrow(source_key: str, base: wsources.Scan, plan: dict, rng: wplan.Resolve
             rows = [r for r in rows if not r.get("flagged")]
         if rng.last_n is not None:
             rows = [r for r in rows if isinstance(r.get("day"), str) and r["day"][:10] <= rng.to_day]
-            kept = waggregate.apply_filters(rows, plan, wsources.CLOSED)
+            kept = waggregate.apply_filters(rows, plan, wsources.CLOSED, check=check)
             out, n = [], 0
             for r in kept:                                  # newest first: keep the newest N
                 if n >= int(rng.last_n):
@@ -854,11 +855,11 @@ def _card(plan: dict, base: wsources.Scan, today: date, now: datetime, *, sample
     """Evaluate one validated plan over `base` (a covering scan) and build its payload."""
     rng = wplan.resolve_range(plan["range"], today)
     crng = _compare_range(plan, rng, today)
-    scan = _narrow(plan["source"], base, plan, rng)
+    scan = _narrow(plan["source"], base, plan, rng, check)
     result = waggregate.evaluate(scan.rows, plan, wsources.CATALOG, check=check, probe=probe)
     cresult = None
     if crng is not None:
-        cscan = _narrow(plan["source"], base, plan, crng)
+        cscan = _narrow(plan["source"], base, plan, crng, check)
         cresult = waggregate.evaluate(cscan.rows, plan, wsources.CATALOG, check=check)
     return wpayload.build_payload(
         result=result, plan=plan, settings=settings or {}, def_id=def_id, def_rev=def_rev,

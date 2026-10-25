@@ -277,6 +277,11 @@ def test_options_net_matches_trading_days_options_part(conn):
     add_opt(conn, UID, closed_at="2026-10-16T00:30:00Z", pnl=7.25, stamp=False)   # Oct 15 ET
     add_opt(conn, UID, closed_at="2026-10-24T00:30:00Z", pnl=3.0, stamp=False)    # Oct 23 ET
     add_opt(conn, UID, closed_at="2026-10-05T03:00:00Z", pnl=11.0, stamp=False)   # Oct 4 ET: out
+    # W10-R52: the shapes where compute_trading_day_et and calendar.to_et_date disagree -- an
+    # unstamped close at exactly UTC midnight (both spellings) and a bare date. All Oct 15.
+    add_opt(conn, UID, closed_at="2026-10-15T00:00:00Z", pnl=70.0, stamp=False)
+    add_opt(conn, UID, closed_at="2026-10-15T00:00:00+00:00", pnl=30.0, stamp=False)
+    add_opt(conn, UID, closed_at="2026-10-15", pnl=20.0, stamp=False)
     add_opt(conn, UID, status="open", entry="2026-10-08T14:00:00Z")
     add_opt(conn, UID, closed_at="2026-09-29T18:00:00Z", pnl=500.0)       # outside the range
     opts = scan_eval(conn, raw(range=rng))[2].total.cells[0].value
@@ -285,8 +290,15 @@ def test_options_net_matches_trading_days_options_part(conn):
     _p, sc, _res = scan_eval(conn, {"v": 1, "source": "trading_days", "range": rng,
                                     "measures": [{"key": "avg_day_pnl"}]})
     day_total = round(sum(r["net"] for r in sc.rows), 6)
-    assert opts == round(55.0 - 12.5 + 7.25 + 3.0, 2)
+    assert opts == round(55.0 - 12.5 + 7.25 + 3.0 + 70.0 + 30.0 + 20.0, 2)
     assert round(day_total - equity, 6) == opts
+    # ... and on the day itself, for every shape (a fold one day back would show Oct 14)
+    one = {"from": "2026-10-15", "to": "2026-10-15"}
+    o15 = scan_eval(conn, raw(range=one))[2].total.cells[0].value
+    _p, d15, _res = scan_eval(conn, {"v": 1, "source": "trading_days", "range": one,
+                                     "measures": [{"key": "avg_day_pnl"}]})
+    assert o15 == 7.25 + 70.0 + 30.0 + 20.0
+    assert [(r["day"], r["net"]) for r in d15.rows] == [("2026-10-15", o15)]
 
 
 def test_split_by_strategy_direction_status_in_bucket_order(conn):
@@ -387,3 +399,62 @@ def test_rows_ordered_by_et_day_not_the_sql_day(conn):
     newer = add_opt(conn, UID, closed_at="2026-10-21T19:00:00Z", pnl=5.0, sid="aaa")
     _p, sc, _res = scan_eval(conn, raw(measures=("strategies",)))
     assert [(r["_tid"], r["day"]) for r in sc.rows] == [(newer, "2026-10-21"), (late, "2026-10-20")]
+
+
+# -- fix round 1 ------------------------------------------------------------------------------
+
+def _bulk(conn, days_pnl, *, stamp=True):
+    rows = []
+    for i, (d, pnl) in enumerate(days_pnl):
+        rows.append((f"bulk-{i:06d}", UID, f"{d}T14:00:00Z", f"{d}T19:00:00Z", pnl,
+                     "Win" if pnl > 0 else "Loss", NOW, NOW, d if stamp else None))
+    conn.executemany(
+        """INSERT INTO j2_option_strategies (id, user_id, underlying, strategy_type, direction,
+               net_entry, entry_date, status, closed_at, pnl_dollar, result, created_at,
+               updated_at, trading_day_et)
+           VALUES (?, ?, 'SPY', 'long_call', 'bullish', 100, ?, 'closed', ?, ?, ?, ?, ?, ?)""",
+        rows)
+    conn.commit()
+
+
+def test_a_full_read_whose_extra_rows_are_out_of_range_is_not_capped(conn):
+    """m-1: 4,998 strategies in Oct 2-31 plus 3 stamped Oct 1 fill the 5,001-row read, yet every
+    in-range strategy was read: not capped, no notice, the true count."""
+    days = [f"2026-10-{2 + i % 30:02d}" for i in range(4998)] + ["2026-10-01"] * 3
+    _bulk(conn, [(d, 1.0) for d in days])
+    rng = {"from": "2026-10-02", "to": "2026-10-31"}
+    _p, sc, _res = scan_eval(conn, raw(measures=("strategies",), range=rng), today=date(2026, 11, 2))
+    assert sc.capped is False and sc.count == 4998
+
+
+def test_a_capped_read_states_the_strategies_it_kept(conn):
+    """m-1: past the cap, the notice names the strategies actually kept (the ET-day cut can
+    leave fewer than the cap), and a path-dependent measure carries the footnote (m-3)."""
+    # 3,000 stamped Oct 20 closes, then 3,000 legacy closes at 02:00 UTC Oct 11 (Oct 10 ET; the
+    # SQL orders them by their UTC day, Oct 11). The read stops inside the legacy block, so the
+    # honest newest set is the 3,000 Oct 20 closes: unread ones are Oct 10 too.
+    _bulk(conn, [("2026-10-20", 1.0 if i % 3 else -2.0) for i in range(3000)])
+    legacy = [(f"legacy-{i:05d}", UID, "2026-10-10T14:00:00Z", "2026-10-11T02:00:00Z", 1.0,
+               "Win", NOW, NOW) for i in range(3000)]
+    conn.executemany(
+        """INSERT INTO j2_option_strategies (id, user_id, underlying, strategy_type, direction,
+               net_entry, entry_date, status, closed_at, pnl_dollar, result, created_at,
+               updated_at) VALUES (?, ?, 'SPY', 'long_call', 'bullish', 100, ?, 'closed', ?, ?,
+               ?, ?, ?)""", legacy)
+    conn.commit()
+    out = run_out(raw(measures=("max_drawdown",)))
+    assert out["capped"] is True
+    n = out["count"]
+    assert n == 3000
+    assert out["notice"].startswith(f"Based on your newest {n:,} strategies")
+    assert f"Max drawdown: within your newest {n:,} strategies." in out["footnotes"]
+
+
+def test_a_closed_strategy_with_no_close_day_is_listed_on_its_entry_day(conn):
+    """m-4: the SQL COALESCE keeps it (closed_at, then entry); Python keeps it too."""
+    sid = add_opt(conn, UID, entry="2026-10-21T01:00:00Z", pnl=15.0, stamp=False)
+    conn.execute("UPDATE j2_option_strategies SET closed_at = NULL WHERE id = ?", (sid,))
+    conn.commit()
+    _p, sc, res = scan_eval(conn, raw(measures=("strategies",)))
+    assert [(r["_tid"], r["day"]) for r in sc.rows] == [(sid, "2026-10-20")]
+    assert res.total.cells[0].value == 1.0

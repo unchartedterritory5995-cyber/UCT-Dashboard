@@ -244,14 +244,15 @@ def drill(user_id: str, plan: dict, settings: Any, cell: Any, *, snapshot_count:
                     # read the way a List view reads: flagged trades are in the rows, labelled
                     scan_plan["view"] = {**(scan_plan.get("view") or {}), "type": "list"}
                 sc = wsources.scan(conn, scan_plan, {"accountId": acc}, rng, user_id, today=today)
-                rows = waggregate.apply_filters(sc.rows, merged, src)
+                # the plan's formula values on every row (once, under the run's deadline), and
+                # the fields a filter or split may name
+                fields = waggregate.plan_fields_on(sc.rows, merged, src,
+                                                   check=wcompile.check_deadline)
+                rows = waggregate.apply_filters(sc.rows, merged, src, fields=fields)
                 table = _OWN_TABLE.get(src.key)
                 if table is not None:
                     mine = _owned_ids(conn, user_id, table, [r.get("_tid") for r in rows])
                     rows = [r for r in rows if r.get("_tid") in mine]
-                # the plan's formula values on every row, and the fields a split may name
-                fields = waggregate.plan_fields_on(rows, merged, src,
-                                                   check=wcompile.check_deadline)
                 if "d" in want:
                     hits = _point_hits(rows, merged, want)
                 else:

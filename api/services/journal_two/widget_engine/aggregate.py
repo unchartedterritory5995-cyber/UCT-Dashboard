@@ -437,15 +437,18 @@ def _apply_filters(rows: list[dict], plan: dict, src: Any, notes: list[str],
     return kept
 
 
-def apply_filters(rows: list[dict], plan: dict, src: Any) -> list[dict]:
+def apply_filters(rows: list[dict], plan: dict, src: Any, *,
+                  check: Callable[[], None] | None = None,
+                  fields: dict | None = None) -> list[dict]:
     """Every filter of `plan` over `rows`, in Python (no footnotes). A formula filter's values are
-    written onto the rows first, as `evaluate` writes them."""
-    if not any(str(f.get("field", "")).startswith(wplan.FORMULA_PREFIX)
-               for f in plan.get("filters") or []):
-        return _apply_filters(rows, plan, src, [])
-    compiled = compile_formulas(plan, src)
-    _write_row_formulas(rows, plan, compiled, _Ticker(None))
-    return _apply_filters(rows, plan, src, [], _plan_fields(plan, src, compiled))
+    written onto the rows first, as `evaluate` writes them, asking the run's `check` every
+    `CHECK_EVERY` rows (W9-R17). `fields`: the caller already wrote them (`plan_fields_on`)."""
+    if fields is None:
+        if not any(str(f.get("field", "")).startswith(wplan.FORMULA_PREFIX)
+                   for f in plan.get("filters") or []):
+            return _apply_filters(rows, plan, src, [])
+        fields = plan_fields_on(rows, plan, src, check)
+    return _apply_filters(rows, plan, src, [], fields)
 
 
 def plan_fields_on(rows: list[dict], plan: dict, src: Any,

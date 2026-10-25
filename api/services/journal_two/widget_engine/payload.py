@@ -317,6 +317,19 @@ def _scope_label(scan: Any, account_name: str | None) -> str:
     return S_ONE_ACCOUNT
 
 
+#: Sources whose capped scan states the rows it actually kept (fix round 1, m-1): an options
+#: read is cut to the exact ET day after the SQL read, so it can hold fewer than the cap.
+_CAP_COUNTS_KEPT = frozenset({"options_strategies"})
+#: Sources whose path-dependent measures carry the "within your newest" footnote (m-3).
+_PATH_FOOTNOTE_SOURCES = frozenset({"closed_trades", "options_strategies"})
+
+
+def _cap_n(scan: Any, source_key: str) -> int:
+    if source_key in _CAP_COUNTS_KEPT:
+        return int(scan.count)
+    return _CAP_ROWS[source_key]
+
+
 def _range_label(plan: dict, rng: Any, scan: Any, source_key: str, count: int) -> str:
     """`plan.range_label_for` is the one authority for the range a widget shows ("Right now" for open
     positions, R-17); this only adds the over-the-cap and fewer-than-N wording on top of it."""
@@ -324,7 +337,7 @@ def _range_label(plan: dict, rng: Any, scan: Any, source_key: str, count: int) -
     if source_key in wplan.RIGHT_NOW_SOURCES:
         return base
     if scan.capped:
-        n, unit = _CAP_ROWS[source_key], _CAP_UNIT[source_key]
+        n, unit = _cap_n(scan, source_key), _CAP_UNIT[source_key]
         day = _mon_d(scan.earliest_day) if scan.earliest_day else None
         if day:
             return S_CAPPED_RANGE.format(day=day, n=n, unit=unit)
@@ -338,7 +351,7 @@ def _range_label(plan: dict, rng: Any, scan: Any, source_key: str, count: int) -
 def _capped_notice(scan: Any, source_key: str) -> str | None:
     if not scan.capped:
         return None
-    n, unit = _CAP_ROWS[source_key], _CAP_UNIT[source_key]
+    n, unit = _cap_n(scan, source_key), _CAP_UNIT[source_key]
     tmpl = S_CAPPED_NOTICE_NOW if source_key == "open_positions" else S_CAPPED_NOTICE
     return tmpl.format(n=n, unit=unit)
 
@@ -398,8 +411,8 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         measures.append({"label": meta.label, "unit": wmeasures.unit_for(meta, source_key),
                          "kind": meta.kind,
                          "fmt": MEASURE_FMT.get(m["key"], "number")})
-        if scan.capped and source_key == "closed_trades" and m["key"] in PATH_DEPENDENT:
-            footnotes.append(S_WITHIN_NEWEST.format(label=meta.label, n=_CAP_ROWS[source_key],
+        if scan.capped and source_key in _PATH_FOOTNOTE_SOURCES and m["key"] in PATH_DEPENDENT:
+            footnotes.append(S_WITHIN_NEWEST.format(label=meta.label, n=_cap_n(scan, source_key),
                                                     unit=_CAP_UNIT[source_key]))
 
     display = plan.get("display") or {}

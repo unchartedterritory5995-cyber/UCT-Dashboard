@@ -739,3 +739,72 @@ def test_a_fall_from_the_range_start_names_the_start(conn):
     p, sc, res = evaluate(conn, fp(measures=[{"key": "max_drawdown"}]))
     assert build(p, res, sc, w10=True)["drawdown"]["line"] == \
         "From the start of this range to Mar 3; recovered Mar 4."
+
+
+# -- Task 10.6 fix round 1: a formula filter with "last N trades" -----------------------------
+
+def _forty_alternating(conn, *, flag_newest_win=False, n=40):
+    """`n` closed trades on `n` days, newest first alternating +210 / -100."""
+    start = date(2026, 8, 3)
+    for i in range(n):
+        d = (start + timedelta(days=i)).isoformat()
+        win = i % 2 == 1
+        add_trade(conn, UID, day=d, pnl=210.0 if win else -100.0,
+                  excluded=1 if (flag_newest_win and i == n - 1) else 0, commit=False)
+    conn.commit()
+
+
+def test_last_n_with_a_formula_filter_keeps_the_newest_n_that_pass(conn):
+    """I-2: "last 20 trades where Green is Yes" is the newest 20 WINS (20 trades, $4,200), exactly
+    what the same filter written as a SQL filter gives -- never the wins among the newest 20."""
+    _forty_alternating(conn)
+    rng = {"token": "last_20_trades"}
+    by_formula = fp(formulas=[F(name="Green", expr="[net] > 0")], measures=[{"key": "net_pnl"}],
+                    rng=rng, filters=[{"field": "formula:f1", "op": "is", "values": [True]}])
+    by_sql = fp(measures=[{"key": "net_pnl"}], rng=rng,
+                filters=[{"field": "net", "op": "gt", "values": [0]}])
+    for raw in (by_formula, by_sql):
+        _p, _sc, res = evaluate(conn, raw)
+        assert (res.count, res.total.cells[0].value) == (20, 4200.0), raw.get("filters")
+    out = run.run_plan(UID, by_formula, {}, lane="run", now=NOW)
+    assert out["count"] == 20 and out["value"]["v1"] == 4200.0
+
+
+def test_last_n_with_a_formula_filter_on_a_list_lists_a_flagged_trade_without_using_up_n(conn):
+    _forty_alternating(conn, flag_newest_win=True, n=44)       # 22 wins, the newest flagged
+    raw = fp(formulas=[F(name="Green", expr="[net] > 0")], measures=[{"key": "net_pnl"}],
+             rng={"token": "last_20_trades"}, view={"type": "list"},
+             filters=[{"field": "formula:f1", "op": "is", "values": [True]}])
+    _p, sc, res = evaluate(conn, raw)
+    assert len(sc.rows) == 21 and sum(1 for r in sc.rows if r["flagged"]) == 1
+    assert res.count == 20 and res.total.cells[0].value == 4200.0
+
+
+def test_a_formula_filter_asks_the_runs_deadline_every_check_every_rows(conn):
+    """m-2: writing a formula filter's values asks the run's own check (the Budget's clock),
+    every `CHECK_EVERY` rows -- in `apply_filters` and on the last-N scan path."""
+    rows = [{"net": float(i), "flagged": False} for i in range(600)]
+    p = vp(fp(formulas=[F(name="Green", expr="[net] > 0")], measures=[{"key": "net_pnl"}],
+              filters=[{"field": "formula:f1", "op": "is", "values": [True]}]))
+    calls = []
+    kept = A.apply_filters(rows, p, S.CLOSED, check=lambda: calls.append(1))
+    assert len(kept) == 599 and len(calls) == 600 // wf.CHECK_EVERY
+    _forty_alternating(conn)
+    handed = []
+    real = A.apply_filters
+
+    def spy(*a, **kw):
+        handed.append(kw.get("check"))
+        return real(*a, **kw)
+
+    A.apply_filters = spy
+    try:
+        p20 = vp(fp(formulas=[F(name="Green", expr="[net] > 0")], measures=[{"key": "net_pnl"}],
+                    rng={"token": "last_20_trades"},
+                    filters=[{"field": "formula:f1", "op": "is", "values": [True]}]))
+        rng = P.resolve_range(p20["range"], TODAY)
+        sc = S.scan(conn, p20, {}, rng, UID, today=TODAY)
+    finally:
+        A.apply_filters = real
+    assert len(sc.rows) == 20
+    assert handed == [wcompile.check_deadline]          # the scan path hands in the run's clock
