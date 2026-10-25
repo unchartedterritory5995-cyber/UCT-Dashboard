@@ -179,6 +179,25 @@ describe('the round-3 setup shapes draw with the pattern renderers', () => {
     expect(g.textContent).not.toMatch(/EMA|SMA|undefined/)
   })
 
+  it('an ascending triangle draws its two lines and circled touches, and no lane fill', () => {
+    const asc = shaped('draw:ascending-triangle', 'trendline_pair', [A(1, 40), A(4, 40), A(1, 34), A(4, 38)],
+      { line_spaces: ['lin', 'log'], draw_lanes: false,
+        draw_touches: [A(1, 39.9), A(2, 39.9), A(4, 39.9), A(1, 34), A(3, 37)] })
+    const { container } = draw({ setupDraws: [asc], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:ascending-triangle"]')
+    expect(g.querySelector('[data-role="upper"]')).toBeTruthy()
+    expect(g.querySelector('[data-role="lower"]')).toBeTruthy()
+    expect(g.querySelectorAll('[data-role="touch"]').length).toBe(5)
+    expect(g.querySelector('polygon')).toBeNull()
+  })
+
+  it('a pair row without draw_lanes keeps its lane fill and draws no touches', () => {
+    const { container } = draw({ setupDraws: [BEAR_FLAG], showSetupDraws: true })
+    const g = container.querySelector('[data-setup-draw="draw:bear-flag"]')
+    expect(g.querySelector('polygon')).toBeTruthy()
+    expect(g.querySelector('[data-role="touch"]')).toBeNull()
+  })
+
   it('a bear flag draws its two lines AND its pole', () => {
     const { container } = draw({ setupDraws: [BEAR_FLAG], showSetupDraws: true })
     const g = container.querySelector('[data-setup-draw="draw:bear-flag"]')

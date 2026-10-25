@@ -15,7 +15,8 @@ ADV20_CERTIFIED = {"draw:descending-triangle", "draw:inverse-head-shoulders", "d
                    # setups_r3 batches b2r and b4 (their AMENDMENTs: the same recert supply rule)
                    "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge",
                    "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
-                   "draw:triple-bottom", "draw:wyckoff-spring"}
+                   "draw:triple-bottom", "draw:wyckoff-spring",
+                   "draw:ascending-triangle"}
 
 
 def _bars(n=AS.SETUP_MIN_BARS, close=10.0, vol=1_000_000.0, last_vol=None):

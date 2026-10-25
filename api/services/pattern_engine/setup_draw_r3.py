@@ -21,6 +21,7 @@ two packets of 25 random liquid held-out charts each (bar: mean >= 2.3 AND >= 70
     triple_top               A 2.46 / 92%   B 2.34 / 84%    (bearish)
     triple_bottom            A 2.40 / 92%   B 2.38 / 92%
     wyckoff_spring           A 2.44 / 92%   B 2.68 / 96%    (second packet drawn separately)
+    ascending_triangle       A 2.72 / 96%   B 2.52 / 92%    (second packet drawn separately)
 Every constant and every line of detection code below is the judged code, frozen (comments removed). The parity
 rail tests/test_setup_draw_r3_parity.py pins this module's output, as-of every bar of embedded synthetic series, to
 the judged code's output: change a constant and it goes red. A new round is a new constant AND a new blind check,
@@ -1362,6 +1363,250 @@ def outside_bar(tk, b, why=None):
             'poke_dn_atr': round((b[ia - 1]['l'] - b[ia]['l']) / atr, 3), 'dets': [det]}
 
 
+# ================================================================== ascending triangle
+# The judged code is the earlier ascending-triangle release's frozen round-3 detector, called unchanged, with its
+# result then FILTERED by the round-3 fix (AT3_*). Its names carry a _g3 prefix here so they cannot collide with the
+# helpers above; the code and constants are verbatim.
+G3_PAD = 0.10
+G3_BUY_ZONE = 0.05
+G3_BRK = 3
+G3_SMA_LONG, G3_SMA_RISE_BARS = 200, 20
+AT_PIV_W = 3
+AT_MIN_LEN, AT_MAX_LEN = 20, 60
+AT_TOP_TOL = 0.02
+AT_MIN_TOP = 3
+AT_MIN_LOW = 2
+AT_TOUCH_SEP = 5
+AT_MAX_GAP = 0.05
+AT_MAX_CONV = 0.85
+AT_MAX_DEPTH = 0.35
+AT_PRIOR_ADV = 0.20
+AT_PRIOR_LOOK = 60
+AT_SUPPORT_BREAK_ATR = 0.5
+AT_BREAKOUT_VOL = 1.4
+AT_LEFT_BARS = 20
+AT_DRAW_ROUND = 3
+AT3_FLAT_ATR = 0.3
+AT3_SPIKE_ATR = 0.25
+AT3_RISE_ATR = 0.3
+AT3_LOW_RISE_ATR = 0.5
+
+
+def _g3_atr(b, e, n=14):
+    k = max(1, e - n + 1)
+    trs = [max(b[j]['h'], b[j - 1]['c']) - min(b[j]['l'], b[j - 1]['c']) for j in range(k, e + 1)]
+    a = sum(trs) / len(trs) if trs else 0.0
+    return a if a > 0 else None
+
+
+def _g3_sma(b, e, n):
+    if e + 1 < n:
+        return None
+    return sum(x['c'] for x in b[e - n + 1:e + 1]) / n
+
+
+def _g3_avg_vol(b, e, n=50):
+    w = b[max(0, e - n):e]
+    return sum(x['v'] for x in w) / len(w) if w else 0.0
+
+
+def _g3_setup_gate(b, i):
+    """Close above a RISING 200-day SMA and not deal-pinned (the pending-deal NAME lists are the patterns route's
+    deal_hold)."""
+    from api.services import deal_status
+    s = _g3_sma(b, i, G3_SMA_LONG)
+    s0 = _g3_sma(b, i - G3_SMA_RISE_BARS, G3_SMA_LONG)
+    if s is None or s0 is None:
+        return 'short_history'
+    if b[i]['c'] <= s:
+        return 'below_200d'
+    if s <= s0:
+        return 'falling_200d'
+    if deal_status.price_pinned([(x['t'], x['o'], x['h'], x['l'], x['c']) for x in b[max(0, i - 299):i + 1]]) \
+            is not None:
+        return 'deal_pin'
+    return None
+
+
+def _g3_breakout(b, e, i, buy, vol_min):
+    if b[e + 1]['c'] <= buy:
+        return 'none'
+    if any(b[j]['c'] < buy for j in range(e + 1, i + 1)):
+        return 'failed_breakout'
+    av = _g3_avg_vol(b, e + 1)
+    if av <= 0 or b[e + 1]['v'] < vol_min * av:
+        return 'light_breakout'
+    return 'ok'
+
+
+def _g3_line_at(p1, p2, x):
+    (x1, y1), (x2, y2) = p1, p2
+    if x2 == x1:
+        return y1
+    return math.exp(math.log(y1) + (math.log(y2) - math.log(y1)) * (x - x1) / (x2 - x1))
+
+
+def _g3_triangle_at(b, e, why):
+    from api.services.pattern_engine.primitives.pivots import detect_pivots
+    lo_i = max(0, e - AT_MAX_LEN - 2 * AT_PIV_W)
+    seg = b[lo_i:e + 1]
+    pv = detect_pivots(seg, window=AT_PIV_W)
+    highs = [(p['bar_index'] + lo_i, p['price']) for p in pv if p['type'] == 'high']
+    lows = [(p['bar_index'] + lo_i, p['price']) for p in pv if p['type'] == 'low']
+    atr = _g3_atr(b, e)
+    if not atr:
+        return _say(why, 'no_atr')
+    last_r = None
+    for L in range(AT_MAX_LEN, AT_MIN_LEN - 1, -1):
+        s = e - L + 1
+        if s < AT_PRIOR_LOOK + 20:
+            continue
+        H = max(x['h'] for x in b[s:e + 1])
+        tops = [j for j, p in highs if s <= j <= e and p >= H * (1 - AT_TOP_TOL)]
+        dist = []
+        for j in tops:
+            if not dist or j - dist[-1] >= AT_TOUCH_SEP:
+                dist.append(j)
+        if len(dist) < AT_MIN_TOP:
+            last_r = 'top_touches'
+            continue
+        if b[s]['h'] >= H * (1 - AT_TOP_TOL) and s not in tops:
+            last_r = 'window_starts_on_top'
+            continue
+        hj = max(range(s, e + 1), key=lambda j: b[j]['h'])
+        if hj not in dist and hj < e - AT_PIV_W + 1:
+            last_r = 'top_not_a_touch'
+            continue
+        if max(x['h'] for x in b[max(0, dist[0] - AT_LEFT_BARS):dist[0]]) > H:
+            last_r = 'under_prior_high'
+            continue
+        lw = [(j, p) for j, p in lows if dist[0] < j <= e]
+        if len(lw) < AT_MIN_LOW:
+            last_r = 'low_touches'
+            continue
+        if any(lw[k + 1][1] <= lw[k][1] for k in range(len(lw) - 1)):
+            last_r = 'lows_not_rising'
+            continue
+        if not any(dist[0] < j < dist[-1] for j, _ in lw):
+            last_r = 'no_low_between_tops'
+            continue
+        p1, p2 = lw[0], lw[-1]
+        if p2[0] - p1[0] < AT_TOUCH_SEP:
+            last_r = 'low_touches'
+            continue
+        if any(b[j]['c'] < _g3_line_at(p1, p2, j) - AT_SUPPORT_BREAK_ATR * atr for j in range(p1[0], e + 1)):
+            last_r = 'support_broken'
+            continue
+        if (H - p1[1]) / H > AT_MAX_DEPTH:
+            last_r = 'too_deep'
+            continue
+        sup_s, sup_e = _g3_line_at(p1, p2, s), _g3_line_at(p1, p2, e)
+        if sup_e >= H:
+            last_r = 'apex_passed'
+            continue
+        if (H - sup_e) / H > AT_MAX_GAP:
+            last_r = 'not_converged'
+            continue
+        if H - sup_s <= 0 or (H - sup_e) / (H - sup_s) > AT_MAX_CONV:
+            last_r = 'not_narrowing'
+            continue
+        pre = b[s - AT_PRIOR_LOOK:s]
+        adv = b[s]['c'] / min(x['l'] for x in pre) - 1
+        if adv < AT_PRIOR_ADV:
+            last_r = 'no_prior_advance'
+            continue
+        return {'s': s, 'e': e, 'H': H, 'tops': dist, 'lows': [j for j, _ in lw], 'p1': p1, 'p2': p2, 'atr': atr,
+                'adv': adv, 'len': L, 'sup_e': sup_e}
+    return _say(why, last_r or 'no_window')
+
+
+def _g3_ascending_triangle(b, why):
+    n = len(b)
+    ia = n - 1
+    g = _g3_setup_gate(b, ia)
+    if g:
+        return _say(why, g)
+    found = None
+    reasons = []
+    for brk in range(G3_BRK, -1, -1):
+        e = ia - brk
+        t = _g3_triangle_at(b, e, reasons)
+        if t is None:
+            continue
+        buy = round(t['H'] + G3_PAD, 2)
+        if brk > 0:
+            r = _g3_breakout(b, e, ia, buy, AT_BREAKOUT_VOL)
+            if r == 'none':
+                continue
+            if r != 'ok':
+                return _say(why, r)
+        elif b[ia]['c'] > buy:
+            continue
+        found = (brk, t, buy)
+        break
+    if found is None:
+        return _say(why, reasons[-1] if reasons else 'no_triangle')
+    brk, t, buy = found
+    c = b[ia]['c']
+    if c > buy * (1 + G3_BUY_ZONE):
+        return _say(why, 'extended')
+    if brk == 0 and c < _g3_line_at(t['p1'], t['p2'], ia) - AT_SUPPORT_BREAK_ATR * t['atr']:
+        return _say(why, 'support_broken')
+    return {'shape': 'ascending-triangle', 'draw_round': AT_DRAW_ROUND, 'i': ia, 'start_i': t['s'],
+            'end_i': t['e'], 'pivot': buy, 'top_high': round(t['H'], 4),
+            'top_i': list(t['tops']), 'low_i': list(t['lows']),
+            'low1_i': t['p1'][0], 'low1': round(t['p1'][1], 4), 'low2_i': t['p2'][0],
+            'low2': round(t['p2'][1], 4), 'len': t['len'], 'top_touches': len(t['tops']),
+            'low_touches': len(t['lows']), 'depth': round((t['H'] - t['p1'][1]) / t['H'], 4),
+            'prior_advance': round(t['adv'], 3), 'gap_at_end': round((t['H'] - t['sup_e']) / t['H'], 4),
+            'breakout_bars': brk, 'close_vs_pivot': round(c / buy - 1, 4),
+            'label': 'Ascending triangle · Buy point %.2f' % buy}
+
+
+def _asc_r3_ok(b, d, why):
+    atr = _g3_atr(b, len(b) - 1)
+    ti = [j for j in (d.get('top_i') or []) if 0 <= j < len(b)]
+    if atr is None or len(ti) < 3:
+        return _say(why, 'at3_touches') or False
+    hs = sorted((b[j]['h'] for j in ti), reverse=True)
+    top = d['top_high']
+    if any(abs(h - top) > AT3_FLAT_ATR * atr for h in hs):
+        return _say(why, 'at3_not_flat') or False
+    if hs[0] - hs[1] > AT3_SPIKE_ATR * atr:
+        return _say(why, 'at3_spike_top') or False
+    xs = sorted(ti)
+    ys = [b[j]['h'] for j in xs]
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    den = sum((x - mx) ** 2 for x in xs)
+    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / den if den else 0.0
+    if slope * (xs[-1] - xs[0]) > AT3_RISE_ATR * atr:
+        return _say(why, 'at3_rising_highs') or False
+    if d['low2'] - d['low1'] < AT3_LOW_RISE_ATR * atr:
+        return _say(why, 'at3_flat_support') or False
+    return True
+
+
+def ascending_triangle(tk, b, why=None):
+    """The judged picture: ONE flat line at the buy point (top high + $0.10) from the first top touch to the as-of
+    bar, the rising (log-space) support line from the first support low to the as-of bar, hollow circles on the top
+    and low touches; no lane fill. Drawn as a trendline_pair: upper = the buy-point line, lower = the support."""
+    d = _g3_ascending_triangle(b, why)
+    if d is None or not _asc_r3_ok(b, d, why):
+        return None
+    ia = len(b) - 1
+    p1, p2 = (d['low1_i'], d['low1']), (d['low2_i'], d['low2'])
+    touches = [{'t': _t(b, j), 'price': round(float(b[j]['h']), 4)} for j in d['top_i']] + \
+              [{'t': _t(b, j), 'price': round(float(b[j]['l']), 4)} for j in d['low_i']]
+    det = _row('ascending_triangle', 'Ascending triangle', b, 'trendline_pair',
+               [(min(d['top_i']), d['pivot']), (ia, d['pivot']), p1, (ia, _g3_line_at(p1, p2, ia))], 'bullish',
+               {'line_spaces': ['lin', 'log'], 'draw_lanes': False, 'draw_touches': touches},
+               sub='converging_pair', start=d['start_i'])
+    out = {'shape': 'ascending_triangle', **{k: v for k, v in d.items() if not k.endswith('_i') and k != 'i'}}
+    out['dets'] = [det]
+    return out
+
+
 # ================================================================== entry points
 #: setup key -> detector. One authority; auto_structures reads SETUPS / DETECT / DRAW_ROUNDS.
 DETECT = {
@@ -1380,6 +1625,7 @@ DETECT = {
     "triple_top": triple_top,
     "triple_bottom": triple_bottom,
     "wyckoff_spring": wyckoff_spring,
+    "ascending_triangle": ascending_triangle,
 }
 SETUPS = tuple(DETECT)
 DRAW_ROUNDS = {s: R3_DRAW_ROUND for s in SETUPS}

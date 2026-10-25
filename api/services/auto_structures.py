@@ -3158,6 +3158,8 @@ _SETUP_DRAW_R3_FUNCS = (
     ("triple_top", "draw:triple-top", "Triple top", "triple_top"),
     ("triple_bottom", "draw:triple-bottom", "Triple bottom", "triple_bottom"),
     ("wyckoff_spring", "draw:wyckoff-spring", "Wyckoff spring", "wyckoff_spring"),
+    # the judged facts name the shape as the earlier release did ("ascending-triangle")
+    ("ascending_triangle", "draw:ascending-triangle", "Ascending triangle", "ascending-triangle"),
 )
 SETUP_DRAW_R3_IDS = tuple(pid for _k, pid, _n, _s in _SETUP_DRAW_R3_FUNCS)
 #: The rectangle (horizontal trading range) drawing (RECTANGLE_DRAW_ID): ONE box, same layer, same flag, same key.
@@ -3267,6 +3269,7 @@ MEMBER_DEATH_CROSS_ROUND = 2
 #:   triple_top              A 2.46 / 92%   B 2.34 / 84%    (bearish)
 #:   triple_bottom           A 2.40 / 92%   B 2.38 / 92%
 #:   wyckoff_spring          A 2.44 / 92%   B 2.68 / 96%    (second packet drawn in its own batch)
+#:   ascending_triangle      A 2.72 / 96%   B 2.52 / 92%    (second packet drawn in its own batch)
 #: Literals ON PURPOSE (never setup_draw_r3.R3_DRAW_ROUND): a new drawing round cannot release itself.
 MEMBER_OUTSIDE_BAR_ROUND = 3
 MEMBER_DESCENDING_TRIANGLE_ROUND = 3
@@ -3283,6 +3286,7 @@ MEMBER_HEAD_SHOULDERS_ROUND = 3
 MEMBER_TRIPLE_TOP_ROUND = 3
 MEMBER_TRIPLE_BOTTOM_ROUND = 3
 MEMBER_WYCKOFF_SPRING_ROUND = 3
+MEMBER_ASCENDING_TRIANGLE_ROUND = 3
 #: The rectangle drawing released to members: round 1 passed two pre-registered blind packets AS DRAWN (two fresh
 #: judges per packet, 25 seeded charts each drawn round-robin across 1995..2026; bar: mean >= 2.3 AND >= 70% >= 2):
 #:   rectangle               A 2.44 / 100%  B 2.76 / 96%
@@ -3315,7 +3319,7 @@ _SETUP_ADV20_IDS = ("draw:descending-triangle", "draw:inverse-head-shoulders", "
                     # setups_r3 batches b2r and b4 (AMENDMENTs: the same recert supply rule)
                     "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge",
                     "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
-                    "draw:triple-bottom", "draw:wyckoff-spring")
+                    "draw:triple-bottom", "draw:wyckoff-spring", "draw:ascending-triangle")
 SETUP_FRAME_BY_ID = {pid: (SETUP_FRAME_ADV20 if pid in _SETUP_ADV20_IDS else SETUP_FRAME_DAY)
                      for pid in SETUP_DRAW_IDS}
 _SETUP_CACHE: dict = {}
@@ -3358,6 +3362,7 @@ def _member_setup_round(pid):
         "draw:triple-top": MEMBER_TRIPLE_TOP_ROUND,
         "draw:triple-bottom": MEMBER_TRIPLE_BOTTOM_ROUND,
         "draw:wyckoff-spring": MEMBER_WYCKOFF_SPRING_ROUND,
+        "draw:ascending-triangle": MEMBER_ASCENDING_TRIANGLE_ROUND,
         RECTANGLE_DRAW_ID: MEMBER_RECTANGLE_ROUND,
     }.get(pid)
 
@@ -3467,6 +3472,7 @@ _R3_SHAPE_OF = {
     "draw:triple-top": "neckline",
     "draw:triple-bottom": "neckline",
     "draw:wyckoff-spring": "horizontal_line",
+    "draw:ascending-triangle": "trendline_pair",
 }
 _R3_ANCHORS = {
     "draw:outside-bar": 2,
@@ -3484,11 +3490,14 @@ _R3_ANCHORS = {
     "draw:triple-top": 5,
     "draw:triple-bottom": 5,
     "draw:wyckoff-spring": 3,
+    "draw:ascending-triangle": 4,
 }
 #: round 3: the row whose judged drawing is the anchored VWAP CURVE (extras.draw_ema points), and the row whose
 #: judged picture carries an RSI(14) panel.
 _R3_CURVE_IDS = ("draw:avwap-reclaim",)
 _R3_RSI_PANEL_IDS = ("draw:rsi-bearish-divergence",)
+#: round 3: the row whose judged picture draws its touches and no lane (the ascending triangle).
+_R3_TOUCH_IDS = ("draw:ascending-triangle",)
 #: round 3: the rows whose judged drawing is ONE line (trendline_pair, semantic_subtype single_trendline).
 _R3_SINGLE_LINE_IDS = ("draw:major-trendline",)
 
@@ -3524,6 +3533,12 @@ def _confirmed_setup_draw_r3(r, want) -> bool:
         if not (isinstance(pts, list) and len(pts) >= 2
                 and all(isinstance(p, dict) and p.get("t") is not None and _finite(p.get("price")) for p in pts)):
             return False
+    if pid in _R3_TOUCH_IDS:
+        # the judged picture: two lines, no lane fill, hollow circles on the touches
+        tc = ex.get("draw_touches")
+        if ex.get("draw_lanes") is not False or not (isinstance(tc, list) and len(tc) >= 5 and all(
+                isinstance(p, dict) and p.get("t") is not None and _finite(p.get("price")) for p in tc)):
+            return False
     if pid in _R3_RSI_PANEL_IDS:
         pn = ex.get("draw_panel")
         if not (isinstance(pn, dict) and pn.get("kind") == "rsi14" and isinstance(pn.get("points"), list)
@@ -3549,6 +3564,8 @@ def _setup_draw_r3_rows(sym: str, b: list) -> list:
             continue
         for k_det, det in enumerate(d["dets"]):
             row = _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r3, rnd=setup_draw_r3.R3_DRAW_ROUND)
+            if row is not None and isinstance(d.get("label"), str):
+                row["pattern_name"] = d["label"]     # the judged label (the ascending triangle prints its buy point)
             if row is not None:
                 out.append(row)
     return out
@@ -3585,7 +3602,7 @@ def _r2_row(sym, pid, name, d, det, k_det, w, setup_draw_r2, rnd=None):
     module (round 2 or 3); `rnd` its frozen round (default: round 2's)."""
     geom = det["geometry"]
     extras = {k: v for k, v in (geom.get("extras") or {}).items()
-              if k in ("line_spaces", "draw_pole", "draw_ema")}
+              if k in ("line_spaces", "draw_pole", "draw_ema", "draw_lanes", "draw_touches")}
     if "draw_ema" in extras:
         # the label EmaSegment prints ("50 SMA ..."): display decoration only, the points are the judged curve
         if pid == "draw:avwap-reclaim":

@@ -1,6 +1,6 @@
 """Round-3 setup drawings: the member gate.
 
-Fifteen setups (setup_draw_r3.py) ride the same `setup_draws` layer and the same AUTO_STRUCTURES_G4_SETUPS_ENABLED flag
+Sixteen setups (setup_draw_r3.py) ride the same `setup_draws` layer and the same AUTO_STRUCTURES_G4_SETUPS_ENABLED flag
 as rounds 1 and 2. A member is served a round-3 row only while ALL of these hold, each proved load-bearing on its
 own below: its MEMBER_<SETUP>_ROUND literal is an int equal to setup_draw_r3.R3_DRAW_ROUND and to the row's own
 draw_round stamp; its id is in registry.DISPLAY_MEMBER_SET; its draw_setup names its own judged shape; its geometry is
@@ -23,7 +23,7 @@ R3_IDS = {
     "draw:outside-bar", "draw:descending-triangle", "draw:inverse-head-shoulders", "draw:bear-flag",
     "draw:bollinger-squeeze", "draw:major-trendline", "draw:rsi-bearish-divergence", "draw:symmetrical-triangle",
     "draw:rising-wedge", "draw:avwap-reclaim", "draw:nr7", "draw:head-shoulders", "draw:triple-top",
-    "draw:triple-bottom", "draw:wyckoff-spring",
+    "draw:triple-bottom", "draw:wyckoff-spring", "draw:ascending-triangle",
 }
 LITERALS = {
     "MEMBER_OUTSIDE_BAR_ROUND": "draw:outside-bar",
@@ -41,6 +41,7 @@ LITERALS = {
     "MEMBER_TRIPLE_TOP_ROUND": "draw:triple-top",
     "MEMBER_TRIPLE_BOTTOM_ROUND": "draw:triple-bottom",
     "MEMBER_WYCKOFF_SPRING_ROUND": "draw:wyckoff-spring",
+    "MEMBER_ASCENDING_TRIANGLE_ROUND": "draw:ascending-triangle",
 }
 
 
@@ -212,3 +213,21 @@ def test_the_converging_pairs_are_two_lines():
     for pid in ("draw:symmetrical-triangle", "draw:rising-wedge"):
         g = ROWS[pid]["geometry"]
         assert len(g["anchors"]) == 4 and g["extras"]["line_spaces"] and "semantic_subtype" not in g
+
+
+def test_the_ascending_triangle_is_two_lines_with_its_touches_and_no_lane():
+    r = ROWS["draw:ascending-triangle"]
+    ex = r["geometry"]["extras"]
+    assert ex["draw_lanes"] is False and len(ex["draw_touches"]) >= 5
+    assert r["geometry"]["anchors"][0]["price"] == r["geometry"]["anchors"][1]["price"]     # the flat buy-point line
+    assert r["pattern_name"].startswith("Ascending triangle · Buy point ")
+
+
+def test_the_ascending_triangle_with_a_lane_or_without_touches_is_withheld():
+    for mut in ("lanes", "touches"):
+        r = copy.deepcopy(ROWS["draw:ascending-triangle"])
+        if mut == "lanes":
+            r["geometry"]["extras"]["draw_lanes"] = True
+        else:
+            r["geometry"]["extras"]["draw_touches"] = []
+        assert AS.member_rows([r]) == [], mut

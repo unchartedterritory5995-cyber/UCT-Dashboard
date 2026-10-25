@@ -265,6 +265,7 @@ DISPLAY_TEAM_SET: frozenset = frozenset({
     "draw:bollinger-squeeze", "draw:major-trendline",
     "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge", "draw:avwap-reclaim",
     "draw:nr7", "draw:head-shoulders", "draw:triple-top", "draw:triple-bottom", "draw:wyckoff-spring",
+    "draw:ascending-triangle",
     # the rectangle drawing (setup_draw_rectangle.py, round 1): see the member-set note below.
     "draw:rectangle",
 })
@@ -390,6 +391,7 @@ DISPLAY_MEMBER_SET: frozenset = frozenset({
     "draw:bollinger-squeeze", "draw:major-trendline",
     "draw:rsi-bearish-divergence", "draw:symmetrical-triangle", "draw:rising-wedge", "draw:avwap-reclaim",
     "draw:nr7", "draw:head-shoulders", "draw:triple-top", "draw:triple-bottom", "draw:wyckoff-spring",
+    "draw:ascending-triangle",
     "draw:rectangle",
 })
 assert DISPLAY_MEMBER_SET <= DISPLAY_TEAM_SET, "a member type must be in the team set"
