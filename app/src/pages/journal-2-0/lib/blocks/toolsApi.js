@@ -52,7 +52,14 @@ export function isOffline() {
 }
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
-const validDay = (d) => d === 'today' || DAY_RE.test(d)
+/** 'today' or a REAL calendar day: 2026-02-30 rounds to March, so the round trip through UTC parts refuses it. */
+function validDay(d) {
+  if (d === 'today') return true
+  if (!DAY_RE.test(d)) return false
+  const [y, m, day] = d.split('-').map(Number)
+  const t = new Date(Date.UTC(y, m - 1, day))
+  return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === day
+}
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 const enc = encodeURIComponent
@@ -105,6 +112,7 @@ const queue = { routine: [], tracker: [] }
 let flushTimer = null
 
 async function flushKind(kind, items) {
+  const etAtStart = todayET()                         // the ET day this request was made in
   try {
     const ids = [...new Set(items.map((i) => i.id))]
     const days = [...new Set(items.map((i) => i.day))].sort()      // sorted, so a split is the same split every time
@@ -117,7 +125,13 @@ async function flushKind(kind, items) {
         if (!mine.length) continue
         jobs.push(postDays(kind, { ids: idChunk, days: dayChunk }).then((res) => {
           const today = res.data?.resolved?.today
-          if (res.ok && typeof today === 'string' && DAY_RE.test(today)) todayCache = { et: todayET(), day: today }
+          if (res.ok && typeof today === 'string' && DAY_RE.test(today)) {
+            if (etAtStart === todayET()) todayCache = { et: etAtStart, day: today }
+            else {                                    // answered on the far side of ET midnight: that 'today' is yesterday's
+              todayCache = null
+              reResolveToday()
+            }
+          }
           for (const item of mine) item.resolve(answerFor(kind, item, res))
         }))
       }
@@ -170,11 +184,14 @@ const stampKey = (kind, id, day) => `${kind}|${id}|${day}`
 function resolveToday() {
   const et = todayET()
   if (todayCache && todayCache.et === et) return todayCache.day
-  if (todayCache && !resolving) {                     // a new ET day: ask the server again
-    resolving = true
-    reReadSubs((s) => s.day === 'today').finally(() => { resolving = false })
-  }
+  if (todayCache) reResolveToday()                    // a new ET day: ask the server again
   return et
+}
+
+function reResolveToday() {
+  if (resolving) return
+  resolving = true
+  reReadSubs((s) => s.day === 'today').finally(() => { resolving = false })
 }
 
 function notify(kind, id, writeDay, entry) {
@@ -250,13 +267,18 @@ function setVisibilityListener(on) {
   else document.removeEventListener('visibilitychange', reReadAll)
 }
 
-/** Milliseconds to the next ET midnight, plus a second so the new day has begun. */
+/** Milliseconds to the next ET midnight, from the ET CALENDAR (a day is 23 to 25 hours): the first instant
+ *  whose ET date differs from now's, found by bisection between now and 26 hours on (always a new day). */
 function msToEtMidnight(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York', hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).formatToParts(now)
-  const get = (t) => Number(parts.find((p) => p.type === t)?.value) || 0
-  return (86400 - ((get('hour') % 24) * 3600 + get('minute') * 60 + get('second'))) * 1000 - now.getMilliseconds() + 1000
+  const day = todayET(now)
+  let lo = now.getTime()                              // todayET(lo) === day
+  let hi = lo + 26 * 3600 * 1000                      // todayET(hi) !== day
+  while (hi - lo > 1) {
+    const mid = lo + Math.floor((hi - lo) / 2)
+    if (todayET(new Date(mid)) === day) lo = mid
+    else hi = mid
+  }
+  return hi - now.getTime()
 }
 
 function armMidnight() {
@@ -285,7 +307,10 @@ export function subscribe(kind, id, day, fn) {
   subs.add(sub)
   getChannel()
   setVisibilityListener(true)
-  if (sub.day === 'today') armMidnight()
+  if (sub.day === 'today') {
+    armMidnight()
+    if (!(todayCache && todayCache.et === todayET())) readDay(sub.kind, sub.id, 'today')   // seeds the server's day; the answer is only for the cache
+  }
   return () => {
     subs.delete(sub)
     if (!subs.size) setVisibilityListener(false)

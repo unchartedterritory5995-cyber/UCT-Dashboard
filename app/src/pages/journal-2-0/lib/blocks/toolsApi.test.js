@@ -421,6 +421,7 @@ describe("'today' is the server's day (W9-R27, amended)", () => {
     expect(vi.getTimerCount()).toBe(0)                              // a dated subscriber needs no midnight
     const a = api.subscribe('routine', 'r1', 'today', () => {})
     const b = api.subscribe('tracker', 't1', 'today', () => {})
+    await flushTimers()                                             // (their seeding reads settle)
     expect(vi.getTimerCount()).toBe(1)
     a()
     expect(vi.getTimerCount()).toBe(1)
@@ -554,5 +555,91 @@ describe('fix round 1: the minors', () => {
     await tick0()
     expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({ ids: ['a|b'], days: ['2026-10-23'] })
     expect(fn).toHaveBeenCalledWith({ state: 'open', day: '2026-10-23' })
+  })
+})
+
+describe('fix round 2', () => {
+  /** Armed at `startIso`, the midnight re-read fires at `targetIso` (within a second): not before, once. */
+  async function firesAt(startIso, targetIso, today) {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date(startIso))
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(answerWithToday(today))
+    api.subscribe('routine', 'r1', 'today', () => {})
+    await flushTimers()                                             // the seeding read
+    const base = globalThis.fetch.mock.calls.length
+    const target = Date.parse(targetIso)
+    await vi.advanceTimersByTimeAsync(target - Date.now() - 2000)
+    expect(globalThis.fetch.mock.calls.length, 'no early fire').toBe(base)
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(globalThis.fetch.mock.calls.length, 'fired once at ET midnight').toBe(base + 1)
+  }
+
+  it('spring forward (a 23-hour day): armed 00:30 EST on 2027-03-14 it fires at 2027-03-15T04:00Z, not an hour late', async () => {
+    await firesAt('2027-03-14T05:30:00Z', '2027-03-15T04:00:00Z', '2027-03-15')
+  })
+  it('fall back (a 25-hour day): armed 00:30 EDT on 2026-11-01 it fires once at 2026-11-02T05:00Z, not an hour early', async () => {
+    await firesAt('2026-11-01T04:30:00Z', '2026-11-02T05:00:00Z', '2026-11-02')
+  })
+  it('a normal day is unchanged', async () => {
+    await firesAt('2026-10-23T15:00:00Z', '2026-10-24T04:00:00Z', '2026-10-26')
+  })
+
+  it('an impossible calendar day resolves missing with no request', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async () => json(200, {}))
+    expect(await api.readDay('routine', 'a', '2026-02-30')).toEqual({ ok: false, code: 'missing' })
+    expect(await api.readDay('routine', 'a', '2026-13-01')).toEqual({ ok: false, code: 'missing' })
+    expect(await api.readDay('routine', 'a', '2026-04-31')).toEqual({ ok: false, code: 'missing' })
+    await tick0()
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    globalThis.fetch = vi.fn(async (u, init) => { const b = JSON.parse(init.body); return json(200, routineAnswer(b.ids, b.days)) })
+    expect((await api.readDay('routine', 'a', '2028-02-29')).ok).toBe(true)   // a real leap day
+  })
+
+  it('a today subscription with no cache yet seeds it: a weekend write for Monday is heard', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-24T15:00:00Z'))              // Saturday
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(answerWithToday('2026-10-26'))
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', 'today', fn)                      // nothing has been read yet
+    await flushTimers()
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({ ids: ['r1'], days: ['today'] })
+    expect(fn).not.toHaveBeenCalled()                                // the seeding answer is for the cache only
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done' }))
+    await api.tick('r1', '2026-10-24', 'i', true)
+    expect(fn).not.toHaveBeenCalled()
+    await api.tick('r1', '2026-10-26', 'i', true)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it("a response that crosses ET midnight is discarded, not cached as the new day's", async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-24T03:59:50Z'))              // Friday 23:59:50 ET
+    const api = await freshApi()
+    let answerFirst
+    let calls = 0
+    globalThis.fetch = vi.fn((u, init) => {
+      calls += 1
+      if (calls === 1) return new Promise((resolve) => { answerFirst = resolve })
+      return answerWithToday('2026-10-26')(u, init)
+    })
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', 'today', fn)
+    await flushTimers()                                              // the seeding request is out, made on Friday
+    vi.setSystemTime(new Date('2026-10-24T04:00:05Z'))              // it is Saturday ET when the answer lands
+    answerFirst(await answerWithToday('2026-10-23')(null, { body: JSON.stringify({ ids: ['r1'], days: ['today'] }) }))
+    await flushTimers()
+    await flushTimers()
+    expect(calls, 'the stale answer triggered a fresh read').toBe(2)
+    expect(fn).toHaveBeenCalledWith({ state: 'open', day: '2026-10-26' })   // the fresh read reached the subscriber
+    fn.mockClear()
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done' }))
+    await api.tick('r1', '2026-10-23', 'i', true)                    // yesterday's "today" is not cached
+    expect(fn).not.toHaveBeenCalled()
+    await api.tick('r1', '2026-10-26', 'i', true)
+    expect(fn).toHaveBeenCalledTimes(1)
   })
 })
