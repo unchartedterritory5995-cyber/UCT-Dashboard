@@ -9,7 +9,7 @@ import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, pr
 // The chart stand-in prints the props the review card is responsible for as
 // TEXT: the REVEALED ticker, the frame around the cutoff, and the cutoff marker.
 vi.mock('../../components/StockChart', () => ({
-  default: ({ sym, entryDate, exitDate, markers, priceLines, barsOverride, barsOverridePending, studyMode }) => (
+  default: ({ sym, entryDate, exitDate, markers, priceLines, barsOverride, barsOverridePending, studyMode, annotations, annotationsVisible }) => (
     <div data-testid="stock-chart">
       <span>chart:{sym}</span>
       <span>bars:{Array.isArray(barsOverride) ? barsOverride.length : (barsOverridePending ? 'pending' : 'none')}</span>
@@ -19,6 +19,8 @@ vi.mock('../../components/StockChart', () => ({
       <span>frame:{entryDate || '-'}..{exitDate || '-'}</span>
       <span>markers:{(markers || []).map((m) => m.text).join('|')}</span>
       <span>lines:{(priceLines || []).length}</span>
+      <span>annotations:{annotations ? annotations.map((a) => `${a.type}@${a.points[0].time}${a.points[0].price != null ? '=' + a.points[0].price : ''}`).join('|') : '-'}</span>
+      <span>annotationsVisible:{annotationsVisible ? '1' : '0'}</span>
     </div>
   ),
 }))
@@ -170,6 +172,25 @@ describe('StudyReview card', () => {
     expect(chart).toHaveTextContent('markers:member sees to here')
     expect(chart).toHaveTextContent('lines:3')
     expect(screen.getByText(/Member sees bars through 2025-06-02/)).toBeInTheDocument()
+  })
+
+  it('draws no annotation layer for a non-HVE chart item', () => {
+    renderWithProviders(<StudyReview />)
+    const chart = screen.getByTestId('stock-chart')
+    expect(chart).toHaveTextContent('annotations:-')
+    expect(chart).toHaveTextContent('annotationsVisible:0')
+  })
+
+  it('draws the HVC ray and the AVWAP off the cutoff bar for a High Volume Edge item (owner ruling 2026-10-25)', () => {
+    // The cutoff bar is the stored 2025-06-02 bar (close 102.5); the ray sits on
+    // that close and the AVWAP is anchored on that same bar, so the reviewer sees
+    // exactly the layer the member gets on reveal, over the same stored bars.
+    DRAFTS = [{ ...SPOT_A, id: 'si_hve', sym: 'NAVN', skill_id: 'setup.family3.hve' }, SPOT_C, RECALL_B]
+    renderWithProviders(<StudyReview />)
+    const chart = screen.getByTestId('stock-chart')
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('NAVN')
+    expect(chart).toHaveTextContent('annotations:hray@2025-06-02=102.5|avwap@2025-06-02')
+    expect(chart).toHaveTextContent('annotationsVisible:1')
   })
 
   it('highlights the key among the choices', () => {
