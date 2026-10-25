@@ -302,9 +302,12 @@ def test_forbidden_and_space_like_lists_partition_the_invisible_list():
         assert wf._forbidden(ch) == wf._in(wf._FORBIDDEN_RANGES, ch), hex(ord(ch))
         assert wf._invisible(ch) == wf._in(wf._INVISIBLE_RANGES, ch), hex(ord(ch))
     assert not wf._forbidden("\t") and wf._forbidden("\r") and not wf._forbidden(chr(0xA0))
-    for o in (0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800, 0xFE00, 0xFE0F, 0xE0100, 0xE01EF):
+    for o in (0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800, 0xFE00, 0xFE0F, 0xE0100, 0xE01EF,
+              0x034F, 0x17B4, 0x17B5, 0x180B, 0x180E, 0x180F, 0x1D173, 0x1D17A, 0x1BCA0,
+              0x1BCA3, 0xE0080, 0xE00FF, 0xE01F0, 0xE0FFF):
         assert wf._forbidden(chr(o)), hex(o)
     assert not wf._forbidden(chr(0x2764)) and not wf._forbidden(chr(0x1F600))
+    assert not wf._forbidden(chr(0x17B6)) and not wf._forbidden(chr(0x1D17B))  # range edges
     assert wf._LINE_ENDS == frozenset("\n\u2028\u2029")
 
 

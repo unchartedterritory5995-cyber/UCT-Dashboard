@@ -214,12 +214,16 @@ _FOLDED_FUNCTIONS = {name.lower(): name for name in FUNCTIONS}
 #: formatting, the BOM, tag characters, and lone surrogates (which have no UTF-8 form, so every
 #: later encode would fail). Fixed lists, no Unicode tables, so both twins agree on every engine.
 _FORBIDDEN_RANGES = (
-    (0x0000, 0x0008), (0x000B, 0x001F), (0x007F, 0x009F), (0x00AD, 0x00AD), (0x061C, 0x061C),
-    (0x115F, 0x1160), (0x180E, 0x180E), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F),
-    (0x20E3, 0x20E3),
-    (0x2800, 0x2800), (0x3164, 0x3164), (0xD800, 0xDFFF), (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF),
-    (0xFFA0, 0xFFA0), (0xFFF9, 0xFFFB), (0xE0000, 0xE007F), (0xE0100, 0xE01EF),
+    (0x0000, 0x0008), (0x000B, 0x001F), (0x007F, 0x009F), (0x00AD, 0x00AD), (0x034F, 0x034F),
+    (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5), (0x180B, 0x180F), (0x200B, 0x200F),
+    (0x202A, 0x202E), (0x2060, 0x206F), (0x20E3, 0x20E3), (0x2800, 0x2800), (0x3164, 0x3164),
+    (0xD800, 0xDFFF), (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF), (0xFFA0, 0xFFA0), (0xFFF9, 0xFFFB),
+    (0x1BCA0, 0x1BCA3), (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF),
 )
+#: Round 3 adds U+034F (combining grapheme joiner), U+17B4-17B5 (Khmer inherent vowels),
+#: U+180B-180F (Mongolian selectors and vowel separator), U+1BCA0-1BCA3 (shorthand format
+#: controls), U+1D173-1D17A (musical format controls), and the whole U+E0000-E0FFF block (tags,
+#: the supplementary variation selectors U+E0100-E01EF and the unassigned rest).
 #: The Hangul fillers (U+115F, U+1160, U+3164, U+FFA0), the blank Braille pattern (U+2800) and
 #: the variation selectors (U+FE00-FE0F, U+E0100-E01EF) render as nothing, so they are refused
 #: with the rest: a field name or a text must not hide a character the member cannot see.
@@ -339,7 +343,8 @@ def _shown_char(c: str) -> str:
 
 def _shown(x: str) -> str:
     """Member text for a sentence: whitespace runs become one space, trimmed, clipped to
-    `SHOWN_MAX` characters, then every invisible character written as `U+XXXX`."""
+    `SHOWN_MAX` characters, then every invisible character written as `U+XXXX` -- except a
+    selector, joiner or keycap that builds an allowed emoji (ruling W10-R31), shown as typed."""
     out: list[str] = []
     in_ws = False
     for ch in x:
@@ -350,8 +355,14 @@ def _shown(x: str) -> str:
             continue
         in_ws = False
         out.append(ch)
-    s = "".join(out).strip(" ")[:SHOWN_MAX]
-    return "".join(_code(c) if _invisible(c) else c for c in s)
+    whole = "".join(out).strip(" ")
+    # Ruling W10-R31: a selector, joiner or keycap that builds an allowed emoji is shown as the
+    # member typed it. The rule is judged on the whole text BEFORE the clip, so cutting at 20
+    # code points never turns a typed emoji part into a U+XXXX.
+    kept = [_emoji_part_ok(whole, -1, k) if _forbidden(ch) else False
+            for k, ch in enumerate(whole[:SHOWN_MAX])]
+    return "".join(c if keep or not _invisible(c) else _code(c)
+                   for c, keep in zip(whole[:SHOWN_MAX], kept))
 
 
 def _quoted(x: str) -> str:
