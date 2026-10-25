@@ -672,6 +672,30 @@ def delete_strategy(
 # ── Close / expire ──────────────────────────────────────────────────────────
 
 
+def exit_is_date_only(row) -> bool:
+    """True when a strategy's `closed_at` is not a real execution time: an expired strategy, or a
+    close written as a bare date, which `close_strategy` anchors at exactly 12:00:00 ET (below).
+    The one reader of that anchor: a timing rule asks this before treating the exit as an instant."""
+    try:
+        keys = row.keys()
+    except AttributeError:
+        return True
+    if "status" in keys and row["status"] == "expired":
+        return True
+    closed = row["closed_at"] if "closed_at" in keys else None
+    if not closed:
+        return True
+    try:
+        dt = datetime.fromisoformat(str(closed).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    from api.services.journal_two.calendar import ET as _ET
+    local = dt.astimezone(_ET)
+    return (local.hour, local.minute, local.second, local.microsecond) == (12, 0, 0, 0)
+
+
 def close_strategy(
     user_id: str,
     strategy_id: str,

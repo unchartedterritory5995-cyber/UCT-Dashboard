@@ -655,7 +655,7 @@ def test_budget_check_called_in_loops(S, monkeypatch):
     assert len(counted) >= 9
     counted.clear()
     S.my_revenge_clean_days(A, {}, NOW)
-    assert len(counted) >= 6
+    assert len(counted) >= 600          # 600 one-trade symbol buckets, each asks the budget
     counted.clear()
     S.my_prop_firm(A, {"since": "2026-01-01"}, NOW)
     assert len(counted) >= 1
@@ -670,3 +670,248 @@ def test_budget_check_called_in_loops(S, monkeypatch):
     for build in (S.my_tilt_check, S.my_revenge_clean_days, S.my_prop_firm):
         with pytest.raises(wrun.EngineTooLong):
             build(A, {}, NOW)
+
+
+# ── fix round 1 (review of 30c4905102) ─────────────────────────────────────────────────────────
+
+FRI_R = datetime(2026, 10, 23, 20, 30, tzinfo=timezone.utc)      # Fri 16:30 ET
+TUE_R = datetime(2026, 10, 20, 18, 0, tzinfo=timezone.utc)       # Tue 14:00 ET
+
+
+def test_unlinked_position_counts_in_total_risk(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        position(c, A, acc="acc-a", symbol="AAPL", entry=100.0, stop=95.0, shares=20)   # $100
+        position(c, A, acc=None, symbol="TSLA", entry=200.0, stop=190.0, shares=40)     # $400
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    main, unlinked = got["accounts"]
+    assert got["openRisk"] == 500.0
+    assert main["openRisk"] == 100.0 and main["afterStops"] == 0.0
+    assert main["lines"] == [
+        "Room left today: $500 of $500.",
+        "Open risk to stops: $100.",
+        "If every stop is hit, including positions not linked to an account: no room left.",
+    ]
+    assert unlinked["accountId"] is None and unlinked["name"] == "Not linked to an account"
+    assert unlinked["openRisk"] == 400.0 and unlinked["lines"] == ["Open risk to stops: $400."]
+    assert got["lines"] == [
+        "Open risk to stops in total: $500 (Main $100, Not linked to an account $400)."]
+    # A position on an account that no longer exists is unlinked too.
+    with _conn() as c:
+        position(c, A, acc="acc-gone", symbol="AMD", entry=50.0, stop=49.0, shares=100)  # $100
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert got["accounts"][1]["openRisk"] == 500.0 and got["openRisk"] == 600.0
+
+
+def test_unlinked_with_two_accounts_never_says_no_open_positions(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        account(c, A, "acc-b2", pct=None, size=10000.0, name="Other")
+        position(c, A, acc=None, symbol="TSLA", entry=200.0, stop=190.0, shares=40)
+        strategy(c, A, pnl=-5, entry_iso=et("2026-10-20", "09:45"), closed_iso=None,
+                 status="open", account=None)
+        trade(c, A, day="2026-10-20", pnl=-300, entry="10:00", exit_="10:10", account=None)
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    every = list(strings(got))
+    assert not any("No open positions" in s for s in every), every
+    unlinked = got["accounts"][-1]
+    assert unlinked["openRisk"] == 400.0 and unlinked["openOptions"] == 1
+    assert "Some of today's trades have no account and are not counted." in got["lines"]
+    assert "Open risk to stops in total: $400 (Not linked to an account $400)." in got["lines"]
+    # Nothing open anywhere: then, and only then, "No open positions."
+    with _conn() as c:
+        c.execute("DELETE FROM j2_positions")
+        c.execute("DELETE FROM j2_option_strategies")
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE_R)
+    assert got["accounts"][0]["lines"][-1] == "No open positions."
+    assert len(got["accounts"]) == 1
+
+
+def test_revenge_reentry_held_into_a_later_session(S):
+    with _conn() as c:
+        trade(c, A, day="2026-10-20", pnl=-80, entry="09:40", exit_="10:00", symbol="NVDA")
+        trade(c, A, day="2026-10-22", pnl=50, entry=et("2026-10-20", "10:15"), exit_="11:00",
+              symbol="NVDA")
+        # p4: a late loss and a re-entry exiting the next session; a loss across midnight.
+        trade(c, A, day="2026-10-19", pnl=-80, entry="15:00", exit_="15:58", symbol="AMD")
+        trade(c, A, day="2026-10-20", pnl=30, entry=et("2026-10-19", "16:20"), exit_="09:45",
+              symbol="AMD")
+        trade(c, A, day="2026-10-21", pnl=-60, entry="23:00", exit_="23:50", symbol="QQQ")
+        trade(c, A, day="2026-10-22", pnl=10, entry="00:10", exit_="00:30", symbol="QQQ")
+        c.commit()
+    got = S.my_revenge_clean_days(A, {}, FRI_R)
+    assert sorted((f["day"], f["symbol"]) for f in got["flagged"]) == [
+        ("2026-10-20", "AMD"), ("2026-10-22", "NVDA"), ("2026-10-22", "QQQ")]
+
+
+def test_revenge_reentry_entered_before_the_read_finds_the_older_loss(S):
+    window = S.finished_sessions(FRI_R)
+    from api.services.journal_two import trading_days
+    old = trading_days.session_on_or_before(window[0] - timedelta(days=5)).isoformat()
+    with _conn() as c:
+        trade(c, A, day=old, pnl=-80, entry="09:40", exit_="10:00", symbol="NVDA")
+        trade(c, A, day="2026-10-21", pnl=50, entry=et(old, "10:15"), exit_="11:00",
+              symbol="NVDA")
+        c.commit()
+    got = S.my_revenge_clean_days(A, {}, FRI_R)
+    assert got["flagged"] == [{"day": "2026-10-21", "symbol": "NVDA", "minutesApart": 15.0}]
+
+
+def test_revenge_flag_day_is_a_counted_session(S):
+    with _conn() as c:
+        # Exits stamped on Saturday Oct 17 fold onto Friday Oct 16, the scan's fold.
+        trade(c, A, day="2026-10-17", pnl=-80, entry=et("2026-10-17", "09:00"),
+              exit_=et("2026-10-17", "09:30"), symbol="BTC")
+        trade(c, A, day="2026-10-17", pnl=10, entry=et("2026-10-17", "09:40"),
+              exit_=et("2026-10-17", "09:50"), symbol="BTC")
+        c.commit()
+    got = S.my_revenge_clean_days(A, {}, FRI_R)
+    assert got["flagged"][0]["day"] == "2026-10-16"
+    assert "2026-10-16" in [d.isoformat() for d in S.finished_sessions(FRI_R)]
+    assert got["clean"] == 29
+
+
+def test_noon_anchor_exit_is_date_only(S):
+    from api.services.journal_two import options
+    assert options.exit_is_date_only({"status": "expired", "closed_at": et("2026-10-20", "15:00")})
+    assert options.exit_is_date_only({"status": "closed", "closed_at": et("2026-10-20", "12:00")})
+    assert not options.exit_is_date_only({"status": "closed",
+                                          "closed_at": et("2026-10-20", "12:01")})
+    assert options.exit_is_date_only({"status": "closed", "closed_at": None})
+    with _conn() as c:
+        # An expired SPY strategy (closed_at = the 12:00 ET anchor), then a stock at 12:10 ET.
+        strategy(c, A, pnl=-200, entry_iso=et("2026-10-13", "10:00"),
+                 closed_iso=et("2026-10-20", "12:00"), day="2026-10-20", status="expired",
+                 underlying="SPY")
+        trade(c, A, day="2026-10-20", pnl=40, entry="12:10", exit_="12:40", symbol="SPY")
+        c.commit()
+    tilt = S.my_tilt_check(A, {}, NOW)
+    assert tilt["after"]["n"] == 0 and tilt["other"]["n"] == 1
+    assert tilt["datesOnly"] == 1                       # the strategy is not timed
+    rev = S.my_revenge_clean_days(A, {}, NOW)
+    assert rev["flagged"] == []
+
+
+def test_capped_read_never_fabricates_clean(S, monkeypatch):
+    with _conn() as c:
+        trade(c, A, day="2026-10-13", pnl=-80, entry="10:00", exit_="10:10", symbol="NVDA")
+        trade(c, A, day="2026-10-13", pnl=20, entry="10:20", exit_="10:40", symbol="NVDA")
+        for d in ("2026-10-21", "2026-10-22", "2026-10-23"):
+            trade(c, A, day=d, pnl=10, entry="10:00", exit_="10:10", symbol="MSFT")
+        c.commit()
+    assert S.my_revenge_clean_days(A, {}, FRI_R)["lines"] == ["29 of 30 clean"]
+    monkeypatch.setattr(S, "READ_LIMIT", 3)
+    cut = S.my_revenge_clean_days(A, {}, FRI_R)
+    assert cut["notRead"] == 28 and cut["clean"] == 2 and cut["checked"] == 2
+    assert cut["lines"] == ["2 of 2 clean",
+                            "28 days were not checked: this widget reads your newest 2 trades."]
+    tilt = S.my_tilt_check(A, {}, FRI_R)
+    assert tilt["lines"][0] == "Counting the newest 2 trades, from Oct 22."
+    assert tilt["capped"] is True
+
+
+def test_manually_flagged_trade_counts_in_money_widgets(S):
+    with _conn() as c:
+        account(c, A, "acc-a", pct=5.0, size=10000.0)
+        trade(c, A, day="2026-10-20", pnl=-400, entry="10:00", exit_="10:10", account="acc-a",
+              flagged=1)
+        c.commit()
+    blk = S.my_risk_left_today(A, {}, TUE_R)["accounts"][0]
+    assert blk["left"] == 100.0
+    assert blk["lines"][0] == "Room left today: $100 of $500."
+    assert "Includes 1 trade you excluded from analytics." in blk["lines"]
+    prop = S.my_prop_firm(A, {"since": "2026-10-01", "dailyLoss": 500}, TUE_R)
+    assert prop["daily"]["used"] == 400.0
+    assert prop["lines"] == ["Daily loss: $400 of $500 used; $100 left.",
+                             "Includes 1 trade you excluded from analytics."]
+    # Tilt keeps its exclusion.
+    assert S.my_tilt_check(A, {}, NOW)["lines"] == ["No closed trades in this range."]
+    # A data-error flag stays out of the money widgets; a 'manual' one stays in.
+    with _conn() as c:
+        c.execute("UPDATE j2_trades SET analytics_excluded_reason = 'phantom_short'")
+        c.commit()
+    blk = S.my_risk_left_today(A, {}, TUE_R)["accounts"][0]
+    assert blk["left"] == 500.0 and not any("excluded" in s for s in blk["lines"])
+    with _conn() as c:
+        c.execute("UPDATE j2_trades SET analytics_excluded_reason = 'manual'")
+        c.commit()
+    assert S.my_risk_left_today(A, {}, TUE_R)["accounts"][0]["left"] == 100.0
+
+
+def test_tilt_estimated_entries_only_sentence(S):
+    with _conn() as c:
+        trade(c, A, day="2026-10-20", pnl=-80, entry="10:00", exit_="10:10", estimated=True)
+        trade(c, A, day="2026-10-20", pnl=20, entry="10:20", exit_="10:40", estimated=True)
+        c.commit()
+    assert S.my_tilt_check(A, {}, FRI_R)["lines"] == [
+        "Tilt check needs real entry times; your entries are estimated."]
+
+
+def test_room_left_reads_today_from_the_trading_days_scan(S):
+    """Saturday: the session today is counted on is Friday, and a trade stamped on the weekend
+    folds onto it, exactly as the trading-days scan folds it (the one authority)."""
+    with _conn() as c:
+        _one_account(c)
+        trade(c, A, day="2026-10-23", pnl=-100, entry="10:00", exit_="10:30", account="acc-a")
+        trade(c, A, day="2026-10-24", pnl=-50, entry="10:00", exit_="10:30", account="acc-a")
+        trade(c, A, day="2026-10-22", pnl=-900, entry="10:00", exit_="10:30", account="acc-a")
+        c.commit()
+    got = S.my_risk_left_today(A, {}, NOW)                  # Saturday Oct 24
+    assert got["session"] == "2026-10-23" and got["day"] == "2026-10-24"
+    blk = got["accounts"][0]
+    with _conn() as c:
+        scan = S._day_nets(c, A, None, date(2026, 10, 23), date(2026, 10, 24))
+    row = next(r for r in scan.rows if r["day"] == "2026-10-23")
+    assert row["net"] == -150.0 and blk["net"] == row["net"]
+    assert blk["lines"][0] == "Room left today: $350 of $500."
+    # A holiday: Thanksgiving's trades fold onto Wednesday, never onto Black Friday.
+    with _conn() as c:
+        trade(c, A, day="2026-11-26", pnl=-300, entry="10:00", exit_="10:30", account="acc-a")
+        c.commit()
+    fri = S.my_risk_left_today(A, {}, datetime(2026, 11, 27, 18, 30, tzinfo=timezone.utc))
+    assert fri["accounts"][0]["net"] == 0.0
+
+
+def test_no_result_strategy_is_not_a_breakeven(S):
+    with _conn() as c:
+        _one_account(c)
+        strategy(c, A, pnl=None, result="", entry_iso=et("2026-10-20", "09:45"),
+                 closed_iso=et("2026-10-20", "11:00"), day="2026-10-20", account="acc-a")
+        trade(c, A, day="2026-10-20", pnl=-100, entry="10:00", exit_="10:30", account="acc-a")
+        c.commit()
+    got = S.my_risk_left_today(A, {}, TUE)
+    assert got["accounts"][0]["net"] == -100.0
+    assert "1 options trade with no result recorded is not counted." in got["lines"]
+    tilt = S.my_tilt_check(A, {}, NOW)
+    assert tilt["noResult"] == 1 and tilt["other"]["n"] == 1
+    assert tilt["lines"][-1] == "1 options trade with no result recorded is not counted."
+
+
+def test_revenge_bucket_cap_reads_as_not_checked(S, monkeypatch):
+    with _conn() as c:
+        trade(c, A, day="2026-10-20", pnl=-50, entry="10:00", exit_="10:10")
+        trade(c, A, day="2026-10-20", pnl=20, entry="10:30", exit_="10:40")
+        c.commit()
+    monkeypatch.setattr(S, "MAX_BUCKET", 1)
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    assert got["flagged"] == [] and got["tooMany"] == 1 and got["clean"] == 29
+    assert got["lines"] == ["29 of 29 clean",
+                            "1 day was not checked: too many trades in one symbol to check."]
+
+
+def test_prop_firm_keeps_the_scans_notices(S, monkeypatch):
+    from api.services.journal_two.widget_engine import sources as wsources
+    real = wsources.scan_days
+
+    def with_notice(*a, **k):
+        scan = real(*a, **k)
+        scan.notices.append("That routine isn't available.")
+        return scan
+
+    monkeypatch.setattr(wsources, "scan_days", with_notice)
+    got = S.my_prop_firm(A, {"since": "2026-10-01"}, FRI_R)
+    assert got["notices"] == ["That routine isn't available."]
