@@ -76,9 +76,16 @@ def _plan(source, field, op, value, view=None):
 
 
 def test_a_field_with_fixed_codes_refuses_every_hostile_value():
+    # `strict_choices`, never `choices`: since the be->impl merge, side and regime carry a pick
+    # list too (impl's I-8 `choices`) but stay non-strict -- a stored value outside the list is
+    # still a value a member's trades can hold, so a filter on it is never refused.
     coded = [(s.key, f.key) for s in sources.SOURCES.values() for f in s.fields.values()
-             if getattr(f, "choices", None)]
+             if getattr(f, "strict_choices", False)]
     assert ("routine_history", "state") in coded and ("trading_days", "routine_done") in coded
+    listed = {(s.key, f.key) for s in sources.SOURCES.values() for f in s.fields.values()
+              if getattr(f, "choices", None)}
+    assert {("closed_trades", "side"), ("closed_trades", "regime")} <= listed - set(coded)
+    _plan("closed_trades", "side", "in", CORPUS[0])           # control: non-strict takes any text
     for source, field in coded:
         for op in ("in", "not_in"):
             for value in CORPUS:
