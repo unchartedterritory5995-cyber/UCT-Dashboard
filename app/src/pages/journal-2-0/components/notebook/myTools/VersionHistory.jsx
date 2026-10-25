@@ -2,7 +2,8 @@ import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useRef, useSt
 import { UPDATE_ALL, SAVE_NEW, preselectAnswer } from '../widgetBuilder/SaveQuestion'
 import PanelHead from './PanelHead'
 import RestoreQuestion from './RestoreQuestion'
-import { COPY, NO_RETRY, actionFailure, diffWords, readFailure, request, versionDate } from './myToolsLib'
+import { DEFS_URL, getJson, postJson, putJson } from '../../../lib/builtWidgets'
+import { COPY, NO_RETRY, actionFailure, diffWords, readFailure, versionDate } from './myToolsLib'
 import styles from './myTools.module.css'
 
 /**
@@ -50,7 +51,7 @@ function NameForm({ defId, rev, onCancel, onSaved, onFailed }) {
     if (busy) return
     setBusy(true)
     setError('')
-    const got = await request('POST', `/${enc(defId)}/revs/${rev.rev}/name`, { body: { name: value } })
+    const got = await postJson(`/${enc(defId)}/revs/${rev.rev}/name`, { name: value })
     setBusy(false)
     if (got.ok) onSaved(got.data?.named ?? null)
     else if (got.code === 'unavailable') onFailed(got)
@@ -109,7 +110,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
   const say = useCallback((text, tone = 'ok') => announce?.(text, tone), [announce])
 
   const read = useCallback(async () => {
-    const got = await request('GET', `/${enc(d.id)}/revs`)
+    const got = await getJson(`${DEFS_URL}/${enc(d.id)}/revs`)
     const items = got.ok && Array.isArray(got.data.revs) ? got.data.revs.filter((r) => isRecord(r) && Number.isInteger(r.rev)) : null
     return items ? { status: 'ok', items } : { status: 'error', code: got.code }
   }, [d.id])
@@ -199,7 +200,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     setBusy(true)
     setError(null)
     const before = def.rev
-    const got = await request('POST', `/${enc(d.id)}/revs/${rev.rev}/restore`, { etag: def.etag })
+    const got = await postJson(`/${enc(d.id)}/revs/${rev.rev}/restore`, {}, { etag: def.etag })
     if (!mounted.current) return
     setBusy(false)
     if (!got.ok) { refused(got, { rev: rev.rev }); return }
@@ -223,7 +224,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
 
   /** "Save as a new widget"'s second step: this widget back to the version it had before the restore. */
   const revertTo = async (before, etag, copyName) => {
-    const back = await request('POST', `/${enc(d.id)}/revs/${before}/restore`, { etag })
+    const back = await postJson(`/${enc(d.id)}/revs/${before}/restore`, {}, { etag })
     if (!mounted.current) return null
     if (back.ok) {
       setDef(back.data)
@@ -246,7 +247,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     if (busy || mode.kind !== 'question') return
     setBusy(true)
     setError(null)
-    const got = await request('PUT', `/${enc(d.id)}`, { body: { apply: choice === UPDATE_ALL ? UPDATE_ALL : SAVE_NEW }, etag: def.etag })
+    const got = await putJson(`/${enc(d.id)}`, { apply: choice === UPDATE_ALL ? UPDATE_ALL : SAVE_NEW }, def.etag)
     if (!mounted.current) return
     if (!got.ok) { setBusy(false); refused(got); return }
     const used = Number.isInteger(def.usedIn) ? def.usedIn : 0
@@ -274,7 +275,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
   const reloadForRevert = async () => {
     if (busy || !revert) return
     setBusy(true)
-    const got = await request('GET', `/${enc(d.id)}`)
+    const got = await getJson(`${DEFS_URL}/${enc(d.id)}`)
     if (!mounted.current) return
     setBusy(false)
     if (!got.ok || !isRecord(got.data)) { refused(got); return }
@@ -296,7 +297,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
   /** After "Changed in another tab": read the widget again (a fresh etag) and its versions. */
   const reload = async () => {
     setError(null)
-    const got = await request('GET', `/${enc(d.id)}`)
+    const got = await getJson(`${DEFS_URL}/${enc(d.id)}`)
     if (!mounted.current) return
     if (got.ok && isRecord(got.data)) setDef(got.data)
     else { refused(got); return }

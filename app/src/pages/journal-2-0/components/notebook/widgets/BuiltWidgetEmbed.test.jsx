@@ -400,6 +400,26 @@ describe('BuiltWidgetEmbed', () => {
     expect(urlOf(post)).toBe('/api/j2/widget-definitions/d-1/unarchive')
   })
 
+  it('consolidation: a 402 says the plan sentence, on the menu read and on Restore, never a generic failure', async () => {
+    let plan = true
+    fetchSpy.mockImplementation((url, init) => {
+      if (init?.method === 'POST') return answer({ detail: 'Built widgets require a paid plan' }, 402)
+      return plan ? answer({ detail: 'Built widgets require a paid plan' }, 402)
+        : answer({ id: 'd-1', rev: 1, placedRev: 1, etag: 3, archived: true, summary: 's' })
+    })
+    render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText('Widgets need a paid plan.')).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't check for updates.")).toBeNull()
+    openMenu()                                                       // closed, then reopened: read again
+    plan = false
+    openMenu()
+    expect(await screen.findByText(ARCHIVED_SENTENCE)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+    expect(await screen.findByText('Widgets need a paid plan.')).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't refresh. The saved snapshot is unchanged.")).toBeNull()
+  })
+
   it('missing_definition_says_saved_copy', async () => {
     fetchSpy.mockImplementation(() => answer({ detail: 'Not Found' }, 404))
     render(<BuiltWidgetEmbed attrs={attrsOf(NUMBER)} editable onUpdateParams={() => true} />)

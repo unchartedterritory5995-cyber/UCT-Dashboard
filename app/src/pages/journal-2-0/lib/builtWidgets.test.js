@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   BUILT_KIND, DEFS_URL, BUILT_CHANGE_KEYS, FAILURE_COPY, FAILED_SENTENCE,
-  postJson, putJson, ifMatchHeader, runBuilt, drillBuilt, builtRefreshParams, viewerSettingsOf, failureText,
+  postJson, putJson, getJson, ifMatchHeader, runBuilt, drillBuilt, builtRefreshParams, viewerSettingsOf, failureText,
   overridableFilter, loadAccounts, loadVocabulary, loadCatalog, loadDefinition, __resetBuiltCaches,
 } from './builtWidgets'
 
@@ -85,7 +85,7 @@ describe('postJson', () => {
 
   it('reads the server error body; a 404 is unavailable; a 428 (no If-Match) is a conflict; a throw never escapes', async () => {
     fetchSpy.mockResolvedValueOnce(reply(503, { detail: { code: 'busy', message: 'Busy right now. Try again in a moment.' } }))
-    expect(await postJson('/run', {})).toEqual({ ok: false, code: 'busy', message: 'Busy right now. Try again in a moment.' })
+    expect(await postJson('/run', {})).toEqual({ ok: false, code: 'busy', message: 'Busy right now. Try again in a moment.', status: 503 })
     fetchSpy.mockResolvedValueOnce(reply(404, { detail: 'Not Found' }))
     expect((await postJson('/run', {})).code).toBe('unavailable')
     fetchSpy.mockResolvedValueOnce(reply(428, { detail: { code: 'conflict', message: 'Reload to see the newer version.' } }))
@@ -98,6 +98,40 @@ describe('postJson', () => {
     expect(await postJson('/run', {})).toEqual({ ok: false, code: 'failed', message: '' })
     fetchSpy.mockResolvedValueOnce({ ok: true, status: 200, json: async () => { throw new Error('bad json') } })
     expect((await postJson('/run', {})).code).toBe('failed')
+  })
+})
+
+describe('one client for every caller (wave 8 consolidation: My tools reads and writes through these)', () => {
+  it('a refusal keeps its HTTP status; 402 is `paid` with the client sentence; a plain-string detail is the message', async () => {
+    fetchSpy.mockResolvedValueOnce(reply(402, { detail: 'Built widgets require a paid plan' }))
+    expect(await postJson('/d-1/archive')).toEqual({ ok: false, code: 'paid', message: 'Widgets need a paid plan.', status: 402 })
+    expect(failureText('paid')).toBe('Widgets need a paid plan.')
+    fetchSpy.mockResolvedValueOnce(reply(404, { detail: 'Not Found' }))
+    expect(await putJson('/d-1', {}, 3)).toEqual({ ok: false, code: 'unavailable', message: FAILURE_COPY.unavailable, status: 404 })
+    fetchSpy.mockResolvedValueOnce(reply(428, {}))
+    expect(await postJson('/d-1/revs/2/restore', {})).toMatchObject({ code: 'conflict', status: 428 })
+    fetchSpy.mockResolvedValueOnce(reply(400, { detail: 'Something plain' }))
+    expect(await getJson('/api/j2/widget-definitions?view=live')).toEqual({ ok: false, code: 'failed', message: 'Something plain', status: 400 })
+    fetchSpy.mockResolvedValueOnce(reply(409, { detail: { code: 'count_cap', message: 'You have 100 widgets.' } }))
+    expect(await postJson('', {})).toEqual({ ok: false, code: 'count_cap', message: 'You have 100 widgets.', status: 409 })
+    fetchSpy.mockResolvedValueOnce(reply(200, [1, 2]))
+    expect(await getJson('/x')).toEqual({ ok: false, code: 'failed', message: '', status: 200 })
+  })
+
+  it('POST carries If-Match for an etag (a version restore), with the same headers, credentials and body as before', async () => {
+    fetchSpy.mockResolvedValue(reply(200, { etag: 9 }))
+    await postJson('/d-1/revs/2/restore', {}, { etag: 8 })
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(url).toBe('/api/j2/widget-definitions/d-1/revs/2/restore')
+    expect(init).toMatchObject({ method: 'POST', credentials: 'include', body: '{}' })
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json', 'If-Match': '8' })
+    expect(init.signal).toBeDefined()                                     // the same 15 s ceiling
+    await postJson('/d-1/archive')
+    expect(fetchSpy.mock.calls[1][1].headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(fetchSpy.mock.calls[1][1].body).toBe('{}')
+    await getJson('/api/j2/widget-definitions/d-1')
+    expect(fetchSpy.mock.calls[2][1]).toMatchObject({ method: 'GET', credentials: 'include' })
+    expect(fetchSpy.mock.calls[2][1].headers).toBeUndefined()
   })
 })
 

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import PanelHead from './PanelHead'
+import { DEFS_URL, getJson } from '../../../lib/builtWidgets'
 import {
-  COPY, LIST_RENDER_MAX, NO_RETRY, editedText, noteHref, openNoteInPlace, readFailure, request, usedInHeading,
+  COPY, LIST_RENDER_MAX, NO_RETRY, editedText, noteHref, openNoteInPlace, readFailure, usedInHeading,
 } from './myToolsLib'
 import styles from './myTools.module.css'
 
@@ -21,7 +22,7 @@ export default function UsedInList({ d, onBack, onNavigate, navigate = null }) {
   useEffect(() => () => { mounted.current = false }, [])
 
   const read = useCallback(async () => {
-    const got = await request('GET', `/${encodeURIComponent(String(d.id))}/used-in`)
+    const got = await getJson(`${DEFS_URL}/${encodeURIComponent(String(d.id))}/used-in`)
     const notes = got.ok && Array.isArray(got.data.notes) ? got.data.notes.filter((n) => isRecord(n) && n.noteId) : null
     return notes ? { status: 'ok', notes } : { status: 'error', code: got.code }
   }, [d.id])

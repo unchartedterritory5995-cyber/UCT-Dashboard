@@ -116,8 +116,10 @@ function walk(node, fn) {
   }
 }
 
-/** Every `openWidgetBuilder(...)` / `x.openWidgetBuilder(...)` call in `src`, with whether it names `from` and `start`
- *  (a spread `...(from ? {} : { start })` counts as naming start). */
+/** Every `openWidgetBuilder(...)` / `x.openWidgetBuilder(...)` call in `src`: whether its argument is an object literal
+ *  (`object`), whether it names a `from` the reader can SEE is a widget (`from`: an object literal or a non-empty
+ *  string; a shorthand `from`, a variable, `null` or anything computed is UNKNOWN, since it may be null at run time:
+ *  consolidation, 8.16 N3), and whether it names `start` (a spread `...(from ? {} : { start })` counts). */
 export function builderCalls(src, file = 'x.jsx') {
   const ast = JsxParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
   const out = []
@@ -127,18 +129,27 @@ export function builderCalls(src, file = 'x.jsx') {
     const name = c.type === 'Identifier' ? c.name : c.type === 'MemberExpression' && !c.computed ? c.property.name : null
     if (name !== 'openWidgetBuilder') return
     const arg = n.arguments[0]
-    const keys = new Set()
-    let spreadStart = false
+    let from = false
+    let start = false
     if (arg && arg.type === 'ObjectExpression') {
       for (const p of arg.properties) {
-        if (p.type === 'Property' && !p.computed) keys.add(p.key.name || p.key.value)
-        if (p.type === 'SpreadElement') walk(p.argument, (m) => { if (m.type === 'Property' && (m.key.name === 'start')) spreadStart = true })
+        const key = p.type === 'Property' && !p.computed ? (p.key.name || p.key.value) : null
+        if (key === 'start') start = true
+        if (key === 'from' && !p.shorthand) {
+          const v = p.value
+          from = v.type === 'ObjectExpression' || (v.type === 'Literal' && typeof v.value === 'string' && v.value !== '')
+        }
+        if (p.type === 'SpreadElement') walk(p.argument, (m) => { if (m.type === 'Property' && (m.key.name === 'start')) start = true })
       }
     }
-    out.push({ file, line: n.loc.start.line, from: keys.has('from'), start: keys.has('start') || spreadStart, object: arg?.type === 'ObjectExpression' })
+    out.push({ file, line: n.loc.start.line, from, start, object: arg?.type === 'ObjectExpression' })
   })
   return out
 }
+
+/** A call the reader cannot prove opens a widget must say where a NEW one starts. A non-literal argument cannot be
+ *  read at all, so it fails too (pass the options as a literal). */
+const unproven = (c) => !c.object || (!c.from && !c.start)
 
 describe('every door that opens a NEW widget says where the builder starts', () => {
   it('each openWidgetBuilder call without `from` passes `start` (non-vacuity: the My tools door is found)', () => {
@@ -149,7 +160,7 @@ describe('every door that opens a NEW widget says where the builder starts', () 
       calls.push(...builderCalls(text, relative(SRC, f).replace(/\\/g, '/')))
     }
     expect(calls.some((c) => c.file.endsWith('myTools/WidgetsTab.jsx'))).toBe(true)
-    const bad = calls.filter((c) => c.object && !c.from && !c.start).map((c) => `${c.file}:${c.line}`)
+    const bad = calls.filter(unproven).map((c) => `${c.file}:${c.line}`)
     expect(bad).toEqual([])
   })
 
@@ -159,5 +170,15 @@ describe('every door that opens a NEW widget says where the builder starts', () 
     expect(at('mod.openWidgetBuilder({ editor, from: { defId } })')).toMatchObject({ from: true })
     expect(at("openWidgetBuilder({ editor, start: 'examples' })")).toMatchObject({ start: true })
     expect(at("m.openWidgetBuilder({ from, ...(from ? {} : { start: 'examples' }) })")).toMatchObject({ start: true })
+    // N3: what the reader cannot see is not proof. Each of these must pass `start` explicitly, and is SEEN until it does.
+    for (const code of [
+      'openWidgetBuilder(opts)', 'openWidgetBuilder()', 'openWidgetBuilder({ ...opts })', 'openWidgetBuilder({ from })',
+      'openWidgetBuilder({ from: target })', 'openWidgetBuilder({ from: null })', "openWidgetBuilder({ from: '' })",
+      'openWidgetBuilder({ from: x ? { defId } : null })',
+    ]) expect(unproven(at(code)), code).toBe(true)
+    for (const code of [
+      'openWidgetBuilder({ from: { defId } })', "openWidgetBuilder({ from: 'shelf:win-rate' })",
+      "openWidgetBuilder({ from, start: 'examples' })", "openWidgetBuilder({ from: target, start: 'blank' })",
+    ]) expect(unproven(at(code)), code).toBe(false)
   })
 })

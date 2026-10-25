@@ -122,7 +122,7 @@ const reply = (status, body) => ({ ok: status >= 200 && status < 300, status, js
 //                  (its copy is the snapshot frame's own, lib/notebookWidgetsFetch OFFLINE_SENTENCE)
 //   Flag off       placed widget: 9 (routines and trackers are wave 9)
 //   Newer version  open: 11 · run (See it now): 11b · save: 11c
-//   Not enough     builder preview: 12 · gallery card: ExamplesGallery.test.jsx via miniPreview (cellOf)
+//   Not enough     builder preview: 12 · gallery card: ExamplesGallery.test.jsx, the "N4" test (a real assertion)
 const NUMBER_MARK = /^Net P&L:/
 
 describe('spec 5.10: every failure state reachable in wave 8', () => {

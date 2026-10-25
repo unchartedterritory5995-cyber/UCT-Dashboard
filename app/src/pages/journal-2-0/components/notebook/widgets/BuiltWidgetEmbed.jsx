@@ -64,7 +64,7 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
   // opens on its own root, so its note links move the router through this (`useNavigate` throws outside a router).
   const routerHistory = useContext(UNSAFE_NavigationContext)?.navigator
   const [open, setOpen] = useState(false)
-  const [status, setStatus] = useState(null)       // null | loading | {ok, def} | missing | dark | error
+  const [status, setStatus] = useState(null)       // null | loading | {ok, def} | missing | dark | paid | error
   const [how, setHow] = useState(false)
   const [message, setMessage] = useState('')
   const wrapRef = useRef(null)
@@ -92,6 +92,8 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
       if (got.ok) setStatus({ kind: 'ok', def: got.data })
       // A 404 is a widget that is gone, unless wave 8 is dark: then it is the wave (and nothing is "gone").
       else if (got.code === 'unavailable') setStatus({ kind: widgetsWaveOn(8) ? 'missing' : 'dark' })
+      // A 402 is the member's plan, not a failed check: it says so (wave 8 consolidation), never "Couldn't check".
+      else if (got.code === 'paid') setStatus({ kind: 'paid' })
       else setStatus({ kind: 'error' })
     })
   }
@@ -99,7 +101,7 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
     const next = !open
     setOpen(next)
     setMessage('')
-    if (next && (status === null || status.kind === 'error' || status.kind === 'dark')) load()
+    if (next && (status === null || status.kind === 'error' || status.kind === 'dark' || status.kind === 'paid')) load()
   }
   const closeMenu = () => { setOpen(false); buttonRef.current?.focus() }
 
@@ -162,6 +164,7 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
           {status?.kind === 'missing' && <p className={styles.menuNote}>{SAVED_COPY_SENTENCE}</p>}
           {status?.kind === 'dark' && <p className={styles.menuNote}>{UNAVAILABLE_SENTENCE}</p>}
           {status?.kind === 'error' && <p className={styles.menuNote} role="status">{CHECK_FAILED_SENTENCE}</p>}
+          {status?.kind === 'paid' && <p className={styles.menuNote} role="status">{failureText('paid')}</p>}
           {message && <p className={s.message} role="status">{message}</p>}
         </div>
       )}

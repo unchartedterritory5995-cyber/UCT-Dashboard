@@ -3,14 +3,15 @@ import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import { VIEW_LABELS } from '../widgetBuilder/builderCatalog'
-import ViewThumb from './ViewThumb'
+import { DEFS_URL, getJson, postJson, putJson } from '../../../lib/builtWidgets'
+import { ViewGlyph } from '../widgetBuilder/sections/ViewGlyph'
 import UsedInList from './UsedInList'
 import VersionHistory from './VersionHistory'
 import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
 import {
   FILTERS, LIST_RENDER_MAX, NO_RETRY, RECENTLY_DELETED_DAYS, COPY, usedInText, archiveSentence, editedText, dayText,
-  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName, request,
+  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName,
 } from './myToolsLib'
 import styles from './myTools.module.css'
 
@@ -65,7 +66,7 @@ function Row({ d, filter, phone, touch, highlight, busy, menuOpen, onMenu, onPri
   return (
     <li className={`${styles.row} ${highlight ? styles.rowHighlight : ''}`} data-def-id={d.id}
       data-highlight={highlight ? '' : undefined} data-testid="my-tools-row">
-      <span className={styles.thumb}><ViewThumb view={view} /></span>
+      <span className={styles.thumb}><ViewGlyph view={view} size="row" /></span>
       <div className={styles.rowMain}>
         <span className={styles.rowName} title={d.name}>
           {d.name}
@@ -134,7 +135,7 @@ function RenamePanel({ d: initial, onBack, onDone, onGone, onReloaded, say }) {
     if (!clean || clean === d.name || busy) return
     setBusy(true)
     setError(null)
-    const got = await request('PUT', `/${enc(d.id)}`, { body: { name: clean, plan: namedPlan(d.plan, clean), apply }, etag: d.etag })
+    const got = await putJson(`/${enc(d.id)}`, { name: clean, plan: namedPlan(d.plan, clean), apply }, d.etag)
     setBusy(false)
     if (got.ok) onDone(got.data, `Renamed to “${got.data.name || clean}”.`)
     else fail(got)
@@ -142,7 +143,7 @@ function RenamePanel({ d: initial, onBack, onDone, onGone, onReloaded, say }) {
   const reload = async () => {
     if (busy) return
     setBusy(true)
-    const got = await request('GET', `/${enc(d.id)}`)
+    const got = await getJson(`${DEFS_URL}/${enc(d.id)}`)
     setBusy(false)
     if (!got.ok || !isRecord(got.data)) { fail(got); return }
     setD(got.data)
@@ -225,7 +226,7 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
 
   const load = useCallback(async (key) => {
     setLists((all) => (all[key]?.status === 'ok' ? all : { ...all, [key]: { status: 'loading' } }))
-    const got = await request('GET', `?view=${key}`)
+    const got = await getJson(`${DEFS_URL}?view=${key}`)
     if (!mounted.current) return null
     const items = got.ok && Array.isArray(got.data.widgets) ? got.data.widgets.filter((w) => isRecord(w) && w.id) : null
     setLists((all) => ({ ...all, [key]: items ? { status: 'ok', items } : { status: 'error', code: got.code } }))
@@ -414,7 +415,7 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
   }
   const duplicate = (d) => {
     const name = copyName(d.name)
-    act(d, () => request('POST', '', { body: { name, plan: copiedPlan(d.plan, name) } }), (w) => {
+    act(d, () => postJson('', { name, plan: copiedPlan(d.plan, name) }), (w) => {
       say(`Made “${w?.name || name}”.`)
       if (w?.id) focusAfter.current = { id: w.id, wait: 'live' }
       refresh('live')
@@ -424,7 +425,7 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
     if (busyId) return
     setBusyId(d.id)
     setPanelError(null)
-    const got = await request('POST', `/${enc(d.id)}/archive`)
+    const got = await postJson(`/${enc(d.id)}/archive`)
     if (!mounted.current) return
     setBusyId(null)
     if (!got.ok) {
@@ -443,12 +444,12 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
     if ((d.usedIn || 0) > 0) push('archive', d)
     else doArchive(d)
   }
-  const unarchive = (d) => act(d, () => request('POST', `/${enc(d.id)}/unarchive`), () => {
+  const unarchive = (d) => act(d, () => postJson(`/${enc(d.id)}/unarchive`), () => {
     focusPast('archived', d.id)
     say(`Restored “${d.name}” to your widgets.`)
     refresh('archived')
   })
-  const undelete = (d) => act(d, () => request('POST', `/${enc(d.id)}/undelete`), () => {
+  const undelete = (d) => act(d, () => postJson(`/${enc(d.id)}/undelete`), () => {
     focusPast('deleted', d.id)
     say(`Restored “${d.name}”. It's in Archived.`)
     refresh('deleted')

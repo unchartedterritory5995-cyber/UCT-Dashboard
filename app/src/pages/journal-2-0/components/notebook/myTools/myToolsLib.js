@@ -5,7 +5,7 @@
 // ⛔ Member words only (spec 4.1 and the global constraints): widget, note, version, archive, chart sets, presets.
 // Never the engine's own nouns. The server's sentences (count cap, conflict, archive first, type the name) are shown
 // VERBATIM (`actionFailure`), never retyped here.
-import { DEFS_URL, FAILURE_COPY, FETCH_TIMEOUT_MS, failureText, ifMatchHeader } from '../../../lib/builtWidgets'
+import { FAILURE_COPY, failureText } from '../../../lib/builtWidgets'
 
 /** The four tabs (spec 5.8). Wave 8 builds Widgets; the other three say so and carry no controls. */
 export const TABS = Object.freeze([
@@ -143,50 +143,12 @@ export function actionFailure(got) {
   return failureText(code, message) || COPY.actionFailed
 }
 
-/**
- * My tools' one door to `/api/j2/widget-definitions`: `{ok: true, data}` or `{ok: false, code, message, status}`.
- * Never throws; offline makes no request; 404 is `unavailable`; 402 is `paid`; 428 (no If-Match, ruling R-27) is a
- * conflict; any other refusal is the server's `{detail: {code, message}}`. `etag` is sent as If-Match (ruling R-15).
- *
- * ⚠️ A local client rather than lib/builtWidgets' getJson/postJson/putJson, for two things those do not carry: a POST
- * with If-Match (a version restore) and the HTTP status (a 402 there reads as a plain failure). When that file grows
- * both, this goes. Each fetch names its method LITERALLY, as the door rail (lib/offline/doorEnumeration.test.js)
- * reads methods from the call site.
- */
-export async function request(method, path, { body, etag } = {}) {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { ok: false, code: 'offline', message: '' }
-  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
-  const timer = ctl ? setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS) : null
-  const url = `${DEFS_URL}${path}`
-  const signal = ctl ? { signal: ctl.signal } : {}
-  const headers = { 'Content-Type': 'application/json', ...ifMatchHeader(etag) }
-  try {
-    let res
-    if (method === 'POST') {
-      res = await fetch(url, { method: 'POST', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...signal })
-    } else if (method === 'PUT') {
-      res = await fetch(url, { method: 'PUT', credentials: 'include', headers, body: JSON.stringify(body ?? {}), ...signal })
-    } else {
-      res = await fetch(url, { method: 'GET', credentials: 'include', ...signal })
-    }
-    if (res.ok) {
-      const data = await res.json()
-      return isRecord(data) ? { ok: true, data } : { ok: false, code: 'failed', message: '', status: res.status }
-    }
-    if (res.status === 404) return { ok: false, code: 'unavailable', message: '', status: 404 }
-    if (res.status === 402) return { ok: false, code: 'paid', message: '', status: 402 }
-    if (res.status === 428) return { ok: false, code: 'conflict', message: FAILURE_COPY.conflict, status: 428 }
-    let detail = null
-    try { detail = (await res.json())?.detail } catch { detail = null }
-    const code = isRecord(detail) && typeof detail.code === 'string' && detail.code ? detail.code : 'failed'
-    const message = isRecord(detail) && typeof detail.message === 'string' ? detail.message : ''
-    return { ok: false, code, message, status: res.status }
-  } catch {
-    return { ok: false, code: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'failed', message: '' }
-  } finally {
-    if (timer) clearTimeout(timer)
-  }
-}
+// ── requests ────────────────────────────────────────────────────────────────────────────────────
+// My tools reads and writes through lib/builtWidgets' getJson / postJson / putJson, the ONE client for
+// `/api/j2/widget-definitions` (wave 8 consolidation): `{ok: true, data}` or `{ok: false, code, message, status}`, never a
+// throw; offline makes no request; 404 is `unavailable`, 402 `paid`, 428 (no If-Match, ruling R-27) a conflict; `etag`
+// goes as If-Match (ruling R-15), on a POST too (a version restore). The sentences above read only the `code`, and the
+// server's `message` for SERVER_SAYS.
 
 // ── plans ───────────────────────────────────────────────────────────────────────────────────────────
 

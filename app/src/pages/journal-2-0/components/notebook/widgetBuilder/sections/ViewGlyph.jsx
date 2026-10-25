@@ -1,13 +1,23 @@
 /**
- * The small static drawing of a widget's view in its My tools row (spec 5.8, "a small static thumbnail"): inline SVG
- * in currentColor, never an image or an emoji, and never the member's numbers (the row is a list of widgets, not a
- * preview of them). Decorative: the row says the view's name to a screen reader in words.
+ * The small static drawing of each view: inline SVG in currentColor, never an image or an emoji, and never the
+ * member's numbers. Decorative (`aria-hidden`): every place that draws one says the view's name in words.
  *
- * ⚠️ The builder draws the same nine shapes as its view thumbnails (widgetBuilder/sections/ViewSection.jsx,
- * `ViewGlyph`, not exported). These are drawn at row size; if that one is ever exported, this file should use it.
+ * ONE owner for the nine shapes (wave 8 consolidation): the builder's "Show it as" thumbnails (`size="section"`, the
+ * default) and the My tools rows (`size="row"`, the old myTools/ViewThumb, deleted). Its own module so My tools takes
+ * the drawing without the builder's section or its stylesheet.
+ *
+ * The row size draws the same shapes 0.8x smaller; its strokes and dots are drawn a little heavier so they keep their
+ * weight at that size, and a view it does not know is an empty frame (a row always shows a thumbnail) where the
+ * builder draws nothing.
  */
-export default function ViewThumb({ view }) {
-  const common = { width: 32, height: 22, viewBox: '0 0 40 28', 'aria-hidden': true, focusable: 'false' }
+const SIZES = Object.freeze({
+  section: { width: 40, height: 28, frame: 1.6, line: 2, dot: 2.2, unknown: false },
+  row: { width: 32, height: 22, frame: 1.8, line: 2.2, dot: 2.4, unknown: true },
+})
+
+export function ViewGlyph({ view, size = 'section' }) {
+  const z = SIZES[size] || SIZES.section
+  const common = { width: z.width, height: z.height, viewBox: '0 0 40 28', 'aria-hidden': true, focusable: 'false' }
   switch (view) {
     case 'number':
       return <svg {...common}><rect x="6" y="9" width="28" height="10" rx="2" fill="currentColor" opacity=".85" /></svg>
@@ -20,7 +30,7 @@ export default function ViewThumb({ view }) {
       )
     case 'table':
       return (
-        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.8">
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth={String(z.frame)}>
           <rect x="5" y="5" width="30" height="18" rx="2" /><path d="M5 11h30M5 17h30M17 5v18" />
         </svg>
       )
@@ -32,12 +42,13 @@ export default function ViewThumb({ view }) {
         </svg>
       )
     case 'line':
-      return <svg {...common} fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M4 22l9-8 7 4 8-10 8 4" /></svg>
+      return <svg {...common} fill="none" stroke="currentColor" strokeWidth={String(z.line)}><path d="M4 22l9-8 7 4 8-10 8 4" /></svg>
     case 'scatter':
       return (
         <svg {...common} fill="currentColor">
-          <circle cx="9" cy="19" r="2.4" /><circle cx="15" cy="12" r="2.4" /><circle cx="22" cy="16" r="2.4" />
-          <circle cx="28" cy="8" r="2.4" /><circle cx="33" cy="14" r="2.4" />
+          {[[9, 19], [15, 12], [22, 16], [28, 8], [33, 14]].map(([cx, cy]) => (
+            <circle key={`${cx}`} cx={String(cx)} cy={String(cy)} r={String(z.dot)} />
+          ))}
         </svg>
       )
     case 'heat':
@@ -63,10 +74,12 @@ export default function ViewThumb({ view }) {
         </svg>
       )
     default:
-      return (
-        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.8">
+      return z.unknown ? (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth={String(z.frame)}>
           <rect x="6" y="5" width="28" height="18" rx="3" />
         </svg>
-      )
+      ) : null
   }
 }
+
+export default ViewGlyph

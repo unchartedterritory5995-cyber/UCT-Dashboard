@@ -235,6 +235,34 @@ describe('ExamplesGallery: Start from an example', () => {
     expect(FakeIO.disconnected).toBeGreaterThan(before)
   })
 
+  it('N5: crossing the 641 px boundary finds the scroller again (a new observer on the new root; the old one gone)', async () => {
+    const listeners = new Set()
+    let phone = false
+    vi.stubGlobal('matchMedia', (q) => ({
+      get matches() { return q === '(max-width: 640px)' ? phone : false }, media: q,
+      addEventListener: (_t, fn) => { if (q === '(max-width: 640px)') listeners.add(fn) },
+      removeEventListener: (_t, fn) => listeners.delete(fn),
+    }))
+    const style = document.createElement('style')
+    style.setAttribute('data-t816', '')
+    style.textContent = '[data-builder-controls] { overflow-y: auto; }'
+    document.head.appendChild(style)
+    await openGallery()
+    const controls = document.querySelector('[data-builder-controls]')
+    expect(FakeIO.last.options.root).toBe(controls)
+    const first = FakeIO.last
+    // At phone width the builder's own column stops scrolling and the sheet's body scrolls instead.
+    style.textContent = '[data-builder-controls] { overflow-y: visible; }'
+    const body = screen.getByTestId('widget-builder').parentElement
+    body.style.overflowY = 'auto'
+    phone = true
+    await act(async () => { for (const fn of listeners) fn({ matches: true }) })
+    expect(FakeIO.last).not.toBe(first)
+    expect(FakeIO.last.options.root).toBe(body)
+    expect(first.els.size).toBe(0)                                              // the old one was disconnected
+    expect(FakeIO.last.els.size).toBe(SHELF.length)                              // and every card is watched again
+  })
+
   it('busy_card_keeps_skeleton_retries_once', async () => {
     route('POST', (u) => u === `${DEFS}/examples`, () => refusal(503, 'busy', 'Busy right now. Try again in a moment.'))
     await openGallery()
@@ -432,6 +460,29 @@ describe('ExamplesGallery: Start from an example', () => {
     expect(describedText(card(IDS[1]))).toMatch(/No closed trades in this range/)
     // Not yet answered: the description and range only, never a guessed figure.
     expect(describedText(card(IDS[20]))).not.toMatch(/\$/)
+  })
+
+  it('N4 (failureStates "Not enough", gallery card): a figure under its minimum reads "Not enough trades yet (3)", never a zero', async () => {
+    route('POST', (u) => u === `${DEFS}/examples`, (u, init) => {
+      const ids = JSON.parse(init.body).ids
+      return answer({ sample: true, cards: Object.fromEntries(ids.map((id, i) => [id, i === 0
+        ? cardPayload(id, {
+          sample: true, measures: [{ label: 'Win rate', unit: 'decisive', kind: 'rate', fmt: 'pct' }],
+          value: { v1: null, n1: 3, s1: 'hide', n: 3 },
+        })
+        : i === 1
+          ? cardPayload(id, {
+            sample: true, measures: [{ label: 'Day P&L', unit: 'days', kind: 'average', fmt: 'money' }],
+            value: { v1: null, n1: 2, s1: 'hide', n: 2 },
+          })
+          : cardPayload(id, { sample: true })])) })
+    })
+    await openGallery()
+    await inView(IDS.slice(0, 2))
+    expect(within(card(IDS[0])).getByText('Not enough trades yet (3)')).toBeInTheDocument()
+    expect(within(card(IDS[1])).getByText('Not enough days yet (2)')).toBeInTheDocument()
+    for (const id of IDS.slice(0, 2)) expect(within(card(id)).queryByText(/^[+-]?\$?0(\.0+)?%?$/)).toBeNull()
+    expect(describedText(card(IDS[0]))).toMatch(/Not enough trades yet \(3\)/)
   })
 
   it('insert_from_sample_inserts_real_widget', async () => {

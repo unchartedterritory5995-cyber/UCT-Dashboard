@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import PanelHead from './PanelHead'
-import { RECENTLY_DELETED_DAYS, actionFailure, notesWord, request } from './myToolsLib'
+import { postJson } from '../../../lib/builtWidgets'
+import { RECENTLY_DELETED_DAYS, actionFailure, notesWord } from './myToolsLib'
 import styles from './myTools.module.css'
 
 /**
@@ -29,7 +30,7 @@ export default function DeleteConfirm({ d, onBack, onDeleted, onGone }) {
     if (!matches || busy) return
     setBusy(true)
     setError('')
-    const got = await request('POST', `/${encodeURIComponent(String(d.id))}/delete`, { body: { typedName: typed } })
+    const got = await postJson(`/${encodeURIComponent(String(d.id))}/delete`, { typedName: typed })
     setBusy(false)
     if (got.ok) onDeleted(got.data, `“${name}” moved to Recently deleted. It's kept for ${RECENTLY_DELETED_DAYS} days.`)
     else if (got.code === 'unavailable') onGone?.(actionFailure(got))

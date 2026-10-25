@@ -18,8 +18,8 @@ export const FETCH_TIMEOUT_MS = 15000
 /** The settings a placed widget's Change edits. They live in the widget's params, never in the definition. */
 export const BUILT_CHANGE_KEYS = Object.freeze(['range', 'accountId', 'filter'])
 
-/** Spec 5.10: the copy for each state a member can reach, by the server's error `code` (plus the two the client
- *  decides: `offline`, no request made, and `unavailable`, a 404 while wave 8 is dark). `superseded` (a newer
+/** Spec 5.10: the copy for each state a member can reach, by the server's error `code` (plus the three the client
+ *  decides: `offline`, no request made; `unavailable`, a 404 while wave 8 is dark; `paid`, a 402). `superseded` (a newer
  *  preview replaced this one) and `invalid` (the server's own sentence) are answered by failureText, not here. */
 export const FAILURE_COPY = Object.freeze({
   busy: 'Busy right now. Try again in a moment.',
@@ -32,6 +32,9 @@ export const FAILURE_COPY = Object.freeze({
   too_new: 'This widget was made with a newer version of the app. Reload to use it.',
   offline: "Offline. The preview updates when you're back.",
   unavailable: 'Not available right now.',
+  // A 402: the member's plan does not include widgets (the client's own words; the server's sentence names an engine
+  // noun). My tools says it its own way (myToolsLib COPY.paid).
+  paid: 'Widgets need a paid plan.',
 })
 /** Anything else (a network error, a 500, an unreadable answer): the snapshot is untouched. */
 export const FAILED_SENTENCE = "Couldn't refresh. The saved snapshot is unchanged."
@@ -48,17 +51,21 @@ export function failureText(code, message) {
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
-/** A refused answer as `{ok: false, code, message}`. The server's errors are `{detail: {code, message}}`; a 404 is
- *  the dark wave (or a widget that is not the member's); ruling R-27: a 428 (no If-Match) is a conflict. */
+/** A refused answer as `{ok: false, code, message, status}` (`status`: the HTTP status). The server's errors are
+ *  `{detail: {code, message}}` (a plain-string `detail` is read as a failure with that message); a 404 is the dark
+ *  wave (or a widget that is not the member's); a 402 is the plan (`paid`); ruling R-27: a 428 (no If-Match) is a
+ *  conflict. */
 async function refusal(res) {
-  if (res.status === 404) return { ok: false, code: 'unavailable', message: FAILURE_COPY.unavailable }
+  const status = res.status
+  if (status === 404) return { ok: false, code: 'unavailable', message: FAILURE_COPY.unavailable, status }
+  if (status === 402) return { ok: false, code: 'paid', message: FAILURE_COPY.paid, status }
   let detail = null
   try { detail = (await res.json())?.detail } catch { detail = null }
-  if (res.status === 428) return { ok: false, code: 'conflict', message: FAILURE_COPY.conflict }
+  if (status === 428) return { ok: false, code: 'conflict', message: FAILURE_COPY.conflict, status }
   const code = isRecord(detail) && typeof detail.code === 'string' && detail.code ? detail.code : 'failed'
   const message = isRecord(detail) && typeof detail.message === 'string' ? detail.message
     : (typeof detail === 'string' ? detail : '')
-  return { ok: false, code, message }
+  return { ok: false, code, message, status }
 }
 
 function withTimeout() {
@@ -70,21 +77,22 @@ function withTimeout() {
 async function answer(res) {
   if (!res.ok) return refusal(res)
   const data = await res.json()
-  return isRecord(data) ? { ok: true, data } : { ok: false, code: 'failed', message: '' }
+  return isRecord(data) ? { ok: true, data } : { ok: false, code: 'failed', message: '', status: res.status }
 }
 
 const lost = () => ({ ok: false, code: isOffline() ? 'offline' : 'failed', message: '' })
 const offline = () => ({ ok: false, code: 'offline', message: FAILURE_COPY.offline })
 
-/** `POST DEFS_URL + path` with a JSON body. Never throws: `{ok: true, data}` or `{ok: false, code, message}`.
- *  Offline makes no request at all. `idempotencyKey` (ruling R-43: the builder's create POST) is sent as
- *  `Idempotency-Key`, so a repeat of that POST answers the widget it already made. ⛔ Each fetch below names its
- *  method LITERALLY: the door rail (lib/offline/doorEnumeration.test.js) reads methods from the call site. */
-export async function postJson(path, body, { idempotencyKey } = {}) {
+/** `POST DEFS_URL + path` with a JSON body. Never throws: `{ok: true, data}` or `{ok: false, code, message, status}`.
+ *  Offline makes no request at all. `etag` is sent as If-Match (ruling R-15; a version restore). `idempotencyKey`
+ *  (ruling R-43: the builder's create POST) is sent as `Idempotency-Key`, so a repeat of that POST answers the widget it
+ *  already made. ⛔ Each fetch below names its method LITERALLY: the door rail (lib/offline/doorEnumeration.test.js)
+ *  reads methods from the call site. */
+export async function postJson(path, body, { etag, idempotencyKey } = {}) {
   if (isOffline()) return offline()
   const t = withTimeout()
   const headers = {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json', ...ifMatchHeader(etag),
     ...(typeof idempotencyKey === 'string' && idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
   }
   try {

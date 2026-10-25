@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { DEFS_URL, getJson, postJson } from '../../../lib/builtWidgets'
 import useMediaQuery from '../../../../../hooks/useMediaQuery'
+import { useIsPhone } from '../../../../../hooks/useBreakpoint'
 import ExampleCard from './ExampleCard'
 import { rankExamples, examplesFailureText, REDUCED_MOTION } from './examplesModel'
 import styles from './ExamplesGallery.module.css'
@@ -81,6 +82,8 @@ function ExamplesGallery({
   const [query, setQuery] = useState('')
   const [countSaid, setCountSaid] = useState('')
   const reduce = useMediaQuery(REDUCED_MOTION)
+  // The builder's layout changes at the phone boundary (640 / 641 px), and with it which element scrolls the cards.
+  const phone = useIsPhone()
   const searchId = useId()
   const rootEl = useRef(null)
   const mounted = useRef(true)
@@ -209,7 +212,8 @@ function ExamplesGallery({
     return () => window.removeEventListener('online', retryFailed)
   }, [retryFailed])
 
-  // One observer for every card, rooted on the sheet's scroller: what comes into view is wanted.
+  // One observer for every card, rooted on the sheet's scroller: what comes into view is wanted. Rebuilt when the width
+  // crosses the phone boundary (8.16 N5): the builder lays out differently there, so the scroller is found again.
   useEffect(() => {
     if (typeof IntersectionObserver !== 'function') return undefined
     const obs = new IntersectionObserver((entries) => {
@@ -229,7 +233,7 @@ function ExamplesGallery({
       obs.disconnect()
       io.current = null
     }
-  }, [want])
+  }, [want, phone])
 
   /** Each card's list item reports itself here (mounted: `el`; gone: null), to be watched for scrolling into view. */
   const observe = useCallback((id, el) => {
