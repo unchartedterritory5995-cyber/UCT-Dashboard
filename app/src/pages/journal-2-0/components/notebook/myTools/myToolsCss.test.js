@@ -209,3 +209,39 @@ describe('My tools: the fixed height is for a desktop pointer only (fix 2, M-6)'
     expect(sheetHeightConditions('.sheetPanel { height: 80vh; }')).toEqual([null])
   })
 })
+
+/** `:hover` rules that would light up a control while it is aria-disabled (fix 3, m3). The classes are DERIVED: any
+ *  class the stylesheet styles under `[aria-disabled='true']` can be aria-disabled, so its hover must exclude it. */
+export function hoverOnDisabled(css) {
+  const disableable = new Set()
+  const rules = parseRules(css)
+  for (const r of rules) {
+    for (const part of r.selector.split(',')) {
+      const m = /\.([A-Za-z][\w-]*)\[aria-disabled=['"]true['"]\]/.exec(part)
+      if (m) disableable.add(m[1])
+    }
+  }
+  const bad = []
+  for (const r of rules) {
+    for (const part of r.selector.split(',')) {
+      const m = /\.([A-Za-z][\w-]*):hover/.exec(part)
+      if (m && disableable.has(m[1]) && !/:not\(\[aria-disabled=['"]true['"]\]\)/.test(part)) bad.push(part.trim())
+    }
+  }
+  return { disableable, bad }
+}
+
+describe('My tools: an aria-disabled control does not light up on hover (fix 3, m3)', () => {
+  it('the derivation finds the aria-disabled controls (non-vacuity)', () => {
+    const { disableable } = hoverOnDisabled(CSS)
+    for (const c of ['btn', 'btnPrimary', 'btnDanger']) expect(disableable.has(c)).toBe(true)
+  })
+  it('every hover rule on one of them excludes aria-disabled', () => {
+    expect(hoverOnDisabled(CSS).bad).toEqual([])
+  })
+  it('CONTROL: a plain hover on an aria-disabled control is SEEN', () => {
+    const css = ".b[aria-disabled='true'] { opacity: .5; } .b:hover { background: red; } .c:hover { color: red; }"
+    expect(hoverOnDisabled(css).bad).toEqual(['.b:hover'])
+    expect(hoverOnDisabled(".b[aria-disabled='true'] { opacity: .5; } .b:hover:not([aria-disabled='true']) { color: red; }").bad).toEqual([])
+  })
+})

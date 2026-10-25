@@ -134,8 +134,13 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
   }, [revs])
 
   // Focus goes back to the version a step came from (or, after a restore, to the new newest version), once that row
-  // is drawn: a restore reloads the list, so the row may arrive a render later.
+  // is drawn: a restore reloads the list, so the row may arrive a render later. It is tried in a LAYOUT effect after
+  // every commit (never on a frame of its own, which raced the commit that removes or adds the target), and only on
+  // an element still in the document.
   const pendingFocus = useRef(null)
+  // The panel heading takes focus when the panel first opens, and never again: coming back from the question, the
+  // heading remounts while a version's control is the focus target, and its mount focus would take it.
+  const [headFocus, setHeadFocus] = useState(true)
   const tryFocus = useCallback(() => {
     const want = pendingFocus.current
     if (!want) return
@@ -146,15 +151,14 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
       ? (listRef.current?.parentElement?.querySelector('[data-rev-action="revert-reload"]')
         || listRef.current?.parentElement?.querySelector('[data-rev-action="revert"]'))
       : row?.querySelector(`[data-rev-action="${want.which}"]`)
-    if (!target) return
+    if (!target || !target.isConnected || target.closest('[hidden]')) return
     pendingFocus.current = null
     target.focus()
   }, [])
   const focusRev = useCallback((rev, which = 'restore') => {
     pendingFocus.current = { rev, which }
-    requestAnimationFrame(tryFocus)
-  }, [tryFocus])
-  useEffect(() => { if (mode.kind === 'list') tryFocus() })
+  }, [])
+  useLayoutEffect(() => { if (mode.kind === 'list') tryFocus() })
   const toList = useCallback(() => {
     setMode({ kind: 'list' })
     setError(null)
@@ -207,6 +211,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     const used = Number.isInteger(now.usedIn) ? now.usedIn : 0
     if (used > 1) {
       setAnswer(preselectAnswer({ lastAnswer: now.lastAnswer, kind: 'plan' }))
+      setHeadFocus(false)
       setMode({ kind: 'question', before })
       return
     }
@@ -275,7 +280,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     if (!got.ok || !isRecord(got.data)) { refused(got); return }
     setDef(got.data)
     setRevert({ before: revert.before, conflict: false })
-    say('Loaded the latest version of this widget. You can go back to the version before now.')
+    say('Loaded the latest version of this widget. You can now go back to the version before.')
     focusRev(null, 'revert')
   }
 
@@ -314,7 +319,7 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
 
   return (
     <div className={styles.pushPanel} data-testid="my-tools-history">
-      <PanelHead title={`Version history: ${d.name}`} onBack={onBack} />
+      <PanelHead title={`Version history: ${d.name}`} onBack={onBack} focusHeading={headFocus} />
       {revs.status === 'loading' && <p className={styles.hint}>{COPY.revsLoading}</p>}
       {revs.status === 'error' && (
         <div className={styles.stateBox}>

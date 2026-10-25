@@ -234,3 +234,32 @@ describe('M-5: openMyTools while open', () => {
     expect(first).not.toHaveBeenCalled()
   })
 })
+
+describe('fix 3, m4: an ask arriving during the reset step', () => {
+  afterEach(async () => {
+    const close = openMyTools({})
+    await act(async () => { close() })
+    await waitFor(() => expect(document.querySelector('[data-my-tools-root]')).toBeNull())
+  })
+
+  it('moves the highlight (and focus) to the NEWEST widget asked for', async () => {
+    const liveRead = later()
+    let liveReads = 0
+    net = installFetch([
+      ['POST', '/a1/unarchive', () => ({ id: 'a1' })],
+      ['GET', '?view=live', () => { liveReads += 1; return liveReads === 1 ? { widgets: net.lists.live } : liveRead.promise.then(() => ({ widgets: net.lists.live })) }],
+    ])
+    await act(async () => { openMyTools({ defId: 'w1', uid: 'u1' }) })
+    await waitFor(() => expect(actionsOf('Net P&L by setup')).toHaveFocus())
+    showList('Archived')
+    await screen.findByRole('heading', { name: '1 archived' })
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Old edge' }))       // re-reads Archived; Active is dropped
+    await waitFor(() => expect(net.calls.filter((c) => c.path === '?view=archived').length).toBeGreaterThan(1))
+    await act(async () => { openMyTools({ defId: 'w1' }) })                          // reset: back to Active, which loads
+    await waitFor(() => expect(liveReads).toBe(2))
+    await act(async () => { openMyTools({ defId: 'w2' }) })                          // a later ask, mid-reset
+    await act(async () => { liveRead.resolve() })
+    await waitFor(() => expect(actionsOf('Win rate')).toHaveFocus())
+    expect(screen.getAllByTestId('my-tools-row').find((r) => r.hasAttribute('data-highlight'))).toHaveAttribute('data-def-id', 'w2')
+  })
+})

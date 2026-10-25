@@ -262,12 +262,14 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
   const resetting = useRef(false)
   useEffect(() => {
     if (!seekKey || sought.current === seekKey) return
-    if (sought.current !== null && !resetting.current) {   // a later "Manage…" while My tools is open
-      resetting.current = true
-      setView({ kind: 'list' })
-      setMenu(null)
-      setHighlight(defId)
-      if (filter !== 'live') { setFilter('live'); return }
+    if (sought.current !== null) {                    // a later "Manage…" while My tools is open
+      setHighlight(defId)                             // always the newest ask, even one arriving mid-reset
+      if (!resetting.current) {
+        resetting.current = true
+        setView({ kind: 'list' })
+        setMenu(null)
+        if (filter !== 'live') { setFilter('live'); return }
+      }
     }
     const live = lists.live
     if (live?.status !== 'ok') return

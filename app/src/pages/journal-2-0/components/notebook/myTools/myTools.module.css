@@ -172,7 +172,7 @@
   font-size: var(--text-md);
   white-space: nowrap;
 }
-.btn:hover {
+.btn:hover:not([aria-disabled='true']) {
   background: var(--bg-hover);
 }
 .btnPrimary {
@@ -181,7 +181,7 @@
   color: var(--bg-base);
   font-weight: 600;
 }
-.btnPrimary:hover {
+.btnPrimary:hover:not([aria-disabled='true']) {
   background: var(--ut-gold-bright, var(--ut-gold));
 }
 .btnDanger {
