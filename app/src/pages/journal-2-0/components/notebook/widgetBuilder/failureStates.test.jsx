@@ -1,3 +1,4 @@
+/* global process */
 // Wave 8 (Task 8.16): every spec 5.10 failure state a member can reach in wave 8, each with its EXACT copy and what
 // stays on screen. Routines and trackers (live read, tick, logging window, market calendar) are wave 9 and are not
 // here. The builder states run through the real sheet and its fetches; the placed-widget states (See it now) run
@@ -113,6 +114,17 @@ async function seeItNow(reply, params = SNAP) {
 }
 const reply = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
 
+// Fix 1, m-10: rows that apply to several surfaces, and where each surface is asserted.
+//   Busy           preview: 1 · See it now: 1b · drill: 1c
+//   Took too long  preview: 2 · See it now: 2b
+//   Rate (widget)  See it now: 5 · drill: widgets/BuiltWidgetEmbed.test.jsx "a refused drill shows its sentence"
+//   Offline        builder: 8 · See it now: widgets/SnapshotFrame.test.jsx "offline: See it now is disabled ..."
+//                  (its copy is the snapshot frame's own, lib/notebookWidgetsFetch OFFLINE_SENTENCE)
+//   Flag off       placed widget: 9 (routines and trackers are wave 9)
+//   Newer version  open: 11 · run (See it now): 11b · save: 11c
+//   Not enough     builder preview: 12 · gallery card: ExamplesGallery.test.jsx via miniPreview (cellOf)
+const NUMBER_MARK = /^Net P&L:/
+
 describe('spec 5.10: every failure state reachable in wave 8', () => {
   it('1. Busy (preview): the phase 1 sentence; the last result stays, dimmed; Save stays enabled', async () => {
     await lastGoodThen(() => refusal(503, 'busy', COPY.busy))
@@ -120,6 +132,30 @@ describe('spec 5.10: every failure state reachable in wave 8', () => {
     expect(keptResult().className).toMatch(/dimmed/)
     expect(saveButton()).toBeEnabled()
     expect(within(previewPane()).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('1b. Busy (See it now): the sentence, and the snapshot stays', async () => {
+    const writes = await seeItNow(() => reply(503, { detail: { code: 'busy', message: COPY.busy } }))
+    expect(await screen.findByText(COPY.busy)).toBeInTheDocument()
+    expect(writes).toHaveLength(0)
+    expect(screen.getByText('+$1,250.00')).toBeInTheDocument()
+  })
+
+  it('1c. Busy (drill): the panel says it; the widget is unchanged', async () => {
+    vi.useRealTimers()
+    vi.stubGlobal('fetch', vi.fn(async () => reply(503, { detail: { code: 'busy', message: COPY.busy } })))
+    render(<BuiltWidgetEmbed attrs={widgetEmbedNode('builtWidget', SNAP).attrs} />)
+    fireEvent.click(screen.getByRole('button', { name: NUMBER_MARK }))
+    const panel = await screen.findByRole('dialog')
+    expect(await within(panel).findByText(COPY.busy)).toBeInTheDocument()
+    expect(screen.getByText('+$1,250.00')).toBeInTheDocument()
+  })
+
+  it('2b. Took too long (See it now): the sentence, and the snapshot stays', async () => {
+    const writes = await seeItNow(() => reply(503, { detail: { code: 'too_long', message: COPY.tooLong } }))
+    expect(await screen.findByText(COPY.tooLong)).toBeInTheDocument()
+    expect(writes).toHaveLength(0)
+    expect(screen.getByText('+$1,250.00')).toBeInTheDocument()
   })
 
   it('2. Took too long: the sentence, a one-tap "Last 90 days", the last result stays; Save enabled', async () => {
@@ -226,6 +262,27 @@ describe('spec 5.10: every failure state reachable in wave 8', () => {
     expect(screen.getByText('Net P&L by setup.')).toBeInTheDocument()
     expect(screen.queryByTestId('builder-save')).toBeNull()
     expect(previews()).toHaveLength(0)
+  })
+
+  it('11b. Newer plan version (See it now): reload, and the snapshot stays', async () => {
+    const writes = await seeItNow(() => reply(409, { detail: { code: 'too_new', message: COPY.tooNew } }))
+    expect(await screen.findByText(COPY.tooNew)).toBeInTheDocument()
+    expect(writes).toHaveLength(0)
+    expect(screen.getByText('+$1,250.00')).toBeInTheDocument()
+  })
+
+  it('11c. Newer plan version (save): reload; the draft stays on screen', async () => {
+    route('GET', (u) => u.endsWith(`${DEFS}/d-1`), () => answer({
+      id: 'd-1', name: 'Mine', rev: 3, placedRev: 3, etag: 7, archived: false, usedIn: 1, lastAnswer: null,
+      summary: SUMMARY, plan: { v: 1, source: 'closed_trades', range: { token: 'last_90d' }, measures: [{ key: 'net_pnl' }] },
+    }))
+    route('PUT', (u) => u.endsWith('/d-1'), () => refusal(409, 'too_new', COPY.tooNew))
+    await openBuilder({ from: { defId: 'd-1', getPos: () => 1 } })
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Edited here' } })
+    fireEvent.click(saveButton())
+    await flush()
+    expect(screen.getByRole('alert')).toHaveTextContent(COPY.tooNew)
+    expect(screen.getByLabelText('Name')).toHaveValue('Edited here')
   })
 
   it('12. Not enough data: "Not enough trades yet (3)" / "Not enough days yet (2)", never a zero', async () => {

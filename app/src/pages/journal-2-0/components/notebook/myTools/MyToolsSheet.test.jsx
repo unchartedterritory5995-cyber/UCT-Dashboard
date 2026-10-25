@@ -274,7 +274,7 @@ describe('My tools, Widgets tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Net P&L by setup' }))
     await waitFor(() => expect(openWidgetBuilder).toHaveBeenCalledWith({ editor: null, from: { defId: 'w1' }, uid: 'u1' }))
     fireEvent.click(screen.getByRole('button', { name: /Build a widget/ }))
-    await waitFor(() => expect(openWidgetBuilder).toHaveBeenLastCalledWith({ editor: null, from: null, uid: 'u1' }))
+    await waitFor(() => expect(openWidgetBuilder).toHaveBeenLastCalledWith({ editor: null, from: null, uid: 'u1', start: 'examples' }))
   })
 
   it('when the builder closes, the list reads the truth again', async () => {

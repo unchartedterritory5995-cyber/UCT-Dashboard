@@ -380,8 +380,12 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
     setMenu(null)
     try {
       const mod = await import('../widgetBuilder/openWidgetBuilder.js')
-      // Never this sheet's editor: a widget opened from My tools is edited, never inserted into a note.
-      mod.openWidgetBuilder({ editor: null, from, uid })
+      // Never this sheet's editor: a widget opened from My tools is edited, never inserted into a note. A new one
+      // starts from the examples (Task 8.16 fix 1, R-44); a link out of the builder closes My tools too (R-45).
+      mod.openWidgetBuilder({
+        editor: null, from, uid, ...(from ? {} : { start: 'examples' }),
+        ...(typeof navigate === 'function' ? { navigate: (to) => { navigate(to); onCloseAll?.() } } : {}),
+      })
       watchBuilder()
     } catch {
       if (mounted.current) say(COPY.builderFailed, 'error')

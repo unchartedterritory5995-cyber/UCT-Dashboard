@@ -7,6 +7,8 @@
 //     `from: {shelfId, getPos}`, edits a ready-made one as a copy that replaces the placed widget.
 //   * no `from` builds a new widget (/build), inserted at the caret when `editor` is a note's editor.
 //   * `start`: 'examples' | 'blank' | 'resume' ('resume' reopens the kept draft straight away).
+//   * `navigate`: the app router's navigate, when the door has one (My tools). The sample banner's Link broker and
+//     Log a trade go through it; without it their links follow their own href (Task 8.16 fix 1, R-45).
 //   * `returnFocus`: where focus goes when the builder closes without placing anything (the ⋯ button, or the
 //     widget's own element). After an insert or a replace, focus goes to the placed widget instead.
 //
@@ -41,7 +43,7 @@ class BuilderBoundary extends Component {
   }
 }
 
-export function openWidgetBuilder({ editor = null, from = null, start, uid, returnFocus = null } = {}) {
+export function openWidgetBuilder({ editor = null, from = null, start, uid, returnFocus = null, navigate = null } = {}) {
   if (_open) return _open
   const host = document.createElement('div')
   host.setAttribute('data-widget-builder-root', '')
@@ -76,6 +78,7 @@ export function openWidgetBuilder({ editor = null, from = null, start, uid, retu
   // The signed-in member keys the kept draft (`uct.nb.widgetDraft.<uid>`), as the slash menu's caches are keyed.
   root.render(createElement(BuilderBoundary, { onError: () => close() }, createElement(WidgetBuilderSheet, {
     editor, from, start, uid: uid ?? editor?.storage?.uctJournalWidgets?.uid, onClose: close,
+    navigate: typeof navigate === 'function' ? navigate : null,
     registerLeave: (fn) => { leave = fn },
   })))
   return close

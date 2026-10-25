@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useHasCoarsePointer, useIsPhone } from '../../../../../hooks/useBreakpoint'
@@ -86,7 +86,10 @@ export const SAVED_COPY_SENTENCE = 'Running from the saved copy in this note.'
 export const SAVED_NOT_IN_NOTE = 'Saved in My tools. It is no longer in this note.'
 /** Task 8.16: from the builder back to "Start from an example", while nothing has been edited. */
 export const BACK_TO_EXAMPLES = 'Back to examples'
-export const BACK_TO_EXAMPLES_HELD = 'Undo your changes to go back to the examples, or save this widget.'
+/** Fix 1, I-2: Back is held only once the widget is saved and its place in the note is still owed. */
+export const BACK_HELD_SAVED = 'Your widget is saved. Add it to the note, or close.'
+/** Fix 1, m-6: said when a card opens in the builder. */
+const openedText = (name) => `Opened ${name}.`
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 /** Edits that make a saved widget out of date: the plan and the name, as one value. */
@@ -235,6 +238,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const blankRef = useRef(null)         // the plan "Start blank" starts from
   const screenSeen = useRef(screen)
   const backHeldId = useId()
+  const [opened, setOpened] = useState('')      // "Opened Win rate." (fix 1, m-6), read out on the way in
+  const clearSearchRef = useRef(null)           // the gallery's "Escape clears a non-empty search" (fix 1, m-4)
 
   useEffect(() => () => { mounted.current = false }, [])
 
@@ -437,8 +442,10 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }, [level])
 
   // ── the start screen (Task 8.16) ───────────────────────────────────────────────────────────────
-  // Focus follows the screen: into the builder, its first section's heading; back out, the card that opened it.
-  useEffect(() => {
+  // Focus follows the screen, before paint: into the builder, its first section's heading; back out, the card that
+  // opened the builder, else the gallery's heading. (A draft just kept is offered, and the offer's own effect above
+  // focuses its Resume after this one, once.)
+  useLayoutEffect(() => {
     if (screenSeen.current === screen) return
     screenSeen.current = screen
     const root = rootRef.current
@@ -457,12 +464,14 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       galleryOpener.current = el || null
       // A ready-made widget as the start of a NEW one: its plan, history empty, nothing edited yet.
       dispatch({ type: 'loadPlan', plan: ex.plan, autoName: typeof ex.name === 'string' ? ex.name : '' })
+      setOpened(typeof ex.name === 'string' && ex.name ? openedText(ex.name) : '')
       setFromGallery(true)
       setScreen('builder')
     },
     blank: (el) => {
       galleryOpener.current = el || null
       if (blankRef.current) dispatch({ type: 'loadPlan', plan: blankRef.current, autoName: '' })
+      setOpened('')
       setFromGallery(true)
       setScreen('builder')
     },
@@ -472,6 +481,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       galleryOpener.current = null
       resumeDraft(kept)
       setOffer(null)
+      setOpened('')
       setFromGallery(true)
       setScreen('builder')
     },
@@ -482,17 +492,15 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     },
     link: (to, e) => {
       // A modified click (a new tab) is the browser's. Otherwise the builder closes and the app goes there: through
-      // the router when the door was given one, else the History API plus the popstate the router listens for.
+      // the router's navigate when the door was given one (fix 1, R-45), else the anchor follows its own href.
       if (e && (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return
-      e?.preventDefault()
-      close()
-      if (typeof navigate === 'function') { navigate(to); return }
-      try {
-        window.history.pushState({}, '', to)
-        window.dispatchEvent(new PopStateEvent('popstate'))
-      } catch {
-        window.location.assign(to)
+      if (typeof navigate === 'function') {
+        e?.preventDefault()
+        close()
+        navigate(to)
+        return
       }
+      close()
     },
   }
   // Stable for the (memoized) gallery: it never re-renders because the builder did.
@@ -504,11 +512,22 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     onLink: (to, e) => galleryRef.current.link(to, e),
   }), [])
   const galleryResume = useMemo(() => (offer ? { text: RESUME_OFFER, kept: `Kept ${keptAgo(offer.at)}.` } : null), [offer])
-  // Held while anything is edited (going back would drop it) and once a widget is saved (its place is still owed).
-  const backHeld = state.dirty || gone || !!savedRef.current
-  const backToExamples = () => {
-    if (backHeld) return
+  // Fix 1, I-2: held only once a widget is saved (its place is still owed, or it is gone): there is nothing to go back
+  // to then. Edits are never a dead end: Back asks "Keep your changes?" (keep -> the gallery offers Resume).
+  const backOwed = !!savedRef.current && !gone
+  const backHeld = gone || !!savedRef.current
+  /** To the gallery, clean: the builder starts over from the blank plan, so a later close asks nothing. */
+  const toGallery = () => {
+    opener.current = null
+    setLevel({ kind: 'main' })
+    if (blankRef.current) dispatch({ type: 'loadPlan', plan: blankRef.current, autoName: '' })
+    setOpened('')
     setScreen('examples')
+  }
+  const backToExamples = (el) => {
+    if (backHeld) return
+    if (stateRef.current.dirty) { push({ kind: 'ask', to: 'gallery' }, el || null); return }
+    toGallery()
   }
 
   // ── closing, and the kept draft ───────────────────────────────────────────────────────────────
@@ -786,7 +805,17 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
 
   // ── keys: Escape backs out one level; Ctrl/Cmd+Z / Shift+Z / Enter ─────────────────────────────
   const keysRef = useRef(null)
-  keysRef.current = { level, back, save, answer, phase: onGallery ? 'gallery' : phase }
+  keysRef.current = {
+    level, back, save, answer, phase: onGallery ? 'gallery' : phase,
+    // Fix 1, m-4: Escape goes back ONE level. A non-empty search clears first; a builder opened from a card goes
+    // back to the gallery (asking first when edited), unless a saved widget's place is still owed.
+    escape: (target) => {
+      if (onGallery) return !!clearSearchRef.current?.(target)
+      if (!fromGallery || phase !== 'ready' || backHeld || level.kind !== 'main') return false
+      backToExamples(rootRef.current?.querySelector('[data-builder-back]') || null)
+      return true
+    },
+  }
   useEffect(() => {
     const isTop = () => {
       const panel = rootRef.current?.closest('[data-sheet-panel]')
@@ -798,7 +827,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       if (!k || !isTop()) return
       if (e.key === 'Escape') {
         // A picker (or a question) goes back one level; at the top the Sheet's own Escape asks to close.
-        if (k.level.kind !== 'main') { e.preventDefault(); e.stopPropagation(); k.back() }
+        if (k.level.kind !== 'main') { e.preventDefault(); e.stopPropagation(); k.back(); return }
+        if (k.escape?.(e.target)) { e.preventDefault(); e.stopPropagation() }
         return
       }
       if (k.phase !== 'ready' || !(e.ctrlKey || e.metaKey)) return
@@ -879,16 +909,24 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           busy={saving} onConfirm={(a) => save(a)} onBack={back} />
       )
     } else if (k === 'ask') {
+      // Fix 1, I-2: asked by "Back to examples" (`to: 'gallery'`), the choices lead to the gallery, never close.
+      const toG = level.to === 'gallery'
       picker = (
         <div>
           <h3 className={styles.pickerTitle} tabIndex={-1} data-picker-heading="">{KEEP_QUESTION}</h3>
           <p className={styles.sectionHint}>You can come back to them for a day.</p>
           <div className={styles.pickerActions}>
             <button type="button" className={styles.btnPrimary}
-              onClick={() => { if (keepDraft()) close(); else setSaveMsg(KEEP_FAILED) }}>
+              onClick={() => {
+                if (!keepDraft()) { setSaveMsg(KEEP_FAILED); return }
+                if (!toG) { close(); return }
+                setOffer(readDraft(uid, draftTarget))
+                toGallery()
+              }}>
               Keep my changes
             </button>
-            <button type="button" className={styles.btn} onClick={() => { dropDrafts(); close() }}>
+            <button type="button" className={styles.btn}
+              onClick={() => { dropDrafts(); if (toG) toGallery(); else close() }}>
               Discard them
             </button>
             <button type="button" className={styles.btn} onClick={back}>Keep editing</button>
@@ -900,18 +938,19 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       <>
         {screen === 'examples' || fromGallery ? (
           <ExamplesGallery hidden={!onGallery} resume={onGallery ? galleryResume : null} resumeRef={offerRef}
-            {...galleryProps} />
+            clearSearchRef={clearSearchRef} {...galleryProps} />
         ) : null}
         <div hidden={k !== 'main' || onGallery} className={styles.sections} inert={gone || undefined}
           aria-disabled={gone || undefined} data-testid="builder-sections">
           {fromGallery && (
             <div className={styles.backRow}>
-              <button type="button" className={styles.btn} onClick={backToExamples}
-                aria-disabled={backHeld || undefined} aria-describedby={state.dirty ? backHeldId : undefined}>
+              <button type="button" className={styles.btn} onClick={(e) => backToExamples(e.currentTarget)}
+                data-builder-back="" aria-disabled={backHeld || undefined}
+                aria-describedby={backOwed ? backHeldId : undefined}>
                 <UIcon name="chevronLeft" size={16} gold={false} aria-hidden="true" />
                 <span>{BACK_TO_EXAMPLES}</span>
               </button>
-              {state.dirty && <p className={styles.sectionHint} id={backHeldId}>{BACK_TO_EXAMPLES_HELD}</p>}
+              {backOwed && <p className={styles.sectionHint} id={backHeldId}>{BACK_HELD_SAVED}</p>}
             </div>
           )}
           {offer && !onGallery && (
@@ -998,8 +1037,9 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       footer={phase === 'tooNew' || (phase === 'ready' && onGallery) ? null : footer}>
       <div ref={rootRef} className={`${styles.layout} ${phase === 'ready' && onGallery ? styles.layoutGallery : ''}`}
         data-testid="widget-builder">
+        <p className={styles.srOnly} role="status" data-testid="builder-opened">{opened}</p>
         {phone && pane}
-        <div className={styles.controls}>{content}</div>
+        <div className={styles.controls} data-builder-controls="">{content}</div>
         {!phone && pane && <div className={styles.previewCol}>{pane}</div>}
       </div>
     </Sheet>

@@ -1,6 +1,8 @@
 // Notebook widgets phase 2 (wave 8, Task 8.16): the start screen's pure helpers (ExamplesGallery.jsx draws them).
-import { useEffect, useState } from 'react'
-import { FAILURE_COPY } from '../../../lib/builtWidgets'
+import { FAILURE_COPY, failureText } from '../../../lib/builtWidgets'
+
+/** The media query for reduced motion, read through the shared hooks/useMediaQuery. */
+export const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
 
 const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
 
@@ -20,28 +22,13 @@ export function rankExamples(list, query) {
   return hits.map((h) => h.ex)
 }
 
-/** The spec 5.10 sentence for a refused batch (or the shelf), by its code. "busy" never reaches a card. */
-export function examplesFailureText(code, fallback) {
-  if (code !== 'busy' && code !== 'superseded' && typeof code === 'string' && Object.hasOwn(FAILURE_COPY, code)) {
-    return FAILURE_COPY[code]
-  }
-  return fallback
-}
+/** Codes whose spec 5.10 sentence is about ANOTHER surface (the builder's own preview, or a card's busy gate, which is
+ *  never shown): on the gallery these read the gallery's own `fallback`. */
+const NOT_HERE = new Set(['busy', 'superseded', 'rate_preview', 'too_long'])
 
-/** True while the member asks for reduced motion (the skeleton does not shimmer then). */
-export function useReducedMotion() {
-  const QUERY = '(prefers-reduced-motion: reduce)'
-  const read = () => {
-    try { return !!window.matchMedia?.(QUERY)?.matches } catch { return false }
-  }
-  const [reduce, setReduce] = useState(read)
-  useEffect(() => {
-    let mql = null
-    try { mql = window.matchMedia?.(QUERY) || null } catch { mql = null }
-    if (!mql || typeof mql.addEventListener !== 'function') return undefined
-    const on = (e) => setReduce(!!e.matches)
-    mql.addEventListener('change', on)
-    return () => mql.removeEventListener('change', on)
-  }, [])
-  return reduce
+/** The member sentence for a refused batch (or the list read): the shared failureText lookup for every code it knows
+ *  (offline, unavailable, rate, daily cap, ...), else the gallery's own fallback, never developer words. */
+export function examplesFailureText(code, fallback) {
+  if (typeof code !== 'string' || NOT_HERE.has(code) || !Object.hasOwn(FAILURE_COPY, code)) return fallback
+  return failureText(code) || fallback
 }

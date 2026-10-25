@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { DEFS_URL, getJson, postJson } from '../../../lib/builtWidgets'
+import useMediaQuery from '../../../../../hooks/useMediaQuery'
 import ExampleCard from './ExampleCard'
-import { rankExamples, examplesFailureText, useReducedMotion } from './examplesModel'
+import { rankExamples, examplesFailureText, REDUCED_MOTION } from './examplesModel'
 import styles from './ExamplesGallery.module.css'
 
 /**
@@ -11,16 +12,24 @@ import styles from './ExamplesGallery.module.css'
  * blank", with a search over each card's name and keywords: a NAME match ranks above a keyword match, and within a
  * tier the shelf's own order holds.
  *
- * Card results come from `POST /examples` (`{ids}` -> `{sample, cards: {id: payload}}`, at most 8 ids), asked for in
- * batches of `BATCH` as cards scroll into view (an IntersectionObserver over the card list items):
+ * Card results come from `POST /examples` (`{ids}` -> `{sample, cards: {id: payload}}`, at most 8 ids), asked for as
+ * cards scroll into view (one IntersectionObserver over the card list items, rooted on the sheet's own scroller so
+ * its margin reaches ahead of what is in view):
+ *   * Newly visible cards are COALESCED for `COALESCE_MS`, then sent as ONE batch, topped up to `BATCH` with the next
+ *     cards in display order that were never asked for. At most ONE batch is in flight (fix 1, I-3): the server's gate
+ *     holds a handful of slots, and three batches at once made the gallery manufacture its own "busy".
  *   * ⛔ A card already asked for is NEVER asked for again: not when it scrolls out and back, not when the search
  *     hides and shows it, not when the member goes into the builder and back (this component stays mounted, hidden).
- *   * On `busy` a card keeps its skeleton and its batch is asked for ONCE more after `BUSY_RETRY_MS`. A second busy
- *     leaves the card's bare shape; "busy" is never shown on a card and nothing retries again on a timer.
- *   * Any other refusal leaves the cards' bare shapes and ONE line above the list with the spec 5.10 sentence for its
- *     code. "Try again" (and the browser coming back online) asks once more for those cards only.
- *   * `sample: true` (fewer than 5 closed trades): a "Sample data" ribbon on every card and a banner with Link broker
- *     and Log a trade. The server resolves a sample card's range against the sample book's own last day.
+ *   * On `busy` a card keeps its skeleton and its batch is asked for ONCE more after `BUSY_RETRY_MS` (the slot stays
+ *     held meanwhile). A second busy leaves the card's bare shape; "busy" is never shown on a card.
+ *   * Any other refusal leaves the cards' bare shapes and ONE line above the list. "Try again" (and the browser
+ *     coming back online) asks once more for those cards only. A failed list read is read again on 'online' too.
+ *   * `sample: true` (fewer than 5 closed trades): a "Sample data" ribbon on every answered card and a banner with
+ *     Link broker and Log a trade. The server resolves a sample card's range against the sample book's own last day.
+ *
+ * The two live regions (the search's count, the refused-batch line) are ALWAYS mounted and only their text changes,
+ * so a screen reader hears them; the count is debounced. Escape in a non-empty search clears it (`clearSearchRef`,
+ * which the sheet asks before it backs out).
  *
  * ⛔ Member words: never "shelf", "definition", "plan" or "source".
  */
@@ -41,28 +50,55 @@ export const CARDS_FAILED = "Couldn't draw these previews. Open one to see it li
 export const BATCH = 8
 /** A busy batch is asked for once more after this long, and never again. */
 export const BUSY_RETRY_MS = 1500
+/** Cards that come into view within this long of each other go in one batch. */
+export const COALESCE_MS = 150
+/** The search's result count is read out this long after typing stops. */
+export const COUNT_DELAY_MS = 500
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 const shelfOf = (data) => (Array.isArray(data?.examples) ? data.examples : [])
   .filter((e) => isRecord(e) && typeof e.id === 'string' && e.id && typeof e.name === 'string' && isRecord(e.plan))
 
-function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onResume, onFresh, onOpen, onBlank, onLink }) {
+/** The nearest ancestor that scrolls (the sheet's own scroller), or null for the viewport. */
+function scrollerOf(el) {
+  for (let p = el?.parentElement || null; p && p !== document.body; p = p.parentElement) {
+    let oy = ''
+    try { oy = window.getComputedStyle(p).overflowY } catch { oy = '' }
+    if (oy === 'auto' || oy === 'scroll') return p
+  }
+  return null
+}
+
+function ExamplesGallery({
+  hidden = false, resume = null, resumeRef = null, clearSearchRef = null, onResume, onFresh, onOpen, onBlank, onLink,
+}) {
   const [shelf, setShelf] = useState({ status: 'loading', list: [], code: '' })
   const [shelfTick, setShelfTick] = useState(0)
   const [cards, setCards] = useState(() => new Map())
   const [sample, setSample] = useState(false)
   const [note, setNote] = useState('')
   const [query, setQuery] = useState('')
-  const reduce = useReducedMotion()
+  const [countSaid, setCountSaid] = useState('')
+  const reduce = useMediaQuery(REDUCED_MOTION)
   const searchId = useId()
+  const rootEl = useRef(null)
   const mounted = useRef(true)
   const requested = useRef(new Set())     // every id ever asked for: never asked for again on its own
   const failed = useRef(new Set())        // refused (not busy): asked for again only by Try again / back online
   const visible = useRef(new Set())
+  const wanted = useRef([])               // in view, not yet asked for: the next batch's first members
+  const inFlight = useRef(false)
+  const flushTimer = useRef(null)
   const timers = useRef(new Set())
   const nodes = useRef(new Map())         // id -> list item
+  const order = useRef([])                // the cards in display order (the top-up follows it)
+  const shelfState = useRef(shelf.status)
   const io = useRef(null)
+
+  const shown = useMemo(() => rankExamples(shelf.list, query), [shelf.list, query])
+  useEffect(() => { order.current = shown.map((e) => e.id) }, [shown])
+  useEffect(() => { shelfState.current = shelf.status }, [shelf.status])
 
   useEffect(() => {
     mounted.current = true
@@ -71,6 +107,8 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
       mounted.current = false
       for (const t of pending) clearTimeout(t)
       pending.clear()
+      if (flushTimer.current) clearTimeout(flushTimer.current)
+      flushTimer.current = null
     }
   }, [])
 
@@ -92,9 +130,14 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
     })
   }, [])
 
-  /** Ask for one batch (<= BATCH ids). A busy answer is asked for once more, after BUSY_RETRY_MS. */
-  const send = useCallback((ids) => {
-    const attempt = async (retry) => {
+  const wait = useCallback((ms) => new Promise((resolve) => {
+    const t = setTimeout(() => { timers.current.delete(t); resolve() }, ms)
+    timers.current.add(t)
+  }), [])
+
+  /** Ask for one batch (<= BATCH ids); resolves once it has settled. A busy answer is asked for once more. */
+  const send = useCallback(async (ids) => {
+    for (let retry = false; ; retry = true) {
       const got = await postJson('/examples', { ids })
       if (!mounted.current) return
       if (got.ok) {
@@ -105,42 +148,68 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
         return
       }
       if (got.code === 'busy' && !retry) {
-        // The skeleton stays; ONE more try, and never another.
-        const t = setTimeout(() => {
-          timers.current.delete(t)
-          attempt(true)
-        }, BUSY_RETRY_MS)
-        timers.current.add(t)
-        return
+        await wait(BUSY_RETRY_MS)               // the skeleton stays; ONE more try, and never another
+        if (!mounted.current) return
+        continue
       }
       settle(ids, () => ({ status: 'static' }))
       if (got.code === 'busy') return            // busy twice: the bare shape, and nothing said
       for (const id of ids) failed.current.add(id)
       setNote(examplesFailureText(got.code, CARDS_FAILED))
+      return
     }
-    return attempt(false)
-  }, [settle])
+  }, [settle, wait])
 
-  const request = useCallback((ids) => {
-    for (let i = 0; i < ids.length; i += BATCH) send(ids.slice(i, i + BATCH))
+  /** Send the next batch, when none is out: the cards wanted first (display order), topped up to BATCH. */
+  const flush = useCallback(() => {
+    flushTimer.current = null
+    if (inFlight.current || !mounted.current) return
+    const ids = order.current
+    const at = (id) => { const i = ids.indexOf(id); return i < 0 ? Infinity : i }
+    const queue = wanted.current.filter((id) => !requested.current.has(id)).sort((a, b) => at(a) - at(b))
+    if (!queue.length) { wanted.current = []; return }
+    const batch = queue.slice(0, BATCH)
+    const last = Math.max(...batch.map(at).filter(Number.isFinite), -1)
+    for (const id of ids.slice(last + 1)) {
+      if (batch.length >= BATCH) break
+      if (!requested.current.has(id) && !batch.includes(id)) batch.push(id)
+    }
+    wanted.current = queue.filter((id) => !batch.includes(id))
+    for (const id of batch) requested.current.add(id)
+    inFlight.current = true
+    send(batch).finally(() => {
+      inFlight.current = false
+      if (mounted.current && wanted.current.length) flush()
+    })
   }, [send])
 
-  /** Try again (or back online): the refused cards in view, once. */
+  const want = useCallback((ids) => {
+    for (const id of ids) {
+      if (!requested.current.has(id) && !wanted.current.includes(id)) wanted.current.push(id)
+    }
+    if (wanted.current.length && !flushTimer.current) flushTimer.current = setTimeout(flush, COALESCE_MS)
+  }, [flush])
+
+  /** Try again (or back online): the refused cards in view, once. A failed list read is read again. */
   const retryFailed = useCallback(() => {
+    if (shelfState.current === 'failed') {
+      setShelf((st) => ({ ...st, status: 'loading' }))
+      setShelfTick((n) => n + 1)
+    }
     const ids = [...failed.current].filter((id) => visible.current.has(id))
     if (!ids.length) return
-    for (const id of ids) failed.current.delete(id)
+    for (const id of ids) { failed.current.delete(id); requested.current.delete(id) }
     setNote('')
     settle(ids, () => ({ status: 'loading' }))
-    request(ids)
-  }, [request, settle])
+    want(ids)
+  }, [want, settle])
 
   useEffect(() => {
     window.addEventListener('online', retryFailed)
     return () => window.removeEventListener('online', retryFailed)
   }, [retryFailed])
 
-  // One observer for every card: what comes into view and has never been asked for is asked for, in batches.
+  // One observer for every card, rooted on the sheet's scroller: what comes into view is wanted.
   useEffect(() => {
     if (typeof IntersectionObserver !== 'function') return undefined
     const obs = new IntersectionObserver((entries) => {
@@ -150,19 +219,17 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
         if (!id) continue
         if (!e.isIntersecting) { visible.current.delete(id); continue }
         visible.current.add(id)
-        if (requested.current.has(id)) continue
-        requested.current.add(id)
-        fresh.push(id)
+        if (!requested.current.has(id)) fresh.push(id)
       }
-      if (fresh.length) request(fresh)
-    }, { rootMargin: '160px 0px' })
+      if (fresh.length) want(fresh)
+    }, { root: scrollerOf(rootEl.current), rootMargin: '160px 0px' })
     io.current = obs
     for (const el of nodes.current.values()) obs.observe(el)
     return () => {
       obs.disconnect()
       io.current = null
     }
-  }, [request])
+  }, [want])
 
   /** Each card's list item reports itself here (mounted: `el`; gone: null), to be watched for scrolling into view. */
   const observe = useCallback((id, el) => {
@@ -178,11 +245,31 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
     }
   }, [])
 
-  const shown = useMemo(() => rankExamples(shelf.list, query), [shelf.list, query])
+  // The search's count, read out once typing stops (the region itself is always there).
+  const searching = query.trim() !== ''
+  const countText = searching ? `${shown.length} ${shown.length === 1 ? 'example' : 'examples'}` : ''
+  useEffect(() => {
+    const t = setTimeout(() => setCountSaid(countText), COUNT_DELAY_MS)
+    return () => clearTimeout(t)
+  }, [countText])
+
+  // Escape in a non-empty search clears it first (the sheet asks this before it backs out).
+  const queryRef = useRef(query)
+  useEffect(() => { queryRef.current = query }, [query])
+  useEffect(() => {
+    if (!clearSearchRef) return undefined
+    clearSearchRef.current = (target) => {
+      if (!queryRef.current || !(target instanceof Element) || !target.hasAttribute('data-gallery-search')) return false
+      setQuery('')
+      return true
+    }
+    return () => { clearSearchRef.current = null }
+  }, [clearSearchRef])
+
   const motion = !reduce
 
   return (
-    <div className={styles.gallery} hidden={hidden} data-testid="examples-gallery">
+    <div className={styles.gallery} hidden={hidden} data-testid="examples-gallery" ref={rootEl}>
       <h3 className={styles.title} tabIndex={-1} data-gallery-heading="">{GALLERY_TITLE}</h3>
       {resume && (
         <div className={styles.offer} role="group" aria-label={resume.text}>
@@ -198,7 +285,8 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
         <label className={styles.field} htmlFor={searchId}>
           <span className={styles.fieldLabel}>{SEARCH_LABEL}</span>
           <input id={searchId} className={styles.search} type="search" value={query} autoComplete="off"
-            placeholder="Win rate, drawdown, by weekday…" onChange={(e) => setQuery(e.target.value)} />
+            data-gallery-search="" placeholder="Win rate, drawdown, by weekday…"
+            onChange={(e) => setQuery(e.target.value)} />
         </label>
         <button type="button" className={styles.btn} onClick={(e) => onBlank(e.currentTarget)}>{START_BLANK}</button>
       </div>
@@ -211,13 +299,12 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
           </div>
         </div>
       )}
-      {note && (
-        <div className={styles.note}>
-          <p className={styles.noteText} role="status">{note}</p>
-          <button type="button" className={styles.btn} onClick={retryFailed}>Try again</button>
-        </div>
-      )}
-      {shelf.status === 'loading' && <p className={styles.hint} role="status">{SHELF_LOADING}</p>}
+      <div className={note ? styles.note : styles.noteIdle}>
+        <p className={styles.noteText} role="status" data-testid="examples-note">{note}</p>
+        {note && <button type="button" className={styles.btn} onClick={retryFailed}>Try again</button>}
+      </div>
+      <p className={styles.srOnly} role="status" data-testid="examples-count">{countSaid}</p>
+      {shelf.status === 'loading' && <p className={styles.hint}>{SHELF_LOADING}</p>}
       {shelf.status === 'failed' && (
         <div className={styles.note}>
           <p className={styles.noteText} role="alert">{examplesFailureText(shelf.code, SHELF_FAILED)}</p>
@@ -227,23 +314,15 @@ function ExamplesGallery({ hidden = false, resume = null, resumeRef = null, onRe
           }}>Try again</button>
         </div>
       )}
-      {shelf.status === 'ok' && (
-        <>
-          {query.trim() !== '' && (
-            <p className={styles.srOnly} role="status">
-              {`${shown.length} ${shown.length === 1 ? 'example' : 'examples'}`}
-            </p>
-          )}
-          {shown.length ? (
-            <ul className={styles.list} aria-label="Examples">
-              {shown.map((ex) => (
-                <ExampleCard key={ex.id} example={ex} card={cards.get(ex.id)} sample={sample} motion={motion}
-                  onOpen={onOpen} observe={observe} />
-              ))}
-            </ul>
-          ) : <p className={styles.hint}>{NO_MATCH}</p>}
-        </>
-      )}
+      {shelf.status === 'ok' && (shown.length ? (
+        // ⛔ role="list" spelled out: `list-style: none` drops the list role in Safari.
+        <ul className={styles.list} role="list" aria-label="Examples">
+          {shown.map((ex) => (
+            <ExampleCard key={ex.id} example={ex} card={cards.get(ex.id)} sample={sample} motion={motion}
+              onOpen={onOpen} observe={observe} />
+          ))}
+        </ul>
+      ) : <p className={styles.hint}>{NO_MATCH}</p>)}
     </div>
   )
 }

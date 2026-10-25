@@ -22,6 +22,7 @@ function ExampleCard({ example, card, sample, motion, onOpen, observe }) {
   const nameId = useId()
   const descId = useId()
   const metaId = useId()
+  const thumbId = useId()
   const id = example.id
   const itemRef = useCallback((el) => observe?.(id, el), [observe, id])
   const status = card?.status || 'loading'
@@ -31,6 +32,9 @@ function ExampleCard({ example, card, sample, motion, onOpen, observe }) {
   const rangeLabel = payload && typeof payload.rangeLabel === 'string' ? payload.rangeLabel : ''
   // The card's OWN answer says whether it read the sample book (the gallery's banner says it for all of them).
   const ribbon = payload?.sample === true || (!!payload && sample === true)
+  // Fix 1, m-7: the card's figure (or its empty sentence) is part of what a screen reader hears; the shapes are not.
+  const oneNumber = ['number', 'compare', 'progress'].includes(typeof payload?.view === 'string' ? payload.view : 'number')
+  const spoken = !!payload && (!!empty || oneNumber)
   let thumb
   if (status === 'loading') {
     thumb = <span className={`${styles.skeleton} ${motion ? styles.shimmer : ''}`} data-testid="example-skeleton" />
@@ -44,9 +48,9 @@ function ExampleCard({ example, card, sample, motion, onOpen, observe }) {
   return (
     <li className={styles.item} ref={itemRef} data-example-id={id}>
       <button type="button" className={styles.card} aria-labelledby={nameId}
-        aria-describedby={`${descId} ${metaId}`} aria-busy={status === 'loading' || undefined}
+        aria-describedby={spoken ? `${thumbId} ${descId} ${metaId}` : `${descId} ${metaId}`} aria-busy={status === 'loading' || undefined}
         onClick={(e) => onOpen(example, e.currentTarget)} data-testid={`example-card-${example.id}`}>
-        <span className={styles.thumbBox}>{thumb}</span>
+        <span className={styles.thumbBox} id={thumbId}>{thumb}</span>
         <span className={styles.cardName} id={nameId}>{example.name}</span>
         <span className={styles.cardDesc} id={descId}>{example.description}</span>
         <span className={styles.cardMeta} id={metaId}>
