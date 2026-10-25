@@ -38,6 +38,7 @@ from api.services.journal_two.widget_engine import run as wrun
 from api.services.journal_two.widget_engine import shelf as wshelf
 from api.services.journal_two.widget_engine import sources as wsources
 from tests.test_widget_notes_source import add_folder, add_kind, add_n, add_prop
+from tests.test_widget_notes_source import raw as notes_raw
 from tests.test_widget_options_source import add_opt
 from tests.test_widget_sources import (  # noqa: F401 -- `conn` is a fixture used by name
     UID, add_trade, add_user, conn, raw_plan,
@@ -50,7 +51,7 @@ VECTORS = Path(__file__).resolve().parent / "fixtures" / "widgetFormulaVectors.j
 W10_ENV = "NOTEBOOK_WIDGETS_W10_ENABLED"
 
 #: The fields `?field=` lists only while wave 10 is on (the brief's names).
-W10_VOCAB_FIELDS = ("underlying", "strategy", "folder", "kind", "note_tag", "ticker", "property")
+W10_VOCAB_FIELDS = ("underlying", "strategy", "folder", "kind", "tag", "ticker", "property")
 #: The catalog keys only wave 10 adds (the brief's names).
 #: The catalog's keys with wave 10 off: be's five plus impl's wave 8 keys (Task 8.15: the engine's reasons and view
 #: rules, the time fields and the limits), merged at the be->impl merge.
@@ -291,13 +292,13 @@ def test_wave10_member_values_are_the_members(conn, monkeypatch):
     assert vals("underlying") == ["qqq", "SPY"]
     strat = vals("strategy")
     fmt = wsources.CATALOG.sources["options_strategies"].fields["strategy"].fmt
-    assert strat == [{"value": "iron_condor", "label": fmt("iron_condor")},
-                     {"value": "long_call", "label": fmt("long_call")}]
+    assert strat == [{"id": "iron_condor", "name": fmt("iron_condor")},
+                     {"id": "long_call", "name": fmt("long_call")}]
     assert vals("folder") == [{"id": mine, "name": "Swing"}]
     kinds = vals("kind")
     assert {"id": kid, "name": "Recap"} in kinds and "Their kind" not in {k["name"] for k in kinds}
     assert {"id": "trade_plan", "name": "Trade plan"} in kinds          # the built-in kinds too
-    assert vals("note_tag") == ["earnings", "setup/flag"]
+    assert vals("tag") == ["earnings", "setup/flag"]
     assert vals("ticker") == ["NVDA"]
 
 
@@ -322,6 +323,99 @@ def test_property_vocabulary_owned_only(conn, monkeypatch):
         assert wsources.member_property(conn, UID, v["id"]) is not None
     # no built-in property (`builtin:*`), whatever the member has
     assert not any(note_properties.is_builtin_property_id(v["id"]) for v in got)
+
+
+def test_vocabulary_keys_are_the_source_fields_own_keys():
+    """m-1: the builder asks `?field=<the field's key>` (`loadVocabulary(field.key)`), so the door
+    answers each notes and options field under that exact key. Derived from the catalog, never typed:
+    the notes source's tag-typed field is the key the door accepts, and the old `note_tag` is not."""
+    notes = wsources.CATALOG.sources["notes"].fields
+    tag_keys = [k for k, f in notes.items() if f.type == "tag"]
+    assert tag_keys == ["tag"] and tag_keys[0] in wdr.VOCAB_W10_FIELDS
+    assert "note_tag" not in wdr.VOCAB_W10_FIELDS
+    for key in ("folder", "kind", "ticker"):                    # control: the others agree too
+        assert key in notes and key in wdr.VOCAB_W10_FIELDS
+    options = wsources.CATALOG.sources["options_strategies"].fields
+    for key in ("underlying", "strategy"):
+        assert key in options and key in wdr.VOCAB_W10_FIELDS
+
+
+def test_strategy_rows_are_the_shape_the_builder_reads(conn, monkeypatch):
+    """m-2: the builder's member-value reader (`useValueList`) maps an object row as
+    `{value: String(v.id), label: v.name}`, so a strategy row is `{id, name}` exactly (the code and
+    its words), and `id` is the code the options strategy filter compares."""
+    _on(monkeypatch)
+    add_opt(conn, UID, underlying="SPY", strategy_type="iron_condor")
+    r = _client().get(BASE + "/vocabulary", params={"field": "strategy"})
+    rows = r.json()["values"]
+    assert r.status_code == 200 and rows
+    for row in rows:
+        assert set(row) == {"id", "name"} and row["id"] and row["name"]
+        assert "value" not in row and "label" not in row
+    fmt = wsources.CATALOG.sources["options_strategies"].fields["strategy"].fmt
+    assert rows == [{"id": "iron_condor", "name": fmt("iron_condor")}]
+
+
+def test_a_calculated_property_is_never_listed(conn, monkeypatch):
+    """m-3: the picker lists what the notes scan can read, so a formula property (visible only while
+    the computed flag is on) is not offered. The control: the same member's plain property is."""
+    _on(monkeypatch)
+    monkeypatch.setenv("NOTEBOOK_FORMULAS_ENABLED", "1")
+    plain = add_prop(conn, UID, "Conviction", "number")
+    calc = note_properties.create_property_def(UID, "Double", "formula",
+                                               config={"expression": "1 + 1"}, conn=conn)
+    assert calc.get("computed") is True                        # it exists, and is calculated
+    assert any(d["id"] == calc["id"] for d in note_properties.list_property_defs(UID, conn))
+    got = _client().get(BASE + "/vocabulary", params={"field": "property"}).json()["values"]
+    assert [v["id"] for v in got] == [plain]
+    assert wsources.member_property(conn, UID, calc["id"]) is None   # the scan's own answer
+
+
+def test_the_sample_notebooks_folders_are_not_offered(conn, monkeypatch):
+    """m-5: a folder the sample notebook made (`import_source = 'sample'`) is no value of the Folder
+    filter, since the scan leaves the sample's notes out; the member's own folders are."""
+    _on(monkeypatch)
+    mine = add_folder(conn, UID, "Swing")
+    sample = add_folder(conn, UID, "Sample notebook")
+    conn.execute("UPDATE j2_note_folders SET import_source = 'sample' WHERE id = ?", (sample,))
+    conn.commit()
+    got = _client().get(BASE + "/vocabulary", params={"field": "folder"}).json()["values"]
+    assert got == [{"id": mine, "name": "Swing"}]
+
+
+def test_the_note_tag_scan_is_bounded(conn, monkeypatch):
+    """m-8: the tag list is cut in SQL at VOCAB_MAX distinct tags, in the list's own order (the scan
+    does not read every tag of every note and cut afterwards). A fixture above the bound."""
+    _on(monkeypatch)
+    names = [f"t{i:03d}" for i in range(wdr.VOCAB_MAX + 5)]
+    for chunk in (names[:100], names[100:]):                    # across several notes
+        add_n(conn, UID, tags=chunk)
+    seen = []
+    conn.set_trace_callback(seen.append)
+    try:
+        values = wdr._w10_member_values(conn, UID, "tag")
+    finally:
+        conn.set_trace_callback(None)
+    assert values == names[:wdr.VOCAB_MAX] and len(values) == wdr.VOCAB_MAX
+    assert any("LIMIT" in q and "json_each" in q for q in seen)   # the bound is in the query
+
+
+def test_a_saved_kind_widget_while_kinds_are_off_is_the_plain_refusal(conn, monkeypatch):
+    """10.7 rereview m-1: a widget SAVED while note kinds were offered, run after they are turned
+    off, answers 400 "That field isn't available here." (never a 500, never numbers)."""
+    _on(monkeypatch)
+    add_n(conn, UID, kind="thesis")
+    plan = notes_raw(filters=[{"field": "kind", "op": "in", "values": ["thesis"]}])
+    saved = wdefs.create(UID, "By kind", plan)
+    c = _client()
+    run = {"defId": saved["id"], "defRev": 1, "settings": {}}
+    ok = c.post(BASE + "/run", json=run)
+    assert ok.status_code == 200, ok.text                       # control: on, it runs
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
+    r = c.post(BASE + "/run", json=run)
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"]["message"] == wplan.S_UNKNOWN_FIELD == wdr.S_VOCAB_FIELD
+    assert "values" not in r.text and "result" not in r.json()
 
 
 # -- the formula refusal ------------------------------------------------------------------------
