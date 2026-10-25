@@ -453,7 +453,8 @@ def test_i1_the_stamp_and_the_fail_closed_fallback():
 
 
 def test_m1_a_long_property_name_leaves_no_fragment_in_the_public_title(conn):
-    names = [f"PROPFRAG-{c}-" + "x" * 60 for c in "ABC"]
+    # 60-character names: the 200-character cut of the member's title falls INSIDE the third name
+    names = [f"PROPFRAG-{c}-" + "x" * 49 for c in "ABC"]
     pids = [add_prop(conn, UID, n) for n in names]
     add_n(conn, UID, props={p: 1 for p in pids})
     out = run_out(raw(measures=tuple({"key": "property_sum", "prop": p} for p in pids), split={"by": "weekday"},
@@ -466,7 +467,7 @@ def test_m1_a_long_property_name_leaves_no_fragment_in_the_public_title(conn):
         assert len(params["title"]) <= 200
     old = {k: v for k, v in out.items() if k != "def"}                     # a defRef snapshot: cut, never a fragment
     t = embed_of(reduce(placed(old), "share"))["attrs"]["params"]["title"]
-    assert "PROPFRAG" not in t and "Sum of a property" not in t
+    assert "PROPFRAG" not in t and "Sum of a property" not in t and "xxxxx" not in t
 
 
 def test_m7_the_numbering_words_live_in_one_module():
