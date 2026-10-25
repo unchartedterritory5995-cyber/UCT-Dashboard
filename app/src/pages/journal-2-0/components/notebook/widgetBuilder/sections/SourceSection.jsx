@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from 'react'
 import Section from './Section'
-import { isToolSource } from '../builderCatalog'
+import { allAccountsOnly } from '../builderCatalog'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
@@ -59,7 +59,7 @@ export default function SourceSection({ cat, plan, accounts, onSource, onAccount
   return (
     <Section id="source" title="What to look at">
       <RovingTiles label="What to look at" options={sources} value={plan.source} onChoose={onSource} />
-      {!isToolSource(plan) && <div className={styles.field}>
+      {!allAccountsOnly(cat, plan.source) && <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={accId}>Accounts</label>
         <select id={accId} className={styles.select} value={accValue}
           onChange={(e) => onAccounts(e.target.value ? { id: e.target.value } : 'all')}>

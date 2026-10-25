@@ -10,7 +10,7 @@ import {
 import { reducer, initState, blankPlan, nameOf, changeKind, DEFAULT_RANGE } from './builderState'
 import {
   indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow, refKindOf, planRefs, kindsNamed, NAMES_FAILED,
-  TOOL_SOURCES, isTradeCountRange,
+  allAccountsOnly, rangeRefused,
 } from './builderCatalog'
 import {
   readDraft, writeDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
@@ -751,13 +751,13 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const onSource = (key) => {
     if (key === state.plan.source) return
     const measures = defaultMeasuresFor(cat, key)
-    // Wave 9: a routine or tracker source covers every account and counts days, not trades (plan.py refuses one
-    // account and a "last N trades" range there), so it starts from all accounts and, from a trade count, the default
-    // range: in the same undo step as the source.
-    const tool = TOOL_SOURCES.includes(key)
-    const reset = tool ? {
-      accounts: 'all', ...(isTradeCountRange(state.plan.range) ? { range: { ...DEFAULT_RANGE } } : {}),
-    } : {}
+    // Wave 9/10: what the new source refuses, as the catalog serves it (`allAccountsOnly`, `refusedRanges`): a
+    // routine or tracker source covers every account, and a source that counts days or notes takes no "last N
+    // trades" range, so the plan starts from all accounts and the default range: in the same undo step as the source.
+    const reset = {
+      ...(allAccountsOnly(cat, key) ? { accounts: 'all' } : {}),
+      ...(rangeRefused(cat, key, state.plan.range) ? { range: { ...DEFAULT_RANGE } } : {}),
+    }
     edit({ type: 'setSource', source: key, measures, ...reset },
       { source: key, measures: measures.map((k) => ({ key: k })), filters: [], split: null, sort: null, compare: null,
         view: { type: 'number', auto: true }, ...reset })

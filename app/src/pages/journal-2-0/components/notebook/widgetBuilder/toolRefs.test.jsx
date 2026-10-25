@@ -1,8 +1,8 @@
 // Wave 9 (Task 9.17): the builder picks a routine or tracker for the fields that name one, and the two tool sources
 // drop what they cannot take (one account, a number of trades). Asserted by RENDERED TEXT and by the plan on the wire.
 //
-// The catalog is be's (Task 9.8) layered on impl's, from `__fixtures__/toolCatalog.js` (test-local until the 9.20
-// merge regenerates serverCatalog.json).
+// The catalog is the merged router's own with wave 9 on (`__fixtures__/toolCatalog.json`, generated beside
+// serverCatalog.json since the be->impl merge), through `__fixtures__/toolCatalog.js`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from './WidgetBuilderSheet'

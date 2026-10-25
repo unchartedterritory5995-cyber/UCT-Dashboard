@@ -456,6 +456,7 @@
     "no_earlier": "Comparing with the period before needs a date range, not all time or a number of trades.",
     "no_measure": "Pick at least one measure.",
     "one_overridable": "Only one filter can be changed from the note.",
+    "one_ref": "A widget can look at one routine and one tracker.",
     "positions_no_compare": "Open positions are a snapshot of right now, so there is no earlier period to compare.",
     "start_after_end": "The start date is after the end date.",
     "target": "The target must be a number.",
@@ -463,6 +464,7 @@
     "too_many_filters": "Use up to 8 filters.",
     "too_many_measures": "Pick up to 3 measures.",
     "top_range": "Top N must be between 1 and 40.",
+    "unknown_range": "That date range isn't available.",
     "view_bar": "A bar chart needs a split.",
     "view_heat": "A calendar heat map needs a split by day.",
     "view_line": "A line needs a split by day or month.",
@@ -474,9 +476,11 @@
   },
   "sources": [
     {
+      "allAccountsOnly": false,
       "description": "Every trade you have closed.",
       "fields": [
         {
+          "filter": true,
           "key": "day",
           "label": "Day",
           "ops": [
@@ -487,10 +491,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": true,
           "type": "day"
         },
         {
+          "filter": true,
           "key": "hour_et",
           "label": "ET hour",
           "ops": [
@@ -501,16 +507,19 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": true,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "weekday",
           "label": "Weekday",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -545,6 +554,7 @@
           ]
         },
         {
+          "filter": true,
           "input": "month",
           "key": "month",
           "label": "Month",
@@ -552,26 +562,31 @@
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum"
         },
         {
+          "filter": true,
           "key": "symbol",
           "label": "Symbol",
           "ops": [
             "in",
             "contains"
           ],
+          "refKind": null,
           "split": true,
           "type": "text"
         },
         {
+          "filter": true,
           "key": "side",
           "label": "Side",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -586,22 +601,26 @@
           ]
         },
         {
+          "filter": true,
           "key": "setup",
           "label": "Setup",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum"
         },
         {
+          "filter": true,
           "key": "result",
           "label": "Result",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -620,6 +639,7 @@
           ]
         },
         {
+          "filter": true,
           "key": "net",
           "label": "Net P&L",
           "ops": [
@@ -630,10 +650,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "gross",
           "label": "Gross P&L",
           "ops": [
@@ -644,10 +666,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "fees",
           "label": "Fees",
           "ops": [
@@ -658,10 +682,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "r",
           "label": "R",
           "ops": [
@@ -672,10 +698,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "risk_dollars",
           "label": "Risk $",
           "ops": [
@@ -686,10 +714,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "pct_return",
           "label": "% return",
           "ops": [
@@ -700,10 +730,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "hold_days",
           "label": "Hold days",
           "ops": [
@@ -714,16 +746,19 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "hold_bucket",
           "label": "Hold time",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -750,6 +785,7 @@
           ]
         },
         {
+          "filter": true,
           "key": "hold_minutes",
           "label": "Hold minutes",
           "needsTimes": true,
@@ -761,10 +797,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "shares",
           "label": "Shares",
           "ops": [
@@ -775,16 +813,19 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "size_quartile",
           "label": "Size quartile",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -807,12 +848,14 @@
           ]
         },
         {
+          "filter": true,
           "key": "regime",
           "label": "Regime at entry",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -835,30 +878,36 @@
           ]
         },
         {
+          "filter": true,
           "key": "mistake",
           "label": "Mistake",
           "ops": [
             "has_any"
           ],
+          "refKind": null,
           "split": true,
           "type": "tag"
         },
         {
+          "filter": true,
           "key": "emotion",
           "label": "Emotion",
           "ops": [
             "has_any"
           ],
+          "refKind": null,
           "split": true,
           "type": "tag"
         },
         {
+          "filter": true,
           "key": "origin",
           "label": "How it was logged",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -877,21 +926,25 @@
           ]
         },
         {
+          "filter": true,
           "key": "account",
           "label": "Account",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum"
         },
         {
+          "filter": true,
           "key": "had_stop",
           "label": "Had a stop",
           "ops": [
             "is"
           ],
+          "refKind": null,
           "split": true,
           "type": "bool",
           "values": [
@@ -906,6 +959,7 @@
           ]
         },
         {
+          "filter": true,
           "key": "mfe_r",
           "label": "MFE R",
           "ops": [
@@ -916,10 +970,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "mae_r",
           "label": "MAE R",
           "ops": [
@@ -930,10 +986,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "exit_efficiency",
           "label": "Exit efficiency",
           "ops": [
@@ -944,10 +1002,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "adherence_pct",
           "label": "Followed my trading plan %",
           "ops": [
@@ -958,15 +1018,18 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "plan_linked",
           "label": "Linked to a trading plan note",
           "ops": [
             "is"
           ],
+          "refKind": null,
           "split": true,
           "type": "bool",
           "values": [
@@ -981,12 +1044,14 @@
           ]
         },
         {
+          "filter": true,
           "key": "r_bucket",
           "label": "R bucket",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -1049,29 +1114,35 @@
         "wins",
         "worst_trade"
       ],
+      "refusedRanges": [],
       "rightNow": false,
       "unit": "trades"
     },
     {
+      "allAccountsOnly": false,
       "description": "What you hold right now.",
       "fields": [
         {
+          "filter": true,
           "key": "symbol",
           "label": "Symbol",
           "ops": [
             "in",
             "contains"
           ],
+          "refKind": null,
           "split": true,
           "type": "text"
         },
         {
+          "filter": true,
           "key": "side",
           "label": "Side",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -1086,16 +1157,19 @@
           ]
         },
         {
+          "filter": true,
           "key": "setup",
           "label": "Setup",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum"
         },
         {
+          "filter": true,
           "key": "days_open",
           "label": "Days open",
           "ops": [
@@ -1106,10 +1180,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "unrealised",
           "label": "Unrealised P&L",
           "ops": [
@@ -1120,10 +1196,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "risk_dollars",
           "label": "Risk to stop $",
           "ops": [
@@ -1134,10 +1212,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "risk_pct_account",
           "label": "Risk to stop, % of account",
           "ops": [
@@ -1148,10 +1228,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "pct_account",
           "label": "% of account",
           "ops": [
@@ -1162,25 +1244,30 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "account",
           "label": "Account",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum"
         },
         {
+          "filter": true,
           "key": "had_stop",
           "label": "Has a stop",
           "ops": [
             "is"
           ],
+          "refKind": null,
           "split": true,
           "type": "bool",
           "values": [
@@ -1203,13 +1290,16 @@
         "open_risk",
         "unrealised_pnl"
       ],
+      "refusedRanges": [],
       "rightNow": true,
       "unit": "positions"
     },
     {
+      "allAccountsOnly": false,
       "description": "One row per market session, with your day P&L (incl. options) and check-ins.",
       "fields": [
         {
+          "filter": true,
           "key": "day",
           "label": "Day",
           "ops": [
@@ -1220,16 +1310,19 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": true,
           "type": "day"
         },
         {
+          "filter": true,
           "key": "weekday",
           "label": "Weekday",
           "ops": [
             "in",
             "not_in"
           ],
+          "refKind": null,
           "split": true,
           "type": "enum",
           "values": [
@@ -1264,6 +1357,7 @@
           ]
         },
         {
+          "filter": true,
           "key": "day_net",
           "label": "Day net P&L (incl. options)",
           "ops": [
@@ -1274,10 +1368,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "trade_count",
           "label": "Trades that day",
           "ops": [
@@ -1288,10 +1384,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "day_win_rate",
           "label": "Win rate that day",
           "ops": [
@@ -1302,10 +1400,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "best_trade",
           "label": "Best trade that day",
           "ops": [
@@ -1316,10 +1416,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "worst_trade",
           "label": "Worst trade that day",
           "ops": [
@@ -1330,10 +1432,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": false,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "mood",
           "label": "Check-in mood",
           "ops": [
@@ -1344,10 +1448,12 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": true,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "focus",
           "label": "Check-in focus",
           "ops": [
@@ -1358,15 +1464,18 @@
             "lte",
             "between"
           ],
+          "refKind": null,
           "split": true,
           "type": "number"
         },
         {
+          "filter": true,
           "key": "had_day_note",
           "label": "Had a day note",
           "ops": [
             "is"
           ],
+          "refKind": null,
           "split": true,
           "type": "bool",
           "values": [
@@ -1387,6 +1496,7 @@
         "avg_day_pnl",
         "green_day_pct"
       ],
+      "refusedRanges": [],
       "rightNow": false,
       "unit": "days"
     }
@@ -1406,6 +1516,9 @@
       "time_fields": [
         "day",
         "month"
+      ],
+      "time_types": [
+        "day"
       ]
     },
     "checks": [
@@ -1460,6 +1573,9 @@
         ],
         "reason": "view_line",
         "test": "split_in",
+        "types": [
+          "day"
+        ],
         "views": [
           "line"
         ]
@@ -1470,6 +1586,9 @@
         ],
         "reason": "view_heat",
         "test": "split_in",
+        "types": [
+          "day"
+        ],
         "views": [
           "heat"
         ]

@@ -479,6 +479,10 @@ def _static_vocabulary(tools: bool = False, w10: bool = False) -> dict:
                        and wsources.field_offered(s.key, f.key)],          # W10-R62
             "measures": sorted(cat.measures_for(s.key)),
             "rightNow": s.key in wplan.RIGHT_NOW_SOURCES,
+            # Task 9.17 concern 2 (served at the be->impl merge): what the source refuses, from the validator's
+            # own authority, so the builder needs no mirror of plan.TOOL_SOURCES or its "last N trades" rule.
+            "refusedRanges": list(wplan.refused_ranges(s.key)),
+            "allAccountsOnly": s.key in wplan.ALL_ACCOUNTS_ONLY,
         })
     measures = [{"key": m.key, "label": m.label, "theme": m.theme, "meaning": m.meaning,
                  "unit": m.unit, "kind": m.kind, "needs": list(m.needs),

@@ -3,7 +3,7 @@ import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
 import {
   filterSentence, filterProblem, opLabel, valueArity, valueLabel, rangeText, rangeIsUnbounded, reasonOf,
-  isRightNow, sourceOf, VOCAB_FIELDS, refKindOf, refName, isToolSource, isTradeCountRange, REF_KINDS,
+  isRightNow, sourceOf, VOCAB_FIELDS, refKindOf, refName, refusedRangesOf, REF_KINDS,
 } from '../builderCatalog'
 import { loadVocabulary } from '../../../../lib/builtWidgets'
 import styles from '../WidgetBuilderSheet.module.css'
@@ -79,7 +79,8 @@ export function RangePicker({ cat, plan, onPick, onBack }) {
   const reasonId = useId()
   const toolReasonId = useId()
   const fixedReasonId = useId()
-  const tool = isToolSource(plan)
+  const refusedTokens = refusedRangesOf(cat, plan.source)
+  const tool = refusedTokens.length > 0
   const previous = plan.view?.type === 'compare' && (plan.compare?.mode || 'previous') === 'previous'
   const noEarlier = reasonOf(cat, 'no_earlier')
   const badSpan = from && to && from > to
@@ -91,7 +92,7 @@ export function RangePicker({ cat, plan, onPick, onBack }) {
           const on = plan.range?.token === r.token
           const disabled = previous && rangeIsUnbounded(cat, { token: r.token })
           // ⛔ aria-disabled, never `disabled`, for the tool sources' refusal: it keeps focus, so its reason reads.
-          const refused = tool && isTradeCountRange(r)
+          const refused = refusedTokens.includes(r.token)
           const why = [disabled ? reasonId : null, refused ? toolReasonId : null].filter(Boolean).join(' ')
           return (
             <li key={r.token}>

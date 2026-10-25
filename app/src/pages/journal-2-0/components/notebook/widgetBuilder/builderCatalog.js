@@ -96,17 +96,18 @@ export function refName(field, ref, names) {
 }
 
 /**
- * The sources whose rows are routine or tracker days (be plan.TOOL_SOURCES). They take every account
- * (plan.S_TOOL_ACCOUNTS) and no "last N trades" range (plan.S_UNKNOWN_RANGE); the builder hides the one and disables
- * the other. ⚠️ A rule mirrored from the engine: the catalog does not yet say which ranges a source refuses, so a
- * wrong mirror costs the engine's refusal in the preview, never a saved bad widget. The 9.20 merge may serve it.
- * ⚠️ It does not cover be's wave 10 WAVE10_SOURCES (plan.py also refuses `last_*_trades` there); carry-over for 9.20
- * (fix 1, M-6): serve the refused ranges per source and delete this mirror.
+ * What a source refuses, as the SERVER says it (Task 9.17 concern 2, served at the be->impl merge; the client mirror
+ * of plan.TOOL_SOURCES and its "last N trades" regex is gone): each source row carries `refusedRanges` (the range
+ * tokens plan.py answers S_UNKNOWN_RANGE for there, `plan.refused_ranges`) and `allAccountsOnly` (plan.S_TOOL_ACCOUNTS:
+ * a routine or tracker source covers every account). The builder hides the account choice and disables those ranges.
+ * An older server that sends neither refuses nothing here; the engine still refuses with its sentence.
  */
-export const TOOL_SOURCES = Object.freeze(['routine_history', 'tracker_history'])
-export const isToolSource = (plan) => TOOL_SOURCES.includes(plan?.source)
-/** plan._LAST_N_TRADES: a range counted in trades. */
-export const isTradeCountRange = (range) => isRecord(range) && /^last_\d+_trades$/.test(String(range.token || ''))
+export const refusedRangesOf = (cat, sourceKey) => {
+  const r = cat?.sources?.get?.(sourceKey)?.refusedRanges
+  return Array.isArray(r) ? r.filter((t) => typeof t === 'string') : []
+}
+export const rangeRefused = (cat, sourceKey, range) => isRecord(range) && refusedRangesOf(cat, sourceKey).includes(range.token)
+export const allAccountsOnly = (cat, sourceKey) => cat?.sources?.get?.(sourceKey)?.allAccountsOnly === true
 
 /** The catalog, indexed. Tolerates a partial answer: every list defaults to empty. */
 export function indexCatalog(raw) {
@@ -185,6 +186,10 @@ export const thenAllowed = (cat, plan) => !!plan.view?.auto || thenViews(cat).in
  * AUTO_VIEW), and this file only evaluates them, test by test, exactly as `sources.view_check_passes` does. A test
  * name the client does not know answers "allowed" (the server still refuses the plan, with its sentence).
  */
+/** The type of a field of the plan's source (`split_in`'s `types`, AUTO_VIEW's `time_types`): sources.py
+ *  `_field_type_of`. */
+const fieldTypeOf = (ctx, plan, key) => ctx?.cat?.sources?.get?.(plan?.source)?.fields?.get?.(key)?.type ?? null
+
 export const CHECK_TESTS = Object.freeze({
   not_right_now_compare: (c, plan, ctx) => !(c.sources?.includes(plan.source) && (ctx.vtype === 'compare' || !!plan.compare)),
   no_split: (c, plan) => !plan.split,
@@ -192,9 +197,13 @@ export const CHECK_TESTS = Object.freeze({
     const mode = plan.compare?.mode || 'previous'
     return !(mode === 'previous' && (c.tokens || []).includes(plan.range?.token))
   },
-  has_target: (c, plan) => typeof plan.display?.target === 'number' && Number.isFinite(plan.display.target),
+  // A goal target is a target (wave 10: `display.targetGoal`, which plan.py checks).
+  has_target: (c, plan) => (typeof plan.display?.target === 'number' && Number.isFinite(plan.display.target))
+    || !!plan.display?.targetGoal,
   split: (c, plan) => !!plan.split,
-  split_in: (c, plan) => !!plan.split && (c.fields || []).includes(plan.split.by),
+  // A field the check names, or (wave 10) any field of a type it names: the notes source's day fields.
+  split_in: (c, plan, ctx) => !!plan.split && ((c.fields || []).includes(plan.split.by)
+    || (Array.isArray(c.types) && c.types.length > 0 && c.types.includes(fieldTypeOf(ctx, plan, plan.split.by)))),
   source_in: (c, plan) => (c.sources || []).includes(plan.source),
   no_split_measures: (c, plan) => !plan.split && (plan.measures || []).length === c.measures,
 })
@@ -208,7 +217,7 @@ export function viewReason(cat, plan, vtype) {
     if (!isRecord(c)) continue
     if (Array.isArray(c.views) && !c.views.includes(vtype)) continue
     const test = Object.hasOwn(CHECK_TESTS, c.test) ? CHECK_TESTS[c.test] : null
-    if (test && !test(c, plan, { vtype })) return reasonOf(cat, c.reason)
+    if (test && !test(c, plan, { vtype, cat })) return reasonOf(cat, c.reason)
   }
   return null
 }
@@ -220,7 +229,9 @@ export function autoView(cat, plan) {
   const split = plan.split
   if (!split) return plan.compare ? r.compare : r.no_split
   if (split.then) return r.then
-  return (r.time_fields || []).includes(split.by) ? r.time : r.split
+  const timed = (r.time_fields || []).includes(split.by)
+    || (Array.isArray(r.time_types) && r.time_types.includes(fieldTypeOf({ cat }, plan, split.by)))
+  return timed ? r.time : r.split
 }
 
 /**

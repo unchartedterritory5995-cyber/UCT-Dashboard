@@ -348,22 +348,63 @@ SERVER_CATALOG_FIXTURE = (pathlib.Path(__file__).resolve().parent.parent / "app"
                           / "components" / "notebook" / "widgetBuilder" / "__fixtures__" / "serverCatalog.json")
 
 
-def _catalog_fixture_text() -> str:
-    return json.dumps(wdr._static_vocabulary(), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+#: The same catalog with wave 9 on (`tools=True`: routines and trackers), generated beside it at the be->impl merge,
+#: in place of the test-local layering of be's rows on impl's catalog (`toolCatalog.be.json`, retired).
+TOOL_CATALOG_FIXTURE = SERVER_CATALOG_FIXTURE.with_name("toolCatalog.json")
+
+
+def _catalog_fixture_text(tools: bool = False) -> str:
+    return json.dumps(wdr._static_vocabulary(tools), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
 
 
 def write_vocabulary_fixture() -> None:
-    """Regenerate the builder's server-catalog fixture:
+    """Regenerate the builder's server-catalog fixtures (wave 9 off, and on):
     python -c "from tests.test_widget_definitions_router import write_vocabulary_fixture as w; w()" """
     SERVER_CATALOG_FIXTURE.write_bytes(_catalog_fixture_text().encode("utf-8"))
+    TOOL_CATALOG_FIXTURE.write_bytes(_catalog_fixture_text(tools=True).encode("utf-8"))
 
 
-def test_builder_server_catalog_fixture_is_current():
+@pytest.mark.parametrize("fixture,tools", [(SERVER_CATALOG_FIXTURE, False), (TOOL_CATALOG_FIXTURE, True)])
+def test_builder_server_catalog_fixture_is_current(fixture, tools):
     """The client tests read the vocabulary from a generated file; it must be what the server serves today."""
-    assert SERVER_CATALOG_FIXTURE.exists(), "run write_vocabulary_fixture()"
-    on_disk = SERVER_CATALOG_FIXTURE.read_bytes().decode("utf-8").replace("\r\n", "\n")
-    assert on_disk == _catalog_fixture_text(), (
+    assert fixture.exists(), "run write_vocabulary_fixture()"
+    on_disk = fixture.read_bytes().decode("utf-8").replace("\r\n", "\n")
+    assert on_disk == _catalog_fixture_text(tools), (
         "stale: python -c \"from tests.test_widget_definitions_router import write_vocabulary_fixture as w; w()\"")
+
+
+def test_each_source_serves_the_ranges_and_accounts_the_validator_refuses():
+    """Task 9.17 concern 2 (at the be->impl merge): `refusedRanges` / `allAccountsOnly` on each source row are the
+    validator's own answers, so the builder's disabled ranges and hidden account choice need no mirror. Derived by
+    asking `validate_plan` every range on every source, never restated."""
+    v = wdr._static_vocabulary(tools=True, w10=True)
+    rows = {s["key"]: s for s in v["sources"]}
+    assert set(rows) == set(wsources.SOURCES)                       # non-vacuity: every source, waves 9 and 10 in
+    measure_of = {"closed_trades": "net_pnl", "open_positions": "open_positions", "trading_days": "avg_day_pnl",
+                  "routine_history": "routine_consistency", "tracker_history": "tracker_avg",
+                  "options_strategies": "strategies", "notes": "notes"}
+    for key, row in rows.items():
+        measure = measure_of[key]
+        wplan.validate_plan(raw_plan(source=key, measures=(measure,), range={"token": "last_30d"}),
+                            wsources.CATALOG)                            # the base plan is valid
+        refused = []
+        for tok in wplan.RANGE_TOKENS:
+            try:
+                wplan.validate_plan(raw_plan(source=key, measures=(measure,), range={"token": tok}),
+                                    wsources.CATALOG)
+            except wplan.PlanError as e:
+                if e.sentence == wplan.S_UNKNOWN_RANGE:
+                    refused.append(tok)
+        assert row["refusedRanges"] == refused, key
+        try:
+            wplan.validate_plan(raw_plan(source=key, measures=(measure,), range={"token": "last_30d"},
+                                         accounts={"id": "acc-1"}), wsources.CATALOG)
+            one_account_ok = True
+        except wplan.PlanError as e:
+            one_account_ok = e.sentence != wplan.S_TOOL_ACCOUNTS
+        assert row["allAccountsOnly"] is (not one_account_ok), key
+    assert rows["routine_history"]["refusedRanges"] and rows["routine_history"]["allAccountsOnly"]   # it can fire
+    assert rows["closed_trades"]["refusedRanges"] == [] and not rows["closed_trades"]["allAccountsOnly"]
 
 
 def test_filter_values_never_in_query_string():

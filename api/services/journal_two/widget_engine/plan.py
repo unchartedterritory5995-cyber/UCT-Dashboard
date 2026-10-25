@@ -791,12 +791,9 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
         accounts = {"id": acc["id"]}
 
     rng = _norm_range(raw.get("range", {"token": DEFAULT_RANGE_TOKEN}))
-    if source in TOOL_SOURCES:
-        if accounts != "all":
-            raise PlanError(S_TOOL_ACCOUNTS)
-        if rng.get("token") in _LAST_N_TRADES:
-            raise PlanError(S_UNKNOWN_RANGE)
-    if source in WAVE10_SOURCES and rng.get("token") in _LAST_N_TRADES:
+    if source in ALL_ACCOUNTS_ONLY and accounts != "all":
+        raise PlanError(S_TOOL_ACCOUNTS)
+    if rng.get("token") in refused_ranges(source):
         raise PlanError(S_UNKNOWN_RANGE)
 
     # filters
@@ -990,6 +987,18 @@ def validate_plan(raw: dict, catalog: Catalog) -> dict:
 
 _LAST_N_TRADES = {"last_20_trades": 20, "last_50_trades": 50, "last_100_trades": 100}
 _UNBOUNDED_TOKENS = frozenset({"all", *_LAST_N_TRADES})
+#: The sources that cover every account (S_TOOL_ACCOUNTS): routine and tracker days belong to no account.
+ALL_ACCOUNTS_ONLY = TOOL_SOURCES
+
+
+def refused_ranges(source: str) -> tuple[str, ...]:
+    """The range tokens `validate_plan` answers S_UNKNOWN_RANGE for on `source`: a "last N trades" range counts
+    trades, so a source whose rows are days (routines, trackers) or strategies and notes (wave 10) takes none. The
+    one authority: the validator asks it, and the vocabulary serves it (`refusedRanges`, Task 9.17 concern 2) so the
+    builder disables the same ranges with no mirror of its own."""
+    if source in TOOL_SOURCES or source in WAVE10_SOURCES:
+        return tuple(t for t in RANGE_TOKENS if t in _LAST_N_TRADES)
+    return ()
 _TRAILING_DAYS = {"last_7d": 7, "last_30d": 30, "last_90d": 90}
 _TOKEN_LABELS = {
     "today": "today", "this_week": "this week", "last_week": "last week",
