@@ -372,6 +372,8 @@ describe('managing a routine from its editor', () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Used in 2 notes' })))
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     expect(await screen.findByText('It stays in your 2 notes. Its history is kept.')).toBeTruthy()
+    // inside the editor, Back says it returns to the routine (My tools passes the list label instead)
+    expect(screen.getByRole('button', { name: 'Back to the routine' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Archive routine' }))
     expect(await screen.findByText('Archived routine, history only')).toBeTruthy()
     expect(net.sent('POST', '/api/j2/routines/r1/archive')).toHaveLength(1)
