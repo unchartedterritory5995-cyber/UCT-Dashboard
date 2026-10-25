@@ -154,6 +154,9 @@ class Field:
     #: `public_note_payload.RELABEL_WORDS` reads; None: the labels are not private (a setup, a symbol and
     #: a mistake tag are shown on a shared widget, the phase 1 rule).
     public_kind: str | None = None
+    #: the review's I-2: this field is routine or tracker DAY STATE without naming one (`ref_kind`): a check-in's mood
+    #: or focus, the two built-in trackers (spec section 7). A plan reading it is never shown on a public page.
+    day_state: bool = False
 
 
 def _f(key, label, ftype, *, sql=None, py=None, split=False, **kw) -> Field:
@@ -638,8 +641,8 @@ DAY_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("day_win_rate", "Win rate that day", "number"),
     _f("best_trade", "Best trade that day", "number"),
     _f("worst_trade", "Worst trade that day", "number"),
-    _f("mood", "Check-in mood", "number", split=True, missing="no check-in mood"),
-    _f("focus", "Check-in focus", "number", split=True, missing="no check-in focus"),
+    _f("mood", "Check-in mood", "number", split=True, missing="no check-in mood", day_state=True),
+    _f("focus", "Check-in focus", "number", split=True, missing="no check-in focus", day_state=True),
     _f("had_day_note", "Had a day note", "bool", split=True,
        fmt=_yes_no("Had a day note", "No day note")),
     # Wave 9: the day as one of the member's routines or trackers saw it (the field's `ref`).

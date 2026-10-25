@@ -1254,8 +1254,9 @@ def summary(plan: dict, catalog: Catalog, count: int | None, unit: str, names: A
     return text
 
 
-def default_name(plan: dict, catalog: Catalog, names: Any = None) -> str:
-    """The automatic title, e.g. 'Net P&L by setup, last 90 days'. `names`: see `_measure_label`."""
+def default_name(plan: dict, catalog: Catalog, names: Any = None, cut: bool = True) -> str:
+    """The automatic title, e.g. 'Net P&L by setup, last 90 days'. `names`: see `_measure_label`. `cut=False` returns
+    it whole (a public copy numbers property names first and cuts after, W10-R74)."""
     name = _measure_labels(plan, catalog, names)
     split = plan.get("split")
     if split:
@@ -1265,7 +1266,7 @@ def default_name(plan: dict, catalog: Catalog, names: Any = None) -> str:
         name += " by " + " and ".join(by)
     name += ", " + (RIGHT_NOW if plan.get("source") in RIGHT_NOW_SOURCES
                     else _range_label(plan["range"]))
-    return name[:MAX_TEXT]
+    return name[:MAX_TEXT] if cut else name
 
 
 def plan_hash(plan: dict) -> str:

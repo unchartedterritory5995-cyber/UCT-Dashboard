@@ -7,7 +7,7 @@ of dict items only (spec 5.6).
 
     asOf source sourceDetail sourceKey view title summary defId defRev latestRev def|defRef scopeLabel
     rangeLabel range accountId filter count capped sample notice truncated measures value compare
-    compareLabel rows series points cells coverage footnotes empty
+    compareLabel rows series points cells coverage footnotes empty publicHidden
 
 Rules it keeps:
 
@@ -43,6 +43,7 @@ from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import sources as wsources
+from api.services.journal_two.widget_engine.public_words import numbered
 
 #: The frozen plan a note may carry, in bytes of compact JSON (spec 5.6 / global constraints).
 DEF_MAX_BYTES = 4_096
@@ -422,32 +423,85 @@ def label_kinds(plan: Any) -> tuple[str | None, str | None]:
     return _field_kind(plan, src, split.get("by")), _field_kind(plan, src, split.get("then"))
 
 
-def hidden_publicly(plan: Any, source_key: Any = None) -> bool:
-    """Ruling W10-R73 (spec section 2: routine and tracker day state never reaches a public page): a built widget
-    that reads routines or trackers (`plan.uses_tools`: a Routine or Tracker history source, or a trading-days
-    routine or tracker field) is served with NO data publicly, only `public_note_payload.HIDDEN_WIDGET_LINE`. A
-    snapshot with no frozen plan (a `defRef`) is judged by its `sourceKey`. Never raises."""
+def _day_state_keys(src: Any) -> frozenset[str]:
+    """The source's fields that carry routine or tracker DAY STATE, read from their own definitions: a field that
+    names a routine or tracker (`ref_kind`) or is a check-in (`day_state`: check-ins are the two built-in trackers,
+    spec section 7)."""
+    return frozenset(k for k, f in src.fields.items() if f.ref_kind is not None or f.day_state)
+
+
+def reads_day_state(plan: Any) -> bool:
+    """Does a plan read routine or tracker day state anywhere? A Routine or Tracker history source or a `ref`
+    (`plan.uses_tools`), or any day-state field (`_day_state_keys`) as a split, a filter, what a measure needs, or a
+    field any of its formulas reads. Never raises."""
+    if not isinstance(plan, dict):
+        return False
+    if wplan.uses_tools(plan):
+        return True
+    src = wsources.SOURCES.get(plan.get("source")) if isinstance(plan.get("source"), str) else None
+    keys = _day_state_keys(src) if src is not None else frozenset()
+    if not keys:
+        return False
+    named: set[Any] = set()
+    split = plan.get("split") if isinstance(plan.get("split"), dict) else {}
+    named.update((split.get("by"), split.get("then")))
+    for f in plan.get("filters") if isinstance(plan.get("filters"), list) else []:
+        if isinstance(f, dict):
+            named.add(f.get("field"))
+    catalog = wmeasures.builder_measures()
+    for m in plan.get("measures") if isinstance(plan.get("measures"), list) else []:
+        if isinstance(m, dict) and isinstance(m.get("key"), str):
+            named.update(getattr(catalog.get(m["key"]), "needs", ()) or ())
+    for f in plan.get("formulas") if isinstance(plan.get("formulas"), list) else []:
+        if isinstance(f, dict):
+            named.update(r.strip() for r in _FIELD_REF.findall(str(f.get("expr") or "")))
+    return any(isinstance(n, str) and n in keys for n in named)
+
+
+def _sources_with_day_state() -> frozenset[str]:
+    """Every source whose plans CAN read day state (a tool source, or one with a day-state field): an older snapshot
+    with no frozen plan and no stamp from these is hidden publicly (it fails closed)."""
+    return frozenset(k for k, src in wsources.SOURCES.items()
+                     if k in wplan.TOOL_SOURCES or _day_state_keys(src))
+
+
+def hidden_publicly(plan: Any, source_key: Any = None, stamp: Any = None) -> bool:
+    """Ruling W10-R73 and the review's I-1 / I-2 (spec section 2: routine and tracker day state never reaches a public
+    page): a built widget that reads day state (`reads_day_state`) serves NO data publicly, only
+    `public_note_payload.HIDDEN_WIDGET_LINE`. The RESOLVED plan is judged: the frozen plan when the note carries it;
+    else `publicHidden`, the stamp `build_payload` wrote from the plan it ran (a plan over `DEF_MAX_BYTES` is stored
+    by reference, and the public reducer reads no database); else (an older snapshot with neither) it fails closed for
+    any source that can read day state. Never raises."""
     if isinstance(plan, dict):
-        return wplan.uses_tools(plan)
-    return wplan.uses_tools({"source": source_key}) if isinstance(source_key, str) else False
+        return reads_day_state(plan)
+    if isinstance(stamp, bool):
+        return stamp
+    return isinstance(source_key, str) and source_key in _sources_with_day_state()
 
 
-#: Ruling W10-R74: a property measure's label on a public page, numbered by first appearance ("Sum of Property 1").
-PUBLIC_PROPERTY = "Property {n}"
+_MARK = "\x00"
 
 
 def public_property_labels(plan: Any, measures: Any, title: Any) -> tuple[Any, Any]:
     """Ruling W10-R74: on a public page a property measure never names the member's property. Its label becomes the
-    catalog's own words with the property numbered ("Sum of a property" -> "Sum of Property 1"; one property keeps
-    one number), and the same words in the title are replaced. The measure is found by its slot in the frozen plan;
-    with no plan (a `defRef`), by its label starting with the catalog's words. Formula names are left as they are.
-    Never raises; anything it cannot read is returned unchanged."""
+    catalog's own words with the property numbered ("Sum of a property" -> "Sum of Property 1", the word from
+    `public_words`; one property keeps one number). An automatic title is REBUILT from the plan with the numbered
+    labels and only then cut to `plan.MAX_TEXT` (the review's m-1: a title cut first could keep a fragment of a long
+    name); a member's own title is theirs and stays. With no frozen plan (a `defRef`) the measures are found by their
+    labels and the title is patched, then cut where any unpatched property label begins. Formula names stay. Never
+    raises; anything it cannot read is returned unchanged."""
     if not isinstance(measures, list):
         return measures, title
     words = {k: m.label for k, m in wsources.CATALOG.measures.items() if k in wplan.PROP_MEASURES}
+
+    def public_of(key: str, n: int) -> str:
+        word, num = words[key], numbered("property", n)
+        return word.replace("a property", num) if "a property" in word else f"{word} ({num})"
+
     plan_ms = plan.get("measures") if isinstance(plan, dict) and isinstance(plan.get("measures"), list) else None
     numbering: dict[Any, int] = {}
     out = list(measures)
+    patches: list[tuple[str, str]] = []
     for i, item in enumerate(out):
         if not isinstance(item, dict) or not isinstance(item.get("label"), str):
             continue
@@ -463,13 +517,36 @@ def public_property_labels(plan: Any, measures: Any, title: Any) -> tuple[Any, A
             if key is None:
                 continue
             ident = label
-        n = numbering.setdefault(ident, len(numbering) + 1)
-        word = words[key]
-        public = (word.replace("a property", PUBLIC_PROPERTY.format(n=n)) if "a property" in word
-                  else f"{word} ({PUBLIC_PROPERTY.format(n=n)})")
+        public = public_of(key, numbering.setdefault(ident, len(numbering) + 1))
         out[i] = {**item, "label": public}
-        if isinstance(title, str) and label:
-            title = title.replace(label, public)
+        patches.append((label, public))
+    if not patches or not isinstance(title, str):
+        return out, title
+    display = plan.get("display") if isinstance(plan, dict) and isinstance(plan.get("display"), dict) else {}
+    custom = bool(str(display.get("title") or "").strip()) and display.get("titleAuto", True) is False
+    if custom:
+        return out, title
+    if isinstance(plan, dict):
+        try:
+            # The automatic title, rebuilt UNCUT with a placeholder per property, numbered, and only then cut (m-1).
+            marks: dict[Any, str] = {}
+            for m in plan_ms or []:
+                if isinstance(m, dict) and m.get("key") in words and m.get("prop") not in marks:
+                    marks[m.get("prop")] = f"{_MARK}{len(marks) + 1}{_MARK}"
+            full = wplan.default_name(plan, wsources.CATALOG, marks, cut=False)
+            for mark in marks.values():
+                for key, word in words.items():
+                    full = full.replace(f"{word}: {mark}", public_of(key, int(mark.strip(_MARK))))
+            if _MARK not in full:
+                return out, full[:wplan.MAX_TEXT]
+        except Exception:                       # a plan that will not name itself: the patch below
+            pass
+    for label, public in patches:
+        title = title.replace(label, public)
+    for word in words.values():
+        at = title.find(word + ":")
+        if at >= 0:
+            title = title[:at].rstrip(" ,")
     return out, title
 
 
@@ -597,6 +674,9 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         payload["labelKind"] = kind1
     if kind2 is not None:
         payload["label2Kind"] = kind2
+    # W10-R73 / review I-1: the public hide is decided here, from the plan this run read, and stamped, so a plan
+    # stored by reference (`defRef`) is still judged by itself on a public page.
+    payload["publicHidden"] = hidden_publicly(plan)
     payload["sourceDetail"] = nw.source_detail(nw.BUILT_KIND, payload)
     list_key, trim_from = TRIM_BY_VIEW.get(view, ("rows", "end"))
     return nw.cap_payload(payload, nw.BUILT_KIND, list_key=list_key, trim_from=trim_from)

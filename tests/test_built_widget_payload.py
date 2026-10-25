@@ -25,6 +25,8 @@ FIXED_KEYS = {
     "latestRev", "scopeLabel", "rangeLabel", "range", "accountId", "filter", "count", "capped",
     "sample", "notice", "truncated", "measures", "value", "compare", "compareLabel", "rows",
     "series", "points", "cells", "coverage", "footnotes", "empty",
+    # W10-R73 / walk-fix review I-1: the public hide, stamped from the plan the run read (never a public key)
+    "publicHidden",
 }
 ROW_KEYS = {"label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n",
             "flagged"}

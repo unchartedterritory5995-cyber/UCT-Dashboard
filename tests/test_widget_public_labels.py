@@ -373,3 +373,105 @@ def test_the_walkfix_fixture_the_client_renders_is_the_reducers_current_output()
     for mode in ("share", "publish"):
         assert "DAYSTATE-CANARY" not in json.dumps(data[mode])
         assert json.dumps(data[mode]).count(pnp.HIDDEN_WIDGET_LINE) == 2
+
+
+# ── fix round 3 (review-walk-fix.md) ────────────────────────────────────────────────────────────────
+
+from api.services.journal_two.widget_engine import public_words  # noqa: E402
+
+
+def _days_plan(**kw) -> dict:
+    return {"v": 1, "source": "trading_days", "measures": [{"key": "avg_day_pnl"}], "range": {"token": "all"},
+            "view": {"type": "number"}, **kw}
+
+
+def test_i2_day_state_fields_are_derived_from_the_field_definitions():
+    """The day-state set is READ from the definitions (a `ref_kind`, or `day_state` for the check-ins), never typed
+    beside them: every field naming a routine or tracker is in it, and the check-ins are."""
+    for src in sources.SOURCES.values():
+        keys = wpayload._day_state_keys(src)
+        for k, f in src.fields.items():
+            if f.ref_kind is not None:
+                assert k in keys, (src.key, k)
+    assert wpayload._day_state_keys(sources.DAYS) == {"mood", "focus", "routine_done", "tracker_value",
+                                                     "tracker_bucket"}
+    assert wpayload._day_state_keys(sources.CLOSED) == frozenset()
+    assert "trading_days" in wpayload._sources_with_day_state()
+    assert "closed_trades" not in wpayload._sources_with_day_state()
+
+
+@pytest.mark.parametrize("plan", [
+    pytest.param(_days_plan(split={"by": "mood"}, view={"type": "bar"}), id="split-by-mood"),
+    pytest.param(_days_plan(split={"by": "weekday", "then": "focus"}, view={"type": "table"}), id="then-by-focus"),
+    pytest.param(_days_plan(filters=[{"field": "mood", "op": "gte", "values": [4]}]), id="filter-on-mood"),
+    pytest.param(_days_plan(measures=[{"formula": "f1", "agg": "avg"}],
+                            formulas=[{"id": "f1", "name": "Calm P&L", "expr": "If([focus] >= 4, [day_net], 0)"}]),
+                 id="formula-reads-focus"),
+])
+def test_i2_a_check_in_plan_is_hidden_publicly(plan):
+    assert wpayload.reads_day_state(plan)
+    p = {**_tool_payload("trading_days"), "def": plan, "publicHidden": False}   # the plan wins over a stale stamp
+    blob = json.dumps(reduce(placed(p), "share"))
+    assert pnp.HIDDEN_WIDGET_LINE in blob and "DAYSTATE-CANARY" not in blob and "7777" not in blob
+
+
+def test_i2_control_a_plain_trading_days_pnl_widget_still_shows():
+    plan = _days_plan(split={"by": "weekday"}, view={"type": "bar"})
+    assert not wpayload.reads_day_state(plan)
+    node = embed_of(reduce(placed({**_tool_payload("trading_days"), "def": plan, "publicHidden": False}), "share"))
+    assert node is not None and node["attrs"]["params"]["value"]["v1"] == 7777.0
+
+
+def test_i1_a_defref_stored_routine_split_trading_days_plan_is_hidden(conn):
+    """Review I-1: a plan over DEF_MAX_BYTES is stored by reference, so the reducer has no plan to read; the stamp
+    `build_payload` wrote from the plan it RAN decides. Run by the real engine: a Trading days plan split by check-in
+    mood (day state, no routine needed to seed), padded with long formulas until it is stored as a `defRef`."""
+    expr = " + ".join(["[day_net]"] * 120)
+    formulas = [{"id": f"f{i}", "name": f"Pad {i}", "expr": expr} for i in range(1, 4)]
+    out = run_out(_days_plan(split={"by": "mood"}, view={"type": "bar"}, formulas=formulas))
+    assert "def" not in out and isinstance(out.get("defRef"), dict)          # control: it IS stored by reference
+    assert out["publicHidden"] is True
+    reduced = reduce(placed(out), "share")
+    assert embed_of(reduced) is None and pnp.HIDDEN_WIDGET_LINE in json.dumps(reduced)
+    # the same, as the review's case: a routine split (a `ref`), stored by reference with its stamp
+    routine = {k: v for k, v in _tool_payload("trading_days", with_def=False).items()}
+    routine["publicHidden"] = wpayload.hidden_publicly(_days_plan(split={"by": "routine_done", "ref": "r-1"}))
+    assert routine["publicHidden"] is True
+    assert pnp.HIDDEN_WIDGET_LINE in json.dumps(reduce(placed(routine), "share"))
+
+
+def test_i1_the_stamp_and_the_fail_closed_fallback():
+    base = _tool_payload("trading_days", with_def=False)
+    shown = embed_of(reduce(placed({**base, "publicHidden": False}), "share"))
+    assert shown is not None                                              # a stamped plain plan shows
+    # an older snapshot: no plan, no stamp -> a source that CAN read day state is hidden (fails closed)
+    assert pnp.HIDDEN_WIDGET_LINE in json.dumps(reduce(placed(base), "share"))
+    closed = {**_tool_payload("closed_trades", with_def=False)}
+    assert embed_of(reduce(placed(closed), "share")) is not None           # ...and one that cannot, shows
+    # the stamp itself never travels
+    assert "publicHidden" not in shown["attrs"]["params"]
+
+
+def test_m1_a_long_property_name_leaves_no_fragment_in_the_public_title(conn):
+    names = [f"PROPFRAG-{c}-" + "x" * 60 for c in "ABC"]
+    pids = [add_prop(conn, UID, n) for n in names]
+    add_n(conn, UID, props={p: 1 for p in pids})
+    out = run_out(raw(measures=tuple({"key": "property_sum", "prop": p} for p in pids), split={"by": "weekday"},
+                      view={"type": "table"}))
+    assert len(out["title"]) == 200 and "PROPFRAG" in out["title"]       # control: the member's title is cut inside one
+    for mode in ("share", "publish"):
+        params = embed_of(reduce(placed(out), mode))["attrs"]["params"]
+        assert "PROPFRAG" not in json.dumps(params) and "xxxxx" not in params["title"], mode
+        assert params["title"].startswith("Sum of Property 1, Sum of Property 2 and Sum of Property 3 by weekday")
+        assert len(params["title"]) <= 200
+    old = {k: v for k, v in out.items() if k != "def"}                     # a defRef snapshot: cut, never a fragment
+    t = embed_of(reduce(placed(old), "share"))["attrs"]["params"]["title"]
+    assert "PROPFRAG" not in t and "Sum of a property" not in t
+
+
+def test_m7_the_numbering_words_live_in_one_module():
+    assert pnp.RELABEL_WORDS is public_words.RELABEL_WORDS
+    assert public_words.numbered("property", 2) == "Property 2"
+    src = Path(wpayload.__file__).read_text(encoding="utf-8") + Path(pnp.__file__).read_text(encoding="utf-8")
+    for word in public_words.RELABEL_WORDS.values():
+        assert f'"{word}"' not in src, word                                # never restated beside the table

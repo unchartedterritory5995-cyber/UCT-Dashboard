@@ -604,15 +604,9 @@ def _allowed_item(item: Any, keys: Any) -> Any:
 _DROP = object()
 
 
-#: Label kind -> the word a public copy numbers it with. "account": ruling R-25. "note" (wave 10, W10-R7): a
-#: notes-source list row's label is the note's title, which a stranger never reads. The W10.7 walk fix adds every
-#: other label that is the member's own NAME: a folder, a note tag, a note kind, a routine, a routine item and a
-#: tracker (the engine's fields mark them, `widget_engine.sources.Field.public_kind`, and the rail in
-#: tests/test_widget_public_labels.py fails by name on a marked kind with no word here).
-RELABEL_WORDS: dict[str, str] = {
-    "account": "Account", "note": "Note", "folder": "Folder", "tag": "Tag", "kind": "Note kind",
-    "routine": "Routine", "item": "Item", "tracker": "Tracker",
-}
+#: Label kind -> the word a public copy numbers it with: THE ONE TABLE, `widget_engine.public_words` (R-25 accounts,
+#: W10-R7 note titles, the W10.7 walk fix's other member names, W10-R74 properties). Re-exported here by name.
+from api.services.journal_two.widget_engine.public_words import RELABEL_WORDS, numbered  # noqa: E402
 
 
 def _built_label_kinds(params: Mapping[str, Any], out: dict[str, Any]) -> None:
@@ -648,7 +642,7 @@ def _built_hidden(params: Mapping[str, Any]) -> bool:
     `widget_engine.payload.hidden_publicly`, asked of the frozen plan (or the stored `sourceKey`)."""
     from api.services.journal_two.widget_engine import payload as wpayload
     plan = params.get("def") if isinstance(params.get("def"), dict) else None
-    return wpayload.hidden_publicly(plan, params.get("sourceKey"))
+    return wpayload.hidden_publicly(plan, params.get("sourceKey"), params.get("publicHidden"))
 
 
 def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
@@ -670,7 +664,7 @@ def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
                     continue
                 name = str(item[field])
                 if name not in numbering:
-                    numbering[name] = f"{word} {len(numbering) + 1}"
+                    numbering[name] = numbered(out[kind_key], len(numbering) + 1)
                 item[field] = numbering[name]
 
 

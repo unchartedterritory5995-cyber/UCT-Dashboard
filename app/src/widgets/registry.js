@@ -1000,7 +1000,9 @@ const PANEL_MANIFESTS = {
   builtWidget: snapshotManifest('Widget',
     'defId defRev:n latestRev:n def:j defRef:j title summary view sourceKey measures:j value:j compare:j compareLabel '
     + 'rows:j series:j points:j cells:j coverage:j count:n scopeLabel rangeLabel range:j accountId filter:j capped:b '
-    + 'sample:b notice truncated:n footnotes:j labelKind label2Kind drawdown:j target:n targetLabel stop:j quadrants',
+    + 'sample:b notice truncated:n footnotes:j labelKind label2Kind drawdown:j target:n targetLabel stop:j quadrants '
+    // W10-R73 / walk-fix review I-1: the public hide stamped from the plan the run read (kept, never published)
+    + 'publicHidden:b',
     (p) => `[widget: ${p?.title || 'widget'}${_asOfDay(p)}]`),
   // Wave 10 (Task 10.14): the seven ready-made dedicated kinds (api/services/journal_two/shelf_discipline.py,
   // shelf_compose.py), refreshed through POST /api/j2/notebook-shelf-widgets/{kind} (lib/dedicatedWidgets.js).
