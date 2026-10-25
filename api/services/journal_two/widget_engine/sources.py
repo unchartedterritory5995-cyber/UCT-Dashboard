@@ -11,7 +11,8 @@ are computed in Python only and filtered after the scan.
 
 Ownership. `user_id` is always the caller's (the session member's). Every child table
 (`j2_trade_excursions`, `j2_trade_adherence`, `j2_trade_plan_links`, `j2_note_checkins` joined to
-`j2_notes`, `j2_day_notes`, `j2_option_strategies`, `j2_accounts`) is read with `user_id = ?`. An
+`j2_notes`, `j2_day_notes`, `j2_option_strategies`, `j2_accounts`, and for the notes source
+`j2_note_folders`, `j2_note_kinds` and the note property definitions) is read with `user_id = ?`. An
 account id only narrows, and one that is not the member's reads as "all my accounts".
 
 The facts each field follows (Global Constraints):
@@ -35,6 +36,8 @@ from typing import Any, Callable, Iterable
 
 from api.services import placeholder_stop
 from api.services.journal_two import accounts as j2_accounts
+from api.services.journal_two import note_kinds as j2_note_kinds
+from api.services.journal_two import note_properties
 from api.services.journal_two import routine_days, sample_marker, timeutil, tracker_days, trading_days
 from api.services.journal_two import routines as j2_routines
 from api.services.journal_two import trackers as j2_trackers
@@ -45,8 +48,9 @@ from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
-    FORMULA_PREFIX, OPS_BOOL, OPS_ENUM, OPS_NUMBER, RANGE_TOKENS, RIGHT_NOW_SOURCES,
-    S_NO_EARLIER, VIEWS, ResolvedRange, formula_field_infos, formula_of, plan_refs,
+    FORMULA_PREFIX, OPS_BOOL, OPS_ENUM, OPS_NUMBER, PROP_MEASURES, PROPERTY_FIELD, RANGE_TOKENS,
+    RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange, formula_field_infos, formula_of,
+    plan_refs,
 )
 
 # ── field vocabulary ───────────────────────────────────────────────────────────────────────────
@@ -140,6 +144,9 @@ class Field:
     #: wave 10: a day field whose row also carries its ET hour under this key (the formula
     #: dialect's `Hour([day])` reads it; None: the day has no time of day)
     hour_key: str | None = None
+    #: wave 10 (Task 10.7): the scan applies a filter on it through its own authority (a note
+    #: property: `note_properties.property_filter_sql`); `aggregate` adds no Python twin
+    scan_applied: bool = False
 
 
 def _f(key, label, ftype, *, sql=None, py=None, split=False, **kw) -> Field:
@@ -1398,6 +1405,222 @@ def scan_options(conn: sqlite3.Connection, plan: dict, settings: dict | None,
                 len(rows), acc)
 
 
+# ── notes (wave 10, Task 10.7) ─────────────────────────────────────────────────────────────────
+#
+# One row per note of the member's (`j2_notes`, `user_id = ?`), newest first by when it was
+# written, at most `SCAN_ROWS`. Trashed notes and the sample notebook are never read (the scan's
+# SQL, `compile.compile_scan`, with `sample_marker.not_sample_sql`); an archived note is still a
+# note the member wrote, and is read. A note's `created` / `updated` day is its ET CALENDAR date,
+# through the one ET-day authority (`timeutil.compute_trading_day_et`, W10-R52: it converts any
+# timestamp to its America/New_York date and never moves a weekend or an evening onto a session);
+# its hours through `timeutil.compute_hour_et`. The SQL only pre-filters `created_at` (a UTC
+# instant) over the range widened by a day each side; the day is decided here.
+#
+# ⛔ No body, plain text or title column is selected for measuring (`compile.NOTE_COLUMNS`); a list
+# reads the titles apart, by id, for the rows it shows (`note_titles`), and so does a drill.
+#
+# Note properties (wave E's `j2_note_properties`): a filter goes ONLY through
+# `note_properties.property_filter_sql`, the one property filter authority, which the scan ANDs
+# into its SQL (`compile_scan(extra=)`); `aggregate` never re-applies it (`Field.scan_applied`).
+# A property that is not one of the member's own (deleted or another member's: they read the same,
+# W9-R18) drops that filter or that sum and is ONE notice; it never narrows. Folders and kinds are
+# read `WHERE user_id = ?`; a note naming a folder or kind that is not the member's reads as none.
+
+S_PROP_GONE = "That property isn't available; it is not used in this widget."
+S_PROP_NOT_NUMBER = "That property isn't a number you can add up."
+#: A filter whose value no longer fits its property (the member retyped it): dropped, never a 400.
+S_PROP_FILTER_UNFIT = "That property filter doesn't fit the property; it is not used in this widget."
+
+#: The one ET-day and ET-hour authority (W10-R52); never a second conversion.
+_note_day = timeutil.compute_trading_day_et
+_note_hour = timeutil.compute_hour_et
+
+#: The plan's ops a property filter may use, each mapped onto `note_properties._VALID_OPS` by
+#: `property_conditions` ("between" is two conditions, "is" an equality on a checkbox). `in`,
+#: `not_in` and `has_any` are not offered: the authority ANDs its conditions, it has no OR.
+PROPERTY_OPS = ("eq", "gt", "gte", "lt", "lte", "between", "contains", "is")
+_PROPERTY_OP = {"eq": "eq", "gt": "gt", "gte": "gte", "lt": "lt", "lte": "lte",
+                "contains": "contains", "is": "eq"}
+
+
+def property_conditions(prop: str, op: str, values: list) -> list[dict]:
+    """One plan property filter as `note_properties.property_filter_sql` conditions."""
+    if op == "between":
+        return [{"propertyId": prop, "op": "gte", "value": values[0]},
+                {"propertyId": prop, "op": "lte", "value": values[1]}]
+    return [{"propertyId": prop, "op": _PROPERTY_OP[op], "value": values[0]}]
+
+
+def member_property(conn: sqlite3.Connection, user_id: str, prop: Any) -> dict | None:
+    """The member's own definition of `prop`, or None (deleted, another member's, a built-in, or a
+    calculated one: none of them is a value this widget can read)."""
+    if not isinstance(prop, str) or note_properties.is_builtin_property_id(prop):
+        return None
+    d = note_properties.get_property_def(user_id, prop, conn=conn)
+    if d is None or d.get("source") != "user_set" or d.get("computed"):
+        return None
+    return d
+
+
+def _notice(notices: list[str], sentence: str) -> None:
+    if sentence not in notices:
+        notices.append(sentence)
+
+
+def _property_filters(conn: sqlite3.Connection, user_id: str, plan: dict,
+                      notices: list[str]) -> tuple[str, list]:
+    """The plan's property filters as ONE SQL fragment, each built by the one authority."""
+    frags: list[str] = []
+    params: list = []
+    for f in plan.get("filters") or []:
+        if f.get("field") != PROPERTY_FIELD:
+            continue
+        if member_property(conn, user_id, f.get("prop")) is None:
+            _notice(notices, S_PROP_GONE)
+            continue
+        try:
+            sql, ps = note_properties.property_filter_sql(
+                user_id, property_conditions(f["prop"], f["op"], f.get("values") or []), conn,
+                strict=False)
+        except note_properties.PropertyValidationError:
+            _notice(notices, S_PROP_FILTER_UNFIT)
+            continue
+        frags.append(sql)
+        params.extend(ps)
+    return "".join(frags), params
+
+
+def _summed_properties(conn: sqlite3.Connection, user_id: str, plan: dict,
+                       notices: list[str]) -> list[str]:
+    """The props of the plan's property sums that are the member's own NUMBER properties."""
+    out: list[str] = []
+    for m in plan.get("measures") or []:
+        if m.get("key") not in PROP_MEASURES:
+            continue
+        d = member_property(conn, user_id, m.get("prop"))
+        if d is None:
+            _notice(notices, S_PROP_GONE)
+        elif d.get("type") != "number":
+            _notice(notices, S_PROP_NOT_NUMBER)
+        elif m["prop"] not in out:
+            out.append(m["prop"])
+    return out
+
+
+def _folder_names(conn: sqlite3.Connection, user_id: str) -> dict[str, str]:
+    return {r[0]: r[1] for r in conn.execute(
+        "SELECT id, name FROM j2_note_folders WHERE user_id = ?", (user_id,)).fetchall()}
+
+
+def _kind_names(conn: sqlite3.Connection, user_id: str) -> dict[str, str]:
+    out = {k["id"]: k["name"] for k in j2_note_kinds.BUILTIN_NOTE_KINDS}
+    out.update({r[0]: r[1] for r in conn.execute(
+        "SELECT id, name FROM j2_note_kinds WHERE user_id = ?", (user_id,)).fetchall()})
+    return out
+
+
+def note_titles(conn: sqlite3.Connection, user_id: str, ids: Iterable[str]) -> dict[str, str]:
+    """note id -> title, for the member's own notes among `ids` (a list's rows, a drill's rows:
+    ids the notes scan returned, so never trashed and never the sample). The ONE place a widget
+    reads a note's title."""
+    return {r["id"]: r["title"] for r in _in_chunks(
+        conn, "SELECT id, title FROM j2_notes WHERE user_id = ? AND id IN", user_id, ids)}
+
+
+def _prop_number(props: dict, prop: str) -> float | None:
+    v = props.get(prop)
+    return None if isinstance(v, bool) else _num(v)
+
+
+NOTE_FIELDS: dict[str, Field] = {f.key: f for f in [
+    _f("created", "Created", "day", split=True, hour_key="created_hour"),
+    _f("updated", "Updated", "day", split=True, hour_key="updated_hour"),
+    _f("weekday", "Weekday", "enum", split=True, bucket=WEEKDAYS),
+    _f("month", "Month", "enum", split=True),
+    _f("folder", "Folder", "enum", sql="n.folder_id", split=True, label_from="folder_name",
+       none_label="No folder"),
+    _f("tag", "Tag", "tag", sql="n.tags", split=True, none_label="No tags"),
+    _f("ticker", "Ticker", "text", sql="n.ticker", split=True, ci=True, none_label="No ticker"),
+    _f("kind", "Note kind", "enum", sql="n.kind_id", split=True, label_from="kind_name",
+       none_label="No kind"),
+    # filter only, and only with `prop`; its type is the named property's (the authority checks it)
+    Field(PROPERTY_FIELD, "Property", None, PROPERTY_OPS, False, None, lambda r: None,
+          scan_applied=True),
+]}
+
+
+def scan_notes(conn: sqlite3.Connection, plan: dict, settings: dict | None,
+               rng: ResolvedRange, user_id: str, *, today: date | None = None) -> Scan:
+    """The member's notes written in the range, newest first, at most `SCAN_ROWS`."""
+    acc = owned_account_id(conn, user_id, wcompile.account_param(plan, settings))
+    notices: list[str] = []
+    extra = _property_filters(conn, user_id, plan, notices)
+    summed = _summed_properties(conn, user_id, plan, notices)
+    sql, params = wcompile.compile_scan(NOTES, plan, settings, rng, user_id, extra=extra)
+    raw = _dicts(conn.execute(sql, params))
+    over = len(raw) > wcompile.SCAN_ROWS
+    kept: list[tuple[str, dict]] = []
+    for i, r in enumerate(raw):
+        if i % _CHECK_EVERY == 0:
+            wcompile.check_deadline()
+        d = _note_day(r.get("created_at"))
+        if d is None or d > rng.to_day or (rng.from_day is not None and d < rng.from_day):
+            continue
+        kept.append((d, r))
+    kept.sort(key=lambda p: (p[0], str(p[1].get("created_at") or ""), str(p[1].get("id") or "")),
+              reverse=True)
+    capped = False
+    if over:
+        # Rows past the LIMIT were written no later than the last row read, so their ET day is no
+        # later than its: they can be in range only when that day is (the options rule, m-1).
+        last = _note_day(raw[-1].get("created_at")) or ""
+        if rng.from_day is None or last >= rng.from_day:
+            capped = True
+            kept = [p for p in kept if p[0] >= last]
+    if len(kept) > wcompile.SCAN_ROWS:
+        capped = True
+        kept = kept[:wcompile.SCAN_ROWS]
+    folders = _folder_names(conn, user_id)
+    kinds = _kind_names(conn, user_id)
+    titles = (note_titles(conn, user_id, [r["id"] for _d, r in kept])
+              if (plan.get("view") or {}).get("type") == "list" else None)
+    n = len(kept)
+    rows: list[dict] = []
+    for i, (d, r) in enumerate(kept):
+        if i % _CHECK_EVERY == 0:
+            wcompile.check_deadline()
+        fid = r.get("folder_id") or None
+        kid = r.get("kind_id") or None
+        hour_c, hour_u = _note_hour(r.get("created_at")), _note_hour(r.get("updated_at"))
+        row = {
+            "_tid": r["id"],
+            "id": _sort_key(r.get("created_at"), n - i),
+            "day": d,
+            "created": d,
+            "created_hour": None if hour_c is None else float(hour_c),
+            "updated": _note_day(r.get("updated_at")),
+            "updated_hour": None if hour_u is None else float(hour_u),
+            "weekday": _weekday(d),
+            "month": d[:7],
+            "folder": fid if fid in folders else None,
+            "folder_name": folders.get(fid) if fid else None,
+            "tag": _tags(r.get("tags")),
+            "ticker": r.get("ticker") or None,
+            "kind": kid if kid in kinds else None,
+            "kind_name": kinds.get(kid) if kid else None,
+            "flagged": False,
+        }
+        if summed:
+            props = note_properties._parse_properties_json(r.get("properties_json"))
+            for prop in summed:
+                row[wmeasures.prop_key(prop)] = _prop_number(props, prop)
+        if titles is not None:
+            row["title"] = titles.get(r["id"], "")
+        rows.append(row)
+    return Scan("notes", rows, capped, rows[-1]["day"] if rows else None, len(rows), acc, [],
+                notices)
+
+
 # ── the sources and the catalog ────────────────────────────────────────────────────────────────
 
 CLOSED = Source("closed_trades", "Closed trades", "Every trade you have closed.", "trades",
@@ -1415,9 +1638,12 @@ TRACKER_HISTORY = Source("tracker_history", "Tracker history", "Every value you 
 OPTIONS = Source("options_strategies", "Options strategies",
                  "Every options strategy you have logged.", "strategies", OPTION_FIELDS,
                  scan_options)
+#: W10-R7: a list row's label is the note's title, relabelled "Note <n>" publicly (`labelKind`).
+NOTES = Source("notes", "Notes", "Every note you have written.", "notes", NOTE_FIELDS, scan_notes,
+               list_labels=("title", "created"))
 
 SOURCES: dict[str, Source] = {s.key: s for s in (CLOSED, POSITIONS, DAYS, ROUTINE_HISTORY,
-                                                 TRACKER_HISTORY, OPTIONS)}
+                                                 TRACKER_HISTORY, OPTIONS, NOTES)}
 
 ACCENTS = ("gold", "green", "red", "blue", "purple", "teal", "orange")
 
@@ -1458,7 +1684,8 @@ class WidgetCatalog:
             return "compare" if plan.get("compare") else "number"
         if split.get("then"):
             return "table"
-        return "line" if split.get("by") in TIME_FIELDS else "bar"
+        src = self.sources.get(plan.get("source"))
+        return "line" if src is not None and _time_field(src, split.get("by")) else "bar"
 
     def view_allowed(self, plan: dict) -> str | None:
         """None, or the one line saying why the plan's view (or split) cannot be used."""
@@ -1487,9 +1714,9 @@ class WidgetCatalog:
             return S_VIEW_PROGRESS              # a goal target is a target (plan.py checks it)
         if vtype == "bar" and not split:
             return S_VIEW_BAR
-        if vtype == "line" and (not split or split.get("by") not in TIME_FIELDS):
+        if vtype == "line" and (not split or not _time_field(src, split.get("by"))):
             return S_VIEW_LINE
-        if vtype == "heat" and (not split or split.get("by") != "day"):
+        if vtype == "heat" and (not split or not _day_field(src, split.get("by"))):
             return S_VIEW_HEAT
         if vtype == "scatter":
             if src.key != "closed_trades":
@@ -1499,6 +1726,16 @@ class WidgetCatalog:
         if vtype == "list" and split:
             return S_VIEW_LIST
         return None
+
+
+def _day_field(src: Source, key: Any) -> bool:
+    """A split a calendar heat map can draw: the source's day (notes: when written or updated)."""
+    return key == "day" or getattr(src.fields.get(key), "type", None) == "day"
+
+
+def _time_field(src: Source, key: Any) -> bool:
+    """A split a Line view can run along: a day field, or the month."""
+    return key in TIME_FIELDS or _day_field(src, key)
 
 
 def _splittable(plan: dict, src: Source, key: Any) -> bool:

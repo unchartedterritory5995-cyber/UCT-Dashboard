@@ -417,7 +417,11 @@ GUARDED = {
                                               "example note is never the member's mood or focus that day",
     "api/services/journal_two/widget_engine/sources.py": "a built widget's trading-days mood and focus: a "
                                                           "check-in inside an example note is never the "
-                                                          "member's day",
+                                                          "member's day; a notes widget's list and drill "
+                                                          "titles (Task 10.7)",
+    "api/services/journal_two/widget_engine/compile.py": "the notes widget's one scan (Task 10.7): an example "
+                                                          "note is never counted, split, summed or listed as "
+                                                          "a note the member wrote",
     "api/services/journal_two/template_gallery.py": "an example note (P3b) shows a member's own note to other "
                                                      "members as their work; a sample note is never published or "
                                                      "previewed as one (ruling P3b-R11, the not-live 404)",

@@ -32,6 +32,7 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 from typing import Any, Callable, Iterator
 
+from api.services.journal_two import sample_marker
 from api.services.journal_two.filters import _DAY, analytics_included_sql
 from api.services.journal_two.widget_engine.plan import (
     FORMULA_PREFIX, PlanError, S_UNKNOWN_FIELD, S_UNKNOWN_OP,
@@ -98,6 +99,12 @@ OPTION_COLUMNS = (
 #: (`sources._option_day`), never a day read from UTC.
 OPTION_DAY = ("COALESCE(o.trading_day_et, substr(o.closed_at, 1, 10), "
               "substr(o.entry_date, 1, 10))")
+
+#: Task 10.7: one note, for measuring. ⛔ No body, plain text or title column (railed by a trace):
+#: a list or a drill reads the titles apart, by id (`sources.note_titles`).
+NOTE_COLUMNS = (
+    "n.id, n.created_at, n.updated_at, n.folder_id, n.tags, n.ticker, n.kind_id, n.properties_json"
+)
 
 #: Per ET day: equity net (pnl_dollar - fees), count, wins, losses, best and worst trade.
 DAY_COLUMNS = (
@@ -214,6 +221,15 @@ def _option_range(rng: Any) -> tuple[str, list]:
     return f" AND {OPTION_DAY} <= ?", [_shift(rng.to_day, 1)]
 
 
+def _note_range(rng: Any) -> tuple[str, list]:
+    """The notes pre-filter on `created_at` (a UTC instant): the range widened by one day each side
+    (an ET day's notes are stamped on that UTC date or the next); Python cuts it to the ET day."""
+    hi = _shift(rng.to_day, 2)
+    if rng.from_day:
+        return " AND n.created_at >= ? AND n.created_at < ?", [_shift(rng.from_day, -1), hi]
+    return " AND n.created_at < ?", [hi]
+
+
 def last_n_after_filters(source: Any, plan: dict, rng: Any) -> bool:
     """Ruling (fix round 1, Minor 8): "last N trades" means the newest N that pass every
     filter. When a filter runs only in Python, or the view is a list (whose flagged rows must
@@ -234,8 +250,10 @@ def scan_limit(rng: Any, *, after_filters: bool = False) -> int:
 
 
 def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
-                 user_id: str) -> tuple[str, list]:
-    """The one bounded scan for `source`, as (sql, params). `user_id` is the session member's."""
+                 user_id: str, *, extra: tuple[str, list] = ("", [])) -> tuple[str, list]:
+    """The one bounded scan for `source`, as (sql, params). `user_id` is the session member's.
+    `extra` (notes only): the note-property fragment `note_properties.property_filter_sql` built
+    for the member (`sources.scan_notes`), the one property filter authority."""
     if not isinstance(user_id, str) or not user_id:
         raise ValueError("a scan needs the session member's id")
     acc = account_param(plan, settings)
@@ -267,6 +285,17 @@ def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
         sql += (a_sql + f_sql + r_sql
                 + f" ORDER BY {OPTION_DAY} DESC, o.id DESC LIMIT {SCAN_LIMIT}")
         return sql, [user_id] + a_params + f_params + r_params
+    if key == "notes":
+        # Trash and the sample notebook are never read; every property filter is `extra`.
+        sql = (f"SELECT {NOTE_COLUMNS} FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL"
+               " AND " + sample_marker.not_sample_sql("n"))
+        a_sql, a_params = _account_fragment("n.account_id", acc, user_id)
+        f_sql, f_params = _filters(source, plan)
+        x_sql, x_params = extra
+        r_sql, r_params = _note_range(rng)
+        sql += (a_sql + f_sql + x_sql + r_sql
+                + f" ORDER BY n.created_at DESC, n.id DESC LIMIT {SCAN_LIMIT}")
+        return sql, [user_id] + a_params + f_params + list(x_params) + r_params
     if key == "trading_days":
         if not rng.from_day:
             raise ValueError("the trading-days scan needs a bounded range")

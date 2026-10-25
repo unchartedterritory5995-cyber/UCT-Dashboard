@@ -19,7 +19,9 @@ Wave 10 (Task 10.6): a split or filter may name a row formula (`formula:<id>`) a
 formula. The plan's formulas are written onto the rows first (`aggregate.plan_fields_on`, as
 `evaluate` writes them), a split resolves its field through the plan's fields, and a scatter point's
 two values are what `aggregate.evaluate` itself drew (`measure_of`, the one lookup), so a drill finds
-exactly the rows its cell stands for. Options strategies drill to `_option_row`.
+exactly the rows its cell stands for. Options strategies drill to `_option_row`; notes (Task 10.7) to
+`_note_row`, whose title is read for the rows shown only (`sources.note_titles`), and a drilled row
+opens the note.
 
 Rules it keeps:
 
@@ -148,7 +150,7 @@ def _matches(row: dict, plan: dict, src: Any, cell: dict, fields: dict) -> bool:
 # -- ownership --------------------------------------------------------------------------------------
 
 _OWN_TABLE = {"closed_trades": "j2_trades", "open_positions": "j2_positions",
-              "options_strategies": "j2_option_strategies"}
+              "options_strategies": "j2_option_strategies", "notes": "j2_notes"}
 
 
 def _owned_ids(conn: sqlite3.Connection, user_id: str, table: str, ids: list[str]) -> set[str]:
@@ -202,9 +204,15 @@ def _option_row(r: dict) -> dict:
             "strategyId": r.get("_tid")}
 
 
+def _note_row(r: dict) -> dict:
+    """Wave 10: one note (the client opens it). `label` is its title, clipped like a group label."""
+    return {"day": r.get("created"), "label": nw._clip(str(r.get("title") or ""), LABEL_MAX),
+            "noteId": r.get("_tid")}
+
+
 _SHAPE = {"closed_trades": _trade_row, "trading_days": _day_row, "open_positions": _position_row,
           "routine_history": _routine_row, "tracker_history": _tracker_row,
-          "options_strategies": _option_row}
+          "options_strategies": _option_row, "notes": _note_row}
 
 
 def _mon_d(iso: Any) -> str | None:
@@ -257,6 +265,12 @@ def drill(user_id: str, plan: dict, settings: Any, cell: Any, *, snapshot_count:
                     hits = _point_hits(rows, merged, want)
                 else:
                     hits = [r for r in rows if _matches(r, merged, src, want, fields)]
+                if src.key == "notes":
+                    # the titles of the rows shown, and of no other note (never read to measure)
+                    shown = [r for r in hits[:MAX_ROWS] if "title" not in r]
+                    titles = wsources.note_titles(conn, user_id, [r["_tid"] for r in shown])
+                    for r in shown:
+                        r["title"] = titles.get(r["_tid"], "")
 
     count = sum(1 for r in hits if not r.get("flagged"))
     shape = _SHAPE[src.key]

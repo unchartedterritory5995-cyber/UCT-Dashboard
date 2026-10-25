@@ -48,7 +48,7 @@ DRAWDOWN_VIEWS = frozenset({"number", "compare"})
 
 _NONE_KEY = "\x00none"
 _SINGULAR = {"trades": "trade", "positions": "position", "days": "day", "entries": "entry",
-             "strategies": "strategy"}
+             "strategies": "strategy", "notes": "note"}
 
 
 @dataclass(frozen=True)
@@ -200,6 +200,8 @@ def measure_of(plan: dict, catalog: Any, m: dict, compiled: dict | None = None) 
     compiled formulas (`Result.formulas`); without it the formula is compiled here. The kind is
     `plan.formula_measure_kind`'s (the validator's own rule, never restated)."""
     if "formula" not in m:
+        if "prop" in m:                       # Task 10.7: a note property measure, bound to it
+            return wmeasures.bind_prop(catalog.measures[m["key"]], m["prop"])
         return catalog.measures[m["key"]]
     fid = m["formula"]
     src = catalog.sources[plan["source"]]
@@ -414,6 +416,10 @@ def _apply_filters(rows: list[dict], plan: dict, src: Any, notes: list[str],
     kept = rows
     for f in plan.get("filters") or []:
         fld = fields[f["field"]]
+        if getattr(fld, "scan_applied", False):
+            # Task 10.7: applied by the scan's own authority (a note property, through
+            # `note_properties.property_filter_sql`); never a second, Python predicate
+            continue
         values = f.get("values") or []
         if fld.needs_times:
             live = [r for r in kept if not r.get("flagged")]
@@ -542,7 +548,7 @@ def _cells(plan: dict, catalog: Any, source_key: str, rows: list[dict],
             out.append(_formula_cell(fm, compiled[m["formula"]], m.get("agg"), source_key, rows,
                                      ticker or _Ticker(None)))
         else:
-            out.append(wmeasures.evaluate(catalog.measures[m["key"]], source_key, rows))
+            out.append(wmeasures.evaluate(measure_of(plan, catalog, m), source_key, rows))
     return out
 
 

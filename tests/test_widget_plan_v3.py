@@ -183,10 +183,9 @@ def test_needed_version_three_only_for_wave10_features():
     for name in ("formula", "cumulative", "stopAfter", "quadrants"):
         assert P.validate_plan(copy.deepcopy(features[name]), CAT)["v"] == 3, name
     assert P.validate_plan(copy.deepcopy(features["targetGoal"]), LENIENT)["v"] == 3
-    # the two new sources validate only once their catalog rows exist: options strategies since
-    # Task 10.6, notes from Task 10.7
+    # both new sources are in the real catalog: options strategies since Task 10.6, notes 10.7
     assert P.validate_plan(copy.deepcopy(features["options source"]), CAT)["v"] == 3
-    assert refused(copy.deepcopy(features["notes source"])).sentence == P.S_UNKNOWN_SOURCE
+    assert P.validate_plan(copy.deepcopy(features["notes source"]), CAT)["v"] == 3
     for name in ("options source", "notes source"):
         assert P.validate_plan(copy.deepcopy(features[name]), W10)["v"] == 3
     # tools alone: 2; neither: 1
@@ -462,7 +461,12 @@ def test_property_filter_needs_prop_and_may_repeat():
     assert [(f["field"], f["prop"]) for f in p["filters"]] == [("property", PID),
                                                                ("property", PID2),
                                                                ("property", PID)]
-    for prop in (None, "", "nope", PID.upper(), 7, "checkin:mood"):
+    # Task 10.7: a member's property id is `uuid4().hex` (`note_properties.create_property_def`)
+    hexid = PID.replace("-", "")
+    assert P.validate_plan(_notes(filters=[{"field": "property", "op": "gte", "values": [3],
+                                            "prop": hexid}]), W10)["filters"][0]["prop"] == hexid
+    for prop in (None, "", "nope", PID.upper(), 7, "checkin:mood", hexid.upper(), hexid[:-1],
+                 hexid + "0"):
         f = {"field": "property", "op": "gte", "values": [3]}
         if prop is not None:
             f["prop"] = prop
@@ -492,12 +496,10 @@ def test_new_sources_refuse_last_n_trades():
         for tok in ("last_20_trades", "last_50_trades", "last_100_trades"):
             assert refused(dict(raw, range={"token": tok}), W10).sentence == P.S_UNKNOWN_RANGE
         assert P.validate_plan(dict(raw, range={"token": "last_30d"}), W10)["v"] == 3
-        if raw["source"] == "notes":
-            assert refused(copy.deepcopy(raw)).sentence == P.S_UNKNOWN_SOURCE   # Task 10.7
-        else:                                                    # in the real catalog (10.6)
-            for tok in ("last_20_trades", "last_50_trades", "last_100_trades"):
-                assert refused(dict(raw, range={"token": tok})).sentence == P.S_UNKNOWN_RANGE
-            assert P.validate_plan(copy.deepcopy(raw), CAT)["v"] == 3
+        # both are in the real catalog (Tasks 10.6 and 10.7)
+        for tok in ("last_20_trades", "last_50_trades", "last_100_trades"):
+            assert refused(dict(raw, range={"token": tok})).sentence == P.S_UNKNOWN_RANGE
+        assert P.validate_plan(copy.deepcopy(raw), CAT)["v"] == 3
     # control: closed trades still take a number of trades
     assert P.validate_plan(ct(range={"token": "last_20_trades"}), CAT)["v"] == 1
 
@@ -641,6 +643,8 @@ def test_bool_fields_emit_a_python_bool_or_none(conn):
     add_position(conn, UID, symbol="MSFT", stop=100.0)        # placeholder stop: no stop
     from tests.test_widget_options_source import add_opt      # Task 10.6: a source with rows
     add_opt(conn, UID, closed_at="2026-10-20T19:00:00Z")
+    from tests.test_widget_notes_source import add_n          # Task 10.7: a note too
+    add_n(conn, UID, created="2026-10-20T15:00:00Z")
     want = {(s.key, f.key) for s in S.SOURCES.values() for f in s.fields.values()
             if f.type == "bool"}
     assert len(want) >= 4

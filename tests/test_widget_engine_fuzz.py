@@ -21,6 +21,8 @@ from tests.test_widget_sources import UID, add_trade, conn, raw_plan  # noqa: F4
 TODAY = date(2026, 10, 24)
 #: Wave 9: a field that names a routine or tracker needs one (`ref`); any member's id will do here.
 REF = "0b0e8a3c-1d2e-4f50-8a6b-7c8d9e0f1a2b"
+#: Task 10.7: a note-property filter names one (`prop`); one that is not the member's is dropped.
+PROP = "5c2e1d3f4a5b46c7d8e9f0a1b2c3d4e5"
 
 CORPUS = [
     "it's",
@@ -60,10 +62,12 @@ def _plan(source, field, op, value, view=None):
     measures = {"closed_trades": ("net_pnl",), "open_positions": ("open_positions",),
                 "trading_days": ("avg_day_pnl",), "routine_history": ("routine_consistency",),
                 "tracker_history": ("tracker_avg",),
-                "options_strategies": ("strategies",)}[source]
+                "options_strategies": ("strategies",), "notes": ("notes",)}[source]
     f = {"field": field, "op": op, "values": [value]}
     if getattr(sources.SOURCES[source].fields[field], "ref_kind", None):
         f["ref"] = REF
+    if field == plan.PROPERTY_FIELD:
+        f["prop"] = PROP
     raw = raw_plan(source=source, measures=measures, filters=[f],
                    range={"from": "2026-09-01", "to": "2026-10-23"})
     if view:
@@ -88,7 +92,8 @@ def test_the_corpus_covers_every_source_and_kind_of_field():
     assert {("closed_trades", "text"), ("closed_trades", "enum"), ("closed_trades", "tag"),
             ("open_positions", "text"), ("open_positions", "enum"),
             ("trading_days", "enum"), ("options_strategies", "text"),
-            ("options_strategies", "enum")} <= kinds
+            ("options_strategies", "enum"), ("notes", "text"), ("notes", "enum"),
+            ("notes", "tag"), ("notes", None)} <= kinds
     assert all(len(v) <= plan.MAX_TEXT for v in CORPUS)
 
 
@@ -244,7 +249,7 @@ def test_formula_text_is_never_sql_text(conn, source):  # noqa: F811
 
 _FS_SOURCES = {"closed_trades": ("setup", "net_pnl"), "trading_days": ("weekday", "avg_day_pnl"),
                "options_strategies": ("underlying", "net_pnl"),
-               "open_positions": ("setup", "open_positions")}
+               "open_positions": ("setup", "open_positions"), "notes": ("ticker", "notes")}
 
 
 def _formula_filter_split_plans(source: str, value: str) -> list[dict]:

@@ -99,8 +99,8 @@ MEASURE_FMT: dict[str, str] = {
     "trades": "count", "wins": "count", "losses": "count", "days_traded": "count",
     "profitable_days": "count", "max_win_streak": "count", "max_loss_streak": "count",
     "open_positions": "count",
-    # wave 10: options strategies
-    "strategies": "count",
+    # wave 10: options strategies, notes
+    "strategies": "count", "notes": "count", "property_sum": "number",
     # a signed count (wins + / losses -)
     "current_streak": "signed_count",
     # days
@@ -319,7 +319,7 @@ def _scope_label(scan: Any, account_name: str | None) -> str:
 
 #: Sources whose capped scan states the rows it actually kept (fix round 1, m-1): an options
 #: read is cut to the exact ET day after the SQL read, so it can hold fewer than the cap.
-_CAP_COUNTS_KEPT = frozenset({"options_strategies"})
+_CAP_COUNTS_KEPT = frozenset({"options_strategies", "notes"})
 #: Sources whose path-dependent measures carry the "within your newest" footnote (m-3).
 _PATH_FOOTNOTE_SOURCES = frozenset({"closed_trades", "options_strategies"})
 
@@ -490,6 +490,9 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         payload["labelKind"] = "account"
     if split.get("then") == "account":
         payload["label2Kind"] = "account"
+    if source_key == "notes" and view == "list" and not split:
+        # W10-R7: a list row's label is a note's title, so a public page relabels it "Note <n>"
+        payload["labelKind"] = "note"
     payload["sourceDetail"] = nw.source_detail(nw.BUILT_KIND, payload)
     list_key, trim_from = TRIM_BY_VIEW.get(view, ("rows", "end"))
     return nw.cap_payload(payload, nw.BUILT_KIND, list_key=list_key, trim_from=trim_from)

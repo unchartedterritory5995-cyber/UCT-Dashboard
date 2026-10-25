@@ -310,17 +310,31 @@ _STRATEGIES_STAMP = "SELECT MAX(updated_at), COUNT(*) FROM j2_option_strategies 
 _CHECKINS_STAMP = "SELECT COUNT(*), MAX(created_at) FROM j2_note_checkins WHERE user_id = ?"
 _DAY_NOTES_STAMP = "SELECT COUNT(*) FROM j2_day_notes WHERE user_id = ?"
 # Wave 10 (Task 10.4): the notes source reads the member's notes, folders, note kinds and property
-# definitions. Folders and kinds have no `updated_at`, so their stamp carries the names themselves
-# (ordered by id): a renamed or moved folder, or a renamed kind, moves it (fix round 1, M5); a
-# retyped property moves the properties' MAX(updated_at).
+# definitions. Folders and kinds have no `updated_at`, so their stamp is a digest of the rows
+# themselves (ordered by id): a renamed or moved folder, or a renamed kind, moves it (fix round 1,
+# M5); a retyped property moves the properties' MAX(updated_at). Task 10.7 (10.4 N-4): the digest
+# is a fixed-size sha256 (`_digest_stamp`), never the names joined (2,000 folders made 238 KB).
 _NOTES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_notes WHERE user_id = ?"
-_NOTE_FOLDERS_STAMP = ("SELECT COUNT(*), group_concat(id || '/' || parent_id || '/' || name,"
-                       " char(31)) FROM (SELECT id, parent_id, name FROM j2_note_folders"
-                       " WHERE user_id = ? ORDER BY id)")
-_NOTE_KINDS_STAMP = ("SELECT COUNT(*), group_concat(id || '/' || name, char(31))"
-                     " FROM (SELECT id, name FROM j2_note_kinds WHERE user_id = ? ORDER BY id)")
+_NOTE_FOLDERS_STAMP = ("SELECT id, parent_id, name FROM j2_note_folders WHERE user_id = ?"
+                       " ORDER BY id")
+_NOTE_KINDS_STAMP = "SELECT id, name FROM j2_note_kinds WHERE user_id = ? ORDER BY id"
 _NOTE_PROPERTIES_STAMP = "SELECT COUNT(*), MAX(updated_at) FROM j2_note_properties WHERE user_id = ?"
+#: The stamps read as a digest of their rows (the others read one row of aggregates).
+_DIGEST_STAMPS = frozenset({_NOTE_FOLDERS_STAMP, _NOTE_KINDS_STAMP})
 _NOTE_STAMPS = (_NOTES_STAMP, _NOTE_FOLDERS_STAMP, _NOTE_KINDS_STAMP, _NOTE_PROPERTIES_STAMP)
+
+
+def _digest_stamp(conn: sqlite3.Connection, sql: str, user_id: str) -> str:
+    """`<count>:<sha256>` of the member's rows `sql` reads, in its order: 70-odd characters
+    whatever the row count, and any change to any column it names moves it."""
+    h = hashlib.sha256()
+    n = 0
+    for row in conn.execute(sql, (user_id,)):
+        h.update(json.dumps([str(v) if v is not None else None for v in row],
+                            ensure_ascii=False).encode("utf-8"))
+        h.update(b"\x1f")
+        n += 1
+    return f"{n}:{h.hexdigest()}"
 # Wave 9 (Task 9.8): routines and trackers. Beyond the brief's COUNT / MAX(updated_at), each also
 # sums what a same-second edit can change (a tick undone, a skip undone, a value rewritten, a
 # schedule replaced on its own day, a routine edited).
@@ -366,7 +380,8 @@ def data_stamp(conn: sqlite3.Connection, user_id: str, source_key: str,
     routine or a tracker (the check-ins are read once).
     """
     def many(qs) -> str:
-        return "|".join(_one(conn, q, user_id) for q in qs)
+        return "|".join(_digest_stamp(conn, q, user_id) if q in _DIGEST_STAMPS
+                        else _one(conn, q, user_id) for q in qs)
 
     # I-3: the routine and tracker stamps are read only by the branches that use them.
     def routines() -> str:
@@ -1085,8 +1100,7 @@ def _example_ids(ids: Any) -> list[str]:
     return out
 
 
-def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None,
-                 allowed: Callable[[dict], bool] | None = None) -> dict:
+def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -> dict:
     """Up to `MAX_EXAMPLES` shelf examples for the session member, in ONE batch:
     `{"sample": bool, "cards": {id: payload}}`.
 
@@ -1099,23 +1113,17 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None,
       one cache entry per member for `CACHE_TTL_S`, keyed on the ids, the sample switch and the
       member's data stamps, so the 5th closed trade turns the cards real at once.
 
-    * Each card runs its id's newest revision `allowed` accepts (the router passes its flag reader,
-      the one `/shelf` serves with, so a card is the revision the gallery lists; Task 10.13). An id
-      with no allowed revision is unknown here. With no `allowed`, the newest revision.
-
     Raises `PlanError` (more than `MAX_EXAMPLES` ids, or an unknown id), `EngineBusy` or
     `EngineTooLong`."""
     if not isinstance(user_id, str) or not user_id:
         raise ValueError("a run needs the session member's id")
     wanted = _example_ids(ids)
     items = []
-    revs = []
     for sid in wanted:
-        ex = wshelf.example(sid) if allowed is None else wshelf.example(sid, allowed=allowed)
+        ex = wshelf.example(sid)
         if ex is None:
             raise PlanError(S_UNKNOWN_EXAMPLE)
         items.append((sid, ex["plan"]))
-        revs.append(ex["rev"])
     now = now or datetime.now(timezone.utc)
     srcs = list(dict.fromkeys(p["source"] for _sid, p in items))
     if not items:
@@ -1139,7 +1147,7 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None,
         today = sample_today() if sample else real_today
         blob = json.dumps([user_id, "examples", wanted, sample, stamps, today.isoformat(),
                            real_today.isoformat(), _book()["digest"] if sample else None]
-                          + _w10_key(w10, False) + [revs],
+                          + _w10_key(w10, False),
                           sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         key = "widget_examples::" + hashlib.sha1(blob.encode("utf-8")).hexdigest()
         hit = _CACHE.get(key)

@@ -7,6 +7,8 @@ id gives exactly A's "all my accounts" result (absent, never B's).
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from tests.test_widget_sources import (
@@ -555,3 +557,76 @@ def test_a_leg_naming_a_strategy_is_that_strategys_leg(two):
     sc_b, res_b = run(c, raw_plan(source="options_strategies", measures=("strategies",),
                                   range=RANGE), uid=B)
     assert a1 not in {r["_tid"] for r in sc_b.rows}
+
+
+# -- wave 10 (Task 10.7): notes, their folders, kinds and property definitions ---------------------
+
+def test_member_b_notes_folders_kinds_and_properties_never_reach_a(two):
+    """A's notes widget holds nothing of B's: B's notes (same days, folder name, kind name, tags
+    and ticker), B's folder and kind NAMES (even on an A note that names B's ids, inserted by hand),
+    and B's property definitions (a filter or a sum naming B's property id is the one unavailable
+    notice, and never narrows). Every folder, kind and property read is scoped to A (traced)."""
+    from api.services.journal_two import note_properties
+    from tests.test_widget_notes_source import add_folder, add_kind, add_n, add_prop
+    c, _acc_a, _acc_b = two
+    fa = add_folder(c, A, "Ideas")
+    fb = add_folder(c, B, "B-FOLDER-CANARY")
+    ka = add_kind(c, A, "Setup")
+    kb = add_kind(c, B, "B-KIND-CANARY")
+    pa = add_prop(c, A, "Conviction")
+    pb = add_prop(c, B, "Conviction")
+    a_ids = {r[0] for r in c.execute("SELECT id FROM j2_notes WHERE user_id = ?", (A,))}
+    assert len(a_ids) == 1                          # the fixture's check-in note (no folder, kind)
+    a_ids |= {add_n(c, A, created=f"{d}T15:00:00Z", folder=fa, kind=ka, tags=["shared"],
+                   ticker="NVDA", props={pa: 2, pb: 2}) for d in DAYS}
+    a_ids.add(add_n(c, A, created=f"{DAYS[0]}T16:00:00Z", folder=fb, kind=kb))   # B's ids, by hand
+    for d in DAYS:
+        add_n(c, B, created=f"{d}T15:00:00Z", folder=fb, kind=kb, tags=["shared"], ticker="NVDA",
+              props={pb: 7777}, title="B-TITLE-CANARY")
+    seen: list[str] = []
+    c.set_trace_callback(seen.append)
+    try:
+        for mode in ("plain", "folder", "kind", "tag", "ticker", "list", "prop_b", "sum_b"):
+            raw = raw_plan(source="notes", measures=("notes",), range=RANGE)
+            if mode in ("folder", "kind", "tag", "ticker"):
+                raw.update(split={"by": mode}, view={"type": "bar"})
+            elif mode == "list":
+                raw["view"] = {"type": "list"}
+            elif mode == "prop_b":
+                raw["filters"] = [{"field": "property", "op": "gte", "values": [100], "prop": pb}]
+            elif mode == "sum_b":
+                raw["measures"] = [{"key": "notes"}, {"key": "property_sum", "prop": pb}]
+            sc, res = run(c, raw, uid=A)
+            assert {r["_tid"] for r in sc.rows} == a_ids, mode
+            assert res.count == 5 and res.total.cells[0].value == 5.0, mode
+            blob = repr([(g.key, g.label) for g in res.groups]) + repr(sc.rows)
+            for canary in ("B-FOLDER-CANARY", "B-KIND-CANARY", "B-TITLE-CANARY", "7777"):
+                assert canary not in blob, (mode, canary)
+            if mode in ("prop_b", "sum_b"):
+                assert sc.notices == ["That property isn't available; it is not used in this widget."]
+            if mode == "sum_b":
+                assert res.total.cells[1].value is None
+            if mode == "folder":
+                assert {g.label: g.values.cells[0].value for g in res.groups} == {
+                    "Ideas": 3.0, "No folder": 2.0}
+            if mode == "kind":
+                assert {g.label: g.values.cells[0].value for g in res.groups} == {
+                    "Setup": 3.0, "No kind": 2.0}
+    finally:
+        c.set_trace_callback(None)
+    scoped = [s for s in seen if re.search(r"FROM (j2_note_folders|j2_note_kinds|j2_note_properties"
+                                           r"|j2_notes)\b", s)]
+    assert scoped, "control: the trace saw the reads"
+    for s in scoped:
+        assert f"'{A}'" in s and f"'{B}'" not in s, s[:240]
+    # A's own property narrows (control: the scoping above is not "never filters")
+    sc, res = run(c, raw_plan(source="notes", measures=("notes",), range=RANGE,
+                              filters=[{"field": "property", "op": "gte", "values": [2],
+                                        "prop": pa}]), uid=A)
+    assert res.count == 3 and sc.notices == []
+    # control: B's own read sees B's names and numbers
+    sc_b, res_b = run(c, raw_plan(source="notes", measures=("notes",), range=RANGE,
+                                  split={"by": "folder"}, view={"type": "bar"}), uid=B)
+    assert {g.label: g.values.cells[0].value for g in res_b.groups} == {
+        "B-FOLDER-CANARY": 3.0, "No folder": 1.0} and res_b.count == 4
+    assert note_properties.get_property_def(A, pb, conn=c) is None

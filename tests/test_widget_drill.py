@@ -275,3 +275,42 @@ def test_scatter_point_needs_both_values_and_ignores_the_sort_trim(conn):
     top1 = dict(pts, sort={"measure": 0, "dir": "desc", "top": 1})
     assert [r["symbol"] for r in _drill(top1, {"d": "2026-10-20", "x": 200.0, "y": 4.0})["rows"]] \
         == ["A1"]
+
+
+# -- wave 10 (Task 10.7): notes at the drill door --------------------------------------------------
+
+def test_notes_drill_rows_open_the_note_and_owned_ids(conn, monkeypatch):
+    from tests.test_widget_notes_source import add_folder, add_n
+    add_user(conn, OTHER)
+    ideas = add_folder(conn, UID, "Ideas")
+    long_title = "An earnings plan " + "x" * 80
+    n1 = add_n(conn, UID, created="2026-10-22T03:30:00Z", title=long_title, folder=ideas)
+    n2 = add_n(conn, UID, created="2026-10-20T15:00:00Z", title="Monday prep")
+    theirs = add_n(conn, OTHER, created="2026-10-20T15:00:00Z", title="THEIRS", folder=ideas)
+    plan = {"v": 1, "source": "notes", "measures": [{"key": "notes"}], "range": {"token": "all"}}
+    out = _drill(plan)
+    assert out["count"] == 2 and out["more"] == 0
+    assert out["rows"] == [
+        {"day": "2026-10-21", "label": nw._clip(long_title, 60), "noteId": n1},
+        {"day": "2026-10-20", "label": "Monday prep", "noteId": n2},
+    ]
+    assert len(out["rows"][0]["label"]) <= 60
+    split = dict(plan, split={"by": "folder"}, view={"type": "bar"})
+    assert [r["noteId"] for r in _drill(split, {"label": "Ideas"})["rows"]] == [n1]
+    assert [r["noteId"] for r in _drill(split, {"label": "No folder"})["rows"]] == [n2]
+    assert wdrill._OWN_TABLE["notes"] == "j2_notes"
+
+    # Defence in depth: a scan that somehow handed back another member's note drops it, and its
+    # title is never read.
+    real = wsources.scan
+
+    def leaky(c, p, settings, rng, user_id, *, today=None):
+        sc = real(c, p, settings, rng, user_id, today=today)
+        other = real(c, p, settings, rng, OTHER, today=today)
+        return wsources.Scan(sc.source, sc.rows + other.rows, sc.capped, sc.earliest_day,
+                             sc.count + other.count, sc.account_id)
+
+    monkeypatch.setattr(wsources, "scan", leaky)
+    rows = _drill(plan)["rows"]
+    assert sorted(r["noteId"] for r in rows) == sorted([n1, n2]) and theirs not in str(rows)
+    assert "THEIRS" not in str(rows)

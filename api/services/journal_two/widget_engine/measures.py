@@ -34,6 +34,7 @@ POSITIONS = "open_positions"
 TRADING_DAYS = "trading_days"
 ROUTINE_HISTORY = "routine_history"
 OPTIONS = "options_strategies"
+NOTES = "notes"
 
 
 @dataclass(frozen=True)
@@ -126,6 +127,46 @@ OPTION_WIDENED = ("net_pnl", "wins", "losses", "win_rate", "avg_win", "avg_loss"
 _UNIT_BY_SOURCE = {OPTIONS: {"trades": "strategies", "decisive": "strategies"}}
 
 
+# ── notes (wave 10, Task 10.7) ─────────────────────────────────────────────────────────────────
+
+def _notes(rows):
+    return _mv(float(len(rows)), len(rows))
+
+
+def prop_key(prop: str) -> str:
+    """The row key holding note property `prop`'s number (`sources.scan_notes` writes it only for
+    one of the member's own number properties; it is absent, so None, otherwise)."""
+    return "prop:" + prop
+
+
+def _unbound_property_sum(rows):
+    # `bind_prop` gives the measure its property; unbound it has none to add up ("no data")
+    return _mv(None, len(rows), 0)
+
+
+_NOTE = frozenset({NOTES})
+
+NOTE_MEASURES: dict[str, Measure] = {m.key: m for m in [
+    Measure("notes", "Notes", "results", "How many notes.", "notes", "count", DEFAULT_MIN_N, (),
+            _NOTE, _notes),
+    Measure("property_sum", "Sum of a property", "results",
+            "One of your number properties added up over the notes. Notes with no value are left "
+            "out.", "notes", "sum", DEFAULT_MIN_N, (), _NOTE, _unbound_property_sum),
+]}
+
+
+def bind_prop(m: Measure, prop: str) -> Measure:
+    """`property_sum` for one property: it reads `prop_key(prop)` from each row (the notes with a
+    value), and is None when no note has one. The plan carries `prop` beside the key."""
+    key = prop_key(prop)
+
+    def fn(rows):
+        vals = _present(rows, key)
+        return _mv(sum(vals) if vals else None, len(rows), len(vals))
+
+    return dataclasses.replace(m, needs=(key,), fn=fn)
+
+
 def unit_for(m, source_key: str) -> str:
     """The noun a measure counts in on `source_key` (a shared measure says "trades")."""
     return _UNIT_BY_SOURCE.get(source_key, {}).get(m.unit, m.unit)
@@ -133,13 +174,14 @@ def unit_for(m, source_key: str) -> str:
 
 def builder_measures() -> dict[str, Measure]:
     """Every measure a widget may pick: the shared module's offered ones, the positions ones, and
-    (wave 9) the routine and tracker history ones, (wave 10) the options strategies ones, and the
-    shared measures widened to options strategies. No key may shadow another."""
+    (wave 9) the routine and tracker history ones, (wave 10) the options strategies ones, the
+    shared measures widened to options strategies, and the notes ones. No key may shadow another."""
     out = {k: m for k, m in MEASURES.items() if m.sources}
     for k in OPTION_WIDENED:
         out[k] = dataclasses.replace(out[k], sources=out[k].sources | _OPT)
     for group, extra in (("position", POSITION_MEASURES), ("routine", ROUTINE_MEASURES),
-                         ("tracker", TRACKER_MEASURES), ("strategy", STRATEGY_MEASURES)):
+                         ("tracker", TRACKER_MEASURES), ("strategy", STRATEGY_MEASURES),
+                         ("note", NOTE_MEASURES)):
         for k, m in extra.items():
             assert k not in out, f"{group} measure {k} shadows another measure"
             out[k] = m

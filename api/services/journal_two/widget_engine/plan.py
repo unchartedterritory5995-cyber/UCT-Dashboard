@@ -548,8 +548,13 @@ def _formula_ref(name: Any, compiled: dict) -> Any:
 _FORMULA_OPS = {"number": OPS_NUMBER, "text": OPS_ENUM, "bool": OPS_BOOL}
 
 
+#: Task 10.7: a member's note property id is `uuid.uuid4().hex` (`note_properties.
+#: create_property_def` mints it), 32 lowercase hex characters; the dashed form is accepted too.
+_PROP_ID_RE = re.compile(r"[0-9a-f]{32}|" + _UUID_RE.pattern)
+
+
 def _check_prop(prop: Any, sentence: str) -> str:
-    if not isinstance(prop, str) or not _UUID_RE.fullmatch(prop):
+    if not isinstance(prop, str) or not _PROP_ID_RE.fullmatch(prop):
         raise PlanError(sentence)
     return prop
 
@@ -615,6 +620,12 @@ def _check_filter_values(op: str, ftype: str | None, values: list) -> None:
     elif op == "between" or op in _COMPARE_OPS:
         if ftype == "day":
             ok = all(_fits("day", v) for v in values)
+        elif ftype is None and op == "eq":
+            # Task 10.7: an untyped field (the note-property field, whose type is the named
+            # property's) may equal a text, a number or a yes / no; the authority checks the type
+            ok = isinstance(values[0], (str, bool)) or _is_number(values[0])
+        elif ftype is None and all(_fits("day", v) for v in values):
+            ok = True                         # an untyped field may also compare dates
         else:
             ok = ftype in (None, "number") and all(_is_number(v) for v in values)
     else:
