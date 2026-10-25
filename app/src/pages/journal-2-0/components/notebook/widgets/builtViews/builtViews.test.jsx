@@ -13,7 +13,7 @@ import ScatterView from './ScatterView'
 import CompareView, { changeText } from './CompareView'
 import ProgressView from './ProgressView'
 import { widgetEmbedNode } from '../../../../lib/notebookWidgets'
-import { fmtValue, countText, compactValue, tableModelOf, quadrantOf } from './builtModel'
+import { fmtValue, countText, compactValue, tableModelOf, quadrantOf, shareText } from './builtModel'
 import { W, TAP, textW, FLIP_PX, SETTLE_MS, SEEN_MS, TRAIL_MAX } from './svg'
 import NumberView from './NumberView'
 import TableAlt from './TableAlt'
@@ -1082,7 +1082,7 @@ const withoutW10 = (p) => {
   }
   return out
 }
-const VIEW_OF = { number: NumberView, progress: ProgressView, line: LineView, scatter: ScatterView }
+const VIEW_OF = { number: NumberView, progress: ProgressView, line: LineView, scatter: ScatterView, compare: CompareView, bar: BarView }
 /** React's useId values depend on how many ids were made before, so a page's ids are normalised. */
 const htmlOf = (node) => node.innerHTML
   .replace(/_r_[0-9a-z]+_|«r[0-9a-z]+»|:r[0-9a-z]+:/g, 'ID')
@@ -1367,6 +1367,79 @@ describe('wave 10 keys in the built views (Task 10.18)', () => {
     // the scatter's R axes read in R
     const r = render(<ScatterView params={W10.scatter_excursion} />)
     expect(r.container.querySelector('[data-axis="max"]').textContent).toBe(fmtValue(2.5, 'r'))
+  })
+
+  // ── fix round 1 ─────────────────────────────────────────────────────────────────────────────────────────
+
+  it('compare_drawdown_span_sentence (I-1, W10-R11): the dates under the current-period figure, verbatim', () => {
+    const p = W10.compare_drawdown
+    expect(p.view).toBe('compare')
+    const r = render(<CompareView params={p} onDrill={() => {}} />)
+    const metrics = r.container.querySelectorAll('[class*="_metric_"]')
+    expect(metrics.length).toBe(2)
+    expect(within(metrics[0]).getByTestId('built-number-drawdown').textContent).toBe(p.drawdown.line)
+    expect(p.drawdown.line).toBe('From Mar 2 to Mar 4; not recovered yet.')
+    expect(within(metrics[1]).queryByTestId('built-number-drawdown')).toBeNull()
+    // it sits after the comparison, under the current figure, never inside the drill mark's own name
+    const mark = metrics[0].querySelector('[data-built-cell]')
+    expect(mark.contains(within(metrics[0]).getByTestId('built-number-drawdown'))).toBe(false)
+    r.unmount()
+    // without the key (wave 10 off) nothing is drawn; shared, the keys are never read (the public rail covers it)
+    const q = render(<CompareView params={withoutW10(p)} />)
+    expect(q.container.querySelector('[data-testid="built-number-drawdown"]')).toBeNull()
+    q.unmount()
+    const sh = render(<CompareView params={{ ...p, share: true }} />)
+    expect(sh.container.querySelector('[data-testid="built-number-drawdown"]')).toBeNull()
+  })
+
+  it('stop_after_line on every view (m2), in the server\'s words, and in its danger ink at the rule (m4, k = N)', () => {
+    const toneOfNote = (el) => /_dn_/.test(el.className)
+    // number and compare: under the current_streak figure
+    let r = render(<CompareView params={W10.compare_stop} />)
+    let note = r.container.querySelector('[data-testid="built-number-stop"]')
+    expect(note.textContent).toBe(W10.compare_stop.stop.line)
+    expect(W10.compare_stop.stop).toEqual({ after: 2, losses: 2, line: '2 of your 2 losses in a row. Your rule says stop here.' })
+    expect(toneOfNote(note)).toBe(true)                                      // k = N: at the rule
+    r.unmount()
+    for (const [name, at] of [['stop_hit', true], ['stop_under', false], ['stop_none', false]]) {
+      r = render(<NumberView params={W10[name]} />)
+      expect(toneOfNote(r.container.querySelector('[data-testid="built-number-stop"]')), name).toBe(at)
+      r.unmount()
+    }
+    // any other view (here a bar by setup): the placed widget says it once, under the body
+    const bar = W10.bar_stop
+    expect(bar.view).toBe('bar')
+    r = render(<BuiltWidgetEmbed attrs={{ ...widgetEmbedNode('builtWidget', bar).attrs, params: bar }} editable onUpdateParams={() => true} />)
+    expect(screen.getAllByText(bar.stop.line).length).toBe(1)
+    expect(screen.getByTestId('built-stop-note').textContent).toBe('2 of your 3 losses in a row')
+    expect(toneOfNote(screen.getByTestId('built-stop-note'))).toBe(false)    // 2 of 3: under the rule
+    // Show as table: a bar's table has no stop column, so the line stays under it, once
+    fireEvent.click(screen.getByRole('button', { name: /show as table/i }))
+    expect(screen.getAllByText(bar.stop.line).length).toBe(1)
+    r.unmount()
+    // a compare view draws it itself, so the placed widget does not repeat it; its table carries it as a column
+    const cmp = W10.compare_stop
+    r = render(<BuiltWidgetEmbed attrs={{ ...widgetEmbedNode('builtWidget', cmp).attrs, params: cmp }} editable onUpdateParams={() => true} />)
+    expect(screen.getAllByText(cmp.stop.line).length).toBe(1)
+    expect(screen.queryByTestId('built-stop-note')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /show as table/i }))
+    expect(screen.getAllByText(cmp.stop.line).length).toBe(1)
+    expect(screen.queryByTestId('built-stop-note')).toBeNull()
+    r.unmount()
+    // shared: nothing (W10-R7)
+    r = render(<BuiltWidgetEmbed attrs={{ ...widgetEmbedNode('builtWidget', bar).attrs, params: { ...bar, share: true } }} />)
+    expect(screen.queryByText(bar.stop.line)).toBeNull()
+  })
+
+  it('a nonzero share of a goal never reads 0% (m5)', () => {
+    expect(shareText(3, 1000)).toBe('<1%')
+    expect(shareText(-3, 1000)).toBe('>-1%')
+    expect(shareText(0, 1000)).toBe('0%')                                   // a true zero is a zero
+    expect(shareText(5, 1000)).toBe('1%')
+    expect(shareText(null, 1000)).toBe('')
+    const p = { ...W10.progress_goal, value: { ...W10.progress_goal.value, v1: 3 } }
+    render(<ProgressView params={p} />)
+    expect(within(screen.getByTestId('built-progress-view')).getByText('<1%')).toBeInTheDocument()
   })
 
   it('public_payload_without_keys_unchanged', () => {

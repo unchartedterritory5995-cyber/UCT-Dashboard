@@ -185,11 +185,33 @@ export function w10Of(p) {
   const label = typeof p.targetLabel === 'string' && p.targetLabel ? p.targetLabel : null
   return {
     drawdown: sentence(p.drawdown),
-    stop: isRecord(p.stop) ? { line: sentence(p.stop), hit: finite(p.stop.losses) && finite(p.stop.after) && p.stop.losses >= p.stop.after } : null,
+    stop: isRecord(p.stop) ? { line: sentence(p.stop), atRule: stopAtRule(p.stop) } : null,
     goal: view === 'progress' && label ? { label, target: finite(p.target) && p.target > 0 ? p.target : null } : null,
     quadrants: view === 'scatter' && p.quadrants === 'excursion',
     cumulative: view === 'line' && Array.isArray(p.series) && p.series.some((r) => isRecord(r) && Object.hasOwn(r, 'dd1')),
   }
+}
+
+/** Is the streak at the member's stop-after rule? The payload sends no flag, so this reads the SAME two fields the
+ *  server's sentence is chosen from, by the same test: it mirrors widget_engine/payload.py `_stop`,
+ *  `tmpl = S_STOP_HIT if k >= after else S_STOP_UNDER` ("... Your rule says stop here."). */
+function stopAtRule(stop) {
+  return finite(stop.losses) && finite(stop.after) && stop.losses >= stop.after
+}
+
+/** The views that draw the stop-after line themselves, under their `current_streak` figure (NumberView, CompareView).
+ *  Every other view's placed widget says it once under the body (BuiltWidgetEmbed). */
+export const VIEWS_WITH_STOP = new Set(['number', 'compare'])
+
+/** The server's sentences a figure view puts under one of its figures, each `{slot, id, text, atRule}`: a max
+ *  drawdown's dates under the plan's `max_drawdown` and the stop-after line under its `current_streak`. A slot of -1
+ *  (no plan in the note, or the plan does not measure it) puts the line after the figures. */
+export function figureNotesOf(p) {
+  const w = w10Of(p)
+  return [
+    w.drawdown && { slot: measureSlotOf(p, 'max_drawdown'), id: 'built-number-drawdown', text: w.drawdown, atRule: false },
+    w.stop?.line && { slot: measureSlotOf(p, 'current_streak'), id: 'built-number-stop', text: w.stop.line, atRule: w.stop.atRule },
+  ].filter(Boolean)
 }
 
 /** The slot (0-based) of the plan's measure `key` (the frozen plan's measure list is the payload's, in order); -1 when
@@ -201,9 +223,13 @@ export function measureSlotOf(p, key) {
 
 /** A goal amount reads unsigned ("$1,000.00"): a goal is a size, not a gain. */
 export const goalText = (target, fmt) => fmtValue(target, fmt === 'money' ? 'money_plain' : fmt)
-/** "30%" of a target, or '' when either is unknown (never "0%" for an unknown). */
-export const shareText = (value, target) => (finite(value) && finite(target) && target
-  ? `${Math.round((value / target) * 100)}%` : '')
+/** "30%" of a target, or '' when either is unknown (never "0%" for an unknown). A share that is not zero but rounds
+ *  to it reads "<1%" (">-1%" below zero), compactValue's rule: real progress never reads as none. */
+export const shareText = (value, target) => {
+  if (!finite(value) || !finite(target) || !target) return ''
+  const r = Math.round((value / target) * 100)
+  return r === 0 && value !== 0 ? (value / target < 0 ? '>-1%' : '<1%') : `${r}%`
+}
 
 /** The server's notice a Progress view shows in place of its bar: a goal widget whose member set no goal. null when
  *  the view draws a bar (or the wave 8 view), so the placed widget says the notice under the body instead. */
@@ -233,6 +259,8 @@ const dayText = (d) => (typeof d === 'string' ? d.slice(0, 10) : '')
 const isNum = (v) => v === null || finite(v)
 const RESULT = { win: 'Win', loss: 'Loss', be: 'Breakeven' }
 const TOTAL_VIEWS = new Set(['number', 'compare', 'progress'])
+/** Show as table carries the stop-after line as a column only for a total (one row: the line is about it). */
+export const tableCarriesStop = (view) => TOTAL_VIEWS.has(view)
 const plain = (text) => ({ text, small: false, hidden: false })
 
 /** The cell a drill asks the server for (drill.clean_cell): `{}` for a total, `{label}` / `{label, label2}` for a
@@ -306,7 +334,7 @@ export function tableModelOf(raw) {
   const nameOf = (m, i) => m.label || `Measure ${i + 1}`
   const extras = []
   if (total && w10.drawdown) extras.push({ key: 'dd', label: 'Drawdown dates', cell: () => plain(w10.drawdown) })
-  if (total && w10.stop?.line) extras.push({ key: 'stop', label: 'Stop after', cell: () => plain(w10.stop.line) })
+  if (tableCarriesStop(view) && w10.stop?.line) extras.push({ key: 'stop', label: 'Stop after', cell: () => plain(w10.stop.line) })
   if (total && w10.goal) {
     const g = w10.goal
     // with no goal set the cell is "no data": the server's notice is said once, under the table (BuiltWidgetEmbed)

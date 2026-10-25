@@ -1,6 +1,6 @@
 import { measuresOf, countText, ADD_STOPS_HREF } from './builtModel'
 import styles from './builtViews.module.css'
-import { snapshotStyles as s } from '../SnapshotFrame'
+import { snapshotStyles as s, toneOf } from '../SnapshotFrame'
 
 /**
  * Built widgets (wave 8, Task 8.14): the counts a member reads a figure by. Every average or rate says what it
@@ -57,4 +57,22 @@ export function Footnotes({ params }) {
       {list.map((f, i) => <li key={`f${i}`}>{f}</li>)}
     </ul>
   )
+}
+
+/** Wave 10 (Task 10.18): one server sentence under a figure (`figureNotesOf`), verbatim. A stop-after line at the
+ *  member's rule takes the danger ink (D-A4); its own words say "stop here", so the colour is never alone. */
+export function FigureNote({ note, testId }) {
+  return (
+    <span className={`${styles.metricNote} ${note.atRule ? toneOf(-1) : ''}`} data-testid={testId || note.id}>
+      {note.text}
+    </span>
+  )
+}
+
+/** A figure view's notes: those for `slot`, or with `slot` omitted, the ones no figure holds (after the figures). */
+export function FigureNotes({ notes, slot, count }) {
+  const mine = notes.filter((n) => (slot === undefined ? n.slot < 0 || n.slot >= count : n.slot === slot))
+  if (!mine.length) return null
+  if (slot === undefined) return <div className={styles.metric}>{mine.map((n) => <FigureNote key={n.id} note={n} />)}</div>
+  return mine.map((n) => <FigureNote key={n.id} note={n} />)
 }

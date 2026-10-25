@@ -10,10 +10,13 @@
 //   * built-progress-goal        -- a goal widget: "Weekly goal: $1,000.00" and the share;
 //   * built-progress-goal-missing -- the placed widget with no goal set: the server's notice in place of the bar;
 //   * built-scatter-quadrants    -- MAE vs MFE with its 1R guides and quadrant captions, at 600 and at 340 px;
-//   * built-table-alt-w10        -- "Show as table" for each, carrying every new key as columns.
+//   * built-table-alt-w10        -- "Show as table" for each, carrying every new key as columns;
+//   * built-compare-drawdown     -- (fix round 1, I-1) a compare view with the drawdown dates under its figure;
+//   * built-stop-note-embed      -- (fix round 1, m2) a placed bar widget saying the stop-after line under its body.
 import { fireEvent, render, screen } from '@testing-library/react'
 import { axeSurface } from './surface'
 import BuiltWidgetEmbed from '../components/notebook/widgets/BuiltWidgetEmbed'
+import CompareView from '../components/notebook/widgets/builtViews/CompareView'
 import LineView from '../components/notebook/widgets/builtViews/LineView'
 import NumberView from '../components/notebook/widgets/builtViews/NumberView'
 import ProgressView from '../components/notebook/widgets/builtViews/ProgressView'
@@ -77,6 +80,21 @@ describe('wave 10 Task 10.18 surfaces (built widget views)', () => {
     )
     expect(container.querySelectorAll('[data-guide]').length).toBe(4)
     expect(container.querySelectorAll('[data-quadrant]').length).toBeGreaterThan(0)
+    return { root: container }
+  })
+
+  axeSurface('built-compare-drawdown', async () => {
+    const { container } = render(<CompareView params={W10.compare_drawdown} onDrill={drill} />)
+    expect(screen.getByTestId('built-number-drawdown').textContent).toBe(W10.compare_drawdown.drawdown.line)
+    return { root: container }
+  })
+
+  axeSurface('built-stop-note-embed', async () => {
+    const bar = W10.bar_stop
+    const { container } = render(
+      <BuiltWidgetEmbed attrs={{ ...widgetEmbedNode('builtWidget', bar).attrs, params: bar }} editable onUpdateParams={() => true} />,
+    )
+    expect(screen.getByTestId('built-stop-note').textContent).toBe(bar.stop.line)
     return { root: container }
   })
 

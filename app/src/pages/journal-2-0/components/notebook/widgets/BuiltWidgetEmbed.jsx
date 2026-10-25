@@ -18,8 +18,8 @@ import ListView from './builtViews/ListView'
 import ProgressView from './builtViews/ProgressView'
 import DrillPanel from './builtViews/DrillPanel'
 import HowMadeSheet, { UPDATED_VERSION } from './builtViews/HowMadeSheet'
-import { CoverageNote, Footnotes } from './builtViews/Counts'
-import { LOG_TRADE_HREF, progressNoticeOf } from './builtViews/builtModel'
+import { CoverageNote, Footnotes, FigureNote } from './builtViews/Counts'
+import { LOG_TRADE_HREF, progressNoticeOf, w10Of, VIEWS_WITH_STOP, tableCarriesStop } from './builtViews/builtModel'
 import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import styles from './BuiltWidgetEmbed.module.css'
 
@@ -237,18 +237,31 @@ export default function BuiltWidgetEmbed({
 
   const View = VIEWS[view]
   let body
+  // Which body was drawn, recorded BY the branch that draws it (fix round 1, m3): what the body already says is read
+  // from this, never re-derived beside it.
+  let drawn
   if (empty) {
+    drawn = 'empty'
     body = (
       <p className={s.empty}>
         {empty}
         {p.sourceKey === 'closed_trades' && <>{' '}<a className={s.link} href={LOG_TRADE_HREF}>Log a trade</a></>}
       </p>
     )
-  } else if (asTable && canToggle) body = <TableAlt params={p} onDrill={onDrill} />
-  else body = <View params={p} onDrill={onDrill} width={chartWidth} />
-  // Wave 10 (Task 10.18): a goal widget with no goal shows the server's notice IN PLACE of its bar, so it is not
-  // said a second time under the body (Show as table puts it back here).
-  const noticeInBody = !empty && !(asTable && canToggle) && view === 'progress' && progressNoticeOf(p) !== null
+  } else if (asTable && canToggle) {
+    drawn = 'table'
+    body = <TableAlt params={p} onDrill={onDrill} />
+  } else {
+    drawn = 'view'
+    body = <View params={p} onDrill={onDrill} width={chartWidth} />
+  }
+  // Wave 10 (Task 10.18): each server sentence is said ONCE. A goal widget with no goal shows its notice in place of
+  // the bar; a number or compare view puts the stop-after line under its figure, and their table carries it as a
+  // column. Whatever the drawn body did not say is said here, under it.
+  const noticeInBody = drawn === 'view' && view === 'progress' && progressNoticeOf(p) !== null
+  const stop = w10Of(p).stop
+  const stopInBody = (drawn === 'view' && VIEWS_WITH_STOP.has(view)) || (drawn === 'table' && tableCarriesStop(view))
+  const stopNote = stop?.line && !stopInBody ? { id: 'built-stop-note', text: stop.line, atRule: stop.atRule } : null
 
   const menu = frame.editable && !shared && !shareView
     ? <BuiltMenu params={p} editor={editor} getPos={getPos} onApplyLatest={applyLatest} />
@@ -262,6 +275,7 @@ export default function BuiltWidgetEmbed({
           {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
           {body}
           {!empty && view !== 'number' && view !== 'compare' && view !== 'progress' && <CoverageNote params={p} />}
+          {stopNote && <FigureNote note={stopNote} />}
           {typeof p.notice === 'string' && p.notice && !noticeInBody && <p className={styles.notice}>{p.notice}</p>}
           {!empty && <Footnotes params={p} />}
           {canToggle && (

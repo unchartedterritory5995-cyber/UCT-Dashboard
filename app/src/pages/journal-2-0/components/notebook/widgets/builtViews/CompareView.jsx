@@ -1,6 +1,6 @@
-import { measuresOf, cellOf, fmtValue, cellSpeech, PF_CAP, SMALL_SAMPLE } from './builtModel'
+import { measuresOf, cellOf, fmtValue, cellSpeech, PF_CAP, SMALL_SAMPLE, figureNotesOf } from './builtModel'
 import { useCellGroup } from './cellGroup'
-import { CountLine } from './Counts'
+import { CountLine, FigureNotes } from './Counts'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s, toneOf } from '../SnapshotFrame'
 
@@ -11,6 +11,9 @@ import { snapshotStyles as s, toneOf } from '../SnapshotFrame'
  * change is worked out: a change against a missing number is not a number. Nor against a CAPPED one: a profit
  * factor at its cap ("5+") is "5 or more", so a difference from it is not known. A rate's change is in points
  * ("+5.0 pts"), never a percent of a percent.
+ * Wave 10 (Task 10.18 fix round 1, W10-R11): the server's own sentences go under the CURRENT-period figure,
+ * verbatim, as in NumberView (`figureNotesOf`): a max drawdown's dates and the stop-after line. A shared body
+ * (W10-R7) and a payload without the keys draw none.
  */
 
 /** The change from `then` to `now`, as text, or '' when it is not a number one can know. */
@@ -33,6 +36,7 @@ export default function CompareView({ params, onDrill }) {
   const vsLabel = typeof p.compareLabel === 'string' && p.compareLabel ? p.compareLabel : 'the period before'
   const group = useCellGroup()
   if (!measures.length) return <p className={s.empty}>{'This widget has nothing to show.'}</p>
+  const notes = figureNotesOf(p)
   return (
     <div className={styles.numbers} data-testid="built-compare-view" {...group.groupProps}>
       {measures.map((m, k) => {
@@ -73,9 +77,11 @@ export default function CompareView({ params, onDrill }) {
               </span>
             </span>
             {!now.hidden && <CountLine params={p} i={i} measure={m} />}
+            <FigureNotes notes={notes} slot={k} />
           </div>
         )
       })}
+      <FigureNotes notes={notes} count={measures.length} />
     </div>
   )
 }

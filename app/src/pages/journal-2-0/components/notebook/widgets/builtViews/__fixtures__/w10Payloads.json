@@ -1,4 +1,361 @@
 {
+ "bar_stop": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 3,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "from": "2026-03-01",
+    "to": "2026-03-31"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": {
+    "by": "setup",
+    "then": null
+   },
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "bar"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "Mar 1 to Mar 31, 2026",
+  "rows": [
+   {
+    "flagged": false,
+    "label": "Flag",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 1.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "Pullback",
+    "label2": null,
+    "n": 2,
+    "n1": 2,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": -2.0,
+    "v2": null,
+    "v3": null
+   }
+  ],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": {
+   "after": 3,
+   "line": "2 of your 3 losses in a row",
+   "losses": 2
+  },
+  "summary": "Current streak, split by setup, for closed trades from Mar 1 to Mar 31, 2026, all accounts. 3 trades.",
+  "title": "Current streak by setup, Mar 1 to Mar 31, 2026",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -2.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "bar"
+ },
+ "compare_drawdown": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": {
+   "n": 3,
+   "n1": 3,
+   "n2": 3,
+   "n3": null,
+   "s1": "",
+   "s2": "",
+   "s3": null,
+   "v1": -60.0,
+   "v2": 120.0,
+   "v3": null
+  },
+  "compareLabel": "Feb 1 to Feb 28, 2026",
+  "count": 4,
+  "coverage": [
+   {
+    "have": 4,
+    "hint": null,
+    "total": 4
+   },
+   {
+    "have": 4,
+    "hint": null,
+    "total": 4
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": {
+    "from": "2026-02-01",
+    "mode": "range",
+    "to": "2026-02-28"
+   },
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    },
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "from": "2026-03-01",
+    "to": "2026-03-31"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "compare"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "drawdown": {
+   "line": "From Mar 2 to Mar 4; not recovered yet.",
+   "peak": "2026-03-02",
+   "recovered": null,
+   "trough": "2026-03-04"
+  },
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   },
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "Mar 1 to Mar 31, 2026",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown and Net P&L for closed trades from Mar 1 to Mar 31, 2026, compared with Feb 1 to Feb 28, 2026, all accounts. 4 trades.",
+  "title": "Max drawdown and Net P&L, Mar 1 to Mar 31, 2026",
+  "truncated": 0,
+  "value": {
+   "n": 4,
+   "n1": 4,
+   "n2": 4,
+   "n3": null,
+   "s1": "",
+   "s2": "",
+   "s3": null,
+   "v1": -240.0,
+   "v2": 0.0,
+   "v3": null
+  },
+  "view": "compare"
+ },
+ "compare_stop": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 1.0,
+   "v2": null,
+   "v3": null
+  },
+  "compareLabel": "Feb 1 to Feb 28, 2026",
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": {
+    "from": "2026-02-01",
+    "mode": "range",
+    "to": "2026-02-28"
+   },
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 2,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "from": "2026-03-01",
+    "to": "2026-03-31"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "compare"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "Mar 1 to Mar 31, 2026",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": {
+   "after": 2,
+   "line": "2 of your 2 losses in a row. Your rule says stop here.",
+   "losses": 2
+  },
+  "summary": "Current streak for closed trades from Mar 1 to Mar 31, 2026, compared with Feb 1 to Feb 28, 2026, all accounts. 3 trades.",
+  "title": "Current streak, Mar 1 to Mar 31, 2026",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -2.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "compare"
+ },
  "formula_money_pct_count": {
   "accountId": null,
   "asOf": "2026-10-24T15:30:00Z",
