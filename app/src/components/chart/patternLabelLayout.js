@@ -31,6 +31,7 @@ export function patternLabelSpecs(v) {
   if (base) {
     add('base-pivot', span(base.start_t, base.end_t, base.pivot), base.label, 40)
     add('base-low', span(base.start_t, base.base_end_t ?? base.end_t, base.low), base.lowLabel, 0)
+    if (base.top != null) add('base-top', span(base.start_t, base.base_end_t ?? base.end_t, base.top), base.topLabel, 0)
   }
   if (shapeDraw) {
     add('shape-pivot', span(shapeDraw.pivot_from_t, shapeDraw.end_t, shapeDraw.pivot), shapeDraw.label, 40)

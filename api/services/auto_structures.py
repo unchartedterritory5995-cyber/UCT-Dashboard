@@ -3038,6 +3038,10 @@ def sr_served_prices(rows) -> list:
                 tl = (ex.get("metrics_textbook") or {}).get("line") if r.get("pattern_id") == BASE_DRAW_ID else None
                 if _finite(tl):
                     vals = list(vals) + [tl]
+                # a round-7 plain base whose line moved under its high also draws that high ("Base top X")
+                bd = ex.get("draw_base") if r.get("pattern_id") == BASE_DRAW_ID else None
+                if isinstance(bd, dict) and bd.get("top_label") and _finite(bd.get("ceiling_high")):
+                    vals = list(vals) + [bd["ceiling_high"]]
         except Exception:  # noqa: BLE001 -- a row whose lines cannot be read suppresses nothing (as the lab)
             continue
         for v in vals:

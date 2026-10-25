@@ -851,6 +851,11 @@ PIVOT_MIN_APART = 3
 #: c. containment: the ceiling counts only if no close after its first touch is more than PIVOT_CONTAIN_ATR ATR
 #: over the line (price already closed through it)
 PIVOT_CONTAIN_ATR = 0.25
+#: d. the buy zone, against the round-7 buy point: "buy_zone" up to PLAIN_ABOVE_BP over it, "extended" past that up
+#: to PIVOT_EXTENDED_MAX (the breakout state's own extended limit), nothing further out
+PIVOT_EXTENDED_MAX = 0.10
+#: the label of the old high, drawn as a faint reference ("Base top X") when the line moved under it; not a buy point
+TOP_LABEL = "base top"
 
 
 def plain_frame_start(i, lip):
@@ -1004,7 +1009,12 @@ def plain_drawing(bars, i, plain_round=None):
             pv = plain_pivot(b, lip, i, float(d["pivot"]), float(d["low"]), float(d["atr"]))
             if pv is None:
                 return None
-            d = dict(d, pivot=pv["pivot"], ceiling_high=float(d["pivot"]), plain_round=PLAIN_PIVOT_ROUND)
+            z = plain_pivot_zone(b, lip, i, pv["pivot"])
+            if z is None:
+                return None
+            d = dict(d, pivot=pv["pivot"], ceiling_high=float(d["pivot"]), plain_round=PLAIN_PIVOT_ROUND, **z)
+            if d["ceiling_high"] > d["pivot"]:
+                d["top_label"] = TOP_LABEL
         return d
     except Exception:  # noqa: BLE001 -- a drawing never raises
         return None
@@ -1057,6 +1067,30 @@ def pivot_ceiling(b, start, i, H, L, a):
             return {"line": line, "touches": [(int(b[k]["t"]), p) for p, k in mem], "max_close_after": mc,
                     "contained": mc <= line + PIVOT_CONTAIN_ATR * a}
     return None
+
+
+def plain_pivot_zone(b, lip, i, line):
+    """Round 7: where the as-of close sits against the round-7 buy point (the line rounded to cents, no +$0.10), or
+    None when round 7 does not draw there. {zone} is "below" (under the buy point, at most PLAIN_BELOW_BP under it),
+    "buy_zone" (0 to PLAIN_ABOVE_BP over it) or "extended" (over that, at most PIVOT_EXTENDED_MAX); a close over the
+    buy point also carries breakout_t, the first session of the current run of closes over it (the breakout
+    session). Round 6's own window (step 9) is measured from ITS buy point and is not re-read here."""
+    bp = round(line, 2)
+    if not bp > 0:
+        return None
+    c = [_f(x, "c") for x in b]
+    ci = c[i]
+    if ci < bp * (1.0 - PLAIN_BELOW_BP):
+        return None
+    if ci < bp:
+        return {"zone": "below"}
+    over = ci / bp - 1.0
+    if over > PIVOT_EXTENDED_MAX:
+        return None
+    m = i
+    while m - 1 > lip and c[m - 1] >= bp:
+        m -= 1
+    return {"zone": "buy_zone" if over <= PLAIN_ABOVE_BP else "extended", "breakout_t": int(b[m]["t"])}
 
 
 def plain_pivot(b, lip, i, H, L, a):

@@ -201,7 +201,15 @@ export function baseDrawing(d) {
         label: bd.label || 'pivot', lowLabel: bd.low_label || 'base low',
       }
   // a row without a state draws exactly what it drew before the states existed
-  return state ? { ...out, state, base_end_t: baseEnd } : out
+  if (state) return { ...out, state, base_end_t: baseEnd }
+  // a round-7 plain base whose buy line moved under its high draws that high as a faint reference
+  // ("Base top X", not a buy point): only with the server's `top_label` and a high above the drawn line
+  const top = Number(bd.ceiling_high)
+  if (bd.top_label && bd.ceiling_high != null && Number.isFinite(top) && top > out.pivot) {
+    const tl = String(bd.top_label)
+    return { ...out, top, topLabel: `${tl.charAt(0).toUpperCase()}${tl.slice(1)} ${top.toFixed(2)}` }
+  }
+  return out
 }
 
 /** The base STATES a bc:base row may carry (`draw_base.state`; the server serves each to a member only once
@@ -288,6 +296,7 @@ export function textbookMetricsLines(d) {
   if (m.stage != null && Number.isInteger(stage) && stage >= 1) first.push(`stage ${stage}`)
   const second = [`Buy zone to ${bz.toFixed(2)}`, `${signedPct(pfb)} from buy point`]
   if (m.extended === true) second.push('extended')
+  else if (d?.geometry?.extras?.draw_base?.zone === 'buy_zone') second.push('in buy zone')
   const lines = [first.join(' · '), second.join(' · ')]
   const vol = m.volume
   const vp = Number(vol?.vol_pct)
@@ -902,6 +911,7 @@ export default function PatternOverlay({
                   {level('base-pivot', base.pivot, base.label,
                     { extendRight: 40, dashed: forming, role: 'base-pivot' }, base.end_t)}
                   {level('base-low', base.low, base.lowLabel, { dashed: true, role: 'base-low' })}
+                  {base.top != null && level('base-top', base.top, base.topLabel, { faint: true, role: 'base-top' })}
                 </g>
               )
             })()}

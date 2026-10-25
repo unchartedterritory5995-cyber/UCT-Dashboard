@@ -187,9 +187,10 @@ def test_the_port_constants_are_the_prototype_defaults():
         BD.PIVOT_REV_ATR, BD.PIVOT_SWING_K, BD.PIVOT_MIN_APART, BD.PIVOT_PRE_BARS, BD.PIVOT_CONTAIN_ATR)
 
 
-def _spiked(seed, depth, x):
+def _spiked(seed, depth, x, lift=None):
     """A textbook base whose left-side bar becomes a gap-up-and-reverse candle x ATR over the old high (its body top
-    0.9 ATR under the new high, so round 6's lone-wick floor still passes)."""
+    0.9 ATR under the new high, so round 6's lone-wick floor still passes). `lift`: the as-of close is moved to
+    `lift` x round 6's buy point (inside round 6's window), so round 7 can read it in or past its own zone."""
     b = textbook(seed=seed, base_len=60 + (seed % 5) * 8, depth=depth, end_below=0.0, noise=0.012)
     i = len(b) - 1
     d0 = BD.plain_geometry(b, i)
@@ -202,6 +203,10 @@ def _spiked(seed, depth, x):
     bar["h"] = round(nh, 4)
     bar["o"] = round(nh - 0.9 * a, 4)
     bar["c"] = round(bar["l"] + 0.1 * (nh - bar["l"]), 4)
+    if lift is not None:
+        last = b[i]
+        last["c"] = round(round(nh + 0.10, 2) * lift, 4)
+        last["h"] = max(last["h"], last["c"])
     return b
 
 
@@ -236,26 +241,148 @@ def test_the_port_matches_the_prototype_on_arbitrary_windows():
     assert all(v >= 5 for v in seen.values()), seen
 
 
+#: the spiked-base sweep: seeds x depth x spike size x as-of close (as is, or lifted to 1.045 x round 6's buy point)
+_SWEEP = [(s, depth, x, lift) for s in range(40) for depth in (0.10, 0.18) for x in (1.2, 2.2, 4.0)
+          for lift in (None, 1.045)]
+
+
+def _expect_zone(b, line):
+    """An independent statement of the round-7 buy zone: the close against round(line, 2), no +$0.10."""
+    bp = round(line, 2)
+    c = [x["c"] for x in b]
+    ci = c[-1]
+    if ci < bp * 0.95:
+        return None
+    if ci < bp:
+        return {"zone": "below"}
+    over = ci / bp - 1.0
+    if over > 0.10:
+        return None
+    m = len(b) - 1
+    while c[m - 1] >= bp:
+        m -= 1
+    return {"zone": "buy_zone" if over <= 0.05 else "extended", "breakout_t": b[m]["t"]}
+
+
+def _round6_zone(b, line):
+    """Round 6's own reading of the same close: against line + $0.10 (it draws only within 5% of it)."""
+    bp = round(line + 0.10, 2)
+    return "below" if b[-1]["c"] < bp else "buy_zone"
+
+
 def test_round_7_end_to_end_matches_the_prototype_on_spiked_bases():
-    """plain_drawing(round 7) is round 6's drawing with the prototype's line, plain_round 7 and ceiling_high = the
-    round-6 line -- on every spiked base, and the line actually moves on many of them."""
-    moved = drawn = 0
-    for s in range(40):
-        for depth in (0.10, 0.18):
-            for x in (1.2, 2.2):
-                b = _spiked(s, depth, x)
-                i = len(b) - 1
-                r6 = BD.plain_drawing(b, i)
-                r7 = BD.plain_drawing(b, i, plain_round=BD.PLAIN_PIVOT_ROUND)
-                if r6 is None:
-                    assert r7 is None
-                    continue
-                drawn += 1
-                lip = [y["t"] for y in b].index(r6["start_t"])
-                want = _lab_pivot(b, lip, i, H=r6["pivot"], L=r6["low"])["pivot"]
-                assert r7 == dict(r6, pivot=want, ceiling_high=r6["pivot"], plain_round=BD.PLAIN_PIVOT_ROUND)
-                moved += r7["pivot"] != r6["pivot"]
-    assert drawn >= 60 and moved >= 30, (drawn, moved)
+    """plain_drawing(round 7) is round 6's drawing with the prototype's line, plain_round 7, ceiling_high = the round-6
+    line, the buy zone measured against the round-7 buy point, and top_label when the line moved -- or nothing, when
+    the close sits outside round 7's zone. The sweep must move lines, change zones and drop at least one chart."""
+    moved = drawn = changed = dropped = 0
+    for s, depth, x, lift in _SWEEP:
+        b = _spiked(s, depth, x, lift)
+        i = len(b) - 1
+        r6 = BD.plain_drawing(b, i)
+        r7 = BD.plain_drawing(b, i, plain_round=BD.PLAIN_PIVOT_ROUND)
+        if r6 is None:
+            assert r7 is None
+            continue
+        drawn += 1
+        lip = [y["t"] for y in b].index(r6["start_t"])
+        want = _lab_pivot(b, lip, i, H=r6["pivot"], L=r6["low"])["pivot"]
+        z = _expect_zone(b, want)
+        if z is None:
+            assert r7 is None
+            dropped += 1
+            continue
+        exp = dict(r6, pivot=want, ceiling_high=r6["pivot"], plain_round=BD.PLAIN_PIVOT_ROUND, **z)
+        if want < r6["pivot"]:
+            exp["top_label"] = "base top"
+        assert r7 == exp
+        moved += r7["pivot"] != r6["pivot"]
+        changed += z["zone"] != _round6_zone(b, r6["pivot"])
+    assert drawn >= 200 and moved >= 100 and changed >= 50 and dropped >= 20, (drawn, moved, changed, dropped)
+
+
+# ------------------------------------------------------------------ the round-7 buy zone
+def _zone_bars(last_closes, line=101.0):
+    """A hand-built base whose closes before the as-of tail sit under `line`, then `last_closes`."""
+    b = _build(_default_highs())
+    for k, cl in enumerate(last_closes):
+        j = len(b) - len(last_closes) + k
+        b[j].update(c=cl, h=max(b[j]["h"], cl), l=min(b[j]["l"], cl))
+    return b
+
+
+@pytest.mark.parametrize("closes,zone,run", [
+    ([100.5], "below", None),
+    ([101.5, 100.0, 102.0, 103.0], "buy_zone", 1),    # the current run of closes over 101.00 starts one bar back
+    ([106.5], "extended", 0),                         # 5.4% over
+    ([96.5], "below", None),                          # 4.5% under: still drawn
+])
+def test_the_buy_zone_is_read_against_the_round_7_buy_point(closes, zone, run):
+    b = _zone_bars(closes)
+    i = len(b) - 1
+    z = BD.plain_pivot_zone(b, LIP, i, 101.0)
+    assert z["zone"] == zone
+    if run is None:
+        assert "breakout_t" not in z
+    else:
+        assert z["breakout_t"] == b[i - run]["t"]
+
+
+@pytest.mark.parametrize("close", [95.5, 111.5])   # 5.4% under / 10.4% over the round-7 buy point
+def test_round_7_draws_nothing_outside_its_zone(close):
+    b = _zone_bars([close])
+    assert BD.plain_pivot_zone(b, LIP, len(b) - 1, 101.0) is None
+
+
+def test_the_zone_is_measured_without_the_dime():
+    # 101.05: over the round-7 buy point 101.00, still under round 6's 101.10
+    b = _zone_bars([101.05])
+    assert BD.plain_pivot_zone(b, LIP, len(b) - 1, 101.0)["zone"] == "buy_zone"
+    assert BD.plain_pivot_zone(b, LIP, len(b) - 1, 101.004)["zone"] == "buy_zone"     # rounded to cents first
+
+
+def _row_with_zone(zone):
+    for s, depth, x, lift in _SWEEP:
+        b = _spiked(s, depth, x, lift)
+        d = BD.plain_drawing(b, len(b) - 1, plain_round=BD.PLAIN_PIVOT_ROUND)
+        if d is not None and d["zone"] == zone and d["pivot"] < d["ceiling_high"]:
+            return b, base_metrics.with_metrics([AS._base_row("SYN", d, BD.BASE_DRAW_ROUND)], b)[0]
+    raise AssertionError("no %s row in the sweep" % zone)
+
+
+def test_a_round_7_row_in_its_buy_zone_reads_its_breakout_session():
+    b, row = _row_with_zone("buy_zone")
+    d = row["geometry"]["extras"]["draw_base"]
+    m = TN.compute(row, b, asof_complete=lambda t: True)
+    assert m["extended"] is False and 0.0 <= m["pct_from_buy_point"] <= 5.0
+    bo = [x["t"] for x in b].index(d["breakout_t"])
+    assert b[bo]["c"] >= m["buy_point"] and (bo == 0 or b[bo - 1]["c"] < m["buy_point"])
+
+
+def test_a_round_7_row_past_its_buy_zone_is_extended():
+    b, row = _row_with_zone("extended")
+    m = TN.compute(row, b, asof_complete=lambda t: True)
+    assert m["extended"] is True and m["pct_from_buy_point"] > 5.0
+
+
+# ------------------------------------------------------------------ the faint base top
+def test_a_moved_round_7_line_carries_the_base_top_and_an_unmoved_one_does_not():
+    b = _moved_base()
+    d = BD.plain_drawing(b, len(b) - 1, plain_round=BD.PLAIN_PIVOT_ROUND)
+    assert d["top_label"] == "base top" and d["ceiling_high"] > d["pivot"]
+    b0 = textbook()
+    d0 = BD.plain_drawing(b0, len(b0) - 1, plain_round=BD.PLAIN_PIVOT_ROUND)
+    assert d0 is not None and d0["ceiling_high"] == d0["pivot"] and "top_label" not in d0
+    assert "top_label" not in BD.plain_drawing(b, len(b) - 1)                     # round 6: never
+
+
+def test_the_base_top_is_a_drawn_price_but_never_a_breakout_line():
+    b = _moved_base()
+    row = _row(b, BD.PLAIN_PIVOT_ROUND)
+    row["display_tier"] = "trusted"
+    d = row["geometry"]["extras"]["draw_base"]
+    prices = AS.sr_served_prices([row])
+    assert round(d["ceiling_high"], 4) in prices
+    assert all(p != d["ceiling_high"] for p, _s, _e in AS._breakout_lines(row))
 
 
 # ------------------------------------------------------------------ label: no dime
