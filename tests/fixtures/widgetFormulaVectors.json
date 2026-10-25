@@ -34,6 +34,9 @@
   "SHOWN_MAX": 20,
   "BUCKET_PLACES_MAX": 4
  },
+ "engine_constants": {
+  "SCAN_ROWS": 5000
+ },
  "functions": [
   "If",
   "And",
