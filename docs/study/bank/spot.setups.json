@@ -13322,5 +13322,1665 @@
   "sym": "LI",
   "type": "spot",
   "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-12-27",
+  "bars": {
+   "asof": "2022-12-27",
+   "forward": 20,
+   "sym": "TCOM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_6d84155bcbd1",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 5.9% 18 sessions earlier; the trigger day gapped only 2.68%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2022-12-27",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TCOM"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 148.6,
+    "close_pos": 0.91,
+    "close_pos_pct": 91,
+    "day_pct": 4.32,
+    "drive_pct": 38.7,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 18,
+     "day_pct": 9.4,
+     "gap_pct": 5.9
+    },
+    "fwd_10d_pct": 3.0,
+    "fwd_20d_pct": 13.0,
+    "fwd_5d_pct": 7.5,
+    "fwd_max_gain_pct": 13.0,
+    "fwd_min_low_vs_trigger_low_pct": -0.6,
+    "gap_pct": 2.68,
+    "known_name": false,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -7.1,
+    "pullback_range_atr": 1.85,
+    "pullback_rvol_max": 1.51,
+    "pullback_sessions": 6,
+    "rally": {
+     "bars_ago": 7,
+     "peak_high": 35.99,
+     "rally_pct": 38.7
+    },
+    "range_atr": 1.18,
+    "rvol": 1.3,
+    "s50_slope10_pct": 5.4,
+    "setup_score": 17,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.32,
+    "tight_pullback": true,
+    "trigger_gap_pct": 2.68,
+    "trigger_vs_peak_pct": -1.5,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.44
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#TCOM#2022-12-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#TCOM#2022-12-27",
+  "sym": "TCOM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-06-04",
+  "bars": {
+   "asof": "2026-06-04",
+   "forward": 20,
+   "sym": "HAE",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9605966c65cc",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 8.4% 19 sessions earlier; the trigger day gapped only 1.75%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2026-06-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HAE"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 53.9,
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "day_pct": 6.03,
+    "drive_pct": 30.8,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 19,
+     "day_pct": 3.2,
+     "gap_pct": 8.4
+    },
+    "fwd_10d_pct": 6.2,
+    "fwd_20d_pct": 7.4,
+    "fwd_5d_pct": 14.3,
+    "fwd_max_gain_pct": 17.4,
+    "fwd_min_low_vs_trigger_low_pct": 4.8,
+    "gap_pct": 1.75,
+    "known_name": false,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -5.2,
+    "pullback_range_atr": 1.4,
+    "pullback_rvol_max": 1.17,
+    "pullback_sessions": 4,
+    "rally": {
+     "bars_ago": 5,
+     "peak_high": 68.33,
+     "rally_pct": 30.8
+    },
+    "range_atr": 1.41,
+    "rvol": 1.51,
+    "s50_slope10_pct": 2.0,
+    "setup_score": 17,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 6.03,
+    "tight_pullback": true,
+    "trigger_gap_pct": 1.75,
+    "trigger_vs_peak_pct": 2.2,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -0.48
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#HAE#2026-06-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#HAE#2026-06-04",
+  "sym": "HAE",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-04-30",
+  "bars": {
+   "asof": "2026-04-30",
+   "forward": 20,
+   "sym": "TXN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2a945808cb5a",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 10.2% 5 sessions earlier; the trigger day gapped only 0.38%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2026-04-30",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TXN"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 1514.4,
+    "close_pos": 0.95,
+    "close_pos_pct": 95,
+    "day_pct": 4.41,
+    "drive_pct": 47.7,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 5,
+     "day_pct": 19.4,
+     "gap_pct": 10.2
+    },
+    "fwd_10d_pct": 9.6,
+    "fwd_20d_pct": 8.8,
+    "fwd_5d_pct": 1.5,
+    "fwd_max_gain_pct": 17.9,
+    "fwd_min_low_vs_trigger_low_pct": 3.5,
+    "gap_pct": 0.38,
+    "known_name": true,
+    "labels": [
+     "v2_run_20in5",
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -8.2,
+    "pullback_range_atr": 1.3,
+    "pullback_rvol_max": 1.41,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 287.83,
+     "rally_pct": 47.7
+    },
+    "range_atr": 1.58,
+    "rvol": 1.57,
+    "s50_slope10_pct": 2.8,
+    "setup_score": 16,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.41,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.38,
+    "trigger_vs_peak_pct": -2.3,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.42
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#TXN#2026-04-30",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#TXN#2026-04-30",
+  "sym": "TXN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-11-15",
+  "bars": {
+   "asof": "2023-11-15",
+   "forward": 20,
+   "sym": "COIN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8cac4e2fe4a9",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 5.2% 4 sessions earlier; the trigger day gapped only 1.99%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-11-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "COIN"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 933.8,
+    "close_pos": 0.72,
+    "close_pos_pct": 72,
+    "day_pct": 6.58,
+    "drive_pct": 41.0,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 4,
+     "day_pct": 5.1,
+     "gap_pct": 5.2
+    },
+    "fwd_10d_pct": 27.1,
+    "fwd_20d_pct": 56.5,
+    "fwd_5d_pct": 11.3,
+    "fwd_max_gain_pct": 57.7,
+    "fwd_min_low_vs_trigger_low_pct": 1.5,
+    "gap_pct": 1.99,
+    "known_name": true,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -11.2,
+    "pullback_range_atr": 1.38,
+    "pullback_rvol_max": 1.24,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 99.82,
+     "rally_pct": 41.0
+    },
+    "range_atr": 1.29,
+    "rvol": 1.46,
+    "s50_slope10_pct": 2.7,
+    "setup_score": 15,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 6.58,
+    "tight_pullback": true,
+    "trigger_gap_pct": 1.99,
+    "trigger_vs_peak_pct": -1.7,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.97
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#COIN#2023-11-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#COIN#2023-11-15",
+  "sym": "COIN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-10-03",
+  "bars": {
+   "asof": "2024-10-03",
+   "forward": 20,
+   "sym": "PLTR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_dfd87dd27463",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 7.8% 18 sessions earlier; the trigger day gapped only -0.11%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-10-03",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PLTR"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 1470.0,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "day_pct": 4.67,
+    "drive_pct": 26.6,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 18,
+     "day_pct": 14.1,
+     "gap_pct": 7.8
+    },
+    "fwd_10d_pct": 7.0,
+    "fwd_20d_pct": 5.9,
+    "fwd_5d_pct": 10.9,
+    "fwd_max_gain_pct": 15.0,
+    "fwd_min_low_vs_trigger_low_pct": 3.8,
+    "gap_pct": -0.11,
+    "known_name": true,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -5.6,
+    "pullback_range_atr": 1.54,
+    "pullback_rvol_max": 1.28,
+    "pullback_sessions": 7,
+    "rally": {
+     "bars_ago": 8,
+     "peak_high": 38.19,
+     "rally_pct": 26.6
+    },
+    "range_atr": 1.53,
+    "rvol": 0.92,
+    "s50_slope10_pct": 5.8,
+    "setup_score": 15,
+    "strength_day_bars_ago": 18,
+    "strength_day_gain_pct": 14.08,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.11,
+    "trigger_vs_peak_pct": 2.7,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.82
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#PLTR#2024-10-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#PLTR#2024-10-03",
+  "sym": "PLTR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-05",
+  "bars": {
+   "asof": "2024-11-05",
+   "forward": 20,
+   "sym": "SOFI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_cbb372dbb68f",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 6.8% 16 sessions earlier; the trigger day gapped only 0.46%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-11-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SOFI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 337.7,
+    "close_pos": 0.78,
+    "close_pos_pct": 78,
+    "day_pct": 4.67,
+    "drive_pct": 33.9,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 16,
+     "day_pct": 11.4,
+     "gap_pct": 6.8
+    },
+    "fwd_10d_pct": 26.3,
+    "fwd_20d_pct": 42.9,
+    "fwd_5d_pct": 21.0,
+    "fwd_max_gain_pct": 45.4,
+    "fwd_min_low_vs_trigger_low_pct": 6.2,
+    "gap_pct": 0.46,
+    "known_name": true,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -7.6,
+    "pullback_range_atr": 1.25,
+    "pullback_rvol_max": 1.2,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 11.5,
+     "rally_pct": 33.9
+    },
+    "range_atr": 1.08,
+    "rvol": 1.1,
+    "s50_slope10_pct": 9.7,
+    "setup_score": 15,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.67,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.46,
+    "trigger_vs_peak_pct": -0.7,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -1.52
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#SOFI#2024-11-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#SOFI#2024-11-05",
+  "sym": "SOFI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-21",
+  "bars": {
+   "asof": "2024-11-21",
+   "forward": 20,
+   "sym": "DECK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_cbcd09531626",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 11.8% 19 sessions earlier; the trigger day gapped only 0.15%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-11-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DECK"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 318.9,
+    "close_pos": 0.99,
+    "close_pos_pct": 99,
+    "day_pct": 3.15,
+    "drive_pct": 20.7,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 19,
+     "day_pct": 10.6,
+     "gap_pct": 11.8
+    },
+    "fwd_10d_pct": 9.7,
+    "fwd_20d_pct": 16.0,
+    "fwd_5d_pct": 7.7,
+    "fwd_max_gain_pct": 18.0,
+    "fwd_min_low_vs_trigger_low_pct": 6.1,
+    "gap_pct": 0.15,
+    "known_name": true,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -5.4,
+    "pullback_range_atr": 1.48,
+    "pullback_rvol_max": 0.96,
+    "pullback_sessions": 5,
+    "rally": {
+     "bars_ago": 6,
+     "peak_high": 182.26,
+     "rally_pct": 20.7
+    },
+    "range_atr": 1.48,
+    "rvol": 1.37,
+    "s50_slope10_pct": 3.2,
+    "setup_score": 15,
+    "strength_day_bars_ago": 19,
+    "strength_day_gain_pct": 10.57,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.15,
+    "trigger_vs_peak_pct": -0.2,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -0.92
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#DECK#2024-11-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#DECK#2024-11-21",
+  "sym": "DECK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-18",
+  "bars": {
+   "asof": "2023-05-18",
+   "forward": 20,
+   "sym": "DUOL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_482cd42a6dd0",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 7.2% 6 sessions earlier; the trigger day gapped only 0.02%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-05-18",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DUOL"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 62.4,
+    "close_pos": 1.0,
+    "close_pos_pct": 100,
+    "day_pct": 6.7,
+    "drive_pct": 25.4,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 6,
+     "day_pct": 10.0,
+     "gap_pct": 7.2
+    },
+    "fwd_10d_pct": 2.7,
+    "fwd_20d_pct": 0.6,
+    "fwd_5d_pct": -5.8,
+    "fwd_max_gain_pct": 10.9,
+    "fwd_min_low_vs_trigger_low_pct": 0.0,
+    "gap_pct": 0.02,
+    "known_name": true,
+    "labels": [
+     "v2_run_20in5",
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -7.9,
+    "pullback_range_atr": 0.99,
+    "pullback_rvol_max": 1.47,
+    "pullback_sessions": 4,
+    "rally": {
+     "bars_ago": 5,
+     "peak_high": 150.0,
+     "rally_pct": 25.4
+    },
+    "range_atr": 1.25,
+    "rvol": 1.64,
+    "s50_slope10_pct": 5.1,
+    "setup_score": 16,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 6.7,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.02,
+    "trigger_vs_peak_pct": 1.2,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.45
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#DUOL#2023-05-18",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#DUOL#2023-05-18",
+  "sym": "DUOL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-26",
+  "bars": {
+   "asof": "2023-05-26",
+   "forward": 20,
+   "sym": "NFLX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_77ecfa890197",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 18.4% rally that peaked 6 sessions earlier; the trigger day gapped only 0.58%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-05-26",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NFLX"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 2489.1,
+    "close_pos": 0.82,
+    "close_pos_pct": 82,
+    "day_pct": 5.54,
+    "drive_pct": 18.4,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 11.9,
+    "fwd_20d_pct": 10.1,
+    "fwd_5d_pct": 6.5,
+    "fwd_max_gain_pct": 18.4,
+    "fwd_min_low_vs_trigger_low_pct": 8.4,
+    "gap_pct": 0.58,
+    "known_name": true,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -5.7,
+    "pullback_range_atr": 1.6,
+    "pullback_rvol_max": 1.17,
+    "pullback_sessions": 5,
+    "rally": {
+     "bars_ago": 6,
+     "peak_high": 37.59,
+     "rally_pct": 18.4
+    },
+    "range_atr": 2.5,
+    "rvol": 1.38,
+    "s50_slope10_pct": 3.0,
+    "setup_score": 15,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 5.54,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.58,
+    "trigger_vs_peak_pct": 0.8,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -1.22
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#NFLX#2023-05-26",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#NFLX#2023-05-26",
+  "sym": "NFLX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-03-01",
+  "bars": {
+   "asof": "2024-03-01",
+   "forward": 20,
+   "sym": "NVDA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_bf42487f7b22",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 11.2% 6 sessions earlier; the trigger day gapped only 1.12%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-03-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NVDA"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 24160.4,
+    "close_pos": 0.99,
+    "close_pos_pct": 99,
+    "day_pct": 4.0,
+    "drive_pct": 30.7,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 6,
+     "day_pct": 16.4,
+     "gap_pct": 11.2
+    },
+    "fwd_10d_pct": 6.8,
+    "fwd_20d_pct": 9.8,
+    "fwd_5d_pct": 6.4,
+    "fwd_max_gain_pct": 18.4,
+    "fwd_min_low_vs_trigger_low_pct": 5.0,
+    "gap_pct": 1.12,
+    "known_name": true,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -6.4,
+    "pullback_range_atr": 1.02,
+    "pullback_rvol_max": 1.07,
+    "pullback_sessions": 4,
+    "rally": {
+     "bars_ago": 5,
+     "peak_high": 82.39,
+     "rally_pct": 30.7
+    },
+    "range_atr": 0.83,
+    "rvol": 1.01,
+    "s50_slope10_pct": 10.1,
+    "setup_score": 15,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.0,
+    "tight_pullback": true,
+    "trigger_gap_pct": 1.12,
+    "trigger_vs_peak_pct": -0.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -0.86
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#NVDA#2024-03-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#NVDA#2024-03-01",
+  "sym": "NVDA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-08-21",
+  "bars": {
+   "asof": "2023-08-21",
+   "forward": 20,
+   "sym": "VRT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0c2dab2587e6",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 24.4% 13 sessions earlier; the trigger day gapped only 0.68%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-08-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VRT"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 117.1,
+    "close_pos": 0.89,
+    "close_pos_pct": 89,
+    "day_pct": 3.24,
+    "drive_pct": 44.9,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 13,
+     "day_pct": 29.2,
+     "gap_pct": 24.4
+    },
+    "fwd_10d_pct": 11.6,
+    "fwd_20d_pct": 8.5,
+    "fwd_5d_pct": 8.8,
+    "fwd_max_gain_pct": 15.2,
+    "fwd_min_low_vs_trigger_low_pct": 2.6,
+    "gap_pct": 0.68,
+    "known_name": true,
+    "labels": [
+     "cross_only",
+     "stack_hve_close"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -11.7,
+    "pullback_range_atr": 1.26,
+    "pullback_rvol_max": 1.8,
+    "pullback_sessions": 7,
+    "rally": {
+     "bars_ago": 8,
+     "peak_high": 36.69,
+     "rally_pct": 44.9
+    },
+    "range_atr": 0.77,
+    "rvol": 0.94,
+    "s50_slope10_pct": 12.5,
+    "setup_score": 15,
+    "strength_day_bars_ago": 13,
+    "strength_day_gain_pct": 29.25,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.68,
+    "trigger_vs_peak_pct": -4.4,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.79
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#VRT#2023-08-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#VRT#2023-08-21",
+  "sym": "VRT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-11-16",
+  "bars": {
+   "asof": "2021-11-16",
+   "forward": 20,
+   "sym": "BLDR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e2cdd1b5a45b",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 11.1% 8 sessions earlier; the trigger day gapped only 0.79%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2021-11-16",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BLDR"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 127.3,
+    "close_pos": 0.83,
+    "close_pos_pct": 83,
+    "day_pct": 2.99,
+    "drive_pct": 20.8,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 8,
+     "day_pct": 8.5,
+     "gap_pct": 11.1
+    },
+    "fwd_10d_pct": 1.8,
+    "fwd_20d_pct": 13.4,
+    "fwd_5d_pct": 6.3,
+    "fwd_max_gain_pct": 17.3,
+    "fwd_min_low_vs_trigger_low_pct": 1.1,
+    "gap_pct": 0.79,
+    "known_name": false,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -3.8,
+    "pullback_range_atr": 1.11,
+    "pullback_rvol_max": 1.21,
+    "pullback_sessions": 6,
+    "rally": {
+     "bars_ago": 7,
+     "peak_high": 68.92,
+     "rally_pct": 20.8
+    },
+    "range_atr": 0.93,
+    "rvol": 1.7,
+    "s50_slope10_pct": 4.6,
+    "setup_score": 16,
+    "strength_day_bars_ago": 8,
+    "strength_day_gain_pct": 8.53,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.79,
+    "trigger_vs_peak_pct": 0.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.76
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#BLDR#2021-11-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#BLDR#2021-11-16",
+  "sym": "BLDR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-12-09",
+  "bars": {
+   "asof": "2025-12-09",
+   "forward": 20,
+   "sym": "PAAS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5adb8f4ee155",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 33.9% rally that peaked 6 sessions earlier; the trigger day gapped only 1.49%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2025-12-09",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PAAS"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 207.9,
+    "close_pos": 0.92,
+    "close_pos_pct": 92,
+    "day_pct": 11.16,
+    "drive_pct": 33.9,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 11.2,
+    "fwd_20d_pct": 9.7,
+    "fwd_5d_pct": 1.8,
+    "fwd_max_gain_pct": 15.4,
+    "fwd_min_low_vs_trigger_low_pct": 6.7,
+    "gap_pct": 1.49,
+    "known_name": false,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -6.8,
+    "pullback_range_atr": 1.34,
+    "pullback_rvol_max": 1.08,
+    "pullback_sessions": 5,
+    "rally": {
+     "bars_ago": 6,
+     "peak_high": 46.6,
+     "rally_pct": 33.9
+    },
+    "range_atr": 2.4,
+    "rvol": 2.86,
+    "s50_slope10_pct": 3.6,
+    "setup_score": 16,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 11.16,
+    "tight_pullback": true,
+    "trigger_gap_pct": 1.49,
+    "trigger_vs_peak_pct": 3.9,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.64
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#PAAS#2025-12-09",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#PAAS#2025-12-09",
+  "sym": "PAAS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-16",
+  "bars": {
+   "asof": "2023-05-16",
+   "forward": 20,
+   "sym": "SMCI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e6ea16a5299c",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was an earnings-style gap of 11.1% 9 sessions earlier; the trigger day gapped only -0.01%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-05-16",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SMCI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 151.1,
+    "close_pos": 0.83,
+    "close_pos_pct": 83,
+    "day_pct": 5.8,
+    "drive_pct": 53.9,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": {
+     "bars_ago": 9,
+     "day_pct": 28.3,
+     "gap_pct": 11.1
+    },
+    "fwd_10d_pct": 53.6,
+    "fwd_20d_pct": 69.9,
+    "fwd_5d_pct": 11.0,
+    "fwd_max_gain_pct": 85.3,
+    "fwd_min_low_vs_trigger_low_pct": 6.8,
+    "gap_pct": -0.01,
+    "known_name": true,
+    "labels": [
+     "v2_run_20in5",
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -8.7,
+    "pullback_range_atr": 1.15,
+    "pullback_rvol_max": 0.88,
+    "pullback_sessions": 6,
+    "rally": {
+     "bars_ago": 7,
+     "peak_high": 14.35,
+     "rally_pct": 53.9
+    },
+    "range_atr": 1.3,
+    "rvol": 1.36,
+    "s50_slope10_pct": 7.2,
+    "setup_score": 14,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 5.8,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.01,
+    "trigger_vs_peak_pct": 1.6,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -3.32
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#SMCI#2023-05-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#SMCI#2023-05-16",
+  "sym": "SMCI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-10-13",
+  "bars": {
+   "asof": "2022-10-13",
+   "forward": 20,
+   "sym": "SLB",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b8fe75bc50fd",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 27.3% rally that peaked 4 sessions earlier; the trigger day gapped only -0.5%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2022-10-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SLB"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 508.0,
+    "close_pos": 0.95,
+    "close_pos_pct": 95,
+    "day_pct": 5.16,
+    "drive_pct": 27.3,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 16.9,
+    "fwd_20d_pct": 20.2,
+    "fwd_5d_pct": 3.4,
+    "fwd_max_gain_pct": 24.7,
+    "fwd_min_low_vs_trigger_low_pct": 0.7,
+    "gap_pct": -0.5,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -4.7,
+    "pullback_range_atr": 1.06,
+    "pullback_rvol_max": 0.96,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 43.12,
+     "rally_pct": 27.3
+    },
+    "range_atr": 1.41,
+    "rvol": 1.39,
+    "s50_slope10_pct": 2.4,
+    "setup_score": 15,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 5.16,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.5,
+    "trigger_vs_peak_pct": 2.5,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -0.47
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#SLB#2022-10-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#SLB#2022-10-13",
+  "sym": "SLB",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-09-11",
+  "bars": {
+   "asof": "2024-09-11",
+   "forward": 20,
+   "sym": "APP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0f3298ce5365",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24). Here the drive was a 25.3% rally that peaked 7 sessions earlier; the trigger day gapped only 1.53%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-09-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "APP"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 315.6,
+    "close_pos": 0.95,
+    "close_pos_pct": 95,
+    "day_pct": 13.15,
+    "drive_pct": 25.3,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 34.0,
+    "fwd_20d_pct": 47.0,
+    "fwd_5d_pct": 26.2,
+    "fwd_max_gain_pct": 48.1,
+    "fwd_min_low_vs_trigger_low_pct": 11.7,
+    "gap_pct": 1.53,
+    "known_name": true,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pullback_depth_pct": -11.9,
+    "pullback_range_atr": 2.64,
+    "pullback_rvol_max": 1.27,
+    "pullback_sessions": 6,
+    "rally": {
+     "bars_ago": 7,
+     "peak_high": 93.7,
+     "rally_pct": 25.3
+    },
+    "range_atr": 2.81,
+    "rvol": 2.36,
+    "s50_slope10_pct": 2.1,
+    "setup_score": 13,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 13.15,
+    "tight_pullback": true,
+    "trigger_gap_pct": 1.53,
+    "trigger_vs_peak_pct": 4.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -4.85
+   },
+   "fires": true,
+   "quote": "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#APP#2024-09-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#APP#2024-09-11",
+  "sym": "APP",
+  "type": "spot",
+  "version": 1
  }
 ]
