@@ -17,7 +17,7 @@ which kind and source the request copied and which copy it made:
 A duplicate request has no body, so "the same request" is (kind, source id), stored as columns
 rather than as a payload hash.
 
-Two sends of one key racing: `_write` takes BEGIN IMMEDIATE before the first read, so the second
+Two sends of one key racing: `write_conn` takes BEGIN IMMEDIATE before the first read, so the second
 waits for the first's commit and then replays it; the (user_id, key) primary key is the backstop.
 Expired keys (every member's) go in the same transaction, swept by `create_keys.expire_keys`. The
 table is purged with the account (`account_purge._DIRECT_USER_TABLES`).
@@ -32,11 +32,12 @@ from api.services.journal_two import create_keys
 from api.services.journal_two import routines as rstore
 from api.services.journal_two import trackers as tstore
 from api.services.journal_two.tool_errors import ToolError
-from api.services.journal_two.widget_definitions import _now, _write
+from api.services.journal_two.widget_definitions import now_utc, write_conn
 
 _KEYS = "j2_tool_create_keys"
 _STORES = {"routine": rstore, "tracker": tstore}
-S_KEY_REUSED = "That copy was already asked for from another tool. Press Duplicate again."
+S_KEY_REUSED = ("That Duplicate was already sent for a different routine or tracker."
+                " Press Duplicate again to copy this one.")
 
 
 class KeyReused(ToolError):
@@ -60,8 +61,8 @@ def duplicate_with_key(user_id: str, kind: str, source_id: str, *, key: Any,
     k = create_keys.clean_create_key(key)
     if k is None:
         return store.duplicate(user_id, source_id, now=now, conn=conn)
-    now_dt = _now(now)
-    with _write(conn) as c:
+    now_dt = now_utc(now)
+    with write_conn(conn) as c:
         create_keys.expire_keys(c, _KEYS, now_dt)
         row = c.execute(
             f"SELECT kind, source_id, new_id FROM {_KEYS} WHERE user_id = ? AND key = ?",

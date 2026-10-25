@@ -413,3 +413,104 @@ def test_the_one_home_rail_can_see_a_copy(tmp_path):
     """Non-vacuity: the pattern the rail searches for matches the real rule's text."""
     from api.services.journal_two import create_keys as ck
     assert _UUID4_SHAPE.search(ck._CREATE_KEY_RE.pattern)
+
+
+#: A KEY-TABLE sweep: `DELETE FROM <a table expression naming keys> WHERE created_at`, e.g.
+#: `{_KEYS}` or `j2_widget_create_keys`. Other tables' retention sweeps (tweets, client_errors, ...)
+#: are not this rule's business. The home itself sweeps `{table}`, checked by `_GENERIC_SWEEP`.
+_SWEEP_SHAPE = re.compile(r"DELETE\s+FROM\s+\S*keys\S*\s+WHERE\s+created_at\b", re.IGNORECASE)
+_GENERIC_SWEEP = re.compile(r"DELETE\s+FROM\s+\S+\s+WHERE\s+created_at\b", re.IGNORECASE)
+_HOME = "api/services/journal_two/create_keys.py"
+
+
+def _assigns_ttl(tree: ast.AST) -> bool:
+    """Any binding of the name `CREATE_KEY_TTL_S` by assignment (plain, annotated or augmented),
+    at any depth. An import (`from create_keys import CREATE_KEY_TTL_S`) is not one."""
+    for n in ast.walk(tree):
+        targets = (n.targets if isinstance(n, ast.Assign)
+                   else [n.target] if isinstance(n, (ast.AnnAssign, ast.AugAssign)) else [])
+        for t in targets:
+            for leaf in ast.walk(t):
+                if isinstance(leaf, ast.Name) and leaf.id == "CREATE_KEY_TTL_S":
+                    return True
+    return False
+
+
+def _sweep_texts(tree: ast.AST, shape: re.Pattern = _SWEEP_SHAPE) -> list[str]:
+    """Every string literal that is a key-table sweep. An f-string is read whole (its source text,
+    placeholders included): its literal parts alone ("DELETE FROM ", " WHERE created_at < ?") would
+    never match."""
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.JoinedStr):
+            text = ast.unparse(n)
+        elif isinstance(n, ast.Constant) and isinstance(n.value, str):
+            text = n.value
+        else:
+            continue
+        if shape.search(text):
+            out.append(text)
+    return out
+
+
+def _api_trees():
+    for p in (ROOT / "api").rglob("*.py"):
+        yield (str(p.relative_to(ROOT)).replace("\\", "/"),
+               ast.parse(p.read_text(encoding="utf-8", errors="replace")))
+
+
+def test_only_create_keys_assigns_the_replay_window():
+    """m-1: the 24 h window has one home too. ⛔ Red at the 9.20 merge until widget_definitions
+    imports `CREATE_KEY_TTL_S` from create_keys instead of assigning its own."""
+    homes = sorted(rel for rel, tree in _api_trees() if _assigns_ttl(tree))
+    assert homes == [_HOME]
+
+
+def test_the_ttl_rail_sees_an_assignment_and_ignores_an_import():
+    """Non-vacuity control for the TTL rail."""
+    assert _assigns_ttl(ast.parse("CREATE_KEY_TTL_S = 24 * 60 * 60"))
+    assert _assigns_ttl(ast.parse("CREATE_KEY_TTL_S: int = 86400"))
+    assert _assigns_ttl(ast.parse("def f():\n    CREATE_KEY_TTL_S = 1"))
+    assert not _assigns_ttl(ast.parse("from x import CREATE_KEY_TTL_S\ny = CREATE_KEY_TTL_S"))
+
+
+def test_only_create_keys_holds_the_expiry_sweep():
+    """m-1: no module carries its own `DELETE FROM <keys> WHERE created_at` sweep (impl's `_keyed`
+    does today); the one sweep is `create_keys.expire_keys`. ⛔ Red at the 9.20 merge until
+    `_keyed` calls `expire_keys`."""
+    trees = dict(_api_trees())
+    assert len(trees) > 100                                     # the walk saw the tree
+    assert sorted(rel for rel, tree in trees.items() if _sweep_texts(tree)) == []
+    assert _sweep_texts(trees[_HOME], _GENERIC_SWEEP)           # and the home does sweep
+
+
+def test_the_sweep_rail_sees_the_widget_sides_inline_sweep():
+    """Non-vacuity control: the shape matches impl's inline f-string sweep and a plain one, and
+    not an unrelated DELETE."""
+    assert _sweep_texts(ast.parse(
+        'c.execute(f"DELETE FROM {_KEYS} WHERE created_at < ?", (x,))'))
+    assert _sweep_texts(ast.parse('c.execute("delete from j2_widget_create_keys where created_at < ?")'))
+    assert not _sweep_texts(ast.parse('c.execute(f"DELETE FROM {_KEYS} WHERE user_id = ? AND key = ?")'))
+    from api.services.journal_two import create_keys as ck
+    import inspect
+    assert _sweep_texts(ast.parse(inspect.getsource(ck)), _GENERIC_SWEEP)   # the real home is seen
+    assert _sweep_texts(ast.parse('x = f"DELETE FROM {_TOOL_KEYS} WHERE created_at < ?"'))
+    assert not _sweep_texts(ast.parse('c.execute("DELETE FROM tweets WHERE created_at < ?")'))
+
+
+def test_the_public_aliases_are_the_same_objects():
+    """m-4: `write_conn` / `now_utc` are the private helpers themselves, never wrappers, and
+    tool_create_keys reaches them by their public names."""
+    from api.services.journal_two import tool_create_keys as tk
+    from api.services.journal_two import widget_definitions as wd
+    assert wd.write_conn is wd._write and wd.now_utc is wd._now
+    assert tk.write_conn is wd._write and tk.now_utc is wd._now
+    src = Path(tk.__file__).read_text(encoding="utf-8")
+    assert "import _now" not in src and "_write" not in src
+
+
+def test_the_key_reused_sentence_is_the_ruled_one():
+    """Ruling W9-R53 (review m-2)."""
+    from api.services.journal_two import tool_create_keys as tk
+    assert tk.S_KEY_REUSED == ("That Duplicate was already sent for a different routine or tracker."
+                               " Press Duplicate again to copy this one.")

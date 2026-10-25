@@ -220,6 +220,10 @@ def _read(conn: sqlite3.Connection | None) -> Iterator[sqlite3.Connection]:
 
 #: The same context manager under a public name, for other modules (Task 10.12: no cross-module private imports).
 read_conn = _read
+#: The write transaction and the UTC clock under public names, for the same reason (Task 9.6b, m-4).
+#: The SAME objects as `_write` and `_now`, never wrappers.
+write_conn = _write
+now_utc = _now
 
 
 def _clean_name(name: Any, refusal: str = S_BAD_NAME) -> str:
