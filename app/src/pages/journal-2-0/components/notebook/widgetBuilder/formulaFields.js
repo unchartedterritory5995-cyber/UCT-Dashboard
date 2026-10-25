@@ -10,6 +10,7 @@
 //
 // ⛔ Member text (field names, formula names) is never an object key: everything groups with `Map`.
 import { countNoun } from '../widgets/builtViews/builtModel'
+import { isPropMeasure, propertyDefOf } from './builderCatalog'
 import {
   LIMITS, ERRORS, compileFormula, displayFormula, formulaNameCharsOk, codePointToUtf16,
 } from '../../../lib/widgetFormula/widgetFormula'
@@ -191,15 +192,24 @@ export function formulaMeasureLabel(plan, m) {
   return AGG_WORDS.has(m?.agg) ? `${name} (${AGG_WORDS.get(m.agg)})` : name
 }
 
-/** One measure's words: the catalog's label, or a formula measure's own. */
-export function measureLabel(cat, plan, m) {
+/** One measure's words: the catalog's label, or a formula measure's own. A property sum (wave 10) names its property
+ *  ("Sum of a property: Conviction") once `names.propertyDefs` knows it. */
+export function measureLabel(cat, plan, m, names) {
   if (isRecord(m) && typeof m.formula === 'string') return formulaMeasureLabel(plan, m)
-  return cat?.measures?.get?.(m?.key)?.label || m?.key || ''
+  const label = cat?.measures?.get?.(m?.key)?.label || m?.key || ''
+  if (isRecord(m) && isPropMeasure(m.key) && typeof m.prop === 'string') {
+    const def = propertyDefOf(m.prop, names)
+    if (def?.name) return `${label}: ${def.name}`
+  }
+  return label
 }
 
-/** A stable identity for a measure (a list key, a comparison): `net_pnl`, `formula:f1:avg`. */
-export const measureId = (m) => (isRecord(m) && typeof m.formula === 'string'
-  ? `${FORMULA_PREFIX}${m.formula}:${m.agg || ''}` : String(m?.key || ''))
+/** A stable identity for a measure (a list key, a comparison): `net_pnl`, `formula:f1:avg`, `property_sum:<prop>`. */
+export const measureId = (m) => {
+  if (isRecord(m) && typeof m.formula === 'string') return `${FORMULA_PREFIX}${m.formula}:${m.agg || ''}`
+  if (isRecord(m) && typeof m.prop === 'string' && m.prop) return `${String(m.key || '')}:${m.prop}`
+  return String(m?.key || '')
+}
 
 /**
  * What a formula can be added as a measure (`_check_measure`): a row number formula by Total, Average, Lowest or

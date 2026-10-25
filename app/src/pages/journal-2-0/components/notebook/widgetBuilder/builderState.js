@@ -44,15 +44,15 @@ export function displayOf(plan) {
   }
 }
 
-/** One measure: a catalog measure `{key}` or a formula measure `{formula, agg?}` (be plan._check_measure). A bare
- *  string is a catalog key. */
+/** One measure: a catalog measure `{key}` (wave 10: a property sum carries the property it adds up, `{key, prop}`) or
+ *  a formula measure `{formula, agg?}` (be plan._check_measure). A bare string is a catalog key. */
 export function toMeasure(m) {
   if (typeof m === 'string') return { key: m }
   if (!isRecord(m)) return null
   if (typeof m.formula === 'string' && m.formula) {
     return { formula: m.formula, ...(typeof m.agg === 'string' && m.agg ? { agg: m.agg } : {}) }
   }
-  return typeof m.key === 'string' ? { key: m.key } : null
+  return typeof m.key === 'string' ? { key: m.key, ...(isRef(m.prop) ? { prop: m.prop } : {}) } : null
 }
 
 /** The plan's formula entries, each `{id, name, expr, format}`, in order. */
@@ -76,6 +76,8 @@ export function normalizePlan(raw) {
       field: f.field, op: f.op, values: Array.isArray(f.values) ? f.values : [], overridable: f.overridable === true,
       // Wave 9: the routine or tracker a filter on a `refKind` field reads (plan.py `_check_ref`).
       ...(isRef(f.ref) ? { ref: f.ref } : {}),
+      // Wave 10: the note property a property filter reads (plan.py `_check_prop`).
+      ...(isRef(f.prop) ? { prop: f.prop } : {}),
     })) : [],
     measures: Array.isArray(p.measures) ? p.measures.map(toMeasure).filter(Boolean) : [],
     split: isRecord(p.split) && typeof p.split.by === 'string'

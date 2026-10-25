@@ -72,7 +72,7 @@ export default function SplitSection({ cat, plan, toolNames, onOpen, onClear, on
                 }}>
                 <option value="">In their own order</option>
                 {plan.measures.map((pm, i) => {
-                  const label = measureLabel(cat, plan, pm)
+                  const label = measureLabel(cat, plan, pm, toolNames)
                   return [
                     <option key={`${i}d`} value={`${i}:desc`}>{`${label}, highest first`}</option>,
                     <option key={`${i}a`} value={`${i}:asc`}>{`${label}, lowest first`}</option>,

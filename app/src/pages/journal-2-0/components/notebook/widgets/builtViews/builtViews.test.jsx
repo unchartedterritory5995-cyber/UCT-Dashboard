@@ -18,6 +18,8 @@ import { W, TAP, textW, FLIP_PX, SETTLE_MS, SEEN_MS, TRAIL_MAX } from './svg'
 import NumberView from './NumberView'
 import TableAlt from './TableAlt'
 import W10 from './__fixtures__/w10Payloads.json'
+import { MemoryRouter, useLocation } from 'react-router-dom'
+import DrillPanel, { optionHref, drillNoteHref } from './DrillPanel'
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -1453,5 +1455,84 @@ describe('wave 10 keys in the built views (Task 10.18)', () => {
       // a private wave 9 payload (no keys) is the wave 8 view as well
       expect(renderAll({ ...plain, share: false }), `${name}: private, no keys`).toMatchSnapshot(`${name} private`)
     }
+  })
+})
+
+describe('drilled options strategies and notes (Task 10.17)', () => {
+  // be drill._option_row / _note_row: the shapes the server answers for the two wave 10 sources.
+  const OPTION_ROWS = [
+    { day: '2026-10-20', label: 'SPY', label2: 'Iron condor', net: 120, r: 0.5, result: 'Win', strategyId: 'opt-1' },
+    { day: '2026-10-21', label: 'AAPL', label2: 'Long call', net: null, r: null, result: null, strategyId: 'opt-2' },
+  ]
+  const NOTE_ROWS = [{ day: '2026-10-22', label: 'Why I sized down', noteId: 'note-1' }, { day: '2026-10-23', label: '', noteId: 'note-2' }]
+  const drillAnswer = (rows) => fetchSpy.mockImplementation(() => Promise.resolve({
+    ok: true, status: 200, json: async () => ({ rows, more: 0, count: rows.length, live: false, note: null }),
+  }))
+  const openDrill = async (sourceKey, ui = (x) => x) => {
+    const onClose = vi.fn()
+    const r = render(ui(<DrillPanel params={P({ sourceKey, view: 'list' })} cell={{}} what="this" opener={null} onClose={onClose} />))
+    await act(async () => {})
+    return { ...r, onClose }
+  }
+  /** Where the app router is, for the in-router cases. */
+  function Where() { const loc = useLocation(); return <p data-testid="where">{`${loc.pathname}${loc.search}`}</p> }
+  const inRouter = (el) => (
+    <MemoryRouter initialEntries={['/journal/notebook?note=here']}>{el}<Where /></MemoryRouter>
+  )
+
+  it('drill_options_row_opens_options_drawer', async () => {
+    drillAnswer(OPTION_ROWS)
+    const { onClose } = await openDrill('options_strategies', inRouter)
+    const rows = screen.getByTestId('built-drill-rows')
+    // The underlying heads the row; the strategy, day, net, R and result follow; an open one shows none of its numbers.
+    const first = within(rows).getAllByRole('listitem')[0]
+    expect(first.textContent).toContain('Iron condor')
+    expect(first.textContent).toContain('2026-10-20')
+    expect(within(rows).getAllByRole('listitem')[1].textContent).not.toMatch(/no data|\$0/)
+    // Each strategy links to the existing options drawer (R-30), its own id, never the trade page.
+    const link = within(rows).getByRole('link', { name: 'SPY' })
+    expect(link).toHaveAttribute('href', optionHref('opt-1'))
+    expect(optionHref('opt-1')).toBe('/journal?j2tab=journal&openTrade=opt-1')
+    expect(within(rows).queryAllByRole('link').map((a) => a.getAttribute('href'))).not.toContain('/journal-2-0/trade/opt-1')
+    // A plain click moves the app's own router there and closes the panel.
+    fireEvent.click(link)
+    expect(screen.getByTestId('where').textContent).toBe('/journal?j2tab=journal&openTrade=opt-1')
+    expect(onClose).toHaveBeenCalledWith(false)
+  })
+
+  it('drill_note_row_opens_note', async () => {
+    drillAnswer(NOTE_ROWS)
+    const { onClose, unmount } = await openDrill('notes', inRouter)
+    const rows = screen.getByTestId('built-drill-rows')
+    const link = within(rows).getByRole('link', { name: 'Why I sized down' })
+    // The note editor's own note link (toolEditorLib.noteHref, its one owner), by the note's id.
+    expect(link).toHaveAttribute('href', drillNoteHref('note-1'))
+    expect(drillNoteHref('note-1')).toBe('/journal/notebook?note=note-1')
+    // An untitled note still reads as a note, never as its id.
+    expect(within(rows).getByRole('link', { name: 'Untitled note' })).toHaveAttribute('href', drillNoteHref('note-2'))
+    expect(rows.textContent).not.toContain('note-2')
+    fireEvent.click(link)
+    expect(screen.getByTestId('where').textContent).toBe('/journal/notebook?note=note-1')
+    expect(onClose).toHaveBeenCalledWith(false)
+    unmount()
+
+    // Drawn outside the app's router (the note editor's own root): the editor's in-place note navigation.
+    drillAnswer(NOTE_ROWS)
+    const pushed = vi.spyOn(window.history, 'pushState')
+    const popped = vi.fn()
+    window.addEventListener('popstate', popped)
+    await openDrill('notes')
+    fireEvent.click(screen.getByRole('link', { name: 'Why I sized down' }))
+    expect(pushed).toHaveBeenCalledWith(expect.anything(), '', drillNoteHref('note-1'))
+    expect(popped).toHaveBeenCalledTimes(1)
+    window.removeEventListener('popstate', popped)
+  })
+
+  it('a modified click on a drilled note is the browser’s (a new tab), never an in-place move', async () => {
+    drillAnswer(NOTE_ROWS)
+    await openDrill('notes', inRouter)
+    const link = screen.getByRole('link', { name: 'Why I sized down' })
+    fireEvent.click(link, { ctrlKey: true })
+    expect(screen.getByTestId('where').textContent).toBe('/journal/notebook?note=here')
   })
 })

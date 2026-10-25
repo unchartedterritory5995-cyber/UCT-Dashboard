@@ -10,8 +10,9 @@ import {
 import { reducer, initState, blankPlan, nameOf, changeKind, DEFAULT_RANGE } from './builderState'
 import {
   indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow, refKindOf, planRefs, kindsNamed, NAMES_FAILED,
-  allAccountsOnly, rangeRefused,
+  allAccountsOnly, rangeRefused, planNamesProperty,
 } from './builderCatalog'
+import { loadPropertyDefs } from './propertyDefs'
 import {
   readDraft, writeDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
   pendingOf, slotHeldByOther, RESUME_OFFER,
@@ -229,10 +230,13 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   // Wave 9 (Task 9.17): the member's routine and tracker names by id, for the chips that name one. Filled by
   // "Which routine" / "Which tracker" as they load, and read once per kind a plan already names (an opened widget).
   const [toolNames, setToolNames] = useState(() => ({}))
-  // A failed read (`list === null`) records NAMES_FAILED (W9-R51), but never overwrites a list already read.
+  // A failed read (`list === null`) records NAMES_FAILED (W9-R51), but never overwrites a list already read. Wave 10:
+  // the same names for a strategy, folder or note kind filter, and `propertyDefs` (a Map, kept as given: the member's
+  // note property definitions, which name a property filter, its value and a property sum).
   const mergeToolNames = useCallback((kind, list) => {
     setToolNames((cur) => {
       if (list === null) return cur[kind] instanceof Map ? cur : { ...cur, [kind]: NAMES_FAILED }
+      if (list instanceof Map) return { ...cur, [kind]: list }
       return { ...cur, [kind]: new Map(list.map((r) => [String(r.id), r.name])) }
     })
   }, [])
@@ -741,6 +745,17 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     }
     return () => { alive = false }
   }, [neededKinds, mergeToolNames])
+  // Wave 10: a plan that names a note property (an opened widget) reads the member's definitions once, for its chips.
+  const needsPropertyDefs = !!cat && planNamesProperty(state.plan) && toolNames.propertyDefs === undefined
+  useEffect(() => {
+    if (!needsPropertyDefs) return undefined
+    let alive = true
+    loadPropertyDefs().then(
+      (defs) => { if (alive) mergeToolNames('propertyDefs', defs) },
+      () => { if (alive) mergeToolNames('propertyDefs', null) },
+    )
+    return () => { alive = false }
+  }, [needsPropertyDefs, mergeToolNames])
 
   // ── edits: each change carries the view it forces, so the change and its view are ONE undo step ──
   const fitted = (patch) => fitView(cat, { ...stateRef.current.plan, ...patch })
@@ -783,7 +798,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     const next = fitted({ measures, sort })
     dispatch({ type: 'setMeasures', measures, sort, view: next.view, compare: next.compare })
   }
-  const onToggleMeasure = (key) => toggleMeasure({ key })
+  // A catalog measure by key, or (wave 10) a property sum with the property it adds up (`{key, prop}`).
+  const onToggleMeasure = (m) => toggleMeasure(typeof m === 'string' ? { key: m } : m)
   const onRemoveMeasure = (i) => { const m = state.plan.measures[i]; if (m) toggleMeasure(m) }
   // ── your own fields (Task 10.16) ──
   const formulasHeading = () => rootRef.current?.querySelector('[data-builder-section="formulas"] [data-builder-heading]') || null
@@ -1193,7 +1209,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           }} />
       )
     } else if (k === 'measure') {
-      picker = <MeasurePicker cat={cat} plan={plan} byNeed={byNeed} onToggle={onToggleMeasure} onBack={back} />
+      picker = <MeasurePicker cat={cat} plan={plan} byNeed={byNeed} onToggle={onToggleMeasure}
+        onToolNames={mergeToolNames} onBack={back} />
     } else if (k === 'split') {
       picker = <SplitPicker cat={viewCat} plan={plan} slot={level.slot} onBack={back}
         onPick={(key) => {
@@ -1297,8 +1314,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
             onAddFilter={(el) => push({ kind: 'field' }, el)}
             onEditFilter={(i, el) => push({ kind: 'filter', field: plan.filters[i].field, index: i }, el)}
             onRemoveFilter={onRemoveFilterAt} />
-          <MeasureSection cat={cat} plan={plan} byNeed={byNeed} onOpen={(el) => push({ kind: 'measure' }, el)}
-            onRemove={onRemoveMeasure} />
+          <MeasureSection cat={cat} plan={plan} byNeed={byNeed} toolNames={toolNames}
+            onOpen={(el) => push({ kind: 'measure' }, el)} onRemove={onRemoveMeasure} />
           {(cat.formats.length > 0 || formulasOf(plan).length > 0) && (
             <FormulaSection cat={cat} plan={plan} compiled={compiled} fields={formulaFields} unit={unit}
               settleMs={PREVIEW_DEBOUNCE_MS} probes={formulaFeedback.probes} serverErrors={formulaFeedback.errors}

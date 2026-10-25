@@ -353,24 +353,52 @@ SERVER_CATALOG_FIXTURE = (pathlib.Path(__file__).resolve().parent.parent / "app"
 TOOL_CATALOG_FIXTURE = SERVER_CATALOG_FIXTURE.with_name("toolCatalog.json")
 
 
-def _catalog_fixture_text(tools: bool = False) -> str:
-    return json.dumps(wdr._static_vocabulary(tools), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+#: Wave 10 on too (Task 10.17: the Options strategies and Notes sources, the formula formats, `hourKey` and `prop`),
+#: written with note kinds OFFERED (W10-R62: the journal styles switch on, whatever the env says), so the notes
+#: source's `kind` field is in it; a client test that needs it absent removes it from its own copy.
+W10_CATALOG_FIXTURE = SERVER_CATALOG_FIXTURE.with_name("w10Catalog.json")
+
+
+def _catalog_fixture_text(tools: bool = False, w10: bool = False) -> str:
+    if not w10:
+        return json.dumps(wdr._static_vocabulary(tools), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    from api.services.journal_two import journal_styles
+    saved = journal_styles.enabled
+    journal_styles.enabled = lambda: True
+    try:
+        return json.dumps(wdr._static_vocabulary(tools, w10), indent=2, ensure_ascii=False,
+                          sort_keys=True) + "\n"
+    finally:
+        journal_styles.enabled = saved
 
 
 def write_vocabulary_fixture() -> None:
-    """Regenerate the builder's server-catalog fixtures (wave 9 off, and on):
+    """Regenerate the builder's server-catalog fixtures (wave 9 off, on, and wave 10 on too):
     python -c "from tests.test_widget_definitions_router import write_vocabulary_fixture as w; w()" """
     SERVER_CATALOG_FIXTURE.write_bytes(_catalog_fixture_text().encode("utf-8"))
     TOOL_CATALOG_FIXTURE.write_bytes(_catalog_fixture_text(tools=True).encode("utf-8"))
+    W10_CATALOG_FIXTURE.write_bytes(_catalog_fixture_text(tools=True, w10=True).encode("utf-8"))
 
 
-@pytest.mark.parametrize("fixture,tools", [(SERVER_CATALOG_FIXTURE, False), (TOOL_CATALOG_FIXTURE, True)])
-def test_builder_server_catalog_fixture_is_current(fixture, tools):
+@pytest.mark.parametrize("fixture,tools,w10", [(SERVER_CATALOG_FIXTURE, False, False),
+                                               (TOOL_CATALOG_FIXTURE, True, False),
+                                               (W10_CATALOG_FIXTURE, True, True)])
+def test_builder_server_catalog_fixture_is_current(fixture, tools, w10):
     """The client tests read the vocabulary from a generated file; it must be what the server serves today."""
     assert fixture.exists(), "run write_vocabulary_fixture()"
     on_disk = fixture.read_bytes().decode("utf-8").replace("\r\n", "\n")
-    assert on_disk == _catalog_fixture_text(tools), (
+    assert on_disk == _catalog_fixture_text(tools, w10), (
         "stale: python -c \"from tests.test_widget_definitions_router import write_vocabulary_fixture as w; w()\"")
+
+
+def test_w10_catalog_fixture_is_the_wave10_catalog_with_note_kinds():
+    """Non-vacuity: the wave 10 fixture lists both new sources and the formula formats, and was written with note
+    kinds offered (the notes source's `kind` field is in it), so the builder's tests of them read the server."""
+    got = json.loads(W10_CATALOG_FIXTURE.read_bytes().decode("utf-8"))
+    keys = {s["key"]: s for s in got["sources"]}
+    assert {"options_strategies", "notes"} <= set(keys)
+    assert [f["key"] for f in got["formats"]] == list(wplan.FORMULA_FORMATS)
+    assert "kind" in {f["key"] for f in keys["notes"]["fields"]}
 
 
 def test_each_source_serves_the_ranges_and_accounts_the_validator_refuses():

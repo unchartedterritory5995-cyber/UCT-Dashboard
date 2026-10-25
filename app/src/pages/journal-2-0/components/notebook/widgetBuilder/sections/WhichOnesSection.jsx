@@ -3,9 +3,11 @@ import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
 import {
   filterSentence, filterProblem, opLabel, valueArity, valueLabel, rangeText, rangeIsUnbounded, reasonOf,
-  isRightNow, sourceOf, VOCAB_FIELDS, refKindOf, refName, refusedRangesOf, REF_KINDS,
+  isRightNow, sourceOf, VOCAB_FIELDS, refKindOf, refName, refusedRangesOf, REF_KINDS, ID_NAMED_FIELDS,
+  propertyFieldFor, propertyFilterable, PROPERTY_TYPE_WORDS,
 } from '../builderCatalog'
 import { loadVocabulary } from '../../../../lib/builtWidgets'
+import { loadPropertyDefs } from '../propertyDefs'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
@@ -150,10 +152,14 @@ export function FieldPicker({ cat, plan, onPick, onBack }) {
   )
 }
 
-/** The member's own values for a field, or the catalog's fixed list, as `[{value, label}]`; null while loading. */
+/** The fields whose loaded list also names the ids in the builder's chips (`onToolNames`). */
+const NAMED_LISTS = Object.freeze([...REF_KINDS, ...ID_NAMED_FIELDS])
+
+/** The member's own values for a field, or the catalog's fixed list, as `[{value, label}]`; null while loading. A note
+ *  property filter's field is not a value list: its values are the named property's (`PropertyFilterEditor`). */
 function useValueList(field, onToolNames) {
   const fixed = Array.isArray(field?.values) ? field.values : null
-  const own = !fixed && VOCAB_FIELDS.includes(field?.key)
+  const own = !fixed && !field?.prop && !field?.propertyOf && VOCAB_FIELDS.includes(field?.key)
   const [state, setState] = useState(() => (fixed ? { list: fixed, failed: false } : null))
   useEffect(() => {
     if (fixed || !own) return undefined
@@ -169,13 +175,13 @@ function useValueList(field, onToolNames) {
           : { value: v, label: String(v) }))
         setState({ list, failed: false })
         // Fix 1, I-2: a routine or tracker list names the ids in every sentence the builder shows (the chips and the
-        // live preview line read the same `toolNames`).
-        if (REF_KINDS.includes(field.key)) onToolNames?.(field.key, list.map((o) => ({ id: o.value, name: o.label })))
+        // live preview line read the same `toolNames`); so does a strategy, folder or note kind list (wave 10).
+        if (NAMED_LISTS.includes(field.key)) onToolNames?.(field.key, list.map((o) => ({ id: o.value, name: o.label })))
       },
       () => {
         if (!alive) return
         setState({ list: [], failed: true })
-        if (REF_KINDS.includes(field.key)) onToolNames?.(field.key, null)     // W9-R51
+        if (NAMED_LISTS.includes(field.key)) onToolNames?.(field.key, null)     // W9-R51
       },
     )
     return () => { alive = false }
@@ -188,14 +194,111 @@ function useValueList(field, onToolNames) {
 }
 
 /**
+ * One filter, new or being edited. A note property filter (the catalog field with `prop: true`, wave 10) is two steps:
+ * which property, then its comparison and value (`PropertyFilterEditor`); every other field is one
+ * (`FieldFilterEditor`).
+ */
+export function FilterEditor(props) {
+  const field = sourceOf(props.cat, props.plan)?.fields.get(props.fieldKey)
+  return field?.prop === true ? <PropertyFilterEditor {...props} field={field} /> : <FieldFilterEditor {...props} />
+}
+
+/**
+ * Wave 10 (Task 10.17): a filter on one of the member's note properties. Step one, "Which property": the member's own
+ * properties by name (`GET /vocabulary?field=property`, the notes source's own rule; read again on each open), of a
+ * type a filter can ask (`propertyFilterable`). Step two: the comparison and a value picker typed by the property's
+ * type (a number, a date, yes or no, text, a select's options), with "Change property" back to step one. Several
+ * property filters may sit in one widget. The definitions read here (names, types, a select's options) are handed to
+ * the builder (`onToolNames('propertyDefs', ...)`) so the chips name the property and its value.
+ */
+export function PropertyFilterEditor(props) {
+  const { initial, onBack, onToolNames, field } = props
+  const [prop, setProp] = useState(typeof initial?.prop === 'string' && initial.prop ? initial.prop : null)
+  const [state, setState] = useState(null)       // null while loading, then {list, defs, failed}
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    let alive = true
+    setState(null)
+    Promise.allSettled([loadVocabulary('property', { fresh: true }), loadPropertyDefs()]).then(([v, d]) => {
+      if (!alive) return
+      const defs = d.status === 'fulfilled' ? d.value : null
+      if (defs) onToolNames?.('propertyDefs', defs)
+      const list = v.status === 'fulfilled' && Array.isArray(v.value)
+        ? v.value.filter((x) => x && typeof x === 'object' && typeof x.id === 'string' && x.id)
+          .map((x) => ({ id: x.id, name: typeof x.name === 'string' && x.name ? x.name : '', type: x.type }))
+          .filter((x) => x.name && propertyFilterable(x.type))
+        : []
+      setState({ list, defs, failed: v.status !== 'fulfilled' })
+    })
+    return () => { alive = false }
+    // onToolNames is the sheet's merge; a new identity must not re-read the lists.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick])
+
+  const retry = <button type="button" className={styles.btn} onClick={() => setTick((n) => n + 1)}>Try again</button>
+  if (!prop) {
+    return (
+      <div>
+        <PickerHead title="Which property" onBack={onBack} />
+        {state === null && <p className={styles.sectionHint} role="status">Loading your properties…</p>}
+        {state?.failed && <div><p className={styles.reason} role="alert">{"Couldn't load your properties."}</p>{retry}</div>}
+        {state && !state.failed && state.list.length === 0 && (
+          <p className={styles.sectionHint}>{"You don't have a note property to filter by yet."}</p>
+        )}
+        {state && state.list.length > 0 && (
+          <ul className={styles.pickerList} aria-label="Properties">
+            {state.list.map((x) => (
+              <li key={x.id}>
+                <button type="button" className={styles.option} onClick={() => setProp(x.id)}>
+                  <span className={styles.optionLabel}>{x.name}</span>
+                  <span className={styles.optionMeta}>{PROPERTY_TYPE_WORDS[x.type]}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  }
+  // The named property's own definition (its select options); else its row in the pick list (no options needed).
+  const row = state?.list.find((x) => x.id === prop) || null
+  const def = state?.defs?.get(prop) || (row ? { name: row.name, type: row.type, options: [] } : null)
+  const needsOptions = def?.type === 'select' || def?.type === 'multi_select'
+  if (state === null || !def || !propertyFilterable(def.type) || (needsOptions && !state.defs)) {
+    return (
+      <div>
+        <PickerHead title={def?.name || field.label} onBack={onBack} />
+        {state === null && <p className={styles.sectionHint} role="status">Loading your properties…</p>}
+        {state && (!state.defs || !def) && (
+          <div><p className={styles.reason} role="alert">{"Couldn't load this property."}</p>{retry}</div>
+        )}
+        {state && def && state.defs && !propertyFilterable(def.type) && (
+          <p className={styles.reason}>{"This property can't be used to filter a widget."}</p>
+        )}
+        <button type="button" className={styles.btn} onClick={() => setProp(null)}>Change property</button>
+      </div>
+    )
+  }
+  // A filter on another property keeps none of this one's comparison or values.
+  const same = initial && initial.prop === prop
+  const start = initial ? { ...initial, ...(same ? {} : { op: undefined, values: [] }) } : undefined
+  return (
+    <FieldFilterEditor key={prop} {...props} initial={start} draft={undefined} field={propertyFieldFor(field, def)}
+      prop={prop} onChangeProp={() => setProp(null)} />
+  )
+}
+
+/**
  * One filter, new or being edited: its comparison, its values, and whether a note may change it. Values come from a
  * list wherever one exists (the member's own setups, tags, symbols and accounts; a field's fixed buckets), never a
- * blank text box where a list exists (spec 5.2).
+ * blank text box where a list exists (spec 5.2). `field` (a note property as one field, wave 10) replaces the
+ * catalog's, and the filter carries `prop`.
  */
-export function FilterEditor({
+function FieldFilterEditor({
   cat, plan, fieldKey, initial, draft, refValue, accounts, toolNames, onApply, onRemove, onBack, onChangeRef, onToolNames,
+  field: given = null, prop = null, onChangeProp,
 }) {
-  const field = sourceOf(cat, plan)?.fields.get(fieldKey)
+  const field = given || sourceOf(cat, plan)?.fields.get(fieldKey)
   // Wave 9: a field that names a routine or tracker carries which one (picked in the step before, or the filter's).
   const refKind = refKindOf(field)
   const ref = refKind ? (refValue ?? initial?.ref ?? null) : null
@@ -223,7 +326,7 @@ export function FilterEditor({
   // A number box holds what was typed ("1.", "-"); the filter holds numbers, and an unfinished one is caught by
   // filterProblem rather than shown as NaN.
   const clean = type === 'number' ? values.map((v) => (v === '' || v === null || v === undefined ? '' : Number(v))) : values
-  const filter = { field: fieldKey, op, values: clean, overridable, ...(ref ? { ref } : {}) }
+  const filter = { field: fieldKey, op, values: clean, overridable, ...(ref ? { ref } : {}), ...(prop ? { prop } : {}) }
   const problem = filterProblem(cat, field, filter)
   const shown = useMemo(() => {
     const list = listState.list || []
@@ -353,6 +456,9 @@ export function FilterEditor({
         <button type="button" className={styles.btn} onClick={() => onChangeRef({ op, values, overridable })}>
           {refKind === 'tracker' ? 'Change tracker' : 'Change routine'}
         </button>
+      )}
+      {prop && onChangeProp && (
+        <button type="button" className={styles.btn} onClick={onChangeProp}>Change property</button>
       )}
       {ops.length > 1 && (
         <div className={styles.field}>

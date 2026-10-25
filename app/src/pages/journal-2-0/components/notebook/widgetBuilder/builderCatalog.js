@@ -28,8 +28,19 @@ export const VIEW_LABELS = Object.freeze([
 export const FALLBACK_REASON = "This doesn't fit what you picked."
 
 /** The fields the server lists the member's own values for (`?field=`). `routine` and `tracker` answer
- *  `{id, name}` and are listed only while wave 9 is on (be router `VOCAB_TOOL_FIELDS`). */
-export const VOCAB_FIELDS = Object.freeze(['setup', 'mistake', 'emotion', 'symbol', 'account', 'routine', 'tracker'])
+ *  `{id, name}` and are listed only while wave 9 is on (be router `VOCAB_TOOL_FIELDS`). Wave 10 (Task 10.17, be router
+ *  `VOCAB_W10_FIELDS`, listed only while wave 10 is on): the options source's `underlying` (text) and `strategy`
+ *  (`{id, name}`), the notes source's `folder` and `kind` (`{id, name}`), `tag` and `ticker` (text), and `property`
+ *  (`{id, name, type}`: the member's note properties, the first step of a property filter, never a value list). Each
+ *  key is the source field's OWN key. */
+export const VOCAB_FIELDS = Object.freeze([
+  'setup', 'mistake', 'emotion', 'symbol', 'account', 'routine', 'tracker',
+  'underlying', 'strategy', 'folder', 'kind', 'tag', 'ticker', 'property',
+])
+
+/** The fields whose stored values are ids the member's list names (`{id, name}` rows): a filter's chip reads each by
+ *  its name (`valueLabel`), never the id. Routines and trackers are `REF_KINDS`; an account is the `accounts` map. */
+export const ID_NAMED_FIELDS = Object.freeze(['strategy', 'folder', 'kind'])
 
 // ── routines and trackers (wave 9, Task 9.17) ────────────────────────────────────────────────────
 
@@ -62,11 +73,13 @@ export function planRefs(cat, plan, skip = {}) {
   return out
 }
 
-/** The kinds whose names a plan's chips need: every ref, and a routine or tracker history filtered by Routine or
- *  Tracker (its values are ids). */
+/** The kinds whose names a plan's chips need: every ref, a routine or tracker history filtered by Routine or
+ *  Tracker (its values are ids), and (wave 10) a filter on a field whose values are ids (`ID_NAMED_FIELDS`). */
 export function kindsNamed(cat, plan) {
   const out = new Set(planRefs(cat, plan).keys())
-  for (const f of plan?.filters || []) if (REF_KINDS.includes(f?.field)) out.add(f.field)
+  for (const f of plan?.filters || []) {
+    if (REF_KINDS.includes(f?.field) || ID_NAMED_FIELDS.includes(f?.field)) out.add(f.field)
+  }
   return [...out]
 }
 
@@ -79,15 +92,91 @@ export const REF_WORDS = Object.freeze({
   tracker: Object.freeze({ removed: 'A removed tracker', failed: "A tracker that couldn't be loaded" }),
 })
 
+/** The same words for the wave 10 ids (a filter's value, the property a filter or a sum names). */
+export const NAME_WORDS = Object.freeze({
+  ...REF_WORDS,
+  strategy: Object.freeze({ removed: 'A strategy no longer in your Journal', failed: "A strategy that couldn't be loaded" }),
+  folder: Object.freeze({ removed: 'A removed folder', failed: "A folder that couldn't be loaded" }),
+  kind: Object.freeze({ removed: 'A removed note kind', failed: "A note kind that couldn't be loaded" }),
+  property: Object.freeze({ removed: 'A removed property', failed: "A property that couldn't be loaded" }),
+})
+
+/** What an id reads as while its list loads. */
+export const NAME_LOADING = '…'
+
 /** The name an id of `kind` reads by, from `names[kind]`: the member's own name; "A removed routine" once their list
  *  is known and lacks it; "A routine that couldn't be loaded" when the list failed (W9-R51); `loading` (the field's
  *  label) while it loads. Never the id. */
 function nameFor(kind, id, names, loading) {
   const known = names ? names[kind] : undefined
-  if (known instanceof Map) return known.has(String(id)) ? known.get(String(id)) : REF_WORDS[kind].removed
-  if (known === NAMES_FAILED) return REF_WORDS[kind].failed
+  if (known instanceof Map) return known.has(String(id)) ? known.get(String(id)) : NAME_WORDS[kind].removed
+  if (known === NAMES_FAILED) return NAME_WORDS[kind].failed
   return loading
 }
+
+// ── note properties (wave 10, Task 10.17) ────────────────────────────────────────────────────────
+
+/** The measures that add up one of the member's number properties, carrying its id as `prop` (be
+ *  plan.PROP_MEASURES). */
+export const PROP_MEASURES = Object.freeze(['property_sum'])
+export const isPropMeasure = (key) => PROP_MEASURES.includes(key)
+
+/**
+ * A note property's type as a filter reads it: the field type its value picker takes, and the comparisons that type
+ * can be asked (a subset of the catalog's `property` ops, be sources.PROPERTY_OPS, that the property filter authority
+ * `note_properties.property_filter_sql` answers for it). A type not here (a relation, a calculated one) is not offered
+ * to filter by. The engine still decides: a value that no longer fits its property is the server's own notice.
+ */
+export const PROPERTY_FILTER_TYPES = Object.freeze({
+  number: Object.freeze({ type: 'number', ops: Object.freeze(['eq', 'gt', 'gte', 'lt', 'lte', 'between']) }),
+  date: Object.freeze({ type: 'day', ops: Object.freeze(['eq', 'gt', 'gte', 'lt', 'lte', 'between']) }),
+  checkbox: Object.freeze({ type: 'bool', ops: Object.freeze(['is']) }),
+  text: Object.freeze({ type: 'text', ops: Object.freeze(['contains', 'eq']) }),
+  url: Object.freeze({ type: 'text', ops: Object.freeze(['contains', 'eq']) }),
+  select: Object.freeze({ type: 'enum', ops: Object.freeze(['eq']) }),
+  multi_select: Object.freeze({ type: 'enum', ops: Object.freeze(['contains']) }),
+})
+export const propertyFilterable = (type) => typeof type === 'string' && Object.hasOwn(PROPERTY_FILTER_TYPES, type)
+
+/** The words a property's type reads as in the property pick list. */
+export const PROPERTY_TYPE_WORDS = Object.freeze({
+  number: 'Number', date: 'Date', checkbox: 'Checkbox', text: 'Text', url: 'Link', select: 'Select',
+  multi_select: 'Multi-select',
+})
+
+/** The catalog's property field (`prop: true`) as ONE property: named by it, typed by its type, with that type's
+ *  comparisons (only those the catalog field offers), and a select's options as its pick list. `def` is
+ *  `{name, type, options?}`; null leaves the field's own label and no type. */
+export function propertyFieldFor(field, def) {
+  const t = def && propertyFilterable(def.type) ? PROPERTY_FILTER_TYPES[def.type] : null
+  const served = Array.isArray(field?.ops) ? field.ops : []
+  const out = {
+    ...field, label: def?.name || field?.label || '', type: t ? t.type : null,
+    ops: t ? t.ops.filter((o) => served.includes(o)) : [], propertyOf: true,
+  }
+  delete out.values
+  delete out.prop
+  if (t && t.type === 'enum') {
+    out.values = (Array.isArray(def.options) ? def.options : [])
+      .filter((o) => isRecord(o) && typeof o.id === 'string')
+      .map((o) => ({ value: o.id, label: typeof o.label === 'string' && o.label ? o.label : o.id }))
+  }
+  return out
+}
+
+/** The property a filter or a property sum names, as `names.propertyDefs` knows it (the member's definitions by id;
+ *  NAMES_FAILED; undefined while loading): its definition `{name, type, options}`; `{name}` reading "A removed
+ *  property" or "A property that couldn't be loaded"; or null while loading. */
+export function propertyDefOf(prop, names) {
+  const defs = names ? names.propertyDefs : undefined
+  if (defs instanceof Map) return defs.get(String(prop)) || { name: NAME_WORDS.property.removed, type: null }
+  if (defs === NAMES_FAILED) return { name: NAME_WORDS.property.failed, type: null }
+  return null
+}
+
+/** Does the plan name a note property (a property filter, a property sum)? Its chips then need the definitions. */
+export const planNamesProperty = (plan) => (plan?.filters || []).some((f) => isRecord(f) && typeof f.prop === 'string' && !!f.prop)
+  || (plan?.measures || []).some((m) => isRecord(m) && isPropMeasure(m.key) && typeof m.prop === 'string' && !!m.prop)
 
 /** The name a ref reads by (see `nameFor`). `names` is `{routine, tracker}`: a Map of id -> name, or NAMES_FAILED. */
 export function refName(field, ref, names) {
@@ -299,11 +388,23 @@ export function valueLabel(field, value, { accounts, toolNames } = {}) {
   // A routine history's Routine, a tracker history's Tracker: the member's own name for the id, never the id
   // (fix 1, I-2/M-3; W9-R51), read exactly as a ref is.
   if (REF_KINDS.includes(field?.key)) return nameFor(field.key, value, toolNames, field.label || '')
+  // Wave 10: an options strategy, a folder, a note kind: by the member's name for it, never the id.
+  if (ID_NAMED_FIELDS.includes(field?.key)) return nameFor(field.key, value, toolNames, NAME_LOADING)
+  if (typeof value === 'boolean' && field?.type === 'bool') return value ? 'Yes' : 'No'
   return String(value)
 }
 
-/** One filter as the sentence its chip reads ("Setup is Flag or VCP", "Hold days is under 2"). */
+/** One filter as the sentence its chip reads ("Setup is Flag or VCP", "Hold days is under 2"). A note property filter
+ *  reads as that property, by its name and its type ("Conviction is at least 3"; `opts.toolNames.propertyDefs`). */
 export function filterSentence(field, filter, opts = {}) {
+  if (field?.prop === true && typeof filter?.prop === 'string') {
+    const one = propertyFieldFor(field, propertyDefOf(filter.prop, opts.toolNames))
+    return filterSentence({ ...one, type: one.type || 'text' }, filter, opts)
+  }
+  // A checkbox property reads "Reviewed is Yes" (a catalog yes/no field's own value labels say it whole).
+  if (field?.propertyOf && field.type === 'bool' && filter?.op === 'is') {
+    return `${field.label} is ${filter.values?.[0] === false ? 'No' : 'Yes'}`
+  }
   // A field that names a routine or tracker reads as that one: "Morning prep is Done".
   const label = refKindOf(field) && filter?.ref ? refName(field, filter.ref, opts.toolNames)
     : field?.label || String(filter?.field || '')

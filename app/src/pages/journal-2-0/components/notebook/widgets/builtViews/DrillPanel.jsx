@@ -1,9 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { UNSAFE_NavigationContext } from 'react-router-dom'
 import Sheet from '../../../../../../components/mobile/Sheet'
 import { useIsTouch } from '../../../../../../hooks/useBreakpoint'
 import { money, moneySigned, rMultiple } from '../../../../../../lib/journal-2-0/format'
 import { drillBuilt, failureText } from '../../../../lib/builtWidgets'
 import { tradeHref } from './builtModel'
+import { noteHref, openNoteInPlace } from '../../routines/toolEditorLib'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s } from '../SnapshotFrame'
 
@@ -25,10 +27,26 @@ import { snapshotStyles as s } from '../SnapshotFrame'
  * restore (to whatever held focus when it opened, the editor perhaps) can never win.
  */
 export const DRILL_MORE = (n) => `and ${n} more`
+/** Wave 10 (Task 10.17): a drilled options strategy opens in the existing options drawer (ruling R-30: the Journal's
+ *  trades tab opens the strategy its `openTrade` parameter names, `TradeJournalTab`), the door a note's linked
+ *  strategy already uses (`NoteEditorPage`). */
+export const optionHref = (id) => `/journal?j2tab=journal&openTrade=${encodeURIComponent(String(id))}`
+/** A drilled note opens in the note editor's own navigation (`toolEditorLib.noteHref`, the one owner of the note
+ *  link). */
+export const drillNoteHref = noteHref
 const TITLE = (what) => (what ? `Behind ${what}` : 'The rows behind this')
 const PANEL_W = 360
 
 function rowText(sourceKey, r) {
+  if (sourceKey === 'options_strategies') {
+    // be drill._option_row: `label` the underlying, `label2` the strategy; an open one has no net, R or result yet.
+    return [
+      r.label || 'A strategy', r.label2, r.day,
+      typeof r.net === 'number' ? moneySigned(r.net) : null,
+      typeof r.r === 'number' ? rMultiple(r.r) : null, r.result,
+    ]
+  }
+  if (sourceKey === 'notes') return [r.label || 'Untitled note', r.day]     // be drill._note_row
   if (sourceKey === 'trading_days') {
     const n = Number(r.trades) || 0
     return [r.day, moneySigned(r.net), `${n} ${n === 1 ? 'trade' : 'trades'}`]
@@ -48,13 +66,37 @@ function rowText(sourceKey, r) {
   ]
 }
 
+/** Where a drilled row goes, or null: a trade to its page, an options strategy to the options drawer, a note to the
+ *  note. Each row names its own id field (be drill `_SHAPE`). */
+function rowLink(sourceKey, r) {
+  const id = (k) => (typeof r[k] === 'string' && r[k] ? r[k] : null)
+  if (sourceKey === 'options_strategies') return id('strategyId') ? { href: optionHref(r.strategyId), note: null } : null
+  if (sourceKey === 'notes') return id('noteId') ? { href: drillNoteHref(r.noteId), note: r.noteId } : null
+  if (sourceKey === 'open_positions' || sourceKey === 'trading_days') return null
+  if (sourceKey === 'routine_history' || sourceKey === 'tracker_history') return null
+  return id('id') ? { href: tradeHref(r.id), note: null } : null
+}
+
+const plainClick = (e) => !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
+
 function DrillBody({ params, state, onLink }) {
   const sourceKey = params?.sourceKey
+  // The app router's history, when the widget is drawn inside it (null outside any router): a note or a strategy
+  // opens through it on a plain click, as the note editor's own links do; a modified click is the browser's.
+  const routerNav = useContext(UNSAFE_NavigationContext)?.navigator || null
   if (state.status === 'loading') return <p className={styles.caption} role="status">Loading the rows…</p>
   if (state.status === 'error') return <p className={s.message} role="status">{state.text}</p>
   const d = state.data
   const rows = Array.isArray(d.rows) ? d.rows.filter((r) => r && typeof r === 'object') : []
-  const linkable = sourceKey !== 'open_positions' && sourceKey !== 'trading_days'
+  const follow = (e, link) => {
+    if (sourceKey === 'notes' || sourceKey === 'options_strategies') {
+      if (routerNav && plainClick(e)) {
+        e.preventDefault()
+        routerNav.push(link.href)
+      } else if (link.note) openNoteInPlace(e, link.note)
+    }
+    onLink()
+  }
   return (
     <div className={styles.drillBody}>
       {typeof d.notice === 'string' && d.notice && <p className={styles.caption}>{d.notice}</p>}
@@ -66,10 +108,11 @@ function DrillBody({ params, state, onLink }) {
           {rows.map((r, i) => {
             const parts = rowText(sourceKey, r).filter((x) => typeof x === 'string' && x)
             const head = parts[0] || 'A row'
+            const link = rowLink(sourceKey, r)
             return (
               <li key={`d${i}`} className={styles.drillRowItem}>
-                {linkable && typeof r.id === 'string' && r.id ? (
-                  <a className={s.link} href={tradeHref(r.id)} onClick={onLink}>{head}</a>
+                {link ? (
+                  <a className={s.link} href={link.href} onClick={(e) => follow(e, link)}>{head}</a>
                 ) : <span className={styles.drillHead}>{head}</span>}
                 {parts.slice(1).map((t, k) => <span key={`p${k}`} className={styles.drillPart}>{t}</span>)}
                 {r.flagged === true && <span className={styles.flagged}>Flagged</span>}

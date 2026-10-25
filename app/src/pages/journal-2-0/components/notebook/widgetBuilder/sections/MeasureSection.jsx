@@ -1,8 +1,10 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
-import { THEMES, measuresFor, coverageText, reasonOf } from '../builderCatalog'
+import { THEMES, measuresFor, coverageText, reasonOf, isPropMeasure } from '../builderCatalog'
 import { measureLabel, measureId } from '../formulaFields'
+import { loadVocabulary } from '../../../../lib/builtWidgets'
+import { loadPropertyDefs } from '../propertyDefs'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
@@ -12,7 +14,7 @@ import styles from '../WidgetBuilderSheet.module.css'
  * (wave 10, Task 10.16), named by its own name ("Exit efficiency (average)"); it is added and taken out from "Your own
  * fields", and its chip opens the same picker.
  */
-export default function MeasureSection({ cat, plan, byNeed, onOpen, onRemove }) {
+export default function MeasureSection({ cat, plan, byNeed, toolNames, onOpen, onRemove }) {
   const lastId = useId()
   const only = plan.measures.length <= 1
   return (
@@ -20,7 +22,7 @@ export default function MeasureSection({ cat, plan, byNeed, onOpen, onRemove }) 
       <ul className={styles.filterList}>
         {plan.measures.map((pm, i) => {
           const m = pm.key ? cat.measures.get(pm.key) : null
-          const label = measureLabel(cat, plan, pm)
+          const label = measureLabel(cat, plan, pm, toolNames)
           const cov = coverageText(cat, m, byNeed)
           return (
             <li key={measureId(pm)} className={styles.measureItem}>
@@ -51,11 +53,83 @@ export default function MeasureSection({ cat, plan, byNeed, onOpen, onRemove }) 
 const LONG_PRESS_MS = 450
 
 /**
+ * Wave 10 (Task 10.17): "Sum of a property" adds up ONE of the member's number properties, picked here by name: the
+ * member's properties (`GET /vocabulary?field=property`, the notes source's own rule, read again on each open) of type
+ * number only. Each toggles a sum of that property in or out (`{key, prop}`); several may be summed side by side. The
+ * definitions read with them are handed to the builder so the chips name the property.
+ */
+export function PropertyMeasurePicker({ cat, plan, measureKey, onToggle, onToolNames, onBack }) {
+  const [state, setState] = useState(null)       // null while loading, then {list, failed}
+  const [tick, setTick] = useState(0)
+  const fullId = useId()
+  useEffect(() => {
+    let alive = true
+    setState(null)
+    Promise.allSettled([loadVocabulary('property', { fresh: true }), loadPropertyDefs()]).then(([v, d]) => {
+      if (!alive) return
+      if (d.status === 'fulfilled') onToolNames?.('propertyDefs', d.value)
+      const list = v.status === 'fulfilled' && Array.isArray(v.value)
+        ? v.value.filter((x) => x && typeof x === 'object' && typeof x.id === 'string' && x.id && x.type === 'number'
+          && typeof x.name === 'string' && x.name)
+        : []
+      setState({ list, failed: v.status !== 'fulfilled' })
+    })
+    return () => { alive = false }
+    // onToolNames is the sheet's merge; a new identity must not re-read the lists.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick])
+  const m = cat.measures.get(measureKey)
+  const on = (id) => plan.measures.some((x) => x.key === measureKey && x.prop === id)
+  const full = plan.measures.length >= cat.maxMeasures
+  return (
+    <div>
+      <PickerHead title={m?.label || measureKey} onBack={onBack} />
+      {m?.meaning && <p className={styles.sectionHint}>{m.meaning}</p>}
+      {full && <p className={styles.reason} id={fullId}>{reasonOf(cat, 'too_many_measures')}</p>}
+      {state === null && <p className={styles.sectionHint} role="status">Loading your properties…</p>}
+      {state?.failed && (
+        <div>
+          <p className={styles.reason} role="alert">{"Couldn't load your properties."}</p>
+          <button type="button" className={styles.btn} onClick={() => setTick((n) => n + 1)}>Try again</button>
+        </div>
+      )}
+      {state && !state.failed && state.list.length === 0 && (
+        <p className={styles.sectionHint}>{"You don't have a number property yet."}</p>
+      )}
+      {state && state.list.length > 0 && (
+        <ul className={styles.pickerList} aria-label="Number properties">
+          {state.list.map((x) => {
+            const picked = on(x.id)
+            const only = picked && plan.measures.length <= 1
+            const disabled = (!picked && full) || only
+            return (
+              <li key={x.id}>
+                <button type="button" className={`${styles.option} ${picked ? styles.optionOn : ''}`}
+                  aria-pressed={picked} aria-disabled={disabled || undefined}
+                  aria-describedby={disabled && !picked ? fullId : undefined}
+                  onClick={() => { if (!disabled) onToggle({ key: measureKey, prop: x.id }) }}>
+                  <span className={styles.optionLabel}>{x.name}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <div className={styles.pickerActions}>
+        <button type="button" className={styles.btnPrimary} onClick={onBack}>Done</button>
+      </div>
+    </div>
+  )
+}
+
+/**
  * The measure picker, grouped by theme (Results, Win/loss, Risk, Time, Process). Each measure toggles in or out
  * (at most three). Its one-line meaning shows on hover and on focus, and a long press shows it on touch without
- * picking the measure; it is also the button's description, so a screen reader hears it either way.
+ * picking the measure; it is also the button's description, so a screen reader hears it either way. A measure that
+ * adds up one of the member's properties (wave 10) opens its property list instead (`PropertyMeasurePicker`).
  */
-export function MeasurePicker({ cat, plan, byNeed, onToggle, onBack }) {
+export function MeasurePicker({ cat, plan, byNeed, onToggle, onToolNames, onBack }) {
+  const [propFor, setPropFor] = useState(null)
   const [revealed, setRevealed] = useState(null)
   const press = useRef({ timer: null, fired: false })
   const fullId = useId()
@@ -76,6 +150,10 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onBack }) {
   }
   const endPress = () => clearTimeout(press.current.timer)
 
+  if (propFor) {
+    return <PropertyMeasurePicker cat={cat} plan={plan} measureKey={propFor} onToggle={onToggle}
+      onToolNames={onToolNames} onBack={() => setPropFor(null)} />
+  }
   return (
     <div>
       <PickerHead title="What to measure" onBack={onBack} />
@@ -87,8 +165,10 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onBack }) {
           <ul className={styles.pickerList}>
             {list.map((m) => {
               const on = picked.has(m.key)
-              const only = on && plan.measures.length <= 1
-              const disabled = (!on && full) || only
+              // A property sum is picked per property, in its own list: never full or the last one here.
+              const perProp = isPropMeasure(m.key)
+              const only = !perProp && on && plan.measures.length <= 1
+              const disabled = !perProp && ((!on && full) || only)
               const cov = coverageText(cat, m, byNeed)
               const meaningId = `wb-meaning-${m.key}`
               // ⛔ aria-disabled, never `disabled`: a disabled button cannot take focus, and its meaning (the
@@ -105,7 +185,8 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onBack }) {
                     onContextMenu={(e) => { if (press.current.fired) e.preventDefault() }}
                     onClick={() => {
                       if (press.current.fired) { press.current.fired = false; return }
-                      if (!disabled) onToggle(m.key)
+                      if (perProp) setPropFor(m.key)
+                      else if (!disabled) onToggle(m.key)
                     }}>
                     <span className={styles.optionLabel}>{m.label}</span>
                     <span className={styles.meaning} id={meaningId}>{m.meaning}</span>
