@@ -49,7 +49,8 @@ from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
     FORMULA_PREFIX, OPS_BOOL, OPS_ENUM, OPS_NUMBER, PROP_MEASURES, PROPERTY_FIELD, RANGE_TOKENS,
-    RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS, ResolvedRange, _UNBOUNDED_TOKENS, formula_field_infos,
+    RIGHT_NOW_SOURCES, S_NO_EARLIER, S_UNKNOWN_FIELD, VIEWS, ResolvedRange, _UNBOUNDED_TOKENS,
+    formula_field_infos,
     formula_of, plan_refs,
 )
 
@@ -1529,6 +1530,48 @@ def _kind_filters(conn: sqlite3.Connection, user_id: str, plan: dict) -> tuple[s
     return "".join(frags), params
 
 
+def note_kinds_offered() -> bool:
+    """W10-R62: is "Kind of note" offered right now? The one reader is `note_kinds.offered` (the
+    journal styles switch, read per call); this asks it about the kind property itself and never
+    restates the switch."""
+    nk = j2_note_kinds.NOTE_KIND_PROPERTY
+    return any(d.get("id") == nk for d in j2_note_kinds.offered([{"id": nk}]))
+
+
+#: Fields a source offers only while their own switch says so (W10-R62): (source, field) -> reader.
+#: Out of the catalog, out of the member-values door, and refused in a plan while it says no.
+_GATED_FIELDS: dict[tuple[str, str], Callable[[], bool]] = {("notes", "kind"): note_kinds_offered}
+
+
+def field_offered(source_key: Any, field_key: Any) -> bool:
+    """Is `field_key` of `source_key` offered right now? (Every field without a gate is.)"""
+    gate = _GATED_FIELDS.get((source_key, field_key))
+    return gate is None or bool(gate())
+
+
+def _unoffered_field_in(plan: dict, src: "Source") -> bool:
+    """Does `plan` filter or split by, or a formula of it read, a field not offered right now?"""
+    gated = [k for (s, k) in _GATED_FIELDS if s == src.key and not field_offered(s, k)]
+    if not gated:
+        return False
+    split = plan.get("split") or {}
+    named = [f.get("field") for f in plan.get("filters") or []] + [split.get("by"),
+                                                                     split.get("then")]
+    if any(k in gated for k in named):
+        return True
+    if plan.get("formulas"):
+        from api.services.journal_two import widget_formula as wf      # widget_formula imports plan
+        infos = formula_fields(src.key)
+        for f in plan["formulas"]:
+            try:
+                reads = wf.compile_formula(f.get("expr") or "", infos).fields
+            except wf.FormulaError:
+                continue                                    # the validator has refused it already
+            if any(k in gated for k in reads):
+                return True
+    return False
+
+
 def _summed_properties(conn: sqlite3.Connection, user_id: str, plan: dict,
                        notices: list[str]) -> list[str]:
     """The props of the plan's property sums that are the member's own NUMBER properties."""
@@ -1811,6 +1854,8 @@ class WidgetCatalog:
         src = self.sources.get(plan.get("source"))
         if src is None:
             return None
+        if _unoffered_field_in(plan, src):
+            return S_UNKNOWN_FIELD              # W10-R62: a field not offered right now
         split = plan.get("split")
         if split:
             for k in (split.get("by"), split.get("then")):

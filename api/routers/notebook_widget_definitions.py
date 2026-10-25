@@ -473,7 +473,8 @@ def _static_vocabulary(tools: bool = False, w10: bool = False) -> dict:
         sources.append({
             "key": s.key, "label": s.label, "description": s.description, "unit": s.unit,
             "fields": [_field_row(f, w10) for f in s.fields.values()
-                       if tools or not getattr(f, "ref_kind", None)],
+                       if (tools or not getattr(f, "ref_kind", None))
+                       and wsources.field_offered(s.key, f.key)],          # W10-R62
             "measures": sorted(cat.measures_for(s.key)),
             "rightNow": s.key in wplan.RIGHT_NOW_SOURCES,
         })
@@ -628,6 +629,8 @@ def vocabulary(field: str | None = None, user: dict = Depends(require_paid)) -> 
         return _ok(_static_vocabulary(tools, w10))
     if field not in (VOCAB_FIELDS + (VOCAB_TOOL_FIELDS if tools else ())
                      + (VOCAB_W10_FIELDS if w10 else ())):
+        raise _err(400, "invalid", S_VOCAB_FIELD)
+    if field == "kind" and not wsources.field_offered("notes", "kind"):   # W10-R62
         raise _err(400, "invalid", S_VOCAB_FIELD)
     values = _engine_errors(lambda: _member_values(_uid(user), field))
     return _ok({"field": field, "values": values})

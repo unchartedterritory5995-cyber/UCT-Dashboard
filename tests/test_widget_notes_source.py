@@ -39,6 +39,8 @@ OTHER = "u-wnotes-other"
 def _fresh_state(monkeypatch):
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-wnotes-test",
                                                     reserve=nw.WIDGET_POOL_RESERVE))
+    # W10-R62: "Kind of note" is offered only while journal styles are on; these tests read kinds
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     wrun._reset_state()
     yield
     wrun._reset_state()
@@ -687,3 +689,63 @@ def test_select_checkbox_and_date_properties_filter_through_the_authority(conn):
         for c in sources.property_conditions(status, op, vals):
             assert c["op"] in note_properties._VALID_OPS, op
     assert set(sources.NOTES.fields["property"].ops) == set(sources.PROPERTY_OPS)
+
+
+# -- W10-R62: the kind field is offered only while note kinds are ---------------------------------
+
+def _catalog_fields(monkeypatch, on: bool) -> list[str]:
+    import api.routers.notebook_widget_definitions as wdr
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1" if on else "0")
+    notes = next(s for s in wdr._static_vocabulary(True, True)["sources"] if s["key"] == "notes")
+    return [f["key"] for f in notes["fields"]]
+
+
+@pytest.mark.parametrize("on", [False, True])
+def test_kind_is_offered_only_while_note_kinds_are(conn, monkeypatch, on):
+    """Off: no kind in the catalog, `?field=kind` is refused, and a plan that filters, splits or
+    has a formula read by kind is the plain unknown-field sentence (never a 500). On: all three."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    import api.routers.notebook_widget_definitions as wdr
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    # the predicate is note_kinds' own reader, asked of the kind property
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1" if on else "0")
+    assert sources.note_kinds_offered() is on
+    assert sources.field_offered("notes", "kind") is on
+    assert sources.field_offered("notes", "folder") is True        # control: ungated fields stay
+    fields = _catalog_fields(monkeypatch, on)
+    assert ("kind" in fields) is on and "folder" in fields
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W8_ENABLED", "1")
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    user = {"id": UID, "email": "p@example.test", "role": "member", "plan": "pro"}
+    app = FastAPI()
+    app.include_router(wdr.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(user)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(user)
+    c = TestClient(app, raise_server_exceptions=False)
+    r = c.get("/api/j2/widget-definitions/vocabulary", params={"field": "kind"})
+    if on:
+        assert r.status_code == 200 and {"id": "thesis", "name": "Thesis"} in r.json()["values"]
+    else:
+        assert r.status_code == 400 and r.json()["detail"]["message"] == wdr.S_VOCAB_FIELD
+    assert c.get("/api/j2/widget-definitions/vocabulary",
+                 params={"field": "folder"}).status_code == 200            # control
+    shapes = [raw(split={"by": "kind"}, view={"type": "bar"}),
+              raw(filters=[{"field": "kind", "op": "in", "values": ["thesis"]}]),
+              raw(formulas=[{"id": "f1", "name": "K", "expr": '[kind] = "thesis"'}],
+                  filters=[{"field": "formula:f1", "op": "is", "values": [True]}])]
+    for r_ in shapes:
+        if on:
+            assert plan.validate_plan(r_, sources.CATALOG)["source"] == "notes"
+        else:
+            with pytest.raises(plan.PlanError) as e:
+                plan.validate_plan(r_, sources.CATALOG)
+            assert e.value.sentence == plan.S_UNKNOWN_FIELD
+        out = c.post("/api/j2/widget-definitions/preview", json={"plan": r_})
+        assert out.status_code == (200 if on else 400), out.text
+        if not on:
+            assert out.json()["detail"]["message"] == plan.S_UNKNOWN_FIELD
+    # control: a notes plan that never names kind is unaffected either way
+    assert plan.validate_plan(raw(split={"by": "folder"}, view={"type": "bar"}),
+                              sources.CATALOG)["source"] == "notes"
