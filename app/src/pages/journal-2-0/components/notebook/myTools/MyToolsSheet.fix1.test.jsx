@@ -211,8 +211,11 @@ describe('reads and refusals', () => {
     render(<MyToolsSheet onClose={() => {}} uid="u1" />)
     expect(await screen.findByTestId('my-tools-load-failed')).toHaveTextContent(COPY.offlineList)
     online = true
-    act(() => { window.dispatchEvent(new Event('online')) })
-    expect(await screen.findByRole('heading', { name: '2 widgets' })).toBeInTheDocument()
+    // The listener is registered once the failure is drawn; the event is sent until the list answers.
+    await waitFor(() => {
+      act(() => { window.dispatchEvent(new Event('online')) })
+      expect(screen.getByRole('heading', { name: '2 widgets' })).toBeInTheDocument()
+    })
   })
 
   it('a 402 says "My tools needs a paid plan." with nothing to retry', async () => {

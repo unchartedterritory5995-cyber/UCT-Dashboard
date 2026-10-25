@@ -6,10 +6,14 @@
 //    restore question) flows in the sheet's scrolling body; one that set a height clipped or doubled the scroll.
 // 2. (Ruling R-37) A class that sets `display` beats the `hidden` attribute, so any class rendered with `hidden={...}`
 //    that sets display must carry its own `.x[hidden] { display: none }` (the list behind a panel stayed visible).
+// 3. (fix 2, I-1) Every outline is VALID in every theme: `<width> <style> <one colour>`. `--focus-ring` is a
+//    box-shadow value, so `outline: 2px solid var(--focus-ring, …)` is invalid at computed time: no ring at all, and
+//    the global ring is gone too. And every control (a clickable class, the field) has a focus-visible ring.
+// 4. (fix 2, M-6) The Sheet's fixed height is a desktop-pointer rule only: on a touch tablet it is a bottom sheet.
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRules, declarations } from '../../../a11y/cssAudit'
+import { parseRules, declarations, themeVars, resolveVars, parseColor, THEMES } from '../../../a11y/cssAudit'
 
 const DIR = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook', 'myTools')
 const CSS = readFileSync(join(DIR, 'myTools.module.css'), 'utf8')
@@ -122,5 +126,86 @@ describe('My tools: a class rendered with `hidden` that sets display is guarded 
     const src = [['x.jsx', '<div hidden={a} className={styles.wrap}>']]
     expect(hiddenDefects(src, '.wrap { display: flex; }').defects).toEqual(['wrap'])
     expect(hiddenDefects(src, '.wrap { display: flex; }\n.wrap[hidden] { display: none; }').defects).toEqual([])
+  })
+})
+
+/** Outline declarations that are not a valid `<width> <style> <colour>` in some theme, as "selector: value (theme)". */
+export function badOutlines(css, vars = themeVars()) {
+  const bad = []
+  for (const r of parseRules(css)) {
+    for (const d of declarations(r)) {
+      if (d.prop !== 'outline' || /^(none|0)$/.test(d.value)) continue
+      for (const theme of THEMES) {
+        let ok = false
+        try {
+          const parts = resolveVars(d.value, vars[theme]).trim().split(/\s+(?![^(]*\))/)
+          ok = parts.length === 3 && /^\d+(\.\d+)?px$/.test(parts[0]) && /^(solid|dashed|dotted|double)$/.test(parts[1])
+            && !!parseColor(parts[2])
+        } catch { ok = false }
+        if (!ok) { bad.push(`${r.selector}: ${d.value} (${theme})`); break }
+      }
+    }
+  }
+  return bad
+}
+
+/** Clickable classes (cursor: pointer) and fields with no focus-visible ring of their own. */
+export function ringless(css) {
+  const clickable = new Set()
+  const ringed = new Set()
+  for (const r of parseRules(css)) {
+    const decls = declarations(r)
+    for (const part of r.selector.split(',')) {
+      const p = part.trim()
+      const cls = p.match(/\.([A-Za-z][\w-]*)/g)
+      if (!cls) continue
+      const last = cls[cls.length - 1].slice(1)
+      if (decls.some((d) => d.prop === 'cursor' && d.value === 'pointer') && !/:/.test(p)) clickable.add(last)
+      if (/:focus-visible|:has\(:focus-visible\)/.test(p) && decls.some((d) => d.prop === 'outline' || d.prop === 'box-shadow')) {
+        ringed.add(cls[0].slice(1))
+      }
+    }
+  }
+  return [...clickable, 'input'].filter((c) => !ringed.has(c)).sort()
+}
+
+describe('My tools: every focus ring is real (fix 2, I-1)', () => {
+  it('every outline is a valid width, style and colour in every theme', () => {
+    expect(CSS).toMatch(/outline:/)                                     // non-vacuity
+    expect(badOutlines(CSS)).toEqual([])
+  })
+  it('every control has a focus-visible ring', () => {
+    expect(ringless(CSS)).toEqual([])
+  })
+  it('CONTROL: the --focus-ring outline is SEEN as invalid; a plain colour passes', () => {
+    expect(badOutlines('.a:focus-visible { outline: 2px solid var(--focus-ring, var(--ut-gold)); }')).toHaveLength(1)
+    expect(badOutlines('.a:focus-visible { outline: 2px solid var(--ut-gold); }')).toEqual([])
+    expect(ringless('.a { cursor: pointer; } .input { color: red; }')).toEqual(['a', 'input'])
+    expect(ringless('.a { cursor: pointer; } .a:focus-visible, .input:focus-visible { outline: 2px solid red; }')).toEqual([])
+  })
+})
+
+/** Media conditions under which `.sheetPanel` gets a height (null = a base rule). */
+function sheetHeightConditions(css) {
+  const out = []
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const re = /@media([^{]+)\{((?:[^{}]|\{[^{}]*\})*)\}/g
+  let m
+  const inMedia = []
+  while ((m = re.exec(text))) { inMedia.push([m.index, m.index + m[0].length]); if (/\.sheetPanel\s*\{[^}]*(^|[;{\s])height\s*:/.test(m[2])) out.push(m[1].trim()) }
+  const base = text.split('').map((c, i) => (inMedia.some(([a, b]) => i >= a && i < b) ? ' ' : c)).join('')
+  if (/(^|[^\w-])\.sheetPanel\s*\{[^}]*(^|[;{\s])height\s*:/.test(base)) out.push(null)
+  return out
+}
+
+describe('My tools: the fixed height is for a desktop pointer only (fix 2, M-6)', () => {
+  it('the Sheet height is set only under (hover: hover) and (pointer: fine)', () => {
+    const conds = sheetHeightConditions(CSS)
+    expect(conds.length).toBeGreaterThan(0)
+    expect(conds.filter((c) => c === null || !/\(hover:\s*hover\)/.test(c) || !/\(pointer:\s*fine\)/.test(c))).toEqual([])
+  })
+  it('CONTROL: a width-only or base height is SEEN', () => {
+    expect(sheetHeightConditions('@media (min-width: 641px) { .sheetPanel { height: 80vh; } }')).toEqual(['(min-width: 641px)'])
+    expect(sheetHeightConditions('.sheetPanel { height: 80vh; }')).toEqual([null])
   })
 })

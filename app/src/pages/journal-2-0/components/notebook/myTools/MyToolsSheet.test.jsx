@@ -202,17 +202,18 @@ describe('My tools, Widgets tab', () => {
     expect(field).toHaveFocus()
     expect(screen.getByRole('heading', { name: 'Delete “Old edge” permanently?' })).toBeInTheDocument()
     const del = screen.getByRole('button', { name: 'Delete permanently' })
-    expect(del).toBeDisabled()
+    expect(del).toHaveAttribute('aria-disabled', 'true')
     expect(del).toHaveAccessibleDescription(expect.stringContaining('Delete turns on when the name matches exactly.'))
     expect(field).toHaveAccessibleDescription(expect.stringContaining('It moves to Recently deleted for 30 days'))
     expect(del).toHaveAccessibleDescription(expect.stringContaining('It moves to Recently deleted for 30 days'))
+    fireEvent.click(del)                                              // aria-disabled: the click sends nothing
     fireEvent.change(field, { target: { value: 'old edge' } })     // the case matters
-    expect(del).toBeDisabled()
+    expect(del).toHaveAttribute('aria-disabled', 'true')
     fireEvent.change(field, { target: { value: 'Old edge ' } })    // so does a trailing space
-    expect(del).toBeDisabled()
+    expect(del).toHaveAttribute('aria-disabled', 'true')
     expect(net.calls.some((c) => c.path.endsWith('/delete'))).toBe(false)
     fireEvent.change(field, { target: { value: 'Old edge' } })
-    expect(del).toBeEnabled()
+    expect(del).not.toHaveAttribute('aria-disabled')
     fireEvent.submit(field.closest('form'))
     await saysLive('“Old edge” moved to Recently deleted. It\'s kept for 30 days.')
     expect(net.calls.find((c) => c.path === '/a1/delete')).toMatchObject({ method: 'POST', body: { typedName: 'Old edge' } })
@@ -298,7 +299,11 @@ describe('My tools, Widgets tab', () => {
     await openSheet()
     const row = rowOf('Net P&L by setup')
     expect(row).toHaveTextContent('This widget was made with a newer version of the app. Reload to use it.')
-    expect(within(row).getByRole('button', { name: 'Open Net P&L by setup' })).toBeDisabled()
+    const open = within(row).getByRole('button', { name: 'Open Net P&L by setup' })
+    expect(open).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(open)
+    await new Promise((r) => { setTimeout(r, 50) })                   // the builder is a dynamic import: let it land
+    expect(openWidgetBuilder).not.toHaveBeenCalled()                 // aria-disabled, and the handler holds
     await menuFor('Net P&L by setup')
     for (const label of ['Open', 'Rename', 'Duplicate']) expect(menuItem(label)).toBeDisabled()
   })

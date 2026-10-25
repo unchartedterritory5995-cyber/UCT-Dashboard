@@ -1,7 +1,7 @@
 // Wave 8 (Task 8.17): a widget's version history in My tools. What the member sees (dates, names, the changed words,
 // the question) and what the server is sent (paths, If-Match, bodies).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react'
 import { createRef } from 'react'
 import VersionHistory, { QUESTION_BACK } from './VersionHistory'
 import { installFetch, refuse, LIVE } from './__fixtures__/myToolsFixtures'
@@ -43,7 +43,8 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('Version history', () => {
   it('lists every version newest first with its date, its name, and the words that differ from the current one', async () => {
     mount()
-    expect(await screen.findByRole('heading', { name: 'Version history: Net P&L by setup' })).toHaveFocus()
+    const heading = await screen.findByRole('heading', { name: 'Version history: Net P&L by setup' })
+    await waitFor(() => expect(heading).toHaveFocus())
     const rows = await screen.findAllByTestId('my-tools-rev')
     expect(rows.map((r) => r.getAttribute('data-rev'))).toEqual(['3', '2', '1'])
     expect(rows[0]).toHaveTextContent('Mar 4, 2025')
@@ -156,7 +157,7 @@ describe('Version history', () => {
     await screen.findAllByTestId('my-tools-rev')
     fireEvent.click(within(revRow(1)).getByRole('button', { name: /^Name this version, from/ }))
     const field = screen.getByLabelText('Name for this version')
-    expect(field).toHaveFocus()
+    await waitFor(() => expect(field).toHaveFocus())
     fireEvent.change(field, { target: { value: '  First try  ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
     await waitFor(() => expect(net.calls.find((c) => c.path === '/w1/revs/1/name')).toMatchObject({
@@ -207,7 +208,7 @@ describe('Version history, review fixes', () => {
     await screen.findAllByTestId('my-tools-rev')
     fireEvent.click(within(revRow(2)).getByRole('button', { name: /^Restore the version from/ }))
     const group = within(revRow(2)).getByTestId('restore-confirm')
-    expect(within(group).getAllByRole('button')[0]).toHaveFocus()
+    await waitFor(() => expect(within(group).getAllByRole('button')[0]).toHaveFocus())
     expect(within(group).getAllByRole('button')[0]).toHaveTextContent('Cancel')
   })
 
@@ -230,7 +231,8 @@ describe('Version history, review fixes', () => {
       ['GET', '/w1', () => restored({ etag: 15 })],
     ])
     await askRestore(2)
-    expect(await screen.findByRole('heading', { name: 'Restore this version?' })).toHaveFocus()
+    const qHeading = await screen.findByRole('heading', { name: 'Restore this version?' })
+    await waitFor(() => expect(qHeading).toHaveFocus())
     expect(screen.getByRole('button', { name: 'Back to versions' })).toBeInTheDocument()
     expect(screen.getByTestId('my-tools-history-question').className).toMatch(/pushPanel/)
     fireEvent.click(screen.getByRole('button', { name: 'Save as a new widget' }))
@@ -283,3 +285,77 @@ describe('Version history, review fixes', () => {
     await waitFor(() => expect(onGone).toHaveBeenCalledWith(COPY.gone))
   })
 })
+
+describe('Version history, review round 2', () => {
+  const toQuestionThenSaveNew = async () => {
+    await askRestore(2)
+    await screen.findByRole('heading', { name: 'Restore this version?' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as a new widget' }))
+  }
+
+  it('M-2: the revert met a stale tab: Reload reads a fresh etag, and the retry sends it', async () => {
+    let tries = 0
+    const { announce } = mount(W1, [
+      ['POST', '/w1/revs/2/restore', () => restored()],
+      ['PUT', '/w1', () => ({ ...W1, id: 'w9', name: 'Net P&L by setup copy', rev: 1, etag: 1 })],
+      ['POST', '/w1/revs/3/restore', () => { tries += 1; return tries === 1 ? refuse(409, 'conflict', S_CONFLICT) : restored({ rev: 5, etag: 21 }) }],
+      ['GET', '/w1', () => restored({ etag: 20 })],
+    ])
+    await toQuestionThenSaveNew()
+    await waitFor(() => expect(announce).toHaveBeenCalledWith(`${COPY.revertFailed} ${S_CONFLICT}`, 'error'))
+    const reload = await screen.findByRole('button', { name: 'Reload' })
+    await waitFor(() => expect(reload).toHaveFocus())
+    const retry = screen.getByRole('button', { name: 'Go back to the version before' })
+    expect(retry).toHaveAttribute('aria-disabled', 'true')              // a stale etag would only conflict again
+    fireEvent.click(retry)
+    expect(tries).toBe(1)
+    fireEvent.click(reload)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Go back to the version before' })).not.toHaveAttribute('aria-disabled'))
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to the version before' }))
+    await waitFor(() => expect(tries).toBe(2))
+    expect(net.calls.filter((c) => c.path === '/w1/revs/3/restore').map((c) => c.headers['If-Match'])).toEqual(['8', '20'])
+  })
+
+  it('M-2: the revert failed offline: the offline sentence, and the retry stays', async () => {
+    let online = true
+    vi.spyOn(window.navigator, 'onLine', 'get').mockImplementation(() => online)
+    const { announce } = mount(W1, [
+      ['POST', '/w1/revs/2/restore', () => restored()],
+      ['PUT', '/w1', () => { online = false; return { ...W1, id: 'w9', name: 'copy', rev: 1, etag: 1 } }],
+    ])
+    await toQuestionThenSaveNew()
+    await waitFor(() => expect(announce).toHaveBeenCalledWith(`${COPY.revertFailed} ${COPY.offlineAction}`, 'error'))
+    expect(screen.getByRole('button', { name: 'Go back to the version before' })).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('M-1: Restore and the question\'s answer stay focusable while they run, and a second click sends nothing', async () => {
+    const restoring = later()
+    const putting = later()
+    mount(W1, [
+      ['POST', '/w1/revs/2/restore', () => restoring.promise.then(() => restored())],
+      ['PUT', '/w1', () => putting.promise.then(() => restored({ etag: 9 }))],
+    ])
+    await askRestore(2)
+    const btn = await screen.findByRole('button', { name: 'Restoring…' })
+    expect(btn).not.toBeDisabled()
+    expect(btn).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(btn)
+    expect(net.calls.filter((c) => c.path === '/w1/revs/2/restore')).toHaveLength(1)
+    await act(async () => { restoring.resolve() })
+    await screen.findByRole('heading', { name: 'Restore this version?' })
+    fireEvent.click(screen.getByRole('radio', { name: /Update all 3 notes/ }))
+    const confirm = screen.getByRole('button', { name: 'Update all 3 notes' })
+    fireEvent.click(confirm)
+    await waitFor(() => expect(confirm).toHaveAttribute('aria-disabled', 'true'))
+    expect(confirm).not.toBeDisabled()
+    fireEvent.click(confirm)
+    expect(net.calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    await act(async () => { putting.resolve() })
+  })
+})
+
+function later() {
+  let resolve
+  const promise = new Promise((r) => { resolve = r })
+  return { promise, resolve }
+}

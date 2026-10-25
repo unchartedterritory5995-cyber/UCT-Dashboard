@@ -20,11 +20,13 @@ import MyToolsSheet from './MyToolsSheet'
 
 let _open = null
 
-/** Mount My tools (or, while it is open, point it at `defId`: the open sheet switches to that widget). */
+/** Mount My tools. While it is open, a call is a new ask of the open sheet: it takes this call's tab, widget, editor
+ *  and navigate, and shows that tab (and that widget, focused, even when it is the same widget asked for again after
+ *  the member moved to another tab or list). */
 export function openMyTools({ editor = null, tab = 'widgets', defId = null, uid, navigate } = {}) {
   const id = typeof defId === 'string' && defId ? defId : null
   if (_open) {
-    if (id) _open.show(id)
+    _open.show({ editor, tab, defId: id, navigate })
     return _open.close
   }
   const host = document.createElement('div')
@@ -39,10 +41,20 @@ export function openMyTools({ editor = null, tab = 'widgets', defId = null, uid,
   }
   const props = {
     editor, tab, defId: id, uid: uid ?? editor?.storage?.uctJournalWidgets?.uid ?? null,
-    navigate: typeof navigate === 'function' ? navigate : null, onClose: close,
+    navigate: typeof navigate === 'function' ? navigate : null, onClose: close, seek: 0,
   }
-  const render = () => root.render(createElement(MyToolsSheet, props))
-  _open = { close, show: (next) => { props.defId = next; render() } }
+  const render = () => root.render(createElement(MyToolsSheet, { ...props }))
+  _open = {
+    close,
+    show: (next) => {
+      props.tab = next.tab
+      props.defId = next.defId
+      props.seek += 1
+      if (next.editor) props.editor = next.editor
+      if (typeof next.navigate === 'function') props.navigate = next.navigate
+      render()
+    },
+  }
   render()
   return close
 }

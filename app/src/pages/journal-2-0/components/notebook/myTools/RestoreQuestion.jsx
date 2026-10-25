@@ -41,9 +41,9 @@ export default function RestoreQuestion({ usedIn, answer, onAnswer, busy, onConf
       </div>
       {error && <p className={styles.inlineError}>{error.text}</p>}
       <div className={styles.actions}>
-        {error?.conflict && <button type="button" className={styles.btn} onClick={onReload}>Reload</button>}
-        <button type="button" className={styles.btnPrimary} disabled={busy} aria-busy={busy || undefined}
-          data-question-confirm="" onClick={() => onConfirm(answer)}>
+        {error?.conflict && <button type="button" className={styles.btn} aria-disabled={busy || undefined} onClick={() => { if (!busy) onReload() }}>Reload</button>}
+        <button type="button" className={styles.btnPrimary} aria-disabled={busy || undefined} aria-busy={busy || undefined}
+          data-question-confirm="" onClick={() => { if (!busy) onConfirm(answer) }}>
           {answer === UPDATE_ALL ? `Update all ${usedIn} notes` : 'Save as a new widget'}
         </button>
       </div>

@@ -20,7 +20,7 @@ import styles from './myTools.module.css'
  *
  * ⛔ LAZY: mounted only by openMyTools.js, which only dynamic imports reach.
  */
-export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, editor = null, uid = null, navigate = null }) {
+export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, editor = null, uid = null, navigate = null, seek = 0 }) {
   const phone = useIsPhone()
   const [active, setActive] = useState(TAB_KEYS.includes(tab) ? tab : 'widgets')
   const tabsRef = useRef(null)
@@ -38,11 +38,11 @@ export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, e
     window.addEventListener('popstate', closeOnce)
     return () => window.removeEventListener('popstate', closeOnce)
   }, [closeOnce])
-  // Asked again for one widget while open ("Manage…" on another placed widget): show the Widgets tab.
-  const [seen, setSeen] = useState(defId)
-  if (defId && defId !== seen) {
-    setSeen(defId)
-    setActive('widgets')
+  // Asked again while open (openMyTools called again): show the tab asked for; a widget is on the Widgets tab.
+  const [seenSeek, setSeenSeek] = useState(seek)
+  if (seek !== seenSeek) {
+    setSeenSeek(seek)
+    setActive(defId ? 'widgets' : (TAB_KEYS.includes(tab) ? tab : 'widgets'))
   }
 
   // Arrow keys move between the tabs (the tabs pattern): the segmented control's buttons are ordinary buttons, so
@@ -70,7 +70,7 @@ export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, e
         </div>
         <div role="tabpanel" aria-label={label} className={styles.tabPanel} data-tab={active}>
           {active === 'widgets'
-            ? <WidgetsTab phone={phone} defId={defId} editor={editor} uid={uid} navigate={navigate} onCloseAll={closeOnce} />
+            ? <WidgetsTab phone={phone} defId={defId} seek={seek} editor={editor} uid={uid} navigate={navigate} onCloseAll={closeOnce} />
             : <p className={styles.soon} data-testid="my-tools-soon">{COMING_SOON[active]}</p>}
         </div>
       </div>

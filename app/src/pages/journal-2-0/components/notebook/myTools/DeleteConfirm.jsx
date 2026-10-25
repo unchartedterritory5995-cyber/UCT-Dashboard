@@ -56,7 +56,7 @@ export default function DeleteConfirm({ d, onBack, onDeleted, onGone }) {
         {error && <p className={styles.error} role="alert" id={`${id}-err`}>{error}</p>}
         <div className={styles.actions}>
           <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
-          <button type="submit" className={styles.btnDanger} disabled={!matches || busy} aria-busy={busy || undefined}
+          <button type="submit" className={styles.btnDanger} aria-disabled={!matches || busy || undefined} aria-busy={busy || undefined}
             aria-describedby={described}>{busy ? 'Deleting…' : 'Delete permanently'}</button>
         </div>
       </form>

@@ -94,7 +94,8 @@ function Row({ d, filter, phone, touch, highlight, busy, menuOpen, onMenu, onPri
         {d.tooNew && <span className={styles.rowWarn}>{COPY.tooNew}</span>}
       </div>
       {!phone && (
-        <button type="button" className={styles.btn} disabled={primaryOff} onClick={() => onPrimary(d)}
+        <button type="button" className={styles.btn} aria-disabled={primaryOff || undefined}
+          aria-busy={busy || undefined} onClick={() => { if (!primaryOff) onPrimary(d) }}
           aria-label={`${primary} ${d.name}`}>{primary}</button>
       )}
       {/* Never disabled while busy: a menu that closes onto a disabled trigger drops focus to the page. The action
@@ -139,6 +140,7 @@ function RenamePanel({ d: initial, onBack, onDone, onGone, onReloaded, say }) {
     else fail(got)
   }
   const reload = async () => {
+    if (busy) return
     setBusy(true)
     const got = await request('GET', `/${enc(d.id)}`)
     setBusy(false)
@@ -146,7 +148,7 @@ function RenamePanel({ d: initial, onBack, onDone, onGone, onReloaded, say }) {
     setD(got.data)
     setError(null)
     onReloaded?.()
-    say(`Read “${got.data.name}” again. Your new name is kept; save it when you're ready.`)
+    say(`Loaded the latest “${got.data.name}”. Your new name is still here; save it when you're ready.`)
     input.current?.focus()
   }
   const hintText = used > 0 && (apply === 'only'
@@ -164,9 +166,9 @@ function RenamePanel({ d: initial, onBack, onDone, onGone, onReloaded, say }) {
         {hintText && <p className={styles.hint} id={`${id}-hint`}>{hintText}</p>}
         {error && <p className={styles.inlineError} id={`${id}-err`}>{error.text}</p>}
         <div className={styles.actions}>
-          {error?.conflict && <button type="button" className={styles.btn} disabled={busy} onClick={reload}>Reload</button>}
+          {error?.conflict && <button type="button" className={styles.btn} aria-disabled={busy || undefined} onClick={reload}>Reload</button>}
           <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
-          <button type="submit" className={styles.btnPrimary} disabled={!clean || clean === d.name || busy}
+          <button type="submit" className={styles.btnPrimary} aria-disabled={!clean || clean === d.name || busy || undefined}
             aria-busy={busy || undefined}>{busy ? 'Saving…' : 'Save name'}</button>
         </div>
       </form>
@@ -184,7 +186,7 @@ function ArchivePanel({ d, onBack, onArchive, busy, error }) {
       {error && <p className={styles.inlineError}>{error}</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
-        <button type="button" className={styles.btnPrimary} disabled={busy} aria-busy={busy || undefined}
+        <button type="button" className={styles.btnPrimary} aria-disabled={busy || undefined} aria-busy={busy || undefined}
           onClick={() => onArchive(d)}>{busy ? 'Archiving…' : 'Archive'}</button>
       </div>
     </div>
@@ -193,7 +195,7 @@ function ArchivePanel({ d, onBack, onArchive, busy, error }) {
 
 const EMPTY = { live: COPY.emptyLive, archived: COPY.emptyArchived, deleted: COPY.emptyDeleted }
 
-export default function WidgetsTab({ phone, defId = null, editor = null, uid = null, navigate = null, onCloseAll }) {
+export default function WidgetsTab({ phone, defId = null, seek = 0, editor = null, uid = null, navigate = null, onCloseAll }) {
   const touch = useIsTouch()
   const [filter, setFilter] = useState('live')
   const [lists, setLists] = useState({})            // filter -> {status, items?, code?, stale?}
@@ -217,7 +219,9 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
     for (const w of watchers.current) w.disconnect()
   }, [])
 
-  const say = useCallback((text, tone = 'ok') => setMessage(text ? { text, tone } : null), [])
+  // Every message is numbered: the region's child is keyed on the number, so the SAME sentence twice in a row (two
+  // identical refusals) is a new node, which a screen reader announces again; replacing equal text is a no-op.
+  const say = useCallback((text, tone = 'ok') => setMessage((m) => (text ? { text, tone, n: (m?.n || 0) + 1 } : (m ? { ...m, text: '' } : null))), [])
 
   const load = useCallback(async (key) => {
     setLists((all) => (all[key]?.status === 'ok' ? all : { ...all, [key]: { status: 'loading' } }))
@@ -252,11 +256,14 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
 
   // Opened from a placed widget ("Manage…"), or asked again for another widget while open: show that widget's row
   // and put focus on it. It may be archived.
-  const sought = useRef(null)
+  // Each ask is its own key (widget + ask number), so the SAME widget asked for again is sought again.
+  const seekKey = defId ? `${defId}|${seek}` : null
+  const sought = useRef(null)                       // the ask already answered
+  const resetting = useRef(false)
   useEffect(() => {
-    if (!defId || sought.current === defId) return
-    if (sought.current !== null) {                    // a second "Manage…" while My tools is open
-      sought.current = null
+    if (!seekKey || sought.current === seekKey) return
+    if (sought.current !== null && !resetting.current) {   // a later "Manage…" while My tools is open
+      resetting.current = true
       setView({ kind: 'list' })
       setMenu(null)
       setHighlight(defId)
@@ -264,14 +271,15 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
     }
     const live = lists.live
     if (live?.status !== 'ok') return
-    sought.current = defId
+    sought.current = seekKey
+    resetting.current = false
     if (live.items.some((w) => w.id === defId)) { focusAfter.current = { id: defId }; setTick((t) => t + 1); return }
     load('archived').then((items) => {
       if (!mounted.current || !items?.some((w) => w.id === defId)) return
       focusAfter.current = { id: defId }
       setFilter('archived')
     })
-  }, [defId, lists.live, load, filter])
+  }, [seekKey, defId, lists.live, load, filter])
 
   // ── panels ──────────────────────────────────────────────────────────────────────────────────────
   const push = (kind, d) => {
@@ -294,8 +302,16 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
   useEffect(() => {
     const want = focusAfter.current
     if (!want || view.kind !== 'list') return
-    if (want.wait && (lists[want.wait]?.stale || lists[want.wait]?.status !== 'ok' || filter !== want.wait)) return
     const root = rootRef.current
+    const waited = want.wait ? lists[want.wait] : null
+    if (want.wait && (filter !== want.wait || !waited || waited.stale || waited.status === 'loading')) return
+    if (want.wait && waited.status === 'error') {
+      // The re-read failed: focus goes to the failure's own Try again (or its sentence), now, never later.
+      focusAfter.current = null
+      const failBox = root?.querySelector('[data-load-failed-box]')
+      ;(failBox?.querySelector('button') || failBox?.querySelector('[data-testid="my-tools-load-failed"]'))?.focus()
+      return
+    }
     const el = want.id && !want.heading ? root?.querySelector(actionsFor(want.id)) : null
     if (el) { focusAfter.current = null; el.focus(); return }
     const heading = root?.querySelector('[data-list-heading]')
@@ -500,9 +516,9 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
   const tone = message?.tone
   return (
     <div ref={rootRef} className={styles.widgets} data-testid="my-tools-widgets">
-      <p className={!message ? styles.liveIdle : tone === 'error' ? styles.error : tone === 'quiet' ? styles.srOnly : styles.status}
+      <p className={!message?.text ? styles.liveIdle : tone === 'error' ? styles.error : tone === 'quiet' ? styles.srOnly : styles.status}
         role="status" aria-live="polite" aria-atomic="true" data-tone={tone || undefined}
-        data-testid="my-tools-message">{message?.text || ''}</p>
+        data-testid="my-tools-message">{message?.text ? <span key={message.n}>{message.text}</span> : null}</p>
       {panel}
       <div hidden={view.kind !== 'list'} className={styles.listWrap}>
         <div className={styles.toolbar}>
@@ -523,8 +539,8 @@ export default function WidgetsTab({ phone, defId = null, editor = null, uid = n
 
         {(!state || state.status === 'loading') && <p className={styles.hint}>{COPY.loading}</p>}
         {state?.status === 'error' && (
-          <div className={styles.stateBox}>
-            <p className={styles.sentence} data-testid="my-tools-load-failed">{readFailure(state.code, COPY.loadFailed)}</p>
+          <div className={styles.stateBox} data-load-failed-box="">
+            <p className={styles.sentence} tabIndex={-1} data-testid="my-tools-load-failed">{readFailure(state.code, COPY.loadFailed)}</p>
             {!NO_RETRY.has(state.code) && (
               <button type="button" className={styles.btn} onClick={() => { say(null); refresh(filter) }}>Try again</button>
             )}

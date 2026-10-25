@@ -1,17 +1,19 @@
 /* Notebook widgets phase 2 (wave 8, Task 8.17): My tools.
  *
- * Desktop: a dialog of fixed height (switching tabs or lists never makes it jump). At 640 px and narrower the Sheet is
- * full screen and every row is at least 56 px.
+ * Desktop (a mouse): a dialog of fixed height (switching tabs or lists never makes it jump). Touch tablet: the Sheet's
+ * bottom sheet, as tall as its content. At 640 px and narrower the Sheet is full screen and every row is at least 56 px.
  *
  * ⛔ Every control is at least var(--tap-min) (44 px) at EVERY width, desktop included, in its BASE rule:
  * styles/tapFloor.test.js walks this file and fails any clickable class (a rule with `cursor: pointer`) without a
  * floor at 390, 820 or 1200 px. */
 
-/* The Sheet's own panel is the ONLY box with a fixed height (myToolsCss.test.js fails any other). */
+/* The Sheet's own panel is the ONLY box with a fixed height (myToolsCss.test.js fails any other), and only on a
+   desktop (a mouse): there switching tabs or lists never makes the dialog jump. On a touch tablet the Sheet is a
+   bottom sheet whose height follows its content, like every other touch sheet; at 640 px it is full screen. */
 .sheetPanel {
   width: 100%;
 }
-@media (min-width: 641px) {
+@media (min-width: 641px) and (hover: hover) and (pointer: fine) {
   .sheetPanel {
     height: min(80vh, 80dvh, 760px);
   }
@@ -190,7 +192,10 @@
 .btn:disabled,
 .btnPrimary:disabled,
 .btnDanger:disabled,
-.moreBtn:disabled {
+.moreBtn:disabled,
+.btn[aria-disabled='true'],
+.btnPrimary[aria-disabled='true'],
+.btnDanger[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -205,7 +210,8 @@
 .input:focus-visible,
 .listHeading:focus-visible,
 .panelTitle:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--ut-gold));
+  /* A real colour: --focus-ring is a box-shadow value, and an outline that names it is invalid (no ring at all). */
+  outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
 
@@ -486,7 +492,7 @@
   accent-color: var(--ut-gold);
 }
 .option:has(:focus-visible) {
-  outline: 2px solid var(--focus-ring, var(--ut-gold));
+  outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
 .optionText {

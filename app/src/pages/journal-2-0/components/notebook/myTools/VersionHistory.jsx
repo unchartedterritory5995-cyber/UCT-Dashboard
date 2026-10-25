@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { UPDATE_ALL, SAVE_NEW, preselectAnswer } from '../widgetBuilder/SaveQuestion'
 import PanelHead from './PanelHead'
 import RestoreQuestion from './RestoreQuestion'
@@ -47,6 +47,7 @@ function NameForm({ defId, rev, onCancel, onSaved, onFailed }) {
   const input = useRef(null)
   useEffect(() => { input.current?.focus() }, [])
   const send = async (value) => {
+    if (busy) return
     setBusy(true)
     setError('')
     const got = await request('POST', `/${enc(defId)}/revs/${rev.rev}/name`, { body: { name: value } })
@@ -64,8 +65,8 @@ function NameForm({ defId, rev, onCancel, onSaved, onFailed }) {
       {error && <p className={styles.error} role="alert" id={`${id}-err`}>{error}</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={onCancel}>Cancel</button>
-        {rev.named && <button type="button" className={styles.btn} disabled={busy} onClick={() => send('')}>Remove the name</button>}
-        <button type="submit" className={styles.btnPrimary} disabled={busy || !name.trim()}
+        {rev.named && <button type="button" className={styles.btn} aria-disabled={busy || undefined} onClick={() => send('')}>Remove the name</button>}
+        <button type="submit" className={styles.btnPrimary} aria-disabled={busy || !name.trim() || undefined}
           aria-busy={busy || undefined}>Save name</button>
       </div>
     </form>
@@ -86,8 +87,8 @@ function RestoreConfirm({ label, used, busy, error, onCancel, onRestore, onReloa
       <div className={styles.actions}>
         {error?.conflict && <button type="button" className={styles.btn} onClick={onReload}>Reload</button>}
         <button type="button" className={styles.btn} onClick={onCancel}>Cancel</button>
-        <button type="button" className={styles.btnPrimary} disabled={busy} aria-busy={busy || undefined}
-          data-confirm-restore="" onClick={onRestore}>{busy ? 'Restoring…' : 'Restore'}</button>
+        <button type="button" className={styles.btnPrimary} aria-disabled={busy || undefined} aria-busy={busy || undefined}
+          data-confirm-restore="" onClick={() => { if (!busy) onRestore() }}>{busy ? 'Restoring…' : 'Restore'}</button>
       </div>
     </div>
   )
@@ -141,7 +142,9 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     const row = listRef.current?.querySelector(`[data-rev="${want.rev}"]`)
     // Only the named control: while a confirm or a name form is still drawn, the row's other buttons are not it.
     const target = want.which === 'revert'
-      ? listRef.current?.parentElement?.querySelector('[data-rev-action="revert"]')
+      // the revert box: its Reload first when a stale tab blocks the retry
+      ? (listRef.current?.parentElement?.querySelector('[data-rev-action="revert-reload"]')
+        || listRef.current?.parentElement?.querySelector('[data-rev-action="revert"]'))
       : row?.querySelector(`[data-rev-action="${want.which}"]`)
     if (!target) return
     pendingFocus.current = null
@@ -166,7 +169,9 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     focusRev(def.rev, 'name')
   }, [say, focusRev, def.rev])
 
-  useEffect(() => {
+  // A layout effect: the Escape handler must know the level on screen before the next key can arrive (a passive
+  // effect left a key pressed right after the question appeared running the confirm's Back instead).
+  useLayoutEffect(() => {
     if (!subBackRef) return undefined
     subBackRef.current = () => {
       if (mode.kind === 'list') return false
@@ -224,8 +229,11 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
       return back.data
     }
     if (back.code === 'unavailable') { onGone?.(actionFailure(back)); return null }
-    setRevert({ before })
-    say(COPY.revertFailed, 'error')
+    // Still the restored version as the newest. A stale tab needs a fresh etag first (Reload); offline needs the
+    // connection; anything else can simply be tried again.
+    setRevert({ before, conflict: back.code === 'conflict' })
+    say(back.code === 'offline' ? `${COPY.revertFailed} ${COPY.offlineAction}`
+      : back.code === 'conflict' ? `${COPY.revertFailed} ${actionFailure(back)}` : COPY.revertFailed, 'error')
     return null
   }
 
@@ -257,8 +265,22 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
     focusRev(newest, landed ? 'name' : 'revert')
   }
 
-  const retryRevert = async () => {
+  /** The revert met a stale tab: read the widget again for its etag; the retry then sends that one. */
+  const reloadForRevert = async () => {
     if (busy || !revert) return
+    setBusy(true)
+    const got = await request('GET', `/${enc(d.id)}`)
+    if (!mounted.current) return
+    setBusy(false)
+    if (!got.ok || !isRecord(got.data)) { refused(got); return }
+    setDef(got.data)
+    setRevert({ before: revert.before, conflict: false })
+    say('Loaded the latest version of this widget. You can go back to the version before now.')
+    focusRev(null, 'revert')
+  }
+
+  const retryRevert = async () => {
+    if (busy || !revert || revert.conflict) return
     setBusy(true)
     const now = await revertTo(revert.before, def.etag, null)
     if (!mounted.current) return
@@ -305,7 +327,11 @@ export default function VersionHistory({ d, onBack, subBackRef, announce, onChan
       {revert && (
         <div className={styles.stateBox} data-testid="revert-retry">
           <p className={styles.inlineError}>{COPY.revertFailed}</p>
-          <button type="button" className={styles.btn} disabled={busy} aria-busy={busy || undefined}
+          {revert.conflict && (
+            <button type="button" className={styles.btn} aria-disabled={busy || undefined} data-rev-action="revert-reload"
+              onClick={reloadForRevert}>Reload</button>
+          )}
+          <button type="button" className={styles.btn} aria-disabled={busy || revert.conflict || undefined} aria-busy={busy || undefined}
             data-rev-action="revert" onClick={retryRevert}>{COPY.revertRetry}</button>
         </div>
       )}
