@@ -1042,3 +1042,72 @@ def test_some_names_unread_beside_names_that_report(S, monkeypatch, tmp_path):
     assert [n["symbol"] for n in got["names"]] == ["AMD"]
     assert got["lines"] == ["AMD reports before the open.",
                             "Some of your names couldn't be read right now."]
+
+
+# ── fix round 3 ───────────────────────────────────────────────────────────────────────────────
+
+def test_price_alert_read_uses_indexes_never_scans_the_fires(S, monkeypatch):
+    """N-1: the opt-in price-alert read is two indexed reads under one LIMIT; EXPLAIN QUERY PLAN
+    never shows a whole-table `SCAN af` (every member's fires)."""
+    from api.services.alert_taxonomy import db as atdb, receipts
+    price_fire(A, at=et_epoch("2026-10-26", "07:00"))
+    s7_fire(A, at=et_epoch("2026-10-26", "06:00"))
+    seen: list[str] = []
+    real = sqlite3.connect
+
+    def traced(*a, **k):
+        conn = real(*a, **k)
+        conn.set_trace_callback(seen.append)
+        return conn
+    monkeypatch.setattr(sqlite3, "connect", traced)
+    got = receipts.list_fires_for_feed(A, limit=50, include_price_alerts=True)
+    monkeypatch.setattr(sqlite3, "connect", real)
+    assert len(got) == 2
+    reads = [s for s in seen if s.lstrip().upper().startswith("SELECT") and "FROM alert_fires" in s]
+    assert len(reads) == 1, reads
+    c = atdb.connect()
+    try:
+        plan = [r[-1] for r in c.execute("EXPLAIN QUERY PLAN " + reads[0]).fetchall()]
+    finally:
+        c.close()
+    assert plan, "no plan read"                              # non-vacuity
+    assert any("SEARCH" in p for p in plan), plan
+    assert not [p for p in plan if p.startswith("SCAN af")], plan
+
+
+def test_size_is_said_in_the_lines(S):
+    """m-1: followedPlan counts size, so a kept or missed size is said, with the closes."""
+    with _conn() as c:
+        t1 = trade(c, A, entry=100.0, exit_=105.0, stop=95.0, shares=10, r=1.0)
+        trade(c, A, entry=100.0, exit_=106.0, stop=95.0, shares=10, r=1.2)
+        link(c, A, t1, {"entry": 100.0, "stop": 95.0, "target": 110.0, "shares": 20})
+        t3 = trade(c, A, entry=100.0, exit_=105.0, stop=95.0, shares=10, r=1.0, symbol="AMD")
+        link(c, A, t3, {"entry": 100.0, "stop": 95.0, "target": 110.0, "shares": 20})
+    kept = S.my_plan_vs_actual(A, {"tradeId": t1}, MON)
+    assert kept["lines"][-1] == "Size: planned 20 shares, entered 20 (closed in 2 trades)."
+    missed = S.my_plan_vs_actual(A, {"tradeId": t3}, MON)
+    assert missed["lines"][-1] == "Size: planned 20 shares, entered 10."
+    assert [ln.split(":")[0] for ln in missed["lines"]] == ["Entry", "Stop", "Target", "R", "Size"]
+    assert len(missed["rows"]) == 4                                   # the four rows stay
+
+
+def test_never_print_alike_even_past_ten_places(S):
+    """m-2: two different numbers never print alike, at the cap too, and never in exponent form."""
+    t, v = S._pair(70.0, 70.00000000001)
+    assert t != v and "e" not in t + v, (t, v)
+    t, v = S._pair(1e-12, 2e-12)
+    assert t != v and "e" not in t + v, (t, v)
+    assert S._pair(70.0, 70.0) == ("70.00", "70.00")                  # CONTROL: equal stays equal
+
+
+def test_trendline_price_alert_says_the_line(S):
+    """m-4: a trendline (or chart-line) fire says which level it crossed."""
+    for kind, words in (("trendline", "the trendline"), ("line", "the chart line")):
+        f = {"triggering_value": 101.25, "detail": {"level": 100.0, "direction": "above",
+                                                     "level_kind": kind}}
+        assert S._price_text(f) == f"Price above {words} at $100.00 ($101.25)"
+    f = {"triggering_value": 101.25, "detail": {"level": 100.0, "direction": "above",
+                                                 "level_kind": "price"}}
+    assert S._price_text(f) == "Price above $100.00 ($101.25)"        # CONTROL: a fixed price
+    from api.services.alert_taxonomy import price_level
+    assert set(S._LINE_WORDS) == set(price_level.KNOWN_LEVEL_KINDS) - {price_level.FIXED}

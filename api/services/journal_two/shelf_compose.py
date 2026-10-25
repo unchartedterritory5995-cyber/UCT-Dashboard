@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any, Callable
 
 from api.services import session_calendar
@@ -297,6 +298,21 @@ def _r_row(checks: dict, plan: dict, realized: float | None, true_r: bool) -> di
             "text": f"R: {body}"}
 
 
+def _shares(v: float) -> str:
+    return f"{v:,.0f}" if float(v) == int(v) else f"{v:,.4f}".rstrip("0").rstrip(".")
+
+
+def _size_line(size: dict, closes: int) -> str:
+    """"Size: planned 20 shares, entered 10." -- with the closes when the entry was closed in
+    pieces (the trade page's `size_from_closes`)."""
+    planned = float(size["planned"])
+    text = (f"Size: planned {_shares(planned)} {'share' if planned == 1 else 'shares'}, entered "
+            f"{_shares(float(size['actual']))}")
+    if closes > 1:
+        text += f" (closed in {closes} trades)"
+    return text + "."
+
+
 def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
     """One owned closed trade against its frozen plan: Entry, Stop, Target, R."""
     now_dt = _utc(now)
@@ -319,7 +335,7 @@ def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
                 link = None                                    # a sample is never the member's plan
             exc = _excursion(c, user_id, ref)
             # I-1: the shares ENTERED, from the one function the trade page's grading asks too.
-            entered, _closes = plan_grading.entered_shares(c, user_id, t)
+            entered, closes = plan_grading.entered_shares(c, user_id, t)
     finally:
         c.close()
     base: dict[str, Any] = {"asOf": _iso_utc(now_dt), "source": _origin([t["source"]]),
@@ -342,6 +358,8 @@ def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
     base.update(rows=rows, lines=[r["text"] for r in rows],
                 followedPlan=checks.get("followedPlan"),
                 size={k: size.get(k) for k in ("state", "planned", "actual", "deltaPct")})
+    if size.get("state") in ("kept", "missed"):
+        base["lines"].append(_size_line(size, closes))     # m-1: followedPlan counts size
     if checks.get("sideMismatch"):
         base["lines"].append("The plan's stop is on the other side of its entry for this trade.")
     return base
@@ -560,8 +578,17 @@ def _pair(threshold: float | None, value: float | None) -> tuple[str | None, str
     if threshold is not None and value is not None and threshold != value:
         while _fig(threshold, pt) == _fig(value, pv) and max(pt, pv) < _MAX_PLACES:
             pt, pv = pt + 1, pv + 1
+        if _fig(threshold, pt) == _fig(value, pv):
+            # m-2: at the cap, the exact digits (fixed-point, never an exponent), so "never alike"
+            # holds however close the two are.
+            return ("zero" if threshold == 0 else _exact(threshold)), _exact(value)
     t = None if threshold is None else ("zero" if threshold == 0 else _fig(threshold, pt))
     return t, (None if value is None else _fig(value, pv))
+
+
+def _exact(v: float) -> str:
+    """The float's own shortest digits (`repr`), written fixed-point with separators."""
+    return f"{Decimal(repr(float(v))):,f}"
 
 
 def _member_formula_label(address: str, user_id: str | None, names: dict | None) -> str:
@@ -655,11 +682,14 @@ def _price_text(f: dict) -> str | None:
     if level is None:
         return None
     words = _CONDITION_WORDS.get(str(d.get("direction") or ""), "reached")
-    text = f"Price {words} {_price(level)}"
+    line = _LINE_WORDS.get(str(d.get("level_kind") or ""))      # m-4: a drawn line says so
+    text = f"Price {words} {line} at {_price(level)}" if line else f"Price {words} {_price(level)}"
     hit = _num(f.get("triggering_value"))
     return text + (f" ({_price(hit)})" if hit is not None else "")
 
 
+#: A price alert's `level_kind` (`price_level.KNOWN_LEVEL_KINDS`) that is a drawn line, in words.
+_LINE_WORDS = {"trendline": "the trendline", "line": "the chart line"}
 #: trigger type -> composes a fire's text from its own stored detail, after its shape and its
 #: detail's title/message (the price alert has neither).
 _COMPOSERS = {"price-level": _price_text}
