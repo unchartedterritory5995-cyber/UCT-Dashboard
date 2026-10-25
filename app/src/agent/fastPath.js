@@ -125,7 +125,10 @@ function matchWhole(text, host) {
 const POS = '(top-left|top-right|bottom-left|bottom-right|left|right|top|bottom|upper|lower)'
 const NOUN = '(?:\\s+(?:chart|one|widget))'
 const POS_RE = new RegExp(`\\b(?:(?:on|for|in|to)\\s+)?the\\s+${POS}${NOUN}?\\b|\\b${POS}${NOUN}\\b`, 'i')
-const ALL_RE = /\b(?:(?:on|for|in|to)\s+)?(?:both|all|every)(?:\s+(?:the|of the))?(?:\s+(?:charts?|of them|ones))?\b/i
+// P2-B: "all four charts", "all 3 of them" — the COUNT the member said is kept, and checked against the
+// board by the orchestrator (a mismatch asks; it never changes a different set of charts than they counted)
+const ALL_RE = /\b(?:(?:on|for|in|to)\s+)?(both|all|every)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?(?:\s+(?:charts?|of them|ones))?\b/i
+const COUNT_WORD = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const NORM_POS = { upper: 'top', lower: 'bottom' }
 
 const cut = (s, m) => (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim()
@@ -133,7 +136,10 @@ const cut = (s, m) => (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length
 export function extractTarget(text, host = null) {
   const s = String(text || '')
   const all = ALL_RE.exec(s)
-  if (all) return { text: cut(s, all), target: { all: true } }
+  if (all) {
+    const count = all[1].toLowerCase() === 'both' ? 2 : all[2] ? (COUNT_WORD[all[2].toLowerCase()] || Number(all[2])) : null
+    return { text: cut(s, all), target: count ? { all: true, count } : { all: true } }
+  }
   const m = POS_RE.exec(s)
   if (m) {
     const word = (m[1] || m[2] || '').toLowerCase()

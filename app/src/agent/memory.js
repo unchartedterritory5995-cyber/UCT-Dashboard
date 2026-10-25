@@ -59,7 +59,10 @@ export function createMemory({ now = () => Date.now() } = {}) {
       if (!clean.length) return
       last = { ops: clean, at: now(), epoch, undoId: undoId || null }
       const charts = [...new Set(clean.map(o => o.target).filter(t => typeof t === 'string'))]
+      // ⛔ P2-B F10: a change on SEVERAL charts leaves no single subject — "it" afterwards is a question,
+      // never the chart an EARLIER change happened to leave behind
       if (charts.length === 1) subjects.chart = { ref: charts[0], symbol: chartSymbol ? upper(chartSymbol) : null, at: now(), epoch }
+      else if (charts.length > 1) subjects.chart = null
     },
 
     /** An Undo entry was reversed. If it was the last change's, that change is no longer "the last

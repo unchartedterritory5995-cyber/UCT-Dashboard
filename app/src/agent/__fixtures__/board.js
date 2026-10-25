@@ -4,7 +4,7 @@
 // dot can unlink a widget ('N' → its own `N:<id>` symbol key, as WidgetHost
 // does), and charts read their symbol from their link group.
 import { planPlacement } from '../../pages/charts/placement/place'
-import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync } from '../host'
+import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync, positionWord } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 
 export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null } = {}) {
@@ -48,7 +48,9 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
   const readChart = (id) => {
     const w = state.widgets.find(x => x.id === id && x.type === 'chart')
     if (!w) return null
-    const pos = null
+    // the real host's position words (host.buildChartSource), so "the left one" means what it does live
+    const charts = state.widgets.filter(x => x.type === 'chart')
+    const pos = positionWord(w, charts) || null
     return {
       ref: id, label: `Chart ${id}`, position: pos,
       symbol: state.groupSyms[keyOf(w)] || 'SPY', tf: w.opts.tf || 'D',

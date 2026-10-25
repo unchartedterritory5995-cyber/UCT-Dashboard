@@ -36,7 +36,9 @@ export function nl1Enabled() {
 // fillers, no typo tolerance: anything else is the model's to read. Each acts only when there is
 // something to act on (the caller checks: a proposal to confirm, something pending to cancel).
 const EXACT = {
-  undo: new Set(['undo', 'undo that', 'undo it', 'undo the last change']),
+  // (P2-B: the plain Undo's whole-message wordings — the model has no Undo action, so "undo that last
+  // change" sent to it could only be answered in words or re-planned as reverse ops)
+  undo: new Set(['undo', 'undo that', 'undo it', 'undo the last change', 'undo that last change', 'undo my last change', 'undo that change', 'undo last change']),
   confirm: new Set(['confirm', 'do it', 'apply', 'apply it', 'yes', 'yes do it', 'go ahead']),
   dismiss: new Set(['cancel', 'cancel it', 'cancel that', 'never mind', 'nevermind']),
 }

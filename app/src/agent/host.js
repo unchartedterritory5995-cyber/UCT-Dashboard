@@ -15,6 +15,7 @@ import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/char
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 import * as drawingsStore from '../components/chart/drawingsStore'
+import { chartTabList } from '../pages/charts/chartTabs'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -90,6 +91,22 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
   }
   return {
     list: () => entries().map(e => e.snap),
+    // ⭐ P2-B: charts ON the board the Agent cannot reach right now — a chart widget's inactive chart tabs,
+    // and chart widgets with no live adapter (floating, popped out, not mounted). "All charts" names them
+    // on its receipt instead of implying it changed every chart. (Charts inside another widget's tabs and
+    // Multi-Chart grid cells are not counted here.)
+    unreachableCount: () => {
+      try {
+        const reached = entries()
+        let n = 0
+        for (const w of getWidgets() || []) {
+          if (w?.type !== 'chart') continue
+          const tabs = Math.max(1, chartTabList(w.opts).length)
+          n += Math.max(0, tabs - reached.filter(e => e.r.chartId === w.id).length)
+        }
+        return n
+      } catch { return 0 }
+    },
     // "this chart": the selected chart's ref, only while it is still on the board (agent/deixis.js)
     selected: () => entries().find(e => e.snap.selected)?.ref || null,
     read: (ref) => entries().find(e => e.ref === ref)?.snap || null,
