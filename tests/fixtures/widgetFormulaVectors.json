@@ -18,7 +18,7 @@
   "special_floats": "a row value {\"$float\": \"nan\"|\"inf\"|\"-inf\"} decodes to that float.",
   "build": "a build is a list of [text, times] segments, concatenated in order.",
   "rows": "eval_group rows is a rowsets name or an inline list.",
-  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 code points, then each invisible character written as U+XXXX, EXCEPT (ruling W10-R31) a U+FE0E/FE0F, U+200D or U+20E3 that builds an allowed emoji by the emoji_in_text rule, judged on the whole collapsed text before the clip with every code point counting as a neighbour: it is shown as typed (the forbidden_characters list, tab and newline, U+2028-2029, and the space-like U+00A0, U+1680, U+2000-200A, U+202F, U+205F, U+3000). Whitespace for collapsing is space, tab and newline only."
+  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 code points, then each invisible character written as U+XXXX, EXCEPT (ruling W10-R31) a U+FE0E/FE0F, U+200D or U+20E3 that builds an allowed emoji by the emoji_in_text rule, judged on the whole collapsed text before the clip with every code point counting as a neighbour: it is shown as typed. Everything else that is invisible is written as U+XXXX: the forbidden_characters list, tab and newline, U+2028-2029, and the space-like U+00A0, U+1680, U+2000-200A, U+202F, U+205F, U+3000. In this rule the opening and closing quotes DO count as neighbours (looser than the tokenizer), which is safe only because the tokenizer has already refused the source; a twin must run the tokenizer before building any sentence. Whitespace for collapsing is space, tab and newline only."
  },
  "constants": {
   "MAX_LENGTH": 2000,
@@ -5299,6 +5299,55 @@
   {
    "name": "combining grapheme joiner in text",
    "expr": "\"a\u034fb\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "Khmer inherent vowel edge in text",
+   "expr": "\"a\u17b5b\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "Mongolian variation selector two in text",
+   "expr": "\"a\u180cb\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "Mongolian variation selector three in text",
+   "expr": "\"a\u180db\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "shorthand format edge in text",
+   "expr": "\"a\ud82f\udca3b\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "musical format edge in text",
+   "expr": "\"a\ud834\udd7ab\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "unassigned tag edge in text",
+   "expr": "\"a\udb40\udcffb\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "unassigned tag block start in text",
+   "expr": "\"a\udb40\uddf0b\"",
    "ok": false,
    "code": "bad_char",
    "pos": 2
