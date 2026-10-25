@@ -18,6 +18,9 @@ from api.services.journal_two import public_note_payload as pnp
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "notebookWidgets.js"
+CLIENT_SETS = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "notebookSets.js"
+CLIENT_FETCH = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "notebookWidgetsFetch.js"
+PHASE1_KEYS = ("symbol", "list", "from", "to", "month", "definitionId", "tradeId")
 
 #: The 15 phase 1 kinds, in the client's menu order. (`builtWidget` is wave 8 and not a phase 1 kind.)
 PHASE1 = ("myWatchlistToday", "myNamesReporting", "marketOnMyNames", "myScreenToday", "roomBuzzOnMyNames",
@@ -112,4 +115,21 @@ def test_phase1_kind_rows_unchanged():
     assert {k: client[k] for k in PHASE1} == FROZEN_CLIENT_ROWS
     assert [k for k, _ in rows if k in FROZEN_CLIENT_ROWS] == list(PHASE1)          # the menu order holds too
     assert {k: pnp.MARKET_DATA_VENDORS[("widgetEmbed", k)] for k in PHASE1} == FROZEN_VENDORS
-    assert nw.SETTING_KEYS == ("symbol", "list", "from", "to", "month", "definitionId", "tradeId")
+    assert nw.SETTING_KEYS == PHASE1_KEYS
+
+
+def test_phase1_request_key_lists_unchanged():
+    """Fix round 1 (review m-4): the other three phase 1 key lists the global constraint freezes. The router's
+    PASS_PARAMS (what the phase 1 GET passes on) and the client's SETTINGS_KEYS (what a preset keeps) and REQUEST_KEYS
+    (what See it now re-asks with), read from the client source, each equal to the frozen tuple."""
+    import json
+    from api.routers import notebook_widgets as router
+    assert tuple(router.PASS_PARAMS) == PHASE1_KEYS
+    sets_src = CLIENT_SETS.read_text(encoding="utf-8")
+    m = re.search(r"export const SETTINGS_KEYS = Object\.freeze\((\[[^\]]*\])\)", sets_src)
+    assert m, "SETTINGS_KEYS is no longer a frozen literal in notebookSets.js"
+    assert tuple(json.loads(m.group(1).replace("'", '"'))) == PHASE1_KEYS
+    fetch_src = CLIENT_FETCH.read_text(encoding="utf-8")
+    # REQUEST_KEYS is SETTINGS_KEYS itself (one list), never a second literal
+    assert re.search(r"^export const REQUEST_KEYS = SETTINGS_KEYS$", fetch_src, flags=re.M), "REQUEST_KEYS moved"
+    assert len(re.findall(r"export const REQUEST_KEYS\b", fetch_src)) == 1
