@@ -17,6 +17,13 @@
 // ⛔ ONE live region, mounted for the block's whole life: a sentence set by a control (or by the menu, which closes
 //    as it acts) is still on screen after that control is gone, and the offline sentence is said there once.
 // ⛔ A busy or offline control is `aria-disabled` with a guard in its handler, never `disabled`, so focus stays on it.
+//
+// Task 9.15: "P&L on days you finished it" flips the items (and their lines) to the shared VsPnlPanel, the day line
+// staying above it. The flip is COMPONENT STATE, never the note: `display: 'pnl'` (the ⋯ menu's "Show the P&L
+// comparison first", ONE setParams call) only decides which view the block opens on. The panel is mounted at the first
+// flip and kept, hidden, after it, so flipping back and forth reads the comparison once.
+// An item whose id is in the day's `suggested` (the server's read-time hint, Task 9.7) shows "From your trades: looks
+// done" beside it while it is unticked. ⛔ The hint never ticks the item: nothing counts as done without a tick.
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
@@ -25,6 +32,7 @@ import { todayET } from '../../../lib/calendar'
 import { TOOL_COPY, isOffline, readDay, resolvedTodayIfCurrent, setSkipped, subscribe, tick, unarchive } from '../../../lib/blocks/toolsApi'
 import { editorNoteDay, forDayLabel, readKeyOf, sessionAfter, toolSearchText, weekLastSession } from '../../../lib/blocks/toolDays'
 import { BlockLoading } from './blockStates'
+import VsPnlPanel, { PNL_FIRST, ROUTINE_FLIP } from './VsPnlPanel'
 import styles from './Blocks.module.css'
 import own from './RoutineBlock.module.css'
 
@@ -34,6 +42,10 @@ export const NOT_DONE_TIP = 'Not enough items were ticked to count this day as d
 export const NEGATIVE_TICKED = "Didn't happen"
 export const SKIP_OFF = 'Skip this day'
 export const SKIP_ON = 'Skipped'
+/** The read-time hint beside an item the day's trades satisfy (routine_insights.SUGGEST_LINE, Task 9.7). */
+export const SUGGESTED = 'From your trades: looks done'
+/** The ⋯ menu row that puts the items back first once the block opens on the comparison. */
+export const ROUTINE_FIRST = 'Show the routine first'
 const MENU_NAME = 'Routine options'
 /** Ruling W9-R34: a FUTURE day that cannot be ticked yet. */
 export const futureLine = (day) => `You can tick this on ${forDayLabel(day).replace(/^For /, '')}.`
@@ -48,13 +60,15 @@ const READ_STATE = { offline: 'offline', unavailable: 'unavailable', missing: 'm
 /** Write refusals whose sentence is the server's own, with nothing to retry. */
 const SERVER_SENTENCE = new Set(['read_only', 'count_cap', 'conflict'])
 
-function ItemControl({ item, on, inert, onToggle }) {
+function ItemControl({ item, on, hint, inert, onToggle }) {
   const noteId = useId()
+  const hintId = useId()
   const negativeTicked = item.negative && on
+  const describedBy = negativeTicked ? noteId : hint ? hintId : undefined
   return (
     <li className={own.itemRow}>
       <button type="button" role="checkbox" aria-checked={on} aria-label={item.text} aria-disabled={inert || undefined}
-        aria-describedby={negativeTicked ? noteId : undefined} data-item-id={item.id}
+        aria-describedby={describedBy} data-item-id={item.id}
         className={`btn btn-ghost ${own.item} ${on ? own.itemOn : ''}`}
         onClick={() => { if (!inert) onToggle(item, !on) }}>
         <span className={`${own.box} ${on ? own.boxOn : ''}`} aria-hidden="true">
@@ -63,11 +77,12 @@ function ItemControl({ item, on, inert, onToggle }) {
         <span className={own.text}>{item.text}</span>
         {negativeTicked && <span id={noteId} className={own.note}>{NEGATIVE_TICKED}</span>}
       </button>
+      {hint && <span id={hintId} className={own.suggest} data-suggested="">{SUGGESTED}</span>}
     </li>
   )
 }
 
-function ItemText({ item, on }) {
+function ItemText({ item, on, hint }) {
   return (
     <li className={own.itemRow}>
       <span className={own.readItem}>
@@ -77,6 +92,7 @@ function ItemText({ item, on }) {
         <span className={own.text}>{item.text}</span>
         {item.negative && on && <span className={own.note}>{NEGATIVE_TICKED}</span>}
         {on && !item.negative && <span className="sr-only">(ticked)</span>}
+        {hint && <span className={own.suggest} data-suggested="">{SUGGESTED}</span>}
       </span>
     </li>
   )
@@ -94,10 +110,17 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
   const routineId = typeof p.routineId === 'string' ? p.routineId : ''
   const bind = typeof p.bind === 'string' ? p.bind : 'note-day'
   const follow = bind === 'today'
+  const display = p.display === 'pnl' ? 'pnl' : 'items'
   const noteDay = editorNoteDay(editor)
   const readKey = readKeyOf(p, noteDay)
   const base = `${routineId}|${readKey}`
   const isTouch = useIsTouch()
+  // The flip (Task 9.15): the member's own view, held against the display it was made from. A display the note changes
+  // to (the ⋯ menu, an undo, another tab's save) starts it over, so that display is what the block shows next.
+  const [flip, setFlip] = useState({ display, on: display === 'pnl' })
+  if (flip.display !== display) setFlip({ display, on: display === 'pnl' })
+  const showPnl = flip.display === display ? flip.on : display === 'pnl'
+  const panelMounted = useRef(false)
 
   const [attempt, setAttempt] = useState(0)
   // { base, attempt, status: 'ready'|'offline'|'unavailable'|'missing'|'failed', entry?, tool?, day? }. A read for
@@ -303,6 +326,10 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     setFeedback(null)
     setParams?.({ bind: 'note-day', day: noteDay }, { searchText: toolSearchText('routine', name, noteDay, 'note-day') })
   }
+  const setDisplay = (next) => {
+    setFeedback(null)
+    setParams?.({ display: next }, { searchText: toolSearchText('routine', name, cur?.day || noteDay, bind) })
+  }
   const restore = async () => {
     setFeedback(null)
     toolSeen.current = null
@@ -326,6 +353,8 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
       if (follow) menuItems.push({ label: "Use this note's day", onClick: useNoteDay })
       else if (offline && !resolvedTodayIfCurrent()) menuItems.push({ label: 'Follow today', disabled: true, hint: TOOL_COPY.offline })
       else menuItems.push({ label: 'Follow today', onClick: followToday })
+      if (display === 'pnl') menuItems.push({ label: ROUTINE_FIRST, onClick: () => setDisplay('items') })
+      else menuItems.push({ label: PNL_FIRST, onClick: () => setDisplay('pnl') })
     }
     if (archived) menuItems.push({ label: 'Restore', onClick: restore })
   }
@@ -347,6 +376,18 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     stateLine = { text: TOOL_COPY.missing }
   } else if (cur.status === 'failed') {
     stateLine = { text: TOOL_COPY.readFailedRoutine, readRetry: true }
+  } else if (showPnl) {
+    // The comparison in the items' place: the day line stays, so the member still sees which day the block is on.
+    const entry = cur.entry || {}
+    body = (
+      <>
+        <p className={own.dayLine}>
+          <span>{forDayLabel(cur.day, bind)}</span>
+          <StateWord state={entry.state} />
+        </p>
+        {archived && <p className={styles.muted}>{TOOL_COPY.archivedRoutine}</p>}
+      </>
+    )
   } else {
     const entry = cur.entry || {}
     const items = Array.isArray(entry.items) ? entry.items.filter((it) => it && typeof it.id === 'string' && it.text) : []
@@ -358,6 +399,9 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
     const future = shut && cur.day > todayET()                 // W9-R34: not yet; the 7-day sentence is for the past
     const controls = editable && !archived && entry.writable !== false
     const run = entry.run && typeof entry.run === 'object' ? entry.run : {}
+    // The server's read-time hint, shown only while the item is unticked (a ticked item needs no hint).
+    const suggested = new Set(Array.isArray(entry.suggested) ? entry.suggested.filter((x) => typeof x === 'string') : [])
+    const hintOf = (id) => suggested.has(id) && !tickedOf(id)
     body = (
       <>
         <p className={own.dayLine}>
@@ -369,8 +413,8 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
         {items.length > 0 && (
           <ul className={own.items} aria-label={name || 'Routine'}>
             {items.map((it) => (controls
-              ? <ItemControl key={it.id} item={it} on={tickedOf(it.id)} inert={offline || Object.hasOwn(overrides, it.id)} onToggle={sendTick} />
-              : <ItemText key={it.id} item={it} on={tickedOf(it.id)} />))}
+              ? <ItemControl key={it.id} item={it} on={tickedOf(it.id)} hint={hintOf(it.id)} inert={offline || Object.hasOwn(overrides, it.id)} onToggle={sendTick} />
+              : <ItemText key={it.id} item={it} on={tickedOf(it.id)} hint={hintOf(it.id)} />))}
           </ul>
         )}
         {partial && <p className={own.partial}>{partial}</p>}
@@ -395,6 +439,8 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
 
   // M-2: going offline while ready is said ONCE, here; a failure's sentence waits until the connection is back.
   const live = stateLine || (offline && cur?.status === 'ready' ? { text: TOOL_COPY.offline } : feedback)
+  const ready = cur?.status === 'ready'
+  if (ready && showPnl) panelMounted.current = true
   return (
     <div className={own.wrap} data-routine-block="" ref={wrap}>
       {menuItems.length > 0 && (
@@ -407,6 +453,14 @@ export default function RoutineBlock({ params, setParams, editable, editor }) {
         </div>
       )}
       {body}
+      {ready && panelMounted.current && <VsPnlPanel kind="routine" id={routineId} refreshKey={String(attempt)} hidden={!showPnl} />}
+      {ready && editable && (
+        <button type="button" data-pnl-flip="" aria-pressed={showPnl}
+          className={`btn btn-ghost ${own.tap} ${own.skip} ${showPnl ? own.skipOn : ''}`}
+          onClick={() => setFlip({ display, on: !showPnl })}>
+          {ROUTINE_FLIP}
+        </button>
+      )}
       <div className={own.feedback} role="status" aria-live="polite" data-routine-live="">
         {live && <span>{live.text}</span>}
         {live?.retry && <button type="button" className={`btn btn-ghost ${own.tap}`} onClick={retry}>Retry</button>}

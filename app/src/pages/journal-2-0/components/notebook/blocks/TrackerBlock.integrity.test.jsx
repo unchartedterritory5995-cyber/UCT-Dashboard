@@ -180,4 +180,39 @@ describe('⛔⛔ the tracker block never writes the note', () => {
     expect(toNotes()).toEqual([])
     await waitFor(() => expect(screen.getByText('For Tue Oct 27')).toBeTruthy())                     // it now follows today
   })
+
+  // Task 9.15: the vs P&L flip is component state (a read, never a write); "Show the P&L comparison first" is ONE
+  // transaction carrying the search text.
+  it('flip_to_pnl_makes_no_doc_change_and_no_note_request', async () => {
+    const { toNotes, calls } = serve({ values: { '2026-10-23': 420 } })
+    const { ed, changes } = mounted()
+    editors.push(ed)
+    await waitFor(() => expect(box()).toBeTruthy(), { timeout: 4000 })
+    const before = JSON.stringify(trackerAttrs(ed))
+    const flip = () => screen.getByRole('button', { name: 'Compare with P&L' })
+    fireEvent.click(flip())
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/j2/trackers/t1/vs-pnl' && c.method === 'GET')).toBe(true))
+    fireEvent.click(flip())
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(changes).toHaveLength(0)
+    expect(toNotes()).toEqual([])
+    expect(calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/trackers/days')).toEqual([])
+    expect(JSON.stringify(trackerAttrs(ed))).toBe(before)
+  })
+
+  it('show_the_pnl_comparison_first_is_one_transaction_with_search_text', async () => {
+    const { toNotes } = serve()
+    const { ed, changes } = mounted()
+    editors.push(ed)
+    await waitFor(() => expect(box()).toBeTruthy(), { timeout: 4000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
+    fireEvent.click(screen.getByText('Show the P&L comparison first').closest('button'))
+    await waitFor(() => expect(changes).toHaveLength(1))
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(changes).toHaveLength(1)
+    const attrs = trackerAttrs(ed)
+    expect(attrs.params.display).toBe('pnl')
+    expect(attrs.searchText).toBe('[tracker: Sleep · For Mon Oct 26]')
+    expect(toNotes()).toEqual([])
+  })
 })

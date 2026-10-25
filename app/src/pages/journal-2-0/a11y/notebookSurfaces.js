@@ -232,6 +232,9 @@ export const SURFACES = Object.freeze({
   // Wave 9 Task 9.13: the routine block (rail a11y/traderBlockRoutine.a11y.test.jsx: editable, menu, read-only,
   // archived, read failure, offline).
   'components/notebook/blocks/RoutineBlock.jsx': { recipe: 'trader-block-routine' },
+  // Wave 9 Task 9.15: the vs P&L panel both blocks flip to (rail a11y/vsPnlPanel.a11y.test.jsx: a routine opened on
+  // its comparison in the block frame, a tracker's ranges, a failed read with its Retry, no days yet).
+  'components/notebook/blocks/VsPnlPanel.jsx': { recipe: 'vs-pnl-panel' },
   // Wave 9 Task 9.14: the tracker block and its chart (rail a11y/traderBlockTracker.a11y.test.jsx: a scale, a duration
   // box, the table, the menu, read-only, a check-in, archived, read failure, a refused value, offline).
   'components/notebook/blocks/TrackerBlock.jsx': { recipe: 'trader-block-tracker' },

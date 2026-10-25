@@ -130,7 +130,7 @@ axeSurface('trader-block-tracker:menu', async () => {
   fireEvent.click(within(frame).getByRole('button', { name: 'Tracker options' }))
   await settle(2)
   const menu = screen.getByRole('menu')
-  expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Manage…', 'Follow today', 'Show vs P&L'])
+  expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Manage…', 'Follow today', 'Show the P&L comparison first'])
   await done()
 })
 

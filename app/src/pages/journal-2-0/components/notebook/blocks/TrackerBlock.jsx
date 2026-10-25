@@ -17,17 +17,24 @@
 // ⛔ ONE live region, mounted for the block's whole life and placed right under the controls (the sentence a control
 //    earns is read beside it); the offline sentence is said there once.
 // ⛔ A busy or offline control is `aria-disabled` with a guard in its handler, never `disabled`, so focus stays on it.
+//
+// Task 9.15: "Compare with P&L" flips the chart (or the empty line) to the shared VsPnlPanel; the day line, the log
+// control, the average and the latest stay. The flip is COMPONENT STATE, never the note: `display: 'pnl'` (the ⋯ menu's
+// "Show the P&L comparison first", ONE setParams call) only decides which view the block opens on. The panel is
+// mounted at the first flip and kept, hidden, after it, so flipping back and forth reads the comparison once; it reads
+// again when a change this block applied moved the summary it shows (`pnlTick`, MIN-2).
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import { isTradingDay } from '../../../../../lib/marketClock/sessionCalendar'
 import { todayET } from '../../../lib/calendar'
-import { TOOL_COPY, isOffline, logValue, readDay, resolvedTodayIfCurrent, subscribe, subscribeTool, unarchive, vsPnl } from '../../../lib/blocks/toolsApi'
+import { TOOL_COPY, isOffline, logValue, readDay, resolvedTodayIfCurrent, subscribe, subscribeTool, unarchive } from '../../../lib/blocks/toolsApi'
 import { dayWords, editorNoteDay, forDayLabel, readKeyOf, toolSearchText } from '../../../lib/blocks/toolDays'
 import { DURATION_HINT, entriesText, inputText, typedValue, valueText } from '../../../lib/blocks/trackerValues'
 import { BlockLoading } from './blockStates'
 import TrackerChart from './TrackerChart'
+import VsPnlPanel, { PNL_FIRST, TRACKER_FLIP } from './VsPnlPanel'
 import styles from './Blocks.module.css'
 import own from './TrackerBlock.module.css'
 
@@ -35,6 +42,8 @@ export const CHECKIN_LINE = 'Mood and focus come from your check-ins.'
 export const EMPTY_LINE = 'Log your first value; the chart starts with it.'
 export const TRADING_ONLY = 'This tracker logs trading days only.'
 const MENU_NAME = 'Tracker options'
+/** The ⋯ menu row that puts the chart back first once the block opens on the comparison. */
+export const CHART_FIRST = 'Show the chart first'
 /** Ruling W9-R34, in the tracker's words: a FUTURE day that cannot be logged yet. */
 export const futureLine = (day) => `You can log this on ${dayWords(day)}.`
 
@@ -74,6 +83,12 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   const readKey = readKeyOf(p, noteDay)
   const base = `${trackerId}|${readKey}`
   const isTouch = useIsTouch()
+  // The flip (Task 9.15): the member's own view, held against the display it was made from. A display the note changes
+  // to (the ⋯ menu, an undo, another tab's save) starts it over, so that display is what the block shows next.
+  const [flip, setFlip] = useState({ display, on: display === 'pnl' })
+  if (flip.display !== display) setFlip({ display, on: display === 'pnl' })
+  const showPnl = flip.display === display ? flip.on : display === 'pnl'
+  const panelMounted = useRef(false)
 
   const [attempt, setAttempt] = useState(0)
   // { base, attempt, status: 'ready'|'offline'|'unavailable'|'missing'|'failed', entry?, tool?, day?, summary? }. A read
@@ -84,8 +99,7 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
   const [offline, setOffline] = useState(isOffline())
   const [feedback, setFeedback] = useState(null)         // { text, retry?, focus?, invalid? }
   const [menu, setMenu] = useState(null)                 // the ⋯ menu's anchor while open
-  const [pnl, setPnl] = useState(null)                   // { tracker, ok, sentence? }: the vs P&L read
-  const [pnlTick, setPnlTick] = useState(0)              // bumped by a tool change or a vs P&L Retry (M-4)
+  const [pnlTick, setPnlTick] = useState(0)              // bumped by a tool change that moved the summary (M-4, MIN-2)
   const wrap = useRef(null)
   const menuButton = useRef(null)
   const alive = useRef(true)
@@ -187,20 +201,9 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
     el?.focus?.()
   }, [cur])
 
-  // vs P&L (display 'pnl'): one GET per (tracker, attempt, tool change) while it is shown. The last sentence stays on
-  // screen while a fresh one is read, so a refresh never flashes "Loading…".
+  // vs P&L: the shared panel reads one GET per (tracker, attempt, tool change) while it is shown, keeping the last
+  // comparison on screen while a fresh one is read, so a refresh never flashes "Loading…".
   const ready = cur?.status === 'ready'
-  const pnlKey = `${trackerId}|${attempt}|${pnlTick}`
-  useEffect(() => {
-    if (display !== 'pnl' || !ready || !trackerId) return undefined
-    let live = true
-    vsPnl('tracker', trackerId).then((r) => {
-      if (!live) return
-      const sentence = r.ok && typeof r.data?.sentence === 'string' ? r.data.sentence : ''
-      setPnl({ tracker: trackerId, ok: !!sentence, sentence })
-    })
-    return () => { live = false }
-  }, [display, ready, trackerId, pnlKey])
 
   const adoptAnswer = useCallback((entry) => {
     setRead((r) => {
@@ -343,8 +346,8 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
       if (follow) menuItems.push({ label: "Use this note's day", onClick: useNoteDay })
       else if (offline && !resolvedTodayIfCurrent()) menuItems.push({ label: 'Follow today', disabled: true, hint: TOOL_COPY.offline })
       else menuItems.push({ label: 'Follow today', onClick: followToday })
-      if (display === 'pnl') menuItems.push({ label: 'Show chart', onClick: () => setDisplay('chart') })
-      else menuItems.push({ label: 'Show vs P&L', onClick: () => setDisplay('pnl') })
+      if (display === 'pnl') menuItems.push({ label: CHART_FIRST, onClick: () => setDisplay('chart') })
+      else menuItems.push({ label: PNL_FIRST, onClick: () => setDisplay('pnl') })
     }
     if (archived) menuItems.push({ label: 'Restore', onClick: restore })
   }
@@ -448,31 +451,22 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
         {shut && <p className={styles.muted}>{shut}</p>}
       </>
     )
-    const shownPnl = pnl?.tracker === trackerId ? pnl : null
     if (summary.n && hasValues) {
       bottom = (
         <>
           {avg && <p className={own.line} data-average="">{`Average ${avg} ${entriesText(summary.n)}`}</p>}
           {latest && <p className={own.line} data-latest="">{`Latest ${latest} (${dayWords(summary.latest.day)})`}</p>}
-          {display === 'pnl'
-            ? (
-              <div className={own.pnlRow} data-vs-pnl="">
-                <p className={own.line}>{!shownPnl ? 'Loading…' : shownPnl.ok ? shownPnl.sentence : TOOL_COPY.readFailedTracker}</p>
-                {shownPnl && !shownPnl.ok && (
-                  <button type="button" data-pnl-retry="" className={`btn btn-ghost ${own.tap}`} onClick={() => setPnlTick((n) => n + 1)}>Retry</button>
-                )}
-              </div>
-            )
-            : <TrackerChart points={summary.recent} kind={kind} unit={unit} name={name} trading={tool.settings?.days === 'trading'} />}
+          {!showPnl && <TrackerChart points={summary.recent} kind={kind} unit={unit} name={name} trading={tool.settings?.days === 'trading'} />}
         </>
       )
-    } else if (!builtIn) {
+    } else if (!builtIn && !showPnl) {
       bottom = <p className={styles.muted} data-empty="">{EMPTY_LINE}</p>
     }
   }
 
   // Going offline while ready is said ONCE, in the live region; a failure's sentence waits until the connection is back.
   const live = stateLine || (offline && ready ? { text: TOOL_COPY.offline } : feedback)
+  if (ready && showPnl) panelMounted.current = true
   return (
     <div className={own.wrap} data-tracker-block="" ref={wrap}>
       {menuItems.length > 0 ? (
@@ -495,6 +489,16 @@ export default function TrackerBlock({ params, setParams, editable, editor }) {
         )}
       </div>
       {bottom}
+      {ready && panelMounted.current && (
+        <VsPnlPanel kind="tracker" id={trackerId} refreshKey={`${attempt}|${pnlTick}`} hidden={!showPnl} />
+      )}
+      {ready && editable && (
+        <button type="button" data-pnl-flip="" aria-pressed={showPnl}
+          className={`btn btn-ghost ${own.tap} ${own.toggle} ${showPnl ? own.toggleOn : ''}`}
+          onClick={() => setFlip({ display, on: !showPnl })}>
+          {TRACKER_FLIP}
+        </button>
+      )}
       {menu ? <ContextPopover open onClose={closeMenu} anchor={menu} title={name || 'Tracker'} items={menuItems} /> : null}
     </div>
   )

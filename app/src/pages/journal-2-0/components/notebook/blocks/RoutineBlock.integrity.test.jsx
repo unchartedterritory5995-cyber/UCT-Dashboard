@@ -175,4 +175,43 @@ describe('⛔⛔ the routine block never writes the note', () => {
     expect(toNotes()).toEqual([])
     await waitFor(() => expect(screen.getByText('For Tue Oct 27')).toBeTruthy())                     // it now follows today
   })
+
+  // Task 9.15: the vs P&L flip is component state (a read, never a write); "Show the P&L comparison first" is ONE
+  // transaction carrying the search text.
+  it('flip_to_pnl_makes_no_doc_change_and_no_note_request', async () => {
+    const { toNotes, calls } = serve()
+    const { ed, changes } = mounted()
+    editors.push(ed)
+    await waitFor(() => expect(boxes()).toHaveLength(2), { timeout: 4000 })
+    const before = JSON.stringify(routineAttrs(ed))
+    const flip = () => screen.getByRole('button', { name: 'P&L on days you finished it' })
+    fireEvent.click(flip())
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/j2/routines/r1/vs-pnl' && c.method === 'GET')).toBe(true))
+    await waitFor(() => expect(boxes()).toHaveLength(0))
+    fireEvent.click(flip())
+    await waitFor(() => expect(boxes()).toHaveLength(2))
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(changes).toHaveLength(0)
+    expect(toNotes()).toEqual([])
+    expect(calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/routines/days')).toEqual([])
+    expect(JSON.stringify(routineAttrs(ed))).toBe(before)
+  })
+
+  it('show_the_pnl_comparison_first_is_one_transaction_with_search_text', async () => {
+    const { toNotes } = serve()
+    const { ed, changes } = mounted()
+    editors.push(ed)
+    await waitFor(() => expect(boxes()).toHaveLength(2), { timeout: 4000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(screen.getByText('Show the P&L comparison first').closest('button'))
+    await waitFor(() => expect(changes).toHaveLength(1))
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(changes).toHaveLength(1)
+    const attrs = routineAttrs(ed)
+    expect(attrs.params.display).toBe('pnl')
+    expect(attrs.params.bind).toBe('note-day')
+    expect(attrs.searchText).toBe('[routine: Pre-market routine · For Mon Oct 26]')
+    expect(toNotes()).toEqual([])
+    await waitFor(() => expect(boxes()).toHaveLength(0))                                              // it opens on the panel
+  })
 })

@@ -5,7 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import RoutineBlock, { NOT_DONE_TIP } from './RoutineBlock'
+import RoutineBlock, { NOT_DONE_TIP, SUGGESTED } from './RoutineBlock'
+import { CAVEAT, PNL_FIRST, ROUTINE_FLIP } from './VsPnlPanel'
 import { TOOL_COPY } from '../../../lib/blocks/toolsApi'
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
@@ -26,7 +27,7 @@ function entryFrom(st, day) {
     day: st.entryDay ?? day, state: st.state ?? (n === st.items.length ? 'done' : 'open'), label: '', ticked, skipped: !!st.skipped,
     partial: n ? `${n} of ${st.items.length}` : null, items: st.items, writable: st.writable ?? true,
     beyondNote: null, consistency: st.consistency ?? null, rate: null,
-    run: { line: st.runLine ?? null, milestone: !!st.milestone, best: st.best ?? null }, suggested: [],
+    run: { line: st.runLine ?? null, milestone: !!st.milestone, best: st.best ?? null }, suggested: st.suggested ?? [],
   }
 }
 
@@ -70,6 +71,8 @@ function serve(over = {}) {
       st.state = st.skipped ? 'skipped' : undefined
       return json(200, entryFrom(st, decodeURIComponent(m[2])))
     }
+    m = /^\/api\/j2\/routines\/([^/]+)\/vs-pnl$/.exec(url)
+    if (m && method === 'GET') return json(200, st.pnl ?? ROUTINE_PNL)
     m = /^\/api\/j2\/routines\/([^/]+)\/unarchive$/.exec(url)
     if (m && method === 'POST') {
       if (st.unarchiveRefusal) return json(400, { detail: st.unarchiveRefusal })
@@ -80,6 +83,13 @@ function serve(over = {}) {
   return { st, calls, reads: () => calls.filter((c) => c.url === '/api/j2/routines/days') }
 }
 
+/** Task 9.7's routine vs P&L answer (routine_insights.routine_vs_pnl), the spec's own example. */
+const ROUTINE_PNL = {
+  done: { avg: 95, n: 22, sample: '', text: '+$95 average (22 days)' },
+  other: { avg: -40, n: 9, sample: 'small', text: '−$40 average (9 days)' },
+  winRate: { done: { avg: 0.58, n: 22, sample: '', text: '58% win rate (22 days)' }, other: { avg: 0.41, n: 9, sample: 'small', text: '41% win rate (9 days)' } },
+  sentence: 'On days you finished it: +$95 average (22 days). Other days: −$40 (9 days). A comparison, not proof.',
+}
 const PARAMS = { routineId: 'r1', day: '2026-10-27', bind: 'note-day', display: 'items' }
 const editorWith = (noteDay) => ({ storage: { uctJournalWidgets: noteDay ? { noteDay } : {} } })
 function mount(props = {}) {
@@ -711,5 +721,104 @@ describe('RoutineBlock, Task 9.14 fix round 2 (IMP-1: an answer that lands after
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
     expect(screen.queryByText(TOOL_COPY.tickFailed)).toBeNull()
     expect(globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'PUT')).toHaveLength(1)
+  })
+})
+
+describe('RoutineBlock, Task 9.15 (vs P&L and the from-your-trades hint)', () => {
+  const pnlGets = () => globalThis.fetch.mock.calls.filter(([u]) => /\/vs-pnl$/.test(u)).length
+  const flip = () => screen.getByRole('button', { name: ROUTINE_FLIP })
+  const LEAD = 'On days you finished it: +$95 average (22 days). Other days: −$40 (9 days).'
+
+  it('flip_fetches_once_and_writes_no_note', async () => {
+    const { calls } = serve()
+    const { setParams, container } = mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    expect(pnlGets()).toBe(0)                                                // lazy: nothing until the first flip
+    expect(flip().getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(flip())
+    await waitFor(() => expect(screen.getByText(LEAD)).toBeTruthy())
+    expect(screen.getByText('Win rate on days you finished it: 58% (22 days). Other days: 41% (9 days).')).toBeTruthy()
+    expect(boxes()).toHaveLength(0)                                          // the body is the panel now
+    expect(flip().getAttribute('aria-pressed')).toBe('true')
+    // Back, and over again: the comparison is read ONCE.
+    fireEvent.click(flip())
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    expect(container.querySelector('[data-vs-pnl]').hasAttribute('hidden')).toBe(true)  // kept, hidden: never re-read
+    fireEvent.click(flip())
+    await waitFor(() => expect(container.querySelector('[data-vs-pnl]').hasAttribute('hidden')).toBe(false))
+    expect(screen.getByText(LEAD)).toBeTruthy()
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(pnlGets()).toBe(1)
+    // Component state only: no setParams, no note request, no write of any kind.
+    expect(setParams).not.toHaveBeenCalled()
+    expect(calls.filter((c) => c.url.startsWith('/api/j2/notes'))).toEqual([])
+    expect(calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/routines/days')).toEqual([])
+  })
+
+  it('display_pnl_opens_on_panel', async () => {
+    serve()
+    const setParams = vi.fn()
+    const { container, rerender, unmount } = mount({ params: { ...PARAMS, display: 'pnl' }, setParams })
+    await waitFor(() => expect(screen.getByText(LEAD)).toBeTruthy())
+    expect(boxes()).toHaveLength(0)
+    expect(screen.getByText('For Tue Oct 27')).toBeTruthy()                 // the day line stays above the panel
+    expect(flip().getAttribute('aria-pressed')).toBe('true')
+    expect(pnlGets()).toBe(1)
+    expect([...container.querySelector('[data-vs-pnl]').children].at(-1).textContent).toBe(CAVEAT)
+    // The ⋯ menu's opposite row puts the routine first, in ONE setParams call carrying the search text.
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow('Show the routine first'))
+    expect(setParams.mock.calls).toEqual([[{ display: 'items' }, { searchText: '[routine: Pre-market routine · For Tue Oct 27]' }]])
+    // The note's own params moving to 'items' (the save landing, an undo) brings the items back.
+    rerender(<RoutineBlock params={{ ...PARAMS, display: 'items' }} setParams={setParams} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    unmount()
+    // From the items: "Show the P&L comparison first" is ONE call, and the block it describes opens on the panel.
+    const set2 = vi.fn()
+    const r = mount({ setParams: set2 })
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    fireEvent.click(screen.getByRole('button', { name: 'Routine options' }))
+    fireEvent.click(menuRow(PNL_FIRST))
+    expect(set2.mock.calls).toEqual([[{ display: 'pnl' }, { searchText: '[routine: Pre-market routine · For Tue Oct 27]' }]])
+    r.rerender(<RoutineBlock params={{ ...PARAMS, display: 'pnl' }} setParams={set2} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(screen.getByText(LEAD)).toBeTruthy())
+    expect(boxes()).toHaveLength(0)
+    // A flip made against one display does not outlive a change of display: flipped back to the items, then the note
+    // goes to 'items' and back to 'pnl', and the block opens on the panel again.
+    fireEvent.click(flip())
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    r.rerender(<RoutineBlock params={{ ...PARAMS, display: 'items' }} setParams={set2} editable editor={editorWith('2026-10-27')} />)
+    r.rerender(<RoutineBlock params={{ ...PARAMS, display: 'pnl' }} setParams={set2} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(boxes()).toHaveLength(0))
+    expect(r.container.querySelector('[data-vs-pnl]').hasAttribute('hidden')).toBe(false)
+  })
+
+  it('suggestion_line_beside_item_never_ticks', async () => {
+    const { calls } = serve({ suggested: ['i2', 'i3'], ticked: { i3: true } })
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    // Beside the item it is about (inside that item's row), read with it, and the item stays unticked.
+    const box = screen.getByRole('checkbox', { name: 'Mark key levels' })
+    const row = box.closest('li')
+    const hint = row.querySelector('[data-suggested]')
+    expect(hint.textContent).toBe(SUGGESTED)
+    expect(box.getAttribute('aria-describedby')).toBe(hint.id)
+    expect(box.getAttribute('aria-checked')).toBe('false')
+    // A ticked item needs no hint; an item not in `suggested` has none.
+    expect(screen.getByRole('checkbox', { name: 'Size from the stop' }).closest('li').querySelector('[data-suggested]')).toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Read the morning wire' }).closest('li').querySelector('[data-suggested]')).toBeNull()
+    expect(screen.getAllByText(SUGGESTED)).toHaveLength(1)
+    // ⛔ It never ticks: no request of any kind was made beyond the one read.
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual(['POST /api/j2/routines/days'])
+    expect(screen.queryByText('1 of 6')).toBeTruthy()                       // the partial counts the member's tick only
+  })
+
+  it('a reader (editable false) sees the hint as text beside the item, and no flip control', async () => {
+    serve({ suggested: ['i2'] })
+    mount({ editable: false })
+    await waitFor(() => expect(screen.getByText('Mark key levels')).toBeTruthy())
+    expect(screen.getByText('Mark key levels').closest('li').textContent).toMatch(SUGGESTED)
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

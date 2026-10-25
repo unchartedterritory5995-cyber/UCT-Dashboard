@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import TrackerBlock, { CHECKIN_LINE, EMPTY_LINE, TRADING_ONLY } from './TrackerBlock'
 import { DURATION_HINT } from '../../../lib/blocks/trackerValues'
 import { TOOL_COPY } from '../../../lib/blocks/toolsApi'
+import { CAVEAT, FAILED, PNL_FIRST, TRACKER_FLIP } from './VsPnlPanel'
 import { contrast } from '../../../../../styles/__tests__/contrastMath'
 import { themeVars, resolveVars, parseColor, THEMES } from '../../../a11y/cssAudit'
 
@@ -95,6 +96,8 @@ function serve(over = {}) {
 }
 
 const PARAMS = { trackerId: 't1', day: '2026-10-27', bind: 'note-day', display: 'chart' }
+/** The fake vs P&L sentence without its caveat: the panel's first line (the caveat is its own last line). */
+const PNL_LEAD = 'Sleep under 6h: avg day −$210 (9 days); 6h-8h: +$95 (22 days).'
 const editorWith = (noteDay) => ({ storage: { uctJournalWidgets: noteDay ? { noteDay } : {} } })
 function mount(props = {}) {
   const setParams = props.setParams || vi.fn(() => true)
@@ -516,17 +519,17 @@ describe('TrackerBlock', () => {
     serve({ values: { '2026-10-27': 420 } })
     const setParams = vi.fn()
     const { container, unmount } = mount({ params: { ...PARAMS, display: 'pnl' }, setParams })
-    await waitFor(() => expect(screen.getByText(/A comparison, not proof\.$/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(PNL_LEAD)).toBeTruthy())
     expect(container.querySelector('[data-tracker-chart] svg')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
-    fireEvent.click(menuRow('Show chart'))
+    fireEvent.click(menuRow('Show the chart first'))
     expect(setParams.mock.calls).toEqual([[{ display: 'chart' }, { searchText: '[tracker: Sleep · For Tue Oct 27]' }]])
     unmount()
     const set2 = vi.fn()
     mount({ setParams: set2 })
     await waitFor(() => expect(input()).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
-    fireEvent.click(menuRow('Show vs P&L'))
+    fireEvent.click(menuRow(PNL_FIRST))
     expect(set2.mock.calls).toEqual([[{ display: 'pnl' }, { searchText: '[tracker: Sleep · For Tue Oct 27]' }]])
   })
 
@@ -755,7 +758,7 @@ describe('TrackerBlock, fix round 1', () => {
     expect(srv.puts()).toHaveLength(0)                                   // control: the gated PUT never reached the fake
   })
 
-  it('I-3: a settings change clears a pending sentence even when the day stays (Show vs P&L)', async () => {
+  it('I-3: a settings change clears a pending sentence even when the day stays (Show the P&L comparison first)', async () => {
     serve({ kind: 'scale', name: 'Mood', logStatus: [500] })
     const setParams = vi.fn()
     mount({ setParams })
@@ -763,7 +766,7 @@ describe('TrackerBlock, fix round 1', () => {
     fireEvent.click(screen.getByRole('button', { name: '4' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Tracker options' }))
-    fireEvent.click(menuRow('Show vs P&L'))
+    fireEvent.click(menuRow(PNL_FIRST))
     expect(setParams).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
@@ -860,15 +863,16 @@ describe('TrackerBlock, fix round 1', () => {
       </>,
     )
     const p = screen.getByTestId('p')
-    await waitFor(() => expect(within(p).getByText(TOOL_COPY.readFailedTracker)).toBeTruthy())
+    await waitFor(() => expect(within(p).getByText(FAILED)).toBeTruthy())
     fireEvent.click(p.querySelector('[data-pnl-retry]'))
-    await waitFor(() => expect(within(p).getByText(/A comparison, not proof\.$/)).toBeTruthy())
+    await waitFor(() => expect(within(p).getByText(PNL_LEAD)).toBeTruthy())
     const before = pnlCalls()
     const box = screen.getByTestId('c').querySelector('[data-value-input]')
     fireEvent.change(box, { target: { value: '6:00' } })
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(pnlCalls()).toBe(before + 1))
-    expect(within(p).getByText(/A comparison, not proof\.$/)).toBeTruthy()   // no "Loading…" flash while it refreshes
+    expect(within(p).getByText(PNL_LEAD)).toBeTruthy()                       // no "Loading…" flash while it refreshes
+    expect(within(p).queryByText('Loading…')).toBeNull()
     expect(srv.puts()).toHaveLength(1)
   })
 })
@@ -878,7 +882,7 @@ describe('TrackerBlock, fix round 2 (MIN-2: the vs P&L read follows only an appl
     const { st } = serve({ values: { '2026-10-27': 420 } })
     const pnlGets = () => globalThis.fetch.mock.calls.filter(([u]) => /vs-pnl$/.test(u)).length
     mount({ params: { ...PARAMS, display: 'pnl' } })
-    await waitFor(() => expect(screen.getByText(/A comparison, not proof\.$/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(PNL_LEAD)).toBeTruthy())
     expect(pnlGets()).toBe(1)
     const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 450)) })
     // A tab return with nothing new: the tool re-read lands, the summary is the same.
@@ -898,5 +902,64 @@ describe('TrackerBlock, fix round 2 (MIN-2: the vs P&L read follows only an appl
     await waitFor(() => expect(screen.getByText('Average 6h from 2 entries')).toBeTruthy())
     await settle()
     expect(pnlGets()).toBe(2)
+  })
+})
+
+describe('TrackerBlock, Task 9.15 (vs P&L: the shared panel)', () => {
+  const pnlGets = () => globalThis.fetch.mock.calls.filter(([u]) => /\/vs-pnl$/.test(u)).length
+  const flip = () => screen.getByRole('button', { name: TRACKER_FLIP })
+
+  it('flip_fetches_once_and_writes_no_note', async () => {
+    const srv = serve({ values: { '2026-10-26': 400, '2026-10-27': 420 } })
+    const { setParams, container } = mount()
+    await waitFor(() => expect(container.querySelector('[data-tracker-chart] svg')).toBeTruthy())
+    expect(pnlGets()).toBe(0)                                                // lazy: nothing until the first flip
+    expect(flip().getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(flip())
+    await waitFor(() => expect(screen.getByText(PNL_LEAD)).toBeTruthy())
+    expect(container.querySelector('[data-tracker-chart]')).toBeNull()       // the panel takes the chart's place
+    expect(input()).toBeTruthy()                                             // the log control stays
+    expect(screen.getByText('Average 6h 50m from 2 entries')).toBeTruthy()
+    expect(flip().getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(flip())
+    await waitFor(() => expect(container.querySelector('[data-tracker-chart] svg')).toBeTruthy())
+    fireEvent.click(flip())
+    await waitFor(() => expect(container.querySelector('[data-vs-pnl]').hasAttribute('hidden')).toBe(false))
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(pnlGets()).toBe(1)
+    expect(setParams).not.toHaveBeenCalled()
+    expect(srv.calls.filter((c) => c.url.startsWith('/api/j2/notes'))).toEqual([])
+    expect(srv.puts()).toEqual([])
+  })
+
+  it('display_pnl_opens_on_panel', async () => {
+    serve({ values: { '2026-10-27': 420 } })
+    const { container, rerender } = mount({ params: { ...PARAMS, display: 'pnl' } })
+    await waitFor(() => expect(screen.getByText(PNL_LEAD)).toBeTruthy())
+    expect(container.querySelector('[data-tracker-chart]')).toBeNull()
+    expect(flip().getAttribute('aria-pressed')).toBe('true')
+    expect([...container.querySelector('[data-vs-pnl]').children].at(-1).textContent).toBe(CAVEAT)
+    // A flip is the member's own view: the params are untouched, and a display the note changes to wins over it.
+    fireEvent.click(flip())
+    await waitFor(() => expect(container.querySelector('[data-tracker-chart] svg')).toBeTruthy())
+    rerender(<TrackerBlock params={{ ...PARAMS, display: 'chart' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />)
+    rerender(<TrackerBlock params={{ ...PARAMS, display: 'pnl' }} setParams={vi.fn()} editable editor={editorWith('2026-10-27')} />)
+    await waitFor(() => expect(container.querySelector('[data-vs-pnl]').hasAttribute('hidden')).toBe(false))
+    expect(container.querySelector('[data-tracker-chart]')).toBeNull()
+  })
+
+  it("an empty tracker can flip too (the panel takes the empty line's place); a reader gets no flip control", async () => {
+    serve({ values: {} })
+    const { container, unmount } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY_LINE)).toBeTruthy())
+    fireEvent.click(flip())
+    await waitFor(() => expect(screen.getByText(PNL_LEAD)).toBeTruthy())
+    expect(screen.queryByText(EMPTY_LINE)).toBeNull()
+    expect(container.querySelectorAll('[role="status"], [aria-live]')).toHaveLength(1)   // still ONE live region
+    unmount()
+    serve({ values: { '2026-10-27': 420 } })
+    mount({ editable: false })
+    await waitFor(() => expect(screen.getByText(/^Average/)).toBeTruthy())
+    expect(screen.queryByRole('button', { name: TRACKER_FLIP })).toBeNull()
   })
 })

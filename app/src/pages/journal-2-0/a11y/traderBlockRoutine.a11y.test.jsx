@@ -20,7 +20,7 @@ const ITEMS = [
   { id: 'i2', text: 'Mark key levels', negative: false },
   { id: 'i3', text: 'No revenge trades', negative: true },
 ]
-function serve({ archived = false, readStatus = 200 } = {}) {
+function serve({ archived = false, readStatus = 200, suggested = [] } = {}) {
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     if (url !== '/api/j2/routines/days') return json(404, {})
     if (readStatus !== 200) return json(readStatus, {})
@@ -28,7 +28,7 @@ function serve({ archived = false, readStatus = 200 } = {}) {
     const entry = (day) => ({
       day, state: 'open', ticked: { i1: true, i2: false, i3: true }, skipped: false, partial: '2 of 3', items: ITEMS,
       writable: !archived, beyondNote: null, consistency: '18 of the last 20 trading days (2 skipped)',
-      run: { line: '7 sessions in a row', milestone: true, best: null }, suggested: [],
+      run: { line: '7 sessions in a row', milestone: true, best: null }, suggested,
     })
     return json(200, { routines: Object.fromEntries(ids.map((id) => [id, {
       routine: { id, name: 'Pre-market routine', archived }, days: Object.fromEntries(days.map((d) => [d, entry(d)])) }])) })
@@ -54,6 +54,16 @@ axeSurface('trader-block-routine', async () => {
   expect(screen.getByRole('button', { name: 'Remove Routine' })).toBeTruthy()
 })
 
+// Task 9.15: the from-your-trades hint beside an unticked item, read with it.
+axeSurface('trader-block-routine:suggested', async () => {
+  serve({ suggested: ['i2'] })
+  mount()
+  const frame = await screen.findByRole('group', { name: 'Routine' })
+  const box = await within(frame).findByRole('checkbox', { name: 'Mark key levels' })
+  expect(within(frame).getByText('From your trades: looks done').id).toBe(box.getAttribute('aria-describedby'))
+  expect(box.getAttribute('aria-checked')).toBe('false')
+})
+
 axeSurface('trader-block-routine:menu', async () => {
   serve()
   mount()
@@ -61,7 +71,7 @@ axeSurface('trader-block-routine:menu', async () => {
   await within(frame).findByRole('checkbox', { name: 'Read the morning wire' })
   fireEvent.click(within(frame).getByRole('button', { name: 'Routine options' }))
   const menu = screen.getByRole('menu')
-  expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Edit routine', 'Manage…', 'Follow today'])
+  expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Edit routine', 'Manage…', 'Follow today', 'Show the P&L comparison first'])
 })
 
 axeSurface('trader-block-routine:readonly', async () => {
