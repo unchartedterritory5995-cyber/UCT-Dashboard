@@ -2,6 +2,10 @@ import { memo, useCallback, useContext, useEffect, useId, useMemo, useRef, useSt
 import { DEFS_URL, getJson, postJson } from '../../../lib/builtWidgets'
 import { widgetsWaveOn, doorLostSentence } from '../../../lib/notebookWidgetsFlags'
 import { TOOL_SAVED_NOT_ADDED, placeTool } from '../../../lib/toolEmbed'
+import { WIDGET_KINDS } from '../../../lib/notebookWidgets'
+import { dedicatedSnapshotKind, loadTrades, tradeLabel } from '../../../lib/notebookWidgetsFetch'
+import { recordUse, shelfSnapshotKind } from '../../../lib/builtInWidgets'
+import { snapshotCommand } from '../SlashMenu'
 import { BuilderDoor } from './builderDoor'
 import useMediaQuery from '../../../../../hooks/useMediaQuery'
 import { useIsPhone } from '../../../../../hooks/useBreakpoint'
@@ -34,6 +38,14 @@ import styles from './ExamplesGallery.module.css'
  *     "Set up your pre-market routine (1 minute)". It opens the routine editor on the ready-made pre-market routine
  *     (a dynamic import: the editor stays off this chunk); from a note's builder the builder gives way to it, and
  *     saving puts the routine at the caret (the door: builderDoor.js).
+ *   * Wave 10 (Task 10.21, spec 8), only when the builder was opened from a note it can write (the door's editor):
+ *     each ready-made card also offers "Add to note", which puts it in the note as it is, pinned to the card's
+ *     revision (`defId`, `defRev` = the card's `rev`: the rule BuiltWidgetEmbed's update control reads). The seven
+ *     dedicated widgets (`/shelf`'s `dedicated`, served while wave 10 is on) are cards too, with a static thumbnail:
+ *     opening one puts its own kind in the note and opens no builder (nothing about it can be edited). Plan vs
+ *     actual asks for a trade first. Every insert is the / menu's own (SlashMenu.snapshotCommand): the builder gives
+ *     way, and the note's own toast says "Adding ...", then the result. A card over Options strategies or Notes never
+ *     carries "Sample data" (those never read the sample book).
  *
  * The two live regions (the search's count, the refused-batch line) are ALWAYS mounted and only their text changes,
  * so a screen reader hears them; the count is debounced. Escape in a non-empty search clears it (`clearSearchRef`,
@@ -57,6 +69,18 @@ export const CARDS_FAILED = "Couldn't draw these previews. Open one to see it li
 /** Task 9.19: the first step for a member on sample data (spec 5.2 step 1). */
 export const FIRST_STEP = 'Set up your pre-market routine (1 minute)'
 export const FIRST_STEP_HINT = 'A short list you tick every trading day. It needs no trades.'
+/** Wave 10 (Task 10.21): Plan vs actual's trade pick (a card's "Add to note" is ExampleCard's ADD_TO_NOTE). */
+export const PICK_TITLE = 'Pick a trade'
+export const PICK_HINT = 'Plan vs actual shows one closed trade at a time.'
+export const TRADES_LOADING = 'Loading your trades…'
+export const TRADES_FAILED = "Couldn't load your trades. Try again."
+export const NO_TRADES = 'No closed trades yet. Log a trade to see it here.'
+export const PICK_BACK = 'Back to examples'
+/** The static thumbnail each dedicated card draws (miniPreview's Glyph shapes). */
+const DEDICATED_GLYPH = Object.freeze({
+  myTiltCheck: 'bar', myRevengeClean: 'heat', myPlanVsActual: 'table', myRiskLeftToday: 'progress',
+  myPropFirm: 'progress', myGamePlan: 'list', myAlertsFired: 'list',
+})
 /** At most this many cards per `POST /examples` (the server's MAX_EXAMPLES). */
 export const BATCH = 8
 /** A busy batch is asked for once more after this long, and never again. */
@@ -71,6 +95,26 @@ const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const shelfOf = (data) => (Array.isArray(data?.examples) ? data.examples : [])
   .filter((e) => isRecord(e) && typeof e.id === 'string' && e.id && typeof e.name === 'string' && isRecord(e.plan))
 
+/** Wave 10: the dedicated widgets as cards, from `/shelf`'s `dedicated` (the server's words) for the kinds this app
+ *  knows, searched by the shelf's keywords and their `WIDGET_KINDS` keywords. Never while wave 10 is off. */
+const dedicatedOf = (data) => {
+  if (!widgetsWaveOn(10)) return []
+  const served = new Map((Array.isArray(data?.dedicated) ? data.dedicated : [])
+    .filter((d) => isRecord(d) && typeof d.kind === 'string').map((d) => [d.kind, d]))
+  return WIDGET_KINDS.filter((k) => k.dedicated === 1 && served.has(k.id)).map((k) => {
+    const d = served.get(k.id)
+    const kws = [...(Array.isArray(d.keywords) ? d.keywords : []), ...(k.keywords || [])].filter((w) => typeof w === 'string')
+    return {
+      id: `dedicated:${k.id}`, kind: k.id, dedicated: true, pick: k.pick === 1,
+      name: typeof d.name === 'string' && d.name ? d.name : k.title,
+      description: typeof d.description === 'string' && d.description ? d.description : k.description,
+      keywords: kws, plan: { view: { type: DEDICATED_GLYPH[k.id] || 'number' } },
+    }
+  })
+}
+/** The state of a card that is never asked for: its static shape. */
+const STATIC_CARD = Object.freeze({ status: 'static' })
+
 /** The nearest ancestor that scrolls (the sheet's own scroller), or null for the viewport. */
 function scrollerOf(el) {
   for (let p = el?.parentElement || null; p && p !== document.body; p = p.parentElement) {
@@ -84,7 +128,8 @@ function scrollerOf(el) {
 function ExamplesGallery({
   hidden = false, resume = null, resumeRef = null, clearSearchRef = null, onResume, onFresh, onOpen, onBlank, onLink,
 }) {
-  const [shelf, setShelf] = useState({ status: 'loading', list: [], code: '' })
+  const [shelf, setShelf] = useState({ status: 'loading', list: [], dedicated: [], code: '' })
+  const [pick, setPick] = useState(null)   // Plan vs actual's trade pick: null, or {status, trades}
   const [shelfTick, setShelfTick] = useState(0)
   const [cards, setCards] = useState(() => new Map())
   const [sample, setSample] = useState(false)
@@ -109,9 +154,18 @@ function ExamplesGallery({
   const shelfState = useRef(shelf.status)
   const io = useRef(null)
   const door = useContext(BuilderDoor)
+  const pickHeading = useRef(null)
+  const pickOpener = useRef(null)
+  const placing = useRef(false)
+  // Wave 10: the builder was opened from a note it can write into, so a ready-made card can go straight in.
+  const editor = door?.editor || null
+  const canPlace = !!editor && !editor.isDestroyed && editor.isEditable !== false && typeof editor.chain === 'function'
 
-  const shown = useMemo(() => rankExamples(shelf.list, query), [shelf.list, query])
-  useEffect(() => { order.current = shown.map((e) => e.id) }, [shown])
+  const cardsList = useMemo(() => (canPlace ? [...shelf.list, ...shelf.dedicated] : shelf.list),
+    [canPlace, shelf.list, shelf.dedicated])
+  const shown = useMemo(() => rankExamples(cardsList, query), [cardsList, query])
+  // Only the ready-made widgets the server draws are ever asked for (a dedicated card keeps its static shape).
+  useEffect(() => { order.current = shown.filter((e) => !e.dedicated).map((e) => e.id) }, [shown])
   useEffect(() => { shelfState.current = shelf.status }, [shelf.status])
 
   useEffect(() => {
@@ -130,8 +184,8 @@ function ExamplesGallery({
     let alive = true
     getJson(`${DEFS_URL}/shelf`).then((got) => {
       if (!alive || !mounted.current) return
-      if (got.ok) setShelf({ status: 'ok', list: shelfOf(got.data), code: '' })
-      else setShelf({ status: 'failed', list: [], code: got.code })
+      if (got.ok) setShelf({ status: 'ok', list: shelfOf(got.data), dedicated: dedicatedOf(got.data), code: '' })
+      else setShelf({ status: 'failed', list: [], dedicated: [], code: got.code })
     })
     return () => { alive = false }
   }, [shelfTick])
@@ -308,6 +362,46 @@ function ExamplesGallery({
     }
   }
 
+  /** Wave 10: put a ready-made widget in the note as it is. The builder gives way first, then the / menu's own insert
+   *  runs (its "Adding ...", its failure sentence, the frozen widget at the caret), and the card counts as used. */
+  const place = (kind, params, id) => {
+    if (!canPlace || !kind || placing.current) return
+    placing.current = true
+    const uid = editor.storage?.uctJournalWidgets?.uid
+    const go = () => Promise.resolve(snapshotCommand(kind, params)({ editor, range: null }))
+      .then((r) => { if (r && r.ok) recordUse(uid, id) }, () => {})
+    if (typeof door?.close === 'function') {
+      door.close(editor.view?.dom || null)
+      setTimeout(go, 0)
+    } else {
+      go().finally(() => { placing.current = false })
+    }
+  }
+  const addShelf = (ex) => place(shelfSnapshotKind(ex.name),
+    { defId: ex.id, ...(Number.isInteger(ex.rev) && ex.rev >= 1 ? { defRev: ex.rev } : {}) }, ex.id)
+  const readTrades = () => {
+    setPick({ status: 'loading', trades: [] })
+    loadTrades().then((trades) => { if (mounted.current) setPick((p) => p && { status: 'ok', trades }) },
+      () => { if (mounted.current) setPick((p) => p && { status: 'failed', trades: [] }) })
+  }
+  /** A dedicated card: its own kind goes in, no builder. Plan vs actual asks which trade first. */
+  const openDedicated = (ex) => {
+    if (!ex.pick) { place(dedicatedSnapshotKind(ex.kind), {}, ex.kind); return }
+    pickOpener.current = ex.id          // its card unmounts while the pick shows, so it is found again by id
+    readTrades()
+  }
+  const pickTrade = (t) => place(dedicatedSnapshotKind('myPlanVsActual'), { settings: { tradeId: String(t.id) } }, 'myPlanVsActual')
+  const backFromPick = () => {
+    const id = pickOpener.current
+    setPick(null)
+    setTimeout(() => {
+      const items = rootEl.current ? [...rootEl.current.querySelectorAll('[data-example-id]')] : []
+      items.find((li) => li.getAttribute('data-example-id') === id)?.querySelector('button')?.focus()
+    }, 0)
+  }
+  const picking = pick !== null
+  useEffect(() => { if (picking) pickHeading.current?.focus() }, [picking])
+
   return (
     <div className={styles.gallery} hidden={hidden} data-testid="examples-gallery" ref={rootEl}>
       <h3 className={styles.title} tabIndex={-1} data-gallery-heading="">{GALLERY_TITLE}</h3>
@@ -362,13 +456,41 @@ function ExamplesGallery({
           }}>Try again</button>
         </div>
       )}
-      {shelf.status === 'ok' && (shown.length ? (
+      {picking && (
+        <section className={styles.pick} aria-labelledby={`${searchId}-pick`} data-testid="trade-pick">
+          <h4 className={styles.pickTitle} id={`${searchId}-pick`} tabIndex={-1} ref={pickHeading}>{PICK_TITLE}</h4>
+          <p className={styles.hint}>{PICK_HINT}</p>
+          {pick.status === 'loading' && <p className={styles.hint}>{TRADES_LOADING}</p>}
+          {pick.status === 'failed' && (
+            <div className={styles.note}>
+              <p className={styles.noteText} role="alert">{TRADES_FAILED}</p>
+              <button type="button" className={styles.btn} onClick={readTrades}>Try again</button>
+            </div>
+          )}
+          {pick.status === 'ok' && !pick.trades.length && <p className={styles.hint}>{NO_TRADES}</p>}
+          {pick.status === 'ok' && pick.trades.length > 0 && (
+            <ul className={styles.pickList} role="list" aria-label="Your trades">
+              {pick.trades.map((t) => (
+                <li key={t.id}>
+                  <button type="button" className={styles.btn} onClick={() => pickTrade(t)}>{tradeLabel(t)}</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className={styles.actions}>
+            <button type="button" className={styles.btn} onClick={backFromPick}>{PICK_BACK}</button>
+          </div>
+        </section>
+      )}
+      {shelf.status === 'ok' && !picking && (shown.length ? (
         // ⛔ role="list" spelled out: `list-style: none` drops the list role in Safari.
         <ul className={styles.list} role="list" aria-label="Examples">
-          {shown.map((ex) => (
+          {shown.map((ex) => (ex.dedicated ? (
+            <ExampleCard key={ex.id} example={ex} card={STATIC_CARD} sample={false} motion={motion} onOpen={openDedicated} />
+          ) : (
             <ExampleCard key={ex.id} example={ex} card={cards.get(ex.id)} sample={sample} motion={motion}
-              onOpen={onOpen} observe={observe} />
-          ))}
+              onOpen={onOpen} observe={observe} onAdd={canPlace ? addShelf : undefined} />
+          )))}
         </ul>
       ) : <p className={styles.hint}>{NO_MATCH}</p>)}
     </div>

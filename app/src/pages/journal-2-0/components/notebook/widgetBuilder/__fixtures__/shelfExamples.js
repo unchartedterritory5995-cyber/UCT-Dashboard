@@ -29,3 +29,17 @@ export function wave8Shelf() {
 }
 
 export const SHELF_EXAMPLES = wave8Shelf()
+
+/** Wave 10 (Task 10.21): `/shelf`'s `examples` as the server serves them while wave 10 is on: in MANIFEST order, each
+ *  id's NEWEST revision, with its `rev` (`{id, rev, name, description, keywords, plan}`). Read from the same files. */
+export function wave10Shelf() {
+  const order = JSON.parse(readFileSync(join(DIR, 'MANIFEST.json'), 'utf8')).order
+  const files = readdirSync(DIR)
+  return order.map((id) => {
+    const slug = id.replace(/^shelf:/, '')
+    const revs = files.filter((f) => f.startsWith(`${slug}.r`) && f.endsWith('.json')
+      && /^[1-9][0-9]*$/.test(f.slice(slug.length + 2, -'.json'.length)))
+      .map((f) => JSON.parse(readFileSync(join(DIR, f), 'utf8'))).sort((a, b) => b.rev - a.rev)
+    return revs[0] || null
+  }).filter(Boolean)
+}

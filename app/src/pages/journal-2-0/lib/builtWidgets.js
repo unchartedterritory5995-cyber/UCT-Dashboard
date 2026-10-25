@@ -247,7 +247,7 @@ const refusedRead = (got) => Object.assign(new Error(got.code), { code: got.code
 
 let accountsLoad = null
 let catalogLoad = null
-let shelfLoad = null
+let shelfRead = null
 const vocabLoads = new Map()
 
 const cached = (fn, keep) => fn().then((v) => v, (e) => { keep(null); throw e })
@@ -330,32 +330,54 @@ export function placedShelfRev(params) {
   return Number.isInteger(r) && r >= 1 ? r : 1
 }
 
-/** The firm's ready-made examples as a Map of shelf id -> `{rev, name, summary, plan}` (`GET DEFS_URL/shelf`: per id
- *  the newest revision the server's flags allow, so a revision on a dark wave is never listed). ONE GET per tab,
- *  cached after the first answer; a refused or unreadable read is not cached and rejects with its `code`. */
-export function loadShelf() {
-  if (!shelfLoad) {
-    shelfLoad = cached(async () => {
+/** The `/shelf` answer itself (`GET DEFS_URL/shelf`), ONE GET per tab: loadShelf and loadShelfIndex both read it.
+ *  Cached after the first answer; a refused or unreadable read is not cached and rejects with its `code`. */
+function readShelf() {
+  if (!shelfRead) {
+    shelfRead = cached(async () => {
       const got = await getJson(`${DEFS_URL}/shelf`)
       if (!got.ok) throw refusedRead(got)
-      const list = Array.isArray(got.data.examples) ? got.data.examples : []
-      const out = new Map()
-      for (const e of list) {
-        if (!isRecord(e) || typeof e.id !== 'string' || !e.id || !Number.isInteger(e.rev) || e.rev < 1) continue
-        out.set(e.id, {
-          rev: e.rev, name: typeof e.name === 'string' ? e.name : '',
-          summary: typeof e.summary === 'string' ? e.summary : '', plan: isRecord(e.plan) ? e.plan : null,
-        })
-      }
-      return out
-    }, (v) => { shelfLoad = v })
+      return got.data
+    }, (v) => { shelfRead = v })
   }
-  return shelfLoad
+  return shelfRead
+}
+
+/** The shelf's well-formed entries (an id, and a revision from 1). */
+const shelfEntries = (data) => (Array.isArray(data?.examples) ? data.examples : [])
+  .filter((e) => isRecord(e) && typeof e.id === 'string' && e.id && Number.isInteger(e.rev) && e.rev >= 1)
+const text = (v) => (typeof v === 'string' ? v : '')
+const words = (v) => (Array.isArray(v) ? v.filter((k) => typeof k === 'string' && k) : [])
+
+/** The firm's ready-made examples as a Map of shelf id -> `{rev, name, summary, plan}` (per id the newest revision the
+ *  server's flags allow, so a revision on a dark wave is never listed). Rejects with the read's `code`. */
+export function loadShelf() {
+  return readShelf().then((data) => {
+    const out = new Map()
+    for (const e of shelfEntries(data)) {
+      out.set(e.id, { rev: e.rev, name: text(e.name), summary: text(e.summary), plan: isRecord(e.plan) ? e.plan : null })
+    }
+    return out
+  })
+}
+
+/** Wave 10 (Task 10.21): the ready-made widgets as the / menu and the gallery list them, from the same read:
+ *  `examples` (`{id, rev, name, description, keywords}`, shelf order) and `dedicated` (`{kind, name, description,
+ *  keywords}`, served only while wave 10 is on). The words are the server's; nothing here restates them. */
+export function loadShelfIndex() {
+  return readShelf().then((data) => ({
+    examples: shelfEntries(data).map((e) => ({
+      id: e.id, rev: e.rev, name: text(e.name), description: text(e.description), keywords: words(e.keywords),
+    })),
+    dedicated: (Array.isArray(data?.dedicated) ? data.dedicated : [])
+      .filter((d) => isRecord(d) && typeof d.kind === 'string' && d.kind)
+      .map((d) => ({ kind: d.kind, name: text(d.name), description: text(d.description), keywords: words(d.keywords) })),
+  }))
 }
 
 /** Tests only: forget every cached read. */
 export function __resetBuiltCaches() {
-  shelfLoad = null
+  shelfRead = null
   accountsLoad = null
   catalogLoad = null
   vocabLoads.clear()

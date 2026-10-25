@@ -353,6 +353,7 @@ export const SLASH_GROUPS = [
   { id: 'open', label: 'Before the open' },
   { id: 'plan', label: 'Planning a trade' },
   { id: 'review', label: 'Reviewing' },
+  { id: 'widgets', label: 'Widgets' },
   { id: 'tools', label: 'Mine' },
   { id: 'mine', label: 'My presets' },
   { id: 'basics', label: 'Basics' },
@@ -496,7 +497,7 @@ const lost = () => (typeof navigator !== 'undefined' && navigator.onLine === fal
 // R58 (UX I-2): the inserts in flight, one per kind and settings, so a second Enter or click adds nothing. Per editor
 // (review m-1): the same widget asked for in another note is that note's own insert.
 const inflight = new WeakMap()
-function snapshotCommand(kind, params) {
+export function snapshotCommand(kind, params) {
   return async ({ editor, range }) => {
     const chain = editor.chain().focus()
     ;(range ? chain.deleteRange(range) : chain.caretAfterWidgetEmbed()).run()
@@ -601,7 +602,8 @@ const picks = background(() => widgetsFetch().then(async (m) => ({ m, doc: await
 export function pickItems(query, editor) {
   if (!widgetsWaveOn(6)) return []
   const v = picks.kick(editor)
-  return v ? v.m.pickRows(query, v.doc, snapshotCommand) : []
+  // Wave 10 (Task 10.21): `/actual` lists the same trades for Plan vs actual.
+  return v ? v.m.pickRows(query, v.doc, snapshotCommand, { actual: widgetsWaveOn(10) }) : []
 }
 export const __picksLoad = () => picks.wait()
 export const __resetPicks = () => picks.reset()
@@ -741,6 +743,25 @@ export function mineGroupItems(query, editor) {
   return manage < 0 ? [...widgets, ...own] : [...widgets.slice(0, manage), ...own, ...widgets.slice(manage)]
 }
 
+// ── Notebook widgets wave 10 (Task 10.21, spec 8): the ready-made widgets. A bare `/` lists at most eight under
+// "Widgets" (the member's most used, then the defaults), then "All widgets…"; typed, every card is ranked with the
+// blocks. The rows live in lib/builtInWidgets, reached only by this dynamic import (first-open bytes). Dark while
+// wave 10 is off; a shelf that cannot be read leaves the defaults that need none.
+const builtIn = background(() => import('../../lib/builtInWidgets')
+  .then(async (m) => ({ m, doc: await m.loadBuiltIn().catch(() => null) })))
+export function builtInItems(query, editor) {
+  if (!widgetsWaveOn(8) || !widgetsWaveOn(10)) return []
+  const v = builtIn.kick(editor)
+  if (!v) return []
+  const rows = v.m.builtInRows(query, v.doc, snapshotCommand, editor?.storage?.uctJournalWidgets?.uid)
+  if (String(query || '').trim()) return rows
+  const all = { title: v.m.ALL_WIDGETS, description: v.m.ALL_WIDGETS_HINT, command: toBuilder }
+  return [...rows, all].map((it) => ({ ...it, group: 'widgets' }))
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __builtInLoad = () => builtIn.wait()
+export const __resetBuiltIn = () => builtIn.reset()
+
 export function snapshotWidgetItems(query) {
   const raw = String(query || '').trim()
   const tokens = raw.split(/\s+/).filter(Boolean)
@@ -751,7 +772,7 @@ export function snapshotWidgetItems(query) {
     // `held`: a kind Wave R keeps dark (captureRelease.js); no wave flag releases it.
     // `pick`: a kind that needs the member's choice (a trade, a screen) is listed by pickItems instead.
     // `built` (wave 8): a widget the member built is inserted from the builder or the Mine rows, never bare.
-    // `dedicated` (wave 10): its only door is a POST, which this GET insert cannot reach; Task 10.21 lists it.
+    // `dedicated` (wave 10): its only door is a POST, which this GET insert cannot reach; builtInItems lists it.
     if (kind.pick || kind.built || kind.dedicated || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
     const item = { title: kind.title, description: kind.description, group: kind.group }
     const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
@@ -1061,8 +1082,10 @@ function vsItems(rest) {
 }
 
 /** The slash menu's rows for one query. `mine` is mineItems' answer (wave 5), empty otherwise: grouped
- *  under "My presets" on a bare `/`; typed, a preset row keeps its label and a chart set row does not. */
-export function slashItems(query, editor, mine = []) {
+ *  under "My presets" on a bare `/`; typed, a preset row keeps its label and a chart set row does not.
+ *  `builtIn` is builtInItems' answer (wave 10): bare, the "Widgets" group (a phase 1 widget listed there is not listed
+ *  again under its moment); typed, ranked with the blocks, so a name match leads a keyword match. */
+export function slashItems(query, editor, mine = [], builtIn = []) {
   const q = (query || '').toLowerCase()
   const widgets = widgetItems(query)
   const factCaptures = factItems(query)
@@ -1073,7 +1096,11 @@ export function slashItems(query, editor, mine = []) {
   // today only columns, never inside a column (they do not nest). A
   // table of contents is an ordinary block and is offered anywhere.
   const here = blockItemsAvailable(editor)
-  if (!q) return groupedSlashItems(here, [...snapshots, ...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures, ...mine])
+  if (!q) {
+    const listed = new Set(builtIn.map((it) => it.title))
+    return groupedSlashItems(here, [...snapshots.filter((it) => !listed.has(it.title)), ...widgets, ...factCaptures,
+      ...consensusCaptures, ...planCaptures, ...mine, ...builtIn])
+  }
   // Widget/fact items match on their own tokenized rules (args after
   // the type name would defeat a plain substring filter).
   // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
@@ -1085,7 +1112,7 @@ export function slashItems(query, editor, mine = []) {
     ...snapshots.map(({ group, ...it }) => it), // eslint-disable-line no-unused-vars
     ...mine.map(({ group, ...it }) => (it.cmd === 'preset' ? { ...it, group } : it))]
   const cmd = q.trim().split(/\s+/)[0]
-  const blocks = rankedBlockItems(here, q)
+  const blocks = rankedBlockItems([...here, ...builtIn], q)
   const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
   return [...exact, ...captures.filter((it) => it.cmd === cmd),
     ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
@@ -1093,9 +1120,9 @@ export function slashItems(query, editor, mine = []) {
 
 /** The menu's rows for one query, as the Suggestion asks for them. Waves 5, 6, 8 and 9 add the member's own rows
  *  (mineGroupItems, mineItems, pickItems): whatever is loaded, never awaited. M-3: the caches are keyed to the
- *  signed-in member the editor holds. */
+ *  signed-in member the editor holds. Wave 10 adds the ready-made widgets (builtInItems), loaded the same way. */
 export const menuItems = (query, editor) => slashItems(query, editor,
-  [...mineGroupItems(query, editor), ...mineItems(query, editor), ...pickItems(query, editor)])
+  [...mineGroupItems(query, editor), ...mineItems(query, editor), ...pickItems(query, editor)], builtInItems(query, editor))
 
 export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)

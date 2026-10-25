@@ -2,8 +2,14 @@ import { memo, useCallback, useId } from 'react'
 import MiniPreview, { Glyph } from './miniPreview'
 import styles from './ExamplesGallery.module.css'
 
+/** Wave 10 (Task 10.21): the card's second button, which puts the widget in the note as it is. */
+export const ADD_TO_NOTE = 'Add to note'
+
 /** The ribbon a card carries while the member is on the bundled sample book (spec 5.2 step 1). */
 export const SAMPLE_RIBBON = 'Sample data'
+
+/** Wave 10 (W10-R6): what a card over these reads is never the sample book, so it never carries the ribbon. */
+const NEVER_SAMPLE = new Set(['options_strategies', 'notes'])
 
 /**
  * Notebook widgets phase 2 (wave 8, Task 8.16): one example card in "Start from an example".
@@ -16,9 +22,10 @@ export const SAMPLE_RIBBON = 'Sample data'
  *   * `ok`: the payload's static thumbnail (miniPreview), or its own empty sentence (spec 5.9) when it has no rows.
  *   * `static`: the view's bare shape. A card whose numbers could not be had never says why ("busy" is never shown
  *     on a card); the live preview, once it is opened, has the full story.
- * On sample data, "Sample data" sits beside the range label.
+ * On sample data, "Sample data" sits beside the range label (never on a card over Options strategies or Notes).
+ * Wave 10 (Task 10.21): `onAdd`, when given, is a second button below the card, "Add to note".
  */
-function ExampleCard({ example, card, sample, motion, onOpen, observe }) {
+function ExampleCard({ example, card, sample, motion, onOpen, observe, onAdd }) {
   const nameId = useId()
   const descId = useId()
   const metaId = useId()
@@ -31,7 +38,7 @@ function ExampleCard({ example, card, sample, motion, onOpen, observe }) {
   const empty = payload && typeof payload.empty === 'string' && payload.empty && !payload.tooLarge ? payload.empty : null
   const rangeLabel = payload && typeof payload.rangeLabel === 'string' ? payload.rangeLabel : ''
   // The card's OWN answer says whether it read the sample book (the gallery's banner says it for all of them).
-  const ribbon = payload?.sample === true || (!!payload && sample === true)
+  const ribbon = !NEVER_SAMPLE.has(example.plan?.source) && (payload?.sample === true || (!!payload && sample === true))
   // Fix 1, m-7: the card's figure (or its empty sentence) is part of what a screen reader hears; the shapes are not.
   const oneNumber = ['number', 'compare', 'progress'].includes(typeof payload?.view === 'string' ? payload.view : 'number')
   const spoken = !!payload && (!!empty || oneNumber)
@@ -58,6 +65,10 @@ function ExampleCard({ example, card, sample, motion, onOpen, observe }) {
           {ribbon && <span className={styles.ribbon}>{SAMPLE_RIBBON}</span>}
         </span>
       </button>
+      {onAdd && (
+        <button type="button" className={styles.btn} aria-label={`${ADD_TO_NOTE}, ${example.name}`}
+          onClick={() => onAdd(example)} data-testid={`example-add-${example.id}`}>{ADD_TO_NOTE}</button>
+      )}
     </li>
   )
 }

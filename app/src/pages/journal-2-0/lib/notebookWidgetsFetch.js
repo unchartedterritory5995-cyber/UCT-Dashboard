@@ -148,12 +148,22 @@ async function getJson(url) {
   }
 }
 
+const tradesOf = (t) => (Array.isArray(t?.trades) ? t.trades : []).filter((x) => x && x.id).slice(0, 10)
+
+/** Wave 10 (Task 10.21): the member's recent closed trades alone, for the examples gallery's trade pick (Plan vs
+ *  actual). Rejects when unreadable. */
+export async function loadTrades() {
+  const t = await getJson(TRADES_URL)
+  if (!t) throw new Error('trades unavailable')
+  return tradesOf(t)
+}
+
 /** The member's trades and screens. One failed read leaves its list empty; both failing is a failed load. */
 export async function loadPicks() {
   const [t, d] = await Promise.all([getJson(TRADES_URL), getJson(SCREENS_URL)])
   if (!t && !d) throw new Error('picks unavailable')
   return {
-    trades: (Array.isArray(t?.trades) ? t.trades : []).filter((x) => x && x.id).slice(0, 10),
+    trades: tradesOf(t),
     // The server's own answer to "can this be a screen?" (user_definitions._stamped), never a shape check here.
     screens: (Array.isArray(d?.definitions) ? d.definitions : []).filter((r) => r && r.def_id && r.scannable === true),
   }
@@ -205,18 +215,44 @@ function uniqueTitles(rows) {
   })
 }
 
-const tradeTitle = (t) => {
+/** A closed trade as a member reads it: "NVDA long, Oct 14". */
+export const tradeLabel = (t) => {
   const day = shortDay(t.exitDate)
-  return `Recap — ${String(t.symbol || '?').toUpperCase()} ${String(t.side || 'trade').toLowerCase()}${day ? `, ${day}` : ''}`
+  return `${String(t.symbol || '?').toUpperCase()} ${String(t.side || 'trade').toLowerCase()}${day ? `, ${day}` : ''}`
+}
+const tradeTitle = (t) => `Recap — ${tradeLabel(t)}`
+const tradeWords = (t) => `${t.symbol || ''} ${t.side || ''}`
+
+/** Wave 10 (Task 10.21): the command word for Plan vs actual's trade rows (`/actual`, `/actual nvda`). */
+export const ACTUAL_CMD = 'actual'
+
+/** Wave 10 (Task 10.21): a ready-made dedicated kind as the one snapshot insert reads it. Its only door is a POST
+ *  (lib/dedicatedWidgets.js, W10-R4): `capture(params)` runs it with the member's own `params.settings` and answers in
+ *  the insert's words (offline is the insert's own sentence; anything else the widget client's). Both clients load
+ *  only when it runs. Null for a kind that is not dedicated. */
+export function dedicatedSnapshotKind(id) {
+  const k = widgetKind(id)
+  if (!k || k.dedicated !== 1) return null
+  const capture = (params) => Promise.all([import('./dedicatedWidgets'), import('./builtWidgets')])
+    .then(([d, b]) => d.runDedicated(id, d.dedicatedRequestOf(id, params)).then((got) => {
+      if (got.ok) return { ok: true, payload: got.data }
+      if (got.code === 'offline') return { ok: false, reason: 'offline' }
+      return { ok: false, message: b.failureText(got.code, got.message) }
+    }))
+  return { ...k, capture }
 }
 
-/** The /recap and /screen rows for one query. `insert(kind, params)` is SlashMenu's snapshotCommand. */
-export function pickRows(query, doc, insert) {
+/** The /recap and /screen rows for one query. `insert(kind, params)` is SlashMenu's snapshotCommand. Wave 10
+ *  (`actual`): `/actual` lists the same trades for Plan vs actual, each inserting it with that trade in its own
+ *  settings; never on a bare `/` (the trades are already there as recaps). */
+export function pickRows(query, doc, insert, { actual = false } = {}) {
   const raw = String(query || '').trim()
   const recap = widgetKind('tradeRecap')
   const screen = widgetKind('myScreenToday')
-  const trades = matching(raw, 'recap', doc?.trades || [], (t) => `${t.symbol || ''} ${t.side || ''}`)
+  const trades = matching(raw, 'recap', doc?.trades || [], tradeWords)
   const screens = matching(raw, 'screen', doc?.screens || [], screenName)
+  const pva = actual && raw ? dedicatedSnapshotKind('myPlanVsActual') : null
+  const planned = pva ? matching(raw, ACTUAL_CMD, doc?.trades || [], tradeWords) : []
   return uniqueTitles([
     ...trades.map((t) => ({
       title: tradeTitle(t), cmd: 'recap', group: recap.group, description: recap.description,
@@ -225,6 +261,10 @@ export function pickRows(query, doc, insert) {
     ...screens.map((r) => ({
       title: `Screen — ${screenName(r)}`, cmd: 'screen', group: screen.group, description: screen.description,
       command: insert(screen, { definitionId: String(r.def_id) }),
+    })),
+    ...planned.map((t) => ({
+      title: `${pva.title} — ${tradeLabel(t)}`, cmd: ACTUAL_CMD, group: pva.group, description: pva.description,
+      command: insert(pva, { settings: { tradeId: String(t.id) } }),
     })),
   ])
 }

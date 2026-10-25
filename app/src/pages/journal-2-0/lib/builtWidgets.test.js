@@ -5,6 +5,7 @@ import {
   BUILT_KIND, DEFS_URL, BUILT_CHANGE_KEYS, FAILURE_COPY, FAILED_SENTENCE,
   postJson, putJson, getJson, ifMatchHeader, newIdempotencyKey, isIdempotencyKey, outcomeConfirmed, keyedSender, runBuilt, drillBuilt, builtRefreshParams, viewerSettingsOf, failureText,
   overridableFilter, loadAccounts, loadVocabulary, loadCatalog, loadDefinition, loadShelf, placedShelfRev, __resetBuiltCaches,
+  loadShelfIndex,
 } from './builtWidgets'
 
 const setOnline = (value) => Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => value })
@@ -322,6 +323,23 @@ describe('the shelf (Task 10.19)', () => {
     __resetBuiltCaches()                                           // the reset clears it
     await loadShelf()
     expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('Task 10.21: loadShelfIndex reads the SAME one GET, with each entry\'s words and the dedicated list', async () => {
+    const DEDICATED = [{ kind: 'myTiltCheck', name: 'Tilt check', description: 'd', keywords: ['tilt', 7] }, { kind: '' }, null]
+    fetchSpy.mockResolvedValue(reply(200, { examples: EXAMPLES, dedicated: DEDICATED }))
+    const idx = await loadShelfIndex()
+    expect(idx.examples).toEqual([
+      { id: 'shelf:pnl-by-setup', rev: 2, name: 'Net P&L by setup', description: 'd', keywords: ['k'] },
+      { id: 'shelf:win-rate', rev: 1, name: 'Win rate', description: 'd', keywords: [] },
+    ])
+    expect(idx.dedicated).toEqual([{ kind: 'myTiltCheck', name: 'Tilt check', description: 'd', keywords: ['tilt'] }])
+    await loadShelf()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)                     // one read per tab, whichever asks first
+    // Wave 10 off: the server sends no `dedicated`, and the list is empty.
+    __resetBuiltCaches()
+    fetchSpy.mockResolvedValue(reply(200, { examples: EXAMPLES }))
+    expect((await loadShelfIndex()).dedicated).toEqual([])
   })
 
   it('a failed shelf read rejects with its code and is retried next time, not cached', async () => {

@@ -14,7 +14,9 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 import {
   SlashList, menuItems, toolItems, __toolsLoad, __resetTools, __builtLoad, __resetBuilt, __resetMine, __resetPicks,
+  __builtInLoad, __resetBuiltIn,
 } from './SlashMenu'
+import { __resetBuiltCaches } from '../../lib/builtWidgets'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { buildExtensions } from '../../lib/tiptap'
 import { noteDayOf, toolSearchText } from '../../lib/blocks/toolDays'
@@ -68,6 +70,20 @@ const BASICS_MORE = [
 const BARE_ALL_BUT_8_9 = [...OPEN_PLAN_REVIEW, ...BASICS_MORE]
 const BARE_W8_ON = [...OPEN_PLAN_REVIEW,
   'tools|Build a widget', 'tools|Net P&L by setup', 'tools|Win rate by hour', 'tools|Manage my tools', ...BASICS_MORE]
+
+// Wave 10 (Task 10.21): the "Widgets" group while waves 8 and 10 are both on and the shelf cannot be read (this net
+// answers it with a 500): the defaults that need no shelf, then "All widgets…". The two phase 1 defaults are listed
+// there instead of under Reviewing (spec 8: one card per idea), so the rest of the list is the snapshot, item for item.
+const NO_SHELF_WIDGETS = ['widgets|My setup edge', 'widgets|Risk left today', 'widgets|My open positions and risk',
+  'widgets|All widgets…']
+const withWidgets = (rows, widgets) => {
+  const moved = new Set(widgets.map((r) => r.replace(/^widgets\|/, 'review|')))
+  const kept = rows.filter((r) => !moved.has(r))
+  const at = kept.findLastIndex((r) => r.startsWith('review|')) + 1
+  return [...kept.slice(0, at), ...widgets, ...kept.slice(at)]
+}
+// The Task 8.18 snapshot as it stood before wave 10: Task 10.20 added only the calculator to it.
+const BEFORE_W10 = (rows) => rows.filter((r) => r !== 'plan|Position size calculator')
 
 const ROUTINE_ITEM = 'Routine (remembered daily)'
 const TRACKER_ITEM = 'Tracker (one value a day)'
@@ -125,7 +141,9 @@ const labelsOf = (items) => {
   unmount()
   return out
 }
-const settle = async () => { await __builtLoad(); await __toolsLoad(); await new Promise((r) => setTimeout(r, 0)) }
+const settle = async () => {
+  await __builtLoad(); await __toolsLoad(); await __builtInLoad(); await new Promise((r) => setTimeout(r, 0))
+}
 /** The bare list through the menu's REAL items callback, after every background load it starts has landed. */
 async function bareList(ed = member()) {
   menuItems('', ed)
@@ -137,7 +155,7 @@ const loaded = async (q, ed = member()) => { menuItems(q, ed); await settle(); r
 const realFetch = global.fetch
 let editor
 beforeEach(() => {
-  __resetBuilt(); __resetMine(); __resetPicks(); __resetTools()
+  __resetBuilt(); __resetMine(); __resetPicks(); __resetTools(); __resetBuiltIn(); __resetBuiltCaches()
   __resetEditorDoor(); __resetToolPicker()
   window.localStorage.clear()
 })
@@ -175,7 +193,7 @@ describe('the routine and tracker rows are dark while wave 9 is off', () => {
     expect(asRows(await bareList())).toEqual(BARE_ALL_BUT_8_9)
     __resetNotebookFlags()
     latchNotebookFlags({ ...ALL_BUT_8_9, ...W8 })
-    expect(asRows(await bareList())).toEqual(BARE_W8_ON)
+    expect(asRows(await bareList())).toEqual(withWidgets(BARE_W8_ON, NO_SHELF_WIDGETS))
     for (const q of ['routine', 'track', 'sleep', 'pre', '']) {
       expect(toolItems(q, member())).toEqual([])
       expect(titles(menuItems(q, member()))).not.toEqual(expect.arrayContaining([ROUTINE_ITEM]))
@@ -189,6 +207,25 @@ describe('the routine and tracker rows are dark while wave 9 is off', () => {
     const on = titles(await bareList())
     expect(on).toEqual(expect.arrayContaining([ROUTINE_ITEM, TRACKER_ITEM, 'Pre-market routine', 'Sleep']))
     expect(net.lists().length).toBeGreaterThan(0)
+  })
+})
+
+describe('wave 10 off leaves the bare list as it was (Task 10.21)', () => {
+  it('bare_slash_unchanged_when_w10_off', async () => {
+    const net = installNet({ widgets: { u1: [widget('w1', 'Net P&L by setup'), widget('w2', 'Win rate by hour')] } })
+    latchNotebookFlags({ ...ALL_BUT_8_9, ...W8, notebook_widgets_w10_enabled: false })
+    const items = await bareList()
+    expect(asRows(items)).toEqual(BEFORE_W10(BARE_W8_ON))
+    expect(labelsOf(items)).not.toContain('Widgets')
+    expect(titles(items)).not.toContain('Risk left today')
+    // Off, the menu never reads the ready-made widgets.
+    expect(net.calls.some((c) => c.path === '/api/j2/widget-definitions/shelf')).toBe(false)
+    // CONTROL: the same callback lists them once wave 10 is on (so the answer above is the gate's).
+    __resetNotebookFlags()
+    latchNotebookFlags({ ...ALL_BUT_8_9, ...W8 })
+    const on = await bareList()
+    expect(asRows(on)).toEqual(withWidgets(BARE_W8_ON, NO_SHELF_WIDGETS))
+    expect(labelsOf(on)).toContain('Widgets')
   })
 })
 

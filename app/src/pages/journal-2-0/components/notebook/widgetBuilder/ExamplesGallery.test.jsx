@@ -26,11 +26,18 @@ import { openWidgetBuilder } from './openWidgetBuilder'
 import { openRoutineEditor } from '../routines/openRoutineEditor'
 import { FIRST_STEP } from './ExamplesGallery'
 import { TOOL_SAVED_NOT_ADDED } from '../../../lib/toolEmbed'
-import { SHELF_EXAMPLES } from './__fixtures__/shelfExamples'
+import { SHELF_EXAMPLES, wave10Shelf } from './__fixtures__/shelfExamples'
+import { Editor } from '@tiptap/core'
+import { buildExtensions } from '../../../lib/tiptap'
+import { WIDGET_KINDS } from '../../../lib/notebookWidgets'
+import { __resetDedicatedQueue } from '../../../lib/dedicatedWidgets'
+import { ADD_TO_NOTE } from './ExampleCard'
+import { PICK_TITLE, PICK_HINT, PICK_BACK, TRADES_FAILED, NO_TRADES } from './ExamplesGallery'
 
 // Wave 8 on; wave 9 only where a test turns it on (Task 9.19's first step).
-const waves = vi.hoisted(() => ({ nine: false }))
-vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 8 || (w === 9 && waves.nine) }))
+const waves = vi.hoisted(() => ({ nine: false, ten: false }))
+vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()),
+  widgetsWaveOn: (w) => w === 8 || (w === 9 && waves.nine) || (w === 10 && waves.ten) }))
 // The routine editor is its own rail (routines/RoutineEditorSheet.test.jsx): here only WHAT the first step asks of it.
 vi.mock('../routines/openRoutineEditor', () => ({ openRoutineEditor: vi.fn(() => () => {}) }))
 
@@ -768,5 +775,171 @@ describe('ExamplesGallery: the first step on sample data', () => {
     args.onSaved({ id: 'r-2', name: 'Pre-market routine' })
     expect(calls).toHaveLength(1)
     expect(notify).toHaveBeenCalledWith(TOOL_SAVED_NOT_ADDED, 'error')
+  })
+})
+
+// Wave 10 (Task 10.21, spec 8): from a note, a ready-made card goes in as it is ("Add to note", pinned to the card's
+// revision), and the seven dedicated widgets are cards that put their own kind in the note and open no builder.
+describe('ExamplesGallery: wave 10, ready-made and dedicated widgets straight into the note', () => {
+  const W10_SHELF = wave10Shelf()
+  const W10_IDS = W10_SHELF.map((e) => e.id)
+  const DEDICATED = WIDGET_KINDS.filter((k) => k.dedicated === 1)
+    .map((k) => ({ kind: k.id, name: k.title, description: k.description, keywords: [] }))
+  const TRADES = [
+    { id: 't1', symbol: 'nvda', side: 'Long', exitDate: '2026-10-14' },
+    { id: 't2', symbol: 'amd', side: 'Short', exitDate: '2026-10-15' },
+  ]
+  let ed
+  let closeBuilder
+  beforeEach(() => {
+    waves.ten = true
+    __resetDedicatedQueue()
+    route('GET', (u) => u === `${DEFS}/shelf`, () => answer({ examples: W10_SHELF, dedicated: DEDICATED }))
+    route('POST', (u) => u === `${DEFS}/examples`, answerIds)
+    route('POST', (u) => u === `${DEFS}/run`, (u, init) => {
+      const b = JSON.parse(init.body)
+      return answer(payload({ defId: b.defId, defRev: b.defRev, title: 'Equity curve' }))
+    })
+    route('POST', (u) => u.startsWith('/api/j2/notebook-shelf-widgets/'),
+      () => answer({ asOf: '2026-10-24T14:00:00Z', lines: ['Room left today.'], rows: [] }))
+  })
+  afterEach(async () => {
+    waves.ten = false
+    if (closeBuilder) { act(() => { closeBuilder() }); await flush() }
+    closeBuilder = null
+    ed?.destroy()
+    ed = null
+  })
+  /** A real note editor, its storage as NoteEditorPage writes it. */
+  function realNote() {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    ed = new Editor({ element: el, extensions: buildExtensions(), content: '<p>Notes</p>' })
+    ed.storage.uctJournalWidgets = { ...ed.storage.uctJournalWidgets, uid: 'u1', noteId: 'n-1', notify: vi.fn() }
+    return ed
+  }
+  async function openFromNote() {
+    realNote()
+    await act(async () => { closeBuilder = openWidgetBuilder({ editor: ed, start: 'examples', uid: 'u1' }) })
+    await flush()
+    await flush()
+  }
+  const builderOpen = () => document.querySelector('[data-widget-builder-root]') !== null
+  const placed = () => {
+    const out = []
+    ed.state.doc.descendants((n) => { if (n.type.name === 'widgetEmbed') out.push(n) })
+    return out
+  }
+  const settleInsert = async () => { for (let i = 0; i < 4; i += 1) await flush() }
+
+  it('shelf_card_inserts_pinned_rev', async () => {
+    await openFromNote()
+    const rev = W10_SHELF.find((e) => e.id === 'shelf:equity-curve').rev
+    expect(rev).toBeGreaterThan(1)                                     // non-vacuity: not the wave 8 default
+    fireEvent.click(screen.getByRole('button', { name: `${ADD_TO_NOTE}, Equity curve` }))
+    await settleInsert()
+    expect(builderOpen()).toBe(false)                                   // the builder gave way; nothing opened in it
+    expect(previews()).toHaveLength(0)
+    const run = callsTo(fetchSpy, 'POST', (u) => u === `${DEFS}/run`)
+    expect(run).toHaveLength(1)
+    expect(bodyOf(run[0])).toMatchObject({ defId: 'shelf:equity-curve', defRev: rev })
+    const [node] = placed()
+    expect(node.attrs.widgetId).toBe('builtWidget')
+    expect(node.attrs.params).toMatchObject({ defId: 'shelf:equity-curve', defRev: rev })
+    expect(ed.storage.uctJournalWidgets.notify).toHaveBeenLastCalledWith('Equity curve added.', 'info')
+  })
+
+  it('no Add to note and no dedicated cards without a note to put them in', async () => {
+    await openGallery()
+    expect(screen.queryAllByText(ADD_TO_NOTE)).toHaveLength(0)
+    expect(screen.queryByText('Risk left today')).toBeNull()
+    expect(within(screen.getByRole('list', { name: 'Examples' })).getAllByRole('listitem')).toHaveLength(W10_IDS.length)
+  })
+
+  it('dedicated_card_inserts_kind_without_builder', async () => {
+    await openFromNote()
+    const risk = card('dedicated:myRiskLeftToday')
+    expect(risk).toHaveAccessibleName('Risk left today')
+    expect(within(risk).queryByTestId('example-skeleton')).toBeNull()   // a static thumbnail, never a skeleton
+    expect(screen.queryByTestId('example-add-dedicated:myRiskLeftToday')).toBeNull()
+    // A dedicated card is never asked for: every card in view, and no batch names one.
+    await inView([...W10_IDS, ...DEDICATED.map((d) => `dedicated:${d.kind}`)])
+    expect(sentBatches().length).toBeGreaterThan(0)                     // non-vacuity: batches did go out
+    for (const ids of sentBatches()) expect(ids.every((id) => id.startsWith('shelf:'))).toBe(true)
+    fireEvent.click(risk)
+    await settleInsert()
+    expect(builderOpen()).toBe(false)
+    expect(screen.queryByText('How this is made')).toBeNull()
+    expect(callsTo(fetchSpy, 'POST', (u) => u === '/api/j2/notebook-shelf-widgets/myRiskLeftToday')).toHaveLength(1)
+    expect(callsTo(fetchSpy, 'GET', (u) => u.startsWith('/api/j2/notebook-widgets/'))).toHaveLength(0)
+    const [node] = placed()
+    expect(node.attrs.widgetId).toBe('myRiskLeftToday')
+    expect(node.attrs.params.lines).toEqual(['Room left today.'])
+  })
+
+  it('plan_vs_actual_opens_trade_pick', async () => {
+    let trades = () => refusal(500, 'failed')
+    route('GET', (u) => u.startsWith('/api/j2/trades'), () => trades())
+    await openFromNote()
+    fireEvent.click(card('dedicated:myPlanVsActual'))
+    await flush()
+    // The pick, in place of the cards, its heading focused; a failed read says so and asks again.
+    const heading = screen.getByRole('heading', { name: PICK_TITLE })
+    expect(document.activeElement).toBe(heading)
+    expect(screen.getByText(PICK_HINT)).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Examples' })).toBeNull()
+    expect(screen.getByRole('alert')).toHaveTextContent(TRADES_FAILED)
+    expect(callsTo(fetchSpy, 'POST', (u) => u.startsWith('/api/j2/notebook-shelf-widgets/'))).toHaveLength(0)
+    trades = () => answer({ trades: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await flush()
+    expect(screen.getByText(NO_TRADES)).toBeInTheDocument()
+    // Back: the cards again, focus on the card it came from.
+    fireEvent.click(screen.getByRole('button', { name: PICK_BACK }))
+    await flush()
+    expect(screen.getByRole('list', { name: 'Examples' })).toBeInTheDocument()
+    expect(document.activeElement).toBe(card('dedicated:myPlanVsActual'))
+    expect(builderOpen()).toBe(true)
+    // Again, with trades: each by its words; the one picked goes in with that trade, and the builder gives way.
+    trades = () => answer({ trades: TRADES })
+    fireEvent.click(card('dedicated:myPlanVsActual'))
+    await flush()
+    const list = screen.getByRole('list', { name: 'Your trades' })
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['NVDA long, Oct 14', 'AMD short, Oct 15'])
+    fireEvent.click(within(list).getByRole('button', { name: 'AMD short, Oct 15' }))
+    await settleInsert()
+    expect(builderOpen()).toBe(false)
+    const post = callsTo(fetchSpy, 'POST', (u) => u === '/api/j2/notebook-shelf-widgets/myPlanVsActual')
+    expect(post).toHaveLength(1)
+    expect(bodyOf(post[0])).toEqual({ params: { tradeId: 't2' } })
+    const [node] = placed()
+    expect(node.attrs.widgetId).toBe('myPlanVsActual')
+    expect(node.attrs.params.settings).toEqual({ tradeId: 't2' })
+  })
+
+  it('no_sample_ribbon_on_options_or_notes_cards', async () => {
+    const base = W10_SHELF.find((e) => e.id === 'shelf:win-rate')
+    const over = (id, name, source) => ({ ...base, id, name, plan: { ...base.plan, source } })
+    const list = [base, over('shelf:zz-options', 'Options by strategy', 'options_strategies'),
+      over('shelf:zz-notes', 'Notes by kind', 'notes')]
+    route('GET', (u) => u === `${DEFS}/shelf`, () => answer({ examples: list }))
+    route('POST', (u) => u === `${DEFS}/examples`, (u, init) => examplesAnswer(JSON.parse(init.body).ids, { sample: true }))
+    await openGallery()
+    await inView(list.map((e) => e.id))
+    expect(screen.getByText(SAMPLE_BANNER)).toBeInTheDocument()                     // non-vacuity: sample data
+    expect(within(card('shelf:win-rate')).getByText(SAMPLE_RIBBON)).toBeInTheDocument()
+    for (const id of ['shelf:zz-options', 'shelf:zz-notes']) {
+      expect(within(card(id)).getByText('Last 90 days')).toBeInTheDocument()       // answered, with its range
+      expect(within(card(id)).queryByText(SAMPLE_RIBBON)).toBeNull()
+    }
+  })
+
+  it('wave 10 off: no dedicated cards even when the list names them', async () => {
+    waves.ten = false
+    await openFromNote()
+    expect(screen.queryByText('Risk left today')).toBeNull()
+    expect(screen.queryByTestId('example-card-dedicated:myTiltCheck')).toBeNull()
+    // CONTROL: the ready-made cards still offer Add to note (a note is there).
+    expect(screen.getAllByText(ADD_TO_NOTE)).toHaveLength(W10_IDS.length)
   })
 })
