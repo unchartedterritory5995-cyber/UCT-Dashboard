@@ -85,6 +85,7 @@ beforeEach(() => {
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 afterEach(() => {
+  stopTimerWatch?.()
   warn.mockRestore()
   vi.useRealTimers()
   vi.clearAllMocks()
@@ -120,6 +121,25 @@ function sabotageNotes(kind) {
     return realTx(names, mode)
   }
 }
+/**
+ * Watch every timer scheduled from now on (on top of the fake clock) and say which are still pending. ⚠️ The page and
+ * the editor keep dozens of their own timers, so a global count says nothing; only the timers made AFTER the unmount
+ * are the dead page's, and the store read's bound is one of them.
+ */
+let stopTimerWatch = null
+function watchNewTimers() {
+  const fakeSet = globalThis.setTimeout
+  const fakeClear = globalThis.clearTimeout
+  const pending = new Map()
+  globalThis.setTimeout = (fn, ms, ...args) => {
+    const id = fakeSet((...a) => { pending.delete(id); return typeof fn === 'function' ? fn(...a) : undefined }, ms, ...args)
+    pending.set(id, ms)
+    return id
+  }
+  globalThis.clearTimeout = (id) => { pending.delete(id); return fakeClear(id) }
+  stopTimerWatch = () => { globalThis.setTimeout = fakeSet; globalThis.clearTimeout = fakeClear; stopTimerWatch = null }
+  return { pendingDelays: () => [...pending.values()] }
+}
 const retryWarnings = () => warn.mock.calls.filter(([m]) => /autosave failed \(retry/.test(String(m)))
 const networkBack = () => {
   updateMock.mockReset()
@@ -127,7 +147,7 @@ const networkBack = () => {
 }
 
 /** Type, let the durable window close, unmount (the flush goes out and fails offline), then bring the network back. */
-async function typeLeaveOffline(words, { seed = null, sabotage = null } = {}) {
+async function typeLeaveOffline(words, { seed = null, sabotage = null, beforeUnmount = null } = {}) {
   const { unmount } = await renderEditor()
   updateMock.mockRejectedValue(offline())
   type(words)
@@ -135,6 +155,7 @@ async function typeLeaveOffline(words, { seed = null, sabotage = null } = {}) {
   expect(updateMock).not.toHaveBeenCalled()
   if (seed) accountDb().seed('notes', seed(store('notes')[0]))
   if (sabotage) sabotageNotes(sabotage)
+  beforeUnmount?.()
   unmount() // "Save on unmount if dirty": the flush goes out now and fails after the cleanup has run
   await advance(50)
   expect(updateMock).toHaveBeenCalledTimes(1) // the flush ran, once
@@ -166,6 +187,35 @@ describe('CONTROL -- a MOUNTED page still retries a failed save (unchanged)', ()
     expect(updateMock.mock.calls.length).toBeGreaterThan(first)
     expect(updateMock.mock.calls.at(-1)[0].title).toBe('typed under strict mode')
   })
+
+  it('⛔ a MOUNTED page never asks the store: its failure arms the retry at once, with no store read, even a store that never answers', async () => {
+    await renderEditor()
+    updateMock.mockRejectedValue(offline())
+    type('typed on a live page')
+    await advance(300) // the durable window closes; the 800 ms server debounce is still pending
+    // From now on every read of the notes store is counted and never answers, so a page that waited on one would sit
+    // there (until the dead-page bound) instead of arming its retry.
+    const db = accountDb()
+    const realTx = db.transaction.bind(db)
+    let notesReads = 0
+    db.transaction = (names, mode = 'readonly') => {
+      const list = Array.isArray(names) ? names : [names]
+      if (list.includes('notes') && mode === 'readonly') {
+        notesReads += 1
+        return { objectStore: () => ({ get: () => ({}) }) }
+      }
+      return realTx(names, mode)
+    }
+    let readsWhenArmed = null
+    warn.mockImplementation((m) => { if (/autosave failed \(retry/.test(String(m)) && readsWhenArmed === null) readsWhenArmed = notesReads })
+    await advance(600) // the debounce ends: the PUT goes out and fails
+    expect(updateMock).toHaveBeenCalledTimes(1)
+    expect(retryWarnings().map(([m]) => m)).toEqual(['autosave failed (retry 1 in 1000ms)'])
+    expect(readsWhenArmed).toBe(0) // the retry was armed without touching the store
+    networkBack()
+    await advance(1_100) // the 1 s backoff, not the 2 s store bound plus 1 s
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toEqual(['typed on a live page'])
+  })
 })
 
 describe('⛔ W8-R56, offline layer ON -- the durable copy owns the words, so the dead page arms nothing', () => {
@@ -174,6 +224,14 @@ describe('⛔ W8-R56, offline layer ON -- the durable copy owns the words, so th
     await advance(60_000) // past every backoff step (1, 2, 4, 8, 15, 30 s)
     expect(updateMock).not.toHaveBeenCalled() // no dead-page PUT, at any step
     expect(retryWarnings()).toEqual([]) // and no retry was ever armed
+  })
+
+  it('⛔ a DROP leaves no timer behind: the 2 s bound on the store read is cleared once the read has answered', async () => {
+    let timers
+    await typeLeaveOffline('typed, dropped, and nothing left scheduled', { beforeUnmount: () => { timers = watchNewTimers() } })
+    await advance(500) // the read has answered and the retry is dropped; the 2 s bound has NOT run out yet
+    expect(retryWarnings()).toEqual([]) // control: this is the drop
+    expect(timers.pendingDelays()).toEqual([])
   })
 
   it('the unsent edit is still in the durable copy, owed to the server, and a fresh mount sends it', async () => {
@@ -266,6 +324,36 @@ describe('⛔ W8-R59 -- the dead page reads the STORE, live, and only proof drop
     await advance(1_100)
     expect(updateMock.mock.calls.map(([p]) => p.title)).toContain('my older words') // kept: the dead page sends its own
     expect(store('notes')[0].title).toBe('newer words from tab B') // and nothing it did touched the newer record
+  })
+
+  it('⛔ a KEEP leaves no timer behind either: once the kept retry has landed, nothing is scheduled', async () => {
+    let timers
+    await typeLeaveOffline('my older words, kept', {
+      seed: (rec) => ({ ...rec, title: 'newer words from tab B', dirty: 1 }),
+      beforeUnmount: () => { timers = watchNewTimers() },
+    })
+    await advance(1_100) // the read answered "different", the retry was kept, and it has landed; the bound was 2 s
+    expect(updateMock.mock.calls.map(([p]) => p.title)).toEqual(['my older words, kept']) // control: this is the keep
+    expect(timers.pendingDelays()).toEqual([])
+  })
+
+  it('⛔ the record matches on title and body but holds an OLDER subtitle: that is different content, so the retry is kept', async () => {
+    const { unmount } = await renderEditor()
+    updateMock.mockRejectedValue(offline())
+    type('the title, on disk')
+    await advance(300) // committed: title and body are in the store, with the old (empty) subtitle
+    expect(store('notes')[0]).toMatchObject({ title: 'the title, on disk', subtitle: '', dirty: 1 })
+    fireEvent.change(screen.getByPlaceholderText('Subtitle (optional)'), { target: { value: 'a subtitle, never on disk' } })
+    sabotageNotes('refuse-writes') // the unmount flush's durable write of the subtitle is refused
+    unmount()
+    await advance(50)
+    // control: the save carried the new subtitle, and the store matches it on title and body but not on the subtitle
+    expect(updateMock).toHaveBeenCalledTimes(1)
+    expect(updateMock.mock.calls[0][0].subtitle).toBe('a subtitle, never on disk')
+    expect(store('notes').map((r) => [r.title, r.subtitle])).toEqual([['the title, on disk', '']])
+    networkBack()
+    await advance(1_100)
+    expect(updateMock.mock.calls.map(([p]) => p.subtitle)).toContain('a subtitle, never on disk')
   })
 
   it('the layer is switched OFF mid-session over an exact dirty record: no drain will send it, so the retry is kept', async () => {
