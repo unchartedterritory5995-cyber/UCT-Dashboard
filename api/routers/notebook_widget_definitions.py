@@ -379,13 +379,16 @@ def _field_row(f: Any) -> dict:
     return row
 
 
-def _static_vocabulary(tools: bool = False) -> dict:
+def _static_vocabulary(tools: bool = False, w10: bool = False) -> dict:
     """The catalog. With `tools` False (wave 9 off) no routine or tracker source, no field that
-    names one (`refKind`) and no routine or tracker measure is listed."""
+    names one (`refKind`) and no routine or tracker measure is listed. With `w10` False (wave 10
+    off, Task 10.6) no wave 10 source is listed, nor a measure only it offers, nor its key in a
+    shared measure's `sources` (Task 10.9 owns the rest of the wave 10 vocabulary)."""
     cat = wsources.CATALOG
 
     def offered_source(key: str) -> bool:
-        return tools or key not in wplan.TOOL_SOURCES
+        return ((tools or key not in wplan.TOOL_SOURCES)
+                and (w10 or key not in wplan.WAVE10_SOURCES))
 
     sources = []
     for s in cat.sources.values():
@@ -399,7 +402,8 @@ def _static_vocabulary(tools: bool = False) -> dict:
         })
     measures = [{"key": m.key, "label": m.label, "theme": m.theme, "meaning": m.meaning,
                  "unit": m.unit, "kind": m.kind, "needs": list(m.needs),
-                 "sources": sorted(m.sources)} for m in cat.measures.values()
+                 "sources": sorted(k for k in m.sources if offered_source(k))}
+                for m in cat.measures.values()
                 if any(offered_source(k) for k in m.sources)]
     return {
         "sources": sources,
@@ -470,7 +474,7 @@ def _member_values(user_id: str, field: str) -> list[Any]:
 def vocabulary(field: str | None = None, user: dict = Depends(require_paid)) -> Any:
     tools = _tools_on()
     if field is None:
-        return _ok(_static_vocabulary(tools))
+        return _ok(_static_vocabulary(tools, _w10_on()))
     if field not in VOCAB_FIELDS + (VOCAB_TOOL_FIELDS if tools else ()):
         raise _err(400, "invalid", S_VOCAB_FIELD)
     values = _engine_errors(lambda: _member_values(_uid(user), field))

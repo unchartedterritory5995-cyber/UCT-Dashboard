@@ -10,7 +10,9 @@ This adapter imports it and never copies a formula. It adds three things the bui
    needs at least one measure to exist (Task 8.5 report, concern C-1).
 2. `measure_input(source_key, rows)`: the rows a measure reads. Trading-days rows are one per
    session INCLUDING sessions with no trades (spec 5.3); the day measures count only days with
-   trades (spec 5.4), so a quiet session is left out here, never inside a measure.
+   trades (spec 5.4), so a quiet session is left out here, never inside a measure. Options
+   strategies (wave 10, Task 10.6, ruling W10-R6): an OPEN strategy is listed but never
+   measured, so it is left out here too; only "Strategies" (`COUNTS_OPEN`) counts it.
 3. `evaluate(measure, source_key, rows) -> Cell`: the value, its count, how many rows carry what
    the measure needs, and the small-sample state (`measures.small_sample`).
 
@@ -18,6 +20,7 @@ Pure: no I/O, no clock.
 """
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 
 from api.services.journal_two.measures import (
@@ -30,6 +33,7 @@ from api.services.journal_two.tracker_days import TRACKER_MEASURES
 POSITIONS = "open_positions"
 TRADING_DAYS = "trading_days"
 ROUTINE_HISTORY = "routine_history"
+OPTIONS = "options_strategies"
 
 
 @dataclass(frozen=True)
@@ -94,12 +98,48 @@ POSITION_MEASURES: dict[str, Measure] = {m.key: m for m in [
 ]}
 
 
+# ── options strategies (wave 10, Task 10.6) ────────────────────────────────────────────────────
+
+def _strategies(rows):
+    return _mv(float(len(rows)), len(rows))
+
+
+_OPT = frozenset({OPTIONS})
+
+#: "Strategies" counts every strategy the widget read, open ones included (W10-R6).
+STRATEGY_MEASURES: dict[str, Measure] = {m.key: m for m in [
+    Measure("strategies", "Strategies", "results", "How many options strategies.",
+            "strategies", "count", DEFAULT_MIN_N, (), _OPT, _strategies),
+]}
+#: The measures that read every row, an open strategy included (the rest read `measure_input`).
+COUNTS_OPEN = frozenset(STRATEGY_MEASURES)
+#: The shared measures an options-strategies widget may pick: the SAME `measures.MEASURES` entries
+#: (their functions, never a copy) with `options_strategies` added to `sources` here. They read a
+#: closed strategy's `net` (`pnl_dollar`, already net of fees), `result`, `r` and `day`.
+OPTION_WIDENED = ("net_pnl", "wins", "losses", "win_rate", "avg_win", "avg_loss", "payoff",
+                  "profit_factor", "expectancy", "expectancy_r", "total_r", "best_trade",
+                  "worst_trade", "max_drawdown", "max_win_streak", "max_loss_streak",
+                  "current_streak")
+#: How a measure's unit reads on a source whose rows are not trades (the payload's noun, the
+#: brief's literal rule): "Not enough strategies yet (3)". A decisive count reads "strategies"
+#: too; its `n` is still the decisive count.
+_UNIT_BY_SOURCE = {OPTIONS: {"trades": "strategies", "decisive": "strategies"}}
+
+
+def unit_for(m, source_key: str) -> str:
+    """The noun a measure counts in on `source_key` (a shared measure says "trades")."""
+    return _UNIT_BY_SOURCE.get(source_key, {}).get(m.unit, m.unit)
+
+
 def builder_measures() -> dict[str, Measure]:
     """Every measure a widget may pick: the shared module's offered ones, the positions ones, and
-    (wave 9) the routine and tracker history ones. No key may shadow another."""
+    (wave 9) the routine and tracker history ones, (wave 10) the options strategies ones, and the
+    shared measures widened to options strategies. No key may shadow another."""
     out = {k: m for k, m in MEASURES.items() if m.sources}
+    for k in OPTION_WIDENED:
+        out[k] = dataclasses.replace(out[k], sources=out[k].sources | _OPT)
     for group, extra in (("position", POSITION_MEASURES), ("routine", ROUTINE_MEASURES),
-                         ("tracker", TRACKER_MEASURES)):
+                         ("tracker", TRACKER_MEASURES), ("strategy", STRATEGY_MEASURES)):
         for k, m in extra.items():
             assert k not in out, f"{group} measure {k} shadows another measure"
             out[k] = m
@@ -111,12 +151,26 @@ def measures_for(source_key: str) -> dict[str, Measure]:
 
 
 def measure_input(source_key: str, rows: list[dict]) -> list[dict]:
-    """The rows a measure reads. Trading days: only days with trades (spec 5.4)."""
+    """The rows a measure reads. Trading days: only days with trades (spec 5.4). Options
+    strategies: only closed ones (an open strategy is listed, never measured, W10-R6)."""
     if source_key == TRADING_DAYS:
         return [r for r in rows if (r.get("trade_count") or 0) > 0]
+    if source_key == OPTIONS:
+        return [r for r in rows if not r.get("open")]
     return rows
 
 
+def rows_for(m, source_key: str, rows: list[dict]) -> list[dict]:
+    """The rows measure `m` reads: every row for a `COUNTS_OPEN` measure, else `measure_input`."""
+    if getattr(m, "key", None) in COUNTS_OPEN:
+        return rows
+    return measure_input(source_key, rows)
+
+
 def evaluate(m: Measure, source_key: str, rows: list[dict]) -> Cell:
-    mv = m.fn(measure_input(source_key, rows))
+    inp = rows_for(m, source_key, rows)
+    if source_key == OPTIONS and rows and not inp:
+        # only open strategies: listed, never measured -- "no data", never a $0 or a 0 count
+        return Cell(None, 0, 0 if m.needs else None, "")
+    mv = m.fn(inp)
     return Cell(_num(mv.value), int(mv.n), mv.have, small_sample(m, mv))

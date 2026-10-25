@@ -473,3 +473,85 @@ def test_member_b_goal_is_never_read_for_a(two, monkeypatch):
         assert out["target"] is None and "9999" not in json.dumps(out)
     assert _w10_run(monkeypatch, B, raw)["target"] == 9999.0
     wrun._reset_state()
+
+
+# -- wave 10 (Task 10.6): options strategies and their legs --------------------------------------
+
+def test_member_b_strategies_and_legs_never_reach_a(two):
+    """A's options rows, counts and `dte_entry` hold nothing of B's: B's strategies (7,000 each,
+    on A's days and A's underlying), B's legs, and B's account id. The legs table has no
+    `user_id`, so the leg read must name only A's own scanned strategy ids (traced below)."""
+    import uuid
+
+    from tests.test_widget_options_source import add_opt
+    c, acc_a, acc_b = two
+    a1 = add_opt(c, A, entry="2026-10-19T14:00:00Z", closed_at="2026-10-20T19:00:00Z",
+                 pnl=50.0, account=acc_a, legs=("2026-11-20",))
+    a_open = add_opt(c, A, status="open", entry="2026-10-21T14:00:00Z", account=acc_a,
+                     legs=("2026-12-18",))
+    b1 = add_opt(c, B, entry="2026-10-19T14:00:00Z", closed_at="2026-10-21T19:00:00Z",
+                 pnl=9000.0, account=acc_b, legs=("2026-10-24",))
+    b_ids = {b1} | {r[0] for r in c.execute("SELECT id FROM j2_option_strategies WHERE user_id = ?",
+                                            (B,)).fetchall()}
+    # a leg of B's strategy with the earliest expiration of all, inserted by hand
+    c.execute("INSERT INTO j2_option_legs (id, strategy_id, leg_index, side, contract_type, strike,"
+              " expiration, qty, entry_price) VALUES (?, ?, 9, 'buy', 'put', 1, '2026-10-19', 1, 1)",
+              (str(uuid.uuid4()), b1))
+    c.commit()
+    seen: list[str] = []
+    c.set_trace_callback(seen.append)
+    try:
+        for mode in ("plain", "split", "filter", "accounts_b", "setting_b"):
+            raw = raw_plan(source="options_strategies", measures=("strategies", "net_pnl"),
+                           range=RANGE)
+            settings = None
+            if mode == "split":
+                raw.update(split={"by": "underlying"}, view={"type": "bar"})
+            elif mode == "filter":
+                raw["filters"] = [{"field": "underlying", "op": "in", "values": ["SPY"]}]
+            elif mode == "accounts_b":
+                raw["accounts"] = {"id": acc_b}
+            elif mode == "setting_b":
+                settings = {"accountId": acc_b}
+            sc, res = run(c, raw, uid=A, settings=settings)
+            assert {r["_tid"] for r in sc.rows} == {a1, a_open}, mode
+            assert res.count == 2 and res.total.cells[0].value == 2.0, mode
+            assert res.total.cells[1].value == 50.0, mode           # never B's 7,000 or 9,000
+            assert {r["_tid"]: r["dte_entry"] for r in sc.rows} == {a1: 32.0, a_open: 58.0}, mode
+            assert sc.account_id is None or sc.account_id == acc_a, mode
+            if mode == "split":
+                assert [(g.label, g.values.cells[0].value) for g in res.groups] == [("SPY", 2.0)]
+    finally:
+        c.set_trace_callback(None)
+    legs = [s for s in seen if "j2_option_legs" in s]
+    assert legs, "control: the trace saw the leg reads"
+    for s in legs:
+        assert a1 in s and a_open in s, s[:200]
+        assert not any(b in s for b in b_ids), "a leg read named one of B's strategy ids"
+    # control: B's own read does see B's leg (the expiration above is real data, not a typo)
+    sc_b, _res = run(c, raw_plan(source="options_strategies", measures=("strategies",),
+                                 range=RANGE), uid=B)
+    assert {r["_tid"]: r["dte_entry"] for r in sc_b.rows}[b1] == 0.0
+
+
+def test_a_leg_naming_a_strategy_is_that_strategys_leg(two):
+    """The legs table has no owner column: a leg row naming A's strategy id IS a leg of A's
+    strategy (the options service only ever writes a leg after checking the strategy's owner).
+    So it is read for A, and only because A's own scan returned that id; the same row naming an
+    id A's scan did not return (B's) is never read for A (the test above)."""
+    import uuid
+
+    from tests.test_widget_options_source import add_opt
+    c, acc_a, _acc_b = two
+    a1 = add_opt(c, A, entry="2026-10-19T14:00:00Z", closed_at="2026-10-20T19:00:00Z",
+                 pnl=50.0, legs=("2026-11-20",))
+    c.execute("INSERT INTO j2_option_legs (id, strategy_id, leg_index, side, contract_type, strike,"
+              " expiration, qty, entry_price) VALUES (?, ?, 5, 'buy', 'put', 1, '2026-10-30', 1, 1)",
+              (str(uuid.uuid4()), a1))
+    c.commit()
+    sc, _res = run(c, raw_plan(source="options_strategies", measures=("strategies",),
+                               range=RANGE), uid=A)
+    assert [(r["_tid"], r["dte_entry"]) for r in sc.rows] == [(a1, 11.0)]
+    sc_b, res_b = run(c, raw_plan(source="options_strategies", measures=("strategies",),
+                                  range=RANGE), uid=B)
+    assert a1 not in {r["_tid"] for r in sc_b.rows}

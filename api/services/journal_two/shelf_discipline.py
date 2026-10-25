@@ -49,9 +49,9 @@ Refusals are `ParamError`, a `tool_errors.ToolError` carrying status and code (r
 in the constants-only `shelf_kind_names` (Task 10.12), so importing it creates no cycle.
 
 Names taken from other modules are their public names (Task 10.12): `filters.DAY_SQL`, `notebook_widgets.iso_utc`
-/ `num` / `origin`, `widget_definitions.read_conn`, bound here under their old local names. One private reach is
-left, railed as a countdown in `tests/test_shelf_widgets_router.py`: `widget_engine.run._cover_plan` (that module
-was out of 10.12's scope). Read only: `widget_engine.sources.scan_days`, `owned_account_id`.
+/ `num` / `origin`, `widget_definitions.read_conn`, bound here under their old local names, and (Task 10.6)
+`widget_engine.run.cover_plan`. No private name of another module is read (railed in
+`tests/test_shelf_widgets_router.py`). Read only: `widget_engine.sources.scan_days`, `owned_account_id`.
 """
 from __future__ import annotations
 
@@ -718,7 +718,7 @@ def _day_nets(c: sqlite3.Connection, user_id: str, acc: str | None, since: date,
     authority), through the validated cover plan a built widget reads."""
     from api.services.journal_two.widget_engine import run as wrun
     from api.services.journal_two.widget_engine import sources as wsources
-    plan = wrun._cover_plan("trading_days")
+    plan = wrun.cover_plan("trading_days")
     rng = wplan.ResolvedRange(since.isoformat(), today.isoformat(), None, "since", None)
     return wsources.scan_days(c, plan, {"accountId": acc}, rng, user_id, today=today)
 

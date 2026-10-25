@@ -29,10 +29,13 @@ from __future__ import annotations
 
 import contextvars
 from contextlib import contextmanager
+from datetime import date, timedelta
 from typing import Any, Callable, Iterator
 
 from api.services.journal_two.filters import _DAY, analytics_included_sql
-from api.services.journal_two.widget_engine.plan import PlanError, S_UNKNOWN_FIELD, S_UNKNOWN_OP
+from api.services.journal_two.widget_engine.plan import (
+    FORMULA_PREFIX, PlanError, S_UNKNOWN_FIELD, S_UNKNOWN_OP,
+)
 
 #: Rows aggregated at most; the scan reads one more to know it was capped.
 SCAN_ROWS = 5000
@@ -82,6 +85,19 @@ POSITION_COLUMNS = (
     "p.id, p.symbol, p.side, p.entry_date, p.shares, p.entry_price, p.stop_price, p.setup, "
     "p.account_id, p.source, p.entry_estimated, p.broker_price"
 )
+
+#: Task 10.6: one options strategy. The legs (earliest expiration) are read apart, for the
+#: scanned ids only (`sources._leg_expiry`).
+OPTION_COLUMNS = (
+    "o.id, o.account_id, o.underlying, o.strategy_type, o.direction, o.entry_date, o.setup, "
+    "o.status, o.closed_at, o.pnl_dollar, o.r_multiple, o.result, o.trading_day_et, o.source"
+)
+#: The day a strategy's row is ORDERED and PRE-FILTERED by: the stamped ET close day, else the
+#: UTC date of the close, else of the entry. It is within a day of the ET day either way, so the
+#: pre-filter widens the range by one day each side and Python decides the exact ET day
+#: (`sources._option_day`), never a day read from UTC.
+OPTION_DAY = ("COALESCE(o.trading_day_et, substr(o.closed_at, 1, 10), "
+              "substr(o.entry_date, 1, 10))")
 
 #: Per ET day: equity net (pnl_dollar - fees), count, wins, losses, best and worst trade.
 DAY_COLUMNS = (
@@ -166,6 +182,10 @@ def _filters(source: Any, plan: dict) -> tuple[str, list]:
     frag, params = [], []
     fields = source.fields
     for f in plan.get("filters") or []:
+        if str(f.get("field") or "").startswith(FORMULA_PREFIX):
+            # Task 10.6: a formula filter is evaluated in Python after the bounded scan
+            # (`aggregate.apply_filters`); no part of it ever reaches SQL (spec 5.5).
+            continue
         fld = fields.get(f.get("field"))
         if fld is None:
             raise PlanError(S_UNKNOWN_FIELD)
@@ -180,6 +200,18 @@ def _range(rng: Any) -> tuple[str, list]:
     if rng.from_day:
         return f" AND {_DAY} BETWEEN ? AND ?", [rng.from_day, rng.to_day]
     return f" AND {_DAY} <= ?", [rng.to_day]
+
+
+def _shift(day: str, n: int) -> str:
+    return (date.fromisoformat(day[:10]) + timedelta(days=n)).isoformat()
+
+
+def _option_range(rng: Any) -> tuple[str, list]:
+    """The options pre-filter: the range widened by one day each side (Python cuts it)."""
+    if rng.from_day:
+        return (f" AND {OPTION_DAY} BETWEEN ? AND ?",
+                [_shift(rng.from_day, -1), _shift(rng.to_day, 1)])
+    return f" AND {OPTION_DAY} <= ?", [_shift(rng.to_day, 1)]
 
 
 def last_n_after_filters(source: Any, plan: dict, rng: Any) -> bool:
@@ -227,6 +259,14 @@ def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
         f_sql, f_params = _filters(source, plan)
         sql += a_sql + f_sql + f" ORDER BY p.entry_date DESC, p.id DESC LIMIT {SCAN_LIMIT}"
         return sql, [user_id] + a_params + f_params
+    if key == "options_strategies":
+        sql = f"SELECT {OPTION_COLUMNS} FROM j2_option_strategies o WHERE o.user_id = ?"
+        a_sql, a_params = _account_fragment("o.account_id", acc, user_id)
+        f_sql, f_params = _filters(source, plan)
+        r_sql, r_params = _option_range(rng)
+        sql += (a_sql + f_sql + r_sql
+                + f" ORDER BY {OPTION_DAY} DESC, o.id DESC LIMIT {SCAN_LIMIT}")
+        return sql, [user_id] + a_params + f_params + r_params
     if key == "trading_days":
         if not rng.from_day:
             raise ValueError("the trading-days scan needs a bounded range")

@@ -39,6 +39,7 @@ from typing import Any, Iterable
 from api.services.journal_two import notebook_widgets as nw
 from api.services.journal_two.widget_engine import aggregate as waggregate
 from api.services.journal_two.widget_engine import compile as wcompile
+from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import sources as wsources
 
@@ -98,6 +99,8 @@ MEASURE_FMT: dict[str, str] = {
     "trades": "count", "wins": "count", "losses": "count", "days_traded": "count",
     "profitable_days": "count", "max_win_streak": "count", "max_loss_streak": "count",
     "open_positions": "count",
+    # wave 10: options strategies
+    "strategies": "count",
     # a signed count (wins + / losses -)
     "current_streak": "signed_count",
     # days
@@ -388,10 +391,12 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
     for m in plan["measures"]:
         meta = waggregate.measure_of(plan, wsources.CATALOG, m, compiled)
         if "formula" in m:
-            measures.append({"key": meta.key, "label": meta.label, "unit": meta.unit,
+            measures.append({"key": meta.key, "label": meta.label,
+                             "unit": wmeasures.unit_for(meta, source_key),
                              "kind": meta.kind, "fmt": meta.fmt})
             continue
-        measures.append({"label": meta.label, "unit": meta.unit, "kind": meta.kind,
+        measures.append({"label": meta.label, "unit": wmeasures.unit_for(meta, source_key),
+                         "kind": meta.kind,
                          "fmt": MEASURE_FMT.get(m["key"], "number")})
         if scan.capped and source_key == "closed_trades" and m["key"] in PATH_DEPENDENT:
             footnotes.append(S_WITHIN_NEWEST.format(label=meta.label, n=_CAP_ROWS[source_key],

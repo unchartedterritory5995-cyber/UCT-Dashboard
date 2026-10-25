@@ -45,8 +45,8 @@ from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import compile as wcompile
 from api.services.journal_two.widget_engine import measures as wmeasures
 from api.services.journal_two.widget_engine.plan import (
-    OPS_BOOL, OPS_ENUM, OPS_NUMBER, RANGE_TOKENS, RIGHT_NOW_SOURCES, S_NO_EARLIER, VIEWS,
-    ResolvedRange, formula_field_infos, plan_refs,
+    FORMULA_PREFIX, OPS_BOOL, OPS_ENUM, OPS_NUMBER, RANGE_TOKENS, RIGHT_NOW_SOURCES,
+    S_NO_EARLIER, VIEWS, ResolvedRange, formula_field_infos, formula_of, plan_refs,
 )
 
 # ── field vocabulary ───────────────────────────────────────────────────────────────────────────
@@ -1206,6 +1206,165 @@ def _day_refs(conn: sqlite3.Connection, user_id: str, plan: dict, rows: list[dic
     return notes, notices
 
 
+# ── options strategies (wave 10, Task 10.6) ────────────────────────────────────────────────────
+#
+# One row per options strategy of the member's (`j2_option_strategies`, `user_id = ?`), newest
+# first by its ET day, at most `SCAN_ROWS`. The ET day is the day the strategy CLOSED
+# (`trading_day_et`, else `timeutil.compute_trading_day_et(closed_at)`) and, for an open one, its
+# entry ET day; the SQL only pre-filters a range widened by one day each side, and the day is
+# decided here, never read from a UTC date. Ruling W10-R6: an open strategy is listed, filtered
+# and counted by "Strategies", but never measured (`measures.measure_input` leaves it out); its
+# net and R are None whatever is stored. A stored result other than Win / Loss / BE (the close
+# path writes only those, `options.close_strategy`) is shown as stored and is never decisive: the
+# shared measures count only "Win" and "Loss". The legs carry no `user_id`, so they are read only
+# for the strategy ids this scan returned, in chunks of 500, joined back to the member's own
+# strategies (`_leg_expiry`).
+
+#: The labels `prettyStrategyType` (`lib/optionCalcs.js`) shows for each stored strategy type.
+STRATEGY_LABELS = {
+    "long_call": "Long Call", "long_put": "Long Put", "short_call": "Short Call",
+    "short_put": "Short Put", "vertical_debit_call": "Call Debit Spread",
+    "vertical_credit_call": "Call Credit Spread", "vertical_debit_put": "Put Debit Spread",
+    "vertical_credit_put": "Put Credit Spread", "calendar": "Calendar", "diagonal": "Diagonal",
+    "straddle": "Straddle", "strangle": "Strangle", "iron_condor": "Iron Condor",
+    "iron_butterfly": "Iron Butterfly", "call_butterfly": "Call Butterfly",
+    "put_butterfly": "Put Butterfly", "custom": "Custom",
+}
+DIRECTIONS = ("bullish", "bearish", "neutral")
+OPTION_STATUSES = ("open", "closed", "expired", "assigned", "rolled")
+_DIRECTION_LABELS = {"bullish": "Bullish", "bearish": "Bearish", "neutral": "Neutral"}
+
+
+def _strategy_label(v: Any) -> str:
+    return STRATEGY_LABELS.get(v, str(v))
+
+
+def _title(v: Any) -> str:
+    return str(v)[:1].upper() + str(v)[1:] if v else str(v)
+
+
+#: Net and R are None while a strategy is open, in SQL as in Python (so the SQL narrowing can
+#: never keep or drop a row the Python twin would not).
+_O_OPEN_NULL = "CASE WHEN o.status = 'open' THEN NULL ELSE {} END"
+
+OPTION_FIELDS: dict[str, Field] = {f.key: f for f in [
+    _f("day", "Day", "day", split=True),
+    _f("weekday", "Weekday", "enum", split=True, bucket=WEEKDAYS),
+    _f("month", "Month", "enum", split=True),
+    _f("underlying", "Underlying", "text", sql="o.underlying", split=True, ci=True),
+    _f("strategy", "Strategy", "enum", sql="o.strategy_type", split=True, fmt=_strategy_label),
+    _f("direction", "Direction", "enum", sql="o.direction", split=True, bucket=DIRECTIONS,
+       fmt=lambda v: _DIRECTION_LABELS.get(v, str(v))),
+    _f("status", "Status", "enum", sql="o.status", split=True, bucket=OPTION_STATUSES,
+       fmt=_title),
+    _f("dte_entry", "Days to expiry at entry", "number"),
+    _f("net", "Net P&L", "number", sql=_O_OPEN_NULL.format("o.pnl_dollar")),
+    _f("r", "R", "number", sql=_O_OPEN_NULL.format("o.r_multiple")),
+    _f("result", "Result", "enum", sql="o.result", split=True,
+       fmt=lambda v: _RESULT_LABELS.get(v, str(v)), bucket=("Win", "Loss", "BE")),
+    _f("setup", "Setup", "enum", sql="o.setup", split=True, none_label="No setup"),
+    _f("account", "Account", "enum", sql="o.account_id", split=True, label_from="account_name",
+       none_label="No account"),
+]}
+
+
+def _option_day(r: dict) -> str | None:
+    """The ET day a strategy belongs to: its close (stamped, else from `closed_at`), or, while
+    open, its entry. Always `compute_trading_day_et`, never the UTC date."""
+    if r.get("status") == "open":
+        return timeutil.compute_trading_day_et(r.get("entry_date"))
+    stamped = r.get("trading_day_et")
+    if stamped:
+        return str(stamped)[:10]
+    return timeutil.compute_trading_day_et(r.get("closed_at")) if r.get("closed_at") else None
+
+
+def _leg_expiry(conn: sqlite3.Connection, user_id: str, ids: list[str]) -> dict[str, str]:
+    """strategy id -> its earliest leg expiration (ISO day), for `ids` only (the member's own
+    scanned strategy ids), in chunks of 500, each joined back to `user_id`'s strategies."""
+    out: dict[str, str] = {}
+    rows = _in_chunks(
+        conn, "SELECT l.strategy_id AS sid, l.expiration AS exp FROM j2_option_legs l"
+              " JOIN j2_option_strategies s ON s.id = l.strategy_id"
+              " WHERE s.user_id = ? AND l.strategy_id IN", user_id, ids)
+    for i, r in enumerate(rows):
+        if i % _CHECK_EVERY == 0:
+            wcompile.check_deadline()
+        exp = str(r.get("exp") or "")[:10]
+        try:
+            date.fromisoformat(exp)
+        except ValueError:
+            continue
+        if r["sid"] not in out or exp < out[r["sid"]]:
+            out[r["sid"]] = exp
+    return out
+
+
+def _dte(expiry: str | None, entry_day: str | None) -> float | None:
+    if not expiry or not entry_day:
+        return None
+    try:
+        return float((date.fromisoformat(expiry) - date.fromisoformat(entry_day[:10])).days)
+    except ValueError:
+        return None
+
+
+def scan_options(conn: sqlite3.Connection, plan: dict, settings: dict | None,
+                 rng: ResolvedRange, user_id: str, *, today: date | None = None) -> Scan:
+    """The member's options strategies in the range, newest first, at most `SCAN_ROWS`."""
+    acc = owned_account_id(conn, user_id, wcompile.account_param(plan, settings))
+    sql, params = wcompile.compile_scan(OPTIONS, plan, settings, rng, user_id)
+    raw = _dicts(conn.execute(sql, params))
+    over = len(raw) > wcompile.SCAN_ROWS
+    kept: list[tuple[str, dict]] = []
+    for i, r in enumerate(raw):
+        if i % _CHECK_EVERY == 0:
+            wcompile.check_deadline()
+        d = _option_day(r)
+        if d is None or d > rng.to_day or (rng.from_day is not None and d < rng.from_day):
+            continue
+        kept.append((d, r))
+    kept.sort(key=lambda p: (p[0], str(p[1].get("id") or "")), reverse=True)
+    capped = over or len(kept) > wcompile.SCAN_ROWS
+    kept = kept[:wcompile.SCAN_ROWS]
+    expiry = _leg_expiry(conn, user_id, [r["id"] for _d, r in kept])
+    names = _account_names(conn, user_id)
+    n = len(kept)
+    rows: list[dict] = []
+    for i, (d, r) in enumerate(kept):
+        if i % _CHECK_EVERY == 0:
+            wcompile.check_deadline()
+        is_open = r.get("status") == "open"
+        acc_id = r.get("account_id") or None
+        rows.append({
+            "_tid": r["id"],
+            # the streak order: close instant, then newest-first scan position reversed
+            "id": _sort_key(r.get("closed_at") or r.get("entry_date"), n - i),
+            "day": d,
+            "weekday": _weekday(d),
+            "month": d[:7],
+            "underlying": r.get("underlying"),
+            "strategy": r.get("strategy_type"),
+            "direction": r.get("direction"),
+            "status": r.get("status"),
+            "open": is_open,
+            "dte_entry": _dte(expiry.get(r["id"]),
+                              timeutil.compute_trading_day_et(r.get("entry_date"))),
+            "net": None if is_open else _num(r.get("pnl_dollar")),
+            "r": None if is_open else _num(r.get("r_multiple")),
+            "result": r.get("result") or None,
+            "setup": r.get("setup") or None,
+            "account": acc_id,
+            "account_name": names.get(acc_id),
+            "origin": _ROW_ORIGIN.get(r.get("source"), "manual"),
+            "flagged": False,
+            "label": r.get("underlying"),
+            "label2": _strategy_label(r.get("strategy_type")),
+        })
+    return Scan("options_strategies", rows, capped, rows[-1]["day"] if rows else None,
+                len(rows), acc)
+
+
 # ── the sources and the catalog ────────────────────────────────────────────────────────────────
 
 CLOSED = Source("closed_trades", "Closed trades", "Every trade you have closed.", "trades",
@@ -1220,9 +1379,12 @@ ROUTINE_HISTORY = Source("routine_history", "Routine history",
                          ROUTINE_FIELDS, scan_routines, list_labels=("label", "day"))
 TRACKER_HISTORY = Source("tracker_history", "Tracker history", "Every value you have logged.",
                          "entries", TRACKER_FIELDS, scan_trackers, list_labels=("label", "day"))
+OPTIONS = Source("options_strategies", "Options strategies",
+                 "Every options strategy you have logged.", "strategies", OPTION_FIELDS,
+                 scan_options)
 
 SOURCES: dict[str, Source] = {s.key: s for s in (CLOSED, POSITIONS, DAYS, ROUTINE_HISTORY,
-                                                 TRACKER_HISTORY)}
+                                                 TRACKER_HISTORY, OPTIONS)}
 
 ACCENTS = ("gold", "green", "red", "blue", "purple", "teal", "orange")
 
@@ -1273,7 +1435,7 @@ class WidgetCatalog:
         split = plan.get("split")
         if split:
             for k in (split.get("by"), split.get("then")):
-                if k is not None and not getattr(src.fields.get(k), "split", False):
+                if k is not None and not _splittable(plan, src, k):
                     return S_SPLIT_FIELD
         vtype = (plan.get("view") or {}).get("type")
         n_measures = len(plan.get("measures") or [])
@@ -1286,8 +1448,10 @@ class WidgetCatalog:
             tok = (plan.get("range") or {}).get("token")
             if cmp.get("mode") == "previous" and (tok == "all" or str(tok).endswith("_trades")):
                 return S_NO_EARLIER
-        if vtype == "progress" and (plan.get("display") or {}).get("target") is None:
-            return S_VIEW_PROGRESS
+        display = plan.get("display") or {}
+        if (vtype == "progress" and display.get("target") is None
+                and not display.get("targetGoal")):
+            return S_VIEW_PROGRESS              # a goal target is a target (plan.py checks it)
         if vtype == "bar" and not split:
             return S_VIEW_BAR
         if vtype == "line" and (not split or split.get("by") not in TIME_FIELDS):
@@ -1302,6 +1466,14 @@ class WidgetCatalog:
         if vtype == "list" and split:
             return S_VIEW_LIST
         return None
+
+
+def _splittable(plan: dict, src: Source, key: Any) -> bool:
+    """A source field that can split, or (Task 10.6) a row formula the plan declares: `plan.py`
+    has already refused an adding-up formula and a number one (Bucket it) as a split."""
+    if isinstance(key, str) and key.startswith(FORMULA_PREFIX):
+        return formula_of(plan, key[len(FORMULA_PREFIX):]) is not None
+    return bool(getattr(src.fields.get(key), "split", False))
 
 
 CATALOG = WidgetCatalog()

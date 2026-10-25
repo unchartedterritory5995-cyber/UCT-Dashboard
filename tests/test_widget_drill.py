@@ -181,3 +181,82 @@ def test_scatter_point_never_matches_a_flagged_trade(conn):
     plan = raw_plan(measures=("net_pnl", "total_r"), view={"type": "scatter"})
     out = _drill(plan, {"d": "2026-10-20", "x": 100.0, "y": 2.0})
     assert [r["symbol"] for r in out["rows"]] == ["P1"] and out["count"] == 1
+
+
+# -- wave 10 (Task 10.6): options strategies and formulas at the drill door ------------------------
+
+def test_options_drill_rows_and_owned_ids(conn, monkeypatch):
+    from tests.test_widget_options_source import add_opt
+    add_user(conn, OTHER)
+    s1 = add_opt(conn, UID, closed_at="2026-10-20T19:00:00Z", pnl=120.0, r=1.5,
+                 underlying="QQQ", strategy_type="iron_condor")
+    s2 = add_opt(conn, UID, status="open", entry="2026-10-21T14:00:00Z", underlying="SPY")
+    theirs = add_opt(conn, OTHER, closed_at="2026-10-20T19:00:00Z", pnl=7000.0, underlying="QQQ")
+    plan = {"v": 1, "source": "options_strategies", "measures": [{"key": "strategies"}],
+            "range": {"token": "all"}}
+    out = _drill(plan)
+    assert out["count"] == 2 and out["more"] == 0
+    assert out["rows"] == [
+        {"day": "2026-10-21", "label": "SPY", "label2": "Long Call", "net": None, "r": None,
+         "result": None, "strategyId": s2},
+        {"day": "2026-10-20", "label": "QQQ", "label2": "Iron Condor", "net": 120.0, "r": 1.5,
+         "result": "Win", "strategyId": s1},
+    ]
+    split = dict(plan, split={"by": "strategy"}, view={"type": "bar"})
+    assert [r["strategyId"] for r in _drill(split, {"label": "Iron Condor"})["rows"]] == [s1]
+
+    # Defence in depth: a scan that somehow handed back another member's strategy drops it.
+    real = wsources.scan
+
+    def leaky(c, p, settings, rng, user_id, *, today=None):
+        sc = real(c, p, settings, rng, user_id, today=today)
+        other = real(c, p, settings, rng, OTHER, today=today)
+        return wsources.Scan(sc.source, sc.rows + other.rows, sc.capped, sc.earliest_day,
+                             sc.count + other.count, sc.account_id)
+
+    monkeypatch.setattr(wsources, "scan", leaky)
+    ids = [r["strategyId"] for r in _drill(plan)["rows"]]
+    assert sorted(ids) == sorted([s1, s2]) and theirs not in ids
+    assert wdrill._OWN_TABLE["options_strategies"] == "j2_option_strategies"
+
+
+def _fp(**kw):
+    p = {"v": 1, "source": "closed_trades", "range": {"token": "all"},
+         "formulas": [{"id": "f1", "name": "Green", "expr": "[net] > 0"},
+                      {"id": "f2", "name": "My side", "expr": "[side]"},
+                      {"id": "f3", "name": "Double", "expr": "[net] * 2", "format": "money"},
+                      {"id": "f4", "name": "Twice R", "expr": "[r] * 2", "format": "r"}],
+         "measures": [{"key": "net_pnl"}]}
+    p.update(kw)
+    return p
+
+
+def test_formula_split_filter_and_scatter_drill(conn):
+    add_trade(conn, UID, day="2026-10-20", pnl=100, r=2.0, symbol="W1", side="Long")
+    add_trade(conn, UID, day="2026-10-20", pnl=-50, r=-1.0, symbol="L1", side="Short")
+    add_trade(conn, UID, day="2026-10-21", pnl=30, r=0.5, symbol="W2", side="Short")
+    by_bool = _fp(split={"by": "formula:f1"}, view={"type": "bar"})
+    assert sorted(r["symbol"] for r in _drill(by_bool, {"label": "Yes"})["rows"]) == ["W1", "W2"]
+    assert [r["symbol"] for r in _drill(by_bool, {"label": "No"})["rows"]] == ["L1"]
+    by_text = _fp(split={"by": "formula:f2"}, view={"type": "bar"})
+    assert sorted(r["symbol"] for r in _drill(by_text, {"label": "Short"})["rows"]) == ["L1", "W2"]
+    two_way = _fp(split={"by": "setup", "then": "formula:f1"}, view={"type": "table"})
+    assert sorted(r["symbol"] for r in _drill(two_way, {"label": "No setup",
+                                                         "label2": "Yes"})["rows"]) == ["W1", "W2"]
+    filtered = _fp(filters=[{"field": "formula:f1", "op": "is", "values": [True]}])
+    out = _drill(filtered)
+    assert sorted(r["symbol"] for r in out["rows"]) == ["W1", "W2"] and out["count"] == 2
+    # a scatter point on two FORMULA measures (the 10.5 sweep's 500): the trade whose plotted
+    # values they are, and only it
+    pts = _fp(measures=[{"formula": "f3", "agg": "sum"}, {"formula": "f4", "agg": "sum"}],
+              view={"type": "scatter"})
+    assert [r["symbol"] for r in _drill(pts, {"d": "2026-10-20", "x": 200.0, "y": 4.0})["rows"]] \
+        == ["W1"]
+    assert [r["symbol"] for r in _drill(pts, {"d": "2026-10-20", "x": -100.0, "y": -2.0})["rows"]] \
+        == ["L1"]
+    assert _drill(pts, {"d": "2026-10-21", "x": 200.0, "y": 4.0})["rows"] == []
+    # a formula point and a catalog measure point agree on the same trade
+    mixed = _fp(measures=[{"key": "net_pnl"}, {"formula": "f4", "agg": "sum"}],
+                view={"type": "scatter"})
+    assert [r["symbol"] for r in _drill(mixed, {"d": "2026-10-21", "x": 30.0, "y": 1.0})["rows"]] \
+        == ["W2"]

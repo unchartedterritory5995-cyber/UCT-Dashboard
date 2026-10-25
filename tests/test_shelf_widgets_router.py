@@ -166,10 +166,9 @@ def _private_reaches(source: str) -> list[str]:
     return found
 
 
-#: ⚠️ A COUNTDOWN, NOT A PARKING SPACE. `run._cover_plan` lives in `widget_engine/run.py`, which Task 10.12 was
-#: told to stay out of (10.4 owns it). The engine's own batch path and `routine_insights` read it the same way.
-#: The assertion below goes red the moment the reach is gone, so the entry must then be deleted.
-ALLOWED_PRIVATE = {"shelf_discipline": ["wrun._cover_plan"]}
+#: The countdown is spent (Task 10.6): `run.cover_plan` is the public name `shelf_discipline` reads. No module
+#: may reach another's private name; a new reach is a red here, never a new entry.
+ALLOWED_PRIVATE: dict[str, list[str]] = {}
 
 
 def test_no_private_names_across_modules():

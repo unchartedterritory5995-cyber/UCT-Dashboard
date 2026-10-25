@@ -99,56 +99,6 @@ _SAMPLE_LANES = frozenset({"preview", "example"})
 NO_SAMPLE_SOURCES = wplan.TOOL_SOURCES | wplan.WAVE10_SOURCES
 
 
-#: ⛔ INTERIM GUARD (ruling W10-R46) -- each entry is removed by the task that makes its door
-#: apply the feature; `test_w10_pending_guard_expires_with_its_entries` rails that the sets only
-#: shrink to empty and then this guard goes. A plan using a pending feature is refused with a
-#: member sentence (400), never run into a 500 or a wrong number.
-#:
-#: The w10 feature names `w10_pending` detects (the display options from the one list).
-W10_FEATURES = ("formula_measure", "formula_filter", "formula_split", *wplan.WAVE10_DISPLAY)
-#: `/run`, `/preview` and `/examples` (Task 10.5 applies formula measures and splits, the running
-#: total, goal targets, stop-after and quadrants). A formula FILTER stays: the scan's SQL builder
-#: (`compile._filters`) refuses a `formula:` field today, and a last-N range must keep the newest
-#: N that pass it -- Task 10.6 removes this entry when the SQL side lands.
-_W10_PENDING = frozenset({"formula_filter"})
-#: `/drill` (drill.py calls `refuse_w10_pending` with this default): it reads splits and scatter
-#: measures by catalog key, so formulas wait for Task 10.6; it never reads the display options.
-_W10_DRILL_PENDING = frozenset({"formula_measure", "formula_filter", "formula_split"})
-
-
-def w10_pending(plan: Any, pending: frozenset | None = None) -> list[str]:
-    """Which of `pending` (default: every door's `_W10_PENDING` union `_W10_DRILL_PENDING`)
-    features a (validated) plan uses, in a fixed order. Total."""
-    if not isinstance(plan, dict):
-        return []
-    used: list[str] = []
-    measures = plan.get("measures")
-    if isinstance(measures, list) and any(isinstance(m, dict) and "formula" in m for m in measures):
-        used.append("formula_measure")
-    filters = plan.get("filters")
-    if isinstance(filters, list) and any(
-            isinstance(f, dict) and str(f.get("field", "")).startswith(wplan.FORMULA_PREFIX)
-            for f in filters):
-        used.append("formula_filter")
-    split = plan.get("split")
-    if isinstance(split, dict) and any(
-            str(split.get(k) or "").startswith(wplan.FORMULA_PREFIX) for k in ("by", "then")):
-        used.append("formula_split")
-    display = plan.get("display")
-    if isinstance(display, dict):
-        used.extend(k for k in wplan.WAVE10_DISPLAY if k in display)   # the one display list
-    pending = _W10_PENDING | _W10_DRILL_PENDING if pending is None else pending
-    return [u for u in used if u in pending]
-
-
-def refuse_w10_pending(plan: Any, pending: frozenset | None = None) -> None:
-    """Raise `PlanError(S_UNREADABLE)` when the plan uses a wave 10 feature this door cannot
-    apply yet: a 400 with a member sentence, never a crash or a wrong number. `pending` is the
-    door's set; the default is drill's (`_W10_DRILL_PENDING`, drill.py calls it bare)."""
-    if w10_pending(plan, _W10_DRILL_PENDING if pending is None else pending):
-        raise PlanError(wplan.S_UNREADABLE)
-
-
 def _never_sample(plan: dict) -> bool:
     return plan.get("source") in NO_SAMPLE_SOURCES or wplan.uses_tools(plan)
 
@@ -972,7 +922,6 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
     today = nw._today_et(now)
 
     base = wplan.validate_plan(copy.deepcopy(plan), wsources.CATALOG)
-    refuse_w10_pending(base, _W10_PENDING)            # W10-R46: Task 10.6 empties it
     if sample and _never_sample(base):
         sample = False                                # W9-R5: the member's own routines and trackers
     viewer = tool_viewer(base, clean_settings(settings))
@@ -1099,7 +1048,7 @@ def _run_sample(user_id: str, base: dict, viewer: dict, *, lane: Lane,
 
 #: The measure a covering scan's plan names (any measure the source offers: only the rows are used).
 _COVER_MEASURE = {"closed_trades": "trades", "open_positions": "open_positions",
-                  "trading_days": "avg_day_pnl"}
+                  "trading_days": "avg_day_pnl", "options_strategies": "strategies"}
 
 
 def _cover_plan(source_key: str) -> dict:
@@ -1112,6 +1061,10 @@ def _cover_plan(source_key: str) -> dict:
     if source_key == "closed_trades":
         raw["view"] = {"type": "list", "auto": False}
     return wplan.validate_plan(raw, wsources.CATALOG)
+
+
+#: The public name (Task 10.6): `shelf_discipline` builds its trading-days scan from it.
+cover_plan = _cover_plan
 
 
 def _cover_range(ranges: list[wplan.ResolvedRange], today: date) -> wplan.ResolvedRange:
@@ -1154,7 +1107,6 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
         ex = wshelf.example(sid)
         if ex is None:
             raise PlanError(S_UNKNOWN_EXAMPLE)
-        refuse_w10_pending(ex["plan"], _W10_PENDING)  # W10-R46: Task 10.6 empties it
         items.append((sid, ex["plan"]))
     now = now or datetime.now(timezone.utc)
     srcs = list(dict.fromkeys(p["source"] for _sid, p in items))

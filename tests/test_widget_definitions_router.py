@@ -814,16 +814,14 @@ def test_w10_plans_are_the_dark_404_at_every_door_while_w10_is_off(conn, monkeyp
     assert r.status_code == 200 and r.json()["def"]["v"] == 2
 
 
-def test_w10_plans_run_or_are_a_400_never_a_500_while_w10_is_on(conn, monkeypatch):
-    """With wave 10 ON (Task 10.5): formula measures and the display options run at `/run` and
-    `/preview`; a formula FILTER is still the plan-level sentence (the interim guard,
-    `run._W10_PENDING`, until Task 10.6's SQL side), and `/drill` still refuses a formula
-    (`run._W10_DRILL_PENDING`) while it shows the display-option plans' rows. Never a 500."""
+def test_w10_plans_run_at_every_door_while_w10_is_on(conn, monkeypatch):
+    """With wave 10 ON (Tasks 10.5 and 10.6): formula measures, formula filters and the display
+    options run at `/run`, `/preview` and `/drill` -- W10-R46's interim guard is gone. Never a
+    500, and never the plan-level refusal for a plan the validator accepted."""
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
     add_trade(conn, UID, day="2026-10-20", pnl=50)
     c = _unraising()
-    runs = {"aggregate formula measure", "row formula measure", "cumulative", "stop after"}
-    drills = {"cumulative", "stop after"}
+    runs = drills = set(_w10_plans())
     for name, p in _w10_plans().items():
         made = c.post(BASE, json={"plan": p})
         assert made.status_code == 200 and made.json()["plan"]["v"] == 3, (name, made.text[:200])
@@ -837,6 +835,8 @@ def test_w10_plans_run_or_are_a_400_never_a_500_while_w10_is_on(conn, monkeypatc
     r = c.post(BASE + "/run", json={"def": _w10_plans()["row formula measure"]})
     assert r.json()["value"]["v1"] == 100.0                     # [net] * 2, added up
     assert r.json()["measures"][0]["key"] == "formula:f1"
+    r = c.post(BASE + "/run", json={"def": _w10_plans()["row formula filter"]})
+    assert r.json()["count"] == 1 and r.json()["value"]["v1"] == 50.0    # [net] > 0 kept it
     # controls: v1 and v2 plans still run with wave 10 on
     assert c.post(BASE + "/run", json={"def": _plan()}).status_code == 200
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")
@@ -911,6 +911,62 @@ def _sweep_shapes():
     shapes["positions formula"] = mk([{"formula": "f1", "agg": "avg"}],
                                      [f("f1", "Heat", "[unrealised] / [risk_dollars]")],
                                      source="open_positions", rng={"token": "all"})
+    # Task 10.6: formula filters and splits on every source that scans, the two-way split,
+    # and the options strategies source in every view it allows
+    shapes["two-way formula split"] = mk([{"key": "net_pnl"}], [green],
+                                         split={"by": "setup", "then": "formula:f1"},
+                                         view={"type": "table"})
+    shapes["formula filter + split"] = mk([{"key": "trades"}],
+                                          [green, f("f2", "Wd", "Weekday([day])")],
+                                          filters=[{"field": "formula:f1", "op": "is",
+                                                    "values": [True]}],
+                                          split={"by": "formula:f2"}, view={"type": "bar"})
+    shapes["overridable formula filter"] = mk(
+        [{"key": "net_pnl"}], [green],
+        filters=[{"field": "formula:f1", "op": "is", "values": [True], "overridable": True}])
+    shapes["days formula filter"] = mk([{"key": "avg_day_pnl"}],
+                                       [f("f1", "Green day", "[day_net] > 0")],
+                                       filters=[{"field": "formula:f1", "op": "is",
+                                                 "values": [True]}], source="trading_days")
+    shapes["days formula split"] = mk([{"key": "avg_day_pnl"}],
+                                      [f("f1", "Green day", "[day_net] > 0")],
+                                      split={"by": "formula:f1"}, view={"type": "bar"},
+                                      source="trading_days")
+    shapes["positions formula filter"] = mk([{"key": "open_positions"}],
+                                            [f("f1", "Risky", "[risk_dollars] > 100")],
+                                            filters=[{"field": "formula:f1", "op": "is",
+                                                      "values": [False]}],
+                                            source="open_positions", rng={"token": "all"})
+    opt = dict(source="options_strategies")
+    shapes["options number"] = mk([{"key": "strategies"}, {"key": "net_pnl"},
+                                   {"key": "win_rate"}], **opt)
+    shapes["options compare"] = mk([{"key": "net_pnl"}], view={"type": "compare"},
+                                   compare={"mode": "previous"}, **opt)
+    shapes["options list"] = mk([{"key": "net_pnl"}, {"key": "total_r"}], view={"type": "list"},
+                                **opt)
+    for by in ("strategy", "direction", "status", "underlying", "result", "account", "setup",
+               "weekday", "month"):
+        shapes[f"options by {by}"] = mk([{"key": "strategies"}, {"key": "profit_factor"}],
+                                        split={"by": by}, view={"type": "bar"}, **opt)
+    shapes["options line"] = mk([{"key": "net_pnl"}], split={"by": "day"}, view={"type": "line"},
+                                display={"cumulative": True}, **opt)
+    shapes["options heat"] = mk([{"key": "net_pnl"}], split={"by": "day"}, view={"type": "heat"},
+                                **opt)
+    shapes["options drawdown"] = mk([{"key": "max_drawdown"}], **opt)
+    shapes["options stop after"] = mk([{"key": "current_streak"}], display={"stopAfter": 2},
+                                      **opt)
+    shapes["options filters"] = mk([{"key": "strategies"}], filters=[
+        {"field": "dte_entry", "op": "lte", "values": [30]},
+        {"field": "status", "op": "in", "values": ["closed", "open"]},
+        {"field": "underlying", "op": "contains", "values": ["sp"]}], **opt)
+    shapes["options formulas"] = mk([{"formula": "f1", "agg": "sum"}, {"formula": "f3"}],
+                                    [f("f1", "Double", "[net] * 2", "money"),
+                                     f("f2", "Dir", "[direction]"),
+                                     f("f3", "Wins n", "CountIf([net] > 0)")],
+                                    filters=[{"field": "formula:f2", "op": "in",
+                                              "values": ["bullish"]}], **opt)
+    shapes["options formula split"] = mk([{"key": "net_pnl"}], [f("f1", "Dir", "[direction]")],
+                                         split={"by": "formula:f1"}, view={"type": "bar"}, **opt)
     return shapes
 
 
@@ -929,6 +985,15 @@ def test_every_w10_shape_answers_200_or_a_clean_400_never_a_500(conn, monkeypatc
         add_trade(conn, UID, day=d, pnl=pnls[i], r=rs[i], setup=("Flag", "VCP", None)[i % 3],
                   account=acc, hour=None if i == 2 else 10 + i, stop=100 if i == 2 else 95,
                   entry_iso=d if i == 3 else None, exit_iso=d if i == 3 else None)
+    from tests.test_widget_options_source import add_opt
+    for i, d in enumerate(days):
+        add_opt(conn, UID, entry=f"{d}T14:00:00Z", closed_at=f"{d}T19:00:00Z", pnl=pnls[i] / 2,
+                r=rs[i], account=acc if i % 2 else None, setup=("Wheel", None)[i % 2],
+                direction=("bullish", "bearish", "neutral")[i % 3],
+                strategy_type=("long_call", "iron_condor")[i % 2],
+                legs=("2026-11-20",) if i % 3 else (), stamp=bool(i % 2))
+    add_opt(conn, UID, status="open", entry="2026-10-21T14:00:00Z", legs=("2026-11-20",))
+    add_opt(conn, UID, closed_at="2026-10-22T00:30:00Z", pnl=5.0, result="Scratch", stamp=False)
     conn.execute("UPDATE j2_accounts SET goals = ? WHERE id = ?",
                  (json.dumps({"weekly": 500}), acc))
     conn.commit()
@@ -951,13 +1016,29 @@ def test_every_w10_shape_answers_200_or_a_clean_400_never_a_500(conn, monkeypatc
             r = c.post(BASE + "/drill", json={"def": p, "cell": {"d": "2026-10-20", "x": 1,
                                                                   "y": 1}})
             assert r.status_code in (200, 400), (name, "point", r.status_code, r.text[:300])
+            answered[r.status_code].append((name, "/drill point"))
+        if p.get("split"):                                       # a group's own drill
+            ran = c.post(BASE + "/run", json={"def": p})
+            labels = [row.get("label") for row in (ran.json().get("rows") or [])
+                      ] if ran.status_code == 200 else []
+            for label in labels[:3]:
+                limiter.reset()
+                r = c.post(BASE + "/drill", json={"def": p, "cell": {"label": label}})
+                assert r.status_code == 200, (name, "group", label, r.text[:300])
+                answered[200].append((name, "/drill group"))
     ran = {n for n, d in answered[200] if d == "/run"}
-    # non-vacuity: what Task 10.5 applies runs; what it leaves to 10.6 (or refuses) is a 400
-    assert {"row avg", "bool share", "aggregate composite", "cumulative", "cumulative formula",
-            "stop after", "quadrants", "drawdown number", "days formula",
-            "positions formula", "formula on table", "five formulas"} <= ran, ran
-    assert {"bool filter", "number filter", "text measure"} & ran == set()
-    assert len(answered[200]) >= 40
+    drilled = {n for n, d in answered[200] if d.startswith("/drill")}
+    refused = {n for n, d in answered[400]}
+    # non-vacuity: every shape the validator accepts runs at every door -- the only 400 left is
+    # the validator's own refusal of a text formula as a measure
+    assert refused == {"text measure"}, sorted(refused)
+    assert set(_sweep_shapes()) - {"text measure"} <= ran, sorted(set(_sweep_shapes()) - ran)
+    assert set(_sweep_shapes()) - {"text measure"} <= drilled
+    assert {n for n, d in answered[200] if d == "/drill point"} == {"quadrants"}
+    assert {"options by strategy", "two-way formula split", "formula filter + split",
+            "options formula split", "days formula split"} <= \
+        {n for n, d in answered[200] if d == "/drill group"}
+    assert len(answered[200]) >= 200
 
 
 @pytest.mark.parametrize("w9", ["0", "1"])
@@ -989,7 +1070,7 @@ def test_restore_and_examples_gate_a_w10_plan(conn, monkeypatch, tmp_path, w9):
         monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
         r = c.post(BASE + "/examples", json={"ids": [ex["id"]]})          # Task 10.5 runs it
         assert r.status_code == 200 and ex["id"] in r.json()["cards"]
-        r = c.post(BASE + "/examples", json={"ids": [fx["id"]]})          # 10.6 still owes this
-        assert r.status_code == 400 and r.json()["detail"]["message"] == wplan.S_UNREADABLE
+        r = c.post(BASE + "/examples", json={"ids": [fx["id"]]})          # Task 10.6 runs it
+        assert r.status_code == 200 and fx["id"] in r.json()["cards"]
         plain_id = wshelf.examples()[0]["id"]
         assert c.post(BASE + "/examples", json={"ids": [plain_id]}).status_code == 200  # control

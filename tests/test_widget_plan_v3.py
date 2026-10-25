@@ -4,9 +4,9 @@ Ruling W10-R3: `plan.PLAN_VERSION` is 3, a plan is stored with `v = needed_versi
 new keys are written ONLY when used, so every wave 8 and wave 9 plan validates to exactly the dict
 it did before (railed against a frozen copy taken BEFORE this task, `widget_plans_w9.json`).
 
-Most cases run against the real catalog. Three shapes the real catalog's `view_allowed` cannot show
-yet (a formula split, a goal progress bar with no number target) and the two sources Tasks 10.6 and
-10.7 build run against small stubs; the stubs' `view_allowed` answers None and nothing else.
+Most cases run against the real catalog. A few run against small stubs whose `view_allowed` answers
+None and nothing else: the notes source Task 10.7 builds, and (written before Task 10.6 relaxed the
+real catalog for them) a formula split and a goal progress bar with no number target.
 """
 from __future__ import annotations
 
@@ -183,9 +183,11 @@ def test_needed_version_three_only_for_wave10_features():
     for name in ("formula", "cumulative", "stopAfter", "quadrants"):
         assert P.validate_plan(copy.deepcopy(features[name]), CAT)["v"] == 3, name
     assert P.validate_plan(copy.deepcopy(features["targetGoal"]), LENIENT)["v"] == 3
-    # the two new sources validate only once their catalog rows exist (Tasks 10.6, 10.7)
+    # the two new sources validate only once their catalog rows exist: options strategies since
+    # Task 10.6, notes from Task 10.7
+    assert P.validate_plan(copy.deepcopy(features["options source"]), CAT)["v"] == 3
+    assert refused(copy.deepcopy(features["notes source"])).sentence == P.S_UNKNOWN_SOURCE
     for name in ("options source", "notes source"):
-        assert refused(copy.deepcopy(features[name])).sentence == P.S_UNKNOWN_SOURCE
         assert P.validate_plan(copy.deepcopy(features[name]), W10)["v"] == 3
     # tools alone: 2; neither: 1
     tools = {"v": 1, "source": "routine_history", "measures": [{"key": "routine_days_done"}]}
@@ -490,7 +492,12 @@ def test_new_sources_refuse_last_n_trades():
         for tok in ("last_20_trades", "last_50_trades", "last_100_trades"):
             assert refused(dict(raw, range={"token": tok}), W10).sentence == P.S_UNKNOWN_RANGE
         assert P.validate_plan(dict(raw, range={"token": "last_30d"}), W10)["v"] == 3
-        assert refused(copy.deepcopy(raw)).sentence == P.S_UNKNOWN_SOURCE   # not in the catalog yet
+        if raw["source"] == "notes":
+            assert refused(copy.deepcopy(raw)).sentence == P.S_UNKNOWN_SOURCE   # Task 10.7
+        else:                                                    # in the real catalog (10.6)
+            for tok in ("last_20_trades", "last_50_trades", "last_100_trades"):
+                assert refused(dict(raw, range={"token": tok})).sentence == P.S_UNKNOWN_RANGE
+            assert P.validate_plan(copy.deepcopy(raw), CAT)["v"] == 3
     # control: closed trades still take a number of trades
     assert P.validate_plan(ct(range={"token": "last_20_trades"}), CAT)["v"] == 1
 
@@ -632,6 +639,8 @@ def test_bool_fields_emit_a_python_bool_or_none(conn):
     add_trade(conn, UID, day="2026-10-21", stop=100.0)          # placeholder stop: no stop
     add_position(conn, UID)
     add_position(conn, UID, symbol="MSFT", stop=100.0)        # placeholder stop: no stop
+    from tests.test_widget_options_source import add_opt      # Task 10.6: a source with rows
+    add_opt(conn, UID, closed_at="2026-10-20T19:00:00Z")
     want = {(s.key, f.key) for s in S.SOURCES.values() for f in s.fields.values()
             if f.type == "bool"}
     assert len(want) >= 4
@@ -853,8 +862,9 @@ def test_formula_filter_ops_are_the_field_ops():
     assert S.CLOSED_FIELDS["had_stop"].ops is P.OPS_BOOL
 
 
-def _pending_plans() -> dict:
-    """One validated plan per `_W10_PENDING` entry."""
+def _former_pending_plans() -> dict:
+    """One plan per feature W10-R46's interim guard used to refuse, validated against the REAL
+    catalog: Task 10.6 relaxed `sources.view_allowed` for a formula split and a goal progress bar."""
     line = dict(split={"by": "day"}, view={"type": "line"})
     raws = {
         "formula_measure": ct(formulas=[F()], measures=[{"formula": "f1", "agg": "avg"}]),
@@ -869,35 +879,28 @@ def _pending_plans() -> dict:
         "stopAfter": V3_RAWS["stop after"],
         "quadrants": V3_RAWS["quadrants"],
     }
-    return {k: P.validate_plan(copy.deepcopy(r), LENIENT) for k, r in raws.items()}
+    return {k: P.validate_plan(copy.deepcopy(r), CAT) for k, r in raws.items()}
 
 
-def test_w10_pending_guard_expires_with_its_entries():
-    """W10-R46: the interim engine guard. ⛔ EXPIRES: each door's set only shrinks; the task that
-    makes a door apply a feature deletes its entry; when both sets are empty the guard and this
-    rail go. Task 10.5 applied formula measures and splits and the four display options at
-    `/run`, `/preview` and `/examples`; a formula FILTER waits for the SQL side (Task 10.6), and
-    `/drill` (also 10.6) still refuses formulas. Every feature is detected on its own."""
-    plans = _pending_plans()
-    assert set(plans) - {"formula_split_then"} == set(wrun.W10_FEATURES)  # every feature a probe
-    assert set(P.WAVE10_DISPLAY) <= set(wrun.W10_FEATURES)             # from the one list
-    assert wrun._W10_PENDING == {"formula_filter"}
-    assert wrun._W10_DRILL_PENDING == {"formula_measure", "formula_filter", "formula_split"}
-    assert not set(P.WAVE10_DISPLAY) & (wrun._W10_PENDING | wrun._W10_DRILL_PENDING)
+def test_the_w10_interim_guard_is_gone():
+    """W10-R46's interim engine guard EXPIRED in Task 10.6: both doors' pending sets reached empty
+    (formula filters skip the SQL, the drill reads formula splits and measures through
+    `aggregate.measure_of`), so the guard and its sets were deleted rather than left empty -- an
+    empty refusal list reads as coverage. Every feature it refused now validates against the real
+    catalog (the run / preview / drill doors are railed by the router sweep)."""
+    for name in ("refuse_w10_pending", "w10_pending", "W10_FEATURES", "_W10_PENDING",
+                 "_W10_DRILL_PENDING"):
+        assert not hasattr(wrun, name), name
+    plans = _former_pending_plans()
+    assert set(plans) - {"formula_split_then"} == {"formula_measure", "formula_filter",
+                                                     "formula_split", *P.WAVE10_DISPLAY}
     for name, p in plans.items():
-        want = "formula_split" if name == "formula_split_then" else name
-        assert wrun.w10_pending(p, frozenset(wrun.W10_FEATURES)) == [want], name
-        for door in (wrun._W10_PENDING, None):                      # None: drill's default
-            refused = want in (wrun._W10_DRILL_PENDING if door is None else door)
-            if refused:
-                with pytest.raises(P.PlanError) as e:
-                    wrun.refuse_w10_pending(p, door)
-                assert e.value.sentence == P.S_UNREADABLE
-            else:
-                wrun.refuse_w10_pending(p, door)
-    # controls: plain, tool and formula-declared-but-unused plans are not pending
-    for p in (P.validate_plan(ct(), CAT), P.validate_plan(ct(formulas=[F()]), CAT),
-              {"v": 2, "source": "routine_history"}, None, [], "x", {"measures": "x"}):
-        assert wrun.w10_pending(p, frozenset(wrun.W10_FEATURES)) == []
-        wrun.refuse_w10_pending(p)
-        wrun.refuse_w10_pending(p, wrun._W10_PENDING)
+        assert p["v"] == 3, name
+    assert plans["formula_split"]["split"]["by"] == "formula:f1"
+    assert plans["targetGoal"]["display"]["targetGoal"] is True
+    # controls: the relaxed rules are narrow -- an UNDECLARED formula split and a progress bar with
+    # neither target are still the sentences they were
+    assert S.CATALOG.view_allowed({**plans["formula_split"], "formulas": []}) == S.S_SPLIT_FIELD
+    no_target = {**plans["targetGoal"], "display": {**plans["targetGoal"]["display"]}}
+    del no_target["display"]["targetGoal"]
+    assert S.CATALOG.view_allowed(no_target) == S.S_VIEW_PROGRESS

@@ -165,8 +165,6 @@ def test_formula_split_by_bucket_in_edge_order(conn):
                   stop=100 if r is None else 95)
     raw = fp(formulas=[F(name="R band", expr="Bucket([r], 0, 1, 2)")],
              measures=[{"key": "trades"}], split={"by": "formula:f1"}, view={"type": "bar"})
-    with pytest.raises(P.PlanError):                       # the real catalog refuses it today
-        vp(raw)
     p, sc, res = evaluate(conn, raw, cat=LENIENT)
     assert [g.label for g in res.groups] == ["Under 0", "0 to 1", "1 to 2", "2 or more"]
     assert [g.values.n for g in res.groups] == [1, 2, 1, 3]
@@ -184,8 +182,6 @@ def test_bool_formula_split_reads_yes_and_no(conn):
     assert {g.label: g.values.cells[0].value for g in res.groups} == {"Yes": 60.0, "No": -5.0}
 
 
-@pytest.mark.xfail(strict=True, reason="Task 10.6 owns compile._filters: a formula filter must "
-                                       "leave the SQL text alone (it still raises today)")
 def test_formula_filter_python_only_sql_unchanged(conn):
     base = vp(fp(formulas=[F(expr="[net] > 0")], measures=[{"key": "net_pnl"}]))
     with_f = vp(fp(formulas=[F(expr="[net] > 0")], measures=[{"key": "net_pnl"}],

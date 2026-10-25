@@ -59,7 +59,8 @@ CASES = list(_cases())
 def _plan(source, field, op, value, view=None):
     measures = {"closed_trades": ("net_pnl",), "open_positions": ("open_positions",),
                 "trading_days": ("avg_day_pnl",), "routine_history": ("routine_consistency",),
-                "tracker_history": ("tracker_avg",)}[source]
+                "tracker_history": ("tracker_avg",),
+                "options_strategies": ("strategies",)}[source]
     f = {"field": field, "op": op, "values": [value]}
     if getattr(sources.SOURCES[source].fields[field], "ref_kind", None):
         f["ref"] = REF
@@ -86,7 +87,8 @@ def test_the_corpus_covers_every_source_and_kind_of_field():
     kinds = {(s, sources.SOURCES[s].fields[f].type) for s, f, _op in CASES}
     assert {("closed_trades", "text"), ("closed_trades", "enum"), ("closed_trades", "tag"),
             ("open_positions", "text"), ("open_positions", "enum"),
-            ("trading_days", "enum")} <= kinds
+            ("trading_days", "enum"), ("options_strategies", "text"),
+            ("options_strategies", "enum")} <= kinds
     assert all(len(v) <= plan.MAX_TEXT for v in CORPUS)
 
 
@@ -236,3 +238,70 @@ def test_formula_text_is_never_sql_text(conn, source):  # noqa: F811
     for sql in executed:                     # not even as a bound parameter
         for value in CORPUS:
             assert value not in sql, (source, value, sql[:200])
+
+
+# -- Task 10.6 (10.4's M7): formula FILTERS and SPLITS never reach SQL, on every source that scans ---
+
+_FS_SOURCES = {"closed_trades": ("setup", "net_pnl"), "trading_days": ("weekday", "avg_day_pnl"),
+               "options_strategies": ("underlying", "net_pnl"),
+               "open_positions": ("setup", "open_positions")}
+
+
+def _formula_filter_split_plans(source: str, value: str) -> list[dict]:
+    """Two plans carrying `value` in a row formula's text literal and name: one FILTERS on the
+    formula (a yes / no formula, `is`), one SPLITS by it (a text formula, `If`)."""
+    quoted = '"' + value.replace('"', '""') + '"'
+    field_, measure = _FS_SOURCES[source]
+    name = value[:60].strip() or "x"
+    rng = {"token": "all"} if source == "open_positions" else {"from": "2026-09-01",
+                                                                "to": "2026-10-23"}
+    flt = raw_plan(source=source, measures=(measure,), range=rng)
+    flt["formulas"] = [{"id": "f1", "name": name, "expr": f"[{field_}] = {quoted}"}]
+    flt["filters"] = [{"field": "formula:f1", "op": "is", "values": [True]}]
+    spl = raw_plan(source=source, measures=(measure,), range=rng, view={"type": "bar"})
+    spl["formulas"] = [{"id": "f1", "name": name,
+                        "expr": f"If([{field_}] = {quoted}, {quoted}, \"other\")"}]
+    spl["split"] = {"by": "formula:f1"}
+    return [plan.validate_plan(flt, sources.CATALOG), plan.validate_plan(spl, sources.CATALOG)]
+
+
+@pytest.mark.parametrize("source", sorted(_FS_SOURCES))
+def test_formula_filter_and_split_text_is_never_sql_text(conn, source):  # noqa: F811
+    executed: list[str] = []
+    planted_any = 0
+    for value in CORPUS:
+        for p in _formula_filter_split_plans(source, value):
+            planted_any += 1
+            rng = plan.resolve_range(p["range"], TODAY)
+            if source == "trading_days":
+                rng = plan.ResolvedRange("2026-09-01", "2026-10-23", None, "x")
+            sql, params = wcompile.compile_scan(sources.SOURCES[source], p, {}, rng, UID)
+            for planted in (value, p["formulas"][0]["expr"], p["formulas"][0]["name"],
+                            "formula:f1"):
+                assert planted not in sql, (source, value)
+                assert planted not in params, (source, value)
+            conn.set_trace_callback(executed.append)
+            try:
+                sc = sources.scan(conn, p, {}, rng, UID, today=TODAY)
+                aggregate.evaluate(sc.rows, p, sources.CATALOG)      # runs in Python, never raises
+            finally:
+                conn.set_trace_callback(None)
+    assert planted_any == 2 * len(CORPUS) and executed
+    for sql in executed:                     # not even as a bound parameter
+        for value in CORPUS:
+            assert value not in sql, (source, value, sql[:200])
+
+
+def test_a_formula_filter_leaves_the_sql_exactly_as_without_it():
+    """Control for the rail above: the compiled scan with a formula filter equals the scan without
+    it (the filter is Python-only), and a SQL-filterable filter DOES change it (the comparison can
+    see a difference)."""
+    for source in ("closed_trades", "options_strategies", "open_positions"):
+        p = _formula_filter_split_plans(source, "x")[0]
+        bare = {**p, "filters": []}
+        rng = plan.resolve_range(p["range"], TODAY)
+        src = sources.SOURCES[source]
+        assert wcompile.compile_scan(src, p, {}, rng, UID) ==             wcompile.compile_scan(src, bare, {}, rng, UID), source
+        field_ = _FS_SOURCES[source][0]
+        real = {**bare, "filters": [{"field": field_, "op": "in", "values": ["x"]}]}
+        assert wcompile.compile_scan(src, real, {}, rng, UID) !=             wcompile.compile_scan(src, bare, {}, rng, UID), source

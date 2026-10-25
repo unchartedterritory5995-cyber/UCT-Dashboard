@@ -47,7 +47,8 @@ FORMULA_MISSING = "no value for this field"
 DRAWDOWN_VIEWS = frozenset({"number", "compare"})
 
 _NONE_KEY = "\x00none"
-_SINGULAR = {"trades": "trade", "positions": "position", "days": "day", "entries": "entry"}
+_SINGULAR = {"trades": "trade", "positions": "position", "days": "day", "entries": "entry",
+             "strategies": "strategy"}
 
 
 @dataclass(frozen=True)
@@ -447,6 +448,18 @@ def apply_filters(rows: list[dict], plan: dict, src: Any) -> list[dict]:
     return _apply_filters(rows, plan, src, [], _plan_fields(plan, src, compiled))
 
 
+def plan_fields_on(rows: list[dict], plan: dict, src: Any,
+                   check: Callable[[], None] | None = None) -> dict:
+    """Task 10.6 (drill): every row formula's value written onto `rows` (as `evaluate` writes
+    them), and the fields a filter or split of `plan` may name: the source's plus one per row
+    formula. `check` is asked every `CHECK_EVERY` rows."""
+    compiled = compile_formulas(plan, src)
+    if not compiled:
+        return dict(src.fields)
+    _write_row_formulas(rows, plan, compiled, _Ticker(check))
+    return _plan_fields(plan, src, compiled)
+
+
 def _estimated_note(plan: dict, rows: list[dict], compiled: dict | None = None) -> str | None:
     """Open positions: how many of the rows that passed every filter have an estimated
     entry date, when the widget reads days open (a formula reading it too)."""
@@ -644,10 +657,11 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any, *,
 
     total_cells = cells(counted)
     total = GroupValues(total_cells, len(counted))
-    measure_rows = len(wmeasures.measure_input(source_key, counted))
     coverage = []
     for m, cell in zip((measure_of(plan, catalog, x, compiled) for x in plan["measures"]),
                        total_cells):
+        # the rows this measure read (an options "Strategies" count reads open ones too)
+        measure_rows = len(wmeasures.rows_for(m, source_key, counted))
         if m.needs:
             have = int(cell.have or 0)
             hint = (HINT_ADD_STOPS if "r" in m.needs and measure_rows
