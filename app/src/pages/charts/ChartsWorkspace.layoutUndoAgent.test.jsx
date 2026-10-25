@@ -4,7 +4,7 @@
 // docs/indicators/a1/A1-INTERIM-UNDO-CONTRACT.md §3.
 import { render, screen, act, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
-import { vi } from 'vitest'
+import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('./WidgetHost', () => ({ default: ({ widget }) => <div data-testid={`body-${widget.type}`}>{widget.type}</div> }))
@@ -103,7 +103,6 @@ function mount(open) {
 }
 const activeId = () => JSON.parse(prefStore.get().charts_active_template || 'null')?.id ?? null
 const dockButton = (name) => [...document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"] button')].find(b => b.textContent.trim() === name) || null
-const dockActive = () => [...document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"] button[aria-current="true"]')].map(b => b.textContent.trim())
 async function say(text) {
   const box = await screen.findByLabelText('Message UCT Agent', {}, { timeout: 15000 })
   fireEvent.change(box, { target: { value: text } })
