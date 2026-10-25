@@ -116,8 +116,9 @@ FORMULA_FMT: dict[str, str] = {"number": "number", "money": "money", "percent": 
 S_DD_SPAN = "From {peak} to {trough}; recovered {recovered}."
 S_DD_OPEN = "From {peak} to {trough}; not recovered yet."
 S_DD_NONE = "No drawdown in this range."
-#: A fall that began at the range's start has no peak day: the sentence names the start.
-S_DD_START = "the start"
+#: A fall that began at the range's start has no peak day: the sentence names the start
+#: (ruling W10-R50: "From the start of this range to {trough}; ...").
+S_DD_START = "the start of this range"
 S_GOAL_LABEL = {"daily": "Daily goal", "weekly": "Weekly goal", "monthly": "Monthly goal",
                 "yearly": "Yearly goal"}
 S_GOAL_NONE = "Set a {period} goal in your account settings to see progress."
@@ -273,10 +274,15 @@ def _stop(after: int, streak: Any) -> dict:
 
 def _goal(period: str, goal: Any) -> tuple[dict, list[str], list[str]]:
     """(keys, notices, footnotes) for `display.targetGoal`. `goal` is `run._goal_target`'s
-    (target or None, accounts without that goal)."""
-    target, missing = goal if goal else (None, 0)
+    (target or None, accounts without that goal), or None when no goal was read at all (a
+    sample-book run): then no target and no goal sentence, since the member may have one."""
+    keys = {"target": None, "targetLabel": S_GOAL_LABEL[period]}
+    if goal is None:
+        # the sample book: no goal was read, so none is claimed missing (fix round 1, m-2)
+        return keys, [], []
+    target, missing = goal
     target = nw._num(target)
-    keys = {"target": target, "targetLabel": S_GOAL_LABEL[period]}
+    keys["target"] = target
     if target is None:
         return keys, [S_GOAL_NONE.format(period=period)], []
     foot = []

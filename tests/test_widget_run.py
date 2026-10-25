@@ -635,19 +635,45 @@ def _formula_plan(**kw):
 
 
 def test_a_formula_run_is_evaluated_under_the_run_budget(conn, monkeypatch):
+    """Ruling W10-R50: ONE deadline. The window that bounds the scan (the SQL progress handler
+    and the Python-side scan check) is the very `Budget` the evaluation checks, started at
+    admission -- never a second clock."""
+    from api.services.journal_two.widget_engine import compile as wcompile
     add_trade(conn, UID, day="2026-10-20", pnl=50)
-    made = []
-    real = run.Budget
+    seen = {}
+    real_scan, real_eval = run.wsources.scan, run.waggregate.evaluate
 
-    class Spy(real):
-        def __init__(self, *a, **k):
-            super().__init__(*a, **k)
-            made.append(self)
+    def scan(*a, **k):
+        seen.setdefault("scan", wcompile._DEADLINE.get())
+        return real_scan(*a, **k)
 
-    monkeypatch.setattr(run, "Budget", Spy)
+    def evaluate(*a, **k):
+        seen.setdefault("eval", k["check"])
+        return real_eval(*a, **k)
+
+    monkeypatch.setattr(run.wsources, "scan", scan)
+    monkeypatch.setattr(run.waggregate, "evaluate", evaluate)
     out = _go(_formula_plan())
-    assert out["value"]["v1"] == 100.0 and len(made) == 1
-    assert made[0].end - run._budget_clock() <= run.DEADLINE_S
+    assert out["value"]["v1"] == 100.0
+    budget = seen["eval"].__self__
+    assert isinstance(budget, run.Budget) and seen["scan"] == budget.expired
+    assert budget.end - run._budget_clock() <= run.DEADLINE_S
+
+
+def test_one_clock_bounds_the_scan_and_the_evaluation(monkeypatch):
+    """Time spent in the SQL counts against the Python work: the run's one window is spent."""
+    t = {"now": 0.0}
+    monkeypatch.setattr(run, "_budget_clock", lambda: t["now"])
+    b = run.Budget(1.5)
+    t["now"] = 1.0                          # the scan used a second
+    b.check()
+    t["now"] = 1.6                          # the evaluation runs out of what is left
+    with pytest.raises(run.EngineTooLong):
+        b.check()
+    assert b.expired() and b.why[-1] == "late"
+    gone = run.Budget(9, superseded=lambda: True)
+    with pytest.raises(run.Superseded):
+        gone.check()
 
 
 def test_the_wave10_flag_and_the_preview_probe_are_in_the_cache_key(conn, monkeypatch):

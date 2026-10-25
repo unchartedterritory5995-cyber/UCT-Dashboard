@@ -606,3 +606,140 @@ def test_probe_only_on_preview_lane(conn):
     assert "probe" not in again
     plain = run.run_plan(UID, fp(measures=[{"key": "net_pnl"}]), {}, lane="preview", now=NOW)
     assert "probe" not in plain                                  # no formula: no probe key
+
+
+# -- fix round 1 ---------------------------------------------------------------------------------
+
+def test_coverage_of_a_formula_measure_is_measure_of_s(conn):
+    """I-1: the coverage loop reads the measure through `measure_of`, so a formula's coverage
+    counts the rows where it has a value (its `needs` are its fields), as its cell does."""
+    for i, d in enumerate(days(10)):
+        add_trade(conn, UID, day=d, pnl=50.0, stop=100 if i < 4 else 95)
+    p, sc, res = evaluate(conn, fp(formulas=[F()], measures=[{"formula": "f1", "agg": "avg"},
+                                                              {"key": "net_pnl"}]))
+    m = A.measure_of(p, CAT, p["measures"][0], res.formulas)
+    assert m.needs == ("net", "risk_dollars")
+    assert res.coverage[0] == A.Coverage(6, 10, None) and res.total.cells[0].have == 6
+    assert res.coverage[1] == A.Coverage(10, 10, None)
+    out = build(p, res, sc)
+    assert out["coverage"][0] == {"have": 6, "total": 10, "hint": None}
+    assert out["measures"][0]["fmt"] == m.fmt
+
+
+def test_each_formula_is_compiled_once_per_evaluation(conn, monkeypatch):
+    """I-2: one compile per formula per evaluation, however many groups and measures read it."""
+    for i, d in enumerate(days(40)):
+        add_trade(conn, UID, day=d, pnl=float(i % 5 - 2), setup=f"S{i % 20}")
+    raw = fp(formulas=[F(), F("f2", "Wins", "CountIf([net] > 0)")],
+             measures=[{"formula": "f1", "agg": "avg"}, {"formula": "f1", "agg": "sum"},
+                       {"formula": "f2"}],
+             split={"by": "setup"}, view={"type": "table"})
+    p = vp(raw)
+    rng = P.resolve_range(p["range"], TODAY)
+    sc = S.scan(conn, p, {}, rng, UID, today=TODAY)
+    calls = []
+    real = wf.compile_formula
+
+    def spy(expr, fields):
+        calls.append(expr)
+        return real(expr, fields)
+
+    monkeypatch.setattr(wf, "compile_formula", spy)
+    res = A.evaluate(sc.rows, p, CAT, probe=True)
+    build(p, res, sc, probe=True)
+    assert len(res.groups) == 20
+    assert sorted(calls) == sorted(f["expr"] for f in p["formulas"])
+
+
+@pytest.mark.parametrize("expr", ["CountIf([risk_dollars] > 0)", "SumIf([risk_dollars])",
+                                  "Share([risk_dollars] > 10)"])
+def test_an_adding_up_formula_over_rows_all_lacking_its_field_has_no_value(conn, expr):
+    """I-3: no fabricated zero. Rows whose referenced field is empty are skipped, so over trades
+    that all lack it the formula reads no value (with the skip sentence), never a 0."""
+    for d in days(3):
+        add_trade(conn, UID, day=d, pnl=50.0, stop=100)          # a placeholder stop: no risk
+    p, sc, res = evaluate(conn, fp(formulas=[F(name="Risky", expr=expr)],
+                                   measures=[{"formula": "f1"}]))
+    cell = res.total.cells[0]
+    assert cell.value is None and cell.have == 0 and cell.n == 3
+    assert "[Risk $] is empty on 3 trades; those are skipped" in res.footnotes
+    assert build(p, res, sc)["value"]["v1"] is None
+
+
+def test_every_scanning_loop_ticks_its_own_rows(conn, monkeypatch):
+    """m-1: each Python loop over the scanned rows counts its own rows toward the 256-row cadence
+    (a loop that stopped ticking would hide behind the others in a global count)."""
+    import sys
+    for i, d in enumerate(days(30)):
+        add_trade(conn, UID, day=d, pnl=float(i % 3 - 1), setup=("Flag", "VCP")[i % 2])
+    ticks: dict[str, int] = {}
+    real = A._Ticker.tick
+
+    def tick(self, n=1):
+        name = sys._getframe(1).f_code.co_name
+        ticks[name] = ticks.get(name, 0) + n
+        return real(self, n)
+
+    monkeypatch.setattr(A._Ticker, "tick", tick)
+    raw = fp(formulas=[F(expr="[net] * 2")], measures=[{"formula": "f1", "agg": "sum"}],
+             split={"by": "setup"}, view={"type": "bar"})
+    evaluate(conn, raw, check=lambda: None)
+    assert ticks["_write_row_formulas"] == 30           # every scanned row, before filtering
+    assert ticks["evaluate"] == 30                        # the grouping loop
+    assert ticks["_formula_cell"] == 30 + 30              # the groups, then the total
+    assert ticks["_skip_sentences"] == 30                 # the skip count of the measured formula
+    ticks.clear()
+    evaluate(conn, fp(formulas=[F(expr="[net] * 2")], measures=[{"formula": "f1", "agg": "sum"}],
+                      view={"type": "list"}), check=lambda: None)
+    assert ticks["evaluate"] == 30                        # the per-row list loop
+
+
+def test_probe_work_runs_on_the_preview_lane_only(conn):
+    """m-3: off the preview lane no probe is computed at all."""
+    for d in days(3):
+        add_trade(conn, UID, day=d, pnl=50.0)
+    raw = fp(formulas=[F(), F("f2", "Unused", "[net] * 3")], measures=[{"formula": "f1",
+                                                                          "agg": "avg"}])
+    p = vp(raw)
+    rng = P.resolve_range(p["range"], TODAY)
+    sc = S.scan(conn, p, {}, rng, UID, today=TODAY)
+    assert A.evaluate(sc.rows, p, CAT).probe == []
+    assert [x["id"] for x in A.evaluate(sc.rows, p, CAT, probe=True).probe] == ["f1", "f2"]
+
+
+def test_a_plain_preview_keeps_the_wave9_cache_key(conn, monkeypatch):
+    """m-4: the probe mark joins the key only for a plan with formulas."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "0")
+    add_trade(conn, UID, day="2026-10-20", pnl=50.0)
+    keys = []
+    real = run._cache_key
+
+    def spy(*a, **k):
+        keys.append(a[-1])
+        return real(*a, **k)
+
+    monkeypatch.setattr(run, "_cache_key", spy)
+    run.run_plan(UID, fp(measures=[{"key": "net_pnl"}]), {}, lane="preview", now=NOW)
+    run.run_plan(UID, fp(formulas=[F()], measures=[{"formula": "f1", "agg": "sum"}]), {},
+                 lane="preview", now=NOW)
+    assert keys == [[], ["probe"]]
+
+
+def test_a_sample_goal_run_claims_no_missing_goal(conn, monkeypatch):
+    """m-2: the sample book reads no goal, so it never tells a member to set one they may have."""
+    monkeypatch.setattr(S.CATALOG, "view_allowed", LENIENT.view_allowed)
+    a = add_account(conn, UID, "Main")
+    _goals(conn, a, {"weekly": 1000})
+    out = run.run_plan(UID, _goal_plan(), {}, lane="preview", now=NOW, sample=True)
+    assert out["sample"] is True
+    assert (out["target"], out["targetLabel"]) == (None, "Weekly goal")
+    assert "goal" not in (out["notice"] or "") and not any("goal" in f for f in out["footnotes"])
+
+
+def test_a_fall_from_the_range_start_names_the_start(conn):
+    """W10-R50 wording: a drawdown that began at the range's start."""
+    for d, pnl in zip(days(3), (-50, -20, 100)):
+        add_trade(conn, UID, day=d, pnl=float(pnl))
+    p, sc, res = evaluate(conn, fp(measures=[{"key": "max_drawdown"}]))
+    assert build(p, res, sc, w10=True)["drawdown"]["line"] == \
+        "From the start of this range to Mar 3; recovered Mar 4."

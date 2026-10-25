@@ -4,6 +4,8 @@ Two readings:
 
 * the formula evaluation alone: 5 formulas of 30 tokens each over the scan's cap (5,000 rows),
   `aggregate.evaluate` median of 5 under `FORMULA_BUDGET_S` -- always run, no database;
+* the whole run on 5,000 seeded trades (the scan's cap) with those 5 formulas, under a generous
+  `RUN_CEILING_S` -- always run, so a large regression in the run path goes red in a normal suite;
 * the whole run on the 50,000-trade fixture with those 5 formulas: under `run.DEADLINE_S`, the
   formula evaluation under `FORMULA_BUDGET_S`, median of 5 -- opt-in (`UCT_WIDGET_50K=1`), because
   seeding 50,000 trades is slow (the Task 8.7 budget's own switch).
@@ -30,6 +32,8 @@ from api.services.journal_two.widget_engine import sources as S
 from tests.test_widget_sources import UID, conn  # noqa: F401 -- `conn` is a fixture used by name
 
 FORMULA_BUDGET_S = 0.300
+#: Generous on purpose (a loaded box runs 1.5-2x slow): it catches a large regression, not drift.
+RUN_CEILING_S = 3.0
 NOW = datetime(2026, 10, 24, 15, 30, tzinfo=timezone.utc)
 
 #: Five formulas of exactly 30 tokens each (railed below), every kind the dialect evaluates.
@@ -79,6 +83,41 @@ def test_formula_evaluation_over_the_scan_cap_under_budget():
         times.append(time.perf_counter() - t)
     assert res.count == 5000 and len(res.groups) == 4
     assert statistics.median(times) < FORMULA_BUDGET_S, times
+
+
+def _seed(c, n):
+    setups = ["Flag", "VCP", "Breakout", "Pullback", None, "Gap", "EP", "Base"]
+    rows = []
+    for i in range(n):
+        day = f"2026-{(i % 9) + 1:02d}-{(i % 28) + 1:02d}"
+        rows.append((str(uuid.uuid4()), UID, "manual", "NVDA", "Long", 10, 100.0, f"{day}T14:00:00Z",
+                     110.0, f"{day}T18:00:00Z", 95.0, setups[i % len(setups)],
+                     float((i % 21) - 10) * 10, 0.01, 1.0, 1, "Win" if i % 2 else "Loss", "{}",
+                     "x", day, 10, 0.5, 0))
+    c.executemany(
+        """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price, entry_date,
+               exit_price, exit_date, original_stop, setup, pnl_dollar, pnl_percent, r_multiple,
+               hold_days, result, context_at_entry, created_at, trading_day_et, hour_et, fees,
+               analytics_excluded)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", rows)
+    c.commit()
+
+
+def test_a_5k_trade_run_with_five_formulas_stays_under_a_generous_ceiling(conn, monkeypatch):
+    """Fix round 1 (m-5): default-on. The scan caps at 5,000 rows whatever the book's size, so a
+    5,000-trade book is the run's real worst case; median of 3 under `RUN_CEILING_S`."""
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "wlat5k",
+                                                    reserve=nw.WIDGET_POOL_RESERVE))
+    _seed(conn, 5000)
+    p = _plan()
+    totals = []
+    for _ in range(3):
+        run._reset_state()
+        t0 = time.perf_counter()
+        out = run.run_plan(UID, p, {}, lane="run", now=NOW)
+        totals.append(time.perf_counter() - t0)
+    assert out["count"] == 5000
+    assert statistics.median(totals) < RUN_CEILING_S, totals
 
 
 @pytest.mark.skipif(os.environ.get("UCT_WIDGET_50K") != "1",

@@ -178,20 +178,30 @@ def _budget_clock() -> float:
 
 
 class Budget:
-    """A run's time budget for the work it does in Python (W9-R17): started at admission, it
-    lasts `seconds`; `check()` raises `EngineTooLong` past it (`Superseded` once a newer preview
-    replaced this one). `aggregate.evaluate` calls it every `CHECK_EVERY` rows it walks."""
+    """A run's ONE deadline (ruling W10-R50: one mechanism, one clock): started at admission, it
+    lasts `seconds`. `expired()` is the only test of "is this run late (or replaced)": `deadline`'s
+    SQL progress handler and Python-side scan check ask it, and `check()` -- which
+    `aggregate.evaluate` calls every `CHECK_EVERY` rows it walks -- raises `EngineTooLong` past it
+    (`Superseded` once a newer preview replaced this one)."""
 
     def __init__(self, seconds: float = DEADLINE_S, *,
                  superseded: Callable[[], bool] = lambda: False):
         self.end = _budget_clock() + seconds
         self.superseded = superseded
+        self.why: list[str] = []
+
+    def expired(self) -> bool:
+        if self.superseded():
+            self.why.append("superseded")
+            return True
+        if _budget_clock() > self.end:
+            self.why.append("late")
+            return True
+        return False
 
     def check(self) -> None:
-        if self.superseded():
-            raise Superseded()
-        if _budget_clock() > self.end:
-            raise EngineTooLong()
+        if self.expired():
+            raise Superseded() if self.why[-1] == "superseded" else EngineTooLong()
 
 
 class DailyCapReached(Exception):
@@ -287,34 +297,31 @@ def admit(user_id: str, lane: Lane) -> Iterator[None]:
 
 @contextmanager
 def deadline(conn: sqlite3.Connection, seconds: float = DEADLINE_S, *,
-             superseded: Callable[[], bool] = lambda: False) -> Iterator[None]:
+             superseded: Callable[[], bool] = lambda: False,
+             budget: "Budget | None" = None) -> Iterator[None]:
     """Interrupt `conn`'s SQL past `seconds`, or as soon as `superseded()` is true. The interrupt
     becomes `EngineTooLong` / `Superseded`; any other database error passes through unchanged. The
     handler is cleared on exit, whatever happened (auth_db also clears it on reuse; this does not
-    rely on that)."""
-    end = time.monotonic() + seconds
-    why: list[str] = []
+    rely on that). The window IS a `Budget` (one mechanism, W10-R50): a run passes the one it
+    started at admission (`budget`), so its SQL and its Python work share one deadline; otherwise
+    a fresh one of `seconds` is opened."""
+    budget = budget if budget is not None else Budget(seconds, superseded=superseded)
+    why = budget.why
 
     def _cb() -> int:
-        if superseded():
-            why.append("superseded")
-            return 1
-        if time.monotonic() > end:
-            why.append("late")
-            return 1
-        return 0
+        return 1 if budget.expired() else 0
 
     conn.set_progress_handler(_cb, _PROGRESS_STEPS)
     try:
-        with wcompile.python_deadline(lambda: _cb() == 1):
+        with wcompile.python_deadline(budget.expired):
             yield
     except wcompile.ScanTooLong as e:
-        if why and why[0] == "superseded":
+        if why and why[-1] == "superseded":
             raise Superseded() from e
         raise EngineTooLong() from e
     except sqlite3.OperationalError as e:
         if why and "interrupt" in str(e).lower():
-            if why[0] == "superseded":
+            if why[-1] == "superseded":
                 raise Superseded() from e
             raise EngineTooLong() from e
         raise
@@ -898,7 +905,7 @@ def _card(plan: dict, base: wsources.Scan, today: date, now: datetime, *, sample
     rng = wplan.resolve_range(plan["range"], today)
     crng = _compare_range(plan, rng, today)
     scan = _narrow(plan["source"], base, plan, rng)
-    result = waggregate.evaluate(scan.rows, plan, wsources.CATALOG, check=check)
+    result = waggregate.evaluate(scan.rows, plan, wsources.CATALOG, check=check, probe=probe)
     cresult = None
     if crng is not None:
         cscan = _narrow(plan["source"], base, plan, crng)
@@ -977,7 +984,8 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
         superseded = lambda: _preview_gen_now(user_id) != mine          # noqa: E731
 
     w10 = _w10_on()
-    probe = lane == "preview"
+    # the preview's `probe` exists only for a plan with formulas (fix round 1, m-4)
+    probe = lane == "preview" and bool(base.get("formulas"))
     if sample:
         return _run_sample(user_id, base, viewer, lane=lane, superseded=superseded, now=now,
                            def_id=def_id, def_rev=def_rev, latest_rev=latest_rev, w10=w10,
@@ -1017,7 +1025,7 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
             with admit(user_id, lane):
                 budget = Budget(DEADLINE_S, superseded=superseded)     # started at admission
                 goal = None
-                with deadline(conn, superseded=superseded):
+                with deadline(conn, budget=budget):                     # one deadline, W10-R50
                     scan = wsources.scan(conn, merged, scan_settings, rng, user_id, today=today)
                     cscan = (wsources.scan(conn, merged, scan_settings, crng, user_id, today=today)
                              if crng is not None else None)
@@ -1027,7 +1035,7 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
                 if superseded():
                     raise Superseded()
                 result = waggregate.evaluate(scan.rows, merged, wsources.CATALOG,
-                                             check=budget.check)
+                                             check=budget.check, probe=probe)
                 cresult = (waggregate.evaluate(cscan.rows, merged, wsources.CATALOG,
                                                check=budget.check)
                            if cscan is not None else None)
@@ -1075,7 +1083,7 @@ def _run_sample(user_id: str, base: dict, viewer: dict, *, lane: Lane,
             book_scan = _sample_scan(merged["source"])
             out = _card(merged, book_scan, today, now, sample=True, settings=echo, def_id=def_id,
                         def_rev=def_rev, latest_rev=latest_rev, check=budget.check, w10=w10,
-                        goal=(None, 0) if _goal_period(merged) else None, probe=probe)
+                        goal=None, probe=probe)        # the book reads no goal (m-2)
         if superseded():
             raise Superseded()
         _CACHE.set(key, out, CACHE_TTL_S)
@@ -1195,11 +1203,11 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None) -
                 goals: dict[str, Any] = {}
                 if sample:
                     covers = {s: _sample_scan(s) for s in per_src}
-                with deadline(conn):
+                with deadline(conn, budget=budget):                     # one deadline, W10-R50
                     for sid, p in items:
                         period = _goal_period(p)
                         if period:
-                            goals[sid] = ((None, 0) if sample and sid not in own
+                            goals[sid] = (None if sample and sid not in own   # m-2
                                           else _goal_target(conn, user_id, None, period))
                     if not sample:
                         for s in per_src:

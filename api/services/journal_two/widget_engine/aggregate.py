@@ -302,10 +302,11 @@ def _skip_sentences(src: Any, c: Any, key: str, rows: list[dict], ticker: "_Tick
 
 
 def _formula_notes(plan: dict, src: Any, compiled: dict, rows: list[dict],
-                   ticker: "_Ticker") -> tuple[list[str], list[dict]]:
-    """The skip footnotes of the formulas the plan's measures read (over the counted rows), and
-    per formula the builder preview's `probe`: its value on the newest counted row (an adding-up
-    formula: its value over every counted row), how many rows it skipped and why."""
+                   ticker: "_Ticker", probe_on: bool = False) -> tuple[list[str], list[dict]]:
+    """The skip footnotes of the formulas the plan's measures read (over the counted rows), and,
+    only when `probe_on` (the builder preview lane), per formula the `probe`: its value on the
+    newest counted row (an adding-up formula: its value over every counted row), how many rows it
+    skipped and why. Off the preview lane no probe work is done (fix round 1, m-3)."""
     if not compiled:
         return [], []
     wf = _wf()
@@ -318,11 +319,15 @@ def _formula_notes(plan: dict, src: Any, compiled: dict, rows: list[dict],
     probe: list[dict] = []
     for f in _formula_entries(plan):
         fid = f["id"]
+        if fid not in measured and not probe_on:
+            continue
         c = compiled[fid]
         key = wplan.FORMULA_PREFIX + fid
         sentences, skipped = _skip_sentences(src, c, key, inp, ticker, labels, times_keys)
         if fid in measured:
             notes.extend(s for s in sentences if s not in notes)
+        if not probe_on:
+            continue
         if c.kind == "row":
             first = inp[0].get(key) if inp else None
         else:
@@ -556,11 +561,12 @@ def _sort(groups: list[Group], plan: dict, fld: Any | None) -> list[Group]:
 # ── evaluate ───────────────────────────────────────────────────────────────────────────────────
 
 def evaluate(rows: list[dict], plan: dict, catalog: Any, *,
-             check: Callable[[], None] | None = None) -> Result:
+             check: Callable[[], None] | None = None, probe: bool = False) -> Result:
     """Filter, split and measure `rows` (one scan of `plan`'s source) for a validated `plan`.
 
     `check` is the run's budget (`run.Budget.check`): called every `CHECK_EVERY` rows walked,
-    across every loop and group; it raises to stop a run past its deadline."""
+    across every loop and group; it raises to stop a run past its deadline. `probe` (the builder
+    preview lane only) fills `Result.probe`."""
     src = catalog.sources[plan["source"]]
     source_key = src.key
     notes: list[str] = []
@@ -649,11 +655,11 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any, *,
             coverage.append(Coverage(have, measure_rows, hint))
         else:
             coverage.append(Coverage(measure_rows, measure_rows, None))
-    formula_notes, probe = _formula_notes(plan, src, compiled, counted, ticker)
+    formula_notes, probe_rows = _formula_notes(plan, src, compiled, counted, ticker, probe)
     notes.extend(n for n in formula_notes if n not in notes)
     drawdown = None
     if view in DRAWDOWN_VIEWS and any(m.get("key") == "max_drawdown" for m in plan["measures"]):
         # the rows `max_drawdown` itself read, so the days describe the number shown
         drawdown = smeasures.drawdown_span(wmeasures.measure_input(source_key, counted))
-    return Result(groups, total, coverage, notes, len(counted), formulas=compiled, probe=probe,
+    return Result(groups, total, coverage, notes, len(counted), formulas=compiled, probe=probe_rows,
                   drawdown=drawdown)
