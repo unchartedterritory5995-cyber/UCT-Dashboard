@@ -2,6 +2,8 @@
  "version": 1,
  "about": "Shared vectors for the widget formula dialect (Task 10.2). The server (api/services/journal_two/widget_formula.py) and the client twin (app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js) must reproduce every entry exactly. Read with a file read; never import into a bundle.",
  "conventions": {
+  "line_ends": "U+000A, U+2028 and U+2029 are line terminators: inside a text each one is unclosed_text (pos of the opening quote), inside a field name unclosed_field (pos of the [); outside a token U+2028/U+2029 are bad_char, a newline is whitespace.",
+  "quoted": "unexpected and trailing quote {x} in double quotes unless {x} itself starts with a double quote (a text literal), which is shown as it stands.",
   "positions": "pos and every length count Unicode code points (Python indices; Array.from in JS).",
   "lengths": "every limit counts code points, never UTF-16 units: MAX_LENGTH, MAX_TEXT, NAME_MAX and the 20-character clip of {x}. An astral character (an emoji) counts once.",
   "trim": "field names are trimmed of space (U+0020) and tab ONLY; the whole formula of space, tab and newline. NBSP, U+3000 and other space-like characters are never trimmed (JS String.prototype.trim would trim them: do not use it).",
@@ -9,13 +11,13 @@
   "floats": "numbers compare with abs or relative tolerance 1e-9; a bool never equals a number.",
   "zero": "an expected 0 must be +0: compare with Object.is in JS (Python checks math.copysign). No answer is ever -0.",
   "significant_digits": "a literal has at most 15 significant digits: leading zeros, trailing zeros of the fraction and trailing zeros of a whole number do not count; a literal whose value is not finite is refused as bad_number.",
-  "forbidden_characters": "refused anywhere, inside a text or a field name too, as bad_char at their own position: U+0000-0008, U+000B-001F, U+007F-009F, U+00AD, U+061C, U+180E, U+200B-200F, U+202A-202E, U+2060-206F, U+D800-DFFF (lone surrogates), U+FEFF, U+FFF9-FFFB, U+E0000-E007F. Tab is allowed; a newline ends a text.",
-  "bad_char_shown": "bad_char's {x} is the character itself when it is printable ASCII, U+XXXX when it is invisible (the shown_text list), else its glyph followed by ' (U+XXXX)'.",
+  "forbidden_characters": "refused anywhere, inside a text or a field name too, as bad_char at their own position: U+0000-0008, U+000B-001F, U+007F-009F, U+00AD, U+061C, U+180E, U+115F-1160, U+180E, U+200B-200F, U+202A-202E, U+2060-206F, U+2800, U+3164, U+D800-DFFF (lone surrogates), U+FE00-FE0F, U+FEFF, U+FFA0, U+FFF9-FFFB, U+E0000-E007F, U+E0100-E01EF. Tab is allowed inside a text.",
+  "bad_char_shown": "bad_char's {x} is the character itself when it is printable ASCII, U+XXXX when it is invisible (the shown_text list plus the forbidden list and U+2028-2029), else its glyph followed by ' (U+XXXX)'.",
   "null": "null is 'no data'. No result is ever NaN or Infinity, and -0 is 0.",
   "special_floats": "a row value {\"$float\": \"nan\"|\"inf\"|\"-inf\"} decodes to that float.",
   "build": "a build is a list of [text, times] segments, concatenated in order.",
   "rows": "eval_group rows is a rowsets name or an inline list.",
-  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 code points, then each invisible character written as U+XXXX (the fixed list: U+0000-001F, U+007F-009F, U+00A0, U+00AD, U+061C, U+1680, U+180E, U+2000-200F, U+2028-202F, U+205F-206F, U+3000, U+D800-DFFF, U+FEFF, U+FFF9-FFFB, U+E0000-E007F). Whitespace for collapsing is space, tab and newline only."
+  "shown_text": "{x} is the member's text with whitespace runs collapsed to one space, trimmed, clipped to 20 code points, then each invisible character written as U+XXXX (the forbidden_characters list, tab and newline, U+2028-2029, and the space-like U+00A0, U+1680, U+2000-200A, U+202F, U+205F, U+3000). Whitespace for collapsing is space, tab and newline only."
  },
  "constants": {
   "MAX_LENGTH": 2000,
@@ -154,9 +156,9 @@
   "unclosed_text": "A quote is missing its closing \".",
   "text_too_long": "Text in a formula can be at most 200 characters.",
   "bad_number": "{x} isn't a number a formula can use.",
-  "unexpected": "Something is missing near \"{x}\".",
+  "unexpected": "Something is missing near {x}.",
   "chained_compare": "Two comparisons can't be chained; join them with And.",
-  "trailing": "There is something extra at the end: \"{x}\".",
+  "trailing": "There is something extra at the end: {x}.",
   "unknown_field": "[{x}] isn't a field here.",
   "tag_field": "[{label}] holds several values; use it as a filter instead.",
   "unknown_function": "{x} isn't a function. Try If, Round or SumIf.",
@@ -3426,8 +3428,116 @@
   {
    "expr": "1 \"a\u00a0b\"",
    "code": "trailing",
-   "sentence": "There is something extra at the end: \"\"aU+00A0b\"\".",
+   "sentence": "There is something extra at the end: \"aU+00A0b\".",
    "pos": 2
+  },
+  {
+   "expr": "1 \"x\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"x\".",
+   "pos": 2
+  },
+  {
+   "expr": "[net] \"a\"\"b\"",
+   "code": "trailing",
+   "sentence": "There is something extra at the end: \"a\"\"b\".",
+   "pos": 6
+  },
+  {
+   "expr": "Abs(\"x\" \"y\")",
+   "code": "unexpected",
+   "sentence": "Something is missing near \"y\".",
+   "pos": 8
+  },
+  {
+   "expr": "\"a\u2028b\"",
+   "code": "unclosed_text",
+   "sentence": "A quote is missing its closing \".",
+   "pos": 0
+  },
+  {
+   "expr": "\"a\u2029b\"",
+   "code": "unclosed_text",
+   "sentence": "A quote is missing its closing \".",
+   "pos": 0
+  },
+  {
+   "expr": "[a\u2028b]",
+   "code": "unclosed_field",
+   "sentence": "A [ is missing its ].",
+   "pos": 0
+  },
+  {
+   "expr": "[a\u2029b]",
+   "code": "unclosed_field",
+   "sentence": "A [ is missing its ].",
+   "pos": 0
+  },
+  {
+   "expr": "1\u20282",
+   "code": "bad_char",
+   "sentence": "U+2028 can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "1 +\u2029 2",
+   "code": "bad_char",
+   "sentence": "U+2029 can't be used in a formula.",
+   "pos": 3
+  },
+  {
+   "expr": "\"a\u3164\"",
+   "code": "bad_char",
+   "sentence": "U+3164 can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "[net\u115f]",
+   "code": "bad_char",
+   "sentence": "U+115F can't be used in a formula.",
+   "pos": 4
+  },
+  {
+   "expr": "[\u1160]",
+   "code": "bad_char",
+   "sentence": "U+1160 can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "[\uffa0]",
+   "code": "bad_char",
+   "sentence": "U+FFA0 can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\"\u2800\"",
+   "code": "bad_char",
+   "sentence": "U+2800 can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\"\u2764\ufe0f\"",
+   "code": "bad_char",
+   "sentence": "U+FE0F can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"a\ufe00\"",
+   "code": "bad_char",
+   "sentence": "U+FE00 can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"\udb40\udd00\"",
+   "code": "bad_char",
+   "sentence": "U+E0100 can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\u3164",
+   "code": "bad_char",
+   "sentence": "U+3164 can't be used in a formula.",
+   "pos": 0
   },
   {
    "expr": "1 == 2",
@@ -4907,6 +5017,47 @@
    "expr": "\"a\u00a0b\"",
    "ok": true,
    "canonical": "\"a\u00a0b\""
+  },
+  {
+   "name": "line separator ends a text",
+   "expr": "\"a\u2028\"",
+   "ok": false,
+   "code": "unclosed_text",
+   "pos": 0
+  },
+  {
+   "name": "paragraph separator ends a field name",
+   "expr": "[a\u2029]",
+   "ok": false,
+   "code": "unclosed_field",
+   "pos": 0
+  },
+  {
+   "name": "Hangul filler as a field name",
+   "expr": "[\u3164]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "blank Braille pattern inside text",
+   "expr": "\"\u2800\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 1
+  },
+  {
+   "name": "variation selector inside text",
+   "expr": "\"x\ufe0f\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "dingbat without a selector is text",
+   "expr": "\"\u2764\"",
+   "ok": true,
+   "canonical": "\"\u2764\""
   },
   {
    "name": "ideographic space inside text is text",
