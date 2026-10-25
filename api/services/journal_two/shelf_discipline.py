@@ -690,24 +690,30 @@ def my_revenge_clean_days(user_id: str, params: dict, now: datetime) -> dict:
     flags.sort(key=lambda f: (f["day"], f["symbol"]), reverse=True)
     shown = flags[:ROW_CAP]
     traded = any(by_day.get(k) for k in keys) or not_read or crowded or older_unread
+    # The dates-only days are a count the member can act on, so they are said whatever the headline is (one rule,
+    # rounds 2-3): inside the "N of M clean" line, as the whole of S_REVENGE_NONE_CHECKED, or else as their own line.
+    dates_only = (f"{_plural(not_checked, 'day', 'days')} with dates only "
+                  f"{'was' if not_checked == 1 else 'were'} not checked")
+    dates_said = False
     if not traded:
         lines = [S_REVENGE_NO_TRADES]
+    elif checked == 0 and not (not_read or crowded or older_unread):
+        # Every day traded was dates-only (W10-R57: the sentence speaks only of the days traded).
+        lines = [S_REVENGE_NONE_CHECKED]
+        dates_said = True
     elif checked == 0:
-        if not (not_read or crowded or older_unread):
-            lines = [S_REVENGE_NONE_CHECKED]
-        else:
-            # Some days were cut, crowded or too old to read: the dates-only days are still said (N-3); the
-            # "none of the days you traded" sentence would be false here, since not every traded day is dates-only.
-            lines = [f"{_plural(not_checked, 'day', 'days')} with dates only "
-                     f"{'was' if not_checked == 1 else 'were'} not checked."] if not_checked else []
+        # Some days were cut, crowded or too old to read: the sentence above would be false (N-3).
+        lines = []
     elif clean == 0:
         lines = [S_REVENGE_EVERY_DAY]
     else:
         line = f"{clean} of {checked} clean"
         if not_checked:
-            line += (f" ({_plural(not_checked, 'day', 'days')} with dates only "
-                     f"{'was' if not_checked == 1 else 'were'} not checked)")
+            line += f" ({dates_only})"
+            dates_said = True
         lines = [line]
+    if not_checked and not dates_said:
+        lines.append(f"{dates_only}.")
     if not_read:
         lines.append(f"{_plural(not_read, 'day', 'days')} {'was' if not_read == 1 else 'were'} "
                      "not checked: this widget reads your newest "

@@ -1256,3 +1256,31 @@ def test_revenge_capped_list_says_how_many_are_not_shown(S, monkeypatch):
     monkeypatch.setattr(S, "ROW_CAP", 40)
     full = S.my_revenge_clean_days(A, {}, NOW)
     assert "truncated" not in full and not any("not shown" in ln for ln in full["lines"])
+
+
+def test_revenge_dates_only_days_are_said_beside_every_day_flagged(S):
+    """Round 3: clean == 0 and checked > 0 with dates-only days: S_REVENGE_EVERY_DAY, and the dates-only days too."""
+    window = [d.isoformat() for d in S.finished_sessions(NOW)]
+    with _conn() as c:
+        trade(c, A, day=window[-1], pnl=-50, entry="10:00", exit_="10:10")
+        trade(c, A, day=window[-1], pnl=20, entry="10:30", exit_="10:40")        # a re-entry
+        trade(c, A, day=window[-2], pnl=-50)                                       # dates only
+        trade(c, A, day=window[-3], pnl=-40)                                       # dates only
+        c.commit()
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    assert (got["clean"], got["checked"], got["notChecked"]) == (0, 1, 2)
+    assert got["lines"] == [S.S_REVENGE_EVERY_DAY, "2 days with dates only were not checked."]
+    _check_days(S, got)
+
+
+def test_revenge_no_dates_only_line_without_dates_only_days(S):
+    """CONTROL: every day flagged and no dates-only day: the headline alone."""
+    window = [d.isoformat() for d in S.finished_sessions(NOW)]
+    with _conn() as c:
+        trade(c, A, day=window[-1], pnl=-50, entry="10:00", exit_="10:10")
+        trade(c, A, day=window[-1], pnl=20, entry="10:30", exit_="10:40")
+        c.commit()
+    got = S.my_revenge_clean_days(A, {}, NOW)
+    assert got["notChecked"] == 0
+    assert got["lines"] == [S.S_REVENGE_EVERY_DAY]
+    assert not any("dates only" in ln for ln in got["lines"])
