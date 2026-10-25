@@ -99,6 +99,8 @@ describe('the widget formula twin never evaluates text', () => {
     ['setPrototypeOf', 'Object.setPrototypeOf({}, text)'],
     ['an alias to eval', 'const e = eval; return e'],
     ['the constructor chain', 'return x.constructor.constructor("1")()'],
+    ['a constructor read without a call', 'const F = x.constructor; return F'],
+    ['a bare constructor() call', 'return constructor("1")'],
   ])('CONTROL: the scan sees a planted %s', (_label, planted) => {
     expect(forbiddenConstructs(`${SRC}\nexport function planted(text) { ${planted} }\n`).length).toBeGreaterThan(0)
   })
