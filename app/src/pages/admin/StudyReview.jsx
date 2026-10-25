@@ -38,6 +38,7 @@ import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
 import { hveAnnotations, isHveItem } from '../study/hveOverlay'
+import { slingshotInstances } from '../study/slingshotOverlay'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import { modalLayerOpen } from '../../lib/topLayer'
@@ -533,7 +534,12 @@ export default function StudyReview() {
   // picture the member will actually see. Fails open to the defaults.
   const { data: houseData } = useSWR(HOUSE_CHART_URL, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false })
   const houseSettings = houseData?.chart_settings || null
-  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts, houseSettings), [chartOpts, houseSettings])
+  // A Slingshot draft carries the E4H (4-EMA of highs) beside the house
+  // averages, exactly as the member's chart does (owner ruling 2026-10-25).
+  const settingsOverride = useMemo(
+    () => studySettingsOverride(chartOpts, houseSettings, { instances: slingshotInstances(sel) }),
+    [chartOpts, houseSettings, sel],
+  )
   const markers = useMemo(() => {
     if (!sel?.asof) return null
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]
