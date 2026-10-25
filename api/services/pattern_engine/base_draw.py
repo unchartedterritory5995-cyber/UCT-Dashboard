@@ -67,6 +67,8 @@ Members are served the round auto_structures.MEMBER_BASE_ROUND names (a literal)
 """
 from __future__ import annotations
 
+import statistics
+
 #: The base drawing round this code IS. A row drawn by `base_drawing` carries extras.draw_round =
 #: BASE_DRAW_ROUND; the member set serves only the confirmed round (auto_structures.MEMBER_BASE_ROUND,
 #: a literal). Bump it with every new base drawing.
@@ -777,10 +779,18 @@ def state_drawing(bars, i, draw_round=None):
 # 10. NO LONE WICK (C5): H within PLAIN_WICK_MAX_ATR ATR of the highest body within PLAIN_WICK_NEAR bars of its bar.
 # 11. STAGE (C7): the IBD base count on the judged frame from the low-before-advance (`plain_stage`).
 # The drawing carries `plain_round` (PLAIN_ROUND) and `stage`; textbook_numbers reads both.
+#
+# ROUND 7 (PLAIN_PIVOT_ROUND, `plain_pivot`): the SAME base (steps 1-11 unchanged, so the same charts draw) with its
+# buy line moved off a one-session spike high onto the right-side ceiling price kept stalling under, and no +$0.10 on
+# the buy point. Drawn only while auto_structures.MEMBER_BASE_STATELESS_ROUND is PLAIN_PIVOT_ROUND.
 
 #: The plain base's own round, stamped on its drawing as `plain_round`. Members get it only while
 #: auto_structures.MEMBER_BASE_STATELESS_ROUND (a literal) equals this stamp.
 PLAIN_ROUND = 6
+#: Round 7: the plain base with the spike-aware buy line (`plain_pivot`). Stamped as `plain_round` on its drawing.
+PLAIN_PIVOT_ROUND = 7
+#: Every round plain_drawing can draw.
+PLAIN_ROUNDS = (PLAIN_ROUND, PLAIN_PIVOT_ROUND)
 PLAIN_MAX_LEN = 230
 PLAIN_RIM_TOL_ATR = 0.20
 PLAIN_PEAK_LOOK = 250
@@ -818,8 +828,29 @@ PLAIN_STG_GAIN = 0.20
 PLAIN_FRAME_MIN = 140
 PLAIN_FRAME_PAD = 60
 PLAIN_FRAME_MAX = 300
-#: the buy point is the line + $0.10 (the IBD convention textbook_numbers.BUY_POINT_TICK prints)
+#: the buy point is the line + $0.10 (the IBD convention textbook_numbers.BUY_POINT_TICK prints); round 7 drops it
 PLAIN_TICK = 0.10
+# -- round 7, the spike-aware buy line (`plain_pivot`) --
+#: a.1 isolation: H stands more than PIVOT_SPIKE_ATR ATR(14) over every other high of the base (the bars next to the
+#: H bar excluded) AND over the PIVOT_PRE_BARS sessions before the lip (a high reached by a run of similar highs is
+#: not a spike)
+PIVOT_SPIKE_ATR = 1.0
+PIVOT_PRE_BARS = 5
+#: a.2 reversal: the H bar closes in its lower half and more than PIVOT_REV_ATR ATR under H; it counts only when H
+#: also stands PIVOT_REV_GATE_ATR ATR over the rest (a reversal candle on a retested top is not a spike)
+PIVOT_REV_ATR = 1.0
+PIVOT_REV_GATE_ATR = 0.5
+#: b. the right-side ceiling: swing highs (high >= the PIVOT_SWING_K highs either side) after the H bar priced in
+#: [L + PIVOT_MID_FRAC (H - L), H); a cluster is the touches within PIVOT_CLUSTER_ATR ATR under an anchor touch, at
+#: least 2 of them and two PIVOT_MIN_APART+ sessions apart; the highest such cluster is the ceiling, its median touch
+#: the line
+PIVOT_SWING_K = 2
+PIVOT_MID_FRAC = 0.5
+PIVOT_CLUSTER_ATR = 0.75
+PIVOT_MIN_APART = 3
+#: c. containment: the ceiling counts only if no close after its first touch is more than PIVOT_CONTAIN_ATR ATR
+#: over the line (price already closed through it)
+PIVOT_CONTAIN_ATR = 0.25
 
 
 def plain_frame_start(i, lip):
@@ -949,17 +980,93 @@ def plain_geometry(bars, i):
         return None
 
 
-def plain_drawing(bars, i):
+def plain_drawing(bars, i, plain_round=None):
     """The plain base drawing at bar i, or None: `plain_geometry`, withheld on a pending-deal price pin and where
     round 5's depth floor (`floor_refuses`) refuses the region -- the two guards every other member base drawing
-    already passes through. Reads bars[:i+1] only. Never raises."""
+    already passes through. `plain_round` picks the round: None or PLAIN_ROUND draws round 6 exactly as before;
+    PLAIN_PIVOT_ROUND draws the same base with its line from `plain_pivot` (the guards are asked of the round-6
+    drawing first, so both rounds draw on exactly the same charts); any other value draws nothing. Reads bars[:i+1]
+    only. Never raises."""
     try:
+        rnd = PLAIN_ROUND if plain_round is None else plain_round
+        if type(rnd) is not int or rnd not in PLAIN_ROUNDS:
+            return None
         d = plain_geometry(bars, i)
         if d is None:
             return None
         b = bars[:i + 1]
         if _pinned(b) or floor_refuses(b, i, d):
             return None
+        if rnd == PLAIN_PIVOT_ROUND:
+            lip = next((m for m in range(i, -1, -1) if int(b[m]["t"]) == int(d["start_t"])), None)
+            if lip is None or lip >= i:
+                return None
+            pv = plain_pivot(b, lip, i, float(d["pivot"]), float(d["low"]), float(d["atr"]))
+            if pv is None:
+                return None
+            d = dict(d, pivot=pv["pivot"], ceiling_high=float(d["pivot"]), plain_round=PLAIN_PIVOT_ROUND)
         return d
     except Exception:  # noqa: BLE001 -- a drawing never raises
         return None
+
+
+def _pivot_swing_highs(h, s, i):
+    """Indices j in [s, i-1] whose high is >= the PIVOT_SWING_K highs before it and after it (the after side is cut
+    at i-1, so the last bars of the base can be touches)."""
+    out = []
+    for j in range(max(s, 1), i):
+        left = h[max(0, j - PIVOT_SWING_K):j]
+        right = h[j + 1:min(i, j + PIVOT_SWING_K + 1)]
+        if left and h[j] >= max(left) and (not right or h[j] >= max(right)):
+            out.append(j)
+    return out
+
+
+def pivot_spike(b, lip, i, H, a) -> dict:
+    """Round 7, step a: is the base's high H (the earliest bar of [lip, i-1] at the highest high) a one-session spike?
+    {m_h, iso_atr (counting the PIVOT_PRE_BARS bars before the lip too), reversal, spike}."""
+    h = [_f(x, "h") for x in b]
+    m_h = max(range(lip, i), key=lambda m: (h[m], -m))
+    rest = [h[m] for m in range(lip, i) if abs(m - m_h) > 1]
+    rest += [h[m] for m in range(max(0, lip - PIVOT_PRE_BARS), lip) if abs(m - m_h) > 1]
+    iso = (H - max(rest)) / a if rest else 0.0
+    x = b[m_h]
+    hi, lo, cl = _f(x, "h"), _f(x, "l"), _f(x, "c")
+    rng = hi - lo
+    reversal = bool(rng > 0 and (cl - lo) < 0.5 * rng and (H - cl) / a > PIVOT_REV_ATR)
+    spike = iso > PIVOT_SPIKE_ATR or (reversal and iso > PIVOT_REV_GATE_ATR)
+    return {"m_h": m_h, "iso_atr": iso, "reversal": reversal, "spike": bool(spike)}
+
+
+def pivot_ceiling(b, start, i, H, L, a):
+    """Round 7, step b: the right-side ceiling over bars [start, i-1] under the base high H, or None:
+    {line (the median touch high), touches [(t, high)], max_close_after, contained}. The highest qualifying cluster is
+    the ceiling; it is `contained` when no close after its first touch stands more than PIVOT_CONTAIN_ATR ATR over the
+    line."""
+    h = [_f(x, "h") for x in b]
+    mid = L + PIVOT_MID_FRAC * (H - L)
+    tol = PIVOT_CLUSTER_ATR * a
+    t = [(h[j], j) for j in _pivot_swing_highs(h, start, i) if mid <= h[j] < H]
+    for px, j in sorted(t, key=lambda z: (-z[0], -z[1])):
+        mem = [(p, k) for p, k in t if px - tol <= p <= px]
+        idx = [k for _, k in mem]
+        if len(mem) >= 2 and max(idx) - min(idx) >= PIVOT_MIN_APART:
+            mem.sort(key=lambda z: z[1])
+            mc = max(_f(b[k], "c") for k in range(mem[0][1], i))
+            line = statistics.median(p for p, _ in mem)
+            return {"line": line, "touches": [(int(b[k]["t"]), p) for p, k in mem], "max_close_after": mc,
+                    "contained": mc <= line + PIVOT_CONTAIN_ATR * a}
+    return None
+
+
+def plain_pivot(b, lip, i, H, L, a):
+    """Round 7: the plain base's buy line, or None when unreadable. The base is [lip, i-1] with high H, low L and
+    ATR(14) a at bar i. H stays the line unless H is a spike (`pivot_spike`) AND a contained right-side ceiling
+    exists after the H bar (`pivot_ceiling`); then the line is that ceiling's median touch. {pivot, spike, ceiling}.
+    Reads b[:i] only (the as-of bar i is not part of the base)."""
+    if not (a and a > 0) or lip >= i:
+        return None
+    sp = pivot_spike(b, lip, i, H, a)
+    c = pivot_ceiling(b, sp["m_h"] + 1, i, H, L, a) if sp["spike"] else None
+    v = c["line"] if (c is not None and c["contained"]) else H
+    return {"pivot": v, "spike": sp["spike"], "ceiling": c}

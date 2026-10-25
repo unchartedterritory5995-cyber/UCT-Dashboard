@@ -566,6 +566,9 @@ MEMBER_BASE_TIGHT_ROUND = None
 #: draws the plain base only while this equals base_draw.PLAIN_ROUND. ROLLBACK: MEMBER_BASE_ROUND (5) serves the old
 #: round-5 stateless drawing again (the failed one); None withholds the stateless base from members altogether. The
 #: base STATES are drawn before it and never read it, so no literal here changes a state row.
+#: 7 (base_draw.PLAIN_PIVOT_ROUND) is PREPARED, NOT RELEASED: the same plain base with its buy line moved off a
+#: one-session spike high onto the right-side ceiling, and no +$0.10 on the buy point. Release = set this to 7;
+#: rollback = set it back to 6.
 MEMBER_BASE_STATELESS_ROUND = 6
 
 
@@ -583,7 +586,7 @@ def _member_base_state_ok(bd) -> bool:
         if pr is not None:
             return type(pr) is int and pr == rnd
         from api.services.pattern_engine import base_draw
-        return rnd != base_draw.PLAIN_ROUND
+        return rnd not in base_draw.PLAIN_ROUNDS
     rnd = {"breakout": MEMBER_BASE_BREAKOUT_ROUND, "extended": MEMBER_BASE_BREAKOUT_ROUND,
            "forming": MEMBER_BASE_FORMING_ROUND, "tight": MEMBER_BASE_TIGHT_ROUND}.get(st) if isinstance(st, str) else None
     sr = bd.get("state_round")
@@ -1119,8 +1122,9 @@ def base_draw_row(sym: str, bars: list):
             # the released stateless round is the PLAIN base (base_draw.PLAIN_ROUND, lab base_rebuild) the stateless
             # row is the plain drawing, or nothing where it does not draw; under any other literal (None = withheld,
             # MEMBER_BASE_ROUND = a rollback) it is the round-5 drawing exactly as before
-            if MEMBER_BASE_STATELESS_ROUND == base_draw.PLAIN_ROUND and type(MEMBER_BASE_STATELESS_ROUND) is int:
-                p = base_draw.plain_drawing(b, len(b) - 1)
+            if type(MEMBER_BASE_STATELESS_ROUND) is int and MEMBER_BASE_STATELESS_ROUND in base_draw.PLAIN_ROUNDS:
+                # round 6 (PLAIN_ROUND) or round 7 (PLAIN_PIVOT_ROUND: the same base, its line off a spike high)
+                p = base_draw.plain_drawing(b, len(b) - 1, plain_round=MEMBER_BASE_STATELESS_ROUND)
                 return _base_row(sym, p, cur_round) if p is not None else None
             return _base_row(sym, d, cur_round) if d is not None else None
         m = base_draw.base_drawing(b, len(b) - 1, draw_round=MEMBER_BASE_ROUND)
@@ -1887,7 +1891,7 @@ def _stamped_atr(rows):
 def _drawn_base_top(draw_base, textbook):
     """The price the member's chart draws a bc:base top line at, as PatternOverlay.baseDrawing picks it: the
     textbook round's `metrics_textbook.line` (buy point - $0.10) when it and the buy point are finite numbers with
-    low < line < buy point, else `draw_base.pivot` (the body). A member row carries `metrics_textbook` only while
+    low < line <= buy point, else `draw_base.pivot` (the body). A member row carries `metrics_textbook` only while
     its round is released (with_metrics strips it otherwise), so reading it here reads what is drawn."""
     def num(v):
         if isinstance(v, bool) or v is None:
@@ -1900,7 +1904,8 @@ def _drawn_base_top(draw_base, textbook):
 
     if isinstance(textbook, dict):
         line, bp, low = num(textbook.get("line")), num(textbook.get("buy_point")), num(draw_base.get("low"))
-        if line is not None and bp is not None and low is not None and low < line < bp:
+        # `<=`: a round-7 plain base prints its buy point AT its line (no +$0.10)
+        if line is not None and bp is not None and low is not None and low < line <= bp:
             return line
     return draw_base.get("pivot")
 

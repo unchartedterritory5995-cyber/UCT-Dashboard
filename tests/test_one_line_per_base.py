@@ -345,7 +345,7 @@ def test_bodies_within_one_atr_but_drawn_lines_more_than_one_atr_apart_keep_both
 
 
 @pytest.mark.parametrize("tb", [
-    {"line": 51.20, "buy_point": 51.20},          # buy point not above the line
+    {"line": 51.20, "buy_point": 51.10},          # buy point under the line
     {"line": 40.00, "buy_point": 40.10},          # line not above the low (44.00)
     {"line": None, "buy_point": 51.30},
     {"line": "x", "buy_point": 51.30},
@@ -357,6 +357,13 @@ def test_a_malformed_textbook_stamp_falls_back_to_the_body_pivot_as_the_chart_do
     r = _base(50.00)
     r["geometry"]["extras"]["metrics_textbook"] = tb
     assert AS._breakout_lines(r) == [(50.00, S, E)]
+
+
+def test_a_line_at_the_buy_point_is_the_breakout_line():
+    """A round-7 plain base prints its buy point AT its line (no +$0.10): the chart draws that line, so does this."""
+    r = _base(50.00)
+    r["geometry"]["extras"]["metrics_textbook"] = {"line": 51.20, "buy_point": 51.20}
+    assert AS._breakout_lines(r) == [(51.20, S, E)]
 
 
 def test_a_released_textbook_line_is_the_bc_base_breakout_line():

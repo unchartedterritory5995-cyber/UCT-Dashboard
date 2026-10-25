@@ -357,7 +357,16 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
         if dpiv is None or dpiv <= 0 or atr is None:
             return None
         plain = _plain_draw(row)
-        if plain is not None:
+        tick = BUY_POINT_TICK
+        if plain is not None and _plain_pivot_line(plain):
+            # the PLAIN base, round 7 (base_draw.PLAIN_PIVOT_ROUND): its drawing already chose the buy line (the
+            # base high, or the right-side ceiling when the high is a one-session spike) and the buy point IS that
+            # line, with no +$0.10; the depth is still read from the base's own highest high
+            ph = dpiv
+            bp = round(ph, 2)
+            tick = 0.0
+            base_high = max(_hi(x) for x in span)
+        elif plain is not None:
             # the PLAIN base (base_draw.plain_drawing, round 6): its geometry already chose the ceiling -- the
             # highest high of the base's own bars, the left-side high -- so the buy point is that high + $0.10 and
             # no ceiling-bar reselection runs (that reselection is what put the old line on a mid-base spike)
@@ -393,7 +402,7 @@ def compute(row, bars, *, asof_complete: Optional[Callable] = None, full_history
                "length_weeks": weeks, "buy_zone_top": bz, "pct_from_buy_point": pfb,
                "extended": pfb > EXTENDED_PCT}
         if row.get("pattern_id") == "bc:base":
-            out["line"] = round(bp - BUY_POINT_TICK, 2)   # the drawn top line: one price with the buy point
+            out["line"] = round(bp - tick, 2)   # the drawn top line: one price with the buy point
         # a breakout-state base counts its stage on its OWN bars (the base drawn at base_end_t), not on the
         # bars since the breakout
         if plain is not None:
@@ -436,6 +445,14 @@ def _plain_draw(row):
     if not isinstance(bd, dict) or "state" in bd or type(bd.get("plain_round")) is not int:
         return None
     return bd
+
+
+def _plain_pivot_line(plain) -> bool:
+    """True for a plain base drawn by round 7 (base_draw.PLAIN_PIVOT_ROUND): its buy point is its drawn line, no
+    +$0.10."""
+    from api.services.pattern_engine import base_draw
+    pr = plain.get("plain_round")
+    return type(pr) is int and pr == base_draw.PLAIN_PIVOT_ROUND
 
 
 def _buy_zone() -> float:

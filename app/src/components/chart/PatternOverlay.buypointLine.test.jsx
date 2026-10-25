@@ -77,11 +77,17 @@ describe('baseDrawing: the top line is the buy point line when the server stamps
   it('a malformed line falls back to the body pivot', () => {
     for (const bad of [
       { line: 'x' }, { line: null }, { line: 45.0 }, { line: 46.0 },          // not a number / not above the low
-      { line: 51.3 }, { line: 52.0 }, { buy_point: null }, { buy_point: 'x' }, // not under the buy point
+      { line: 52.0 }, { buy_point: null }, { buy_point: 'x' },                 // above the buy point / no buy point
     ]) {
       const b = baseDrawing(base({ metrics_textbook: { ...TEXTBOOK, ...bad } }))
       expect([b.pivot, b.label]).toEqual([50.0, 'pivot'])
     }
+  })
+
+  it('a line AT the buy point (the round-7 plain base, no +$0.10) draws there, labelled with that buy point', () => {
+    const b = baseDrawing(base({ metrics_textbook: { ...TEXTBOOK, buy_point: 51.2, line: 51.2 } }))
+    expect(b.pivot).toBe(51.2)
+    expect(b.label).toBe('Buy point 51.20')
   })
 })
 

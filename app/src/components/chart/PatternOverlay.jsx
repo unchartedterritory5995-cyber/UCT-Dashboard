@@ -191,7 +191,7 @@ export function baseDrawing(d) {
   const line = Number(tb?.line)
   const bp = Number(tb?.buy_point)
   const out = (tb && tb.line != null && tb.buy_point != null && Number.isFinite(line) && Number.isFinite(bp)
-      && line > low && bp > line)
+      && line > low && bp >= line)   // `>=`: a round-7 plain base prints its buy point AT its line (no +$0.10)
     ? {
         pivot: line, low, start_t: bd.start_t, end_t: bd.end_t,
         label: `Buy point ${bp.toFixed(2)}`, lowLabel: bd.low_label || 'base low',

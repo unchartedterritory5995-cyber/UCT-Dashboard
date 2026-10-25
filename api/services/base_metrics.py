@@ -216,7 +216,10 @@ def compute(row, bars) -> Optional[dict]:
         ex = (row.get("geometry") or {}).get("extras") or {}
         rng = None                                    # (top, low) the range in ATR is read from
         if pid == "bc:base":
-            rng = (pivot, _num((ex.get("draw_base") or {}).get("low")))
+            bd = ex.get("draw_base") or {}
+            # a round-7 plain base draws its line under its high (`ceiling_high`); the depth is read from the high
+            top = _num(bd.get("ceiling_high")) if bd.get("ceiling_high") is not None else pivot
+            rng = (top, _num(bd.get("low")))
             dp = depth_pct(*rng)
         elif pid == "bc:flat-base":
             rng = (_num(ex.get("top")), _num(ex.get("floor")))
