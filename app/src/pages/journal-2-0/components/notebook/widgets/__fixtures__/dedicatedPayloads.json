@@ -994,7 +994,7 @@
       "source": "broker",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "AMD",
-      "tradeId": "7dbbaf0a-7fbc-47bb-9a7d-eede5ca6c4aa"
+      "tradeId": "0599e792-2eba-405e-9d45-4ab1383674b5"
     }
   },
   "pva_no_target": {
@@ -1052,7 +1052,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "TSLA",
-      "tradeId": "e4fa9a57-55f5-4ffc-ade5-6f30db1e0e6a"
+      "tradeId": "8371765b-0670-4403-a33c-2a87c865f431"
     }
   },
   "pva_normal": {
@@ -1110,7 +1110,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "NVDA",
-      "tradeId": "a433320d-d0f8-4f3e-979b-209f01fd8096"
+      "tradeId": "37a1987a-e24b-4403-95a0-a2b894a361fb"
     }
   },
   "pva_unlinked": {
@@ -1126,7 +1126,7 @@
       "source": "manual",
       "sourceDetail": "Your closed trades in the Journal.",
       "symbol": "META",
-      "tradeId": "a1c3d7c4-7827-4275-a78d-3b229f9f914b"
+      "tradeId": "21fac30b-1a88-41b8-8a6f-10913d13ef92"
     }
   },
   "revenge_capped": {
@@ -1711,6 +1711,157 @@
       ],
       "noTrades": 0,
       "notChecked": 0,
+      "notRead": 0,
+      "olderNotRead": 0,
+      "source": "manual",
+      "sourceDetail": "Your closed trades in the Journal.",
+      "to": "2026-10-23",
+      "tooMany": 0,
+      "window": 30
+    }
+  },
+  "revenge_every_day_dates_only": {
+    "kind": "myRevengeClean",
+    "payload": {
+      "asOf": "2026-10-24T16:00:00Z",
+      "checked": 1,
+      "clean": 0,
+      "days": [
+        {
+          "day": "2026-09-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-17",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-18",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-21",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-22",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-23",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-24",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-25",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-28",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-29",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-09-30",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-01",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-02",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-05",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-06",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-07",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-08",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-09",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-12",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-13",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-14",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-15",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-16",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-19",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-20",
+          "state": "no_trades"
+        },
+        {
+          "day": "2026-10-21",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-22",
+          "state": "not_checked"
+        },
+        {
+          "day": "2026-10-23",
+          "state": "flagged"
+        }
+      ],
+      "flagged": [
+        {
+          "day": "2026-10-23",
+          "minutesApart": 20.0,
+          "symbol": "NVDA"
+        }
+      ],
+      "from": "2026-09-14",
+      "lines": [
+        "Revenge re-entries on every checked day in the last 30 trading days.",
+        "2 days with dates only were not checked."
+      ],
+      "noTrades": 27,
+      "notChecked": 2,
       "notRead": 0,
       "olderNotRead": 0,
       "source": "manual",
@@ -2690,10 +2841,10 @@
     "payload": {
       "after": {
         "avg": null,
-        "n": 0,
-        "net": null,
+        "n": 2,
+        "net": -30.0,
         "sample": "hide",
-        "text": "no trades",
+        "text": "Not enough trades yet (2)",
         "winRate": null
       },
       "asOf": "2026-10-24T16:00:00Z",
@@ -2703,17 +2854,17 @@
       "from": "2026-07-27",
       "lines": [
         "Counting the newest 3 trades, from Oct 20.",
-        "Within 30 min after a loss: no trades.",
-        "Other trades: Not enough trades yet (3).",
+        "Within 30 min after a loss: Not enough trades yet (2).",
+        "Other trades: Not enough trades yet (1).",
         "A comparison, not proof."
       ],
       "noResult": 0,
       "other": {
         "avg": null,
-        "n": 3,
-        "net": -70.0,
+        "n": 1,
+        "net": -30.0,
         "sample": "hide",
-        "text": "Not enough trades yet (3)",
+        "text": "Not enough trades yet (1)",
         "winRate": null
       },
       "source": "manual",

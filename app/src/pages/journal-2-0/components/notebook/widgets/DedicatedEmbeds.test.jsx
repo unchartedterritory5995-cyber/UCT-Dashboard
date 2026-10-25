@@ -201,7 +201,7 @@ describe('bars', () => {
 
 describe('revenge cells (W10-R54: a dated strip from `days` only)', () => {
   const REVENGE = ['revenge_normal', 'revenge_every_day', 'revenge_dates_only', 'revenge_not_read', 'revenge_new',
-    'revenge_mixed', 'revenge_capped']
+    'revenge_mixed', 'revenge_capped', 'revenge_every_day_dates_only']
   const cellsOf = () => within(screen.getByTestId('revenge-cells')).getAllByRole('listitem')
 
   it('revenge_cells_have_text_labels', () => {

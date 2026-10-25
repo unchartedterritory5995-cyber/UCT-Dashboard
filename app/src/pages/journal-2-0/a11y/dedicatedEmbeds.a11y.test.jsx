@@ -83,6 +83,7 @@ const STATES = [
   ['dedicated-alerts-one-log-gap', 'alerts_one_log_gap', false],
   // Fix round 1 (review M-12, I-1, I-3): the states round 0 had no fixture for.
   ['dedicated-revenge-mixed', 'revenge_mixed', false],
+  ['dedicated-revenge-every-day-dates-only', 'revenge_every_day_dates_only', false],
   ['dedicated-revenge-mixed-table', 'revenge_mixed', true],
   ['dedicated-revenge-new-table', 'revenge_new', true],
   ['dedicated-tilt-zero', 'tilt_zero', false],
