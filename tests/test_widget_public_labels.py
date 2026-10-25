@@ -257,3 +257,119 @@ def test_property_name_is_total():
     assert wplan.property_name({"key": "net_pnl", "prop": "p"}, {"p": "Edge"}) is None
     assert wplan.property_name({"key": "property_sum", "prop": "p"}, None) is None
     assert wplan.property_name("x", {"p": "Edge"}) is None
+
+
+# ── fix round 2 ─────────────────────────────────────────────────────────────────────────────────────
+
+from pathlib import Path  # noqa: E402
+
+DAYSTATE = ("DAYSTATE-CANARY-Pre-market", 7777.0, 4321)
+
+
+def _tool_payload(source: str, *, with_def=True, split=None) -> dict:
+    """A shared built widget over routine or tracker data, as a run stores it: every day-state value and count is a
+    canary, so any one of them reaching a public payload is found."""
+    name, value, count = DAYSTATE
+    plan = {"v": 2, "source": source, "measures": [{"key": "days_done" if source != "tracker_history" else "average"}],
+            "range": {"token": "last_90d"}, "view": {"type": "table"}, **({"split": split} if split else {})}
+    p = {"asOf": "2026-10-29T15:30:00Z", "title": "My routine", "view": "table", "sourceKey": source,
+         "count": count, "measures": [{"label": "Days done", "unit": "days", "kind": "count", "fmt": "count"}],
+         "value": {"v1": value, "n1": count, "n": count},
+         "rows": [{"label": name, "label2": "2026-10-28", "v1": value, "n1": count, "s1": "", "n": count}],
+         "series": [], "points": [], "cells": [], "rangeLabel": "Last 90 days", "labelKind": "routine"}
+    if with_def:
+        p["def"] = plan
+    return p
+
+
+@pytest.mark.parametrize("source", ["routine_history", "tracker_history"])
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r73_routine_and_tracker_widgets_serve_no_data_publicly(source, mode):
+    out = reduce(placed(_tool_payload(source)), mode)
+    blob = json.dumps(out)
+    assert embed_of(out) is None
+    texts = [c["content"][0]["text"] for c in out["content"] if c.get("type") == "paragraph" and c.get("content")]
+    assert texts == [pnp.HIDDEN_WIDGET_LINE]
+    assert pnp.HIDDEN_WIDGET_LINE == "This widget isn't shown on public pages."
+    for canary in ("DAYSTATE-CANARY", "7777", "4321", "Days done", "widget-embed.png"):
+        assert canary not in blob, (source, mode, canary)
+
+
+@pytest.mark.parametrize("payload", [
+    pytest.param(_tool_payload("routine_history", with_def=False), id="older-snapshot-defRef-routine"),
+    pytest.param(_tool_payload("tracker_history", with_def=False), id="older-snapshot-defRef-tracker"),
+    pytest.param({**_tool_payload("trading_days"), "def": {"v": 2, "source": "trading_days",
+                  "measures": [{"key": "net_pnl"}], "range": {"token": "last_90d"},
+                  "split": {"by": "routine_done", "ref": "r-1"}, "view": {"type": "bar"}}}, id="trading-days-routine-split"),
+])
+def test_r73_covers_older_snapshots_and_routine_fields(payload):
+    blob = json.dumps(reduce(placed(payload), "share"))
+    assert "DAYSTATE-CANARY" not in blob and "7777" not in blob
+    assert pnp.HIDDEN_WIDGET_LINE in blob
+
+
+def test_r73_control_a_non_routine_built_widget_still_renders():
+    p = {**_tool_payload("closed_trades"), "def": {"v": 1, "source": "closed_trades", "measures": [{"key": "net_pnl"}],
+                                                   "range": {"token": "last_90d"}, "view": {"type": "number"}}}
+    node = embed_of(reduce(placed(p), "share"))
+    assert node is not None and node["attrs"]["params"]["value"]["v1"] == 7777.0
+    assert wpayload.hidden_publicly(p["def"]) is False
+    assert wpayload.hidden_publicly(None, "routine_history") and not wpayload.hidden_publicly(None, None)
+
+
+PROP_CANARY = "PROPNAME-CANARY-Conviction"
+
+
+def test_r74_a_property_name_never_reaches_the_public_payload(conn):
+    pid = add_prop(conn, UID, PROP_CANARY)
+    pid2 = add_prop(conn, UID, "PROPNAME-CANARY-Size")
+    add_n(conn, UID, props={pid: 3, pid2: 1})
+    out = run_out(raw(measures=({"key": "property_sum", "prop": pid}, {"key": "property_sum", "prop": pid2},
+                                {"key": "property_sum", "prop": pid})))
+    assert PROP_CANARY in out["title"]                                    # control: the member's own run names it
+    for mode in ("share", "publish"):
+        params = embed_of(reduce(placed(out), mode))["attrs"]["params"]
+        assert "PROPNAME-CANARY" not in json.dumps(params), mode
+        assert [m["label"] for m in params["measures"]] == ["Sum of Property 1", "Sum of Property 2", "Sum of Property 1"]
+        assert "Sum of Property 1" in params["title"]
+    # an older snapshot with no frozen plan: matched by the catalog's words
+    old = {k: v for k, v in out.items() if k != "def"}
+    assert "PROPNAME-CANARY" not in json.dumps(reduce(placed(old), "share"))
+
+
+def test_r74_formula_names_stay():
+    p = {"title": "Edge", "measures": [{"label": "My edge (average)"}, {"label": "Sum of a property: X"}],
+         "def": {"source": "notes", "measures": [{"formula": "f1", "agg": "avg"}, {"key": "property_sum", "prop": "p"}]}}
+    ms, _ = wpayload.public_property_labels(p["def"], p["measures"], p["title"])
+    assert [m["label"] for m in ms] == ["My edge (average)", "Sum of Property 1"]
+
+
+# The client renders what the server serves for these cases through ReadOnlyNote (the public page's renderer):
+# app/src/pages/journal-2-0/public/ReadOnlyNote.walkFix.test.jsx reads this file.
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "notebook_public_walkfix.json"
+
+
+def _fixture_now() -> dict:
+    shown = {**_tool_payload("closed_trades"), "title": "Net P&L by setup", "labelKind": None,
+             "def": {"v": 1, "source": "closed_trades", "measures": [{"key": "net_pnl"}],
+                     "range": {"token": "last_90d"}, "split": {"by": "setup"}, "view": {"type": "table"}},
+             "rows": [{"label": "Breakout", "label2": None, "v1": 120.0, "n1": 3, "s1": "", "n": 3}],
+             "value": {"v1": 120.0, "n1": 3, "n": 3}, "count": 3,
+             "measures": [{"label": "Net P&L", "unit": "trades", "kind": "sum", "fmt": "money"}]}
+    body = {"type": "doc", "content": [placed(_tool_payload("routine_history")), placed(_tool_payload("tracker_history")),
+                                       placed(shown)]}
+    return {m: pnp.reduce(copy.deepcopy(body), mode=m, owner_id=OWNER, note_id=NOTE, attachment_base=BASE, facts={})
+            for m in ("share", "publish")}
+
+
+def test_the_walkfix_fixture_the_client_renders_is_the_reducers_current_output():
+    now = json.dumps(_fixture_now(), indent=1, sort_keys=True) + "\n"
+    if not FIXTURE.exists() or FIXTURE.read_text(encoding="utf-8").replace("\r\n", "\n") != now:
+        FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+        with open(FIXTURE, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(now)
+        pytest.fail(f"{FIXTURE.name} was out of date and has been rewritten from the reducer's current output.")
+    data = json.loads(now)
+    for mode in ("share", "publish"):
+        assert "DAYSTATE-CANARY" not in json.dumps(data[mode])
+        assert json.dumps(data[mode]).count(pnp.HIDDEN_WIDGET_LINE) == 2

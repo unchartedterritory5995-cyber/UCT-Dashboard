@@ -629,9 +629,26 @@ def _built_label_kinds(params: Mapping[str, Any], out: dict[str, Any]) -> None:
     for key, kind in zip(("labelKind", "label2Kind"), derived):
         if kind is not None:
             out[key] = kind
+    # Ruling W10-R74: a property measure is numbered ("Sum of Property 1") in its label and the title.
+    if "measures" in out:
+        out["measures"], title = wpayload.public_property_labels(plan, out["measures"], out.get("title"))
+        if "title" in out:
+            out["title"] = title
     src = plan.get("source") if plan is not None else params.get("sourceKey")
     if isinstance(src, str) and src in wsources.SOURCES and src not in wsources.ORIGIN_SOURCES:
         out.pop("source", None)
+
+
+#: Ruling W10-R73: what a public page shows in place of a built widget that reads routines or trackers.
+HIDDEN_WIDGET_LINE = "This widget isn't shown on public pages."
+
+
+def _built_hidden(params: Mapping[str, Any]) -> bool:
+    """W10-R73: is this built widget one a public page shows no data of? The one rule,
+    `widget_engine.payload.hidden_publicly`, asked of the frozen plan (or the stored `sourceKey`)."""
+    from api.services.journal_two.widget_engine import payload as wpayload
+    plan = params.get("def") if isinstance(params.get("def"), dict) else None
+    return wpayload.hidden_publicly(plan, params.get("sourceKey"))
 
 
 def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
@@ -1515,6 +1532,9 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
                 return [_neutral_for_embed(widget_id)]
         elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
             return [_neutral_for_embed(widget_id)]
+        if widget_id == "builtWidget" and _built_hidden(params):
+            # Ruling W10-R73: a built widget over routines or trackers serves no data at all, shared or not.
+            return [_neutral(HIDDEN_WIDGET_LINE)]
         kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
         if widget_id == "builtWidget" and "frozen" in kept:
             # Ruling R-26: `frozen` is a flag. A hand-made body could put anything there, so a built

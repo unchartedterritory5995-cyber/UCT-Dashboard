@@ -422,6 +422,57 @@ def label_kinds(plan: Any) -> tuple[str | None, str | None]:
     return _field_kind(plan, src, split.get("by")), _field_kind(plan, src, split.get("then"))
 
 
+def hidden_publicly(plan: Any, source_key: Any = None) -> bool:
+    """Ruling W10-R73 (spec section 2: routine and tracker day state never reaches a public page): a built widget
+    that reads routines or trackers (`plan.uses_tools`: a Routine or Tracker history source, or a trading-days
+    routine or tracker field) is served with NO data publicly, only `public_note_payload.HIDDEN_WIDGET_LINE`. A
+    snapshot with no frozen plan (a `defRef`) is judged by its `sourceKey`. Never raises."""
+    if isinstance(plan, dict):
+        return wplan.uses_tools(plan)
+    return wplan.uses_tools({"source": source_key}) if isinstance(source_key, str) else False
+
+
+#: Ruling W10-R74: a property measure's label on a public page, numbered by first appearance ("Sum of Property 1").
+PUBLIC_PROPERTY = "Property {n}"
+
+
+def public_property_labels(plan: Any, measures: Any, title: Any) -> tuple[Any, Any]:
+    """Ruling W10-R74: on a public page a property measure never names the member's property. Its label becomes the
+    catalog's own words with the property numbered ("Sum of a property" -> "Sum of Property 1"; one property keeps
+    one number), and the same words in the title are replaced. The measure is found by its slot in the frozen plan;
+    with no plan (a `defRef`), by its label starting with the catalog's words. Formula names are left as they are.
+    Never raises; anything it cannot read is returned unchanged."""
+    if not isinstance(measures, list):
+        return measures, title
+    words = {k: m.label for k, m in wsources.CATALOG.measures.items() if k in wplan.PROP_MEASURES}
+    plan_ms = plan.get("measures") if isinstance(plan, dict) and isinstance(plan.get("measures"), list) else None
+    numbering: dict[Any, int] = {}
+    out = list(measures)
+    for i, item in enumerate(out):
+        if not isinstance(item, dict) or not isinstance(item.get("label"), str):
+            continue
+        label = item["label"]
+        if plan_ms is not None:
+            m = plan_ms[i] if i < len(plan_ms) else None
+            key = m.get("key") if isinstance(m, dict) else None
+            if key not in words:
+                continue
+            ident = m.get("prop")
+        else:
+            key = next((k for k, w in words.items() if label == w or label.startswith(w + ": ")), None)
+            if key is None:
+                continue
+            ident = label
+        n = numbering.setdefault(ident, len(numbering) + 1)
+        word = words[key]
+        public = (word.replace("a property", PUBLIC_PROPERTY.format(n=n)) if "a property" in word
+                  else f"{word} ({PUBLIC_PROPERTY.format(n=n)})")
+        out[i] = {**item, "label": public}
+        if isinstance(title, str) and label:
+            title = title.replace(label, public)
+    return out, title
+
+
 # -- the payload -----------------------------------------------------------------------------------
 
 def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str | None,
