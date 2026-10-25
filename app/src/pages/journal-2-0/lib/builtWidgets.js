@@ -317,9 +317,23 @@ export async function loadWidgetList() {
   return list.filter((w) => isRecord(w) && typeof w.id === 'string' && w.id && w.archived !== true)
 }
 
-/** The member's own values for one whitelisted field (`setup`, `mistake`, `emotion`, `symbol`, `account`). */
-export function loadVocabulary(field) {
+/** The member's own values for one whitelisted field (`setup`, `mistake`, `emotion`, `symbol`, `account`, and while
+ *  wave 9 is on `routine` and `tracker`, each `{id, name}`). Cached per tab after its first answer; `fresh` asks the
+ *  server again (and keeps that answer), for a list the member changes elsewhere: "Which routine" re-reads it on each
+ *  open so a routine made in My tools since is listed. */
+export function loadVocabulary(field, { fresh = false } = {}) {
   const key = String(field || '')
+  if (fresh && vocabLoads.has(key)) {
+    const prev = vocabLoads.get(key)
+    vocabLoads.delete(key)
+    // A failed re-read keeps the last good answer rather than losing it.
+    const next = loadVocabulary(key)
+    const kept = next.catch((e) => {
+      if (vocabLoads.get(key) === undefined) vocabLoads.set(key, prev)
+      throw e
+    })
+    return kept
+  }
   if (!vocabLoads.has(key)) {
     vocabLoads.set(key, cached(async () => {
       const got = await getJson(`${DEFS_URL}/vocabulary?field=${encodeURIComponent(key)}`)

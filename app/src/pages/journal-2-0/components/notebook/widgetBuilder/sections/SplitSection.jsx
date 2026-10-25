@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
-import { splitFields, reasonOf, thenAllowed } from '../builderCatalog'
+import { splitFields, reasonOf, thenAllowed, refKindOf, refName } from '../builderCatalog'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
@@ -9,14 +9,19 @@ import styles from '../WidgetBuilderSheet.module.css'
  * the groups by a measure and keep the top N (at most 40). A second split is offered while the view is a table or
  * still the suggested one (it then becomes a table); otherwise it is disabled with the engine's own sentence.
  */
-export default function SplitSection({ cat, plan, onOpen, onClear, onSort }) {
+export default function SplitSection({ cat, plan, toolNames, onOpen, onClear, onSort }) {
   const thenReasonId = useId()
   const sortId = useId()
   const topId = useId()
   const fields = new Map(splitFields(cat, plan).map((f) => [f.key, f]))
   const split = plan.split
-  const byLabel = split ? fields.get(split.by)?.label || split.by : null
-  const thenLabel = split?.then ? fields.get(split.then)?.label || split.then : null
+  // A field that names a routine or tracker reads as that one ("Split by Sleep"), wave 9.
+  const labelOf = (key, ref) => {
+    const f = fields.get(key)
+    return refKindOf(f) && ref ? refName(f, ref, toolNames) : f?.label || key
+  }
+  const byLabel = split ? labelOf(split.by, split.ref) : null
+  const thenLabel = split?.then ? labelOf(split.then, split.ref2) : null
   const thenOk = thenAllowed(cat, plan)
   const sortValue = plan.sort ? `${plan.sort.measure}:${plan.sort.dir}` : ''
   return (

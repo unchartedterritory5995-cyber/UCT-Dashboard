@@ -14,6 +14,7 @@ import { __resetBuiltCaches, FAILURE_COPY } from '../../../lib/builtWidgets'
 import {
   installFetch, answer, refusal, deferred, payload, callsTo, bodyOf, SUMMARY, CATALOG,
 } from './__fixtures__/builderFixtures'
+import { TOOL_CATALOG } from './__fixtures__/toolCatalog'
 
 const flush = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
@@ -152,6 +153,24 @@ describe('WidgetBuilderSheet', () => {
     expect(screen.getByRole('radio', { name: 'Number with comparison' })).toHaveAccessibleDescription(
       'Open positions are a snapshot of right now, so there is no earlier period to compare.')
     expect(screen.getByText('Right now')).toBeInTheDocument()
+  })
+
+  it('tool_tiles_absent_when_catalog_omits_them', async () => {
+    // Wave 9 off: the server lists no tool source, and the builder reads no flag of its own (no extra request).
+    const { unmount } = await openBuilder()
+    expect(screen.getByRole('radio', { name: 'Trading days' })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Routine history' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Tracker history' })).toBeNull()
+    const urls = fetchSpy.mock.calls.map(([u]) => String(u))
+    expect(urls.every((u) => u.startsWith('/api/j2/widget-definitions') || u === '/api/j2/accounts')).toBe(true)
+    unmount()
+    // Wave 9 on: the same builder shows whatever the catalog lists.
+    __resetBuiltCaches()
+    route('GET', (u) => u.endsWith('/vocabulary'), () => answer(TOOL_CATALOG))
+    await openBuilder()
+    expect(screen.getByRole('radio', { name: 'Routine history' })).toHaveAccessibleDescription(
+      'Every scheduled day of your routines: done, not done or skipped.')
+    expect(screen.getByRole('radio', { name: 'Tracker history' })).toHaveAccessibleDescription('Every value you have logged.')
   })
 
   it('previous-period comparison is refused against a number of trades (R-12)', async () => {

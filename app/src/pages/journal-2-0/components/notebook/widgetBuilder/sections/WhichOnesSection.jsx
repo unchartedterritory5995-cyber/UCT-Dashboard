@@ -3,7 +3,7 @@ import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
 import {
   filterSentence, filterProblem, opLabel, valueArity, valueLabel, rangeText, rangeIsUnbounded, reasonOf,
-  isRightNow, sourceOf, VOCAB_FIELDS,
+  isRightNow, sourceOf, VOCAB_FIELDS, refKindOf, refName, isToolSource, isTradeCountRange, REF_KINDS,
 } from '../builderCatalog'
 import { loadVocabulary } from '../../../../lib/builtWidgets'
 import styles from '../WidgetBuilderSheet.module.css'
@@ -13,7 +13,7 @@ import styles from '../WidgetBuilderSheet.module.css'
  * SENTENCE ("Setup is Flag or VCP") that opens it for editing, beside its own "Remove filter: <sentence>" button
  * (spec 5.11). Open positions have no range: they are what is open right now (ruling R-17).
  */
-export default function WhichOnesSection({ cat, plan, accounts, onOpenRange, onAddFilter, onEditFilter, onRemoveFilter }) {
+export default function WhichOnesSection({ cat, plan, accounts, toolNames, onOpenRange, onAddFilter, onEditFilter, onRemoveFilter }) {
   const src = sourceOf(cat, plan)
   const full = plan.filters.length >= cat.maxFilters
   const fullId = useId()
@@ -34,7 +34,7 @@ export default function WhichOnesSection({ cat, plan, accounts, onOpenRange, onA
         <ul className={styles.filterList}>
           {plan.filters.map((f, i) => {
             const field = src?.fields.get(f.field)
-            const sentence = filterSentence(field, f, { accounts })
+            const sentence = filterSentence(field, f, { accounts, toolNames })
             const badgeId = `${fullId}-b${i}`
             return (
               // Index keys: two filters can read the same; a filter's place in the plan is its identity here.
@@ -68,13 +68,16 @@ export default function WhichOnesSection({ cat, plan, accounts, onOpenRange, onA
 
 /** The date range picker: every relative range, then "Fixed dates". With "Number with comparison" set to the period
  *  before, a range that has no period before it (all time, the last N trades) is disabled with the engine's own
- *  sentence (ruling R-12). */
+ *  sentence (ruling R-12). A routine or tracker source counts days, not trades: its "last N trades" ranges are
+ *  aria-disabled with the engine's sentence (plan.S_UNKNOWN_RANGE, wave 9). */
 export function RangePicker({ cat, plan, onPick, onBack }) {
   const fixed = plan.range && plan.range.from ? plan.range : null
   const [from, setFrom] = useState(fixed?.from || '')
   const [to, setTo] = useState(fixed?.to || '')
   const reasonId = useId()
+  const toolReasonId = useId()
   const fixedReasonId = useId()
+  const tool = isToolSource(plan)
   const previous = plan.view?.type === 'compare' && (plan.compare?.mode || 'previous') === 'previous'
   const noEarlier = reasonOf(cat, 'no_earlier')
   const badSpan = from && to && from > to
@@ -85,11 +88,14 @@ export function RangePicker({ cat, plan, onPick, onBack }) {
         {cat.ranges.map((r) => {
           const on = plan.range?.token === r.token
           const disabled = previous && rangeIsUnbounded(cat, { token: r.token })
+          // ⛔ aria-disabled, never `disabled`, for the tool sources' refusal: it keeps focus, so its reason reads.
+          const refused = tool && isTradeCountRange(r)
+          const why = [disabled ? reasonId : null, refused ? toolReasonId : null].filter(Boolean).join(' ')
           return (
             <li key={r.token}>
               <button type="button" className={`${styles.option} ${on ? styles.optionOn : ''}`} aria-pressed={on}
-                disabled={disabled} aria-describedby={disabled ? reasonId : undefined}
-                onClick={() => onPick({ token: r.token })}>
+                disabled={disabled} aria-disabled={refused || undefined} aria-describedby={why || undefined}
+                onClick={() => { if (!refused) onPick({ token: r.token }) }}>
                 <span className={styles.optionLabel}>{rangeText(cat, { token: r.token })}</span>
               </button>
             </li>
@@ -97,6 +103,7 @@ export function RangePicker({ cat, plan, onPick, onBack }) {
         })}
       </ul>
       {previous && <p className={styles.reason} id={reasonId}>{noEarlier}</p>}
+      {tool && <p className={styles.reason} id={toolReasonId}>{reasonOf(cat, 'unknown_range')}</p>}
       <fieldset className={styles.fieldset}>
         <legend className={styles.fieldLabel}>Fixed dates</legend>
         <div className={styles.pair}>
@@ -121,7 +128,8 @@ export function RangePicker({ cat, plan, onPick, onBack }) {
 
 /** "+ Filter", step one: which field. */
 export function FieldPicker({ cat, plan, onPick, onBack }) {
-  const fields = [...(sourceOf(cat, plan)?.fields.values() || [])]
+  // A split-only field (be `filter: false`, routine history's Item) is never offered here.
+  const fields = [...(sourceOf(cat, plan)?.fields.values() || [])].filter((f) => f.filter !== false)
   return (
     <div>
       <PickerHead title="Filter by" onBack={onBack} />
@@ -148,11 +156,13 @@ function useValueList(field) {
     if (fixed || !own) return undefined
     let alive = true
     setState(null)
-    loadVocabulary(field.key).then(
+    // A routine or tracker list is read again on each open (one made in My tools since is listed).
+    loadVocabulary(field.key, { fresh: REF_KINDS.includes(field.key) }).then(
       (values) => {
         if (!alive) return
+        const fallback = field.key === 'account' ? 'Account' : null
         const list = values.map((v) => (v && typeof v === 'object'
-          ? { value: String(v.id), label: typeof v.name === 'string' && v.name ? v.name : 'Account' }
+          ? { value: String(v.id), label: typeof v.name === 'string' && v.name ? v.name : fallback || String(v.id) }
           : { value: v, label: String(v) }))
         setState({ list, failed: false })
       },
@@ -170,8 +180,13 @@ function useValueList(field) {
  * list wherever one exists (the member's own setups, tags, symbols and accounts; a field's fixed buckets), never a
  * blank text box where a list exists (spec 5.2).
  */
-export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, onRemove, onBack }) {
+export function FilterEditor({
+  cat, plan, fieldKey, initial, refValue, accounts, toolNames, onApply, onRemove, onBack, onChangeRef,
+}) {
   const field = sourceOf(cat, plan)?.fields.get(fieldKey)
+  // Wave 9: a field that names a routine or tracker carries which one (picked in the step before, or the filter's).
+  const refKind = refKindOf(field)
+  const ref = refKind ? (refValue ?? initial?.ref ?? null) : null
   const ops = Array.isArray(field?.ops) && field.ops.length ? field.ops : ['in']
   const [op, setOp] = useState(initial?.op && ops.includes(initial.op) ? initial.op : ops[0])
   const [values, setValues] = useState(Array.isArray(initial?.values) ? initial.values : [])
@@ -189,7 +204,7 @@ export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, 
   // A number box holds what was typed ("1.", "-"); the filter holds numbers, and an unfinished one is caught by
   // filterProblem rather than shown as NaN.
   const clean = type === 'number' ? values.map((v) => (v === '' || v === null || v === undefined ? '' : Number(v))) : values
-  const filter = { field: fieldKey, op, values: clean, overridable }
+  const filter = { field: fieldKey, op, values: clean, overridable, ...(ref ? { ref } : {}) }
   const problem = filterProblem(cat, field, filter)
   const shown = useMemo(() => {
     const list = listState.list || []
@@ -212,7 +227,7 @@ export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, 
     pick(t)
     setTyped('')
   }
-  const sentence = filterSentence(field, filter, { accounts })
+  const sentence = filterSentence(field, filter, { accounts, toolNames })
 
   let body
   if (type === 'bool') {
@@ -296,7 +311,7 @@ export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, 
           <ul className={styles.filterList} aria-label="Values">
             {values.map((v) => (
               <li key={String(v)} className={styles.filterItem}>
-                <span className={styles.staticChip}>{valueLabel(field, v, { accounts })}</span>
+                <span className={styles.staticChip}>{valueLabel(field, v, { accounts, toolNames })}</span>
                 <button type="button" className={styles.chipRemove} aria-label={`Remove ${String(v)}`}
                   onClick={() => setValues((vs) => vs.filter((x) => x !== v))}>
                   <UIcon name="x" size={14} gold={false} aria-hidden="true" />
@@ -311,7 +326,12 @@ export function FilterEditor({ cat, plan, fieldKey, initial, accounts, onApply, 
 
   return (
     <div>
-      <PickerHead title={field.label} onBack={onBack} />
+      <PickerHead title={ref ? refName(field, ref, toolNames) : field.label} onBack={onBack} />
+      {ref && onChangeRef && (
+        <button type="button" className={styles.btn} onClick={onChangeRef}>
+          {refKind === 'tracker' ? 'Change tracker' : 'Change routine'}
+        </button>
+      )}
       {ops.length > 1 && (
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={opId}>Comparison</label>

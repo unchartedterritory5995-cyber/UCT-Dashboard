@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react'
 import Section from './Section'
+import { isToolSource } from '../builderCatalog'
 import styles from '../WidgetBuilderSheet.module.css'
 
 /**
@@ -9,7 +10,8 @@ import styles from '../WidgetBuilderSheet.module.css'
  * split and order, and a native radio group selects on every arrow key, so a keyboard member walking the tiles to
  * read them would wipe their work tile by tile. Here the arrow keys move FOCUS only (one Tab stop, the chosen tile);
  * Enter or Space chooses. Each tile is `role="radio"` with `aria-checked`, named by its label and described by its
- * line. "Accounts" sits here too: all of them (the default) or one, shown on the widget.
+ * line. "Accounts" sits here too: all of them (the default) or one, shown on the widget. A routine or tracker source
+ * covers every account (plan.S_TOOL_ACCOUNTS), so there it is not shown at all (wave 9).
  */
 export function RovingTiles({ label, options, value, onChoose }) {
   const ids = useId()
@@ -57,7 +59,7 @@ export default function SourceSection({ cat, plan, accounts, onSource, onAccount
   return (
     <Section id="source" title="What to look at">
       <RovingTiles label="What to look at" options={sources} value={plan.source} onChoose={onSource} />
-      <div className={styles.field}>
+      {!isToolSource(plan) && <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={accId}>Accounts</label>
         <select id={accId} className={styles.select} value={accValue}
           onChange={(e) => onAccounts(e.target.value ? { id: e.target.value } : 'all')}>
@@ -65,7 +67,7 @@ export default function SourceSection({ cat, plan, accounts, onSource, onAccount
           {[...accounts.entries()].map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           {accValue && !accounts.has(accValue) && <option value={accValue}>An account no longer in your Journal</option>}
         </select>
-      </div>
+      </div>}
     </Section>
   )
 }

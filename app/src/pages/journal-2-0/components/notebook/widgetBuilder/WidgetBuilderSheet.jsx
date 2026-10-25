@@ -5,11 +5,12 @@ import { useHasCoarsePointer, useIsPhone } from '../../../../../hooks/useBreakpo
 import { normalizeParams, paramsPlainText } from '../../../../../widgets/registry'
 import {
   BUILT_KIND, DEFS_URL, FAILED_SENTENCE, FAILURE_COPY, builtRefreshParams, failureText, getJson, loadAccounts,
-  loadCatalog, postJson, putJson, runBuilt, newIdempotencyKey, outcomeConfirmed,
+  loadCatalog, loadVocabulary, postJson, putJson, runBuilt, newIdempotencyKey, outcomeConfirmed,
 } from '../../../lib/builtWidgets'
 import { reducer, initState, blankPlan, nameOf, changeKind, DEFAULT_RANGE } from './builderState'
 import {
-  indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow,
+  indexCatalog, defaultMeasuresFor, fitView, sourceOf, coverageByNeed, isRightNow, refKindOf, planRefs, kindsNamed,
+  TOOL_SOURCES, isTradeCountRange,
 } from './builderCatalog'
 import {
   readDraft, writeDraft, clearOwnDraft, draftKey, newSession, settleDraft, trackSave, saveInFlight,
@@ -19,6 +20,7 @@ import SourceSection from './sections/SourceSection'
 import WhichOnesSection, { RangePicker, FieldPicker, FilterEditor } from './sections/WhichOnesSection'
 import MeasureSection, { MeasurePicker } from './sections/MeasureSection'
 import SplitSection, { SplitPicker } from './sections/SplitSection'
+import RefPicker from './sections/RefPicker'
 import ViewSection from './sections/ViewSection'
 import NameSection from './sections/NameSection'
 import PreviewPane from './PreviewPane'
@@ -214,6 +216,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const [loadTick, setLoadTick] = useState(0)
   const [cat, setCat] = useState(null)
   const [accounts, setAccounts] = useState(() => new Map())
+  // Wave 9 (Task 9.17): the member's routine and tracker names by id, for the chips that name one. Filled by
+  // "Which routine" / "Which tracker" as they load, and read once per kind a plan already names (an opened widget).
+  const [toolNames, setToolNames] = useState(() => ({}))
+  const mergeToolNames = useCallback((kind, list) => {
+    setToolNames((cur) => ({ ...cur, [kind]: new Map(list.map((r) => [String(r.id), r.name])) }))
+  }, [])
   const [target, setTarget] = useState({ mode: 'new', def: null, missing: false })
   const [tooNew, setTooNew] = useState('')
   const [state, rawDispatch] = useReducer(reducer, undefined, () => initState(blankPlan()))
@@ -662,6 +670,26 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     if (typeof registerLeave === 'function') registerLeave(() => leaveRef.current?.())
   }, [registerLeave])
 
+  // ── names for the routines or trackers a plan already names (an opened widget, a Routine filter) ────
+  const neededKinds = cat
+    ? kindsNamed(cat, state.plan).filter((k) => !(toolNames[k] instanceof Map)).join(',') : ''
+  useEffect(() => {
+    if (!neededKinds) return undefined
+    let alive = true
+    for (const kind of neededKinds.split(',')) {
+      loadVocabulary(kind).then(
+        (values) => {
+          if (!alive) return
+          const list = (Array.isArray(values) ? values : []).filter((v) => v && typeof v === 'object' && v.id != null)
+            .map((v) => ({ id: String(v.id), name: typeof v.name === 'string' && v.name ? v.name : String(v.id) }))
+          mergeToolNames(kind, list)
+        },
+        () => {},          // the chip keeps the field's own label; the preview still reads the server's answer
+      )
+    }
+    return () => { alive = false }
+  }, [neededKinds, mergeToolNames])
+
   // ── edits: each change carries the view it forces, so the change and its view are ONE undo step ──
   const fitted = (patch) => fitView(cat, { ...stateRef.current.plan, ...patch })
   const edit = (action, patch) => {
@@ -671,9 +699,16 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   const onSource = (key) => {
     if (key === state.plan.source) return
     const measures = defaultMeasuresFor(cat, key)
-    edit({ type: 'setSource', source: key, measures },
+    // Wave 9: a routine or tracker source covers every account and counts days, not trades (plan.py refuses one
+    // account and a "last N trades" range there), so it starts from all accounts and, from a trade count, the default
+    // range: in the same undo step as the source.
+    const tool = TOOL_SOURCES.includes(key)
+    const reset = tool ? {
+      accounts: 'all', ...(isTradeCountRange(state.plan.range) ? { range: { ...DEFAULT_RANGE } } : {}),
+    } : {}
+    edit({ type: 'setSource', source: key, measures, ...reset },
       { source: key, measures: measures.map((k) => ({ key: k })), filters: [], split: null, sort: null, compare: null,
-        view: { type: 'number', auto: true } })
+        view: { type: 'number', auto: true }, ...reset })
   }
   const onRange = (range) => {
     edit({ type: 'setRange', range }, { range })
@@ -695,11 +730,21 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     dispatch({ type: 'setMeasures', measures: keys, sort, view: next.view, compare: next.compare })
   }
   const onRemoveMeasure = (i) => onToggleMeasure(state.plan.measures[i]?.key)
-  const onSplit = (slot, key) => {
+  const onSplit = (slot, key, ref = null) => {
     const cur = state.plan.split
     let split
-    if (slot === 'by') split = key ? { by: key, then: cur?.then && cur.then !== key ? cur.then : null } : null
-    else split = cur ? { ...cur, then: key } : null
+    if (slot === 'by') {
+      const keepThen = !!cur?.then && cur.then !== key
+      split = key ? {
+        by: key, then: keepThen ? cur.then : null,
+        ...(ref ? { ref } : {}), ...(keepThen && cur.ref2 ? { ref2: cur.ref2 } : {}),
+      } : null
+    } else if (cur) {
+      // `ref` names the routine or tracker of `by`, `ref2` the one of `then` (be Task 9.8).
+      const rest = { ...cur }
+      delete rest.ref2
+      split = { ...rest, then: key, ...(key && ref ? { ref2: ref } : {}) }
+    } else split = null
     const sort = split ? state.plan.sort : null
     const next = fitted({ split, sort })
     dispatch({ type: 'setSplit', split, sort, view: next.view, compare: next.compare })
@@ -707,7 +752,11 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
   }
   const onClearSplit = (slot) => {
     const cur = state.plan.split
-    const split = slot === 'by' ? null : (cur ? { ...cur, then: null } : null)
+    let split = null
+    if (slot !== 'by' && cur) {
+      split = { ...cur, then: null }
+      delete split.ref2
+    }
     const sort = split ? state.plan.sort : null
     const next = fitted({ split, sort })
     dispatch({ type: 'setSplit', split, sort, view: next.view, compare: next.compare })
@@ -963,7 +1012,7 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       if (k.phase !== 'ready' || !(e.ctrlKey || e.metaKey)) return
       if (e.key === 'Enter') {
         // A filter being edited is not the widget: Enter there applies the filter, never saves half of it.
-        if (k.level.kind === 'filter' || k.level.kind === 'field') return
+        if (k.level.kind === 'filter' || k.level.kind === 'field' || k.level.kind === 'ref') return
         e.preventDefault()
         k.save(k.level.kind === 'question' ? k.answer : undefined)
         return
@@ -1016,12 +1065,38 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     if (k === 'range') picker = <RangePicker cat={cat} plan={plan} onPick={onRange} onBack={back} />
     else if (k === 'field') {
       picker = <FieldPicker cat={cat} plan={plan} onBack={back}
-        onPick={(field) => setLevel({ kind: 'filter', field, index: undefined })} />
+        onPick={(field) => {
+          // A field that names a routine or tracker asks which one first (Task 9.17).
+          const kind = refKindOf(sourceOf(cat, plan)?.fields.get(field))
+          setLevel(kind ? { kind: 'ref', refKind: kind, for: 'filter', field, index: undefined }
+            : { kind: 'filter', field, index: undefined })
+        }} />
+    } else if (k === 'ref') {
+      const forFilter = level.for === 'filter'
+      const skip = forFilter ? (Number.isInteger(level.index) ? { filter: level.index } : {}) : { split: level.slot }
+      const current = forFilter
+        ? (level.ref ?? (Number.isInteger(level.index) ? plan.filters[level.index]?.ref : null))
+        : (level.slot === 'then' ? plan.split?.ref2 : plan.split?.ref)
+      picker = (
+        <RefPicker key={`${level.refKind}-${level.field}`} cat={cat} kind={level.refKind}
+          taken={planRefs(cat, plan, skip).get(level.refKind) || null} current={current || null}
+          onLoaded={mergeToolNames} onBack={back}
+          onPick={(id) => {
+            if (forFilter) setLevel({ kind: 'filter', field: level.field, index: level.index, ref: id })
+            else onSplit(level.slot, level.field, id)
+          }} />
+      )
     } else if (k === 'filter') {
       const initial = Number.isInteger(level.index) ? { ...plan.filters[level.index], index: level.index } : undefined
+      const refKind = refKindOf(sourceOf(cat, plan)?.fields.get(level.field))
       picker = (
-        <FilterEditor key={`${level.field}-${level.index ?? 'new'}`} cat={cat} plan={plan} fieldKey={level.field}
-          initial={initial} accounts={accounts} onApply={onApplyFilter} onBack={back}
+        <FilterEditor key={`${level.field}-${level.index ?? 'new'}-${level.ref ?? ''}`} cat={cat} plan={plan}
+          fieldKey={level.field} initial={initial} refValue={level.ref} accounts={accounts} toolNames={toolNames}
+          onApply={onApplyFilter} onBack={back}
+          onChangeRef={refKind ? () => setLevel({
+            kind: 'ref', refKind, for: 'filter', field: level.field, index: level.index,
+            ref: level.ref ?? initial?.ref,
+          }) : undefined}
           onRemove={() => {
             dispatch({ type: 'removeFilter', index: level.index })
             opener.current = whichHeading()
@@ -1031,7 +1106,12 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
     } else if (k === 'measure') {
       picker = <MeasurePicker cat={cat} plan={plan} byNeed={byNeed} onToggle={onToggleMeasure} onBack={back} />
     } else if (k === 'split') {
-      picker = <SplitPicker cat={cat} plan={plan} slot={level.slot} onPick={(key) => onSplit(level.slot, key)} onBack={back} />
+      picker = <SplitPicker cat={cat} plan={plan} slot={level.slot} onBack={back}
+        onPick={(key) => {
+          const kind = key ? refKindOf(sourceOf(cat, plan)?.fields.get(key)) : null
+          if (kind) setLevel({ kind: 'ref', refKind: kind, for: 'split', slot: level.slot, field: key })
+          else onSplit(level.slot, key)
+        }} />
     } else if (k === 'question') {
       picker = (
         <SaveQuestion usedIn={target.def?.usedIn || 0} answer={answer} onAnswer={setAnswer} fromNote={!!getPos}
@@ -1123,14 +1203,14 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
           <p className={notice ? styles.notice : styles.srOnly} role="status" data-testid="builder-notice">{notice}</p>
           <SourceSection cat={cat} plan={plan} accounts={accounts} onSource={onSource}
             onAccounts={(acc) => dispatch({ type: 'setAccounts', accounts: acc })} />
-          <WhichOnesSection cat={cat} plan={plan} accounts={accounts}
+          <WhichOnesSection cat={cat} plan={plan} accounts={accounts} toolNames={toolNames}
             onOpenRange={(el) => push({ kind: 'range' }, el)}
             onAddFilter={(el) => push({ kind: 'field' }, el)}
             onEditFilter={(i, el) => push({ kind: 'filter', field: plan.filters[i].field, index: i }, el)}
             onRemoveFilter={onRemoveFilterAt} />
           <MeasureSection cat={cat} plan={plan} byNeed={byNeed} onOpen={(el) => push({ kind: 'measure' }, el)}
             onRemove={onRemoveMeasure} />
-          <SplitSection cat={cat} plan={plan} onOpen={(slot, el) => push({ kind: 'split', slot }, el)}
+          <SplitSection cat={cat} plan={plan} toolNames={toolNames} onOpen={(slot, el) => push({ kind: 'split', slot }, el)}
             onClear={onClearSplit} onSort={(sort) => dispatch({ type: 'setSort', sort })} />
           <ViewSection cat={cat} plan={plan} unit={unit} onView={onView} onCompare={onCompare} onDisplay={onDisplay} />
           <NameSection name={name} nameTouched={state.nameTouched} subtitle={plan.display.subtitle}

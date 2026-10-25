@@ -27,8 +27,69 @@ export const VIEW_LABELS = Object.freeze([
 /** A reason the catalog did not send (an older server): still a sentence, never a blank greyed control. */
 export const FALLBACK_REASON = "This doesn't fit what you picked."
 
-/** The fields the server lists the member's own values for (`?field=`). */
-export const VOCAB_FIELDS = Object.freeze(['setup', 'mistake', 'emotion', 'symbol', 'account'])
+/** The fields the server lists the member's own values for (`?field=`). `routine` and `tracker` answer
+ *  `{id, name}` and are listed only while wave 9 is on (be router `VOCAB_TOOL_FIELDS`). */
+export const VOCAB_FIELDS = Object.freeze(['setup', 'mistake', 'emotion', 'symbol', 'account', 'routine', 'tracker'])
+
+// ── routines and trackers (wave 9, Task 9.17) ────────────────────────────────────────────────────
+
+/** The kinds a field's `refKind` names (be sources.Field.ref_kind). */
+export const REF_KINDS = Object.freeze(['routine', 'tracker'])
+
+/** The kind of member tool a field names ("routine" | "tracker"), or null. A filter or split on such a field carries
+ *  `ref`, the routine or tracker it reads (plan.py `_check_ref`). */
+export const refKindOf = (field) => (field && REF_KINDS.includes(field.refKind) ? field.refKind : null)
+
+/** "Which routine" / "Which tracker". */
+export const refQuestion = (kind) => (kind === 'tracker' ? 'Which tracker' : 'Which routine')
+
+/**
+ * The routine and the tracker a plan already names, by kind, leaving out the entry being edited (`skip`: `{filter:
+ * index}` or `{split: 'by' | 'then'}`). Mirrors plan.py `_ref_entries` + `_one_ref_per_kind`: a filter's `ref`, the
+ * split's `ref` (for `by`) and `ref2` (for `then`), each counted only where its field names a kind.
+ */
+export function planRefs(cat, plan, skip = {}) {
+  const fields = sourceOf(cat, plan)?.fields
+  const out = new Map()
+  const note = (key, ref) => {
+    const kind = refKindOf(fields?.get(key))
+    if (kind && typeof ref === 'string' && ref && !out.has(kind)) out.set(kind, ref)
+  }
+  ;(plan?.filters || []).forEach((f, i) => { if (skip.filter !== i) note(f?.field, f?.ref) })
+  const sp = plan?.split
+  if (sp && skip.split !== 'by') note(sp.by, sp.ref)
+  if (sp && skip.split !== 'then') note(sp.then, sp.ref2)
+  return out
+}
+
+/** The kinds whose names a plan's chips need: every ref, and a routine or tracker history filtered by Routine or
+ *  Tracker (its values are ids). */
+export function kindsNamed(cat, plan) {
+  const out = new Set(planRefs(cat, plan).keys())
+  for (const f of plan?.filters || []) if (REF_KINDS.includes(f?.field)) out.add(f.field)
+  return [...out]
+}
+
+/** The name a ref reads by: the member's own name for it, "A removed routine" once their list is known and lacks it,
+ *  or the field's label while the list loads. `names` is `{routine: Map, tracker: Map}` of id -> name. */
+export function refName(field, ref, names) {
+  const kind = refKindOf(field)
+  const known = kind && names && names[kind] instanceof Map ? names[kind] : null
+  if (known && known.has(String(ref))) return known.get(String(ref))
+  if (known) return kind === 'tracker' ? 'A removed tracker' : 'A removed routine'
+  return field?.label || ''
+}
+
+/**
+ * The sources whose rows are routine or tracker days (be plan.TOOL_SOURCES). They take every account
+ * (plan.S_TOOL_ACCOUNTS) and no "last N trades" range (plan.S_UNKNOWN_RANGE); the builder hides the one and disables
+ * the other. ⚠️ A rule mirrored from the engine: the catalog does not yet say which ranges a source refuses, so a
+ * wrong mirror costs the engine's refusal in the preview, never a saved bad widget. The 9.20 merge may serve it.
+ */
+export const TOOL_SOURCES = Object.freeze(['routine_history', 'tracker_history'])
+export const isToolSource = (plan) => TOOL_SOURCES.includes(plan?.source)
+/** plan._LAST_N_TRADES: a range counted in trades. */
+export const isTradeCountRange = (range) => isRecord(range) && /^last_\d+_trades$/.test(String(range.token || ''))
 
 /** The catalog, indexed. Tolerates a partial answer: every list defaults to empty. */
 export function indexCatalog(raw) {
@@ -195,19 +256,24 @@ export function valueArity(op) {
 const joinOr = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`)
 
 /** The label a value shows: the catalog's own (a bucket, yes/no), an account's name, or the value itself. */
-export function valueLabel(field, value, { accounts } = {}) {
+export function valueLabel(field, value, { accounts, toolNames } = {}) {
   const list = Array.isArray(field?.values) ? field.values : null
   if (list) {
     const hit = list.find((x) => isRecord(x) && x.value === value)
     if (hit && typeof hit.label === 'string') return hit.label
   }
   if (field?.key === 'account' && accounts instanceof Map && accounts.has(String(value))) return accounts.get(String(value))
+  // A routine history's Routine, a tracker history's Tracker: the member's own name for the id.
+  const names = REF_KINDS.includes(field?.key) && toolNames ? toolNames[field.key] : null
+  if (names instanceof Map && names.has(String(value))) return names.get(String(value))
   return String(value)
 }
 
 /** One filter as the sentence its chip reads ("Setup is Flag or VCP", "Hold days is under 2"). */
 export function filterSentence(field, filter, opts = {}) {
-  const label = field?.label || String(filter?.field || '')
+  // A field that names a routine or tracker reads as that one: "Morning prep is Done".
+  const label = refKindOf(field) && filter?.ref ? refName(field, filter.ref, opts.toolNames)
+    : field?.label || String(filter?.field || '')
   const values = Array.isArray(filter?.values) ? filter.values : []
   const shown = values.map((v) => valueLabel(field, v, opts))
   if (filter?.op === 'is' && field?.type === 'bool') return shown[0] || label

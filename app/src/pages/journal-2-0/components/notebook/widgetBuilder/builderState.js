@@ -19,6 +19,7 @@ export const PLAN_VERSION = 1
 export const DEFAULT_RANGE = Object.freeze({ token: 'last_90d' })
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+const isRef = (v) => typeof v === 'string' && v !== ''
 const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)))
 
 /** The display block every plan carries (plan.py fills the same defaults). */
@@ -44,11 +45,18 @@ export function normalizePlan(raw) {
     range: isRecord(p.range) ? p.range : { ...DEFAULT_RANGE },
     filters: Array.isArray(p.filters) ? p.filters.filter(isRecord).map((f) => ({
       field: f.field, op: f.op, values: Array.isArray(f.values) ? f.values : [], overridable: f.overridable === true,
+      // Wave 9: the routine or tracker a filter on a `refKind` field reads (plan.py `_check_ref`).
+      ...(isRef(f.ref) ? { ref: f.ref } : {}),
     })) : [],
     measures: Array.isArray(p.measures) ? p.measures.filter((m) => isRecord(m) && typeof m.key === 'string')
       .map((m) => ({ key: m.key })) : [],
     split: isRecord(p.split) && typeof p.split.by === 'string'
-      ? { by: p.split.by, then: typeof p.split.then === 'string' ? p.split.then : null } : null,
+      ? {
+        by: p.split.by, then: typeof p.split.then === 'string' ? p.split.then : null,
+        // `ref` names the routine or tracker of `by`, `ref2` the one of `then` (be Task 9.8).
+        ...(isRef(p.split.ref) ? { ref: p.split.ref } : {}),
+        ...(isRef(p.split.ref2) && typeof p.split.then === 'string' ? { ref2: p.split.ref2 } : {}),
+      } : null,
     view: isRecord(p.view) && typeof p.view.type === 'string'
       ? { type: p.view.type, auto: p.view.auto !== false } : { type: 'number', auto: true },
     sort: isRecord(p.sort) ? { measure: p.sort.measure ?? 0, dir: p.sort.dir || 'desc', top: p.sort.top ?? 10 } : null,
@@ -106,11 +114,15 @@ export function reducer(state, action) {
   switch (a.type) {
     case 'setSource': {
       if (a.source === state.plan.source && !a.measures) return state
-      // Another kind of row has other fields: its filters, split and order do not carry over.
+      // Another kind of row has other fields: its filters, split and order do not carry over. The sheet may also
+      // reset the accounts and the range the new source cannot take (wave 9: a routine or tracker source), in the
+      // same undo step.
       return commit(state, withPlan(state, {
         source: a.source,
         measures: Array.isArray(a.measures) ? a.measures.map((k) => ({ key: k })) : state.plan.measures,
         filters: [], split: null, sort: null, compare: null, view: { type: 'number', auto: true },
+        ...(a.accounts !== undefined ? { accounts: isRecord(a.accounts) ? { id: a.accounts.id } : 'all' } : {}),
+        ...(isRecord(a.range) ? { range: a.range } : {}),
       }, a), { type: a.type })
     }
     case 'setAccounts':
