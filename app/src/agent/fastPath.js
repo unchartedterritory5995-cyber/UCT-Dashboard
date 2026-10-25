@@ -120,8 +120,8 @@ function matchWhole(text, host) {
 // Stripped from the text before the clauses are parsed, and returned as a HINT
 // the orchestrator resolves against the positions each target kind publishes
 // (exactly one match → that target; several → it asks; "both/all" → one op per
-// target, which the multi-target policy turns into a proposal). The fast path
-// never resolves a target itself.
+// target, applied as ONE change with one Undo — policy.js, owner 2026-10-12). The
+// fast path never resolves a target itself.
 const POS = '(top-left|top-right|bottom-left|bottom-right|left|right|top|bottom|upper|lower)'
 const NOUN = '(?:\\s+(?:chart|one|widget))'
 const POS_RE = new RegExp(`\\b(?:(?:on|for|in|to)\\s+)?the\\s+${POS}${NOUN}?\\b|\\b${POS}${NOUN}\\b`, 'i')
@@ -218,9 +218,12 @@ function controlWord(t) {
   const u = t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|reverse|go back|put it back|take (?:that|it) back)\b)/, '')
   if (/^(undo|undo (that|it|this|the last (one|change|action|thing))|(revert|reverse)( that| it| this)?|(undo|revert|reverse) (the |my )?last (one|change|action|thing)|go back|put it back|take (that|it) back)$/.test(u)) return { kind: 'undo' }
   // "undo that indicator removal", "undo the last hide", "undo removing that" — the same Undo (the
-  // newest change); the noun only describes it, it never picks a different entry
-  if (/^(undo|revert|reverse) (that|the|my)( last)?( indicator| chart| widget| drawing| layout)? (removal|remove|deletion|delete|change|edit|addition|add|hide|show)$/.test(u)
-    || /^(undo|revert|reverse) (removing|deleting|hiding|showing|adding) (that|it|the indicator|that indicator)$/.test(u)) return { kind: 'undo' }
+  // newest change); the noun only describes it, it never picks a different entry. ⛔ F14: a NAMED
+  // kind ("indicator", "chart"…) is passed on — when the newest change isn't one, nothing is undone
+  // and the member is told what the newest change was (useAgent doUndo `about`).
+  const named = /^(?:undo|revert|reverse) (?:that|the|my)(?: last)?(?: (indicator|chart|widget|drawing|layout))? (?:removal|remove|deletion|delete|change|edit|addition|add|hide|show)$/.exec(u)
+    || /^(?:undo|revert|reverse) (?:removing|deleting|hiding|showing|adding) (?:that|it|(?:the|that) (indicator))$/.exec(u)
+  if (named) return named[1] ? { kind: 'undo', about: named[1] } : { kind: 'undo' }
   if (/^(do it|yes|yes please|yep|go ahead|apply( it| that| them)?|ok(ay)?(,)? do it|confirm|sounds good,? do it)$/.test(t)) return { kind: 'confirm' }
   if (/^(no|nope|cancel|never ?mind|don'?t|skip it|forget it)$/.test(t)) return { kind: 'dismiss' }
   const sub = /^(just |only )?(apply|do) (just |only )?the first (\d|one|two|three|four|five|six)( ones?| changes?| items?)?$/.exec(t)

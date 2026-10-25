@@ -22,9 +22,9 @@
 
 import { planShape } from './executor'
 
-/** Kept for importers; explicit plans are no longer capped by op count here (the server caps a
- *  plan at 12 ops). */
-export const APPLY_MAX_OPS = 6
+// Op counts are not this module's concern: a MODEL plan is capped at 12 ops by the server
+// (turn.py MAX_OPS = manifest.contract limits.maxOps); every plan, the fast path's included, by
+// executor.MAX_OPS.
 
 export function decideMode(suggested, plan) {
   if (suggested === 'propose') return 'propose'

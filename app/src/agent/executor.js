@@ -20,6 +20,9 @@
 
 import { getCapability, getTargetKind, shapeError } from './capabilities'
 
+// The CLIENT planner's ceiling, for every plan (fast path, references, expansions included): 24 units,
+// an expansion counting once, 96 raw ops at most. A MODEL plan is held to 12 ops before it gets here
+// (server turn.py MAX_OPS = contract/manifest.contract.json limits.maxOps; agentContracts.test.js).
 export const MAX_OPS = 24
 
 export function planOps(targets, ops, env = {}, ctx = null) {

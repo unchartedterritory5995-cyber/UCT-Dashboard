@@ -205,3 +205,33 @@ describe('⭐ the wire and the catalog', () => {
     expect(inputsOfArgs({ period: 7 }).ok).toBe(false)
   })
 })
+
+// ⛔ F4 (Phase 2 audit 2026-10-25): the Agent writes only the settings it advertises (int / float / enum / bool).
+// A colour (or source / text) setting the definition declares is refused BEFORE Indicators is asked, by name —
+// nothing written, on an add or an in-place edit, on a default overlay average or an instance the Agent added.
+describe('⛔ F4 — colours, sources and text are not written by the Agent', () => {
+  it('an in-place edit of a colour is refused; nothing is written', async () => {
+    const h = host(chartCs())
+    await run(h, [op('indicator.add', { defId: 'rsi', inputs: null })])
+    const writes = h.writes.length
+    const p = await plan(h, [op('indicator.update', { instance: 'rsi', inputs: [{ key: 'color', value: 'not-a-colour' }] })])
+    expect(p.ok).toBe(false)
+    expect(JSON.stringify(p.refusals)).toMatch(/can't change an indicator's colours/)
+    expect(h.writes.length).toBe(writes)
+  })
+
+  it('a default overlay average\'s colour is refused too; its length still changes', async () => {
+    const h = host(chartCs())
+    const p = await plan(h, [op('indicator.update', { instance: '#9', inputs: [{ key: 'color', value: 'green' }] })])
+    expect(p.ok).toBe(false)
+    await run(h, [op('indicator.update', { instance: '#9', inputs: [{ key: 'period', value: 10 }] })])
+  })
+
+  it('an add that names a colour is refused; the same add without it runs', async () => {
+    const h = host(chartCs())
+    const p = await plan(h, [op('indicator.add', { defId: 'rsi', inputs: [{ key: 'period', value: 7 }, { key: 'color', value: '#00ff00' }] })])
+    expect(p.ok).toBe(false)
+    expect(JSON.stringify(p.refusals)).toMatch(/colours/)
+    await run(h, [op('indicator.add', { defId: 'rsi', inputs: [{ key: 'period', value: 7 }] })])
+  })
+})

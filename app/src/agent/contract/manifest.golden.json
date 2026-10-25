@@ -2804,7 +2804,7 @@
    "name": "drawing.remove",
    "domain": "drawing",
    "target": "drawing",
-   "summary": "Remove ONE drawing by id from a chart's symbol (every chart on it). Refused for a locked drawing and for one an alert is attached to. Undo puts it back.",
+   "summary": "Remove ONE drawing by id from a chart's symbol (every chart and layout showing it). Always shown as a proposal first. Refused for a locked drawing and for one an alert is attached to. Undo puts it back.",
    "hints": "target = the drawings entry; drawing = its id. \"Remove the line I just added\" = the newest one. Clearing ALL drawings is not available.",
    "args": {
     "type": "object",
@@ -2818,7 +2818,7 @@
     ],
     "additionalProperties": false
    },
-   "risk": "local",
+   "risk": "confirm",
    "reversible": true,
    "undo": "exact",
    "query": false

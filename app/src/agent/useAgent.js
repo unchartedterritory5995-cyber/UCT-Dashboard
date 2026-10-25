@@ -87,17 +87,19 @@ export function translateRefs(ops, refMap) {
     return out
   })
 }
+// "undo that <noun> …" — the target kinds each noun names (F14)
+const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['chart'], widget: ['board', 'workspace'], drawing: ['drawing'], layout: ['layouts'] }
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
-function rememberChange(memory, host, ops) {
+function rememberChange(memory, host, ops, undoId = null) {
   try {
     const asChart = (o) => { const k = getTargetKind(getCapability(o.action)?.target); return k?.groupOf ? (k.groupOf(o.target) ?? o.target) : o.target }
     const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(o => ({ ...o, target: asChart(o) }))
     const refs = [...new Set(clean.map(o => o.target))]
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
-    memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym })
+    memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym, undoId })
     // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt
     const t = takeIndicatorTouch()
     if (t) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
@@ -770,9 +772,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (!saved.ok) {
         push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
+        // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
+        rememberChange(memoryRef.current, host, ops, null)
         return
       }
-      const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
+      const next =[...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
       // OWNER 2026-10-12: a Save followed by ONE chart add says both in ONE message — this receipt is
       // HELD and becomes the add's lead (said first in its message; said on its own if the add never runs)
       const holdForAdd = next.length === 1 && !!next[0].awaitDefinition && !deferred.length
@@ -782,7 +786,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
-      rememberChange(memoryRef.current, host, ops)
+      // with ITS Undo entry (pushed above only when the save was confirmed): a correction reverses
+      // exactly this change or nothing (nl1/interpreter.correctionPlan)
+      rememberChange(memoryRef.current, host, ops, res.undo?.id || null)
       if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
     } else {
       // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
@@ -884,7 +890,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     return undefined
   }, [executeInner, definitionListed, host, push, record])
 
-  const doUndo = useCallback(async (undoId, { member, voice } = {}) => {
+  const doUndo = useCallback(async (undoId, { member, voice, about = null } = {}) => {
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
     if (!entry) {
@@ -892,6 +898,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'fast', undo: true, voice } })
       return
+    }
+    // ⛔ F14: "undo that indicator removal" when my newest change was not an indicator change → nothing
+    // is undone; the member hears what the newest change WAS (Undo never reaches past it to an older one)
+    if (about && !entry.items.some(it => (UNDO_ABOUT[about] || []).includes(it.kind))) {
+      const text = `My last change wasn't ${about === 'indicator' ? 'an' : 'a'} ${about} change — it was: ${entry.lines.join(' · ') || 'something else'}. Nothing was undone; say “undo” to take that back.`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'undo-refused-mismatch' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
+      return false
     }
     const guarded = undoProtectionRefusal(host, entry)
     if (guarded) {
@@ -913,6 +927,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (res.ok) {
       withdrawPending()
       undoRef.current = stack.filter(e => e.id !== entry.id)
+      memoryRef.current.noteUndone(entry.id)   // an undone change is no longer "the last change" (F2)
       setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undone: true } : x)))
       let saved = entry.epoch != null && host?.persist && !selfSaved(entry.items)
         ? await (async () => { try { const r = await host.persist(); return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' } } catch { return { ok: false, reason: 'not-saved' } } })()
@@ -1070,7 +1085,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
       const fast = answering ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
-      if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice })
+      if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
       if (fast?.kind === 'dismiss' && pendingRef.current) return dismiss({ member: text })
@@ -1139,8 +1154,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', refused: true, voice } })
           return
         }
-        // "both / all" → one op set per target; the multi-target policy makes it
-        // a proposal. A position hint narrows by the positions the kind
+        // "both / all" → one op set per target, applied as ONE change with one Undo
+        // (policy.js, owner 2026-10-12). A position hint narrows by the positions the kind
         // publishes; anything still ambiguous asks. A lone target needs no hint.
         if (fast.target?.all && charts.length > 1) {
           return await execute(charts.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),

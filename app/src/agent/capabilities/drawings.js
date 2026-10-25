@@ -32,7 +32,7 @@ const WIDTHS = [1, 2, 3, 4]
 const TEMP = 'new:'
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const money = (n) => `$${Number(n).toLocaleString('en-US', { maximumFractionDigits: 4 })}`
-const STYLE_KEYS = ['color', 'lineStyle', 'lineWidth']
+const STYLE_KEYS = ['color', 'labelColor', 'lineStyle', 'lineWidth']
 
 /** The drawing as the Agent names it: its id, what it is, where. */
 const nameOf = (d) => `${objectTypeName(d.type)}${objectSummary(d) ? ` ${objectSummary(d)}` : ''}`
@@ -118,6 +118,8 @@ export const drawingKind = {
 
 const drawingArg = { type: 'string' }
 const byId = (st, id) => st.drawings.find(d => d.id === String(id)) || null
+// The key a drawing's own colour setting writes (ChartDrawingOverlay's style panel): a Price Move's is its label's.
+const colorKeyOf = (d) => (d && d.type === 'advance' ? 'labelColor' : 'color')
 const notFound = (id) => `There's no drawing “${id}” on this chart — use an id from the drawings entry.`
 const boundIds = (env) => env?.boundDrawingIds instanceof Set ? env.boundDrawingIds : null
 
@@ -221,7 +223,8 @@ export function registerDrawingCapabilities() {
     },
     apply(st, { drawing, color, style, width }) {
       const set = {}
-      if (color != null) set.color = normalizeColor(color)
+      // ⛔ F15: a Price Move ("advance") paints its label with `labelColor` — the key its own settings write
+      if (color != null) set[colorKeyOf(byId(st, drawing))] = normalizeColor(color)
       if (style != null) set.lineStyle = style
       if (width != null) set.lineWidth = width
       return { ...st, drawings: st.drawings.map(d => (d.id === String(drawing) ? { ...d, ...set } : d)) }
@@ -230,7 +233,8 @@ export function registerDrawingCapabilities() {
       const o = byId(b, drawing), n = byId(a, drawing)
       if (!o || !n || same(o, n)) return null
       const what = []
-      if (o.color !== n.color) what.push(`colour ${n.color}`)
+      const ck = colorKeyOf(o)
+      if (o[ck] !== n[ck]) what.push(`colour ${n[ck]}`)
       if ((o.lineStyle || 'solid') !== (n.lineStyle || 'solid')) what.push(n.lineStyle)
       if ((o.lineWidth || 1) !== (n.lineWidth || 1)) what.push(`${n.lineWidth}px`)
       return `Restyled the ${nameOf(o)} on ${a.symbol}: ${what.join(', ')}`
@@ -241,7 +245,10 @@ export function registerDrawingCapabilities() {
   registerCapability({
     ...common,
     name: 'drawing.remove',
-    summary: 'Remove ONE drawing by id from a chart\'s symbol (every chart on it). Refused for a locked drawing and for one an alert is attached to. Undo puts it back.',
+    // ⛔ OWNER 2026-10-25 (Phase 2 decision 2): a drawing belongs to the SYMBOL — every chart and layout
+    // showing it — so a removal is always shown first and runs only on approval.
+    risk: 'confirm',
+    summary: 'Remove ONE drawing by id from a chart\'s symbol (every chart and layout showing it). Always shown as a proposal first. Refused for a locked drawing and for one an alert is attached to. Undo puts it back.',
     hints: 'target = the drawings entry; drawing = its id. "Remove the line I just added" = the newest one. Clearing ALL drawings is not available.',
     args: { type: 'object', properties: { drawing: drawingArg }, required: ['drawing'], additionalProperties: false },
     // Which drawings carry an alert — the server's own list, read fresh for every removal.
@@ -263,7 +270,7 @@ export function registerDrawingCapabilities() {
     apply: (st, { drawing }) => ({ ...st, drawings: st.drawings.filter(d => d.id !== String(drawing)) }),
     describe(b, a, { drawing }) {
       const o = byId(b, drawing)
-      return o && !byId(a, drawing) ? `Removed the ${nameOf(o)} from ${a.symbol}` : null
+      return o && !byId(a, drawing) ? `Removed the ${nameOf(o)}${o.hidden ? ' (hidden)' : ''} from ${a.symbol} — on every chart and layout showing ${a.symbol}` : null
     },
   })
 }

@@ -131,6 +131,32 @@ describe('Gate C conversations — references from session memory, through the r
     save()
   }, 60000)
 
+  // ⛔ F2 (Phase 2 audit 2026-10-25): an undone change is not "the last change" any more
+  it('after Undo, "do the same on the right one" never repeats the change that was taken back', async () => {
+    const b = board([{ id: 'L', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'R', type: 'chart', x: 12, y: 0, w: 12, h: 20, color: 'B' }], { A: 'SPY', B: 'QQQ' })
+    const { say, transcript } = mount(b, 'conversation-f2-undo-then-same')
+    await say('make the left chart weekly')
+    await waitFor(() => expect(chart(b, 'L').tf).toBe('W'))
+    await say('undo')
+    await waitFor(() => expect(chart(b, 'L').tf).toBe('D'))
+    await say('do the same on the right one')
+    await waitFor(() => expect(transcript()).toContain("I don't have a recent change to repeat"))
+    expect(chart(b, 'R').tf).toBe('D')
+  }, 60000)
+
+  // ⛔ F14: the noun names what to undo — a change of another kind is never reached
+  it('"undo that indicator removal" after a CHART change undoes nothing and says what the last change was', async () => {
+    const b = board([{ id: 'L', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], { A: 'SPY' })
+    const { say, transcript } = mount(b, 'conversation-f14-named-undo')
+    await say('switch to weekly')
+    await waitFor(() => expect(chart(b, 'L').tf).toBe('W'))
+    await say('undo that indicator removal')
+    await waitFor(() => expect(transcript()).toMatch(/My last change wasn't an indicator change/))
+    expect(chart(b, 'L').tf).toBe('W')
+    await say('undo')
+    await waitFor(() => expect(chart(b, 'L').tf).toBe('D'))
+  }, 60000)
+
   it('the model path sees the memory: results in the order shown, the correction — never values', async () => {
     const b = board([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], { A: 'QQQ' })
     const { say, transcript } = mount(b, 'conversation-9-model-memory')
