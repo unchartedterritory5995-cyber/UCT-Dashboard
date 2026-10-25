@@ -9,6 +9,7 @@
  */
 import ChoiceList from './ChoiceList'
 import { barsWord, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
+import { hveAnnotations, isHveItem } from '../hveOverlay'
 
 export const NONE_LABEL = 'None of these'
 
@@ -44,4 +45,16 @@ export function Body({ item, state, setState, locked }) {
 export const answerFromState = choiceAnswer
 export const isAnswerable = choiceAnswerable
 
-export default { Body, answerFromState, isAnswerable, choicesOf, framingOf }
+/**
+ * Drawings for the player's ONE chart. Only a High Volume Edge item carries any,
+ * and only on reveal: a horizontal ray from the HVE candle's close (the HVC) and
+ * an AVWAP anchored on that candle (owner ruling 2026-10-25). Before the reveal
+ * the chart stays bare: the question is whether the setup is there at all, and
+ * a ray on the cutoff bar would answer it.
+ */
+export function annotationsFor(state, item, reveal, bars) {
+  if (!reveal || !isHveItem(item)) return null
+  return hveAnnotations(item, bars)
+}
+
+export default { Body, answerFromState, isAnswerable, choicesOf, framingOf, annotationsFor }
