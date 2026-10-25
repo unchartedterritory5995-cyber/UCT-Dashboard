@@ -875,6 +875,40 @@ def _risk_lines(info: dict, open_options: int, anything_open: bool,
     return lines
 
 
+def positions_capped_line() -> str:
+    """Said when the open positions read overflowed (M8): the risk covers the first ones only."""
+    return (f"Counting the first {READ_LIMIT - 1:,} of your open positions; you hold more, so the "
+            "open risk is not complete.")
+
+
+def read_open_positions(user_id: str, conn: sqlite3.Connection) -> tuple[list[dict], bool]:
+    """(the member's open positions, on every account and on none, at most `READ_LIMIT` - 1; True
+    when there were more). The ONE read both risk widgets use (fix 10.11 M8). Raises on an
+    unreadable store: the caller says so, never "No open positions."."""
+    from api.services.journal_two import positions as j2_positions
+    rows = list(j2_positions.list_open_positions(user_id, conn) or [])
+    keep = READ_LIMIT - 1
+    return rows[:keep], len(rows) > keep
+
+
+def open_risk(user_id: str, positions: list[dict], *, conn: sqlite3.Connection | None = None,
+              account_id: str | None = None, size: float | None = None, open_options: int = 0,
+              anything_open: bool | None = None) -> dict:
+    """THE open risk to stops of one group of positions already read: `{ok, risk, real, noStop,
+    unread, lines}` (fix 10.11 I-3: the one authority Risk left today and the Pre-market game plan
+    both ask). `risk` is the dollars to the REAL stops through `portfolio_heat`, None when no
+    position has one or heat could not run (never a made-up 0); a placeholder stop is `noStop`; a
+    position heat skipped is `unread`. `lines` are the group's sentences, the "under $1" wording
+    included. `size` only feeds heat's percentages, which nothing here reads. `conn` is accepted
+    for a caller that holds one; nothing is read here, the positions are already in hand."""
+    group = list(positions or [])
+    info = (_risk_of(_heat(user_id, account_id, size or 1.0, group), len(group)) if group
+            else dict(_NO_RISK))
+    if anything_open is None:
+        anything_open = bool(group) or bool(open_options)
+    return {**info, "lines": _risk_lines(info, open_options, anything_open, True)}
+
+
 def _after_line(after: float, with_unlinked: bool) -> str:
     lead = ("If every stop is hit, including positions not linked to an account"
             if with_unlinked else "If every stop is hit")
@@ -920,7 +954,7 @@ def _account_block(a: dict, net: float | None, info: dict, open_options: int,
         lines.append(_room_line(left, limit))
     elif limited:
         lines.append(S_RISK_NO_SIZE)
-    lines += _risk_lines(info, open_options, anything_open, positions_ok)
+    lines += list(info.get("lines") or []) if positions_ok else []
     if left is not None and positions_ok and info["risk"] is not None:
         after = left - info["risk"]
         block["afterStops"] = _num(after)
@@ -941,10 +975,9 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
     today = trading_days.today_et(now_dt)
     session = trading_days.session_on_or_before(today)       # the session today is counted on
     lo, hi = session.isoformat(), today.isoformat()
-    from api.services.journal_two import positions as j2_positions
     blocks: list[dict] = []
     sources: list = []
-    unattributed = flagged_over = False
+    unattributed = flagged_over = positions_capped = False
     no_result = 0
     rest: list[dict] = []
     with _read(None) as c, _deadline(c):
@@ -955,7 +988,7 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
         limited_ids = {a["id"] for a in accs if (_num(a.get("daily_loss_limit_pct")) or 0) > 0}
         positions_ok = True
         try:
-            all_positions = list(j2_positions.list_open_positions(user_id, c) or [])
+            all_positions, positions_capped = read_open_positions(user_id, c)
         except Exception:  # noqa: BLE001 -- unread positions are said so, never a failed widget
             positions_ok, all_positions = False, []
         opens = _open_strategy_counts(c, user_id)
@@ -966,10 +999,14 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
             grouped.setdefault(key, []).append(pos)
         sources += [pos.get("source") for pos in all_positions]
         sizes = {a["id"]: accounts.own_account_size(a) for a in accs}
-        # Heat over EVERY group: accounts with no limit, with no size, past the cap, and unlinked.
+        unlinked_opts = sum(n for k, n in opens.items() if k not in ids)
+        # The open risk of EVERY group (accounts with no limit, with no size, past the cap, and the
+        # unlinked positions) through the one authority, `open_risk` (fix 10.11 I-3).
         info: dict[str | None, dict] = {}
         for key, group in _counted(list(grouped.items())):
-            info[key] = _risk_of(_heat(user_id, key, sizes.get(key) or 1.0, group), len(group))
+            info[key] = open_risk(user_id, group, account_id=key, size=sizes.get(key),
+                                  open_options=unlinked_opts if key is None else opens.get(key, 0),
+                                  anything_open=anything_open)
         block_accs = [a for a in accs
                       if a["id"] in limited_ids or grouped.get(a["id"]) or opens.get(a["id"])]
         shown, rest = block_accs[:ROW_CAP], block_accs[ROW_CAP:]
@@ -1001,18 +1038,19 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
                     sources.append(f["source"])
             no_result = _no_result_closes(c, user_id, lo, hi)
         for a in _counted(shown):
-            blocks.append(_account_block(a, per.get(a["id"], 0.0), info.get(a["id"], _NO_RISK),
+            a_info = info.get(a["id"]) or open_risk(
+                user_id, [], open_options=opens.get(a["id"], 0), anything_open=anything_open)
+            blocks.append(_account_block(a, per.get(a["id"], 0.0), a_info,
                                          opens.get(a["id"], 0), anything_open, positions_ok,
                                          flagged_by.get(a["id"], 0)))
-        unlinked_opts = sum(n for k, n in opens.items() if k not in ids)
-        u_info = info.get(None, _NO_RISK)
+        u_info = info.get(None) or open_risk(user_id, [], open_options=unlinked_opts,
+                                             anything_open=anything_open)
         if grouped.get(None) or unlinked_opts:
             blocks.append({"accountId": None, "name": UNLINKED_NAME,
                            "openRisk": u_info["risk"] if positions_ok else None,
                            "noStop": u_info["noStop"] if positions_ok else None,
                            "openOptions": unlinked_opts,
-                           "lines": _risk_lines(u_info, unlinked_opts, anything_open,
-                                                positions_ok)})
+                           "lines": list(u_info["lines"]) if positions_ok else []})
             own = blocks[0] if blocks and len(ids) == 1 and blocks[0]["accountId"] else None
             if own is not None and own.get("left") is not None and u_info["risk"] is not None:
                 # W10-R34: one account -- its "if every stop is hit" includes the unlinked risk.
@@ -1030,6 +1068,8 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
     lines: list[str] = []
     if not heat_ok:
         lines.append(S_RISK_UNREAD)
+    if positions_capped:
+        lines.append(positions_capped_line())
     if unread_n:
         lines.append(_unread_line(unread_n))
     if not limited_ids:
@@ -1064,7 +1104,7 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
                 named = sorted(parts, key=lambda p: -p[1])[:TOTAL_NAMES]
             text = ", ".join(f"{name} {_amount(v)}" for name, v in named)
             if len(parts) > len(named):
-                text += f", and {len(parts) - len(named)} others"
+                text += f", and {_plural(len(parts) - len(named), 'other', 'others')}"
             line += " (" + text + ")"
         lines.append(line + ".")
     out: dict[str, Any] = {
@@ -1079,6 +1119,8 @@ def my_risk_left_today(user_id: str, params: dict, now: datetime) -> dict:
     }
     if rest:
         out["truncated"] = len(rest)
+    if positions_capped:
+        out["positionsCapped"] = True
     return out
 
 

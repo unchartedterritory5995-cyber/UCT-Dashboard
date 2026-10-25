@@ -4,13 +4,15 @@ Three builders, each `(user_id: str, params: dict, now: datetime) -> dict`:
 
   * `my_plan_vs_actual` (`myPlanVsActual`, "Plan vs actual"): one closed trade the member owns,
     laid out against its frozen plan (`plan_grading.get_link`). Every number `grade_checks`
-    computes is taken from it; the builder only lays the rows out.
+    computes is taken from it; the builder only lays the rows out. It follows the plan-grading
+    switch (ruling W10-R38): off, it reads "Not available right now." and reads nothing.
   * `my_game_plan` (`myGamePlan`, "Pre-market game plan"): three parts that fail alone -- the
-    morning wire (`trader_blocks.prep_part("wire")`), the member's names reporting today
-    (`prep_part("earnings")`), and the open risk to stops over every account
-    (`portfolio_heat`).
+    morning wire (`trader_blocks.prep_part("wire")`), the member's names reporting today and last
+    night (`prep_part("earnings")`, ruling W10-R39), and the open risk to stops over every account
+    (`shelf_discipline.open_risk`, the one authority Risk left today also asks).
   * `my_alerts_fired` (`myAlertsFired`, "Alerts that fired"): both append-only fire logs since the
-    previous finished session's close (ruling W10-R10).
+    previous finished session's close (ruling W10-R10), each row in the log's own words
+    (ruling W10-R37).
 
 Every payload carries `asOf`, `source` ("broker" / "manual" / "mixed") and `lines`, the member's
 sentences in order. An unknown value is None, never 0, and no string shows `0`, `$0`, `0%`,
@@ -26,9 +28,10 @@ The facts each figure follows:
     short filled below it.
   * A stop that is a broker placeholder or unusable (`placeholder_stop.is_placeholder_stop`) reads
     "No stop set", never a 0 stop. In the game plan it is counted in `noStop` and is never zero
-    risk (`portfolio_heat` leaves it out of the open risk).
+    risk.
   * Open risk counts EVERY open position, including those on no account or on an account that no
-    longer exists (ruling W10-R34). Positions are read ONCE, for all accounts. "No open
+    longer exists (ruling W10-R34). Positions are read ONCE, for all accounts, through
+    `shelf_discipline.read_open_positions` (at most 5,000, an overflow said so). "No open
     positions." only when no position and no open option strategy exists anywhere.
   * The game plan's reads are held-only (`prep_part` never fetches from a vendor).
   * Day boundaries: `since` is `close_time(session_on_or_before(today - 1))`, so the Monday after
@@ -38,8 +41,8 @@ The facts each figure follows:
     only), so `options.exit_is_date_only` has nothing to guard here.
   * Caps: each fire log is read with `limit=ALERT_READ_LIMIT` (50) and `ALERT_ROW_CAP` (40) rows
     are kept (W10-R10). A log whose read came back full with its oldest row still inside the
-    window may hold more, and the payload says so (`capped`); a trimmed list says how many are
-    left out (`truncated`). Every SQL read here is bounded and runs under `run.deadline`.
+    window may hold more: the count reads "at least N" and the payload carries `capped`. Every SQL
+    read here is bounded and runs under `run.deadline`.
 
 Refusals are `ParamError` (`tool_errors.ToolError`, W9-R14). It is the SAME class as
 `shelf_discipline.ParamError`, imported, so the router catches one class; Task 10.12 re-homes it
@@ -50,15 +53,14 @@ Private names imported from other modules (for 10.12's tidy-up): `notebook_widge
 """
 from __future__ import annotations
 
-import math
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
 from api.services import session_calendar
 from api.services.journal_two import plan_grading, sample_marker, trading_days, widget_definitions
+from api.services.journal_two import shelf_discipline
 from api.services.journal_two.notebook_widgets import _iso_utc, _num, _origin
-from api.services.journal_two.routine_insights import money
 from api.services.journal_two.shelf_discipline import ParamError
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import plan as wplan
@@ -81,7 +83,7 @@ PARAMS = {
     KIND_GAME_PLAN: (),
     KIND_ALERTS_FIRED: (),
 }
-#: Names reporting today shown at most.
+#: Names reporting (today, and last night) shown at most, each.
 REPORTING_MAX = 10
 #: Each fire log is read with this limit (W10-R10).
 ALERT_READ_LIMIT = 50
@@ -91,6 +93,7 @@ ALERT_ROW_CAP = 40
 # -- member sentences -------------------------------------------------------------------------------
 
 S_NOT_AVAILABLE = "Not available."
+S_NOT_AVAILABLE_NOW = "Not available right now."
 S_PVA_UNLINKED = "This trade isn't linked to a plan. Link one from the trade's page."
 S_NOT_IN_PLAN = "Not in the plan"
 S_NO_STOP = "No stop set"
@@ -99,18 +102,35 @@ S_WIRE_NOT_YET = "The morning wire has not published yet today."
 S_WIRE_UNREAD = "The morning wire couldn't be read right now."
 S_EARNINGS_NONE = "None of your names report today."
 S_EARNINGS_UNREAD = "Earnings dates couldn't be read right now."
-S_RISK_NO_POSITIONS = "No open positions."
-S_RISK_UNREAD = "Your open positions couldn't be read right now."
+S_NAMES_UNREAD = "Your names couldn't be read right now."
+S_NAMES_SOME_UNREAD = "Some of your names couldn't be read right now."
+S_RISK_UNREAD = shelf_discipline.S_RISK_UNREAD       # one authority for the sentence
 
 S_ALERTS_EMPTY = "No alerts fired since the last session."
 S_ALERTS_UNREAD = "Some alerts couldn't be read right now."
-S_ALERTS_MORE = "More alerts may have fired than this widget reads; these are the newest."
 WHAT_FALLBACK = "Alert fired"
 
 #: The earnings snapshot's gaps that mean "the read did not answer" (held cache empty, or a read
 #: that failed). `no_names` is an answer: the member has no names, so none of them report.
 _EARNINGS_UNREAD_GAPS = ("no_earnings_yet", "source_error")
-_WHEN = (("bmo", "before the open"), ("amcTonight", "after the close"))
+#: Today's reporters: before today's open, after today's close.
+_WHEN_TODAY = (("bmo", "before the open"), ("amcTonight", "after the close"))
+#: The member's names read for the game plan (member_interest's sources, the firm's UCT 20 out).
+_OWN_SOURCES_SKIP = ("uct20",)
+
+#: An indicator fire's condition, in words (`alert_fired_log.CONDITION_KIND`'s keys). A condition
+#: that names its own level carries no threshold in the text.
+_CONDITION_WORDS = {
+    "above": "above", "below": "below",
+    "cross_above": "crossed above", "cross_below": "crossed below",
+    "cross_zero": "crossed zero",
+    "touch_upper": "touched the upper band", "touch_lower": "touched the lower band",
+}
+_NO_THRESHOLD = ("cross_zero", "touch_upper", "touch_lower")
+#: The detail fields each S7 type's shape is built from: a fire whose detail holds none of them is
+#: not shaped (the shape would fill the gaps with "filing" and "an unknown date").
+_SHAPE_NEEDS = {"document-arrival": ("form", "filed", "company"),
+                "rating-change": ("action", "to_grade", "from_grade")}
 
 
 def _s_unknown_kind() -> str:
@@ -141,18 +161,9 @@ def _plural(n: int, one: str, many: str) -> str:
     return f"{n} {one if n == 1 else many}"
 
 
-def _is_are(n: int) -> str:
-    return "is" if n == 1 else "are"
-
-
 def _price(v: float) -> str:
     """A price with cents: "$184.20", "$1,250.00"."""
     return f"${abs(v):,.2f}"
-
-
-def _dollars(v: float) -> str:
-    """Whole dollars, unsigned (money words, `routine_insights.money`)."""
-    return money(abs(v)).lstrip("+")
 
 
 def _signed_pct(v: float) -> str:
@@ -189,18 +200,24 @@ def _not_available(now_dt: datetime) -> dict:
             "tradeId": None, "rows": [], "lines": [S_NOT_AVAILABLE]}
 
 
-def _realized_r(c: sqlite3.Connection, user_id: str, t: sqlite3.Row, ref: str) -> float | None:
-    """The trade's effective R: its stop-based `r_multiple`, else the stored excursion's true R
-    (the `analytics._effective_r_map` rule, read, never recomputed)."""
+def _excursion(c: sqlite3.Connection, user_id: str, ref: str) -> dict:
+    """The trade's stored excursion (`excursions_store.get_excursion`, scoped), or {}."""
+    from api.services.journal_two import excursions_store
+    try:
+        return excursions_store.get_excursion(user_id, ref, c) or {}
+    except sqlite3.OperationalError:
+        return {}
+
+
+def _realized_r(t: sqlite3.Row, exc: dict) -> tuple[float | None, bool]:
+    """(the trade's effective R, True when it is the excursion's true R): its stop-based
+    `r_multiple`, else the stored true R (the `analytics._effective_r_map` rule, read, never
+    recomputed)."""
     r = _num(t["r_multiple"]) if "r_multiple" in t.keys() else None
     if r is not None:
-        return r
-    try:
-        row = c.execute("SELECT true_r FROM j2_trade_excursions WHERE user_id = ? AND trade_ref = ?",
-                        (user_id, ref)).fetchone()
-    except sqlite3.OperationalError:
-        return None
-    return _num(row["true_r"]) if row is not None else None
+        return r, False
+    tr = _num(exc.get("trueR"))
+    return tr, tr is not None
 
 
 def _entry_row(checks: dict, plan: dict, side: str, fill: float) -> dict:
@@ -211,22 +228,23 @@ def _entry_row(checks: dict, plan: dict, side: str, fill: float) -> dict:
     out: dict[str, Any] = {"label": "Entry", "planned": planned, "actual": actual,
                            "slippage": None, "slippagePct": None, "state": e.get("state")}
     if planned is None:
-        out["text"] = (f"{S_NOT_IN_PLAN}; filled at {_price(actual)}." if actual is not None
-                       else f"{S_NOT_IN_PLAN}.")
-        return out
-    # Positive slippage is worse: a long filled above its plan, a short filled below it.
-    slip = sign * (actual - planned)
-    pct = _num(e.get("deltaPct"))
-    slip_pct = sign * pct if pct is not None else (slip / planned if planned else None)
-    out.update(slippage=_num(slip), slippagePct=_num(slip_pct))
-    head = f"Planned {_price(planned)}, filled {_price(actual)}"
-    if round(slip, 2) == 0:
-        out["text"] = f"{head}; filled at the plan."
+        body = (f"{S_NOT_IN_PLAN}; filled at {_price(actual)}." if actual is not None
+                else f"{S_NOT_IN_PLAN}.")
     else:
-        word = "worse" if slip > 0 else "better"
-        pct_s = f" ({_signed_pct(slip_pct)})" if slip_pct is not None and round(
-            abs(slip_pct) * 100, 1) else ""
-        out["text"] = f"{head}; {_price(slip)}{pct_s} {word} than the plan."
+        # Positive slippage is worse: a long filled above its plan, a short filled below it.
+        slip = sign * (actual - planned)
+        pct = _num(e.get("deltaPct"))
+        slip_pct = sign * pct if pct is not None else (slip / planned if planned else None)
+        out.update(slippage=_num(slip), slippagePct=_num(slip_pct))
+        head = f"Planned {_price(planned)}, filled {_price(actual)}"
+        if round(slip, 2) == 0:
+            body = f"{head}; filled at the plan."
+        else:
+            word = "worse" if slip > 0 else "better"
+            pct_s = f" ({_signed_pct(slip_pct)})" if slip_pct is not None and round(
+                abs(slip_pct) * 100, 1) else ""
+            body = f"{head}; {_price(slip)}{pct_s} {word} than the plan."
+    out["text"] = f"Entry: {body}"
     return out
 
 
@@ -239,11 +257,11 @@ def _stop_row(checks: dict, plan: dict, t: sqlite3.Row) -> dict:
     actual = None if is_placeholder_stop(raw, t["entry_price"]) else _num(raw)
     head = f"Planned {_price(planned)}" if planned is not None else S_NOT_IN_PLAN
     if actual is None:
-        text = f"{head}. {S_NO_STOP} on the trade."
+        body = f"{head}. {S_NO_STOP} on the trade."
     else:
-        text = f"{head}{',' if planned is not None else ';'} your stop {_price(actual)}."
+        body = f"{head}{',' if planned is not None else ';'} your stop {_price(actual)}."
     return {"label": "Stop", "planned": planned, "actual": actual, "state": s.get("state"),
-            "text": text}
+            "text": f"Stop: {body}"}
 
 
 def _target_row(checks: dict, plan: dict, fill_exit: float) -> dict:
@@ -251,30 +269,39 @@ def _target_row(checks: dict, plan: dict, fill_exit: float) -> dict:
     planned = _num(g.get("planned")) if "planned" in g else _num(plan.get("target"))
     actual = _num(g.get("exit")) if "exit" in g else _num(fill_exit)
     if planned is None:
-        text = f"{S_NOT_IN_PLAN}; exited at {_price(actual)}." if actual is not None else \
+        body = f"{S_NOT_IN_PLAN}; exited at {_price(actual)}." if actual is not None else \
             f"{S_NOT_IN_PLAN}."
     else:
-        text = f"Planned {_price(planned)}, exited at {_price(actual)}."
-    return {"label": "Target", "planned": planned, "actual": actual, "state": g.get("state"),
-            "text": text}
+        body = f"Planned {_price(planned)}, exited at {_price(actual)}."
+    state = g.get("state")
+    # "unknown" (no excursion read) is not a state a member is shown: it is absent.
+    return {"label": "Target", "planned": planned, "actual": actual,
+            "state": None if state == "unknown" else state, "text": f"Target: {body}"}
 
 
-def _r_row(checks: dict, plan: dict, realized: float | None) -> dict:
+def _r_row(checks: dict, plan: dict, realized: float | None, true_r: bool) -> dict:
     r_unit = _num(checks.get("r"))
     pe, pt = _num(plan.get("entry")), _num(plan.get("target"))
     planned = None
     if r_unit and pe is not None and pt is not None:
         planned = _num(abs(pt - pe) / r_unit)
     head = _r_text(planned) if planned is not None else S_NOT_IN_PLAN
-    tail = f"realized {_r_text(realized)}" if realized is not None else "realized R not recorded"
-    text = f"Planned {head}, {tail}." if planned is not None else f"{head}; {tail}."
-    return {"label": "R", "planned": planned, "actual": realized, "text": text}
+    if realized is not None:
+        tail = f"realized {_r_text(realized)}" + (" (true R)" if true_r else "")
+    else:
+        tail = "realized R not recorded"
+    body = f"Planned {head}, {tail}." if planned is not None else f"{head}; {tail}."
+    return {"label": "R", "planned": planned, "actual": realized,
+            "source": ("trueR" if true_r else "stop") if realized is not None else None,
+            "text": f"R: {body}"}
 
 
 def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
     """One owned closed trade against its frozen plan: Entry, Stop, Target, R."""
     now_dt = _utc(now)
     p = clean_params(KIND_PLAN_VS_ACTUAL, params)
+    if not plan_grading.enabled():                 # W10-R38: before any read
+        return {**_not_available(now_dt), "lines": [S_NOT_AVAILABLE_NOW]}
     tid = p.get("tradeId")
     if not tid:
         return _not_available(now_dt)
@@ -289,7 +316,7 @@ def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
             if link is not None and link.get("noteId") and sample_marker.is_sample_note(
                     c, user_id, link["noteId"]):
                 link = None                                    # a sample is never the member's plan
-            realized = _realized_r(c, user_id, t, ref)
+            exc = _excursion(c, user_id, ref)
     finally:
         c.close()
     base: dict[str, Any] = {"asOf": _iso_utc(now_dt), "source": _origin([t["source"]]),
@@ -301,11 +328,12 @@ def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
     plan = link.get("plan") or {}
     trade = {"side": t["side"], "entryPrice": float(t["entry_price"]),
              "exitPrice": float(t["exit_price"]), "shares": float(t["shares"])}
-    checks = plan_grading.grade_checks(plan, trade)
+    checks = plan_grading.grade_checks(plan, trade, mfe_price=_num(exc.get("mfePrice")))
+    realized, true_r = _realized_r(t, exc)
     rows = [_entry_row(checks, plan, t["side"], trade["entryPrice"]),
             _stop_row(checks, plan, t),
             _target_row(checks, plan, trade["exitPrice"]),
-            _r_row(checks, plan, realized)]
+            _r_row(checks, plan, realized, true_r)]
     base.update(rows=rows, lines=[r["text"] for r in rows],
                 followedPlan=checks.get("followedPlan"))
     if checks.get("sideMismatch"):
@@ -341,55 +369,94 @@ def _wire_part(user_id: str, now_dt: datetime, today: date, memo: dict) -> dict:
     return out
 
 
+def _names_unread(user_id: str) -> tuple[bool, bool]:
+    """(some of the member's own names could not be read, none of them could be): asked only when
+    the earnings answer came back empty, so "none of your names report" is never said about names
+    that were never read (fix M3). `member_interest.interest_for`'s `failed`, the UCT 20 left out
+    as in `trader_blocks._my_names`."""
+    from api.services import member_interest
+    try:
+        got = member_interest.interest_for(user_id) or {}
+    except Exception:  # noqa: BLE001 -- interest_for never raises; an unreadable read is unread
+        return True, True
+    failed = [f for f in got.get("failed") or [] if f not in _OWN_SOURCES_SKIP]
+    if not failed:
+        return False, False
+    by = got.get("by_source") or {}
+    have = any(by.get(n) for n in member_interest.SOURCES if n not in _OWN_SOURCES_SKIP)
+    return True, not have
+
+
+def _symbols(rows: Any) -> list[str]:
+    out: list[str] = []
+    for sym in rows if isinstance(rows, list) else []:
+        s = str(sym or "").upper()
+        if s and s not in out:
+            out.append(s)
+    return out
+
+
 def _reporting_part(user_id: str, now_dt: datetime, today: date, memo: dict) -> dict:
     from api.services.journal_two import trader_blocks
-    out: dict[str, Any] = {"names": None}
+    out: dict[str, Any] = {"names": None, "lastNight": None}
     try:
         snap = trader_blocks.prep_part(user_id, "earnings", now=now_dt, memo=memo)
     except Exception:  # noqa: BLE001
         out["lines"] = [S_EARNINGS_UNREAD]
         return out
     snap = snap if isinstance(snap, dict) else {}
-    missing = snap.get("missing")
-    as_of = snap.get("asOf")
-    if missing in _EARNINGS_UNREAD_GAPS or (not missing and as_of and as_of != today.isoformat()):
-        out["lines"] = [S_EARNINGS_UNREAD]                  # unanswered, or another day's answer
+    if snap.get("missing") in _EARNINGS_UNREAD_GAPS:
+        out["lines"] = [S_EARNINGS_UNREAD]                  # the read did not answer
         return out
     names: list[dict] = []
     seen: set[str] = set()
-    for key, when in _WHEN:
-        for sym in snap.get(key) or []:
-            s = str(sym or "").upper()
-            if s and s not in seen:
+    for key, when in _WHEN_TODAY:
+        for s in _symbols(snap.get(key)):
+            if s not in seen:
                 seen.add(s)
                 names.append({"symbol": s, "when": when})
+    # W10-R39: last night's after-close reporters, their own list (not "today").
+    last = [s for s in _symbols(snap.get("amc")) if s not in seen]
     out["names"] = names[:REPORTING_MAX]
+    out["lastNight"] = last[:REPORTING_MAX]
     if len(names) > REPORTING_MAX:
         out["truncated"] = len(names) - REPORTING_MAX
-    if not names:
-        out["lines"] = [S_EARNINGS_NONE]
-    else:
-        lines = [f"{n['symbol']} reports {n['when']}." for n in out["names"]]
+    if len(last) > REPORTING_MAX:
+        out["lastNightTruncated"] = len(last) - REPORTING_MAX
+    lines: list[str] = []
+    if names:
+        lines += [f"{n['symbol']} reports {n['when']}." for n in out["names"]]
         if out.get("truncated"):
             lines.append(f"{_plural(out['truncated'], 'more name reports', 'more names report')}"
                          " today.")
-        out["lines"] = lines
+    if last:
+        more = (f", and {_plural(out['lastNightTruncated'], 'other', 'others')}"
+                if out.get("lastNightTruncated") else "")
+        lines.append(f"Reported last night: {', '.join(out['lastNight'])}{more}.")
+    if not names:
+        some, none_read = _names_unread(user_id)
+        if none_read:
+            out["names"] = out["lastNight"] = None
+            out["lines"] = [S_NAMES_UNREAD]                 # never "none of your names" (M3)
+            return out
+        lines.insert(0, S_EARNINGS_NONE if not some else
+                     f"{S_NAMES_SOME_UNREAD} None of the others report today.")
+    out["lines"] = lines
     return out
 
 
 def _risk_part(user_id: str) -> dict:
     """Open risk to stops over every account, positions read ONCE (W10-R34: a position on no
-    account is in the total). `portfolio_heat` answers each position's risk to a real stop and
-    names the placeholders; the size passed in is unused by the two numbers read here."""
-    from api.services import portfolio_heat
-    from api.services.journal_two import positions as j2_positions
+    account is in the total), through `shelf_discipline.open_risk`, the one authority Risk left
+    today asks too: the same number and the same words for the same positions (I-3)."""
     out: dict[str, Any] = {"openPositions": None, "openRisk": None, "noStop": None,
-                           "openOptions": None, "unlinked": None, "sources": []}
+                           "unread": None, "openOptions": None, "unlinked": None,
+                           "riskLines": [], "sources": []}
     try:
         c = _connection()
         try:
             with _deadline(c):
-                pos = list(j2_positions.list_open_positions(user_id, c) or [])
+                pos, capped = shelf_discipline.read_open_positions(user_id, c)
                 ids = {r["id"] for r in c.execute(
                     "SELECT id FROM j2_accounts WHERE user_id = ? LIMIT 5001", (user_id,))}
                 opts = int(c.execute(
@@ -397,47 +464,32 @@ def _risk_part(user_id: str) -> dict:
                     (user_id,)).fetchone()[0] or 0)
         finally:
             c.close()
-        heat = portfolio_heat.portfolio_heat(
-            user_id, None, 1.0, positions_fn=lambda _u, _a: pos, regime_fn=lambda: {},
-            cap_fn=lambda: None, account_size_fn=lambda _u, _a: 1.0) or {}
+        info = shelf_discipline.open_risk(user_id, pos, open_options=opts)
     except Exception:  # noqa: BLE001
         out["lines"] = [S_RISK_UNREAD]
         return out
-    if not heat.get("ok"):
-        out["lines"] = [S_RISK_UNREAD]
-        return out
     out["sources"] = [p.get("source") for p in pos]
-    if not pos and not opts:
-        out["lines"] = [S_RISK_NO_POSITIONS]
-        return out
-    real = [p for p in heat.get("per_position") or [] if not p.get("placeholder_stop")]
-    no_stop = len(heat.get("placeholder_stops") or [])
     unlinked = sum(1 for p in pos if p.get("accountId") not in ids)
-    risk = math.fsum(_num(p.get("risk_dollars")) or 0.0 for p in real) if real else None
-    out.update(openPositions=len(pos) or None, openRisk=_num(risk), noStop=no_stop,
-               openOptions=opts or None, unlinked=unlinked)
+    out.update(openPositions=len(pos) or None, openRisk=info["risk"],
+               noStop=info["noStop"] if pos else None, unread=info["unread"] or None,
+               openOptions=opts or None, unlinked=unlinked if pos else None,
+               riskLines=list(info["lines"]))
     lines: list[str] = []
+    if capped:
+        out["capped"] = True
+        lines.append(shelf_discipline.positions_capped_line())
     if pos:
         lines.append(f"{_plural(len(pos), 'open position', 'open positions')}.")
-    if risk is not None:
-        lines.append(f"Open risk to stops: {_dollars(risk)}." if round(risk) else
-                     "Open risk to stops: under $1.")
-    if no_stop:
-        lines.append(f"{_plural(no_stop, 'position', 'positions')} "
-                     f"{'has' if no_stop == 1 else 'have'} no stop set and "
-                     f"{_is_are(no_stop)} not in the open risk.")
+    lines += info["lines"]
     if unlinked:
         lines.append(f"Includes {_plural(unlinked, 'position', 'positions')} not linked to an"
                      " account.")
-    if opts:
-        lines.append(f"{_plural(opts, 'open options trade', 'open options trades')} "
-                     f"{_is_are(opts)} not in the open risk.")
     out["lines"] = lines
     return out
 
 
 def my_game_plan(user_id: str, params: dict, now: datetime) -> dict:
-    """The morning wire, my names reporting today, my open risk: three parts that fail alone."""
+    """The morning wire, my names reporting, my open risk: three parts that fail alone."""
     now_dt = _utc(now)
     clean_params(KIND_GAME_PLAN, params)
     today = trading_days.today_et(now_dt)
@@ -481,6 +533,36 @@ def _text(v: Any) -> str | None:
     return v.strip() if isinstance(v, str) and v.strip() else None
 
 
+def _level(v: float) -> str:
+    """A threshold in words where a figure would read as a zero ("zero"), else the figure."""
+    return "zero" if v == 0 else f"{v:g}"
+
+
+def _reading(v: float) -> str:
+    return f"{v:,.1f}" if abs(v) < 100 else f"{v:,.2f}"
+
+
+def _indicator_text(f: dict) -> str:
+    """An indicator or price fire in words, from the log's own fields (W10-R37): "RSI above 70
+    (71.0)". A condition that names its own level ("crossed zero", the bands) carries no number
+    for it; "Alert fired" only when the log says nothing usable."""
+    ind = _text(f.get("indicator"))
+    cond = _text(f.get("condition"))
+    if not ind or not cond:
+        return WHAT_FALLBACK
+    words = _CONDITION_WORDS.get(cond, cond.replace("_", " "))
+    text = f"{ind.upper()} {words}"
+    thr = _num(f.get("threshold"))
+    if thr is not None and cond not in _NO_THRESHOLD:
+        text += f" {_level(thr)}"
+    elif cond not in _NO_THRESHOLD:
+        text += " its alert level"
+    val = _num(f.get("value"))
+    if val is not None:
+        text += f" ({_reading(val)})"
+    return text
+
+
 def _indicator_rows(user_id: str) -> list[dict]:
     from api.services import alert_fired_log
     out = []
@@ -488,19 +570,45 @@ def _indicator_rows(user_id: str) -> list[dict]:
         if str(f.get("user_id")) != str(user_id):
             continue                                        # belt and braces: the read is scoped
         out.append({"_t": _num(f.get("fired_at")), "symbol": _text(f.get("sym")),
-                    "what": WHAT_FALLBACK, "kind": "indicator"})
+                    "what": _indicator_text(f), "kind": "indicator"})
     return out
+
+
+def _shapers() -> dict:
+    """trigger type -> the type's own public `alert_shape_for_fire` (imported late)."""
+    from api.services.alert_taxonomy import document_arrival, rating_change
+    return {document_arrival.TYPE_ID: document_arrival.alert_shape_for_fire,
+            rating_change.TYPE_ID: rating_change.alert_shape_for_fire}
+
+
+def _taxonomy_text(f: dict, shapers: dict) -> str:
+    """A filing or rating fire in its own words (W10-R37): the type's shape (built from the fire's
+    frozen detail) -- its message, then its title -- then the detail's own title or message, then
+    "Alert fired". A fire whose detail holds none of the fields its shape reads (`_SHAPE_NEEDS`)
+    is not shaped: the shape would invent "an unknown date" for facts the log never held."""
+    d = f.get("detail") if isinstance(f.get("detail"), dict) else {}
+    shape = shapers.get(f.get("trigger_type"))
+    if shape is not None and any(d.get(k) for k in _SHAPE_NEEDS.get(f.get("trigger_type"), ())):
+        try:
+            got = shape(f) or {}
+            what = _text(got.get("message")) or _text(got.get("title"))
+            if what:
+                return what
+        except Exception:  # noqa: BLE001 -- an unshapeable fire falls back, never fails the list
+            pass
+    return _text(d.get("title")) or _text(d.get("message")) or WHAT_FALLBACK
 
 
 def _taxonomy_rows(user_id: str) -> list[dict]:
     from api.services.alert_taxonomy import receipts
+    shapers = _shapers()
     out = []
     for f in receipts.list_fires_for_feed(user_id, limit=ALERT_READ_LIMIT):
         d = f.get("detail") if isinstance(f.get("detail"), dict) else {}
-        what = _text(d.get("title")) or _text(d.get("message")) or WHAT_FALLBACK
         sym = _text(d.get("ticker")) or _text(f.get("entity_ref"))
         out.append({"_t": _num(f.get("fired_at")), "symbol": sym.upper() if sym else None,
-                    "what": what, "kind": _text(f.get("trigger_type")) or "alert"})
+                    "what": _taxonomy_text(f, shapers),
+                    "kind": _text(f.get("trigger_type")) or "alert"})
     return out
 
 
@@ -528,14 +636,14 @@ def my_alerts_fired(user_id: str, params: dict, now: datetime) -> dict:
               "kind": r["kind"]} for r in kept[:ALERT_ROW_CAP]]
     lines: list[str] = []
     if shown:
-        lines.append(f"{_plural(len(kept), 'alert', 'alerts')} fired since the last session."
-                     if len(kept) <= ALERT_ROW_CAP else
-                     f"Showing the newest {ALERT_ROW_CAP} of {len(kept)} alerts since the last"
-                     " session.")
+        if len(kept) > ALERT_ROW_CAP:
+            lines.append(f"Showing the newest {ALERT_ROW_CAP} of {'at least ' if capped else ''}"
+                         f"{len(kept)} alerts since the last session.")
+        else:
+            lines.append(f"{'At least ' if capped else ''}"
+                         f"{_plural(len(kept), 'alert', 'alerts')} fired since the last session.")
     elif not unread:
         lines.append(S_ALERTS_EMPTY)
-    if capped:
-        lines.append(S_ALERTS_MORE)
     if unread:
         lines.append(S_ALERTS_UNREAD)
     out: dict[str, Any] = {

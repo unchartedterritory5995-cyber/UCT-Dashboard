@@ -29,6 +29,10 @@ MON = datetime(2026, 10, 26, 12, 30, tzinfo=timezone.utc)
 def S(monkeypatch, tmp_path):
     db = str(tmp_path / "auth.db")
     monkeypatch.setenv("AUTH_DB_PATH", db)
+    # member_interest reads <DATA_DIR>/auth.db, the same file in production.
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    from api.services.journal_two import plan_grading
+    monkeypatch.setenv(plan_grading.FLAG, "1")
     from api.services import auth_db, indicator_alert_service as ias
     from api.services.alert_taxonomy import db as atdb
     importlib.reload(auth_db)
@@ -352,9 +356,6 @@ def test_reporting_empty_vs_unread_sentences(S, monkeypatch):
         got = S.my_game_plan(A, {}, MON)["reporting"]
         assert got["lines"] == ["Earnings dates couldn't be read right now."], miss
         assert got["names"] is None
-    # A held read from another day is not today's answer.
-    _prep(monkeypatch, _wire(), _earn(bmo=["NVDA"], as_of="2026-10-23"))
-    assert S.my_game_plan(A, {}, MON)["reporting"]["lines"] == [S.S_EARNINGS_UNREAD]
     # Answered with names: at most 10, today's open first, then tonight's close.
     bmo = [f"B{i}" for i in range(8)]
     _prep(monkeypatch, _wire(), _earn(bmo=bmo, amc_tonight=["T1", "T2", "T3"]))
@@ -409,7 +410,9 @@ def test_open_risk_counts_unlinked_and_never_counts_a_placeholder(S, monkeypatch
         reads.append((a, k))
         return real(*a, **k)
     monkeypatch.setattr(positions, "list_open_positions", counted)
-    _prep(monkeypatch, _wire(), _earn())
+    # A name reports today, so the names check (asked only for an empty answer, and reading the
+    # member's names through member_interest) does not run: every read counted here is the risk's.
+    _prep(monkeypatch, _wire(), _earn(bmo=["NVDA"]))
     got = S.my_game_plan(A, {}, MON)["risk"]
     assert len(reads) == 1 and not reads[0][1].get("account_id")
     assert got["openPositions"] == 4
@@ -459,7 +462,8 @@ def test_merges_both_logs_newest_first_cap_40(S):
     kinds = {r["kind"] for r in got["rows"]}
     assert kinds == {"indicator", "document-arrival"}
     assert got["rows"][0]["what"] == "New 8-K — S29"                       # the log's own text
-    assert got["rows"][1]["what"] == "Alert fired"                         # none: the fallback
+    assert got["rows"][1]["what"] == "RSI above its alert level (71.0)"    # composed, no threshold
+    assert got["rows"][2]["what"] == "Alert fired"                         # S7, no detail: fallback
     assert any("40" in ln for ln in got["lines"])
 
 
@@ -469,12 +473,14 @@ def test_a_full_log_says_it_may_hold_more(S):
     for i in range(50):
         ind_fire(A, at=base + i, sym=f"I{i}")
     got = S.my_alerts_fired(A, {}, MON)
-    assert got["capped"] is True and S.S_ALERTS_MORE in got["lines"]
+    assert got["capped"] is True
+    assert got["lines"][0] == "Showing the newest 40 of at least 50 alerts since the last session."
     # CONTROL: 49 fires is a complete read.
     with _conn() as c:
         c.execute("DELETE FROM indicator_alert_fires WHERE sym = 'I0'")
     got = S.my_alerts_fired(A, {}, MON)
-    assert "capped" not in got and S.S_ALERTS_MORE not in got["lines"]
+    assert "capped" not in got
+    assert got["lines"][0] == "Showing the newest 40 of 49 alerts since the last session."
 
 
 def test_never_reads_user_alerts(S, monkeypatch):
@@ -564,3 +570,278 @@ def test_params_shape(S):
                         S.KIND_ALERTS_FIRED: "Alerts that fired"}
     assert (S.KIND_PLAN_VS_ACTUAL, S.KIND_GAME_PLAN, S.KIND_ALERTS_FIRED) == (
         "myPlanVsActual", "myGamePlan", "myAlertsFired")
+
+
+# ── fix round 1 ───────────────────────────────────────────────────────────────────────────────
+
+def test_plan_grading_off_reads_not_available_right_now(S, monkeypatch):
+    """W10-R38: with plan grading off, Plan vs actual reads nothing and says so."""
+    from api.services.journal_two import plan_grading
+    with _conn() as c:
+        tid = trade(c, A, r=1.0)
+        link(c, A, tid, {"entry": 100.0, "stop": 95.0, "target": 110.0})
+    real_get = plan_grading.get_trade
+    monkeypatch.delenv(plan_grading.FLAG, raising=False)
+    monkeypatch.setattr(plan_grading, "get_trade",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("read a trade")))
+    got = S.my_plan_vs_actual(A, {"tradeId": tid}, MON)
+    assert got["lines"] == ["Not available right now."] and got["rows"] == []
+    assert got["available"] is False
+    # CONTROL: the switch on, the same trade is laid out.
+    monkeypatch.setattr(plan_grading, "get_trade", real_get)
+    monkeypatch.setenv(plan_grading.FLAG, "1")
+    assert S.my_plan_vs_actual(A, {"tradeId": tid}, MON)["rows"]
+
+
+def test_alert_rows_read_real_text(S):
+    """W10-R37 (probe p15): each row in the log's own words; "Alert fired" only for a fire the
+    log says nothing about."""
+    from api.services import alert_fired_log as afl
+    assert afl.record_fire(9_000_001, A, "NVDA", "rsi", "above", "D", "ep:p15", 71.0,
+                           threshold=70.0, fired_at=et_epoch("2026-10-26", "07:00"))
+    s7_fire(A, at=et_epoch("2026-10-26", "06:00"), sym="AAPL",
+            detail={"ticker": "AAPL", "form": "8-K", "filed": "2026-10-26", "company": "Apple Inc."})
+    s7_fire(A, at=et_epoch("2026-10-26", "05:00"), sym="MSFT", trigger="rating-change",
+            detail={"ticker": "MSFT", "action": "upgrade", "company": "Goldman",
+                    "from_grade": "Hold", "to_grade": "Buy", "date": "2026-10-26"})
+    s7_fire(A, at=et_epoch("2026-10-26", "04:00"), sym="AMD")                    # no detail
+    rows = S.my_alerts_fired(A, {}, MON)["rows"]
+    assert [r["what"] for r in rows] == [
+        "RSI above 70 (71.0)",
+        "Apple Inc. filed a 8-K on 2026-10-26.",
+        "Goldman upgraded MSFT (Hold to Buy) on 2026-10-26.",
+        "Alert fired",
+    ]
+    assert [r["kind"] for r in rows] == ["indicator", "document-arrival", "rating-change",
+                                         "document-arrival"]
+
+
+def test_a_shape_that_raises_falls_back(S, monkeypatch):
+    from api.services.alert_taxonomy import document_arrival
+    monkeypatch.setattr(document_arrival, "alert_shape_for_fire",
+                        lambda f: (_ for _ in ()).throw(KeyError("id")))
+    s7_fire(A, at=et_epoch("2026-10-26", "06:00"), sym="AAPL",
+            detail={"ticker": "AAPL", "form": "8-K", "title": "New 8-K — AAPL"})
+    assert S.my_alerts_fired(A, {}, MON)["rows"][0]["what"] == "New 8-K — AAPL"
+
+
+def test_indicator_text_words_every_condition(S):
+    from api.services import alert_fired_log as afl
+    for cond in afl.CONDITION_KIND:                        # derived, never retyped
+        txt = S._indicator_text({"indicator": "rsi", "condition": cond, "value": 12.5,
+                                 "threshold": 0.0})
+        assert txt.startswith("RSI ") and "_" not in txt, txt
+        assert not any(f in txt for f in FORBIDDEN), txt
+    assert S._indicator_text({"indicator": "macd", "condition": "cross_zero", "value": 0.4,
+                              "threshold": 0.0}) == "MACD crossed zero (0.4)"
+    assert S._indicator_text({"indicator": "macd", "condition": "above", "value": 1.2,
+                              "threshold": 0.0}) == "MACD above zero (1.2)"
+    assert S._indicator_text({"indicator": "bb", "condition": "touch_upper", "value": 184.234,
+                              "threshold": 180.0}) == "BB touched the upper band (184.23)"
+    assert S._indicator_text({"indicator": "", "condition": "above"}) == "Alert fired"
+
+
+def test_alerts_capped_count_says_at_least(S):
+    base = et_epoch("2026-10-23", "16:05")
+    for i in range(50):
+        ind_fire(A, at=base + i, sym=f"I{i}")
+        s7_fire(A, at=base + 100 + i, sym=f"S{i}")
+    got = S.my_alerts_fired(A, {}, MON)
+    assert got["lines"][0] == "Showing the newest 40 of at least 100 alerts since the last session."
+
+
+# -- one authority for open risk (I-3) --------------------------------------------------------
+
+def _book(c, shape):
+    from tests.test_shelf_discipline import account
+    if shape == "p7":
+        account(c, A, "lim", pct=5.0, size=10000.0, name="Limited")
+        account(c, A, "nolim", pct=None, size=10000.0, name="NoLimit")
+        account(c, A, "nosize", pct=5.0, size=0.0, marked=0, name="NoSize")
+        position(c, A, acc="lim", symbol="AAPL", entry=100, stop=95, shares=10)
+        position(c, A, acc="nolim", symbol="MSFT", entry=100, stop=90, shares=10)
+        position(c, A, acc="nosize", symbol="AMD", entry=50, stop=48, shares=100)
+        position(c, A, acc=None, symbol="TSLA", entry=200, stop=190, shares=5)
+        position(c, A, acc="gone", symbol="META", entry=300, stop=290, shares=3)
+        position(c, A, acc="lim", symbol="NVDA", entry=100, stop=100, shares=10)
+        open_strategy(c, A, acc="lim")
+    elif shape == "p8":
+        position(c, A, symbol="AAPL", entry=100, stop=100, shares=10)
+        position(c, A, symbol="MSFT", entry=100, stop=100, shares=10)
+    elif shape == "p9":
+        position(c, A, symbol="AAPL", entry=100, stop=95, shares=10)
+        position(c, A, symbol="", entry=100, stop=90, shares=100)
+    elif shape == "p10":
+        position(c, A, symbol="AAPL", entry=100, stop=95, shares=10)
+    elif shape == "p11":
+        position(c, A, symbol="AAPL", entry=1.00, stop=0.99, shares=40)
+
+
+@pytest.mark.parametrize("shape,expect", [("p7", 430.0), ("p8", None), ("p9", 50.0),
+                                          ("p10", None), ("p11", 0.4)])
+def test_game_plan_risk_reconciles_with_risk_left_today(S, monkeypatch, shape, expect):
+    from api.services import portfolio_heat
+    from api.services.journal_two import shelf_discipline as D
+    with _conn() as c:
+        _book(c, shape)
+    if shape == "p10":
+        monkeypatch.setattr(portfolio_heat, "portfolio_heat", lambda *a, **k: {"ok": False})
+    _prep(monkeypatch, _wire(), _earn(bmo=["NVDA"]))
+    g = S.my_game_plan(A, {}, MON)["risk"]
+    d = D.my_risk_left_today(A, {}, MON)
+    if expect is None:
+        assert g["openRisk"] is None and d["openRisk"] is None
+    else:
+        assert g["openRisk"] == pytest.approx(expect) and d["openRisk"] == pytest.approx(expect)
+    if shape == "p7":       # every account block speaks through the same authority
+        from api.services.journal_two import positions as j2_positions
+        held = j2_positions.list_open_positions(A)
+        for b in d["accounts"]:
+            if b["accountId"] in ("lim", "nolim", "nosize"):
+                mine = [p for p in held if p.get("accountId") == b["accountId"]]
+                own = D.open_risk(A, mine, open_options=b["openOptions"], anything_open=True)
+                assert own["risk"] == b["openRisk"], b["accountId"]
+                assert all(ln in b["lines"] for ln in own["lines"]), (b["accountId"], b["lines"])
+    if shape != "p7":       # one group: the unlinked block IS the same positions, the same words
+        block = next(b for b in d["accounts"] if b["accountId"] is None)
+        assert g["riskLines"] == block["lines"]
+        assert [ln for ln in g["lines"] if ln in g["riskLines"]] == g["riskLines"]
+    if shape == "p9":
+        assert any("couldn't be read" in ln for ln in g["lines"])
+        assert any("couldn't be read" in ln for ln in d["lines"])
+    if shape == "p10":
+        assert S.S_RISK_UNREAD in g["lines"] and S.S_RISK_UNREAD in d["lines"]
+    if shape == "p11":
+        assert "Open risk to stops: under $1." in g["lines"]
+        assert "Open risk to stops: under $1." in block["lines"]
+
+
+def test_positions_overflow_is_said_in_both(S, monkeypatch):
+    """M8: the open positions read keeps READ_LIMIT - 1 and an overflow is said in both widgets."""
+    from api.services.journal_two import shelf_discipline as D
+    monkeypatch.setattr(D, "READ_LIMIT", 3)
+    with _conn() as c:
+        for sym in ("AAPL", "AMD", "MSFT"):
+            position(c, A, symbol=sym, entry=100, stop=99, shares=10)
+    _prep(monkeypatch, _wire(), _earn(bmo=["NVDA"]))
+    g = S.my_game_plan(A, {}, MON)["risk"]
+    d = D.my_risk_left_today(A, {}, MON)
+    line = D.positions_capped_line()
+    assert g["capped"] is True and g["openPositions"] == 2 and line in g["lines"]
+    assert d["positionsCapped"] is True and line in d["lines"]
+    # CONTROL: under the cap nothing is said.
+    monkeypatch.setattr(D, "READ_LIMIT", 4)
+    assert "capped" not in S.my_game_plan(A, {}, MON)["risk"]
+    assert "positionsCapped" not in D.my_risk_left_today(A, {}, MON)
+
+
+def test_risk_left_total_says_and_1_other(S):
+    """M9 (10.10's total line): one block past the named few is "and 1 other"."""
+    from api.services.journal_two import shelf_discipline as D
+    from tests.test_shelf_discipline import account
+    with _conn() as c:
+        for i, stop in enumerate((90, 91, 92, 93)):
+            account(c, A, f"a{i}", pct=None, size=10000.0, name=f"Acct{i}")
+            position(c, A, acc=f"a{i}", symbol=f"S{i}", entry=100, stop=stop, shares=10)
+    total = D.my_risk_left_today(A, {}, MON)["lines"][-1]
+    assert total.endswith(", and 1 other).") and "others" not in total, total
+
+
+# -- reporting (M3, M7) -----------------------------------------------------------------------
+
+def test_names_unread_never_reads_none_of_your_names(S, monkeypatch, tmp_path):
+    """M3: names that could not be read are said so, never "None of your names report today"."""
+    from api.services.journal_two import positions
+    _prep(monkeypatch, _wire(), _earn(missing="no_names"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "no-such-dir"))           # every source fails
+    got = S.my_game_plan(A, {}, MON)["reporting"]
+    assert got["lines"] == ["Your names couldn't be read right now."] and got["names"] is None
+    # Partial: the watchlist reads, positions do not.
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    _prep(monkeypatch, _wire(), _earn())
+    with _conn() as c:
+        c.execute("INSERT INTO users (id, email, password_hash, display_name, role)"
+                  " VALUES (?, 'a@example.test', 'x', 'x', 'member')", (A,))
+        c.execute("INSERT INTO watchlists (id, user_id, name) VALUES ('w1', ?, 'Mine')", (A,))
+        c.execute("INSERT INTO watchlist_items (id, watchlist_id, sym) VALUES ('i1', 'w1', 'AMD')")
+    monkeypatch.setattr(positions, "list_open_positions",
+                        lambda *a, **k: (_ for _ in ()).throw(sqlite3.OperationalError("x")))
+    got = S.my_game_plan(A, {}, MON)["reporting"]
+    assert got["lines"] == ["Some of your names couldn't be read right now. None of the others "
+                            "report today."]
+
+
+def test_names_read_and_none_report_is_the_plain_sentence(S, monkeypatch):
+    _prep(monkeypatch, _wire(), _earn(missing="no_names"))
+    got = S.my_game_plan(A, {}, MON)["reporting"]
+    assert got["lines"] == ["None of your names report today."]
+
+
+def test_member_interest_says_which_sources_failed(S, monkeypatch):
+    from api.services import member_interest
+    from api.services.journal_two import positions
+    assert member_interest.interest_for(A)["failed"] == []                  # CONTROL
+    monkeypatch.setattr(positions, "list_open_positions",
+                        lambda *a, **k: (_ for _ in ()).throw(sqlite3.OperationalError("x")))
+    got = member_interest.interest_for(A)
+    assert got["failed"] == ["positions"] and got["by_source"]["positions"] == set()
+
+
+def test_last_night_reporters_listed_apart(S, monkeypatch):
+    """W10-R39: last night's after-close reporters, at most 10, apart from today's."""
+    snap = _earn(bmo=["NVDA"])
+    snap["amc"] = [f"L{i}" for i in range(12)]
+    _prep(monkeypatch, _wire(), snap)
+    got = S.my_game_plan(A, {}, MON)["reporting"]
+    assert [n["symbol"] for n in got["names"]] == ["NVDA"]
+    assert got["lastNight"] == [f"L{i}" for i in range(10)] and got["lastNightTruncated"] == 2
+    assert got["lines"] == ["NVDA reports before the open.",
+                            "Reported last night: " + ", ".join(f"L{i}" for i in range(10))
+                            + ", and 2 others."]
+    # Only last night: today's sentence comes first, then last night's.
+    _prep(monkeypatch, _wire(), dict(_earn(), amc=["AMD"]))
+    got = S.my_game_plan(A, {}, MON)["reporting"]
+    assert got["lines"] == ["None of your names report today.", "Reported last night: AMD."]
+
+
+# -- Plan vs actual (M4, M5, M6) --------------------------------------------------------------
+
+def _excursion(c, uid, tid, *, mfe=None, true_r=None):
+    from api.services.journal_two.trade_refs import trade_ref_for_row
+    r = c.execute("SELECT * FROM j2_trades WHERE id = ?", (tid,)).fetchone()
+    c.execute("INSERT INTO j2_trade_excursions (user_id, trade_ref, symbol, mfe_price, computed_at,"
+              " true_r) VALUES (?, ?, ?, ?, ?, ?)",
+              (uid, trade_ref_for_row(r), r["symbol"], mfe, STAMP, true_r))
+
+
+def test_target_state_from_mfe_and_never_unknown(S):
+    with _conn() as c:
+        reached = trade(c, A, entry=100.0, exit_=104.0, stop=96.0, r=1.0)
+        link(c, A, reached, {"entry": 100.0, "stop": 96.0, "target": 110.0})
+        _excursion(c, A, reached, mfe=111.0)
+        none = trade(c, A, entry=100.0, exit_=104.0, stop=96.0, r=1.0, symbol="AMD")
+        link(c, A, none, {"entry": 100.0, "stop": 96.0, "target": 110.0})
+    assert row(S.my_plan_vs_actual(A, {"tradeId": reached}, MON), "Target")["state"] == \
+        "reached_not_taken"
+    assert row(S.my_plan_vs_actual(A, {"tradeId": none}, MON), "Target")["state"] is None
+
+
+def test_true_r_is_labelled(S):
+    with _conn() as c:
+        tid = trade(c, A, r=None)
+        link(c, A, tid, {"entry": 100.0, "stop": 96.0, "target": 110.0})
+        _excursion(c, A, tid, true_r=1.4)
+        own = trade(c, A, r=1.4, symbol="AMD")
+        link(c, A, own, {"entry": 100.0, "stop": 96.0, "target": 110.0})
+    r = row(S.my_plan_vs_actual(A, {"tradeId": tid}, MON), "R")
+    assert r["actual"] == 1.4 and "realized 1.4R (true R)" in r["text"]
+    r2 = row(S.my_plan_vs_actual(A, {"tradeId": own}, MON), "R")       # CONTROL: stop R, no label
+    assert "realized 1.4R." in r2["text"] and "true R" not in r2["text"]
+
+
+def test_every_row_line_is_labelled(S):
+    with _conn() as c:
+        tid = trade(c, A, r=1.0)
+        link(c, A, tid, {"entry": 100.0, "stop": 96.0, "target": 110.0})
+    got = S.my_plan_vs_actual(A, {"tradeId": tid}, MON)
+    assert [ln.split(":")[0] for ln in got["lines"]] == ["Entry", "Stop", "Target", "R"]
