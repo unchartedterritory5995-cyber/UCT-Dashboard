@@ -480,7 +480,9 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         "cells": parts["cells"],
         "coverage": parts["coverage"],
         "footnotes": footnotes,
-        "empty": S_EMPTY.get(source_key) if count == 0 else None,
+        # no rows: the source's sentence; rows the result could not show (a split none of them has a
+        # value for): the result's own sentence (Task 10.13 fix round 1, I-1)
+        "empty": S_EMPTY.get(source_key) if count == 0 else getattr(result, "empty", None),
     })
     payload.update(extra)
     # Ruling R-25: a label that is an ACCOUNT NAME is marked, so a public page can number it ("Account 1")

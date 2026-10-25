@@ -41,8 +41,15 @@ S_HOLD_MINUTES_SOME = "{n} {trades} {have} dates only and {are} not in the hold-
 S_SPLIT_MISSING = "{n} {rows} {have} {missing} and {are} not in this split."
 #: The same fact for a filter: rows with no value for the field cannot pass it (fix round 1).
 S_FILTER_MISSING = "{n} {rows} {have} {missing} and {are} left out."
-#: What a row with no value for a formula filter or split lacks (the synthetic field's `missing`).
-FORMULA_MISSING = "no value for this field"
+#: What a row with no value for a formula filter or split lacks (the synthetic field's `missing`),
+#: naming the formula as the member named it (Task 10.13 fix round 1: "this field" told a member
+#: nothing about WHICH field, e.g. Process vs results' "Plan followed").
+FORMULA_MISSING = "no {name} value"
+#: A split whose every counted row has no value for the split field: the result's own empty
+#: sentence, in place of an empty table under a footnote (Task 10.13 fix round 1, I-1). One
+#: mechanism for every split field, a formula's or the source's.
+S_SPLIT_NONE = "None of these {rows} have a value for {label} yet."
+S_SPLIT_NONE_ONE = "This {row} has no value for {label} yet."
 #: The views a max drawdown number carries its days on (spec 8 #9, W10-R11).
 DRAWDOWN_VIEWS = frozenset({"number", "compare"})
 
@@ -90,6 +97,9 @@ class Result:
     probe: list = field(default_factory=list)
     #: wave 10: the max drawdown's days (`measures.DrawdownSpan`) on a number or compare view
     drawdown: Any = None
+    #: the result's own empty sentence when rows were counted but none could be shown: a split
+    #: whose every counted row has no value for its field (`S_SPLIT_NONE`). None otherwise.
+    empty: str | None = None
 
 
 @dataclass(frozen=True)
@@ -166,7 +176,8 @@ def formula_field(f: dict, compiled: Any) -> Any:
     return Field(key=key, label=f.get("name") or key, type=ftype,
                  ops=wplan._FORMULA_OPS[ftype], split=ftype in ("text", "bool"), sql=None,
                  py=lambda r, _k=key: r.get(_k), bucket=compiled.bucket_labels,
-                 fmt=_yes_no if ftype == "bool" else None, missing=FORMULA_MISSING)
+                 fmt=_yes_no if ftype == "bool" else None,
+                 missing=FORMULA_MISSING.format(name=f.get("name") or key))
 
 
 def _plan_fields(plan: dict, src: Any, compiled: dict) -> dict:
@@ -514,6 +525,13 @@ def _label(fld: Any, key: str, row: dict) -> str:
     return _clip(str(text), LABEL_MAX)
 
 
+def _none_sentence(fld: Any, unit: str, n: int) -> str:
+    """`S_SPLIT_NONE` for a split field none of the `n` counted rows has a value for."""
+    if n == 1:
+        return S_SPLIT_NONE_ONE.format(row=_noun(unit, 1), label=fld.label)
+    return S_SPLIT_NONE.format(rows=_noun(unit, n), label=fld.label)
+
+
 def _missing_note(fld: Any, unit: str, n: int) -> str:
     missing = fld.missing or f"no {fld.label[:1].lower() + fld.label[1:]}"
     return S_SPLIT_MISSING.format(n=n, rows=_noun(unit, n), have=_plural(n, "has", "have"),
@@ -607,6 +625,7 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any, *,
             notes.append(note)
 
     groups: list[Group] = []
+    split_empty: str | None = None
     split = plan.get("split")
     by = fields[split["by"]] if split else None
     then = fields[split["then"]] if split and split.get("then") else None
@@ -652,10 +671,15 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any, *,
                     if key not in labels:
                         labels[key] = (_label(by, k1, r),
                                        _label(then, k2, r) if then is not None else None)
-        if out_by:
-            notes.append(_missing_note(by, src.unit, out_by))
-        if out_then:
-            notes.append(_missing_note(then, src.unit, out_then))
+        if counted and not buckets and out_by + out_then == len(counted):
+            # every counted row lacks the split value: say so as the card's empty sentence, never
+            # an empty table under a count (I-1). One row with a value and this never fires.
+            split_empty = _none_sentence(by if out_by else then, src.unit, len(counted))
+        else:
+            if out_by:
+                notes.append(_missing_note(by, src.unit, out_by))
+            if out_then:
+                notes.append(_missing_note(then, src.unit, out_then))
         order_key = getattr(by, "order_from", None)
         for (k1, k2), grp in buckets.items():
             l1, l2 = labels[(k1, k2)]
@@ -685,4 +709,4 @@ def evaluate(rows: list[dict], plan: dict, catalog: Any, *,
         # the rows `max_drawdown` itself read, so the days describe the number shown
         drawdown = smeasures.drawdown_span(wmeasures.measure_input(source_key, counted))
     return Result(groups, total, coverage, notes, len(counted), formulas=compiled, probe=probe_rows,
-                  drawdown=drawdown)
+                  drawdown=drawdown, empty=split_empty)

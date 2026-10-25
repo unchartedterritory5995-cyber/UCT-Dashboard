@@ -1106,8 +1106,8 @@ def _example_ids(ids: Any) -> list[str]:
     return out
 
 
-def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None,
-                 allowed: Callable[[dict], bool] | None = None) -> dict:
+def run_examples(user_id: str, ids: list[str], *, allowed: Callable[[dict], bool],
+                 now: datetime | None = None) -> dict:
     """Up to `MAX_EXAMPLES` shelf examples for the session member, in ONE batch:
     `{"sample": bool, "cards": {id: payload}}`.
 
@@ -1122,7 +1122,8 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None,
 
     * Each card runs its id's newest revision `allowed` accepts (the router passes its flag reader,
       the one `/shelf` serves with, so a card is the revision the gallery lists; Task 10.13). An id
-      with no allowed revision is unknown here. With no `allowed`, the newest revision.
+      with no allowed revision is unknown here. `allowed` has NO default (fix round 1, M-5): a
+      caller that forgot it would run a revision needing a dark wave, so forgetting fails closed.
 
     Raises `PlanError` (more than `MAX_EXAMPLES` ids, or an unknown id), `EngineBusy` or
     `EngineTooLong`."""
@@ -1132,7 +1133,7 @@ def run_examples(user_id: str, ids: list[str], *, now: datetime | None = None,
     items = []
     revs = []
     for sid in wanted:
-        ex = wshelf.example(sid) if allowed is None else wshelf.example(sid, allowed=allowed)
+        ex = wshelf.example(sid, allowed=allowed)
         if ex is None:
             raise PlanError(S_UNKNOWN_EXAMPLE)
         items.append((sid, ex["plan"]))

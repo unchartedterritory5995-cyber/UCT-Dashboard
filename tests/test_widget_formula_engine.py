@@ -170,7 +170,8 @@ def test_formula_split_by_bucket_in_edge_order(conn):
     assert [g.values.n for g in res.groups] == [1, 2, 1, 3]
     no_r = [r for r in sc.rows if r["formula:f1"] is None]
     assert len(no_r) >= 1
-    assert any("no value for this field" in n and "not in this split" in n for n in res.footnotes)
+    # the footnote names the formula (Task 10.13 fix round 1, I-1)
+    assert any("no R band value" in n and "not in this split" in n for n in res.footnotes)
 
 
 def test_bool_formula_split_reads_yes_and_no(conn):

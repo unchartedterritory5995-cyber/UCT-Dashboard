@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from datetime import datetime, timezone
 
 import pytest
@@ -26,6 +27,8 @@ NOW = datetime(2026, 10, 24, 15, 30, tzinfo=timezone.utc)   # ET day 2026-10-24
 #: The spec section 8 rows the shelf holds, in shelf order: wave 8's 23 and wave 10's three new ones
 #: (Task 10.13: MAE vs MFE, Process vs results, Goals progress).
 SECTION_8_ROWS = 26
+#: Every revision allowed (`run_examples` takes its flag reader explicitly; fix round 1, M-5).
+ANY = lambda p: True  # noqa: E731
 #: Task 10.13: the revisions wave 10 adds. Each needs plan format 3 (`plan.needed_version`).
 W10_REVISIONS = {
     "shelf:equity-curve": 2, "shelf:r-equity-curve": 2, "shelf:pnl-by-hold-time": 2,
@@ -115,16 +118,18 @@ def test_synonyms_present_on_newest_revision():
             assert set(shelf.revision(sid, rev - 1)["keywords"]) <= set(r["keywords"]), (sid, rev)
 
 
-#: "plan" is internal when it means a widget's recipe; "your plan" is the member's trading plan
-#: (Task 10.13: Process vs results, "how closely you followed your plan").
-_MEMBER_PHRASES = ("your plan",)
+#: "plan" is internal when it means a widget's recipe. The member's TRADING plan is allowed only in
+#: these exact shapes (fix round 1, M-2: a bare "your plan" substring also let "Edit your plan"
+#: through): "followed your plan" closing a sentence (Process vs results) and "trade's plan"
+#: (Plan vs actual's "One trade's plan against its fills.").
+_MEMBER_PHRASES = (re.compile(r"\bfollowed your plan(?=[.!?]|$)"), re.compile(r"\btrade's plan\b"))
 
 
 def _internal_words(text):
     banned = ("definition", "shelf", "built widget", "source", "plan", "scope")
     low = text.lower()
     for phrase in _MEMBER_PHRASES:
-        low = low.replace(phrase, "")
+        low = phrase.sub("", low)
     return [b for b in banned if b in low]
 
 
@@ -132,9 +137,18 @@ def test_member_copy_avoids_internal_words():
     for _sid, _rev, e in _all_revisions():
         for text in (e["name"], e["description"], *e["keywords"]):
             assert not _internal_words(text), (e["id"], e["rev"], text)
-    # control: the trading-plan phrase passes, the recipe word does not
+    # the seven ready-made dedicated kinds' words are member copy too (fix round 1, M-3)
+    from api.services.journal_two import shelf_kind_names as names
+    for kind in names.KINDS:
+        for text in (names.DESCRIPTIONS[kind], *names.KEYWORDS[kind]):
+            assert not _internal_words(text), (kind, text)
+    # control: the trading-plan phrases pass, the recipe word does not, in any other shape
     assert _internal_words("Your results by how closely you followed your plan.") == []
+    assert _internal_words("One trade's plan against its fills.") == []
     assert _internal_words("Edit the plan of this widget.") == ["plan"]
+    assert _internal_words("Edit your plan to change the measures.") == ["plan"]
+    assert _internal_words("Save your plans.") == ["plan"]
+    assert _internal_words("Pick a data source.") == ["source"]
 
 
 def test_a_broken_example_fails_the_load(tmp_path):
@@ -215,7 +229,7 @@ def test_examples_one_scan_per_source(conn, monkeypatch):
     days_id = _with_days_example(monkeypatch)
     ids = _ids("closed_trades")[:7] + [days_id]
     calls = _spy(monkeypatch)
-    out = run.run_examples(UID, ids, now=NOW)
+    out = run.run_examples(UID, ids, now=NOW, allowed=ANY)
     assert out["sample"] is False and list(out["cards"]) == ids
     assert sorted(calls) == ["closed_trades", "trading_days"]        # 2 scans for 8 cards
     # every card is exactly what that example run on its own would answer
@@ -230,7 +244,7 @@ def test_every_example_on_real_rows_matches_its_own_run(conn):
     ids = _ids()
     for i in range(0, len(ids), run.MAX_EXAMPLES):
         batch = ids[i:i + run.MAX_EXAMPLES]
-        out = run.run_examples(UID, batch, now=NOW)
+        out = run.run_examples(UID, batch, now=NOW, allowed=ANY)
         for sid in batch:
             alone = run.run_plan(UID, shelf.example(sid)["plan"], {}, lane="preview", now=NOW)
             alone.pop("probe", None)          # the builder's formula probe rides the preview only
@@ -243,14 +257,14 @@ def test_examples_use_sample_under_5_trades_and_label(conn, monkeypatch):
     calls = _spy(monkeypatch)
     ids = _ids()
     for i in range(0, len(ids), run.MAX_EXAMPLES):
-        out = run.run_examples(UID, ids[i:i + run.MAX_EXAMPLES], now=NOW)
+        out = run.run_examples(UID, ids[i:i + run.MAX_EXAMPLES], now=NOW, allowed=ANY)
         assert out["sample"] is True
         for sid, card in out["cards"].items():
             assert card["sample"] is True, sid
             assert card["count"] > 4 and card["empty"] is None, sid   # the book, not the 4 trades
     assert calls == []                                                 # no member scan at all
     # the same card on the book alone, through run_plan(sample=True)
-    out = run.run_examples(UID, ["shelf:profit-factor"], now=NOW)
+    out = run.run_examples(UID, ["shelf:profit-factor"], now=NOW, allowed=ANY)
     alone = run.run_plan(UID, shelf.example("shelf:profit-factor")["plan"], {}, lane="preview",
                          now=NOW, sample=True)
     assert out["cards"]["shelf:profit-factor"] == alone
@@ -259,10 +273,10 @@ def test_examples_use_sample_under_5_trades_and_label(conn, monkeypatch):
 def test_examples_switch_to_real_at_5(conn):
     for d in ("2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22"):
         add_trade(conn, UID, day=d, pnl=25)
-    first = run.run_examples(UID, ["shelf:profit-factor"], now=NOW)
+    first = run.run_examples(UID, ["shelf:profit-factor"], now=NOW, allowed=ANY)
     assert first["sample"] is True
     add_trade(conn, UID, day="2026-10-23", pnl=-10)
-    second = run.run_examples(UID, ["shelf:profit-factor"], now=NOW)     # within the cache TTL
+    second = run.run_examples(UID, ["shelf:profit-factor"], now=NOW, allowed=ANY)     # within the cache TTL
     assert second["sample"] is False
     card = second["cards"]["shelf:profit-factor"]
     assert card["sample"] is False and card["value"]["v2"] == 5          # trades: the member's five
@@ -270,13 +284,13 @@ def test_examples_switch_to_real_at_5(conn):
 
 def test_examples_more_than_8_refused(conn):
     with pytest.raises(PlanError) as e:
-        run.run_examples(UID, _ids()[:9], now=NOW)
+        run.run_examples(UID, _ids()[:9], now=NOW, allowed=ANY)
     assert e.value.sentence == run.S_TOO_MANY_EXAMPLES
     with pytest.raises(PlanError) as e:
-        run.run_examples(UID, ["shelf:no-such-example"], now=NOW)
+        run.run_examples(UID, ["shelf:no-such-example"], now=NOW, allowed=ANY)
     assert e.value.sentence == run.S_UNKNOWN_EXAMPLE
     # control: 8 distinct ids (and a repeat of one of them) are accepted
-    out = run.run_examples(UID, _ids()[:8] + _ids()[:1], now=NOW)
+    out = run.run_examples(UID, _ids()[:8] + _ids()[:1], now=NOW, allowed=ANY)
     assert len(out["cards"]) == 8
 
 
@@ -294,13 +308,13 @@ def test_examples_cached_per_member_and_counted_as_one_preview(conn, monkeypatch
     monkeypatch.setattr(run, "admit", counting_admit)
     calls = _spy(monkeypatch)
     ids = _ids()[:8]
-    a = run.run_examples(UID, ids, now=NOW)
+    a = run.run_examples(UID, ids, now=NOW, allowed=ANY)
     assert lanes == [(UID, "example")]                    # ONE preview admission for 8 cards
     assert run._pending(UID) == 0                         # never a saved-widget run
     n = len(calls)
-    assert run.run_examples(UID, ids, now=NOW) == a       # a cache hit: no new admission or scan
+    assert run.run_examples(UID, ids, now=NOW, allowed=ANY) == a       # a cache hit: no new admission or scan
     assert lanes == [(UID, "example")] and len(calls) == n
-    b = run.run_examples(other, ids, now=NOW)             # another member: own answer (the sample)
+    b = run.run_examples(other, ids, now=NOW, allowed=ANY)             # another member: own answer (the sample)
     assert b["sample"] is True and a["sample"] is False
     assert lanes == [(UID, "example"), (other, "example")]
 
@@ -366,6 +380,7 @@ def test_every_shelf_revision_renders_on_the_sample_book_without_a_hidden_column
     # a scatter point is hidden only where its value is missing: divide by zero is "no data"
     p = copy.deepcopy(shelf.revision("shelf:mae-vs-mfe", 1)["plan"])
     p["formulas"][1]["expr"] = "[mfe_r] / 0"
+    p["display"].pop("quadrants")          # Task 10.9: quadrants need the excursion pair itself
     assert _hidden_everywhere(wplan.validate_plan(p, sources.CATALOG)) == ["formula:f2"]
 
 
@@ -386,10 +401,10 @@ def test_examples_with_no_ids_take_no_permit_and_scan_nothing(conn, monkeypatch)
         raise AssertionError("no permit for an empty batch")
 
     monkeypatch.setattr(run, "admit", no_admit)
-    assert run.run_examples(UID, [], now=NOW) == {"sample": True, "cards": {}}
+    assert run.run_examples(UID, [], now=NOW, allowed=ANY) == {"sample": True, "cards": {}}
     for d in ("2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"):
         add_trade(conn, UID, day=d, pnl=25)
-    assert run.run_examples(UID, [], now=NOW) == {"sample": False, "cards": {}}
+    assert run.run_examples(UID, [], now=NOW, allowed=ANY) == {"sample": False, "cards": {}}
     assert calls == []
 
 
@@ -520,7 +535,61 @@ def test_examples_run_the_allowed_revision_and_cache_on_it(conn, w10):
     assert off["cards"]["shelf:equity-curve"]["def"] == shelf.revision("shelf:equity-curve", 1)["plan"]
     on = run.run_examples(UID, ["shelf:equity-curve"], now=NOW, allowed=lambda p: True)
     assert on["cards"]["shelf:equity-curve"]["def"] == shelf.revision("shelf:equity-curve", 2)["plan"]
-    assert run.run_examples(UID, ["shelf:equity-curve"], now=NOW) == on       # default: the newest
+    # no default (fix round 1, M-5): a caller that forgets the flag reader fails closed, never
+    # running a revision that needs a dark wave
+    with pytest.raises(TypeError):
+        run.run_examples(UID, ["shelf:equity-curve"], now=NOW)
     with pytest.raises(PlanError) as e:                              # no allowed revision: unknown
         run.run_examples(UID, ["shelf:goals-progress"], now=NOW, allowed=only_r1)
     assert e.value.sentence == run.S_UNKNOWN_EXAMPLE
+
+
+# -- fix round 1, I-1: a split none of the trades has a value for says so ------------------------
+
+S_PLAN_NONE = "None of these trades have a value for Plan followed yet."
+
+
+def _adherence(conn, tid, pct):
+    conn.execute("INSERT INTO j2_trade_adherence (user_id, trade_ref, setup, checked_rule_ids,"
+                 " total_rules, adherence_pct, updated_at) VALUES (?, ?, 'Flag', '[]', 4, ?, 'x')",
+                 (UID, f"id:{tid}", pct))
+    conn.commit()
+
+
+def test_process_vs_results_with_no_plan_scores_says_so(conn, w10):
+    tids = [add_trade(conn, UID, day=d, pnl=(-1) ** i * 40)
+            for i, d in enumerate(("2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21",
+                                   "2026-10-22", "2026-10-23"))]
+    plan = shelf.revision("shelf:process-vs-results", 1)["plan"]
+    card = run.run_plan(UID, plan, {}, lane="preview", now=NOW)
+    assert card["count"] == 6 and card["rows"] == []
+    assert card["empty"] == S_PLAN_NONE
+    assert not any("not in this split" in f for f in card["footnotes"])     # one sentence, not two
+    # control: ONE trade with a plan score, and the table shows its band; the others are counted
+    _adherence(conn, tids[0], 0.9)
+    run._reset_state()
+    card = run.run_plan(UID, plan, {}, lane="preview", now=NOW)
+    assert card["empty"] is None
+    assert [r["label"] for r in card["rows"]] == ["80 or more"]
+    assert "5 trades have no Plan followed value and are not in this split." in card["footnotes"]
+
+
+def test_a_split_none_of_the_rows_has_a_value_for_is_the_results_empty_sentence():
+    """The engine mechanism behind I-1, for any split field (here the source's own R bucket)."""
+    rows = [r for r in copy.deepcopy(run._sample_scan("closed_trades").rows) if not r.get("flagged")]
+    for r in rows:
+        r["r"] = None
+        r["r_bucket"] = None
+    by_r = wplan.validate_plan({"v": 1, "source": "closed_trades", "range": {"token": "all"},
+                                "measures": [{"key": "trades"}], "split": {"by": "r_bucket"},
+                                "view": {"type": "bar"}}, sources.CATALOG)
+    res = aggregate.evaluate(rows, by_r, sources.CATALOG)
+    assert res.groups == [] and res.empty == "None of these trades have a value for R bucket yet."
+    assert not any("not in this split" in f for f in res.footnotes)
+    one = aggregate.evaluate(rows[:1], by_r, sources.CATALOG)
+    assert one.empty == "This trade has no value for R bucket yet."
+    # control: one row with a value and there is no empty sentence, only the count of the others
+    rows[0]["r"], rows[0]["r_bucket"] = 1.5, "1R to 2R"
+    res = aggregate.evaluate(rows, by_r, sources.CATALOG)
+    assert res.empty is None and [g.label for g in res.groups] == ["1R to 2R"]
+    assert any("not in this split" in f for f in res.footnotes)

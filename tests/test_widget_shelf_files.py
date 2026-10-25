@@ -275,14 +275,18 @@ def _add_commit(repo: Path, rel: str) -> tuple[str, str]:
     it (`equity-curve.r2.json` was reported as `C075` of `equity-curve.r1.json`), so --follow handed
     back r1's add commit and the rail called every new revision "edited". Here a commit that adds the
     path is followed back only when, in that same commit, git reports it as `R` (renamed: the old
-    path is gone). A copy or a plain add is the add commit."""
+    path is gone). A copy or a plain add is the add commit.
+
+    The OLDEST add of the path is its add commit (fix round 1, M-6): a revision deleted and re-added
+    with different bytes has a newer add commit that agrees with the working tree, and reading the
+    newest one would call that rewrite clean."""
     path, start = rel, "HEAD"
     for _ in range(100):                                   # a rename chain, never a loop
-        out = _ok(_git_at(repo, "log", "--diff-filter=A", "--format=%H", "-1", start, "--", path),
+        out = _ok(_git_at(repo, "log", "--diff-filter=A", "--format=%H", start, "--", path),
                   f"log {path}").split()
-        if len(out) != 1 or not re.fullmatch(r"[0-9a-f]{40}", out[0]):
+        if not out or not all(re.fullmatch(r"[0-9a-f]{40}", x) for x in out):
             pytest.fail(f"git could not find the commit that added {path}: {out!r}")
-        sha = out[0]
+        sha = out[-1]                                      # newest first: the last is the first add
         status = _ok(_git_at(repo, "diff-tree", "-r", "-M", "--name-status", "--no-commit-id", sha),
                      f"diff-tree {sha}").splitlines()
         renamed = [l.split("	") for l in status if l.startswith("R") and l.split("	")[-1] == path]
@@ -448,6 +452,33 @@ def test_add_commit_rail_follows_renames_and_refuses_shallow_boundaries(tmp_path
     assert _shallow_boundaries(deep)[0] is True
     first, problems = add_commit_revisions(deep, "shelf", ["x.r1.json"])
     assert problems == [] and first["x.r1.json"]["name"] == "first"
+
+
+def test_add_commit_rail_sees_a_revision_deleted_and_re_added(tmp_path):
+    """Fix round 1, M-6: delete a committed revision, re-add it with other bytes in a later commit,
+    and the rail compares against the FIRST add, so the rewrite reds."""
+    rev = lambda name: {"id": "shelf:x", "rev": 1, "name": name, "description": "d",
+                        "keywords": [], "plan": {}}
+    src = _repo(tmp_path / "src")
+    d = src / "shelf"
+    d.mkdir()
+    (d / "x.r1.json").write_text(json.dumps(rev("first")), encoding="utf-8")
+    _commit(src, "add")
+    (d / "x.r1.json").unlink()
+    _commit(src, "delete")
+    (d / "x.r1.json").write_text(json.dumps(rev("rewritten")), encoding="utf-8")
+    _commit(src, "re-add")
+    first, problems = add_commit_revisions(src, "shelf", ["x.r1.json"])
+    assert problems == [] and first["x.r1.json"]["name"] == "first"
+    entry = [{"file": "x.r1.json", "sha256": shelf.canonical_hash(rev("rewritten"))}]
+    local = lambda f: json.loads((d / f).read_text(encoding="utf-8"))
+    assert add_commit_violations(entry, first.get, local) == ["x.r1.json: differs from its add commit"]
+    # control: a file added once and never touched again is clean
+    (d / "y.r1.json").write_text(json.dumps(rev("y")), encoding="utf-8")
+    _commit(src, "add y")
+    first, _ = add_commit_revisions(src, "shelf", ["y.r1.json"])
+    clean = [{"file": "y.r1.json", "sha256": shelf.canonical_hash(rev("y"))}]
+    assert add_commit_violations(clean, first.get, local) == []
 
 
 def test_add_commit_rail_never_follows_a_copy(tmp_path):
