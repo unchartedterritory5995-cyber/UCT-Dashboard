@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   BUILT_KIND, DEFS_URL, BUILT_CHANGE_KEYS, FAILURE_COPY, FAILED_SENTENCE,
   postJson, putJson, getJson, ifMatchHeader, newIdempotencyKey, isIdempotencyKey, outcomeConfirmed, keyedSender, runBuilt, drillBuilt, builtRefreshParams, viewerSettingsOf, failureText,
-  overridableFilter, loadAccounts, loadVocabulary, loadCatalog, loadDefinition, __resetBuiltCaches,
+  overridableFilter, loadAccounts, loadVocabulary, loadCatalog, loadDefinition, loadShelf, placedShelfRev, __resetBuiltCaches,
 } from './builtWidgets'
 
 const setOnline = (value) => Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => value })
@@ -292,6 +292,44 @@ describe('the reads', () => {
     fetchSpy.mockResolvedValueOnce(reply(200, { ranges: [{ token: 'ytd', label: 'year to date' }] }))
     expect((await loadCatalog()).ranges[0].token).toBe('ytd')
     expect(fetchSpy.mock.calls[1][0]).toBe('/api/j2/widget-definitions/vocabulary')
+  })
+})
+
+describe('the shelf (Task 10.19)', () => {
+  const EXAMPLES = [
+    { id: 'shelf:pnl-by-setup', rev: 2, name: 'Net P&L by setup', description: 'd', keywords: ['k'], plan: { v: 1 }, summary: 'Net P&L by setup.' },
+    { id: 'shelf:win-rate', rev: 1, name: 'Win rate', description: 'd', keywords: [], plan: { v: 1 }, summary: 'Win rate.' },
+    { id: 'shelf:bad', rev: 0, name: 'bad revision', plan: {}, summary: 'x' },
+    { id: '', rev: 1 }, null,
+  ]
+
+  it('shelf_placement_without_def_rev_is_rev_one (W10-R5): only an integer from 1 counts', () => {
+    expect(placedShelfRev({})).toBe(1)
+    expect(placedShelfRev({ defRev: 3 })).toBe(3)
+    for (const bad of [0, -2, 1.5, '2', null, true, NaN]) expect(placedShelfRev({ defRev: bad })).toBe(1)
+    expect(placedShelfRev(null)).toBe(1)
+  })
+
+  it('loadShelf is one GET of /shelf, a Map of id -> {rev, name, summary, plan}, cached for the tab', async () => {
+    fetchSpy.mockResolvedValue(reply(200, { examples: EXAMPLES, dedicated: [{ kind: 'x' }] }))
+    const got = await loadShelf()
+    expect([...got.keys()]).toEqual(['shelf:pnl-by-setup', 'shelf:win-rate'])
+    expect(got.get('shelf:pnl-by-setup')).toEqual({ rev: 2, name: 'Net P&L by setup', summary: 'Net P&L by setup.', plan: { v: 1 } })
+    await loadShelf()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/j2/widget-definitions/shelf')
+    expect(fetchSpy.mock.calls[0][1].method).toBe('GET')
+    __resetBuiltCaches()                                           // the reset clears it
+    await loadShelf()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('a failed shelf read rejects with its code and is retried next time, not cached', async () => {
+    fetchSpy.mockResolvedValueOnce(reply(500, null)).mockResolvedValueOnce(reply(404, {}))
+      .mockResolvedValueOnce(reply(200, { examples: [] }))
+    await expect(loadShelf()).rejects.toMatchObject({ code: 'failed' })
+    await expect(loadShelf()).rejects.toMatchObject({ code: 'unavailable' })
+    expect((await loadShelf()).size).toBe(0)
   })
 })
 

@@ -4,6 +4,7 @@ import UIcon from '../../../../../components/ui/UIcon'
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
 import {
   BUILT_KIND, DEFS_URL, FAILED_SENTENCE, getJson, postJson, runBuilt, builtRefreshParams, failureText,
+  loadShelf, placedShelfRev,
 } from '../../../lib/builtWidgets'
 import SnapshotFrame, { useSnapshotFrame, accountSourceLine, snapshotStyles as s } from './SnapshotFrame'
 import NumberView from './builtViews/NumberView'
@@ -85,8 +86,20 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
 
   const load = () => {
     if (!defId) { setStatus({ kind: 'missing' }); return }
-    if (shelf) { setStatus({ kind: 'shelf' }); return }
     setStatus({ kind: 'loading' })
+    if (shelf) {
+      // A firm example is not the member's widget: the one shelf read says whether a newer revision exists.
+      loadShelf().then((map) => {
+        if (mounted.current) setStatus({ kind: 'shelf', entry: map.get(defId) || null })
+      }, (e) => {
+        if (!mounted.current) return
+        // A 404 while wave 8 is dark is the wave; a 402 is the plan; anything else is a check that did not happen.
+        if (e?.code === 'unavailable') setStatus({ kind: 'dark' })
+        else if (e?.code === 'paid') setStatus({ kind: 'paid' })
+        else setStatus({ kind: 'error' })
+      })
+      return
+    }
     getJson(`${DEFS_URL}/${encodeURIComponent(defId)}`).then((got) => {
       if (!mounted.current) return
       if (got.ok) setStatus({ kind: 'ok', def: got.data })
@@ -108,7 +121,12 @@ function BuiltMenu({ params, editor, getPos, onApplyLatest }) {
   const def = status?.kind === 'ok' && isRecord(status.def) ? status.def : null
   const placed = Math.max(Number.isInteger(params.defRev) ? params.defRev : 0,
     Number.isInteger(def?.placedRev) ? def.placedRev : 0)
-  const latest = def && Number.isInteger(def.rev) && def.rev > placed ? def : null
+  // A shelf placement with no `defRev` ran revision 1 (W10-R5). Derived at render, so once an update is applied the
+  // new `defRev` in the params removes the control.
+  const entry = status?.kind === 'shelf' ? status.entry : null
+  const latest = shelf
+    ? (entry && entry.rev > placedShelfRev(params) ? entry : null)
+    : (def && Number.isInteger(def.rev) && def.rev > placed ? def : null)
   const archived = def?.archived === true
 
   const edit = async () => {

@@ -247,6 +247,7 @@ const refusedRead = (got) => Object.assign(new Error(got.code), { code: got.code
 
 let accountsLoad = null
 let catalogLoad = null
+let shelfLoad = null
 const vocabLoads = new Map()
 
 const cached = (fn, keep) => fn().then((v) => v, (e) => { keep(null); throw e })
@@ -322,8 +323,39 @@ export function loadCatalog() {
   return catalogLoad
 }
 
+/** The revision a `shelf:` placement runs (W10-R5): its `defRev` when that is an integer from 1, else 1. A wave 8
+ *  placement carries no `defRev`, and it ran revision 1. The same rule the server applies to the run (`_shelf_rev`). */
+export function placedShelfRev(params) {
+  const r = isRecord(params) ? params.defRev : null
+  return Number.isInteger(r) && r >= 1 ? r : 1
+}
+
+/** The firm's ready-made examples as a Map of shelf id -> `{rev, name, summary, plan}` (`GET DEFS_URL/shelf`: per id
+ *  the newest revision the server's flags allow, so a revision on a dark wave is never listed). ONE GET per tab,
+ *  cached after the first answer; a refused or unreadable read is not cached and rejects with its `code`. */
+export function loadShelf() {
+  if (!shelfLoad) {
+    shelfLoad = cached(async () => {
+      const got = await getJson(`${DEFS_URL}/shelf`)
+      if (!got.ok) throw refusedRead(got)
+      const list = Array.isArray(got.data.examples) ? got.data.examples : []
+      const out = new Map()
+      for (const e of list) {
+        if (!isRecord(e) || typeof e.id !== 'string' || !e.id || !Number.isInteger(e.rev) || e.rev < 1) continue
+        out.set(e.id, {
+          rev: e.rev, name: typeof e.name === 'string' ? e.name : '',
+          summary: typeof e.summary === 'string' ? e.summary : '', plan: isRecord(e.plan) ? e.plan : null,
+        })
+      }
+      return out
+    }, (v) => { shelfLoad = v })
+  }
+  return shelfLoad
+}
+
 /** Tests only: forget every cached read. */
 export function __resetBuiltCaches() {
+  shelfLoad = null
   accountsLoad = null
   catalogLoad = null
   vocabLoads.clear()

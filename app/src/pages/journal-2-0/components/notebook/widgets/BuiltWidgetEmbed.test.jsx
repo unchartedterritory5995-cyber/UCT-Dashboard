@@ -10,6 +10,9 @@ import { anchorPosition, PANEL_MAX_H, PANEL_MIN_H } from './builtViews/DrillPane
 import SnapshotFrame, { useSnapshotFrame } from './SnapshotFrame'
 import frameStyles from './SnapshotFrame.module.css'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
+import { __resetBuiltCaches } from '../../../lib/builtWidgets'
+import { buildExtensions } from '../../../lib/tiptap'
+import { Editor } from '@tiptap/core'
 import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
 import { openMyTools } from '../myTools/openMyTools.js'
 
@@ -46,6 +49,7 @@ let fetchSpy
 beforeEach(() => {
   fetchSpy = vi.fn(); vi.stubGlobal('fetch', fetchSpy); openWidgetBuilder.mockClear(); openMyTools.mockClear()
   flags.w8 = true
+  __resetBuiltCaches()                                  // the shelf is read once per tab: each test starts a new one
 })
 afterEach(() => vi.unstubAllGlobals())
 /** Make the touch tier match (useIsTouch answers true). */
@@ -344,13 +348,15 @@ describe('BuiltWidgetEmbed', () => {
   })
 
   it('a firm example says Edit a copy, and is not read from the member\'s widgets', async () => {
+    fetchSpy.mockImplementation(() => answer({ examples: [] }))
     render(<BuiltWidgetEmbed attrs={attrsOf({ ...NUMBER, defId: 'shelf:pnl-by-setup' })} editable onUpdateParams={() => true} />)
     openMenu()
     fireEvent.click(screen.getByRole('button', { name: 'How this is made' }))
     const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
     expect(within(sheet).getByRole('button', { name: 'Edit a copy' })).toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: 'Edit widget' })).toBeNull()
-    expect(fetchSpy).toHaveBeenCalledTimes(0)
+    // the only read is the shelf's; the member's own widget route is never asked about a firm example
+    expect(fetchSpy.mock.calls.map(([u]) => u)).toEqual(['/api/j2/widget-definitions/shelf'])
   })
 
   it('updated_version_control_previews_then_applies', async () => {
@@ -676,5 +682,163 @@ describe('BuiltWidgetEmbed', () => {
     const o = render(<Other />)
     expect(o.container.querySelector('[data-snapshot-frame]').className).not.toContain(frameStyles.frameGutter)
     expect(frameStyles.frameGutter).toBeTruthy()
+  })
+})
+
+// Task 10.19: "Updated version available" for a ready-made (shelf:) widget, applied only on the member's click.
+describe('a ready-made widget and its newer revision', () => {
+  const SHELF_ID = 'shelf:pnl-by-setup'
+  const OLD = 'Net P&L of every closed trade.'
+  const NEW = 'Net P&L of closed trades, split by setup.'
+  const NEW_PLAN = { v: 1, source: 'closed_trades', groupBy: 'setup' }
+  const shelfBody = (rev) => ({
+    examples: [{ id: SHELF_ID, rev, name: 'Net P&L by setup', description: 'd', keywords: [], plan: NEW_PLAN, summary: NEW }],
+  })
+  const RUN = {
+    ...NUMBER, defId: SHELF_ID, defRev: 2, summary: NEW, def: NEW_PLAN, latestRev: 2, share: true,
+    value: { v1: 900, n1: 10, s1: '', n: 10 },
+  }
+  const { defRev: _none, ...NUMBER_NO_REV } = NUMBER
+  const PLACED = { ...NUMBER_NO_REV, defId: SHELF_ID, summary: OLD }   // no defRev: a wave 8 placement, revision 1
+  const serveShelf = (rev, { run = RUN } = {}) => fetchSpy.mockImplementation((url) => (url.endsWith('/run') ? answer(run)
+    : url.endsWith('/shelf') ? answer(shelfBody(rev)) : answer({}, 404)))
+  const runCalls = () => fetchSpy.mock.calls.filter(([u]) => u.endsWith('/run'))
+
+  /** A real editor holding the placed widget: the host's write is ONE `setNodeMarkup` transaction (as the note's
+   *  `updateAttributes` is), and every transaction that changes the document is counted. */
+  function hosted(params) {
+    const node = widgetEmbedNode('builtWidget', params)
+    const ed = new Editor({
+      extensions: buildExtensions(),
+      content: { type: 'doc', content: [{ type: 'widgetEmbed', attrs: node.attrs }, { type: 'paragraph' }] },
+    })
+    const changes = []
+    ed.on('transaction', ({ transaction }) => { if (transaction.docChanged) changes.push(transaction) })
+    const onUpdateParams = (next) => {
+      const cur = ed.state.doc.firstChild
+      ed.view.dispatch(ed.state.tr.setNodeMarkup(0, undefined, { ...cur.attrs, params: next, fallback: null }))
+      return true
+    }
+    return { ed, changes, onUpdateParams, attrs: node.attrs }
+  }
+  const placedParams = (ed) => ed.getJSON().content[0].attrs.params
+
+  it('shelf_placement_without_def_rev_is_rev_one: no defRev is offered revision 2, and is not offered revision 1', async () => {
+    serveShelf(2)
+    const { unmount } = render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByRole('button', { name: 'Updated version available' })).toBeInTheDocument()
+    unmount()
+    __resetBuiltCaches()
+    serveShelf(1)
+    render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
+    openMenu()
+    await waitFor(() => expect(screen.queryByText('Checking this widget…')).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Updated version available' })).toBeNull()
+  })
+
+  it('newer_rev_shows_control_and_side_by_side_summaries', async () => {
+    serveShelf(2)
+    render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
+    expect(fetchSpy).toHaveBeenCalledTimes(0)                       // nothing is read until the menu opens
+    openMenu()
+    fireEvent.click(await screen.findByRole('button', { name: 'Updated version available' }))
+    const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
+    expect(within(sheet).getByText('In this note')).toBeInTheDocument()
+    expect(within(sheet).getByText('Updated')).toBeInTheDocument()
+    expect(within(sheet).getAllByText(OLD).length).toBeGreaterThan(0)          // the sentence this note runs
+    expect(within(sheet).getByTestId('built-how-latest').textContent).toBe(NEW)  // beside the newer one
+    expect(within(sheet).getByRole('button', { name: 'Use the updated version' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Edit a copy' })).toBeInTheDocument()   // still there
+    expect(runCalls()).toHaveLength(0)
+    expect(fetchSpy.mock.calls.map(([u]) => u)).toEqual(['/api/j2/widget-definitions/shelf'])
+  })
+
+  it('same_rev_no_control', async () => {
+    serveShelf(2)
+    render(<BuiltWidgetEmbed attrs={attrsOf({ ...PLACED, defRev: 2 })} editable onUpdateParams={() => true} />)
+    openMenu()
+    await waitFor(() => expect(screen.queryByText('Checking this widget…')).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Updated version available' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'How this is made' })).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't check for updates.")).toBeNull()
+  })
+
+  it('no_change_until_click: opening the menu and the sheet and closing them makes zero document transactions', async () => {
+    serveShelf(2)
+    const host = hosted(PLACED)
+    render(<BuiltWidgetEmbed attrs={host.attrs} editable onUpdateParams={host.onUpdateParams} />)
+    openMenu()
+    fireEvent.click(await screen.findByRole('button', { name: 'Updated version available' }))
+    const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
+    fireEvent.keyDown(sheet, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'How this is made' })).toBeNull())
+    openMenu()                                                       // and the menu reopened and closed again
+    fireEvent.keyDown(screen.getByTestId('built-menu'), { key: 'Escape' })
+    expect(host.changes).toHaveLength(0)
+    expect(runCalls()).toHaveLength(0)                               // the widget was not even re-run
+    expect(placedParams(host.ed).defRev).toBeUndefined()             // the placement is exactly what it was
+    host.ed.destroy()
+  })
+
+  it('apply_is_one_transaction_with_new_def: one click re-runs at the new revision and writes ONE document change', async () => {
+    serveShelf(2)
+    const host = hosted(PLACED)
+    render(<BuiltWidgetEmbed attrs={host.attrs} editable onUpdateParams={host.onUpdateParams} />)
+    openMenu()
+    fireEvent.click(await screen.findByRole('button', { name: 'Updated version available' }))
+    const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Use the updated version' }))
+    await waitFor(() => expect(host.changes).toHaveLength(1))        // counted: ONE transaction changed the note
+    expect(runCalls()).toHaveLength(1)
+    expect(JSON.parse(runCalls()[0][1].body)).toMatchObject({ defId: SHELF_ID, defRev: 2 })
+    const written = placedParams(host.ed)
+    expect(written.defRev).toBe(2)
+    expect(written.def).toEqual(NEW_PLAN)                            // the new frozen copy, in the same write
+    expect(written.summary).toBe(NEW)
+    expect(written.value.v1).toBe(900)
+    expect(written.share).toBe(false)                                // a refresh never publishes
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'How this is made' })).toBeNull())
+    expect(host.changes).toHaveLength(1)                             // and nothing else followed it
+    host.ed.destroy()
+  })
+
+  it('a failed re-run changes nothing and says so', async () => {
+    fetchSpy.mockImplementation((url) => (url.endsWith('/run') ? answer({ detail: { code: 'busy', message: '' } }, 503)
+      : answer(shelfBody(2))))
+    const host = hosted(PLACED)
+    render(<BuiltWidgetEmbed attrs={host.attrs} editable onUpdateParams={host.onUpdateParams} />)
+    openMenu()
+    fireEvent.click(await screen.findByRole('button', { name: 'Updated version available' }))
+    const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Use the updated version' }))
+    expect(await screen.findByText('Busy right now. Try again in a moment.')).toBeInTheDocument()
+    expect(host.changes).toHaveLength(0)
+    host.ed.destroy()
+  })
+
+  it('shelf_get_failure_sentence: a failed read says the check did not happen, and offers no update', async () => {
+    fetchSpy.mockImplementation(() => answer({ detail: 'boom' }, 500))
+    render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText("Couldn't check for updates.")).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Updated version available' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'How this is made' })).toBeInTheDocument()
+  })
+
+  it('a shelf read refused while wave 8 is dark says Not available right now.', async () => {
+    fetchSpy.mockImplementation(() => answer({ detail: 'Not Found' }, 404))
+    render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
+    openMenu()
+    expect(await screen.findByText(UNAVAILABLE_SENTENCE)).toBeInTheDocument()
+  })
+
+  it('the shelf is read once per tab: reopening the menu asks nobody', async () => {
+    serveShelf(2)
+    render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
+    openMenu()
+    await screen.findByRole('button', { name: 'Updated version available' })
+    openMenu(); openMenu()
+    expect(fetchSpy.mock.calls.filter(([u]) => u.endsWith('/shelf'))).toHaveLength(1)
   })
 })
