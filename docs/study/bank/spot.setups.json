@@ -16466,5 +16466,1599 @@
   "sym": "AXON",
   "type": "spot",
   "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-01",
+  "bars": {
+   "asof": "2022-02-01",
+   "forward": 20,
+   "sym": "FUN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_092590e75442",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 13.11% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2022-02-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FUN"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 17.7,
+    "base20_range_pct": 9.6,
+    "breakout20": true,
+    "close_pos": 0.84,
+    "close_pos_pct": 84,
+    "day_pct": 13.11,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 4.3,
+    "ever_in_data": true,
+    "fwd_10d_pct": 9.5,
+    "fwd_20d_pct": 1.5,
+    "fwd_5d_pct": 6.2,
+    "fwd_closes_above_hvc": 18,
+    "fwd_max_gain_pct": 11.2,
+    "fwd_min_close_vs_hvc_pct": -0.6,
+    "fwd_reclaim_session": 17,
+    "fwd_sessions": 20,
+    "gap_pct": 0.54,
+    "hvc": 56.25,
+    "hve_low": 49.41,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 314,
+    "range_atr": 4.6,
+    "run_prior_20d_pct": -1.4,
+    "rvol": 22.8,
+    "setup_score": 10
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#FUN#2022-02-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#FUN#2022-02-01",
+  "sym": "FUN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-09-10",
+  "bars": {
+   "asof": "2024-09-10",
+   "forward": 20,
+   "sym": "VRDN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9a5be4d36cf4",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 32.14% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-09-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VRDN"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": false,
+    "avg_dollar_volume_m": 16.2,
+    "base20_range_pct": 16.6,
+    "breakout20": true,
+    "close_pos": 0.94,
+    "close_pos_pct": 94,
+    "day_pct": 32.14,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 4.31,
+    "ever_in_data": true,
+    "fwd_10d_pct": 12.9,
+    "fwd_20d_pct": 24.8,
+    "fwd_5d_pct": 13.0,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 32.0,
+    "fwd_min_close_vs_hvc_pct": 5.6,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 13.46,
+    "hvc": 18.75,
+    "hve_low": 15.12,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 968,
+    "range_atr": 4.35,
+    "run_prior_20d_pct": -7.2,
+    "rvol": 16.8,
+    "setup_score": 9
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#VRDN#2024-09-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#VRDN#2024-09-10",
+  "sym": "VRDN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-05-08",
+  "bars": {
+   "asof": "2024-05-08",
+   "forward": 20,
+   "sym": "INOD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ed282b22d66c",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 55.34% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-05-08",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "INOD"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 5.3,
+    "base20_range_pct": 15.6,
+    "breakout20": true,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "day_pct": 55.34,
+    "detector_fires": true,
+    "earnings_dates_near": [
+     "2024-05-07"
+    ],
+    "earnings_day": true,
+    "edge_ratio": 4.96,
+    "ever_in_data": true,
+    "fwd_10d_pct": 23.4,
+    "fwd_20d_pct": 44.8,
+    "fwd_5d_pct": 16.2,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 50.3,
+    "fwd_min_close_vs_hvc_pct": 3.0,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 28.34,
+    "hvc": 10.47,
+    "hve_low": 8.21,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 883,
+    "range_atr": 5.16,
+    "run_prior_20d_pct": 7.3,
+    "rvol": 58.7,
+    "setup_score": 9
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#INOD#2024-05-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#INOD#2024-05-08",
+  "sym": "INOD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-08-16",
+  "bars": {
+   "asof": "2021-08-16",
+   "forward": 20,
+   "sym": "TVTX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9eab91aa5073",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 15.34% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2021-08-16",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TVTX"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 17.0,
+    "base20_range_pct": 16.0,
+    "breakout20": true,
+    "close_pos": 0.18,
+    "close_pos_pct": 18,
+    "day_pct": 15.34,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 7.76,
+    "ever_in_data": true,
+    "fwd_10d_pct": 20.8,
+    "fwd_20d_pct": 32.5,
+    "fwd_5d_pct": 18.5,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 42.0,
+    "fwd_min_close_vs_hvc_pct": 10.7,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 33.14,
+    "hvc": 17.82,
+    "hve_low": 17.05,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 196,
+    "range_atr": 5.31,
+    "run_prior_20d_pct": 13.1,
+    "rvol": 41.9,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#TVTX#2021-08-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#TVTX#2021-08-16",
+  "sym": "TVTX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-10-03",
+  "bars": {
+   "asof": "2024-10-03",
+   "forward": 20,
+   "sym": "EVGO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_493fe086a5ef",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 60.81% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-10-03",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "EVGO"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": false,
+    "avg_dollar_volume_m": 16.4,
+    "base20_range_pct": 21.9,
+    "breakout20": true,
+    "close_pos": 0.9,
+    "close_pos_pct": 90,
+    "day_pct": 60.81,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 9.45,
+    "ever_in_data": true,
+    "fwd_10d_pct": 32.0,
+    "fwd_20d_pct": 24.1,
+    "fwd_5d_pct": 5.9,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 43.5,
+    "fwd_min_close_vs_hvc_pct": 5.5,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 29.01,
+    "hvc": 6.32,
+    "hve_low": 4.86,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 971,
+    "range_atr": 6.32,
+    "run_prior_20d_pct": -6.0,
+    "rvol": 40.1,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#EVGO#2024-10-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#EVGO#2024-10-03",
+  "sym": "EVGO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-23",
+  "bars": {
+   "asof": "2024-01-23",
+   "forward": 20,
+   "sym": "RUM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f7d570085a51",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 32.92% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-01-23",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RUM"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 13.0,
+    "base20_range_pct": 32.9,
+    "breakout20": true,
+    "close_pos": 0.72,
+    "close_pos_pct": 72,
+    "day_pct": 32.92,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 3.81,
+    "ever_in_data": true,
+    "fwd_10d_pct": 18.9,
+    "fwd_20d_pct": 10.8,
+    "fwd_5d_pct": -6.3,
+    "fwd_closes_above_hvc": 15,
+    "fwd_max_gain_pct": 28.6,
+    "fwd_min_close_vs_hvc_pct": -16.7,
+    "fwd_reclaim_session": 6,
+    "fwd_sessions": 20,
+    "gap_pct": 22.29,
+    "hvc": 6.5,
+    "hve_low": 5.13,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 765,
+    "range_atr": 5.24,
+    "run_prior_20d_pct": -1.0,
+    "rvol": 46.5,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#RUM#2024-01-23",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#RUM#2024-01-23",
+  "sym": "RUM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-09-13",
+  "bars": {
+   "asof": "2021-09-13",
+   "forward": 20,
+   "sym": "LIFE",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e3f913bd7abd",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 66.97% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2021-09-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "LIFE"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 10.0,
+    "base20_range_pct": 18.8,
+    "breakout20": true,
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "day_pct": 66.97,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 4.12,
+    "ever_in_data": true,
+    "fwd_10d_pct": 8.2,
+    "fwd_20d_pct": 3.0,
+    "fwd_5d_pct": 11.7,
+    "fwd_closes_above_hvc": 10,
+    "fwd_max_gain_pct": 43.2,
+    "fwd_min_close_vs_hvc_pct": -7.0,
+    "fwd_reclaim_session": 3,
+    "fwd_sessions": 20,
+    "gap_pct": 14.96,
+    "hvc": 9.15,
+    "hve_low": 5.84,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 628,
+    "range_atr": 15.41,
+    "run_prior_20d_pct": 13.5,
+    "rvol": 649.3,
+    "setup_score": 9
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#LIFE#2021-09-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#LIFE#2021-09-13",
+  "sym": "LIFE",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-12-19",
+  "bars": {
+   "asof": "2022-12-19",
+   "forward": 20,
+   "sym": "VKTX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2c5487bb869e",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 73.88% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2022-12-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VKTX"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 8.3,
+    "base20_range_pct": 17.7,
+    "breakout20": true,
+    "close_pos": 0.87,
+    "close_pos_pct": 87,
+    "day_pct": 73.88,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 9.9,
+    "ever_in_data": true,
+    "fwd_10d_pct": 20.5,
+    "fwd_20d_pct": 24.7,
+    "fwd_5d_pct": 16.0,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 37.6,
+    "fwd_min_close_vs_hvc_pct": 2.9,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 35.57,
+    "hvc": 6.99,
+    "hve_low": 5.32,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 536,
+    "range_atr": 8.73,
+    "run_prior_20d_pct": 0.5,
+    "rvol": 111.2,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#VKTX#2022-12-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#VKTX#2022-12-19",
+  "sym": "VKTX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-03",
+  "bars": {
+   "asof": "2024-01-03",
+   "forward": 20,
+   "sym": "DYN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0e52dea27a4a",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 13.09% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-01-03",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DYN"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 8.2,
+    "base20_range_pct": 21.0,
+    "breakout20": true,
+    "close_pos": 0.38,
+    "close_pos_pct": 38,
+    "day_pct": 13.09,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 5.15,
+    "ever_in_data": true,
+    "fwd_10d_pct": 9.7,
+    "fwd_20d_pct": 49.4,
+    "fwd_5d_pct": 17.4,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 72.6,
+    "fwd_min_close_vs_hvc_pct": 5.8,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 37.83,
+    "hvc": 14.77,
+    "hve_low": 12.33,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 795,
+    "range_atr": 7.11,
+    "run_prior_20d_pct": 12.1,
+    "rvol": 29.6,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#DYN#2024-01-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#DYN#2024-01-03",
+  "sym": "DYN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-07-06",
+  "bars": {
+   "asof": "2023-07-06",
+   "forward": 20,
+   "sym": "CRBU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5f459f0ebe19",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 45.59% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2023-07-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CRBU"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": false,
+    "avg_dollar_volume_m": 7.3,
+    "base20_range_pct": 20.8,
+    "breakout20": true,
+    "close_pos": 0.35,
+    "close_pos_pct": 35,
+    "day_pct": 45.59,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 12.53,
+    "ever_in_data": true,
+    "fwd_10d_pct": 11.4,
+    "fwd_20d_pct": 15.2,
+    "fwd_5d_pct": 37.0,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 44.6,
+    "fwd_min_close_vs_hvc_pct": 5.9,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 37.25,
+    "hvc": 5.94,
+    "hve_low": 5.44,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 490,
+    "range_atr": 5.89,
+    "run_prior_20d_pct": -15.4,
+    "rvol": 102.5,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#CRBU#2023-07-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#CRBU#2023-07-06",
+  "sym": "CRBU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-09-24",
+  "bars": {
+   "asof": "2025-09-24",
+   "forward": 20,
+   "sym": "CLPT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3f11a63c88b4",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 58.55% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2025-09-24",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CLPT"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 6.1,
+    "base20_range_pct": 15.7,
+    "breakout20": true,
+    "close_pos": 0.65,
+    "close_pos_pct": 65,
+    "day_pct": 58.55,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 3.03,
+    "ever_in_data": true,
+    "fwd_10d_pct": 53.5,
+    "fwd_20d_pct": 26.0,
+    "fwd_5d_pct": 8.5,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 56.1,
+    "fwd_min_close_vs_hvc_pct": 2.4,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 33.88,
+    "hvc": 19.28,
+    "hve_low": 16.2,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 1227,
+    "range_atr": 7.08,
+    "run_prior_20d_pct": 14.3,
+    "rvol": 35.1,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#CLPT#2025-09-24",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#CLPT#2025-09-24",
+  "sym": "CLPT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-01-07",
+  "bars": {
+   "asof": "2026-01-07",
+   "forward": 20,
+   "sym": "ERAS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_e62b8d6b86be",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 42.42% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-01-07",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ERAS"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 6.1,
+    "base20_range_pct": 12.7,
+    "breakout20": true,
+    "close_pos": 0.52,
+    "close_pos_pct": 52,
+    "day_pct": 42.42,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 4.65,
+    "ever_in_data": true,
+    "fwd_10d_pct": 99.0,
+    "fwd_20d_pct": 129.8,
+    "fwd_5d_pct": 60.7,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 136.8,
+    "fwd_min_close_vs_hvc_pct": 12.4,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 2.75,
+    "hvc": 5.17,
+    "hve_low": 3.72,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 1124,
+    "range_atr": 11.2,
+    "run_prior_20d_pct": 8.7,
+    "rvol": 19.9,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#ERAS#2026-01-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#ERAS#2026-01-07",
+  "sym": "ERAS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-09-24",
+  "bars": {
+   "asof": "2024-09-24",
+   "forward": 20,
+   "sym": "WVE",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b3bd8f4553b9",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 53.37% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-09-24",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "WVE"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": false,
+    "avg_dollar_volume_m": 5.2,
+    "base20_range_pct": 16.1,
+    "breakout20": true,
+    "close_pos": 0.92,
+    "close_pos_pct": 92,
+    "day_pct": 53.37,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 1.33,
+    "ever_in_data": true,
+    "fwd_10d_pct": -2.3,
+    "fwd_20d_pct": 81.1,
+    "fwd_5d_pct": 1.3,
+    "fwd_closes_above_hvc": 17,
+    "fwd_max_gain_pct": 94.4,
+    "fwd_min_close_vs_hvc_pct": -2.3,
+    "fwd_reclaim_session": 3,
+    "fwd_sessions": 20,
+    "gap_pct": 20.04,
+    "hvc": 8.19,
+    "hve_low": 6.37,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 977,
+    "range_atr": 5.49,
+    "run_prior_20d_pct": -7.5,
+    "rvol": 24.9,
+    "setup_score": 8
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#WVE#2024-09-24",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#WVE#2024-09-24",
+  "sym": "WVE",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-06-28",
+  "bars": {
+   "asof": "2021-06-28",
+   "forward": 20,
+   "sym": "NTLA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b9cde0517403",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 50.21% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2021-06-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NTLA"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 128.1,
+    "base20_range_pct": 19.5,
+    "breakout20": true,
+    "close_pos": 0.52,
+    "close_pos_pct": 52,
+    "day_pct": 50.21,
+    "detector_fires": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 6.59,
+    "ever_in_data": true,
+    "fwd_10d_pct": 7.5,
+    "fwd_20d_pct": -0.8,
+    "fwd_5d_pct": 12.0,
+    "fwd_closes_above_hvc": 19,
+    "fwd_max_gain_pct": 51.9,
+    "fwd_min_close_vs_hvc_pct": -0.8,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 57.77,
+    "hvc": 133.43,
+    "hve_low": 121.66,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 162,
+    "range_atr": 4.1,
+    "run_prior_20d_pct": 18.5,
+    "rvol": 17.2,
+    "setup_score": 7
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#NTLA#2021-06-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#NTLA#2021-06-28",
+  "sym": "NTLA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-02-12",
+  "bars": {
+   "asof": "2026-02-12",
+   "forward": 20,
+   "sym": "FSLY",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_63af09d813f7",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 72.29% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-02-12",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FSLY"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": false,
+    "avg_dollar_volume_m": 53.2,
+    "base20_range_pct": 24.9,
+    "breakout20": true,
+    "close_pos": 0.59,
+    "close_pos_pct": 59,
+    "day_pct": 72.29,
+    "detector_fires": true,
+    "earnings_dates_near": [
+     "2026-02-11"
+    ],
+    "earnings_day": true,
+    "edge_ratio": 5.3,
+    "ever_in_data": true,
+    "fwd_10d_pct": 19.2,
+    "fwd_20d_pct": 53.2,
+    "fwd_5d_pct": 12.7,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 60.8,
+    "fwd_min_close_vs_hvc_pct": 6.0,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 44.9,
+    "hvc": 16.04,
+    "hve_low": 13.38,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 1324,
+    "range_atr": 7.29,
+    "run_prior_20d_pct": 1.1,
+    "rvol": 27.4,
+    "setup_score": 7
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#FSLY#2026-02-12",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#FSLY#2026-02-12",
+  "sym": "FSLY",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-09-05",
+  "bars": {
+   "asof": "2024-09-05",
+   "forward": 20,
+   "sym": "APLD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c3f13c7bc14b",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 65.74% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-09-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "APLD"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": false,
+    "avg_dollar_volume_m": 28.4,
+    "base20_range_pct": 54.6,
+    "breakout20": true,
+    "close_pos": 0.77,
+    "close_pos_pct": 77,
+    "day_pct": 65.74,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 7.97,
+    "ever_in_data": true,
+    "fwd_10d_pct": 3.5,
+    "fwd_20d_pct": 49.7,
+    "fwd_5d_pct": 12.1,
+    "fwd_closes_above_hvc": 19,
+    "fwd_max_gain_pct": 63.6,
+    "fwd_min_close_vs_hvc_pct": -15.3,
+    "fwd_reclaim_session": 2,
+    "fwd_sessions": 20,
+    "gap_pct": 54.01,
+    "hvc": 5.37,
+    "hve_low": 4.25,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 672,
+    "range_atr": 3.27,
+    "run_prior_20d_pct": -16.9,
+    "rvol": 27.5,
+    "setup_score": 7
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#APLD#2024-09-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#APLD#2024-09-05",
+  "sym": "APLD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-03-26",
+  "bars": {
+   "asof": "2026-03-26",
+   "forward": 20,
+   "sym": "NAVN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_91220c48d64a",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 43.28% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-03-26",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NAVN"
+   },
+   "facts": {
+    "close_pos": 0.8,
+    "close_pos_pct": 80,
+    "day_pct": 43.28,
+    "detector_fires": false,
+    "earnings_dates_near": [
+     "2026-03-25"
+    ],
+    "earnings_day": true,
+    "edge_ratio": 1.2,
+    "ever_in_data": true,
+    "fwd_10d_pct": -5.2,
+    "fwd_20d_pct": 19.0,
+    "fwd_5d_pct": -7.9,
+    "fwd_closes_above_hvc": 11,
+    "fwd_max_gain_pct": 25.4,
+    "fwd_min_close_vs_hvc_pct": -8.5,
+    "fwd_reclaim_session": 3,
+    "fwd_sessions": 20,
+    "gap_pct": 23.06,
+    "hvc": 13.11,
+    "hve_low": 10.5,
+    "owner_reference": "owner 2026-10-25: 'NAVN from earlier this year is a good example' (a fresh IPO; the firm detector needs 190 prior sessions and does not fire)",
+    "prior_sessions": 100,
+    "rvol": 12.9
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#NAVN#2026-03-26",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#NAVN#2026-03-26",
+  "sym": "NAVN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-08-19",
+  "bars": {
+   "asof": "2026-08-19",
+   "forward": 20,
+   "sym": "MRNA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_bb42a3138173",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23). Here the stock closed up 176.97% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-08-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MRNA"
+   },
+   "facts": {
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "day_pct": 176.97,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "edge_ratio": 4.09,
+    "ever_in_data": true,
+    "fwd_10d_pct": -13.5,
+    "fwd_20d_pct": -9.4,
+    "fwd_5d_pct": -14.2,
+    "fwd_closes_above_hvc": 0,
+    "fwd_max_gain_pct": -7.1,
+    "fwd_min_close_vs_hvc_pct": -23.5,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 84.28,
+    "hvc": 174.38,
+    "hve_low": 114.46,
+    "owner_reference": "owner 2026-10-25: 'MRNA is well known but it's not subtle high volume it's a shit ton'",
+    "prior_sessions": 1454,
+    "rvol": 27.5
+   },
+   "fires": true,
+   "quote": "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the biggest participants committed at, and price must defend it. Long only; a strong close is not required (owner ruling 2026-10-23).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#MRNA#2026-08-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#MRNA#2026-08-19",
+  "sym": "MRNA",
+  "type": "spot",
+  "version": 1
  }
 ]

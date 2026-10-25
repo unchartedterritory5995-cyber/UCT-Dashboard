@@ -115,3 +115,19 @@
 {"pass": 4, "setup": "Launchpad", "sym": "AME", "asof": "2022-10-28", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
 {"pass": 4, "setup": "Launchpad", "sym": "LI", "asof": "2025-02-06", "verdict": "keep", "owner_words": "Keep (great)", "grade": "great"}
 {"pass": 4, "setup": "Launchpad", "sym": "SW", "asof": "2026-06-11", "verdict": "cut", "owner_words": "Cut"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "RCL", "asof": "2025-06-27", "verdict": "cut", "owner_words": "nah lets find some better ones"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "CPNG", "asof": "2025-09-08", "verdict": "keep", "owner_words": "Yes that is okay I guess", "grade": "okay"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "NTRS", "asof": "2025-06-23", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "KNX", "asof": "2026-05-14", "verdict": "cut", "owner_words": "Cut"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "LRCX", "asof": "2025-12-19", "verdict": "cut", "owner_words": "Make sure we do not have end of month and OPEX days marked as HVE days", "nuance": ["supersedes the earlier okay: 2025-12-19 is the December quad-witching OPEX session"]}
+{"pass": 2, "setup": "High Volume Edge", "sym": "COMP", "asof": "2026-01-07", "verdict": "keep", "owner_words": "This is much better, sudden major increase", "grade": "good", "nuance": ["grade good assumed; RULE: the HVE is a SUDDEN MAJOR increase in volume versus everything before it (COMP 7.8x, 2.3x the prior-year max), not a merely heavy day"]}
+{"pass": 2, "setup": "High Volume Edge", "sym": "CVX", "asof": "2022-02-25", "verdict": "cut", "owner_words": "No. Btw, they can go below the HVC that is fine. It is meant to be a major level to mark out on your chart. Again NAVN from earlier this year is a good example", "nuance": ["RULING: the HVE close (HVC) is a major LEVEL to mark on the chart; price going below it afterwards is fine; the must-work rule does NOT apply to HVE. Reference NAVN 2026 (verify on bars)."]}
+{"pass": 2, "setup": "High Volume Edge", "sym": "CIEN", "asof": "2025-11-24", "verdict": "cut", "owner_words": "Nah"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "AAPL", "asof": "2024-06-11", "verdict": "cut", "owner_words": "Not part of the high volume edge", "nuance": ["a mega-cap on a modest multiple (2.8x) is not the HVE picture"]}
+{"pass": 2, "setup": "High Volume Edge", "sym": "HOOD", "asof": "2023-12-06", "verdict": "cut", "owner_words": "Closer but no"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "ASML", "asof": "2024-01-24", "verdict": "cut", "owner_words": "Again, just a PEG", "nuance": ["RULE: an earnings-day volume spike on an established name is a Power Earnings Gap example, not an HVE example"]}
+{"pass": 2, "setup": "High Volume Edge", "sym": "ORCL", "asof": "2025-06-12", "verdict": "cut", "owner_words": "Just a peg but it is an HVC", "nuance": ["a PEG example, not an HVE gallery example; the day still leaves a valid high-volume close level"]}
+{"pass": 2, "setup": "High Volume Edge", "sym": "RL", "asof": "2024-02-08", "verdict": "cut", "owner_words": "Just a PEG and HVC. Not a real HVE"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "DUOL", "asof": "2023-11-09", "verdict": "cut", "owner_words": "PEG"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "GM", "asof": "2025-10-21", "verdict": "cut", "owner_words": "PEG/HVC"}
+{"pass": 2, "setup": "High Volume Edge", "sym": "AXON", "asof": "2024-08-07", "verdict": "cut", "owner_words": "(earnings day, filed as a PEG with the owner informed; no objection)"}
