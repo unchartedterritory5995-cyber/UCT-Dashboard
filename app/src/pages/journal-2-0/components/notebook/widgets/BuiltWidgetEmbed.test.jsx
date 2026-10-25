@@ -746,7 +746,11 @@ describe('a ready-made widget and its newer revision', () => {
     const sheet = await screen.findByRole('dialog', { name: 'How this is made' })
     expect(within(sheet).getByText('In this note')).toBeInTheDocument()
     expect(within(sheet).getByText('Updated')).toBeInTheDocument()
-    expect(within(sheet).getAllByText(OLD).length).toBeGreaterThan(0)          // the sentence this note runs
+    // each sentence in its OWN column: the top summary of the sheet also says OLD, so it cannot stand in for this
+    const mine = within(sheet).getByText('In this note').parentElement
+    expect(within(mine).getByText(OLD)).toBeInTheDocument()
+    expect(within(mine).queryByText(NEW)).toBeNull()
+    expect(within(within(sheet).getByText('Updated').parentElement).queryByText(OLD)).toBeNull()
     expect(within(sheet).getByTestId('built-how-latest').textContent).toBe(NEW)  // beside the newer one
     expect(within(sheet).getByRole('button', { name: 'Use the updated version' })).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Edit a copy' })).toBeInTheDocument()   // still there
@@ -833,12 +837,15 @@ describe('a ready-made widget and its newer revision', () => {
     expect(await screen.findByText(UNAVAILABLE_SENTENCE)).toBeInTheDocument()
   })
 
-  it('the shelf is read once per tab: reopening the menu asks nobody', async () => {
+  it('the shelf is read once per tab: a SECOND embed mounted later asks nobody', async () => {
     serveShelf(2)
-    render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
+    const first = render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)
     openMenu()
     await screen.findByRole('button', { name: 'Updated version available' })
-    openMenu(); openMenu()
+    first.unmount()
+    render(<BuiltWidgetEmbed attrs={attrsOf(PLACED)} editable onUpdateParams={() => true} />)   // another widget, same tab
+    openMenu()
+    expect(await screen.findByRole('button', { name: 'Updated version available' })).toBeInTheDocument()
     expect(fetchSpy.mock.calls.filter(([u]) => u.endsWith('/shelf'))).toHaveLength(1)
   })
 })
