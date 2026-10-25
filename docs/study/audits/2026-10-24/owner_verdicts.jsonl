@@ -150,3 +150,4 @@
 {"pass": 3, "setup": "High Volume Edge", "sym": "NTLA", "asof": "2021-06-28", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
 {"pass": 3, "setup": "High Volume Edge", "sym": "APLD", "asof": "2024-09-05", "verdict": "keep", "owner_words": "Keep (okay)", "grade": "okay"}
 {"pass": 3, "setup": "High Volume Edge", "sym": "FSLY", "asof": "2026-02-12", "verdict": "keep", "owner_words": "This. This is 100% A+", "grade": "great", "nuance": ["an earnings-day HVE that counts: 27x volume, five times the record, after a long slide"]}
+{"pass": 3, "setup": "High Volume Edge", "sym": "WVE", "asof": "2024-10-16", "verdict": "keep", "grade": "great", "owner_words": "Keep (great)", "nuance": ["the owner-chosen second surge, replacing WVE 2024-09-24"]}
