@@ -724,6 +724,17 @@ const AWAITING_A_DECISION = {
     'COMMUNITY SURFACE — the pooled EventSource for the chat stream. Its only '
     + 'importers are the community files above, so it moves with them or not '
     + 'at all (same pairing rule as buildRail / DeskVideoRail).',
+  // ── WIDGET FORMULA TWIN — BUILT AHEAD OF ITS BUILDER (2026-10-24, W10 10.3) ──
+  //
+  // Notebook widgets phase 2, wave 10, Task 10.3 lands the client twin of the
+  // widget formula dialect (it must agree with the server on every shared vector)
+  // BEFORE its one consumer exists: Task 10.16 imports it from the builder's lazy
+  // chunk (`components/notebook/widgetBuilder/`) so a member's formula is checked
+  // as they type. It must never be imported eagerly (widgetFormula.lazy.test.js).
+  // Expiry: 10.16 imports it; then drop this entry in that commit.
+  'app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js':
+    'WIDGET FORMULA TWIN — pure, lazy, no importer until Task 10.16 wires it into '
+    + 'the builder chunk. Drop this entry in that commit.',
   // (PACKET-AA CP1's FlowExplainButton.jsx block stood here until 2026-09-25;
   // CP2 mounted it in OptionsFlow.jsx's Strike Flow Detail table and the block
   // and its expiry were deleted in that commit, as the block's own text said.)
@@ -803,6 +814,7 @@ const PARKING_EXPIRES = {
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  'WIDGET FORMULA TWIN — BUILT AHEAD OF ITS BUILDER (2026-10-24, W10 10.3)': '2026-11-30',   // Task 10.16 wires it into the lazy builder chunk
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch
   // carries the S4 rail and had no such block. The rail meeting the block is
