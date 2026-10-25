@@ -749,3 +749,40 @@ def test_kind_is_offered_only_while_note_kinds_are(conn, monkeypatch, on):
     # control: a notes plan that never names kind is unaffected either way
     assert plan.validate_plan(raw(split={"by": "folder"}, view={"type": "bar"}),
                               sources.CATALOG)["source"] == "notes"
+
+
+# -- W10-R66: what a property filter and a property sum offer, served from ONE table ------------
+
+def test_property_filter_types_build_through_the_one_authority(conn):
+    """Every (type, op) the builder is served (`sources.PROPERTY_FILTER_TYPES`) is one of the plan's
+    property ops AND builds a real predicate through `note_properties.property_filter_sql` for a
+    property of that type; a type the authority cannot filter (a relation) is not in the table."""
+    sample = {"number": 3, "date": "2026-10-20", "checkbox": True, "text": "x", "url": "x",
+              "select": None, "multi_select": None}
+    assert set(sources.PROPERTY_FILTER_TYPES) <= set(note_properties._VALID_TYPES)
+    assert "relation" not in sources.PROPERTY_FILTER_TYPES
+    for type_, d in sources.PROPERTY_FILTER_TYPES.items():
+        assert d["ops"] and set(d["ops"]) <= set(sources.PROPERTY_OPS), type_
+        assert d["valueType"] in {"number", "day", "bool", "text", "enum"} and d["label"], type_
+        opts = [{"label": "A"}] if type_ in ("select", "multi_select") else None
+        pdef = note_properties.create_property_def(UID, f"P {type_}", type_, options=opts, conn=conn)
+        value = pdef["options"][0]["id"] if opts else sample[type_]
+        for op in d["ops"]:
+            values = [value, value] if op == "between" else [value]
+            conds = sources.property_conditions(pdef["id"], op, values, type_)
+            sql, params = note_properties.property_filter_sql(UID, conds, conn, strict=True)
+            assert sql and params, (type_, op)
+
+
+def test_property_sum_types_are_the_ones_summed(conn):
+    """`PROP_SUM_TYPES` is what `_summed_properties` accepts: a number property is summed, any
+    other type is the not-a-number notice."""
+    assert sources.PROP_SUM_TYPES == ("number",)
+    num = add_prop(conn, UID, "Risk", "number")
+    txt = add_prop(conn, UID, "Why", "text")
+    for prop, summed in ((num, True), (txt, False)):
+        notices: list[str] = []
+        got = sources._summed_properties(conn, UID, {"measures": [{"key": "property_sum", "prop": prop}]},
+                                         notices)
+        assert (got == [prop]) is summed
+        assert (sources.S_PROP_NOT_NUMBER in notices) is (not summed)

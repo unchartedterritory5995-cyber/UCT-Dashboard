@@ -1,10 +1,10 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
 import {
   filterSentence, filterProblem, opLabel, valueArity, valueLabel, rangeText, rangeIsUnbounded, reasonOf,
   isRightNow, sourceOf, VOCAB_FIELDS, refKindOf, refName, refusedRangesOf, REF_KINDS, ID_NAMED_FIELDS,
-  propertyFieldFor, propertyFilterable, PROPERTY_TYPE_WORDS,
+  propertyFieldFor, propertyFilterable, propertyTypeOf, NAME_WORDS,
 } from '../builderCatalog'
 import { loadVocabulary } from '../../../../lib/builtWidgets'
 import { loadPropertyDefs } from '../propertyDefs'
@@ -206,16 +206,21 @@ export function FilterEditor(props) {
 /**
  * Wave 10 (Task 10.17): a filter on one of the member's note properties. Step one, "Which property": the member's own
  * properties by name (`GET /vocabulary?field=property`, the notes source's own rule; read again on each open), of a
- * type a filter can ask (`propertyFilterable`). Step two: the comparison and a value picker typed by the property's
- * type (a number, a date, yes or no, text, a select's options), with "Change property" back to step one. Several
- * property filters may sit in one widget. The definitions read here (names, types, a select's options) are handed to
- * the builder (`onToolNames('propertyDefs', ...)`) so the chips name the property and its value.
+ * type the catalog says a filter can ask (the field's served `propertyTypes`, W10-R66). Step two: the comparison and a
+ * value picker typed by the property's type, with "Change property" back to step one. Several property filters may sit
+ * in one widget. The definitions read here (names, types, a select's options) are handed to the builder
+ * (`onToolNames('propertyDefs', ...)`) so the chips name the property and its value.
+ *
+ * Focus never falls to the page (fix 1, I-3): each step change puts it on the new step's heading, and "Change
+ * property" puts it back on the property that was picked.
  */
 export function PropertyFilterEditor(props) {
   const { initial, onBack, onToolNames, field } = props
   const [prop, setProp] = useState(typeof initial?.prop === 'string' && initial.prop ? initial.prop : null)
   const [state, setState] = useState(null)       // null while loading, then {list, defs, failed}
   const [tick, setTick] = useState(0)
+  const rootRef = useRef(null)
+  const lastProp = useRef(prop)
   useEffect(() => {
     let alive = true
     setState(null)
@@ -226,7 +231,7 @@ export function PropertyFilterEditor(props) {
       const list = v.status === 'fulfilled' && Array.isArray(v.value)
         ? v.value.filter((x) => x && typeof x === 'object' && typeof x.id === 'string' && x.id)
           .map((x) => ({ id: x.id, name: typeof x.name === 'string' && x.name ? x.name : '', type: x.type }))
-          .filter((x) => x.name && propertyFilterable(x.type))
+          .filter((x) => x.name && propertyFilterable(field, x.type))
         : []
       setState({ list, defs, failed: v.status !== 'fulfilled' })
     })
@@ -235,10 +240,37 @@ export function PropertyFilterEditor(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick])
 
+  const row = prop ? state?.list.find((x) => x.id === prop) || null : null
+  const known = state?.defs instanceof Map ? state.defs.get(prop) : undefined
+  const def = known || (row ? { name: row.name, type: row.type, options: [] } : null)
+  const needsOptions = def?.type === 'select' || def?.type === 'multi_select'
+  let step = 'pick'
+  if (prop) {
+    if (state === null) step = 'loading'
+    else if (state.defs instanceof Map && !known && !row) step = 'removed'
+    else if (!def || (needsOptions && !known)) step = 'failed'
+    else if (!propertyFilterable(field, def.type)) step = 'unusable'
+    else step = 'edit'
+  }
+  // A step change moves focus off the control that started it; it lands on the next one, never on the page.
+  const stepKey = `${step}:${prop || ''}`
+  const firstStep = useRef(true)
+  useLayoutEffect(() => {
+    if (firstStep.current) { firstStep.current = false; return }
+    const root = rootRef.current
+    if (!root || root.contains(document.activeElement)) return
+    const back = !prop && lastProp.current
+      ? [...root.querySelectorAll('[data-prop-id]')].find((b) => b.getAttribute('data-prop-id') === lastProp.current) : null
+    ;(back || root.querySelector('[data-picker-heading]'))?.focus()
+    lastProp.current = prop || lastProp.current
+  }, [stepKey])
+
   const retry = <button type="button" className={styles.btn} onClick={() => setTick((n) => n + 1)}>Try again</button>
-  if (!prop) {
-    return (
-      <div>
+  const change = <button type="button" className={styles.btn} onClick={() => { lastProp.current = prop; setProp(null) }}>Change property</button>
+  let body
+  if (step === 'pick') {
+    body = (
+      <>
         <PickerHead title="Which property" onBack={onBack} />
         {state === null && <p className={styles.sectionHint} role="status">Loading your properties…</p>}
         {state?.failed && <div><p className={styles.reason} role="alert">{"Couldn't load your properties."}</p>{retry}</div>}
@@ -249,43 +281,38 @@ export function PropertyFilterEditor(props) {
           <ul className={styles.pickerList} aria-label="Properties">
             {state.list.map((x) => (
               <li key={x.id}>
-                <button type="button" className={styles.option} onClick={() => setProp(x.id)}>
+                <button type="button" className={styles.option} data-prop-id={x.id} onClick={() => setProp(x.id)}>
                   <span className={styles.optionLabel}>{x.name}</span>
-                  <span className={styles.optionMeta}>{PROPERTY_TYPE_WORDS[x.type]}</span>
+                  <span className={styles.optionMeta}>{propertyTypeOf(field, x.type)?.label || ''}</span>
                 </button>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </>
+    )
+  } else if (step !== 'edit') {
+    const title = step === 'removed' ? NAME_WORDS.property.removed : def?.name || field.label
+    body = (
+      <>
+        <PickerHead title={title} onBack={onBack} />
+        {step === 'loading' && <p className={styles.sectionHint} role="status">Loading your properties…</p>}
+        {step === 'removed' && <p className={styles.reason}>This property was removed. Pick another one.</p>}
+        {step === 'failed' && <div><p className={styles.reason} role="alert">{"Couldn't load this property."}</p>{retry}</div>}
+        {step === 'unusable' && <p className={styles.reason}>{"This property can't be used to filter a widget."}</p>}
+        {change}
+      </>
+    )
+  } else {
+    // A filter on another property keeps none of this one's comparison or values.
+    const same = initial && initial.prop === prop
+    const start = initial ? { ...initial, ...(same ? {} : { op: undefined, values: [] }) } : undefined
+    body = (
+      <FieldFilterEditor key={prop} {...props} initial={start} draft={undefined} field={propertyFieldFor(field, def)}
+        prop={prop} onChangeProp={() => { lastProp.current = prop; setProp(null) }} />
     )
   }
-  // The named property's own definition (its select options); else its row in the pick list (no options needed).
-  const row = state?.list.find((x) => x.id === prop) || null
-  const def = state?.defs?.get(prop) || (row ? { name: row.name, type: row.type, options: [] } : null)
-  const needsOptions = def?.type === 'select' || def?.type === 'multi_select'
-  if (state === null || !def || !propertyFilterable(def.type) || (needsOptions && !state.defs)) {
-    return (
-      <div>
-        <PickerHead title={def?.name || field.label} onBack={onBack} />
-        {state === null && <p className={styles.sectionHint} role="status">Loading your properties…</p>}
-        {state && (!state.defs || !def) && (
-          <div><p className={styles.reason} role="alert">{"Couldn't load this property."}</p>{retry}</div>
-        )}
-        {state && def && state.defs && !propertyFilterable(def.type) && (
-          <p className={styles.reason}>{"This property can't be used to filter a widget."}</p>
-        )}
-        <button type="button" className={styles.btn} onClick={() => setProp(null)}>Change property</button>
-      </div>
-    )
-  }
-  // A filter on another property keeps none of this one's comparison or values.
-  const same = initial && initial.prop === prop
-  const start = initial ? { ...initial, ...(same ? {} : { op: undefined, values: [] }) } : undefined
-  return (
-    <FieldFilterEditor key={prop} {...props} initial={start} draft={undefined} field={propertyFieldFor(field, def)}
-      prop={prop} onChangeProp={() => setProp(null)} />
-  )
+  return <div ref={rootRef}>{body}</div>
 }
 
 /**

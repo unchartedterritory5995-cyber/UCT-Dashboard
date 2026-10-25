@@ -452,6 +452,10 @@ def _field_row(f: Any, w10: bool = False) -> dict:
             row["hourKey"] = f.hour_key
         if f.key == wplan.PROPERTY_FIELD:
             row["prop"] = True
+            # W10-R66: what a filter on each property type offers, from its one owner
+            row["propertyTypes"] = {t: {"valueType": d["valueType"], "ops": list(d["ops"]),
+                                        "label": d["label"]}
+                                    for t, d in wsources.PROPERTY_FILTER_TYPES.items()}
     return row
 
 
@@ -486,7 +490,11 @@ def _static_vocabulary(tools: bool = False, w10: bool = False) -> dict:
         })
     measures = [{"key": m.key, "label": m.label, "theme": m.theme, "meaning": m.meaning,
                  "unit": m.unit, "kind": m.kind, "needs": list(m.needs),
-                 "sources": sorted(k for k in m.sources if offered_source(k))}
+                 "sources": sorted(k for k in m.sources if offered_source(k)),
+                 # W10-R66: a measure that adds up one of the member's properties says so, and of
+                 # which types (plan.PROP_MEASURES, sources.PROP_SUM_TYPES)
+                 **({"prop": {"types": list(wsources.PROP_SUM_TYPES)}}
+                    if m.key in wplan.PROP_MEASURES else {})}
                 for m in cat.measures.values()
                 if any(offered_source(k) for k in m.sources)]
     out = {

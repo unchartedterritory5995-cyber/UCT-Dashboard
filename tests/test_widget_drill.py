@@ -198,10 +198,13 @@ def test_options_drill_rows_and_owned_ids(conn, monkeypatch):
     assert out["count"] == 2 and out["more"] == 0
     assert out["rows"] == [
         {"day": "2026-10-21", "label": "SPY", "label2": "Long Call", "net": None, "r": None,
-         "result": None, "strategyId": s2},
+         "result": None, "open": True, "strategyId": s2},
         {"day": "2026-10-20", "label": "QQQ", "label2": "Iron Condor", "net": 120.0, "r": 1.5,
-         "result": "Win", "strategyId": s1},
+         "result": "Win", "open": False, "strategyId": s1},
     ]
+    # W10-R65: the open flag is the scan's own (status "open"), each way on its own row.
+    by_id = {r["strategyId"]: r for r in out["rows"]}
+    assert by_id[s2]["open"] is True and by_id[s1]["open"] is False
     split = dict(plan, split={"by": "strategy"}, view={"type": "bar"})
     assert [r["strategyId"] for r in _drill(split, {"label": "Iron Condor"})["rows"]] == [s1]
 

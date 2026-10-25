@@ -14,6 +14,14 @@ export const W10_CATALOG_NO_KINDS = {
   sources: W10.sources.map((s) => (s.key === 'notes' ? { ...s, fields: s.fields.filter((f) => f.key !== 'kind') } : s)),
 }
 
+/** A deep copy of the wave 10 catalog with `edit(notes source row)` applied: a server entry removed or changed, to
+ *  prove the builder offers what the catalog serves and nothing else. */
+export function w10With(edit) {
+  const cat = JSON.parse(JSON.stringify(W10))
+  edit(cat.sources.find((s) => s.key === 'notes'), cat)
+  return cat
+}
+
 /** The two sources' rows as the server serves them. */
 export const sourceRow = (key) => W10.sources.find((s) => s.key === key)
 
@@ -24,6 +32,7 @@ export const P_GRADE = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 export const P_DONE = 'cccccccccccccccccccccccccccccccc'
 export const P_RISK = 'dddddddddddddddddddddddddddddddd'
 export const P_LINKS = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+export const P_WHY = 'ffffffffffffffffffffffffffffffff'
 export const OPT_A = '11111111111111111111111111111111'
 export const OPT_B = '22222222222222222222222222222222'
 export const PROPERTIES = [
@@ -32,6 +41,7 @@ export const PROPERTIES = [
   { id: P_DONE, name: 'Reviewed', type: 'checkbox' },
   { id: P_RISK, name: 'Risk taken', type: 'number' },
   { id: P_LINKS, name: 'Related', type: 'relation' },
+  { id: P_WHY, name: 'Why', type: 'text' },
 ]
 /** `GET /api/j2/property-defs` for the same member (`{propertyDefs}`; a select carries its options). */
 export const PROPERTY_DEFS = {
@@ -41,6 +51,7 @@ export const PROPERTY_DEFS = {
     { id: P_DONE, name: 'Reviewed', type: 'checkbox', source: 'user_set', options: [] },
     { id: P_RISK, name: 'Risk taken', type: 'number', source: 'user_set', options: [] },
     { id: P_LINKS, name: 'Related', type: 'relation', source: 'user_set', options: [] },
+    { id: P_WHY, name: 'Why', type: 'text', source: 'user_set', options: [] },
   ],
 }
 export const STRATEGIES = [{ id: 'iron_condor', name: 'Iron condor' }, { id: 'long_call', name: 'Long call' }]

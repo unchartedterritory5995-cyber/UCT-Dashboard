@@ -1461,8 +1461,8 @@ describe('wave 10 keys in the built views (Task 10.18)', () => {
 describe('drilled options strategies and notes (Task 10.17)', () => {
   // be drill._option_row / _note_row: the shapes the server answers for the two wave 10 sources.
   const OPTION_ROWS = [
-    { day: '2026-10-20', label: 'SPY', label2: 'Iron condor', net: 120, r: 0.5, result: 'Win', strategyId: 'opt-1' },
-    { day: '2026-10-21', label: 'AAPL', label2: 'Long call', net: null, r: null, result: null, strategyId: 'opt-2' },
+    { day: '2026-10-20', label: 'SPY', label2: 'Iron condor', net: 120, r: 0.5, result: 'Win', open: false, strategyId: 'opt-1' },
+    { day: '2026-10-21', label: 'AAPL', label2: 'Long call', net: null, r: null, result: null, open: true, strategyId: 'opt-2' },
   ]
   const NOTE_ROWS = [{ day: '2026-10-22', label: 'Why I sized down', noteId: 'note-1' }, { day: '2026-10-23', label: '', noteId: 'note-2' }]
   const drillAnswer = (rows) => fetchSpy.mockImplementation(() => Promise.resolve({
@@ -1498,6 +1498,22 @@ describe('drilled options strategies and notes (Task 10.17)', () => {
     fireEvent.click(link)
     expect(screen.getByTestId('where').textContent).toBe('/journal?j2tab=journal&openTrade=opt-1')
     expect(onClose).toHaveBeenCalledWith(false)
+  })
+
+  it('an_open_strategy_row_is_plain_text_and_a_closed_one_links (W10-R65)', async () => {
+    // the server's `open` decides, never the missing numbers: a closed row with no figures still links
+    drillAnswer([...OPTION_ROWS,
+      { day: '2026-10-22', label: 'QQQ', label2: 'Short put', net: null, r: null, result: null, open: false, strategyId: 'opt-3' }])
+    await openDrill('options_strategies', inRouter)
+    const rows = screen.getByTestId('built-drill-rows')
+    const items = within(rows).getAllByRole('listitem')
+    // open: the underlying as text, no link anywhere in its row
+    expect(within(items[1]).queryByRole('link')).toBeNull()
+    expect(within(items[1]).getByText('AAPL')).toBeInTheDocument()
+    // closed: a link to the drawer
+    expect(within(items[0]).getByRole('link', { name: 'SPY' })).toHaveAttribute('href', optionHref('opt-1'))
+    expect(within(items[2]).getByRole('link', { name: 'QQQ' })).toHaveAttribute('href', optionHref('opt-3'))
+    expect(within(rows).queryAllByRole('link').map((a) => a.getAttribute('href'))).not.toContain(optionHref('opt-2'))
   })
 
   it('drill_note_row_opens_note', async () => {

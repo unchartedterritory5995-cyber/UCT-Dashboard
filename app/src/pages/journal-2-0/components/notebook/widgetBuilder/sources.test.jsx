@@ -11,22 +11,43 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import WidgetBuilderSheet, { PREVIEW_DEBOUNCE_MS } from './WidgetBuilderSheet'
 import {
-  VOCAB_FIELDS, ID_NAMED_FIELDS, PROPERTY_FILTER_TYPES, indexCatalog, filterSentence, propertyFieldFor, NAMES_FAILED,
+  VOCAB_FIELDS, ID_NAMED_FIELDS, indexCatalog, filterSentence, propertyFieldFor, NAMES_FAILED,
   NAME_WORDS,
 } from './builderCatalog'
+import { cleanup } from '@testing-library/react'
 import { measureLabel, measureId } from './formulaFields'
 import { normalizePlan } from './builderState'
 import { __resetBuiltCaches } from '../../../lib/builtWidgets'
 import { installFetch, answer, refusal, callsTo, bodyOf, payload, CATALOG } from './__fixtures__/builderFixtures'
 import {
   W10_CATALOG, W10_CATALOG_NO_KINDS, sourceRow, PROPERTIES, PROPERTY_DEFS, STRATEGIES, FOLDERS, KINDS, NOTE_TAGS,
-  UNDERLYINGS, P_CONV, P_GRADE, P_DONE, P_RISK, OPT_A,
+  UNDERLYINGS, P_CONV, P_GRADE, P_DONE, P_RISK, P_WHY, OPT_A, w10With,
 } from './__fixtures__/w10Catalog'
 
 const flush = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
 const OPTIONS = sourceRow('options_strategies')
 const NOTES = sourceRow('notes')
+const PROP_FIELD = NOTES.fields.find((f) => f.key === 'property')
+
+/** A server constant read from its own file (never retyped here): `NAME = (...)` or the `S_EMPTY` table. */
+const REPO = join(process.cwd(), '..')
+const serverText = (rel) => readFileSync(join(REPO, rel), 'utf-8')
+const pyStrings = (text) => [...text.matchAll(/"([^"]*)"/g)].map((m) => m[1])
+function pyTuple(rel, name) {
+  const m = new RegExp(`^${name} = \\(([^)]*)\\)`, 'm').exec(serverText(rel))
+  if (!m) throw new Error(`${name} not found in ${rel}`)
+  return pyStrings(m[1])
+}
+function pyDictEntry(rel, table, key) {
+  const t = serverText(rel)
+  const at = t.indexOf(`${table}: dict[str, str] = {`)
+  if (at < 0) throw new Error(`${table} not found in ${rel}`)
+  const body = t.slice(at, t.indexOf('}', at))
+  const m = new RegExp(`"${key}":\\s*"([^"]*)"`).exec(body)
+  if (!m) throw new Error(`${table}[${key}] not found`)
+  return m[1]
+}
 
 let fetchSpy
 let routes
@@ -50,6 +71,8 @@ afterEach(() => {
 })
 
 const route = (method, test, reply) => routes.unshift([method, test, reply])
+/** Unmount everything and forget the cached reads, inside one test. */
+const cleanupAll = () => { cleanup(); __resetBuiltCaches() }
 const previews = () => callsTo(fetchSpy, 'POST', (u) => u.endsWith('/preview'))
 const lastPlan = () => bodyOf(previews()[previews().length - 1]).plan
 
@@ -110,8 +133,11 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
   })
 
   it('vocab_fields_are_the_servers_and_kind_only_while_offered', async () => {
-    // The member-values door answers exactly these keys while wave 10 is on (be router VOCAB_W10_FIELDS).
-    for (const k of ['underlying', 'strategy', 'folder', 'kind', 'tag', 'ticker', 'property']) expect(VOCAB_FIELDS).toContain(k)
+    // The member-values door answers exactly these keys while wave 10 is on (be router VOCAB_W10_FIELDS, read from the
+    // router's own file).
+    const served = pyTuple('api/routers/notebook_widget_definitions.py', 'VOCAB_W10_FIELDS')
+    expect(served.length).toBeGreaterThan(5)
+    for (const k of served) expect(VOCAB_FIELDS).toContain(k)
     expect(VOCAB_FIELDS).not.toContain('note_tag')
     // Every field the two sources list without a fixed pick list is one the door answers (or a typed day or number).
     for (const src of [OPTIONS, NOTES]) {
@@ -176,13 +202,15 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
     await flush()
     const list = screen.getByRole('list', { name: 'Properties' })
     expect(within(list).getAllByRole('button').map((b) => b.querySelector('span').textContent))
-      .toEqual(['Conviction', 'Grade', 'Reviewed', 'Risk taken'])
+      .toEqual(['Conviction', 'Grade', 'Reviewed', 'Risk taken', 'Why'])
     // Step two: a number property takes a number, with the number comparisons.
     fireEvent.click(within(list).getByRole('button', { name: /^Conviction/ }))
     await flush()
     expect(screen.getByRole('heading', { name: 'Conviction' })).toBeInTheDocument()
     const cmp = screen.getByLabelText('Comparison')
-    expect([...cmp.options].map((o) => o.value)).toEqual(PROPERTY_FILTER_TYPES.number.ops)
+    // The comparisons are the SERVER's for a number property (the field's served `propertyTypes`), within its ops.
+    expect([...cmp.options].map((o) => o.value))
+      .toEqual(PROP_FIELD.propertyTypes.number.ops.filter((o) => PROP_FIELD.ops.includes(o)))
     fireEvent.change(cmp, { target: { value: 'gte' } })
     fireEvent.change(screen.getByLabelText('Value'), { target: { value: '3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
@@ -258,7 +286,7 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
     fireEvent.click(sum)
     await flush()
     // Only the member's NUMBER properties are offered.
-    const list = screen.getByRole('list', { name: 'Number properties' })
+    const list = screen.getByRole('list', { name: 'Properties to add up' })
     expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Conviction', 'Risk taken'])
     fireEvent.click(within(list).getByRole('button', { name: 'Risk taken' }))
     await flush(PREVIEW_DEBOUNCE_MS)
@@ -323,7 +351,11 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
     const texts = files.map((p) => readFileSync(p, 'utf-8'))
     expect(texts.length).toBeGreaterThan(30)                       // the walk read the widget code, not nothing
     expect(texts.some((t) => t.includes('No rows to show.'))).toBe(true)     // control: the walk can find a sentence
-    for (const s of ['No options strategies in this range.', 'No notes match.']) {
+    // the server's own sentences, read from payload.S_EMPTY (fix 1, m-4)
+    const sentences = ['options_strategies', 'notes'].map((k) => pyDictEntry(
+      'api/services/journal_two/widget_engine/payload.py', 'S_EMPTY', k))
+    expect(sentences.every((x) => x.length > 5)).toBe(true)
+    for (const s of sentences) {
       expect(texts.filter((t) => t.includes(s))).toEqual([])
     }
   })
@@ -332,6 +364,188 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
     route('POST', (u) => u.endsWith('/preview'), () => refusal(400, 'invalid', 'A server refusal, as sent.'))
     await onSource('Notes')
     expect(screen.getByText('A server refusal, as sent.')).toBeInTheDocument()
+  })
+
+  // ── W10-R66: the builder offers what the catalog serves, and nothing else ──
+  it('a_server_property_type_removed_is_not_offered', async () => {
+    catalog = w10With((notes) => { delete notes.fields.find((f) => f.key === 'property').propertyTypes.checkbox })
+    await onSource('Notes')
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Property' }))
+    await flush()
+    const list = screen.getByRole('list', { name: 'Properties' })
+    expect(within(list).queryByRole('button', { name: /^Reviewed/ })).toBeNull()
+    expect(within(list).getByRole('button', { name: /^Conviction/ })).toBeInTheDocument()
+    // and the type's words are the server's
+    expect(within(list).getByRole('button', { name: /^Conviction/ }).textContent)
+      .toBe(`Conviction${PROP_FIELD.propertyTypes.number.label}`)
+  })
+
+  it('a_server_comparison_removed_is_not_offered_from_either_list', async () => {
+    // Removed from the type's own list ...
+    catalog = w10With((notes) => {
+      const f = notes.fields.find((x) => x.key === 'property')
+      f.propertyTypes.number.ops = f.propertyTypes.number.ops.filter((o) => o !== 'between')
+    })
+    await onSource('Notes')
+    await pickProperty('Conviction')
+    let ops = [...screen.getByLabelText('Comparison').options].map((o) => o.value)
+    expect(ops).not.toContain('between')
+    expect(ops).toContain('gte')
+    cleanupAll()
+    // ... or from the catalog field's ops (fix 1, m-1): the type's list never widens what the field offers.
+    catalog = w10With((notes) => {
+      const f = notes.fields.find((x) => x.key === 'property')
+      f.ops = f.ops.filter((o) => o !== 'gte')
+    })
+    await onSource('Notes')
+    await pickProperty('Conviction')
+    ops = [...screen.getByLabelText('Comparison').options].map((o) => o.value)
+    expect(ops).not.toContain('gte')
+    expect(ops).toContain('between')
+  })
+
+  it('the_types_a_sum_adds_up_are_the_servers', async () => {
+    catalog = w10With((notes, cat) => { cat.measures.find((m) => m.key === 'property_sum').prop.types = ['checkbox'] })
+    await onSource('Notes')
+    fireEvent.click(screen.getByRole('button', { name: 'Notes. Change measures' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Sum of a property/ }))
+    await flush()
+    const list = screen.getByRole('list', { name: 'Properties to add up' })
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Reviewed'])
+    cleanupAll()
+    // A measure row with no `prop` is an ordinary measure: it toggles in, with no property list.
+    catalog = w10With((notes, cat) => { delete cat.measures.find((m) => m.key === 'property_sum').prop })
+    await onSource('Notes')
+    fireEvent.click(screen.getByRole('button', { name: 'Notes. Change measures' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Sum of a property/ }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(screen.queryByRole('list', { name: 'Properties to add up' })).toBeNull()
+    expect(lastPlan().measures).toEqual([{ key: 'notes' }, { key: 'property_sum' }])
+  })
+
+  it('a_text_property_takes_a_typed_value_never_a_list', async () => {
+    await onSource('Notes')
+    await pickProperty('Why')
+    // its comparisons are the server's for text; its value is typed, never a list of the member's property names
+    expect([...screen.getByLabelText('Comparison').options].map((o) => o.value))
+      .toEqual(PROP_FIELD.propertyTypes.text.ops.filter((o) => PROP_FIELD.ops.includes(o)))
+    expect(screen.queryByRole('list', { name: 'Why values' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Conviction' })).toBeNull()
+    fireEvent.change(screen.getByLabelText('Type a why'), { target: { value: 'fomo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(lastPlan().filters).toEqual([{ field: 'property', op: 'contains', values: ['fomo'], overridable: false, prop: P_WHY }])
+  })
+
+  // ── fix 1, I-3: focus never falls to the page ──
+  it('focus_moves_to_the_next_control_at_every_property_step', async () => {
+    await onSource('Notes')
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Property' }))
+    await flush()
+    // picking a property: focus lands on its step's heading
+    const conv = screen.getByRole('button', { name: /^Conviction/ })
+    conv.focus()
+    fireEvent.click(conv)
+    await flush()
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Conviction' }))
+    // "Change property": back on the property that was picked
+    const change = screen.getByRole('button', { name: 'Change property' })
+    change.focus()
+    fireEvent.click(change)
+    await flush()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Conviction/ }))
+    // the measure picker: opening "Sum of a property" puts focus on its heading; leaving it, back on it
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the widget' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Notes. Change measures' }))
+    const sum = screen.getByRole('button', { name: /^Sum of a property/ })
+    sum.focus()
+    fireEvent.click(sum)
+    await flush()
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Sum of a property' }))
+    const back = screen.getByRole('button', { name: 'Back to the widget' })
+    back.focus()
+    fireEvent.click(back)
+    await flush()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Sum of a property/ }))
+    // Done inside the property list does the same
+    fireEvent.click(screen.getByRole('button', { name: /^Sum of a property/ }))
+    await flush()
+    const done = screen.getByRole('button', { name: 'Done' })
+    done.focus()
+    fireEvent.click(done)
+    await flush()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Sum of a property/ }))
+  })
+
+  it('editing_a_property_chip_keeps_focus_through_its_load', async () => {
+    await onSource('Notes')
+    await pickProperty('Conviction')
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: '3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    fireEvent.click(screen.getByRole('button', { name: 'Conviction is 3' }))
+    await flush()
+    expect(screen.getByLabelText('Value')).toHaveValue(3)
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Conviction' }))
+  })
+
+  // ── fix 1, m-2 / m-3 ──
+  it('a_select_missing_from_the_definitions_says_it_could_not_load', async () => {
+    route('GET', (u) => u === '/api/j2/property-defs',
+      () => answer({ propertyDefs: PROPERTY_DEFS.propertyDefs.filter((d) => d.id !== P_GRADE) }))
+    await onSource('Notes')
+    await pickProperty('Grade')
+    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load this property.")
+    expect(screen.queryByText('Nothing to pick from yet.')).toBeNull()
+  })
+
+  it('an_edited_filter_whose_property_was_removed_says_so', async () => {
+    await onSource('Notes')
+    await pickProperty('Conviction')
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: '3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    // the property is deleted before the chip is opened again
+    route('GET', (u) => u.endsWith('/vocabulary?field=property'),
+      () => answer({ field: 'property', values: PROPERTIES.filter((x) => x.id !== P_CONV) }))
+    route('GET', (u) => u === '/api/j2/property-defs',
+      () => answer({ propertyDefs: PROPERTY_DEFS.propertyDefs.filter((d) => d.id !== P_CONV) }))
+    fireEvent.click(screen.getByRole('button', { name: 'Conviction is 3' }))
+    await flush()
+    expect(screen.getByRole('heading', { name: NAME_WORDS.property.removed })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Change property' })).toBeInTheDocument()
+  })
+
+  // ── fix 1, I-4: a widget opened for editing names its properties without any picker opened ──
+  it('an_opened_widget_reads_the_property_definitions_for_its_chips', async () => {
+    const plan = {
+      v: 3, source: 'notes', accounts: 'all', range: { token: 'last_90d' },
+      filters: [{ field: 'property', op: 'eq', values: [OPT_A], overridable: false, prop: P_GRADE }],
+      measures: [{ key: 'notes' }, { key: 'property_sum', prop: P_RISK }], split: null,
+      view: { type: 'number', auto: true }, sort: null, compare: null,
+      display: { title: '', titleAuto: true, subtitle: '', accent: 'gold', showN: true, target: null },
+    }
+    route('GET', (u) => u.endsWith('/widget-definitions/d-1'), () => answer({
+      id: 'd-1', name: 'Grades', rev: 1, placedRev: 1, etag: 1, archived: false, usedIn: 1, lastAnswer: null,
+      summary: 'x', plan,
+    }))
+    render(<WidgetBuilderSheet uid="u1" onClose={vi.fn()} from={{ defId: 'd-1', getPos: () => 1 }} />)
+    await flush()
+    await flush()
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(callsTo(fetchSpy, 'GET', (u) => u === '/api/j2/property-defs')).toHaveLength(1)
+    expect(callsTo(fetchSpy, 'GET', (u) => u.endsWith('/vocabulary?field=property'))).toHaveLength(0)
+    // the option's NAME and the property's name, never the ids
+    expect(screen.getByRole('button', { name: 'Grade is A+' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sum of a property: Risk taken. Change measures' })).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain(OPT_A)
   })
 })
 
@@ -357,7 +571,7 @@ describe('the chips name what the ids are (Task 10.17)', () => {
     expect(filterSentence(prop, { field: 'property', prop: P_CONV, op: 'between', values: [1, 4] }, { toolNames: names }))
       .toBe('Conviction is between 1 and 4')
     // Gone, or the list failed: the words, never the id.
-    const gone = filterSentence(prop, { field: 'property', prop: 'f'.repeat(32), op: 'eq', values: [1] }, { toolNames: names })
+    const gone = filterSentence(prop, { field: 'property', prop: '9'.repeat(32), op: 'eq', values: [1] }, { toolNames: names })
     expect(gone).toBe(`${NAME_WORDS.property.removed} is 1`)
     const failed = filterSentence(prop, { field: 'property', prop: P_CONV, op: 'eq', values: [1] },
       { toolNames: { propertyDefs: NAMES_FAILED } })

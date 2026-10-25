@@ -197,11 +197,13 @@ def _tracker_row(r: dict) -> dict:
 
 
 def _option_row(r: dict) -> dict:
-    """Wave 10: one options strategy (the client opens it in the options drawer, R-30). `label` is
-    the underlying, `label2` the strategy; an open strategy has no net, R or result yet."""
+    """Wave 10: one options strategy (the client opens a closed one in the options drawer, R-30).
+    `label` is the underlying, `label2` the strategy. `open` says the strategy is still open: it has
+    no net, R or result yet, and no drawer opens it (the Journal's drawer reads closed strategies
+    only), so the client shows it without a link (W10-R65)."""
     return {"day": r.get("day"), "label": r.get("underlying"), "label2": r.get("label2"),
             "net": nw._num(r.get("net")), "r": nw._num(r.get("r")), "result": r.get("result"),
-            "strategyId": r.get("_tid")}
+            "open": r.get("open") is True, "strategyId": r.get("_tid")}
 
 
 def _note_row(r: dict) -> dict:

@@ -116,47 +116,37 @@ function nameFor(kind, id, names, loading) {
 
 // ── note properties (wave 10, Task 10.17) ────────────────────────────────────────────────────────
 
-/** The measures that add up one of the member's number properties, carrying its id as `prop` (be
- *  plan.PROP_MEASURES). */
-export const PROP_MEASURES = Object.freeze(['property_sum'])
-export const isPropMeasure = (key) => PROP_MEASURES.includes(key)
-
 /**
- * A note property's type as a filter reads it: the field type its value picker takes, and the comparisons that type
- * can be asked (a subset of the catalog's `property` ops, be sources.PROPERTY_OPS, that the property filter authority
- * `note_properties.property_filter_sql` answers for it). A type not here (a relation, a calculated one) is not offered
- * to filter by. The engine still decides: a value that no longer fits its property is the server's own notice.
+ * W10-R66: what a filter on each note property type offers is the SERVER's table (be sources.PROPERTY_FILTER_TYPES),
+ * served on the catalog's property field (`prop: true`) as `propertyTypes`: type -> `{valueType, ops, label}` (the
+ * field type its value picker takes, its comparisons, its words). A type not in it is not offered to filter by. The
+ * builder keeps no copy.
  */
-export const PROPERTY_FILTER_TYPES = Object.freeze({
-  number: Object.freeze({ type: 'number', ops: Object.freeze(['eq', 'gt', 'gte', 'lt', 'lte', 'between']) }),
-  date: Object.freeze({ type: 'day', ops: Object.freeze(['eq', 'gt', 'gte', 'lt', 'lte', 'between']) }),
-  checkbox: Object.freeze({ type: 'bool', ops: Object.freeze(['is']) }),
-  text: Object.freeze({ type: 'text', ops: Object.freeze(['contains', 'eq']) }),
-  url: Object.freeze({ type: 'text', ops: Object.freeze(['contains', 'eq']) }),
-  select: Object.freeze({ type: 'enum', ops: Object.freeze(['eq']) }),
-  multi_select: Object.freeze({ type: 'enum', ops: Object.freeze(['contains']) }),
-})
-export const propertyFilterable = (type) => typeof type === 'string' && Object.hasOwn(PROPERTY_FILTER_TYPES, type)
+export const propertyTypesOf = (field) => (isRecord(field?.propertyTypes) ? field.propertyTypes : {})
+export function propertyTypeOf(field, type) {
+  const t = propertyTypesOf(field)
+  return typeof type === 'string' && Object.hasOwn(t, type) && isRecord(t[type]) ? t[type] : null
+}
+export const propertyFilterable = (field, type) => propertyTypeOf(field, type) !== null
 
-/** The words a property's type reads as in the property pick list. */
-export const PROPERTY_TYPE_WORDS = Object.freeze({
-  number: 'Number', date: 'Date', checkbox: 'Checkbox', text: 'Text', url: 'Link', select: 'Select',
-  multi_select: 'Multi-select',
-})
+/** The property types a measure adds up (the catalog's measure row `prop.types`, be plan.PROP_MEASURES and
+ *  sources.PROP_SUM_TYPES), or null for a measure that names no property. */
+export const propTypesOf = (m) => (isRecord(m?.prop) && Array.isArray(m.prop.types)
+  ? m.prop.types.filter((t) => typeof t === 'string') : null)
 
 /** The catalog's property field (`prop: true`) as ONE property: named by it, typed by its type, with that type's
  *  comparisons (only those the catalog field offers), and a select's options as its pick list. `def` is
  *  `{name, type, options?}`; null leaves the field's own label and no type. */
 export function propertyFieldFor(field, def) {
-  const t = def && propertyFilterable(def.type) ? PROPERTY_FILTER_TYPES[def.type] : null
+  const t = def ? propertyTypeOf(field, def.type) : null
   const served = Array.isArray(field?.ops) ? field.ops : []
-  const out = {
-    ...field, label: def?.name || field?.label || '', type: t ? t.type : null,
-    ops: t ? t.ops.filter((o) => served.includes(o)) : [], propertyOf: true,
-  }
+  // only comparisons the catalog's own field also offers (fix 1, m-1)
+  const ops = t && Array.isArray(t.ops) ? t.ops.filter((o) => served.includes(o)) : []
+  const out = { ...field, label: def?.name || field?.label || '', type: t ? t.valueType : null, ops, propertyOf: true }
   delete out.values
   delete out.prop
-  if (t && t.type === 'enum') {
+  delete out.propertyTypes
+  if (t && t.valueType === 'enum') {
     out.values = (Array.isArray(def.options) ? def.options : [])
       .filter((o) => isRecord(o) && typeof o.id === 'string')
       .map((o) => ({ value: o.id, label: typeof o.label === 'string' && o.label ? o.label : o.id }))
@@ -176,7 +166,7 @@ export function propertyDefOf(prop, names) {
 
 /** Does the plan name a note property (a property filter, a property sum)? Its chips then need the definitions. */
 export const planNamesProperty = (plan) => (plan?.filters || []).some((f) => isRecord(f) && typeof f.prop === 'string' && !!f.prop)
-  || (plan?.measures || []).some((m) => isRecord(m) && isPropMeasure(m.key) && typeof m.prop === 'string' && !!m.prop)
+  || (plan?.measures || []).some((m) => isRecord(m) && typeof m.prop === 'string' && !!m.prop)
 
 /** The name a ref reads by (see `nameFor`). `names` is `{routine, tracker}`: a Map of id -> name, or NAMES_FAILED. */
 export function refName(field, ref, names) {

@@ -646,6 +646,11 @@
       "label": "Sum of a property",
       "meaning": "One of your number properties added up over the notes. Notes with no value are left out.",
       "needs": [],
+      "prop": {
+        "types": [
+          "number"
+        ]
+      },
       "sources": [
         "notes"
       ],
@@ -2558,6 +2563,69 @@
             "is"
           ],
           "prop": true,
+          "propertyTypes": {
+            "checkbox": {
+              "label": "Checkbox",
+              "ops": [
+                "is"
+              ],
+              "valueType": "bool"
+            },
+            "date": {
+              "label": "Date",
+              "ops": [
+                "eq",
+                "gt",
+                "gte",
+                "lt",
+                "lte",
+                "between"
+              ],
+              "valueType": "day"
+            },
+            "multi_select": {
+              "label": "Multi-select",
+              "ops": [
+                "contains"
+              ],
+              "valueType": "enum"
+            },
+            "number": {
+              "label": "Number",
+              "ops": [
+                "eq",
+                "gt",
+                "gte",
+                "lt",
+                "lte",
+                "between"
+              ],
+              "valueType": "number"
+            },
+            "select": {
+              "label": "Select",
+              "ops": [
+                "eq"
+              ],
+              "valueType": "enum"
+            },
+            "text": {
+              "label": "Text",
+              "ops": [
+                "contains",
+                "eq"
+              ],
+              "valueType": "text"
+            },
+            "url": {
+              "label": "Link",
+              "ops": [
+                "contains",
+                "eq"
+              ],
+              "valueType": "text"
+            }
+          },
           "refKind": null,
           "split": false,
           "type": null

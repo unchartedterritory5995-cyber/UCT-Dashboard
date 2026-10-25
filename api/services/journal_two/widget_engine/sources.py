@@ -1451,6 +1451,28 @@ _note_hour = timeutil.compute_hour_et
 #: `property_conditions` ("between" is two conditions, "is" an equality on a checkbox). `in`,
 #: `not_in` and `has_any` are not offered: the authority ANDs its conditions, it has no OR.
 PROPERTY_OPS = ("eq", "gt", "gte", "lt", "lte", "between", "contains", "is")
+
+_ORDERED_OPS = ("eq", "gt", "gte", "lt", "lte", "between")
+
+#: W10-R66: the ONE authority for what a property filter offers per note property type: the
+#: comparisons (`ops`, each one of PROPERTY_OPS that `property_conditions` maps onto an op
+#: `note_properties.property_filter_sql` answers for that type), the value the builder asks for
+#: (`valueType`, a field type its pickers know) and the type's words (`label`). A type not here (a
+#: relation, a calculated property) is not offered to filter by. Served on the `property` field row
+#: (`propertyTypes`); the builder keeps no copy.
+PROPERTY_FILTER_TYPES: dict[str, dict] = {
+    "number": {"valueType": "number", "ops": _ORDERED_OPS, "label": "Number"},
+    "date": {"valueType": "day", "ops": _ORDERED_OPS, "label": "Date"},
+    "checkbox": {"valueType": "bool", "ops": ("is",), "label": "Checkbox"},
+    "text": {"valueType": "text", "ops": ("contains", "eq"), "label": "Text"},
+    "url": {"valueType": "text", "ops": ("contains", "eq"), "label": "Link"},
+    "select": {"valueType": "enum", "ops": ("eq",), "label": "Select"},
+    "multi_select": {"valueType": "enum", "ops": ("contains",), "label": "Multi-select"},
+}
+
+#: The note property types a property sum (`plan.PROP_MEASURES`) adds up: `_summed_properties`
+#: refuses any other with S_PROP_NOT_NUMBER. Served on each such measure row (`prop.types`).
+PROP_SUM_TYPES = ("number",)
 _PROPERTY_OP = {"eq": "eq", "gt": "gt", "gte": "gte", "lt": "lt", "lte": "lte",
                 "contains": "contains", "is": "eq"}
 
@@ -1582,7 +1604,7 @@ def _summed_properties(conn: sqlite3.Connection, user_id: str, plan: dict,
         d = member_property(conn, user_id, m.get("prop"))
         if d is None:
             _notice(notices, S_PROP_GONE)
-        elif d.get("type") != "number":
+        elif d.get("type") not in PROP_SUM_TYPES:
             _notice(notices, S_PROP_NOT_NUMBER)
         elif m["prop"] not in out:
             out.append(m["prop"])

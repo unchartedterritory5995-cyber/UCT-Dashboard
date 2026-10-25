@@ -70,7 +70,11 @@ function rowText(sourceKey, r) {
  *  note. Each row names its own id field (be drill `_SHAPE`). */
 function rowLink(sourceKey, r) {
   const id = (k) => (typeof r[k] === 'string' && r[k] ? r[k] : null)
-  if (sourceKey === 'options_strategies') return id('strategyId') ? { href: optionHref(r.strategyId), note: null } : null
+  // W10-R65: an OPEN strategy (the server's `open`) has no drawer that opens it (the Journal's drawer reads closed
+  // strategies only, and no open-positions door takes a strategy id): it is plain text, never a link to nothing.
+  if (sourceKey === 'options_strategies') {
+    return id('strategyId') && r.open !== true ? { href: optionHref(r.strategyId), note: null } : null
+  }
   if (sourceKey === 'notes') return id('noteId') ? { href: drillNoteHref(r.noteId), note: r.noteId } : null
   if (sourceKey === 'open_positions' || sourceKey === 'trading_days') return null
   if (sourceKey === 'routine_history' || sourceKey === 'tracker_history') return null

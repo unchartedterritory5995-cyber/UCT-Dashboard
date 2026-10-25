@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../../../components/ui/UIcon'
 import Section, { PickerHead } from './Section'
-import { THEMES, measuresFor, coverageText, reasonOf, isPropMeasure } from '../builderCatalog'
+import { THEMES, measuresFor, coverageText, reasonOf, propTypesOf } from '../builderCatalog'
 import { measureLabel, measureId } from '../formulaFields'
 import { loadVocabulary } from '../../../../lib/builtWidgets'
 import { loadPropertyDefs } from '../propertyDefs'
@@ -53,15 +53,17 @@ export default function MeasureSection({ cat, plan, byNeed, toolNames, onOpen, o
 const LONG_PRESS_MS = 450
 
 /**
- * Wave 10 (Task 10.17): "Sum of a property" adds up ONE of the member's number properties, picked here by name: the
- * member's properties (`GET /vocabulary?field=property`, the notes source's own rule, read again on each open) of type
- * number only. Each toggles a sum of that property in or out (`{key, prop}`); several may be summed side by side. The
- * definitions read with them are handed to the builder so the chips name the property.
+ * Wave 10 (Task 10.17): "Sum of a property" adds up ONE of the member's properties, picked here by name: the member's
+ * properties (`GET /vocabulary?field=property`, the notes source's own rule, read again on each open) of a type the
+ * measure's catalog row says it adds up (`prop.types`, W10-R66: be sources.PROP_SUM_TYPES). Each toggles a sum of that
+ * property in or out (`{key, prop}`); several may be summed side by side. The definitions read with them are handed to
+ * the builder so the chips name the property.
  */
 export function PropertyMeasurePicker({ cat, plan, measureKey, onToggle, onToolNames, onBack }) {
   const [state, setState] = useState(null)       // null while loading, then {list, failed}
   const [tick, setTick] = useState(0)
   const fullId = useId()
+  const types = propTypesOf(cat.measures.get(measureKey)) || []
   useEffect(() => {
     let alive = true
     setState(null)
@@ -69,7 +71,7 @@ export function PropertyMeasurePicker({ cat, plan, measureKey, onToggle, onToolN
       if (!alive) return
       if (d.status === 'fulfilled') onToolNames?.('propertyDefs', d.value)
       const list = v.status === 'fulfilled' && Array.isArray(v.value)
-        ? v.value.filter((x) => x && typeof x === 'object' && typeof x.id === 'string' && x.id && x.type === 'number'
+        ? v.value.filter((x) => x && typeof x === 'object' && typeof x.id === 'string' && x.id && types.includes(x.type)
           && typeof x.name === 'string' && x.name)
         : []
       setState({ list, failed: v.status !== 'fulfilled' })
@@ -94,10 +96,10 @@ export function PropertyMeasurePicker({ cat, plan, measureKey, onToggle, onToolN
         </div>
       )}
       {state && !state.failed && state.list.length === 0 && (
-        <p className={styles.sectionHint}>{"You don't have a number property yet."}</p>
+        <p className={styles.sectionHint}>{"You don't have a property this can add up yet."}</p>
       )}
       {state && state.list.length > 0 && (
-        <ul className={styles.pickerList} aria-label="Number properties">
+        <ul className={styles.pickerList} aria-label="Properties to add up">
           {state.list.map((x) => {
             const picked = on(x.id)
             const only = picked && plan.measures.length <= 1
@@ -130,6 +132,20 @@ export function PropertyMeasurePicker({ cat, plan, measureKey, onToggle, onToolN
  */
 export function MeasurePicker({ cat, plan, byNeed, onToggle, onToolNames, onBack }) {
   const [propFor, setPropFor] = useState(null)
+  // Fix 1, I-3: opening a property list puts focus on its heading; leaving it, back on the measure that opened it.
+  const rootRef = useRef(null)
+  const lastFor = useRef(null)
+  const first = useRef(true)
+  useLayoutEffect(() => {
+    if (first.current) { first.current = false; return }
+    const root = rootRef.current
+    if (!root) return
+    const back = !propFor && lastFor.current
+      ? [...root.querySelectorAll('[data-measure-key]')].find((b) => b.getAttribute('data-measure-key') === lastFor.current)
+      : null
+    ;(back || root.querySelector('[data-picker-heading]'))?.focus()
+    if (propFor) lastFor.current = propFor
+  }, [propFor])
   const [revealed, setRevealed] = useState(null)
   const press = useRef({ timer: null, fired: false })
   const fullId = useId()
@@ -151,11 +167,15 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onToolNames, onBack
   const endPress = () => clearTimeout(press.current.timer)
 
   if (propFor) {
-    return <PropertyMeasurePicker cat={cat} plan={plan} measureKey={propFor} onToggle={onToggle}
-      onToolNames={onToolNames} onBack={() => setPropFor(null)} />
+    return (
+      <div ref={rootRef}>
+        <PropertyMeasurePicker cat={cat} plan={plan} measureKey={propFor} onToggle={onToggle}
+          onToolNames={onToolNames} onBack={() => setPropFor(null)} />
+      </div>
+    )
   }
   return (
-    <div>
+    <div ref={rootRef}>
       <PickerHead title="What to measure" onBack={onBack} />
       <p className={styles.sectionHint}>{`Pick up to ${cat.maxMeasures}. Picked ${plan.measures.length}.`}</p>
       {full && <p className={styles.reason} id={fullId}>{reasonOf(cat, 'too_many_measures')}</p>}
@@ -166,7 +186,7 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onToolNames, onBack
             {list.map((m) => {
               const on = picked.has(m.key)
               // A property sum is picked per property, in its own list: never full or the last one here.
-              const perProp = isPropMeasure(m.key)
+              const perProp = propTypesOf(m) !== null
               const only = !perProp && on && plan.measures.length <= 1
               const disabled = !perProp && ((!on && full) || only)
               const cov = coverageText(cat, m, byNeed)
@@ -179,7 +199,7 @@ export function MeasurePicker({ cat, plan, byNeed, onToggle, onToolNames, onBack
                     className={`${styles.option} ${on ? styles.optionOn : ''}`}
                     aria-pressed={on} aria-disabled={disabled || undefined}
                     aria-describedby={[meaningId, disabled && !on ? fullId : null].filter(Boolean).join(' ')}
-                    data-reveal={revealed === m.key ? '' : undefined}
+                    data-reveal={revealed === m.key ? '' : undefined} data-measure-key={m.key}
                     onPointerDown={() => startPress(m.key)} onPointerUp={endPress} onPointerLeave={endPress}
                     onPointerCancel={endPress}
                     onContextMenu={(e) => { if (press.current.fired) e.preventDefault() }}

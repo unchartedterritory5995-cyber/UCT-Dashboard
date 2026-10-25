@@ -10,7 +10,7 @@
 //
 // ⛔ Member text (field names, formula names) is never an object key: everything groups with `Map`.
 import { countNoun } from '../widgets/builtViews/builtModel'
-import { isPropMeasure, propertyDefOf } from './builderCatalog'
+import { propTypesOf, propertyDefOf } from './builderCatalog'
 import {
   LIMITS, ERRORS, compileFormula, displayFormula, formulaNameCharsOk, codePointToUtf16,
 } from '../../../lib/widgetFormula/widgetFormula'
@@ -196,8 +196,9 @@ export function formulaMeasureLabel(plan, m) {
  *  ("Sum of a property: Conviction") once `names.propertyDefs` knows it. */
 export function measureLabel(cat, plan, m, names) {
   if (isRecord(m) && typeof m.formula === 'string') return formulaMeasureLabel(plan, m)
-  const label = cat?.measures?.get?.(m?.key)?.label || m?.key || ''
-  if (isRecord(m) && isPropMeasure(m.key) && typeof m.prop === 'string') {
+  const row = cat?.measures?.get?.(m?.key)
+  const label = row?.label || m?.key || ''
+  if (isRecord(m) && propTypesOf(row) && typeof m.prop === 'string') {
     const def = propertyDefOf(m.prop, names)
     if (def?.name) return `${label}: ${def.name}`
   }

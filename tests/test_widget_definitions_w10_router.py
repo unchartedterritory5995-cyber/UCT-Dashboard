@@ -557,3 +557,20 @@ def test_plan_sentences_in_the_vectors_are_plan_py_constants():
             "S_GOAL_SOURCE", "S_QUADRANTS_PAIR"} <= set(sentences)
     for name, text in sentences.items():
         assert name.startswith("S_") and getattr(wplan, name) == text, name
+
+
+def test_property_filter_types_and_prop_measures_are_served(conn, monkeypatch):
+    """W10-R66: the `property` field row carries `propertyTypes` (sources.PROPERTY_FILTER_TYPES) and
+    each measure of plan.PROP_MEASURES carries `prop.types` (sources.PROP_SUM_TYPES); no other
+    measure carries `prop`. The builder reads these and keeps no copy."""
+    _on(monkeypatch)
+    body = _client().get(BASE + "/vocabulary").json()
+    notes = next(s for s in body["sources"] if s["key"] == "notes")
+    prop = next(f for f in notes["fields"] if f["key"] == wplan.PROPERTY_FIELD)
+    assert prop["propertyTypes"] == {t: {"valueType": d["valueType"], "ops": list(d["ops"]),
+                                         "label": d["label"]}
+                                     for t, d in wsources.PROPERTY_FILTER_TYPES.items()}
+    with_prop = {m["key"]: m["prop"] for m in body["measures"] if "prop" in m}
+    assert with_prop == {k: {"types": list(wsources.PROP_SUM_TYPES)} for k in wplan.PROP_MEASURES}
+    # a row that is not the property field carries none of it
+    assert all("propertyTypes" not in f for s in body["sources"] for f in s["fields"] if f is not prop)
