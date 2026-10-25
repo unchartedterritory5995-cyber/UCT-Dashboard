@@ -1668,7 +1668,9 @@ def test_built_attrs_canary_pins_what_passes_today():
     for dropped in ("ATTR-CANARY-SEARCH", "ATTR-CANARY-TRADEREF"):
         assert dropped not in blob, dropped
     assert kept["caption"] == "ATTR-CANARY-CAPTION"                 # control: kept attrs do pass
-    assert kept["fallback"] is None                                 # another note's image never survives
+    # The W10.7 walk fix: a built widget's archived image never travels at all (its own note's image included,
+    # test_walk_fix_built_widget_publishes_no_image); the public page draws it from the reduced params.
+    assert "fallback" not in kept
     # Ruling R-26: a built widget's `frozen` reaches a public page only as a flag.
     assert kept.get("frozen") is False and "ATTR-CANARY-FROZEN" not in blob
     node["attrs"]["frozen"] = True

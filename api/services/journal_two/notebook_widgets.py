@@ -2115,6 +2115,19 @@ _BUILT_DETAIL = {
     "open_positions": "Your open positions in the Journal.",
     "trading_days": "Your trading days in the Journal (day P&L incl. options).",
 }
+
+
+def _built_detail(source_key: Any) -> str | None:
+    """A built widget's provenance sentence: `_BUILT_DETAIL`'s own words, else one made from the source's SERVED
+    label ("Your notes in the Journal.", the W10.3 walk fix: a notes or routine widget never names trades). None for
+    a key that is no source."""
+    if source_key in _BUILT_DETAIL:
+        return _BUILT_DETAIL[source_key]
+    from api.services.journal_two.widget_engine import sources as wsources
+    src = wsources.SOURCES.get(source_key) if isinstance(source_key, str) else None
+    return f"Your {src.label.lower()} in the Journal." if src is not None else None
+
+
 _JOURNAL_DETAIL = {
     "myPnlStats": "Your trades in the Journal.",
     "myPnlCalendar": "Your trades in the Journal.",
@@ -2133,7 +2146,7 @@ def source_detail(kind: str, payload: dict) -> str | None:
     nothing is a claim about nothing (fix F1b, review M-9)."""
     src = payload.get("source")
     if kind == BUILT_KIND:
-        return _BUILT_DETAIL.get(payload.get("sourceKey"))
+        return _built_detail(payload.get("sourceKey"))
     if kind in _dedicated.KINDS:
         # Task 10.14: a dedicated widget's one sentence, owned by its registry (read here, never restated).
         from api.services.journal_two import shelf_kinds

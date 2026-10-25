@@ -1181,18 +1181,30 @@ def _formula_name(plan: dict, fid: Any) -> str:
     return f["name"] if f is not None and isinstance(f.get("name"), str) else str(fid)
 
 
-def _measure_label(plan: dict, catalog: Catalog, m: dict) -> str:
+def _measure_label(plan: dict, catalog: Catalog, m: dict, names: Any = None) -> str:
     """A measure's words. A formula measure is named by its own name, a row formula with the
-    aggregation in words ("Exit efficiency (average)")."""
+    aggregation in words ("Exit efficiency (average)"). A property sum names its property when `names`
+    (property id -> the member's name for it, read by the scan) knows it: "Sum of a property: Conviction"
+    (the W10.3 walk fix; the builder's own words, `formulaFields.measureLabel`)."""
     if "formula" in m:
         name = _formula_name(plan, m["formula"])
         agg = m.get("agg")
         return f"{name} ({AGG_WORDS[agg]})" if agg in AGG_WORDS else name
-    return _label(catalog.measures.get(m["key"]), m["key"])
+    label = _label(catalog.measures.get(m["key"]), m["key"])
+    prop_name = property_name(m, names)
+    return f"{label}: {prop_name}" if prop_name else label
 
 
-def _measure_labels(plan: dict, catalog: Catalog) -> str:
-    return _join_and([_measure_label(plan, catalog, m) for m in plan["measures"]])
+def property_name(m: Any, names: Any) -> str | None:
+    """The name of the property a property measure `m` adds up, from `names` (id -> name), or None."""
+    if not isinstance(m, dict) or m.get("key") not in PROP_MEASURES or not isinstance(names, Mapping):
+        return None
+    name = names.get(m.get("prop")) if isinstance(m.get("prop"), str) else None
+    return name if isinstance(name, str) and name else None
+
+
+def _measure_labels(plan: dict, catalog: Catalog, names: Any = None) -> str:
+    return _join_and([_measure_label(plan, catalog, m, names) for m in plan["measures"]])
 
 
 def _field_label(plan: dict, catalog: Catalog, name: str) -> str:
@@ -1202,8 +1214,9 @@ def _field_label(plan: dict, catalog: Catalog, name: str) -> str:
     return _lower_first(_label(fields.get(name), name))
 
 
-def summary(plan: dict, catalog: Catalog, count: int | None, unit: str) -> str:
-    """The one plain-language sentence describing a widget (and its row count)."""
+def summary(plan: dict, catalog: Catalog, count: int | None, unit: str, names: Any = None) -> str:
+    """The one plain-language sentence describing a widget (and its row count). `names`: see
+    `_measure_label`."""
     parts = []
     split = plan.get("split")
     if split:
@@ -1217,7 +1230,7 @@ def summary(plan: dict, catalog: Catalog, count: int | None, unit: str) -> str:
     src = _lower_first(_label(catalog.sources.get(plan["source"]), plan["source"]))
     when = RIGHT_NOW if plan.get("source") in RIGHT_NOW_SOURCES else _range_phrase(plan["range"])
     for_clause = f"for {src} {when}"
-    head = _measure_labels(plan, catalog)
+    head = _measure_labels(plan, catalog, names)
     head = ", ".join([head, *parts, for_clause]) if parts else f"{head} {for_clause}"
     tail = []
     cmp = plan.get("compare")
@@ -1241,9 +1254,9 @@ def summary(plan: dict, catalog: Catalog, count: int | None, unit: str) -> str:
     return text
 
 
-def default_name(plan: dict, catalog: Catalog) -> str:
-    """The automatic title, e.g. 'Net P&L by setup, last 90 days'."""
-    name = _measure_labels(plan, catalog)
+def default_name(plan: dict, catalog: Catalog, names: Any = None) -> str:
+    """The automatic title, e.g. 'Net P&L by setup, last 90 days'. `names`: see `_measure_label`."""
+    name = _measure_labels(plan, catalog, names)
     split = plan.get("split")
     if split:
         by = [_field_label(plan, catalog, split["by"])]

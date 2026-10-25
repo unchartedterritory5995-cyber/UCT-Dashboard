@@ -33,6 +33,7 @@ carries `stop`; `display.quadrants` is echoed; a preview of a plan with formulas
 """
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from typing import Any, Iterable
 
@@ -303,12 +304,12 @@ def _goal(period: str, goal: Any) -> tuple[dict, list[str], list[str]]:
 
 # -- labels ----------------------------------------------------------------------------------------
 
-def _title(plan: dict) -> str:
+def _title(plan: dict, names: Any = None) -> str:
     display = plan.get("display") or {}
     t = (display.get("title") or "").strip()
     if t and not display.get("titleAuto", True):
         return t
-    return wplan.default_name(plan, wsources.CATALOG)
+    return wplan.default_name(plan, wsources.CATALOG, names)
 
 
 def _scope_label(scan: Any, account_name: str | None) -> str:
@@ -378,6 +379,49 @@ def _source(scan: Any) -> str:
     return nw._origin(origins)
 
 
+# -- private labels (the W10.7 walk fix) ------------------------------------------------------------
+
+_FIELD_REF = re.compile(r"\[([^\[\]]+)\]")
+
+
+def _field_kind(plan: dict, src: Any, name: Any) -> str | None:
+    """The `labelKind` of a split on `name`: the field's `public_kind`; for one of the member's formulas, the
+    first private field it reads (a stored expression names fields by KEY, ruling W10-R2), so a formula that
+    hands back a folder or an account is numbered like the field itself. None: the labels are not private."""
+    if not isinstance(name, str):
+        return None
+    if name.startswith(wplan.FORMULA_PREFIX):
+        f = wplan.formula_of(plan, name[len(wplan.FORMULA_PREFIX):])
+        for ref in _FIELD_REF.findall(str(f.get("expr") if isinstance(f, dict) else "")):
+            ref = ref.strip()
+            if ref.startswith(wplan.FORMULA_PREFIX):
+                continue                            # never a formula through another one (and never a loop)
+            kind = _field_kind(plan, src, ref)
+            if kind is not None:
+                return kind
+        return None
+    field = src.fields.get(name)
+    return getattr(field, "public_kind", None) if field is not None else None
+
+
+def label_kinds(plan: Any) -> tuple[str | None, str | None]:
+    """(labelKind, label2Kind) for a plan: which of its group or list labels are the member's OWN NAMES, by the
+    word key `public_note_payload.RELABEL_WORDS` numbers them with. THE ONE RULE: the payload marks its labels
+    with it, and the public reducer re-derives it from the frozen plan a note carries (so a snapshot made before a
+    field was marked is numbered too). A split reads its fields' `public_kind`; a List with no split reads the
+    source's `list_public_kind` (a note's title, a routine's or a tracker's name). Never raises."""
+    if not isinstance(plan, dict):
+        return None, None
+    src = wsources.SOURCES.get(plan.get("source"))
+    if src is None:
+        return None, None
+    split = plan.get("split") if isinstance(plan.get("split"), dict) else None
+    view = plan.get("view") if isinstance(plan.get("view"), dict) else {}
+    if not split:
+        return (src.list_public_kind if view.get("type") == "list" else None), None
+    return _field_kind(plan, src, split.get("by")), _field_kind(plan, src, split.get("then"))
+
+
 # -- the payload -----------------------------------------------------------------------------------
 
 def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str | None,
@@ -404,6 +448,8 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
     count = parts["count"]
 
     measures = []
+    # W10.3 walk fix: a property sum names its property (the scan read the member's name for it)
+    prop_names = getattr(scan, "prop_names", None) or {}
     footnotes = list(parts["footnotes"]) + [str(f) for f in (scan.footnotes or [])]
     compiled = getattr(result, "formulas", None) or {}
     for m in plan["measures"]:
@@ -413,7 +459,9 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
                              "unit": wmeasures.unit_for(meta, source_key),
                              "kind": meta.kind, "fmt": meta.fmt})
             continue
-        measures.append({"label": meta.label, "unit": wmeasures.unit_for(meta, source_key),
+        prop_name = wplan.property_name(m, prop_names)
+        measures.append({"label": f"{meta.label}: {prop_name}" if prop_name else meta.label,
+                         "unit": wmeasures.unit_for(meta, source_key),
                          "kind": meta.kind,
                          "fmt": MEASURE_FMT.get(m["key"], "number")})
         if scan.capped and source_key in _PATH_FOOTNOTE_SOURCES and m["key"] in PATH_DEPENDENT:
@@ -447,11 +495,12 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
     acc = settings.get("accountId")
     payload: dict[str, Any] = {
         "asOf": nw._iso_utc(now),
-        "source": _source(scan),
+        # W10.3 walk fix: only a source whose rows were logged (broker or manual) names where trades came from
+        "source": _source(scan) if source_key in wsources.ORIGIN_SOURCES else None,
         "sourceKey": source_key,
         "view": view,
-        "title": _title(plan),
-        "summary": wplan.summary(plan, wsources.CATALOG, count, src.unit),
+        "title": _title(plan, prop_names),
+        "summary": wplan.summary(plan, wsources.CATALOG, count, src.unit, prop_names),
         "defId": def_id,
         "defRev": def_rev,
         "latestRev": latest_rev,
@@ -490,16 +539,13 @@ def build_payload(*, result: Any, plan: dict, settings: dict | None, def_id: str
         "empty": S_EMPTY.get(source_key) if count == 0 else getattr(result, "empty", None),
     })
     payload.update(extra)
-    # Ruling R-25: a label that is an ACCOUNT NAME is marked, so a public page can number it ("Account 1")
-    # instead of publishing the member's own account names.
-    split = plan.get("split") or {}
-    if split.get("by") == "account":
-        payload["labelKind"] = "account"
-    if split.get("then") == "account":
-        payload["label2Kind"] = "account"
-    if source_key == "notes" and view == "list" and not split:
-        # W10-R7: a list row's label is a note's title, so a public page relabels it "Note <n>"
-        payload["labelKind"] = "note"
+    # Ruling R-25 / W10-R7, and the W10.7 walk fix: a label that is the member's OWN NAME is marked, so a public
+    # page numbers it ("Account 1", "Note 1", "Folder 1") instead of publishing it. `label_kinds` is the one rule.
+    kind1, kind2 = label_kinds(plan)
+    if kind1 is not None:
+        payload["labelKind"] = kind1
+    if kind2 is not None:
+        payload["label2Kind"] = kind2
     payload["sourceDetail"] = nw.source_detail(nw.BUILT_KIND, payload)
     list_key, trim_from = TRIM_BY_VIEW.get(view, ("rows", "end"))
     return nw.cap_payload(payload, nw.BUILT_KIND, list_key=list_key, trim_from=trim_from)

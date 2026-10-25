@@ -148,6 +148,12 @@ class Field:
     #: wave 10 (Task 10.7): the scan applies a filter on it through its own authority (a note
     #: property: `note_properties.property_filter_sql`); `aggregate` adds no Python twin
     scan_applied: bool = False
+    #: walk fix (W10.7 privacy): this field's group labels are the member's OWN NAMES (an account, a
+    #: folder, a note tag or kind, a routine, a routine item, a tracker), so a public page numbers them
+    #: ("Folder 1") instead of publishing them. The value is the `labelKind` the payload marks and
+    #: `public_note_payload.RELABEL_WORDS` reads; None: the labels are not private (a setup, a symbol and
+    #: a mistake tag are shown on a shared widget, the phase 1 rule).
+    public_kind: str | None = None
 
 
 def _f(key, label, ftype, *, sql=None, py=None, split=False, **kw) -> Field:
@@ -167,6 +173,9 @@ class Scan:
     footnotes: list[str] = field(default_factory=list)
     #: wave 9: sentences the widget leads with (a routine or tracker that is not available)
     notices: list[str] = field(default_factory=list)
+    #: walk fix (W10.3): the NAME of each note property a "Sum of a property" measure adds up, by its id (the
+    #: member's own definition, read by the scan): the measure label and the title name it
+    prop_names: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -179,6 +188,9 @@ class Source:
     scan: Callable[..., Scan]
     #: (row key for a list row's label, row key for its second label)
     list_labels: tuple[str, str] = ("label", "label2")
+    #: walk fix (W10.7): the `labelKind` of a list row's label when that label is the member's own
+    #: name (a note's title, a routine's, a tracker's); None: a list label that is not private
+    list_public_kind: str | None = None
 
 
 # ── shared helpers ─────────────────────────────────────────────────────────────────────────────
@@ -396,6 +408,7 @@ CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("origin", "How it was logged", "enum", sql=_T_ORIGIN, split=True,
        fmt=lambda v: _ORIGIN_LABELS.get(v, str(v)), bucket=("manual", "csv", "broker")),
     _f("account", "Account", "enum", sql="t.account_id", split=True, label_from="account_name",
+       public_kind="account",
        none_label="No account"),
     _f("had_stop", "Had a stop", "bool", split=True, fmt=_yes_no("Had a stop", "No stop set")),
     _f("mfe_r", "MFE R", "number"),
@@ -518,6 +531,7 @@ POSITION_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("risk_pct_account", "Risk to stop, % of account", "number"),
     _f("pct_account", "% of account", "number"),
     _f("account", "Account", "enum", sql="p.account_id", split=True, label_from="account_name",
+       public_kind="account",
        none_label="No account"),
     _f("had_stop", "Has a stop", "bool", split=True, fmt=_yes_no("Has a stop", "No stop set")),
 ]}
@@ -956,8 +970,9 @@ ROUTINE_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("day", "Day", "day", split=True),
     _f("weekday", "Weekday", "enum", split=True, bucket=WEEKDAYS),
     _f("month", "Month", "enum", split=True),
-    _f("routine", "Routine", "enum", split=True, label_from="routine_name"),
-    _f("item", "Item", "enum", split=True, label_from="item_text", filterable=False),
+    _f("routine", "Routine", "enum", split=True, label_from="routine_name", public_kind="routine"),
+    _f("item", "Item", "enum", split=True, label_from="item_text", filterable=False,
+       public_kind="item"),
     # W9-R21: the stored values are the codes; "Done" is only how a group reads
     _f("state", "State", "enum", split=True, bucket=_history_order, choices=_history_choices,
        strict_choices=True,
@@ -969,7 +984,7 @@ TRACKER_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("day", "Day", "day", split=True),
     _f("weekday", "Weekday", "enum", split=True, bucket=WEEKDAYS),
     _f("month", "Month", "enum", split=True),
-    _f("tracker", "Tracker", "enum", split=True, label_from="tracker_name"),
+    _f("tracker", "Tracker", "enum", split=True, label_from="tracker_name", public_kind="tracker"),
     _f("value", "Value", "number"),
 ]}
 
@@ -1282,6 +1297,7 @@ OPTION_FIELDS: dict[str, Field] = {f.key: f for f in [
        fmt=lambda v: _RESULT_LABELS.get(v, str(v)), bucket=("Win", "Loss", "BE")),
     _f("setup", "Setup", "enum", sql="o.setup", split=True, none_label="No setup"),
     _f("account", "Account", "enum", sql="o.account_id", split=True, label_from="account_name",
+       public_kind="account",
        none_label="No account"),
 ]}
 
@@ -1601,8 +1617,9 @@ def _unoffered_field_in(plan: dict, src: "Source") -> bool:
 
 
 def _summed_properties(conn: sqlite3.Connection, user_id: str, plan: dict,
-                       notices: list[str]) -> list[str]:
-    """The props of the plan's property sums that are the member's own NUMBER properties."""
+                       notices: list[str], names: dict[str, str] | None = None) -> list[str]:
+    """The props of the plan's property sums that are the member's own NUMBER properties. `names`, when given,
+    receives each such property's name by its id (the W10.3 walk fix: the measure names what it adds up)."""
     out: list[str] = []
     for m in plan.get("measures") or []:
         if m.get("key") not in PROP_MEASURES:
@@ -1614,6 +1631,9 @@ def _summed_properties(conn: sqlite3.Connection, user_id: str, plan: dict,
             _notice(notices, S_PROP_NOT_NUMBER)
         elif m["prop"] not in out:
             out.append(m["prop"])
+            name = d.get("name")
+            if names is not None and isinstance(name, str) and name.strip():
+                names[m["prop"]] = name.strip()
     return out
 
 
@@ -1648,12 +1668,13 @@ NOTE_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("weekday", "Weekday", "enum", split=True, bucket=WEEKDAYS),
     _f("month", "Month", "enum", split=True),
     _f("folder", "Folder", "enum", sql="n.folder_id", split=True, label_from="folder_name",
-       none_label="No folder"),
-    _f("tag", "Tag", "tag", sql="n.tags", split=True, none_label="No tags"),
+       none_label="No folder", public_kind="folder"),
+    _f("tag", "Tag", "tag", sql="n.tags", split=True, none_label="No tags", public_kind="tag"),
     _f("ticker", "Ticker", "text", sql="n.ticker", split=True, ci=True, none_label="No ticker"),
     # W10-R60: the note's CURRENT kind (the `builtin:note_kind` property), never the creation-time
     # `kind_id`; a one-value filter narrows in SQL through `property_filter_sql` (`_kind_filters`)
-    _f("kind", "Note kind", "enum", split=True, label_from="kind_name", none_label="No kind"),
+    _f("kind", "Note kind", "enum", split=True, label_from="kind_name", none_label="No kind",
+       public_kind="kind"),
     # filter only, and only with `prop`; its type is the named property's (the authority checks it)
     Field(PROPERTY_FIELD, "Property", None, PROPERTY_OPS, False, None, lambda r: None,
           scan_applied=True),
@@ -1668,7 +1689,8 @@ def scan_notes(conn: sqlite3.Connection, plan: dict, settings: dict | None,
     p_sql, p_params = _property_filters(conn, user_id, plan, notices)
     k_sql, k_params = _kind_filters(conn, user_id, plan)
     extra = (p_sql + k_sql, p_params + k_params)
-    summed = _summed_properties(conn, user_id, plan, notices)
+    prop_names: dict[str, str] = {}
+    summed = _summed_properties(conn, user_id, plan, notices, prop_names)
     sql, params = wcompile.compile_scan(NOTES, plan, settings, rng, user_id, extra=extra)
     raw = _dicts(conn.execute(sql, params))
     over = len(raw) > wcompile.SCAN_ROWS
@@ -1732,7 +1754,7 @@ def scan_notes(conn: sqlite3.Connection, plan: dict, settings: dict | None,
             row["title"] = titles.get(r["id"], "")
         rows.append(row)
     return Scan("notes", rows, capped, rows[-1]["day"] if rows else None, len(rows), acc, [],
-                notices)
+                notices, prop_names)
 
 
 # ── the sources and the catalog ────────────────────────────────────────────────────────────────
@@ -1746,18 +1768,25 @@ DAYS = Source("trading_days", "Trading days",
               "days", DAY_FIELDS, scan_days)
 ROUTINE_HISTORY = Source("routine_history", "Routine history",
                          "Every scheduled day of your routines: done, not done or skipped.", "days",
-                         ROUTINE_FIELDS, scan_routines, list_labels=("label", "day"))
+                         ROUTINE_FIELDS, scan_routines, list_labels=("label", "day"),
+                         list_public_kind="routine")
 TRACKER_HISTORY = Source("tracker_history", "Tracker history", "Every value you have logged.",
-                         "entries", TRACKER_FIELDS, scan_trackers, list_labels=("label", "day"))
+                         "entries", TRACKER_FIELDS, scan_trackers, list_labels=("label", "day"),
+                         list_public_kind="tracker")
 OPTIONS = Source("options_strategies", "Options strategies",
                  "Every options strategy you have logged.", "strategies", OPTION_FIELDS,
                  scan_options)
 #: W10-R7: a list row's label is the note's title, relabelled "Note <n>" publicly (`labelKind`).
 NOTES = Source("notes", "Notes", "Every note you have written.", "notes", NOTE_FIELDS, scan_notes,
-               list_labels=("title", "created"))
+               list_labels=("title", "created"), list_public_kind="note")
 
 SOURCES: dict[str, Source] = {s.key: s for s in (CLOSED, POSITIONS, DAYS, ROUTINE_HISTORY,
                                                  TRACKER_HISTORY, OPTIONS, NOTES)}
+
+#: The sources whose rows carry a broker or manual `origin` (the payload's `source`: "Source: your linked broker").
+#: Every other source's payload says nothing about trades: `source` is None there (the W10.3 walk fix), and a public
+#: copy drops it.
+ORIGIN_SOURCES = frozenset({"closed_trades", "open_positions", "trading_days"})
 
 ACCENTS = ("gold", "green", "red", "blue", "purple", "teal", "orange")
 

@@ -605,16 +605,41 @@ _DROP = object()
 
 
 #: Label kind -> the word a public copy numbers it with. "account": ruling R-25. "note" (wave 10, W10-R7): a
-#: notes-source list row's label is the note's title, which a stranger never reads.
-RELABEL_WORDS: dict[str, str] = {"account": "Account", "note": "Note"}
+#: notes-source list row's label is the note's title, which a stranger never reads. The W10.7 walk fix adds every
+#: other label that is the member's own NAME: a folder, a note tag, a note kind, a routine, a routine item and a
+#: tracker (the engine's fields mark them, `widget_engine.sources.Field.public_kind`, and the rail in
+#: tests/test_widget_public_labels.py fails by name on a marked kind with no word here).
+RELABEL_WORDS: dict[str, str] = {
+    "account": "Account", "note": "Note", "folder": "Folder", "tag": "Tag", "kind": "Note kind",
+    "routine": "Routine", "item": "Item", "tracker": "Tracker",
+}
+
+
+def _built_label_kinds(params: Mapping[str, Any], out: dict[str, Any]) -> None:
+    """The W10.7 walk fix: a built widget's label kinds are RE-DERIVED from the frozen plan the note carries
+    (`widget_engine.payload.label_kinds`, the one rule the payload marks with), so a snapshot made before a field
+    was marked is numbered too. A derived kind wins; with no frozen plan (a `defRef`), or a plan that marks
+    nothing, the stored marker stands (never the other way: a marker can only add a relabel). And a source whose
+    rows carry no broker or manual origin (a note, a routine, an options strategy) publishes no `source`, whose only
+    words are about trades (`sources.ORIGIN_SOURCES`)."""
+    from api.services.journal_two.widget_engine import payload as wpayload
+    from api.services.journal_two.widget_engine import sources as wsources
+    plan = params.get("def") if isinstance(params.get("def"), dict) else None
+    derived = wpayload.label_kinds(plan)
+    for key, kind in zip(("labelKind", "label2Kind"), derived):
+        if kind is not None:
+            out[key] = kind
+    src = plan.get("source") if plan is not None else params.get("sourceKey")
+    if isinstance(src, str) and src in wsources.SOURCES and src not in wsources.ORIGIN_SOURCES:
+        out.pop("source", None)
 
 
 def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
     """Ruling R-25: even a SHARED built widget never publishes an account NAME. Where the payload says a label
     field is an account (`labelKind` / `label2Kind`), each distinct label becomes "Account N", numbered by first
     appearance across rows, series and cells so one account keeps one number. Two kinds never share a numbering
-    map. Ruling W10-R7 adds "note" on the same path: a note's title becomes "Note N". Any other kind value is
-    left alone."""
+    map. Ruling W10-R7 adds "note" on the same path: a note's title becomes "Note N"; the W10.7 walk fix every
+    other kind in RELABEL_WORDS. Any other kind value is left alone."""
     if widget_id != "builtWidget":
         return
     for kind_key, field in (("labelKind", "label"), ("label2Kind", "label2")):
@@ -652,6 +677,8 @@ def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
             # would still tell a stranger how many rows (or bars) the member has.
             out[k] = ([] if rows[k] == () else
                       [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP])
+    if widget_id == "builtWidget":
+        _built_label_kinds(params, out)
     _relabel_accounts(widget_id, out)
     return out
 
@@ -1494,6 +1521,12 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
             # widget's public copy keeps only whether it is frozen.
             kept["frozen"] = kept["frozen"] is True
         kept["params"] = copy.deepcopy(allowed_params(widget_id, params))       # ruling R60
+        if widget_id == "builtWidget":
+            # The W10.7 / W8.7 walk fix: a public page draws a built widget from THESE params (reduced and
+            # relabelled above), never from its archived image. That image is a picture of the member's editor:
+            # it can hold their real note titles, folder and account names and their own controls, so it never
+            # travels (and `referenced_images` then refuses to serve it).
+            kept.pop("fallback", None)
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
