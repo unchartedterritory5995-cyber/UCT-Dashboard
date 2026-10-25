@@ -2,7 +2,7 @@
  "version": 1,
  "about": "Shared vectors for the widget formula dialect (Task 10.2). The server (api/services/journal_two/widget_formula.py) and the client twin (app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js) must reproduce every entry exactly. Read with a file read; never import into a bundle.",
  "conventions": {
-  "emoji_in_text": "Ruling W10-R30. Inside a TEXT literal only (never a field name), three refused characters are allowed where they build an ordinary emoji. Neighbours are code points INSIDE the text: the opening and closing quotes are not neighbours, but an escaped quote (\"\" inside the text) is: its second quote mark is the previous code point and counts as visible, so \"a\"\"<FE0F>\" is allowed. (1) U+FE0E or U+FE0F when the previous code point is visible: not U+0020, not on the shown_text (invisible) list, not refused. (2) U+200D when the code points on BOTH sides are emoji: U+1F000-1FAFF, U+2600-27BF, U+2300-23FF, U+2B00-2BFF, plus U+1F3FB-1F3FF (skin tones). So a ZWJ after U+FE0F (as in heart-on-fire) is refused. (3) U+20E3 (keycap) when the previous code point is 0-9, # or *, or is U+FE0E/U+FE0F whose previous code point is 0-9, # or *. Anything else is refused as bad_char at its position (a joiner whose next code point is missing because the text never closes is refused at its own position, before unclosed_text), and U+E0100-E01EF are refused everywhere.",
+  "emoji_in_text": "Ruling W10-R30. Inside a TEXT literal only (never a field name), three refused characters are allowed where they build an ordinary emoji. Neighbours are code points INSIDE the text: the opening and closing quotes are not neighbours, but an escaped quote (\"\" inside the text) is: its second quote mark is the previous code point and counts as visible, so \"a\"\"<FE0F>\" is allowed. (1) U+FE0E or U+FE0F when the previous code point is visible: not U+0020, not on the shown_text (invisible) list, not refused. (2) U+200D when the code point before it is an emoji, or is U+FE0E/U+FE0F whose previous code point is an emoji (ruling W10-R48: heart-on-fire, the rainbow flag), AND the code point after it is an emoji; emoji are U+1F000-1FAFF, U+2600-27BF, U+2300-23FF, U+2B00-2BFF, plus U+1F3FB-1F3FF (skin tones). A selector after a non-emoji does not license a joiner. (3) U+20E3 (keycap) when the previous code point is 0-9, # or *, or is U+FE0E/U+FE0F whose previous code point is 0-9, # or *. Anything else is refused as bad_char at its position (a joiner whose next code point is missing because the text never closes is refused at its own position, before unclosed_text), and U+E0100-E01EF are refused everywhere.",
   "line_ends": "U+000A, U+2028 and U+2029 are line terminators: inside a text each one is unclosed_text (pos of the opening quote), inside a field name unclosed_field (pos of the [); outside a token U+2028/U+2029 are bad_char, a newline is whitespace.",
   "quoted": "unexpected and trailing quote {x} in double quotes unless {x} itself starts with a double quote (a text literal), which is shown as it stands.",
   "positions": "pos and every length count Unicode code points (Python indices; Array.from in JS).",
@@ -3604,7 +3604,19 @@
    "pos": 1
   },
   {
-   "expr": "\"\u2764\ufe0f\u200d\ud83d\udd25\"",
+   "expr": "\"\u2764\ufe0f\u200d\"",
+   "code": "bad_char",
+   "sentence": "U+200D can't be used in a formula.",
+   "pos": 3
+  },
+  {
+   "expr": "\"a\u200d\ud83d\udd25\"",
+   "code": "bad_char",
+   "sentence": "U+200D can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"a\ufe0f\u200d\ud83d\udd25\"",
    "code": "bad_char",
    "sentence": "U+200D can't be used in a formula.",
    "pos": 3
@@ -5298,6 +5310,31 @@
    "expr": "\"\ud83d\udc69\u200d\ud83c\udffd\"",
    "ok": true,
    "canonical": "\"\ud83d\udc69\u200d\ud83c\udffd\""
+  },
+  {
+   "name": "heart on fire (VS16 before the joiner, W10-R48)",
+   "expr": "\"\u2764\ufe0f\u200d\ud83d\udd25\"",
+   "ok": true,
+   "canonical": "\"\u2764\ufe0f\u200d\ud83d\udd25\""
+  },
+  {
+   "name": "rainbow flag (VS16 before the joiner, W10-R48)",
+   "expr": "\"\ud83c\udff3\ufe0f\u200d\ud83c\udf08\"",
+   "ok": true,
+   "canonical": "\"\ud83c\udff3\ufe0f\u200d\ud83c\udf08\""
+  },
+  {
+   "name": "eye in speech bubble (VS16 on both sides, W10-R48)",
+   "expr": "\"\ud83d\udc41\ufe0f\u200d\ud83d\udde8\ufe0f\"",
+   "ok": true,
+   "canonical": "\"\ud83d\udc41\ufe0f\u200d\ud83d\udde8\ufe0f\""
+  },
+  {
+   "name": "selector then joiner with nothing after",
+   "expr": "\"\u2764\ufe0f\u200d\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 3
   },
   {
    "name": "combining grapheme joiner in text",
