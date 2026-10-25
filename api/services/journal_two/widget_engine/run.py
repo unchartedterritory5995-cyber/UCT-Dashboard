@@ -810,9 +810,11 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
              now: datetime | None = None, sample: bool = False) -> dict:
     """Run `plan` for the session member `user_id` and answer the built-widget payload.
 
-    Precondition (the router's, Task 8.11): `def_id` / `def_rev` / `latest_rev` are passed only for a
-    definition `widget_definitions.resolve_for_run` found for THIS member; a foreign or deleted
-    `defId` is treated as absent before this is called. This function echoes them, never checks them.
+    Precondition (the router's, Tasks 8.11 and 10.8): `def_id` / `def_rev` / `latest_rev` are passed
+    only for a definition `widget_definitions.resolve_for_run` found for THIS member, or for a
+    `shelf:` id together with the shelf revision actually run (`shelf.revision`) and the newest
+    revision the flags allow; a foreign or deleted `defId` is treated as absent before this is
+    called. This function echoes them, never checks them.
 
     Raises `PlanError` (a member sentence), `EngineBusy`, `EngineTooLong`, `Superseded` or
     `DailyCapReached`; the router maps each to its state.

@@ -613,6 +613,12 @@ def test_examples_and_shelf_gate_a_tool_example(conn, monkeypatch, tmp_path):
 
 # -- shelf revisions (Task 10.8) -----------------------------------------------------------------
 
+def test_shelf_wave10_fallback_only_before_plan_v3():
+    """`_shelf_allowed`'s getattr fallback for `plan.uses_wave10` is safe only while no plan format
+    3 can validate; Task 10.4 deletes it."""
+    assert wplan.PLAN_VERSION < 3 or hasattr(wplan, "uses_wave10")
+
+
 def _two_revs(tmp_path, **plan_changes):
     from tests.test_widget_shelf_files import planted, rev2_of
     changes = plan_changes or {"display": {"title": "Win rate, revision two", "titleAuto": False,

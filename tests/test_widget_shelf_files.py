@@ -204,6 +204,69 @@ def test_released_revisions_never_change():
     assert bad == [], bad
 
 
+# -- each committed revision is still the bytes it was added with (works before any merge) ----------
+
+SHELF_REL = "api/services/journal_two/widget_engine/shelf"
+
+
+def add_commit_violations(entries: list[dict], added, local) -> list[str]:
+    """`added(file)` is the revision as its add commit stored it (None: not committed yet, ignored);
+    `local(file)` is the working-tree revision. Both must hash to the manifest entry."""
+    out = []
+    for e in entries:
+        first = added(e["file"])
+        if first is None:
+            continue
+        if shelf.canonical_hash(first) != e["sha256"]:
+            out.append(f"{e['file']}: differs from its add commit")
+        elif shelf.canonical_hash(local(e["file"])) != e["sha256"]:
+            out.append(f"{e['file']}: working tree differs from its add commit")
+    return out
+
+
+def test_add_commit_rail_sees_an_edit_after_add():
+    r1 = shelf.revision("shelf:win-rate", 1)
+    first = {"id": r1["id"], "rev": 1, "name": "Win rate", "description": "d", "keywords": [], "plan": {}}
+    edited = dict(first, name="Win Rate")
+    entry = [{"file": "win-rate.r1.json", "sha256": shelf.canonical_hash(first)}]
+    assert add_commit_violations(entry, lambda f: first, lambda f: first) == []      # clean
+    # edited after its add commit AND the manifest hash moved with it: still red
+    moved = [{"file": "win-rate.r1.json", "sha256": shelf.canonical_hash(edited)}]
+    assert add_commit_violations(moved, lambda f: first, lambda f: edited) == [
+        "win-rate.r1.json: differs from its add commit"]
+    # edited in the working tree only
+    assert add_commit_violations(entry, lambda f: first, lambda f: edited) == [
+        "win-rate.r1.json: working tree differs from its add commit"]
+    assert add_commit_violations(entry, lambda f: None, lambda f: edited) == []      # not committed
+
+
+def test_revisions_match_their_add_commit():
+    ls = _git("ls-files", "--", SHELF_REL)
+    if ls.returncode != 0:
+        pytest.fail(f"git ls-files failed ({ls.stderr.strip()}); run `{FETCH}`")
+    tracked = {Path(p).name for p in ls.stdout.splitlines() if p.strip()}
+    assert len(tracked) >= 24, "the committed shelf is missing (non-vacuity: 23 revisions + manifest)"
+
+    def added(name: str):
+        if name not in tracked:
+            return None
+        rel = f"{SHELF_REL}/{name}"
+        log = _git("log", "--diff-filter=A", "--format=%H", "-1", "--", rel)
+        sha = log.stdout.strip()
+        if log.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", sha):
+            pytest.fail(f"git could not find the commit that added {rel} ({log.stderr.strip()})")
+        text = _show(sha, rel)
+        if text is None:
+            pytest.fail(f"git could not read {sha}:{rel}")
+        return json.loads(text)
+
+    def local(name: str):
+        return json.loads((shelf.SHELF_DIR / name).read_text(encoding="utf-8"))
+
+    bad = add_commit_violations(_manifest()["files"], added, local)
+    assert bad == [], bad
+
+
 # -- revision 1 is the wave 8 shelf, unchanged --------------------------------------------------------
 
 def test_r1_files_match_wave8_shelf():
@@ -254,6 +317,11 @@ def test_broken_shelf_shapes_fail_load(tmp_path):
     with pytest.raises(shelf.ShelfError, match="stray.r1.json"):
         shelf.load(d)
     (d / "stray.r1.json").unlink()
+    m = copy.deepcopy(man)
+    m["files"].append(dict(m["files"][0]))                         # one entry listed twice
+    write(m)
+    with pytest.raises(shelf.ShelfError, match="listed twice"):
+        shelf.load(d)
     m = copy.deepcopy(man)
     m["files"].append({"file": "gone.r1.json", "sha256": "0" * 64})  # an entry with no file
     write(m)

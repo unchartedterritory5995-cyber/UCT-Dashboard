@@ -172,8 +172,9 @@ def _entry(r: dict) -> dict:
     return copy.deepcopy(r)
 
 
-def _newest(sid: str, allowed: Allowed) -> dict | None:
-    for r in reversed(_STATE[1].get(sid, ())):
+def _newest(state: tuple, sid: str, allowed: Allowed) -> dict | None:
+    """From ONE captured `_STATE` (a concurrent `load` can never mix two shelves into an answer)."""
+    for r in reversed(state[1].get(sid, ())):
         if allowed(copy.deepcopy(r["plan"])):
             return r
     return None
@@ -182,10 +183,10 @@ def _newest(sid: str, allowed: Allowed) -> dict | None:
 def examples(allowed: Allowed = _any) -> list[dict]:
     """Per id in shelf order, the newest revision whose plan `allowed` accepts (an id with none is
     left out): `{id, rev, name, description, keywords, plan, summary}`."""
-    order, _ = _STATE
+    state = _STATE
     out = []
-    for sid in order:
-        r = _newest(sid, allowed)
+    for sid in state[0]:
+        r = _newest(state, sid, allowed)
         if r is not None:
             out.append(_entry(r))
     return out
@@ -195,7 +196,7 @@ def example(shelf_id: Any, allowed: Allowed = _any) -> dict | None:
     """One id's newest allowed revision, or None."""
     if not isinstance(shelf_id, str):
         return None
-    r = _newest(shelf_id, allowed)
+    r = _newest(_STATE, shelf_id, allowed)
     return _entry(r) if r is not None else None
 
 
@@ -212,7 +213,7 @@ def latest_rev(shelf_id: Any, allowed: Allowed = _any) -> int | None:
     """The newest revision number `allowed` accepts, or None."""
     if not isinstance(shelf_id, str):
         return None
-    r = _newest(shelf_id, allowed)
+    r = _newest(_STATE, shelf_id, allowed)
     return r["rev"] if r is not None else None
 
 

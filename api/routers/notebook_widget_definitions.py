@@ -227,7 +227,8 @@ def _shelf_allowed():
     w9 = nwidgets.notebook_widgets_wave_on(TOOLS_WAVE)
     w10 = nwidgets.notebook_widgets_wave_on(10)
     # `plan.uses_wave10` lands with Task 10.4 (lane F); until then no plan can need wave 10, since a
-    # plan format 3 does not validate yet.
+    # plan format 3 does not validate yet. ⛔ Task 10.4 DELETES this getattr fallback; the rail
+    # `test_shelf_wave10_fallback_only_before_plan_v3` reds the moment PLAN_VERSION reaches 3 without it.
     uses_wave10 = getattr(wplan, "uses_wave10", None) or (lambda _p: False)
 
     def allowed(plan: Any) -> bool:
