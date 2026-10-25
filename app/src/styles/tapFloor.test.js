@@ -226,3 +226,51 @@ describe('the examples gallery floors every control at 44px at every width', () 
     expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
   })
 })
+
+// Wave 9 (Task 9.16): the routine and tracker editors. The My tools bar: every clickable class (derived from the
+// stylesheet, as above) is floored at 390, 820 AND 1200 px, and so is every text field and select, at 16 px or larger
+// so a phone does not zoom into it.
+const ROUTINES_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'routines', 'routines.module.css')
+
+/** The font-size a class's base rule declares, '' when none. */
+function baseFontSize(css, cls) {
+  const rule = /([^{}]+)\{([^{}]*)\}/g
+  let m
+  let found = ''
+  while ((m = rule.exec(withoutMedia(stripComments(css))))) {
+    const parts = m[1].split(',').map((p) => p.trim())
+    if (!parts.includes(cls)) continue
+    const fs = /font-size:\s*([^;]+);/.exec(m[2])
+    if (fs) found = fs[1].trim()
+  }
+  return found
+}
+
+describe('the routine and tracker editors floor every control at 44px at every width', () => {
+  it('the editors have clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(ROUTINES_CSS, 'utf8')))
+    for (const c of ['.btn', '.btnPrimary', '.btnDanger', '.chip', '.day', '.iconBtn', '.switch', '.radioRow', '.select', '.linkBtn', '.noteLink', '.backBtn']) {
+      expect(classes).toContain(c)
+    }
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(ROUTINES_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('text fields and selects are floored too, at 16px type or larger', () => {
+    const css = readFileSync(ROUTINES_CSS, 'utf8')
+    const floored = tapTargetClasses(withoutMedia(stripComments(css)))
+    for (const c of ['.input', '.select']) {
+      expect(floored, `${c} has no 44px floor`).toContain(c)
+      expect(baseFontSize(css, c)).toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+    }
+  })
+
+  it('CONTROL: a field at 14px type is SEEN', () => {
+    expect(baseFontSize('.input { font-size: 14px; min-height: var(--tap-min); }', '.input')).not.toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+  })
+})

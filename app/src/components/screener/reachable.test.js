@@ -735,6 +735,18 @@ const AWAITING_A_DECISION = {
   'app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js':
     'WIDGET FORMULA TWIN — pure, lazy, no importer until Task 10.16 wires it into '
     + 'the builder chunk. Drop this entry in that commit.',
+  // ── THE TRACKER EDITOR — BUILT AHEAD OF ITS DOORS (2026-10-24, W9 9.16) ──
+  //
+  // Notebook widgets phase 2, wave 9, Task 9.16 builds the routine AND tracker editors in one task. The routine
+  // editor is reached today (RoutineBlock's ⋯ menu -> lazy openRoutineEditor); the tracker editor's doors land after
+  // it: Task 9.18's My tools Trackers tab (Open) and Task 9.19's tool picker ("New tracker"), plus an "Edit tracker"
+  // row on the tracker block's ⋯ menu, which the blocks lane owns. It must stay lazy (lib/toolsCrud.lazy.test.js).
+  // Expiry: the first of those doors imports openTrackerEditor; drop this entry in that commit.
+  'app/src/pages/journal-2-0/components/notebook/routines/openTrackerEditor.js':
+    'TRACKER EDITOR DOOR — lazy, no importer until Task 9.18 (My tools) or 9.19 (the tool picker) '
+    + 'opens it. Drop this entry in that commit.',
+  'app/src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.jsx':
+    'TRACKER EDITOR — reached only through openTrackerEditor above; it moves with it.',
   // (PACKET-AA CP1's FlowExplainButton.jsx block stood here until 2026-09-25;
   // CP2 mounted it in OptionsFlow.jsx's Strike Flow Detail table and the block
   // and its expiry were deleted in that commit, as the block's own text said.)
@@ -815,6 +827,7 @@ const PARKING_EXPIRES = {
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'WIDGET FORMULA TWIN — BUILT AHEAD OF ITS BUILDER (2026-10-24, W10 10.3)': '2026-11-30',   // Task 10.16 wires it into the lazy builder chunk
+  'THE TRACKER EDITOR — BUILT AHEAD OF ITS DOORS (2026-10-24, W9 9.16)': '2026-11-30',   // Task 9.18 or 9.19 opens it
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch
   // carries the S4 rail and had no such block. The rail meeting the block is

@@ -239,6 +239,13 @@ export const SURFACES = Object.freeze({
   // box, the table, the menu, read-only, a check-in, archived, read failure, a refused value, offline).
   'components/notebook/blocks/TrackerBlock.jsx': { recipe: 'trader-block-tracker' },
   'components/notebook/blocks/TrackerChart.jsx': { coveredBy: 'trader-block-tracker' },
+  // Wave 9 Task 9.16: the routine and tracker editors (routines/; rail a11y/toolEditors.a11y.test.jsx: a new routine
+  // with its starters, suggestions, weekdays and reminder; an edit with a refusal and Reload; the question, Used in,
+  // archived and delete panels; a new and an edited tracker; a check-in tracker).
+  'components/notebook/routines/RoutineEditorSheet.jsx': { recipe: 'routine-editor' },
+  'components/notebook/routines/TrackerEditorSheet.jsx': { recipe: 'tracker-editor' },
+  'components/notebook/routines/ToolEditor.jsx': { coveredBy: 'routine-editor-edit' },
+  'components/notebook/routines/ToolManage.jsx': { coveredBy: 'routine-editor-manage' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

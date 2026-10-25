@@ -1,22 +1,37 @@
-// Notebook widgets phase 2, wave 9: the routine editor's door.
+// Notebook widgets phase 2, wave 9 (Task 9.16): the routine editor's door. It replaces the W9-R28 placeholder, keeping
+// its path and the call the routine block's ⋯ menu makes (`{editor, routineId, announce}`).
 //
-// ⛔ A PLACEHOLDER (ruling W9-R28). Task 9.16 builds the routine editor and REPLACES this file, keeping its path and
-// its signature. Until then the door opens nothing: it announces `TOOL_COPY.flagOff` ("Not available right now.")
-// through the caller's `announce`, and answers `{ ok: false, message }`.
+// `openRoutineEditor({routineId?, starter?, onSaved?, editor?, announce?, returnFocus?, navigate?}) -> close()`:
+//   * `routineId`: the routine to edit; none makes a new routine, from `starter` (a ready-made routine's key, e.g.
+//     'premarket') when given.
+//   * `onSaved(routine)`: hears the saved routine (the tool picker inserts a new one at the caret, Task 9.19).
+//   * `editor`: the note's editor when opened from a note: the editor closes when the note does. It writes nothing
+//     into a note.
+//   * `announce(sentence)`: the opener's live line (a placed block's feedback line, which outlives the menu).
+//   * `navigate`: the app router's navigate, for the "Used in" note links.
+// Mounted on its own root, one editor at a time (mountEditor.js).
 //
-// `openRoutineEditor({ editor, routineId, announce })`:
-//   * `editor`: the note's editor when opened from a placed routine block (its ⋯ menu, "Edit routine").
-//   * `routineId`: the routine to edit.
-//   * `announce(sentence)`: the caller's live region (the block's feedback line, which outlives the menu).
-//
-// ⛔ LAZY. Only dynamic imports reach this file (RoutineBlock's ⋯ menu): a static import from anything on the
-// Notebook's first open would put the editor on that first open (the bytes gate).
-import { TOOL_COPY } from '../../../lib/blocks/toolsApi'
+// ⛔ LAZY. Only dynamic imports reach this file (RoutineBlock's ⋯ menu, later the tool picker and My tools): a static
+// import from anything on the Notebook's first open would put the editor on that first open (the bytes gate,
+// lib/toolsCrud.lazy.test.js).
+import RoutineEditorSheet from './RoutineEditorSheet'
+import { mountEditor } from './mountEditor'
 
-export function openRoutineEditor({ announce } = {}) {
-  const message = TOOL_COPY.flagOff
-  if (typeof announce === 'function') {
-    try { announce(message) } catch { /* the caller's live region is its own */ }
-  }
-  return { ok: false, message }
+export function openRoutineEditor({
+  routineId = null, starter = null, onSaved, editor = null, announce = null, returnFocus = null, navigate = null, zone,
+} = {}) {
+  return mountEditor({
+    rootAttr: 'data-routine-editor-root',
+    Sheet: RoutineEditorSheet,
+    props: {
+      routineId: typeof routineId === 'string' && routineId ? routineId : null,
+      starter: typeof starter === 'string' && starter ? starter : null,
+      onSaved: typeof onSaved === 'function' ? onSaved : undefined,
+      navigate: typeof navigate === 'function' ? navigate : null,
+      zone,
+    },
+    editor,
+    announce: typeof announce === 'function' ? announce : null,
+    returnFocus,
+  })
 }
