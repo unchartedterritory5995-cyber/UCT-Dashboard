@@ -1,9 +1,9 @@
 // The shared snapshot frame (Task 7): its header, See it now, and the share switch.
 // Asserted by RENDERED TEXT: what a member reads is the thing under test.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, act, renderHook } from '@testing-library/react'
+import { render, screen, fireEvent, act, renderHook, cleanup } from '@testing-library/react'
 import { useState } from 'react'
-import { waitFor } from '@testing-library/react'
+import { waitFor, within } from '@testing-library/react'
 import SnapshotFrame, { useSnapshotFrame, NA, changeKeysOf } from './SnapshotFrame'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../../lib/offline/notebookFlags'
@@ -371,5 +371,74 @@ describe('dedicated kinds: See it now and Change through the POST door', () => {
     for (const kind of kinds) expect(await screen.findByText(`fresh ${kind}`)).toBeInTheDocument()
     expect(screen.queryByText(/Busy right now/)).toBeNull()
     expect(writes).toHaveLength(4)
+  })
+})
+
+// Fix round 1, W10-R56 (review I-1): a dedicated widget is private whatever `share` says, and the frame says so.
+// m-1: a queued refresh whose widget unmounted sends no POST.
+describe('dedicated kinds are private (W10-R56), and a gone widget sends nothing (fix round 1)', () => {
+  const realFetch = global.fetch
+  afterEach(() => { global.fetch = realFetch; __resetDedicatedQueue() })
+  const ok = (body) => ({ ok: true, status: 200, json: async () => body })
+
+  function Embed({ kind, payload, writes = [] }) {
+    const [attrs, setAttrs] = useState(() => widgetEmbedNode(kind, payload).attrs)
+    const onUpdateParams = (next) => { writes.push(next); setAttrs((a) => ({ ...a, params: next })); return true }
+    const f = useSnapshotFrame(kind, attrs, { editable: true, onUpdateParams })
+    return <SnapshotFrame {...f}><p>{(attrs.params.lines || []).join(' ')}</p></SnapshotFrame>
+  }
+
+  it('private_frame_with_share_on: "Only you", "Not shown on shared pages", and no share switch', () => {
+    render(<Embed kind="myPropFirm" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', share: true, lines: ['x'] }} />)
+    expect(screen.getByText('Only you')).toBeInTheDocument()
+    expect(screen.getByText('Not shown on shared pages')).toBeInTheDocument()
+    expect(screen.queryByText('Show on shared pages')).toBeNull()
+    expect(screen.queryByText('Snapshot')).toBeNull()
+  })
+
+  it('the frame itself: privateOnly wins over share (the chip and the switch read the one prop)', () => {
+    frame({ account: true, share: true, privateOnly: true })
+    expect(screen.getByText('Only you')).toBeInTheDocument()
+    expect(screen.getByText('Not shown on shared pages')).toBeInTheDocument()
+    expect(screen.queryByText('Show on shared pages')).toBeNull()
+    cleanup()
+    frame({ account: true, share: true })                                // control: a shared account kind
+    expect(screen.queryByText('Only you')).toBeNull()
+    expect(screen.getByText('Show on shared pages')).toBeInTheDocument()
+  })
+
+  it('every one of the seven is private, and the hook offers no share door', () => {
+    for (const kind of ['myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired']) {
+      const { result } = renderHook(() => useSnapshotFrame(kind, { params: { asOf: ASOF, share: true } },
+        { editable: true, onUpdateParams: vi.fn(() => true) }))
+      expect(result.current, kind).toMatchObject({ privateOnly: true, share: false, account: true })
+      expect(result.current.onShareChange, kind).toBeUndefined()
+    }
+  })
+
+  it('control: a phase 1 account kind shared still offers the switch and reads Snapshot', () => {
+    render(<Embed kind="myPnlStats" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', share: true,
+      range: { from: '2026-10-13', to: '2026-10-17' } }} />)
+    expect(screen.getByText('Show on shared pages')).toBeInTheDocument()
+    expect(screen.getByText('Snapshot')).toBeInTheDocument()
+    expect(screen.queryByText('Only you')).toBeNull()
+  })
+
+  it('unmounted_while_queued_sends_no_post: the queued widget is gone before its turn', async () => {
+    let release
+    const calls = []
+    global.fetch = vi.fn((url) => {
+      calls.push(String(url))
+      return new Promise((r) => { release = () => r(ok({ asOf: '2026-10-21T14:00:00Z', lines: ['fresh'] })) })
+    })
+    const first = render(<Embed kind="myTiltCheck" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', lines: ['a'] }} />)
+    const second = render(<Embed kind="myGamePlan" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', lines: ['b'] }} />)
+    fireEvent.click(within(first.container).getByRole('button', { name: 'See it now' }))
+    fireEvent.click(within(second.container).getByRole('button', { name: 'See it now' }))
+    await waitFor(() => expect(calls).toHaveLength(1))                 // the first is in flight, the second waits
+    second.unmount()
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 20)) })
+    expect(calls).toEqual(['/api/j2/notebook-shelf-widgets/myTiltCheck'])   // never a POST for the gone widget
+    expect(await within(first.container).findByText('fresh')).toBeInTheDocument()
   })
 })

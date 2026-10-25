@@ -106,6 +106,9 @@ const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
 export const widgetKind = (id) => BY_ID.get(id) || null
 /** Is this widget id one of the snapshot kinds (the embed host hands it the refresh doors)? */
 export const isSnapshotKind = (id) => BY_ID.has(id)
+/** W10-R56: a ready-made dedicated kind (its row's `dedicated`). Private whatever `share` says: no share switch,
+ *  always the "Only you" chip, never archived to an image. The ONE predicate every one of those reads. */
+export const isDedicatedKind = (id) => BY_ID.get(id)?.dedicated === 1
 
 /** A frozen widgetEmbed node for one payload, built by the SAME attr constructor every capture
  *  uses (params normalized through the registry, searchText derived from them). */

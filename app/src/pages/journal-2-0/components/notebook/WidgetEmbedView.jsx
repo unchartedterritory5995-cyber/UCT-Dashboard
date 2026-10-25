@@ -19,7 +19,7 @@ import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
-import { isSnapshotKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
+import { isSnapshotKind, isDedicatedKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -589,7 +589,9 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // (shareView keeps every embed on `fallback`; ReadOnlyNote stamps it). So an ACCOUNT snapshot kind
   // may be archived only while the member has it shared: never while private, and switching share
   // off clears `fallback` in the same write (updateSnapshotParams) and does not re-archive.
-  const archiveAllowed = (attrsNow) => widgetKind(attrsNow?.widgetId)?.account !== true || attrsNow?.params?.share === true
+  // W10-R56: a ready-made dedicated kind is private whatever `share` says, so it is never archived to an image.
+  const archiveAllowed = (attrsNow) => !isDedicatedKind(attrsNow?.widgetId)
+    && (widgetKind(attrsNow?.widgetId)?.account !== true || attrsNow?.params?.share === true)
   const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView && !peek && !shareView
     && archiveAllowed(attrs)
   useEffect(() => {

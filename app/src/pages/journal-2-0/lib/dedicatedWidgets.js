@@ -13,7 +13,7 @@
 // alone: exactly the keys the member chose in Change (or the trade a pick chose), and nothing the server answered.
 
 import { FETCH_TIMEOUT_MS, answer } from './builtWidgets'
-import { widgetKind } from './notebookWidgets'
+import { isDedicatedKind } from './notebookWidgets'
 
 export const SHELF_WIDGETS_URL = '/api/j2/notebook-shelf-widgets'
 
@@ -32,8 +32,8 @@ export const BUSY_RETRY_MS = 600
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const own = (map, k) => (typeof k === 'string' && Object.hasOwn(map, k) ? map[k] : undefined)
 
-/** Is this widget id one of the ready-made dedicated kinds (WIDGET_KINDS `dedicated`)? */
-export const isDedicated = (kind) => widgetKind(kind)?.dedicated === 1
+/** Is this widget id one of the ready-made dedicated kinds? The ONE predicate (lib/notebookWidgets.js, W10-R56). */
+export const isDedicated = isDedicatedKind
 
 /** The kind's settings keys (none for an unknown kind). */
 export const settingsKeysOf = (kind) => own(DEDICATED_SETTINGS, kind) || []
@@ -63,15 +63,13 @@ export function dedicatedRefreshParams(old, payload) {
 
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 
-async function postOnce(kind, params) {
+async function postOnce(kind, params, signal) {
   if (isOffline()) return { ok: false, code: 'offline', message: '' }
-  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
-  const timer = ctl ? setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS) : null
   try {
     // ⛔ The method is named LITERALLY (lib/offline/doorEnumeration.test.js reads methods from the call site).
     const res = await fetch(`${SHELF_WIDGETS_URL}/${encodeURIComponent(String(kind))}`, {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ params: isRecord(params) ? params : {} }), ...(ctl ? { signal: ctl.signal } : {}),
+      body: JSON.stringify({ params: isRecord(params) ? params : {} }), ...(signal ? { signal } : {}),
     })
     const got = await answer(res)
     // An answer with no asOf is not a snapshot.
@@ -79,32 +77,70 @@ async function postOnce(kind, params) {
     return got
   } catch {
     return { ok: false, code: isOffline() ? 'offline' : 'failed', message: '' }
-  } finally {
-    if (timer) clearTimeout(timer)
   }
 }
 
 const wait = (ms) => new Promise((r) => { setTimeout(r, ms) })
 
+/** A queued run whose widget is gone (unmounted, or its note left): no POST is sent. `superseded` is failureText's
+ *  quiet code, so the frame shows nothing. */
+export const DROPPED = Object.freeze({ ok: false, code: 'superseded', message: '' })
+
 // 10.12 M7: the server admits two runs per member at once and answers the third "Busy right now". A page that
 // refreshes several dedicated widgets together therefore sends them ONE AT A TIME, through this queue.
 let tail = Promise.resolve()
+// Fix round 1 (m-2): at most ONE waiting entry per widget instance (its `key`). A second ask while the first still
+// waits joins it, with the newest settings, instead of queueing another POST.
+const waiting = new Map()
+
+/** One queue entry: at most two POSTs (one busy retry), all of it bounded by ONE `FETCH_TIMEOUT_MS` deadline, so a
+ *  stalled request can never hold the queue (the race answers `failed` even if a fetch ignores its abort). The
+ *  liveness check runs before each POST (fix round 1, m-1: the W8-R56 "mounted" rule). */
+async function runEntry(e) {
+  const dropped = () => typeof e.isLive === 'function' && e.isLive() !== true
+  if (dropped()) return DROPPED
+  const deadline = Date.now() + FETCH_TIMEOUT_MS
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
+  let timer = null
+  const timedOut = new Promise((r) => {
+    timer = setTimeout(() => { if (ctl) ctl.abort(); r({ ok: false, code: 'failed', message: '' }) }, FETCH_TIMEOUT_MS)
+  })
+  const work = (async () => {
+    const got = await postOnce(e.kind, e.params, ctl?.signal)
+    if (got.ok || got.code !== 'busy' || Date.now() + BUSY_RETRY_MS >= deadline) return got
+    await wait(BUSY_RETRY_MS)
+    if (dropped()) return DROPPED
+    return postOnce(e.kind, e.params, ctl?.signal)
+  })()
+  try {
+    return await Promise.race([work, timedOut])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 /** See it now (and Change, with the new settings): `{ok: true, data}` or `{ok: false, code, message, status}`, the
  *  codes `builtWidgets.failureText` reads. Never throws. Runs after every earlier call has answered; a busy answer
- *  is asked once more after `BUSY_RETRY_MS`. */
-export function runDedicated(kind, params) {
-  const run = tail.then(async () => {
-    const got = await postOnce(kind, params)
-    if (got.ok || got.code !== 'busy') return got
-    await wait(BUSY_RETRY_MS)
-    return postOnce(kind, params)
+ *  is asked once more after `BUSY_RETRY_MS` while the entry's deadline allows.
+ *  `key`: the widget instance (one waiting entry each). `isLive()`: false once the widget is gone (no POST then). */
+export function runDedicated(kind, params, { key, isLive } = {}) {
+  const joined = key !== undefined ? waiting.get(key) : undefined
+  if (joined) {
+    Object.assign(joined, { kind, params, isLive })
+    return joined.promise
+  }
+  const entry = { kind, params, isLive }
+  entry.promise = tail.then(() => {
+    if (key !== undefined && waiting.get(key) === entry) waiting.delete(key)
+    return runEntry(entry)
   })
-  tail = run.catch(() => {})
-  return run
+  if (key !== undefined) waiting.set(key, entry)
+  tail = entry.promise.catch(() => {})
+  return entry.promise
 }
 
 /** Tests only: a fresh queue. */
 export function __resetDedicatedQueue() {
   tail = Promise.resolve()
+  waiting.clear()
 }

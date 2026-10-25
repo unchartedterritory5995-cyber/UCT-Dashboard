@@ -3,9 +3,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   SHELF_WIDGETS_URL, DEDICATED_SETTINGS, BUSY_RETRY_MS, isDedicated, runDedicated, dedicatedRequestOf,
-  dedicatedRefreshParams, __resetDedicatedQueue,
+  dedicatedRefreshParams, __resetDedicatedQueue, DROPPED,
 } from './dedicatedWidgets'
-import { FAILURE_COPY, failureText } from './builtWidgets'
+import { FAILURE_COPY, FETCH_TIMEOUT_MS, failureText } from './builtWidgets'
 import { WIDGET_KINDS } from './notebookWidgets'
 
 const setOnline = (value) => Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => value })
@@ -174,5 +174,116 @@ describe('the member\'s settings', () => {
     expect(dedicatedRefreshParams({}, payload)).toEqual({ ...payload, share: false })
     // a payload cannot overwrite the member's settings
     expect(dedicatedRefreshParams(old, { ...payload, settings: { dailyLoss: 1 } }).settings).toEqual(old.settings)
+  })
+})
+
+// Fix round 1 (review m-1, m-2): a gone widget sends nothing; a stalled request cannot hold the queue; one waiting
+// entry per widget instance.
+describe('the queue (fix round 1)', () => {
+  const hold = () => {
+    const releases = []
+    fetchSpy.mockImplementation((url, init) => new Promise((r) => {
+      releases.push(() => r(reply(200, { asOf: '2026-10-24T14:00:00Z', url, body: JSON.parse(init.body) })))
+    }))
+    return releases
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0))
+
+  it('dropped_before_its_turn_sends_no_post: isLive() false when its turn comes is no POST, and the quiet code', async () => {
+    const releases = hold()
+    let live = true
+    const a = runDedicated('myTiltCheck', {})
+    const b = runDedicated('myGamePlan', {}, { key: {}, isLive: () => live })
+    await flush()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    live = false                                                         // the widget unmounted while it waited
+    releases[0]()
+    expect((await a).ok).toBe(true)
+    expect(await b).toEqual(DROPPED)
+    expect(failureText(DROPPED.code, DROPPED.message)).toBe('')          // the frame says nothing
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('control: a live waiting entry is sent', async () => {
+    const releases = hold()
+    const a = runDedicated('myTiltCheck', {})
+    const b = runDedicated('myGamePlan', {}, { key: {}, isLive: () => true })
+    await flush()
+    releases[0]()
+    await a
+    await flush()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    releases[1]()
+    expect((await b).ok).toBe(true)
+  })
+
+  it('a widget gone during the busy wait sends no retry', async () => {
+    vi.useFakeTimers()
+    let live = true
+    fetchSpy.mockResolvedValue(reply(503, { detail: { code: 'busy', message: 'x' } }))
+    const pending = runDedicated('myGamePlan', {}, { key: {}, isLive: () => live })
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    live = false
+    await vi.advanceTimersByTimeAsync(BUSY_RETRY_MS)
+    expect(await pending).toEqual(DROPPED)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('stalled_request_frees_queue: one entry is bounded by FETCH_TIMEOUT_MS even if its fetch never settles', async () => {
+    vi.useFakeTimers()
+    fetchSpy.mockImplementationOnce(() => new Promise(() => {}))         // ignores its abort, never settles
+    const a = runDedicated('myTiltCheck', {})
+    const b = runDedicated('myGamePlan', {})
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS - 1)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)                            // b still waits behind a
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await a).toMatchObject({ ok: false, code: 'failed' })
+    expect((await b).ok).toBe(true)
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('the abort is sent to the stalled fetch at the deadline', async () => {
+    vi.useFakeTimers()
+    let signal
+    fetchSpy.mockImplementationOnce((url, init) => { signal = init.signal; return new Promise(() => {}) })
+    runDedicated('myTiltCheck', {})
+    await vi.advanceTimersByTimeAsync(1)
+    expect(signal.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS)
+    expect(signal.aborted).toBe(true)
+  })
+
+  it('a busy answer near the deadline is not retried past it (two attempts never exceed one FETCH_TIMEOUT_MS)', async () => {
+    vi.useFakeTimers()
+    fetchSpy.mockImplementation(() => new Promise((r) => {
+      setTimeout(() => r(reply(503, { detail: { code: 'busy', message: 'x' } })), FETCH_TIMEOUT_MS - BUSY_RETRY_MS + 1)
+    }))
+    const pending = runDedicated('myGamePlan', {})
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS)
+    expect((await pending).code).toBe('busy')
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('one_waiting_entry_per_instance: a second ask while the first waits joins it, with the newest settings', async () => {
+    const releases = hold()
+    const key = {}
+    const inFlight = runDedicated('myPropFirm', { dailyLoss: 100 }, { key })     // starts at once
+    await flush()
+    const waitingA = runDedicated('myPropFirm', { dailyLoss: 200 }, { key })     // waits behind it
+    const waitingB = runDedicated('myPropFirm', { dailyLoss: 300 }, { key })     // joins the waiting one
+    expect(waitingB).toBe(waitingA)
+    releases[0]()
+    await inFlight
+    await flush()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(fetchSpy.mock.calls[1][1].body)).toEqual({ params: { dailyLoss: 300 } })
+    releases[1]()
+    expect((await waitingA).data.body).toEqual({ params: { dailyLoss: 300 } })
+    // another instance is never joined
+    const other = runDedicated('myPropFirm', { dailyLoss: 1 }, { key: {} })
+    await flush()
+    expect(other).not.toBe(waitingA)
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
   })
 })

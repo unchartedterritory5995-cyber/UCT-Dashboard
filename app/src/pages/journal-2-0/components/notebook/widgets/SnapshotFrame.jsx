@@ -3,7 +3,7 @@ import UIcon from '../../../../../components/ui/UIcon'
 import Switch from '../../../../../components/ui/Switch'
 import { money, moneySigned, percent } from '../../../../../lib/journal-2-0/format'
 import { etDateTime, isoDayText } from '../captureStamp'
-import { widgetKind } from '../../../lib/notebookWidgets'
+import { widgetKind, isDedicatedKind } from '../../../lib/notebookWidgets'
 import { widgetMeta } from '../../../../../widgets/registry'
 import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import { savePreset, NAME_MAX } from '../../../lib/notebookSets'
@@ -43,7 +43,7 @@ export const EARNINGS_UNREAD = 'The earnings calendar could not be read just now
 export default function SnapshotFrame({
   title, asOf, account = false, share = false, editable = false,
   onRefresh, onShareChange, onSavePreset, sourceLine, sourceDetail, tooLarge = false, tooLargeText, children,
-  changeKeys = [], settings = {}, onChange, changeContext = null, menu = null, kind = null,
+  changeKeys = [], settings = {}, onChange, changeContext = null, menu = null, kind = null, privateOnly = false,
 }) {
   const [busy, setBusy] = useState(false)
   const [change, setChange] = useState(null)   // the settings being edited, or null when closed
@@ -140,7 +140,9 @@ export default function SnapshotFrame({
     if (result?.ok) { setNaming(null); setMessage(`${result.message || 'Saved as a preset.'} Type /preset to use it.`) } else setMessage(result?.reason || "Couldn't save just now.")
   }
 
-  const privateChip = account && !share
+  // W10-R56: a private kind (a ready-made dedicated widget) is never shown on a shared page, `share` or not: the frame
+  // says "Only you" always and offers no switch that would claim otherwise.
+  const privateChip = privateOnly || (account && !share)
   const stamp = etDateTime(asOf)
   return (
     // Wave 8 (Task 8.14, H14): only a BUILT widget reserves its scrollbar gutter (its charts measure their width).
@@ -160,8 +162,8 @@ export default function SnapshotFrame({
         <span className={styles.spacer} />
         {/* R58 (UX I-8): a market widget never reaches a shared page (its numbers are the market's), and says so
             where an account widget offers its switch. */}
-        {!account && <span className={styles.chip} data-snapshot-public="">Not shown on shared pages</span>}
-        {editable && account && (
+        {(!account || privateOnly) && <span className={styles.chip} data-snapshot-public="">Not shown on shared pages</span>}
+        {editable && account && !privateOnly && (
           <label className={styles.shareRow}>
             <Switch
               checked={share}
@@ -369,6 +371,16 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
   // `share` off or the note can turn read-only. These refs are updated every render, and the write
   // after the await reads them: the merge starts from the CURRENT params (so the current `share`
   // wins, never the click-time copy), and a host that is no longer writable gets no write at all.
+  // Fix round 1 (m-1, m-2): this widget instance's queue key, and whether it is still mounted (the W8-R56 rule: a
+  // queued dedicated refresh whose widget is gone sends no POST).
+  const instanceRef = useRef(null)
+  if (instanceRef.current === null) instanceRef.current = {}
+  const liveRef = useRef(false)
+  useEffect(() => {
+    liveRef.current = true
+    return () => { liveRef.current = false }
+  }, [])
+  const queueOpts = useRef({ key: instanceRef.current, isLive: () => liveRef.current }).current
   const paramsRef = useRef(params)
   paramsRef.current = params
   const writeRef = useRef(null)
@@ -444,7 +456,7 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
   // member's own settings (params.settings) in the body, one at a time (lib/dedicatedWidgets.js). The write is the
   // payload plus those settings and the CURRENT share switch, through the same ref as every other write.
   const onDedicatedRefresh = useCallback(async () => {
-    const got = await runDedicated(kind, dedicatedRequestOf(kind, paramsRef.current))
+    const got = await runDedicated(kind, dedicatedRequestOf(kind, paramsRef.current), queueOpts)
     if (!got.ok) return builtFailure(got)
     const write = writeRef.current
     if (typeof write !== 'function') return { ok: false, reason: 'failed' }
@@ -460,7 +472,7 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
       if (v === undefined || v === null || v === '') delete settings[k]
       else settings[k] = CHANGE_FIELDS[k].type === 'number' && Number.isFinite(Number(v)) ? Number(v) : v
     }
-    const got = await runDedicated(kind, dedicatedRequestOf(kind, { settings }))
+    const got = await runDedicated(kind, dedicatedRequestOf(kind, { settings }), queueOpts)
     if (!got.ok) return builtFailure(got)
     const write = writeRef.current
     if (typeof write !== 'function') return { ok: false, reason: 'failed' }
@@ -480,14 +492,15 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     title: (typeof params.title === 'string' && params.title) || meta?.title || kind,
     asOf: params.asOf,
     account: meta?.account === true,
-    share: params.share === true,
+    privateOnly: isDedicatedKind(kind),
+    share: !isDedicatedKind(kind) && params.share === true,
     // F1's payload keys: where the numbers came from, and the too-large form (its sentence is `empty`).
     sourceDetail: typeof params.sourceDetail === 'string' && params.sourceDetail ? params.sourceDetail : null,
     tooLarge: params.tooLarge === true,
     tooLargeText: typeof params.empty === 'string' ? params.empty : null,
     editable: canWrite,
     onRefresh: canWrite ? (built ? onBuiltRefresh : dedicated ? onDedicatedRefresh : onRefresh) : undefined,
-    onShareChange: canWrite ? onShareChange : undefined,
+    onShareChange: canWrite && !isDedicatedKind(kind) ? onShareChange : undefined,
     changeKeys: changeKeysOf(kind),
     settings: built ? builtChangeState(params) : dedicated ? dedicatedChangeState(kind, params) : requestParamsOf(params),
     onChange: canWrite ? (built ? onBuiltChange : dedicated ? onDedicatedChange : onChange) : undefined,
