@@ -9,7 +9,7 @@ import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, pr
 // The chart stand-in prints the props the review card is responsible for as
 // TEXT: the REVEALED ticker, the frame around the cutoff, and the cutoff marker.
 vi.mock('../../components/StockChart', () => ({
-  default: ({ sym, entryDate, exitDate, markers, priceLines, barsOverride, barsOverridePending, studyMode, annotations, annotationsVisible }) => (
+  default: ({ sym, entryDate, exitDate, markers, priceLines, barsOverride, barsOverridePending, studyMode, annotations, annotationsVisible, settingsOverride }) => (
     <div data-testid="stock-chart">
       <span>chart:{sym}</span>
       <span>bars:{Array.isArray(barsOverride) ? barsOverride.length : (barsOverridePending ? 'pending' : 'none')}</span>
@@ -21,6 +21,7 @@ vi.mock('../../components/StockChart', () => ({
       <span>lines:{(priceLines || []).length}</span>
       <span>annotations:{annotations ? annotations.map((a) => `${a.type}@${a.points[0].time}${a.points[0].price != null ? '=' + a.points[0].price : ''}`).join('|') : '-'}</span>
       <span>annotationsVisible:{annotationsVisible ? '1' : '0'}</span>
+      <span>instances:{(settingsOverride?.indicatorInstances || []).map((i) => i.instanceId).join('|') || '-'}</span>
     </div>
   ),
 }))
@@ -179,6 +180,19 @@ describe('StudyReview card', () => {
     const chart = screen.getByTestId('stock-chart')
     expect(chart).toHaveTextContent('annotations:-')
     expect(chart).toHaveTextContent('annotationsVisible:0')
+  })
+
+  it('carries the E4H (4-EMA of highs) as an engine instance for a Slingshot item only (owner ruling 2026-10-25)', () => {
+    DRAFTS = [{ ...SPOT_A, id: 'si_sling', sym: 'VRT', skill_id: 'setup.family4.slingshot' }, SPOT_C, RECALL_B]
+    renderWithProviders(<StudyReview />)
+    const chart = screen.getByTestId('stock-chart')
+    expect(screen.getByTestId('study-ticker')).toHaveTextContent('VRT')
+    expect(chart).toHaveTextContent('instances:study:slingshot-e4h')
+  })
+
+  it('carries no E4H instance for a non-Slingshot chart item', () => {
+    renderWithProviders(<StudyReview />)
+    expect(screen.getByTestId('stock-chart')).not.toHaveTextContent('study:slingshot-e4h')
   })
 
   it('draws the HVC ray and the AVWAP off the cutoff bar for a High Volume Edge item (owner ruling 2026-10-25)', () => {

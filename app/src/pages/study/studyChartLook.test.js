@@ -19,6 +19,19 @@ const OWNER = {
 }
 
 describe('studySettingsOverride', () => {
+  it('carries an item\'s own engine lines beside the house averages, merged by id (the Slingshot E4H)', () => {
+    const e4h = { instanceId: 'study:slingshot-e4h', defId: 'movingAverage', inputs: { source: 'high', period: 4, maType: 'ema' } }
+    const cs = studySettingsOverride({ window_bars: 120, tf: 'D' }, OWNER, { instances: [e4h] })
+    expect(cs.overlays.map((o) => o.period)).toEqual([9, 20])
+    const ids = (cs.indicatorInstances || []).map((i) => i.instanceId)
+    expect(ids).toContain('study:slingshot-e4h')
+    expect(cs.indicatorInstances.find((i) => i.instanceId === 'study:slingshot-e4h').inputs).toMatchObject({ source: 'high', period: 4, maType: 'ema' })
+    // no extras, no line: the plain look is byte-identical to before
+    const plain = studySettingsOverride({ window_bars: 120, tf: 'D' }, OWNER)
+    expect((plain.indicatorInstances || []).map((i) => i.instanceId)).not.toContain('study:slingshot-e4h')
+    expect(studySettingsOverride({ window_bars: 120, tf: 'D' }, OWNER, { instances: null })).toEqual(plain)
+  })
+
   it('draws the house look over the owner blob: hollow candles, slim volume pane, volume in the candle colours', () => {
     const cs = studySettingsOverride(null, OWNER)
     expect(cs.chartType).toBe('hollow')

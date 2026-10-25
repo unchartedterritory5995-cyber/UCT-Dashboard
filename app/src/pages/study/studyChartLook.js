@@ -32,12 +32,14 @@ const STUDY_GATES = Object.freeze({
 })
 
 /**
- * studySettingsOverride(chartOpts, houseSettings) — the StockChart
+ * studySettingsOverride(chartOpts, houseSettings, extras) — the StockChart
  * `settingsOverride` for one item. `houseSettings` is the owner's blob from
  * GET /api/study/house-chart (null while loading or when none is saved: the
  * look still applies over the schema defaults, so the chart never waits on it).
+ * `extras.instances` are the item's OWN engine lines (the Slingshot E4H,
+ * `slingshotOverlay.js`), merged by id beside the house averages.
  */
-export function studySettingsOverride(chartOpts, houseSettings = null) {
+export function studySettingsOverride(chartOpts, houseSettings = null, extras = null) {
   const o = chartOpts || {}
   let out = mergeSettingsOverride(applyHouseLook(houseSettings || {}), STUDY_GATES)
   if (Array.isArray(o.overlays)) {
@@ -48,5 +50,7 @@ export function studySettingsOverride(chartOpts, houseSettings = null) {
   }
   if (o.volume === false) out = mergeSettingsOverride(out, { volume: { visible: false } })
   else if (o.volume === true) out = mergeSettingsOverride(out, { volume: { visible: true } })
+  const instances = extras && Array.isArray(extras.instances) ? extras.instances : null
+  if (instances && instances.length) out = mergeSettingsOverride(out, { indicatorInstances: instances })
   return out
 }
