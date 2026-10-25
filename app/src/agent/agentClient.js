@@ -1,5 +1,7 @@
 // The only module that knows the /api/agent/* wire shapes.
 
+const FAILED = "UCT Agent couldn't complete that request. No changes were made."
+
 async function post(url, body) {
   let r
   try {
@@ -17,7 +19,28 @@ async function post(url, body) {
   return { ok: true, data }
 }
 
-export const agentTurn = (body) => post('/api/agent/turn', body)
+// ⛔ THE TURN-REPLY BOUNDARY (P2-A2, 2026-10-25): a 2xx is not a turn. The server's own gate
+// (turn.sanitize_envelope) always sends {conversationId, envelope: {disposition, ops…}}; anything else
+// — an empty or non-JSON body (an edge page, a proxy), no envelope, an unknown disposition, ops that are
+// not a list of actions — is a FAILED turn here, before any caller reads it. Nothing runs from it, so
+// "No changes were made" is true. A real server failure (an error status, an SSE error) is unchanged.
+const TURN_DISPOSITIONS = new Set(['answer', 'clarify', 'apply', 'propose', 'unsupported'])
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
+export function turnReply(res) {
+  if (!res?.ok) return res
+  const d = res.data
+  const env = isObj(d) ? d.envelope : null
+  const q = isObj(env) ? env.question : null
+  const ok = isObj(env) && TURN_DISPOSITIONS.has(env.disposition)
+    && (d.conversationId == null || typeof d.conversationId === 'string')
+    && (env.ops == null || (Array.isArray(env.ops) && env.ops.every(o => isObj(o) && typeof o.action === 'string')))
+    && (env.reply == null || typeof env.reply === 'string')
+    && (q == null || (isObj(q) && (q.choices == null || Array.isArray(q.choices))))
+    && (env.need_groups == null || Array.isArray(env.need_groups))
+  return ok ? res : { ok: false, status: res.status, malformed: true, error: FAILED }
+}
+
+export const agentTurn = async (body) => turnReply(await post('/api/agent/turn', body))
 
 /**
  * The same turn as `agentTurn`, over POST /api/agent/turn/stream (text/event-stream). `onEvent` gets
@@ -48,7 +71,6 @@ export const serverStreams = () => serverStream.on && streamingEnabled()
 // NL-1: whether THIS server serves it (UCT_AGENT_NL1). False until the config has answered yes, and on any error.
 export const serverServesNl1 = () => serverStream.nl1 === true
 export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, inflight: null, at: 0 } }
-const FAILED = "UCT Agent couldn't complete that request. No changes were made."
 export async function agentTurnStream(body, onEvent = () => {}) {
   if (!streamingEnabled()) return agentTurn(body)
   let r
@@ -90,7 +112,7 @@ export async function agentTurnStream(body, onEvent = () => {}) {
         if (!line) continue                                   // a comment (": open") or keep-alive
         let ev
         try { ev = JSON.parse(line.slice(6)) } catch { continue }
-        if (ev?.t === 'final') { const { t: _t, ...data } = ev; return { ok: true, data } }
+        if (ev?.t === 'final') { const { t: _t, ...data } = ev; return turnReply({ ok: true, data }) }
         if (ev?.t === 'error') return { ok: false, status: ev.status, error: ev.detail || FAILED }
         try { onEvent(ev) } catch { /* a display hiccup never breaks the turn */ }
       }
