@@ -339,6 +339,11 @@ function snapshotManifest(label, payloadSchema, plainText) {
   }
 }
 
+/** Wave 10: a dedicated kind's manifest, a snapshot kind with `settings` and `lines`; its search line is its name and
+ *  the day it was taken. */
+const _dedicated = (label, name, payloadSchema) => snapshotManifest(label, `settings:j lines:j ${payloadSchema}`,
+  (p) => `[${name}: ${_asOfDay(p).slice(3) || 'snapshot'}]`)
+
 /** A trader block's manifest (Notebook P2): one shape, so each entry costs its params and words only.
  *  ⛔ Rendered by blocks/BlockNodeView.jsx (BLOCK_COMPONENTS), never the embed host: not reconstructable,
  *  never live, so resolveEmbedRender's archive and live paths can never pick a block up. */
@@ -995,8 +1000,22 @@ const PANEL_MANIFESTS = {
   builtWidget: snapshotManifest('Widget',
     'defId defRev:n latestRev:n def:j defRef:j title summary view sourceKey measures:j value:j compare:j compareLabel '
     + 'rows:j series:j points:j cells:j coverage:j count:n scopeLabel rangeLabel range:j accountId filter:j capped:b '
-    + 'sample:b notice truncated:n footnotes:j labelKind label2Kind',
+    + 'sample:b notice truncated:n footnotes:j labelKind label2Kind drawdown:j target:n targetLabel stop:j quadrants',
     (p) => `[widget: ${p?.title || 'widget'}${_asOfDay(p)}]`),
+  // Wave 10 (Task 10.14): the seven ready-made dedicated kinds (api/services/journal_two/shelf_discipline.py,
+  // shelf_compose.py), refreshed through POST /api/j2/notebook-shelf-widgets/{kind} (lib/dedicatedWidgets.js).
+  // `settings` is the member's own request; the rest is the payload. ⛔ The search line is a name and a day only.
+  myTiltCheck: _dedicated('Tilt check', 'tilt check',
+    'windowMinutes:n after:j other:j datesOnly:n estimated:n noResult:n capped:b'),
+  myRevengeClean: _dedicated('Revenge trades', 'revenge trades',
+    'window:n clean:n checked:n notChecked:n notRead:n tooMany:n olderNotRead:n flagged:j truncated:n'),
+  myPlanVsActual: _dedicated('Plan vs actual', 'plan vs actual', 'available:b tradeId symbol side rows:j followedPlan:b size:j'),
+  myRiskLeftToday: _dedicated('Risk left today', 'risk left today',
+    'day session accounts:j openRisk:n flaggedCounted:n truncated:n positionsCapped:b'),
+  myPropFirm: _dedicated('Prop-firm rules', 'prop firm rules',
+    'since countingFrom accountId daily:j trailing:j flaggedCounted:n notes:j notices:j'),
+  myGamePlan: _dedicated('Pre-market game plan', 'game plan', 'day wire:j reporting:j risk:j'),
+  myAlertsFired: _dedicated('Alerts that fired', 'alerts that fired', 'since rows:j truncated:n capped:b'),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).

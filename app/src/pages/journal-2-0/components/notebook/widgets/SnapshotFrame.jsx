@@ -14,6 +14,9 @@ import {
   BUILT_KIND, BUILT_CHANGE_KEYS, runBuilt, builtRefreshParams, viewerSettingsOf, failureText, overridableFilter,
   loadAccounts, loadVocabulary, loadCatalog, loadDefinition,
 } from '../../../lib/builtWidgets'
+import {
+  isDedicated, settingsKeysOf, runDedicated, dedicatedRequestOf, dedicatedRefreshParams,
+} from '../../../lib/dedicatedWidgets'
 import styles from './SnapshotFrame.module.css'
 
 /**
@@ -299,6 +302,10 @@ const CHANGE_FIELDS = {
     label: 'Accounts', empty: 'All my accounts', pending: (ctx) => ctx?.scopeLabel,
     load: () => loadAccounts().then((list) => list.map((a) => [a.id, a.name])),
   },
+  // Wave 10 (Task 10.14): the prop-firm limits (a dedicated widget's own settings; `accountId` is the row above).
+  dailyLoss: { label: 'Daily loss limit ($)', type: 'number' },
+  maxDrawdown: { label: 'Max drawdown ($)', type: 'number' },
+  since: { label: 'Challenge started', type: 'date' },
   filter: {
     label: 'Filter values', multiple: true,
     disabledWhy: 'This widget has no filter you can change from the note.',
@@ -320,6 +327,12 @@ function builtChangeState(params) {
   }
 }
 
+/** A dedicated widget's settings as Change edits them: each value as text ("" when unset). */
+function dedicatedChangeState(kind, params) {
+  const s = params?.settings && typeof params.settings === 'object' && !Array.isArray(params.settings) ? params.settings : {}
+  return Object.fromEntries(changeKeysOf(kind).map((k) => [k, s[k] === undefined || s[k] === null ? '' : String(s[k])]))
+}
+
 /** A built widget's failed run as the frame reads it: the spec 5.10 sentence, or `quiet` when there is none to
  *  show (a superseded run: a newer one is already in flight). */
 function builtFailure(got) {
@@ -332,6 +345,8 @@ function builtFailure(got) {
  *  its trade's, never a setting: its request key is the trade). A trade or a screen is chosen from the / menu. */
 export function changeKeysOf(kind) {
   if (kind === BUILT_KIND) return [...BUILT_CHANGE_KEYS]
+  // Wave 10: a dedicated widget's own settings that Change has a field for (a Plan vs actual trade is picked).
+  if (isDedicated(kind)) return settingsKeysOf(kind).filter((k) => Object.hasOwn(CHANGE_FIELDS, k))
   const keys = new Set((widgetMeta(kind)?.paramsSchema || []).map((f) => f.key))
   return [
     ...(keys.has('symbol') && !keys.has('tradeId') ? ['symbol'] : []),
@@ -425,12 +440,40 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     writeThrough(paramsRef, write, builtRefreshParams(paramsRef.current, got.data))
     return { ok: true }
   }, [])
+  // Wave 10 (Task 10.14, W10-R4): a DEDICATED widget re-runs through POST /api/j2/notebook-shelf-widgets/{kind} with the
+  // member's own settings (params.settings) in the body, one at a time (lib/dedicatedWidgets.js). The write is the
+  // payload plus those settings and the CURRENT share switch, through the same ref as every other write.
+  const onDedicatedRefresh = useCallback(async () => {
+    const got = await runDedicated(kind, dedicatedRequestOf(kind, paramsRef.current))
+    if (!got.ok) return builtFailure(got)
+    const write = writeRef.current
+    if (typeof write !== 'function') return { ok: false, reason: 'failed' }
+    writeThrough(paramsRef, write, dedicatedRefreshParams(paramsRef.current, got.data))
+    return { ok: true }
+  }, [kind])
+  // Change asks the same door with the new settings; a field the member emptied is cleared (the server default).
+  const onDedicatedChange = useCallback(async (next) => {
+    const cur = paramsRef.current?.settings
+    const settings = { ...(cur && typeof cur === 'object' && !Array.isArray(cur) ? cur : {}) }
+    for (const k of changeKeysOf(kind)) {
+      const v = typeof next?.[k] === 'string' ? next[k].trim() : next?.[k]
+      if (v === undefined || v === null || v === '') delete settings[k]
+      else settings[k] = CHANGE_FIELDS[k].type === 'number' && Number.isFinite(Number(v)) ? Number(v) : v
+    }
+    const got = await runDedicated(kind, dedicatedRequestOf(kind, { settings }))
+    if (!got.ok) return builtFailure(got)
+    const write = writeRef.current
+    if (typeof write !== 'function') return { ok: false, reason: 'failed' }
+    writeThrough(paramsRef, write, { ...dedicatedRefreshParams(paramsRef.current, got.data), settings })
+    return { ok: true }
+  }, [kind])
   const onShareChange = useCallback((value) => {
     const write = writeRef.current
     if (typeof write === 'function') writeThrough(paramsRef, write, { ...paramsRef.current, share: value === true })
   }, [])
   const onSavePreset = useCallback((name) => savePreset({ name, kind, params: paramsRef.current, uid }), [kind, uid])
   const built = kind === BUILT_KIND
+  const dedicated = isDedicated(kind)
   return {
     kind,
     // A built widget carries its member-given title; every kind falls back to its own name.
@@ -443,19 +486,19 @@ export function useSnapshotFrame(kind, attrs, { editable = false, onUpdateParams
     tooLarge: params.tooLarge === true,
     tooLargeText: typeof params.empty === 'string' ? params.empty : null,
     editable: canWrite,
-    onRefresh: canWrite ? (built ? onBuiltRefresh : onRefresh) : undefined,
+    onRefresh: canWrite ? (built ? onBuiltRefresh : dedicated ? onDedicatedRefresh : onRefresh) : undefined,
     onShareChange: canWrite ? onShareChange : undefined,
     changeKeys: changeKeysOf(kind),
-    settings: built ? builtChangeState(params) : requestParamsOf(params),
-    onChange: canWrite ? (built ? onBuiltChange : onChange) : undefined,
+    settings: built ? builtChangeState(params) : dedicated ? dedicatedChangeState(kind, params) : requestParamsOf(params),
+    onChange: canWrite ? (built ? onBuiltChange : dedicated ? onDedicatedChange : onChange) : undefined,
     changeContext: built ? {
       def: params.def, scopeLabel: params.scopeLabel, rangeLabel: params.rangeLabel,
       // M4: a defRef-only widget reads its plan from GET /{defId} when Change opens.
       loadDef: typeof params.defId === 'string' && params.defId ? () => loadDefinition(params.defId) : null,
     } : null,
     // Only an editable snapshot offers it, and only while wave 5 is on. A built widget's settings belong to its
-    // definition, so it offers no preset (spec 5.6).
-    onSavePreset: canWrite && meta && !built && widgetsWaveOn(5) ? onSavePreset : undefined,
+    // definition, so it offers no preset (spec 5.6); nor does a dedicated widget (lib/notebookSets.js SNAPSHOT_IDS).
+    onSavePreset: canWrite && meta && !built && !dedicated && widgetsWaveOn(5) ? onSavePreset : undefined,
   }
 }
 

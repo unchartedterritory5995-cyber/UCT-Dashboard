@@ -191,7 +191,17 @@ const KIND_FIXTURES = {
 
 describe('presets store settings only', () => {
   it('a fixture exists for every snapshot kind (a new kind cannot skip this rail)', () => {
-    expect(Object.keys(KIND_FIXTURES).sort()).toEqual(WIDGET_KINDS.map((k) => k.id).sort())
+    // Wave 10 (Task 10.14): a ready-made dedicated widget has no preset (below), so it has no fixture here.
+    expect(Object.keys(KIND_FIXTURES).sort()).toEqual(WIDGET_KINDS.filter((k) => !k.dedicated).map((k) => k.id).sort())
+  })
+
+  it('a dedicated kind is never saved as a preset (its settings are not phase 1 request keys, and its door is a POST)', async () => {
+    const dedicated = WIDGET_KINDS.filter((k) => k.dedicated).map((k) => k.id)
+    expect(dedicated).toHaveLength(7)
+    for (const kind of dedicated) {
+      const got = await savePreset({ name: 'Mine', kind, params: { asOf: 'x', settings: { dailyLoss: 500 } }, uid: 'u1' })
+      expect(got, kind).toEqual({ ok: false, reason: 'This widget cannot be saved as a preset.' })
+    }
   })
 
   it.each(Object.entries(KIND_FIXTURES))('preset_strips_data_keys: %s', (kind, { settings, data }) => {

@@ -22,12 +22,13 @@ afterEach(() => {
 })
 
 describe('WIDGET_KINDS', () => {
-  it('covers all sixteen kinds, in groups, with the account kinds marked', () => {
+  it('covers all twenty-three kinds, in groups, with the account kinds marked', () => {
     expect(WIDGET_KINDS.map((k) => k.id)).toEqual([
       'myWatchlistToday', 'myNamesReporting', 'marketOnMyNames',
       'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions', 'tickerCard', 'tickerFlow',
       'myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge',
       'builtWidget',
+      'myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired',
     ])
     for (const k of WIDGET_KINDS) {
       expect(['open', 'plan', 'review']).toContain(k.group)
@@ -38,12 +39,29 @@ describe('WIDGET_KINDS', () => {
     }
     expect(WIDGET_KINDS.filter((k) => k.account).map((k) => k.id))
       .toEqual(['myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge',
-        'builtWidget'])
+        'builtWidget', 'myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired'])
     // Wave 8: the built kind is the one `built` row, an account kind under Reviewing.
     expect(WIDGET_KINDS.filter((k) => k.built).map((k) => [k.id, k.wave, k.group, k.title]))
       .toEqual([['builtWidget', 8, 'review', 'Widget']])
     // The two that need a choice (a trade, a screen) are listed by the / menu, never inserted bare.
-    expect(WIDGET_KINDS.filter((k) => k.pick).map((k) => k.id)).toEqual(['myScreenToday', 'tradeRecap'])
+    expect(WIDGET_KINDS.filter((k) => k.pick).map((k) => k.id)).toEqual(['myScreenToday', 'tradeRecap', 'myPlanVsActual'])
+    // Wave 10 (Task 10.14): the seven ready-made dedicated kinds, account kinds under Reviewing, exactly as the brief.
+    expect(WIDGET_KINDS.filter((k) => k.dedicated).map((k) => [k.id, k.wave, k.group, k.title, k.description, k.keywords]))
+      .toEqual([
+        ['myTiltCheck', 10, 'review', 'Tilt check', 'Trades soon after a loss vs the rest',
+          ['tilt', 'revenge', 'after a loss', 'discipline']],
+        ['myRevengeClean', 10, 'review', 'Revenge trades', 'Clean days in the last 30 trading days',
+          ['revenge', 'clean days', 'discipline']],
+        ['myPlanVsActual', 10, 'review', 'Plan vs actual', "One trade's plan against its fills", ['plan', 'slippage', 'execution']],
+        ['myRiskLeftToday', 10, 'review', 'Risk left today', "Daily loss limit, today's P&L and open risk",
+          ['risk', 'daily loss', 'limit', 'room']],
+        ['myPropFirm', 10, 'review', 'Prop-firm rules', 'Room left under your challenge limits',
+          ['prop', 'funded', 'challenge', 'drawdown']],
+        ['myGamePlan', 10, 'review', 'Pre-market game plan', 'The wire, names reporting and open risk',
+          ['game plan', 'premarket', 'morning']],
+        ['myAlertsFired', 10, 'review', 'Alerts that fired', 'Your alerts since the last session', ['alerts', 'fired', 'triggers']],
+      ])
+    for (const k of WIDGET_KINDS.filter((x) => x.dedicated)) expect([k.account, k.dedicated, k.built], k.id).toEqual([true, 1, undefined])
     expect(WIDGET_KINDS.filter((k) => k.wave === 6).map((k) => k.id).sort())
       .toEqual(['myEarningsReactions', 'myPnlCalendar', 'myScreenToday', 'mySetupEdge', 'roomBuzzOnMyNames', 'tradeRecap'])
   })

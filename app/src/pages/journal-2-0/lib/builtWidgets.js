@@ -78,7 +78,9 @@ function withTimeout() {
   return { signal: ctl ? { signal: ctl.signal } : {}, done: () => { if (timer) clearTimeout(timer) } }
 }
 
-async function answer(res) {
+/** A response as `{ok: true, data}` or the refusal above. Exported for lib/dedicatedWidgets.js (wave 10), whose door
+ *  answers in the same shape, so the codes failureText reads have one reader. */
+export async function answer(res) {
   if (!res.ok) return refusal(res)
   const data = await res.json()
   return isRecord(data) ? { ok: true, data } : { ok: false, code: 'failed', message: '', status: res.status }

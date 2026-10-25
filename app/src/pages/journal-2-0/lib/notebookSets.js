@@ -33,7 +33,9 @@ export const SET_TFS = Object.freeze(['D', 'W', '60', '30', '15', '5', '1'])
 const SYMBOL_RE = /^[A-Za-z][A-Za-z0-9.-]{0,9}$/
 // M7 (wave 8): a BUILT widget has no preset: its settings belong to its definition (spec 5.6). It is left out
 // here, so a preset of it is never saved, never read back from the store, and never offered.
-const SNAPSHOT_IDS = new Set(WIDGET_KINDS.filter((k) => !k.built).map((k) => k.id))
+// Wave 10 (Task 10.14): nor does a ready-made dedicated widget. Its settings (the prop-firm limits, a tilt window) are
+// not phase 1 request keys, and its only door is a POST (lib/dedicatedWidgets.js), so a preset could keep neither.
+const SNAPSHOT_IDS = new Set(WIDGET_KINDS.filter((k) => !k.built && !k.dedicated).map((k) => k.id))
 const LIST_FROM_LABEL = { Watchlist: 'watchlist', Flagged: 'flagged' }
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const cleanName = (v) => (typeof v === 'string' ? v.trim().slice(0, NAME_MAX) : '')

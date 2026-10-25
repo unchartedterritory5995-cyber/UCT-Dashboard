@@ -748,7 +748,8 @@ export function snapshotWidgetItems(query) {
     // `held`: a kind Wave R keeps dark (captureRelease.js); no wave flag releases it.
     // `pick`: a kind that needs the member's choice (a trade, a screen) is listed by pickItems instead.
     // `built` (wave 8): a widget the member built is inserted from the builder or the Mine rows, never bare.
-    if (kind.pick || kind.built || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
+    // `dedicated` (wave 10): its only door is a POST, which this GET insert cannot reach; Task 10.21 lists it.
+    if (kind.pick || kind.built || kind.dedicated || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
     const item = { title: kind.title, description: kind.description, group: kind.group }
     const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
     // `/calendar` inserts today's day; `/calendar 3/13` that day; anything else after it offers nothing.
