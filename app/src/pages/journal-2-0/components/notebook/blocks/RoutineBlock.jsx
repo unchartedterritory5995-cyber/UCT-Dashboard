@@ -43,7 +43,7 @@ export const NEGATIVE_TICKED = "Didn't happen"
 export const SKIP_OFF = 'Skip this day'
 export const SKIP_ON = 'Skipped'
 /** The read-time hint beside an item the day's trades satisfy (Task 9.7). Server owner: routine_insights.SUGGEST_LINE;
- *  the 9.20 be->impl copy vector binds the two (ruling W9-R46). */
+ *  bound to it through the shared vectors' `routine_vs_pnl` section (VsPnlPanel.contract.test.js, ruling W9-R46). */
 export const SUGGESTED = 'From your trades: looks done'
 /** The ⋯ menu row that puts the items back first once the block opens on the comparison. */
 export const ROUTINE_FIRST = 'Show the routine first'

@@ -22,7 +22,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { vsPnl } from '../../../lib/blocks/toolsApi'
 import own from './VsPnlPanel.module.css'
 
-export const CAVEAT = 'A comparison, not proof.'   // server owner routine_insights.CAVEAT; the 9.20 copy vector binds them (W9-R46)
+export const CAVEAT = 'A comparison, not proof.'   // server owner routine_insights.CAVEAT; bound by VsPnlPanel.contract.test.js (W9-R46)
 export const FAILED = "Can't load the comparison right now."
 export const SMALL_SAMPLE = 'small sample'
 /** The flip controls' words (brief 9.15) and the ⋯ menu row that makes the panel a block's first view. */

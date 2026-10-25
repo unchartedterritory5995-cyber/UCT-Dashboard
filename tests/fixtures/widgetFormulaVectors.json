@@ -46,6 +46,28 @@
   "S_QUADRANTS": "Quadrant labels need a scatter plot.",
   "S_QUADRANTS_PAIR": "Quadrant labels need MAE across and MFE up, both in R."
  },
+ "routine_vs_pnl": {
+  "about": "Ruling W9-R46 (armed at the be->impl merge): the routine vs-P&L panel's copied words and the win-rate percent's rounding. Owner: api/services/journal_two/routine_insights.py (CAVEAT, SUGGEST_LINE, _pct: half up on the value times 100). Each win_rate_rounding row is [value, the percent shown]; the rows at a .5 (12.5, 58.5, 0.5, 1.5, 41.5) are the ones a banker's or float-naive rounding gets wrong, and 28.5, 57.5 and 14.5 are values whose product falls just below the half.",
+  "CAVEAT": "A comparison, not proof.",
+  "SUGGEST_LINE": "From your trades: looks done",
+  "win_rate_rounding": [
+   [0, "0%"],
+   [1, "100%"],
+   [0.5, "50%"],
+   [0.125, "13%"],
+   [0.585, "59%"],
+   [0.005, "1%"],
+   [0.015, "2%"],
+   [0.415, "42%"],
+   [0.995, "100%"],
+   [0.285, "28%"],
+   [0.575, "57%"],
+   [0.145, "14%"],
+   [0.0049, "0%"],
+   [0.6666666666666666, "67%"],
+   [0.3333333333333333, "33%"]
+  ]
+ },
  "functions": [
   "If",
   "And",
