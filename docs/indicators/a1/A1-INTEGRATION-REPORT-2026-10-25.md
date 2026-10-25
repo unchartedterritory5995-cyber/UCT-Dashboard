@@ -1,8 +1,9 @@
 # A1 integration onto master — 2026-10-25
 
-Branch `integrate/indicators-a1-on-master` (worktree `C:/w/ia1i`), based on master
-`f0b4599b6f`. LOCAL ONLY: not pushed, no PR, nothing released. `feat/indicators-a1`
-(`2928cfc55e`), PR #325 and `C:/w/ia1m` are untouched.
+Branch `integrate/indicators-a1-on-master` (worktree `C:/w/ia1i`). Sections 1–5 record
+round 1, on master `f0b4599b6f`. **Round 2 (§6)** rebased onto master `3891770a19`
+(2 commits, no overlap with A1) and supersedes round 1's test numbers and the literal
+finding. `feat/indicators-a1` (`2928cfc55e`), PR #325 and `C:/w/ia1m` are untouched.
 
 ⚠ Open recovery risk: nobody has yet checked whether the other PC holds unpushed A1
 commits newer than `2928cfc55e`. If it does, this branch must be re-based on them, never
@@ -152,3 +153,54 @@ A1's literal should move in the same commit.
 4. A1 test-file lint (`no-undef` vitest globals) is cosmetic and can be fixed in-branch
    on request.
 5. Linux CI has not been run on this branch.
+
+## 6. Round 2 — base `3891770a19`: hash rails, Undo contract, validation
+
+**Rebase:**
+- `git rebase --onto origin/master f0b4599b6f`, clean (the 2 new master commits touch
+  `pages/study/**` only).
+- Round-1 head kept as local tag `indicators-a1-int-pre-rebase` (`8e31c7b6c8`).
+
+**Hash rails (`7069028c9f`):**
+- Re-pinned by measurement, per each rail's own rule, for master `96194c642c`. That commit
+  set `positionCalc.accountSize` to the one unset account size (100,000), which is intended
+  and railed to the server.
+- Method:
+  - dumped the 5 fixture blobs and both perInstanceDoor corpora (760 elements each) with
+    sorted keys, with and without only that default put back to 50000, and diffed them;
+  - the ONLY change is `accountSize` 50000 → 100000 (1 of 5 fixtures, which stores no size
+    of its own; every corpus element), with 0 added and 0 removed;
+  - with the default put back, all three prior digests reproduce byte-for-byte.
+- Prior values are recorded beside the new pins. This also turns master's two red rails
+  green.
+
+**Interim two-Undo contract (`f1dbfed60f`, `50aa8e20c4`):**
+- `A1-INTERIM-UNDO-CONTRACT.md`, plus three Indicators-owned rails:
+  - `ChartPane.indicatorHistory` (4);
+  - `ChartWidget.indicatorHistory` (1, with a non-vacuity control);
+  - `ChartsWorkspace.layoutUndoAgent` (5, promoted from the Agent's 10-13 scratch, with
+    its stub fixed).
+- The Agent-internal cases (a), (b), stale refusal and Ctrl+Z are 11/11 in the hand-off
+  file `C:/w/a1-agent-handoff/a1AgentUndo.validation.test.jsx`, for the Agent session to
+  adopt.
+
+**Validation, round 2:**
+
+| Check | Result |
+|---|---|
+| vitest full, branch | 49,897 tests · 49,726 passed · 17 failed |
+| vitest full, master `3891770a19` | 49,785 tests · 49,613 passed · 18 failed |
+| New on branch | `StockChart.smoke`, notebook `CaptureHost`: both 27/27 ×3 in isolation (load flakes; smoke failed on master-only in round 1). Journal round-trip files: same failure, the sandbox path differs |
+| Fixed on branch | the alertSets + perInstanceDoor literals (re-pin); `iteratorGlobalFloor` (reads built assets; only the branch tree was built) |
+| Common failures | 15 |
+| `npm run build` | PASS |
+| persistence census | identical to master (20 Notebook-drift items) |
+| deploy scope | Tier 2: `app/**` + `docs/indicators/**` only; 0 `app/src/agent/**`, 0 `api/**` |
+| `agentMutations.js` exports | identical to master (`changeRecord` re-exported) |
+| lint, changed files | new rails clean. Remaining A1 deltas are vitest-globals style in two master test files (matching their existing style), `only-export-components` ×1 (`IndicatorLibraryDialog.jsx`) and an unused arg ×1. Not a CI gate |
+
+**Trial merge with Agent Phase 2:**
+- Merging `feat/agent-p2ab-chart-control` `759aae838d` is clean: no conflicts and no shared
+  files.
+- On that merged tree, 15 suites pass 222/222: A1 rails, the hand-off validation, the hash
+  rails, census, Gate C/approval binding, P2-A and P2-B.
