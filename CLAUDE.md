@@ -497,7 +497,13 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   on the journal styles router (10/hour, plus a DURABLE 5/day, so a second process doubles only
   the hourly half), and since the Notebook widgets final review (I-4) `notebook-widgets` (60/minute
   per member, `WIDGET_RATE` at the top of `api/routers/notebook_widgets.py`, in-process only, so a
-  second process doubles it) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  second process doubles it; since Notebook widgets wave 10, dark, the dedicated ready-made widget
+  route `api/routers/notebook_shelf_widgets.py` shares that same `notebook-widgets` scope at 60/minute,
+  keyed on the member, in-process only, so a second process doubles the shared budget), and since
+  Notebook widgets wave 9 (routines and trackers, dark) two more: `notebook-routine-writes`
+  (120/minute) and `notebook-routine-reads` (60/minute), keyed on the member (`WRITE_RATE` /
+  `READ_RATE` at the top of `api/routers/notebook_routines.py`, shared by the routine and tracker
+  routes), in-process only, so a second process doubles both · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·
