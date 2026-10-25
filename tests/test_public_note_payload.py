@@ -1730,9 +1730,19 @@ def _dedicated(widget_id: str, share) -> dict:
     return node
 
 
+def test_dedicated_kinds_are_derived_never_restated():
+    """Fix round 1 (M5): the list is read from the constants-only leaf; no dedicated kind is spelled here."""
+    import ast as _ast
+    from api.services.journal_two import shelf_kind_names
+    assert pnp.DEDICATED_KINDS == frozenset(shelf_kind_names.KINDS)
+    src = (ROOT / "api" / "services" / "journal_two" / "public_note_payload.py").read_text(encoding="utf-8")
+    spelled = {n.value for n in _ast.walk(_ast.parse(src)) if isinstance(n, _ast.Constant)
+               and isinstance(n.value, str) and n.value in shelf_kind_names.KINDS}
+    assert spelled == set(), spelled
+    assert "sizeCalc" in {n.value for n in _ast.walk(_ast.parse(src)) if isinstance(n, _ast.Constant)}  # control
+
+
 def test_dedicated_vendor_rows_and_the_set():
-    from api.services.journal_two import shelf_kinds
-    assert pnp.DEDICATED_KINDS == frozenset(shelf_kinds.KINDS) == frozenset(_DEDICATED)    # one fact, two files
     for wid in (*_DEDICATED, "sizeCalc"):
         assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", wid)] == "private", wid
         assert pnp.market_data_verdict("widgetEmbed", wid) == pnp.NEUTRAL
@@ -1745,17 +1755,26 @@ def test_dedicated_vendor_rows_and_the_set():
 @pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
 @pytest.mark.parametrize("widget_id", [*_DEDICATED, "sizeCalc"])
 def test_dedicated_kinds_and_size_calc_account_line_in_every_public_mode(mode, widget_id):
-    """Share false AND true (and every not-quite-true value): the account line on share, publish and gallery,
-    dropped in an example (the private-embed rule); never a figure, an account, a limit or an attribute."""
+    """Share false AND true (and every not-quite-true value): the account line in every public mode, example
+    included (ruling W10-R49: the global constraint's "neutral line on share, publish, gallery and example");
+    never a figure, an account, a limit or an attribute."""
     for share in (None, False, True, "true", 1):
         out = reduce(doc(_dedicated(widget_id, share)), mode)
         assert "widgetEmbed" not in types_in(out), (mode, widget_id, share)
         blob = json.dumps(out)
         assert not any(c in blob for c in _DED_CANARIES), (mode, widget_id, share)
-        if mode == "example":
-            assert ACCOUNT_LINE not in texts_in(out) and pnp.NEUTRAL_LINE not in texts_in(out)
-        else:
-            assert texts_in(out) == [ACCOUNT_LINE], (mode, widget_id, share, out)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, widget_id, share, out)
+
+
+def test_example_mode_reports_the_dedicated_line_and_still_drops_routines():
+    """W10-R49 is scoped to the seven and the calculator: a routine or tracker is still dropped in an example
+    (W9), and the example's change report says which line replaced the widget."""
+    report: list = []
+    out = pnp.reduce(copy.deepcopy(doc(_dedicated("myPropFirm", True), _acct_block("routine", True))),
+                     mode="example", owner_id=OWNER, note_id=NOTE, attachment_base=BASE, facts=FACTS,
+                     report=report)
+    assert texts_in(out) == [ACCOUNT_LINE]
+    assert {"kind": "account", "after": ACCOUNT_LINE} in [{k: e[k] for k in ("kind", "after")} for e in report]
 
 
 def _notes_list(**over: Any) -> dict:

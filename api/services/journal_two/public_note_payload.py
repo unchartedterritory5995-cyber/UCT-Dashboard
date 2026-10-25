@@ -99,6 +99,7 @@ from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
+from api.services.journal_two import shelf_kind_names   # constants only: the closure stays engine-free
 
 # ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
 # `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
@@ -337,14 +338,13 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
 }
 
 #: Notebook widgets wave 10 (Task 10.12, W10-R7): the seven ready-made dedicated widgets. Each reads the
-#: member's own trades, accounts, limits or alerts, so each is "private": the account line on share, publish and
-#: gallery, dropped in an example, and `params.share` can never reveal one (they are not "member-optin").
-#: ⛔ ONE FACT IN TWO FILES: this is `shelf_kinds.KINDS`, restated because this module stays out of the engine's
-#: import closure (see the import note at the top). Railed equal by tests/test_public_note_payload.py.
-DEDICATED_KINDS: frozenset[str] = frozenset({
-    "myTiltCheck", "myRevengeClean", "myPlanVsActual", "myRiskLeftToday", "myPropFirm", "myGamePlan",
-    "myAlertsFired",
-})
+#: member's own trades, accounts, limits or alerts, so each is "private": the account line in every public mode,
+#: example included (ruling W10-R49), and `params.share` can never reveal one (they are not "member-optin").
+#: Read from `shelf_kind_names`, the constants-only leaf, so this module stays out of the engine's import closure.
+DEDICATED_KINDS: frozenset[str] = frozenset(shelf_kind_names.KINDS)
+#: The blocks and kinds the global privacy constraint names "neutral line on share, publish, gallery and
+#: example": the seven above and the position size calculator (W10-R8). Example mode shows the line, not a drop.
+NEUTRAL_IN_EXAMPLE: frozenset[str] = DEDICATED_KINDS | {"sizeCalc"}
 MARKET_DATA_VENDORS.update({("widgetEmbed", k): "private" for k in sorted(DEDICATED_KINDS)})
 
 #: vendor -> verdict. ⭐ Loosening Massive is this one line: "massive": SHOWN.
@@ -1606,6 +1606,11 @@ def _example_neutral(node: dict, ctx: _Ctx) -> list:
         widget_id = attrs.get("widgetId")
         if widget_id in trader_blocks.BLOCK_IDS:
             return _reset_block(attrs, ctx)
+        if isinstance(widget_id, str) and widget_id in NEUTRAL_IN_EXAMPLE:
+            # W10-R49: the global privacy constraint's "neutral line ... example", the line share mode shows.
+            line = _neutral_for_embed(widget_id)
+            ctx.note("account", widget_id, line["content"][0]["text"])
+            return [line]
         if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) in ("private", "member-optin"):
             ctx.note("dropped", widget_id)           # an account kind is dropped in an example, as private was
             return []
@@ -1924,7 +1929,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "ACCOUNT_LINE_BLOCKS", "DEDICATED_KINDS", "RELABEL_WORDS", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "ACCOUNT_LINE_BLOCKS", "DEDICATED_KINDS", "NEUTRAL_IN_EXAMPLE", "RELABEL_WORDS", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "ATTR_POLICY", "EMBED_ROW_KEYS", "SCALAR_ITEMS", "PAIR_ITEMS", "allowed_params", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",

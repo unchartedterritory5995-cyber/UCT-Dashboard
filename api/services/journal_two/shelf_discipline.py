@@ -46,7 +46,7 @@ never clean. At most `MAX_SESSIONS` sessions; every Python loop over rows asks `
 runs its SQL and loops under `run.deadline` (`run.EngineTooLong` past it).
 
 Refusals are `ParamError`, a `tool_errors.ToolError` carrying status and code (ruling W9-R14). It lives
-in `shelf_kinds` (Task 10.12) and is imported at the END of this file (see `shelf_kinds`' IMPORT ORDER note).
+in the constants-only `shelf_kind_names` (Task 10.12), so importing it creates no cycle.
 
 Names taken from other modules are their public names (Task 10.12): `filters.DAY_SQL`, `notebook_widgets.iso_utc`
 / `num` / `origin`, `widget_definitions.read_conn`, bound here under their old local names. One private reach is
@@ -70,6 +70,7 @@ from api.services.journal_two.filters import DAY_SQL as _DAY
 from api.services.journal_two.measures import DEFAULT_MIN_N, MEASURES, SMALL_SAMPLE_N
 from api.services.journal_two.notebook_widgets import iso_utc as _iso_utc, num as _num, origin as _origin
 from api.services.journal_two.routine_insights import money
+from api.services.journal_two.shelf_kind_names import ParamError
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_definitions import read_conn as _read
@@ -1269,7 +1270,3 @@ BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
     KIND_RISK_LEFT: my_risk_left_today,
     KIND_PROP_FIRM: my_prop_firm,
 }
-
-# The one refusal class lives in `shelf_kinds` (Task 10.12). Imported LAST, because `shelf_kinds` reads this
-# module's tables while it imports: see its IMPORT ORDER note before moving this line.
-from api.services.journal_two.shelf_kinds import ParamError  # noqa: E402

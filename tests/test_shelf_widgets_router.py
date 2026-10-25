@@ -118,19 +118,31 @@ def test_registry_shape():
 
 
 def test_one_param_error_class():
-    """Carry-over: ONE ParamError, in shelf_kinds; both builder modules use that very class (W9-R14)."""
-    assert shelf_discipline.ParamError is shelf_kinds.ParamError
+    """Carry-over: ONE ParamError, in the constants-only leaf (fix round 1, M5), re-exported by shelf_kinds;
+    both builder modules use that very class (W9-R14)."""
+    from api.services.journal_two import shelf_kind_names
+    assert shelf_discipline.ParamError is shelf_kinds.ParamError is shelf_kind_names.ParamError
     assert shelf_compose.ParamError is shelf_kinds.ParamError
     assert issubclass(shelf_kinds.ParamError, tool_errors.ToolError)
     assert (shelf_kinds.ParamError.status, shelf_kinds.ParamError.code) == (400, "invalid")
     defs = []
-    for mod in ("shelf_kinds", "shelf_discipline", "shelf_compose"):
+    for mod in _THREE:
         tree = ast.parse((ROOT / "api" / "services" / "journal_two" / f"{mod}.py").read_text(encoding="utf-8"))
         defs += [mod for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == "ParamError"]
-    assert defs == ["shelf_kinds"], defs
+    assert defs == ["shelf_kind_names"], defs
 
 
-_THREE = ("shelf_kinds", "shelf_discipline", "shelf_compose")
+def test_the_constants_leaf_imports_nothing_heavy():
+    """M5: the leaf imports only `tool_errors` (itself import-free), so public_note_payload can read KINDS."""
+    from api.services.journal_two import shelf_kind_names
+    assert shelf_kinds.KINDS is shelf_kind_names.KINDS and shelf_kinds.WAVE == shelf_kind_names.WAVE
+    tree = ast.parse((ROOT / "api" / "services" / "journal_two" / "shelf_kind_names.py").read_text(encoding="utf-8"))
+    imported = sorted({f"{n.module}.{a.name}" if isinstance(n, ast.ImportFrom) else a.name
+                       for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names})
+    assert imported == ["__future__.annotations", "api.services.journal_two.tool_errors"], imported
+
+
+_THREE = ("shelf_kind_names", "shelf_kinds", "shelf_discipline", "shelf_compose")
 
 
 def _private_reaches(source: str) -> list[str]:
@@ -199,17 +211,19 @@ def test_a_duplicate_kind_raises_at_import_time():
     """A kind both builder modules declare stops `shelf_kinds` from importing at all (never a silent overwrite)."""
     code = ("from api.services.journal_two import shelf_compose as sc\n"
             "sc.PARAMS['myTiltCheck'] = ()\n"
-            "import importlib, api.services.journal_two.shelf_kinds as sk\n"
-            "try:\n    importlib.reload(sk)\nexcept sk.DuplicateKind as e:\n    print('REFUSED', e)\n"
+            "try:\n    import api.services.journal_two.shelf_kinds\n"
+            "except RuntimeError as e:\n    print('REFUSED', type(e).__name__, e)\n"
             "else:\n    print('LOADED')\n")
     r = _run_py(code)
-    assert "REFUSED" in r.stdout and "myTiltCheck" in r.stdout, (r.stdout, r.stderr)
+    assert "REFUSED DuplicateKind" in r.stdout and "myTiltCheck" in r.stdout, (r.stdout, r.stderr)
+    assert "LOADED" in _run_py(code.replace("sc.PARAMS['myTiltCheck'] = ()", "pass")).stdout     # control
     # and a kind that no module builds is refused the same way (the merged set must be exactly KINDS)
     r = _run_py(code.replace("sc.PARAMS['myTiltCheck'] = ()", "del sc.BUILDERS['myGamePlan']"))
     assert "REFUSED" in r.stdout and "BUILDERS" in r.stdout, (r.stdout, r.stderr)
 
 
-@pytest.mark.parametrize("first", ["shelf_kinds", "shelf_discipline", "shelf_compose"])
+@pytest.mark.parametrize("first", ["shelf_kinds", "shelf_discipline", "shelf_compose", "shelf_kind_names",
+                                   "public_note_payload"])
 def test_every_import_order_loads(first):
     """The three modules import each other; every entry point must load them all, with one ParamError."""
     code = (f"import api.services.journal_two.{first}\n"
@@ -485,6 +499,111 @@ def test_no_store_on_every_response(monkeypatch, seen):
     assert statuses == [404, 404, 200, 400, 400, 413, 402, 401], statuses
     for r in responses:
         assert "no-store" in r.headers.get("cache-control", ""), (r.status_code, r.headers)
+
+
+def test_no_store_on_the_405_and_an_unexpected_500(monkeypatch):
+    """M3: the route class is the one authority, and it covers the two answers produced outside the handler
+    body: the method-mismatch 405 and a failure nobody caught (answered as a 500 `error`, never a bare one)."""
+    _on(monkeypatch)
+    c = TestClient(_client().app, raise_server_exceptions=False)
+    c.app.dependency_overrides[get_current_user] = lambda: dict(PAID)
+    c.app.dependency_overrides[get_current_user_with_plan] = lambda: dict(PAID)
+    for method in ("get", "put", "delete"):
+        r = getattr(c, method)(URL + "myGamePlan")
+        assert r.status_code == 405, (method, r.status_code)
+        assert r.headers.get("cache-control") == "no-store", (method, r.headers)
+
+    def boom(kind, user_id, params, *, now=None):
+        raise RuntimeError("builder exploded")
+
+    monkeypatch.setattr(nw, "build", boom)
+    r = _post(c, "myGamePlan")
+    assert r.status_code == 500 and r.headers.get("cache-control") == "no-store"
+    assert r.json()["detail"]["code"] == "error" and "exploded" not in r.text
+
+
+def test_the_route_class_is_the_only_place_no_store_is_set():
+    """M3: no `headers=` on any call in the router, and the one `no-store` literal is the route class's."""
+    tree = ast.parse((ROOT / "api" / "routers" / "notebook_shelf_widgets.py").read_text(encoding="utf-8"))
+    with_headers = [ast.unparse(n.func) for n in ast.walk(tree) if isinstance(n, ast.Call)
+                    and any(k.arg == "headers" for k in n.keywords)]
+    assert with_headers == [], with_headers
+    literals = [n for n in ast.walk(tree) if isinstance(n, ast.Constant) and n.value == "no-store"]
+    assert len(literals) == 1
+
+
+def test_the_session_uid_wins_over_the_body(monkeypatch, seen):
+    """M4: an owner named in the body (in `params` or beside it) is ignored; the build is the session's."""
+    _on(monkeypatch)
+    c = _client()
+    r = _post(c, "myPropFirm", {"userId": "u-other", "user_id": "u-other",
+                                "params": {"userId": "u-other", "user_id": "u-other", "dailyLoss": 100}})
+    assert r.status_code == 200
+    assert seen == [("myPropFirm", "u-paid", {"dailyLoss": 100.0})]
+
+
+def test_another_members_account_gets_the_builders_refusal(monkeypatch, tmp_path):
+    """M4, through the door: member A naming member B's account reads all of A's accounts, with the one notice,
+    and none of B's numbers."""
+    import importlib
+    from datetime import datetime as _dt, timezone as _tz
+    from tests.test_shelf_discipline import A, account, trade
+    monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    try:
+        auth_db.init_db()
+        with auth_db.get_connection() as conn:
+            account(conn, A, "acc-a", pct=5.0, size=10000.0, name="Main A")
+            trade(conn, A, day="2026-10-19", pnl=300, entry="11:00", exit_="11:30", account="acc-a")
+            account(conn, "u-member-b", "acc-b", pct=5.0, size=10000.0, name="Main B")
+            trade(conn, "u-member-b", day="2026-10-19", pnl=-900, entry="11:00", exit_="11:30", account="acc-b")
+            conn.commit()
+        real = nw.build
+        monkeypatch.setattr(nw, "build", lambda kind, uid, params, *, now=None: real(
+            kind, uid, params, now=_dt(2026, 10, 20, 20, 30, tzinfo=_tz.utc)))
+        _on(monkeypatch)
+        c = _client({**PAID, "id": A})
+        base = {"since": "2026-10-01", "maxDrawdown": 2000}
+        mine = _post(c, "myPropFirm", {"params": base}).json()
+        got = _post(c, "myPropFirm", {"params": {**base, "accountId": "acc-b"}})
+        assert got.status_code == 200, got.text
+        body = got.json()
+        assert body["notices"] == ["That account is no longer in your Journal; showing all accounts."]
+        assert body["accountId"] is None and body["lines"] == mine["lines"]
+        assert "900" not in json.dumps(body)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(auth_db)
+
+
+def test_a_body_nested_past_the_depth_limit_is_refused(monkeypatch, seen):
+    """M2: the shared reader's depth check applies here too."""
+    import api.routers.notebook_widget_definitions as wdr
+    _on(monkeypatch)
+    deep = {"params": {}}
+    node = deep["params"]
+    for _ in range(wdr.MAX_BODY_DEPTH + 2):
+        node["x"] = {}
+        node = node["x"]
+    r = _post(_client(), "myGamePlan", deep)
+    assert r.status_code == 400 and r.json()["detail"]["code"] == "invalid"
+    ok = {"params": {}}
+    assert _post(_client(), "myGamePlan", ok).status_code == 200
+    assert len(seen) == 1
+
+
+def test_one_body_reader_for_the_widget_routers():
+    """M2: neither router reads the body itself; both hand a capped read to `widget_request_body`."""
+    for rel in ("api/routers/notebook_shelf_widgets.py", "api/routers/notebook_widget_definitions.py"):
+        tree = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
+        raw = [ast.unparse(n) for n in ast.walk(tree) if isinstance(n, ast.Call)
+               and isinstance(n.func, ast.Attribute) and n.func.attr in ("body", "stream", "json")
+               and isinstance(n.func.value, ast.Name) and n.func.value.id == "request"]
+        assert raw == [], (rel, raw)
+        shared = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                  and n.func.attr == "read_json_object"]
+        assert len(shared) == 1, rel
 
 
 def test_main_mounts_the_router_once():

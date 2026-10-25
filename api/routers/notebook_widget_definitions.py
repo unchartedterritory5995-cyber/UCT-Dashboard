@@ -47,10 +47,11 @@ from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import auth_db
+from api.services import request_body_cap as body_cap
 from api.services.journal_two import notebook_widgets as nwidgets
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import widget_definitions as wdefs
-from api.services.journal_two.json_depth import _json_depth_exceeds
+from api.services.journal_two import widget_request_body as wbody
 from api.services.journal_two.widget_engine import drill as wdrill
 from api.services.journal_two.widget_engine import plan as wplan
 from api.services.journal_two.widget_engine import run as wrun
@@ -76,8 +77,8 @@ S_RATE_PREVIEW = "Pausing the preview for a moment; your changes are kept."
 S_DAILY_CAP = "You have refreshed widgets a lot today. Snapshots stay; refreshing resumes tomorrow."
 S_FROZEN = "Running from the saved copy in this note."
 S_SUPERSEDED = "A newer preview replaced this one."
-S_BODY_TOO_LARGE = "That is too much to send at once."
-S_UNREADABLE_BODY = "That request couldn't be read."
+S_BODY_TOO_LARGE = wbody.S_BODY_TOO_LARGE
+S_UNREADABLE_BODY = wbody.S_UNREADABLE_BODY
 #: Ruling R-27: a missing If-Match is a 428 the client treats as a conflict.
 S_NEED_IF_MATCH = "Reload to see the newer version."
 S_NO_WIDGET = "That widget isn't available."
@@ -129,37 +130,11 @@ def _uid(user: dict) -> str:
 
 
 async def json_body(request: Request) -> dict:
-    """The request body as a JSON object: at most `MAX_BODY` bytes (413 `invalid` over it) and at
-    most `MAX_BODY_DEPTH` levels of nesting (400 `invalid`, as is a body the parser recurses out on).
-
-    With no Content-Length (a chunked body) the stream is read only up to `MAX_BODY` + 1 bytes."""
-    declared = request.headers.get("content-length")
-    if declared is not None:
-        try:
-            too_big = int(declared) > MAX_BODY
-        except ValueError:
-            raise _err(400, "invalid", S_UNREADABLE_BODY)
-        if too_big:
-            raise _err(413, "invalid", S_BODY_TOO_LARGE)
-        raw = await request.body()
-    else:
-        buf = bytearray()
-        async for chunk in request.stream():
-            buf.extend(chunk)
-            if len(buf) > MAX_BODY:
-                break
-        raw = bytes(buf)
-    if len(raw) > MAX_BODY:
-        raise _err(413, "invalid", S_BODY_TOO_LARGE)
-    if not raw.strip():
-        return {}
-    try:
-        body = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError, RecursionError):
-        raise _err(400, "invalid", S_UNREADABLE_BODY)
-    if not isinstance(body, dict) or _json_depth_exceeds(body, MAX_BODY_DEPTH):
-        raise _err(400, "invalid", S_UNREADABLE_BODY)
-    return body
+    """The request body as a JSON object: at most `MAX_BODY` bytes, counted while it is read whatever the
+    Content-Length says (413 `invalid` over it), and at most `MAX_BODY_DEPTH` levels of nesting (400
+    `invalid`, as is a body the parser recurses out on). The one reader: `widget_request_body`."""
+    return await wbody.read_json_object(
+        lambda: body_cap.read_capped_body(request, MAX_BODY, S_BODY_TOO_LARGE), MAX_BODY_DEPTH, _err)
 
 
 def _rate(limit: str, scope: str, user_id: str, code: str, sentence: str) -> None:

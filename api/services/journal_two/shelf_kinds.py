@@ -2,38 +2,27 @@
 
 The builders live in two modules, `shelf_discipline` (Task 10.10: tilt check, revenge-clean, risk left today,
 prop-firm rules) and `shelf_compose` (Task 10.11: plan vs actual, game plan, alerts that fired). This module is
-the one place that knows all seven, and the one place the route (`api/routers/notebook_shelf_widgets.py`) and,
-from Task 10.14, `notebook_widgets` read them from:
+the one place that holds all seven builders. The route (`api/routers/notebook_shelf_widgets.py`) reads them from
+here, and so will `notebook_widgets` from Task 10.14:
 
-  * `KINDS`, in menu order; `WAVE`, the release wave that gates them (`notebook_widgets_wave_on(WAVE)`);
+  * `KINDS` (in menu order), `WAVE` and `ParamError` come from `shelf_kind_names`, the constants-only leaf.
+    `public_note_payload` and both builder modules import that leaf directly, so there is no import cycle;
   * `BUILDERS`, `PARAMS`, `TITLES`: MERGED from the two modules, never restated. A kind declared by both modules
     raises `DuplicateKind` while this module imports, so a collision can never overwrite a builder silently;
     and the merged set must be exactly `KINDS`, or the import fails the same way;
   * `SOURCE_DETAIL`: the one sentence naming where each widget's data comes from;
-  * `ParamError`: THE refusal class of every dedicated widget (ruling W9-R14: it carries `status` and `code`;
-    the router answers `{"detail": {"code", "message"}}` with `e.status` and never matches sentences). Both
-    builder modules import it from here; there is no other definition;
   * `clean_params(kind, raw)`: the owning module's own cleaner for that kind.
-
-⚠️ IMPORT ORDER. The builder modules need `ParamError` and this module needs their tables, so each side imports
-the other at the END of its file (and `shelf_compose` imports `shelf_discipline` there too). Any of the three can
-be imported first; `tests/test_shelf_widgets_router.py::test_every_import_order_loads` runs all three orders in a
-fresh interpreter. Do not move those imports to the top.
 """
 from __future__ import annotations
 
 from typing import Any, Callable
 
-from api.services.journal_two import tool_errors
+from api.services.journal_two import shelf_compose as _compose
+from api.services.journal_two import shelf_discipline as _discipline
+from api.services.journal_two.shelf_kind_names import KINDS, WAVE, ParamError
 
 __all__ = ["KINDS", "WAVE", "BUILDERS", "PARAMS", "TITLES", "SOURCE_DETAIL", "ParamError", "DuplicateKind",
            "clean_params", "merge"]
-
-#: The release wave whose flag (`NOTEBOOK_WIDGETS_W10_ENABLED`) gates every dedicated kind.
-WAVE = 10
-
-KINDS = ("myTiltCheck", "myRevengeClean", "myPlanVsActual", "myRiskLeftToday", "myPropFirm", "myGamePlan",
-         "myAlertsFired")
 
 _TRADES = "Your closed trades in the Journal."
 _MONEY = "Your accounts, trades and open positions in the Journal."
@@ -46,13 +35,6 @@ SOURCE_DETAIL: dict[str, str] = {
     "myGamePlan": "The morning wire, the earnings calendar and your open positions.",
     "myAlertsFired": "Your alert history.",
 }
-
-
-class ParamError(tool_errors.ToolError):
-    """A refused widget setting. Its message is a member sentence (`.sentence`); the router answers
-    `{"detail": {"code": e.code, "message": e.sentence}}` with `e.status` and never matches the words (W9-R14)."""
-    status = 400
-    code = "invalid"
 
 
 class DuplicateKind(RuntimeError):
@@ -79,11 +61,6 @@ def clean_params(kind: str, raw: Any) -> dict:
         raise ParamError(widget_definitions.S_NOT_FOUND)
     return cleaner(kind, raw)
 
-
-# -- the merged tables (see IMPORT ORDER above: these imports stay at the bottom) -------------------------------
-
-from api.services.journal_two import shelf_compose as _compose        # noqa: E402
-from api.services.journal_two import shelf_discipline as _discipline  # noqa: E402
 
 BUILDERS: dict[str, Callable[[str, dict, Any], dict]] = merge("BUILDERS", _discipline.BUILDERS, _compose.BUILDERS)
 PARAMS: dict[str, tuple] = merge("PARAMS", _discipline.PARAMS, _compose.PARAMS)

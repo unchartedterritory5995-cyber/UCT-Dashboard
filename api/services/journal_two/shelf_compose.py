@@ -44,8 +44,8 @@ The facts each figure follows:
     window may hold more: the count reads "at least N" and the payload carries `capped`. Every SQL
     read here is bounded and runs under `run.deadline`.
 
-Refusals are `ParamError` (`tool_errors.ToolError`, W9-R14), the ONE class in `shelf_kinds`, imported
-at the END of this file together with `shelf_discipline` (see `shelf_kinds`' IMPORT ORDER note).
+Refusals are `ParamError` (`tool_errors.ToolError`, W9-R14), the ONE class, defined in the constants-only
+`shelf_kind_names` and imported from there.
 
 Every name taken from another module is public (Task 10.12): `notebook_widgets.iso_utc` / `num` /
 `origin` (bound here under their old local names), and `alert_user_series.definition_label` (a member
@@ -60,7 +60,9 @@ from typing import Any, Callable
 
 from api.services import session_calendar
 from api.services.journal_two import plan_grading, sample_marker, trading_days, widget_definitions
+from api.services.journal_two import shelf_discipline
 from api.services.journal_two.notebook_widgets import iso_utc as _iso_utc, num as _num, origin as _origin
+from api.services.journal_two.shelf_kind_names import ParamError
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.widget_engine import plan as wplan
 
@@ -103,6 +105,7 @@ S_EARNINGS_NONE = "None of your names report today."
 S_EARNINGS_UNREAD = "Earnings dates couldn't be read right now."
 S_NAMES_UNREAD = "Your names couldn't be read right now."
 S_NAMES_SOME_UNREAD = "Some of your names couldn't be read right now."
+S_RISK_UNREAD = shelf_discipline.S_RISK_UNREAD       # one authority for the sentence
 
 S_ALERTS_EMPTY = "No alerts fired since the last session."
 S_ALERTS_UNREAD = "Some alerts couldn't be read right now."
@@ -788,10 +791,3 @@ BUILDERS: dict[str, Callable[[str, dict, datetime], dict]] = {
     KIND_GAME_PLAN: my_game_plan,
     KIND_ALERTS_FIRED: my_alerts_fired,
 }
-
-# Imported LAST (Task 10.12): `shelf_kinds` reads this module's tables while it imports, and `shelf_discipline`
-# imports `shelf_kinds` at its own end. See `shelf_kinds`' IMPORT ORDER note before moving these lines.
-from api.services.journal_two import shelf_discipline  # noqa: E402
-from api.services.journal_two.shelf_kinds import ParamError  # noqa: E402
-
-S_RISK_UNREAD = shelf_discipline.S_RISK_UNREAD       # one authority for the sentence
