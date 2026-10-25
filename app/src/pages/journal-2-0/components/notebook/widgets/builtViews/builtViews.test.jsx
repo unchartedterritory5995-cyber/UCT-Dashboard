@@ -13,8 +13,11 @@ import ScatterView from './ScatterView'
 import CompareView, { changeText } from './CompareView'
 import ProgressView from './ProgressView'
 import { widgetEmbedNode } from '../../../../lib/notebookWidgets'
-import { fmtValue, countText, compactValue, tableModelOf } from './builtModel'
+import { fmtValue, countText, compactValue, tableModelOf, quadrantOf } from './builtModel'
 import { W, TAP, textW, FLIP_PX, SETTLE_MS, SEEN_MS, TRAIL_MAX } from './svg'
+import NumberView from './NumberView'
+import TableAlt from './TableAlt'
+import W10 from './__fixtures__/w10Payloads.json'
 
 const ASOF = '2026-10-24T14:00:00Z'
 const M = (label, fmt, unit = 'trades', kind = 'sum') => ({ label, unit, kind, fmt })
@@ -1056,5 +1059,326 @@ describe('built widget views', () => {
     expect(compactValue(-999.96e6, 'money')).toBe('-1.0b')
     expect(compactValue(0, 'r')).toBe('0R')
     expect(compactValue(-0.004, 'r')).toBe('>-0.01R')
+  })
+})
+
+// ── Wave 10 (Task 10.18): the engine's new keys in the views ─────────────────────────────────────────────────────
+// Fixtures are REAL payloads from widget_engine/payload.py (nbw-p2-be HEAD 2f1d7ce45c, seeded scratch DB), in
+// __fixtures__/w10Payloads.json. Server sentences are asserted verbatim from those payloads, never retyped.
+
+/** The keys wave 10 adds to a payload (W10-R7: none is allowlisted publicly). */
+const W10_TOP = ['drawdown', 'target', 'targetLabel', 'stop', 'quadrants', 'probe']
+const W10_ROW = ['d1', 'd2', 'd3', 'dd1']
+/** The payload a wave 9 plan (or a public page) gets: the same numbers, none of the new keys. */
+const withoutW10 = (p) => {
+  const out = { ...p }
+  for (const k of W10_TOP) delete out[k]
+  if (Array.isArray(out.series)) {
+    out.series = out.series.map((r) => {
+      const c = { ...r }
+      for (const k of W10_ROW) delete c[k]
+      return c
+    })
+  }
+  return out
+}
+const VIEW_OF = { number: NumberView, progress: ProgressView, line: LineView, scatter: ScatterView }
+/** React's useId values depend on how many ids were made before, so a page's ids are normalised. */
+const htmlOf = (node) => node.innerHTML
+  .replace(/_r_[0-9a-z]+_|«r[0-9a-z]+»|:r[0-9a-z]+:/g, 'ID')
+  .replace(/built-(hatch|dd)-[A-Za-z0-9_-]+/g, 'built-$1-ID')
+/** One payload drawn three ways: its own view, Show as table, and the whole placed widget. */
+const renderAll = (p) => {
+  const V = VIEW_OF[p.view]
+  const out = {}
+  let r = render(<V params={p} />)
+  out.view = htmlOf(r.container)
+  r.unmount()
+  r = render(<TableAlt params={p} />)
+  out.table = htmlOf(r.container)
+  r.unmount()
+  r = render(<BuiltWidgetEmbed attrs={widgetEmbedNode('builtWidget', p).attrs} />)
+  out.embed = htmlOf(r.container)
+  r.unmount()
+  return out
+}
+
+describe('wave 10 keys in the built views (Task 10.18)', () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-24T15:00:00Z')) })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('line_drawdown_band_pattern_and_legend', () => {
+    const p = W10.line_cumulative
+    render(<LineView params={p} />)
+    const svg = screen.getByTestId('built-line-view')
+    // the band is HATCHED: a <pattern> of lines, and every band fills with it (never a flat colour alone)
+    const pat = svg.querySelector('pattern[data-dd-pattern]')
+    expect(pat).not.toBeNull()
+    expect(pat.querySelector('line')).not.toBeNull()
+    const bands = [...svg.querySelectorAll('[data-dd-band]')]
+    expect(bands.length).toBe(1)                                             // one unbroken run of days
+    for (const b of bands) expect(b.getAttribute('fill')).toBe(`url(#${pat.id})`)
+    // the y axis reaches the running high the band hangs from (here the series' own high, +$470.00)
+    expect(svg.querySelector('[data-axis="max"]').textContent).toBe('+$470.00')
+    // the text legend says what the hatch is, and draws the same pattern
+    const legend = screen.getByTestId('built-line-dd-legend')
+    expect(legend.textContent).toBe('Drawdown')
+    expect(legend.querySelector('rect').getAttribute('fill')).toBe(`url(#${pat.id})`)
+    // no band and no legend without the drawdown key (the wave 8 line)
+    const r = render(<LineView params={withoutW10(p)} />)
+    expect(r.container.querySelector('[data-dd-band]')).toBeNull()
+    expect(r.container.querySelector('[data-testid="built-line-dd-legend"]')).toBeNull()
+    r.unmount()
+    // a gap in the series breaks the band as it breaks the line: never a band across a missing day
+    const gap = { ...p, series: p.series.map((row, i) => (i === 4 ? { ...row, v1: null, d1: null, dd1: null } : row)) }
+    const g = render(<LineView params={gap} />)
+    const gb = [...g.container.querySelectorAll('[data-dd-band]')]
+    expect(gb.length).toBe(2)
+    for (const b of gb) {
+      expect(b.getAttribute('points').split(' ').every((xy) => xy.split(',').every((n) => Number.isFinite(Number(n))))).toBe(true)
+    }
+    g.unmount()
+    // a range that only falls: the running high is the range's start (the server's floor of 0), above every total,
+    // and the axis reaches it so the band is drawn inside the plot
+    const fall = { ...p, series: [
+      { ...p.series[0], label: '2026-03-02', v1: -100, d1: -100, dd1: -100 },
+      { ...p.series[1], label: '2026-03-03', v1: -300, d1: -200, dd1: -300 }] }
+    const f = render(<LineView params={fall} />)
+    expect(f.container.querySelector('[data-axis="max"]').textContent).toBe(fmtValue(0, 'money'))
+    expect(f.container.querySelectorAll('[data-dd-band]').length).toBe(1)
+  })
+
+  it('line_readout_total_and_day', () => {
+    const p = W10.line_cumulative
+    render(<LineView params={p} onDrill={() => {}} />)
+    const svg = screen.getByTestId('built-line-view')
+    const overlay = svg.querySelector('[data-overlay]')
+    const xs = [...svg.querySelectorAll('[data-period]')].map((g) => Number(g.querySelector('circle').getAttribute('cx')))
+    fireEvent.pointerMove(overlay, { clientX: xs[2], pointerType: 'mouse' })
+    const tip = screen.getByTestId('built-line-readout')
+    // 2026-03-04: a running total of -$50.00 after a -$250.00 day
+    expect([...tip.children].map((d) => d.textContent)).toEqual(['2026-03-04', '-$50.00 total · -$250.00 that day'])
+    // the period's own name (aria and tooltip) says the same
+    const mark = svg.querySelector('[data-period="2"]')
+    expect(mark.getAttribute('aria-label')).toBe('2026-03-04: -$50.00 total · -$250.00 that day')
+    expect(mark.querySelector('title').textContent).toBe('2026-03-04: -$50.00 total · -$250.00 that day')
+    // a day with no amount of its own says so, never "+$0.00 that day"
+    const gap = { ...p, series: p.series.map((row, i) => (i === 3 ? { ...row, d1: null } : row)) }
+    const r = render(<LineView params={gap} />)
+    expect(r.container.querySelector('[data-period="3"]').getAttribute('aria-label'))
+      .toBe('2026-03-05: +$70.00 total · no data that day')
+  })
+
+  it('number_drawdown_span_sentence', () => {
+    // the server's span sentence, verbatim, on one line under the max drawdown figure
+    for (const name of ['number_drawdown_recovered', 'number_drawdown_start', 'number_drawdown_none']) {
+      const p = W10[name]
+      const r = render(<NumberView params={p} />)
+      const line = r.container.querySelector('[data-testid="built-number-drawdown"]')
+      expect(line, name).not.toBeNull()
+      expect(line.textContent, name).toBe(p.drawdown.line)
+      r.unmount()
+    }
+    expect(W10.number_drawdown_start.drawdown.line).toBe('From the start of this range to Mar 3; recovered Mar 4.')
+    // with two measures it sits under the max drawdown figure, not the other one
+    const r = render(<NumberView params={W10.number_drawdown_open} />)
+    const metrics = r.container.querySelectorAll('[class*="_metric_"]')
+    expect(metrics.length).toBe(2)
+    expect(within(metrics[0]).getByTestId('built-number-drawdown').textContent).toBe('From Mar 2 to Mar 4; recovered Mar 6.')
+    expect(within(metrics[1]).queryByTestId('built-number-drawdown')).toBeNull()
+    r.unmount()
+    // no key (wave 10 off, or an empty range): no line, and nothing in its place
+    for (const name of ['number_drawdown_w10_off', 'number_drawdown_empty']) {
+      expect(W10[name].drawdown, name).toBeUndefined()
+      const q = render(<NumberView params={W10[name]} />)
+      expect(q.container.querySelector('[data-testid="built-number-drawdown"]'), name).toBeNull()
+      q.unmount()
+    }
+  })
+
+  it('progress_goal_label_and_missing_notice', () => {
+    // a goal: "Weekly goal: $1,000.00" and the share of it
+    let r = render(<ProgressView params={W10.progress_goal} onDrill={() => {}} />)
+    const view = screen.getByTestId('built-progress-view')
+    expect(within(view).getByText('Weekly goal: $1,000.00')).toBeInTheDocument()
+    expect(within(view).getByText('30%')).toBeInTheDocument()
+    expect(view.querySelector('rect[class*="barPos"]').getAttribute('width')).toBe(String(0.3 * 600))
+    expect(view.querySelector('[data-built-cell]').getAttribute('aria-label')).toBe('Net P&L: +$300.00 Weekly goal: $1,000.00, 30%')
+    r.unmount()
+    // no goal: the server's notice in place of the bar (no bar, no 0%)
+    const miss = W10.progress_goal_missing
+    expect(miss.target).toBeNull()
+    r = render(<ProgressView params={miss} />)
+    const mv = screen.getByTestId('built-progress-view')
+    expect(within(mv).getByText('Yearly goal')).toBeInTheDocument()
+    expect(within(mv).getByTestId('built-progress-notice').textContent).toBe(miss.notice)
+    expect(mv.querySelector('svg')).toBeNull()
+    expect(mv.textContent).not.toMatch(/\b0%/)
+    r.unmount()
+    // the placed widget says the notice ONCE (in the view, not again under it)
+    r = render(<BuiltWidgetEmbed attrs={{ ...widgetEmbedNode('builtWidget', miss).attrs, params: miss }} editable onUpdateParams={() => true} />)
+    expect(screen.getAllByText(miss.notice).length).toBe(1)
+    expect(screen.getByTestId('built-progress-notice')).toBeInTheDocument()
+    // Show as table: the notice goes back under the table, still once
+    fireEvent.click(screen.getByRole('button', { name: /show as table/i }))
+    expect(screen.queryByTestId('built-progress-notice')).toBeNull()
+    expect(screen.getAllByText(miss.notice).length).toBe(1)
+    r.unmount()
+    // the sample book: no goal was read and no notice sent, so the wave 8 view (never a claim the goal is missing)
+    const sample = W10.progress_goal_sample
+    expect(sample.notice).toBeNull()
+    r = render(<ProgressView params={sample} />)
+    const sv = screen.getByTestId('built-progress-view')
+    expect(within(sv).queryByTestId('built-progress-notice')).toBeNull()
+    expect(within(sv).getByText('No target saved with this widget.')).toBeInTheDocument()
+  })
+
+  it('stop_after_line', () => {
+    for (const name of ['stop_under', 'stop_hit', 'stop_none']) {
+      const p = W10[name]
+      const r = render(<NumberView params={p} />)
+      expect(r.container.querySelector('[data-testid="built-number-stop"]').textContent, name).toBe(p.stop.line)
+      r.unmount()
+    }
+    expect(W10.stop_hit.stop.line).toBe('3 of your 3 losses in a row. Your rule says stop here.')
+    // an empty range: stop is null and the widget's empty sentence speaks; the view draws no line
+    expect(W10.stop_empty.stop).toBeNull()
+    const r = render(<NumberView params={W10.stop_empty} />)
+    expect(r.container.querySelector('[data-testid="built-number-stop"]')).toBeNull()
+  })
+
+  it('scatter_quadrant_captions_and_guides', () => {
+    const p = W10.scatter_excursion
+    render(<ScatterView params={p} />)
+    const svg = screen.getByTestId('built-scatter-view')
+    // 1R guides on both axes
+    const gx = svg.querySelector('[data-guide="x1r"]')
+    const gy = svg.querySelector('[data-guide="y1r"]')
+    expect(gx.getAttribute('x1')).toBe(gx.getAttribute('x2'))                // vertical, at MAE = 1R
+    expect(gy.getAttribute('y1')).toBe(gy.getAttribute('y2'))                // horizontal, at MFE = 1R
+    const vx = Number(gx.getAttribute('x1'))
+    const hy = Number(gy.getAttribute('y1'))
+    // the captions sit in their quadrants: "gave it back" top left, "stopped too tight" bottom right
+    const back = svg.querySelector('[data-quadrant="gave"]')
+    const tight = svg.querySelector('[data-quadrant="tight"]')
+    expect(back.textContent).toBe('gave it back')
+    expect(tight.textContent).toBe('stopped too tight')
+    expect(Number(back.getAttribute('x')) + textW(back.textContent, 11)).toBeLessThan(vx)
+    expect(Number(back.getAttribute('y'))).toBeLessThan(hy)
+    expect(Number(tight.getAttribute('x')) - textW(tight.textContent, 11)).toBeGreaterThan(vx)
+    expect(Number(tight.getAttribute('y'))).toBeGreaterThan(hy)
+    // 2.5R for and 0.4R against is top left of both guides; 1.2R against and 0.3R for is bottom right
+    const pos = (d) => {
+      const c = svg.querySelector(`[data-day="${d}"] [data-hit]`)
+      return { x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')) }
+    }
+    expect(pos('2026-03-02').x).toBeLessThan(vx)
+    expect(pos('2026-03-02').y).toBeLessThan(hy)
+    expect(pos('2026-03-03').x).toBeGreaterThan(vx)
+    expect(pos('2026-03-03').y).toBeGreaterThan(hy)
+    expect(pos('2026-03-06').x).toBeCloseTo(vx, 5)                            // exactly 1R lies ON the guides
+    expect(pos('2026-03-06').y).toBeCloseTo(hy, 5)
+    // the boundaries: "at least 1R" includes 1R itself on both axes
+    expect([quadrantOf(0.99, 1), quadrantOf(1, 0.99), quadrantOf(1, 1), quadrantOf(0.99, 0.99), quadrantOf(null, 2)])
+      .toEqual(['gave', 'tight', null, null, null])
+    // result shapes as wave 8
+    expect(svg.querySelector('[data-day="2026-03-02"] [data-shape]').getAttribute('data-shape')).toBe('dot')
+    expect(svg.querySelector('[data-day="2026-03-03"] [data-shape]').getAttribute('data-shape')).toBe('ring')
+    expect(svg.querySelector('[data-day="2026-03-05"] [data-shape]').getAttribute('data-shape')).toBe('dash')
+    // the guides say what they are, in words, under the chart
+    expect(screen.getByTestId('built-scatter-quadrants').textContent).toBe('Dashed lines mark 1R on each axis.')
+    // R-31: at a 340 px phone width a caption is drawn only inside its own quadrant; one that does not fit there
+    // (here the bottom right: the 1R guide sits at x 256 of 340, and the caption needs 112 px) is said in words
+    // under the chart instead, never drawn across the guide or past the edge
+    const r = render(<ScatterView params={p} width={340} />)
+    const s2 = r.container.querySelector('[data-testid="built-scatter-view"]')
+    const v2 = Number(s2.querySelector('[data-guide="x1r"]').getAttribute('x1'))
+    const b2 = s2.querySelector('[data-quadrant="gave"]')
+    expect(Number(b2.getAttribute('x')) + textW(b2.textContent, 11)).toBeLessThan(v2)
+    expect(s2.querySelector('[data-quadrant="tight"]')).toBeNull()
+    expect(within(r.container).getByTestId('built-scatter-quadrants').textContent)
+      .toBe('Dashed lines mark 1R on each axis. Bottom right: stopped too tight.')
+    // and wide enough, the right-hand caption fits and is drawn inside the plot
+    const t1 = svg.querySelector('[data-quadrant="tight"]')
+    expect(Number(t1.getAttribute('x'))).toBeLessThanOrEqual(W)
+    r.unmount()
+    // no quadrants key: no guides, no captions (the wave 8 scatter)
+    const q = render(<ScatterView params={withoutW10(p)} />)
+    expect(q.container.querySelector('[data-guide]')).toBeNull()
+    expect(q.container.querySelector('[data-quadrant]')).toBeNull()
+    expect(q.container.querySelector('[data-testid="built-scatter-quadrants"]')).toBeNull()
+  })
+
+  it('table_alt_has_new_columns', () => {
+    const cols = (p) => {
+      const r = render(<TableAlt params={p} />)
+      const t = r.container.querySelector('table')
+      const head = [...t.querySelectorAll('th')].map((th) => th.textContent)
+      const rows = [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent))
+      r.unmount()
+      return { head, rows }
+    }
+    // a running total: the day's own amount and the drop from the high, for every period
+    let t = cols(W10.line_cumulative)
+    expect(t.head).toEqual(['Period', 'Net P&L, running total', 'Net P&L, that day', 'Drawdown'])
+    expect(t.rows[0]).toEqual(['2026-03-02', '+$300.00', '+$300.00', 'At the high'])
+    expect(t.rows[2]).toEqual(['2026-03-04', '-$50.00', '-$250.00', '-$350.00'])
+    // the drawdown's days and the stop-after line, as the server wrote them
+    t = cols(W10.number_drawdown_recovered)
+    expect(t.head).toEqual(['Group', 'Max drawdown', 'Drawdown dates'])
+    expect(t.rows[0]).toEqual(['All', '-$120.00', W10.number_drawdown_recovered.drawdown.line])
+    t = cols(W10.stop_under)
+    expect(t.head).toEqual(['Group', 'Current streak', 'Stop after'])
+    expect(t.rows[0][2]).toBe('2 of your 3 losses in a row')
+    // a goal: its label and amount, and the share of it; with no goal set, no data (the server's notice is said
+    // once, under the table)
+    t = cols(W10.progress_goal)
+    expect(t.head).toEqual(['Group', 'Net P&L', 'Weekly goal', 'Of goal'])
+    expect(t.rows[0]).toEqual(['All', '+$300.00', '$1,000.00', '30%'])
+    t = cols(W10.progress_goal_missing)
+    expect(t.head).toEqual(['Group', 'Net P&L', 'Yearly goal', 'Of goal'])
+    expect(t.rows[0]).toEqual(['All', '+$300.00', 'no data', 'no data'])
+    // the quadrant each trade falls in (exactly 1R on both is in neither captioned quadrant)
+    t = cols(W10.scatter_excursion)
+    expect(t.head).toEqual(['Day', 'MAE', 'MFE', 'Result', 'Quadrant'])
+    expect(t.rows.map((row) => row[4])).toEqual(['gave it back', 'stopped too tight', '', '', ''])
+    // no new keys: the wave 8 columns, exactly
+    expect(cols(withoutW10(W10.line_cumulative)).head).toEqual(['Period', 'Net P&L'])
+    expect(cols(withoutW10(W10.scatter_excursion)).head).toEqual(['Day', 'MAE', 'MFE', 'Result'])
+    expect(cols(withoutW10(W10.progress_goal)).head).toEqual(['Group', 'Net P&L'])
+    expect(cols(withoutW10(W10.stop_under)).head).toEqual(['Group', 'Current streak'])
+  })
+
+  it('formula_formats_money_pct_r', () => {
+    // a formula measure row is {key, label, unit, kind, fmt}: formatted by its fmt with the existing formatters
+    const a = W10.formula_money_pct_count
+    expect(a.measures.map((m) => m.fmt)).toEqual(['money', 'pct', 'count'])
+    const shown = (p) => {
+      const r = render(<NumberView params={p} />)
+      const out = [...r.container.querySelectorAll('[class*="metricValue"]')].map((n) => n.firstChild.textContent)
+      r.unmount()
+      return out
+    }
+    expect(shown(a)).toEqual(['+$32.00', '6.4%', '2'])                        // pct multiplies by 100
+    const b = W10.formula_r_rate
+    expect(b.measures.map((m) => m.fmt)).toEqual(['r', 'pct'])
+    expect(shown(b)).toEqual(['+3.2R', '40.0%'])
+    expect(fmtValue(3.2, 'r')).toBe('+3.2R')
+    // the scatter's R axes read in R
+    const r = render(<ScatterView params={W10.scatter_excursion} />)
+    expect(r.container.querySelector('[data-axis="max"]').textContent).toBe(fmtValue(2.5, 'r'))
+  })
+
+  it('public_payload_without_keys_unchanged', () => {
+    // The wave 8 rendering of every fixture with the new keys removed (snapshot taken before any 10.18 code) is
+    // what a public page draws, WITH the keys present too: a shared body never reads them (W10-R7).
+    for (const [name, full] of Object.entries(W10)) {
+      const plain = withoutW10(full)
+      const wave8 = renderAll({ ...plain, share: true })
+      expect(wave8, name).toMatchSnapshot(name)
+      expect(renderAll({ ...full, share: true }), `${name}: shared, keys present`).toEqual(wave8)
+      // a private wave 9 payload (no keys) is the wave 8 view as well
+      expect(renderAll({ ...plain, share: false }), `${name}: private, no keys`).toMatchSnapshot(`${name} private`)
+    }
   })
 })

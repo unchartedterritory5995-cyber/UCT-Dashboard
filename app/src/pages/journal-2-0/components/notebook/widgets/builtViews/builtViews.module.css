@@ -32,6 +32,16 @@
   color: var(--text-dim);
   font-size: 11px;
 }
+/* Wave 10 (Task 10.18): the server's sentence under a figure (a max drawdown's dates, the stop-after line) and the
+   goal notice a Progress view shows in place of its bar. They wrap at any width: never a sideways scroll (R-31). */
+.metricNote,
+.progressNotice {
+  display: block;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
 .badge {
   display: inline-block;
   margin-left: 6px;
@@ -285,6 +295,25 @@
 .hatchLine {
   stroke: var(--bg-surface);
   stroke-width: 2;
+}
+/* Wave 10 (Task 10.18): a running total's drawdown band is a HATCH in the loss colour (the heat map's), named by a
+   "Drawdown" legend drawing the same pattern: never a flat colour alone. */
+.ddHatch {
+  stroke: var(--ind-warn);
+  stroke-width: 1.5;
+}
+.ddBand {
+  stroke: none;
+}
+/* The excursion scatter's 1R guides and its two quadrant captions (11 px, the tick floor). */
+.guide1r {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.quadrantText {
+  font-size: 11px;
+  fill: var(--text-dim);
 }
 /* The text sits on an opaque backing in the page's own surface and ink (the page's text contrast, whatever the
    cell's fill), and the hatch never runs under it. */

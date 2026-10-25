@@ -1,4 +1,4 @@
-import { measuresOf, cellOf, SMALL_SAMPLE } from './builtModel'
+import { measuresOf, cellOf, SMALL_SAMPLE, w10Of, measureSlotOf } from './builtModel'
 import { useCellGroup } from './cellGroup'
 import { CountLine } from './Counts'
 import styles from './builtViews.module.css'
@@ -11,6 +11,9 @@ import { snapshotStyles as s, toneOf } from '../SnapshotFrame'
  * average or rate on a small sample carries the "small sample" badge beside its count.
  * Task 8.14: each figure says what it was made from (CountLine), and Enter or a click on it opens the rows behind
  * it (`onDrill`, absent on a shared page).
+ * Wave 10 (Task 10.18): the server's own sentences under their figure, verbatim: a max drawdown's dates
+ * (`drawdown.line`) and the stop-after line (`stop.line`). Placed under the plan's `max_drawdown` / `current_streak`
+ * figure, or after the figures when the note carries no plan; absent keys (and a shared page, W10-R7) draw nothing.
  */
 export default function NumberView({ params, onDrill }) {
   const p = params || {}
@@ -18,6 +21,16 @@ export default function NumberView({ params, onDrill }) {
   const value = p.value && typeof p.value === 'object' ? p.value : {}
   const group = useCellGroup()
   if (!measures.length) return <p className={s.empty}>{'This widget has nothing to show.'}</p>
+  const w10 = w10Of(p)
+  const notes = [
+    w10.drawdown && { slot: measureSlotOf(p, 'max_drawdown'), id: 'built-number-drawdown', text: w10.drawdown, tone: '' },
+    w10.stop?.line && { slot: measureSlotOf(p, 'current_streak'), id: 'built-number-stop', text: w10.stop.line,
+      tone: w10.stop.hit ? toneOf(-1) : '' },
+  ].filter(Boolean)
+  const noteLine = (n) => (
+    <span key={n.id} className={`${styles.metricNote} ${n.tone}`} data-testid={n.id}>{n.text}</span>
+  )
+  const loose = notes.filter((n) => n.slot < 0 || n.slot >= measures.length)
   return (
     <div className={styles.numbers} data-testid="built-number-view" {...group.groupProps}>
       {measures.map((m, k) => {
@@ -36,9 +49,11 @@ export default function NumberView({ params, onDrill }) {
               </span>
             </span>
             {!c.hidden && <CountLine params={p} i={i} measure={m} />}
+            {notes.filter((n) => n.slot === k).map(noteLine)}
           </div>
         )
       })}
+      {loose.length > 0 && <div className={styles.metric}>{loose.map(noteLine)}</div>}
     </div>
   )
 }

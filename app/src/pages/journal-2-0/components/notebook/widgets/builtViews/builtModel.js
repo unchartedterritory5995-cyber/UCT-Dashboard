@@ -163,6 +163,72 @@ export function relabelAccounts(p) {
   return out
 }
 
+// ── Wave 10 (Task 10.18): the engine's display keys (widget_engine/payload.py, Task 10.5) ──────────────────────
+// `drawdown.line`, `stop.line` and a goal-less `notice` are SERVER sentences: shown verbatim, never rebuilt here.
+
+/** The legend of a running total's drawdown band, and the Drawdown column's word for a day at the high. */
+export const DRAWDOWN_LEGEND = 'Drawdown'
+export const AT_HIGH = 'At the high'
+/** The two captioned quadrants of an MAE (across) vs MFE (up) scatter, and the line under it. */
+export const QUADRANT_TEXT = Object.freeze({ gave: 'gave it back', tight: 'stopped too tight' })
+export const QUADRANT_NOTE = 'Dashed lines mark 1R on each axis.'
+
+const NO_W10 = Object.freeze({ drawdown: null, stop: null, goal: null, quadrants: false, cumulative: false })
+const sentence = (x) => (isRecord(x) && typeof x.line === 'string' && x.line ? x.line : null)
+
+/** The wave 10 keys a view may draw, read ONCE here. ⛔ Ruling W10-R7: a SHARED body (the archive image a public page
+ *  shows) reads none of them, so it is exactly the wave 8 view whatever the payload carries; a missing or malformed
+ *  key is absent too (the wave 8 view), never a zero. `goal.target` is null when the member set no goal. */
+export function w10Of(p) {
+  if (!isRecord(p) || p.share === true) return NO_W10
+  const view = typeof p.view === 'string' ? p.view : 'number'
+  const label = typeof p.targetLabel === 'string' && p.targetLabel ? p.targetLabel : null
+  return {
+    drawdown: sentence(p.drawdown),
+    stop: isRecord(p.stop) ? { line: sentence(p.stop), hit: finite(p.stop.losses) && finite(p.stop.after) && p.stop.losses >= p.stop.after } : null,
+    goal: view === 'progress' && label ? { label, target: finite(p.target) && p.target > 0 ? p.target : null } : null,
+    quadrants: view === 'scatter' && p.quadrants === 'excursion',
+    cumulative: view === 'line' && Array.isArray(p.series) && p.series.some((r) => isRecord(r) && Object.hasOwn(r, 'dd1')),
+  }
+}
+
+/** The slot (0-based) of the plan's measure `key` (the frozen plan's measure list is the payload's, in order); -1 when
+ *  the note carries no plan (`defRef`) or the plan does not measure it. */
+export function measureSlotOf(p, key) {
+  const list = Array.isArray(p?.def?.measures) ? p.def.measures.slice(0, SLOTS) : []
+  return list.findIndex((m) => isRecord(m) && m.key === key)
+}
+
+/** A goal amount reads unsigned ("$1,000.00"): a goal is a size, not a gain. */
+export const goalText = (target, fmt) => fmtValue(target, fmt === 'money' ? 'money_plain' : fmt)
+/** "30%" of a target, or '' when either is unknown (never "0%" for an unknown). */
+export const shareText = (value, target) => (finite(value) && finite(target) && target
+  ? `${Math.round((value / target) * 100)}%` : '')
+
+/** The server's notice a Progress view shows in place of its bar: a goal widget whose member set no goal. null when
+ *  the view draws a bar (or the wave 8 view), so the placed widget says the notice under the body instead. */
+export function progressNoticeOf(p) {
+  const g = w10Of(p).goal
+  return g && g.target === null && typeof p?.notice === 'string' && p.notice ? p.notice : null
+}
+
+/** Which captioned quadrant (MAE across, MFE up, both in R) a point is in: 'gave' (MFE at least 1R, MAE under 1R),
+ *  'tight' (MAE at least 1R, MFE under 1R), or null. */
+export function quadrantOf(x, y) {
+  if (!finite(x) || !finite(y)) return null
+  if (y >= 1 && x < 1) return 'gave'
+  if (x >= 1 && y < 1) return 'tight'
+  return null
+}
+
+/** One period of a running total, as the readout and a screen reader read it: "-$50.00 total · -$250.00 that day".
+ *  A day with no amount of its own says "no data that day", never a zero. */
+export function runningSpeech(cell, day, measure) {
+  if (!cell || cell.hidden || typeof cell.value !== 'number') return cellSpeech(cell, measure)
+  const d = finite(day) ? fmtValue(day, measure?.fmt) : NO_DATA
+  return `${cell.text} total · ${d} that day${cell.small ? `, ${SMALL_SAMPLE}` : ''}`
+}
+
 const dayText = (d) => (typeof d === 'string' ? d.slice(0, 10) : '')
 const isNum = (v) => v === null || finite(v)
 const RESULT = { win: 'Win', loss: 'Loss', be: 'Breakeven' }
@@ -204,20 +270,24 @@ export function tableModelOf(raw) {
   const p = relabelAccounts(raw)
   const measures = measuresOf(p)
   const view = typeof p?.view === 'string' ? p.view : 'number'
+  const w10 = w10Of(raw)
   if (view === 'scatter') {
     const pts = listOf(p, 'scatter')
     const rawPts = listOf(raw, 'scatter')
     return {
       columns: [{ key: 'd', label: 'Day' }, { key: 'x', label: measures[0]?.label || 'X' },
-        { key: 'y', label: measures[1]?.label || 'Y' }, { key: 'r', label: 'Result' }],
+        { key: 'y', label: measures[1]?.label || 'Y' }, { key: 'r', label: 'Result' },
+        ...(w10.quadrants ? [{ key: 'q', label: 'Quadrant' }] : [])],
       rows: pts.map((pt, i) => ({
         key: `p${i}`, flagged: false, label: dayText(pt.d), label2: null,
         point: { x: finite(pt.x) ? pt.x : null, y: finite(pt.y) ? pt.y : null,
           r: typeof pt.r === 'string' && Object.hasOwn(RESULT, pt.r) ? pt.r : null },
+        quadrant: w10.quadrants ? quadrantOf(pt.x, pt.y) : null,
         values: [], drill: drillCellOf('scatter', rawPts[i]),
         cells: [plain(dayText(pt.d) || NO_DATA), plain(fmtValue(pt.x, measures[0]?.fmt)),
           plain(fmtValue(pt.y, measures[1]?.fmt)),
-          plain(typeof pt.r === 'string' && Object.hasOwn(RESULT, pt.r) ? RESULT[pt.r] : '')],
+          plain(typeof pt.r === 'string' && Object.hasOwn(RESULT, pt.r) ? RESULT[pt.r] : ''),
+          ...(w10.quadrants ? [plain(QUADRANT_TEXT[quadrantOf(pt.x, pt.y)] || '')] : [])],
       })),
     }
   }
@@ -229,26 +299,53 @@ export function tableModelOf(raw) {
   const slots = measures
   const hasLabel2 = list.some((r) => typeof r.label2 === 'string' && r.label2)
   const countCell = (c, m) => plain(finite(c.n) ? `${c.n} ${countNoun(m?.unit, c.n)}` : NO_DATA)
+  // Wave 10 (Task 10.18): "Show as table" carries every new key. A running total adds each measure's own amount that
+  // day and the first measure's drop from its high; a total adds the drawdown's dates, the stop-after line and the
+  // goal with the share of it. Absent keys add no column, so a wave 9 payload lays out exactly as wave 8.
+  const cum = w10.cumulative
+  const nameOf = (m, i) => m.label || `Measure ${i + 1}`
+  const extras = []
+  if (total && w10.drawdown) extras.push({ key: 'dd', label: 'Drawdown dates', cell: () => plain(w10.drawdown) })
+  if (total && w10.stop?.line) extras.push({ key: 'stop', label: 'Stop after', cell: () => plain(w10.stop.line) })
+  if (total && w10.goal) {
+    const g = w10.goal
+    // with no goal set the cell is "no data": the server's notice is said once, under the table (BuiltWidgetEmbed)
+    extras.push({ key: 'goal', label: g.label, cell: () => plain(goalText(g.target, slots[0]?.fmt)) })
+    extras.push({ key: 'goalShare', label: 'Of goal',
+      cell: (r) => plain(shareText(finite(r.v1) ? r.v1 : null, g.target) || NO_DATA) })
+  }
+  const ddCell = (r) => {
+    if (!finite(r.dd1)) return plain(NO_DATA)
+    return plain(r.dd1 === 0 ? AT_HIGH : fmtValue(r.dd1, slots[0]?.fmt))
+  }
   return {
     columns: [
       { key: 'label', label: view === 'line' || view === 'heat' ? 'Period' : 'Group' },
       ...(hasLabel2 ? [{ key: 'label2', label: 'Then' }] : []),
       ...slots.flatMap((m, i) => [
-        { key: `v${i + 1}`, label: m.label || `Measure ${i + 1}` },
-        ...(isCounted(m) ? [{ key: `n${i + 1}`, label: `${m.label || `Measure ${i + 1}`} (n)` }] : []),
+        { key: `v${i + 1}`, label: cum ? `${nameOf(m, i)}, running total` : nameOf(m, i) },
+        ...(isCounted(m) ? [{ key: `n${i + 1}`, label: `${nameOf(m, i)} (n)` }] : []),
+        ...(cum ? [{ key: `d${i + 1}`, label: `${nameOf(m, i)}, that day` }] : []),
       ]),
+      ...(cum ? [{ key: 'dd1', label: DRAWDOWN_LEGEND }] : []),
+      ...extras.map((x) => ({ key: x.key, label: x.label })),
     ],
     rows: list.map((r, i) => {
       const label = typeof r.label === 'string' && r.label ? r.label : '(none)'
       const label2 = hasLabel2 ? (typeof r.label2 === 'string' && r.label2 ? r.label2 : '(none)') : null
       const values = slots.map((m, k) => cellOf(r, k + 1, m))
+      const day = cum ? slots.map((m, k) => (finite(r[`d${k + 1}`]) ? r[`d${k + 1}`] : null)) : null
       return {
         key: `r${i}`,
         flagged: r.flagged === true,
         label, label2, values,
+        ...(cum ? { day, dd: finite(r.dd1) ? r.dd1 : null } : {}),
         drill: total ? {} : drillCellOf(view, rawList[i]),
         cells: [plain(label), ...(hasLabel2 ? [plain(label2)] : []),
-          ...values.flatMap((c, k) => [c, ...(isCounted(slots[k]) ? [countCell(c, slots[k])] : [])])],
+          ...values.flatMap((c, k) => [c, ...(isCounted(slots[k]) ? [countCell(c, slots[k])] : []),
+            ...(cum ? [plain(fmtValue(day[k], slots[k]?.fmt))] : [])]),
+          ...(cum ? [ddCell(r)] : []),
+          ...extras.map((x) => x.cell(r))],
       }
     }),
   }

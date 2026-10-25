@@ -19,7 +19,7 @@ import ProgressView from './builtViews/ProgressView'
 import DrillPanel from './builtViews/DrillPanel'
 import HowMadeSheet, { UPDATED_VERSION } from './builtViews/HowMadeSheet'
 import { CoverageNote, Footnotes } from './builtViews/Counts'
-import { LOG_TRADE_HREF } from './builtViews/builtModel'
+import { LOG_TRADE_HREF, progressNoticeOf } from './builtViews/builtModel'
 import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import styles from './BuiltWidgetEmbed.module.css'
 
@@ -246,6 +246,9 @@ export default function BuiltWidgetEmbed({
     )
   } else if (asTable && canToggle) body = <TableAlt params={p} onDrill={onDrill} />
   else body = <View params={p} onDrill={onDrill} width={chartWidth} />
+  // Wave 10 (Task 10.18): a goal widget with no goal shows the server's notice IN PLACE of its bar, so it is not
+  // said a second time under the body (Show as table puts it back here).
+  const noticeInBody = !empty && !(asTable && canToggle) && view === 'progress' && progressNoticeOf(p) !== null
 
   const menu = frame.editable && !shared && !shareView
     ? <BuiltMenu params={p} editor={editor} getPos={getPos} onApplyLatest={applyLatest} />
@@ -259,7 +262,7 @@ export default function BuiltWidgetEmbed({
           {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
           {body}
           {!empty && view !== 'number' && view !== 'compare' && view !== 'progress' && <CoverageNote params={p} />}
-          {typeof p.notice === 'string' && p.notice && <p className={styles.notice}>{p.notice}</p>}
+          {typeof p.notice === 'string' && p.notice && !noticeInBody && <p className={styles.notice}>{p.notice}</p>}
           {!empty && <Footnotes params={p} />}
           {canToggle && (
             <div className={styles.tools}>

@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useIsTouch } from '../../../../../../hooks/useBreakpoint'
-import { tableModelOf, measuresOf, fmtValue, cellSpeech, SMALL_SAMPLE } from './builtModel'
+import { tableModelOf, measuresOf, fmtValue, cellSpeech, SMALL_SAMPLE, w10Of, runningSpeech, DRAWDOWN_LEGEND } from './builtModel'
 import { useCellGroup, drillFor } from './cellGroup'
-import { useChartWidth, useHitFloor, scale, textW, clamp, DASHES, trackInputKind, lastInputWasKey } from './svg'
+import { useChartWidth, useHitFloor, scale, textW, clamp, svgId, DASHES, trackInputKind, lastInputWasKey } from './svg'
 import styles from './builtViews.module.css'
 import { snapshotStyles as s } from '../SnapshotFrame'
 
@@ -25,6 +25,11 @@ import { snapshotStyles as s } from '../SnapshotFrame'
  * drills), and the focused mark shows its readout while it has focus from the keyboard.
  * ⛔ An unknown point is a GAP in the line, never a point at zero; the periods with no value are named under the
  * chart ("No data for ..."). A small sample is drawn hollow and named under the chart.
+ * Wave 10 (Task 10.18): a RUNNING TOTAL (`display.cumulative`: `vN` the total so far, `dN` the day's own amount, `dd1`
+ * the first line's drop from its running high, server widget_engine/payload.py) draws that drop as a HATCHED band
+ * from the running high down to the curve, named by a "Drawdown" legend that draws the same hatch (a pattern, never
+ * colour alone), and its readout reads "-$50.00 total · -$250.00 that day". A gap breaks the band as it breaks the
+ * line. The y axis reaches the running high the band hangs from. A shared body draws none of it (W10-R7).
  */
 const H = 190
 const PAD_R = 10
@@ -85,6 +90,7 @@ export default function LineView({ params, onDrill, width: forced }) {
   const tipRef = useRef(null)
   const [tip, setTip] = useState({ w: 0, h: 0 })
   const isTouch = useIsTouch()
+  const ddId = `built-dd-${svgId(useId())}`
   const active = hover ?? sel
   useEffect(() => { trackInputKind() }, [])
   // The readout's real size, once drawn (an estimate until then), so it can be clamped and placed clear of the point.
@@ -96,9 +102,12 @@ export default function LineView({ params, onDrill, width: forced }) {
   if (!model.rows.length || !ms.length) return <p className={s.empty}>{'No rows to show.'}</p>
   const rows = model.rows
   const multi = ms.length > 1
+  const cum = w10Of(p).cumulative
+  /** The running high a period's drawdown hangs from (its total less its drop), or null. */
+  const peakOf = (r) => (cum && typeof r.values[0]?.value === 'number' && typeof r.dd === 'number' ? r.values[0].value - r.dd : null)
   const known = (k) => rows.map((r) => r.values[k]?.value).filter((v) => typeof v === 'number')
   const range = (k) => {
-    const vs = known(k)
+    const vs = [...known(k), ...(k === 0 ? rows.map(peakOf).filter((v) => v !== null) : [])]
     return vs.length ? [Math.min(...vs), Math.max(...vs)] : [0, 1]
   }
   const [lo0, hi0] = range(0)
@@ -122,8 +131,25 @@ export default function LineView({ params, onDrill, width: forced }) {
     if (run.length) out.push(run)
     return out
   }
+  /** The drawdown band: one polygon per unbroken run of periods (high along the top, the curve back along the
+   *  bottom), drawn only where the run falls below its high at all. */
+  const bands = []
+  if (cum) {
+    let run = []
+    const close = () => {
+      if (run.length > 1 && run.some((i) => rows[i].dd < 0)) {
+        const top = run.map((i) => `${xs[i].toFixed(1)},${yOfs[0](peakOf(rows[i])).toFixed(1)}`)
+        const bottom = [...run].reverse().map((i) => `${xs[i].toFixed(1)},${yOfs[0](rows[i].values[0].value).toFixed(1)}`)
+        bands.push([...top, ...bottom].join(' '))
+      }
+      run = []
+    }
+    rows.forEach((r, i) => { if (peakOf(r) !== null) run.push(i); else close() })
+    close()
+  }
   const nameOf = (m, k) => m.label || `Measure ${k + 1}`
-  const speechOf = (r) => `${r.label}: ${ms.map((m, k) => `${multi ? `${nameOf(m, k)} ` : ''}${cellSpeech(r.values[k], m)}`).join('; ')}`
+  const valueSpeech = (r, k, m) => (cum ? runningSpeech(r.values[k], r.day?.[k], m) : cellSpeech(r.values[k], m))
+  const speechOf = (r) => `${r.label}: ${ms.map((m, k) => `${multi ? `${nameOf(m, k)} ` : ''}${valueSpeech(r, k, m)}`).join('; ')}`
   const missing = ms.map((m, k) => ({ m, k, rows: rows.filter((r) => typeof r.values[k]?.value !== 'number' && !r.values[k]?.hidden) }))
     .filter((x) => x.rows.length)
   const hidden = rows.flatMap((r) => ms.map((m, k) => (r.values[k]?.hidden ? `${r.label}${multi ? ` (${nameOf(m, k)})` : ''}: ${r.values[k].text}` : null)))
@@ -141,6 +167,17 @@ export default function LineView({ params, onDrill, width: forced }) {
       <div className={styles.chartFit} ref={boxRef}>
         <svg className={styles.chart} viewBox={`0 0 ${width} ${H}`} width={width} height={H} role="group"
           aria-label={`${ms.map(nameOf).join(', ')} over time`} data-testid="built-line-view" {...group.groupProps}>
+          {bands.length > 0 && (
+            <defs>
+              <pattern id={ddId} data-dd-pattern="" patternUnits="userSpaceOnUse" width="6" height="6"
+                patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="6" className={styles.ddHatch} />
+              </pattern>
+            </defs>
+          )}
+          {bands.map((pts, j) => (
+            <polygon key={`dd${j}`} points={pts} fill={`url(#${ddId})`} className={styles.ddBand} data-dd-band="" />
+          ))}
           <line x1={padL} x2={padL} y1={PAD_T} y2={H - PAD_B} className={styles.axis} />
           <text x={padL - 4} y={PAD_T} className={styles.tick} textAnchor="end" dominantBaseline="middle"
             data-axis="max">{ticks[0]}</text>
@@ -230,7 +267,7 @@ export default function LineView({ params, onDrill, width: forced }) {
           )}
         </svg>
         {active !== null && rows[active] && (() => {
-          const lines = [rows[active].label, ...ms.map((m, k) => `${multi ? `${nameOf(m, k)}: ` : ''}${cellSpeech(rows[active].values[k], m)}`)]
+          const lines = [rows[active].label, ...ms.map((m, k) => `${multi ? `${nameOf(m, k)}: ` : ''}${valueSpeech(rows[active], k, m)}`)]
           const room = Math.max(0, width - padL)        // never left of the axis
           const w = tip.w || Math.min(room, Math.ceil(Math.max(...lines.map((t) => textW(t, 12)))) + 18)
           const h = tip.h || Math.ceil(lines.length * 12 * 1.35) + 10
@@ -262,6 +299,16 @@ export default function LineView({ params, onDrill, width: forced }) {
             )
           })}
           <li>Each line is on its own scale; the axis is the first.</li>
+        </ul>
+      )}
+      {bands.length > 0 && (
+        <ul className={styles.legend} data-testid="built-line-dd-legend">
+          <li>
+            <svg width="28" height="12" aria-hidden="true">
+              <rect x="0" y="0" width="28" height="12" fill={`url(#${ddId})`} className={styles.ddBand} />
+            </svg>
+            {DRAWDOWN_LEGEND}
+          </li>
         </ul>
       )}
       {missing.map((x) => (
