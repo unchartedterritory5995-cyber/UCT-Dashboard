@@ -42,7 +42,15 @@ const routineAnswer = (ids, days) => ({
   }])),
 })
 
+let visHandlers = []
+const realAdd = document.addEventListener.bind(document)
+const realRemove = document.removeEventListener.bind(document)
+const fireVisible = () => visHandlers.forEach((h) => h())
+
 beforeEach(() => {
+  visHandlers = []
+  document.addEventListener = (type, h, o) => { if (type === 'visibilitychange') visHandlers.push(h); else realAdd(type, h, o) }
+  document.removeEventListener = (type, h, o) => { if (type === 'visibilitychange') visHandlers = visHandlers.filter((x) => x !== h); else realRemove(type, h, o) }
   FakeBC.all = []
   FakeBC.posts = []
   globalThis.BroadcastChannel = FakeBC
@@ -50,6 +58,9 @@ beforeEach(() => {
   setOnline(true)
 })
 afterEach(() => {
+  document.addEventListener = realAdd
+  document.removeEventListener = realRemove
+  vi.useRealTimers()
   globalThis.fetch = realFetch
   globalThis.BroadcastChannel = realBC
   setOnline(true)
@@ -142,13 +153,13 @@ describe('readDay: one batched read per kind per tick', () => {
     const offA = api.subscribe('routine', 'a', '2026-10-23', (e) => seen.push(['a', e.state]))
     const offB = api.subscribe('routine', 'b', '2026-10-23', (e) => seen.push(['b', e.state]))
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
-    document.dispatchEvent(new Event('visibilitychange'))
+    fireVisible()
     await tick0()
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
     expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({ ids: ['a', 'b'], days: ['2026-10-23'] })
     expect(seen).toEqual([['a', 'open'], ['b', 'open']])
     offA(); offB()
-    document.dispatchEvent(new Event('visibilitychange'))
+    fireVisible()
     await tick0()
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)          // nothing subscribed: nothing re-read
   })
@@ -158,7 +169,7 @@ describe('readDay: one batched read per kind per tick', () => {
     globalThis.fetch = vi.fn(async () => json(200, {}))
     api.subscribe('routine', 'a', '2026-10-23', () => {})
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
-    document.dispatchEvent(new Event('visibilitychange'))
+    fireVisible()
     await tick0()
     expect(globalThis.fetch).not.toHaveBeenCalled()
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
@@ -236,7 +247,7 @@ describe('writes', () => {
     expect(out).toEqual({ ok: true, entry })
     expect(here).toHaveBeenCalledWith(entry)
     expect(other).toHaveBeenCalledWith(entry)
-    expect(FakeBC.posts).toEqual([{ name: 'uct-nb-tools', data: { kind: 'routine', id: 'r1', day: '2026-10-23', entry } }])
+    expect(FakeBC.posts).toEqual([{ name: 'uct-nb-tools', data: { kind: 'routine', id: 'r1', day: '2026-10-23', entry, at: expect.any(Number), seq: expect.any(Number) } }])
   })
 
   it('works with no BroadcastChannel at all', async () => {
@@ -308,5 +319,240 @@ describe('the constants', () => {
   it('no label is hard-coded here: the state codes are never mapped to member words', () => {
     const src = readFileSync(join(__dirname, 'toolsApi.js'), 'utf8').replace(/\/\/.*$/gm, '')
     expect(src).not.toMatch(/['"`](Not yet|Not done|Skipped|Off day|Done)['"`]/)
+  })
+})
+
+// -- fix round 1 --------------------------------------------------------------------------------------------
+
+const flushTimers = () => vi.advanceTimersByTimeAsync(1)
+/** An answer for any batch, resolving 'today' to `today`. */
+const answerWithToday = (today) => async (u, init) => {
+  const b = JSON.parse(init.body)
+  const a = routineAnswer(b.ids, b.days)
+  a.resolved = { today }
+  for (const id of b.ids) {
+    a.routines[id].days = Object.fromEntries(b.days.map((d) => [d === 'today' ? today : d, { state: 'open', day: d === 'today' ? today : d }]))
+  }
+  return json(200, a)
+}
+
+describe("'today' is the server's day (W9-R27, amended)", () => {
+  it('a today subscriber hears a write for the day the server resolved', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-23T15:00:00Z'))
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(answerWithToday('2026-10-23'))
+    const first = api.readDay('routine', 'r1', 'today')
+    await flushTimers()
+    expect(await first).toMatchObject({ ok: true, resolvedDay: '2026-10-23' })
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', 'today', fn)
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done' }))
+    await api.tick('r1', '2026-10-23', 'i', true)
+    expect(fn).toHaveBeenCalledWith({ state: 'done' })
+    fn.mockClear()
+    await api.tick('r1', '2026-10-22', 'i', true)          // another day
+    expect(fn).not.toHaveBeenCalled()
+  })
+
+  it('on a weekend the server resolves to Monday, and a write for Monday is heard (not the calendar Saturday)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-24T15:00:00Z'))     // a Saturday
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(answerWithToday('2026-10-26'))
+    const first = api.readDay('routine', 'r1', 'today')
+    await flushTimers()
+    await first
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', 'today', fn)
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done' }))
+    await api.tick('r1', '2026-10-24', 'i', true)
+    expect(fn).not.toHaveBeenCalled()
+    await api.tick('r1', '2026-10-26', 'i', true)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('after ET midnight the timer re-reads: the new day is heard and the old one is not', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-24T03:30:00Z'))     // Friday 23:30 ET
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(answerWithToday('2026-10-23'))
+    const first = api.readDay('routine', 'r1', 'today')
+    await flushTimers()
+    await first
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', 'today', fn)
+    globalThis.fetch = vi.fn(answerWithToday('2026-10-26'))        // after midnight the server says Monday
+    await vi.advanceTimersByTimeAsync(31 * 60 * 1000)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)               // the timer's re-read
+    expect(fn).toHaveBeenCalledWith({ state: 'open', day: '2026-10-26' })
+    fn.mockClear()
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done' }))
+    await api.tick('r1', '2026-10-23', 'i', true)
+    expect(fn).not.toHaveBeenCalled()
+    await api.tick('r1', '2026-10-26', 'i', true)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('a stale cache falls back to the ET date and asks the server again (a tab that slept past midnight)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-23T15:00:00Z'))
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(answerWithToday('2026-10-23'))
+    const first = api.readDay('routine', 'r1', 'today')
+    await flushTimers()
+    await first
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', 'today', fn)
+    vi.setSystemTime(new Date('2026-10-26T15:00:00Z'))              // no timer ran: the tab was asleep
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done' }))
+    await api.tick('r1', '2026-10-26', 'i', true)                   // the fallback is the ET date, which matches here
+    expect(fn).toHaveBeenCalledTimes(1)
+    await flushTimers()
+    expect(globalThis.fetch.mock.calls.some(([u]) => u === '/api/j2/routines/days')).toBe(true)   // and it re-resolved
+  })
+
+  it('the midnight timer is armed by a today subscriber and cleared once none is left', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-23T15:00:00Z'))
+    const api = await freshApi()
+    expect(vi.getTimerCount()).toBe(0)
+    const dated = api.subscribe('routine', 'r1', '2026-10-23', () => {})
+    expect(vi.getTimerCount()).toBe(0)                              // a dated subscriber needs no midnight
+    const a = api.subscribe('routine', 'r1', 'today', () => {})
+    const b = api.subscribe('tracker', 't1', 'today', () => {})
+    expect(vi.getTimerCount()).toBe(1)
+    a()
+    expect(vi.getTimerCount()).toBe(1)
+    b()
+    expect(vi.getTimerCount()).toBe(0)
+    dated()
+  })
+})
+
+describe('ordering: an older result never overwrites a newer entry', () => {
+  it("two tabs: B's newer write is not overwritten by A's older broadcast arriving later", async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-23T15:00:00.100Z'))
+    const api = await freshApi()
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', '2026-10-23', fn)
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done', by: 'B' }))
+    await api.tick('r1', '2026-10-23', 'i', true)
+    fn.mockClear()
+    const tabA = new FakeBC('uct-nb-tools')
+    const older = Date.now() - 50
+    tabA.postMessage({ kind: 'routine', id: 'r1', day: '2026-10-23', entry: { by: 'A' }, at: older, seq: 1 })
+    expect(fn).not.toHaveBeenCalled()
+    tabA.postMessage({ kind: 'routine', id: 'r1', day: '2026-10-23', entry: { by: 'A' }, at: Date.now() + 50, seq: 2 })
+    expect(fn).toHaveBeenCalledWith({ by: 'A' })                    // a genuinely newer broadcast still lands
+  })
+
+  it('two rapid ticks in one tab whose answers arrive out of order: the later-sent one stands', async () => {
+    const api = await freshApi()
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', '2026-10-23', fn)
+    const gates = []
+    globalThis.fetch = vi.fn(() => new Promise((resolve) => gates.push(resolve)))
+    const t1 = api.tick('r1', '2026-10-23', 'i1', true)
+    const t2 = api.tick('r1', '2026-10-23', 'i2', true)
+    gates[1](json(200, { ticks: ['i1', 'i2'] }))                    // the second answer arrives first
+    await t2
+    gates[0](json(200, { ticks: ['i1'] }))                          // the first, older-sent, answer arrives last
+    expect(await t1).toEqual({ ok: true, entry: { ticks: ['i1'] } })    // the caller still gets its own answer
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(fn).toHaveBeenCalledWith({ ticks: ['i1', 'i2'] })
+    expect(FakeBC.posts.length).toBe(1)                             // and the stale one was not broadcast either
+  })
+
+  it('a visibility re-read answered after a write landed is not applied over it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-10-23T15:00:00.000Z'))
+    const api = await freshApi()
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', '2026-10-23', fn)
+    let answerRead
+    globalThis.fetch = vi.fn(() => new Promise((resolve) => { answerRead = resolve }))
+    fireVisible()
+    await flushTimers()                                              // the read is on the wire
+    vi.setSystemTime(new Date('2026-10-23T15:00:01.000Z'))
+    globalThis.fetch = vi.fn(async () => json(200, { state: 'done', fresh: true }))
+    await api.tick('r1', '2026-10-23', 'i', true)
+    fn.mockClear()
+    answerRead(json(200, routineAnswer(['r1'], ['2026-10-23'])))     // the OLD answer, late
+    await flushTimers()
+    await flushTimers()
+    expect(fn).not.toHaveBeenCalled()
+  })
+
+  it('a re-read with no write after it is applied', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async (u, init) => { const b = JSON.parse(init.body); return json(200, routineAnswer(b.ids, b.days)) })
+    const fn = vi.fn()
+    api.subscribe('routine', 'r1', '2026-10-23', fn)
+    fireVisible()
+    await tick0()
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('fix round 1: the minors', () => {
+  it("a write's not_found reads missing", async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async () => json(404, { detail: { code: 'not_found', message: 'Not available.' } }))
+    expect(await api.tick('r', '2026-10-01', 'i', true)).toMatchObject({ ok: false, code: 'missing' })
+  })
+
+  it('a bad day resolves missing with no request and never poisons the batch', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async (u, init) => { const b = JSON.parse(init.body); return json(200, routineAnswer(b.ids, b.days)) })
+    const [bad, good, alsoBad] = await Promise.all([
+      api.readDay('routine', 'a', 'tomorrow'), api.readDay('routine', 'a', '2026-10-23'), api.readDay('routine', 'a', '2026-1-3'),
+    ])
+    expect(bad).toEqual({ ok: false, code: 'missing' })
+    expect(alsoBad).toEqual({ ok: false, code: 'missing' })
+    expect(good.ok).toBe(true)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({ ids: ['a'], days: ['2026-10-23'] })
+  })
+
+  it('a 400 for a whole chunk is invalid for every item waiting on it, not network', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async () => json(400, { detail: { code: 'invalid', message: 'x' } }))
+    const got = await Promise.all([api.readDay('routine', 'a', '2026-10-23'), api.readDay('routine', 'b', '2026-10-22')])
+    expect(got).toEqual([{ ok: false, code: 'invalid' }, { ok: false, code: 'invalid' }])
+  })
+
+  it('a 402 stays unavailable (a paid-plan refusal reads as not available)', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async () => json(402, { detail: 'Routines and trackers require a paid plan' }))
+    expect(await api.readDay('routine', 'a', '2026-10-23')).toEqual({ ok: false, code: 'unavailable' })
+  })
+
+  it('a malformed body settles every waiting read as network, with no unhandled rejection', async () => {
+    const api = await freshApi()
+    const seen = []
+    const onRej = (e) => seen.push(e)
+    process.on('unhandledRejection', onRej)
+    try {
+      globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ get routines() { throw new Error('boom') } }) }))
+      const got = await Promise.all([api.readDay('routine', 'a', '2026-10-23'), api.readDay('routine', 'b', '2026-10-22')])
+      expect(got).toEqual([{ ok: false, code: 'network' }, { ok: false, code: 'network' }])
+      await tick0()
+      expect(seen).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onRej)
+    }
+  })
+
+  it('an id containing | survives a re-read (the parts are kept, never split from a key)', async () => {
+    const api = await freshApi()
+    globalThis.fetch = vi.fn(async (u, init) => { const b = JSON.parse(init.body); return json(200, routineAnswer(b.ids, b.days)) })
+    const fn = vi.fn()
+    api.subscribe('routine', 'a|b', '2026-10-23', fn)
+    fireVisible()
+    await tick0()
+    expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({ ids: ['a|b'], days: ['2026-10-23'] })
+    expect(fn).toHaveBeenCalledWith({ state: 'open', day: '2026-10-23' })
   })
 })
