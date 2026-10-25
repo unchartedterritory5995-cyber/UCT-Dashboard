@@ -2,6 +2,7 @@
  "version": 1,
  "about": "Shared vectors for the widget formula dialect (Task 10.2). The server (api/services/journal_two/widget_formula.py) and the client twin (app/src/pages/journal-2-0/lib/widgetFormula/widgetFormula.js) must reproduce every entry exactly. Read with a file read; never import into a bundle.",
  "conventions": {
+  "emoji_in_text": "Ruling W10-R30. Inside a TEXT literal only (never a field name), three refused characters are allowed where they build an ordinary emoji. Neighbours are code points INSIDE the text (the quotes are not neighbours). (1) U+FE0E or U+FE0F when the previous code point is visible: not U+0020, not on the shown_text (invisible) list, not refused. (2) U+200D when the code points on BOTH sides are emoji: U+1F000-1FAFF, U+2600-27BF, U+2300-23FF, U+2B00-2BFF, plus U+1F3FB-1F3FF (skin tones). So a ZWJ after U+FE0F (as in heart-on-fire) is refused. (3) U+20E3 (keycap) when the previous code point is 0-9, # or *, or is U+FE0E/U+FE0F whose previous code point is 0-9, # or *. Anything else is refused as bad_char at its position, and U+E0100-E01EF are refused everywhere.",
   "line_ends": "U+000A, U+2028 and U+2029 are line terminators: inside a text each one is unclosed_text (pos of the opening quote), inside a field name unclosed_field (pos of the [); outside a token U+2028/U+2029 are bad_char, a newline is whitespace.",
   "quoted": "unexpected and trailing quote {x} in double quotes unless {x} itself starts with a double quote (a text literal), which is shown as it stands.",
   "positions": "pos and every length count Unicode code points (Python indices; Array.from in JS).",
@@ -11,7 +12,7 @@
   "floats": "numbers compare with abs or relative tolerance 1e-9; a bool never equals a number.",
   "zero": "an expected 0 must be +0: compare with Object.is in JS (Python checks math.copysign). No answer is ever -0.",
   "significant_digits": "a literal has at most 15 significant digits: leading zeros, trailing zeros of the fraction and trailing zeros of a whole number do not count; a literal whose value is not finite is refused as bad_number.",
-  "forbidden_characters": "refused anywhere, inside a text or a field name too, as bad_char at their own position: U+0000-0008, U+000B-001F, U+007F-009F, U+00AD, U+061C, U+180E, U+115F-1160, U+180E, U+200B-200F, U+202A-202E, U+2060-206F, U+2800, U+3164, U+D800-DFFF (lone surrogates), U+FE00-FE0F, U+FEFF, U+FFA0, U+FFF9-FFFB, U+E0000-E007F, U+E0100-E01EF. Tab is allowed inside a text.",
+  "forbidden_characters": "refused anywhere, inside a text or a field name too, as bad_char at their own position: U+0000-0008, U+000B-001F, U+007F-009F, U+00AD, U+061C, U+180E, U+115F-1160, U+180E, U+200B-200F, U+202A-202E, U+2060-206F, U+2800, U+3164, U+D800-DFFF (lone surrogates), U+FE00-FE0F, U+FEFF, U+FFA0, U+FFF9-FFFB, U+E0000-E007F, U+E0100-E01EF, U+20E3. Tab is allowed inside a text. See emoji_in_text for the only exceptions.",
   "bad_char_shown": "bad_char's {x} is the character itself when it is printable ASCII, U+XXXX when it is invisible (the shown_text list plus the forbidden list and U+2028-2029), else its glyph followed by ' (U+XXXX)'.",
   "null": "null is 'no data'. No result is ever NaN or Infinity, and -0 is 0.",
   "special_floats": "a row value {\"$float\": \"nan\"|\"inf\"|\"-inf\"} decodes to that float.",
@@ -3516,9 +3517,87 @@
    "pos": 1
   },
   {
-   "expr": "\"\u2764\ufe0f\"",
+   "expr": "\" \ufe0f\"",
    "code": "bad_char",
    "sentence": "U+FE0F can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"\ufe0f\"",
+   "code": "bad_char",
+   "sentence": "U+FE0F can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\"\t\ufe0f\"",
+   "code": "bad_char",
+   "sentence": "U+FE0F can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"a\u200db\"",
+   "code": "bad_char",
+   "sentence": "U+200D can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"\ud83d\udc68\u200d\"",
+   "code": "bad_char",
+   "sentence": "U+200D can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"\u200d\ud83d\udc68\"",
+   "code": "bad_char",
+   "sentence": "U+200D can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\"\u2764\ufe0f\u200d\ud83d\udd25\"",
+   "code": "bad_char",
+   "sentence": "U+200D can't be used in a formula.",
+   "pos": 3
+  },
+  {
+   "expr": "[\ud83d\udc68\u200d\ud83d\udc69]",
+   "code": "bad_char",
+   "sentence": "U+200D can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "[\u2764\ufe0f]",
+   "code": "bad_char",
+   "sentence": "U+FE0F can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "[1\u20e3]",
+   "code": "bad_char",
+   "sentence": "U+20E3 can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"a\u20e3\"",
+   "code": "bad_char",
+   "sentence": "U+20E3 can't be used in a formula.",
+   "pos": 2
+  },
+  {
+   "expr": "\"\u20e3\"",
+   "code": "bad_char",
+   "sentence": "U+20E3 can't be used in a formula.",
+   "pos": 1
+  },
+  {
+   "expr": "\"1\ufe0f\ufe0f\"",
+   "code": "bad_char",
+   "sentence": "U+FE0F can't be used in a formula.",
+   "pos": 3
+  },
+  {
+   "expr": "\"\u2764\ufe00\"",
+   "code": "bad_char",
+   "sentence": "U+FE00 can't be used in a formula.",
    "pos": 2
   },
   {
@@ -5047,8 +5126,77 @@
    "pos": 1
   },
   {
-   "name": "variation selector inside text",
+   "name": "variation selector after a letter inside text",
    "expr": "\"x\ufe0f\"",
+   "ok": true,
+   "canonical": "\"x\ufe0f\""
+  },
+  {
+   "name": "heart emoji in a split label",
+   "expr": "\"\u2764\ufe0f Win\"",
+   "ok": true,
+   "canonical": "\"\u2764\ufe0f Win\""
+  },
+  {
+   "name": "text-style selector",
+   "expr": "\"\u2764\ufe0e\"",
+   "ok": true,
+   "canonical": "\"\u2764\ufe0e\""
+  },
+  {
+   "name": "family emoji (ZWJ sequence)",
+   "expr": "\"\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\"",
+   "ok": true,
+   "canonical": "\"\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\""
+  },
+  {
+   "name": "skin tone then ZWJ",
+   "expr": "\"\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb\"",
+   "ok": true,
+   "canonical": "\"\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb\""
+  },
+  {
+   "name": "keycap one",
+   "expr": "\"1\ufe0f\u20e3\"",
+   "ok": true,
+   "canonical": "\"1\ufe0f\u20e3\""
+  },
+  {
+   "name": "keycap hash without a selector",
+   "expr": "\"#\u20e3\"",
+   "ok": true,
+   "canonical": "\"#\u20e3\""
+  },
+  {
+   "name": "fire emoji",
+   "expr": "\"\ud83d\udd25\"",
+   "ok": true,
+   "canonical": "\"\ud83d\udd25\""
+  },
+  {
+   "name": "selector after a space",
+   "expr": "\" \ufe0f\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "ZWJ between letters",
+   "expr": "\"a\u200db\"",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "ZWJ in a field name",
+   "expr": "[\ud83d\udc68\u200d\ud83d\udc69]",
+   "ok": false,
+   "code": "bad_char",
+   "pos": 2
+  },
+  {
+   "name": "supplementary selector still refused",
+   "expr": "\"\u2764\udb40\udd00\"",
    "ok": false,
    "code": "bad_char",
    "pos": 2
