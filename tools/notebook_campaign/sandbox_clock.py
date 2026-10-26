@@ -19,8 +19,13 @@ What is shifted, for code whose module is `api` or under it:
     imported later, before its first caller sees it), function-local imports (sys.modules'
     `datetime` and `time` are replaced by proxies that hand the shifted names to `api.*` frames and
     the real ones to everybody else), and bound methods kept in a global (`_now = datetime.now`).
-  * the classes stay the real ones as far as anyone can tell: every value made is a REAL `datetime`
-    / `date` instance, `isinstance` answers as for the real class, and pydantic gets the real schema.
+  * every value made is a REAL `datetime` / `date` instance, `isinstance` answers as for the real
+    class, pydantic gets the real schema, and C code that looks the class up by name (pickle's
+    `save_global`, called from api code) gets the REAL class: the proxy shifts only an attribute fetch
+    made by api BYTECODE (`LOAD_ATTR` / `IMPORT_FROM` / `IMPORT_NAME`), never one a C function makes
+    on api's behalf (review I2: pickling a datetime raised PicklingError). One difference stays
+    visible: `type(x) is datetime` is False in api code under the shift (no such comparison in api/
+    today); it is listed with the unshiftables.
 
 What is NOT shifted is printed at boot (`unshiftable_sources`): SQLite's own clock (`CURRENT_TIMESTAMP`
 and `'now'` column defaults, and `'now'` inside queries) -- the database never asks Python -- and the
@@ -41,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dtmod
+import dis
 import importlib.abc
 import importlib.machinery
 import json
@@ -55,7 +61,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 
-LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+LOOPBACK = {"127.0.0.1", "::1"}       # literals only: "localhost" goes through the hosts file (review M1)
 SCOPE = ("api",)
 SESSIONS_NAME = "clock-sessions.json"
 MANIFEST_NAME = "campaign-manifest.json"
@@ -128,6 +134,21 @@ def _named_in(name: str, scope) -> bool:
     return any(name == p or name.startswith(p + ".") for p in scope)
 
 
+#: The opcodes by which api BYTECODE fetches a module attribute. A fetch made while the caller frame
+#: sits on any other instruction (a CALL into pickle, copyreg, getattr) is a C function looking the
+#: name up on api's behalf, and gets the real attribute.
+_FETCH_OPS = frozenset(dis.opmap[n] for n in ("LOAD_ATTR", "LOAD_METHOD", "IMPORT_FROM", "IMPORT_NAME")
+                       if n in dis.opmap)
+
+
+def _bytecode_fetch(frame) -> bool:
+    try:
+        code, i = frame.f_code.co_code, frame.f_lasti
+    except AttributeError:
+        return False
+    return 0 <= i < len(code) and code[i] in _FETCH_OPS
+
+
 def _in_scope(frame, scope) -> bool:
     return frame is not None and _named_in(frame.f_globals.get("__name__") or "", scope)
 
@@ -135,8 +156,9 @@ def _in_scope(frame, scope) -> bool:
 def _make_classes(clock: OffsetClock):
     """A `datetime` and a `date` whose clock methods read `clock`. Constructing one (directly or
     through any classmethod: fromisoformat, strptime, combine, fromtimestamp...) yields a REAL
-    instance, and isinstance/issubclass answer as for the real class, so nothing downstream (sqlite3
-    adapters keyed by exact type, pydantic, json encoders) can tell."""
+    instance, and isinstance/issubclass answer as for the real class, so sqlite3 adapters keyed by
+    exact type, pydantic and json encoders behave as before. `type(x) is <the shifted class>` is
+    False (listed with the unshiftables)."""
 
     class _Meta(type):
         def __instancecheck__(cls, obj):
@@ -232,7 +254,8 @@ class _ScopedProxy(types.ModuleType):
         if name.startswith("_sc_"):
             return object.__getattribute__(self, name)
         shifted = object.__getattribute__(self, "_sc_shifted")
-        if name in shifted and _in_scope(sys._getframe(1), object.__getattribute__(self, "_sc_scope")):
+        frame = sys._getframe(1)
+        if name in shifted and _in_scope(frame, object.__getattribute__(self, "_sc_scope")) and _bytecode_fetch(frame):
             return shifted[name]
         return getattr(object.__getattribute__(self, "_sc_real"), name)
 
@@ -288,7 +311,16 @@ class _SweepFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, name, path=None, target=None):
         if not _named_in(name, self._shift.scope):
             return None
-        spec = importlib.machinery.PathFinder.find_spec(name, path)
+        spec = None
+        for finder in list(sys.meta_path):           # every other finder, in order (review M3)
+            if finder is self or not hasattr(finder, "find_spec"):
+                continue
+            try:
+                spec = finder.find_spec(name, path, target)
+            except (ImportError, AttributeError, ValueError):
+                spec = None
+            if spec is not None:
+                break
         if spec is None or spec.loader is None or not hasattr(spec.loader, "exec_module"):
             return spec
         spec.loader = _SweepLoader(spec.loader, self._shift)
@@ -512,10 +544,45 @@ def static_unshiftable(app_root: Path) -> dict:
     return {"tables": tables, "query_files": queries}
 
 
+_REPARSE_POINT = 0x400        # FILE_ATTRIBUTE_REPARSE_POINT: junctions, symlinks, mount points
+
+
+def _is_link_or_reparse(path: str) -> bool:
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return True                                  # unreadable: never followed
+    if os.path.islink(path) or getattr(os.path, "isjunction", lambda _p: False)(path):
+        return True
+    return bool(getattr(st, "st_file_attributes", 0) & _REPARSE_POINT)
+
+
+def sandbox_db_files(data_dir: Path) -> list[Path]:
+    """Every `*.db` that is really INSIDE the sandbox: `os.walk(followlinks=False)`, a junction /
+    symlink / reparse-point directory pruned before it is entered, a linked file skipped, and each
+    file's realpath checked to sit under the sandbox's own realpath (review I1: `rglob` followed a
+    junction to the fake root and listed the .db files behind it)."""
+    top = os.path.realpath(str(data_dir))
+    found: list[Path] = []
+    for here, dirs, files in os.walk(str(data_dir), followlinks=False):
+        dirs[:] = [d for d in dirs if not _is_link_or_reparse(os.path.join(here, d))]
+        for f in files:
+            if not f.endswith(".db"):
+                continue
+            full = os.path.join(here, f)
+            if _is_link_or_reparse(full):
+                continue
+            real = os.path.realpath(full)
+            if os.path.normcase(real).startswith(os.path.normcase(top) + os.sep) and refuse_data_dir(real) is None:
+                found.append(Path(full))
+    return sorted(found)
+
+
 def live_unshiftable(data_dir: Path) -> dict:
-    """The same, read from the sandbox's own SQLite files (sqlite_master, read-only URI)."""
+    """The same, read from the sandbox's own SQLite files (sqlite_master, read-only URI), never a
+    file reached through a link."""
     out: dict[str, dict] = {}
-    for db in sorted(Path(data_dir).rglob("*.db")):
+    for db in sandbox_db_files(data_dir):
         try:
             conn = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True, timeout=2)
             try:
@@ -543,6 +610,10 @@ ALWAYS_UNSHIFTABLE = (
     "from api before `install()` is swept for module globals only (a class attribute or a dataclass "
     "default_factory captured then keeps the real function)",
     "the browser: its clock is the runner's job (Playwright context.clock), never this process's",
+    "identity checks: in api code under the shift `type(x) is datetime` is False (the name is the shifted "
+    "class, the value a real datetime); none exists in api/ today. A name fetched by a builtin call "
+    "(`getattr(datetime_module, 'datetime')`) is the real one",
+    "pandas / numpy clocks (`Timestamp.now()`, `datetime64('now')`) read the C clock; none in api/ today",
 )
 
 
@@ -569,33 +640,74 @@ def print_unshiftable(app_root: Path, data_dir: Path) -> dict:
 
 # ── sessions that the shifted clock would read as expired ──────────────────────────────────────
 
-def remint_sessions(data_dir: Path, clock: OffsetClock, out_name: str = SESSIONS_NAME) -> dict:
-    """The seeder mints one session per member with the REAL clock (30-day life); a member read at a
-    later instant would be signed out. Under the shift, every manifest member whose stored session no
-    longer validates gets a fresh one from the app's own `create_session` (so its expiry is the
-    shifted now + 30 days), written to `<data-dir>/clock-sessions.json` for the runner. The manifest
-    itself is never rewritten."""
+def _session_live(conn, token: str | None, now_utc) -> bool:
+    """READ-ONLY: is there a session row for `token` whose expiry is after `now_utc`? Never
+    `validate_session`, which DELETES a row it reads as expired (review I3)."""
+    if not token:
+        return False
+    row = conn.execute("SELECT expires_at FROM sessions WHERE token = ?", (token,)).fetchone()
+    if not row or not row[0]:
+        return False
+    try:
+        exp = _RD.fromisoformat(str(row[0]).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=_UTC)
+    return exp > now_utc
+
+
+def remint_sessions(data_dir: Path, clock: OffsetClock, personas, out_name: str = SESSIONS_NAME) -> dict:
+    """A seeded session (real clock, 30-day life) reads as expired at a later instant. For each persona
+    in `personas` (the clock group being booted, never the whole manifest), the session rows are read
+    READ-ONLY against the shifted now: the seeded token, or one this launcher minted at an earlier
+    instant (kept in clock-sessions.json), is reused while it is live; only when neither is does the
+    app's own `create_session` mint one. No session row is ever deleted or rewritten by this function;
+    the manifest is never rewritten."""
     mpath = Path(data_dir) / MANIFEST_NAME
     if not mpath.is_file():
         return {"skipped": f"no {MANIFEST_NAME} in the data dir"}
-    from api.services import auth_service
+    want = [p for p in (personas or []) if p]
+    if not want:
+        return {"skipped": "no --personas (the clock group); nothing re-minted"}
+    from api.services import auth_db, auth_service
     manifest = json.loads(mpath.read_text(encoding="utf-8"))
-    out, kept, minted = {}, 0, 0
-    for pid, rec in (manifest.get("members") or {}).items():
-        tok, uid = rec.get("session"), rec.get("user_id")
-        if not tok or not uid:
-            continue
-        if auth_service.validate_session(tok):
-            out[pid] = tok
-            kept += 1
-            continue
+    spath = Path(data_dir) / out_name
+    earlier = {}
+    if spath.is_file():
+        try:
+            earlier = (json.loads(spath.read_text(encoding="utf-8")).get("minted") or {})
+        except ValueError:
+            earlier = {}
+    now_utc = clock.utc()
+    out, kept, reused, minted = {}, 0, 0, 0
+    conn = auth_db.get_connection()
+    try:
+        for pid in want:
+            rec = (manifest.get("members") or {}).get(pid) or {}
+            tok, uid = rec.get("session"), rec.get("user_id")
+            if not uid:
+                continue
+            if _session_live(conn, tok, now_utc):
+                out[pid] = tok
+                kept += 1
+            elif _session_live(conn, earlier.get(pid), now_utc):
+                out[pid] = earlier[pid]
+                reused += 1
+            else:
+                out[pid] = None
+    finally:
+        conn.close()
+    for pid in [p for p, t in out.items() if t is None]:
+        uid = manifest["members"][pid]["user_id"]
         out[pid] = auth_service.create_session(uid, user_agent="notebook-campaign clock", ip_address="127.0.0.1")
+        earlier[pid] = out[pid]
         minted += 1
-    body = {"clock": clock.instant.isoformat(), "members": out}
+    body = {"clock": clock.instant.isoformat(), "members": out, "minted": earlier}
     tmp = Path(data_dir) / (out_name + ".tmp")
     tmp.write_text(json.dumps(body, indent=1), encoding="utf-8", newline="\n")
-    os.replace(tmp, Path(data_dir) / out_name)
-    return {"kept": kept, "minted": minted, "file": str(Path(data_dir) / out_name)}
+    os.replace(tmp, spath)
+    return {"kept": kept, "reused": reused, "minted": minted, "personas": want, "file": str(spath)}
 
 
 # ── the launcher ───────────────────────────────────────────────────────────────────────────────
@@ -609,6 +721,8 @@ def main(argv=None) -> int:
     ap.add_argument("--app-root", default=str(REPO), help="the checkout whose api/, launcher and app/dist are served")
     ap.add_argument("--test-email", default="hubtest@local.dev")
     ap.add_argument("--no-remint", action="store_true", help="do not re-mint expired campaign sessions")
+    ap.add_argument("--personas", default="", help="comma-separated persona ids of the clock group: only "
+                    "their sessions are checked (read-only) and, where expired at the shifted now, re-minted")
     args = ap.parse_args(argv)
 
     for why in (refuse_data_dir(args.data_dir), refuse_host(args.host)):
@@ -661,7 +775,8 @@ def main(argv=None) -> int:
     unshift = print_unshiftable(app_root, Path(sandbox))
     if not args.no_remint:
         try:
-            print(f"  Sessions     : {remint_sessions(Path(sandbox), shift.clock)}", flush=True)
+            group = [x.strip() for x in args.personas.split(",") if x.strip()]
+            print(f"  Sessions     : {remint_sessions(Path(sandbox), shift.clock, group)}", flush=True)
         except Exception as e:  # noqa: BLE001 -- a fresh dir has no tables yet; said, not hidden
             print(f"  Sessions     : not re-minted ({type(e).__name__}: {e})", flush=True)
 

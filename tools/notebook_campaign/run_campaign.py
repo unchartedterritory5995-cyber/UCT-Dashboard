@@ -362,7 +362,7 @@ class ClockSandbox:
     def base(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    def start(self, instant: str) -> dict:
+    def start(self, instant: str, personas: list[str] | None = None) -> dict:
         if self.h.port_busy(self.port):
             raise SystemExit(f"REFUSED: port {self.port} already has a listener (never killed); pass --clock-port")
         flags = campaign_env(self.fs)
@@ -370,7 +370,7 @@ class ClockSandbox:
         log = self.out / f"clock-boot{n}.log"
         cmd = [sys.executable, "-u", "-c", self.h._SHIM, str(self.launcher), "--clock", instant,
                "--data-dir", str(self.data_dir), "--port", str(self.port), "--host", "127.0.0.1",
-               "--app-root", str(self.app_root)]
+               "--app-root", str(self.app_root), "--personas", ",".join(personas or [])]
         kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True})
         with open(log, "w", encoding="utf-8") as fh:
             self.proc = subprocess.Popen(cmd, cwd=str(self.app_root), stdout=fh, stderr=subprocess.STDOUT, **kw)
@@ -1425,7 +1425,11 @@ class Campaign:
         return self.spec["sentences"][key]["text"]
 
     def probe_w11(self) -> dict:
-        any_session = next((m["session"] for m in self.manifest["members"].values() if m.get("session")), None)
+        # Under a clock group, a session the launcher vouched for at the shifted now: a seeded one the
+        # server reads as expired would be DELETED by its own validate_session on this very request
+        # (found in the fix-round dry run: the probe, not the launcher, removed P13's seeded row).
+        any_session = (next(iter(v for v in (self.session_override or {}).values() if v), None)
+                       or next((m["session"] for m in self.manifest["members"].values() if m.get("session")), None))
         import urllib.request
         req = urllib.request.Request(self.base + "/api/j2/template-gallery/library",
                                      headers={"Cookie": f"uct_session={any_session}"} if any_session else {})
@@ -1733,7 +1737,7 @@ def main(argv=None) -> int:
             if groups:
                 clock_sb = ClockSandbox(g.h, g.fw, launcher, app_root, data_dir, args.clock_port, out)
             for at, ps in groups:
-                clock_sb.start(at)
+                clock_sb.start(at, [p["id"] for p in ps])
                 try:
                     g.base = clock_sb.base
                     ident = verify_identity(f"clock {at}")
