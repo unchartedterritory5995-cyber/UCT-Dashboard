@@ -149,10 +149,19 @@ def test_known_blocks_prefix_test_reaches_every_module():
 
 
 def test_the_gallery_reader_accepts_a_family_block_with_no_call_site_change():
+    """W11-R3: `KNOWN_BLOCKS` admits every family id at the gallery reader's own membership test (`bid in
+    KNOWN_BLOCKS`, unchanged), and still refuses an unknown one. W11-R19 (Task 11.7 fix round 2): the reader
+    itself then DROPS family blocks until Task 11.8's reducer, through the one shared strip
+    `template_gallery._without_template_slots` (railed in tests/test_gallery_item_types_w11.py)."""
+    from api.services.journal_two import journal_styles as js
     from api.services.journal_two import template_gallery as tg
+    for bid in ("built_a", "routine_b", "tracker_c"):
+        assert bid in js.KNOWN_BLOCKS, bid
+    assert "zzNew" not in js.KNOWN_BLOCKS
     got = tg._safe_listed({"blocks": [{"block": "built_a", "settings": _built()},
+                                      {"block": "chart", "settings": {}},
                                       {"block": "zzNew", "settings": {}}]})
-    assert [b["block"] for b in got["blocks"]] == ["built_a"]
+    assert [b["block"] for b in got["blocks"]] == ["chart"]
 
 
 # ── slot_settings_of: one case per sentence ────────────────────────────────────────────────────
