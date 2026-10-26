@@ -636,9 +636,10 @@ def _owned_choice(family: str, uid: str, tid: Any, conn: sqlite3.Connection | No
     isn't in your account."). The read is `WHERE id = ? AND user_id = ?` (the store's `get`), so another member's row
     is never read."""
     from api.services.journal_two.widget_engine.share import ShareError
-    if not isinstance(tid, str) or not tid or tid in _CHECKINS:
+    if not isinstance(tid, str) or not tid:
         raise ShareError("not_yours", S_CHOICE_NOT_YOURS)
     got = _store(family).get(uid, tid, conn=conn)
+    # a check-in is `readOnly` (trackers.BUILTIN): never offered, so refused by the same one test as an archived row
     if not isinstance(got, dict) or got.get("archived") or got.get("readOnly"):
         raise ShareError("not_yours", S_CHOICE_NOT_YOURS)
     if family == "tracker" and isinstance(kind, str) and got.get("kind") != kind:
