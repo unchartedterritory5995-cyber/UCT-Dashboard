@@ -28,25 +28,37 @@ WINDOW, FORWARD = 120, 20
 #: setup -> (skill_id, the owner's definition in his words, the detector's name)
 SETUPS = {
     "Launchpad": ("setup.family1.launchpad",
-                  "Launchpad: after a bear market or a correction the moving averages converge into a tight bundle and the "
-                  "stock is coiled to break either way. The convergence is the tell. It does not need the full 9 > 20 > 50 > 200 "
-                  "stack (owner ruling 2026-10-23).", "uct_launch_pad"),
+                  "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the "
+                  "200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting "
+                  "it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they "
+                  "stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its "
+                  "averages that breaks out is a base breakout (owner rulings 2026-10-23/24).", "uct_launch_pad"),
     "Kicker Candle": ("setup.family3.kicker",
-                      "Kicker: a red candle the day before, then a decent-size gap up that follows through with a strong green "
-                      "candle, closing above the prior day's high and near its own high. The shorts from the red day are trapped "
-                      "(owner ruling 2026-10-23).", "uct_kicker"),
+                      "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near "
+                      "its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and "
+                      "follows through with a strong green candle that closes above the red day's high and near its own high, "
+                      "usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and "
+                      "rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a "
+                      "breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).", "uct_kicker"),
     "High Volume Edge": ("setup.family3.hve",
-                         "High Volume Edge: an up day on the highest volume of the lookback. That day's close is the level the "
-                         "biggest participants committed at, and price must defend it. Long only; a strong close is not required "
-                         "(owner ruling 2026-10-23).", "uct_hve"),
+                         "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior "
+                         "record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is "
+                         "truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed "
+                         "at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap "
+                         "on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).", "uct_hve"),
     "Oops Reversal": ("setup.family4.oops",
-                      "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then "
-                      "reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above "
-                      "it. A Super Oops is any Oops that closes above the prior day's HIGH, engulfing the whole day (owner ruling "
-                      "2026-10-23).", "uct_oops_reversal"),
+                      "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses "
+                      "and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super "
+                      "Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the "
+                      "end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, "
+                      "with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the "
+                      "Oops-day low must never break afterwards (owner rulings 2026-10-23/24).", "uct_oops_reversal"),
     "Slingshot": ("setup.family4.slingshot",
-                  "Slingshot: a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the "
-                  "4-day average of the highs. The gap day or rally day itself is never the trigger (owner ruling 2026-10-24).",
+                  "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its "
+                  "first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% "
+                  "deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that "
+                  "average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the "
+                  "trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
                   "uct_slingshot"),
     "Gap Support": ("setup.family3.gap_support",
                     "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal "
@@ -98,6 +110,11 @@ def fact_line(setup: str, ex: dict) -> str:
         g, r = f.get("earnings_like_gap"), f.get("rally")
         drive = (f"an earnings-style gap of {g['gap_pct']}% {g['bars_ago']} sessions earlier" if g
                  else f"a {r['rally_pct']}% rally that peaked {r['bars_ago']} sessions earlier" if r else "the drive before it")
+        if f.get("pullback_sessions") is not None and f.get("close_pos_pct") is not None:
+            # pass 2 (owner review 2026-10-25): the pullback and the trigger day, measured
+            return (f"Here the drive was {drive}; the pullback ran {f.get('pullback_sessions')} sessions and "
+                    f"{f.get('pullback_depth_abs_pct')}% deep under the 4-day average of the highs; the trigger day closed up "
+                    f"{f.get('day_pct')}% at {f.get('close_pos_pct')}% of its range, gapping {f.get('trigger_gap_pct')}%.")
         return f"Here the drive was {drive}; the trigger day gapped only {f.get('trigger_gap_pct')}%."
     if setup == "Gap Support":
         return (f"Here the gap was {f.get('gap_pct')}% {f.get('bars_since_gap')} sessions earlier and price tested "
@@ -120,6 +137,8 @@ def items_for(examples: list[dict]) -> list[dict]:
         for k in ("close_pos", "dcr"):
             if facts.get(k) is not None:
                 facts[k + "_pct"] = int(round(float(facts[k]) * 100))
+        if facts.get("pullback_depth_pct") is not None:
+            facts["pullback_depth_abs_pct"] = round(abs(float(facts["pullback_depth_pct"])), 1)
         if facts.get("setup_score") is not None:
             # the Kicker pass-2 lesson names the three averages; the grounding check reads them here
             facts["ma_periods"] = [8, 20, 21, 30, 50, 200]
