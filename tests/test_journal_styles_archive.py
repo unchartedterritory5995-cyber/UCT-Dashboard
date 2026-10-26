@@ -515,3 +515,26 @@ def test_deleting_a_kind_keeps_its_deleted_templates_and_restore_refuses_them(db
         js.restore_style(MEMBER, s["id"], db)
     assert not db.in_transaction
     assert js.get_style(MEMBER, s["id"], db, include_deleted=True)["deletedAt"]
+
+
+# ── Fix round 2 (N-1): every My tools door leaves a caller's open transaction to the caller ─────────────────────
+
+@pytest.mark.parametrize("door", ["archive", "unarchive", "delete_typed"])
+def test_a_callers_open_transaction_is_never_committed(db, door):
+    s = _mine(db, "My Plan")
+    if door != "archive":
+        js.archive_style(MEMBER, s["id"], conn=db)
+    db.execute("BEGIN")
+    db.execute("UPDATE j2_journal_styles SET name = 'Caller edit' WHERE id = ? AND user_id = ?", (s["id"], MEMBER))
+    if door == "archive":
+        js.archive_style(MEMBER, s["id"], conn=db)
+    elif door == "unarchive":
+        js.unarchive_style(MEMBER, s["id"], conn=db)
+    else:
+        db.execute("UPDATE j2_journal_styles SET name = 'My Plan' WHERE id = ?", (s["id"],))
+        js.delete_style_typed(MEMBER, s["id"], "My Plan", conn=db)
+    assert db.in_transaction                                            # still open: the caller decides
+    db.rollback()
+    row = db.execute("SELECT name, archived_at, deleted_at FROM j2_journal_styles WHERE id = ?", (s["id"],)).fetchone()
+    assert row["name"] == "My Plan" and row["deleted_at"] is None
+    assert (row["archived_at"] is None) is (door == "archive")          # the door's own write was rolled back too

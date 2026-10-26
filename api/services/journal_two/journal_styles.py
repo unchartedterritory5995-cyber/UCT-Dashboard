@@ -902,10 +902,12 @@ def archive_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | Non
     _refuse_builtin_archive(style_id)
     owned = conn is None
     conn = conn or get_connection()
+    caller_tx = conn.in_transaction          # fix round 2: a caller's open transaction is the caller's to commit
     try:
         conn.execute("UPDATE j2_journal_styles SET archived_at = COALESCE(archived_at, ?), is_default = 0"
                      " WHERE id = ? AND user_id = ? AND deleted_at IS NULL", (_now(), style_id, user_id))
-        conn.commit()
+        if not caller_tx:
+            conn.commit()
         return _view_style(user_id, style_id, conn)
     finally:
         if owned:
@@ -917,10 +919,12 @@ def unarchive_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | N
     _refuse_builtin_archive(style_id)
     owned = conn is None
     conn = conn or get_connection()
+    caller_tx = conn.in_transaction          # fix round 2: a caller's open transaction is the caller's to commit
     try:
         conn.execute("UPDATE j2_journal_styles SET archived_at = NULL WHERE id = ? AND user_id = ?"
                      " AND deleted_at IS NULL", (style_id, user_id))
-        conn.commit()
+        if not caller_tx:
+            conn.commit()
         return _view_style(user_id, style_id, conn)
     finally:
         if owned:
@@ -1059,7 +1063,8 @@ def delete_style_typed(user_id: str, style_id: str, typed_name: Any, *,
             raise StyleValidationError(S_ARCHIVE_FIRST)
         if not isinstance(typed_name, str) or typed_name != r["name"]:
             raise StyleValidationError(S_TYPE_NAME)
-        if delete_style(user_id, style_id, conn) is None:          # commits the one transaction
+        # commits the one transaction only when this call began it (fix round 2: never the caller's)
+        if delete_style(user_id, style_id, conn, commit=began) is None:
             return None
         return _view_style(user_id, style_id, conn, include_deleted=True)
     except BaseException:
@@ -1316,8 +1321,11 @@ def set_default(user_id: str, style_id: str, conn: sqlite3.Connection | None = N
             conn.close()
 
 
-def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
-    """Soft delete (spec P1.4: with undo). Remembers whether it was the default, for restore."""
+def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = None, *,
+                 commit: bool = True) -> dict | None:
+    """Soft delete (spec P1.4: with undo). Remembers whether it was the default, for restore. `commit=False`
+    (Task 11.13 fix round 2) leaves the write in the CALLER's open transaction; ignored when this function opened
+    the connection itself."""
     if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
         raise StyleValidationError("Built-in styles can't be deleted.")
     owned = conn is None
@@ -1329,7 +1337,8 @@ def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = 
         now = _now()
         conn.execute("UPDATE j2_journal_styles SET deleted_at = ?, default_before_delete = is_default,"
                      " is_default = 0, updated_at = ? WHERE id = ? AND user_id = ?", (now, now, style_id, user_id))
-        conn.commit()
+        if commit or owned:
+            conn.commit()
         return get_style(user_id, style_id, conn, include_deleted=True)
     finally:
         if owned:
