@@ -43,6 +43,7 @@ __all__ = [
     "TrackerError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly", "CountCap",
     "create", "get", "update", "list_trackers", "archive", "unarchive", "soft_delete",
     "undelete", "duplicate", "set_value", "read_days", "is_builtin", "used_in_notes",
+    "resolve_many", "match_candidates", "FROM_TEMPLATE_MAX", "RESOLVE_MANY_MAX",
 ]
 
 COUNT_CAP = 30
@@ -84,6 +85,7 @@ S_BAD_NAME = "Give the tracker a name."
 S_NAME_LONG = "A name can be at most 80 characters."
 S_BAD_DAY = "Dates need to look like 2026-10-24."
 S_BAD_SETTINGS = "These tracker settings couldn't be saved."
+S_FROM_TEMPLATE_LONG = "A template name can be at most 80 characters."
 S_BAD_DAYS = "Pick which days this tracker logs."
 S_ARCHIVE_FIRST = "Archive this tracker before deleting it."
 S_TYPE_NAME = "Type the tracker's name exactly to delete it."
@@ -111,6 +113,10 @@ _USES_JOIN = (
 )
 _V = "j2_tracker_values"
 _TEMPLATE_KEY_MAX = 64
+#: Wave 11 (W11-R13): a template-made tracker's `settings.fromTemplate` (the template's title), at most this long.
+FROM_TEMPLATE_MAX = 80
+#: Wave 11 (W11-R21): at most this many ids are read by one `resolve_many` (one statement); the rest are left out.
+RESOLVE_MANY_MAX = 200
 _MISSING = object()
 
 
@@ -247,18 +253,40 @@ def _clean_unit(unit: Any) -> str | None:
     return clean or None
 
 
+def _clean_from_template(raw: Any) -> str | None:
+    """Wave 11 (W11-R13): the template a tracker was made from, as text of at most FROM_TEMPLATE_MAX characters;
+    None or blank is none. My tools shows it as "From template: <fromTemplate>"."""
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raise TrackerError(S_BAD_SETTINGS)
+    clean = " ".join(raw.split())
+    if len(clean) > FROM_TEMPLATE_MAX:
+        raise TrackerError(S_FROM_TEMPLATE_LONG)
+    return clean or None
+
+
 def _clean_settings(raw: Any, base: dict | None = None) -> dict:
-    """The given keys over `base` (or the defaults), validated whole."""
+    """The given keys over `base` (or the defaults), validated whole. `fromTemplate` (wave 11) is answered only
+    when set, so a tracker made by hand answers exactly the key it always did."""
     merged = dict(DEFAULT_SETTINGS)
+    from_template = None
     if base:
         merged.update({k: base[k] for k in DEFAULT_SETTINGS if k in base})
+        from_template = base.get("fromTemplate")
     if raw is not None:
         if not isinstance(raw, dict):
             raise TrackerError(S_BAD_SETTINGS)
         merged.update({k: raw[k] for k in DEFAULT_SETTINGS if k in raw})
+        if "fromTemplate" in raw:
+            from_template = raw["fromTemplate"]
     if merged["days"] not in DAYS_CHOICES:
         raise TrackerError(S_BAD_DAYS)
-    return {"days": merged["days"]}
+    out = {"days": merged["days"]}
+    from_template = _clean_from_template(from_template)
+    if from_template is not None:
+        out["fromTemplate"] = from_template
+    return out
 
 
 def _clean_value(kind: str, raw: Any) -> float:
@@ -360,29 +388,32 @@ def _builtin_shape(tid: str) -> dict:
 
 
 def _insert(c: sqlite3.Connection, user_id: str, name: str, kind: str, unit: str | None,
-            settings: dict, ts: str, template_key: str | None) -> str:
+            settings: dict, ts: str, template_key: str | None, gallery_id: str | None = None) -> str:
     tid = str(uuid.uuid4())
     c.execute(
         f"INSERT INTO {_T} (id, user_id, name, kind, unit, settings_json, created_at,"
         " updated_at, archived_at, deleted_at, save_seq, source_gallery_id, source_template_key)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, NULL, ?)",
-        (tid, user_id, name, kind, unit, _dump(settings), ts, ts, template_key))
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, ?, ?)",
+        (tid, user_id, name, kind, unit, _dump(settings), ts, ts, gallery_id, template_key))
     return tid
 
 
 # ── CRUD ───────────────────────────────────────────────────────────────────────────────────────
 
 def create(user_id: str, *, name: Any, kind: Any, unit: Any = None, settings: dict | None = None,
-           source_template_key: str | None = None, now: datetime | None = None,
-           conn: sqlite3.Connection | None = None) -> dict:
+           source_template_key: str | None = None, source_gallery_id: str | None = None,
+           now: datetime | None = None, conn: sqlite3.Connection | None = None) -> dict:
     """A new tracker. A second create with the same `source_template_key` returns the existing
-    tracker."""
+    tracker (UNIQUE per member; the read and the insert share one `BEGIN IMMEDIATE`). Wave 11: a tracker made
+    from a gallery item records `source_gallery_id`."""
     clean_name = _clean_name(name)
     clean_kind = _clean_kind(kind)
     clean_unit = _clean_unit(unit)
     clean_settings = _clean_settings(settings)
     key = source_template_key if isinstance(source_template_key, str) else None
     key = key.strip()[:_TEMPLATE_KEY_MAX] if key and key.strip() else None
+    gallery_id = (source_gallery_id.strip() if isinstance(source_gallery_id, str) and source_gallery_id.strip()
+                  else None)
     now_dt = _now(now)
     with _write(conn) as c:
         if key is not None:
@@ -409,8 +440,43 @@ def create(user_id: str, *, name: Any, kind: Any, unit: Any = None, settings: di
                 return _shape(have, c)
         _check_cap(c, user_id)
         tid = _insert(c, user_id, clean_name, clean_kind, clean_unit, clean_settings,
-                      _iso(now_dt), key)
+                      _iso(now_dt), key, gallery_id)
         return _shape(_owned(c, user_id, tid), c)
+
+
+def resolve_many(user_id: str, ids: Any, *, conn: sqlite3.Connection | None = None) -> dict:
+    """Wave 11 (W11-R21): many owned name reads in ONE statement: `{id: {"name", "kind", "archived"}}`, or None
+    for an id that is not this member's live tracker (foreign, unknown or deleted). A built-in id answers its
+    built-in row without a read. At most RESOLVE_MANY_MAX distinct ids are read; the rest are left out of the
+    answer (the caller's fallback). `WHERE user_id = ?`: another member's row is never read."""
+    pool = ids if isinstance(ids, (list, tuple)) else []
+    wanted = list(dict.fromkeys(i for i in pool if isinstance(i, str) and i))[:RESOLVE_MANY_MAX]
+    if not wanted or not user_id:
+        return {}
+    out: dict = {i: {"name": BUILTIN[i]["name"], "kind": BUILTIN[i]["kind"], "archived": False}
+                 for i in wanted if is_builtin(i)}
+    own = [i for i in wanted if not is_builtin(i)]
+    if own:
+        marks = ", ".join("?" for _ in own)
+        with _read(conn) as c:
+            rows = c.execute(f"SELECT id, name, kind, archived_at FROM {_T} WHERE user_id = ?"
+                             f" AND deleted_at IS NULL AND id IN ({marks})", (user_id, *own)).fetchall()
+        found = {r[0]: {"name": r[1], "kind": r[2], "archived": r[3] is not None} for r in rows}
+        out.update({i: found.get(i) for i in own})
+    return {i: out.get(i) for i in wanted}
+
+
+def match_candidates(user_id: str, *, conn: sqlite3.Connection | None = None) -> list[dict]:
+    """Wave 11 (Task 11.6): the member's own live, non-archived trackers as `[{id, name, kind, updatedAt}]`, in
+    ONE read and with no write (`list_trackers` may purge; this never does). The two check-in trackers are not
+    the member's and are never a candidate. What `template_tools.best_match` compares a template's tracker
+    against."""
+    if not user_id:
+        return []
+    with _read(conn) as c:
+        rows = c.execute(f"SELECT id, name, kind, updated_at FROM {_T} WHERE user_id = ? AND deleted_at IS NULL"
+                         " AND archived_at IS NULL ORDER BY updated_at DESC, id DESC", (user_id,)).fetchall()
+    return [{"id": r[0], "name": r[1], "kind": r[2], "updatedAt": r[3]} for r in rows]
 
 
 def get(user_id: str, tid: str, *, now: datetime | None = None,

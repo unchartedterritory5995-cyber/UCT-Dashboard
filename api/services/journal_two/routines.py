@@ -49,7 +49,8 @@ __all__ = [
     "RoutineError", "NotFound", "Conflict", "OutsideWindow", "ReadOnly", "CountCap",
     "create", "get", "update", "list_routines", "archive", "unarchive", "soft_delete",
     "undelete", "duplicate", "traded_days", "set_tick", "set_skipped", "read_days",
-    "import_day_rules", "starters", "used_in_notes",
+    "import_day_rules", "starters", "used_in_notes", "resolve_many", "match_candidates",
+    "FROM_TEMPLATE_MAX", "RESOLVE_MANY_MAX",
 ]
 
 COUNT_CAP = 30
@@ -80,6 +81,7 @@ S_UNKNOWN_ITEM = "That item isn't in this routine."
 S_BAD_SHARE = "Pick how much of the routine counts as done."
 S_BAD_TIME = "Pick a reminder time in 5-minute steps."
 S_BAD_SETTINGS = "These routine settings couldn't be saved."
+S_FROM_TEMPLATE_LONG = "A template name can be at most 80 characters."
 S_BAD_TICK = "Choose ticked or not ticked."
 S_OFF_DAY = "This routine didn't run that day."
 S_BAD_SKIP = "Choose skipped or not skipped."
@@ -118,6 +120,10 @@ DAY_AHEAD_MAX = 366
 STORED_ITEMS_MAX = 200
 _RULE_MAX = 40
 _TEMPLATE_KEY_MAX = 64
+#: Wave 11 (W11-R13): a template-made routine's `settings.fromTemplate` (the template's title), at most this long.
+FROM_TEMPLATE_MAX = 80
+#: Wave 11 (W11-R21): at most this many ids are read by one `resolve_many` (one statement); the rest are left out.
+RESOLVE_MANY_MAX = 200
 
 
 class RoutineError(ToolError):
@@ -347,15 +353,34 @@ def _clean_schedule(raw: Any) -> dict:
     return {"kind": "weekdays", "days": sorted(clean)}
 
 
+def _clean_from_template(raw: Any) -> str | None:
+    """Wave 11 (W11-R13): the template a routine was made from, as text of at most FROM_TEMPLATE_MAX characters;
+    None or blank is none. My tools shows it as "From template: <fromTemplate>"."""
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raise RoutineError(S_BAD_SETTINGS)
+    clean = " ".join(raw.split())
+    if len(clean) > FROM_TEMPLATE_MAX:
+        raise RoutineError(S_FROM_TEMPLATE_LONG)
+    return clean or None
+
+
 def _clean_settings(raw: Any, base: dict | None = None) -> dict:
-    """The given keys over `base` (or the defaults), validated whole."""
+    """The given keys over `base` (or the defaults), validated whole. `fromTemplate` (wave 11) is answered only
+    when set, so a routine made by hand answers exactly the three keys it always did."""
     merged = dict(DEFAULT_SETTINGS)
+    from_template = None
     if base:
         merged.update({k: base[k] for k in DEFAULT_SETTINGS if k in base})
+        from_template = base.get("fromTemplate")
     if raw is not None:
         if not isinstance(raw, dict):
             raise RoutineError(S_BAD_SETTINGS)
         merged.update({k: raw[k] for k in DEFAULT_SETTINGS if k in raw})
+        if "fromTemplate" in raw:
+            from_template = raw["fromTemplate"]
+    from_template = _clean_from_template(from_template)
     share = merged["done_share"]
     if isinstance(share, bool) or not isinstance(share, (int, float)):
         raise RoutineError(S_BAD_SHARE)
@@ -374,7 +399,10 @@ def _clean_settings(raw: Any, base: dict | None = None) -> dict:
         if m is None or int(m.group(2)) % 5 != 0:
             raise RoutineError(S_BAD_TIME)
         rem = {"on": rem["on"], "time_et": t}
-    return {"done_share": match[0], "strict": strict, "reminder": rem}
+    out = {"done_share": match[0], "strict": strict, "reminder": rem}
+    if from_template is not None:
+        out["fromTemplate"] = from_template
+    return out
 
 
 # ── rows ───────────────────────────────────────────────────────────────────────────────────────
@@ -480,7 +508,8 @@ def used_in_notes(user_id: str, rid: str, *,
 
 
 def _insert(c: sqlite3.Connection, user_id: str, name: str, items: list[dict], schedule: dict,
-            settings: dict, today: date, ts: str, template_key: str | None) -> str:
+            settings: dict, today: date, ts: str, template_key: str | None,
+            gallery_id: str | None = None) -> str:
     rid = str(uuid.uuid4())
     day = today.isoformat()
     stored = [{"id": str(uuid.uuid4()), "text": it["text"], "negative": it["negative"],
@@ -488,8 +517,8 @@ def _insert(c: sqlite3.Connection, user_id: str, name: str, items: list[dict], s
     c.execute(
         f"INSERT INTO {_R} (id, user_id, name, items_json, settings_json, created_at, updated_at,"
         " archived_at, deleted_at, save_seq, source_gallery_id, source_template_key)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, NULL, ?)",
-        (rid, user_id, name, _dump(stored), _dump(settings), ts, ts, template_key))
+        " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, ?, ?)",
+        (rid, user_id, name, _dump(stored), _dump(settings), ts, ts, gallery_id, template_key))
     c.execute(f"INSERT INTO {_SCHED} (user_id, routine_id, effective_from, schedule_json)"
               " VALUES (?, ?, ?, ?)", (user_id, rid, day, _dump(schedule)))
     return rid
@@ -499,15 +528,20 @@ def _insert(c: sqlite3.Connection, user_id: str, name: str, items: list[dict], s
 
 def create(user_id: str, *, name: Any, items: list[dict], schedule: dict,
            settings: dict | None = None, source_template_key: str | None = None,
+           source_gallery_id: str | None = None,
            now: datetime | None = None, conn: sqlite3.Connection | None = None) -> dict:
     """A new routine: items get fresh ids valid from today ET, and one schedule row from today.
-    A second create with the same `source_template_key` returns the existing routine."""
+    A second create with the same `source_template_key` returns the existing routine (the key is UNIQUE per
+    member, and the read and the insert share one `BEGIN IMMEDIATE`, so two concurrent creates make one).
+    Wave 11: a routine made from a gallery item records `source_gallery_id` (W11-R11's use-days read it)."""
     clean_name = _clean_name(name)
     clean_items = _clean_items(items)
     clean_sched = _clean_schedule(schedule)
     clean_settings = _clean_settings(settings)
     key = source_template_key if isinstance(source_template_key, str) else None
     key = key.strip()[:_TEMPLATE_KEY_MAX] if key and key.strip() else None
+    gallery_id = (source_gallery_id.strip() if isinstance(source_gallery_id, str) and source_gallery_id.strip()
+                  else None)
     now_dt = _now(now)
     today = trading_days.today_et(now_dt)
     with _write(conn) as c:
@@ -532,7 +566,7 @@ def create(user_id: str, *, name: Any, items: list[dict], schedule: dict,
                 return _shape(c, have, today)
         _check_cap(c, user_id)
         rid = _insert(c, user_id, clean_name, clean_items, clean_sched, clean_settings, today,
-                      _iso(now_dt), key)
+                      _iso(now_dt), key, gallery_id)
         return _shape(c, _owned(c, user_id, rid), today)
 
 
@@ -636,6 +670,38 @@ def _purge_old_deleted(c: sqlite3.Connection, user_id: str, now_dt: datetime) ->
         (user_id, cutoff))]
     _purge_ids(c, user_id, ids)
     return len(ids)
+
+
+def resolve_many(user_id: str, ids: Any, *, conn: sqlite3.Connection | None = None) -> dict:
+    """Wave 11 (W11-R21): many owned name reads in ONE statement: `{id: {"name", "archived"}}`, or None for an
+    id that is not this member's live routine (foreign, unknown or deleted). At most RESOLVE_MANY_MAX distinct
+    ids are read; the rest are left out of the answer (the caller's fallback). `WHERE user_id = ?`: another
+    member's row is never read."""
+    pool = ids if isinstance(ids, (list, tuple)) else []
+    wanted = list(dict.fromkeys(i for i in pool if isinstance(i, str) and i))[:RESOLVE_MANY_MAX]
+    if not wanted or not user_id:
+        return {}
+    marks = ", ".join("?" for _ in wanted)
+    with _read(conn) as c:
+        rows = c.execute(f"SELECT id, name, archived_at FROM {_R} WHERE user_id = ? AND deleted_at IS NULL"
+                         f" AND id IN ({marks})", (user_id, *wanted)).fetchall()
+    found = {r[0]: {"name": r[1], "archived": r[2] is not None} for r in rows}
+    return {i: found.get(i) for i in wanted}
+
+
+def match_candidates(user_id: str, *, now: datetime | None = None,
+                     conn: sqlite3.Connection | None = None) -> list[dict]:
+    """Wave 11 (Task 11.6): the member's live, non-archived routines as `[{id, name, items: [text], updatedAt}]`
+    (today's items), in ONE read and with no write (`list_routines` may purge; this never does). What
+    `template_tools.best_match` compares a template's routine against."""
+    if not user_id:
+        return []
+    today = _today(now)
+    with _read(conn) as c:
+        rows = c.execute(f"SELECT * FROM {_R} WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
+                         " ORDER BY updated_at DESC, id DESC", (user_id,)).fetchall()
+    return [{"id": r["id"], "name": r["name"], "items": [i["text"] for i in _items_today(r, today)],
+             "updatedAt": r["updated_at"]} for r in rows]
 
 
 def _purge_ids(c: sqlite3.Connection, user_id: str, ids: list[str]) -> None:

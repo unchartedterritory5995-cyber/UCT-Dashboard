@@ -1,4 +1,7 @@
-"""Notebook widgets phase 2, wave 11 (Task 11.5): a built-widget template slot, filled when a note is made.
+"""Notebook widgets phase 2, wave 11 (Tasks 11.5 and 11.6): template slots, filled when a note is made.
+
+Task 11.6 adds the routine and tracker slots at the end of this module (`build_tool_slot`, `tool_questions`,
+`remember_choices`); the rest of this docstring is the built-widget slot's (Task 11.5).
 
 A template (a journal style) holds a `built_<k>` block whose settings name the widget by reference
 (ruling W11-R2, reduced by `journal_styles.slot_settings_of`):
@@ -40,7 +43,7 @@ import json
 import math
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 #: The widget kind a filled slot becomes (notebook_widgets.BUILT_KIND, restated: this module imports it lazily).
@@ -97,6 +100,14 @@ class SlotCtx(TypedDict, total=False):
     conn: sqlite3.Connection | None
     defs: dict
     defs_loaded: bool
+    # Task 11.6: routine and tracker slots.
+    inline_routines: dict          # {inline key: share_routine entry} (a shared payload's `routines`)
+    inline_trackers: dict          # {inline key: share_tracker entry}
+    template_title: str            # the template's title, stored as the tool's `fromTemplate` (W11-R13)
+    gallery_id: str | None         # the gallery item a member-shared template came from (`gal:` keys)
+    tools: dict                    # the batched owned name read: {(family, id): entry | None}
+    tools_loaded: bool
+    created: dict                  # {block id: tool id} for each tool this fill created
 
 
 def _js():
@@ -188,6 +199,7 @@ def prefetch(blocks: Any, ctx: dict) -> dict:
         for r in within:
             if r in got:
                 cache[r] = got[r]
+    prefetch_tools(blocks, ctx)
     return cache
 
 
@@ -272,6 +284,13 @@ def slot_title(block: dict, ctx: dict) -> str:
 def _dark(plan: Any) -> bool:
     p = _plan_mod()
     return bool((p.uses_tools(plan) and not _wave_on(9)) or (p.uses_wave10(plan) and not _wave_on(10)))
+
+
+def plan_is_dark(plan: Any) -> bool:
+    """Public name for `_dark` (Task 11.6, the 11.9 carry): does this plan need a release wave that is off now?
+    It calls `_dark` (looked up at call time), so the private name stays the one implementation and a patch of
+    either reaches both. ⛔ Not a second visibility decider: `journal_styles.slot_wave_off` is the one."""
+    return _dark(plan)
 
 
 def _shelf_latest(ref: str) -> int | None:
@@ -412,3 +431,386 @@ def build_built_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
     if not isinstance(payload, dict) or not isinstance(payload.get("asOf"), str):
         return None, f"{FAILED}:{bid}"
     return node_for(payload), None
+
+
+# ── Task 11.6: routine and tracker slots ───────────────────────────────────────────────────────
+# A `routine_<k>` / `tracker_<k>` slot names its tool by `{"ref": "routine:<uuid>" | "tracker:<uuid>" |
+# "checkin:mood" | "checkin:focus"}` (the member's own, read at FILL time `WHERE id = ? AND user_id = ?`), or by
+# `{"template": <key>}` / `{"inline": <key>}` (a tool the template makes). A template or inline slot asks the reuse
+# question once (`tool_questions`); the answer is `ctx["choices"][<block id>]`: `{"use": "<id>"}` (one of the
+# member's own) or `{"create": True}` (made from the template, unique on `(user_id, source_template_key)`, W11-R13).
+#
+# ⛔ Live state never enters a note: the node holds only `{routineId|trackerId, day, bind, display}`. Nothing here
+# reads or writes `j2_routine_ticks`, `j2_routine_days` or `j2_tracker_values`.
+# ⛔ Tools never use the widget engine, so they never take a share of the member's engine slots (11.5's per-member
+# in-flight count): `compose` builds them on the request thread, in order, outside the slot pool.
+
+#: family -> the block's params id key (lib/toolEmbed.js `KINDS`, railed against that file).
+TOOL_ID_KEYS = {"routine": "routineId", "tracker": "trackerId"}
+TOOL_WORDS = {"routine": "Routine", "tracker": "Tracker"}
+#: A preview of a tool slot (it reads nothing); journal_styles words its line by the slot's bind.
+TOOL_PREVIEW = "tool-preview"
+#: A `{"use": id}` answer that is not one of the member's own (W9-R18: never a read of another member's row).
+S_CHOICE_NOT_YOURS = "That choice isn't in your account."
+#: At most this many tool ids are read per family per request (one statement each); later ids read as unknown.
+TOOL_PREFETCH_MAX = 200
+_CHECKINS = ("checkin:mood", "checkin:focus")
+
+
+def _store(family: str):
+    if family == "routine":
+        from api.services.journal_two import routines
+        return routines
+    from api.services.journal_two import trackers
+    return trackers
+
+
+def _tt():
+    from api.services.journal_two import template_tools
+    return template_tools
+
+
+def _tb():
+    from api.services.journal_two import tool_binding
+    return tool_binding
+
+
+def tool_settings(block: Any) -> dict | None:
+    """A routine or tracker slot's settings re-reduced by the ONE grammar (`journal_styles.slot_settings_of`), or
+    None when they do not read (a "Follow today" bind included: a template never follows today)."""
+    js = _js()
+    if not isinstance(block, dict):
+        return None
+    family = js.slot_family(block.get("block"))
+    if family not in TOOL_ID_KEYS:
+        return None
+    try:
+        return js.slot_settings_of(family, block.get("settings"))
+    except js.StyleValidationError:
+        return None
+
+
+def _ref_id(ref: str) -> str:
+    return ref if ref in _CHECKINS else ref.split(":", 1)[1]
+
+
+def tool_refs(blocks: Any) -> list[tuple[str, str]]:
+    """The `(family, id)` of every readable `ref` routine or tracker slot in `blocks`, in order."""
+    out = []
+    for b in blocks if isinstance(blocks, list) else []:
+        s = tool_settings(b)
+        if s is not None and "ref" in s:
+            out.append((_js().slot_family(b.get("block")), _ref_id(s["ref"])))
+    return out
+
+
+def prefetch_tools(blocks: Any, ctx: dict) -> dict:
+    """W11-R21: read the name of every `ref` tool slot in `blocks` for `ctx["user_id"]`, ONE statement per family
+    (`routines.resolve_many` / `trackers.resolve_many`, `WHERE user_id = ?`), into `ctx["tools"]`. At most
+    `TOOL_PREFETCH_MAX` ids per family; the rest, and every id of a read that fails, read as unknown (the family
+    word), never as "not in your account". Never raises. Marks the ctx as loaded."""
+    cache = ctx.setdefault("tools", {})
+    uid = ctx.get("user_id")
+    ctx["tools_loaded"] = True
+    if not isinstance(uid, str) or not uid:
+        return cache
+    refs = tool_refs(blocks)
+    for family in TOOL_ID_KEYS:
+        ids = list(dict.fromkeys(i for f, i in refs if f == family and (f, i) not in cache))[:TOOL_PREFETCH_MAX]
+        if not ids:
+            continue
+        try:
+            got = _store(family).resolve_many(uid, ids, conn=ctx.get("conn"))
+        except Exception as e:  # noqa: BLE001 -- a read that fails is the family word, never an error
+            _js()._log.warning("template %s names not read: %s", family, type(e).__name__)
+            continue
+        for i in ids:
+            if i in got:
+                cache[(family, i)] = got[i]
+    return cache
+
+
+def _tool_entry(ctx: dict, family: str, tid: str) -> Any:
+    """The batched entry for `(family, tid)`: a dict, None (not the member's), or `_UNKNOWN`. A ctx never
+    prefetched reads this one id on its own (one statement)."""
+    cache = ctx.setdefault("tools", {})
+    key = (family, tid)
+    if key in cache:
+        return cache[key]
+    if not ctx.get("tools_loaded"):
+        uid = ctx.get("user_id")
+        if not isinstance(uid, str) or not uid:
+            return None
+        try:
+            got = _store(family).resolve_many(uid, [tid], conn=ctx.get("conn"))
+        except Exception as e:  # noqa: BLE001
+            _js()._log.warning("template %s not read: %s", family, type(e).__name__)
+            return _UNKNOWN
+        cache[key] = got.get(tid)
+        return cache[key]
+    return _UNKNOWN
+
+
+def _made_by_template(family: str, s: dict, ctx: dict) -> dict | None:
+    """What a `template` / `inline` slot would create: `{"name", "items"}` (routine) or `{"name", "kind", "unit",
+    "days"}` (tracker), or None when the template table or the payload does not hold it."""
+    if "template" in s:
+        table = _tt().ROUTINE_TEMPLATES if family == "routine" else _tt().TRACKER_TEMPLATES
+        return table[s["template"]] if s["template"] in table else None
+    pool = ctx.get("inline_routines" if family == "routine" else "inline_trackers")
+    entry = pool.get(s["inline"]) if isinstance(pool, dict) else None
+    if not isinstance(entry, dict) or not isinstance(entry.get("name"), str) or not entry["name"].strip():
+        return None
+    return entry
+
+
+def _tool_target(block: Any, ctx: dict) -> dict:
+    """What a tool slot names: `{"status": ok|missing|unreadable|unknown, "family", "settings", "name"}`.
+    ⛔ A `ref` is read for the session member only (the batched read)."""
+    s = tool_settings(block)
+    if s is None:
+        return {"status": "unreadable"}
+    family = _js().slot_family(block.get("block"))
+    if "ref" in s:
+        if s["ref"] in _CHECKINS:
+            return {"status": "ok", "family": family, "settings": s,
+                    "name": _store("tracker").BUILTIN[s["ref"]]["name"]}
+        e = _tool_entry(ctx, family, _ref_id(s["ref"]))
+        if e is _UNKNOWN:
+            return {"status": "unknown", "family": family, "settings": s}
+        if not isinstance(e, dict):
+            return {"status": "missing", "family": family, "settings": s}
+        return {"status": "ok", "family": family, "settings": s, "name": e.get("name")}
+    made = _made_by_template(family, s, ctx)
+    if made is None:
+        # a template or inline target this server cannot name reads as its family word (11.9, 422f3f392e)
+        return {"status": "unknown", "family": family, "settings": s}
+    return {"status": "ok", "family": family, "settings": s, "name": made.get("name")}
+
+
+def tool_name(block: dict, ctx: dict) -> tuple[str | None, str | None]:
+    """`FAMILY_NAMERS` for routine and tracker slots (W11-R21): (name, None) when the target resolves for the
+    session member (an unnamed one, or a read past the budget, gives the family word), else (None, reason) with
+    reason `slot-unreadable` or `slot-missing`."""
+    t = _tool_target(block, ctx)
+    if t["status"] == "unreadable":
+        return None, UNREADABLE
+    if t["status"] == "missing":
+        return None, MISSING
+    name = t.get("name")
+    return (name.strip() if isinstance(name, str) and name.strip() else TOOL_WORDS[t["family"]]), None
+
+
+def tool_title(block: dict, ctx: dict) -> str:
+    """`FAMILY_TITLES` for routine and tracker slots: the tool's name for a sentence, else its family word."""
+    name, _ = tool_name(block, ctx)
+    if name:
+        return name
+    family = _js().slot_family(block.get("block") if isinstance(block, dict) else None)
+    return TOOL_WORDS.get(family, DEFAULT_TITLE)
+
+
+def tool_node(family: str, tool_id: str, name: Any, day: str, bind: str, display: str, *,
+              now: datetime | None = None) -> dict:
+    """The routine or tracker block node the W9 client insert writes (`lib/toolEmbed.js` `toolBlockOf` through
+    `buildWidgetEmbedAttrs`): params `{routineId|trackerId, day, bind, display}` and the name-and-day search text
+    (`tool_binding.search_text`, the client's `toolSearchText` twin). ⛔ Live state never enters it."""
+    shown = name.strip() if isinstance(name, str) and name.strip() else TOOL_WORDS[family]
+    at = now if isinstance(now, datetime) else datetime.now(timezone.utc)
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": family, "embedId": uuid.uuid4().hex, "mode": "snapshot",
+        "params": {TOOL_ID_KEYS[family]: tool_id, "day": day, "bind": bind, "display": display},
+        "capturedAt": at.isoformat().replace("+00:00", "Z"), "fallback": None, "tradeRef": None,
+        "tradeRefType": None, "annotations": [], "caption": None, "layout": {"width": "full", "height": None},
+        "searchText": _tb().search_text(family, shown, day, bind)}}
+
+
+def _owned_choice(family: str, uid: str, tid: Any, conn: sqlite3.Connection | None) -> dict:
+    """The member's own routine (tracker) a `{"use": id}` answer names, else ShareError `not_yours`. The read is
+    `WHERE id = ? AND user_id = ?` (the store's `get`), so another member's row is never read."""
+    from api.services.journal_two.widget_engine.share import ShareError
+    got = _store(family).get(uid, tid, conn=conn) if isinstance(tid, str) and tid else None
+    if not isinstance(got, dict):
+        raise ShareError("not_yours", S_CHOICE_NOT_YOURS)
+    return got
+
+
+def _create_from_template(family: str, s: dict, made: dict, uid: str, ctx: dict) -> dict:
+    """Create (or find again) the tool a template slot makes, under its unique key (W11-R13; W9-R12 restores a
+    soft-deleted one). The template's title is stored as `fromTemplate`, at most 80 characters."""
+    tt = _tt()
+    if "template" in s:
+        key = tt.template_key(family, template=s["template"])
+    else:
+        key = tt.template_key(family, gallery_id=ctx.get("gallery_id"), inline=s["inline"])
+    title = ctx.get("template_title")
+    settings: dict = {"fromTemplate": title[:80]} if isinstance(title, str) and title.strip() else {}
+    store = _store(family)
+    if family == "routine":
+        return store.create(uid, name=made["name"], items=made.get("items") or [], schedule={"kind": "every"},
+                            settings=settings, source_template_key=key, source_gallery_id=ctx.get("gallery_id"),
+                            now=ctx.get("now"), conn=ctx.get("conn"))
+    days = made.get("days")
+    if isinstance(days, str) and days in store.DAYS_CHOICES:
+        settings["days"] = days
+    return store.create(uid, name=made["name"], kind=made.get("kind"), unit=made.get("unit"), settings=settings,
+                        source_template_key=key, source_gallery_id=ctx.get("gallery_id"), now=ctx.get("now"),
+                        conn=ctx.get("conn"))
+
+
+def build_tool_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
+    """`FAMILY_BUILDERS` for routine and tracker slots: (node, None), or (None, reason) for one sentence, reasons
+    suffixed `:<block id>`: `slot-unreadable`, `slot-missing`, or `tool-preview` (a preview reads nothing).
+
+    `ref` -> the member's own routine (tracker) by `get` (an archived one is placed and renders its read-only
+    state; `checkin:*` always resolves). `template` / `inline` -> `ctx["choices"][<block id>]`: `{"use": id}` (the
+    member's own, else ShareError `not_yours`) or `{"create": True}` (the unique key: a second create returns the
+    first); no answer raises LibraryError. The day is `tool_binding.bind_day(ctx["note_day"], bind)`."""
+    bid = block.get("block") if isinstance(block, dict) else None
+    s = tool_settings(block)
+    if s is None:
+        return None, f"{UNREADABLE}:{bid}"
+    family = _js().slot_family(bid)
+    if not ctx.get("fill_widgets", True):
+        return None, f"{TOOL_PREVIEW}:{bid}"
+    uid = ctx.get("user_id")
+    if not isinstance(uid, str) or not uid:
+        return None, f"{MISSING}:{bid}"
+    conn = ctx.get("conn")
+    if "ref" in s:
+        got = _store(family).get(uid, _ref_id(s["ref"]), conn=conn)
+        if not isinstance(got, dict):
+            return None, f"{MISSING}:{bid}"
+    else:
+        made = _made_by_template(family, s, ctx)
+        if made is None:
+            return None, f"{MISSING}:{bid}"
+        choices = ctx.get("choices") if isinstance(ctx.get("choices"), dict) else {}
+        choice = choices.get(bid)
+        if isinstance(choice, dict) and choice.get("use") is not None:
+            got = _owned_choice(family, uid, choice.get("use"), conn)
+        elif isinstance(choice, dict) and choice.get("create") is True:
+            if "inline" in s and not (isinstance(ctx.get("gallery_id"), str) and ctx["gallery_id"]):
+                return None, f"{UNREADABLE}:{bid}"           # an inline tool only ever comes from a gallery item
+            got = _create_from_template(family, s, made, uid, ctx)
+            ctx.setdefault("created", {})[bid] = got["id"]
+        else:
+            tt = _tt()
+            raise tt.LibraryError(tt.S_CHOOSE_ROUTINE if family == "routine" else tt.S_CHOOSE_TRACKER)
+    note_day = ctx.get("note_day")
+    if not isinstance(note_day, str):
+        from api.services.journal_two import trading_days
+        note_day = trading_days.today_et(ctx.get("now") or datetime.now(timezone.utc)).isoformat()
+    try:
+        day = _tb().bind_day(note_day, s["bind"])
+    except ValueError:
+        return None, f"{UNREADABLE}:{bid}"
+    return tool_node(family, got["id"], got.get("name"), day, s["bind"], s["display"], now=ctx.get("now")), None
+
+
+def _outline_order(style: dict) -> list[str]:
+    """The block ids the outline places, in document order (depth first)."""
+    js = _js()
+    body = style.get("outlineBodyJson")
+    content = body.get("content") if isinstance(body, dict) and isinstance(body.get("content"), list) else []
+    out: list[str] = []
+    stack = list(reversed(content))
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        kind = js._placeholder_kind(n)
+        if kind is not None and kind not in out:
+            out.append(kind)
+        if isinstance(n.get("content"), list):
+            stack.extend(reversed(n["content"]))
+    return out
+
+
+def tool_questions(style: dict, *, user_id: str, conn: sqlite3.Connection | None,
+                   inline_routines: dict | None = None, inline_trackers: dict | None = None) -> list[dict]:
+    """The reuse questions the adoption sheet asks (`AdoptSheet.jsx`): one per unresolved routine or tracker slot
+    (`template` or `inline`; a `ref` asks nothing), in outline order (the outline's placeholders first, then the
+    rest in block order): `{"slot", "kind", "createName", "use": {"id", "name"} | None}`, `use` being
+    `template_tools.best_match` over the member's OWN tools (one read per family per call). A slot whose wave is
+    dark asks nothing (the one decider, `journal_styles.slot_wave_off`). Writes nothing."""
+    js = _js()
+    style = style if isinstance(style, dict) else {}
+    raw = style.get("blocks") if isinstance(style.get("blocks"), list) else []
+    blocks = [b for b in raw if isinstance(b, dict) and b.get("enabled", True) is not False]
+    ctx = {"user_id": user_id, "conn": conn, "definitions": {}, "defs": {}, "defs_loaded": True,
+           "tools": {}, "tools_loaded": True,
+           "inline_routines": dict(inline_routines or {}), "inline_trackers": dict(inline_trackers or {})}
+    rank = {bid: i for i, bid in enumerate(_outline_order(style))}
+
+    def position(p: tuple[int, dict]) -> tuple:
+        bid = p[1].get("block")
+        return (0, rank[bid], p[0]) if isinstance(bid, str) and bid in rank else (1, 0, p[0])
+
+    pools: dict[str, list] = {}
+    out: list[dict] = []
+    seen: set[str] = set()
+    for _i, b in sorted(enumerate(blocks), key=position):
+        bid = b.get("block")
+        family = js.slot_family(bid)
+        if family not in TOOL_ID_KEYS or bid in seen or js.slot_wave_off(bid, b.get("settings"), ctx):
+            continue
+        s = tool_settings(b)
+        if s is None or "ref" in s:
+            continue
+        made = _made_by_template(family, s, ctx)
+        if made is None:
+            continue
+        seen.add(bid)
+        if family not in pools:
+            try:
+                pools[family] = _tt().candidates(user_id, family, conn=conn) if user_id else []
+            except Exception as e:  # noqa: BLE001 -- no suggestion is "Create", never an error
+                js._log.warning("template %s candidates not read: %s", family, type(e).__name__)
+                pools[family] = []
+        out.append({"slot": bid, "kind": family, "createName": made["name"],
+                    "use": _tt().best_match(user_id, family, made, pool=pools[family])})
+    return out
+
+
+def remember_choices(user_id: str, style_id: Any, choices: Any, created: Any, *,
+                     conn: sqlite3.Connection) -> None:
+    """"The choice is remembered for that template": rewrite the member's OWN style's `template` / `inline` routine
+    and tracker slots to `{"ref": "routine:<id>"}` (`"tracker:<id>"`; a check-in id as itself), keeping `bind` and
+    `display`, from `created` (`{block id: tool id}`) and the `{"use": id}` answers in `choices`. The style's
+    version moves when a slot changed. Runs in the CALLER's transaction and never commits; a style that is not the
+    member's, or holds nothing to remember, is left as it is."""
+    js = _js()
+    if not isinstance(style_id, str) or not style_id or style_id.startswith(js.BUILTIN_PREFIX):
+        return
+    row = conn.execute("SELECT blocks_json FROM j2_journal_styles WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+                       (style_id, user_id)).fetchone()
+    if row is None:
+        return
+    try:
+        blocks = json.loads(row["blocks_json"] or "[]")
+    except (TypeError, ValueError):
+        return
+    made = created if isinstance(created, dict) else {}
+    answers = choices if isinstance(choices, dict) else {}
+    changed = False
+    for b in blocks if isinstance(blocks, list) else []:
+        if not isinstance(b, dict) or js.slot_family(b.get("block")) not in TOOL_ID_KEYS:
+            continue
+        s = tool_settings(b)
+        if s is None or "ref" in s:
+            continue
+        family, bid = js.slot_family(b["block"]), b["block"]
+        answer = answers.get(bid) if isinstance(answers.get(bid), dict) else {}
+        tid = made.get(bid) if isinstance(made.get(bid), str) else answer.get("use")
+        if not isinstance(tid, str) or not tid:
+            continue
+        ref = tid if family == "tracker" and tid in _CHECKINS else f"{family}:{tid}"
+        try:
+            b["settings"] = js.slot_settings_of(family, {"ref": ref, "bind": s["bind"], "display": s["display"]})
+        except js.StyleValidationError:
+            continue
+        changed = True
+    if changed:
+        conn.execute("UPDATE j2_journal_styles SET blocks_json = ?, version = version + 1, updated_at = ?"
+                     " WHERE id = ? AND user_id = ?", (json.dumps(blocks), js._now(), style_id, user_id))
