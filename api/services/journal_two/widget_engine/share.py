@@ -49,19 +49,37 @@ TYPE_LABELS = {"setup": "Setup", "tag": "Tag", "symbol": "Symbol", "account": "A
                "routine": "Routine", "tracker": "Tracker", "number": "Number"}
 MAX_SLOTS = 20
 PICK_TOKEN_RE = re.compile(r"\[#p(\d{1,2})\]")
-#: THE paths of a shared plan whose values are STRUCTURE and are copied as they are, after
-#: `validate_plan` has checked each against its closed vocabulary. Every verbatim copy goes through
-#: `_safe`, which refuses a path not listed here, and `test_canary_safe_keys_are_exactly_the_copied_
-#: paths` proves every entry is used. Everything else in a shared plan is a value this module writes
-#: itself: a pick, a kept number, a closed enum value, a bool, a generated name.
+#: THE paths at which a value is copied from a STORED input (a plan, a routine, a tracker, a style)
+#: into a payload. Every such copy goes through `_safe`, which refuses a path not listed here, and
+#: `test_canary_safe_keys_are_exactly_the_copied_paths` proves every entry is used, over all four
+#: reducers. Each value was first checked by its closed authority (`validate_plan`, the field's
+#: `choices`/`bucket`, `journal_styles.slot_settings_of`, the constants above) or is a number the
+#: author listed in `keep` (the `.kept` paths and `display.target` / `display.stopAfter` /
+#: `routine.items[].suggest.n`). Nothing else in a payload comes from a stored row: the rest is the
+#: author's typed `edits`, words this module generates (a default name, a summary, "Field <n>",
+#: "Template", type labels, `not_shared` sentences) and pick markers. Plan paths are bare; the
+#: routine, tracker and template paths carry their reducer's prefix.
 CANARY_SAFE_KEYS = frozenset({
+    # share_plan
     "v", "source", "range.token",
-    "filters[].field", "filters[].op", "filters[].overridable",
+    "filters[].field", "filters[].op", "filters[].overridable", "filters[].values",
+    "filters[].values.kept", "filters[].ref",
     "measures[].key", "measures[].agg", "measures[].formula",
-    "split.by", "split.then",
+    "split.by", "split.then", "split.ref", "split.ref2",
     "view.type", "view.auto", "sort.measure", "sort.dir", "sort.top", "compare.mode",
     "display.accent", "display.showN", "display.cumulative", "display.targetGoal", "display.quadrants",
-    "formulas[].id", "formulas[].format",
+    "display.target", "display.stopAfter",
+    "formulas[].id", "formulas[].format", "formulas[].expr",
+    "slots[].source", "slots[].field",
+    # share_routine / share_tracker
+    "routine.items[].negative", "routine.items[].suggest.rule", "routine.items[].suggest.n",
+    "routine.schedule.kind", "routine.schedule.days", "routine.settings.done_share",
+    "tracker.kind", "tracker.days",
+    # share_template
+    "template.blocks[].block", "template.blocks[].enabled", "template.blocks[].settings.ref",
+    "template.blocks[].settings.defRev", "template.blocks[].settings.range.token",
+    "template.blocks[].settings.template", "template.blocks[].settings.bind",
+    "template.blocks[].settings.display",
 })
 #: The wave 10 display options this module knows (`plan.WAVE10_DISPLAY`). `stopAfter` is a number the
 #: member typed, so it travels only when kept (`"display/stopAfter"`); the other three are closed values.
@@ -173,7 +191,7 @@ class Shared:
 # -- small helpers ---------------------------------------------------------------------------------
 
 def _safe(path: str, value: Any) -> Any:
-    """THE verbatim copy: only a `CANARY_SAFE_KEYS` path may be copied as it is."""
+    """THE verbatim copy from a stored input: only a `CANARY_SAFE_KEYS` path may be copied."""
     if path not in CANARY_SAFE_KEYS:
         raise AssertionError(f"share: {path} is not a structure path")
     return value
@@ -264,7 +282,7 @@ class _Slots:
             if self.next > MAX_SLOTS:
                 raise ShareError("invalid", S_TOO_MANY_CHOICES)
             slot = {"id": f"p{self.next}", "type": stype, "label": label, "any": any_ok,
-                    "source": source, "field": field}
+                    "source": _safe("slots[].source", source), "field": _safe("slots[].field", field)}
             self.next += 1
             self.all.append(slot)
             self.originals[slot["id"]] = original
@@ -395,7 +413,8 @@ def _share_formula(f: dict, n: int, name: str, fields: Mapping[str, Any], keep: 
         last = end
         _say(sentences, N_PICK["number"])
     out.append(expr[last:])
-    entry = {"id": _safe("formulas[].id", fid), "name": name, "expr": "".join(out),
+    entry = {"id": _safe("formulas[].id", fid), "name": name,
+             "expr": _safe("formulas[].expr", "".join(out)),
              "format": _safe("formulas[].format", f["format"])}
     return entry, compiled.type
 
@@ -424,7 +443,7 @@ def _display(d: dict, keep: frozenset[str], kept: list[str], sentences: list[str
         _say(sentences, N_TITLE)
     if d["target"] is not None:
         if "display/target" in keep and _is_number(d["target"]):
-            display["target"] = d["target"]
+            display["target"] = _safe("display.target", d["target"])
             kept.append("display/target")
         else:
             _say(sentences, N_TARGET)
@@ -438,7 +457,7 @@ def _display(d: dict, keep: frozenset[str], kept: list[str], sentences: list[str
     if n is not None:
         if ("display/stopAfter" in keep and isinstance(n, int) and not isinstance(n, bool)
                 and 1 <= n <= wplan.STOP_AFTER_MAX):
-            display["stopAfter"] = n
+            display["stopAfter"] = _safe("display.stopAfter", n)
             kept.append("display/stopAfter")
         else:
             _say(sentences, N_STOP_AFTER)
@@ -531,7 +550,7 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
         if "ref" in f:
             ref = f["ref"]
             if ref in wplan.BUILTIN_TRACKER_REFS:
-                new["ref"] = ref
+                new["ref"] = _safe("filters[].ref", ref)
             else:
                 kind = getattr(fld, "ref_kind", None)
                 new["ref"] = _pick(slots.take(kind, any_ok=False, label=TYPE_LABELS[kind],
@@ -549,16 +568,16 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
                                               key=(why, name, tuple(values)), used=used))]
             _say(sentences, N_PICK[why])
         elif how in ("closed", "keep"):
-            new["values"] = list(values)
+            new["values"] = _safe("filters[].values", list(values))
         else:                                       # numbers (and a property's numbers / bools)
             new["values"] = []
             for j, v in enumerate(values):
                 path = f"filters/{i}/values/{j}"
                 if isinstance(v, bool):
-                    new["values"].append(v)
+                    new["values"].append(_safe("filters[].values", v))
                 elif path in keep:
                     kept.append(path)
-                    new["values"].append(v)
+                    new["values"].append(_safe("filters[].values.kept", v))
                 else:
                     new["values"].append(_pick(slots.take("number", any_ok=True, label=label,
                                                           source=source, field=name, original=v,
@@ -596,7 +615,7 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
                 continue
             ref = split[ref_key]
             if ref in wplan.BUILTIN_TRACKER_REFS:
-                s[ref_key] = ref
+                s[ref_key] = _safe(f"split.{ref_key}", ref)
                 continue
             kind = getattr(fields.get(split[field_key]), "ref_kind", None)
             s[ref_key] = _pick(slots.take(kind, any_ok=False, label=TYPE_LABELS[kind], source=source,
@@ -683,11 +702,13 @@ def _schedule(raw: Any) -> dict:
     if not isinstance(kind, str) or kind not in SCHEDULE_KINDS:
         return {"kind": "every"}
     if kind != "weekdays":
-        return {"kind": kind}
+        return {"kind": _safe("routine.schedule.kind", kind)}
     days = raw.get("days")
     clean = sorted({d for d in days if isinstance(d, int) and not isinstance(d, bool) and 0 <= d <= 4}
                    if isinstance(days, list) else set())
-    return {"kind": "weekdays", "days": clean} if clean else {"kind": "every"}
+    if not clean:
+        return {"kind": "every"}
+    return {"kind": _safe("routine.schedule.kind", kind), "days": _safe("routine.schedule.days", clean)}
 
 
 def share_routine(routine: dict, *, edits: dict | None = None, keep: Iterable[str] = ()) -> Shared:
@@ -713,17 +734,17 @@ def share_routine(routine: dict, *, edits: dict | None = None, keep: Iterable[st
             continue
         src = stored[i] if i < len(stored) and isinstance(stored[i], Mapping) else {}
         neg = e.get("negative") if isinstance(e, Mapping) else None
-        item: dict = {"text": text,
-                      "negative": neg if isinstance(neg, bool) else bool(src.get("negative") is True)}
+        item: dict = {"text": text, "negative": neg if isinstance(neg, bool) else
+                      _safe("routine.items[].negative", src.get("negative") is True)}
         sug = src.get("suggest")
         rule = sug.get("rule") if isinstance(sug, Mapping) else None
         if isinstance(rule, str) and rule in SUGGEST_RULES:
-            item["suggest"] = {"rule": rule}
+            item["suggest"] = {"rule": _safe("routine.items[].suggest.rule", rule)}
             n = sug.get("n")
             if isinstance(n, int) and not isinstance(n, bool) and 0 < n <= SUGGEST_N_MAX:
                 path = f"items/{i}/suggest"
                 if path in keep:
-                    item["suggest"]["n"] = n
+                    item["suggest"]["n"] = _safe("routine.items[].suggest.n", n)
                     kept.append(path)
                 else:
                     _say(sentences, N_PICK["number"])
@@ -742,7 +763,7 @@ def share_routine(routine: dict, *, edits: dict | None = None, keep: Iterable[st
     share_ = settings.get("done_share")
     done = next((s for s in DONE_SHARES if _is_number(share_) and abs(float(share_) - s) < 1e-9), 1.0)
     payload = {"name": name, "items": items, "schedule": _schedule(routine.get("schedule")),
-               "settings": {"done_share": done}}
+               "settings": {"done_share": _safe("routine.settings.done_share", done)}}
     return Shared(payload, (), tuple(dict.fromkeys(kept)), tuple(sentences))
 
 
@@ -757,7 +778,8 @@ def share_tracker(tracker: dict, *, edits: dict | None = None) -> Shared:
     settings = tracker.get("settings") if isinstance(tracker.get("settings"), Mapping) else {}
     days = settings.get("days")
     days = days if isinstance(days, str) and days in TRACKER_DAYS else TRACKER_DAYS[0]
-    return Shared({"name": name, "kind": kind, "unit": unit, "days": days}, (), (),
+    return Shared({"name": name, "kind": _safe("tracker.kind", kind), "unit": unit,
+                   "days": _safe("tracker.days", days)}, (), (),
                   (N_TRACKER_VALUES,))
 
 
@@ -865,7 +887,8 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
         family = js.slot_family(bid)
         if family is None:
             if _known_block(bid):
-                blocks.append({"block": bid, "enabled": enabled, "settings": {}})
+                blocks.append({"block": _safe("template.blocks[].block", bid),
+                               "enabled": _safe("template.blocks[].enabled", enabled), "settings": {}})
             else:
                 _say(sentences, N_UNKNOWN_BLOCK)
             continue
@@ -878,7 +901,8 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
         if family == "built":
             ref = st["ref"]
             if ref.startswith("shelf:"):
-                out: dict = {"ref": ref, "defRev": st["defRev"]}
+                out: dict = {"ref": _safe("template.blocks[].settings.ref", ref),
+                             "defRev": _safe("template.blocks[].settings.defRev", st["defRev"])}
             elif ref.startswith("def:"):
                 if ref in inline:
                     second_spot(bid)
@@ -896,7 +920,8 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
                 _say(sentences, N_UNREADABLE_WIDGET)
                 continue
             if "range" in st:
-                out["range"] = {"token": st["range"]["token"]}
+                out["range"] = {"token": _safe("template.blocks[].settings.range.token",
+                                               st["range"]["token"])}
         else:
             if "ref" in st and st["ref"].startswith(family + ":"):
                 ref = st["ref"]
@@ -915,15 +940,16 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
                     target.append({"key": inline[ref], **found.payload})
                 out = {"inline": inline[ref]}
             elif "ref" in st and family == "tracker" and st["ref"] in wplan.BUILTIN_TRACKER_REFS:
-                out = {"ref": st["ref"]}
+                out = {"ref": _safe("template.blocks[].settings.ref", st["ref"])}
             elif "template" in st and _template_tools_landed():
-                out = {"template": st["template"]}
+                out = {"template": _safe("template.blocks[].settings.template", st["template"])}
             else:
                 _say(sentences, N_UNREADABLE_WIDGET)
                 continue
-            out["bind"] = st["bind"]
-            out["display"] = st["display"]
-        blocks.append({"block": bid, "enabled": enabled, "settings": out})
+            out["bind"] = _safe("template.blocks[].settings.bind", st["bind"])
+            out["display"] = _safe("template.blocks[].settings.display", st["display"])
+        blocks.append({"block": _safe("template.blocks[].block", bid),
+                       "enabled": _safe("template.blocks[].enabled", enabled), "settings": out})
 
     payload = {
         "format": FORMAT,

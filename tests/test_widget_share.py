@@ -460,10 +460,13 @@ def test_display_keeps_only_closed_options():
     assert kept.payload["plan"]["display"]["stopAfter"] == 4 and kept.kept == ("display/stopAfter",)
 
 
-def test_canary_safe_keys_are_exactly_the_copied_paths(monkeypatch):
-    """M1: CANARY_SAFE_KEYS drives the copy. Every verbatim copy goes through `_safe`, which refuses
-    any other path, and over a maximal set of plans every listed path is used (no dead entry)."""
-    from tests.test_widget_share_sweep import maximal_plans
+def test_canary_safe_keys_are_exactly_the_copied_paths(monkeypatch, template_tools):
+    """M1 (rounds 1 and 2, m1): CANARY_SAFE_KEYS is THE list of paths at which a stored value is
+    copied into a payload. Every such copy goes through `_safe`, which refuses any other path; over
+    maximal inputs to ALL FOUR reducers every listed path is used (no dead entry), and the copies the
+    re-review found bypassing it (closed values, built-in refs, kept numbers, template settings)
+    now pass through it."""
+    from tests import test_widget_share_sweep as W
     seen: set[str] = set()
     real = share._safe
 
@@ -471,11 +474,35 @@ def test_canary_safe_keys_are_exactly_the_copied_paths(monkeypatch):
         seen.add(path)
         return real(path, value)
     monkeypatch.setattr(share, "_safe", spy)
-    for p in maximal_plans():
-        _share(p, keep=["display/target"])
+    for p in W.maximal_plans():
+        _share(p, keep=["display/target", "display/stopAfter", "filters/4/values/0"])
+    for plan in ({"v": 2, "source": "trading_days", "measures": [{"key": "avg_day_pnl"}],
+                  "filters": [{"field": "tracker_value", "op": "gte", "values": [3], "ref": "checkin:mood"}],
+                  "split": {"by": "tracker_bucket", "ref": "checkin:mood"}, "view": {"type": "bar"}},
+                 {"v": 2, "source": "trading_days", "measures": [{"key": "avg_day_pnl"}],
+                  "split": {"by": "routine_done", "ref": UUID_A, "then": "tracker_bucket",
+                            "ref2": "checkin:focus"}, "view": {"type": "table"}}):
+        _share(plan)
+    share.share_routine(W.maximal_routine(), edits=W.ROUTINE_EDITS, keep=["items/0/suggest"])
+    share.share_tracker(W.maximal_tracker())
+    W.reduce_template(W.maximal_template())
     assert seen == share.CANARY_SAFE_KEYS
     with pytest.raises(AssertionError):
         real("display.title", "x")
+
+
+def test_safe_sees_closed_values_and_builtin_refs(monkeypatch):
+    """The re-review's reproduction (r114b_safe): a closed weekday value and a check-in ref are copies,
+    and `_safe` now sees both."""
+    seen: list[str] = []
+    real = share._safe
+    monkeypatch.setattr(share, "_safe", lambda p, v: (seen.append(p), real(p, v))[1])
+    out = _share({"v": 2, "source": "trading_days", "measures": [{"key": "avg_day_pnl"}],
+                  "filters": [{"field": "weekday", "op": "in", "values": ["Monday"]},
+                              {"field": "tracker_value", "op": "gte", "values": [3],
+                               "ref": "checkin:mood"}]})
+    assert out.payload["plan"]["filters"][0]["values"] == ["Monday"]
+    assert {"filters[].values", "filters[].ref"} <= set(seen)
 
 
 @pytest.mark.parametrize("names,sentence", [
