@@ -1283,6 +1283,9 @@ def _write_day(user_id: str, rid: str, day: Any, now: datetime | None,
                 if ctx.day_state(d, today).state == "off":
                     raise RoutineError(S_OFF_DAY)
             write(c, row, d, _iso(now_dt))
+            if row["source_gallery_id"]:     # W11-R11: a tick or skip on a library copy is a use day (Task 11.8)
+                from api.services.journal_two import template_gallery as _gallery
+                _gallery.record_use_day(user_id, row["source_gallery_id"], now=now_dt, conn=c)
             if began:
                 c.commit()
         except BaseException:

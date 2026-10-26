@@ -694,6 +694,68 @@ def _self_check(shared: dict, slots: _Slots, catalog: Any, edited: list[int]) ->
     raise ShareError(err.code, err.sentence)
 
 
+# -- the numbers an author may keep (Task 11.8, ruling W11-R22) ----------------------------------------
+
+def keepable_numbers(plan: Any, *, catalog: Any) -> list[dict]:
+    """The numbers of a widget's plan its author may choose to share, `[{path, value, label}]`, each `path` exactly a
+    `share_plan` keep path (`filters/<i>/values/<j>`, `formulas/<id>/<offset>`, `display/target`,
+    `display/stopAfter`). Found by asking the reducer itself: every candidate number is offered as kept and only
+    the paths `share_plan` reports kept come back, so this list can never name a path the share would ignore.
+    `label` is the field's own label, or the formula's (the author's) name. [] when the plan cannot be shared at
+    all (the share preview's own answer says why)."""
+    try:
+        p = _validated(plan, catalog)
+    except ShareError:
+        return []
+    fields = getattr(catalog.sources[p["source"]], "fields", {}) or {}
+    names = {f["id"]: (f.get("name") if isinstance(f.get("name"), str) and f.get("name") else f"Field {n}")
+             for n, f in enumerate(p.get("formulas") or [], start=1)}
+    found: dict[str, tuple[Any, str]] = {}
+    for i, f in enumerate(p["filters"]):
+        name = f["field"]
+        label = (names.get(name[len(wplan.FORMULA_PREFIX):], name) if name.startswith(wplan.FORMULA_PREFIX)
+                 else getattr(fields.get(name), "label", None) or name)
+        for j, v in enumerate(f.get("values") or []):
+            if _is_number(v):
+                found[f"filters/{i}/values/{j}"] = (v, label)
+    for f in p.get("formulas") or []:
+        try:
+            compiled = wf.compile_formula(f["expr"], wplan.formula_field_infos(fields))
+            nums, _texts, _allowed = _formula_parts(compiled.ast.tree, f["expr"], fields)
+        except Exception:  # noqa: BLE001 -- a formula the reducer refuses has no number to keep
+            continue
+        for start, _end, value in nums:
+            found[f"formulas/{f['id']}/{start}"] = (value, names.get(f["id"], ""))
+    d = p.get("display") or {}
+    if _is_number(d.get("target")):
+        found["display/target"] = (d["target"], "Target")
+    n = d.get("stopAfter")
+    if isinstance(n, int) and not isinstance(n, bool):
+        found["display/stopAfter"] = (n, "Stop after")
+    if not found:
+        return []
+    try:
+        shared = share_plan(plan, catalog=catalog, keep=found)
+    except ShareError:
+        return []
+    return [{"path": k, "value": found[k][0], "label": found[k][1]} for k in shared.kept if k in found]
+
+
+def keepable_routine_numbers(items: Any) -> list[dict]:
+    """A routine's numbers its author may choose to share: each item's suggestion number, at `share_routine`'s keep
+    path `items/<i>/suggest` (index pairing: the routine's own item order), labelled with the item's text."""
+    out: list[dict] = []
+    for i, it in enumerate(items if isinstance(items, list) else []):
+        sug = it.get("suggest") if isinstance(it, Mapping) else None
+        if not isinstance(sug, Mapping) or sug.get("rule") not in SUGGEST_RULES:
+            continue
+        n = sug.get("n")
+        if isinstance(n, int) and not isinstance(n, bool) and 0 < n <= SUGGEST_N_MAX:
+            text = it.get("text")
+            out.append({"path": f"items/{i}/suggest", "value": n, "label": text if isinstance(text, str) else ""})
+    return out
+
+
 # -- routines and trackers -------------------------------------------------------------------------
 
 def _adopted(row: Mapping) -> bool:

@@ -61,7 +61,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import example_sanitize
@@ -71,6 +71,7 @@ from api.services.journal_two import sample_marker
 from api.services.journal_two import starter_packs
 from api.services.journal_two.notebook_widgets import notebook_widgets_wave_on
 from api.services.journal_two.page_layout_share import LAYOUT_ITEM, LAYOUT_PAGES
+from api.services.journal_two.tool_errors import ToolError
 from api.services.notebook_flags import TRUTHY, flag_on
 
 FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
@@ -568,13 +569,45 @@ def _clean_category(raw: Any) -> str:
 
 # ── reading ─────────────────────────────────────────────────────────────────────────────
 
-def _author_label(row: sqlite3.Row) -> str:
-    if row["kind"] in UCT_KINDS:
-        return FIRM_AUTHOR
-    name = (row["author_display"] or "").strip() if "author_display" in row.keys() else ""
+def _display_label(raw: Any) -> str:
+    """THE author-label rule for a member's display name (R-P3-2): an email-looking or blank name reads
+    `ANONYMOUS_AUTHOR`, anything else its first 60 characters."""
+    name = raw.strip() if isinstance(raw, str) else ""
     if not name or "@" in name:
         return ANONYMOUS_AUTHOR
     return name[:60]
+
+
+def _author_label(row: sqlite3.Row) -> str:
+    if row["kind"] in UCT_KINDS:
+        return FIRM_AUTHOR
+    return _display_label(row["author_display"] if "author_display" in row.keys() else None)
+
+
+#: Wave 11 (W11-R7): the credit line. ⛔ ONE helper (`credit_text`): adopting a style, a layout and a tool, the
+#: preview with my data (`template_preview.credit_line`) and a copy's stored credit (`credit_for`) all word it here.
+CREDIT_SENTENCE = "Based on {label}'s {title}"
+CREDIT_FORMER_SENTENCE = "Based on a former member's {title}"
+
+
+def credit_text(title: Any, *, label: Any = None, former: bool = False) -> str | None:
+    """"Based on <label>'s <title>": `label` is `FIRM_AUTHOR` for an official or firm item, else the author's gallery
+    label (`_author_label` / `_display_label`; "a UCT member" mid-sentence for an anonymous one); `former` once the
+    author's gallery row is gone ("Based on a former member's <title>"). None when there is no title to credit."""
+    if not isinstance(title, str) or not title.strip():
+        return None
+    if former:
+        return CREDIT_FORMER_SENTENCE.format(title=title)
+    text = label if isinstance(label, str) and label.strip() else ANONYMOUS_AUTHOR
+    if text == ANONYMOUS_AUTHOR:
+        text = text[:1].lower() + text[1:]
+    return CREDIT_SENTENCE.format(label=text, title=title)
+
+
+def _row_credit(row: sqlite3.Row) -> str | None:
+    """The credit for a listed row as read by `_row` (it carries `author_display` and `author_handle`)."""
+    former = (row["kind"] not in UCT_KINDS and "author_handle" in row.keys() and not row["author_handle"])
+    return credit_text(row["title"], label=_author_label(row), former=former)
 
 
 #: An author handle is `secrets.token_urlsafe(9)`: 12 characters. Anything longer than this is not one.
@@ -641,6 +674,14 @@ def preview_lines(body: Any, limit: int = PREVIEW_LINES) -> list[dict]:
     return lines
 
 
+def _is_slot_placeholder_line(line: Any) -> bool:
+    """Is a stored preview line a template slot's `{{block:<id>}}` placeholder? (Task 11.8.)"""
+    from api.services.journal_two import journal_styles as js
+    text = line.get("text") if isinstance(line, dict) else None
+    m = js.PLACEHOLDER_RE.match(text.strip()) if isinstance(text, str) else None
+    return bool(m) and js.slot_family(m.group(1)) is not None
+
+
 def _revision_title(raw: str | None) -> str | None:
     if not raw:
         return None
@@ -667,6 +708,8 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
             preview = loaded if isinstance(loaded, list) else []
         except (TypeError, ValueError):
             preview = []
+        # Task 11.8 (11.7 note): a row written by hand may hold a template slot's `{{block:<id>}}` line: never shown.
+        preview = [ln for ln in preview if not _is_slot_placeholder_line(ln)]
     elif "body_json" in keys:
         try:
             preview = preview_lines(json.loads(row["body_json"] or "{}"))
@@ -1032,11 +1075,22 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
             return _layout_item(out, row, is_admin)
         out["bodyJson"] = _stored_body(row)
         out["propertyDefs"] = json.loads(row["property_defs_json"]) if row["property_defs_json"] else []
+        if row["item_type"] in TOOL_ITEM_TYPES:
+            # Task 11.8: a shared widget, routine or tracker -- its LISTED payload through the safe reader adoption
+            # uses (never `pending_json`), so the detail shows exactly what an adopter would get.
+            out["payload"] = _safe_tool(row["item_type"], _listed_payload(row))
+            if is_admin:
+                rev = _pending_revision(row)
+                if rev is not None:
+                    out["pendingRevision"] = rev
         if row["item_type"] == "style":
             # P3a Task 9: the library's Preview composes this through the journal styles preview door.
             # `payload_json` (the LISTED version), read through the same safe readers adopt uses, so a
             # malformed row reads as an empty style instead of a 500.
             out["payload"] = _safe_listed(_listed_payload(row))
+            if out["payload"].get("format") != SHARED_TEMPLATE_FORMAT:
+                # Task 11.8 (11.7 note): a listing the reducer did not write serves no template slot placeholder.
+                out["bodyJson"] = _without_slot_placeholders(out["bodyJson"])
             # P3a Task 10 fix round 1 (ruling P3a-T10-R1): a reviewer must see a held REVISION before approving
             # it. ADMINS ONLY, and only on this single-row read (the list and the queue never name pending_json,
             # the M-6 / R-T4-1 rails); a member, the author included, never receives the field.
@@ -1123,6 +1177,7 @@ def _pending_revision(row: sqlite3.Row) -> dict | None:
     item_type = row["item_type"] if "item_type" in keys else None
     payload = (_safe_example(rev.get("payload")) if item_type == EXAMPLE_ITEM
                else pls.usable_layout(rev.get("payload")) if item_type == LAYOUT_ITEM
+               else _safe_tool(item_type, rev.get("payload")) if item_type in TOOL_ITEM_TYPES
                else _safe_listed(rev.get("payload")))
     return {"version": int(row["version"] or 1) + 1, "title": text("title") or "",
             "description": text("description") or "", "category": text("category"),
@@ -1213,40 +1268,170 @@ CUSTOM_KIND_SENTENCE = "Only styles for a built-in kind of note can be shared ye
 ADOPTED_SHARE_SENTENCE = "This style came from the library, so it can't be shared again."
 
 
-def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict | None:
+def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection, *, edits: Any = None,
+                  keep: Any = ()) -> dict | None:
     """The portable copy of one of the member's own styles, or None when it is not theirs.
 
     ⛔ A built-in kind only (R-P3-9). The outline is inlined (from the style, else its
-    template) and reduced in gallery mode. Blocks travel verbatim: their settings are enum
-    values the server's own catalogue validated on save. Only BUILT-IN user-set property
-    defaults travel; the member's own are counted in `droppedProperties` and left out.
+    template) and reduced in gallery mode. Non-slot blocks travel by P3a's rule (`_p3a_blocks`: their settings are
+    enum values the server's own catalogue validated on save; a snapshot slot ships with empty settings). Only
+    BUILT-IN user-set property defaults travel; the member's own are counted in `droppedProperties` and left out.
 
     ⛔ R-T1a, two traps in the style layer this must not inherit. (1) `BUILTIN_USER_SET_IDS`
     includes `builtin:note_kind`, which `_clean_properties` REFUSES on save (a style's kind is its
     `kindId`), so it is left out of the defaults, and not counted as a drop. (2) `_clean_blocks`
     keeps an UNKNOWN block id verbatim (a newer version's block), so only ids in `KNOWN_BLOCKS`
-    travel: the gallery never publishes a block this server cannot place."""
+    travel: the gallery never publishes a block this server cannot place.
+
+    ⛔ Task 11.8 (W11-R1, W11-R19): a style holding template slots (`built_<k>`, `routine_<k>`, `tracker_<k>`) is
+    reduced by THE one reducer, `share.share_template`, while wave 11 is on: each slot's own widget, routine or
+    tracker (read here, the member's OWN only) becomes an inline part of the payload, and the payload gains
+    `definitions`, `routines`, `trackers`, `slots` and `format: 2`. A slot whose target is not the member's (gone,
+    foreign) is left out and counted in `droppedSlots`; one that came from the library refuses the share
+    (`ShareError("adopted")`). While wave 11 is off no slot travels at all (the strip, `_without_template_slots`):
+    a dark slot is still a member's id. `edits` / `keep` are the author's share-preview answers (W11-R6)."""
+    found = _style_share(user_id, style_id, conn, edits=edits, keep=keep)
+    if found is None:
+        return None
+    return {**found["payload"], "droppedProperties": found["droppedProperties"],
+            **({"droppedSlots": found["droppedSlots"]} if "droppedSlots" in found else {})}
+
+
+ADOPTED_TEMPLATE_SENTENCE = "This template came from the library, so it can't be shared again."
+HOLDS_ADOPTED_SENTENCE = "This template holds something from the library, so it can't be shared yet."
+#: W11-R6 / 11.15 M-4: said in the share preview when the outline came from a note template the member deleted.
+OUTLINE_GONE_SENTENCE = "This template's outline came from a template you deleted, so it is shared without an outline."
+
+
+def _p3a_blocks(blocks: Any) -> list[dict]:
+    """⛔ P3a's ONE rule for the NON-slot blocks a style shares (W11-R18: called, never re-typed): a block this server
+    can place (`KNOWN_BLOCKS`), verbatim, except a snapshot slot (Task 18, R50), which ships with empty settings: a
+    ticker, a list or a date range is the author's, filled with each adopter's own defaults when they make a note.
+    A template slot family is never this rule's (the reducer's, `share.share_template`)."""
+    from api.services.journal_two import journal_styles as js
+    return [{**b, "settings": {}} if b["block"] in js.SNAPSHOT_SLOT_KINDS else b
+            for b in (blocks if isinstance(blocks, list) else [])
+            if isinstance(b, dict) and isinstance(b.get("block"), str) and b["block"] in js.KNOWN_BLOCKS
+            and js.slot_family(b["block"]) is None]
+
+
+def _source_gallery_of(gallery_id: Any, template_key: Any) -> str | None:
+    """The gallery item a tool or style came from: its `source_gallery_id`, else the item a `gal:<id>:<key>`
+    template key names (a tool a member-shared template made, W11-R13)."""
+    if isinstance(gallery_id, str) and gallery_id:
+        return gallery_id
+    if isinstance(template_key, str) and template_key.startswith("gal:"):
+        parts = template_key.split(":")
+        return parts[1] if len(parts) >= 3 and parts[1] else None
+    return None
+
+
+def _from_library(conn: sqlite3.Connection, user_id: str, gallery_id: Any, template_key: Any = None) -> bool:
+    """Ruling P3a-T10-R5, for any copy: did it come from ANOTHER member's listing (or one that is gone)? FAIL CLOSED:
+    only a source row that still exists AND is this member's own lets it through."""
+    gid = _source_gallery_of(gallery_id, template_key)
+    if gid is None:
+        return False
+    src = conn.execute("SELECT user_id FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()
+    return src is None or src["user_id"] != user_id
+
+
+#: The copy tables of the three tool kinds (and a template's), their gallery item types and member words. Every read
+#: of one is `WHERE id = ? AND user_id = ?`.
+TOOL_KINDS = ("widget", "routine", "tracker")
+SHARE_KINDS = (*TOOL_KINDS, "template")
+TOOL_ITEM_TYPE = {"widget": "widget_definition", "routine": "routine", "tracker": "tracker"}
+TOOL_KIND_OF = {v: k for k, v in TOOL_ITEM_TYPE.items()}
+_COPY_TABLE = {"widget": "j2_widget_definitions", "routine": "j2_routines", "tracker": "j2_trackers",
+               "template": "j2_journal_styles"}
+
+
+def _provenance(conn: sqlite3.Connection, kind: str, user_id: str, tool_id: str) -> tuple[Any, Any]:
+    """(source_gallery_id, source_template_key) of the member's own tool or style; (None, None) when not theirs."""
+    table = _COPY_TABLE[kind]
+    cols = "source_gallery_id, NULL" if kind in ("widget", "template") else "source_gallery_id, source_template_key"
+    r = conn.execute(f"SELECT {cols} FROM {table} WHERE id = ? AND user_id = ?", (tool_id, user_id)).fetchone()
+    return (r[0], r[1]) if r else (None, None)
+
+
+def _tool_row(conn: sqlite3.Connection, user_id: str, kind: str, tool_id: Any) -> dict | None:
+    """The member's OWN live widget, routine or tracker (through its store's public read, `WHERE user_id = ?`), with
+    its provenance as `_fromLibrary`; None when it is not theirs (foreign, unknown, deleted, a built-in)."""
+    from api.services.journal_two import routines, trackers, widget_definitions as wd
+    if not isinstance(tool_id, str) or not tool_id:
+        return None
+    if kind == "widget":
+        row = wd.get(user_id, tool_id, conn=conn)
+    elif kind == "routine":
+        row = routines.get(user_id, tool_id, conn=conn)
+    elif kind == "tracker":
+        if trackers.is_builtin(tool_id):
+            return None
+        row = trackers.get(user_id, tool_id, conn=conn)
+    else:
+        return None
+    if not isinstance(row, dict):
+        return None
+    gid, key = _provenance(conn, kind, user_id, tool_id)
+    return {**row, "_fromLibrary": _from_library(conn, user_id, gid, key)}
+
+
+def _share_row(kind: str, row: dict) -> dict:
+    """What the reducer reads of a tool row: its structure, never its provenance (the provenance rule is
+    `_from_library`'s, decided before the share)."""
+    if kind == "widget":
+        return {"plan": row.get("plan")}
+    if kind == "routine":
+        return {"items": row.get("items"), "schedule": row.get("schedule"), "settings": row.get("settings")}
+    return {"kind": row.get("kind"), "unit": row.get("unit"), "settings": row.get("settings")}
+
+
+def _tool_prefill(kind: str, row: dict) -> dict:
+    """W11-R22: the author's OWN words for one tool, prefilled in the share preview (the only place stored text
+    appears, and only to its owner): `{name, description, formulas:[{id,name}], items:[{text}], unit, numbers}`.
+    `numbers` are the ones the author may choose to share, at exactly the reducer's keep paths."""
+    from api.services.journal_two.widget_engine import share
+    from api.services.journal_two.widget_engine.sources import CATALOG
+    out: dict = {"name": row.get("name") if isinstance(row.get("name"), str) else "", "description": "",
+                 "formulas": [], "items": [], "unit": "", "numbers": []}
+    if kind == "widget":
+        plan = row.get("plan") if isinstance(row.get("plan"), dict) else {}
+        out["formulas"] = [{"id": f["id"], "name": f.get("name") if isinstance(f.get("name"), str) else ""}
+                           for f in (plan.get("formulas") or []) if isinstance(f, dict) and isinstance(f.get("id"), str)]
+        out["numbers"] = share.keepable_numbers(plan, catalog=CATALOG)
+    elif kind == "routine":
+        items = [it for it in (row.get("items") or []) if isinstance(it, dict)]
+        out["items"] = [{"text": it.get("text") if isinstance(it.get("text"), str) else ""} for it in items]
+        out["numbers"] = share.keepable_routine_numbers(items)
+    else:
+        out["unit"] = row.get("unit") if isinstance(row.get("unit"), str) else ""
+    return out
+
+
+def _style_share(user_id: str, style_id: Any, conn: sqlite3.Connection, *, edits: Any = None, keep: Any = (),
+                 adopted_sentence: str = ADOPTED_SHARE_SENTENCE) -> dict | None:
+    """The one build behind `style_payload` (publish) and the template share preview: `{payload, droppedProperties,
+    [droppedSlots], kept, notShared, slots, prefill, outlineGone}`, or None when the style is not the member's."""
     from api.services.journal_two import journal_styles as js
     from api.services.journal_two import note_kinds as nk
     from api.services.journal_two import note_properties as np
+    from api.services.journal_two.widget_engine import share
 
     if not isinstance(style_id, str) or style_id.startswith(js.BUILTIN_PREFIX):
         return None
     style = js.get_style(user_id, style_id, conn, full=True)
     if style is None:
         return None
-    if style.get("sourceGalleryId"):
+    if style.get("sourceGalleryId") and _from_library(conn, user_id, style["sourceGalleryId"]):
         # Ruling P3a-T10-R3: a copy adopted from another author's listing is not the adopter's to share.
-        # Ruling P3a-T10-R5: FAIL CLOSED. Only a source row that still exists AND is this member's own lets it
-        # through; a withdrawn listing (unpublish deletes the row) or a purged author's leaves the provenance
-        # pointing at nothing, and that is refused with the same sentence, never read as "no source".
-        src = conn.execute("SELECT user_id FROM j2_template_gallery WHERE id = ?",
-                           (style["sourceGalleryId"],)).fetchone()
-        if src is None or src["user_id"] != user_id:
-            raise GalleryError(ADOPTED_SHARE_SENTENCE)
+        # Ruling P3a-T10-R5: FAIL CLOSED (a withdrawn listing or a purged author's reads as "not yours").
+        if adopted_sentence == ADOPTED_TEMPLATE_SENTENCE:
+            raise share.ShareError("adopted", adopted_sentence)
+        raise GalleryError(adopted_sentence)
     if style["kindId"] not in nk.BUILTIN_KIND_IDS:
         raise GalleryError(CUSTOM_KIND_SENTENCE)
     outline = style.get("outlineBodyJson")
+    outline_gone = False
     if not outline and style.get("outlineTemplateId"):
         row = conn.execute("SELECT body_json FROM j2_note_templates WHERE id = ? AND user_id = ?",
                            (style["outlineTemplateId"], user_id)).fetchone()
@@ -1254,6 +1439,7 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
             outline = json.loads(row["body_json"]) if row else None
         except (TypeError, ValueError):
             outline = None
+        outline_gone = row is None
     props, dropped = {}, 0
     for pid, value in (style.get("properties") or {}).items():
         if pid == nk.NOTE_KIND_PROPERTY:
@@ -1262,19 +1448,68 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
             props[pid] = value
         else:
             dropped += 1
-    # ⛔ Wave 11 (ruling W11-R19): no template slot travels -- `_without_template_slots`, the one strip, shared with
-    # the read-side backstop `_safe_listed`. Task 11.8 replaces it with `share.share_template` (W11-R1).
-    blocks, outline = _without_template_slots(style.get("blocks"), outline)
-    return {
-        "kindId": style["kindId"],
-        "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
-        # Task 18 (R50): a snapshot slot ships with empty settings. A ticker, a list or a date range is the
-        # author's; the copy is a scaffold, filled with each adopter's own defaults when they make a note.
-        "blocks": [{**b, "settings": {}} if b["block"] in js.SNAPSHOT_SLOT_KINDS else b
-                   for b in blocks if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS],
-        "properties": props,
-        "droppedProperties": dropped,
-    }
+    raw_blocks = style.get("blocks") if isinstance(style.get("blocks"), list) else []
+    has_slots = any(isinstance(b, dict) and js.slot_family(b.get("block")) is not None for b in raw_blocks)
+    prefill: dict = {"name": style.get("name") if isinstance(style.get("name"), str) else "", "description": "",
+                     "formulas": [], "items": [], "unit": "", "numbers": [], "blocks": {}}
+    not_shared = [OUTLINE_GONE_SENTENCE] if outline_gone else []
+    base = {"kindId": style["kindId"], "properties": props}
+    if not has_slots or not notebook_widgets_wave_on(11):
+        # ⛔ W11-R19: no template slot travels (wave 11 off, or none held) -- `_without_template_slots`, the strip
+        # the read side shares for a listing the reducer did not write.
+        blocks, outline = _without_template_slots(raw_blocks, outline)
+        payload = {**base, "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
+                   "blocks": _p3a_blocks(blocks)}
+        return {"payload": payload, "droppedProperties": dropped, "kept": [], "notShared": not_shared,
+                "slots": [], "prefill": prefill, "outlineGone": outline_gone}
+    # The slots' own targets: the member's OWN rows only, each read once; a target that is not theirs leaves its
+    # slot out (counted), one that came from the library refuses the share.
+    rows: dict[str, dict[str, dict]] = {"widget": {}, "routine": {}, "tracker": {}}
+    kept_blocks: list = []
+    dropped_slots = 0
+    for b in raw_blocks:
+        family = js.slot_family(b.get("block")) if isinstance(b, dict) else None
+        if family is None:
+            kept_blocks.append(b)
+            continue
+        try:
+            st = js.slot_settings_of(family, b.get("settings"))
+        except js.StyleValidationError:
+            dropped_slots += 1
+            continue
+        ref = st.get("ref")
+        kind = {"built": "widget", "routine": "routine", "tracker": "tracker"}[family]
+        prefix = {"widget": "def:", "routine": "routine:", "tracker": "tracker:"}[kind]
+        if isinstance(ref, str) and ref.startswith(prefix):
+            if ref not in rows[kind]:
+                row = _tool_row(conn, user_id, kind, ref[len(prefix):])
+                if row is None:
+                    dropped_slots += 1
+                    continue
+                if row["_fromLibrary"]:
+                    raise share.ShareError("adopted", HOLDS_ADOPTED_SENTENCE)
+                rows[kind][ref] = row
+            prefill["blocks"][b["block"]] = _tool_prefill(kind, rows[kind][ref])
+        kept_blocks.append(b)
+    found = share.share_template(
+        {"blocks": kept_blocks},
+        definitions={r: _share_row("widget", x) for r, x in rows["widget"].items()},
+        routines={r: _share_row("routine", x) for r, x in rows["routine"].items()},
+        trackers={r: _share_row("tracker", x) for r, x in rows["tracker"].items()},
+        edits=edits, keep=keep)
+    shared = found.payload
+    # W11-R18: a non-slot block travels by P3a's own rule (called, never re-typed), in the reducer's order.
+    p3a = {b["block"]: b for b in _p3a_blocks(kept_blocks)}
+    blocks = [p3a.get(b["block"], b) if js.slot_family(b["block"]) is None else b for b in shared["blocks"]]
+    slot_ids = frozenset(b["block"] for b in blocks if js.slot_family(b["block"]) is not None)
+    outline = _without_slot_placeholders(outline, slot_ids) if outline else outline
+    payload = {**base, "outlineBodyJson": sanitize_body(outline, user_id) if outline else None, "blocks": blocks,
+               "name": shared["name"], "description": shared["description"],
+               "definitions": shared["definitions"], "routines": shared["routines"],
+               "trackers": shared["trackers"], "slots": shared["slots"], "format": share.FORMAT}
+    return {"payload": payload, "droppedProperties": dropped, "droppedSlots": dropped_slots,
+            "kept": list(found.kept), "notShared": not_shared + list(found.not_shared),
+            "slots": [dict(s) for s in found.slots], "prefill": prefill, "outlineGone": outline_gone}
 
 
 def _placeholder_text(node: Any) -> str:
@@ -1296,17 +1531,20 @@ def _without_template_slots(blocks: Any, outline: Any) -> tuple[list, Any]:
     return kept, (_without_slot_placeholders(outline) if outline else outline)
 
 
-def _without_slot_placeholders(body: Any) -> Any:
+def _without_slot_placeholders(body: Any, keep: frozenset = frozenset()) -> Any:
     """W11-R19: `body` with every `{{block:<id>}}` paragraph whose id is a template slot family removed, at any
     depth (the composer's placeholder grammar, `journal_styles.PLACEHOLDER_RE`). A container left empty keeps one
-    empty paragraph, so the outline stays a valid document. Every other node is untouched. Total."""
+    empty paragraph, so the outline stays a valid document. Every other node is untouched. Total.
+
+    Task 11.8: `keep` names the slot ids whose placeholders stay (the slots a `share.share_template` payload
+    carries); every other family placeholder goes, so a slot left out of a share leaves no line behind."""
     from api.services.journal_two import journal_styles as js
 
     def is_slot_placeholder(node: Any) -> bool:
         if not isinstance(node, dict) or node.get("type") != "paragraph":
             return False
         m = js.PLACEHOLDER_RE.match(_placeholder_text(node).strip())
-        return bool(m) and js.slot_family(m.group(1)) is not None
+        return bool(m) and js.slot_family(m.group(1)) is not None and m.group(1) not in keep
 
     def strip(content: list) -> list:
         kept = []
@@ -1413,13 +1651,18 @@ def _held_or_replaced_once(conn: sqlite3.Connection, *, user_id: str, key_column
 
 
 def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, category: Any,
-                  trading_style: Any, conn: sqlite3.Connection | None = None) -> dict | None:
+                  trading_style: Any, edits: Any = None, keep: Any = (),
+                  conn: sqlite3.Connection | None = None) -> dict | None:
     """Submit (or resubmit) one of the member's own styles. None when the library is off
     or the style is not theirs.
 
     First publish: a PENDING style item. Again while pending or rejected: replaces it in
     place, back to pending (today's outline rule). Again while APPROVED: the new version is
-    HELD in `pending_json` and the approved one stays listed (R-P3-3)."""
+    HELD in `pending_json` and the approved one stays listed (R-P3-3).
+
+    Task 11.8: `edits` and `keep` are the author's share-preview answers (W11-R6), handed to the one reducer
+    (`style_payload` -> `share.share_template`) for a template holding slots; the answer carries `droppedSlots`
+    then (the slots whose target is not the member's, left out)."""
     if not library_enabled():
         return None
     clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True)
@@ -1429,15 +1672,16 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
     owned = conn is None
     conn = conn or get_connection()
     try:
-        payload = style_payload(user_id, style_id, conn)
+        payload = style_payload(user_id, style_id, conn, edits=edits, keep=keep)
         if payload is None:
             return None
         dropped = payload.pop("droppedProperties")
+        dropped_slots = payload.pop("droppedSlots", None)
         payload_json = json.dumps(payload)
         if len(payload_json.encode("utf-8")) > MAX_BODY_BYTES:
             raise GalleryError("That style is too long for the gallery. Trim its outline and try again.")
         body = payload["outlineBodyJson"] or {"type": "doc", "content": []}
-        preview_json = json.dumps(preview_lines(body))
+        preview_json = json.dumps(preview_lines(_without_slot_placeholders(body)))
         author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
         gid = _write_held_or_replaced(
             conn, user_id=user_id, key_column="source_style_id", key=style_id, item_type="style",
@@ -1446,6 +1690,8 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
         conn.commit()
         out = _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
         out["droppedProperties"] = dropped
+        if dropped_slots is not None:
+            out["droppedSlots"] = dropped_slots
         return out
     finally:
         if owned:
@@ -1535,28 +1781,48 @@ def _ring(user_id: str, title: str, message: str, data: dict) -> bool:
         return False
 
 
+#: The item types whose adopters can watch for an update (P3a styles; wave 11 tools), each with its COPY table (the
+#: watch's `style_id` is the adopter's own copy there) and the link a notice opens.
+_WATCHED_TYPES = ("style", "widget_definition", "routine", "tracker")
+_WATCH_COPY_TABLE = {"style": "j2_journal_styles", "widget_definition": "j2_widget_definitions",
+                     "routine": "j2_routines", "tracker": "j2_trackers"}
+#: Task 11.8: an update notice for a tool opens My tools on that copy's kind.
+TOOL_UPDATE_PATH = "/journal/notebook?tools={kind}&libraryUpdate={copy_id}"
+
+
+def _update_link(item_type: str, copy_id: str) -> str:
+    if item_type == "style":
+        return f"{LIBRARY_UPDATE_PATH}{copy_id}"
+    return TOOL_UPDATE_PATH.format(kind={"widget_definition": "widget"}.get(item_type, item_type), copy_id=copy_id)
+
+
 def _ring_update_watchers(conn: sqlite3.Connection, gallery_id: str) -> int:
-    """Tell each watcher still behind a listed style's current version that a new one is out, once.
+    """Tell each watcher still behind a listed item's current version that a new one is out, once.
 
     ⛔ `notified_version < version` is the whole once-only rule: a delivered notice advances the watch to
     the version it announced, a failed one leaves it behind so the next review action retries it. Only a
-    watch whose copy still exists is rung (the link opens that copy), and never the author's own."""
+    watch whose copy still exists is rung (the link opens that copy), and never the author's own.
+    Task 11.8: a style, widget, routine or tracker item; the copy is looked up in its type's own table
+    (`_WATCH_COPY_TABLE`) and a tool's notice links into My tools."""
     item = conn.execute(
-        "SELECT title, version, user_id FROM j2_template_gallery WHERE id = ? AND item_type = 'style'"
-        " AND status = 'approved' AND hidden = 0", (gallery_id,)).fetchone()
+        "SELECT title, version, user_id, item_type FROM j2_template_gallery WHERE id = ? AND item_type IN"
+        " ('style', 'widget_definition', 'routine', 'tracker') AND status = 'approved' AND hidden = 0",
+        (gallery_id,)).fetchone()
     if item is None:
         return 0
     version = int(item["version"] or 1)
+    table = _WATCH_COPY_TABLE[item["item_type"]]
     behind = conn.execute(
-        "SELECT w.user_id, w.style_id FROM j2_gallery_watches w JOIN j2_journal_styles s"
+        f"SELECT w.user_id, w.style_id FROM j2_gallery_watches w JOIN {table} s"
         " ON s.id = w.style_id AND s.user_id = w.user_id AND s.deleted_at IS NULL"
         " WHERE w.gallery_id = ? AND w.notified_version < ? AND w.user_id != ?",
         (gallery_id, version, item["user_id"])).fetchall()
     rung = 0
     for w in behind:
-        if _ring(w["user_id"], item["title"], UPDATE_NOTICE.format(title=item["title"]),
-                 {"research_url": f"{LIBRARY_UPDATE_PATH}{w['style_id']}", "styleId": w["style_id"],
-                  "galleryId": gallery_id, "version": version}):
+        data = {"research_url": _update_link(item["item_type"], w["style_id"]), "galleryId": gallery_id,
+                "version": version}
+        data["styleId" if item["item_type"] == "style" else "copyId"] = w["style_id"]
+        if _ring(w["user_id"], item["title"], UPDATE_NOTICE.format(title=item["title"]), data):
             conn.execute("UPDATE j2_gallery_watches SET notified_version = ? WHERE gallery_id = ? AND user_id = ?",
                          (version, gallery_id, w["user_id"]))
             # ⛔ Committed per watcher, BEFORE the next add_alert: its durable copy is written through a SECOND
@@ -2458,16 +2724,63 @@ def _safe_listed(payload: Any) -> dict:
     raw = payload if isinstance(payload, dict) else {}
     props = raw.get("properties")
     kind = raw.get("kindId")
-    # W11-R19 (re-review M1): a stored listing holding a template slot (a hand-edited row, or one written before the
-    # strip) is read as if it held none. The same strip as the write side; Task 11.8 replaces it.
-    blocks, outline = _without_template_slots(raw.get("blocks"), raw.get("outlineBodyJson"))
-    return {
+    shared = raw.get("format") == SHARED_TEMPLATE_FORMAT
+    if shared:
+        # Task 11.8 (W11-R19/R22): a payload `share.share_template` produced keeps its family slots, but ONLY a slot
+        # whose settings pass the grammar (`slot_settings_of`) and name a SHARED target (an inline key, a shelf
+        # widget, a template key, a check-in). A member's own `def:` / `routine:` / `tracker:` id is never in a
+        # shared payload, so a row holding one was not written by the reducer: that slot is dropped (11.3 c3: an
+        # invalid family block is FILTERED, never a refusal). Its placeholder goes with it.
+        blocks = [b for b in (raw.get("blocks") if isinstance(raw.get("blocks"), list) else [])
+                  if isinstance(b, dict) and (js.slot_family(b.get("block")) is None or _shared_slot(b))]
+        kept_slots = frozenset(b["block"] for b in blocks if js.slot_family(b.get("block")) is not None)
+        outline = raw.get("outlineBodyJson")
+        outline = _without_slot_placeholders(outline, kept_slots) if outline else outline
+    else:
+        # W11-R19 (re-review M1): a stored listing holding a template slot (a hand-edited row, or one written before
+        # the reducer) is read as if it held none: the same strip as the write side used before Task 11.8.
+        blocks, outline = _without_template_slots(raw.get("blocks"), raw.get("outlineBodyJson"))
+    out = {
         "kindId": kind if isinstance(kind, str) else None,
         "blocks": [b for b in (blocks if isinstance(blocks, list) else [])
                    if isinstance(b, dict) and isinstance(b.get("block"), str) and b["block"] in js.KNOWN_BLOCKS],
         "properties": dict(props) if isinstance(props, dict) else {},
         "outlineBodyJson": outline if isinstance(outline, dict) else None,
     }
+    if shared:
+        # Task 11.8: a reducer payload's own parts, each a list of dicts (anything else is `[]`), and its format. A
+        # P3a listing answers exactly the four keys it always did (its readers pin that shape).
+        out.update({"definitions": _dict_list(raw.get("definitions")), "routines": _dict_list(raw.get("routines")),
+                    "trackers": _dict_list(raw.get("trackers")), "slots": _dict_list(raw.get("slots")),
+                    "format": SHARED_TEMPLATE_FORMAT})
+    return out
+
+
+#: The format `share.share_template` stamps on a template payload (`share.FORMAT`). A listing without it was not
+#: produced by the reducer and never carries a family slot (`_safe_listed`).
+SHARED_TEMPLATE_FORMAT = 2
+
+
+def _dict_list(raw: Any) -> list[dict]:
+    """A list of dicts, whatever is stored: a non-list is `[]` and a non-dict entry is left out."""
+    return [dict(x) for x in raw if isinstance(x, dict)] if isinstance(raw, list) else []
+
+
+def _shared_slot(block: dict) -> bool:
+    """Is this family block one a shared template payload may carry? Its settings pass the grammar and name a shared
+    target, never a member's own row (W11-R2)."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.widget_engine import plan as wplan
+    family = js.slot_family(block.get("block"))
+    try:
+        st = js.slot_settings_of(family, block.get("settings"))
+    except js.StyleValidationError:
+        return False
+    if family == "built":
+        return st["ref"].startswith(("shelf:", "inline:"))
+    if "ref" in st:
+        return family == "tracker" and st["ref"] in wplan.BUILTIN_TRACKER_REFS
+    return "inline" in st or "template" in st
 
 
 def _block_ids(payload: Any) -> list[str]:
@@ -2481,71 +2794,306 @@ def _outline_hash(outline: Any) -> str | None:
     return hashlib.sha256(json.dumps(outline, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+class CountCapError(ToolError):
+    """Task 11.8: an adoption or a use that would pass one of the member's stores' count caps (widgets, routines,
+    trackers, templates). Everything the request wrote is rolled back; the sentence is the STORE's own. Always a
+    409 `count_cap` (the error class is the status authority, W9-R14)."""
+
+    status = 409
+    code = "count_cap"
+
+
+S_CHOICE_NOT_YOURS = "That choice isn't in your account."
+
+
+def _cap_sentence(e: BaseException) -> str | None:
+    """The store's own cap sentence when `e` is one of the four stores' count-cap refusals, else None."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two import routines, trackers, widget_definitions as wd
+    if isinstance(e, (routines.CountCap, trackers.CountCap)):
+        return e.sentence
+    if isinstance(e, wd.WidgetError) and str(e) == wd.S_CAP:
+        return wd.S_CAP
+    if isinstance(e, js.StyleValidationError) and str(e).startswith(f"You can keep up to {js.MAX_STYLES_PER_MEMBER} "):
+        return str(e)
+    return None
+
+
+def _not_yours(slot: Any) -> Exception:
+    from api.services.journal_two.widget_engine import share
+    err = share.ShareError("not_yours", S_CHOICE_NOT_YOURS)
+    if isinstance(slot, str) and slot:
+        err.slot = slot                      # W11-R24: the sheet shows the refusal at that choice
+    return err
+
+
+def _owned_value(conn: sqlite3.Connection, user_id: str, stype: str, value: str) -> bool:
+    """Is one answered value the member's OWN row (W11 global constraint: every adoption answer naming a row is
+    checked `WHERE id = ? AND user_id = ?`)? Only the choice types that name a row are checked: an account, a
+    folder, a kind of note, a property, a routine, a tracker. A setup, a tag, a symbol and a number are the member's
+    own words or numbers, never a row id."""
+    from api.services.journal_two import note_kinds as nk
+    from api.services.journal_two import note_properties as np
+    from api.services.journal_two import trackers
+    if stype == "account":
+        return conn.execute("SELECT 1 FROM j2_accounts WHERE id = ? AND user_id = ?", (value, user_id)).fetchone() \
+            is not None
+    if stype == "folder":
+        return conn.execute("SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                            (value, user_id)).fetchone() is not None
+    if stype == "note_kind":
+        return nk.get_kind(user_id, value, conn) is not None
+    if stype == "property":
+        return np.is_builtin_property_id(value) or np.get_property_def(user_id, value, conn=conn) is not None
+    if stype == "routine":
+        return conn.execute("SELECT 1 FROM j2_routines WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+                            (value, user_id)).fetchone() is not None
+    if stype == "tracker":
+        return trackers.is_builtin(value) or conn.execute(
+            "SELECT 1 FROM j2_trackers WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (value, user_id)).fetchone() is not None
+    return True
+
+
+def _resolved_answers(conn: sqlite3.Connection, user_id: str, slots: list[dict], answers: Any) -> dict:
+    """The adopter's answers for a payload's choices: every declared choice answered (else `unresolved`, naming the
+    first one left), each answer shaped for its choice (`template_preview.clean_answers`, the preview's own checks,
+    so a preview and an adoption can never disagree) and each answered row the member's own (else `not_yours`)."""
+    from api.services.journal_two import template_preview as tp
+    from api.services.journal_two.widget_engine import share
+    if answers is None:
+        answers = {}
+    if not isinstance(answers, Mapping):
+        raise share.ShareError("unresolved", share.S_UNRESOLVED)
+    for s in slots:
+        if s["id"] not in answers or answers[s["id"]] is None:
+            err = share.ShareError("unresolved", share.S_UNRESOLVED)
+            err.slot = s["id"]
+            raise err
+    clean = tp.clean_answers(slots, answers)
+    for s in slots:
+        a = clean.get(s["id"])
+        if isinstance(a, Mapping):                    # {"any": true}: no row is named
+            continue
+        for v in (a if isinstance(a, list) else [a]):
+            if isinstance(v, str) and not _owned_value(conn, user_id, s["type"], v):
+                raise _not_yours(s["id"])
+    return clean
+
+
+def _declared_slots(payload: Mapping) -> list[dict]:
+    """A payload's choices, each one the reducer typed (`template_preview`'s own reader)."""
+    from api.services.journal_two import template_preview as tp
+    return tp._slots_of(payload)
+
+
+def _write_credit(conn: sqlite3.Connection, user_id: str, tool_kind: str, tool_id: str, row: sqlite3.Row,
+                  version: int, now: str) -> None:
+    """W11-R7: snapshot (author handle, item title) for one copy, at adoption, with the listed version it is on (the
+    "Update from the library" offer reads it). Never for the member's own item. Uncommitted: the adoption's one
+    transaction carries it. A copy credited before keeps its first snapshot."""
+    if row["user_id"] is not None and row["user_id"] == user_id:
+        return
+    handle = None
+    if row["kind"] not in UCT_KINDS and row["user_id"]:
+        h = conn.execute("SELECT handle FROM j2_gallery_authors WHERE user_id = ?", (row["user_id"],)).fetchone()
+        handle = h["handle"] if h else None
+    conn.execute(
+        "INSERT OR IGNORE INTO j2_gallery_credits (user_id, tool_kind, tool_id, gallery_id, author_handle, title,"
+        " created_at, source_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (user_id, tool_kind, tool_id, row["id"], handle, row["title"] or "", now, version))
+
+
+def _from_template_title(row: sqlite3.Row) -> str | None:
+    title = row["title"] if isinstance(row["title"], str) else ""
+    return " ".join(title.split())[:80] or None
+
+
+def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, payload: dict, version: int, *,
+                 answers: Any, choices: Any, now: str) -> tuple[list, dict]:
+    """Task 11.8: a shared template's inline parts become the member's OWN rows, in the caller's transaction:
+    each inline widget resolved with the answers (`share.resolve_plan`) and created at revision 1 with its source;
+    each inline routine or tracker per `choices` (`{"use": <their own id>}`, or created under its unique template
+    key, W11-R13); every `inline:` / `inline` ref rewritten to `def:<id>` (`defRev: 1`), `routine:<id>`,
+    `tracker:<id>`. A `shelf:`, `template` or check-in slot stays as it is (the note fills it). Returns (blocks,
+    created) with created `{"widgets", "routines", "trackers"}` each `[{id, name}]`."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two import routines, template_tools as tt, trackers, widget_definitions as wd
+    from api.services.journal_two.widget_engine import share
+    from api.services.journal_two.widget_engine.sources import CATALOG
+    slots = _declared_slots(payload)
+    clean = _resolved_answers(conn, user_id, slots, answers)
+    picks = choices if isinstance(choices, Mapping) else {}
+    defs = {d["key"]: d for d in payload["definitions"] if isinstance(d.get("key"), str)}
+    pools = {"routine": {e["key"]: e for e in payload["routines"] if isinstance(e.get("key"), str)},
+             "tracker": {e["key"]: e for e in payload["trackers"] if isinstance(e.get("key"), str)}}
+    title = _from_template_title(row)
+    made_defs: dict[str, str] = {}
+    made_tools: dict[tuple[str, str], str] = {}
+    created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
+    out: list = []
+    for b in payload["blocks"]:
+        family = js.slot_family(b["block"])
+        if family is None:
+            out.append(b)
+            continue
+        st = js.slot_settings_of(family, b.get("settings"))
+        if family == "built":
+            if not st["ref"].startswith("inline:"):
+                out.append(b)
+                continue
+            key = st["ref"][len("inline:"):]
+            if key not in made_defs:
+                d = defs.get(key)
+                if d is None or not isinstance(d.get("plan"), dict):
+                    continue                         # 11.3 c3: an unreadable part is filtered, never a refusal
+                plan = share.resolve_plan(d["plan"], slots, clean, catalog=CATALOG)
+                name = d.get("name") if isinstance(d.get("name"), str) and d["name"].strip() else None
+                made = wd.create(user_id, name, plan, source_gallery_id=row["id"], source_version=version, conn=conn)
+                made_defs[key] = made["id"]
+                created["widgets"].append({"id": made["id"], "name": made.get("name")})
+                _write_credit(conn, user_id, "widget", made["id"], row, version, now)
+            new: dict = {"ref": f"def:{made_defs[key]}", "defRev": 1}
+            if "range" in st:
+                new["range"] = st["range"]
+            out.append({**b, "settings": js.slot_settings_of("built", new)})
+            continue
+        if "inline" not in st:
+            out.append(b)
+            continue
+        key = st["inline"]
+        if (family, key) not in made_tools:
+            entry = pools[family].get(key)
+            if entry is None:
+                continue                             # filtered, as above
+            pick = picks.get(b["block"]) if isinstance(picks.get(b["block"]), Mapping) else {}
+            use = pick.get("use")
+            if use is not None:
+                if not isinstance(use, str) or not _owned_value(conn, user_id, family, use):
+                    raise _not_yours(b["block"])
+                made_tools[(family, key)] = use
+            else:
+                tkey = tt.template_key(family, gallery_id=row["id"], inline=key)
+                if family == "routine":
+                    settings = entry.get("settings") if isinstance(entry.get("settings"), Mapping) else {}
+                    tool = routines.create(
+                        user_id, name=entry.get("name"), items=entry.get("items") or [],
+                        schedule=entry.get("schedule") if isinstance(entry.get("schedule"), Mapping)
+                        else {"kind": "every"},
+                        settings={"done_share": settings.get("done_share", 1.0),
+                                  **({"fromTemplate": title} if title else {})},
+                        source_template_key=tkey, source_gallery_id=row["id"], conn=conn)
+                else:
+                    days = entry.get("days") if entry.get("days") in trackers.DAYS_CHOICES else None
+                    tool = trackers.create(
+                        user_id, name=entry.get("name"), kind=entry.get("kind"), unit=entry.get("unit"),
+                        settings={**({"days": days} if days else {}), **({"fromTemplate": title} if title else {})},
+                        source_template_key=tkey, source_gallery_id=row["id"], conn=conn)
+                made_tools[(family, key)] = tool["id"]
+                created["routines" if family == "routine" else "trackers"].append(
+                    {"id": tool["id"], "name": tool.get("name")})
+                _write_credit(conn, user_id, family, tool["id"], row, version, now)
+        tid = made_tools[(family, key)]
+        ref = tid if family == "tracker" and trackers.is_builtin(tid) else f"{family}:{tid}"
+        out.append({**b, "settings": js.slot_settings_of(family, {"ref": ref, "bind": st["bind"],
+                                                                   "display": st["display"]})})
+    return out, created
+
+
 def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, *, notify: bool,
-                      commit: bool) -> dict:
+                      commit: bool, answers: Any = None, choices: Any = None) -> dict:
     """The body of an adopt, for a row `_listed_style_row` returned (rulings P5-R-C1 / P5-R-C2).
 
-    ONE body, called by `adopt_style` (behind the library and Journal styles switches, `commit=True`) and by
-    the starter-pack install (`starter_packs.install`, behind its own two switches, `commit=False`), so every
-    rule an adopt obeys holds for both. With `commit=False` nothing here commits or rolls back: the caller
-    owns the transaction (the install wraps each row in a SAVEPOINT and commits once). Raises `GalleryError`
-    for a row that cannot be adopted: an unreadable payload, a kind that is not built in, or a style the
-    member's account refuses (the style cap among them)."""
+    ONE body, called by `adopt_style` (behind the library and Journal styles switches, `commit=True`), by
+    `use_library_template` (Task 11.8) and by the starter-pack install (`starter_packs.install`, behind its own two
+    switches, `commit=False`), so every rule an adopt obeys holds for all of them. With `commit=False` nothing here
+    commits or rolls back: the caller owns the transaction (the install wraps each row in a SAVEPOINT and commits
+    once). Raises `GalleryError` for a row that cannot be adopted: an unreadable payload, a kind that is not built
+    in, or a style the member's account refuses.
+
+    Task 11.8: a payload holding template slots (a `share.share_template` payload, or an official template's) needs
+    wave 11 (else `ADOPT_UNSUPPORTED_SENTENCE`); its inline parts become the member's own rows and every inline ref
+    is rewritten (`_materialize`), and a credit row is written per created copy and one for the style, all in the
+    ONE transaction that holds the copy, the use count and the watch (P3a-FIN-R1). A count cap of any store rolls
+    everything back (`CountCapError`, the store's sentence); an unanswered choice is `unresolved`, an answer naming
+    another member's row `not_yours`."""
     from api.services.journal_two import journal_styles as js
+    from api.services.journal_two import note_kinds as nk
     raw_payload = _listed_payload(row)
     if raw_payload is None:
         raise GalleryError("That style could not be read, so it cannot be adopted.")
     payload = _safe_listed(raw_payload)
-    from api.services.journal_two import note_kinds as nk
     if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
         # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
         # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
+        raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
+    has_slots = any(js.slot_family(b["block"]) is not None for b in payload["blocks"])
+    if has_slots and not notebook_widgets_wave_on(11):
         raise GalleryError(ADOPT_UNSUPPORTED_SENTENCE)
     version = int(row["version"] or 1)
     now = _now()
     # ⛔ ONE transaction (ruling P3a-FIN-R1): the copy is written WITH its provenance and left uncommitted,
     # so the use count and the watch below commit with it. A failure anywhere rolls the copy back too: a
     # copy with no `source_gallery_id` would read as the member's own work and could be shared under their
-    # handle (R3/R5), and "Nothing was changed" would be false.
+    # handle (R3/R5), and "Nothing was changed" would be false. Task 11.8: taken as BEGIN IMMEDIATE up front, so the
+    # stores' own writes (a widget, a routine, a tracker) JOIN it instead of committing on their own.
+    if commit and not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
+    created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
     try:
+        blocks = payload["blocks"]
+        if has_slots:
+            blocks, created = _materialize(conn, user_id, row, payload, version, answers=answers, choices=choices,
+                                           now=now)
         style = js.create_style(user_id, {
             "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
-            "kindId": payload["kindId"], "blocks": payload["blocks"],
+            "kindId": payload["kindId"], "blocks": blocks,
             "outlineBodyJson": payload["outlineBodyJson"],
             "properties": payload["properties"]}, conn,
             provenance=(row["id"], version, json.dumps(_block_ids(payload)),
                         _outline_hash(payload["outlineBodyJson"])),
             commit=False)
-    except js.StyleValidationError as e:
+        _write_credit(conn, user_id, "template", style["id"], row, version, now)
+        _record_use(conn, row, user_id, now)   # the ONE use-count copy, for an adopt and a pack install alike (AUD-5)
+        if notify:
+            conn.execute(
+                "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
+                " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
+                " style_id = excluded.style_id, notified_version = excluded.notified_version",
+                (row["id"], user_id, style["id"], version, now))
+    except Exception as e:
         if commit and conn.in_transaction:
             conn.rollback()
-        raise GalleryError(str(e)) from e
-    _record_use(conn, row, user_id, now)   # the ONE use-count copy, for an adopt and a pack install alike (AUD-5)
-    if notify:
-        conn.execute(
-            "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
-            " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
-            " style_id = excluded.style_id, notified_version = excluded.notified_version",
-            (row["id"], user_id, style["id"], version, now))
+        cap = _cap_sentence(e) if commit else None     # a pack install keeps its per-row GalleryError (P5)
+        if cap is not None:
+            raise CountCapError(cap) from e
+        if isinstance(e, js.StyleValidationError):
+            raise GalleryError(str(e)) from e
+        raise
     if commit:
         conn.commit()
     # Final review I-1 / cleanup: the style as the CLIENT is shown it (a dark slot is hidden), like every
-    # journal-styles route answer.
-    return {"style": js.served_style(js.get_style(user_id, style["id"], conn)),
-            "notify": bool(notify),
-            "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+    # journal-styles route answer -- with the member context (11.5: `slotNames`, dark-wave plans hidden).
+    out = {"style": js.served_style(js.get_style(user_id, style["id"], conn), user_id, conn),
+           "notify": bool(notify),
+           "credit": _row_credit(row)}
+    if has_slots:
+        out["created"] = created          # what a template's adoption made (a P3a adopt answers its three keys)
+    return out
 
 
-def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
+def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers: Any = None, choices: Any = None,
                 conn: sqlite3.Connection | None = None) -> dict | None:
-    """The member's own copy of a listed style (R-P3-10).
+    """The member's own copy of a listed style (R-P3-10). Ruling W11-R25b: this is "Adopt" on a template, a COPY
+    only, never a note (`use_library_template` makes the note).
 
     A new `j2_journal_styles` row through `journal_styles.create_style` (so every rule a style obeys on
     save is applied to it), written WITH its `source_gallery_id`, `source_version`, `source_block_ids` and
     `source_outline_hash`, in the one transaction that also records the use and the watch. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
     Journal styles switch is off. A repeat adopt makes another copy (the member's choice) and never counts
     as a second use. `notify` records a watch row so a later task can tell them about an update.
-    The body is `_adopt_listed_row`, shared with the starter-pack install (P5-R-C1)."""
+    The body is `_adopt_listed_row`, shared with the starter-pack install (P5-R-C1). Task 11.8: `answers` and
+    `choices` answer a template's choices and reuse questions (`_materialize`)."""
     from api.services.journal_two import journal_styles as js
     if not library_enabled():
         return None
@@ -2557,7 +3105,7 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
         row = _listed_style_row(conn, gallery_id)
         if row is None or _library_hides(row):         # a firm style while starter packs are off (P5-AUD-1)
             return None
-        return _adopt_listed_row(conn, user_id, row, notify=notify, commit=True)
+        return _adopt_listed_row(conn, user_id, row, notify=notify, commit=True, answers=answers, choices=choices)
     except Exception:
         if conn.in_transaction:
             conn.rollback()
@@ -2565,6 +3113,10 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
     finally:
         if owned:
             conn.close()
+
+
+#: Ruling W11-R25b: "Adopt" on a template is the copy only (`adopt_style`), never a note.
+adopt_template = adopt_style
 
 
 # ── adopting a shared page layout (P4b Task 5) ─────────────────────────────────────────────
@@ -2606,8 +3158,7 @@ def adopt_layout(user_id: str, gallery_id: Any, *, version: Any,
             raise GalleryError(LAYOUT_UNSUPPORTED_SENTENCE)
         _record_use(conn, row, user_id, _now())
         conn.commit()
-        return {"layout": layout, "version": listed,
-                "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+        return {"layout": layout, "version": listed, "credit": _row_credit(row)}
     except Exception:
         if conn.in_transaction:
             conn.rollback()
@@ -2769,7 +3320,8 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
             "UPDATE j2_gallery_watches SET notified_version = MAX(notified_version, ?)"
             " WHERE user_id = ? AND style_id = ?", (plan["toVersion"], user_id, style_id))
         conn.commit()
-        return js.served_style(js.get_style(user_id, style_id, conn))     # a dark slot stays hidden
+        # a dark slot stays hidden; with the member context, `slotNames` is served and dark-wave plans hidden (11.5)
+        return js.served_style(js.get_style(user_id, style_id, conn), user_id, conn)
     except Exception:
         if conn.in_transaction:
             conn.rollback()
@@ -2777,6 +3329,551 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
     finally:
         if owned:
             conn.close()
+
+
+# ── wave 11 (Task 11.8): sharing, adopting and using widgets, routines, trackers and templates ─────────────
+#
+# ⛔ W11-R1: every gallery write of a widget, routine, tracker or template payload goes through the ONE reducer,
+# `widget_engine/share.py` (`share_plan`, `share_routine`, `share_tracker`, `share_template`), and the only writer
+# of a tool item is `publish_tool` (railed by tests/test_gallery_share_w11.py, which scans this file).
+# ⛔ 11.4 m3: a share refusal's sentence may echo the author's own formula text. It is RAISED to the caller (the
+# router answers it to the author), never stored, logged or forwarded from here.
+
+
+def _wave11_library_on() -> bool:
+    """The two switches every wave 11 door of the library needs, read PER CALL."""
+    return library_enabled() and notebook_widgets_wave_on(11)
+
+
+def _tool_share(kind: str, row: dict, *, edits: Any, keep: Any):
+    """THE reducer for one tool (W11-R1): `share_plan`, `share_routine` or `share_tracker`, never a copy."""
+    from api.services.journal_two.widget_engine import share
+    from api.services.journal_two.widget_engine.sources import CATALOG
+    src = _share_row(kind, row)
+    if kind == "widget":
+        return share.share_plan(src["plan"], catalog=CATALOG, edits=edits, keep=keep)
+    if kind == "routine":
+        return share.share_routine(src, edits=edits, keep=keep)
+    return share.share_tracker(src, edits=edits)
+
+
+def _owned_tool(conn: sqlite3.Connection, user_id: str, kind: str, tool_id: Any) -> dict | None:
+    """The member's own tool, refusing a copy from the library (`ShareError("adopted")`); None when not theirs."""
+    from api.services.journal_two.widget_engine import share
+    row = _tool_row(conn, user_id, kind, tool_id)
+    if row is None:
+        return None
+    if row["_fromLibrary"]:
+        raise share.ShareError("adopted", share.S_ADOPTED[kind])
+    return row
+
+
+def share_preview(user_id: str, kind: Any, tool_id: Any, *, edits: Any = None, keep: Any = (),
+                  conn: sqlite3.Connection | None = None) -> dict | None:
+    """What sharing one of the member's own widgets, routines, trackers or templates would send (W11-R22):
+    `{travels, slots, kept, notShared, prefill}`. NOTHING is written.
+
+    `travels` is the reduced payload exactly as `publish_tool` / `publish_style` would store it; `prefill` is the
+    author's own words (name, description, formula field names, routine item text, tracker unit) and the numbers
+    they may keep (`numbers: [{path, value, label}]`, on every answer), the ONLY place stored text appears, and only
+    to its owner. A template's answer also carries `outline` (its sanitized outline, or None) and `outlineGone`,
+    `droppedSlots` and `droppedProperties`. A first ask with no `edits` whose reducer needs typed text (a routine's
+    items) answers the prefill with `travels: None`: the sheet asks again with the author's words.
+
+    None when the library or wave 11 is off, the kind is unknown, or the item is not the member's own live row.
+    Raises `share.ShareError`: a copy from the library (`adopted`), a template holding one (`adopted`), the author's
+    own words in a formula (`own_words`), and the reducer's other refusals."""
+    from api.services.journal_two.widget_engine import share
+    if not _wave11_library_on() or kind not in SHARE_KINDS:
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    first = edits is None
+    try:
+        if kind == "template":
+            try:
+                found = _style_share(user_id, tool_id, conn, edits=edits, keep=keep,
+                                     adopted_sentence=ADOPTED_TEMPLATE_SENTENCE)
+            except share.ShareError as e:
+                if not (first and e.code == "invalid" and e.sentence == share.S_NO_ITEMS):
+                    raise
+                found = _style_share(user_id, tool_id, conn, edits={"blocks": _item_edits(user_id, tool_id, conn)},
+                                     keep=keep, adopted_sentence=ADOPTED_TEMPLATE_SENTENCE)
+                if found is not None:
+                    found = {**found, "travels": None}          # it holds the author's words: withheld (W11-R22)
+            if found is None:
+                return None
+            payload = found["payload"]
+            return {"travels": found.get("travels", payload), "slots": found["slots"], "kept": found["kept"],
+                    "notShared": found["notShared"], "prefill": found["prefill"],
+                    "outline": payload.get("outlineBodyJson"),
+                    "outlineGone": found["outlineGone"], "droppedSlots": found.get("droppedSlots", 0),
+                    "droppedProperties": found["droppedProperties"]}
+        row = _owned_tool(conn, user_id, kind, tool_id)
+        if row is None:
+            return None
+        prefill = {**_tool_prefill(kind, row), "blocks": {}}
+        try:
+            shared = _tool_share(kind, row, edits=edits, keep=keep)
+        except share.ShareError as e:
+            if first and e.code == "invalid" and e.sentence == share.S_NO_ITEMS:
+                return {"travels": None, "slots": [], "kept": [], "notShared": [], "prefill": prefill}
+            raise
+        return {"travels": shared.payload, "slots": [dict(s) for s in shared.slots], "kept": list(shared.kept),
+                "notShared": list(shared.not_shared), "prefill": prefill}
+    finally:
+        if owned:
+            conn.close()
+
+
+def _item_edits(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict:
+    """A template's first ask (no edits yet): each routine slot answered with the author's own item text, so the
+    reducer can tell the preview what else travels (the answer's `travels` is withheld: only `prefill` carries the
+    author's words, W11-R22)."""
+    from api.services.journal_two import journal_styles as js
+    style = js.get_style(user_id, style_id, conn, full=True) or {}
+    out: dict = {}
+    for b in style.get("blocks") or []:
+        if isinstance(b, dict) and js.slot_family(b.get("block")) == "routine":
+            st = b.get("settings") if isinstance(b.get("settings"), dict) else {}
+            ref = st.get("ref")
+            if isinstance(ref, str) and ref.startswith("routine:"):
+                row = _tool_row(conn, user_id, "routine", ref[len("routine:"):])
+                if row is not None:
+                    out[b["block"]] = {"items": [it.get("text") for it in row.get("items") or []
+                                                 if isinstance(it, dict)]}
+    return out
+
+
+def publish_tool(user_id: str, kind: Any, tool_id: Any, *, title: Any = None, description: Any = None,
+                 edits: Any = None, keep: Any = (), conn: sqlite3.Connection | None = None) -> dict | None:
+    """Send one of the member's own widgets, routines or trackers for review (spec §9). None when the library or
+    wave 11 is off, or the tool is not theirs.
+
+    ⛔ W11-R1: the payload is the reducer's (`_tool_share`), never a stored row. The LISTED title and description
+    are the REDUCED payload's (the author's typed `edits`, else the reducer's own words: 11.15 M-6), scrubbed like
+    every gallery text; `title` and `description` here only fill what the payload leaves blank. Written by
+    `_write_held_or_replaced` keyed on (author, `source_tool_id`, item type), category `review`, an empty body: the
+    first share is PENDING; again while pending or rejected it is replaced in place; again while APPROVED the new
+    version is HELD in `pending_json` and the approved one stays listed (R-P3-3). Mints the author handle. Raises
+    `share.ShareError` (`adopted`, `own_words`, the reducer's refusals; never stored) and `GalleryError`."""
+    if not _wave11_library_on():
+        return None
+    if kind not in TOOL_KINDS:
+        raise GalleryError("Pick a widget, routine or tracker to share.")
+    item_type = TOOL_ITEM_TYPE[kind]
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _owned_tool(conn, user_id, kind, tool_id)
+        if row is None:
+            return None
+        payload = _tool_share(kind, row, edits=edits, keep=keep).payload
+        clean_title = _clean_text(payload.get("name") or title, field="title", limit=MAX_TITLE_CHARS,
+                                  required=True, noun=kind)
+        clean_desc = _clean_text(payload.get("description") or description, field="description",
+                                 limit=MAX_DESCRIPTION_CHARS, required=False)
+        if len(json.dumps(payload).encode("utf-8")) > MAX_BODY_BYTES:
+            raise GalleryError(f"That {kind} is too long for the gallery.")
+        author_handle(user_id, conn)     # R-P3-2: a new or resubmitted item always has an author handle
+        gid = _write_held_or_replaced(
+            conn, user_id=user_id, key_column="source_tool_id", key=tool_id, item_type=item_type,
+            title=clean_title, description=clean_desc, category="review", trading_style=None,
+            body={}, preview=[], payload=payload)
+        conn.commit()
+        return _summary(_row(conn, gid, user_id), viewer_id=user_id, is_admin=False)
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def _safe_tool(item_type: str, payload: Any) -> dict:
+    """A listed tool payload in the shape adoption reads, whatever is stored: a widget's `{name, description, plan,
+    slots}`, a routine's `{name, items, schedule, settings}`, a tracker's `{name, kind, unit, days}`."""
+    raw = payload if isinstance(payload, dict) else {}
+    text = lambda k: raw.get(k) if isinstance(raw.get(k), str) else ""   # noqa: E731
+    if item_type == "widget_definition":
+        return {"name": text("name"), "description": text("description"),
+                "plan": raw.get("plan") if isinstance(raw.get("plan"), dict) else None,
+                "slots": _dict_list(raw.get("slots"))}
+    if item_type == "routine":
+        return {"name": text("name"), "items": _dict_list(raw.get("items")),
+                "schedule": raw.get("schedule") if isinstance(raw.get("schedule"), dict) else {"kind": "every"},
+                "settings": raw.get("settings") if isinstance(raw.get("settings"), dict) else {}}
+    return {"name": text("name"), "kind": raw.get("kind") if isinstance(raw.get("kind"), str) else None,
+            "unit": raw.get("unit") if isinstance(raw.get("unit"), str) else None,
+            "days": raw.get("days") if isinstance(raw.get("days"), str) else None}
+
+
+def _create_tool_copy(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, payload: dict, answers: Any,
+                      version: int) -> dict:
+    """The member's own copy of a listed widget, routine or tracker, in the caller's transaction (its store's own
+    create, which joins it). A widget's plan is resolved with the answers (`share.resolve_plan`, every answered row
+    the member's own); a routine and a tracker are made from the payload's structure."""
+    from api.services.journal_two import routines, trackers, widget_definitions as wd
+    from api.services.journal_two.widget_engine import share
+    from api.services.journal_two.widget_engine.sources import CATALOG
+    item_type = row["item_type"]
+    if item_type == "widget_definition":
+        if payload["plan"] is None:
+            raise GalleryError("That widget could not be read, so it cannot be adopted.")
+        slots = _declared_slots(payload)
+        clean = _resolved_answers(conn, user_id, slots, answers)
+        plan = share.resolve_plan(payload["plan"], slots, clean, catalog=CATALOG)
+        return wd.create(user_id, payload["name"] or None, plan, source_gallery_id=row["id"],
+                         source_version=version, conn=conn)
+    if item_type == "routine":
+        settings = payload["settings"]
+        return routines.create(user_id, name=payload["name"], items=payload["items"], schedule=payload["schedule"],
+                               settings={"done_share": settings.get("done_share", 1.0)},
+                               source_gallery_id=row["id"], conn=conn)
+    days = payload["days"] if payload["days"] in trackers.DAYS_CHOICES else None
+    return trackers.create(user_id, name=payload["name"], kind=payload["kind"], unit=payload["unit"],
+                           settings={"days": days} if days else None, source_gallery_id=row["id"], conn=conn)
+
+
+def adopt_tool(user_id: str, gallery_id: Any, *, answers: Any = None, notify: bool = False,
+               conn: sqlite3.Connection | None = None) -> dict | None:
+    """The member's own copy of a listed widget, routine or tracker: `{"kind", "id", "credit"}`. None when the
+    library or wave 11 is off or the item is not a listed tool. The copy (with its `source_gallery_id`), the use
+    count, the watch (`notify`: `style_id` is the copy's id) and the credit snapshot are ONE transaction
+    (P3a-FIN-R1). A store's count cap rolls everything back (`CountCapError`); a choice left unanswered is
+    `unresolved`, an answer naming another member's row `not_yours`."""
+    if not _wave11_library_on():
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _row(conn, gallery_id) if isinstance(gallery_id, str) and gallery_id else None
+        if (row is None or row["item_type"] not in TOOL_ITEM_TYPES or _library_hides(row)
+                or row["status"] != "approved" or row["hidden"]):
+            return None
+        raw = _listed_payload(row)
+        if raw is None:
+            raise GalleryError("That item could not be read, so it cannot be adopted.")
+        payload = _safe_tool(row["item_type"], raw)
+        kind = TOOL_KIND_OF[row["item_type"]]
+        version = int(row["version"] or 1)
+        now = _now()
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+        try:
+            copy = _create_tool_copy(conn, user_id, row, payload, answers, version)
+            _write_credit(conn, user_id, kind, copy["id"], row, version, now)
+            _record_use(conn, row, user_id, now)
+            if notify:
+                conn.execute(
+                    "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
+                    " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
+                    " style_id = excluded.style_id, notified_version = excluded.notified_version",
+                    (row["id"], user_id, copy["id"], version, now))
+        except Exception as e:
+            if conn.in_transaction:
+                conn.rollback()
+            cap = _cap_sentence(e)
+            if cap is not None:
+                raise CountCapError(cap) from e
+            raise
+        conn.commit()
+        return {"kind": kind, "id": copy["id"], "credit": credit_for(user_id, kind, copy["id"], conn=conn)}
+    finally:
+        if owned:
+            conn.close()
+
+
+_NOTE_FIELDS = ("title", "subtitle", "tags", "ticker", "folderId")
+
+
+def _newest_copy(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> str | None:
+    """W11-R4: the member's newest LIVE copy of a listed template (`source_gallery_id`), or None."""
+    r = conn.execute("SELECT id FROM j2_journal_styles WHERE user_id = ? AND source_gallery_id = ?"
+                     " AND deleted_at IS NULL ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                     (user_id, gallery_id)).fetchone()
+    return r["id"] if r else None
+
+
+def _tool_slot_refs(conn: sqlite3.Connection, user_id: str, style_id: str) -> dict[str, str]:
+    """{block id: tool id} of a member style's routine and tracker slots that name a member tool (`ref`)."""
+    from api.services.journal_two import journal_styles as js
+    r = conn.execute("SELECT blocks_json FROM j2_journal_styles WHERE id = ? AND user_id = ?",
+                     (style_id, user_id)).fetchone()
+    try:
+        blocks = json.loads(r["blocks_json"] or "[]") if r else []
+    except (TypeError, ValueError):
+        blocks = []
+    out: dict[str, str] = {}
+    for b in blocks if isinstance(blocks, list) else []:
+        family = js.slot_family(b.get("block")) if isinstance(b, dict) else None
+        st = b.get("settings") if family in ("routine", "tracker") and isinstance(b.get("settings"), dict) else {}
+        ref = st.get("ref")
+        if isinstance(ref, str) and ref.startswith(f"{family}:"):
+            out[b["block"]] = ref[len(family) + 1:]
+    return out
+
+
+def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, choices: Any = None,
+                         payload: Any = None, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Use a listed template (official or a member's) to make a note: `{"note", "skipped", "style", "credit",
+    "created": {"routines", "trackers", "widgets"}}`. None when the library or wave 11 is off or the item is not a
+    listed style; `GalleryConflict` when the member's Journal styles switch is off.
+
+    W11-R4: the member's newest live copy of the item is REUSED; only the first Use adopts (`_adopt_listed_row`,
+    with the answers and choices). The find-or-adopt runs under one `BEGIN IMMEDIATE`, so two Uses at once make ONE
+    copy (Review Focus 2). The note is then made from the copy by `journal_styles.create_styled_note` (its own
+    transaction, OUTSIDE the find-or-adopt one, so compose never runs under a held write lock), whose `choices`
+    answer the copy's remaining reuse questions and are remembered on the copy: a second Use asks only for what the
+    copy does not yet remember. `payload` is the note's own fields (`title`, `subtitle`, `tags`, `ticker`,
+    `folderId`); anything else in it is ignored."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two import routines, trackers
+    if not _wave11_library_on():
+        return None
+    if not js.enabled():
+        raise GalleryConflict(ADOPT_NEEDS_STYLES_SENTENCE)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if conn.in_transaction:
+            conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        row = _listed_style_row(conn, gallery_id)
+        if row is None or _library_hides(row):
+            conn.rollback()
+            return None
+        created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
+        copy_id = _newest_copy(conn, user_id, row["id"])
+        if copy_id is None:
+            adopted = _adopt_listed_row(conn, user_id, row, notify=False, commit=True, answers=answers,
+                                        choices=choices)
+            copy_id = adopted["style"]["id"]
+            created = adopted.get("created") or created
+        else:
+            conn.commit()
+        before = _tool_slot_refs(conn, user_id, copy_id)
+        picks = choices if isinstance(choices, dict) else {}
+        fields = payload if isinstance(payload, dict) else {}
+        note, skipped = js.create_styled_note(
+            user_id, {**{k: fields[k] for k in _NOTE_FIELDS if k in fields}, "styleId": copy_id, "choices": picks},
+            conn)
+        # What this Use made: a slot that now names a tool it did not name before, and was not the member's own pick.
+        made = {bid: tid for bid, tid in _tool_slot_refs(conn, user_id, copy_id).items()
+                if before.get(bid) != tid and not (isinstance(picks.get(bid), dict) and picks[bid].get("use") == tid)}
+        if made:
+            names = {**routines.resolve_many(user_id, list(made.values()), conn=conn),
+                     **trackers.resolve_many(user_id, list(made.values()), conn=conn)}
+            for bid, tid in made.items():
+                fam = js.slot_family(bid)
+                bucket = created["routines" if fam == "routine" else "trackers"]
+                if all(x["id"] != tid for x in bucket):
+                    bucket.append({"id": tid, "name": (names.get(tid) or {}).get("name")})
+        style = js.served_style(js.get_style(user_id, copy_id, conn), user_id, conn)
+        return {"note": note, "skipped": skipped, "style": style,
+                "credit": credit_for(user_id, "template", copy_id, conn=conn) or _row_credit(row),
+                "created": created}
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def credit_for(user_id: str, tool_kind: str, tool_id: Any, *, conn: sqlite3.Connection) -> str | None:
+    """W11-R7, exactly, from the copy's snapshot (`j2_gallery_credits`): "Based on UCT's <title>" for an official or
+    firm item (no author); "Based on <label>'s <title>" while the author's gallery row exists (their display label,
+    "a UCT member" for an anonymous one); "Based on a former member's <title>" once it does not (a purged author).
+    A withdrawn listing keeps its credit (the snapshot). None for a member's own work (no snapshot, or their own)."""
+    if not isinstance(tool_id, str) or not tool_id:
+        return None
+    r = conn.execute("SELECT author_handle, title FROM j2_gallery_credits WHERE user_id = ? AND tool_kind = ?"
+                     " AND tool_id = ?", (user_id, tool_kind, tool_id)).fetchone()
+    if r is None:
+        return None
+    if r["author_handle"] is None:
+        return credit_text(r["title"], label=FIRM_AUTHOR)         # an official or firm item has no author
+    a = conn.execute("SELECT a.user_id, u.display_name FROM j2_gallery_authors a LEFT JOIN users u"
+                     " ON u.id = a.user_id WHERE a.handle = ?", (r["author_handle"],)).fetchone()
+    if a is not None and a["user_id"] == user_id:
+        return None
+    return credit_text(r["title"], label=_display_label(a["display_name"]) if a else None, former=a is None)
+
+
+def library_facts(user_id: str, kind: str, ids: Any, *, conn: sqlite3.Connection | None = None) -> dict:
+    """carry 11.19: what My tools shows for the member's own copies, in one read per table: `{id: {"sourceGalleryId",
+    "credit", "updateAvailable"}}` for each id that is the member's own copy from the library (`kind` widget,
+    routine, tracker or template). `updateAvailable` is a listed (approved, shown) item at a version past the one
+    the copy is on. An id that is not a library copy of theirs is left out."""
+    if kind not in _COPY_TABLE:
+        return {}
+    wanted = list(dict.fromkeys(i for i in (ids if isinstance(ids, (list, tuple)) else [])
+                                if isinstance(i, str) and i))[:500]
+    if not wanted:
+        return {}
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        marks = ", ".join("?" for _ in wanted)
+        cols = "id, source_gallery_id" + (", source_version" if kind in ("widget", "template") else ", NULL")
+        copies = {r[0]: (r[1], r[2]) for r in conn.execute(
+            f"SELECT {cols} FROM {_COPY_TABLE[kind]} WHERE user_id = ? AND id IN ({marks})", (user_id, *wanted))
+            if r[1]}
+        if not copies:
+            return {}
+        tool_kind = kind
+        credit_versions = {r[0]: r[1] for r in conn.execute(
+            f"SELECT tool_id, source_version FROM j2_gallery_credits WHERE user_id = ? AND tool_kind = ?"
+            f" AND tool_id IN ({marks})", (user_id, tool_kind, *wanted))}
+        gids = list({g for g, _v in copies.values()})
+        gmarks = ", ".join("?" for _ in gids)
+        listed = {r["id"]: r for r in conn.execute(
+            f"SELECT id, user_id, item_type, kind, status, hidden, version FROM j2_template_gallery"
+            f" WHERE id IN ({gmarks})", gids)}
+        out: dict = {}
+        for cid, (gid, own_version) in copies.items():
+            item = listed.get(gid)
+            on = credit_versions.get(cid) or own_version or 0
+            avail = bool(item is not None and item["status"] == "approved" and not item["hidden"]
+                         and not _library_hides(item) and int(item["version"] or 1) > int(on or 0))
+            out[cid] = {"sourceGalleryId": gid, "credit": credit_for(user_id, tool_kind, cid, conn=conn),
+                        "updateAvailable": avail}
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
+def record_use_day(user_id: str, item_id: Any, *, now: datetime | None = None,
+                   conn: sqlite3.Connection | None = None) -> None:
+    """W11-R11: one ET calendar day the member used a copy of gallery item `item_id`, once per day
+    (`INSERT OR IGNORE`, `trading_days.today_et`). Never for the author's own item. Runs in the caller's open
+    transaction when it has one (a routine tick, a tracker log), else commits its own one row. Never raises into
+    its caller: a use-day that cannot be written is a missed count, never a failed tick, log or run."""
+    from api.services.journal_two import trading_days
+    if not isinstance(user_id, str) or not user_id or not isinstance(item_id, str) or not item_id:
+        return
+    owned = conn is None
+    c = conn or get_connection()
+    try:
+        author = c.execute("SELECT user_id FROM j2_template_gallery WHERE id = ?", (item_id,)).fetchone()
+        if author is not None and author["user_id"] == user_id:
+            return
+        began = not c.in_transaction
+        c.execute("INSERT OR IGNORE INTO j2_gallery_use_days (user_id, item_id, day) VALUES (?, ?, ?)",
+                  (user_id, item_id, trading_days.today_et(now).isoformat()))
+        if began:
+            c.commit()
+    except sqlite3.Error as e:
+        print(f"[template-gallery] use day not recorded: {type(e).__name__}")
+    finally:
+        if owned:
+            c.close()
+
+
+def record_tool_use_day(user_id: str, kind: str, tool_id: Any, *, now: datetime | None = None,
+                        conn: sqlite3.Connection | None = None) -> None:
+    """`record_use_day` for one of the member's own tools, by its id: the copy's `source_gallery_id` is read
+    (`WHERE id = ? AND user_id = ?`); a tool that is not a library copy records nothing. Never raises."""
+    if kind not in TOOL_KINDS or not isinstance(tool_id, str) or not tool_id or not user_id:
+        return
+    owned = conn is None
+    c = conn or get_connection()
+    try:
+        gid, _key = _provenance(c, kind, user_id, tool_id)
+        if gid:
+            record_use_day(user_id, gid, now=now, conn=c)
+    except sqlite3.Error as e:
+        print(f"[template-gallery] use day not recorded: {type(e).__name__}")
+    finally:
+        if owned:
+            c.close()
+
+
+def update_tool(user_id: str, copy_kind: Any, copy_id: Any, *, answers: Any = None,
+                conn: sqlite3.Connection | None = None) -> dict | None:
+    """Take the LISTED version of an adopted widget, routine or tracker into the member's copy (never `pending_json`:
+    the `_listed_payload` rule). A widget copy gets a NEW revision (`widget_definitions.update`, `apply="only"`:
+    every placement keeps its pinned `defRev`, and wave 8's "Updated version available" offers the new one); a
+    routine copy gets the new items and schedule (`routines.update`: renames and removals apply from today forward,
+    W9); a tracker copy gets the new name and unit (a kind change refuses with `trackers.S_KIND_FIXED`). The credit's
+    and the watch's version move to the listed one, in the same transaction.
+
+    Answers `{"kind", "id", "version", "tool"}`; None when the library or wave 11 is off, the copy is not the
+    member's own library copy, or its listing is not listed at a newer version."""
+    from api.services.journal_two import routines, trackers, widget_definitions as wd
+    from api.services.journal_two.widget_engine import share
+    from api.services.journal_two.widget_engine.sources import CATALOG
+    if not _wave11_library_on() or copy_kind not in TOOL_KINDS:
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        mine = _tool_row(conn, user_id, copy_kind, copy_id)
+        gid, _key = _provenance(conn, copy_kind, user_id, copy_id) if mine is not None else (None, None)
+        if mine is None or not gid:
+            return None
+        row = _listed_row(conn, gid, TOOL_ITEM_TYPE[copy_kind])
+        if row is None:
+            return None
+        version = int(row["version"] or 1)
+        c = conn.execute("SELECT source_version FROM j2_gallery_credits WHERE user_id = ? AND tool_kind = ?"
+                         " AND tool_id = ?", (user_id, copy_kind, copy_id)).fetchone()
+        on = (c["source_version"] if c and c["source_version"] is not None
+              else mine.get("sourceVersion") if copy_kind == "widget" else None) or 0
+        if version <= int(on):
+            return None
+        raw = _listed_payload(row)                   # ⛔ the LISTED payload, never `pending_json`
+        if raw is None:
+            raise GalleryError("That item could not be read, so it cannot be updated.")
+        payload = _safe_tool(row["item_type"], raw)
+        if conn.in_transaction:
+            conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            if copy_kind == "widget":
+                if payload["plan"] is None:
+                    raise GalleryError("That widget could not be read, so it cannot be updated.")
+                slots = _declared_slots(payload)
+                clean = _resolved_answers(conn, user_id, slots, answers)
+                plan = share.resolve_plan(payload["plan"], slots, clean, catalog=CATALOG)
+                tool = wd.update(user_id, copy_id, if_match=mine["etag"], plan=plan, apply="only", conn=conn)
+            elif copy_kind == "routine":
+                tool = routines.update(user_id, copy_id, if_match=mine["etag"], items=payload["items"],
+                                       schedule=payload["schedule"], conn=conn)
+            else:
+                if payload["kind"] != mine.get("kind"):
+                    raise trackers.TrackerError(trackers.S_KIND_FIXED)
+                tool = trackers.update(user_id, copy_id, if_match=mine["etag"], name=payload["name"] or None,
+                                       unit=payload["unit"], conn=conn)
+            now = _now()
+            conn.execute("INSERT OR IGNORE INTO j2_gallery_credits (user_id, tool_kind, tool_id, gallery_id,"
+                         " author_handle, title, created_at, source_version) SELECT ?, ?, ?, ?, a.handle, ?, ?, ?"
+                         " FROM (SELECT 1) LEFT JOIN j2_gallery_authors a ON a.user_id = ?",
+                         (user_id, copy_kind, copy_id, gid, row["title"] or "", now, version, row["user_id"]))
+            conn.execute("UPDATE j2_gallery_credits SET source_version = ? WHERE user_id = ? AND tool_kind = ?"
+                         " AND tool_id = ?", (version, user_id, copy_kind, copy_id))
+            conn.execute("UPDATE j2_gallery_watches SET notified_version = MAX(notified_version, ?)"
+                         " WHERE user_id = ? AND gallery_id = ?", (version, user_id, gid))
+        except Exception:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
+        conn.commit()
+        return {"kind": copy_kind, "id": copy_id, "version": version, "tool": tool}
+    finally:
+        if owned:
+            conn.close()
+
+
+#: carry 11.9 c1: public names for the gallery reads `template_preview` (Task 11.9) makes. The private names stay.
+gallery_row = _row
+can_see = _can_see
+listed_payload = _listed_payload
+author_label = _author_label
 
 
 def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
@@ -3032,7 +4129,8 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                         pls.validate_layout_payload(rev["payload"])
                     # A style's listed body is its outline; an example note's is its reduced snapshot (P3b).
                     body_key = "bodyJson" if row["item_type"] == EXAMPLE_ITEM else "outlineBodyJson"
-                    new_body = rev["payload"].get(body_key) or {"type": "doc", "content": []}
+                    new_body = ({} if row["item_type"] in TOOL_ITEM_TYPES        # a tool has no body (Task 11.7)
+                                else rev["payload"].get(body_key) or {"type": "doc", "content": []})
                     args = (rev["title"], rev["description"], rev["category"], rev.get("tradingStyle"),
                             json.dumps(rev["payload"]), json.dumps(new_body),
                             json.dumps(rev.get("preview") or preview_lines(new_body)),
@@ -3102,7 +4200,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         moves.finish()                                  # committed: the old copies go, and nothing can undo it
         # P3a Task 7: AFTER the review has committed, so a notice can never undo it. An approved revision
         # bumps the version, so its watchers are behind; any later review action retries a failed delivery.
-        if action in _RING_ACTIONS and row["item_type"] == "style":
+        if action in _RING_ACTIONS and row["item_type"] in _WATCHED_TYPES:
             try:
                 _ring_update_watchers(conn, gallery_id)
             except Exception as e:  # noqa: BLE001 -- the review has committed; a notice never fails it (review I1)

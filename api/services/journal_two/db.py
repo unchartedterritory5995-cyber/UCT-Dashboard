@@ -2328,6 +2328,9 @@ _PHASE_2_ALTERS = [
         created_at    TEXT NOT NULL,
         PRIMARY KEY (user_id, tool_kind, tool_id)
     )""",
+    # Task 11.8: the listed version a copy is on, so My tools can offer "Update from the library" for a routine or
+    # tracker copy too (their own tables carry no version). Moved by `template_gallery.update_tool`.
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_version INTEGER",
     # The member's answer to the 3rd-day Helpful line (W11-R9): yes, not_really or dismissed, once per
     # (member, item).
     """CREATE TABLE IF NOT EXISTS j2_gallery_helpful_prompts (

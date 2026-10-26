@@ -707,6 +707,9 @@ def set_value(user_id: str, tid: str, day: str, value: Any, *, now: datetime | N
                       " DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
                       (user_id, tid, d.isoformat(), stored, _iso(now_dt)))
         out = _tracker_day(meta, d, stored, today)
+        if row["source_gallery_id"]:         # W11-R11: a log on a library copy is a use day (Task 11.8)
+            from api.services.journal_two import template_gallery as _gallery
+            _gallery.record_use_day(user_id, row["source_gallery_id"], now=now_dt, conn=c)
         if began:
             c.commit()
         return out

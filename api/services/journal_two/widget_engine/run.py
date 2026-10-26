@@ -1018,6 +1018,8 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
             _CACHE.set(key, out, CACHE_TTL_S)
             if lane == "run":
                 count_run(user_id)
+                from api.services.journal_two import template_gallery  # W11-R11 use-day hook (Task 11.8)
+                template_gallery.record_tool_use_day(user_id, "widget", def_id, now=now, conn=conn)
             return out
 
         ok, value = _FLIGHT.run_here(key, _compute, _WAIT_S)

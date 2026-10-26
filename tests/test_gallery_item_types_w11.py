@@ -225,7 +225,8 @@ def test_tombstone_replay_for_each_new_table(authdb, tmp_path):
     try:
         for uid in (GONE, KEPT):
             c.execute("INSERT INTO j2_gallery_use_days VALUES (?, 'g1', '2026-10-26')", (uid,))
-            c.execute("INSERT INTO j2_gallery_credits VALUES (?, 'routine', ?, 'g1', 'h-1', 'Pre-market prep', 'x')",
+            c.execute("INSERT INTO j2_gallery_credits (user_id, tool_kind, tool_id, gallery_id, author_handle, title,"
+                      " created_at) VALUES (?, 'routine', ?, 'g1', 'h-1', 'Pre-market prep', 'x')",
                       (uid, f"r-{uid}"))
             c.execute("INSERT INTO j2_gallery_helpful_prompts VALUES (?, 'g1', 'yes', 'x')", (uid,))
         c.commit()

@@ -58,8 +58,7 @@ S_PICK = "Pick a {label} to see this widget."
 #: A built slot past the batch's `run.MAX_EXAMPLES` cards (the wording a list card uses, W11-R12).
 S_NOT_PREVIEWED = "Fills in with your own data when you make a note."
 #: The credit's words (W11-R7). The label is the one `template_gallery._author_label` answers.
-CREDIT = "Based on {label}'s {title}"
-CREDIT_FORMER = "Based on a former member's {title}"
+# The credit line's words live in ONE place: `template_gallery.credit_text` (Task 11.8, carry c5).
 
 #: The card slot of a single listed widget, and the tool slot of a single listed routine or tracker.
 WIDGET_SLOT = "widget"
@@ -586,21 +585,13 @@ def _standalone_tool(family: str, payload: Mapping) -> dict:
 
 def credit_line(row: Any, user_id: str) -> str | None:
     """W11-R7 for a listed row: None for the viewer's own item; `"UCT"` for official and firm rows; the author's
-    gallery display label while their author row exists; `"a former member's"` once it does not."""
+    gallery display label while their author row exists; `"a former member's"` once it does not. Worded by THE one
+    credit helper, `template_gallery.credit_text` (Task 11.8, carry c5)."""
     tg = _tg()
-    title = row["title"] if isinstance(row["title"], str) and row["title"].strip() else None
-    if title is None:
+    if row["kind"] not in tg.UCT_KINDS and row["user_id"] == user_id:
         return None
-    if row["kind"] in tg.UCT_KINDS:
-        return CREDIT.format(label=tg.FIRM_AUTHOR, title=title)
-    if row["user_id"] == user_id:
-        return None
-    if not row["author_handle"]:
-        return CREDIT_FORMER.format(title=title)
-    label = tg._author_label(row)
-    if label == tg.ANONYMOUS_AUTHOR:                  # "A UCT member" mid-sentence reads "a UCT member" (M-4)
-        label = label[:1].lower() + label[1:]
-    return CREDIT.format(label=label, title=title)
+    return tg.credit_text(row["title"], label=tg._author_label(row),
+                          former=row["kind"] not in tg.UCT_KINDS and not row["author_handle"])
 
 
 # -- the door --------------------------------------------------------------------------------------
