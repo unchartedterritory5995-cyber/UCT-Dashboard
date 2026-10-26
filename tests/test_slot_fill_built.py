@@ -121,7 +121,7 @@ class _DefsSpy:
     def __init__(self, monkeypatch):
         from api.services.journal_two import widget_definitions as wd
         self.users = []
-        for name in ("resolve_for_run", "get"):
+        for name in ("resolve_for_run", "get", "resolve_many"):
             real = getattr(wd, name)
 
             def wrap(uid, *a, _real=real, _name=name, **k):
@@ -215,9 +215,14 @@ def test_fill_node_shape_matches_the_client_insert(db, monkeypatch):
     from api.services.journal_two import journal_styles as js, slot_fill
     from api.services.journal_two.widget_engine import payload as wpayload
     vectors = json.loads(VECTORS.read_text(encoding="utf-8"))
-    assert vectors["version"] == 1 and len(vectors["cases"]) >= 6
+    assert vectors["version"] == 2 and len(vectors["cases"]) >= 8
+    assert [list(f) for f in slot_fill.BUILT_PARAM_FIELDS] == vectors["fields"]
     for c in vectors["cases"]:
-        assert slot_fill.refresh_params(c["old"], c["payload"]) == c["expected"], c["name"]
+        refreshed = slot_fill.refresh_params(c["old"], c["payload"])
+        assert refreshed == c["expected"], c["name"]
+        params = slot_fill.normalize_params(refreshed)
+        assert params == c["params"], c["name"]
+        assert slot_fill.search_text(params) == c["searchText"], c["name"]
     d = _def()
     style = _style(("built_a", {"ref": SHELF, "defRev": 1, "range": {"token": "last_30d"}}),
                    ("built_b", {"ref": f"def:{d['id']}", "defRev": 1}))
@@ -228,18 +233,20 @@ def test_fill_node_shape_matches_the_client_insert(db, monkeypatch):
     for n in nodes:
         a = n["attrs"]
         assert set(a) == {"v", "widgetId", "embedId", "mode", "params", "capturedAt", "annotations", "caption",
-                          "layout", "fallback"}
+                          "layout", "fallback", "tradeRef", "tradeRefType", "searchText"}
+        assert (a["tradeRef"], a["tradeRefType"]) == (None, None)
+        assert a["searchText"] == slot_fill.search_text(a["params"]) and a["searchText"].startswith("[widget: ")
         assert (a["v"], a["widgetId"], a["mode"], a["annotations"], a["caption"], a["fallback"]) == (
             1, "builtWidget", "snapshot", [], None, None)
         assert a["layout"] == {"width": "full", "height": None}
         assert a["capturedAt"] == a["params"]["asOf"] and a["params"]["share"] is False
-        payload = {k: v for k, v in a["params"].items() if k != "share"}
-        assert a["params"] == slot_fill.refresh_params({}, payload)
+        assert a["params"] == slot_fill.normalize_params(a["params"])               # already the insert's shape
+        assert None not in a["params"].values()                                     # nulls dropped, as the client
     assert shelf_node["attrs"]["embedId"] != def_node["attrs"]["embedId"]
     sp, dp = shelf_node["attrs"]["params"], def_node["attrs"]["params"]
     assert (sp["defId"], sp["defRev"], sp["range"]) == (SHELF, 1, {"token": "last_30d"})
     assert (dp["defId"], dp["defRev"]) == (d["id"], 1)
-    assert isinstance(dp["def"], dict) and "defRef" not in dp and dp["accountId"] is None
+    assert isinstance(dp["def"], dict) and "defRef" not in dp and "accountId" not in dp
     # over 4 KB the frozen plan is a reference (a fresh engine cache: the first run's payload is cached)
     from api.services.journal_two.widget_engine import run
     run._reset_state()
@@ -323,6 +330,7 @@ def test_preview_reads_nothing_and_names_the_widget(db, monkeypatch):
     assert "Equity curve fills in with your own data when you make a note." in lines
     assert "Setups this month fills in with your own data when you make a note." in lines
     assert spy.calls == [] and not [n for n, _ in defs.users if n == "resolve_for_run"]
+    assert len([n for n, _ in defs.users if n == "resolve_many"]) == 1                  # one batched read
     assert out["slotNames"] == {"built_a": "Equity curve", "built_b": "Setups this month"}
 
 
@@ -414,6 +422,9 @@ def test_the_router_serves_slot_names():
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and n.func.attr == "served_style"]
     assert len(calls) >= 5                                                              # non-vacuity
+    lists = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "served_styles"]
+    assert len(lists) == 1 and ast.unparse(lists[0].args[1]) == "user['id']"            # the list: one read
     for c in calls:
         assert len(c.args) == 2 and ast.unparse(c.args[1]) == "user['id']", ast.unparse(c)
 
@@ -496,3 +507,225 @@ def test_create_only_membership_follows_wave_11_and_the_plan_tests_it_after_the_
     _waves(monkeypatch, *(w for w in ALL_ON if w != 11))
     assert "myGamePlan" not in js.CREATE_ONLY_BLOCKS and "reminder" in js.CREATE_ONLY_BLOCKS
     assert js.plan_style_update(A, blank["id"], style_id=s["id"])["add"] == []
+
+
+# ── Fix round 1 ─────────────────────────────────────────────────────────────────────────────────
+
+def test_a_big_template_never_starves_another_members_slot(db, monkeypatch):
+    """I-1: member A fills 10 built slots while member B fills 1. A holds at most run.MEMBER_MAX pool permits at
+    once (the rest queue on the request thread), so B's slot fills and nothing answers "couldn't load"."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.widget_engine import run
+    lock, live, peak = threading.Lock(), {A: 0, B: 0}, {A: 0, B: 0}
+
+    def through_the_real_gate(user_id, plan, settings, *, lane, def_id=None, def_rev=None, latest_rev=None,
+                              now=None, sample=False):
+        with run.admit(user_id, lane):                     # the engine's own gates: MEMBER_MAX, BUILDER_MAX
+            with lock:
+                live[user_id] += 1
+                peak[user_id] = max(peak[user_id], live[user_id])
+            time.sleep(0.15)
+            with lock:
+                live[user_id] -= 1
+        return _fake_payload(def_id, def_rev, plan)
+    monkeypatch.setattr(run, "run_plan", through_the_real_gate)
+    big = _style(*[(f"built_{js.slot_key(i)}", {"ref": SHELF, "defRev": 1}) for i in range(10)])
+    small = _style(("built_a", {"ref": SHELF, "defRev": 1}))
+    outs = {}
+
+    def go(uid, style):
+        outs[uid] = js.compose(uid, style, ticker=None, conn=None, now=NOW)
+    t = threading.Thread(target=go, args=(A, big))
+    t.start()
+    time.sleep(0.05)
+    go(B, small)
+    t.join(10)
+    for uid, n in ((A, 10), (B, 1)):
+        body = outs[uid]["bodyJson"]
+        assert len(_built_nodes(body)) == n, uid
+        assert not [x for x in _lines(body) if "couldn't load" in x], uid
+    assert peak[A] <= run.MEMBER_MAX
+
+
+def test_an_engine_busy_for_the_whole_budget_is_the_sentence_inside_the_budget(db, monkeypatch):
+    """m-3: busy every time: the slot is re-dispatched (more than one try, no task sleeping on a permit), then it
+    is "couldn't load" within SLOT_BUDGET_S plus a margin."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.widget_engine import run
+    monkeypatch.setattr(js, "SLOT_BUDGET_S", 0.6)
+    tries = []
+
+    def always_busy(*a, **k):
+        tries.append(time.monotonic())
+        raise run.EngineBusy()
+    monkeypatch.setattr(run, "run_plan", always_busy)
+    t0 = time.monotonic()
+    out = js.compose(A, _style(("built_a", {"ref": SHELF, "defRev": 1})), ticker=None, conn=None, now=NOW)
+    took = time.monotonic() - t0
+    assert len(tries) > 1 and took < js.SLOT_BUDGET_S + 0.5, (len(tries), took)
+    assert "Equity curve couldn't load. Type / to add it again." in _lines(out["bodyJson"])
+    assert out["skipped"] == [{"block": "built_a", "reason": "widget-failed:built_a"}]
+
+
+def _dark_style(def_id):
+    para = lambda t: {"type": "paragraph", "content": [{"type": "text", "text": t}]}
+    return {"name": "T", "kindId": "trade_plan", "blocks": [
+        {"block": "chart", "settings": {"tf": "D"}},
+        {"block": "built_a", "settings": {"ref": f"def:{def_id}", "defRev": 1}},
+        {"block": "built_b", "settings": {"ref": SHELF, "defRev": 2}},
+        {"block": "built_c", "settings": {"ref": SHELF, "defRev": 1}}],
+        "outlineBodyJson": {"type": "doc", "content": [
+            {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Prep"}]},
+            para("{{block:built_a}}"), para("{{block:built_b}}"), para("{{block:built_c}}")]}}
+
+
+def test_one_decider_hides_a_dark_member_plan_on_every_path(db, monkeypatch):
+    """I-2: a `def:` slot whose plan needs wave 10 is hidden by served_style, slotNames, the preview and compose
+    while waves 9 and 10 are off, exactly like a shelf slot pinned to a wave 10 revision, and kept on save."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.widget_engine import shelf
+    d = _def(name="My drawdown", plan=json.loads(json.dumps(shelf.revision(SHELF, 2)["plan"])))
+    s = js.create_style(A, _dark_style(d["id"]))
+    spy = _RunSpy(monkeypatch)
+    _waves(monkeypatch, *(w for w in ALL_ON if w not in (9, 10)))
+    served = js.served_style(js.get_style(A, s["id"]), A)
+    assert [b["block"] for b in served["blocks"]] == ["chart", "built_c"]
+    text = json.dumps(served["outlineBodyJson"])
+    assert "built_a" not in text and "built_b" not in text and "{{block:built_c}}" in text
+    assert served["slotNames"] == {"built_c": "Equity curve"}                           # names only what is shown
+    listed = js.served_styles([js.get_style(A, s["id"])], A)[0]
+    assert [b["block"] for b in listed["blocks"]] == ["chart", "built_c"]
+    lines = _lines(js.preview(A, {"styleId": s["id"]})["bodyJson"])
+    assert [x for x in lines if "fills in" in x] == ["Equity curve fills in with your own data when you make a note."]
+    out = js.compose(A, js.get_style(A, s["id"]), ticker="NVDA", conn=None, now=NOW)
+    assert [c["def_id"] for c in spy.calls] == [SHELF] and len(_built_nodes(out["bodyJson"])) == 1
+    assert not [k for k in out["skipped"] if k["block"] in ("built_a", "built_b")]
+    got = js.update_style(A, s["id"], {"blocks": served["blocks"]})                     # the editor's save
+    assert [b["block"] for b in got["blocks"]] == ["chart", "built_a", "built_b", "built_c"]
+    _waves(monkeypatch, *ALL_ON)                                                         # control: all shown
+    assert [b["block"] for b in js.served_style(js.get_style(A, s["id"]), A)["blocks"]] == [
+        "chart", "built_a", "built_b", "built_c"]
+
+
+def _traced():
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    stmts = []
+    conn.set_trace_callback(stmts.append)
+    return conn, stmts
+
+
+def test_names_are_one_batched_owned_read_per_request(db, monkeypatch):
+    """I-3: every `def:` name of every style in a list is ONE statement on one connection; past the read budget a
+    name is the slot word, never an error."""
+    from api.services.journal_two import journal_styles as js, slot_fill
+    defs = [_def(name=f"W{i}") for i in range(4)]
+    ids = []
+    for k in range(3):
+        ids.append(js.create_style(A, {"name": f"T{k}", "kindId": "trade_plan", "blocks": [
+            {"block": f"built_{js.slot_key(i)}", "settings": {"ref": f"def:{d['id']}", "defRev": 1}}
+            for i, d in enumerate(defs)]})["id"])
+    conn, stmts = _traced()
+    try:
+        styles = [js.get_style(A, i, conn) for i in ids]
+        stmts.clear()
+        out = js.served_styles(styles, A, conn)
+        reads = [q for q in stmts if "j2_widget_definitions" in q]
+        assert len(reads) == 1, reads                                                    # 12 slots, one read
+        want = {"built_a": "W0", "built_b": "W1", "built_c": "W2", "built_d": "W3"}
+        assert all(o["slotNames"] == want for o in out)
+        stmts.clear()
+        js.served_style(styles[0], A, conn)
+        assert len([q for q in stmts if "j2_widget_definitions" in q]) == 1
+        monkeypatch.setattr(slot_fill, "PREFETCH_MAX", 2)
+        stmts.clear()
+        names = js.served_style(styles[0], A, conn)["slotNames"]
+        assert names == {"built_a": "W0", "built_b": "W1", "built_c": "Widget", "built_d": "Widget"}
+        assert len([q for q in stmts if "j2_widget_definitions" in q]) == 1             # overflow reads nothing
+    finally:
+        conn.close()
+
+
+def test_resolve_many_is_resolve_for_runs_twin(db):
+    """The batched read answers what resolve_for_run answers, for every asked revision, a pruned one included."""
+    from api.services.journal_two import widget_definitions as wd
+    from api.services.auth_db import get_connection
+    d = _def(plan=_base_plan("last_7d"))
+    for i, token in enumerate(("last_30d", "last_90d", "ytd", "all"), start=1):
+        d = wd.update(A, d["id"], if_match=d["etag"], plan=_base_plan(token), apply="only",
+                      now=NOW + timedelta(minutes=5 * i))
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM j2_widget_definition_revs WHERE definition_id = ? AND rev IN (2, 3)", (d["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    refs = [(d["id"], r) for r in (None, 0, 1, 2, 3, 4, 5, 9, True)]
+    many = wd.resolve_many(A, refs)
+    for ref in refs:
+        plan, rev, latest = wd.resolve_for_run(A, *ref)
+        assert (many[ref]["plan"], many[ref]["rev"], many[ref]["latest_rev"]) == (plan, rev, latest), ref
+    assert wd.resolve_many(B, refs) == {r: None for r in refs}                         # never another member's
+
+
+def test_the_pin_follows_update_everywhere_and_a_pruned_pin_runs_the_newest_kept_below_it(db, monkeypatch):
+    """m-2, decided and documented (slot_fill's docstring): a template slot is a placement like any other. An
+    "Update everywhere" save moves it to the new revision; a pinned revision pruned away runs the newest kept
+    revision at or below it (here the placed revision 1), never a newer one."""
+    from api.services.journal_two import journal_styles as js, widget_definitions as wd
+    from api.services.auth_db import get_connection
+    d = _def(plan=_base_plan("last_7d"))
+    style = _style(("built_a", {"ref": f"def:{d['id']}", "defRev": 1}))
+    d = wd.update(A, d["id"], if_match=d["etag"], plan=_base_plan("last_30d"), apply="update_all",
+                  now=NOW + timedelta(minutes=5))
+    spy = _RunSpy(monkeypatch)
+    js.compose(A, style, ticker=None, conn=None, now=NOW)
+    assert (spy.calls[-1]["def_rev"], spy.calls[-1]["plan"]["range"]) == (2, {"token": "last_30d"})
+    e = _def(plan=_base_plan("last_7d"))
+    for i, token in enumerate(("last_30d", "last_90d", "ytd"), start=1):
+        e = wd.update(A, e["id"], if_match=e["etag"], plan=_base_plan(token), apply="only",
+                      now=NOW + timedelta(minutes=5 * i))
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM j2_widget_definition_revs WHERE definition_id = ? AND rev IN (2, 3)", (e["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    js.compose(A, _style(("built_a", {"ref": f"def:{e['id']}", "defRev": 3})), ticker=None, conn=None, now=NOW)
+    assert (spy.calls[-1]["def_rev"], spy.calls[-1]["plan"]["range"]) == (1, {"token": "last_7d"})
+
+
+def test_a_plan_made_by_a_newer_app_says_so(db):
+    """m-1: a too-new plan (stored by a newer pod) is the "newer version" sentence, not "Type / to add it again"."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.auth_db import get_connection
+    d = _def()
+    newer = json.dumps({**_base_plan(), "v": 99})
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE j2_widget_definitions SET plan_json = ?, plan_version = 99 WHERE id = ?", (newer, d["id"]))
+        conn.execute("UPDATE j2_widget_definition_revs SET plan_json = ? WHERE definition_id = ?", (newer, d["id"]))
+        conn.commit()
+    finally:
+        conn.close()
+    out = js.compose(A, _style(("built_a", {"ref": f"def:{d['id']}", "defRev": 1}),
+                               ("built_b", {"ref": "inline:d1"})), ticker=None, conn=None, now=NOW,
+                     definitions={"d1": {"plan": json.loads(newer), "name": "Shared"}})
+    sentence = "This widget was made with a newer version of the app. Reload to use it."
+    assert _lines(out["bodyJson"]).count(sentence) == 2
+    assert {k["reason"] for k in out["skipped"]} == {"slot-too-new:built_a", "slot-too-new:built_b"}
+
+
+def test_the_draft_preview_reads_the_members_styles_only_when_a_block_needs_the_legacy_keep(db, monkeypatch):
+    """m-5: a draft whose blocks all read never parses the member's stored styles; one that needs the keep does."""
+    from api.services.journal_two import journal_styles as js
+    asked = []
+    real = js._member_legacy_blocks
+    monkeypatch.setattr(js, "_member_legacy_blocks", lambda *a: asked.append(1) or real(*a))
+    js.preview(A, {"style": {"name": "D", "kindId": "trade_plan",
+                             "blocks": [{"block": "built_a", "settings": {"ref": SHELF, "defRev": 1}}]}})
+    assert asked == []
+    with pytest.raises(js.StyleValidationError):
+        js.preview(A, {"style": {"name": "D", "kindId": "trade_plan",
+                                 "blocks": [{"block": "built_a", "settings": {"whatever": "x"}}]}})
+    assert asked == [1]

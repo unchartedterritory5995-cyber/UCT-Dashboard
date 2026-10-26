@@ -144,7 +144,7 @@ def _optional_text(body: dict, key: str) -> str | None:
 
 @router.get("/journal-styles")
 def list_styles_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"kinds": nk.list_kinds(user["id"]), "styles": [js.served_style(s, user["id"]) for s in js.list_styles(user["id"])],
+    return {"kinds": nk.list_kinds(user["id"]), "styles": js.served_styles(js.list_styles(user["id"]), user["id"]),
             "blockKinds": [k["id"] for k in js.BLOCK_KINDS]}
 
 

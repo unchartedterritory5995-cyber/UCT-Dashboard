@@ -1,48 +1,490 @@
 {
-  "version": 1,
-  "about": "builtRefreshParams(old, payload): the params a built widget's node keeps. Read by tests/test_slot_fill_built.py (slot_fill.refresh_params, the template fill) and app/src/pages/journal-2-0/lib/builtWidgets.vectors.test.js (the client). Expected values are typed by hand.",
+  "version": 2,
+  "about": "A built widget's node params. `expected` is builtRefreshParams(old, payload); `params` is normalizeParams('builtWidget', expected) and `searchText` its search line; `fields` is the builtWidget paramsSchema as [key, type, default]. Read by tests/test_slot_fill_built.py (slot_fill) and app/src/pages/journal-2-0/lib/builtWidgets.vectors.test.js (the client). Expected values are typed by hand.",
+  "fields": [
+    [
+      "asOf",
+      "string",
+      null
+    ],
+    [
+      "source",
+      "string",
+      null
+    ],
+    [
+      "defId",
+      "string",
+      null
+    ],
+    [
+      "defRev",
+      "number",
+      null
+    ],
+    [
+      "latestRev",
+      "number",
+      null
+    ],
+    [
+      "def",
+      "json",
+      null
+    ],
+    [
+      "defRef",
+      "json",
+      null
+    ],
+    [
+      "title",
+      "string",
+      null
+    ],
+    [
+      "summary",
+      "string",
+      null
+    ],
+    [
+      "view",
+      "string",
+      null
+    ],
+    [
+      "sourceKey",
+      "string",
+      null
+    ],
+    [
+      "measures",
+      "json",
+      null
+    ],
+    [
+      "value",
+      "json",
+      null
+    ],
+    [
+      "compare",
+      "json",
+      null
+    ],
+    [
+      "compareLabel",
+      "string",
+      null
+    ],
+    [
+      "rows",
+      "json",
+      null
+    ],
+    [
+      "series",
+      "json",
+      null
+    ],
+    [
+      "points",
+      "json",
+      null
+    ],
+    [
+      "cells",
+      "json",
+      null
+    ],
+    [
+      "coverage",
+      "json",
+      null
+    ],
+    [
+      "count",
+      "number",
+      null
+    ],
+    [
+      "scopeLabel",
+      "string",
+      null
+    ],
+    [
+      "rangeLabel",
+      "string",
+      null
+    ],
+    [
+      "range",
+      "json",
+      null
+    ],
+    [
+      "accountId",
+      "string",
+      null
+    ],
+    [
+      "filter",
+      "json",
+      null
+    ],
+    [
+      "capped",
+      "boolean",
+      null
+    ],
+    [
+      "sample",
+      "boolean",
+      null
+    ],
+    [
+      "notice",
+      "string",
+      null
+    ],
+    [
+      "truncated",
+      "number",
+      null
+    ],
+    [
+      "footnotes",
+      "json",
+      null
+    ],
+    [
+      "labelKind",
+      "string",
+      null
+    ],
+    [
+      "label2Kind",
+      "string",
+      null
+    ],
+    [
+      "drawdown",
+      "json",
+      null
+    ],
+    [
+      "target",
+      "number",
+      null
+    ],
+    [
+      "targetLabel",
+      "string",
+      null
+    ],
+    [
+      "stop",
+      "json",
+      null
+    ],
+    [
+      "quadrants",
+      "string",
+      null
+    ],
+    [
+      "publicHidden",
+      "boolean",
+      null
+    ],
+    [
+      "empty",
+      "string",
+      null
+    ],
+    [
+      "partial",
+      "boolean",
+      null
+    ],
+    [
+      "failed",
+      "boolean",
+      null
+    ],
+    [
+      "tooLarge",
+      "boolean",
+      null
+    ],
+    [
+      "earningsUnknown",
+      "boolean",
+      null
+    ],
+    [
+      "sourceDetail",
+      "string",
+      null
+    ],
+    [
+      "priceBasis",
+      "string",
+      null
+    ],
+    [
+      "mistakesTruncated",
+      "number",
+      null
+    ],
+    [
+      "list",
+      "string",
+      null
+    ],
+    [
+      "from",
+      "string",
+      null
+    ],
+    [
+      "to",
+      "string",
+      null
+    ],
+    [
+      "share",
+      "boolean",
+      false
+    ]
+  ],
   "cases": [
     {
       "name": "a fill starts from nothing: the payload, share off",
       "old": {},
-      "payload": {"asOf": "2026-10-24T15:30:00Z", "defId": "shelf:equity-curve", "defRev": 1, "count": 3},
-      "expected": {"asOf": "2026-10-24T15:30:00Z", "defId": "shelf:equity-curve", "defRev": 1, "count": 3, "share": false}
+      "payload": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "defId": "shelf:equity-curve",
+        "defRev": 1,
+        "count": 3
+      },
+      "expected": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "defId": "shelf:equity-curve",
+        "defRev": 1,
+        "count": 3,
+        "share": false
+      },
+      "params": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "defId": "shelf:equity-curve",
+        "defRev": 1,
+        "count": 3,
+        "share": false
+      },
+      "searchText": "[widget: widget · as of 2026-10-24]"
     },
     {
       "name": "the member's current share switch is kept",
-      "old": {"share": true, "asOf": "2026-10-01T00:00:00Z"},
-      "payload": {"asOf": "2026-10-24T15:30:00Z"},
-      "expected": {"asOf": "2026-10-24T15:30:00Z", "share": true}
+      "old": {
+        "share": true,
+        "asOf": "2026-10-01T00:00:00Z"
+      },
+      "payload": {
+        "asOf": "2026-10-24T15:30:00Z"
+      },
+      "expected": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "share": true
+      },
+      "params": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "share": true
+      },
+      "searchText": "[widget: widget · as of 2026-10-24]"
     },
     {
       "name": "nothing else is copied from the old params",
-      "old": {"share": false, "stale": "gone", "count": 9},
-      "payload": {"asOf": "x", "count": 2},
-      "expected": {"asOf": "x", "count": 2, "share": false}
+      "old": {
+        "share": false,
+        "stale": "gone",
+        "count": 9
+      },
+      "payload": {
+        "asOf": "x",
+        "count": 2
+      },
+      "expected": {
+        "asOf": "x",
+        "count": 2,
+        "share": false
+      },
+      "params": {
+        "asOf": "x",
+        "count": 2,
+        "share": false
+      },
+      "searchText": "[widget: widget]"
     },
     {
       "name": "a payload never turns sharing on",
-      "old": {"share": false},
-      "payload": {"asOf": "x", "share": true},
-      "expected": {"asOf": "x", "share": false}
+      "old": {
+        "share": false
+      },
+      "payload": {
+        "asOf": "x",
+        "share": true
+      },
+      "expected": {
+        "asOf": "x",
+        "share": false
+      },
+      "params": {
+        "asOf": "x",
+        "share": false
+      },
+      "searchText": "[widget: widget]"
     },
     {
       "name": "a truthy share that is not true is off",
-      "old": {"share": "yes"},
-      "payload": {"asOf": "x"},
-      "expected": {"asOf": "x", "share": false}
+      "old": {
+        "share": "yes"
+      },
+      "payload": {
+        "asOf": "x"
+      },
+      "expected": {
+        "asOf": "x",
+        "share": false
+      },
+      "params": {
+        "asOf": "x",
+        "share": false
+      },
+      "searchText": "[widget: widget]"
     },
     {
       "name": "a payload that is not an object keeps only the switch",
       "old": {},
       "payload": null,
-      "expected": {"share": false}
+      "expected": {
+        "share": false
+      },
+      "params": {
+        "share": false
+      },
+      "searchText": "[widget: widget]"
     },
     {
       "name": "old params that are not an object read as none",
       "old": null,
-      "payload": {"asOf": "x", "defRef": {"id": "a", "rev": 2}},
-      "expected": {"asOf": "x", "defRef": {"id": "a", "rev": 2}, "share": false}
+      "payload": {
+        "asOf": "x",
+        "defRef": {
+          "id": "a",
+          "rev": 2
+        }
+      },
+      "expected": {
+        "asOf": "x",
+        "defRef": {
+          "id": "a",
+          "rev": 2
+        },
+        "share": false
+      },
+      "params": {
+        "asOf": "x",
+        "defRef": {
+          "id": "a",
+          "rev": 2
+        },
+        "share": false
+      },
+      "searchText": "[widget: widget]"
+    },
+    {
+      "name": "the insert keeps declared keys only, drops nulls and coerces types",
+      "old": {},
+      "payload": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "title": "Setups",
+        "defId": null,
+        "accountId": null,
+        "count": "4",
+        "capped": 1,
+        "probe": [
+          1
+        ],
+        "range": {
+          "token": "last_30d"
+        },
+        "rows": [
+          {
+            "v1": 1.5,
+            "label": "A"
+          }
+        ]
+      },
+      "expected": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "title": "Setups",
+        "defId": null,
+        "accountId": null,
+        "count": "4",
+        "capped": 1,
+        "probe": [
+          1
+        ],
+        "range": {
+          "token": "last_30d"
+        },
+        "rows": [
+          {
+            "v1": 1.5,
+            "label": "A"
+          }
+        ],
+        "share": false
+      },
+      "params": {
+        "asOf": "2026-10-24T15:30:00Z",
+        "title": "Setups",
+        "count": 4,
+        "capped": true,
+        "range": {
+          "token": "last_30d"
+        },
+        "rows": [
+          {
+            "v1": 1.5,
+            "label": "A"
+          }
+        ],
+        "share": false
+      },
+      "searchText": "[widget: Setups · as of 2026-10-24]"
+    },
+    {
+      "name": "an empty title reads as widget, and a non-day asOf names no day",
+      "old": {},
+      "payload": {
+        "asOf": "soon",
+        "title": "",
+        "sample": 0
+      },
+      "expected": {
+        "asOf": "soon",
+        "title": "",
+        "sample": 0,
+        "share": false
+      },
+      "params": {
+        "asOf": "soon",
+        "sample": false,
+        "share": false
+      },
+      "searchText": "[widget: widget]"
     }
   ]
 }

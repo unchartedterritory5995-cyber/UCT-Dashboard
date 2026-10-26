@@ -81,7 +81,7 @@ __all__ = [
     "COUNT_CAP", "REVS_KEPT", "COALESCE_S", "RECENTLY_DELETED_DAYS",
     "WidgetError", "NotFound", "Conflict", "PlanError", "PlanTooNew",
     "create", "get", "update", "list_defs", "revs", "name_rev", "restore_rev",
-    "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run", "used_in_notes",
+    "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run", "resolve_many", "used_in_notes",
     "CREATE_KEY_TTL_S", "S_KEY_REUSED", "KeyReused", "clean_create_key", "create_with_key",
     "update_with_key",
 ]
@@ -848,3 +848,59 @@ def resolve_for_run(user_id: str, def_id: str, def_rev: int | None, *,
             return plan, row["rev"], row["rev"]
         plan, _ = _read_plan(r["plan_json"])
         return plan, r["rev"], row["rev"]
+
+
+#: How many definitions one `resolve_many` call reads at most (one SQL statement; under SQLite's variable cap).
+RESOLVE_MANY_MAX = 400
+
+
+def _pick_rev(asked: Any, cur: int, placed: int, kept: dict, current_json: str) -> tuple[Any, int]:
+    """`resolve_for_run`'s revision rule over rows already read: run `max(asked, placed_rev)` capped at the
+    current revision, falling back to the newest kept revision at or below it, else the current plan."""
+    a = asked if isinstance(asked, int) and not isinstance(asked, bool) else 0
+    want = min(max(a, placed), cur)
+    below = [r for r in kept if r <= want]
+    if not below:
+        plan, _ = _read_plan(current_json)
+        return plan, cur
+    rev = max(below)
+    plan, _ = _read_plan(kept[rev])
+    return plan, rev
+
+
+def resolve_many(user_id: str, refs: Any, *, conn: sqlite3.Connection | None = None) -> dict:
+    """Many `resolve_for_run`s in ONE statement (Task 11.5 fix round 1, I-3): `{(def_id, def_rev): entry}`,
+    entry `{"plan", "rev", "latest_rev", "name"}`, or None for an id that is not this member's live widget
+    (foreign, unknown or deleted). The same revision rule as `resolve_for_run` (railed as its twin). At most
+    `RESOLVE_MANY_MAX` distinct ids are read; refs past that are left out of the answer (the caller's fallback)."""
+    wanted = [(d, r) for d, r in refs if isinstance(d, str) and d]
+    ids = list(dict.fromkeys(d for d, _ in wanted))[:RESOLVE_MANY_MAX]
+    if not ids or not user_id:
+        return {}
+    marks = ", ".join("?" for _ in ids)
+    with _read(conn) as c:
+        rows = c.execute(
+            f"SELECT d.id AS id, d.name AS name, d.rev AS cur, d.placed_rev AS placed, d.plan_json AS dplan,"
+            f" r.rev AS rrev, r.plan_json AS rplan FROM {_DEFS} d LEFT JOIN {_REVS} r"
+            f" ON r.definition_id = d.id AND r.user_id = d.user_id"
+            f" WHERE d.user_id = ? AND d.deleted_at IS NULL AND d.id IN ({marks})",
+            (user_id, *ids),
+        ).fetchall()
+    found: dict[str, dict] = {}
+    for row in rows:
+        f = found.setdefault(row["id"], {"name": row["name"], "cur": row["cur"], "placed": row["placed"],
+                                         "dplan": row["dplan"], "kept": {}})
+        if row["rrev"] is not None:
+            f["kept"][row["rrev"]] = row["rplan"]
+    keep = set(ids)
+    out: dict = {}
+    for d, asked in wanted:
+        if d not in keep:
+            continue
+        f = found.get(d)
+        if f is None:
+            out[(d, asked)] = None
+            continue
+        plan, rev = _pick_rev(asked, f["cur"], f["placed"], f["kept"], f["dplan"])
+        out[(d, asked)] = {"plan": plan, "rev": rev, "latest_rev": f["cur"], "name": f["name"]}
+    return out
