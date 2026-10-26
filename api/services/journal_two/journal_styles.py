@@ -14,6 +14,7 @@ module imports cleanly on its own; nothing here restates a kind constant.
 from __future__ import annotations
 
 import copy
+import importlib
 import json
 import logging
 import re
@@ -92,9 +93,40 @@ BLOCK_KINDS: tuple[dict, ...] = (
 #: Task 18 (R50): a member slot keeps the builder's request keys and nothing else (`_clean_blocks` reduces it
 #: through notebook_widgets.settings_of, so no payload figure is ever stored in a style), and
 #: `_build_widget_slot` passes them through to build() as params (it reads only the applier's own account).
+#: Wave 11 (Task 11.3): the six wave 10 dedicated kinds a template may hold, after the six, in this order. Each
+#: is gated by its own KIND_WAVE (10) in `_slot_wave_off`. `myPlanVsActual` is not a slot: it needs a trade pick.
 SNAPSHOT_SLOT_KINDS: tuple[str, ...] = (
-    "myWatchlistToday", "myNamesReporting", "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes")
-KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS) | frozenset(SNAPSHOT_SLOT_KINDS)
+    "myWatchlistToday", "myNamesReporting", "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
+    "myRiskLeftToday", "myGamePlan", "myTiltCheck", "myRevengeClean", "myPropFirm", "myAlertsFired")
+
+# ── Wave 11 (Task 11.3, rulings W11-R2 / W11-R3): template slot families ─────────────────────────
+# A template slot is a block id the existing BLOCK_ID_RE and PLACEHOLDER_RE already accept:
+# `built_<k>` (a built widget), `routine_<k>`, `tracker_<k>`, `<k>` 1-2 lowercase letters or digits.
+# Its target lives in the block's settings, reduced on every write by `slot_settings_of`.
+SLOT_FAMILIES: tuple[str, ...] = ("built", "routine", "tracker")
+SLOT_ID_RE = re.compile(r"^(built|routine|tracker)_[a-z0-9]{1,2}$")
+INLINE_KEY_RE = re.compile(r"^[a-z0-9]{1,8}$")
+
+
+def slot_family(block_id: Any) -> str | None:
+    """The slot family of a block id (`"built"`, `"routine"`, `"tracker"`), or None. Total."""
+    if not isinstance(block_id, str):
+        return None
+    m = SLOT_ID_RE.match(block_id)
+    return m.group(1) if m else None
+
+
+class _KnownBlocks(frozenset):
+    """W11-R3: the ONE authority over which block ids this server can place. Iteration, length and set
+    algebra are the frozenset's (the catalogued ids); membership ALSO answers True for every slot family id
+    (`SLOT_ID_RE`), so every `bid in KNOWN_BLOCKS` site accepts the families with no call-site change."""
+    __slots__ = ()
+
+    def __contains__(self, x: object) -> bool:
+        return frozenset.__contains__(self, x) or (isinstance(x, str) and SLOT_ID_RE.match(x) is not None)
+
+
+KNOWN_BLOCKS = _KnownBlocks(frozenset(k["id"] for k in BLOCK_KINDS) | frozenset(SNAPSHOT_SLOT_KINDS))
 #: Task 15 fix round 1: ONE wall-clock budget for every slot a create builds. Slots are built LAST, after
 #: every other block and the prefill, so trader_blocks' create read budget is spent on the prep pack alone;
 #: a slot not finished inside this budget becomes its "couldn't load" sentence.
@@ -105,6 +137,129 @@ _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
 
 class StyleValidationError(ValueError):
     pass
+
+
+# The slot settings' sentences (W11-R2). Member words only: Widget, Routine, Tracker.
+S_SLOT_REF = "Pick a widget for this spot."
+S_SLOT_REV = "This widget's version couldn't be read."
+S_SLOT_RANGE = "That date range isn't available."
+S_SLOT_TOOL = "Pick a routine or tracker for this spot."
+S_SLOT_BIND = "Pick the day this block is for."
+S_SLOT_DISPLAY = "That display isn't available."
+
+_UUID4_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+_TEMPLATE_KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+#: Display options per tool family (W11-R2), the first is the default.
+SLOT_DISPLAYS: dict[str, tuple[str, ...]] = {"routine": ("items", "pnl"), "tracker": ("chart", "pnl")}
+#: The tracker refs that name no row: the mood and focus check-in.
+SLOT_CHECKIN_REFS = ("checkin:mood", "checkin:focus")
+#: Used only while Task 11.2's `tool_binding.BINDS` (the one authority) has not landed in this checkout.
+_BINDS_BEFORE_TOOL_BINDING = ("note-day", "next-trading-day", "week")
+
+
+def _slot_binds() -> tuple[str, ...]:
+    """The day bindings a template slot may name: `tool_binding.BINDS`, read at call time."""
+    name = "api.services.journal_two.tool_binding"
+    try:
+        tool_binding = importlib.import_module(name)
+    except ModuleNotFoundError as e:
+        if e.name != name:
+            raise
+        return _BINDS_BEFORE_TOOL_BINDING
+    return tuple(tool_binding.BINDS)
+
+
+def _template_key_ok(family: str, key: Any) -> bool:
+    """A routine or tracker template key: the shape always; membership in `template_tools` once Task 11.6
+    has landed it (read lazily, so this grammar never imports it at module load)."""
+    if not isinstance(key, str) or not _TEMPLATE_KEY_RE.match(key):
+        return False
+    name = "api.services.journal_two.template_tools"
+    try:
+        template_tools = importlib.import_module(name)
+    except ModuleNotFoundError as e:
+        if e.name != name:
+            raise
+        return True
+    table = template_tools.ROUTINE_TEMPLATES if family == "routine" else template_tools.TRACKER_TEMPLATES
+    return key in table
+
+
+def _is_rev(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 1
+
+
+def slot_settings_of(family: str, settings: Any) -> dict:
+    """W11-R2: the ONE reduction of a template slot's settings, taken on every write (`_clean_blocks`).
+    Answers a NEW dict holding only the keys of the family's shape (unknown keys are dropped; `bind` and
+    `display` are written explicitly at their defaults); raises `StyleValidationError` with the slot
+    sentence for anything else.
+
+    built:   {"ref": "shelf:<slug>" | "def:<uuid4>" | "inline:<key>", "defRev": int >= 1 (shelf/def only),
+              "range": {"token": <plan.RANGE_TOKENS>} (optional)}
+    routine: exactly one of {"ref": "routine:<uuid4>"} / {"template": <key>} / {"inline": <key>},
+              "bind" in BINDS (default "note-day"), "display" in ("items", "pnl") (default "items")
+    tracker: the same with "ref" "tracker:<uuid4>" | "checkin:mood" | "checkin:focus" and
+              "display" in ("chart", "pnl") (default "chart")"""
+    s = settings if isinstance(settings, dict) else {}
+    if family == "built":
+        from api.services.journal_two.widget_engine import plan as wplan
+        from api.services.journal_two.widget_engine import shelf
+        ref = s.get("ref")
+        if not isinstance(ref, str):
+            raise StyleValidationError(S_SLOT_REF)
+        if ref.startswith(shelf.ID_PREFIX):
+            if ref not in {e["id"] for e in shelf.examples()}:
+                raise StyleValidationError(S_SLOT_REF)
+            if not _is_rev(s.get("defRev")) or shelf.revision(ref, s["defRev"]) is None:
+                raise StyleValidationError(S_SLOT_REV)
+            out: dict = {"ref": ref, "defRev": s["defRev"]}
+        elif ref.startswith("def:"):
+            if not _UUID4_RE.match(ref[len("def:"):]):
+                raise StyleValidationError(S_SLOT_REF)
+            if not _is_rev(s.get("defRev")):
+                raise StyleValidationError(S_SLOT_REV)
+            out = {"ref": ref, "defRev": s["defRev"]}
+        elif ref.startswith("inline:"):
+            if not INLINE_KEY_RE.match(ref[len("inline:"):]):
+                raise StyleValidationError(S_SLOT_REF)
+            if "defRev" in s:
+                raise StyleValidationError(S_SLOT_REV)
+            out = {"ref": ref}
+        else:
+            raise StyleValidationError(S_SLOT_REF)
+        if "range" in s:
+            rng = s["range"]
+            if not (isinstance(rng, dict) and set(rng) == {"token"} and isinstance(rng["token"], str)
+                    and rng["token"] in wplan.RANGE_TOKENS):
+                raise StyleValidationError(S_SLOT_RANGE)
+            out["range"] = {"token": rng["token"]}
+        return out
+    if family not in ("routine", "tracker"):
+        raise StyleValidationError(S_SLOT_REF)
+    given = [k for k in ("ref", "template", "inline") if s.get(k) is not None]
+    if len(given) != 1:
+        raise StyleValidationError(S_SLOT_TOOL)
+    key, value = given[0], s[given[0]]
+    if key == "ref":
+        ok = isinstance(value, str) and (
+            (value.startswith(f"{family}:") and _UUID4_RE.match(value[len(family) + 1:]) is not None)
+            or (family == "tracker" and value in SLOT_CHECKIN_REFS))
+    elif key == "template":
+        ok = _template_key_ok(family, value)
+    else:
+        ok = isinstance(value, str) and INLINE_KEY_RE.match(value) is not None
+    if not ok:
+        raise StyleValidationError(S_SLOT_TOOL)
+    binds = _slot_binds()
+    bind = s.get("bind", binds[0])
+    if not isinstance(bind, str) or bind not in binds:              # "today" (Follow today) included
+        raise StyleValidationError(S_SLOT_BIND)
+    displays = SLOT_DISPLAYS[family]
+    display = s.get("display", displays[0])
+    if not isinstance(display, str) or display not in displays:
+        raise StyleValidationError(S_SLOT_DISPLAY)
+    return {key: value, "bind": bind, "display": display}
 
 
 class StyleNotFound(LookupError):
@@ -328,7 +483,12 @@ def _clean_blocks(raw: Any) -> list[dict]:
         if not isinstance(settings, dict):
             raise StyleValidationError("A block's settings must be an object.")
         kind = _BLOCK_BY_ID.get(bid)
-        if bid in SNAPSHOT_SLOT_KINDS:
+        family = slot_family(bid)
+        if family is not None:
+            # Wave 11 (W11-R2): a template slot keeps its family's shape only, reduced by the ONE function
+            # every write takes. Not `_nw.settings_of`, which keeps only short SETTING_KEYS strings.
+            clean = slot_settings_of(family, settings)
+        elif bid in SNAPSHOT_SLOT_KINDS:
             # Task 18 (R50): a snapshot slot keeps the builder's request keys only; anything else (a frozen
             # payload's figures, rows, the share switch) is dropped here, the ONE reduction every write takes.
             clean = _nw.settings_of(settings)
@@ -735,7 +895,9 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
             for node in content:
                 if isinstance(node, dict) and node.get("type") == "widgetEmbed":
                     bid = (node.get("attrs") or {}).get("widgetId")
-                    if isinstance(bid, str) and BLOCK_ID_RE.match(bid) and bid not in seen and bid in KNOWN_BLOCKS:
+                    # Wave 11: a slot family id is never a widget a note holds; such an embed stays left out.
+                    if (isinstance(bid, str) and BLOCK_ID_RE.match(bid) and bid not in seen and bid in KNOWN_BLOCKS
+                            and slot_family(bid) is None):
                         seen.add(bid)
                         params = (node.get("attrs") or {}).get("params") or {}
                         if bid in SNAPSHOT_SLOT_KINDS:
@@ -813,12 +975,49 @@ for _kind in SNAPSHOT_SLOT_KINDS:
 del _kind
 
 
-def _slot_wave_off(block_id: str) -> bool:
-    """Task 15: is this a snapshot slot whose release wave is off? Read per call. Such a slot is DROPPED
-    (no node, no skip line, never offered), exactly as the slash menu hides the kind."""
+def _slot_wave_off(block_id: str, settings: Any = None) -> bool:
+    """Task 15: is this a slot whose release wave is off? Read per call. Such a slot is DROPPED (no node,
+    no skip line, never offered), exactly as the slash menu hides the kind. ONE function decides.
+
+    A snapshot slot: its kind's KIND_WAVE. Wave 11 (Task 11.3): a slot family id is hidden while wave 11 is
+    off; a routine or tracker family also while wave 9 is off; a built family also while wave 8 is off and,
+    when `settings` names a `shelf:` ref, while its PINNED revision's plan needs a dark wave (`uses_tools`
+    and wave 9 off, `uses_wave10` and wave 10 off). `def:` and `inline:` plans are checked at fill time
+    (Task 11.5): reading them needs the database."""
+    family = slot_family(block_id)
+    if family is not None:
+        on = _nw.notebook_widgets_wave_on
+        if not on(11):
+            return True
+        if family in ("routine", "tracker"):
+            return not on(9)
+        if not on(8):
+            return True
+        ref = settings.get("ref") if isinstance(settings, dict) else None
+        if isinstance(ref, str) and ref.startswith("shelf:"):
+            from api.services.journal_two.widget_engine import plan as wplan
+            from api.services.journal_two.widget_engine import shelf
+            pinned = shelf.revision(ref, settings.get("defRev"))
+            plan = pinned.get("plan") if pinned else None
+            if plan is not None:
+                if wplan.uses_tools(plan) and not on(9):
+                    return True
+                if wplan.uses_wave10(plan) and not on(10):
+                    return True
+        return False
     if block_id not in SNAPSHOT_SLOT_KINDS:
         return False
     return not _nw.notebook_widgets_wave_on(_nw.KIND_WAVE[block_id])
+
+
+def _block_settings_by_id(blocks: Any) -> dict[str, Any]:
+    """{block id: settings} for a style's block list (the first of each id), so a placeholder can be judged
+    by the settings of the block it names."""
+    out: dict[str, Any] = {}
+    for b in blocks if isinstance(blocks, list) else []:
+        if isinstance(b, dict) and isinstance(b.get("block"), str):
+            out.setdefault(b["block"], b.get("settings"))
+    return out
 
 
 def served_style(style: Any) -> Any:
@@ -832,13 +1031,15 @@ def served_style(style: Any) -> Any:
     blocks = style.get("blocks")
     if isinstance(blocks, list):
         out["blocks"] = [b for b in blocks
-                         if not (isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"]))]
+                         if not (isinstance(b, dict) and isinstance(b.get("block"), str)
+                                 and _slot_wave_off(b["block"], b.get("settings")))]
+    by_id = _block_settings_by_id(blocks)
 
     def strip(content: list) -> list:
         kept = []
         for node in content:
             kind = _placeholder_kind(node)
-            if kind is not None and _slot_wave_off(kind):
+            if kind is not None and _slot_wave_off(kind, by_id.get(kind)):
                 continue
             if isinstance(node, dict) and isinstance(node.get("content"), list):
                 node = {**node, "content": _never_empty(node["content"], strip(node["content"]))}
@@ -859,7 +1060,8 @@ def _hidden_slots_at(blocks_json: Any) -> list[tuple[int, dict]]:
     except (TypeError, ValueError):
         return []
     return [(i, b) for i, b in enumerate(stored if isinstance(stored, list) else [])
-            if isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"])]
+            if isinstance(b, dict) and isinstance(b.get("block"), str)
+            and _slot_wave_off(b["block"], b.get("settings"))]
 
 
 
@@ -940,7 +1142,9 @@ BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]
 #: Blocks built only when a note is made (R-T2B-13). Update layout neither offers nor lists them.
 #: Task 15: a snapshot slot too -- IR-S11, never today's data in an older note (an EMPTY note switched to
 #: a style is a create, and fills).
-CREATE_ONLY_BLOCKS = frozenset({_rb.BLOCK_ID, *SNAPSHOT_SLOT_KINDS})
+#: Wave 11 (Task 11.3): every slot family id too (the `_KnownBlocks` prefix test), IR-S11: slots fill only when
+#: a note is made.
+CREATE_ONLY_BLOCKS = _KnownBlocks({_rb.BLOCK_ID, *SNAPSHOT_SLOT_KINDS})
 
 
 def _switched_off(block_id: str) -> bool:
@@ -1037,7 +1241,7 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
         deferred: list[tuple[dict, dict]] = []              # (marker node, block): slots, built last
 
         def build(b: dict) -> list[dict]:
-            if _switched_off(b["block"]) or _slot_wave_off(b["block"]):
+            if _switched_off(b["block"]) or _slot_wave_off(b["block"], b.get("settings")):
                 return []                                   # M1: hidden, as the insert menu hides it
             if b["block"] in SNAPSHOT_SLOT_KINDS:
                 # Keeps the slot's PLACE. Matched below by its key, not by identity, so a prefill that copies the
@@ -1344,7 +1548,8 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
            "user_id": user_id}
     built, skipped = [], []
     for b in style["blocks"]:
-        if not b.get("enabled") or b["block"] in have or _switched_off(b["block"]) or _slot_wave_off(b["block"]):
+        if (not b.get("enabled") or b["block"] in have or _switched_off(b["block"])
+                or _slot_wave_off(b["block"], b.get("settings"))):
             continue                                        # M1: a switched-off block is never offered
         if b["block"] in CREATE_ONLY_BLOCKS and not inserts_outline:
             # R-T2B-13 / F8: "N trading days after creation" means something only when the note is made,

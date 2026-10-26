@@ -320,7 +320,8 @@ def test_with_every_wave_off_no_served_style_names_a_slot(client, monkeypatch):
     _waves(monkeypatch)
     _as(client)
     # control: the STORED built-ins do hold slots, so an empty answer below is the filter, not the fixture
-    assert {b["block"] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]} >= set(js.SNAPSHOT_SLOT_KINDS)
+    # (the built-ins hold the six phase-1 slot kinds; the wave 10 ones, Task 11.3, are template-only)
+    assert {b["block"] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]} >= set(js.SNAPSHOT_SLOT_KINDS[:6])
     # a member style holding a slot (as a W1-on "Save as style" would have made it), its placeholder nested
     _waves(monkeypatch, 1, 2)
     made = client.post("/api/j2/journal-styles", json={
