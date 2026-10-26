@@ -309,6 +309,7 @@ describe('My tools, Templates tab', () => {
     fireEvent.click(within(rowOf('Morning prep')).getByRole('button', { name: 'Open Morning prep' }))
     expect(await screen.findByTestId('fake-style-editor')).toHaveTextContent(`Editing Morning prep with ${KINDS.length} kinds`)
     expect(loadStyle).toHaveBeenCalledTimes(1)
+    expect(loadStyle.mock.calls[0]).toEqual(['StyleEditor'])               // the one styles door, by name (round 3)
     expect(sent('GET', 'journal-styles/s1')).toHaveLength(1)                 // the whole template, outline too
     fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
     await saysLive('Saved “Morning prep v2”.')

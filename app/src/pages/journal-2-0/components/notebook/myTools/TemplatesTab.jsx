@@ -161,7 +161,8 @@ function EditorPanel({ d, kinds, onBack, onSaved, onGone, say }) {
   useEffect(() => {
     let alive = true
     Promise.all([
-      loadStyle('default', () => import('../styles/StyleEditor')).then((m) => m.default).catch(() => null),
+      // The one journal-styles door (styles/lazyStyles -> StyleSurfaces), never a second import() of a styles/ module.
+      loadStyle('StyleEditor').then((m) => m.default).catch(() => null),
       getTemplate(d.id),
     ]).then(([Editor, got]) => {
       if (!alive) return
