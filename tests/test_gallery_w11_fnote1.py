@@ -8,6 +8,8 @@ window cannot take the key) and m-2 (a BaseException on the second path leaves a
 from __future__ import annotations
 
 import json
+import threading
+import time
 import pathlib
 import sqlite3
 import subprocess
@@ -547,6 +549,8 @@ ADDRESS_FORMS = {
     "R48: words around a URL": [_lk(f"see my statement {URL} here", URL)],
     # W11-R48 (b): the text holds its href's host (no dots, so not (a); not inside the href, so not R47)
     "R48: the host written inside words": [_lk(f"my broker example com statement {ACCT}", f"https://{HOST}/x")],
+    "R53: a split piece linked elsewhere, beside the part that holds it": [
+        _lk(f"https://{HOST}/acct/"), _lk(ACCT, "https://elsewhere.example.org/")],
     "R48: a scheme URL with an undotted host, no href": [
         {"type": "text", "text": f"https://intranet/acct/{ACCT}", "marks": [{"type": "link"}]}],
 }
@@ -668,8 +672,10 @@ DI_MEMBERS = [0x00AD, 0x034F, 0x061C, 0x115F, 0x17B4, 0x180B, 0x180E, 0x180F, 0x
               0xE0000, 0xE0001, 0xE0041, 0xE01EF, 0xE0FFF]
 #: R46 refined (W11-R48 c4): the emoji pieces travel -- ZWJ, the variation selectors and their supplement, and the
 #: emoji tag block. Every other member is stripped.
-DI_EMOJI = {0x200D, 0xFE00, 0xFE0F, 0xE0020, 0xE0041, 0xE007F, 0xE0100, 0xE01EF}
-DI_STRIPPED = [cp for cp in DI_MEMBERS if cp not in DI_EMOJI] + [0xE001F, 0xE0080, 0xE00FF, 0xE01F0]
+DI_EMOJI = {0x200D, 0xFE00, 0xFE0F, 0xE0100, 0xE01EF}
+#: W11-R53 (m-1): a tag character travels only INSIDE a well-formed emoji tag sequence; alone it is stripped.
+DI_TAGS = [0xE0020, 0xE0041, 0xE007E, 0xE007F]
+DI_STRIPPED = [cp for cp in DI_MEMBERS if cp not in DI_EMOJI] + [0xE001F, 0xE0080, 0xE00FF, 0xE01F0] + DI_TAGS
 DI_NOT = [0x0020, 0x00A0, 0x00AC, 0x0600, 0x200A, 0x2028, 0x2070, 0x2800, 0x3000, 0xFFF9, 0xFFFC, 0x1D172, 0xE1000,
           ord("a")]
 
@@ -733,3 +739,274 @@ def test_the_address_form_removes_everything_but_letters_digits_spaces_and_punct
     """W11-R48 (a) reads `_address_form`: NFKC, casefold, then only letters, digits, punctuation and single spaces."""
     assert gallery._address_form("\uff21\n\tb\u0332c\u2800 d\u200b.E  f\u3002G") == "abc d.e f.g"
     assert gallery._link_text_is_an_address("www.123/acct", [])          # `www.` alone is a scheme-like prefix
+
+
+
+# ── W11-R53 (m-1): tag characters only inside a well-formed emoji tag sequence ────────────────────────────────────
+
+def _tagged(s: str) -> str:
+    """`s` written in invisible TAG characters (U+E0000 + each ASCII code): an "ASCII-smuggled" copy."""
+    return "".join(chr(0xE0000 + ord(c)) for c in s)
+
+
+@pytest.mark.parametrize("slot", [True, False], ids=["slot", "noslot"])
+@pytest.mark.parametrize("linked", [True, False], ids=["link", "prose"])
+def test_an_invisible_tag_copy_of_an_address_never_travels(db, slot, linked):
+    """The re-review's m-1 repro: "statement" followed by the address written in tag characters, as link text and as
+    plain prose. No tag character -- so no decodable copy of the account number or the host -- reaches any path,
+    and the word travels. A real subdivision flag beside it still travels byte-identical."""
+    flag = EMOJI[1]
+    text = "statement" + _tagged(URL) + " " + flag
+    node = _lk(text, "https://x.example/a") if linked else {"type": "text", "text": text}
+    _s, got = _every_share_path(db, [node], slot)
+    for where, v in got.items():
+        blob = _decoded(v)
+        assert not any(0xE0000 <= ord(c) <= 0xE007F for c in blob.replace(flag, "")), where
+    for where in ("payload_json", "body_json", "copy", "use_note"):
+        blob = _decoded(got[where])
+        assert "statement" in blob and flag in blob, where
+
+
+def _decoded(v) -> str:
+    """Any answer or stored column as its text with every JSON escape decoded (a stored `\\uXXXX` is a character)."""
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return v
+    if isinstance(v, str):
+        return v
+    return json.dumps(v, default=str, ensure_ascii=False)
+
+
+def test_a_tag_sequence_travels_only_when_well_formed():
+    flag = EMOJI[1]
+    assert gallery._without_ignorables(flag) == flag
+    assert gallery._without_ignorables("a" + flag[1:]) == "a"                 # no U+1F3F4 base: stripped
+    assert gallery._without_ignorables(flag[:-1]) == flag[0]                   # no CANCEL TAG: stripped
+    assert gallery._without_ignorables(flag[0] + "\U000E007F") == flag[0]      # no tag between: stripped
+    assert gallery._without_ignorables(flag + _tagged("acct") + flag) == flag + flag
+
+
+# ── W11-R53 (C-1): linear, and never under the write lock ─────────────────────────────────────────────────────────
+
+def _many_links(n: int, sep: str = ", ") -> list:
+    out = []
+    for i in range(n):
+        out += [_lk(f"https://broker{i}.example.com/acct/{i:08d}", f"https://broker{i}.example.com/acct/{i:08d}"),
+                {"type": "text", "text": sep}]
+    return out
+
+
+def _timed(content) -> float:
+    doc = {"type": "doc", "content": [{"type": "paragraph", "content": content}]}
+    t0 = time.perf_counter()
+    out = gallery._shared_outline(doc, AUTHOR)
+    took = time.perf_counter() - t0
+    assert "broker" not in json.dumps(out) and "acct" not in json.dumps(out)
+    return took
+
+
+@pytest.mark.parametrize("sep", [", ", " ", "\n"], ids=["comma", "space", "newline"])
+def test_1600_links_reduce_in_under_half_a_second(db, sep):
+    """The re-review's C-1: 1,600 links, each its own href, in ONE run (23 s for 800 before W11-R53)."""
+    assert _timed(_many_links(1600, sep)) < 0.5
+
+
+@pytest.mark.parametrize("shape", ["tiny links, each its own host", "one host, 1 MB"])
+def test_the_one_mb_worst_case_reduces_in_under_half_a_second(db, shape):
+    """The outline cap's worst case: 1 MB of adjacent links in one run -- tiny ones with a host each (the most hrefs),
+    or all of one host (the longest stretch and joined text)."""
+    content, i = [], 0
+    while len(json.dumps(content)) < 1_000_000:
+        for _ in range(500):
+            if shape.startswith("tiny"):
+                content += [_lk(f"{i}", f"https://a{i}.co/{i}"), {"type": "text", "text": " "}]
+            else:
+                content.append(_lk(f"https://broker.example.com/acct/{i} ", f"https://broker.example.com/acct/{i}"))
+            i += 1
+    assert _timed(content) < 0.5, i
+
+
+def _legacy_listing(db, n_links: int) -> str:
+    """A listing whose STORED payload still carries link marks (one approved while wave 11 was off, through P3a's
+    reduce): every read cleans it again (`_safe_listed`)."""
+    gid = _plain_template(db)
+    p = json.loads(db.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0])
+    p["outlineBodyJson"]["content"].append({"type": "paragraph", "content": _many_links(n_links)})
+    db.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (json.dumps(p), gid))
+    db.commit()
+    return gid
+
+
+def _lock_is_held() -> bool:
+    c = sqlite3.connect(auth_db._DB_PATH, timeout=0)
+    try:
+        c.execute("BEGIN IMMEDIATE")
+        c.rollback()
+        return False
+    except sqlite3.OperationalError:
+        return True
+    finally:
+        c.close()
+
+
+@pytest.fixture
+def clean_calls(monkeypatch):
+    """Every call of the reducer/clean (`_shared_outline`, `_without_links`, `sanitize_body`), recorded with whether
+    the auth.db write lock was held at that moment."""
+    calls = []
+    for name in ("_shared_outline", "_without_links", "sanitize_body"):
+        real = getattr(gallery, name)
+
+        def wrapped(*a, _real=real, _name=name, **kw):
+            calls.append((_name, _lock_is_held()))
+            return _real(*a, **kw)
+        monkeypatch.setattr(gallery, name, wrapped)
+    return calls
+
+
+def _path(db, which, gid):
+    if which == "keyed adopt":
+        return gallery.adopt_style(MEMBER, gid, key=str(uuid.uuid4()), conn=db)
+    if which == "first use":
+        return gallery.use_library_template(MEMBER, gid, payload={}, key=str(uuid.uuid4()), conn=db)
+    raise AssertionError(which)
+
+
+@pytest.mark.parametrize("which", ["keyed adopt", "first use", "unkeyed first use"])
+def test_the_cleaner_never_runs_while_the_lock_is_held(db, clean_calls, which):
+    """W11-R53: on the keyed adopt and the first Use, every clean of the listing runs BEFORE the write lock. Non-vacuity:
+    the cleaner was called, and the instrument does see a held lock (control)."""
+    gid = _legacy_listing(db, 50)
+    if which == "unkeyed first use":
+        gallery.use_library_template(MEMBER, gid, payload={}, conn=db)
+    else:
+        _path(db, which, gid)
+    assert clean_calls and not any(held for _n, held in clean_calls), clean_calls
+    c = auth_db.get_connection()
+    try:
+        c.execute("BEGIN IMMEDIATE")
+        assert _lock_is_held()                                           # control
+    finally:
+        c.rollback()
+        c.close()
+
+
+def test_the_cleaner_never_runs_while_the_lock_is_held_on_apply_update(db, clean_calls):
+    gid = _legacy_listing(db, 50)
+    ad = gallery.adopt_style(MEMBER, gid, conn=db)
+    p = json.loads(db.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0])
+    p["outlineBodyJson"]["content"].append(para("v2 words"))
+    db.execute("UPDATE j2_template_gallery SET payload_json = ?, version = version + 1 WHERE id = ?",
+               (json.dumps(p), gid))
+    db.commit()
+    mine = js.get_style(MEMBER, ad["style"]["id"], db, full=True)
+    clean_calls.clear()
+    out = gallery.apply_update(MEMBER, ad["style"]["id"], take_outline=True, base_updated_at=mine["updatedAt"], conn=db)
+    assert "v2 words" in json.dumps(out) and "broker" not in json.dumps(out)
+    assert clean_calls and not any(held for _n, held in clean_calls), clean_calls
+
+
+@pytest.mark.parametrize("which", ["keyed adopt", "first use", "apply"])
+def test_a_listing_that_moves_under_the_lock_is_cleaned_again_outside_once_then_refused(db, monkeypatch, which):
+    """Under the lock only the stored listing is compared with the one cleaned before it. Moved once: the request is
+    run again (cleaned outside), and succeeds. Moved every time: it is refused with the existing sentence, and
+    nothing is written."""
+    gid = _legacy_listing(db, 5)
+
+    def newer_version(word):
+        p = json.loads(db.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0])
+        p["outlineBodyJson"]["content"].append(para(word))
+        db.execute("UPDATE j2_template_gallery SET payload_json = ?, version = version + 1 WHERE id = ?",
+                   (json.dumps(p), gid))
+        db.commit()
+    if which == "apply":
+        ad = gallery.adopt_style(MEMBER, gid, conn=db)
+        newer_version("v2")
+    real = gallery._Prepared.__init__
+    moves = {"left": 1}
+
+    def init(self, row):
+        real(self, row)
+        if moves["left"]:
+            moves["left"] -= 1
+            self.payload_json = (self.payload_json or "") + " "               # what an approval in between does
+    monkeypatch.setattr(gallery._Prepared, "__init__", init)
+
+    def run(uid):
+        if which == "apply":
+            mine = js.get_style(MEMBER, ad["style"]["id"], db, full=True)
+            return gallery.apply_update(MEMBER, ad["style"]["id"], take_outline=True,
+                                        base_updated_at=mine["updatedAt"], conn=db)
+        if which == "keyed adopt":
+            return gallery.adopt_style(uid, gid, key=str(uuid.uuid4()), conn=db)
+        return gallery.use_library_template(uid, gid, payload={}, key=str(uuid.uuid4()), conn=db)
+
+    def state():
+        return (db.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0],
+                db.execute("SELECT COUNT(*) FROM j2_journal_styles").fetchone()[0],
+                db.execute("SELECT updated_at FROM j2_journal_styles WHERE id = ?",
+                           (ad["style"]["id"],)).fetchone()[0] if which == "apply" else None)
+    before = state()
+    out = run(MEMBER)                                                    # moved once: run again, succeeds
+    assert out and state() != before and moves["left"] == 0
+    if which == "apply":
+        assert "v2" in json.dumps(out)
+        newer_version("v3")
+    moves["left"] = 10**6                                                # moved every time
+    settled = state()
+    with pytest.raises(gallery.GalleryConflict) as e:
+        run(OTHER)                                                       # OTHER has no copy: its Use adopts
+    assert str(e.value) == (gallery.UPDATE_MOVED_SENTENCE if which == "apply" else gallery.S_KEY_IN_FLIGHT)
+    assert not db.in_transaction and state() == settled                 # nothing was written
+
+
+def test_an_auth_write_succeeds_during_a_1600_link_adopt(db):
+    """W11-R53 / W11-R31: a sign-in-style write (busy timeout 3 s, as `auth_db` sets) runs to completion every time
+    while a keyed adopt of a 1,600-link legacy listing is in flight on another thread."""
+    gid = _legacy_listing(db, 1600)
+    done, errors, waits = threading.Event(), [], []
+
+    def adopt():
+        c = auth_db.get_connection()
+        try:
+            gallery.adopt_style(MEMBER, gid, key=str(uuid.uuid4()), conn=c)
+        except BaseException as e:                     # noqa: BLE001 -- reported below
+            errors.append(e)
+        finally:
+            c.close()
+            done.set()
+    th = threading.Thread(target=adopt)
+    th.start()
+    w = sqlite3.connect(auth_db._DB_PATH, timeout=3.0)
+    try:
+        writes = 0
+        while not done.is_set() or writes < 3:
+            t0 = time.perf_counter()
+            w.execute("UPDATE users SET display_name = display_name WHERE id = ?", (OTHER,))
+            w.commit()
+            waits.append(time.perf_counter() - t0)
+            writes += 1
+    finally:
+        w.close()
+        th.join(30)
+    assert not errors, errors
+    assert waits and max(waits) < 3.0, max(waits)
+
+
+def test_each_distinct_href_is_spelled_once_per_body(db, monkeypatch):
+    """W11-R53: an href's spellings and skeletons are computed ONCE per distinct href per body (the memo), however many
+    judgements read them; 1,600 links with 400 distinct hrefs spell 400."""
+    real, calls = gallery._href_variants, []
+
+    def counted(h):
+        calls.append(h)
+        return real(h)
+    monkeypatch.setattr(gallery, "_href_variants", counted)
+    content = []
+    for i in range(1600):
+        content += [_lk(f"part {i}", f"https://broker{i % 400}.example.com/acct/{i % 400}"),
+                    {"type": "text", "text": " "}]
+    gallery._without_links({"type": "doc", "content": [{"type": "paragraph", "content": content}]})
+    assert len(calls) == 400 == len(set(calls))

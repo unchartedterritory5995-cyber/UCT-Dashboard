@@ -1374,18 +1374,32 @@ def _is_default_ignorable(ch: str) -> bool:
     return i >= 0 and ord(ch) <= _DEFAULT_IGNORABLE[i][1]
 
 
-#: W11-R46 as refined (F-NOTE-1 fix round 2): the Default_Ignorable_Code_Points an emoji is built from, which the text
-#: that TRAVELS keeps so no emoji splits: ZERO WIDTH JOINER (a ZWJ sequence), the variation selectors and their
-#: supplement (VS16's emoji presentation), and the tag characters of an emoji tag sequence (a subdivision flag).
-#: Address DETECTION still ignores every one of them: none is a letter or a digit, so none is in a skeleton.
-_EMOJI_IGNORABLES = ((0x200D, 0x200D), (0xFE00, 0xFE0F), (0xE0020, 0xE007F), (0xE0100, 0xE01EF))
+#: W11-R46 as refined (F-NOTE-1 fix rounds 2 and 3): the Default_Ignorable_Code_Points an emoji is built from, which
+#: the text that TRAVELS keeps so no emoji splits: ZERO WIDTH JOINER (a ZWJ sequence), the variation selectors and
+#: their supplement (VS16's emoji presentation). Address DETECTION still ignores every one of them: none is a letter
+#: or a digit, so none is in a skeleton.
+_EMOJI_IGNORABLES = ((0x200D, 0x200D), (0xFE00, 0xFE0F), (0xE0100, 0xE01EF))
+#: Ruling W11-R53 (m-1): the TAG characters travel only inside a well-formed emoji tag sequence -- U+1F3F4 WAVING
+#: BLACK FLAG, one or more tag characters (U+E0020-E007E), U+E007F CANCEL TAG (a subdivision flag). Anywhere else a
+#: tag character is an invisible copy of ASCII text (a smuggled address) and is stripped like every other ignorable.
+_EMOJI_TAG_SEQUENCE = re.compile("\U0001F3F4[\U000E0020-\U000E007E]+\U000E007F")
+
+
+def _strip_ignorables(text: str) -> str:
+    return "".join(ch for ch in text if not _is_default_ignorable(ch)
+                   or any(a <= ord(ch) <= b for a, b in _EMOJI_IGNORABLES))
 
 
 def _without_ignorables(text: str) -> str:
     """W11-R46: `text` with every Default_Ignorable_Code_Point removed (the text that travels), except the emoji
-    pieces (`_EMOJI_IGNORABLES`)."""
-    return "".join(ch for ch in text if not _is_default_ignorable(ch)
-                   or any(a <= ord(ch) <= b for a, b in _EMOJI_IGNORABLES))
+    pieces (`_EMOJI_IGNORABLES`) and a well-formed emoji tag sequence (`_EMOJI_TAG_SEQUENCE`), kept whole."""
+    out, at = [], 0
+    for m in _EMOJI_TAG_SEQUENCE.finditer(text):
+        out.append(_strip_ignorables(text[at:m.start()]))
+        out.append(m.group(0))
+        at = m.end()
+    out.append(_strip_ignorables(text[at:]))
+    return "".join(out)
 
 
 def _skeleton(text: str, *, latin: bool) -> str:
@@ -1393,9 +1407,12 @@ def _skeleton(text: str, *, latin: bool) -> str:
     skeleton) or every alphanumeric character (so an address written in another script, an IDN, has a skeleton too).
     Every space, line break, punctuation mark, invisible, combining or blank character is gone by construction."""
     t = unicodedata.normalize("NFKC", text).casefold()
-    if latin:
-        return "".join(ch for ch in t if "a" <= ch <= "z" or "0" <= ch <= "9")
-    return "".join(ch for ch in t if ch.isalnum())
+    return (_NOT_LATIN if latin else _NOT_ALNUM).sub("", t)
+
+
+_NOT_LATIN = re.compile(r"[^a-z0-9]+")
+#: `\w` in a `str` pattern is exactly `str.isalnum()` plus `_`, so this keeps precisely the alphanumerics.
+_NOT_ALNUM = re.compile(r"[\W_]+")
 
 
 _HOST = re.compile(r"^((?:[a-z][a-z0-9+.-]*:)?(?://)?(?:[^@/?#]*@)?)([^/?#:]*)(.*)$", re.I | re.S)
@@ -1455,21 +1472,25 @@ def _address_form(text: str) -> str:
     return re.sub(r" +", " ", kept)
 
 
-def _host_skeletons(href: str) -> set[str]:
-    """The skeletons (both, R47) of an href's host in every spelling (`_href_variants`: with and
-    without `www.`, so a text holding the bare host matches)."""
-    out: set[str] = set()
-    for v in _href_variants(href):
-        m = _HOST.match(v)
-        host = m.group(2) if m else ""
-        for latin in (True, False):
-            s = _skeleton(host, latin=latin)
-            if s:
-                out.add(s)
-    return out
+def _href_facts(href: str, memo: dict) -> tuple[frozenset, frozenset, frozenset]:
+    """(the `[a-z0-9]` skeletons, the every-script skeletons, the host skeletons) of one href in every spelling
+    (`_href_variants`: percent-decoded, Unicode / punycode host, with and without `www.`), computed ONCE per distinct
+    href per body (`memo`, ruling W11-R53: the link check is linear, never every link x every href)."""
+    got = memo.get(href)
+    if got is None:
+        variants = _href_variants(href)
+        lat = frozenset(s for s in (_skeleton(v, latin=True) for v in variants) if s)
+        uni = frozenset(s for s in (_skeleton(v, latin=False) for v in variants) if s)
+        hosts = set()
+        for v in variants:
+            m = _HOST.match(v)
+            host = m.group(2) if m else ""
+            hosts.update(s for s in (_skeleton(host, latin=True), _skeleton(host, latin=False)) if s)
+        got = memo[href] = (lat, uni, frozenset(hosts))
+    return got
 
 
-def _link_text_is_an_address(text: Any, hrefs: list) -> bool:
+def _link_text_is_an_address(text: Any, hrefs: list, memo: dict | None = None) -> bool:
     """⛔ THE one authority for "this link text is an address, so it goes whole" (W11-R47 and W11-R48, superseding the
     form-by-form detection of W11-R40, fix round 5 and F-NOTE-1). True when ANY of:
 
@@ -1486,24 +1507,27 @@ def _link_text_is_an_address(text: Any, hrefs: list) -> bool:
     Costs, accepted by the rulings: words that appear in their own address ("Docs" -> docs.python.org), words beside
     a URL, and dotted words such as "Node.js" go. ⛔ A recorded limit (W11-R48 c3): a HOMOGLYPH host (a Cyrillic "о"
     inside a Latin host) is not recognised as the address it imitates -- NFKC does not map confusables -- though
-    the dotted-host half still drops it when it is linked; unlinked, it is the author's visible prose (W11-R40)."""
+    the dotted-host half still drops it when it is linked; unlinked, it is the author's visible prose (W11-R40).
+    ⛔ A second recorded limit (W11-R53, m-2): an address written with CONFUSABLE SEPARATORS -- a middle dot
+    (`broker·example·com`), spaced dots (`broker . example . com`), hyphens (`broker-example-com`) -- and linked to an
+    unrelated href is not recognised either: it is not dotted and not in that href. Like the homoglyph, it is visible
+    in the author's own preview, as unmarked prose is (W11-R40).
+
+    `memo` (W11-R53) holds each distinct href's spellings and skeletons for the whole body (`_href_facts`), so a
+    body's judgement is linear in its size."""
     if not isinstance(text, str):
         return False
     if _ADDRESS_SHAPE.search(_address_form(text)):
         return True
-    variants = [v for h in hrefs if isinstance(h, str) and h.strip() for v in _href_variants(h)]
-    for latin in (True, False):
-        t_ = _skeleton(text, latin=latin)
-        if t_ and any(t_ in _skeleton(v, latin=latin) for v in variants):
+    memo = {} if memo is None else memo
+    facts = [_href_facts(h, memo) for h in dict.fromkeys(h for h in hrefs if isinstance(h, str) and h.strip())]
+    skels = (_skeleton(text, latin=True), _skeleton(text, latin=False))
+    for i, t_ in enumerate(skels):
+        # `t_ in s` answers False at once when `t_` is the longer: a run's joined text costs one pass over the hrefs
+        if t_ and any(len(t_) <= len(s) and t_ in s for f in facts for s in f[i]):
             return True
-    hosts = {s for h in hrefs if isinstance(h, str) and h.strip() for s in _host_skeletons(h)
-             if len(s) >= HOST_SKELETON_MIN}
-    if hosts:
-        for latin in (True, False):
-            t_ = _skeleton(text, latin=latin)
-            if any(s in t_ for s in hosts):
-                return True
-    return False
+    hosts = {s for f in facts for s in f[2] if len(s) >= HOST_SKELETON_MIN}
+    return any(s in t_ for s in hosts for t_ in skels)
 
 
 def _without_links(body: Any) -> Any:
@@ -1513,9 +1537,9 @@ def _without_links(body: Any) -> Any:
 
     Ruling W11-R47: a linked text that is an address (`_link_text_is_an_address`) goes whole, text included. "A link" is
     one text node carrying an address mark, or the RUN of adjacent ones (any hrefs), joined across the node breaks
-    between them, a `hardBreak` and a text node with nothing but spaces, line breaks or punctuation in it. Each linked
-    part is judged against EVERY href in the run (which is the joined text's judgement, see below), and a run whose
-    linked parts all go loses its joiners too. Plain prose that merely contains a URL, with no link mark, is the
+    between them, a `hardBreak` and a text node with nothing but spaces, line breaks or punctuation in it. Each stretch
+    of the run that points at one host is judged on its joined text, then each linked part on its own (see below),
+    and a run whose linked parts all go loses its joiners too. Plain prose that merely contains a URL, with no link mark, is the
     author's visible text and is unchanged. Ruling W11-R46: every text that travels has its Default_Ignorable_Code_Point
     characters removed (`_without_ignorables`); a text node left empty goes.
 
@@ -1541,9 +1565,11 @@ def _without_links(body: Any) -> Any:
         return (n.get("type") == "text" and isinstance(n.get("text"), str) and not is_link(n)
                 and not _skeleton(n["text"], latin=False))
 
+    memo: dict = {}                                      # W11-R53: each distinct href's facts, once per body
+
     def host_key(n: Any) -> frozenset:
         """Which host(s) a linked part points at (their skeletons): a stretch of one host is one link."""
-        return frozenset(s for h in hrefs_of(n) if isinstance(h, str) and h.strip() for s in _host_skeletons(h))
+        return frozenset(s for h in hrefs_of(n) if isinstance(h, str) and h.strip() for s in _href_facts(h, memo)[2])
 
     def text_of(n: Any) -> str:
         return n.get("text") if isinstance(n, dict) and isinstance(n.get("text"), str) else ""
@@ -1571,30 +1597,39 @@ def _without_links(body: Any) -> Any:
                     break
                 j = k                                    # a break between two linked parts joins them
             run = items[i:j]
-            hrefs = [h for x in run for h in hrefs_of(x)]
             # W11-R48: a split URL is an address only as a whole (a bold head and a plain tail are not), so the JOINED
-            # text of each stretch of the run that points at ONE host is judged first, and goes whole; two links to
-            # different places side by side are never judged as one text. Then each remaining linked part against
-            # all the run's hrefs (a part in ANOTHER part's address goes too). A run left with no linked part loses
-            # its joiners with it.
+            # text of each stretch of the run that points at ONE host (a host-keyed lookup, W11-R53) is judged against
+            # that stretch's hrefs, and goes whole; two links to different places side by side are never judged as
+            # one text. Then each remaining linked part against its own hrefs and its neighbouring linked parts'
+            # (`part_hrefs`). Every judgement is one pass over its
+            # own text and hrefs, with each href's facts computed once per body (`memo`): linear, never pairwise. A
+            # run left with no linked part loses its joiners with it.
+            keys = [host_key(x) if is_link(x) else None for x in run]
             gone: set[int] = set()
             k = 0
             while k < len(run):
-                if not is_link(run[k]):
+                if keys[k] is None:
                     k += 1
                     continue
-                key, m = host_key(run[k]), k + 1
-                while m < len(run) and (not is_link(run[m]) or host_key(run[m]) == key):
+                m = k + 1
+                while m < len(run) and (keys[m] is None or keys[m] == keys[k]):
                     m += 1
-                while not is_link(run[m - 1]):
+                while keys[m - 1] is None:
                     m -= 1                                   # a stretch ends on a linked part
                 stretch = run[k:m]
                 if _link_text_is_an_address("".join(text_of(x) for x in stretch),
-                                            [h for x in stretch for h in hrefs_of(x)]):
+                                            [h for x in stretch for h in hrefs_of(x)], memo):
                     gone.update(range(k, m))
                 k = m
-            kept = [x for n_, x in enumerate(run) if n_ not in gone
-                    and not (is_link(x) and _link_text_is_an_address(text_of(x), hrefs))]
+            linked = [n_ for n_, key in enumerate(keys) if key is not None]
+
+            def part_hrefs(p_: int) -> list:
+                """A linked part's own hrefs and its NEIGHBOURING linked parts' (a piece of an address linked
+                elsewhere, beside the part that holds it): a bounded set, so the judgement stays linear."""
+                return [h for q in (p_ - 1, p_, p_ + 1) if 0 <= q < len(linked) for h in hrefs_of(run[linked[q]])]
+            dropped = {linked[p_] for p_ in range(len(linked)) if linked[p_] not in gone
+                       and _link_text_is_an_address(text_of(run[linked[p_]]), part_hrefs(p_), memo)}
+            kept = [x for n_, x in enumerate(run) if n_ not in gone and n_ not in dropped]
             if any(is_link(x) for x in kept):
                 out.extend(kept)
             i = j
@@ -3404,8 +3439,55 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
     return out, created, reused
 
 
+class _ListingMoved(Exception):
+    """Ruling W11-R53: the listing a request cleaned BEFORE the write lock is no longer the one stored (a revision was
+    approved, or the row edited, in between). Raised under the lock, before anything is written; the caller rolls
+    back, cleans the new listing outside the lock and tries once more. Never leaves this module."""
+
+
+class _Prepared:
+    """A listing read and cleaned OUTSIDE any write lock (ruling W11-R53): the stored `payload_json` it was made from,
+    and `_safe_listed`'s answer for it. Under the lock only the stored text is compared (`payload_for`), so no
+    reducer or clean ever runs while the lock is held."""
+    __slots__ = ("payload_json", "payload")
+
+    def __init__(self, row: sqlite3.Row):
+        self.payload_json = row["payload_json"]
+        raw = _listed_payload(row)
+        self.payload = _safe_listed(raw) if raw is not None else None
+
+    def payload_for(self, row: sqlite3.Row) -> dict:
+        """The cleaned payload, when `row` still stores the listing it was made from; `_ListingMoved` otherwise."""
+        if row["payload_json"] != self.payload_json or self.payload is None:
+            raise _ListingMoved()
+        return self.payload
+
+
+def _prepare(conn: sqlite3.Connection, gallery_id: Any) -> _Prepared | None:
+    """The listing `gallery_id` names, cleaned now, outside the lock (W11-R53); None when there is none to adopt."""
+    if conn.in_transaction:
+        return None                       # a caller's own transaction is its own lock: nothing to move out of it
+    row = _listed_style_row(conn, gallery_id)
+    if row is None or _library_hides(row) or _listed_payload(row) is None:
+        return None
+    return _Prepared(row)
+
+
+def _retry_once(fn, refusal: str):
+    """Run `fn()`; when the listing moved under the lock (`_ListingMoved`), once more; then refuse with `refusal`."""
+    try:
+        return fn()
+    except _ListingMoved:
+        pass
+    try:
+        return fn()
+    except _ListingMoved:
+        raise GalleryConflict(refusal) from None
+
+
 def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, *, notify: bool,
-                      commit: bool, answers: Any = None, choices: Any = None, on_written: Any = None) -> dict:
+                      commit: bool, answers: Any = None, choices: Any = None, on_written: Any = None,
+                      prepared: _Prepared | None = None) -> dict:
     """The body of an adopt, for a row `_listed_style_row` returned (rulings P5-R-C1 / P5-R-C2).
 
     ONE body, called by `adopt_style` (behind the library and Journal styles switches, `commit=True`), by
@@ -3420,13 +3502,17 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
     is rewritten (`_materialize`), and a credit row is written per created copy and one for the style, all in the
     ONE transaction that holds the copy, the use count and the watch (P3a-FIN-R1). A count cap of any store rolls
     everything back (`CountCapError`, the store's sentence); an unanswered choice is `unresolved`, an answer naming
-    another member's row `not_yours`."""
+    another member's row `not_yours`.
+
+    `prepared` (ruling W11-R53): the listing cleaned BEFORE the caller took the write lock. Under the lock only its
+    stored text is compared with `row`'s (`_ListingMoved` when it moved), so the clean never runs while the lock is
+    held. Without it the payload is cleaned here, as before (an unkeyed adopt does that before its own BEGIN)."""
     from api.services.journal_two import journal_styles as js
     from api.services.journal_two import note_kinds as nk
     raw_payload = _listed_payload(row)
     if raw_payload is None:
         raise GalleryError("That style could not be read, so it cannot be adopted.")
-    payload = _safe_listed(raw_payload)
+    payload = prepared.payload_for(row) if prepared is not None else _safe_listed(raw_payload)
     if payload["kindId"] not in nk.BUILTIN_KIND_IDS:
         # Only a built-in kind travels (R-P3-9). A stored row naming anything else would resolve against
         # the ADOPTER's own custom kinds, or fail with a message about a choice they never made.
@@ -3526,6 +3612,21 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # W11-R53: a keyed adopt takes the write lock up front, so its listing is cleaned BEFORE it (`_prepare`);
+        # under the lock only the stored listing is compared, and a moved one is cleaned again outside, once.
+        return _retry_once(lambda: _adopt_style_once(user_id, gallery_id, k, notify, answers, choices, conn),
+                           S_KEY_IN_FLIGHT)
+    finally:
+        if owned:
+            conn.close()
+
+
+def _adopt_style_once(user_id: str, gallery_id: Any, k: str | None, notify: bool, answers: Any, choices: Any,
+                      conn: sqlite3.Connection) -> dict | None:
+    """One attempt of `adopt_style` (W11-R53: `_retry_once` runs it again when the listing moved under the lock)."""
+    from api.services.journal_two import journal_styles as js
+    prepared = _prepare(conn, gallery_id) if k is not None else None
+    try:
         if k is not None and not conn.in_transaction:
             conn.execute("BEGIN IMMEDIATE")
         row = _listed_style_row(conn, gallery_id)
@@ -3546,14 +3647,11 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
             _key_remember(conn, user_id, k, "gallery_adopt_template", row["id"], sid, answer=answer)
         return _adopt_listed_row(
             conn, user_id, row, notify=notify, commit=True, answers=answers, choices=choices,
-            on_written=remember if k is not None else None)
-    except Exception:
+            on_written=remember if k is not None else None, prepared=prepared)
+    except BaseException:
         if conn.in_transaction:
             conn.rollback()
         raise
-    finally:
-        if owned:
-            conn.close()
 
 
 #: Ruling W11-R25b: "Adopt" on a template is the copy only (`adopt_style`), never a note.
@@ -3635,13 +3733,16 @@ def list_updates(user_id: str, conn: sqlite3.Connection | None = None) -> list[d
             conn.close()
 
 
-def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
+def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any, prepared: "_Prepared | None" = None):
     """(mine, row, plan); `plan` is None when there is nothing newer to offer, `mine` None when the style is
     not the member's own adopted copy.
 
     ⛔ "A removed block is never re-added" needs the block ids of the version the member ADOPTED: without
     them, a block they removed looks exactly like one they never had. They live on the copy
-    (`source_block_ids`), not on `j2_gallery_watches`, because a member can adopt without notify."""
+    (`source_block_ids`), not on `j2_gallery_watches`, because a member can adopt without notify.
+
+    `prepared` (W11-R53, `apply_update` under its write lock): the listing cleaned before the lock; only its stored
+    text is compared here (`_ListingMoved`), so no clean runs under the lock."""
     from api.services.journal_two import journal_styles as js
     if not library_enabled():
         return None, None, None
@@ -3656,7 +3757,7 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
     raw_theirs = _listed_payload(row)
     if raw_theirs is None:
         return mine, row, None
-    theirs = _safe_listed(raw_theirs)
+    theirs = prepared.payload_for(row) if prepared is not None else _safe_listed(raw_theirs)
     have = {b["block"] for b in mine.get("blocks") or [] if isinstance(b, dict) and "block" in b}
     src = conn.execute("SELECT source_block_ids, source_outline_hash FROM j2_journal_styles"
                        " WHERE id = ? AND user_id = ?", (style_id, user_id)).fetchone()
@@ -3714,13 +3815,36 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
     `to_version` (P3a Task 10 fix round 1, M-8) is the listed version the member PREVIEWED. When it is given
     and another revision has been approved since, the merge would add blocks they never saw, so it is a
     `GalleryConflict` (UPDATE_MOVED_SENTENCE) and nothing is written."""
-    from api.services.journal_two import journal_styles as js
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # W11-R53: the listing is cleaned before the write lock; a listing that moved in between is cleaned again
+        # outside it, once, then refused as the moved update it is.
+        return _retry_once(lambda: _apply_update_once(user_id, style_id, take_outline, base_updated_at, to_version,
+                                                      conn), UPDATE_MOVED_SENTENCE)
+    finally:
+        if owned:
+            conn.close()
+
+
+def _prepare_update(conn: sqlite3.Connection, user_id: str, style_id: Any) -> _Prepared | None:
+    """The listing an update of `style_id` would take, cleaned outside the lock (W11-R53); None when there is none."""
+    from api.services.journal_two import journal_styles as js
+    if conn.in_transaction or not library_enabled():
+        return None
+    mine = js.get_style(user_id, style_id, conn)
+    return _prepare(conn, mine["sourceGalleryId"]) if mine and mine.get("sourceGalleryId") else None
+
+
+def _apply_update_once(user_id: str, style_id: Any, take_outline: bool, base_updated_at: Any, to_version: Any,
+                       conn: sqlite3.Connection) -> dict | None:
+    """One attempt of `apply_update` (W11-R53)."""
+    from api.services.journal_two import journal_styles as js
+    prepared = _prepare_update(conn, user_id, style_id)
+    try:
         if not conn.in_transaction:
             conn.execute("BEGIN IMMEDIATE")
-        mine, row, plan = _plan(conn, user_id, style_id)
+        mine, row, plan = _plan(conn, user_id, style_id, prepared)
         if plan is None:
             conn.rollback()
             return None
@@ -3730,7 +3854,8 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
         if not isinstance(base_updated_at, str) or not base_updated_at or mine["updatedAt"] != base_updated_at:
             conn.rollback()
             raise GalleryConflict(UPDATE_STALE_SENTENCE)
-        theirs = _safe_listed(_listed_payload(row))
+        # the plan read it already: the prepared listing (W11-R53), or, for a caller's own transaction, cleaned here
+        theirs = prepared.payload_for(row) if prepared is not None else _safe_listed(_listed_payload(row))
         by_id = {b["block"]: b for b in theirs["blocks"]}
         patch: dict[str, Any] = {}
         if plan["addBlocks"]:
@@ -3768,13 +3893,10 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
         conn.commit()
         # a dark slot stays hidden; with the member context, `slotNames` is served and dark-wave plans hidden (11.5)
         return js.served_style(js.get_style(user_id, style_id, conn), user_id, conn)
-    except Exception:
+    except BaseException:
         if conn.in_transaction:
             conn.rollback()
         raise
-    finally:
-        if owned:
-            conn.close()
 
 
 # ── wave 11 (Task 11.8): sharing, adopting and using widgets, routines, trackers and templates ─────────────
@@ -4268,6 +4390,18 @@ def _use_lost(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, key: str
 def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, choices: Any = None,
                          payload: Any = None, key: Any = None,
                          conn: sqlite3.Connection | None = None) -> dict | None:
+    """Use a listed template to make a note (`_use_library_template_once`, whose docstring is the contract).
+
+    Ruling W11-R53: the first Use adopts under its write lock, so the listing is cleaned BEFORE that lock; when the
+    listing moved in between, the whole Use runs once more (nothing was written), then refuses with
+    `S_KEY_IN_FLIGHT`."""
+    return _retry_once(lambda: _use_library_template_once(user_id, gallery_id, answers=answers, choices=choices,
+                                                          payload=payload, key=key, conn=conn), S_KEY_IN_FLIGHT)
+
+
+def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = None, choices: Any = None,
+                               payload: Any = None, key: Any = None,
+                               conn: sqlite3.Connection | None = None) -> dict | None:
     """Use a listed template (official or a member's) to make a note: `{"note", "skipped", "style", "credit",
     "created": {"routines", "trackers", "widgets"}}`. None when the library or wave 11 is off or the item is not a
     listed style; `GalleryConflict` when the member's Journal styles switch is off.
@@ -4305,6 +4439,8 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
     conn = conn or get_connection()
     reserved = False
     try:
+        # W11-R53: a member with no copy yet adopts under the lock below, so the listing is cleaned now, outside it.
+        prepared = None if _newest_copy(conn, user_id, gallery_id) else _prepare(conn, gallery_id)
         conn.execute("BEGIN IMMEDIATE")
         row = _listed_style_row(conn, gallery_id)
         if row is None or _library_hides(row):
@@ -4336,8 +4472,10 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
             f"SELECT id FROM {_COPY_TABLE[fam]} WHERE user_id = ?", (user_id,))}
         copy_id = _newest_copy(conn, user_id, row["id"])
         if copy_id is None:
+            if prepared is None:
+                raise _ListingMoved()                 # the copy went in between: clean outside the lock, once more
             adopted = _adopt_listed_row(conn, user_id, row, notify=False, commit=True, answers=answers,
-                                        choices=choices)
+                                        choices=choices, prepared=prepared)
             copy_id = adopted["style"]["id"]
             created = adopted.get("created") or created
             reused = adopted.get("reused") or reused
