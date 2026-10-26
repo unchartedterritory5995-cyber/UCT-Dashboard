@@ -23,7 +23,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import TimeoutError as _FutTimeout
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from api.services.auth_db import get_connection
@@ -492,7 +492,7 @@ def _builtin(user_id: str, kind_id: str, conn: sqlite3.Connection, *, full: bool
            "isDefault": _member_default(user_id, kind_id, conn) is None, "version": s["version"],
            "outlineTemplateId": None, "hasOutline": True, "blocks": copy.deepcopy(s["blocks"]),
            "properties": dict(s["properties"]), "sourceGalleryId": None, "sourceVersion": None,
-           "createdAt": None, "updatedAt": None, "deletedAt": None}
+           "createdAt": None, "updatedAt": None, "deletedAt": None, "archivedAt": None}
     if full:
         out["outlineBodyJson"] = copy.deepcopy(s["outline"])
     return out
@@ -505,7 +505,8 @@ def _row(r: sqlite3.Row, *, full: bool) -> dict:
            "outlineTemplateId": r["outline_template_id"], "hasOutline": bool(body or r["outline_template_id"]),
            "blocks": json.loads(r["blocks_json"] or "[]"), "properties": json.loads(r["properties_json"] or "{}"),
            "sourceGalleryId": r["source_gallery_id"], "sourceVersion": r["source_version"],
-           "createdAt": r["created_at"], "updatedAt": r["updated_at"], "deletedAt": r["deleted_at"]}
+           "createdAt": r["created_at"], "updatedAt": r["updated_at"], "deletedAt": r["deleted_at"],
+           "archivedAt": r["archived_at"] if "archived_at" in r.keys() else None}
     if full:
         out["outlineBodyJson"] = body
     return out
@@ -760,16 +761,227 @@ def get_style(user_id: str, style_id: Any, conn: sqlite3.Connection | None = Non
             conn.close()
 
 
-def list_styles(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict]:
-    """Built-in styles (in built-in kind order), then the member's live styles, oldest first."""
+#: Task 11.13 (W11-R10): the views of `list_styles`. "picker" is every existing caller's answer.
+STYLE_VIEWS = ("picker", "live", "archived", "deleted")
+#: Recently deleted lists a template this many days after its delete, and restore refuses it after that. Rows are
+#: never hard-deleted here: a note's style stamp and Update layout read them.
+RECENTLY_DELETED_DAYS = 30
+#: At most this many notes in a template's "Used in" list.
+USED_IN_LIMIT = 100
+S_BUILTIN_ARCHIVE = "Built-in templates can't be archived."
+S_ARCHIVE_FIRST = "Archive this template before deleting it."
+S_TYPE_NAME = "Type the template's name exactly to delete it."
+S_RESTORE_EXPIRED = "This template was deleted more than 30 days ago."
+S_UNARCHIVE_FIRST = "Unarchive this template before making it the default."
+S_CAP = f"You can keep up to {MAX_STYLES_PER_MEMBER} styles. Delete one first."
+_VIEW_WHERE = {"picker": "deleted_at IS NULL AND archived_at IS NULL",
+               "live": "deleted_at IS NULL AND archived_at IS NULL",
+               "archived": "deleted_at IS NULL AND archived_at IS NOT NULL",
+               "deleted": "deleted_at IS NOT NULL AND deleted_at >= ?"}
+
+
+def _deleted_cutoff() -> str:
+    """The oldest `deleted_at` Recently deleted still lists (same ISO UTC form as `_now`, so text order is time
+    order)."""
+    return (datetime.now(timezone.utc) - timedelta(days=RECENTLY_DELETED_DAYS)).isoformat()
+
+
+def list_styles(user_id: str, conn: sqlite3.Connection | None = None, *, view: str = "picker") -> list[dict]:
+    """`view="picker"` (every existing caller): built-in styles (in built-in kind order), then the member's live
+    styles, oldest first, archived ones LEFT OUT (W11-R10: hidden from TemplatePicker, the kind section and the
+    default choice).
+
+    My tools' Templates tab (Task 11.13) reads the member's OWN rows only (no built-ins), each with `usedIn` (live
+    notes made from it, sample notes excluded: one grouped count), `credit` and `fromLibrary`:
+      * "live"     the rows the picker shows;
+      * "archived" archived rows, newest archive first;
+      * "deleted"  rows deleted within RECENTLY_DELETED_DAYS, newest delete first (each keeps its `archivedAt`, so
+                   a restore lands where it was)."""
+    if view not in STYLE_VIEWS:
+        raise StyleValidationError("Choose live, archived or deleted.")
     owned = conn is None
     conn = conn or get_connection()
     try:
-        out = [_builtin(user_id, k["id"], conn, full=False) for k in _nk().BUILTIN_NOTE_KINDS
-               if k["id"] in BUILTIN_STYLES]
-        rows = conn.execute("SELECT * FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL"
-                            " ORDER BY created_at, rowid", (user_id,)).fetchall()
-        return out + [_row(r, full=False) for r in rows]
+        order = {"archived": "archived_at DESC, rowid DESC", "deleted": "deleted_at DESC, rowid DESC"}.get(
+            view, "created_at, rowid")
+        params: tuple = (user_id, _deleted_cutoff()) if view == "deleted" else (user_id,)
+        rows = conn.execute(f"SELECT * FROM j2_journal_styles WHERE user_id = ? AND {_VIEW_WHERE[view]}"
+                            f" ORDER BY {order}", params).fetchall()
+        mine = [_row(r, full=False) for r in rows]
+        if view == "picker":
+            return [_builtin(user_id, k["id"], conn, full=False) for k in _nk().BUILTIN_NOTE_KINDS
+                    if k["id"] in BUILTIN_STYLES] + mine
+        return _with_library_facts(user_id, mine, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def _used_in_counts(user_id: str, conn: sqlite3.Connection) -> dict[str, int]:
+    """{style id: live notes made from it} for every style of the member, in ONE grouped count. A note in the trash
+    and a sample note (sample_marker) are not uses."""
+    return {r["style_id"]: r["n"] for r in conn.execute(
+        "SELECT style_id, COUNT(*) AS n FROM j2_notes WHERE user_id = ? AND style_id IS NOT NULL"
+        " AND deleted_at IS NULL AND " + sample_marker.not_sample_sql() + " GROUP BY style_id", (user_id,))}
+
+
+def _with_library_facts(user_id: str, styles: list[dict], conn: sqlite3.Connection) -> list[dict]:
+    """Each of the member's styles with `usedIn`, `credit`, `fromLibrary` and `updateAvailable`.
+
+    Every library fact is template_gallery's own decision (one authority each): `credit` and `updateAvailable` are
+    `library_facts` (the copy's snapshot, W11-R7; {} while the library or wave 11 is off), and for a copy adopted
+    before wave 11 wrote snapshots, the credit of the gallery row it came from (`_row_credit`, as adopting words it);
+    `fromLibrary` is `_from_library` (came from ANOTHER member's listing, or one that is gone; fail closed), so the
+    member's own listing is never credited."""
+    from api.services.journal_two import template_gallery as tg
+    counts = _used_in_counts(user_id, conn)
+    facts = tg.library_facts(user_id, "template", [s["id"] for s in styles], conn=conn)
+    credit_on = bool(facts) or tg._wave11_library_on()
+    out = []
+    for s in styles:
+        gid = s.get("sourceGalleryId")
+        from_lib = bool(gid) and tg._from_library(conn, user_id, gid)
+        fact = facts.get(s["id"]) or {}
+        credit = fact.get("credit")
+        if credit is None and credit_on and from_lib:
+            row = tg._row(conn, gid)
+            credit = tg._row_credit(row) if row is not None else None
+        out.append({**s, "usedIn": counts.get(s["id"], 0), "credit": credit, "fromLibrary": from_lib,
+                    "updateAvailable": bool(fact.get("updateAvailable"))})
+    return out
+
+
+def _refuse_builtin_archive(style_id: Any) -> None:
+    if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+        raise StyleValidationError(S_BUILTIN_ARCHIVE)
+
+
+def archive_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Archive one of the member's live styles (W11-R10): hidden from the picker, the kind section and the default
+    choice; still readable by `get_style`, so every note keeps its style stamp and Update layout. Archiving the
+    kind's default clears `is_default` (the kind falls back to the built-in). ONE UPDATE, so no lock is held; an
+    already archived style keeps its first `archived_at`. None when it is not the member's live style."""
+    _refuse_builtin_archive(style_id)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute("UPDATE j2_journal_styles SET archived_at = COALESCE(archived_at, ?), is_default = 0"
+                     " WHERE id = ? AND user_id = ? AND deleted_at IS NULL", (_now(), style_id, user_id))
+        conn.commit()
+        return get_style(user_id, style_id, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def unarchive_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Back to the picker. It does not become the default again (the member chooses that). ONE UPDATE."""
+    _refuse_builtin_archive(style_id)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute("UPDATE j2_journal_styles SET archived_at = NULL WHERE id = ? AND user_id = ?"
+                     " AND deleted_at IS NULL", (style_id, user_id))
+        conn.commit()
+        return get_style(user_id, style_id, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def _copy_name(name: str) -> str:
+    """"<name> copy", the name cut so the whole fits MAX_STYLE_NAME_CHARS."""
+    suffix = " copy"
+    return name[:MAX_STYLE_NAME_CHARS - len(suffix)].rstrip() + suffix
+
+
+def duplicate_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:
+    """My tools' Duplicate (Task 11.13): a new live style named "<name> copy" with the source's kind, outline,
+    blocks and properties copied AS STORED (a family slot's ref -- a remembered routine, tracker or widget -- is
+    copied as it is, never re-asked), not the default, version 1, with NO provenance (no source_* columns). The
+    source may be archived; a built-in is copied from its definition. Refused at MAX_STYLES_PER_MEMBER with the cap's
+    sentence. The count and the insert are one short write lock (nothing slow inside it). None when the source is not
+    the member's."""
+    owned = conn is None
+    conn = conn or get_connection()
+    began = False
+    try:
+        if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+            src = get_style(user_id, style_id, conn)
+            if src is None:
+                return None
+            fields = (src["name"], src["kindId"], None, json.dumps(src["outlineBodyJson"]),
+                      json.dumps(src["blocks"]), json.dumps(src["properties"]))
+        else:
+            r = _load_row(user_id, style_id, conn) if isinstance(style_id, str) else None
+            if r is None:
+                return None
+            fields = (r["name"], r["kind_id"], r["outline_template_id"], r["outline_body_json"],
+                      r["blocks_json"], r["properties_json"])
+        name, kind, tpl, outline, blocks, props = fields
+        if not conn.in_transaction:
+            _lock_for_style(conn)
+            began = True
+        n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
+                         (user_id,)).fetchone()["c"]
+        if n >= MAX_STYLES_PER_MEMBER:
+            raise StyleValidationError(S_CAP)
+        sid, now = uuid.uuid4().hex, _now()
+        conn.execute(
+            "INSERT INTO j2_journal_styles (id, user_id, name, kind_id, outline_template_id, outline_body_json,"
+            " blocks_json, properties_json, is_default, source_gallery_id, source_version, version,"
+            " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 1, ?, ?)",
+            (sid, user_id, _copy_name(name), kind, tpl, outline, blocks, props, now, now))
+        conn.commit()
+        return get_style(user_id, sid, conn)
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def style_used_in(user_id: str, style_id: Any, *, conn: sqlite3.Connection | None = None) -> list[dict] | None:
+    """The member's live notes made from one of their styles (archived or recently deleted included), newest edit
+    first, at most USED_IN_LIMIT: `[{id, title, updatedAt}]`. Sample notes and notes in the trash are left out.
+    None when the style is not the member's (a built-in has no "Used in" here)."""
+    if not isinstance(style_id, str) or not style_id or style_id.startswith(BUILTIN_PREFIX):
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if _load_row(user_id, style_id, conn, include_deleted=True) is None:
+            return None
+        rows = conn.execute(
+            "SELECT id, title, updated_at FROM j2_notes WHERE user_id = ? AND style_id = ? AND deleted_at IS NULL"
+            " AND " + sample_marker.not_sample_sql() + " ORDER BY updated_at DESC, rowid DESC LIMIT ?",
+            (user_id, style_id, USED_IN_LIMIT)).fetchall()
+        return [{"id": r["id"], "title": r["title"], "updatedAt": r["updated_at"]} for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def delete_style_typed(user_id: str, style_id: str, typed_name: Any, *,
+                       conn: sqlite3.Connection | None = None) -> dict | None:
+    """My tools' "Delete permanently" (W11-R10): only from Archived, only with the template's name typed exactly,
+    then the existing SOFT `delete_style` (Recently deleted lists it for RECENTLY_DELETED_DAYS; the row is never
+    hard-deleted). None when it is not the member's live style."""
+    if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+        raise StyleValidationError("Built-in styles can't be deleted.")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        r = _load_row(user_id, style_id, conn) if isinstance(style_id, str) else None
+        if r is None:
+            return None
+        if r["archived_at"] is None:
+            raise StyleValidationError(S_ARCHIVE_FIRST)
+        if not isinstance(typed_name, str) or typed_name != r["name"]:
+            raise StyleValidationError(S_TYPE_NAME)
+        return delete_style(user_id, style_id, conn)
     finally:
         if owned:
             conn.close()
@@ -986,6 +1198,9 @@ def set_default(user_id: str, style_id: str, conn: sqlite3.Connection | None = N
         s = get_style(user_id, style_id, conn, full=False)
         if s is None:
             return None
+        if s.get("archivedAt"):
+            # W11-R10: an archived template is hidden from the default choice, so it cannot become the default.
+            raise StyleValidationError(S_UNARCHIVE_FIRST)
         conn.execute("UPDATE j2_journal_styles SET is_default = 0 WHERE user_id = ? AND kind_id = ?"
                      " AND is_default = 1", (user_id, s["kindId"]))
         # The member has now CHOSEN this kind's default (the built-in included, which is otherwise
@@ -1044,11 +1259,18 @@ def restore_style(user_id: str, style_id: str, conn: sqlite3.Connection | None =
             if began:
                 conn.rollback()
             return get_style(user_id, style_id, conn) if r else None
+        if r["deleted_at"] < _deleted_cutoff():
+            # W11-R10: Recently deleted keeps a template RECENTLY_DELETED_DAYS; after that it cannot come back (the row
+            # stays, for the notes' style stamps).
+            raise StyleValidationError(S_RESTORE_EXPIRED)
         n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
                          (user_id,)).fetchone()["c"]
         if n >= MAX_STYLES_PER_MEMBER:
             raise StyleValidationError(f"You can keep up to {MAX_STYLES_PER_MEMBER} styles. Delete one first.")
-        again = bool(r["default_before_delete"]) and _member_default(user_id, r["kind_id"], conn) is None
+        # A restored row keeps its `archived_at` (Task 11.13): an archived template lands back in Archived, and an
+        # archived one is never a kind's default.
+        again = (bool(r["default_before_delete"]) and r["archived_at"] is None
+                 and _member_default(user_id, r["kind_id"], conn) is None)
         sql = ("UPDATE j2_journal_styles SET deleted_at = NULL, is_default = ?, default_before_delete = 0,"
                " updated_at = ? WHERE id = ? AND user_id = ?")
         try:
