@@ -7687,6 +7687,1490 @@
    },
    "q": null,
    "pass": 3
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "TWLO",
+   "asof": "2025-11-21",
+   "year": 2025,
+   "close": 120.57,
+   "facts": {
+    "gap_pct": 12.4,
+    "bars_since_gap": 15,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.05,
+    "gap_day_pct": 19.51,
+    "gap_day_dcr": 0.77,
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 2.5,
+    "pullback_from_high_pct": -17.0,
+    "test_depth_atr": 4.37,
+    "day_pct": 1.42,
+    "dcr": 0.95,
+    "range_atr": 1.15,
+    "rvol": 0.76,
+    "gap_top": 114.73,
+    "close_vs_gap_top_pct": 5.1,
+    "above_200": true,
+    "s50_slope10_pct": 3.4,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 5.1,
+    "fwd_max_gain_pct": 19.4,
+    "fwd_5d_pct": 5.8,
+    "fwd_10d_pct": 7.9,
+    "fwd_20d_pct": 17.7,
+    "avg_dollar_volume_m": 335.8,
+    "known_name": true,
+    "gap_asof": "2025-10-31"
+   },
+   "q": 22.38
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "TTD",
+   "asof": "2023-03-13",
+   "year": 2023,
+   "close": 54.25,
+   "facts": {
+    "gap_pct": 16.39,
+    "bars_since_gap": 17,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 8.26,
+    "gap_day_pct": 32.81,
+    "gap_day_dcr": 0.99,
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 0.1,
+    "pullback_from_high_pct": -24.2,
+    "test_depth_atr": 6.73,
+    "day_pct": 1.69,
+    "dcr": 0.83,
+    "range_atr": 1.99,
+    "rvol": 0.71,
+    "gap_top": 50.71,
+    "close_vs_gap_top_pct": 7.0,
+    "above_200": true,
+    "s50_slope10_pct": 3.9,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 8.5,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_5d_pct": 4.8,
+    "fwd_10d_pct": 10.4,
+    "fwd_20d_pct": 13.4,
+    "avg_dollar_volume_m": 271.6,
+    "known_name": true,
+    "gap_asof": "2023-02-15"
+   },
+   "q": 22.19
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "CLS",
+   "asof": "2025-08-20",
+   "year": 2025,
+   "close": 182.9,
+   "facts": {
+    "gap_pct": 7.57,
+    "bars_since_gap": 16,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.3,
+    "gap_day_pct": 16.51,
+    "gap_day_dcr": 0.74,
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 8.3,
+    "pullback_from_high_pct": -20.8,
+    "test_depth_atr": 4.47,
+    "day_pct": -0.99,
+    "dcr": 0.98,
+    "range_atr": 0.97,
+    "rvol": 1.03,
+    "gap_top": 173.71,
+    "close_vs_gap_top_pct": 5.3,
+    "above_200": true,
+    "s50_slope10_pct": 10.9,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 3.3,
+    "fwd_max_gain_pct": 41.1,
+    "fwd_5d_pct": 10.5,
+    "fwd_10d_pct": 21.0,
+    "fwd_20d_pct": 37.8,
+    "avg_dollar_volume_m": 503.3,
+    "known_name": false,
+    "gap_asof": "2025-07-29"
+   },
+   "q": 22.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "QBTS",
+   "asof": "2026-04-29",
+   "year": 2026,
+   "close": 18.27,
+   "facts": {
+    "gap_pct": 9.16,
+    "bars_since_gap": 10,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.19,
+    "gap_day_pct": 22.63,
+    "gap_day_dcr": 0.93,
+    "levels_touched": [
+     "top",
+     "glow",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 8.1,
+    "pullback_from_high_pct": -23.9,
+    "test_depth_atr": 3.23,
+    "day_pct": 0.88,
+    "dcr": 0.89,
+    "range_atr": 0.78,
+    "rvol": 0.72,
+    "gap_top": 17.09,
+    "close_vs_gap_top_pct": 6.9,
+    "above_200": false,
+    "s50_slope10_pct": 0.2,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "fwd_max_gain_pct": 72.7,
+    "fwd_5d_pct": 30.4,
+    "fwd_10d_pct": 17.4,
+    "fwd_20d_pct": 61.4,
+    "avg_dollar_volume_m": 722.7,
+    "known_name": false,
+    "gap_asof": "2026-04-15"
+   },
+   "q": 22.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "FTAI",
+   "asof": "2026-05-19",
+   "year": 2026,
+   "close": 223.49,
+   "facts": {
+    "gap_pct": 9.26,
+    "bars_since_gap": 13,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 2.06,
+    "gap_day_pct": 17.16,
+    "gap_day_dcr": 0.82,
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "sma200"
+    ],
+    "post_gap_run_pct": 15.6,
+    "pullback_from_high_pct": -25.7,
+    "test_depth_atr": 3.75,
+    "day_pct": -3.08,
+    "dcr": 0.76,
+    "range_atr": 0.6,
+    "rvol": 1.25,
+    "gap_top": 217.12,
+    "close_vs_gap_top_pct": 2.9,
+    "above_200": true,
+    "s50_slope10_pct": -2.3,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "fwd_max_gain_pct": 27.7,
+    "fwd_5d_pct": 12.0,
+    "fwd_10d_pct": 10.5,
+    "fwd_20d_pct": 24.1,
+    "avg_dollar_volume_m": 381.8,
+    "known_name": false,
+    "gap_asof": "2026-04-30"
+   },
+   "q": 21.8
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "CAVA",
+   "asof": "2026-03-27",
+   "year": 2026,
+   "close": 75.42,
+   "facts": {
+    "gap_pct": 15.86,
+    "bars_since_gap": 22,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 5.1,
+    "gap_day_pct": 26.36,
+    "gap_day_dcr": 0.91,
+    "levels_touched": [
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 7.2,
+    "pullback_from_high_pct": -20.9,
+    "test_depth_atr": 4.32,
+    "day_pct": -4.41,
+    "dcr": 0.52,
+    "range_atr": 1.21,
+    "rvol": 1.05,
+    "gap_top": 69.5,
+    "close_vs_gap_top_pct": 8.5,
+    "above_200": true,
+    "s50_slope10_pct": 5.6,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 3.3,
+    "fwd_max_gain_pct": 31.0,
+    "fwd_5d_pct": 8.9,
+    "fwd_10d_pct": 11.7,
+    "fwd_20d_pct": 24.9,
+    "avg_dollar_volume_m": 247.7,
+    "known_name": true,
+    "gap_asof": "2026-02-25"
+   },
+   "q": 21.77
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "VECO",
+   "asof": "2026-05-19",
+   "year": 2026,
+   "close": 54.685,
+   "facts": {
+    "gap_pct": 25.66,
+    "bars_since_gap": 9,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.46,
+    "gap_day_pct": 25.17,
+    "gap_day_dcr": 0.6,
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "ema20"
+    ],
+    "post_gap_run_pct": 5.5,
+    "pullback_from_high_pct": -20.6,
+    "test_depth_atr": 3.39,
+    "day_pct": -1.73,
+    "dcr": 0.87,
+    "range_atr": 0.8,
+    "rvol": 1.04,
+    "gap_top": 52.16,
+    "close_vs_gap_top_pct": 4.8,
+    "above_200": true,
+    "s50_slope10_pct": 14.9,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 5.4,
+    "fwd_max_gain_pct": 58.4,
+    "fwd_5d_pct": 10.2,
+    "fwd_10d_pct": 10.6,
+    "fwd_20d_pct": 38.6,
+    "avg_dollar_volume_m": 41.6,
+    "known_name": false,
+    "gap_asof": "2026-05-06"
+   },
+   "q": 21.6
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "AFRM",
+   "asof": "2024-09-10",
+   "year": 2024,
+   "close": 37.27,
+   "facts": {
+    "gap_pct": 23.84,
+    "bars_since_gap": 7,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 8.17,
+    "gap_day_pct": 31.92,
+    "gap_day_dcr": 0.77,
+    "levels_touched": [
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "ema20",
+     "sma200"
+    ],
+    "post_gap_run_pct": 8.0,
+    "pullback_from_high_pct": -20.6,
+    "test_depth_atr": 3.01,
+    "day_pct": -2.36,
+    "dcr": 0.58,
+    "range_atr": 0.87,
+    "rvol": 1.18,
+    "gap_top": 32.51,
+    "close_vs_gap_top_pct": 14.6,
+    "above_200": true,
+    "s50_slope10_pct": 4.5,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 4.0,
+    "fwd_max_gain_pct": 28.7,
+    "fwd_5d_pct": 18.1,
+    "fwd_10d_pct": 19.7,
+    "fwd_20d_pct": 10.4,
+    "avg_dollar_volume_m": 243.4,
+    "known_name": true,
+    "gap_asof": "2024-08-29"
+   },
+   "q": 21.35
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "KKR",
+   "asof": "2024-08-05",
+   "year": 2024,
+   "close": 106.23,
+   "facts": {
+    "gap_pct": 7.26,
+    "bars_since_gap": 38,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 5.63,
+    "gap_day_pct": 11.18,
+    "gap_day_dcr": 0.74,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 18.2,
+    "pullback_from_high_pct": -23.7,
+    "test_depth_atr": 6.9,
+    "day_pct": -2.2,
+    "dcr": 0.78,
+    "range_atr": 2.33,
+    "rvol": 1.07,
+    "gap_top": 99.99,
+    "close_vs_gap_top_pct": 6.2,
+    "above_200": true,
+    "s50_slope10_pct": 2.7,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 9.1,
+    "fwd_max_gain_pct": 16.9,
+    "fwd_5d_pct": 6.1,
+    "fwd_10d_pct": 13.1,
+    "fwd_20d_pct": 11.3,
+    "avg_dollar_volume_m": 561.8,
+    "known_name": false,
+    "gap_asof": "2024-06-10"
+   },
+   "q": 21.18
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "ARGX",
+   "asof": "2024-11-19",
+   "year": 2024,
+   "close": 574.54,
+   "facts": {
+    "gap_pct": 6.87,
+    "bars_since_gap": 13,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 3.38,
+    "gap_day_pct": 6.27,
+    "gap_day_dcr": 0.86,
+    "levels_touched": [
+     "top",
+     "glow",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 4.3,
+    "pullback_from_high_pct": -8.7,
+    "test_depth_atr": 3.22,
+    "day_pct": 1.17,
+    "dcr": 0.94,
+    "range_atr": 1.06,
+    "rvol": 1.54,
+    "gap_top": 555.91,
+    "close_vs_gap_top_pct": 3.4,
+    "above_200": true,
+    "s50_slope10_pct": 2.3,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "fwd_max_gain_pct": 12.3,
+    "fwd_5d_pct": 5.7,
+    "fwd_10d_pct": 8.8,
+    "fwd_20d_pct": 8.6,
+    "avg_dollar_volume_m": 154.1,
+    "known_name": false,
+    "gap_asof": "2024-10-31"
+   },
+   "q": 20.96
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "TER",
+   "asof": "2025-11-21",
+   "year": 2025,
+   "close": 158.91,
+   "facts": {
+    "gap_pct": 17.75,
+    "bars_since_gap": 17,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 3.42,
+    "gap_day_pct": 20.47,
+    "gap_day_dcr": 0.78,
+    "levels_touched": [
+     "mid"
+    ],
+    "first_test": false,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 10.1,
+    "pullback_from_high_pct": -20.9,
+    "test_depth_atr": 4.4,
+    "day_pct": 1.93,
+    "dcr": 0.81,
+    "range_atr": 1.0,
+    "rvol": 1.04,
+    "gap_top": 147.62,
+    "close_vs_gap_top_pct": 7.6,
+    "above_200": true,
+    "s50_slope10_pct": 7.7,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 5.3,
+    "fwd_max_gain_pct": 29.0,
+    "fwd_5d_pct": 13.0,
+    "fwd_10d_pct": 27.7,
+    "fwd_20d_pct": 24.1,
+    "avg_dollar_volume_m": 467.7,
+    "known_name": false,
+    "gap_asof": "2025-10-29"
+   },
+   "q": 20.8
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "UBER",
+   "asof": "2022-10-11",
+   "year": 2022,
+   "close": 24.66,
+   "facts": {
+    "gap_pct": 15.81,
+    "bars_since_gap": 49,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 3.63,
+    "gap_day_pct": 18.9,
+    "gap_day_dcr": 0.92,
+    "levels_touched": [
+     "top"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 17.4,
+    "pullback_from_high_pct": -33.2,
+    "test_depth_atr": 7.7,
+    "day_pct": -10.42,
+    "dcr": 0.55,
+    "range_atr": 2.1,
+    "rvol": 3.2,
+    "gap_top": 24.62,
+    "close_vs_gap_top_pct": 0.2,
+    "above_200": false,
+    "s50_slope10_pct": 3.2,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 18,
+    "fwd_min_low_vs_trigger_low_pct": 5.4,
+    "fwd_max_gain_pct": 25.7,
+    "fwd_5d_pct": 12.0,
+    "fwd_10d_pct": 15.0,
+    "fwd_20d_pct": 11.3,
+    "avg_dollar_volume_m": 842.5,
+    "known_name": true,
+    "gap_asof": "2022-08-02"
+   },
+   "q": 20.38
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "DOCS",
+   "asof": "2023-01-06",
+   "year": 2023,
+   "close": 30.5,
+   "facts": {
+    "gap_pct": 17.03,
+    "bars_since_gap": 37,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 9.3,
+    "gap_day_pct": 32.7,
+    "gap_day_dcr": 0.93,
+    "levels_touched": [
+     "glow",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 8.7,
+    "pullback_from_high_pct": -25.8,
+    "test_depth_atr": 6.34,
+    "day_pct": -4.72,
+    "dcr": 0.8,
+    "range_atr": 1.87,
+    "rvol": 1.19,
+    "gap_top": 27.05,
+    "close_vs_gap_top_pct": 12.8,
+    "above_200": false,
+    "s50_slope10_pct": 5.2,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 6.9,
+    "fwd_max_gain_pct": 31.5,
+    "fwd_5d_pct": 7.2,
+    "fwd_10d_pct": 10.3,
+    "fwd_20d_pct": 22.6,
+    "avg_dollar_volume_m": 64.5,
+    "known_name": false,
+    "gap_asof": "2022-11-11"
+   },
+   "q": 20.27
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "KYMR",
+   "asof": "2026-01-20",
+   "year": 2026,
+   "close": 68.14,
+   "facts": {
+    "gap_pct": 33.85,
+    "bars_since_gap": 28,
+    "true_gap": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 10.6,
+    "gap_day_pct": 41.55,
+    "gap_day_dcr": 0.47,
+    "levels_touched": [
+     "top"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 9.2,
+    "pullback_from_high_pct": -35.7,
+    "test_depth_atr": 9.84,
+    "day_pct": -2.01,
+    "dcr": 0.78,
+    "range_atr": 0.67,
+    "rvol": 1.0,
+    "gap_top": 67.0,
+    "close_vs_gap_top_pct": 1.7,
+    "above_200": true,
+    "s50_slope10_pct": 3.9,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "fwd_max_gain_pct": 29.7,
+    "fwd_5d_pct": 5.9,
+    "fwd_10d_pct": 13.3,
+    "fwd_20d_pct": 24.9,
+    "avg_dollar_volume_m": 55.2,
+    "known_name": false,
+    "gap_asof": "2025-12-08"
+   },
+   "q": 20.26
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "TSLA",
+   "asof": "2023-05-31",
+   "year": 2023,
+   "close": 203.93,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.528,
+    "dcr": 0.998,
+    "loc_run": true,
+    "loc_event": false,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 1.18,
+    "open_vs_prior_close_pct": -0.69,
+    "low_vs_prior_low_pct": -1.22,
+    "day_pct": 1.38,
+    "range_atr": 1.13,
+    "run20_pct": 28.7,
+    "pullback_from_20d_high_pct": -4.6,
+    "above_200": true,
+    "s50_slope10_pct": 0.2,
+    "e20_slope5_pct": 3.97,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 17,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "fwd_max_gain_pct": 35.8,
+    "fwd_5d_pct": 10.1,
+    "fwd_10d_pct": 25.9,
+    "fwd_20d_pct": 26.3,
+    "avg_dollar_volume_m": 26313.4,
+    "known_name": true
+   },
+   "q": 19.88
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "MDB",
+   "asof": "2023-06-01",
+   "year": 2023,
+   "close": 293.96,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low",
+     "ema9"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.519,
+    "dcr": 0.947,
+    "loc_run": true,
+    "loc_event": true,
+    "loc_base": true,
+    "oops_overlap": true,
+    "rvol": 2.64,
+    "open_vs_prior_close_pct": -2.74,
+    "low_vs_prior_low_pct": -4.68,
+    "day_pct": 0.06,
+    "range_atr": 1.64,
+    "run20_pct": 38.4,
+    "pullback_from_20d_high_pct": -7.6,
+    "above_200": true,
+    "s50_slope10_pct": 6.2,
+    "e20_slope5_pct": 4.18,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 32.4,
+    "fwd_max_gain_pct": 42.4,
+    "fwd_5d_pct": 27.5,
+    "fwd_10d_pct": 31.1,
+    "fwd_20d_pct": 39.8,
+    "avg_dollar_volume_m": 384.2,
+    "known_name": true
+   },
+   "q": 19.0
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "HOOD",
+   "asof": "2024-11-15",
+   "year": 2024,
+   "close": 32.32,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.685,
+    "dcr": 0.968,
+    "loc_run": true,
+    "loc_event": true,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 1.07,
+    "open_vs_prior_close_pct": -0.65,
+    "low_vs_prior_low_pct": -1.05,
+    "day_pct": 0.31,
+    "range_atr": 0.53,
+    "run20_pct": 49.2,
+    "pullback_from_20d_high_pct": -8.9,
+    "above_200": true,
+    "s50_slope10_pct": 7.8,
+    "e20_slope5_pct": 8.68,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 5.2,
+    "fwd_max_gain_pct": 35.6,
+    "fwd_5d_pct": 13.4,
+    "fwd_10d_pct": 16.4,
+    "fwd_20d_pct": 33.7,
+    "avg_dollar_volume_m": 375.5,
+    "known_name": true
+   },
+   "q": 19.0
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "TEAM",
+   "asof": "2024-11-05",
+   "year": 2024,
+   "close": 221.58,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.458,
+    "dcr": 0.891,
+    "loc_run": true,
+    "loc_event": true,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 1.48,
+    "open_vs_prior_close_pct": -0.29,
+    "low_vs_prior_low_pct": -0.05,
+    "day_pct": 1.2,
+    "range_atr": 0.95,
+    "run20_pct": 38.1,
+    "pullback_from_20d_high_pct": -6.2,
+    "above_200": true,
+    "s50_slope10_pct": 5.4,
+    "e20_slope5_pct": 4.64,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 3.1,
+    "fwd_max_gain_pct": 30.0,
+    "fwd_5d_pct": 10.7,
+    "fwd_10d_pct": 11.8,
+    "fwd_20d_pct": 29.7,
+    "avg_dollar_volume_m": 328.6,
+    "known_name": true
+   },
+   "q": 18.99
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "DUOL",
+   "asof": "2023-11-16",
+   "year": 2023,
+   "close": 207.94,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.512,
+    "dcr": 0.877,
+    "loc_run": true,
+    "loc_event": true,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 1.1,
+    "open_vs_prior_close_pct": -0.4,
+    "low_vs_prior_low_pct": -2.46,
+    "day_pct": 1.4,
+    "range_atr": 0.88,
+    "run20_pct": 59.1,
+    "pullback_from_20d_high_pct": -10.7,
+    "above_200": true,
+    "s50_slope10_pct": 5.4,
+    "e20_slope5_pct": 13.45,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 17,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_5d_pct": 6.5,
+    "fwd_10d_pct": 2.6,
+    "fwd_20d_pct": 11.3,
+    "avg_dollar_volume_m": 97.8,
+    "known_name": true
+   },
+   "q": 18.95
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "MU",
+   "asof": "2024-03-19",
+   "year": 2024,
+   "close": 94.0,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low",
+     "ema20"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.5,
+    "dcr": 0.949,
+    "loc_run": true,
+    "loc_event": false,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 1.35,
+    "open_vs_prior_close_pct": -1.28,
+    "low_vs_prior_low_pct": -2.87,
+    "day_pct": 0.23,
+    "range_atr": 0.9,
+    "run20_pct": 28.7,
+    "pullback_from_20d_high_pct": -10.7,
+    "above_200": true,
+    "s50_slope10_pct": 2.5,
+    "e20_slope5_pct": 1.17,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "fwd_max_gain_pct": 38.9,
+    "fwd_5d_pct": 26.4,
+    "fwd_10d_pct": 36.2,
+    "fwd_20d_pct": 23.8,
+    "avg_dollar_volume_m": 1194.0,
+    "known_name": true
+   },
+   "q": 18.79
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "RKLB",
+   "asof": "2026-01-05",
+   "year": 2026,
+   "close": 78.14,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "ema9"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.477,
+    "dcr": 0.984,
+    "loc_run": true,
+    "loc_event": false,
+    "loc_base": false,
+    "oops_overlap": false,
+    "rvol": 1.53,
+    "open_vs_prior_close_pct": -1.8,
+    "low_vs_prior_low_pct": 6.67,
+    "day_pct": 2.83,
+    "range_atr": 1.12,
+    "run20_pct": 78.1,
+    "pullback_from_20d_high_pct": -10.7,
+    "above_200": true,
+    "s50_slope10_pct": 2.0,
+    "e20_slope5_pct": 7.28,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 3.6,
+    "fwd_max_gain_pct": 27.4,
+    "fwd_5d_pct": 12.5,
+    "fwd_10d_pct": 14.1,
+    "fwd_20d_pct": 4.0,
+    "avg_dollar_volume_m": 1230.5,
+    "known_name": true
+   },
+   "q": 18.13
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "SOFI",
+   "asof": "2025-06-23",
+   "year": 2025,
+   "close": 15.36,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low",
+     "ema9"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.469,
+    "dcr": 0.889,
+    "loc_run": false,
+    "loc_event": false,
+    "loc_base": true,
+    "oops_overlap": true,
+    "rvol": 0.97,
+    "open_vs_prior_close_pct": -1.18,
+    "low_vs_prior_low_pct": -2.4,
+    "day_pct": 1.05,
+    "range_atr": 1.19,
+    "run20_pct": 22.7,
+    "pullback_from_20d_high_pct": -6.4,
+    "above_200": true,
+    "s50_slope10_pct": 5.5,
+    "e20_slope5_pct": 2.96,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 15,
+    "fwd_min_low_vs_trigger_low_pct": 5.9,
+    "fwd_max_gain_pct": 48.0,
+    "fwd_5d_pct": 18.6,
+    "fwd_10d_pct": 29.9,
+    "fwd_20d_pct": 36.6,
+    "avg_dollar_volume_m": 746.6,
+    "known_name": true
+   },
+   "q": 18.0
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "HL",
+   "asof": "2025-11-21",
+   "year": 2025,
+   "close": 13.38,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low",
+     "5bar_low",
+     "sma50"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.617,
+    "dcr": 0.967,
+    "loc_run": true,
+    "loc_event": false,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 1.04,
+    "open_vs_prior_close_pct": -0.3,
+    "low_vs_prior_low_pct": -2.36,
+    "day_pct": 1.29,
+    "range_atr": 0.52,
+    "run20_pct": 36.3,
+    "pullback_from_20d_high_pct": -20.5,
+    "above_200": true,
+    "s50_slope10_pct": 8.3,
+    "e20_slope5_pct": 1.07,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 4.5,
+    "fwd_max_gain_pct": 56.6,
+    "fwd_5d_pct": 27.8,
+    "fwd_10d_pct": 18.5,
+    "fwd_20d_pct": 53.6,
+    "avg_dollar_volume_m": 215.1,
+    "known_name": false
+   },
+   "q": 18.0
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "DOCN",
+   "asof": "2026-04-27",
+   "year": 2026,
+   "close": 98.95,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low",
+     "ema9"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.543,
+    "dcr": 0.983,
+    "loc_run": true,
+    "loc_event": true,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 0.5,
+    "open_vs_prior_close_pct": -0.23,
+    "low_vs_prior_low_pct": -3.66,
+    "day_pct": 3.93,
+    "range_atr": 1.14,
+    "run20_pct": 37.5,
+    "pullback_from_20d_high_pct": -9.2,
+    "above_200": true,
+    "s50_slope10_pct": 8.0,
+    "e20_slope5_pct": 6.39,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 2.1,
+    "fwd_max_gain_pct": 67.8,
+    "fwd_5d_pct": 10.0,
+    "fwd_10d_pct": 64.4,
+    "fwd_20d_pct": 62.4,
+    "avg_dollar_volume_m": 224.3,
+    "known_name": false
+   },
+   "q": 18.0
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "SMH",
+   "asof": "2026-04-15",
+   "year": 2026,
+   "close": 453.0,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.855,
+    "dcr": 0.982,
+    "loc_run": true,
+    "loc_event": false,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 0.96,
+    "open_vs_prior_close_pct": -0.29,
+    "low_vs_prior_low_pct": -2.05,
+    "day_pct": 0.22,
+    "range_atr": 1.39,
+    "run20_pct": 25.6,
+    "pullback_from_20d_high_pct": -3.7,
+    "above_200": true,
+    "s50_slope10_pct": 0.5,
+    "e20_slope5_pct": 4.76,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 15,
+    "fwd_min_low_vs_trigger_low_pct": 2.9,
+    "fwd_max_gain_pct": 27.6,
+    "fwd_5d_pct": 5.3,
+    "fwd_10d_pct": 10.3,
+    "fwd_20d_pct": 26.4,
+    "avg_dollar_volume_m": 3114.6,
+    "known_name": true
+   },
+   "q": 17.64
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "DASH",
+   "asof": "2024-11-04",
+   "year": 2024,
+   "close": 157.24,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "ema9"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.508,
+    "dcr": 0.977,
+    "loc_run": false,
+    "loc_event": true,
+    "loc_base": false,
+    "oops_overlap": false,
+    "rvol": 0.77,
+    "open_vs_prior_close_pct": -0.42,
+    "low_vs_prior_low_pct": 0.2,
+    "day_pct": 1.02,
+    "range_atr": 1.3,
+    "run20_pct": 16.9,
+    "pullback_from_20d_high_pct": -7.6,
+    "above_200": true,
+    "s50_slope10_pct": 3.9,
+    "e20_slope5_pct": 2.02,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 15,
+    "fwd_min_low_vs_trigger_low_pct": 2.7,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_5d_pct": 11.3,
+    "fwd_10d_pct": 9.9,
+    "fwd_20d_pct": 12.0,
+    "avg_dollar_volume_m": 460.4,
+    "known_name": true
+   },
+   "q": 17.4
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "PHM",
+   "asof": "2023-11-30",
+   "year": 2023,
+   "close": 88.42,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low",
+     "5bar_low",
+     "ema9"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.557,
+    "dcr": 0.943,
+    "loc_run": true,
+    "loc_event": false,
+    "loc_base": true,
+    "oops_overlap": true,
+    "rvol": 1.26,
+    "open_vs_prior_close_pct": -0.39,
+    "low_vs_prior_low_pct": -1.48,
+    "day_pct": 0.47,
+    "range_atr": 1.08,
+    "run20_pct": 22.0,
+    "pullback_from_20d_high_pct": -2.9,
+    "above_200": true,
+    "s50_slope10_pct": 2.4,
+    "e20_slope5_pct": 2.69,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 16,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "fwd_max_gain_pct": 18.9,
+    "fwd_5d_pct": 6.8,
+    "fwd_10d_pct": 18.6,
+    "fwd_20d_pct": 16.7,
+    "avg_dollar_volume_m": 189.4,
+    "known_name": false
+   },
+   "q": 17.37
+  },
+  {
+   "setup": "Go Signal",
+   "sym": "ONON",
+   "asof": "2024-09-11",
+   "year": 2024,
+   "close": 46.42,
+   "facts": {
+    "variant": "red_to_green",
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "swept": [
+     "prior_low",
+     "ema9",
+     "ema20"
+    ],
+    "red_to_green": true,
+    "wick_frac": 0.492,
+    "dcr": 0.924,
+    "loc_run": true,
+    "loc_event": true,
+    "loc_base": false,
+    "oops_overlap": true,
+    "rvol": 0.87,
+    "open_vs_prior_close_pct": -0.57,
+    "low_vs_prior_low_pct": -1.7,
+    "day_pct": 2.56,
+    "range_atr": 1.66,
+    "run20_pct": 25.5,
+    "pullback_from_20d_high_pct": -9.8,
+    "above_200": true,
+    "s50_slope10_pct": 2.9,
+    "e20_slope5_pct": 1.07,
+    "labels": [
+     "no_location"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 15,
+    "fwd_min_low_vs_trigger_low_pct": 8.3,
+    "fwd_max_gain_pct": 13.7,
+    "fwd_5d_pct": 9.7,
+    "fwd_10d_pct": 8.1,
+    "fwd_20d_pct": 9.8,
+    "avg_dollar_volume_m": 192.0,
+    "known_name": true
+   },
+   "q": 17.29
   }
  ],
  "kicker_pass2": {
@@ -8380,6 +9864,166 @@
     "setup": "High Volume Edge",
     "sym": "WVE",
     "asof": "2024-10-16"
+   }
+  ]
+ },
+ "gap_support_pass2": {
+  "generated": "2026-10-26",
+  "scanned": 3455,
+  "detector_fires": 49189,
+  "passing": 575,
+  "why": "the detector definition (uct_gap_support.evaluate) on varied real charts under the universal rules (liquid universe, clean window, must-work, the gap unfilled through the forward strip) and a gallery score (true gap, 2x+ volume, the gap top tested, first test, strong close, confluence, 10-40 sessions after the gap); owner ruling on the definition PENDING, this pass is for him to rule on it one chart at a time",
+  "script": "scripts/study/find_gap_support_examples.py",
+  "added": [
+   {
+    "setup": "Gap Support",
+    "sym": "TWLO",
+    "asof": "2025-11-21"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "TTD",
+    "asof": "2023-03-13"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "CLS",
+    "asof": "2025-08-20"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "QBTS",
+    "asof": "2026-04-29"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "FTAI",
+    "asof": "2026-05-19"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "CAVA",
+    "asof": "2026-03-27"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "VECO",
+    "asof": "2026-05-19"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "AFRM",
+    "asof": "2024-09-10"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "KKR",
+    "asof": "2024-08-05"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "ARGX",
+    "asof": "2024-11-19"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "TER",
+    "asof": "2025-11-21"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "UBER",
+    "asof": "2022-10-11"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "DOCS",
+    "asof": "2023-01-06"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "KYMR",
+    "asof": "2026-01-20"
+   }
+  ]
+ },
+ "go_signal_pass2": {
+  "generated": "2026-10-26",
+  "scanned": 3455,
+  "detector_fires": 111782,
+  "passing": 1200,
+  "why": "the detector's DAILY footprint (uct_go_signal.evaluate) on varied real charts under the universal rules and a gallery score (red to green, a long lower wick, a close in the top fifth, a named level swept, a recent run or tight base, ordinary range); owner ruling on the definition PENDING; the lesson says the real trigger is intraday",
+  "script": "scripts/study/find_go_signal_examples.py",
+  "added": [
+   {
+    "setup": "Go Signal",
+    "sym": "TSLA",
+    "asof": "2023-05-31"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "MDB",
+    "asof": "2023-06-01"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "HOOD",
+    "asof": "2024-11-15"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "TEAM",
+    "asof": "2024-11-05"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "DUOL",
+    "asof": "2023-11-16"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "MU",
+    "asof": "2024-03-19"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "RKLB",
+    "asof": "2026-01-05"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "SOFI",
+    "asof": "2025-06-23"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "HL",
+    "asof": "2025-11-21"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "DOCN",
+    "asof": "2026-04-27"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "SMH",
+    "asof": "2026-04-15"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "DASH",
+    "asof": "2024-11-04"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "PHM",
+    "asof": "2023-11-30"
+   },
+   {
+    "setup": "Go Signal",
+    "sym": "ONON",
+    "asof": "2024-09-11"
    }
   ]
  }
