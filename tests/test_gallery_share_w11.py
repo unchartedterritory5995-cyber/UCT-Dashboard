@@ -473,21 +473,57 @@ def _dump_helpers(tree, tb_aliases, tb_funcs) -> set:
 _GENERAL = {"Exception", "BaseException"}
 
 
-def _raises_a_refusal(stmts) -> bool:
-    """Does this code itself `raise` a refusal (`raise GalleryError(...)`), outside a nested function or class? A
-    nested `try` whose own handler catches it is not looked through (that handler is judged on its own)."""
+#: F-NOTE-1 fix round 1 (m-3): a `try` and a `try` with `except*` handlers (`ast.TryStar`) are both walked.
+_TRY = (ast.Try, ast.TryStar)
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _own_nodes(stmts):
+    """Every node of `stmts`, never inside a nested function or class (its body is another scope)."""
     todo = list(stmts)
     while todo:
         n = todo.pop()
-        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+        if isinstance(n, _SCOPES):
+            continue
+        yield n
+        todo.extend(ast.iter_child_nodes(n))
+
+
+def _is_refusal_call(v) -> bool:
+    return isinstance(v, ast.Call) and (getattr(v.func, "id", None) or getattr(v.func, "attr", None)) in _REFUSALS
+
+
+def _reraises(h) -> bool:
+    """Does this handler raise what it caught again (a bare `raise`, or `raise <its own name>`)?"""
+    return any(isinstance(n, ast.Raise) and (n.exc is None or (isinstance(n.exc, ast.Name) and n.exc.id == h.name))
+               for n in _own_nodes(h.body))
+
+
+def _raises_a_refusal(stmts) -> bool:
+    """Does this code itself `raise` a refusal, outside a nested function or class? Counted: `raise GalleryError(...)`,
+    and (F-NOTE-1 fix round 1, m-4) `raise err` where `err` is a name this code bound to a refusal
+    (`err = GalleryError(...)`). A nested `try` whose own handler catches it is not looked through (that handler is
+    judged on its own) UNLESS a handler that can catch it raises it again (`except Exception: raise`), which hands
+    the refusal on to the outer handler. ⛔ Accepted limit (the controller's m-4 ruling with W11-R47): a refusal
+    raised by a CALLED function (`_refuse()` under `except Exception as e: print(e)`) is not seen -- whether a callee
+    raises one is not statically decidable here, and the gallery has no such site."""
+    bound = {tg.id for n in _own_nodes(stmts) if isinstance(n, (ast.Assign, ast.AnnAssign)) and _is_refusal_call(n.value)
+             for tg in (n.targets if isinstance(n, ast.Assign) else [n.target]) if isinstance(tg, ast.Name)}
+    todo = list(stmts)
+    while todo:
+        n = todo.pop()
+        if isinstance(n, _SCOPES):
             continue
         if isinstance(n, ast.Raise) and n.exc is not None:
             exc = n.exc.func if isinstance(n.exc, ast.Call) else n.exc
             if (getattr(exc, "id", None) or getattr(exc, "attr", None)) in _REFUSALS:
                 return True
-        if isinstance(n, ast.Try):
+            if isinstance(n.exc, ast.Name) and n.exc.id in bound:
+                return True
+        if isinstance(n, _TRY):
             todo.extend(n.orelse + n.finalbody + [x for h in n.handlers for x in h.body])
-            if not any(h.type is None or _caught_names(h.type) & (_REFUSALS | _GENERAL) for h in n.handlers):
+            catching = [h for h in n.handlers if h.type is None or _caught_names(h.type) & (_REFUSALS | _GENERAL)]
+            if not catching or any(_reraises(h) for h in catching):
                 todo.extend(n.body)
             continue
         todo.extend(ast.iter_child_nodes(n))
@@ -497,10 +533,11 @@ def _raises_a_refusal(stmts) -> bool:
 def _refusal_handlers(tree) -> list:
     """The handlers that can catch a refusal: one naming a refusal class, and (F-NOTE-1) a GENERAL one (`except:`,
     `except Exception`, `except BaseException`) on a `try` whose own body raises a refusal -- `except Exception as e:
-    print(e)` there prints the refusal's text exactly as `except GalleryError` would."""
+    print(e)` there prints the refusal's text exactly as `except GalleryError` would. `except*` handlers included
+    (fix round 1, m-3)."""
     out = []
     for t in ast.walk(tree):
-        if not isinstance(t, ast.Try):
+        if not isinstance(t, _TRY):
             continue
         raises = None
         for h in t.handlers:
@@ -686,4 +723,28 @@ def test_no_log_call_in_the_gallery_names_a_refusal():
                     continue                             # a bare `except:` binds no name to print
                 planted = f"def f():\n    try:\n        {raised}\n    {handler}\n        {form}\n"
                 assert _exception_text_in_logs(planted), (handler, raised, form)
+    # F-NOTE-1 fix round 1 (m-3, m-4, the review's `rfn1_lograil.py`): `except*` handlers, a refusal raised by the
+    # name it was bound to, and one handed on by an inner general handler's `raise`
+    for planted in (
+            "def f():\n    try:\n        pass\n    except* GalleryError as eg:\n        print(eg)\n",
+            "def f():\n    try:\n        raise GalleryError('x')\n    except* Exception as eg:\n        print(eg)\n",
+            "def f():\n    try:\n        err = GalleryError('x')\n        raise err\n    except Exception as e:\n"
+            "        print(e)\n",
+            "def f():\n    try:\n        err: Exception = share.ShareError('own_words', S_X)\n        raise err from None\n"
+            "    except Exception as e:\n        log.warning('x %s', e)\n",
+            "def f():\n    try:\n        try:\n            raise GalleryError('x')\n        except Exception:\n"
+            "            raise\n    except Exception as e:\n        print(e)\n",
+            "def f():\n    try:\n        try:\n            raise GalleryError('x')\n        except Exception as inner:\n"
+            "            raise inner\n    except BaseException:\n        traceback.print_exc()\n"):
+        assert _exception_text_in_logs(planted), planted
+    for ok_src in (
+            # a name bound to something else, and an inner handler that does NOT hand the refusal on
+            "def f():\n    try:\n        err = ValueError('x')\n        raise err\n    except Exception as e:\n"
+            "        print(e)\n",
+            "def f():\n    try:\n        try:\n            raise GalleryError('x')\n        except Exception:\n"
+            "            pass\n    except Exception as e:\n        print(e)\n",
+            # the accepted limit: a refusal raised by a called function is not seen
+            "def _refuse():\n    raise GalleryError('x')\n\ndef f():\n    try:\n        _refuse()\n"
+            "    except Exception as e:\n        print(e)\n"):
+        assert _exception_text_in_logs(ok_src) == [], ok_src
     assert _exception_text_in_logs("def f(err):\n    print(err.sentence)\n")
