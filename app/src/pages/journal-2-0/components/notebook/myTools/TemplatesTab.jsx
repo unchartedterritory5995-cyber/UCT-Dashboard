@@ -14,7 +14,7 @@ import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
 import {
   FILTERS, LIBRARY_ACTIONS, LIST_RENDER_MAX, TEMPLATE_COPY, TEMPLATE_DELETED_DAYS, creditText, dayText, editedText,
-  isLibraryCopy, keptUntilText, notesWord, templateArchiveSentence, usedInText,
+  isLibraryCopy, keptUntilText, listHeadingText, notesWord, templateArchiveSentence, usedInText,
 } from './myToolsLib'
 import { libraryOn, openShare } from './libraryActions'
 import styles from './myTools.module.css'
@@ -415,10 +415,8 @@ export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
   const kindsList = lists.live?.kinds || state?.kinds || []
   const kinds = new Map(kindsList.map((k) => [k.id, typeof k.name === 'string' ? k.name : '']))
   const shown = items.slice(0, LIST_RENDER_MAX)
-  // No zeros (m-2): an empty list's heading names the list.
-  const heading = filter === 'live' ? TEMPLATE_COPY.heading(items.length)
-    : items.length === 0 ? TEMPLATE_COPY.emptyHeading[filter]
-      : filter === 'archived' ? `${items.length} archived` : `${items.length} recently deleted`
+  // No zeros (m-2): an empty list's heading names the list (listHeadingText, shared by all four tabs).
+  const heading = listHeadingText(filter, items.length, 'template', 'templates')
   const empty = { live: TEMPLATE_COPY.emptyActive, archived: TEMPLATE_COPY.emptyArchived, deleted: TEMPLATE_COPY.emptyDeleted }[filter]
 
   let panel = null

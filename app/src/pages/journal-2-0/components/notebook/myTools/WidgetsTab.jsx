@@ -12,7 +12,7 @@ import PanelHead from './PanelHead'
 import {
   FILTERS, LIST_RENDER_MAX, NO_RETRY, RECENTLY_DELETED_DAYS, COPY, usedInText, archiveSentence, editedText, dayText,
   keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName, LIBRARY_ACTIONS, canUpdateFromLibrary,
-  creditText, isLibraryCopy,
+  creditText, isLibraryCopy, listHeadingText,
 } from './myToolsLib'
 import { libraryOn, openShare, takeUpdate } from './libraryActions'
 import styles from './myTools.module.css'
@@ -44,11 +44,7 @@ const enc = (id) => encodeURIComponent(String(id))
 /** The row control for widget `id`, by attribute (ids are the server's; quoted, never trusted as a selector). */
 const actionsFor = (id) => `[data-actions-for="${String(id).replace(/["\\]/g, '\\$&')}"]`
 
-const listHeading = (filter, n) => {
-  if (filter === 'archived') return `${n} archived`
-  if (filter === 'deleted') return `${n} recently deleted`
-  return `${n} widget${n === 1 ? '' : 's'}`
-}
+const listHeading = (filter, n) => listHeadingText(filter, n, 'widget', 'widgets')
 
 /** A newer version this widget's notes have not taken yet (saved "only here", or restored). */
 const pendingVersion = (d) => Number.isInteger(d?.rev) && Number.isInteger(d?.placedRev) && d.rev !== d.placedRev

@@ -14,7 +14,7 @@ import UsedInList from './UsedInList'
 import PanelHead from './PanelHead'
 import {
   LIBRARY_ACTIONS, LIST_RENDER_MAX, canUpdateFromLibrary, TOOL_FILTERS, TOOL_LIST_COPY, creditText, dayText, fromTemplateText, isLibraryCopy,
-  keptUntilText,
+  keptUntilText, listHeadingText,
 } from './myToolsLib'
 import { libraryOn, openShare, takeUpdate } from './libraryActions'
 import styles from './myTools.module.css'
@@ -516,8 +516,7 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
   const state = lists[filter]
   const items = state?.status === 'ok' ? state.items : []
   const shown = items.slice(0, LIST_RENDER_MAX)
-  const heading = filter === 'archived' ? `${items.length} archived`
-    : filter === 'deleted' ? `${items.length} recently deleted` : L.heading(items.length)
+  const heading = filter === 'active' ? L.heading(items.length) : listHeadingText(filter, items.length)
   const empty = { active: L.emptyActive, archived: L.emptyArchived, deleted: L.emptyDeleted }[filter]
 
   let panel = null

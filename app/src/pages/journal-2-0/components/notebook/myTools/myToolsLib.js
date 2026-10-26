@@ -17,6 +17,18 @@ import {
 
 export { editedText, noteHref, notesWord, openNoteInPlace, usedInHeading }
 
+/**
+ * A list's heading, for all four tabs ('live' / 'active', 'archived', 'deleted'): "3 widgets", "1 archived",
+ * "2 recently deleted". ⛔ No zeros (W9-R7, Task 11.19 fix rounds 1-2): an empty list's heading names the list
+ * instead ("Your widgets", "Archived", "Recently deleted"); its empty-state sentence says the rest.
+ */
+export function listHeadingText(filter, n, one, many) {
+  const count = Number.isInteger(n) && n > 0 ? n : 0
+  if (filter === 'archived') return count ? `${count} archived` : 'Archived'
+  if (filter === 'deleted') return count ? `${count} recently deleted` : 'Recently deleted'
+  return count ? `${count} ${count === 1 ? one : many}` : `Your ${many}`
+}
+
 /** The four tabs (spec 5.8). Wave 8 builds Widgets, wave 9 Routines and Trackers (Task 9.18); Templates says so and
  *  carries no controls (wave 11). */
 export const TABS = Object.freeze([
@@ -55,9 +67,7 @@ export const TEMPLATE_COPY = Object.freeze({
   usedInEmpty: "This template isn't in any note yet.",
   editorFailed: "The template editor couldn't open. Try again.",
   gone: "That template isn't available.",
-  // No zeros (W9-R7, 11.19 fix round 1 m-2): an empty list's heading names the list, never "0 templates".
-  heading: (n) => (n > 0 ? `${n} template${n === 1 ? '' : 's'}` : 'Your templates'),
-  emptyHeading: { archived: 'Archived', deleted: 'Recently deleted' },
+  heading: (n) => listHeadingText('live', n, 'template', 'templates'),
 })
 
 /** Spec 5.8 / W11-R10: archiving a template says what happens to its notes and to new notes. No zeros (W9-R7): a
@@ -118,7 +128,7 @@ const toolCopy = (one, many) => Object.freeze({
   emptyDeleted: `Nothing deleted in the last ${TOOL_DELETED_DAYS} days.`,
   make: `New ${one}`,
   editorFailed: `The ${one} editor couldn't open. Try again.`,
-  heading: (n) => `${n} ${n === 1 ? one : many}`,
+  heading: (n) => listHeadingText('active', n, one, many),
 })
 export const TOOL_LIST_COPY = Object.freeze({ routine: toolCopy('routine', 'routines'), tracker: toolCopy('tracker', 'trackers') })
 

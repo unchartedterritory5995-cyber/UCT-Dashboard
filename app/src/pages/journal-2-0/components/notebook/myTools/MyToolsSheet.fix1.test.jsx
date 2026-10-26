@@ -108,7 +108,7 @@ describe('focus after a row leaves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Restore Old edge' }))
     await waitFor(() => expect(actionsOf('Second archived')).toHaveFocus())
     fireEvent.click(screen.getByRole('button', { name: 'Restore Second archived' }))
-    await waitFor(() => expect(screen.getByRole('heading', { name: '0 archived' })).toHaveFocus())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Archived' })).toHaveFocus())
   })
 
   it('after Delete, focus waits for the list read again, then goes to the next row', async () => {
