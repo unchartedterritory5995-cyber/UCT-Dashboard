@@ -1323,12 +1323,25 @@ HOLDS_ADOPTED_SENTENCE = "This template holds something from the library, so it 
 OUTLINE_GONE_SENTENCE = "This template's outline came from a template you deleted, so it is shared without an outline."
 
 
+def _address_nodes() -> frozenset:
+    """The NODE types an example note drops whole because they carry an address (ruling P3b-T2-R8:
+    `public_note_payload.EXAMPLE_OVERRIDES` rows decided "drop", minus the `link` MARK, whose words stay). Read from
+    that table, never restated: a node added there is dropped here the same day."""
+    from api.services.journal_two import public_note_payload as pnp
+    return frozenset(k for k, v in pnp.EXAMPLE_OVERRIDES.items() if v == "drop" and k != "link")
+
+
 def _without_links(body: Any) -> Any:
     """Ruling W11-R33: a shared template's outline keeps a link's TEXT and drops the link itself (its `href` is the
-    author's own address). Every `link` mark goes, at any depth; nothing else changes. Total."""
+    author's own address). Every `link` mark goes, at any depth, and (fix round 3, I-A) every node that carries an
+    address as an attribute -- a link card, a web embed (`_address_nodes`, the example notes' rule) -- goes whole.
+    Nothing else changes. Total."""
+    dropped = _address_nodes()
+
     def walk(node: Any) -> Any:
         if isinstance(node, list):
-            return [walk(n) for n in node]
+            return [walk(n) for n in node
+                    if not (isinstance(n, dict) and n.get("type") in dropped)]
         if not isinstance(node, dict):
             return node
         out = {k: (walk(v) if k == "content" else v) for k, v in node.items()}
@@ -1339,6 +1352,8 @@ def _without_links(body: Any) -> Any:
             else:
                 out.pop("marks")
         return out
+    if isinstance(body, dict) and body.get("type") in dropped:
+        return {"type": "doc", "content": []}
     return walk(body)
 
 
@@ -1363,6 +1378,45 @@ def _source_gallery_of(gallery_id: Any, template_key: Any) -> str | None:
         parts = template_key.split(":")
         return parts[1] if len(parts) >= 3 and parts[1] else None
     return None
+
+
+def from_library_many(user_id: str, ids: Any, *, conn: sqlite3.Connection) -> dict:
+    """`_from_library` (ruling P3a-T10-R5) for many sources in ONE statement: `{id: bool}` for each id given, where an
+    id is a `source_gallery_id` or a `gal:<id>:<key>` template key. True when it came from ANOTHER member's listing or
+    from one that is gone (FAIL CLOSED); False for the member's own listing and for an id naming no gallery item.
+    Fix round 3: the public authority 11.13's Templates tab reads (instead of its own copy of the rule)."""
+    wanted = list(dict.fromkeys(i for i in (ids if isinstance(ids, (list, tuple, set)) else [])
+                                if isinstance(i, str) and i))
+    gid_of = {i: _source_gallery_of(None if i.startswith("gal:") else i, i) for i in wanted}
+    gids = list(dict.fromkeys(g for g in gid_of.values() if g))
+    owners: dict = {}
+    if gids:
+        owners = {r[0]: r[1] for r in conn.execute(
+            f"SELECT id, user_id FROM j2_template_gallery WHERE id IN ({', '.join('?' for _ in gids)})", gids)}
+    return {i: (g is not None and (g not in owners or owners[g] != user_id)) for i, g in gid_of.items()}
+
+
+def copy_credit(conn: sqlite3.Connection, from_id: str, to_id: str, *, user_id: str,
+                tool_kind: str = "template") -> None:
+    """W11-R36 c4: a duplicate of a library copy keeps the copy's credit snapshot (`j2_gallery_credits`), the row
+    copied whole under the new id (`created_at` now), in the caller's transaction. The columns are read from the
+    table, so this module stays the one authority over them. Nothing for a copy with no snapshot (an original)."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(j2_gallery_credits)")]
+    if not cols:
+        return
+    sel, params = [], []
+    for c in cols:
+        if c == "tool_id":
+            sel.append("?")
+            params.append(to_id)
+        elif c == "created_at":
+            sel.append("?")
+            params.append(_now())
+        else:
+            sel.append(c)
+    conn.execute(f"INSERT OR IGNORE INTO j2_gallery_credits ({', '.join(cols)}) SELECT {', '.join(sel)}"
+                 " FROM j2_gallery_credits WHERE user_id = ? AND tool_kind = ? AND tool_id = ?",
+                 (*params, user_id, tool_kind, from_id))
 
 
 def _from_library(conn: sqlite3.Connection, user_id: str, gallery_id: Any, template_key: Any = None) -> bool:
@@ -2980,6 +3034,7 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
     made_defs: dict[str, str] = {}
     made_tools: dict[tuple[str, str], str] = {}
     created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
+    reused: dict[str, list] = {"routines": [], "trackers": []}
     out: list = []
     for b in payload["blocks"]:
         family = js.slot_family(b["block"])
@@ -3024,6 +3079,10 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
                 made_tools[(family, key)] = use
             else:
                 tkey = tt.template_key(family, gallery_id=row["id"], inline=key)
+                # Fix round 3 (M-3): the store answers an existing `gal:<id>:<key>` tool instead of making one,
+                # so whether THIS call made it is read before the create, never inferred from its answer.
+                had = conn.execute(f"SELECT id FROM {_COPY_TABLE[family]} WHERE user_id = ? AND source_template_key = ?",
+                                   (user_id, tkey)).fetchone()
                 if family == "routine":
                     settings = entry.get("settings") if isinstance(entry.get("settings"), Mapping) else {}
                     tool = routines.create(
@@ -3040,7 +3099,7 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
                         settings={**({"days": days} if days else {}), **({"fromTemplate": title} if title else {})},
                         source_template_key=tkey, source_gallery_id=row["id"], conn=conn)
                 made_tools[(family, key)] = tool["id"]
-                created["routines" if family == "routine" else "trackers"].append(
+                (reused if had is not None else created)["routines" if family == "routine" else "trackers"].append(
                     {"id": tool["id"], "name": tool.get("name")})
                 _write_credit(conn, user_id, family, tool["id"], row, version, now, source_key=key,
                               part=_template_part(payload, family, key))
@@ -3048,7 +3107,7 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
         ref = tid if family == "tracker" and trackers.is_builtin(tid) else f"{family}:{tid}"
         out.append({**b, "settings": js.slot_settings_of(family, {"ref": ref, "bind": st["bind"],
                                                                    "display": st["display"]})})
-    return out, created
+    return out, created, reused
 
 
 def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, *, notify: bool,
@@ -3101,11 +3160,12 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
     if commit and not conn.in_transaction:
         conn.execute("BEGIN IMMEDIATE")
     created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
+    reused: dict[str, list] = {"routines": [], "trackers": []}
     try:
         blocks = payload["blocks"]
         if has_slots:
-            blocks, created = _materialize(conn, user_id, row, payload, version, answers=answers, choices=choices,
-                                           now=now)
+            blocks, created, reused = _materialize(conn, user_id, row, payload, version, answers=answers,
+                                                   choices=choices, now=now)
         style = js.create_style(user_id, {
             "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
             "kindId": payload["kindId"], "blocks": blocks,
@@ -3123,7 +3183,7 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
                 " style_id = excluded.style_id, notified_version = excluded.notified_version",
                 (row["id"], user_id, style["id"], version, now))
         if on_written is not None:
-            on_written(style["id"])                  # inside the transaction (W11-R34: the key is remembered with it)
+            on_written(style["id"], {"created": created, "reused": reused} if has_slots else {})  # W11-R34
     except Exception as e:
         if commit and conn.in_transaction:
             conn.rollback()
@@ -3142,6 +3202,7 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
            "credit": _row_credit(row)}
     if has_slots:
         out["created"] = created          # what a template's adoption made (a P3a adopt answers its three keys)
+        out["reused"] = reused            # fix round 3 (M-3): a member's existing template tool, used again
     return out
 
 
@@ -3180,13 +3241,18 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
             return None
         made = _key_lookup(conn, user_id, k, "gallery_adopt_template", row["id"])
         if made and js.get_style(user_id, made, conn) is not None:
+            first = _key_answer(conn, user_id, k)
             conn.rollback()
+            # Fix round 3 (M-2): the first answer, exactly: its `created` and `reused` when it had them.
             return {"style": js.served_style(js.get_style(user_id, made, conn), user_id, conn),
-                    "notify": bool(notify), "credit": _row_credit(row), "replayed": True}
+                    "notify": bool(notify), "credit": _row_credit(row), "replayed": True,
+                    **{k_: first[k_] for k_ in ("created", "reused") if k_ in first}}
+
+        def remember(sid: str, answer: dict) -> None:
+            _key_remember(conn, user_id, k, "gallery_adopt_template", row["id"], sid, answer=answer)
         return _adopt_listed_row(
             conn, user_id, row, notify=notify, commit=True, answers=answers, choices=choices,
-            on_written=(lambda sid: _key_remember(conn, user_id, k, "gallery_adopt_template", row["id"], sid))
-            if k is not None else None)
+            on_written=remember if k is not None else None)
     except Exception:
         if conn.in_transaction:
             conn.rollback()
@@ -3657,12 +3723,43 @@ def _key_lookup(conn: sqlite3.Connection, user_id: str, key: str | None, kind: s
 
 
 def _key_remember(conn: sqlite3.Connection, user_id: str, key: str | None, kind: str, gallery_id: str,
-                  new_id: str) -> None:
+                  new_id: str, *, answer: dict | None = None) -> None:
     if key is None:
         return
-    conn.execute(f"INSERT OR REPLACE INTO {_KEYS_TABLE} (user_id, key, kind, source_id, new_id, created_at)"
-                 " VALUES (?, ?, ?, ?, ?, ?)",
-                 (user_id, key, kind, gallery_id, new_id, datetime.now(timezone.utc).isoformat()))
+    conn.execute(f"INSERT OR REPLACE INTO {_KEYS_TABLE} (user_id, key, kind, source_id, new_id, created_at,"
+                 " answer_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                 (user_id, key, kind, gallery_id, new_id, datetime.now(timezone.utc).isoformat(),
+                  json.dumps(answer) if answer is not None else None))
+
+
+def _key_answer(conn: sqlite3.Connection, user_id: str, key: str) -> dict:
+    """The first request's stored answer parts (fix round 3, M-2); {} when none was stored or it cannot be read."""
+    r = conn.execute(f"SELECT answer_json FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?", (user_id, key)).fetchone()
+    try:
+        got = json.loads(r[0]) if r and r[0] else {}
+    except (TypeError, ValueError):
+        return {}
+    return got if isinstance(got, dict) else {}
+
+
+#: Fix round 3 (M-1): how long a Use's "" reservation (a request between its reservation commit and its note) is
+#: believed. Longer than one compose; past it the holder is taken as dead (a deploy, an OOM) and the key retries.
+USE_RESERVATION_STALE_SECS = 60.0
+
+
+def _key_reservation_stale(conn: sqlite3.Connection, user_id: str, key: str, *,
+                           now: datetime | None = None) -> bool:
+    """Is this key's "" reservation older than `USE_RESERVATION_STALE_SECS`, by its OWN timestamp?"""
+    r = conn.execute(f"SELECT created_at FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?", (user_id, key)).fetchone()
+    if r is None:
+        return False
+    try:
+        at = datetime.fromisoformat(r[0])
+    except (TypeError, ValueError):
+        return True                                 # an unreadable stamp cannot be believed: stale
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=timezone.utc)
+    return ((now or datetime.now(timezone.utc)) - at).total_seconds() > USE_RESERVATION_STALE_SECS
 
 
 def _key_forget(conn: sqlite3.Connection, user_id: str, key: str | None) -> None:
@@ -3843,6 +3940,14 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
             conn.rollback()
             return None
         made = _key_lookup(conn, user_id, k, "gallery_use_template", row["id"])
+        # Fix round 3 (M-1): a reservation its holder never filled (it died) and a first note now trashed or gone
+        # both read as a forgotten key, as on the other doors: this request creates.
+        if made == "" and _key_reservation_stale(conn, user_id, k):
+            _key_forget(conn, user_id, k)
+            made = None
+        elif made and notes_service.get_note(user_id, made, conn) is None:
+            _key_forget(conn, user_id, k)
+            made = None
         if made is not None:
             conn.rollback()
             note_id = made or _wait_for_key(user_id, k)
@@ -3853,16 +3958,21 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
             return {"note": note, "skipped": [], "replayed": True,
                     "style": js.served_style(js.get_style(user_id, copy_id, conn), user_id, conn) if copy_id else None,
                     "credit": _use_credit(conn, user_id, copy_id, row) if copy_id else None,
-                    "created": {"widgets": [], "routines": [], "trackers": []}}
+                    "created": {"widgets": [], "routines": [], "trackers": []},
+                    "reused": {"routines": [], "trackers": []}}
         _key_remember(conn, user_id, k, "gallery_use_template", row["id"], "")
         reserved = k is not None
         created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
+        reused: dict[str, list] = {"routines": [], "trackers": []}
+        had_tools = {r[0] for fam in ("routine", "tracker") for r in conn.execute(
+            f"SELECT id FROM {_COPY_TABLE[fam]} WHERE user_id = ? AND source_gallery_id = ?", (user_id, row["id"]))}
         copy_id = _newest_copy(conn, user_id, row["id"])
         if copy_id is None:
             adopted = _adopt_listed_row(conn, user_id, row, notify=False, commit=True, answers=answers,
                                         choices=choices)
             copy_id = adopted["style"]["id"]
             created = adopted.get("created") or created
+            reused = adopted.get("reused") or reused
         else:
             conn.commit()
         before = _tool_slot_refs(conn, user_id, copy_id)
@@ -3884,12 +3994,13 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
                      **trackers.resolve_many(user_id, list(made_now.values()), conn=conn)}
             for bid, tid in made_now.items():
                 fam = js.slot_family(bid)
-                bucket = created["routines" if fam == "routine" else "trackers"]
-                if all(x["id"] != tid for x in bucket):
+                group = "routines" if fam == "routine" else "trackers"
+                bucket = (reused if tid in had_tools else created)[group]
+                if all(x["id"] != tid for x in created[group] + reused[group]):
                     bucket.append({"id": tid, "name": (names.get(tid) or {}).get("name")})
         style = js.served_style(js.get_style(user_id, copy_id, conn), user_id, conn)
         return {"note": note, "skipped": skipped, "style": style, "credit": _use_credit(conn, user_id, copy_id, row),
-                "created": created}
+                "created": created, "reused": reused}
     except Exception:
         if conn.in_transaction:
             conn.rollback()

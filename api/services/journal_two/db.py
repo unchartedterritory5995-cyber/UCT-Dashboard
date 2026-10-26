@@ -2336,6 +2336,8 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_gallery_credits ADD COLUMN source_item_type TEXT",
     "ALTER TABLE j2_gallery_credits ADD COLUMN source_key TEXT",
     "ALTER TABLE j2_gallery_credits ADD COLUMN source_hash TEXT",
+    # Task 11.8 fix round 3 (M-2): a template Adopt's first `created`, so a replay answers it exactly.
+    "ALTER TABLE j2_tool_create_keys ADD COLUMN answer_json TEXT",
     # The member's answer to the 3rd-day Helpful line (W11-R9): yes, not_really or dismissed, once per
     # (member, item).
     """CREATE TABLE IF NOT EXISTS j2_gallery_helpful_prompts (

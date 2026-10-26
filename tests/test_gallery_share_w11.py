@@ -355,7 +355,7 @@ def test_a_refused_share_is_never_stored_or_logged(db, capsys):
     assert "secret" not in out.out and "secret" not in out.err and "Field 1" not in out.out
 
 
-_LOG_ATTRS = ("debug", "info", "warning", "warn", "error", "exception", "critical", "log")
+_LOG_ATTRS = ("debug", "info", "warning", "warn", "error", "exception", "critical", "log", "write")
 #: The refusal classes (ruling W11-R35): their TEXT may echo the author's own words (11.4 m3). A seed or system
 #: exception is not one, and keeps its `: {e}` (HEAD's lines, rail G6).
 _REFUSALS = {"ShareError", "LibraryError", "GalleryError", "GalleryConflict", "ToolError", "CountCapError",
@@ -367,53 +367,95 @@ def _caught_names(t) -> set:
     return {getattr(x, "id", None) or getattr(x, "attr", None) for x in nodes}
 
 
+def _is_log(n) -> bool:
+    name = getattr(n.func, "id", None) or getattr(n.func, "attr", None)
+    return isinstance(n, ast.Call) and (name == "print" or name in _LOG_ATTRS)
+
+
+def _type_name_only(call, name_node) -> bool:
+    """`name_node` is used only inside `type(<x>).__name__`, which names no text."""
+    return any(isinstance(p, ast.Attribute) and p.attr == "__name__" and isinstance(p.value, ast.Call)
+               and getattr(p.value.func, "id", None) == "type" and name_node in ast.walk(p)
+               for p in ast.walk(call))
+
+
+def _reads(expr, names) -> bool:
+    return any(isinstance(x, ast.Name) and x.id in names and not _type_name_only(expr, x) for x in ast.walk(expr))
+
+
 def _exception_text_in_logs(src: str) -> list[str]:
-    """Every print or logging call that formats a caught REFUSAL's value (`{e}`, `str(e)`, `e.sentence`, `"%s" % e`,
-    a bare `e` argument) rather than only its type name, inside a handler for a refusal class (`_REFUSALS`), plus
-    any log call reading a `.sentence` anywhere. Ruling W11-R35: refusal text only, never every log line."""
+    """Inside a handler for a refusal class (`_REFUSALS`), every way its text can reach a log:
+
+    * a print / logging / `.write` call (`sys.stderr.write`) reading the caught value in any form but
+      `type(e).__name__` (`{e}`, `str(e)`, `e.sentence`, `"%s" % e`, `e.args`, a bare `e`), or reading a name
+      DERIVED from it (`msg = str(e)`, then `print(msg)`, transitively);
+    * any traceback dump (`traceback.print_exc`, `format_exc`, `print_exception`, ...), any `.exception(...)` log
+      call whatever its arguments, and any call passing `exc_info` (other than a literal False): each prints `str(e)`;
+
+    plus any log call anywhere reading a `.sentence`. Ruling W11-R35: refusal text only, never every log line."""
     tree = ast.parse(src)
     bad = []
-
-    def is_log(n):
-        name = getattr(n.func, "id", None) or getattr(n.func, "attr", None)
-        return isinstance(n, ast.Call) and (name == "print" or name in _LOG_ATTRS)
-
-    def type_name_only(call, name_node):
-        return any(isinstance(p, ast.Attribute) and p.attr == "__name__" and isinstance(p.value, ast.Call)
-                   and getattr(p.value.func, "id", None) == "type" and name_node in ast.walk(p)
-                   for p in ast.walk(call))
-
     for h in ast.walk(tree):
-        if not (isinstance(h, ast.ExceptHandler) and h.name and _caught_names(h.type) & _REFUSALS):
+        if not (isinstance(h, ast.ExceptHandler) and _caught_names(h.type) & _REFUSALS):
             continue
+        tainted = {h.name} if h.name else set()
+        grew = True
+        while grew:                                      # names derived from the caught value, transitively
+            grew = False
+            for stmt in h.body:
+                for n in ast.walk(stmt):
+                    value = getattr(n, "value", None)
+                    if isinstance(n, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and value is not None \
+                            and _reads(value, tainted):
+                        targets = n.targets if isinstance(n, ast.Assign) else [n.target]
+                        for t in targets:
+                            for x in ast.walk(t):
+                                if isinstance(x, ast.Name) and x.id not in tainted:
+                                    tainted.add(x.id)
+                                    grew = True
         for stmt in h.body:
             for n in ast.walk(stmt):
-                if isinstance(n, ast.Call) and is_log(n):
-                    for node in ast.walk(n):
-                        if isinstance(node, ast.Name) and node.id == h.name and not type_name_only(n, node):
-                            bad.append(ast.unparse(n))
-                            break
+                if not isinstance(n, ast.Call):
+                    continue
+                func = n.func
+                owner = getattr(getattr(func, "value", None), "id", None)
+                attr = getattr(func, "attr", None)
+                dumps = owner == "traceback" or attr == "exception" or any(
+                    k.arg == "exc_info" and not (isinstance(k.value, ast.Constant) and k.value.value is False)
+                    for k in n.keywords)
+                if dumps or (_is_log(n) and _reads(n, tainted)):
+                    bad.append(ast.unparse(n))
     for n in ast.walk(tree):
-        if isinstance(n, ast.Call) and is_log(n) and any(isinstance(x, ast.Attribute) and x.attr == "sentence"
+        if isinstance(n, ast.Call) and _is_log(n) and any(isinstance(x, ast.Attribute) and x.attr == "sentence"
                                                          for x in ast.walk(n)):
             bad.append(ast.unparse(n))
     return bad
 
 
 def test_no_log_call_in_the_gallery_names_a_refusal():
-    """Rail (fix round 1, M-2, scoped by W11-R35): no `print` / logging call in template_gallery.py formats a
-    refusal's text in ANY form, only its type name; a system exception's `{e}` is allowed. Non-vacuity: every form
-    is caught when planted in a refusal handler, the allowed forms are not, and the gallery's own system lines
-    (the seeds) do carry `{e}`, so the scope is what lets them pass."""
+    """Rail (fix round 1 M-2, scoped by W11-R35, widened by fix round 3 M-4): no print / logging / stream write in
+    template_gallery.py carries a refusal's text in ANY form, only its type name; a system exception's `{e}` is
+    allowed. Non-vacuity: every form is caught when planted in a refusal handler, the allowed forms are not, and the
+    gallery's own system lines (the seeds) do carry `{e}`, so the scope is what lets them pass."""
     src = GALLERY_SRC.read_text(encoding="utf-8")
     assert _exception_text_in_logs(src) == []
     assert "official seed skipped (official templates): {type(e).__name__}: {e}" in src
+    forms = ("print(f'x {e}')", "print(f'x {e.sentence}')", "print('x', str(e))", "print('x %s' % e)",
+             "log.warning('x %s', e)", "log.exception(e)", "print(f'x {e!r}')", "print(e.args)",
+             "traceback.print_exc()", "traceback.print_exception(e)", "print(traceback.format_exc())",
+             "log.exception('x')", "log.error('x', exc_info=True)", "log.warning('x', exc_info=e)",
+             "sys.stderr.write(str(e))", "sys.stderr.write(f'{e}')",
+             "msg = str(e); print(msg)", "msg = f'{e}'; out = msg.upper(); log.info(out)",
+             "parts = [e]; print(parts)")
     for exc in ("share.ShareError", "LibraryError", "(GalleryError, ValueError)"):
-        for form in ("print(f'x {e}')", "print(f'x {e.sentence}')", "print('x', str(e))", "print('x %s' % e)",
-                     "log.warning('x %s', e)", "log.exception(e)"):
+        for form in forms:
             planted = f"def f():\n    try:\n        pass\n    except {exc} as e:\n        {form}\n"
             assert _exception_text_in_logs(planted), (exc, form)
     for ok_src in ("def f():\n    try:\n        pass\n    except ShareError as e:\n        print(f'x {type(e).__name__}')\n",
-                   "def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {e}')\n"):
-        assert _exception_text_in_logs(ok_src) == []
+                   "def f():\n    try:\n        pass\n    except ShareError as e:\n"
+                   "        name = type(e).__name__; print(name)\n",
+                   "def f():\n    try:\n        pass\n    except ShareError as e:\n        log.error('x', exc_info=False)\n",
+                   "def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {e}')\n",
+                   "def f():\n    try:\n        pass\n    except Exception:\n        traceback.print_exc()\n"):
+        assert _exception_text_in_logs(ok_src) == [], ok_src
     assert _exception_text_in_logs("def f(err):\n    print(err.sentence)\n")

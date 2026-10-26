@@ -348,3 +348,131 @@ def test_library_facts_is_a_constant_number_of_statements(db):
             for _ in range(5)]
     assert (_statements(db, lambda: gallery.library_facts(MEMBER, "template", tids[:1], conn=db))
             == _statements(db, lambda: gallery.library_facts(MEMBER, "template", tids, conn=db)))
+
+
+# ── fix round 3 ────────────────────────────────────────────────────────────────────────────────────
+
+def test_a_link_card_and_a_web_embed_never_travel_in_a_shared_outline(db):
+    """I-A (W11-R33 completed): `linkPreview` and `webEmbed` carry the address as `attrs.url`; they go whole, by
+    the example notes' own rule (EXAMPLE_OVERRIDES), and the canary in either url never reaches the listing or a copy."""
+    from api.services.journal_two import public_note_payload as pnp
+    assert {"linkPreview", "webEmbed"} <= gallery._address_nodes() == {
+        k for k, v in pnp.EXAMPLE_OVERRIDES.items() if v == "drop" and k != "link"}
+    w = widget(db)
+    outline = {"type": "doc", "content": [
+        heading("Plan"), para("{{block:built_a}}"), para("stays"),
+        {"type": "linkPreview", "attrs": {"url": f"https://{CANARY}.example.com/acct/123", "title": "my broker"}},
+        {"type": "bulletList", "content": [{"type": "listItem", "content": [
+            {"type": "webEmbed", "attrs": {"provider": "youtube", "ref": "dQw4w9WgXcQ",
+                                           "url": f"https://www.youtube.com/watch?v=dQw4w9WgXcQ&{CANARY}"}}]}]}]}
+    s = style(db, blocks=[built("a", w["id"])], outline=outline)
+    own = json.dumps(js.get_style(AUTHOR, s["id"], db, full=True).get("outlineBodyJson"))
+    assert CANARY in own and "linkPreview" in own and "webEmbed" in own      # control: the author's own style keeps them
+    out = gallery.publish_style(AUTHOR, s["id"], title="T", description="", category="journal", trading_style=None,
+                                conn=db)
+    stored = db.execute("SELECT payload_json, body_json FROM j2_template_gallery WHERE id = ?",
+                        (out["id"],)).fetchone()
+    for col in stored:
+        assert col and CANARY not in col.lower() and "linkPreview" not in col and "webEmbed" not in col
+    assert "stays" in stored[0]
+    approve(db, out["id"])
+    adopted = gallery.adopt_style(MEMBER, out["id"], answers={"p1": "Flag"}, key=str(uuid.uuid4()), conn=db)
+    copy = js.get_style(MEMBER, adopted["style"]["id"], db, full=True)
+    assert CANARY not in json.dumps(adopted).lower() and CANARY not in json.dumps(copy).lower()
+
+
+def test_a_dead_use_reservation_expires_and_the_key_creates(db, monkeypatch):
+    """M-1: a blank reservation older than USE_RESERVATION_STALE_SECS (by its own stamp) is abandoned; a fresh one
+    still answers that the first request is on its way."""
+    from datetime import datetime, timedelta, timezone
+    gid, _s, _w = _template(db)
+    monkeypatch.setattr(gallery, "_wait_for_key", lambda uid, key, timeout_s=15.0: None)
+    fresh, dead = str(uuid.uuid4()), str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    for k, at in ((fresh, now), (dead, now - timedelta(seconds=gallery.USE_RESERVATION_STALE_SECS + 5))):
+        db.execute("INSERT INTO j2_tool_create_keys (user_id, key, kind, source_id, new_id, created_at)"
+                   " VALUES (?, ?, 'gallery_use_template', ?, ?, ?)", (MEMBER, k, gid, "", at.isoformat()))
+    db.commit()
+    with pytest.raises(gallery.GalleryConflict):
+        gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, key=fresh,
+                                     conn=db)
+    made = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, key=dead,
+                                        conn=db)
+    assert made["note"]["id"] and not made.get("replayed")
+    again = gallery.use_library_template(MEMBER, gid, payload={}, key=dead, conn=db)
+    assert again["replayed"] and again["note"]["id"] == made["note"]["id"]
+
+
+def test_a_replay_whose_note_was_trashed_creates_a_new_note(db):
+    """M-1: a first note trashed (or gone) frees the key, as on the other doors."""
+    from api.services.journal_two import notes as notes_service
+    gid, _s, _w = _template(db)
+    for gone in ("trash", "delete"):
+        k = str(uuid.uuid4())
+        first = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, key=k,
+                                             conn=db)
+        if gone == "trash":
+            notes_service.delete_note(MEMBER, first["note"]["id"], db)
+        else:
+            db.execute("DELETE FROM j2_notes WHERE id = ?", (first["note"]["id"],))
+            db.commit()
+        second = gallery.use_library_template(MEMBER, gid, payload={}, key=k, conn=db)
+        assert not second.get("replayed") and second["note"]["id"] != first["note"]["id"], gone
+        third = gallery.use_library_template(MEMBER, gid, payload={}, key=k, conn=db)
+        assert third["replayed"] and third["note"]["id"] == second["note"]["id"], gone
+
+
+def test_a_replayed_template_adopt_answers_the_first_result_exactly(db):
+    """M-2: the replay carries the first answer's `created` and `reused`, the same ids."""
+    gid, _s, _w = _template(db)
+    k = str(uuid.uuid4())
+    first = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, key=k, conn=db)
+    again = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, key=k, conn=db)
+    assert again["replayed"] is True
+    assert {k_: v for k_, v in again.items() if k_ != "replayed"} == first
+    assert len(first["created"]["widgets"]) == 1 and len(first["created"]["routines"]) == 1
+
+
+def test_created_names_only_what_this_call_made(db):
+    """M-3: a re-adopt (a new key) and a Use whose only copy is archived meet the member's existing template
+    routine and tracker: they are `reused`, never `created`; the widget is new each time and is `created`."""
+    gid, _s, _w = _template(db)
+    a1 = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, key=str(uuid.uuid4()), conn=db)
+    assert len(a1["created"]["routines"]) == 1 and len(a1["created"]["trackers"]) == 1
+    assert a1["reused"] == {"routines": [], "trackers": []}
+    a2 = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, key=str(uuid.uuid4()), conn=db)
+    assert a2["created"]["routines"] == [] and a2["created"]["trackers"] == [] and len(a2["created"]["widgets"]) == 1
+    assert [x["id"] for x in a2["reused"]["routines"]] == [x["id"] for x in a1["created"]["routines"]]
+    assert [x["id"] for x in a2["reused"]["trackers"]] == [x["id"] for x in a1["created"]["trackers"]]
+    for s_id in (a1["style"]["id"], a2["style"]["id"]):
+        js.archive_style(MEMBER, s_id, conn=db)
+    u = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, conn=db)
+    assert u["created"]["routines"] == [] and u["created"]["trackers"] == []
+    assert len(u["reused"]["routines"]) == 1 and len(u["reused"]["trackers"]) == 1
+    n = lambda t: db.execute(f"SELECT COUNT(*) FROM {t} WHERE user_id = ?", (MEMBER,)).fetchone()[0]  # noqa: E731
+    assert (n("j2_routines"), n("j2_trackers")) == (1, 1)
+
+
+def test_from_library_many_and_copy_credit_are_the_one_authority(db):
+    """The 11.13 carry: `from_library_many` is `_from_library` for many ids in ONE statement, and `copy_credit`
+    copies a credit snapshot whole under a new id."""
+    gid, _s, _w = _template(db)
+    own_gid = list_template(db, style(db, uid=MEMBER, name="Mine")["id"], uid=MEMBER, title="Mine")
+    ids = [gid, f"gal:{gid}:r1", "missing-id", own_gid, 7]
+    seen = []
+    db.set_trace_callback(seen.append)
+    try:
+        got = gallery.from_library_many(MEMBER, ids, conn=db)
+    finally:
+        db.set_trace_callback(None)
+    assert len(seen) == 1
+    for i in (gid, f"gal:{gid}:r1", "missing-id", own_gid):
+        assert got[i] == gallery._from_library(db, MEMBER, None if i.startswith("gal:") else i, i), i
+    assert (got[gid], got["missing-id"], got[own_gid]) == (True, True, False) and 7 not in got
+    a = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, conn=db)["style"]["id"]
+    gallery.copy_credit(db, a, "dup-1", user_id=MEMBER)
+    db.commit()
+    assert gallery.credit_for(MEMBER, "template", "dup-1", conn=db) == gallery.credit_for(MEMBER, "template", a,
+                                                                                            conn=db)
+    gallery.copy_credit(db, "no-such", "dup-2", user_id=MEMBER)
+    assert gallery.credit_for(MEMBER, "template", "dup-2", conn=db) is None

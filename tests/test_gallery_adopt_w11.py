@@ -271,7 +271,7 @@ def test_use_reuses_the_copy_and_asks_only_unremembered(db):
     gid = _official(db)
     first = gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"create": True}},
                                          payload={"title": "Monday prep"}, conn=db)
-    assert set(first) == {"note", "skipped", "style", "credit", "created"}
+    assert set(first) == {"note", "skipped", "style", "credit", "created", "reused"}   # fix round 3 (M-3)
     assert first["credit"] == "Based on UCT's Pre-market prep"
     assert len(first["created"]["routines"]) == 1
     copy = js.get_style(MEMBER, first["style"]["id"], db, full=True)
