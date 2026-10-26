@@ -23,7 +23,10 @@ export const SLINGSHOT_SETUP_NAME = 'Slingshot'
 export const E4H_INSTANCE_ID = 'study:slingshot-e4h'
 export const E4H_PERIOD = 4
 
-const GOLD = '#dcbb5e'
+// Translucent, one pixel: a peer of the house averages, not the loudest line on
+// the chart (owner, on the second chart: "make the 4EMA a little more opaque vs
+// so solid and dominate the chart").
+const GOLD = 'rgba(220, 187, 94, 0.6)'
 
 /** Is this study item a Slingshot example? Reads the skill first, the setup name second. */
 export function isSlingshotItem(item) {
@@ -35,7 +38,7 @@ export function isSlingshotItem(item) {
 
 /**
  * The engine instances a Slingshot chart carries on top of the house look, or
- * null for any other item. One: the E4H, gold, two pixels wide.
+ * null for any other item. One: the E4H, translucent gold, one pixel wide.
  */
 export function slingshotInstances(item) {
   if (!isSlingshotItem(item)) return null
@@ -43,6 +46,6 @@ export function slingshotInstances(item) {
     instanceId: E4H_INSTANCE_ID,
     defId: 'movingAverage',
     inputs: { source: 'high', period: E4H_PERIOD, maType: 'ema', color: GOLD },
-    presentation: { lineWidth: 2 },
+    presentation: { lineWidth: 1 },
   }]
 }
