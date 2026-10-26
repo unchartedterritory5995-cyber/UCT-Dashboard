@@ -607,9 +607,12 @@ def a_open_note(R, s, row):
         raise Inconclusive(f"no note {s['note']!r} was made earlier in this run")
     t0 = time.perf_counter()
     pg.goto(R.url(f"/journal/notebook?note={nid}"), wait_until="domcontentloaded", timeout=60000)
+    # The clock stops when the editor is drawn, BEFORE the intro is dismissed: the intro's own wait is
+    # not the note's paint (the tooling dry run's timings still included it; see the campaign report).
+    pg.locator(".ProseMirror").first.wait_for(state="attached", timeout=T)
+    row["timings"][s.get("timing") or "note_first_paint"] = round((time.perf_counter() - t0) * 1000)
     R.g.h._dismiss_intro(pg)
     editor(pg)
-    row["timings"][s.get("timing") or "note_first_paint"] = round((time.perf_counter() - t0) * 1000)
     if "expect_frames" in s or "expect_routine_boxes" in s:
         render_all(pg)
     if "expect_frames" in s:
