@@ -2338,6 +2338,10 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_gallery_credits ADD COLUMN source_hash TEXT",
     # Task 11.8 fix round 3 (M-2): a template Adopt's first `created`, so a replay answers it exactly.
     "ALTER TABLE j2_tool_create_keys ADD COLUMN answer_json TEXT",
+    # Task 11.8 fix round 5 (I-2, ruling W11-R41): a Use's per-request reservation token, so the request that holds
+    # the "" reservation is told apart from a taker's re-reservation of the same key, and a failed request forgets
+    # only its OWN reservation. NULL on every other door's row.
+    "ALTER TABLE j2_tool_create_keys ADD COLUMN token TEXT",
     # The member's answer to the 3rd-day Helpful line (W11-R9): yes, not_really or dismissed, once per
     # (member, item).
     """CREATE TABLE IF NOT EXISTS j2_gallery_helpful_prompts (

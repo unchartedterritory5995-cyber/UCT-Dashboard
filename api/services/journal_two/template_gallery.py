@@ -58,6 +58,7 @@ import os
 import re
 import secrets
 import sqlite3
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1344,28 +1345,81 @@ def _address_nodes() -> frozenset:
 
 
 _SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:(//)?", re.I)
-_URLISH = re.compile(r"^(?:[a-z][a-z0-9+.-]*://\S+|www\.\S+|mailto:\S+|[^\s@/]+@[^\s@/]+\.[a-z]{2,}"
-                     r"|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[/:?#]\S*)?)$", re.I)
+#: Fix round 5 (m-d): what is invisible in the editor is never a reason for an address to read as prose -- zero-width
+#: characters, the word joiner, a soft hyphen and the BOM are removed before a link's text is judged.
+_INVISIBLE = dict.fromkeys(map(ord, "­᠎​‌‍⁠﻿"))
+#: The full stops IDNA reads as a label separator (ideographic, fullwidth, halfwidth): an address written with one is
+#: still that address.
+_DOTS = str.maketrans({"。": ".", "．": ".", "｡": "."})
+_WRAP_OPEN = "<([{\"'“‘"
+_WRAP_CLOSE = ">)]}\"'”’.,;:!?"
+_LABEL = r"[^\W_](?:[\w-]*[^\W_])?"                  # a domain label in ANY script (an IDN), never edged by - or _
+_TLD = r"(?:[^\W\d_]{2,}|xn--[a-z0-9-]+)"
+_URLISH = re.compile(
+    r"^(?:[a-z][a-z0-9+.-]*://\S+|www\.\S+|(?:mailto|tel|sms|data|javascript|vbscript|blob|file):\S+"
+    rf"|[^\s@/]+@{_LABEL}(?:\.{_LABEL})*\.{_TLD}"
+    rf"|(?:{_LABEL}\.)+{_TLD}(?:[/:?#]\S*)?"
+    r"|\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:[/?#]\S*)?)$", re.I)
+_PHONE = re.compile(r"^\+?[\d\s().\-]+$")
+
+
+def _normal_text(text: str) -> str:
+    """A link's text as an address reads it (fix round 5, m-d): NFKC, the invisible characters removed, IDNA's full
+    stops read as `.`, wrapping punctuation (`<>`, `()`, `[]`, quotes) and trailing `.,;:!?` trimmed."""
+    t = unicodedata.normalize("NFKC", text).translate(_INVISIBLE).translate(_DOTS).strip()
+    while True:
+        s = t.lstrip(_WRAP_OPEN).rstrip(_WRAP_CLOSE).strip()
+        if s == t:
+            return t
+        t = s
+
+
+def _unicode_host(t: str) -> str:
+    """`t` with every punycode label of its host (`xn--...`) read as the Unicode it encodes, so an IDN written in
+    either form compares equal (fix round 5, m-d). A label that does not decode is left as it is."""
+    host = re.match(r"[^/?#]*", t).group(0)
+    labels = []
+    for lab in host.split("."):
+        if lab.startswith("xn--"):
+            try:
+                lab = lab.encode("ascii").decode("idna")
+            except (UnicodeError, ValueError):
+                pass
+        labels.append(lab)
+    return ".".join(labels) + t[len(host):]
 
 
 def _bare_address(text: str) -> str:
-    """An address normalised for comparison (ruling W11-R40): scheme, `www.`, a trailing slash and case removed."""
-    t = _SCHEME.sub("", text.strip().lower())
+    """An address normalised for comparison (ruling W11-R40): `_normal_text`, then scheme, `www.`, a trailing slash
+    and case removed, and the host's punycode read as Unicode."""
+    t = _SCHEME.sub("", _normal_text(text).lower())
     if t.startswith("www."):
         t = t[4:]
-    return t.rstrip("/")
+    return _unicode_host(t.rstrip("/"))
 
 
 def _text_is_its_address(text: Any, hrefs: list) -> bool:
-    """Ruling W11-R40: a link's visible text IS its address -- it equals one of its hrefs once both are normalised
-    (`_bare_address`), or it parses as a URL, a domain or an email on its own (`_URLISH`). An autolinked URL is
-    exactly this."""
-    if not isinstance(text, str) or not text.strip():
+    """Ruling W11-R40: a link's visible text IS its address. After `_normal_text` it equals one of its hrefs once both
+    are normalised (`_bare_address`, IDN and punycode alike), or it parses as a URL, a domain (in any script), an
+    email, an IP or a `mailto:` / `tel:` / `data:` address on its own (`_URLISH`), or it is an address-shaped piece
+    of its own href (no space, a `.` `/` `@` or `:`, contained in the href: a bare host, an IP, a path), or it is a
+    phone number (seven digits or more, linked to `tel:` / `sms:` or written `+...`). An autolinked URL is exactly
+    this. Fix round 5 (m-d) widened every half; the caller judges a link's FULL text (`_without_links`)."""
+    if not isinstance(text, str):
         return False
-    bare = _bare_address(text)
-    if any(isinstance(h, str) and h.strip() and _bare_address(h) == bare for h in hrefs):
+    t = _normal_text(text)
+    if not t:
+        return False
+    bare = _bare_address(t)
+    linked = [h for h in hrefs if isinstance(h, str) and h.strip()]
+    bare_hrefs = [_bare_address(h) for h in linked]
+    if bare in bare_hrefs or _URLISH.match(t):
         return True
-    return bool(_URLISH.match(text.strip()))
+    if bare and not re.search(r"\s", t) and re.search(r"[./@:]", t) and any(bare in b for b in bare_hrefs):
+        return True
+    phone_href = any(h.strip().lower().startswith(("tel:", "sms:")) for h in linked)
+    return (len(re.sub(r"\D", "", t)) >= 7 and bool(_PHONE.match(t))
+            and (phone_href or t.startswith("+")))
 
 
 def _without_links(body: Any) -> Any:
@@ -1373,21 +1427,57 @@ def _without_links(body: Any) -> Any:
     author's own address). Every address MARK goes, at any depth; every node that carries an address as an attribute
     -- a link card, a web embed -- goes whole (`_address_rules`, the example notes' rule). Ruling W11-R40 (fix round
     4): a linked text that IS its address (`_text_is_its_address`, an autolinked URL) goes whole, text included.
-    Plain prose that merely contains a URL, with no link mark, is the author's visible text and is unchanged.
-    Total."""
+    Fix round 5 (m-d): "a link" is the RUN of adjacent text nodes carrying the same address marks (the editor splits
+    a link at every other mark change, so a bold part of an autolinked URL is its own node): the run's JOINED text is
+    judged and the whole run goes; a node whose own text is an address goes too. Plain prose that merely contains a
+    URL, with no link mark, is the author's visible text and is unchanged.
+
+    ⛔ It runs on the RAW outline, BEFORE the gallery reducer (`_shared_outline`, fix round 5, I-1): the reducer
+    unlinks a link it will not keep (an email in the query, a quote, a `tel:` / `data:` href...) and leaves its text
+    as plain prose, which this rule could then no longer see. Total; it only ever removes."""
     nodes, marks = _address_rules()
 
-    def address_text(n: Any) -> bool:
+    def link_key(n: Any) -> tuple | None:
+        """A text node's address marks as a comparable key (`(type, href)` pairs), or None when it carries none."""
         if not (isinstance(n, dict) and n.get("type") == "text" and isinstance(n.get("marks"), list)):
-            return False
-        hrefs = [(m.get("attrs") or {}).get("href") for m in n["marks"]
-                 if isinstance(m, dict) and m.get("type") in marks and isinstance(m.get("attrs"), dict)]
-        return bool(hrefs) and _text_is_its_address(n.get("text"), hrefs)
+            return None
+        found = [m for m in n["marks"] if isinstance(m, dict) and m.get("type") in marks]
+        if not found:
+            return None
+        return tuple(sorted((str(m.get("type")), json.dumps((m.get("attrs") or {}).get("href")
+                                                              if isinstance(m.get("attrs"), dict) else None))
+                            for m in found))
+
+    def hrefs_of(n: dict) -> list:
+        return [(m.get("attrs") or {}).get("href") for m in n["marks"]
+                if isinstance(m, dict) and m.get("type") in marks and isinstance(m.get("attrs"), dict)]
+
+    def kept_children(items: list) -> list:
+        out, i = [], 0
+        while i < len(items):
+            n = items[i]
+            if isinstance(n, dict) and n.get("type") in nodes:
+                i += 1
+                continue
+            key = link_key(n)
+            if key is None:
+                out.append(n)
+                i += 1
+                continue
+            j = i
+            while j < len(items) and link_key(items[j]) == key:
+                j += 1
+            run = items[i:j]
+            joined = "".join(x.get("text") if isinstance(x.get("text"), str) else "" for x in run)
+            hrefs = [h for x in run for h in hrefs_of(x)]
+            if not _text_is_its_address(joined, hrefs):
+                out.extend(x for x in run if not _text_is_its_address(x.get("text"), hrefs_of(x)))
+            i = j
+        return out
 
     def walk(node: Any) -> Any:
         if isinstance(node, list):
-            return [walk(n) for n in node
-                    if not (isinstance(n, dict) and n.get("type") in nodes) and not address_text(n)]
+            return [walk(n) for n in kept_children(node)]
         if not isinstance(node, dict):
             return node
         out = {k: (walk(v) if k == "content" else v) for k, v in node.items()}
@@ -1404,13 +1494,16 @@ def _without_links(body: Any) -> Any:
 
 
 def _shared_outline(outline: Any, owner_id: str) -> Any:
-    """THE one path a template outline travels by (fix round 4, I-B): the gallery reducer (`sanitize_body`), then,
-    while wave 11 is on, `_without_links` -- for EVERY template share, slot or no slot, and again when a stored
-    listing is adopted (m4, defence in depth: a row written by hand or before the fix). Wave 11 off: P3a's reduce."""
+    """THE one path a template outline travels by (fix round 4, I-B): while wave 11 is on, `_without_links` on the RAW
+    outline and then the gallery reducer (`sanitize_body`) -- fix round 5 (I-1): the address rule FIRST, so a link
+    the reducer would unlink is still seen as a link, and the reducer still has the last word. For EVERY template
+    share, slot or no slot, and on EVERY read of a stored listing (`_safe_listed`, fix round 5, m-a: the detail, the
+    update plan, the update apply and the adopt). Wave 11 off: P3a's reduce."""
     if not outline:
         return None
-    clean = sanitize_body(outline, owner_id)
-    return _without_links(clean) if notebook_widgets_wave_on(11) else clean
+    if notebook_widgets_wave_on(11):
+        return sanitize_body(_without_links(outline), owner_id)
+    return sanitize_body(outline, owner_id)
 
 
 def _p3a_blocks(blocks: Any) -> list[dict]:
@@ -2650,7 +2743,7 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         if note is None:
             return None
         style = _linkable_style(conn, user_id, style_item_id)
-        kind = _safe_listed(_listed_payload(style))["kindId"]
+        kind = _safe_listed(_listed_payload(style), clean=False)["kindId"]
         if not note["kind"] or note["kind"] != kind:
             raise GalleryError(EXAMPLE_KIND_SENTENCE)
         brokers = _author_brokers(conn, user_id)
@@ -2675,7 +2768,7 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
         style = _linkable_style(conn, user_id, style["id"])
         # OI-P3b-5: and its kind is read AGAIN from that row -- a style resubmitted as another kind in the gap would
         # otherwise store the stale `noteKind`. A note no longer of the style's kind is the same sentence as above.
-        kind = _safe_listed(_listed_payload(style))["kindId"]
+        kind = _safe_listed(_listed_payload(style), clean=False)["kindId"]
         if note["kind"] != kind:
             raise GalleryError(EXAMPLE_KIND_SENTENCE)
         existing = conn.execute(
@@ -2864,7 +2957,7 @@ def _listed_payload(row: sqlite3.Row) -> dict | None:
 ADOPT_UNSUPPORTED_SENTENCE = "This style can't be adopted yet."
 
 
-def _safe_listed(payload: Any) -> dict:
+def _safe_listed(payload: Any, *, clean: bool = True) -> dict:
     """The listed payload in the shape the style layer expects, whatever is stored (review I1).
 
     ⛔ `publish_style` filters blocks to the ones this server can place, but a row written before that
@@ -2872,7 +2965,13 @@ def _safe_listed(payload: Any) -> dict:
     verbatim. So adopt, the block-id record, the plan and the apply all read the payload through this one
     function: `blocks` is a list of dicts naming a known block, `properties` a dict, `outlineBodyJson` a dict
     or None, `kindId` text or None. A truthy non-list `blocks` or a list `properties` can no longer reach an
-    iteration."""
+    iteration.
+
+    Fix round 5 (m-a): the outline is read through THE one outline path, `_shared_outline`, so the detail
+    (`get_item`), the update plan's `newOutline`, what `apply_update` writes and the adopt all serve the stored
+    outline cleaned again: a listing approved while wave 11 was off, or written by hand, never serves an address.
+    `clean=False` is ONLY for the outline's fingerprint (`_listed_outline_hash`), which stays on the listed outline
+    so a copy's recorded `source_outline_hash` keeps comparing equal."""
     from api.services.journal_two import journal_styles as js
     raw = payload if isinstance(payload, dict) else {}
     props = raw.get("properties")
@@ -2898,7 +2997,8 @@ def _safe_listed(payload: Any) -> dict:
         "blocks": [b for b in (blocks if isinstance(blocks, list) else [])
                    if isinstance(b, dict) and isinstance(b.get("block"), str) and b["block"] in js.KNOWN_BLOCKS],
         "properties": dict(props) if isinstance(props, dict) else {},
-        "outlineBodyJson": outline if isinstance(outline, dict) else None,
+        "outlineBodyJson": ((_shared_outline(outline, "") if clean and outline else outline)
+                            if isinstance(outline, dict) else None),
     }
     if shared:
         # Task 11.8: a reducer payload's own parts, each a list of dicts (anything else is `[]`), and its format. A
@@ -2937,7 +3037,7 @@ def _shared_slot(block: dict) -> bool:
 
 
 def _block_ids(payload: Any) -> list[str]:
-    return [b["block"] for b in _safe_listed(payload)["blocks"]]
+    return [b["block"] for b in _safe_listed(payload, clean=False)["blocks"]]
 
 
 def _outline_hash(outline: Any) -> str | None:
@@ -2945,6 +3045,13 @@ def _outline_hash(outline: Any) -> str | None:
     if not isinstance(outline, dict):
         return None
     return hashlib.sha256(json.dumps(outline, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _listed_outline_hash(raw_payload: Any) -> str | None:
+    """The fingerprint of a listing's outline AS LISTED (fix round 5, m-a): the stored outline through `_safe_listed`'s
+    shape rules but not the read-side clean, so every copy's recorded `source_outline_hash` (adopt, apply) and the
+    plan's comparison read the same value they always did."""
+    return _outline_hash(_safe_listed(raw_payload, clean=False)["outlineBodyJson"])
 
 
 class CountCapError(ToolError):
@@ -3224,10 +3331,10 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
         style = js.create_style(user_id, {
             "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
             "kindId": payload["kindId"], "blocks": blocks,
-            "outlineBodyJson": _shared_outline(payload["outlineBodyJson"], row["user_id"] or ""),
+            "outlineBodyJson": payload["outlineBodyJson"],          # cleaned by `_safe_listed` (fix round 5, m-a)
             "properties": payload["properties"]}, conn,
             provenance=(row["id"], version, json.dumps(_block_ids(payload)),
-                        _outline_hash(payload["outlineBodyJson"])),
+                        _listed_outline_hash(raw_payload)),
             commit=False)
         _write_credit(conn, user_id, "template", style["id"], row, version, now)
         _record_use(conn, row, user_id, now)   # the ONE use-count copy, for an adopt and a pack install alike (AUD-5)
@@ -3435,7 +3542,7 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
     # text (their own edits are not the author's change). A copy made before `source_outline_hash` existed
     # has none, and falls back to the old reading: the listed outline against the copy's current one.
     # An author with no outline has nothing to take.
-    their_hash = _outline_hash(theirs["outlineBodyJson"])
+    their_hash = _listed_outline_hash(raw_theirs)
     if their_hash is None:
         outline_changed = False
     else:
@@ -3518,7 +3625,7 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
         conn.execute(
             "UPDATE j2_journal_styles SET source_version = ?, source_block_ids = ?, source_outline_hash = ?"
             " WHERE id = ? AND user_id = ?",
-            (plan["toVersion"], json.dumps(_block_ids(theirs)), _outline_hash(theirs["outlineBodyJson"]),
+            (plan["toVersion"], json.dumps(_block_ids(theirs)), _listed_outline_hash(_listed_payload(row)),
              style_id, user_id))
         conn.execute(
             "UPDATE j2_gallery_watches SET notified_version = MAX(notified_version, ?)"
@@ -3778,13 +3885,15 @@ def _key_lookup(conn: sqlite3.Connection, user_id: str, key: str | None, kind: s
 
 
 def _key_remember(conn: sqlite3.Connection, user_id: str, key: str | None, kind: str, gallery_id: str,
-                  new_id: str, *, answer: dict | None = None) -> None:
+                  new_id: str, *, answer: dict | None = None, token: str | None = None) -> None:
+    """Record what `key` made (`new_id`; "" reserves it while the request is in flight). `token` is a Use's
+    per-request reservation token (fix round 5, I-2): it tells this request's reservation from a taker's."""
     if key is None:
         return
     conn.execute(f"INSERT OR REPLACE INTO {_KEYS_TABLE} (user_id, key, kind, source_id, new_id, created_at,"
-                 " answer_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                 " answer_json, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                  (user_id, key, kind, gallery_id, new_id, datetime.now(timezone.utc).isoformat(),
-                  json.dumps(answer) if answer is not None else None))
+                  json.dumps(answer) if answer is not None else None, token))
 
 
 def _key_answer(conn: sqlite3.Connection, user_id: str, key: str) -> dict:
@@ -3818,8 +3927,19 @@ def _key_reservation_stale(conn: sqlite3.Connection, user_id: str, key: str, *,
 
 
 def _key_forget(conn: sqlite3.Connection, user_id: str, key: str | None) -> None:
+    """Forget `key` whatever it holds: ONLY for a reservation already judged dead or a first note already gone
+    (`use_library_template`'s takeover, under the write lock). A failed request never calls this: it forgets its own
+    reservation and nothing else (`_key_forget_own`)."""
     if key is not None:
         conn.execute(f"DELETE FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?", (user_id, key))
+
+
+def _key_forget_own(conn: sqlite3.Connection, user_id: str, key: str | None, token: str | None) -> None:
+    """Fix round 5 (m-b): a failed Use forgets ONLY its own reservation -- still "" and still holding this request's
+    token. A winner's recorded note (`new_id` set) or a taker's re-reservation (another token) is never touched."""
+    if key is not None and token:
+        conn.execute(f"DELETE FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ? AND new_id = '' AND token = ?",
+                     (user_id, key, token))
 
 
 def _tool_wave_off(item_type: str, payload: dict) -> bool:
@@ -3953,6 +4073,82 @@ def _wait_for_key(user_id: str, key: str, timeout_s: float = 15.0) -> str | None
         c.close()
 
 
+class _UseKeyLost(Exception):
+    """Fix round 5 (I-2, ruling W11-R41): this Use no longer holds its key -- another request took the reservation
+    over, or recorded its note -- so it must make NOTHING. Raised by `_use_key_guard` under the write lock, before
+    the note's INSERT; never leaves this module."""
+
+
+def _sql_text(v: Any) -> str:
+    """A SQL text literal (a TEMP trigger body cannot take bound parameters)."""
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def _use_trigger_name(token: str) -> str:
+    return f"j2_use_key_{token}"                     # the token is uuid4 hex: a safe identifier
+
+
+def _key_held_by(conn: sqlite3.Connection, user_id: str, key: str, token: str) -> bool | None:
+    """Does this request still hold `key`? True while it is still "" with this token; None when no row exists (a
+    taker failed and forgot its own reservation: nobody holds it); False otherwise (another reservation or a recorded
+    note: this request has lost)."""
+    r = conn.execute(f"SELECT new_id, token FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?",
+                     (user_id, key)).fetchone()
+    if r is None:
+        return None
+    return r[0] == "" and r[1] == token
+
+
+def _use_key_guard(user_id: str, key: str, token: str, gallery_id: str):
+    """Fix round 5 (I-2, ruling W11-R41): the `before_insert` hook a keyed Use hands `create_styled_note`. Under the
+    write lock, BEFORE the note's INSERT and in the transaction that insert commits:
+
+    * the key row is read again and must still be this request's own reservation (`new_id = ''` AND this token);
+      a row that no longer exists (a taker failed and forgot its OWN reservation) is reserved again with this token;
+      anything else -- a taker's reservation, a recorded note -- raises `_UseKeyLost`, and the caller rolls back
+      with nothing inserted;
+    * a TEMP trigger on this connection records the note's id into the key row by the INSERT itself (`AFTER INSERT
+      ON j2_notes`, scoped by user, key and token), so the note and its key are written in the SAME transaction:
+      there is no instant at which the note exists and the key does not name it. The caller drops the trigger
+      (`_drop_use_trigger`) on every path; a rollback removes it too (the temp schema is transactional)."""
+    def guard(conn: sqlite3.Connection) -> None:
+        from api.services.journal_two import journal_styles as js
+        if not conn.in_transaction:
+            js._lock_for_style(conn)
+        held = _key_held_by(conn, user_id, key, token)
+        if held is False:
+            raise _UseKeyLost()
+        if held is None:
+            _key_remember(conn, user_id, key, "gallery_use_template", gallery_id, "", token=token)
+        conn.execute(
+            f"CREATE TEMP TRIGGER IF NOT EXISTS {_use_trigger_name(token)} AFTER INSERT ON main.j2_notes"
+            f" WHEN NEW.user_id = {_sql_text(user_id)} BEGIN"
+            f" UPDATE {_KEYS_TABLE} SET new_id = NEW.id WHERE user_id = {_sql_text(user_id)}"
+            f" AND key = {_sql_text(key)} AND new_id = '' AND token = {_sql_text(token)}; END")
+    return guard
+
+
+def _drop_use_trigger(conn: sqlite3.Connection, token: str | None) -> None:
+    """Remove a Use's TEMP trigger from this (pooled) connection, whatever happened. Called outside any transaction
+    (after the note's commit, or after the caller's rollback), so the drop itself can never be rolled back."""
+    if token:
+        if conn.in_transaction:
+            conn.rollback()
+        conn.execute(f"DROP TRIGGER IF EXISTS temp.{_use_trigger_name(token)}")
+
+
+def _use_lost(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, key: str) -> dict:
+    """The answer of a Use that lost its key (W11-R41): the winner's note, waited for while still in flight, or
+    `S_KEY_IN_FLIGHT`. Nothing was made."""
+    from api.services.journal_two import notes as notes_service
+    r = conn.execute(f"SELECT new_id FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?", (user_id, key)).fetchone()
+    note_id = (r[0] if r is not None and r[0] else None) or _wait_for_key(user_id, key)
+    note = notes_service.get_note(user_id, note_id, conn) if note_id else None
+    if note is None:
+        raise GalleryConflict(S_KEY_IN_FLIGHT)
+    return _use_replay(conn, user_id, row, note)
+
+
 def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, choices: Any = None,
                          payload: Any = None, key: Any = None,
                          conn: sqlite3.Connection | None = None) -> dict | None:
@@ -3968,9 +4164,12 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
     copy does not yet remember. `payload` is the note's own fields (`title`, `subtitle`, `tags`, `ticker`,
     `folderId`); anything else in it is ignored.
 
-    W11-R34: `key` is the request's `Idempotency-Key`. It is reserved inside the find-or-adopt transaction and
-    filled with the note's id once the note is made, so a repeat answers the FIRST note (`replayed: True`) and makes
-    nothing; a twin still in flight is waited for. A failed Use forgets its key.
+    W11-R34: `key` is the request's `Idempotency-Key`. It is reserved inside the find-or-adopt transaction (with a
+    per-request token) and filled with the note's id IN THE NOTE'S OWN TRANSACTION, so a repeat answers the FIRST note
+    (`replayed: True`) and makes nothing; a twin still in flight is waited for. Ruling W11-R41 (fix round 5, I-2): a
+    request whose reservation was taken over (past `USE_RESERVATION_STALE_SECS`) NEVER inserts a note, not even one
+    it would trash: the key is checked under the write lock before the INSERT (`_use_key_guard`) and the loser
+    answers the winner's note. A failed Use forgets only its OWN reservation (`_key_forget_own`, m-b).
 
     ⛔ It owns its transactions (the note create commits), so it refuses a connection the caller left inside one
     (fix round 1, M-6): a caller's open work is never committed here."""
@@ -3985,6 +4184,7 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
     if conn is not None and conn.in_transaction:
         raise ValueError("use_library_template owns its transactions: call it outside one")
     k = create_keys.clean_create_key(key)
+    token = uuid.uuid4().hex if k is not None else None
     owned = conn is None
     conn = conn or get_connection()
     reserved = False
@@ -4010,7 +4210,7 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
             if note is None:
                 raise GalleryConflict(S_KEY_IN_FLIGHT)
             return _use_replay(conn, user_id, row, note)
-        _key_remember(conn, user_id, k, "gallery_use_template", row["id"], "")
+        _key_remember(conn, user_id, k, "gallery_use_template", row["id"], "", token=token)
         reserved = k is not None
         created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
         reused: dict[str, list] = {"routines": [], "trackers": []}
@@ -4030,24 +4230,32 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
         before = _tool_slot_refs(conn, user_id, copy_id)
         picks = choices if isinstance(choices, dict) else {}
         fields = payload if isinstance(payload, dict) else {}
-        note, skipped = js.create_styled_note(
-            user_id, {**{k_: fields[k_] for k_ in _NOTE_FIELDS if k_ in fields}, "styleId": copy_id, "choices": picks},
-            conn)
-        if reserved:
-            # Fix round 4 (m2): compare-and-set. A request taken over past USE_RESERVATION_STALE_SECS while still
-            # alive, or its taker, loses here: its own note goes to the trash and it answers the winner's.
-            won = conn.execute(f"UPDATE {_KEYS_TABLE} SET new_id = ? WHERE user_id = ? AND key = ? AND new_id = ''",
-                               (note["id"], user_id, k)).rowcount
-            conn.commit()
+        if reserved and _key_held_by(conn, user_id, k, token) is False:
+            # W11-R41: taken over already (this request stalled past the edge before composing): compose nothing.
             reserved = False
-            if not won:
-                winner = conn.execute(f"SELECT new_id FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?",
-                                      (user_id, k)).fetchone()
-                winner_note = (notes_service.get_note(user_id, winner[0], conn)
-                               if winner and winner[0] else None)
-                if winner_note is not None:
-                    notes_service.delete_note(user_id, note["id"], conn)
-                    return _use_replay(conn, user_id, row, winner_note)
+            return _use_lost(conn, user_id, row, k)
+        try:
+            note, skipped = js.create_styled_note(
+                user_id, {**{k_: fields[k_] for k_ in _NOTE_FIELDS if k_ in fields}, "styleId": copy_id,
+                          "choices": picks}, conn,
+                before_insert=_use_key_guard(user_id, k, token, row["id"]) if reserved else None)
+        except _UseKeyLost:
+            # W11-R41: the guard found the key no longer this request's, under the lock and before the INSERT:
+            # nothing was inserted. Answer the winner's note.
+            _drop_use_trigger(conn, token)
+            reserved = False
+            return _use_lost(conn, user_id, row, k)
+        if reserved:
+            reserved = False
+            _drop_use_trigger(conn, token)
+            got = conn.execute(f"SELECT new_id FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?",
+                               (user_id, k)).fetchone()
+            if got is None or got[0] != note["id"]:
+                # The insert's trigger records the note in its own transaction; a key it did not record is still this
+                # request's reservation (checked by token), so it is recorded here. Never another request's row.
+                conn.execute(f"UPDATE {_KEYS_TABLE} SET new_id = ? WHERE user_id = ? AND key = ? AND new_id = ''"
+                             " AND token = ?", (note["id"], user_id, k, token))
+                conn.commit()
         # What this Use made: a slot that now names a tool it did not name before, and was not the member's own pick.
         made_now = {bid: tid for bid, tid in _tool_slot_refs(conn, user_id, copy_id).items()
                     if before.get(bid) != tid
@@ -4067,8 +4275,9 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
     except Exception:
         if conn.in_transaction:
             conn.rollback()
+        _drop_use_trigger(conn, token)
         if reserved:
-            _key_forget(conn, user_id, k)
+            _key_forget_own(conn, user_id, k, token)      # m-b: this request's reservation only, never a winner's
             conn.commit()
         raise
     finally:

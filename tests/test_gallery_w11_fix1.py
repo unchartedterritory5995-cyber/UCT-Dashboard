@@ -604,10 +604,16 @@ def _live_notes(db):
     return db.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL", (MEMBER,)).fetchone()[0]
 
 
+def _all_notes(db):
+    """Every note the member has, TRASHED INCLUDED (fix round 5, ruling W11-R41: a loser never inserts at all)."""
+    return db.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?", (MEMBER,)).fetchone()[0]
+
+
 def test_a_live_holder_taken_over_at_the_edge_never_makes_two_notes(db, monkeypatch):
     """m2, real threads: request A is inside its compose when its reservation is aged past the 60 s edge; request B
-    (same key, its own connection) takes the key over and finishes. A's final compare-and-set loses: its note goes to
-    the trash and it answers B's note. One live note, one answer. Control: aged to just under the edge, B does not
+    (same key, its own connection) takes the key over and finishes. A's guard (under the write lock, before its
+    INSERT) finds the key no longer its own: A inserts NOTHING, not even a trashed note (W11-R41), and answers B's
+    note. One note in all, one answer. Control: aged to just under the edge, B does not
     take over (it is told the first request is on its way) and A's note is the key's."""
     from datetime import datetime, timedelta, timezone
     gid, _s, _w = _template(db)
@@ -615,16 +621,16 @@ def test_a_live_holder_taken_over_at_the_edge_never_makes_two_notes(db, monkeypa
     monkeypatch.setattr(gallery, "_wait_for_key", lambda uid, key, timeout_s=15.0: None)
     real = js.create_styled_note
     for age, takeover in ((gallery.USE_RESERVATION_STALE_SECS + 1, True), (gallery.USE_RESERVATION_STALE_SECS - 5, False)):
-        base = _live_notes(db)
+        base, base_all = _live_notes(db), _all_notes(db)
         k = str(uuid.uuid4())
         inside, go = threading.Event(), threading.Event()
 
-        def slow(user_id, payload, conn=None, _first=[]):  # noqa: B006 -- one flag per round
+        def slow(user_id, payload, conn=None, _first=[], **kw):  # noqa: B006 -- one flag per round
             if threading.current_thread().name == "A" and not _first:
                 _first.append(1)
                 inside.set()
                 go.wait(30)
-            return real(user_id, payload, conn)
+            return real(user_id, payload, conn, **kw)
         monkeypatch.setattr(js, "create_styled_note", slow)
         out = {}
 
@@ -650,6 +656,7 @@ def test_a_live_holder_taken_over_at_the_edge_never_makes_two_notes(db, monkeypa
         key_note = db.execute("SELECT new_id FROM j2_tool_create_keys WHERE user_id = ? AND key = ?",
                               (MEMBER, k)).fetchone()[0]
         assert _live_notes(db) - base == 1, (age, out)
+        assert _all_notes(db) - base_all == 1, (age, out)            # W11-R41: the trash counts too
         assert not isinstance(out["A"], Exception), out["A"]
         if takeover:
             assert not isinstance(out["B"], Exception), out["B"]
