@@ -199,3 +199,73 @@ describe('templateLibrary_never_throws', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
+
+// F-FE-1 F2 (ruling W11-R34): Use and Adopt are KEYED. One `Idempotency-Key` (a uuid4 from lib/idempotencyKeys, the
+// Notebook's one generator) per deliberate press: a press whose earlier request has no settled answer (a lost answer,
+// offline, a 409 "already on its way", a 5xx) sends the SAME key, so the server replays what it made; a settled answer
+// (made, or refused for good) ends the press, and the next one takes a fresh key. A preview or an update is never keyed.
+describe('templateLibrary: the Idempotency-Key on Use and Adopt (W11-R34)', () => {
+  const UUID4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  const keyOf = (i) => fetchMock.mock.calls[i]?.[1]?.headers?.['Idempotency-Key']
+  const DOORS = [
+    ['useTemplate', (g, b) => useTemplate(g, b), 'use-template'],
+    ['adoptTemplate', (g, b) => adoptTemplate(g, b), 'adopt'],
+    ['adoptTool', (g, b) => adoptTool(g, b), 'adopt-tool'],
+  ]
+
+  it.each(DOORS)('%s sends a uuid4 key with its JSON body', async (_n, run, path) => {
+    await run('gk-1', { answers: { p1: 'Breakout' } })
+    expect(sent().url).toBe(`${GALLERY}/gk-1/${path}`)
+    expect(keyOf(0)).toMatch(UUID4)
+    expect(fetchMock.mock.calls[0][1].headers['Content-Type']).toBe('application/json')
+    expect(sent().body).toEqual({ answers: { p1: 'Breakout' } })
+  })
+
+  it.each(DOORS)('%s: a settled answer ends the press, so the next press is a NEW key', async (_n, run) => {
+    fetchMock.mockResolvedValueOnce(json(200, { note: { id: 'n1' } }))
+    await run('gk-2', { answers: {} })
+    fetchMock.mockResolvedValueOnce(json(400, { detail: { code: 'unresolved', message: 'Pick one.' } }))
+    await run('gk-2', { answers: {} })
+    await run('gk-2', { answers: {} })
+    expect(keyOf(1)).not.toBe(keyOf(0))
+    expect(keyOf(2)).not.toBe(keyOf(1))                 // a refusal for good settled it too
+  })
+
+  it.each(DOORS)('%s: a retry after an unsettled answer reuses the key (lost, 5xx, 409 in flight)', async (_n, run) => {
+    fetchMock.mockImplementationOnce(async () => { throw new TypeError('Failed to fetch') })
+    await run('gk-3', { answers: { p1: 'A' } })
+    fetchMock.mockResolvedValueOnce(json(502, null))
+    await run('gk-3', { answers: { p1: 'A' } })
+    fetchMock.mockResolvedValueOnce(json(409, { detail: { code: 'conflict', message: 'That is already on its way. Try again in a moment.' } }))
+    await run('gk-3', { answers: { p1: 'A' } })
+    await run('gk-3', { answers: { p1: 'A' } })          // 200: the server replays what the first one made
+    expect(new Set([keyOf(0), keyOf(1), keyOf(2), keyOf(3)]).size).toBe(1)
+    await run('gk-3', { answers: { p1: 'A' } })          // that one settled: a deliberate press again
+    expect(keyOf(4)).not.toBe(keyOf(3))
+  })
+
+  it('a press for other answers, another item or another door is its own key', async () => {
+    fetchMock.mockImplementation(async () => { throw new TypeError('Failed to fetch') })   // nothing ever settles
+    await useTemplate('gk-4', { answers: { p1: 'A' } })
+    await useTemplate('gk-4', { answers: { p1: 'B' } })
+    await useTemplate('gk-5', { answers: { p1: 'B' } })
+    await adoptTemplate('gk-5', { answers: { p1: 'B' } })
+    expect(new Set([keyOf(0), keyOf(1), keyOf(2), keyOf(3)]).size).toBe(4)
+  })
+
+  it('offline sends nothing, and the press is still open when the member is back', async () => {
+    setOnline(false)
+    expect((await useTemplate('gk-6', {})).code).toBe('offline')
+    expect(fetchMock).not.toHaveBeenCalled()
+    setOnline(true)
+    await useTemplate('gk-6', {})
+    expect(keyOf(0)).toMatch(UUID4)
+  })
+
+  it('CONTROL: a preview and an update carry no key', async () => {
+    await previewMine('gk-7', { p1: 'A' })
+    await updateTool('routine', 'c1', {})
+    await sharePreview('widget', 'w1')
+    for (let i = 0; i < 3; i += 1) expect(keyOf(i)).toBeUndefined()
+  })
+})

@@ -75,18 +75,21 @@ export function answered(slot, a) {
   return Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x.trim())
 }
 
-/** The first answer of each choice: its suggestion, else Any where allowed, else nothing (the member must pick). */
+/**
+ * The first answer of each choice: the SERVER's own `value` for it (F-FE-1 F3; template_preview, W11-R27b: the
+ * member's suggestion, else Any where allowed, else none), the value the first preview ran with. The client never
+ * re-derives that rule, and never reads `sampleValue` (what a Sample data card ran with instead) or a card's payload:
+ * Use sends exactly these values and the member's own changes. A value the sheet cannot send leaves the choice unpicked.
+ */
 function firstAnswers(slots) {
   const answers = {}
   const labels = {}
   for (const s of slots) {
+    const v = s.value
+    if (!answered(s, v)) continue
+    answers[s.id] = v
     const sug = isRecord(s.suggested) ? s.suggested : null
-    if (sug && sug.value !== undefined && sug.value !== null && answered(s, sug.value)) {
-      answers[s.id] = sug.value
-      labels[s.id] = text(sug.label) || String(sug.value)
-    } else if (s.any === true) {
-      answers[s.id] = { any: true }
-    }
+    if (!isAnyAnswer(v)) labels[s.id] = (sug && JSON.stringify(sug.value) === JSON.stringify(v) && text(sug.label)) || ''
   }
   return { answers, labels }
 }

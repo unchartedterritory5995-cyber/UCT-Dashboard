@@ -15,7 +15,13 @@
 // `rate`; any other refusal is the server's own `{detail: {code, message}}` (W9-R14: the code comes from the error's
 // class; this file never matches sentences). Anything unreadable is `network`.
 // ⛔ These calls never write a note: each names its method literally and answers JSON.
+// ⛔ Use and Adopt are KEYED (ruling W11-R34, F-FE-1 F2): `useTemplate`, `adoptTemplate` and `adoptTool` send an
+//    `Idempotency-Key` from lib/idempotencyKeys (the Notebook's one generator and per-intent rule, never a second).
+//    One key per deliberate press: a press whose earlier request has no settled answer (`answerSettled`: a lost
+//    answer, offline, the server's 409 "already on its way", a 5xx) is sent again under the SAME key, so the server
+//    answers what the first one made instead of making a second note or copy; a settled answer ends the press.
 import { isOffline } from './blocks/toolsApi'
+import { keyedSender } from './idempotencyKeys'
 
 export const GALLERY = '/api/j2/template-gallery'
 
@@ -83,10 +89,32 @@ function bodyOf(raw) {
   }
 }
 
-function post(url, raw) {
+function post(url, raw, extraHeaders = null) {
   const body = bodyOf(raw)
   if (body === null) return Promise.resolve(fail('network'))
-  return call(() => fetch(url, { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body }))
+  const headers = extraHeaders ? { ...JSON_HEADERS, ...extraHeaders } : JSON_HEADERS
+  return call(() => fetch(url, { method: 'POST', credentials: 'include', headers, body }))
+}
+
+/**
+ * Whether an answer to a keyed Use or Adopt settled what happened (W11-R34): it was made (`ok`), or the server refused
+ * it for good. Unsettled, so the next press resends the SAME key: nothing came back (`network`, which is also a bare
+ * 5xx), nothing was sent (`offline`), the server's own failure (`server`, `busy`), or `conflict`, which is how the
+ * server answers a twin request still in flight ("That is already on its way. Try again in a moment.",
+ * `template_gallery.S_KEY_IN_FLIGHT`, railed by templateLibrary.server.test.js). A key on another item or door (the
+ * server's other `conflict`) cannot come from here: each intent below names its door and item.
+ */
+const UNSETTLED = new Set(['network', 'offline', 'server', 'busy', 'conflict'])
+export const answerSettled = (got) => !!got && (got.ok === true || !UNSETTLED.has(got.code))
+
+const sendKeyed = keyedSender({ confirmed: answerSettled })
+
+/** A keyed POST: the press is `<door>:<item>` with this exact body (a different body is a different press). */
+function keyedPost(door, galleryId, raw) {
+  const body = bodyOf(raw)
+  if (body === null) return Promise.resolve(fail('network'))
+  return sendKeyed(`${door}:${String(galleryId)}`, body,
+    (key) => post(`${GALLERY}/${enc(galleryId)}/${door}`, raw, { 'Idempotency-Key': key }))
 }
 
 const keepList = (keep) => (Array.isArray(keep) ? keep.filter((k) => typeof k === 'string' && k) : [])
@@ -176,19 +204,19 @@ export function previewMine(galleryId, answers) {
 /** Adopt a listed widget, routine or tracker: `body` is `{answers?, notify?}`. */
 export function adoptTool(galleryId, body = {}) {
   if (!isId(galleryId)) return Promise.resolve(fail('unavailable'))
-  return post(`${GALLERY}/${enc(galleryId)}/adopt-tool`, body)
+  return keyedPost('adopt-tool', galleryId, body)
 }
 
 /** Use a listed template to make a note: `body` is `{answers?, choices?, ticker?, title?}`. */
 export function useTemplate(galleryId, body = {}) {
   if (!isId(galleryId)) return Promise.resolve(fail('unavailable'))
-  return post(`${GALLERY}/${enc(galleryId)}/use-template`, body)
+  return keyedPost('use-template', galleryId, body)
 }
 
 /** Adopt a listed template as one of the member's own: `body` is `{notify?, answers?, choices?}`. */
 export function adoptTemplate(galleryId, body = {}) {
   if (!isId(galleryId)) return Promise.resolve(fail('unavailable'))
-  return post(`${GALLERY}/${enc(galleryId)}/adopt`, body)
+  return keyedPost('adopt', galleryId, body)
 }
 
 /** Take the listed version of an adopted widget, routine or tracker: `body` is `{answers?}`. */

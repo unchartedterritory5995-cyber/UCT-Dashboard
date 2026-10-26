@@ -78,7 +78,7 @@ function installServer({ preview, use, adopt, hold = false, vocab = VOCAB_VALUES
   }
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const body = init.body ? JSON.parse(init.body) : undefined
-    calls.push({ url, method: init.method || 'GET', body })
+    calls.push({ url, method: init.method || 'GET', body, key: init.headers?.['Idempotency-Key'] })
     const answer = () => {
       if (url === PREVIEW) return reply(preview, body)
       if (url === USE) return reply(use, body, { note: { id: 'n-new', title: 'Setup study' }, skipped: [], style: { id: 's1' }, credit: null, created: { routines: [], trackers: [], widgets: [] } })
@@ -547,6 +547,94 @@ describe('server sentences and the credit line', () => {
     act(() => { btn.click(); btn.click() })
     await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
     expect(net.calls.filter((c) => c.url === USE)).toHaveLength(2)
+  })
+
+  it('F-FE-1 F2 (W11-R34): Use carries an Idempotency-Key; a retry after a LOST answer resends the same key', async () => {
+    let n = 0
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const serve = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (url === USE && ++n === 1) {
+        net.calls.push({ url, method: 'POST', body: JSON.parse(init.body), key: init.headers?.['Idempotency-Key'] })
+        throw new TypeError('Failed to fetch')                     // the request may have landed; no answer came back
+      }
+      return serve(url, init)
+    })
+    const { navigate } = mount()
+    await ready()
+    const use = useButton()
+    use.focus()
+    fireEvent.click(use)
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(document.activeElement).toBe(use)                     // focus stays on Use for the retry
+    fireEvent.click(useButton())
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
+    const keys = net.calls.filter((c) => c.url === USE).map((c) => c.key)
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    expect(keys[1]).toBe(keys[0])                                // the server answers the first note, never a second
+  })
+
+  it('F-FE-1 F2: a press after a refusal for good is a new press with a new key; a double-click is still one', async () => {
+    let n = 0
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS), use: () => (++n === 1 ? { __status: 400, body: { detail: { code: 'not_yours', message: S_NOT_YOURS } } } : { note: { id: 'n-new' }, skipped: [], style: { id: 's1' }, credit: null, created: {} }) })
+    const { navigate } = mount()
+    await ready()
+    fireEvent.click(useButton())
+    expect((await screen.findByRole('alert')).textContent).toBe(S_NOT_YOURS)
+    const btn = useButton()
+    act(() => { btn.click(); btn.click() })
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
+    const keys = net.calls.filter((c) => c.url === USE).map((c) => c.key)
+    expect(keys).toHaveLength(2)
+    expect(keys.every(Boolean)).toBe(true)
+    expect(keys[1]).not.toBe(keys[0])
+  })
+
+  it("F-FE-1 F2: a tool's Use (adopt-tool) carries the key too", async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+    mount({ kind: 'widget' })
+    await ready()
+    fireEvent.click(useButton())
+    await screen.findByText(ADDED_SENTENCE)
+    expect(net.calls.find((c) => c.url === ADOPT_TOOL).key).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it("F-FE-1 F3: Use sends only each slot's value, never a sampleValue and never a card payload's def", async () => {
+    // A Sample data account (W11-R27/R27b): the server ran the card with the BOOK's setup (`sampleValue`) while the
+    // member's own value (`value`) is what Use must send. The card's payload carries a plan `def`; it never travels.
+    const slots = [
+      { ...SETUP, suggested: { value: 'Breakout', label: 'Breakout' }, value: 'Breakout', sampleValue: 'Sample setup' },
+      { ...ACCOUNT, suggested: null, value: { any: true } },
+      { ...TAG, suggested: null, value: { any: true }, sampleValue: 'sample-tag' },
+    ]
+    const net = installServer({
+      preview: () => ({ slots, cards: [{ slot: 'built_a', title: 'Win rate by setup', sample: true,
+        payload: { view: 'bar', rows: [{ v1: 3 }], def: { plan: { filters: [{ values: ['Sample setup'] }] } } } }], tools: [], questions: [] }),
+    })
+    mount()
+    await ready()
+    expect(rowText('p1')).toBe('Setup: Breakout')
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    const body = net.calls.find((c) => c.url === USE).body
+    expect(body.answers).toEqual({ p1: 'Breakout', p2: { any: true }, p3: { any: true } })
+    const wire = JSON.stringify(body)
+    expect(wire).not.toMatch(/sample/i)
+    expect(wire).not.toMatch(/"def"|"plan"|"payload"/)
+  })
+
+  it("F-FE-1 F3: the first answers are the server's own `value`, not a re-derivation from suggested and any", async () => {
+    // The server's value for a choice (W11-R27b) is what it previewed: here Any for a setup whose suggestion it set
+    // aside. Re-deriving "the suggestion, else Any" on the client would send Breakout, which the card never ran with.
+    const slots = [{ ...SETUP, any: true, suggested: { value: 'Breakout', label: 'Breakout' }, value: { any: true } }]
+    const net = installServer({ preview: () => ({ slots, cards: [], tools: [], questions: [] }) })
+    mount()
+    await ready()
+    expect(rowText('p1')).toBe('Setup: Any setup')
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    expect(net.calls.find((c) => c.url === USE).body.answers).toEqual({ p1: { any: true } })
   })
 
   it('credit_line_exact_and_former_member', async () => {

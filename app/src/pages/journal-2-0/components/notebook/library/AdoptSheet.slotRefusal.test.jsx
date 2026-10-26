@@ -7,8 +7,8 @@ import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-li
 import AdoptSheet from './AdoptSheet'
 
 const PREVIEW = {
-  slots: [{ id: 'p1', type: 'setup', label: 'Setup', any: false, suggested: { value: 'Breakout', label: 'Breakout' } },
-    { id: 'p2', type: 'account', label: 'Account', any: true, suggested: null }],
+  slots: [{ id: 'p1', type: 'setup', label: 'Setup', any: false, suggested: { value: 'Breakout', label: 'Breakout' }, value: 'Breakout' },
+    { id: 'p2', type: 'account', label: 'Account', any: true, suggested: null, value: { any: true } }],
   cards: [], tools: [], questions: [],
 }
 const lib = { detail: null }
