@@ -536,6 +536,19 @@ ADDRESS_FORMS = {
     "the holder before a break, the lacking piece after it": [_lk(f"https://{HOST}/acct/", URL),
                                                               {"type": "hardBreak"},
                                                               _lk(ACCT, f"https://{HOST}/acct/", BOLD)],
+    # W11-R48 (a): text that is itself an address, whatever its href
+    "R48: URL text linked to a different address": [_lk(URL, "https://elsewhere.example.org/")],
+    "R48: URL text with no href": [{"type": "text", "text": URL, "marks": [{"type": "link"}]}],
+    "R48: a bare host linked elsewhere": [_lk(f"{HOST}/acct/{ACCT}", "https://elsewhere.example.org/")],
+    "R48: the split bold head (text longer than its href)": [_lk(HOST, f"https://{HOST}/", BOLD),
+                                                            _lk(f"/acct/{ACCT}", f"https://{HOST}/")],
+    "R48: punycode text for another host": [_lk(f"xn--brker-jua.example.com/acct/{ACCT}",
+                                               f"https://br\u00f6ker.example.com/acct/{ACCT}")],
+    "R48: words around a URL": [_lk(f"see my statement {URL} here", URL)],
+    # W11-R48 (b): the text holds its href's host (no dots, so not (a); not inside the href, so not R47)
+    "R48: the host written inside words": [_lk(f"my broker example com statement {ACCT}", f"https://{HOST}/x")],
+    "R48: a scheme URL with an undotted host, no href": [
+        {"type": "text", "text": f"https://intranet/acct/{ACCT}", "marks": [{"type": "link"}]}],
 }
 
 
@@ -585,13 +598,19 @@ def test_no_address_form_reaches_any_share_path(db, name, slot):
 
 
 @pytest.mark.parametrize("slot", [True, False], ids=["slot", "noslot"])
-def test_a_link_whose_text_is_not_in_its_address_travels_as_text(db, slot):
-    """The control W11-R47 names: "my notes" linked to https://x.example/a is not its address, so its words reach
-    every path (only the href goes)."""
-    _s, got = _every_share_path(db, [_lk("my notes", "https://x.example/a")], slot)
+@pytest.mark.parametrize("words,href,host", [("my notes", "https://x.example/a", "x.example"),
+                                             ("Fix it", "https://x.io/fix", "x.io"),
+                                             ("Maxio stats", "https://x.io/", "x.io")],
+                         ids=["my notes", "short host", "short host inside a word"])
+def test_a_link_whose_text_is_not_in_its_address_travels_as_text(db, slot, words, href, host):
+    """The controls W11-R47 and W11-R48 name: "my notes" linked to https://x.example/a is not its address, and
+    "Fix it" and "Maxio stats" linked to x.io are words: "maxiostats" even holds the host's skeleton "xio", which is
+    under `HOST_SKELETON_MIN`, so it is not judged an address.
+    Both reach every path as words (only the href goes)."""
+    _s, got = _every_share_path(db, [_lk(words, href)], slot)
     for where in ("payload_json", "body_json", "get_item", "adopt", "copy", "use_note"):
         blob = got[where] if isinstance(got[where], str) else json.dumps(got[where], default=str)
-        assert "my notes" in blob and "x.example" not in blob, where
+        assert words in blob and host not in blob, where
 
 
 def test_a_line_break_between_two_different_links_does_not_join_them(db):
@@ -632,10 +651,12 @@ def test_the_skeleton_is_the_one_authority(db):
            ("+1 (555) 987-6543", ["tel:+15559876543"]), ("me@x.io", ["mailto:me@x.io"]),
            ("BROKER.EXAMPLE.COM", [URL]))
     for text, hrefs in yes:
-        assert gallery._text_in_address(text, hrefs), ascii(text)
+        assert gallery._link_text_is_an_address(text, hrefs), ascii(text)
     for text, hrefs in (("my notes", ["https://x.example/a"]), ("anything", []), ("⠀​", [URL]),
+                        ("Fix it", ["https://x.io/"]), ("e.g.", ["https://example.com"]), ("read this. then go", []),
+                        ("Q3 report", ["https://ir.example.com/q3"]),
                         ("документы", ["https://docs.example.com/"])):
-        assert not gallery._text_in_address(text, hrefs), ascii(text)
+        assert not gallery._link_text_is_an_address(text, hrefs), ascii(text)
 
 
 # ── W11-R46: text that travels carries no Default_Ignorable_Code_Point ─────────────────────────────────────────────
@@ -645,6 +666,10 @@ def test_the_skeleton_is_the_one_authority(db):
 DI_MEMBERS = [0x00AD, 0x034F, 0x061C, 0x115F, 0x17B4, 0x180B, 0x180E, 0x180F, 0x200B, 0x200D, 0x200E, 0x202A,
               0x2060, 0x2065, 0x206F, 0x3164, 0xFE00, 0xFE0F, 0xFEFF, 0xFFA0, 0xFFF0, 0xFFF8, 0x1BCA0, 0x1D173,
               0xE0000, 0xE0001, 0xE0041, 0xE01EF, 0xE0FFF]
+#: R46 refined (W11-R48 c4): the emoji pieces travel -- ZWJ, the variation selectors and their supplement, and the
+#: emoji tag block. Every other member is stripped.
+DI_EMOJI = {0x200D, 0xFE00, 0xFE0F, 0xE0020, 0xE0041, 0xE007F, 0xE0100, 0xE01EF}
+DI_STRIPPED = [cp for cp in DI_MEMBERS if cp not in DI_EMOJI] + [0xE001F, 0xE0080, 0xE00FF, 0xE01F0]
 DI_NOT = [0x0020, 0x00A0, 0x00AC, 0x0600, 0x200A, 0x2028, 0x2070, 0x2800, 0x3000, 0xFFF9, 0xFFFC, 0x1D172, 0xE1000,
           ord("a")]
 
@@ -656,7 +681,7 @@ def test_the_default_ignorable_table_matches_the_published_set():
         assert not gallery._is_default_ignorable(chr(cp)), hex(cp)
 
 
-@pytest.mark.parametrize("cp", DI_MEMBERS, ids=[hex(c) for c in DI_MEMBERS])
+@pytest.mark.parametrize("cp", DI_STRIPPED, ids=[hex(c) for c in DI_STRIPPED])
 def test_text_that_travels_has_every_default_ignorable_removed(db, cp):
     """Prose that travels (no link) arrives without the character; a text node made only of it goes."""
     ch = chr(cp)
@@ -667,3 +692,44 @@ def test_text_that_travels_has_every_default_ignorable_removed(db, cp):
     blob = json.dumps(out, ensure_ascii=False)
     assert "keep these words" in blob and ch not in blob
     assert out["content"][1]["content"] == [{"type": "text", "text": "a"}]
+
+
+#: A ZWJ family, a subdivision flag (a tag sequence ending in CANCEL TAG) and a VS16 heart.
+EMOJI = ["\U0001F468\u200D\U0001F469\u200D\U0001F467",
+         "\U0001F3F4\U000E0067\U000E0062\U000E0073\U000E0063\U000E0074\U000E007F",
+         "\u2764\uFE0F"]
+
+
+@pytest.mark.parametrize("emoji", EMOJI, ids=["zwj family", "tag flag", "vs16 heart"])
+def test_an_emoji_travels_byte_identical(db, emoji):
+    """R46 refined (W11-R48 c4): text that travels keeps the emoji pieces, so an emoji arrives byte-identical in the
+    shared outline (plain, bold and as link words alike), while an LRM, a ZWSP and a word joiner beside it are
+    still stripped."""
+    out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "text": f"a{emoji}b \u200eL\u200bZ\u2060W"},
+        {"type": "text", "text": emoji, "marks": [{"type": "bold"}]}]}]}, AUTHOR)
+    content = out["content"][0]["content"]
+    assert content[0]["text"] == f"a{emoji}b LZW"
+    assert content[1]["text"] == emoji
+    assert json.dumps(out).encode() == json.dumps(out).encode() and emoji.encode("utf-8") in json.dumps(
+        out, ensure_ascii=False).encode("utf-8")
+
+
+def test_address_detection_still_ignores_the_emoji_pieces():
+    """The pieces that travel never hide an address: they are not letters or digits, so no skeleton holds them."""
+    for ch in ("\u200D", "\uFE0F", "\U000E0041", "\U000E0100"):
+        assert gallery._link_text_is_an_address(f"broker{ch}.example.com/acct/{ACCT}", ["https://elsewhere.org/"])
+        assert gallery._link_text_is_an_address(f"{ACCT}{ch}", [URL])
+
+
+def test_the_emoji_pieces_are_kept_and_every_other_ignorable_is_not():
+    for cp in DI_EMOJI:
+        assert gallery._without_ignorables(chr(cp)) == chr(cp), hex(cp)
+    for cp in DI_STRIPPED:
+        assert gallery._without_ignorables(chr(cp)) == "", hex(cp)
+
+
+def test_the_address_form_removes_everything_but_letters_digits_spaces_and_punctuation():
+    """W11-R48 (a) reads `_address_form`: NFKC, casefold, then only letters, digits, punctuation and single spaces."""
+    assert gallery._address_form("\uff21\n\tb\u0332c\u2800 d\u200b.E  f\u3002G") == "abc d.e f.g"
+    assert gallery._link_text_is_an_address("www.123/acct", [])          # `www.` alone is a scheme-like prefix

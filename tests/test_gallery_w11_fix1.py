@@ -551,12 +551,12 @@ def test_a_link_whose_text_is_its_address_goes_whole(db):
         assert CANARY not in payload.lower()
         assert all(f" kept{i}" in payload for i in range(len(gone)))       # only the address text went
         assert "my broker" in payload and "https://prose.example.com/plain" in payload
-    # W11-R47: "is its address" is ONE skeleton comparison against the link's own href; a link with no href has no
-    # address to be, so its text travels as prose does.
+    # W11-R47 / W11-R48: ONE authority. Text in its own href, text that is itself an address (a scheme, a dotted
+    # host with a letter TLD) whatever its href, or text holding its href's host goes; words do not.
     for text, hrefs, want in (("Example.com/", ["https://www.example.com"], True), ("my broker", ["https://a.b"], False),
-                              ("https://a.b/c", [], False), ("read this", [], False), ("x@y.io", [], False),
+                              ("https://a.b/c", [], True), ("read this", [], False), ("x@y.io", [], True),
                               ("x@y.io", ["mailto:x@y.io"], True)):
-        assert gallery._text_in_address(text, hrefs) is want, text
+        assert gallery._link_text_is_an_address(text, hrefs) is want, text
 
 
 def test_a_stored_outline_is_cleaned_again_on_adopt(db):

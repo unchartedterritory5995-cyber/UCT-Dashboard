@@ -1374,9 +1374,18 @@ def _is_default_ignorable(ch: str) -> bool:
     return i >= 0 and ord(ch) <= _DEFAULT_IGNORABLE[i][1]
 
 
+#: W11-R46 as refined (F-NOTE-1 fix round 2): the Default_Ignorable_Code_Points an emoji is built from, which the text
+#: that TRAVELS keeps so no emoji splits: ZERO WIDTH JOINER (a ZWJ sequence), the variation selectors and their
+#: supplement (VS16's emoji presentation), and the tag characters of an emoji tag sequence (a subdivision flag).
+#: Address DETECTION still ignores every one of them: none is a letter or a digit, so none is in a skeleton.
+_EMOJI_IGNORABLES = ((0x200D, 0x200D), (0xFE00, 0xFE0F), (0xE0020, 0xE007F), (0xE0100, 0xE01EF))
+
+
 def _without_ignorables(text: str) -> str:
-    """W11-R46: `text` with every Default_Ignorable_Code_Point removed (the text that travels)."""
-    return "".join(ch for ch in text if not _is_default_ignorable(ch))
+    """W11-R46: `text` with every Default_Ignorable_Code_Point removed (the text that travels), except the emoji
+    pieces (`_EMOJI_IGNORABLES`)."""
+    return "".join(ch for ch in text if not _is_default_ignorable(ch)
+                   or any(a <= ord(ch) <= b for a, b in _EMOJI_IGNORABLES))
 
 
 def _skeleton(text: str, *, latin: bool) -> str:
@@ -1429,23 +1438,72 @@ def _encode_label(lab: str) -> str:
     return lab
 
 
-def _text_in_address(text: Any, hrefs: list) -> bool:
-    """⛔ THE one authority for "this link text is its address" (ruling W11-R47, which supersedes the form-by-form
-    detection of W11-R40, fix round 5 and F-NOTE-1): the text's skeleton (`_skeleton`) is non-empty and is a
-    substring of the skeleton of one of `hrefs` (in any of its spellings, `_href_variants`). It is judged on both
-    skeletons, the ruling's `[a-z0-9]` one and the every-script one, and either is enough. A line break, a space, a
-    zero-width or combining character, a blank, a bracket or a full stop inside the text therefore cannot hide the
-    address: none of them is in a skeleton. A link with no href has no address to be (its text travels, as prose
-    does). Cost, accepted by the ruling: words that appear in their own address ("Docs" -> docs.python.org) go."""
+#: W11-R48 (a): after the R47 normalisation (`_address_form`), text that names a scheme or `www.`, or a dotted host
+#: whose last label is letters (a TLD, in any script, or an IDNA `xn--` one), IS an address.
+_ADDRESS_SHAPE = re.compile(
+    r"(?:https?|ftp|mailto):|www\.|(?:[^\W_](?:[\w-]*[^\W_])?\.)+(?:[^\W\d_]{2,}|xn--[a-z0-9-]+)(?![\w-])")
+#: W11-R48 (b): a host skeleton shorter than this is too short to be told from words ("x.io" in "Fix it").
+HOST_SKELETON_MIN = 4
+
+
+def _address_form(text: str) -> str:
+    """Text as an address reads it (W11-R48 (a)): NFKC and casefold (R47), with everything that is neither a letter,
+    a digit, a space nor punctuation removed -- line breaks and tabs, invisible, combining and unassigned
+    characters, blanks such as U+2800 -- so none of them can break a scheme or a host apart; spaces become one."""
+    t = unicodedata.normalize("NFKC", text).casefold().replace("\u3002", ".")
+    kept = "".join(ch for ch in t if ch == " " or unicodedata.category(ch)[0] in "LNP")
+    return re.sub(r" +", " ", kept)
+
+
+def _host_skeletons(href: str) -> set[str]:
+    """The skeletons (both, R47) of an href's host in every spelling (`_href_variants`), `www.` removed."""
+    out: set[str] = set()
+    for v in _href_variants(href):
+        m = _HOST.match(v)
+        host = m.group(2) if m else ""
+        if host.lower().startswith("www."):
+            host = host[4:]
+        for latin in (True, False):
+            s = _skeleton(host, latin=latin)
+            if s:
+                out.add(s)
+    return out
+
+
+def _link_text_is_an_address(text: Any, hrefs: list) -> bool:
+    """⛔ THE one authority for "this link text is an address, so it goes whole" (W11-R47 and W11-R48, superseding the
+    form-by-form detection of W11-R40, fix round 5 and F-NOTE-1). True when ANY of:
+
+    * W11-R47: its skeleton (`_skeleton`) is non-empty and is a substring of the skeleton of one of `hrefs`, in any
+      of its spellings (`_href_variants`). Both skeletons are judged, the ruling's `[a-z0-9]` one and the
+      every-script one (c2, accepted), and either is enough;
+    * W11-R48 (a): the text is ITSELF an address, whatever its href, or with none: after `_address_form` it names a
+      scheme (`http(s):`, `ftp:`, `mailto:`) or `www.`, or a dotted host with a letter TLD (`_ADDRESS_SHAPE`);
+    * W11-R48 (b): its skeleton CONTAINS the skeleton of one of its hrefs' hosts, when that host skeleton is at least
+      `HOST_SKELETON_MIN` characters (shorter ones cannot be told from words).
+
+    A line break, a space, a zero-width or combining character, a blank, a bracket or a full stop inside the text
+    cannot hide the address: none of them is in a skeleton, and `_address_form` removes all but the punctuation.
+    Costs, accepted by the rulings: words that appear in their own address ("Docs" -> docs.python.org), words beside
+    a URL, and dotted words such as "Node.js" go. ⛔ A recorded limit (W11-R48 c3): a HOMOGLYPH host (a Cyrillic "о"
+    inside a Latin host) is not recognised as the address it imitates -- NFKC does not map confusables -- though
+    the dotted-host half still drops it when it is linked; unlinked, it is the author's visible prose (W11-R40)."""
     if not isinstance(text, str):
         return False
+    if _ADDRESS_SHAPE.search(_address_form(text)):
+        return True
     variants = [v for h in hrefs if isinstance(h, str) and h.strip() for v in _href_variants(h)]
-    if not variants:
-        return False
     for latin in (True, False):
-        t = _skeleton(text, latin=latin)
-        if t and any(t in _skeleton(v, latin=latin) for v in variants):
+        t_ = _skeleton(text, latin=latin)
+        if t_ and any(t_ in _skeleton(v, latin=latin) for v in variants):
             return True
+    hosts = {s for h in hrefs if isinstance(h, str) and h.strip() for s in _host_skeletons(h)
+             if len(s) >= HOST_SKELETON_MIN}
+    if hosts:
+        for latin in (True, False):
+            t_ = _skeleton(text, latin=latin)
+            if any(s in t_ for s in hosts):
+                return True
     return False
 
 
@@ -1454,7 +1512,7 @@ def _without_links(body: Any) -> Any:
     author's own address). Every address MARK goes, at any depth; every node that carries an address as an attribute
     -- a link card, a web embed -- goes whole (`_address_rules`, the example notes' rule).
 
-    Ruling W11-R47: a linked text that is its own address (`_text_in_address`) goes whole, text included. "A link" is
+    Ruling W11-R47: a linked text that is an address (`_link_text_is_an_address`) goes whole, text included. "A link" is
     one text node carrying an address mark, or the RUN of adjacent ones (any hrefs), joined across the node breaks
     between them, a `hardBreak` and a text node with nothing but spaces, line breaks or punctuation in it. Each linked
     part is judged against EVERY href in the run (which is the joined text's judgement, see below), and a run whose
@@ -1484,6 +1542,10 @@ def _without_links(body: Any) -> Any:
         return (n.get("type") == "text" and isinstance(n.get("text"), str) and not is_link(n)
                 and not _skeleton(n["text"], latin=False))
 
+    def host_key(n: Any) -> frozenset:
+        """Which host(s) a linked part points at (their skeletons): a stretch of one host is one link."""
+        return frozenset(s for h in hrefs_of(n) if isinstance(h, str) and h.strip() for s in _host_skeletons(h))
+
     def text_of(n: Any) -> str:
         return n.get("text") if isinstance(n, dict) and isinstance(n.get("text"), str) else ""
 
@@ -1511,11 +1573,29 @@ def _without_links(body: Any) -> Any:
                 j = k                                    # a break between two linked parts joins them
             run = items[i:j]
             hrefs = [h for x in run for h in hrefs_of(x)]
-            # The run's JOINED text is in an href's skeleton exactly when every linked part's is (a joiner adds
-            # nothing to a skeleton), so judging each linked part against the run's hrefs is that judgement and a
-            # little more: a part that is in ANOTHER part's address goes too. A run left with no linked part loses
+            # W11-R48: a split URL is an address only as a whole (a bold head and a plain tail are not), so the JOINED
+            # text of each stretch of the run that points at ONE host is judged first, and goes whole; two links to
+            # different places side by side are never judged as one text. Then each remaining linked part against
+            # all the run's hrefs (a part in ANOTHER part's address goes too). A run left with no linked part loses
             # its joiners with it.
-            kept = [x for x in run if not (is_link(x) and _text_in_address(text_of(x), hrefs))]
+            gone: set[int] = set()
+            k = 0
+            while k < len(run):
+                if not is_link(run[k]):
+                    k += 1
+                    continue
+                key, m = host_key(run[k]), k + 1
+                while m < len(run) and (not is_link(run[m]) or host_key(run[m]) == key):
+                    m += 1
+                while not is_link(run[m - 1]):
+                    m -= 1                                   # a stretch ends on a linked part
+                stretch = run[k:m]
+                if _link_text_is_an_address("".join(text_of(x) for x in stretch),
+                                            [h for x in stretch for h in hrefs_of(x)]):
+                    gone.update(range(k, m))
+                k = m
+            kept = [x for n_, x in enumerate(run) if n_ not in gone
+                    and not (is_link(x) and _link_text_is_an_address(text_of(x), hrefs))]
             if any(is_link(x) for x in kept):
                 out.extend(kept)
             i = j

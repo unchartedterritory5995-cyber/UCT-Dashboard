@@ -152,11 +152,11 @@ def test_words_that_are_not_an_address_travel(db, text, href):
     [_lt(f"https://{C}.example.com/a", ...)],
     [_lt(f"{C}.example.com", "https://elsewhere.example.org")],
 ], ids=["javascript href", "no href", "another address"])
-def test_link_text_that_is_not_its_own_address_travels_as_prose_does(db, nodes):
-    """W11-R47 (superseding the URL-shape forms): a link's text that is NOT in its own href is visible text, exactly
-    like a URL written in plain prose (W11-R40), and travels; only the href goes."""
-    out = _shared(*nodes)
-    assert C in out and "href" not in out
+def test_link_text_that_is_itself_an_address_goes_whatever_its_href(db, nodes):
+    """W11-R48 (a): link text that is ITSELF an address -- a scheme, or a dotted host with a letter TLD -- goes whole
+    whatever its href, or with none (W11-R47 alone let it travel; the controller closed that)."""
+    out = _shared(*nodes, {"type": "text", "text": " kept words"})
+    assert C not in out and "kept words" in out
 
 
 def test_a_run_is_judged_whole_and_words_beside_an_address_travel(db):
