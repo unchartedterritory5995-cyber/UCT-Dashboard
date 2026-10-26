@@ -779,6 +779,15 @@ def test_a_choice_naming_another_members_routine_never_lands_in_the_style(db, mo
         "outlineBodyJson": {"type": "doc", "content": []}})
     js.create_styled_note(A, {"styleId": disabled["id"], "title": "P", "choices": {"routine_a": {"use": theirs["id"]}}})
     assert js.get_style(A, disabled["id"])["blocks"][0]["settings"]["template"] == "premarket_routine"
+    # remember_choices itself ignores a disabled slot, even for the member's OWN routine (a direct caller)
+    own = _routine(name="Mine")
+    conn = _conn()
+    try:
+        sf.remember_choices(A, disabled["id"], {"routine_a": {"use": own["id"]}}, {"routine_a": own["id"]}, conn=conn)
+        conn.commit()
+    finally:
+        conn.close()
+    assert js.get_style(A, disabled["id"])["blocks"][0]["settings"]["template"] == "premarket_routine"
     # an enabled slot: the foreign answer is refused and nothing is written (no note, no change)
     shown = _stored(("routine_a", TPL))
     with pytest.raises(ShareError) as e:
