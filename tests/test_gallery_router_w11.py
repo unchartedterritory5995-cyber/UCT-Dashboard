@@ -138,8 +138,8 @@ def _routine_ids_in_notes(db):
 
 def _gate_routes():
     """m-5: the wave 11 doors DERIVED from the route table: every route of the two routers carrying the wave 11
-    gate (`_require_w11`) as a route dependency. A new door is covered the day it lands; one that forgets the gate
-    falls out of this set and fails the typed-subset check below."""
+    gate (`_require_w11`) as a route dependency. A gated door is probed the day it lands. A door that forgets the
+    gate is caught by `test_every_route_outside_the_pre_wave_11_set_carries_the_gate` (fix round 2, n-2)."""
     from api.routers import notebook_journal_styles, notebook_template_gallery
     found = []
     for router, gate, prefix in ((notebook_template_gallery.router, notebook_template_gallery._require_w11, GALLERY),
@@ -686,3 +686,131 @@ def test_journal_styles_402_and_restore_are_no_store(app, client, db):
     js.delete_style(MEMBER, s["id"], db)
     r = _send(client, "POST", f"{STYLES}/{s['id']}/restore")
     assert r.status_code == 200 and _no_store(r)
+
+
+# -- fix round 2 ------------------------------------------------------------------------------------
+
+#: n-2: every route the two routers had BEFORE wave 11 (recorded from the base routers, `3e72cf1a1f`), as
+#: (method, full path). Any route outside this set is a wave 11 door and must carry the wave 11 gate.
+PRE_W11_ROUTES = frozenset({
+    ("DELETE", "/api/j2/template-gallery/authors/{handle}/follow"), ("DELETE", "/api/j2/template-gallery/{gallery_id}"),
+    ("DELETE", "/api/j2/template-gallery/{gallery_id}/helpful"), ("GET", "/api/j2/template-gallery"),
+    ("GET", "/api/j2/template-gallery/admin/queue"), ("GET", "/api/j2/template-gallery/authors/{handle}"),
+    ("GET", "/api/j2/template-gallery/feed"), ("GET", "/api/j2/template-gallery/layouts/status"),
+    ("GET", "/api/j2/template-gallery/updates"), ("GET", "/api/j2/template-gallery/updates/{style_id}"),
+    ("GET", "/api/j2/template-gallery/{gallery_id}"), ("GET", "/api/j2/template-gallery/{gallery_id}/images/{n}"),
+    ("PATCH", "/api/j2/template-gallery/admin/items/{gallery_id}"),
+    ("PATCH", "/api/j2/template-gallery/admin/reports/{report_id}"), ("POST", "/api/j2/template-gallery"),
+    ("POST", "/api/j2/template-gallery/authors/{handle}/follow"), ("POST", "/api/j2/template-gallery/examples"),
+    ("POST", "/api/j2/template-gallery/examples/preview"), ("POST", "/api/j2/template-gallery/layouts"),
+    ("POST", "/api/j2/template-gallery/styles"), ("POST", "/api/j2/template-gallery/updates/{style_id}"),
+    ("POST", "/api/j2/template-gallery/{gallery_id}/adopt"), ("POST", "/api/j2/template-gallery/{gallery_id}/adopt-layout"),
+    ("POST", "/api/j2/template-gallery/{gallery_id}/helpful"), ("POST", "/api/j2/template-gallery/{gallery_id}/report"),
+    ("POST", "/api/j2/template-gallery/{gallery_id}/use"),
+    ("DELETE", "/api/j2/journal-styles/{style_id}"), ("DELETE", "/api/j2/note-kinds/{kind_id}"),
+    ("GET", "/api/j2/journal-styles"), ("GET", "/api/j2/journal-styles/{style_id}"), ("GET", "/api/j2/note-kinds"),
+    ("GET", "/api/j2/note-kinds/mapping-offer"), ("GET", "/api/j2/notes/{note_id}/style-update-plan"),
+    ("GET", "/api/j2/trader-blocks/market-context"), ("GET", "/api/j2/trader-blocks/prep/{part}"),
+    ("GET", "/api/j2/trader-blocks/review/trades"), ("GET", "/api/j2/trader-blocks/review/{trade_key}"),
+    ("GET", "/api/j2/trader-blocks/rules/{rule_id}/before-after"), ("GET", "/api/j2/trader-blocks/rules/{rule_id}/versions"),
+    ("POST", "/api/j2/journal-styles"), ("POST", "/api/j2/journal-styles/preview"),
+    ("POST", "/api/j2/journal-styles/starter-packs/{pack}"), ("POST", "/api/j2/journal-styles/{style_id}/default"),
+    ("POST", "/api/j2/journal-styles/{style_id}/restore"), ("POST", "/api/j2/note-kinds"),
+    ("POST", "/api/j2/note-kinds/mapping-offer"), ("POST", "/api/j2/notes/{note_id}/apply-style-update"),
+    ("POST", "/api/j2/trader-blocks/price-stamp"), ("PUT", "/api/j2/journal-styles/{style_id}"),
+    ("PUT", "/api/j2/note-kinds/{kind_id}"), ("PUT", "/api/j2/trader-blocks/positions/{position_id}/pre-entry"),
+    ("PUT", "/api/j2/trader-blocks/rules/{rule_id}"),
+})
+
+
+def _route_set():
+    from api.routers import notebook_journal_styles, notebook_template_gallery
+    return [(m, r.path) for router in (notebook_template_gallery.router, notebook_journal_styles.router)
+            for r in router.routes for m in r.methods]
+
+
+def _unrecorded_ungated(routes, gated):
+    return sorted(set(routes) - PRE_W11_ROUTES - gated)
+
+
+def test_every_route_outside_the_pre_wave_11_set_carries_the_gate():
+    """n-2: a new route the routers gain is a wave 11 door, so it must carry `_require_w11`. The recorded set is the
+    routers' routes before wave 11; nothing new may be ungated, whatever the typed list says."""
+    routes = _route_set()
+    gated = {(m, p) for m, p, _g, _pre in _gate_routes()}
+    assert PRE_W11_ROUTES <= set(routes), sorted(PRE_W11_ROUTES - set(routes))      # the record is current
+    assert len(set(routes) - PRE_W11_ROUTES) >= 14                                    # non-vacuity: the new doors
+    assert _unrecorded_ungated(routes, gated) == []
+    # control: an ungated new door (or one gated by the wrong dependency) is seen
+    fake = routes + [("POST", "/api/j2/template-gallery/zz-new-w11-door")]
+    assert _unrecorded_ungated(fake, gated) == [("POST", "/api/j2/template-gallery/zz-new-w11-door")]
+
+
+SURROGATE = "\\ud800"                   # a lone surrogate, as `JSON.stringify` sends a broken pair
+
+
+def _raw(client, url, text):
+    return client.post(url, content=text.encode("utf-8"), headers={"Content-Type": "application/json"})
+
+
+@pytest.mark.parametrize("w11_on", [True, False])
+def test_a_lone_surrogate_is_a_400_on_every_door(app, client, db, monkeypatch, w11_on):
+    """I-A: a lone surrogate never reaches SQLite: the body readers refuse it once, 400 + no-store, with the reducer's
+    own sentence. A valid astral character (an emoji) still goes through."""
+    from api.services.journal_two import widget_request_body as wbody
+    from api.services.journal_two.widget_engine import share as share_mod
+    gid = _official(db)
+    s = style(db, uid=MEMBER, name="Mine")
+    if not w11_on:
+        waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    as_user(app, MEMBER)
+    u = SURROGATE
+    cases = [
+        (f"{GALLERY}/styles", '{"styleId": "%s", "title": "T", "category": "journal"}' % u),
+        (f"{GALLERY}/{gid}/adopt", '{"choices": {"routine_a": {"use": "%s"}}}' % u),
+        (f"{STYLES}", '{"name": "%s", "kindId": "weekend_prep"}' % u),
+    ]
+    if w11_on:
+        cases += [
+            (f"{STYLES}/{s['id']}/delete", '{"typedName": "%s"}' % u),
+            (f"{GALLERY}/share/preview", '{"kind": "widget", "id": "%s"}' % u),
+            (f"{GALLERY}/tools", '{"kind": "routine", "id": "%s", "title": "T"}' % u),
+            (f"{GALLERY}/{gid}/use-template", '{"title": "%s", "choices": {"routine_a": {"create": true}}}' % u),
+            (f"{GALLERY}/{gid}/use-template", '{"choices": {"routine_a": {"use": "%s"}}}' % u),
+            (f"{GALLERY}/{gid}/preview-mine", '{"answers": {"p1": "%s"}}' % u),
+            (f"{GALLERY}/{gid}/adopt-tool", '{"answers": {"%s": 1}}' % u),               # a KEY, too
+            (f"{GALLERY}/{gid}/helpful-prompt", '{"answer": "%s"}' % u),
+        ]
+    for url, text in cases:
+        r = _raw(client, url, text)
+        assert r.status_code == 400 and _no_store(r), (url, r.status_code, r.text)
+        detail = r.json()["detail"]
+        msg = detail["message"] if isinstance(detail, dict) else detail
+        assert msg == share_mod.S_BAD_CHARACTER == wbody.bad_character_sentence(), (url, detail)
+    assert db.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?", (MEMBER,)).fetchone()[0] == 0
+    # control: a valid astral character is accepted where text is stored
+    ok = _raw(client, f"{STYLES}", '{"name": "Prep \\ud83d\\ude00", "kindId": "weekend_prep"}')
+    assert ok.status_code == 200 and ok.json()["style"]["name"].endswith("\U0001F600")
+    if w11_on:
+        ok = _raw(client, f"{GALLERY}/{gid}/use-template",
+                  '{"title": "Prep \\ud83d\\ude00", "choices": {"routine_a": {"create": true}}}')
+        assert ok.status_code == 200 and ok.json()["note"]["title"].endswith("\U0001F600")
+
+
+def test_adopt_notify_refusal_is_the_wave_11_shape(app, client, db, monkeypatch):
+    """n-3: with wave 11 on, /adopt's own notify check answers `{code, message}` + no-store; off, today's string."""
+    gid = _official(db)
+    as_user(app, MEMBER)
+    r = _send(client, "POST", f"{GALLERY}/{gid}/adopt", {"notify": "yes"})
+    assert r.status_code == 400 and r.json()["detail"]["code"] == "invalid" and _no_store(r)
+    waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    r = _send(client, "POST", f"{GALLERY}/{gid}/adopt", {"notify": "yes"})
+    assert r.status_code == 400 and r.json()["detail"] == "notify must be true or false"
+
+
+def test_journal_styles_unreadable_body_is_no_store(app, client, db):
+    """n-3: the journal-styles reader's 422 carries no-store (the delete door reads through it)."""
+    s = style(db, uid=MEMBER, name="Mine")
+    as_user(app, MEMBER)
+    r = _raw(client, f"{STYLES}/{s['id']}/delete", "[1, 2]")
+    assert r.status_code == 422 and _no_store(r)

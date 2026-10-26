@@ -161,7 +161,8 @@ async def json_body(request: Request) -> dict:
     Content-Length says (413 `invalid` over it), and at most `MAX_BODY_DEPTH` levels of nesting (400
     `invalid`, as is a body the parser recurses out on). The one reader: `widget_request_body`."""
     return await wbody.read_json_object(
-        lambda: body_cap.read_capped_body(request, MAX_BODY, S_BODY_TOO_LARGE), MAX_BODY_DEPTH, _err)
+        lambda: body_cap.read_capped_body(request, MAX_BODY, S_BODY_TOO_LARGE), MAX_BODY_DEPTH, _err,
+        bad_character=wdefs.S_BAD_CHARACTER)
 
 
 def _rate(limit: str, scope: str, user_id: str, code: str, sentence: str) -> None:

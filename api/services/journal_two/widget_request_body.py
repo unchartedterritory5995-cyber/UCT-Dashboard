@@ -25,9 +25,38 @@ S_BODY_TOO_LARGE = "That is too much to send at once."
 S_UNREADABLE_BODY = "That request couldn't be read."
 
 
+def bad_character_sentence() -> str:
+    """The ONE sentence for text that cannot be saved (`share.S_BAD_CHARACTER`, the reducer's own), never retyped."""
+    from api.services.journal_two.widget_engine.share import S_BAD_CHARACTER
+    return S_BAD_CHARACTER
+
+
+def unsavable_text(obj: Any) -> bool:
+    """Task 11.12 fix round 2 (I-A): True when any string key or value in a decoded JSON body cannot be encoded as
+    UTF-8 -- a lone UTF-16 surrogate (`"\\ud800"`, which `JSON.stringify` emits for a broken pair). SQLite refuses to
+    store or even look one up (`UnicodeEncodeError`), so a door that lets one through answers a 500. A valid pair
+    decodes to one astral character and encodes fine. Iterative; the caller has already bounded the depth."""
+    stack = [obj]
+    while stack:
+        x = stack.pop()
+        if isinstance(x, str):
+            try:
+                x.encode("utf-8")
+            except UnicodeEncodeError:
+                return True
+        elif isinstance(x, dict):
+            stack.extend(x.keys())
+            stack.extend(x.values())
+        elif isinstance(x, list):
+            stack.extend(x)
+    return False
+
+
 async def read_json_object(read_raw: Callable[[], Awaitable[bytes]], max_depth: int,
-                           err: Callable[[int, str, str], HTTPException]) -> dict:
-    """`await read_raw()` (a `read_capped_body` call), decoded as one JSON object."""
+                           err: Callable[[int, str, str], HTTPException], *, bad_character: str | None = None) -> dict:
+    """`await read_raw()` (a `read_capped_body` call), decoded as one JSON object. Text that cannot be saved (a lone
+    surrogate, `unsavable_text`) is 400 `invalid` with `bad_character`, else the reducer's sentence (a router whose
+    store already words it, the widget definitions', passes its own)."""
     try:
         raw = await read_raw()
     except HTTPException as e:
@@ -42,4 +71,6 @@ async def read_json_object(read_raw: Callable[[], Awaitable[bytes]], max_depth: 
         raise err(400, "invalid", S_UNREADABLE_BODY) from None
     if not isinstance(body, dict) or _json_depth_exceeds(body, max_depth):
         raise err(400, "invalid", S_UNREADABLE_BODY)
+    if unsavable_text(body):
+        raise err(400, "invalid", bad_character or bad_character_sentence())
     return body

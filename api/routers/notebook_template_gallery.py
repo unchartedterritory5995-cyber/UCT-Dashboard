@@ -186,6 +186,10 @@ async def _read_json(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail="Send a JSON object")
     if not isinstance(data, dict):
         raise HTTPException(status_code=422, detail="Send a JSON object")
+    if wbody.unsavable_text(data):
+        # Task 11.12 fix round 2 (I-A): a lone surrogate is the ONE body-reader refusal (`unsavable_text`), here in
+        # this router's plain-sentence shape. It was a 500 on every door this reader serves.
+        raise HTTPException(status_code=400, detail=wbody.bad_character_sentence(), headers=dict(NO_STORE))
     return data
 
 
@@ -1008,12 +1012,14 @@ def adopt_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Dep
     Wave 11 (Task 11.12): while wave 11 is on, `{notify?, answers?, choices?}` answer a template's choices and reuse
     questions, the `Idempotency-Key` header is passed (W11-R34), and refusals answer from their class (`_w11`).
     Off, exactly today's route."""
-    notify = body.get("notify", False)
-    if notify is None:
-        notify = False
-    if not isinstance(notify, bool):
-        raise HTTPException(status_code=400, detail="notify must be true or false")
-    if not _w11_on():
+    if _w11_on():
+        notify = _notify(body)                       # n-3: the wave 11 shape, with no-store
+    else:
+        notify = body.get("notify", False)
+        if notify is None:
+            notify = False
+        if not isinstance(notify, bool):
+            raise HTTPException(status_code=400, detail="notify must be true or false")
         return _spend_adopt(user, lambda: gallery.adopt_style(user["id"], gallery_id, notify=notify))
     return _ok(_spend_adopt(user, lambda: _w11(lambda: gallery.adopt_style(
         user["id"], gallery_id, notify=notify, answers=body.get("answers"), choices=body.get("choices"),

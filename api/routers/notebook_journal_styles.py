@@ -78,6 +78,7 @@ from api.services.journal_two import note_kinds as nk
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import starter_packs
+from api.services.journal_two import widget_request_body as wbody
 
 MAX_BODY_BYTES = 512_000
 TOO_LARGE_SENTENCE = "Request too large"
@@ -124,9 +125,14 @@ async def paid_body(request: Request, _user: dict = Depends(require_paid)) -> di
     try:
         data = json.loads(raw)
     except ValueError:
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers={"Cache-Control": "no-store"})
     if not isinstance(data, dict):
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers={"Cache-Control": "no-store"})
+    if wbody.unsavable_text(data):
+        # Task 11.12 fix round 2 (I-A): the ONE refusal of text that cannot be saved (a lone surrogate), in this
+        # router's plain-sentence shape; it was a 500 on every write here (`POST /journal-styles {name}` included).
+        raise HTTPException(status_code=400, detail=wbody.bad_character_sentence(),
+                            headers={"Cache-Control": "no-store"})
     return data
 
 
