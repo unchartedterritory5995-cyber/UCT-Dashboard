@@ -123,6 +123,51 @@ KILL_LIST = {
     "DISCORD_TSDR_WEBHOOK_URL": "",
     "COT_WEEKLY_DISCORD_WEBHOOK_URL": "",
     "BUZZ_DIGEST_CHANNEL": "",
+    # ⛔ F-CLOCK-1 review I4 (ruling W11-R51): the four above were the ONLY channels blanked, while
+    # every other outbound credential the app reads passed straight through from the operator's
+    # shell. `tests/test_notebook_campaign_clock.py` DERIVES the set (every `*_WEBHOOK_URL`,
+    # `*_WEBHOOK`, `*_BOT_TOKEN`, Resend, Stripe and YouTube credential literal in api/**) and reds
+    # on one that is not blanked here, so a channel added tomorrow cannot ride past this list.
+    # The ops/business destinations are what `session_guard`'s device-kick alert resolves to.
+    "DISCORD_OPS_WEBHOOK_URL": "",
+    "DISCORD_BUSINESS_WEBHOOK_URL": "",
+    "DISCORD_ALERT_WEBHOOK": "",
+    "DISCORD_RENDER_ALERT_WEBHOOK": "",
+    "DISCORD_BREADTH_WEBHOOK_URL": "",
+    "DISCORD_EVENT_CALENDAR_WEBHOOK_URL": "",
+    "DISCORD_EVENT_CALENDAR_TEST_WEBHOOK_URL": "",
+    "DISCORD_FLOW_WEBHOOK_URL": "",
+    "DISCORD_LIVE_FLOW_WEBHOOK_URL": "",
+    "DISCORD_MASSIVE_WEBHOOK_URL": "",
+    "DISCORD_NOTABLE_WEBHOOK_URL": "",
+    "DISCORD_RECAP_WEBHOOK_URL": "",
+    "DISCORD_BOT_TOKEN": "",
+    "ALPHA_GOLD_EOD_WEBHOOK_URL": "",
+    "BUZZ_DIGEST_WEBHOOK": "",
+    "CREAM_EOD_WEBHOOK_URL": "",
+    "DARKPOOL_EOD_WEBHOOK_URL": "",
+    "LTR_LEADS_DISCORD_WEBHOOK": "",
+    "OI_MORNING_WEBHOOK_URL": "",
+    "STANDING_FLOW_WEBHOOK_URL": "",
+    "WEEKLY_FLOW_WEBHOOK_URL": "",
+    # Member email (Resend), payments (Stripe) and video (YouTube OAuth): blank kills the door.
+    "RESEND_API_KEY": "",
+    "STRIPE_SECRET_KEY": "",
+    "STRIPE_WEBHOOK_SECRET": "",
+    "YT_OAUTH_CLIENT_ID": "",
+    "YT_OAUTH_CLIENT_SECRET": "",
+    "YT_OAUTH_REFRESH_TOKEN": "",
+    # Fix round 2 (review N3): web push, the connector OAuth apps, the broker, and the inbound-webhook
+    # secrets. Blank kills each capability; every one is read in api/.
+    "WEB_PUSH_VAPID_PRIVATE_KEY": "",
+    "MSGRAPH_CLIENT_SECRET": "",
+    "NOTION_CLIENT_SECRET": "",
+    "REDDIT_CLIENT_SECRET": "",
+    "SNAPTRADE_CONSUMER_KEY": "",
+    "SNAPTRADE_CLIENT_ID": "",
+    "SNAPTRADE_WEBHOOK_SECRET": "",
+    "ZOOM_WEBHOOK_SECRET_TOKEN": "",
+    "ZOOM_S2S_CLIENT_SECRET": "",
 
     # R2 / shared object storage — blank kills the capability, not just one door.
     # Load-bearing beside USE_REMOTE_BARS=1, whose branch would otherwise try to
@@ -180,8 +225,9 @@ MODEL_PROVIDER_KEYS = (
 )
 
 # Read in api/**, and NOT a paid model/embedding provider: market-data, news,
-# e-mail and earnings-audio vendors. Left untouched — the sandbox's pages need
-# their data, and this lane's scope is model spend only.
+# e-mail and earnings-audio vendors. Left untouched by THIS policy — the sandbox's
+# pages need their data, and this lane's scope is model spend only. (RESEND_API_KEY,
+# member e-mail, is an outbound channel and is blanked by KILL_LIST instead.)
 NON_MODEL_KEYS = (
     "ALPHAVANTAGE_API_KEY", "BEA_API_KEY", "BLS_API_KEY", "BULLFLOW_API_KEY",
     "CENSUS_API_KEY", "EARNINGS_AUDIO_API_KEY", "EIA_API_KEY",
@@ -257,10 +303,6 @@ def apply_model_key_policy(environ, allow):
             + f" (opt in: --allow-model-keys or {ALLOW_MODEL_KEYS_ENV}=1)")
 
 
-def _norm(path):
-    return os.path.normcase(os.path.abspath(path))
-
-
 def _refuse_port_in_use(port):
     """Hard-exit if something is ALREADY listening on this port.
 
@@ -296,29 +338,38 @@ def _refuse_port_in_use(port):
     sys.exit(1)
 
 
+def _shared_root_guard():
+    """THE refusal authority, `scripts/shared_root_guard.py` (ruling W11-R51), shared with the
+    pytest tripwire and the seeders: never a copy of its rule here."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import shared_root_guard
+    return shared_root_guard
+
+
 def _refuse_shared_root(sandbox, shared_roots):
-    """Hard-exit if the sandbox IS, or sits inside, the shared data root.
+    """Hard-exit if the sandbox IS, or sits inside, the shared data root, in ANY spelling the guard
+    knows (a device path or UNC share is refused before it is resolved; a junction is followed).
 
     Checked before anything is set, created or served. A device-test run against
     the real root does not fail loudly — it succeeds against real member data,
     which is worse.
     """
-    target = _norm(sandbox)
-    for root in shared_roots:
-        if target == root or target.startswith(root + os.sep):
-            print("")
-            print("  REFUSING TO RUN.")
-            print("")
-            print(f"  --data-dir resolved to {target!r}, which is inside the")
-            print(f"  SHARED DATA ROOT ({root}).")
-            print("")
-            print("  That directory holds the live auth database and every")
-            print("  production SQLite file on this machine.")
-            print("")
-            print("  Pass a sandbox path instead, e.g.:")
-            print("      python scripts/hub_sandbox_boot.py --data-dir C:\\data-hubtest")
-            print("")
-            sys.exit(1)
+    why = _shared_root_guard().refuse(sandbox, roots=shared_roots)
+    if why:
+        print("")
+        print("  REFUSING TO RUN.")
+        print("")
+        print(f"  --data-dir: {why}.")
+        print("")
+        print("  That directory holds the live auth database and every")
+        print("  production SQLite file on this machine.")
+        print("")
+        print("  Pass a sandbox path instead, e.g.:")
+        print("      python scripts/hub_sandbox_boot.py --data-dir C:\\data-hubtest")
+        print("")
+        sys.exit(1)
 
 
 def _sandbox_for(sandbox_root, literal):

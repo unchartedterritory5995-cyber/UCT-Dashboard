@@ -1,0 +1,1796 @@
+"""The 50-member test campaign runner (plan 2026-10-24-notebook-widgets-p2-w11.md, Task 11.21 Step 4).
+
+    # against a sandbox this runner boots and owns (needed for the flag-flip persona P46):
+    python tools/notebook_campaign/run_campaign.py --run-id w11-campaign-1 --own-sandbox `
+        --data-dir 'C:\\data-nbw-campaign' --port 8131 --app-root C:\\Users\\Patrick\\uct-worktrees\\nbw-p2-impl
+    # one persona at one viewport, keyboard only, against a sandbox already running:
+    python tools/notebook_campaign/run_campaign.py --run-id dev --persona P09 --viewport 390 --keyboard `
+        --base http://127.0.0.1:8131 --data-dir 'C:\\data-nbw-campaign'
+
+PRECONDITIONS (the runner refuses without each, exit 3):
+  * --base is localhost or 127.0.0.1. Anything else is a HARD EXIT before a browser starts: production
+    stays dark, and only smoke@ and bench@ ever sign in to production; this tool never does.
+  * the data dir was seeded by seed_members.py (its campaign-manifest.json holds the members and their
+    sandbox sessions) and is not C:\\data or /data.
+  * the server at --base proves it is the hub sandbox ON THAT DATA DIR: its identity path
+    (scripts/sandbox_identity.py, served by the launcher) names the same data dir. A port is not an
+    identity.
+  * every expected sentence in personas.json is still in the source file it names (its `fragment`); a
+    drifted sentence is never asserted, its steps read INCONCLUSIVE.
+
+Per persona, per viewport (1200, 820, 390), per mode (pointer, keyboard-only), in its OWN browser context
+(touch emulation at <= 1024 px), each step records: what it did and read, PASS / FAIL / INCONCLUSIVE, the
+console errors and page errors, the failed requests (status >= 400 not expected by the step), the
+horizontal overflow, the touch targets under 44 px (only on the touch tier, and only while the context
+really is coarse-pointer), axe-core serious and critical findings (WCAG 2.x A/AA tags), the timings
+(note first paint, each sheet open, each preview) and a screenshot. Keyboard-only mode never clicks: every
+control is reached with Tab (arrow keys inside a radio group or tab list) and pressed with Enter or Space;
+a visible control Tab cannot reach is a FAIL.
+
+`needs` (personas.json): `w11` steps run only when the server has the wave 11 routes (probed once:
+GET /api/j2/template-gallery/library answers 200), else INCONCLUSIVE; `restart` steps need --own-sandbox;
+`clock` steps need --clock-launcher (tools/notebook_campaign/sandbox_clock.py, ruling W11-R49): a persona
+whose scripts need `clock` runs against a server booted by that launcher at the persona's `clock` instant
+(personas sharing an instant share one boot), with the browser's clock (Playwright context.clock) set to
+the same shifted now, so client and server agree; without the launcher those steps stay INCONCLUSIVE.
+`sql_clock` steps (a verdict that rests on a SQLite CURRENT_TIMESTAMP / 'now' default) are always
+INCONCLUSIVE: the launcher cannot shift the database's own clock. INCONCLUSIVE is never a pass.
+
+Evidence (R-RAW, written as it happens): <out>/run.json, <out>/results.jsonl (one row per persona x
+viewport x mode), <out>/<persona>/<viewport>-<mode>/steps/*.json and shots/*.png, and <out>/defects.jsonl
+(the plan's schema; the runner files findings as status "untriaged" -- a person or agent reads the
+evidence and sets "open" or "not-a-defect"). --out defaults to docs/notebook/evidence/<run-id>.
+
+This driver never imports api.* in its own process.
+"""
+from __future__ import annotations
+
+import argparse
+import contextlib
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import traceback
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+from urllib.parse import urlparse
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE))
+import seed_members as seedmod  # noqa: E402
+
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+T = 30000
+TOUCH_MAX = 1024
+TAP_FLOOR = 44
+WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
+W8, W9, W10, W11 = (f"NOTEBOOK_WIDGETS_W{n}_ENABLED" for n in (8, 9, 10, 11))
+# Requests whose failure is the sandbox's own (vendor keys blanked, no broker, no live feed), never the
+# step's: the walk's list (notebook_fin_walk.BENIGN) is used, plus these, each named for why.
+EXTRA_BENIGN = (
+    "/api/ticker-meta", "/api/bars/", "/api/quote", "/api/market-status",   # market data: keys blanked
+)
+ZERO_RE = re.compile(r"(?<![\d.,$])\$0(?![\d.,])|(?<![\d.,])0%|\(0\)|\bUsed by 0\b|\bNaN\b|\bundefined\b|"
+                     r"\[object Object\]|\bInfinity\b|(?<![\d.,])0 (?:trades|days|of)\b")
+SEVERITY = {"pageerror": "major", "http5xx": "major", "http4xx": "major", "console": "minor", "overflow": "major",
+            "tap": "minor", "axe:critical": "critical", "axe:serious": "serious", "expectation": "major",
+            "keyboard": "serious", "xss": "critical"}
+
+
+class Inconclusive(Exception):
+    """The step could not be driven to its end here (the message says why)."""
+
+
+class KeyboardUnreachable(Exception):
+    """A visible control that Tab (and the arrow keys of its group) could not reach."""
+
+
+# ── refusals and source checks (pure) ─────────────────────────────────────────────────────
+
+def refuse_non_local(base: str) -> str | None:
+    try:
+        u = urlparse(base)
+    except Exception:  # noqa: BLE001
+        return f"--base {base!r} is not a URL"
+    host = (u.hostname or "").lower()
+    if u.scheme not in ("http", "https") or host not in LOCAL_HOSTS:
+        return (f"--base {base!r} is not localhost/127.0.0.1. This tool only ever drives a local sandbox; "
+                "production stays dark and only smoke@ and bench@ sign in to production, never this tool.")
+    return None
+
+
+def source_text(app_root: Path, source: str) -> str | None:
+    """The text of a sentence's source: `path:line` in the app root, or `<ref>:path:line` read with git."""
+    m = re.match(r"^(?:(?P<ref>origin/[^:]+):)?(?P<path>[^:]+?)(?::(?P<line>\d+))?$", source)
+    if not m:
+        return None
+    if m["ref"]:
+        r = subprocess.run(["git", "show", f"{m['ref']}:{m['path']}"], cwd=str(app_root), capture_output=True,
+                           text=True, encoding="utf-8", errors="replace")
+        return r.stdout if r.returncode == 0 else None
+    p = app_root / m["path"]
+    return p.read_text(encoding="utf-8", errors="replace") if p.is_file() else None
+
+
+def verify_sentences(spec: dict, app_root: Path) -> dict:
+    """key -> {ok, why, line_ok}. `ok` = the fragment is in the named file; `line_ok` = also on the named line."""
+    out = {}
+    for key, s in spec["sentences"].items():
+        frag = s.get("fragment") or s["text"]
+        txt = source_text(app_root, s["source"])
+        if txt is None:
+            out[key] = {"ok": False, "why": f"source {s['source']} is unreadable"}
+            continue
+        if frag not in txt:
+            out[key] = {"ok": False, "why": f"fragment not in {s['source']}: {frag!r}"}
+            continue
+        line = re.search(r":(\d+)$", s["source"])
+        lines = txt.splitlines()
+        line_ok = bool(line) and 0 < int(line[1]) <= len(lines) and frag[:24] in lines[int(line[1]) - 1]
+        out[key] = {"ok": True, "why": "", "line_ok": line_ok}
+    return out
+
+
+# The walk's TAP_JS measures the control's own box. A member taps the control OR its label: a checkbox
+# inside a <label>, or one named by <label for>, is hit through the label's box too (the WCAG 2.5.8 /
+# platform rule). This variant reports a control as small only when neither box reaches the floor, and
+# says what each small one is, so a finding can be triaged from the JSON alone.
+TAP_JS = """([sel, floor]) => {
+  const root = (sel && document.querySelector(sel)) || document.body;
+  const vis = (e) => { const b = e.getBoundingClientRect(); const s = getComputedStyle(e);
+                       return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' };
+  const ctl = [...root.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role=button], [role=switch], [role=tab], [role=menuitem], [role=option], [role=checkbox]')]
+    .filter(vis).filter(e => !e.disabled);
+  const boxOf = (e) => { const b = e.getBoundingClientRect(); let w = b.width, h = b.height;
+    const labels = [...(e.labels || [])];
+    for (const l of labels) { const lb = l.getBoundingClientRect(); w = Math.max(w, lb.width); h = Math.max(h, lb.height) }
+    return { w, h, b } };
+  const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+  const small = [];
+  for (const e of ctl) {
+    const { w, h, b } = boxOf(e);
+    if (w >= floor && h >= floor) continue;
+    if (b.width <= 2 || b.height <= 2) continue;          // visually hidden input; its label is the target
+    small.push({ label: (e.getAttribute('aria-label') || e.innerText || e.value || e.tagName).trim().replace(/\\s+/g, ' ').slice(0, 40),
+                 tag: e.tagName, cls: String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className || '').slice(0, 50),
+                 w: Math.round(w), h: Math.round(h), x: Math.round(b.left), y: Math.round(b.top),
+                 offscreen: b.right <= 0 || b.left >= vw || b.bottom <= 0 || b.top >= vh,
+                 // what a tap at its centre would hit: a control clipped away or covered (an off-canvas panel)
+                 // is not a target the member can reach, so it is reported but not a finding
+                 covered: (() => { const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+                   if (cx < 0 || cy < 0 || cx >= vw || cy >= vh) return true;
+                   const hit = document.elementFromPoint(cx, cy);
+                   return !(hit && (hit === e || e.contains(hit) || hit.contains(e) || [...(e.labels || [])].some(l => l.contains(hit)))) })() });
+  }
+  return { scope: sel && document.querySelector(sel) ? sel : 'body', controls: ctl.length,
+           small: small.slice(0, 25), smallCount: small.length };
+}"""
+
+
+# The walk's axe call, plus each violation's first failure summary (the contrast ratio, the size it measured),
+# so a finding can be triaged from the evidence without re-running the page.
+AXE_RUN_JS = """async ([sel, tags]) => {
+  const root = (sel && document.querySelector(sel)) || document.body;
+  const r = await window.axe.run(root, { runOnly: { type: 'tag', values: tags }, resultTypes: ['violations'] });
+  return { version: window.axe.version, scope: sel && document.querySelector(sel) ? sel : 'body',
+           violations: r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length,
+             targets: v.nodes.slice(0, 4).map(n => n.target.join(' ')),
+             summary: (v.nodes[0] && v.nodes[0].failureSummary || '').slice(0, 300),
+             html: (v.nodes[0] && v.nodes[0].html || '').slice(0, 200) })) };
+}"""
+
+
+def zeros_in(text: str) -> list[str]:
+    return sorted({m.group(0) for m in ZERO_RE.finditer(text or "")})
+
+
+def defect_signature(d: dict) -> tuple:
+    return (d.get("persona"), d.get("viewport"), d.get("keyboard"), d.get("expected"), tuple(d.get("steps") or []))
+
+
+def defect_key(expected, actual) -> tuple:
+    """Two findings are one defect when they differ only in numbers and generated ids (a measured width, a
+    React id in aria-controls, a note id in a URL): those are normalised out of the key, never the text."""
+    norm = re.sub(r"_r_[a-z0-9]+_", "_r_", str(actual or ""))
+    norm = re.sub(r"[0-9a-f]{32}|[0-9a-f-]{36}", "<id>", norm)
+    norm = re.sub(r"\d+(?:\.\d+)?", "#", norm)
+    return (expected, norm)
+
+
+def next_defect_ids(existing: list[dict], n: int) -> list[str]:
+    nums = [int(m[1]) for d in existing if (m := re.match(r"D-W11-(\d+)$", str(d.get("id", ""))))]
+    start = max(nums, default=0) + 1
+    return [f"D-W11-{k:03d}" for k in range(start, start + n)]
+
+
+def run_verdict(steps: list[dict]) -> str:
+    if any(s["verdict"] == "FAIL" or s.get("findings") for s in steps):
+        return "FAIL"
+    if not steps or any(s["verdict"] == "INCONCLUSIVE" for s in steps):
+        return "INCONCLUSIVE"
+    return "PASS"
+
+
+def write_json(path: Path, obj) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj, indent=1, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")
+    os.replace(tmp, path)
+
+
+def append_jsonl(path: Path, row: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    if not path.is_file():
+        return []
+    return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+
+
+# ── the app root's own walk helpers (imported, never copied) ──────────────────────────────
+
+def load_walk_libs(app_root: Path):
+    for p in (app_root / "tools", app_root / "scripts"):
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+    import notebook_perf_harness as h  # noqa: E402
+    import notebook_fin_walk as fw  # noqa: E402
+    import notebook_widgets_p2_walk as walk  # noqa: E402
+    import sandbox_identity as sid  # noqa: E402
+    return h, fw, walk, sid
+
+
+# ── the sandbox this runner may own ───────────────────────────────────────────────────────
+
+def campaign_env(fs: dict, overrides: dict | None = None) -> list[str]:
+    """The flags a campaign server boots with (production's armed set + W8..W11 = 1, then `overrides`),
+    written into this process's environment for the launcher child to inherit. Shared by the owned
+    sandbox and the clock sandbox, so the two serve the same product."""
+    overrides = overrides or {}
+    for name in fs["all_names"]:
+        os.environ.pop(name, None)
+    for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
+        os.environ.pop(k, None)
+    on = sorted(set(fs["c1"]) | {W8, W9, W10, W11})
+    os.environ.update({n: "1" for n in on})
+    os.environ.update(overrides)
+    os.environ.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
+    return on + [f"{k}={v}" for k, v in overrides.items()]
+
+
+class OwnedSandbox:
+    """The app's launcher on the seeded data dir, started with the flags production has armed plus
+    W8..W11 = 1, and restarted with overrides for a flag-flip step. Stopped gracefully; each boot's
+    integrity log is moved into the evidence folder and its first line recorded."""
+
+    def __init__(self, h, fw, data_dir: Path, port: int, out: Path):
+        self.h, self.fw, self.data_dir, self.port, self.out = h, fw, data_dir, port, out
+        self.sb = None
+        self.boots: list[dict] = []
+        self.fs = fw.flag_sets()
+        self.overrides: dict = {}
+
+    @property
+    def base(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    def env(self) -> list[str]:
+        return campaign_env(self.fs, self.overrides)
+
+    def start(self) -> None:
+        if self.h.port_busy(self.port):
+            raise SystemExit(f"REFUSED: port {self.port} already has a listener (never killed)")
+        flags = self.env()
+        n = len(self.boots) + 1
+        self.sb = self.h.Sandbox(str(self.data_dir), self.port, self.out / f"sandbox-boot{n}.log")
+        self.sb.start()
+        rec = {"boot": n, "flags_overridden": dict(self.overrides), "flags_on": flags, "pid": self.sb.proc.pid,
+               "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        self.boots.append(rec)
+        if not self.sb.wait_healthy(self.base, 400):
+            self.stop()
+            raise SystemExit(f"REFUSED: the sandbox never answered /api/health (boot {n})")
+        self.sb.wait_checkpoint(self.h.POST_BOOT, self.h.POST_BOOT_WAIT_S)
+
+    def stop(self) -> None:
+        if not self.sb:
+            return
+        rec = self.boots[-1]
+        rec["stop"] = self.sb.stop()
+        ipath = self.sb.integrity_path()
+        kept = self.out / f"integrity-boot{rec['boot']}.md"
+        if ipath and Path(ipath).is_file():
+            kept.write_text(Path(ipath).read_text(encoding="utf-8", errors="replace"), encoding="utf-8", newline="\n")
+            Path(ipath).unlink()
+        integ = self.h.read_integrity(kept, [self.h.PRE_BOOT, self.h.POST_BOOT, self.h.SHUTDOWN])
+        rec["first_line"] = self.h.integrity_line(integ, f"boot {rec['boot']}; stop: {rec['stop']}")
+        rec["clean"] = bool(integ.get("clean"))
+        print(rec["first_line"], flush=True)
+        self.sb = None
+
+    def restart(self, overrides: dict) -> None:
+        self.stop()
+        self.overrides = dict(overrides)
+        self.start()
+
+
+# ── the clock-shifted sandbox (ruling W11-R49) ───────────────────────────────────────────
+
+def persona_needs_clock(p: dict) -> bool:
+    """True when any of the persona's scripts or steps declares `needs: clock`."""
+    for sc in p.get("scripts") or []:
+        if "clock" in (sc.get("needs") or []) or any("clock" in (s.get("needs") or []) for s in sc.get("steps") or []):
+            return True
+    return False
+
+
+def clock_groups(people: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Clock personas grouped by instant (one launcher boot per instant), in time order. A persona that
+    needs the clock but declares none is its own refusal: `(None, [p])` is never returned, it raises."""
+    groups: dict[float, tuple[str, list[dict]]] = {}
+    for p in people:
+        if not persona_needs_clock(p):
+            continue
+        if not p.get("clock"):
+            raise ValueError(f"{p['id']} needs the clock but declares no `clock` instant in personas.json")
+        at = datetime.fromisoformat(p["clock"])
+        if at.tzinfo is None:
+            raise ValueError(f"{p['id']}'s clock {p['clock']!r} has no UTC offset")
+        groups.setdefault(at.timestamp(), (at.isoformat(), []))[1].append(p)     # one instant, any spelling
+    return [groups[k] for k in sorted(groups)]
+
+
+class ClockSandbox:
+    """`sandbox_clock.py` on the seeded data dir at one instant, in its own process group, on loopback.
+    Stopped by the signal uvicorn handles, then by PID if it does not exit. The launcher hashes nothing
+    under the shared data root (its shared-root guard is the census tripwire, and it says so at boot)."""
+
+    def __init__(self, h, fw, launcher: Path, app_root: Path, data_dir: Path, port: int, out: Path):
+        self.h, self.launcher, self.app_root, self.data_dir, self.port, self.out = h, launcher, app_root, data_dir, port, out
+        self.fs = fw.flag_sets()
+        self.proc = None
+        self.boots: list[dict] = []
+
+    @property
+    def base(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    def start(self, instant: str, personas: list[str] | None = None) -> dict:
+        if self.h.port_busy(self.port):
+            raise SystemExit(f"REFUSED: port {self.port} already has a listener (never killed); pass --clock-port")
+        flags = campaign_env(self.fs)
+        n = len(self.boots) + 1
+        log = self.out / f"clock-boot{n}.log"
+        cmd = [sys.executable, "-u", "-c", self.h._SHIM, str(self.launcher), "--clock", instant,
+               "--data-dir", str(self.data_dir), "--port", str(self.port), "--host", "127.0.0.1",
+               "--app-root", str(self.app_root), "--personas", ",".join(personas or [])]
+        kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True})
+        with open(log, "w", encoding="utf-8") as fh:
+            self.proc = subprocess.Popen(cmd, cwd=str(self.app_root), stdout=fh, stderr=subprocess.STDOUT, **kw)
+        rec = {"boot": n, "clock": instant, "pid": self.proc.pid, "log": str(log), "flags_on": flags,
+               "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        self.boots.append(rec)
+        import urllib.request
+        end = time.time() + 400
+        while time.time() < end and self.proc.poll() is None:
+            try:
+                with urllib.request.urlopen(self.base + "/api/health", timeout=3) as r:
+                    if r.status == 200:
+                        return rec
+            except Exception:  # noqa: BLE001 -- not up yet
+                pass
+            time.sleep(0.5)
+        self.stop()
+        raise SystemExit(f"REFUSED: the clock sandbox never answered /api/health (boot {n}; log {log})")
+
+    def stop(self) -> None:
+        if self.proc is None:
+            return
+        rec = self.boots[-1]
+        how = "exited on its own"
+        if self.proc.poll() is None:
+            import signal
+            try:
+                self.proc.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+                self.proc.wait(timeout=60)
+                how = f"graceful (rc {self.proc.returncode})"
+            except Exception:  # noqa: BLE001 -- no console, or it did not exit: by PID
+                self.proc.kill()
+                self.proc.wait()
+                how = f"killed by PID {self.proc.pid}"
+        rec["stop"] = how
+        print(f"clock sandbox boot {rec['boot']} ({rec['clock']}) stopped: {how}", flush=True)
+        self.proc = None
+
+
+def verify_clock_server(ident: dict | None, instant: str) -> str | None:
+    """Why the served identity does not prove a clock shift to `instant`, or None."""
+    shift = (ident or {}).get("clock_shift") or {}
+    if not shift:
+        return "the server's identity carries no clock_shift (not sandbox_clock.py)"
+    try:
+        want = datetime.fromisoformat(instant)
+        got = datetime.fromisoformat(shift["instant"])
+    except (KeyError, ValueError) as e:
+        return f"the server's clock_shift is unreadable ({e})"
+    if got != want:
+        return f"the server was shifted to {shift.get('instant')}, not {instant}"
+    return None
+
+
+# ── one run: a persona at a viewport in a mode ────────────────────────────────────────────
+
+class Run:
+    def __init__(self, g: "Campaign", persona: dict, vp: str, mode: str):
+        self.g, self.p, self.vp, self.mode = g, persona, vp, mode
+        self.keyboard = mode == "keyboard"
+        self.size = tuple(g.spec["viewport_sizes"][vp])
+        self.touch = self.size[0] <= TOUCH_MAX
+        self.member = g.manifest["members"].get(persona["id"], {})
+        self.dir = g.out / persona["id"] / f"{vp}-{mode}"
+        self.contexts: dict = {}
+        self.pages: dict = {}          # name -> (page, events list)
+        self.alias: dict = {}
+        self.remembered: dict = {}
+        self.tag = f"{g.run_id}-{vp}-{mode}"
+        self.steps: list[dict] = []
+
+    # contexts and pages
+    def new_context(self, name: str):
+        ctx = self.g.browser.new_context(viewport={"width": self.size[0], "height": self.size[1]},
+                                         screen={"width": self.size[0], "height": self.size[1]},
+                                         has_touch=self.touch, is_mobile=self.touch, reduced_motion="reduce")
+        if self.g.clock_server is not None:
+            # The browser's clock agrees with the server's: the same shifted now, ticking.
+            ctx.clock.install(time=shifted_now())
+        session = (self.g.session_override or {}).get(self.p["id"]) or self.member.get("session")
+        if session:
+            host = urlparse(self.g.base).hostname
+            ctx.add_cookies([{"name": "uct_session", "value": session, "domain": host, "path": "/",
+                              "httpOnly": True, "secure": False, "sameSite": "Lax"}])
+        self.contexts[name] = ctx
+        return ctx
+
+    def new_page(self, name: str, ctx_name: str = "main"):
+        ctx = self.contexts.get(ctx_name) or self.new_context(ctx_name)
+        pg = ctx.new_page()
+        ev: list = []
+        g = self.g
+
+        def on_resp(r):
+            if r.status >= 400 and not any(b in r.url for b in g.benign):
+                ev.append({"http": r.status, "method": r.request.method, "url": r.url[:240]})
+        pg.on("console", lambda m: m.type == "error" and not m.text.startswith("Failed to load resource")
+              and ev.append({"console": m.text[:400]}))
+        pg.on("pageerror", lambda e: ev.append({"pageerror": str(e)[:400]}))
+        pg.on("response", on_resp)
+        pg.on("dialog", lambda d: (ev.append({"xss": f"a {d.type} dialog opened: {d.message[:120]}"}), d.dismiss()))
+        self.pages[name] = (pg, ev)
+        return pg
+
+    def page(self, name: str = "main"):
+        if name not in self.pages:
+            self.new_page(name)
+        return self.pages[name][0]
+
+    def close(self):
+        for c in self.contexts.values():
+            with contextlib.suppress(Exception):
+                c.close()
+
+    def url(self, path: str) -> str:
+        return self.g.base + self.fmt(path)
+
+    def fmt(self, s):
+        if isinstance(s, str):
+            return s.replace("{run}", self.tag)
+        if isinstance(s, list):
+            return [self.fmt(x) for x in s]
+        if isinstance(s, dict):
+            return {self.fmt(k): self.fmt(v) for k, v in s.items()}
+        return s
+
+    def resolve(self, s):
+        """`@routine:<name>`, `@tracker:<name>`, `@item:<routine>:<n>`, `@today`, `@session-N` and saved
+        aliases, in a path, a body or a check path."""
+        if isinstance(s, list):
+            return [self.resolve(x) for x in s]
+        if isinstance(s, dict):
+            return {self.resolve(k): self.resolve(v) for k, v in s.items()}
+        if not isinstance(s, str):
+            return s
+        s = self.fmt(s)
+
+        def tool(kind, name):
+            for t in self.member.get(kind, []) or []:
+                if t["name"] == name:
+                    return t
+            for k, v in self.alias.items():
+                if isinstance(v, dict) and v.get("name") == name:
+                    return v
+            raise Inconclusive(f"no seeded {kind[:-1]} named {name!r}")
+
+        def sub(m):
+            word = m.group(1)
+            if word.startswith("routine:"):
+                return tool("routines", word[8:])["id"]
+            if word.startswith("tracker:"):
+                return tool("trackers", word[8:])["id"]
+            if word.startswith("item:"):
+                rname, k = word[5:].rsplit(":", 1)
+                return tool("routines", rname)["items"][int(k)]
+            if word == "today":
+                return today_et().isoformat()
+            if word.startswith("session-"):
+                return weekdays_back(today_et(), int(word[8:])).isoformat()
+            if word in self.alias:
+                v = self.alias[word]
+                return v["id"] if isinstance(v, dict) else str(v)
+            return m.group(0)
+        return re.sub(r"@([A-Za-z][\w\- ]*(?::[\w\- ]+)*(?::\d+)?)", sub, s)
+
+
+# Seconds the server under test is ahead of the wall clock (sandbox_clock's offset); 0 for a real-time server.
+CLOCK_OFFSET_S = 0.0
+
+
+def shifted_now() -> datetime:
+    return datetime.fromtimestamp(time.time() + CLOCK_OFFSET_S, timezone.utc)
+
+
+def today_et() -> date:
+    from zoneinfo import ZoneInfo
+    return shifted_now().astimezone(ZoneInfo("America/New_York")).date()
+
+
+def weekdays_back(d: date, n: int) -> date:
+    """n weekdays before d (exchange holidays are not known here; the step that uses it says so)."""
+    while n:
+        d -= timedelta(days=1)
+        if d.weekday() < 5:
+            n -= 1
+    return d
+
+
+# ── input: pointer or keyboard-only ───────────────────────────────────────────────────────
+
+FOCUS_IN_JS = "el => el === document.activeElement || el.contains(document.activeElement)"
+ROVING_JS = """(el) => {
+  // The arrow key that moves focus from the focused element toward `el` inside ONE roving group (a radio
+  // group, a tab list, a listbox, or a useRovingTabIndex toolbar / nav: one Tab stop, arrows inside), or ''.
+  const a = document.activeElement; if (!a || a === el) return '';
+  const role = (x) => x.getAttribute('role') || (x.type === 'radio' ? 'radio' : '');
+  const groupOf = (x) => x.closest('[role=radiogroup],[role=tablist],[role=listbox],[role=menu],[role=toolbar],nav');
+  const both = (sel) => el.matches(sel) && a.matches(sel);
+  let same = false;
+  if (el.type === 'radio' && a.type === 'radio' && el.name && el.name === a.name) same = true;
+  else if (role(el) && role(el) === role(a) && ['radio', 'tab', 'option', 'menuitem'].includes(role(el))) same = groupOf(el) && groupOf(el) === groupOf(a);
+  else if (both('[data-roving-item]')) same = groupOf(el) && groupOf(el) === groupOf(a);
+  if (!same) return '';
+  const g = groupOf(el);
+  const vertical = (g && g.getAttribute('aria-orientation') === 'vertical') || role(el) === 'option' || role(el) === 'menuitem';
+  const before = !!(a.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+  return vertical ? (before ? 'ArrowDown' : 'ArrowUp') : (before ? 'ArrowRight' : 'ArrowLeft');
+}"""
+
+
+FOCUS_EXACT_JS = "el => el === document.activeElement"
+
+
+def tab_to(pg, loc, limit: int = 160, exact: bool = False) -> int:
+    """Tab until `loc` holds focus. `exact`: the element itself, not a control inside it (the note's
+    editor holds placed widgets whose buttons are focusable; typing there would go nowhere)."""
+    loc.wait_for(state="visible", timeout=T)
+    h = loc.element_handle(timeout=T)
+    for i in range(limit):
+        if h.evaluate(FOCUS_EXACT_JS if exact else FOCUS_IN_JS):
+            return i
+        key = h.evaluate(ROVING_JS)
+        if key:
+            for _ in range(24):
+                pg.keyboard.press(key)
+                if h.evaluate(FOCUS_IN_JS):
+                    return i
+            raise KeyboardUnreachable(f"{key} never reached {describe(loc)} inside its group")
+        pg.keyboard.press("Tab")
+    raise KeyboardUnreachable(f"{limit} Tab presses never reached {describe(loc)}")
+
+
+def describe(loc) -> str:
+    try:
+        return loc.evaluate("e => (e.getAttribute('aria-label') || e.innerText || e.value || e.tagName).trim().slice(0, 60)")
+    except Exception:  # noqa: BLE001
+        return str(loc)[:80]
+
+
+def act(R: Run, pg, loc, key: str | None = None) -> None:
+    """Press a control: keyboard-only (Tab to it, then Enter or Space) or the pointer (a tap on the touch tier)."""
+    loc.wait_for(state="visible", timeout=T)
+    if R.keyboard:
+        tab_to(pg, loc)
+        role = (loc.get_attribute("role") or "").lower()
+        typ = (loc.get_attribute("type") or "").lower()
+        if key is None:
+            key = "Space" if role in ("checkbox", "switch", "radio") or typ in ("checkbox", "radio") else "Enter"
+        pg.keyboard.press(key)
+    elif R.touch:
+        loc.scroll_into_view_if_needed(timeout=T)
+        loc.tap(timeout=T)
+    else:
+        loc.click(timeout=T)
+
+
+def fill(R: Run, pg, loc, value: str) -> None:
+    loc.wait_for(state="visible", timeout=T)
+    if R.keyboard:
+        tab_to(pg, loc)
+        pg.keyboard.press("Control+A")
+        pg.keyboard.type(value, delay=15)
+    else:
+        loc.fill(value)
+
+
+def top_dialog(pg):
+    d = pg.locator("[role=dialog]:visible")
+    return d.last if d.count() else None
+
+
+def surface(pg, within: str | None):
+    if within in (None, "dialog"):
+        d = top_dialog(pg)
+        if d is not None:
+            return d
+        if within == "dialog":
+            raise Inconclusive("no dialog is open")
+        return pg.locator("body")
+    if within == "page":
+        return pg.locator("body")
+    loc = pg.locator(within)
+    return loc.first if loc.count() else pg.locator("body")
+
+
+def editor(pg):
+    ed = pg.locator(".ProseMirror").first
+    ed.wait_for(state="visible", timeout=T)
+    return ed
+
+
+def caret_to_end(R: Run, pg) -> None:
+    ed = editor(pg)
+    if R.keyboard:
+        tab_to(pg, ed, exact=True)
+    else:
+        paras = ed.locator(":scope > p")
+        target = paras.last if paras.count() else ed
+        target.scroll_into_view_if_needed()
+        target.click()
+    pg.keyboard.press("Control+End")
+
+
+def live_text(pg) -> str:
+    return pg.locator("[data-testid=builder-live]").last.text_content() or ""
+
+
+def wait_live(pg, pred_js: str = "t => t.length > 0", timeout: int = T) -> str:
+    pg.wait_for_function("(p) => { const e = [...document.querySelectorAll('[data-testid=builder-live]')].pop();"
+                         " const t = e ? (e.textContent || '') : ''; return (new Function('t', 'return (' + p + ')(t)'))(t) }",
+                         arg=pred_js, timeout=timeout)
+    return live_text(pg)
+
+
+def js_regex_test(rx: str) -> str:
+    """A JS predicate for a Python regex: a leading (?i) becomes the `i` flag (JS has no inline flags)."""
+    flags = ""
+    if rx.startswith("(?i)"):
+        rx, flags = rx[4:], "i"
+    return f"t => new RegExp({json.dumps(rx)}, {json.dumps(flags)}).test(t)"
+
+
+def builder(pg):
+    dlg = pg.get_by_role("dialog").filter(has_text=re.compile(r"Build a widget|Edit widget|Edit a copy")).last
+    dlg.wait_for(timeout=T)
+    return dlg
+
+
+def goto(R: Run, pg, path: str) -> float:
+    t0 = time.perf_counter()
+    pg.goto(R.url(path), wait_until="domcontentloaded", timeout=60000)
+    pg.wait_for_function("() => { const r = document.getElementById('root'); return r && r.childElementCount > 0 }",
+                         timeout=T)
+    ms = (time.perf_counter() - t0) * 1000
+    R.g.h._dismiss_intro(pg)
+    R.g.fw.settle_first_run(pg)
+    return ms
+
+
+# ── the actions personas.json names ───────────────────────────────────────────────────────
+
+def a_seed_note(R, s, row):
+    pg = R.page()
+    body = {"type": "doc", "content": [{"type": "paragraph", "content": ([{"type": "text", "text": t}] if t else [])}
+                                       for t in (s.get("paras") or [""])]}
+    r = pg.request.post(R.g.base + "/api/j2/notes", data={"title": R.fmt(s["title"]), "bodyJson": body})
+    row["read"].append({"what": "POST /api/j2/notes", "text": f"HTTP {r.status}"})
+    if r.status not in (200, 201):
+        raise Inconclusive(f"the notes door refused the seed note: HTTP {r.status} {r.text()[:200]}")
+    R.alias[s.get("save_as", "n1")] = r.json()["note"]["id"]
+
+
+def a_open(R, s, row):
+    pg = R.page()
+    ms = goto(R, pg, s["path"])
+    row["timings"][s.get("timing") or "page_first_paint"] = round(ms)
+
+
+def a_open_note(R, s, row):
+    pg = R.page()
+    nid = R.alias.get(s["note"])
+    if not nid:
+        raise Inconclusive(f"no note {s['note']!r} was made earlier in this run")
+    t0 = time.perf_counter()
+    pg.goto(R.url(f"/journal/notebook?note={nid}"), wait_until="domcontentloaded", timeout=60000)
+    # The clock stops when the editor is drawn, BEFORE the intro is dismissed: the intro's own wait is
+    # not the note's paint (the tooling dry run's timings still included it; see the campaign report).
+    pg.locator(".ProseMirror").first.wait_for(state="attached", timeout=T)
+    row["timings"][s.get("timing") or "note_first_paint"] = round((time.perf_counter() - t0) * 1000)
+    R.g.h._dismiss_intro(pg)
+    editor(pg)
+    if "expect_frames" in s or "expect_routine_boxes" in s:
+        render_all(pg)
+    if "expect_frames" in s:
+        n = pg.locator("[data-snapshot-frame]").count()
+        check(row, f"at least {s['expect_frames']} placed widget(s) draw", n >= s["expect_frames"], f"{n} frames")
+    if "expect_routine_boxes" in s:
+        if s["expect_routine_boxes"]:
+            with contextlib.suppress(Exception):
+                pg.locator("[data-routine-block] [role=checkbox]").first.wait_for(timeout=15000)
+        n = pg.locator("[data-routine-block] [role=checkbox]").count()
+        check(row, "the routine block draws its ticks" if s["expect_routine_boxes"] else "no tick control is drawn",
+              (n > 0) == bool(s["expect_routine_boxes"]), f"{n} checkboxes")
+
+
+def render_all(pg) -> None:
+    n = pg.evaluate("() => document.querySelector('.ProseMirror') ? document.querySelector('.ProseMirror').children.length : 0")
+    for i in range(min(n, 40)):
+        pg.evaluate("(i) => { const c = document.querySelector('.ProseMirror').children[i]; if (c) c.scrollIntoView({block: 'center'}) }", i)
+        pg.wait_for_timeout(250)
+    pg.wait_for_timeout(1000)
+
+
+def slash(R, pg, text: str, pick: str | None):
+    menu = pg.get_by_role("listbox", name="Insert block").last
+    for attempt in range(2):
+        caret_to_end(R, pg)
+        pg.keyboard.press("Enter")
+        pg.keyboard.type(text, delay=25)
+        try:
+            menu.wait_for(timeout=8000 if attempt == 0 else T)
+            break
+        except Exception:  # noqa: BLE001
+            if attempt:
+                raise Inconclusive(f"the / menu never opened for {text!r}")
+            for _ in text:
+                pg.keyboard.press("Backspace")
+    pg.wait_for_timeout(400)
+    if pick:
+        opts = menu.get_by_role("option")
+        texts = opts.all_inner_texts()
+        idx = next((i for i, t in enumerate(texts) if re.search(pick, t)), None)
+        if idx is None:
+            raise Inconclusive(f"no / menu row matches {pick!r}: {texts[:8]}")
+        sel = next((i for i in range(len(texts)) if opts.nth(i).get_attribute("aria-selected") == "true"), 0)
+        for _ in range(max(0, idx - sel)):
+            pg.keyboard.press("ArrowDown")
+    pg.keyboard.press("Enter")
+
+
+def a_slash(R, s, row):
+    pg = R.page()
+    slash(R, pg, s["text"], s.get("pick"))
+    pg.wait_for_timeout(1500)
+
+
+def a_open_builder(R, s, row):
+    pg = R.page()
+    t0 = time.perf_counter()
+    slash(R, pg, "/build", None)
+    builder(pg)
+    row["timings"][s.get("timing") or "sheet_open"] = round((time.perf_counter() - t0) * 1000)
+    row["surface"] = "dialog"
+
+
+def a_builder_example(R, s, row):
+    pg = R.page()
+    dlg = builder(pg)
+    card = dlg.locator(f'[data-testid="example-card-{s["card"]}"]')
+    t0 = time.perf_counter()
+    act(R, pg, card)
+    said = wait_live(pg)
+    row["timings"][s.get("timing") or "preview"] = round((time.perf_counter() - t0) * 1000)
+    row["read"].append({"what": "builder live region", "text": said})
+    sent_check(R, row, "live_startswith", s, said, lambda txt, t: t.startswith(txt + " ") or t.startswith(txt + " \u00b7"))
+    sent_check(R, row, "live_not_startswith", s, said, lambda txt, t: not t.startswith(txt))
+
+
+def a_builder_blank(R, s, row):
+    pg = R.page()
+    dlg = builder(pg)
+    act(R, pg, dlg.get_by_role("button", name="Start blank"))
+    t0 = time.perf_counter()
+    act(R, pg, dlg.get_by_role("radio", name=s["source"]))
+    said = wait_live(pg)
+    row["timings"][s.get("timing") or "preview"] = round((time.perf_counter() - t0) * 1000)
+    row["read"].append({"what": "builder live region", "text": said})
+
+
+def a_builder_split(R, s, row):
+    pg = R.page()
+    dlg = builder(pg)
+    act(R, pg, dlg.get_by_role("button", name=re.compile(r"split", re.I)).first)
+    act(R, pg, dlg.get_by_role("button", name=s["by"], exact=True))
+    rx = s.get("live_re")
+    try:
+        said = wait_live(pg, js_regex_test(rx or "."))
+    except Exception:  # noqa: BLE001
+        said = live_text(pg)
+    row["read"].append({"what": "builder live region", "text": said})
+    if rx:
+        check(row, f"the live summary matches {rx}", re.search(rx, said) is not None, said)
+
+
+def a_builder_name(R, s, row):
+    pg = R.page()
+    fill(R, pg, builder(pg).get_by_label("Name", exact=True), R.fmt(s["value"]))
+    pg.wait_for_timeout(600)
+
+
+def a_builder_save(R, s, row):
+    pg = R.page()
+    dlg = builder(pg)
+    with pg.expect_response(lambda r: r.url.endswith("/api/j2/widget-definitions") and r.request.method == "POST",
+                            timeout=T) as resp:
+        act(R, pg, dlg.get_by_role("button", name="Save", exact=True))
+    check(row, "the widget was saved (HTTP 200/201)", resp.value.status in (200, 201), f"HTTP {resp.value.status}")
+    dlg.wait_for(state="hidden", timeout=T)
+    if s.get("expect_frame"):
+        fr = R.g.walk.embed_in(pg, R.fmt(s["expect_frame"]))
+        fr.wait_for(timeout=T)
+        check(row, f"the widget {s['expect_frame']!r} is placed in the note", True, fr.inner_text()[:200])
+
+
+def a_builder_save_expect_refusal(R, s, row):
+    pg = R.page()
+    dlg = builder(pg)
+    act(R, pg, dlg.get_by_role("button", name="Save", exact=True))
+    pg.wait_for_timeout(1500)
+
+
+def a_builder_summary_visible(R, s, row):
+    """Wide: the preview pane beside the steps. Phone: the summary bar is drawn and sits inside the viewport
+    -- unless `keyboard_open`, when the product hides it on purpose (PreviewPane.jsx: the phone preview is
+    `hidden={keyboardOpen}`) and the live region must still be there to announce."""
+    pg = R.page()
+    dlg = builder(pg)
+    bar = dlg.locator("[data-testid=builder-summary-bar]")
+    if R.size[0] > 640:
+        pane = dlg.locator("[data-testid=builder-preview]")
+        check(row, "the preview pane is drawn beside the steps", pane.count() > 0 and pane.first.is_visible(), str(pane.count()))
+        return
+    live = pg.locator("[data-testid=builder-live]")
+    if s.get("keyboard_open"):
+        check(row, "with the keyboard open the summary bar steps aside", not (bar.count() and bar.first.is_visible()),
+              str(bar.count()))
+        check(row, "the live region is still there to announce", live.count() > 0, str(live.count()))
+        return
+    check(row, "the phone summary bar is drawn", bar.count() > 0 and bar.first.is_visible(), str(bar.count()))
+    box = bar.first.bounding_box() if bar.count() else None
+    vh = pg.viewport_size["height"]
+    check(row, "the summary bar sits inside the visible viewport (sticky)",
+          bool(box) and box["y"] >= 0 and box["y"] + box["height"] <= vh + 1, json.dumps(box))
+
+
+def a_builder_formula(R, s, row):
+    pg = R.page()
+    dlg = builder(pg)
+    act(R, pg, dlg.get_by_role("button", name="Add your own field"))
+    f = dlg.locator("[data-testid=formula-field]").first
+    f.wait_for(timeout=T)
+    fill(R, pg, f.get_by_label("Name", exact=True), s["name"])
+    box = f.get_by_label("Formula", exact=True)
+    if R.keyboard:
+        tab_to(pg, box)
+    else:
+        box.click()
+    pg.keyboard.type(s["formula"], delay=40)
+    if s.get("expect_error"):
+        err = f.locator("[class*=error]")
+        try:
+            err.first.wait_for(timeout=T)
+            check(row, "an inline sentence says what is wrong", True, err.first.inner_text())
+        except Exception:  # noqa: BLE001
+            check(row, "an inline sentence says what is wrong", False, f.inner_text()[:300])
+
+
+def a_builder_formula_append(R, s, row):
+    pg = R.page()
+    dlg = builder(pg)
+    f = dlg.locator("[data-testid=formula-field]").first
+    box = f.get_by_label("Formula", exact=True)
+    pg.keyboard.press("End")
+    pg.keyboard.type(s["text"], delay=40)
+    if s.get("expect_valid"):
+        try:
+            f.get_by_text(re.compile(r"^First trade: ")).wait_for(timeout=T)
+            ok = True
+        except Exception:  # noqa: BLE001
+            ok = False
+        check(row, "fixed by keyboard, the formula is valid (the first-row line shows)", ok
+              and f.locator("[class*=error]").count() == 0, f.inner_text()[:300])
+    if s.get("expect_value"):
+        check(row, "the box reads the fixed formula", box.input_value() == s["expect_value"], box.input_value())
+    check(row, "focus stayed in the Formula box", box.evaluate(FOCUS_IN_JS), "")
+
+
+def a_close_dialog(R, s, row):
+    """Close the top sheet the member's way: Escape (keyboard; the builder steps back one level per
+    Escape) or its Close button (pointer). "Keep your changes?" is answered "Discard them" when the step
+    says `discard`, and the loop goes on until no sheet is open (at most 8 rounds)."""
+    pg = R.page()
+    for _ in range(8):
+        dlg = top_dialog(pg)
+        if dlg is None:
+            return
+        if pg.get_by_text("Keep your changes?").count() and pg.get_by_text("Keep your changes?").first.is_visible():
+            if not s.get("discard"):
+                raise Inconclusive("the builder asks to keep changes and the step does not say discard")
+            act(R, pg, pg.get_by_role("button", name="Discard them", exact=True).first)
+        elif R.keyboard:
+            pg.keyboard.press("Escape")
+        else:
+            btn = dlg.get_by_role("button", name="Close", exact=True)
+            act(R, pg, btn.first) if btn.count() else pg.keyboard.press("Escape")
+        pg.wait_for_timeout(500)
+    if top_dialog(pg) is not None:
+        check(row, "the sheet closes", False, (top_dialog(pg).inner_text() or "")[:300])
+
+
+def a_focus_returned(R, s, row):
+    pg = R.page()
+    where = pg.evaluate("() => { const a = document.activeElement; return a ? (a.closest('.ProseMirror') ? 'editor' : "
+                        "(a.tagName + ' ' + (a.getAttribute('aria-label') || a.innerText || '').slice(0, 40))) : 'none' }")
+    check(row, "focus returned to the note after the builder closed", where == "editor", where)
+
+
+def a_resize(R, s, row):
+    pg = R.page()
+    pg.set_viewport_size({"width": R.size[0], "height": s.get("height") or R.size[1]})
+    pg.wait_for_timeout(400)
+
+
+def my_tools_sheet(pg):
+    sh = pg.get_by_role("dialog", name="My tools")
+    sh.wait_for(timeout=T)
+    return sh
+
+
+def a_my_tools(R, s, row):
+    pg = R.page()
+    t0 = time.perf_counter()
+    act(R, pg, pg.get_by_role("button", name="My tools"))
+    sh = my_tools_sheet(pg)
+    row["timings"][s.get("timing") or "sheet_open"] = round((time.perf_counter() - t0) * 1000)
+    row["surface"] = "dialog"
+    if s.get("tab") and s["tab"] != "Widgets":
+        a_my_tools_tab(R, s, row)
+    else:
+        pg.wait_for_timeout(1200)
+
+
+def a_my_tools_tab(R, s, row):
+    pg = R.page()
+    sh = my_tools_sheet(pg)
+    tab = sh.get_by_role("tab", name=s["tab"])
+    if not tab.count():
+        tab = sh.get_by_role("button", name=s["tab"], exact=True)
+    act(R, pg, tab.first)
+    pg.wait_for_timeout(1500)
+    row["surface"] = "dialog"
+
+
+def a_my_tools_filter(R, s, row):
+    pg = R.page()
+    sh = my_tools_sheet(pg)
+    act(R, pg, sh.get_by_role("button", name=s["label"], exact=True).first)
+    pg.wait_for_timeout(1500)
+
+
+def a_insert_routine(R, s, row):
+    pg = R.page()
+    t0 = time.perf_counter()
+    slash(R, pg, "/routine", r"^Routine \(remembered daily\)")
+    pk = pg.get_by_role("dialog").filter(has_text="Add a routine").last
+    pk.wait_for(timeout=T)
+    row["timings"][s.get("timing") or "sheet_open"] = round((time.perf_counter() - t0) * 1000)
+    name = R.fmt(s["existing"])
+    act(R, pg, pk.get_by_role("button", name=name, exact=True))
+    pg.locator("[data-routine-block] [role=checkbox]").first.wait_for(timeout=T)
+    row["surface"] = "[data-routine-block]"
+    pg.wait_for_timeout(2500)          # the insert's own autosave lands before anything is remembered
+
+
+def boxes(pg):
+    return pg.locator("[data-routine-block] [role=checkbox]")
+
+
+def a_tick(R, s, row):
+    pg = R.page()
+    act(R, pg, boxes(pg).nth(s["index"]))
+    pg.wait_for_timeout(1500)
+
+
+def a_new_context(R, s, row):
+    R.new_context(s["name"])
+    pg = R.new_page(s["name"], s["name"])
+    if s.get("open_note"):
+        pg.goto(R.url(f"/journal/notebook?note={R.alias[s['open_note']]}"), wait_until="domcontentloaded", timeout=60000)
+        R.g.h._dismiss_intro(pg)
+        boxes(pg).first.wait_for(timeout=T)
+
+
+def a_new_page(R, s, row):
+    pg = R.new_page(s["name"], s.get("context", "main"))
+    if s.get("open_note"):
+        pg.goto(R.url(f"/journal/notebook?note={R.alias[s['open_note']]}"), wait_until="domcontentloaded", timeout=60000)
+        R.g.h._dismiss_intro(pg)
+        boxes(pg).first.wait_for(timeout=T)
+
+
+def a_concurrent_ticks(R, s, row):
+    """Each page ticks its own item with no wait between them, so the writes are in flight together."""
+    for name, idx in s["ticks"]:
+        pg = R.page(name)
+        b = boxes(pg).nth(idx)
+        if R.keyboard:
+            b.focus()           # setup of the race, not a navigation claim: Tab order is railed elsewhere
+            pg.keyboard.press("Space")
+        else:
+            (b.tap if R.touch else b.click)(no_wait_after=True, timeout=T)
+    pg0 = R.page("main")
+    pg0.wait_for_timeout(3000)
+
+
+def a_reload_all(R, s, row):
+    for name, (pg, _) in R.pages.items():
+        pg.reload(wait_until="domcontentloaded")
+        R.g.h._dismiss_intro(pg)
+        boxes(pg).first.wait_for(timeout=T)
+        pg.wait_for_timeout(1500)
+        got = [boxes(pg).nth(i).get_attribute("aria-checked") for i in range(boxes(pg).count())]
+        ok = all(got[i] == "true" for i in s["expect_checked"] if i < len(got)) and len(got) > max(s["expect_checked"])
+        check(row, f"every tick survived, read on {name}", ok, json.dumps(got))
+
+
+def note_of(R, nid: str) -> dict:
+    r = R.page().request.get(R.g.base + f"/api/j2/notes/{nid}")
+    return (r.json() if r.ok else {}).get("note") or {}
+
+
+def a_remember_note(R, s, row):
+    n = note_of(R, R.alias[s["note"]])
+    R.remembered[s["note"]] = {"updatedAt": n.get("updatedAt"), "body": json.dumps(n.get("bodyJson"), sort_keys=True)}
+    row["read"].append({"what": "note updatedAt", "text": str(n.get("updatedAt"))})
+
+
+def a_note_unchanged(R, s, row):
+    was = R.remembered.get(s["note"])
+    if not was:
+        raise Inconclusive("the note was never remembered")
+    n = note_of(R, R.alias[s["note"]])
+    check(row, "the note's saved time did not move (no note write)", n.get("updatedAt") == was["updatedAt"],
+          f"{was['updatedAt']} -> {n.get('updatedAt')}")
+    check(row, "the note's body is byte-identical (nothing forked)", json.dumps(n.get("bodyJson"), sort_keys=True) == was["body"], "")
+
+
+def a_offline(R, s, row):
+    for c in R.contexts.values():
+        c.set_offline(bool(s["on"]))
+
+
+def a_wait(R, s, row):
+    R.page().wait_for_timeout(int(s.get("ms", 1000)))
+
+
+def get_path(obj, path: str):
+    cur = obj
+    for part in path.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            return None
+    return cur
+
+
+def a_api(R, s, row):
+    pg = R.page()
+    path = R.resolve(s["path"])
+    kw = {"method": s.get("method", "GET")}
+    if "body" in s:
+        kw["data"] = R.resolve(s["body"])
+    r = pg.request.fetch(R.g.base + path, **kw)
+    text = r.text()
+    row["read"].append({"what": f"{kw['method']} {path}", "text": f"HTTP {r.status} {text[:600]}"})
+    row.setdefault("expect_status", []).extend(s.get("expect_status") or [])
+    if s.get("expect_status"):
+        check(row, f"answers {s['expect_status']}", r.status in s["expect_status"], f"HTTP {r.status}")
+    try:
+        body = r.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    if s.get("save_as"):
+        R.alias[s["save_as"]] = {"id": (body.get("routine") or body.get("tracker") or body).get("id") if isinstance(body, dict) else None,
+                                 "name": R.fmt((s.get("body") or {}).get("name", ""))}
+    for c in s.get("checks") or []:
+        if "any_text_forbid" in c:
+            bad = re.findall(c["any_text_forbid"], text)
+            check(row, f"no {c['any_text_forbid']} anywhere in the answer", not bad, ", ".join(bad[:5]))
+            continue
+        v = get_path(body, R.resolve(c["path"]))
+        if "equals" in c:
+            check(row, f"{c['path']} == {c['equals']!r}", v == c["equals"], repr(v))
+        if "in" in c:
+            check(row, f"{c['path']} in {c['in']!r}", v in c["in"], repr(v))
+        if "nonempty" in c:
+            check(row, f"{c['path']} is a sentence", isinstance(v, str) and bool(v.strip()), repr(v))
+        if "sentence" in c:
+            want = R.g.sentence(c["sentence"])
+            check(row, f"{c['path']} reads {want!r}", v == want, repr(v))
+
+
+def a_api_burst(R, s, row):
+    pg = R.page()
+    path = R.resolve(s["path"])
+    statuses, msgs = [], []
+    for i in range(int(s["count"])):
+        r = pg.request.fetch(R.g.base + path, method=s.get("method", "PUT"), data=s["bodies"][i % len(s["bodies"])])
+        statuses.append(r.status)
+        if r.status == 429:
+            with contextlib.suppress(Exception):
+                msgs.append(((r.json().get("detail") or {}).get("message")))
+    row["expect_status"] = [429]
+    row["read"].append({"what": "statuses", "text": json.dumps({k: statuses.count(k) for k in set(statuses)})})
+    check(row, "the burst is refused with 429 past the rate", s["expect_any_status"] in statuses, "")
+    if s.get("expect_message_sentence"):
+        want = R.g.sentence(s["expect_message_sentence"])
+        check(row, f"the 429 says {want!r}", bool(msgs) and all(m == want for m in msgs), json.dumps(msgs[:3]))
+
+
+def a_api_concurrent(R, s, row):
+    raise Inconclusive("concurrent Use needs the wave 11 routes and an official template id")
+
+
+def a_flag_restart(R, s, row):
+    sb = R.g.sandbox
+    if sb is None:
+        raise Inconclusive("a flag flip restarts the server: run with --own-sandbox")
+    over = {} if s.get("rearm") else {**sb.overrides, **s["set"]}
+    t0 = time.perf_counter()
+    sb.restart(over)
+    row["read"].append({"what": "sandbox restarted with", "text": json.dumps(over)})
+    row["timings"]["restart"] = round((time.perf_counter() - t0) * 1000)
+    me = R.page().request.get(R.g.base + "/api/auth/me").json()
+    for k, v in over.items():
+        key = k.lower()
+        if key.startswith("notebook_widgets_w"):
+            check(row, f"/api/auth/me says {key} = {v == '1'}", me.get(key) is (v == "1"), str(me.get(key)))
+    if s.get("rearm"):
+        check(row, "/api/auth/me says every wave is on again",
+              all(me.get(k.lower()) is True for k in (W8, W9, W10, W11)), json.dumps({k.lower(): me.get(k.lower()) for k in (W8, W9, W10, W11)}))
+
+
+def a_widget_share_on(R, s, row):
+    pg = R.page()
+    fr = R.g.walk.embed_in(pg, R.fmt(s["frame"]))
+    fr.wait_for(timeout=T)
+    sw = fr.get_by_role("switch")
+    sw.scroll_into_view_if_needed()
+    if sw.get_attribute("aria-checked") != "true":
+        act(R, pg, sw)
+    pg.wait_for_timeout(1500)
+    check(row, "the widget's Show on shared pages switch is on", sw.get_attribute("aria-checked") == "true", "")
+
+
+def a_share_public(R, s, row):
+    pg = R.page()
+    act(R, pg, pg.get_by_role("button", name="Share", exact=True))
+    sh = pg.get_by_role("dialog", name="Share this note")
+    sh.wait_for(timeout=T)
+    addr = sh.get_by_label("Share link address")
+    if not (addr.count() and addr.first.is_visible()):
+        act(R, pg, sh.get_by_role("button", name="Create link", exact=True))
+    url = addr.input_value(timeout=T)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+    pub = R.g.walk.open_public(R.g.browser, R.vp if R.vp in R.g.walk.VIEWPORTS else "1200", url)
+    try:
+        dom = pub["dom"]
+        text = dom.get("text") or ""
+        row["read"].append({"what": "public page text", "text": text[:1500]})
+        for key in s.get("expect_public") or []:
+            want = R.g.sentence(key)
+            check(row, f"the public page says {want!r}", want in text, text[:300])
+        leaks = R.g.walk.leaks_in(pub, [R.fmt(w) for w in s.get("forbid_public") or []])
+        check(row, "no account name reaches the public page (text, attributes, payload)", not leaks, json.dumps(leaks))
+        shot = R.dir / "shots" / f"{row['step']}-public.png"
+        shot.parent.mkdir(parents=True, exist_ok=True)
+        pub["page"].screenshot(path=str(shot), full_page=True)
+        row["screenshots"].append(str(shot.relative_to(R.g.out)).replace("\\", "/"))
+        for e in pub["watch"].take():
+            if e.get("http") == 401 and "/api/auth/me" in (e.get("url") or ""):
+                continue        # a stranger's page asks who is signed in; 401 is the answer, not a failure
+            if (e.get("console") or "").startswith("Failed to load resource"):
+                continue        # the same request, already read above as an HTTP event
+            kind = ("http5xx" if e["http"] >= 500 else "http4xx") if "http" in e else "console" if "console" in e else "pageerror"
+            row.setdefault("findings_raw", []).append({"kind": kind, "page": "public",
+                                                       "detail": e.get("console") or e.get("pageerror") or
+                                                       f"{e.get('method')} {e.get('url')} -> {e.get('http')}"})
+    finally:
+        pub["ctx"].close()
+
+
+def a_admin_login(R, s, row):
+    pg = R.page()
+    r = pg.request.post(R.g.base + "/api/auth/login", data={"email": R.member.get("email"), "password": R.member.get("password")})
+    check(row, "the admin signs in (ADMIN_EMAILS promotes at login)", r.status == 200, f"HTTP {r.status}")
+
+
+def a_throttle(R, s, row):
+    pg = R.page()
+    cdp = R.contexts["main"].new_cdp_session(pg)
+    kbps = s.get("kbps", 400)
+    cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": s.get("latency_ms", 300),
+                                                  "downloadThroughput": kbps * 128, "uploadThroughput": kbps * 128})
+
+
+def a_check_text(R, s, row):
+    pass       # the expectations below do the reading
+
+
+def a_unscripted(R, s, row):
+    raise Inconclusive(f"the step {s['do']!r} is not scripted against a server that has it yet")
+
+
+def a_noop(R, s, row):
+    raise Inconclusive("not scripted yet: the persona's script needs a server or a seam this run does not have")
+
+
+ACTIONS = {
+    "seed_note": a_seed_note, "open": a_open, "open_note": a_open_note, "slash": a_slash,
+    "open_builder": a_open_builder, "builder_example": a_builder_example, "builder_blank": a_builder_blank,
+    "builder_split": a_builder_split, "builder_name": a_builder_name, "builder_save": a_builder_save,
+    "builder_save_expect_refusal": a_builder_save_expect_refusal, "builder_summary_visible": a_builder_summary_visible,
+    "builder_formula": a_builder_formula, "builder_formula_append": a_builder_formula_append,
+    "close_dialog": a_close_dialog, "focus_returned": a_focus_returned, "resize": a_resize,
+    "my_tools": a_my_tools, "my_tools_tab": a_my_tools_tab, "my_tools_filter": a_my_tools_filter,
+    "insert_routine": a_insert_routine, "tick": a_tick, "new_context": a_new_context, "new_page": a_new_page,
+    "concurrent_ticks": a_concurrent_ticks, "reload_all": a_reload_all, "remember_note": a_remember_note,
+    "note_unchanged": a_note_unchanged, "offline": a_offline, "wait": a_wait, "api": a_api, "api_burst": a_api_burst,
+    "api_concurrent": a_api_concurrent, "flag_restart": a_flag_restart, "widget_share_on": a_widget_share_on,
+    "share_public": a_share_public, "admin_login": a_admin_login, "throttle": a_throttle, "check_text": a_check_text,
+    "library_preview": a_unscripted, "library_use": a_unscripted, "adopt_use": a_unscripted,
+    "share_preview_template": a_unscripted, "noop": a_noop,
+}
+
+
+# ── checks, expectations, metrics ─────────────────────────────────────────────────────────
+
+def check(row: dict, what: str, ok: bool, read: str) -> bool:
+    row["checks"].append({"what": what, "ok": bool(ok), "read": (read or "")[:600]})
+    return bool(ok)
+
+
+def sent_check(R, row, key, s, said, pred):
+    if key in s:
+        want = R.g.sentence(s[key])
+        check(row, f"{key.replace('_', ' ')} {want!r}", pred(want, said), said)
+
+
+def expectations(R: Run, s: dict, row: dict) -> None:
+    pg = R.page()
+    keys = list(s.get("expect") or []) + list(s.get("expect_absent") or [])
+    if not keys and not s.get("expect_re") and not s.get("forbid_re") and not s.get("forbid"):
+        return
+    sur = surface(pg, s.get("within") or row.get("surface"))
+    for key in s.get("expect") or []:
+        want = R.g.sentence(key)
+        try:
+            sur.get_by_text(want, exact=False).first.wait_for(timeout=12000)
+            ok = True
+        except Exception:  # noqa: BLE001
+            ok = False
+        check(row, f"says {want!r}", ok, "" if ok else (sur.inner_text(timeout=3000) or "")[:400])
+    text = sur.inner_text(timeout=5000) or ""
+    row["read"].append({"what": f"surface text ({s.get('within') or row.get('surface') or 'page'})", "text": text[:1500]})
+    for key in s.get("expect_absent") or []:
+        want = R.g.sentence(key)
+        check(row, f"does not say {want!r}", want not in text, "")
+    for rx in s.get("expect_re") or []:
+        check(row, f"matches {rx}", re.search(rx, text) is not None, text[:300])
+    for rx in s.get("forbid_re") or []:
+        check(row, f"never matches {rx}", re.search(rx, text) is None, ", ".join(re.findall(rx, text)[:4]))
+    if "zeros" in (s.get("forbid") or []):
+        z = zeros_in(text)
+        check(row, "no zero, NaN, undefined or [object Object] is shown", not z, ", ".join(z))
+    if "raw" in (s.get("forbid") or []):
+        raw = pg.evaluate("() => ({imgx: document.querySelectorAll('img[src=\"x\"]').length,"
+                          " scripts: [...document.scripts].filter(s => (s.textContent || '').includes(\"alert('x')\")).length})")
+        check(row, "no member text rendered as markup", raw["imgx"] == 0 and raw["scripts"] == 0, json.dumps(raw))
+
+
+def metrics(R: Run, row: dict) -> dict:
+    pg = R.page()
+    out: dict = {}
+    walk = R.g.walk
+    try:
+        out["overflow"] = pg.evaluate(walk.OVERFLOW_JS)
+    except Exception as e:  # noqa: BLE001
+        out["overflow"] = {"error": str(e)[:200]}
+    sel = walk.surface_of(pg, None if row.get("surface") in (None, "dialog", "page") else row["surface"])
+    try:
+        tap = pg.evaluate(TAP_JS, [sel, TAP_FLOOR])
+        tap["binds"] = R.touch
+        tap["pointerCoarse"] = pg.evaluate("() => matchMedia('(pointer: coarse)').matches")
+        out["tap"] = tap
+    except Exception as e:  # noqa: BLE001
+        out["tap"] = {"error": str(e)[:200]}
+    if R.g.axe_src:
+        try:
+            if not pg.evaluate("() => typeof window.axe !== 'undefined'"):
+                pg.add_script_tag(content=R.g.axe_src)
+            out["axe"] = pg.evaluate(AXE_RUN_JS, [sel, WCAG_TAGS])
+        except Exception as e:  # noqa: BLE001
+            out["axe"] = {"error": str(e)[:200]}
+    else:
+        out["axe"] = {"error": "axe-core unavailable (pass --axe)"}
+    return out
+
+
+def findings_of(R: Run, row: dict) -> list[dict]:
+    out = []
+    expected = set(row.get("expect_status") or [])
+    for page, evs in row.get("events", {}).items():
+        for e in evs:
+            if "http" in e:
+                if e["http"] in expected:
+                    continue
+                out.append({"kind": "http5xx" if e["http"] >= 500 else "http4xx", "page": page,
+                            "detail": f"{e['method']} {e['url']} -> {e['http']}"})
+            elif "console" in e:
+                out.append({"kind": "console", "page": page, "detail": e["console"]})
+            elif "pageerror" in e:
+                out.append({"kind": "pageerror", "page": page, "detail": e["pageerror"]})
+            elif "xss" in e:
+                out.append({"kind": "xss", "page": page, "detail": e["xss"]})
+    m = row.get("metrics") or {}
+    ov = m.get("overflow") or {}
+    if ov.get("horizontal"):
+        out.append({"kind": "overflow", "page": "main",
+                    "detail": f"scrollWidth {ov.get('docScrollWidth')} > {ov.get('vw')}: " +
+                              json.dumps(ov.get("offenders", [])[:3], ensure_ascii=False)})
+    tap = m.get("tap") or {}
+    # A 1x1 control is a visually hidden input whose LABEL is the target (the segmented radios): not a tap
+    # target, so not a finding. TAP_JS lists at most 25; the count is re-derived from what is kept.
+    small = [{k: t[k] for k in ("label", "tag", "cls", "w", "h")} for t in tap.get("small") or []
+             if not t.get("offscreen") and not t.get("covered")]
+    small = list({json.dumps(t, sort_keys=True): t for t in small}.values())
+    if tap.get("binds") and tap.get("pointerCoarse"):
+        for t in small:                       # one finding per control, so the same control dedupes across runs
+            out.append({"kind": "tap", "page": "main", "detail": f"under {TAP_FLOOR} px: " + json.dumps(t, ensure_ascii=False)})
+    for v in (m.get("axe") or {}).get("violations") or []:
+        if v.get("impact") in ("serious", "critical"):
+            out.append({"kind": f"axe:{v['impact']}", "page": "main",
+                        "detail": f"{v['id']}: {v['help']} ({v['nodes']} nodes) {v['targets'][:2]} -- "
+                                  f"{v.get('summary', '')} {v.get('html', '')}"})
+    return out
+
+
+# ── the campaign ──────────────────────────────────────────────────────────────────────────
+
+class Campaign:
+    def __init__(self, args, spec, manifest, libs, out: Path):
+        self.args, self.spec, self.manifest = args, spec, manifest
+        self.h, self.fw, self.walk, self.sid = libs
+        self.out = out
+        self.run_id = args.run_id
+        self.base = None
+        self.browser = None
+        self.sandbox: OwnedSandbox | None = None
+        self.benign = tuple(self.fw.BENIGN) + EXTRA_BENIGN
+        self.sentences = {}
+        self.axe_src = None
+        self.caps = {"w11": False, "restart": False, "clock": False, "sql_clock": False}
+        self.clock_server = None          # the ClockSandbox serving this group, if any
+        self.session_override: dict = {}  # persona id -> a session the clock launcher re-minted
+
+    def sentence(self, key: str) -> str:
+        v = self.sentences.get(key)
+        if not v or not v["ok"]:
+            raise Inconclusive(f"the sentence {key!r} is not verified against its source: {v and v['why']}")
+        return self.spec["sentences"][key]["text"]
+
+    def probe_w11(self) -> dict:
+        # Under a clock group, a session the launcher vouched for at the shifted now: a seeded one the
+        # server reads as expired would be DELETED by its own validate_session on this very request
+        # (found in the fix-round dry run: the probe, not the launcher, removed P13's seeded row).
+        vouched = next(iter(v for v in (self.session_override or {}).values() if v), None)
+        if getattr(self, "clock_server", None) is not None:
+            any_session = vouched                    # review N7: never a seeded cookie under a clock group
+        else:
+            any_session = vouched or next((m["session"] for m in self.manifest["members"].values()
+                                           if m.get("session")), None)
+        import urllib.request
+        req = urllib.request.Request(self.base + "/api/j2/template-gallery/library",
+                                     headers={"Cookie": f"uct_session={any_session}"} if any_session else {})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return {"status": r.status, "available": r.status == 200}
+        except Exception as e:  # noqa: BLE001
+            return {"status": getattr(e, "code", None), "available": False, "why": str(e)[:200]}
+
+    def run_one(self, persona: dict, vp: str, mode: str) -> dict:
+        R = Run(self, persona, vp, mode)
+        R.dir.mkdir(parents=True, exist_ok=True)
+        pg0 = R.new_page("main")
+        clock_read = None
+        if self.clock_server is not None:
+            # Evidence that the browser and the server agree: the page's own Date against the shifted now.
+            with contextlib.suppress(Exception):
+                ms = pg0.evaluate("() => Date.now()")
+                clock_read = {"browser_now": datetime.fromtimestamp(ms / 1000, timezone.utc).isoformat(timespec="seconds"),
+                              "server_now": shifted_now().isoformat(timespec="seconds"),
+                              "skew_s": round(ms / 1000 - shifted_now().timestamp(), 1)}
+        started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        try:
+            for sc in persona["scripts"]:
+                skip_rest = None
+                for i, s in enumerate(sc["steps"]):
+                    sid_ = f"{sc['id']}.{i + 1:02d}"
+                    row = self.step(R, sc, s, sid_, skip_rest)
+                    R.steps.append(row)
+                    if row["verdict"] != "PASS" and row.get("blocking"):
+                        skip_rest = f"an earlier step ({sid_}) did not pass: {row.get('error') or 'a check failed'}"
+        finally:
+            R.close()
+        verdict = run_verdict(R.steps)
+        counts = {v: sum(1 for s in R.steps if s["verdict"] == v) for v in ("PASS", "FAIL", "INCONCLUSIVE")}
+        res = {"run_id": self.run_id, "persona": persona["id"], "viewport": vp, "mode": mode, "verdict": verdict,
+               "counts": counts, "findings": sum(len(s.get("findings") or []) for s in R.steps),
+               "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+               "evidence": str(R.dir.relative_to(self.out)).replace("\\", "/")}
+        if clock_read:
+            res["clock"] = clock_read
+        append_jsonl(self.out / "results.jsonl", res)
+        self.file_defects(R)
+        print(f"[{persona['id']} {vp} {mode}] {verdict} {counts} findings={res['findings']}", flush=True)
+        return res
+
+    def step(self, R: Run, sc: dict, s: dict, sid_: str, skip_rest: str | None) -> dict:
+        row = {"step": sid_, "do": s["do"], "title": s.get("title") or sc["title"], "persona": R.p["id"],
+               "viewport": R.vp, "mode": R.mode, "checks": [], "read": [], "timings": {}, "screenshots": [],
+               "verdict": None, "blocking": s["do"] in BLOCKING, "expect_status": list(s.get("expect_status") or [])}
+        needs = set(sc.get("needs") or []) | set(s.get("needs") or [])
+        unmet = sorted(n for n in needs if not self.caps.get(n))
+        for _, (_, ev) in R.pages.items():
+            ev.clear()
+        t0 = time.perf_counter()
+        if unmet:
+            row["verdict"] = "INCONCLUSIVE"
+            row["error"] = "needs " + ", ".join(unmet) + ": " + "; ".join(NEED_WHY[n] for n in unmet)
+        elif skip_rest:
+            row["verdict"] = "INCONCLUSIVE"
+            row["error"] = skip_rest
+        else:
+            try:
+                ACTIONS[s["do"]](R, s, row)
+                expectations(R, s, row)
+                row["verdict"] = "PASS" if all(c["ok"] for c in row["checks"]) else "FAIL"
+            except KeyboardUnreachable as e:
+                row["verdict"] = "FAIL"
+                row["error"] = f"keyboard: {e}"
+                row.setdefault("findings_raw", []).append({"kind": "keyboard", "page": "main", "detail": str(e)})
+            except Inconclusive as e:
+                row["verdict"] = "FAIL" if any(not c["ok"] for c in row["checks"]) else "INCONCLUSIVE"
+                row["error"] = f"INCONCLUSIVE: {e}"
+            except Exception as e:  # noqa: BLE001 -- a read the driver could not finish
+                row["verdict"] = "FAIL" if any(not c["ok"] for c in row["checks"]) else "INCONCLUSIVE"
+                row["error"] = f"{type(e).__name__}: {str(e)[:500]}"
+                row["traceback"] = traceback.format_exc()[-1500:]
+        row["ms"] = round((time.perf_counter() - t0) * 1000)
+        ran = not (unmet or skip_rest)
+        row["events"] = {name: list(ev) for name, (_, ev) in R.pages.items() if ev}
+        if ran:
+            pg = R.page()
+            if not pg.is_closed():
+                row["metrics"] = metrics(R, row)
+                try:
+                    shot = R.dir / "shots" / f"{sid_.replace('.', '_')}.png"
+                    shot.parent.mkdir(parents=True, exist_ok=True)
+                    pg.screenshot(path=str(shot))
+                    row["screenshots"].append(str(shot.relative_to(self.out)).replace("\\", "/"))
+                except Exception:  # noqa: BLE001
+                    pass
+                if row["verdict"] != "PASS":
+                    with contextlib.suppress(Exception):
+                        row["page_text"] = pg.locator("body").inner_text(timeout=3000)[:3000]
+            row["findings"] = findings_of(R, row) + list(row.pop("findings_raw", []))
+        write_json(R.dir / "steps" / f"{sid_.replace('.', '_')}.json", row)
+        return row
+
+    def file_defects(self, R: Run) -> None:
+        """One line per distinct finding (its `expected` + `actual`) in this evidence folder: the first
+        persona, viewport and mode that met it are the line's own fields, and every later meeting is
+        added to its `seenIn` (so one product defect seen in 300 runs is one line to triage, not 300)."""
+        path = self.out / "defects.jsonl"
+        existing = read_jsonl(path)
+        by_key = {defect_key(d.get("expected"), d.get("actual")): d for d in existing}
+        new = []
+        for row in R.steps:
+            step_json = str((R.dir / "steps" / (row["step"].replace(".", "_") + ".json")).relative_to(self.out)).replace("\\", "/")
+            shot = row["screenshots"][0] if row.get("screenshots") else "-"
+            items = []
+            if row["verdict"] == "FAIL":
+                for c in row["checks"]:
+                    if not c["ok"]:
+                        items.append(("expectation", f"{row['do']}: {c['what']}", c["read"] or row.get("error") or ""))
+            for f in row.get("findings") or []:
+                items.append((f["kind"], f"{FINDING_RULE.get(f['kind'], 'no serious or critical axe finding')}",
+                              f"[{f['page']}] {f['detail']}"))
+            for kind, expected, actual in items:
+                key = defect_key(expected, actual[:900])
+                seen = {"persona": R.p["id"], "viewport": R.vp, "keyboard": R.keyboard, "step": row["step"],
+                        "run": self.run_id}
+                if key in by_key:
+                    d = by_key[key]
+                    if seen not in d.setdefault("seenIn", []):
+                        d["seenIn"].append(seen)
+                    continue
+                d = {"persona": R.p["id"], "viewport": R.vp, "keyboard": R.keyboard, "steps": [row["step"]],
+                     "expected": expected, "actual": actual[:900], "evidence": f"{shot}; {step_json}",
+                     "severity": SEVERITY.get(kind, "minor"), "status": "untriaged", "fixSha": None, "retest": None,
+                     "seenIn": [seen]}
+                by_key[key] = d
+                new.append(d)
+        for d, nid in zip(new, next_defect_ids(existing, len(new))):
+            existing.append({"id": nid, **d})
+        tmp = path.with_suffix(".jsonl.tmp")
+        tmp.write_text("".join(json.dumps(d, ensure_ascii=False, default=str) + "\n" for d in existing),
+                       encoding="utf-8", newline="\n")
+        os.replace(tmp, path)
+
+
+FINDING_RULE = {"console": "no console error", "pageerror": "no page error",
+                "http4xx": "no failed request the step did not expect", "http5xx": "no server error",
+                "overflow": "no horizontal overflow", "tap": f"every touch target at least {TAP_FLOOR} px",
+                "keyboard": "every control reachable by keyboard", "xss": "member text never runs as markup",
+                "axe:serious": "no serious axe finding", "axe:critical": "no critical axe finding"}
+BLOCKING = {"seed_note", "open_note", "open_builder", "builder_blank", "builder_save", "insert_routine", "my_tools",
+            "new_context", "open"}
+NEED_WHY = {"w11": "the server at --base has no wave 11 routes (GET /api/j2/template-gallery/library is not 200)",
+            "restart": "a flag flip restarts the server; only --own-sandbox can",
+            "clock": ("the server runs on the real clock: pass --clock-launcher tools/notebook_campaign/sandbox_clock.py "
+                      "(ruling W11-R49) to boot it at the persona's instant"),
+            "sql_clock": ("the verdict rests on SQLite's own clock (a CURRENT_TIMESTAMP / 'now' default), which the "
+                          "launcher-only clock shift cannot move (sandbox_clock lists the tables at boot)")}
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--run-id", required=True)
+    ap.add_argument("--persona", action="append", default=[], help="Pnn (repeatable or comma-separated)")
+    ap.add_argument("--viewport", action="append", default=[], choices=["1200", "820", "390"])
+    ap.add_argument("--keyboard", action="store_true", help="keyboard-only runs only")
+    ap.add_argument("--pointer", action="store_true", help="pointer runs only")
+    ap.add_argument("--base", default=None, help="a sandbox already running on --data-dir (localhost only)")
+    ap.add_argument("--own-sandbox", action="store_true", help="boot (and restart for flag flips) the sandbox here")
+    ap.add_argument("--port", type=int, default=8131)
+    ap.add_argument("--data-dir", required=True, help="the dir seed_members.py seeded")
+    ap.add_argument("--app-root", default=str(REPO))
+    ap.add_argument("--personas", default=str(seedmod.PERSONAS))
+    ap.add_argument("--out", default=None, help="evidence folder (default docs/notebook/evidence/<run-id>)")
+    ap.add_argument("--axe", default=None, help="axe.min.js (default: <app-root>/app/node_modules/axe-core/axe.min.js)")
+    ap.add_argument("--headed", action="store_true")
+    ap.add_argument("--no-heavy-lock", action="store_true")
+    ap.add_argument("--clock-launcher", default=None,
+                    help="tools/notebook_campaign/sandbox_clock.py: boots the server at each clock persona's instant")
+    ap.add_argument("--clock-port", type=int, default=8141, help="the clock sandbox's port (loopback)")
+    args = ap.parse_args(argv)
+
+    if args.base:
+        why = refuse_non_local(args.base)
+        if why:
+            print(f"REFUSED: {why}")
+            return 3
+    elif not args.own_sandbox and not args.clock_launcher:
+        print("REFUSED: pass --base <local sandbox>, --own-sandbox, or --clock-launcher (clock personas only)")
+        return 3
+    why = seedmod.refuse_shared_root(args.data_dir)
+    if why:
+        print(f"REFUSED: {why}")
+        return 3
+    data_dir = Path(os.path.abspath(args.data_dir))
+    mpath = data_dir / seedmod.MANIFEST_NAME
+    if not mpath.is_file():
+        print(f"REFUSED: {mpath} is missing: seed the data dir with seed_members.py first")
+        return 3
+    manifest = json.loads(mpath.read_text(encoding="utf-8"))
+    app_root = Path(args.app_root).resolve()
+    spec = seedmod.load_personas(args.personas)
+    out = Path(args.out) if args.out else REPO / "docs" / "notebook" / "evidence" / args.run_id
+    out.mkdir(parents=True, exist_ok=True)
+    libs = load_walk_libs(app_root)
+    g = Campaign(args, spec, manifest, libs, out)
+    g.sentences = verify_sentences(spec, app_root)
+    axe = Path(args.axe) if args.axe else app_root / "app" / "node_modules" / "axe-core" / "axe.min.js"
+    g.axe_src = axe.read_text(encoding="utf-8") if axe.is_file() else None
+
+    want = {x.strip() for p in args.persona for x in p.split(",") if x.strip()}
+    people = [p for p in spec["personas"] if not want or p["id"] in want]
+    missing = [p["id"] for p in people if p["id"] not in manifest["members"]]
+    if missing:
+        print(f"REFUSED: not seeded in {mpath}: {missing}")
+        return 3
+    modes = ["keyboard"] if args.keyboard else ["pointer"] if args.pointer else ["pointer", "keyboard"]
+
+    meta = {"run_id": args.run_id, "tool": "tools/notebook_campaign/run_campaign.py",
+            "tool_tree": subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(REPO), capture_output=True, text=True).stdout.strip(),
+            "app_root": str(app_root),
+            "app_tree": subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(app_root), capture_output=True, text=True).stdout.strip(),
+            "data_dir": str(data_dir), "personas": [p["id"] for p in people], "modes": modes,
+            "viewports": args.viewport or "per persona", "axe": {"path": str(axe), "present": bool(g.axe_src)},
+            "sentences": g.sentences, "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    write_json(out / "run.json", meta)
+    drifted = [k for k, v in g.sentences.items() if not v["ok"]]
+    if drifted:
+        print(f"NOTE: {len(drifted)} sentences did not verify against their sources (their steps read INCONCLUSIVE): {drifted}")
+
+    clocked = [p for p in people if persona_needs_clock(p)]
+    plain = [p for p in people if not persona_needs_clock(p)]
+    groups: list = []
+    launcher = Path(args.clock_launcher).resolve() if args.clock_launcher else None
+    if launcher:
+        if not launcher.is_file():
+            print(f"REFUSED: --clock-launcher {launcher} does not exist")
+            return 3
+        if args.base and clocked:
+            print("REFUSED: --clock-launcher boots its own server on the data dir; stop the --base server and use "
+                  "--own-sandbox (or neither, to run only the clock personas)")
+            return 3
+        try:
+            groups = clock_groups(clocked)
+        except ValueError as e:
+            print(f"REFUSED: {e}")
+            return 3
+        meta["clock_groups"] = [{"clock": at, "personas": [p["id"] for p in ps]} for at, ps in groups]
+    else:
+        plain = people                       # clock steps read INCONCLUSIVE (NEED_WHY["clock"])
+    if not (args.base or args.own_sandbox) and plain:
+        print(f"NOTE: no --base / --own-sandbox: {[p['id'] for p in plain]} are not run (only clock personas are)")
+        plain = []
+
+    def verify_identity(label: str) -> dict | None:
+        ident, why = g.sid.fetch_identity(g.base)
+        served = os.path.normcase(os.path.abspath(str((ident or {}).get("data_dir") or "")))
+        meta.setdefault("identity", {})[label] = {"served": ident, "why": why}
+        if not ident or served != os.path.normcase(str(data_dir)):
+            print(f"REFUSED: {g.base} did not prove it is the sandbox on {data_dir} (it answered "
+                  f"{(ident or {}).get('data_dir')!r}; {why}). Nothing was driven.")
+            return None
+        return ident
+
+    def run_people(ps: list[dict], results: list) -> None:
+        for p in ps:
+            vps = args.viewport or p.get("viewports") or spec["defaults"]["viewports"]
+            pmodes = [m for m in modes if m in p.get("modes", modes)]
+            for vp in vps:
+                for mode in pmodes:
+                    try:
+                        results.append(g.run_one(p, vp, mode))
+                    except Exception as e:  # noqa: BLE001 -- one run's crash never hides the next
+                        print(f"[{p['id']} {vp} {mode}] TOOL ERROR {type(e).__name__}: {e}", flush=True)
+                        append_jsonl(out / "results.jsonl", {"run_id": args.run_id, "persona": p["id"], "viewport": vp,
+                                                             "mode": mode, "verdict": "INCONCLUSIVE",
+                                                             "tool_error": f"{type(e).__name__}: {str(e)[:400]}"})
+                    if g.sandbox and g.sandbox.overrides:
+                        g.sandbox.restart({})           # a flag persona never leaves the next one flipped
+
+    global CLOCK_OFFSET_S
+    lock = seedmod.heavy_lock(f"notebook-campaign {args.run_id}", enabled=not args.no_heavy_lock)
+    from playwright.sync_api import sync_playwright
+    clock_sb = None
+    with lock, sync_playwright() as pw:
+        try:
+            results: list = []
+            if plain:
+                if args.own_sandbox:
+                    g.sandbox = OwnedSandbox(g.h, g.fw, data_dir, args.port, out)
+                    g.sandbox.start()
+                    g.base = g.sandbox.base
+                    g.caps["restart"] = True
+                else:
+                    g.base = args.base.rstrip("/")
+                if not verify_identity("main"):
+                    return 3
+                meta["w11_probe"] = g.probe_w11()
+                g.caps["w11"] = bool(meta["w11_probe"]["available"])
+                write_json(out / "run.json", meta)
+                print(f"sandbox {g.base} on {data_dir}; wave 11 routes: "
+                      f"{'present' if g.caps['w11'] else 'ABSENT (w11 steps INCONCLUSIVE)'}", flush=True)
+                g.browser = g.browser or pw.chromium.launch(headless=not args.headed)
+                run_people(plain, results)
+                if g.sandbox:
+                    g.sandbox.stop()           # the clock groups boot their own server on this data dir
+                    meta["boots"] = g.sandbox.boots
+                    g.sandbox = None
+                    g.caps["restart"] = False
+            if groups:
+                clock_sb = ClockSandbox(g.h, g.fw, launcher, app_root, data_dir, args.clock_port, out)
+            for at, ps in groups:
+                clock_sb.start(at, [p["id"] for p in ps])
+                try:
+                    g.base = clock_sb.base
+                    ident = verify_identity(f"clock {at}")
+                    if not ident:
+                        return 3
+                    why = verify_clock_server(ident, at)
+                    if why:
+                        print(f"REFUSED: {why}. Nothing was driven.")
+                        return 3
+                    CLOCK_OFFSET_S = float(ident["clock_shift"]["offset_s"])
+                    g.clock_server = clock_sb
+                    g.caps["clock"] = True
+                    sess = data_dir / "clock-sessions.json"
+                    g.session_override = {}
+                    if sess.is_file():
+                        body = json.loads(sess.read_text(encoding="utf-8"))
+                        if body.get("clock") and datetime.fromisoformat(body["clock"]) == datetime.fromisoformat(at):
+                            g.session_override = body.get("members") or {}
+                    meta["w11_probe"] = g.probe_w11()
+                    g.caps["w11"] = bool(meta["w11_probe"]["available"])
+                    meta.setdefault("clock_servers", []).append({"clock": at, "clock_shift": ident["clock_shift"],
+                                                                 "sessions_from_launcher": len(g.session_override)})
+                    write_json(out / "run.json", meta)
+                    print(f"clock sandbox {g.base} on {data_dir} at {at} (server now "
+                          f"{ident['clock_shift'].get('now_et_words')}); wave 11 routes: "
+                          f"{'present' if g.caps['w11'] else 'ABSENT (w11 steps INCONCLUSIVE)'}", flush=True)
+                    g.browser = g.browser or pw.chromium.launch(headless=not args.headed)
+                    run_people(ps, results)
+                finally:
+                    clock_sb.stop()
+                    g.clock_server, g.caps["clock"], g.session_override = None, False, {}
+                    CLOCK_OFFSET_S = 0.0
+        finally:
+            if g.browser:
+                with contextlib.suppress(Exception):
+                    g.browser.close()
+            if g.sandbox:
+                g.sandbox.stop()
+                meta["boots"] = g.sandbox.boots
+            if clock_sb:
+                clock_sb.stop()
+                meta["clock_boots"] = clock_sb.boots
+            meta["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            write_json(out / "run.json", meta)
+    rows = read_jsonl(out / "results.jsonl")
+    tally = {v: sum(1 for r in rows if r.get("run_id") == args.run_id and r["verdict"] == v) for v in ("PASS", "FAIL", "INCONCLUSIVE")}
+    print(f"CAMPAIGN {args.run_id}: {tally} runs; results {out / 'results.jsonl'}; defects {out / 'defects.jsonl'}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

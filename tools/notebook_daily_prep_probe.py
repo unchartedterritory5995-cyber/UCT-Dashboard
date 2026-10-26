@@ -111,14 +111,9 @@ def shared_roots() -> list[str]:
 
 def refuse_shared_root(paths: dict) -> None:
     """Raise SharedRootRefused naming every path that resolves inside the shared root."""
-    bad = {}
-    for name, p in paths.items():
-        if not p:
-            continue
-        n = os.path.normcase(os.path.abspath(str(p)))
-        for r in shared_roots():
-            if n == r or n.startswith(r + os.sep):
-                bad[name] = str(p)
+    # THE refusal authority (scripts/shared_root_guard.py, ruling W11-R51/R52), never a local compare.
+    guard = conftest.shared_root_guard
+    bad = {name: str(p) for name, p in paths.items() if p and guard.refuse(str(p), roots=shared_roots())}
     if bad:
         raise SharedRootRefused(f"refusing: {len(bad)} path(s) inside the shared data root: {bad}")
 

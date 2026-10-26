@@ -869,8 +869,37 @@ def sandbox_for(literal: str) -> str:
     return os.path.join(SANDBOX_DATA_ROOT, *tail.split("/"))
 
 
+def _load_shared_root_guard():
+    """THE refusal authority (`scripts/shared_root_guard.py`, ruling W11-R51): the tripwire, the
+    env redirect below, the hub launcher and the seeders all ask it, so a spelling of the root that
+    one of them would miss (a device-path or admin-share spelling) is missed by none. Loaded by path so
+    importing conftest puts nothing on sys.path; registered so the launcher shares the one copy."""
+    mod = sys.modules.get("shared_root_guard")
+    if mod is not None:
+        return mod
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "shared_root_guard.py")
+    spec = importlib.util.spec_from_file_location("shared_root_guard", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    sys.modules["shared_root_guard"] = mod
+    return mod
+
+
+try:
+    shared_root_guard = _load_shared_root_guard()
+except Exception:  # noqa: BLE001 -- only tolerable where nothing is armed (a deployed service)
+    if not _INERT_IN_PRODUCTION:
+        raise
+    shared_root_guard = None
+
+
 def _norm(path) -> str:
-    return os.path.normcase(os.path.abspath(path))
+    """A root's canonical spelling, as the guard compares it. (In a deployed service whose image
+    lacks scripts/, nothing is armed and only a probe calls this, so plain normalisation serves.)"""
+    if shared_root_guard is None:
+        return os.path.normcase(os.path.abspath(path))
+    return shared_root_guard.canonical_roots([path])[0]
 
 
 #: Mutable so a rail can point the tripwire at a throwaway PROBE directory and
@@ -887,9 +916,7 @@ def _redirect_shared_root_env_vars():
         return applied
     for var, literal in SHARED_DATA_ENV_PINS.items():
         current = os.environ.get(var)
-        if current and not any(
-                _norm(current) == r or _norm(current).startswith(r + os.sep)
-                for r in SHARED_DATA_ROOTS):
+        if current and not shared_root_guard.hit(current, SHARED_DATA_ROOTS):
             continue
         target = sandbox_for(literal)
         os.environ[var] = target
@@ -919,34 +946,9 @@ _CURRENT_TEST = [None]
 
 
 def _shared_root_hit_against(path, roots):
-    """The normalised path when it is inside one of `roots`, else None."""
-    if not roots:
-        return None
-    try:
-        raw = os.fspath(path)
-    except TypeError:
-        return None
-    if isinstance(raw, bytes):
-        try:
-            raw = raw.decode("utf-8", "replace")
-        except Exception:  # noqa: BLE001
-            return None
-    if not isinstance(raw, str):
-        return None
-    lowered = raw.lower()
-    # Cheap reject first: `open()` is on every hot path in the interpreter and
-    # `abspath` costs a `getcwd`. A path that does not even mention the root's
-    # own directory name cannot be inside it.
-    if not any(os.path.basename(r).lower() in lowered for r in roots):
-        return None
-    try:
-        full = _norm(raw)
-    except (ValueError, OSError):
-        return None
-    for root in roots:
-        if full == root or full.startswith(root + os.sep):
-            return full
-    return None
+    """The normalised path when it is inside one of `roots`, else None: the guard's `hit`, which
+    also maps the device-path and admin-share spellings of a root back to its drive spelling."""
+    return shared_root_guard.hit(path, roots)
 
 
 def _shared_root_hit(path):
