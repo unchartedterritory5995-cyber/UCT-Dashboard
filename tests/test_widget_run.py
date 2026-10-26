@@ -5,6 +5,7 @@ sqlite file; nothing here reaches `C:\\data`.
 """
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import threading
@@ -705,3 +706,74 @@ def test_a_run_with_no_wave10_feature_keeps_its_cache_key(conn, monkeypatch):
     monkeypatch.setattr(run, "_cache_key", spy)
     _go()
     assert keys and keys[0][-1] == []                             # no notices, no wave 10 marks
+
+
+# -- run_plans_batch (Task 11.9) ----------------------------------------------------------------------
+
+def test_run_plans_batch_cap_and_lanes(conn, monkeypatch):
+    from api.services.journal_two.widget_engine.plan import PlanError
+    with pytest.raises(PlanError) as e:
+        run.run_plans_batch(UID, [(f"k{i}", _plan()) for i in range(run.MAX_EXAMPLES + 1)], now=NOW)
+    assert e.value.sentence == run.S_TOO_MANY_EXAMPLES
+    with pytest.raises(ValueError):
+        run.run_plans_batch(UID, [("k", _plan()), ("k", _plan())], now=NOW)          # keys are distinct
+    assert run.run_plans_batch(UID, [], now=NOW) == {"cards": []}                     # nothing to run reads nothing
+
+    lanes = []
+    real_admit = run.admit
+
+    def admit(uid, lane):
+        lanes.append(lane)
+        return real_admit(uid, lane)
+    monkeypatch.setattr(run, "admit", admit)
+    for d in ("2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"):
+        add_trade(conn, UID, day=d, pnl=50, setup="Flag")
+    add_trade(conn, UID, day="2026-10-23", pnl=70, setup="Base")
+    seen = _count_scans(monkeypatch)
+    flags = _plan(measures=("trades",), filters=[{"field": "setup", "op": "in", "values": ["Flag"]}])
+    cards = [("a", _plan(measures=("trades",))), ("bad", {"v": 1, "source": "nope"}), ("b", flags),
+             ("too_new", {**_plan(), "v": 99})]
+    gen = run._preview_gen_now(UID)
+    out = run.run_plans_batch(UID, cards, now=NOW)
+    assert [c["key"] for c in out["cards"]] == ["a", "bad", "b", "too_new"]          # the order given
+    assert out["cards"][0]["payload"]["count"] == 6 and out["cards"][2]["payload"]["count"] == 5
+    assert out["cards"][0]["payload"]["sample"] is False
+    assert set(out["cards"][1]) == {"key", "code", "message"} and out["cards"][1]["code"] == "invalid"
+    assert out["cards"][3]["code"] == "invalid" and "newer version" in out["cards"][3]["message"]
+    assert lanes == ["example"]                                  # ONE admission, the examples lane
+    assert seen["n"] == 1                                        # ONE scan covers both closed-trades cards
+    assert run._preview_gen_now(UID) == gen                      # never bumps or watches the preview counter
+    assert daily_counters is not None and run._pending(UID) == 0  # not a counted run
+    again = run.run_plans_batch(UID, cards, now=NOW)
+    assert again == out and seen["n"] == 1 and lanes == ["example"]    # the cache: nothing ran
+    add_trade(conn, UID, day="2026-10-23", pnl=10, setup="Flag")
+    assert run.run_plans_batch(UID, cards, now=NOW)["cards"][2]["payload"]["count"] == 6   # the stamp busts it
+
+
+def test_run_plans_batch_reads_the_sample_book_under_five_trades(conn, monkeypatch):
+    add_trade(conn, UID, day="2026-10-20", pnl=50)
+    seen = _count_scans(monkeypatch)
+    out = run.run_plans_batch(UID, [("a", _plan(measures=("trades",)))], now=NOW)
+    assert out["cards"][0]["payload"]["sample"] is True
+    assert seen["n"] == 0                                        # the book, never the member's rows
+
+
+def test_run_plans_batch_foreign_account_is_all_my_accounts_with_notice(conn):
+    add_user(conn, "u-other")
+    other = add_account(conn, "u-other", "Theirs")
+    mine = add_account(conn, UID, "Mine")
+    for d in ("2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"):
+        add_trade(conn, UID, day=d, pnl=50, account=mine)
+        add_trade(conn, "u-other", day=d, pnl=9999, account=other)
+    second = add_account(conn, UID, "Second")
+    add_trade(conn, UID, day="2026-10-22", pnl=30, account=second)
+    add_trade(conn, UID, day="2026-10-23", pnl=30, account=second)
+    out = run.run_plans_batch(UID, [("theirs", _plan(measures=("trades",), accounts={"id": other})),
+                                    ("mine", _plan(measures=("trades",), accounts={"id": mine}))], now=NOW)
+    theirs, own = out["cards"][0]["payload"], out["cards"][1]["payload"]
+    assert theirs["count"] == 7 and theirs["notice"] == run.S_ACCOUNT_GONE   # all of MY accounts, never theirs
+    assert theirs["scopeLabel"] == "All my accounts"
+    assert own["count"] == 5 and own["notice"] is None                       # narrowed to my one account
+    assert theirs["accountId"] is None
+    assert own["scopeLabel"] == "Mine" and own["accountId"] == mine          # the account actually scanned
+    assert "9999" not in json.dumps(out)

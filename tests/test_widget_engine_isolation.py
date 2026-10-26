@@ -149,6 +149,36 @@ def test_filtering_on_b_account_id_gives_a_nothing(two):
     assert sc.rows == [] and res.total.cells[0].value == 0
 
 
+def test_a_plans_batch_never_reads_b(two, monkeypatch):
+    """Task 11.9: the preview's batch (one covering scan per source and account) holds only A's rows, for a
+    split, a filter and B's own account id alike."""
+    import json
+    from datetime import datetime, timezone
+    from api.services.journal_two import notebook_widgets as nw
+    from api.services.journal_two.widget_engine import run as wrun
+    c, _acc_a, acc_b = two
+    monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-iso-batch",
+                                                    reserve=nw.WIDGET_POOL_RESERVE))
+    wrun._reset_state()
+    for d in ("2026-10-22", "2026-10-23"):                    # A over the sample line: real rows, not the book
+        add_trade(c, A, day=d, pnl=1.0, setup="Shared", symbol="NVDA")
+    now = datetime(2026, 10, 23, 20, 0, tzinfo=timezone.utc)
+    out = wrun.run_plans_batch(A, [
+        ("split", raw_plan(measures=("net_pnl",), range=RANGE, split={"by": "setup"})),
+        ("filter", raw_plan(measures=("net_pnl",), range=RANGE,
+                            filters=[{"field": "setup", "op": "in", "values": ["B only"]}])),
+        ("b_acc", raw_plan(measures=("net_pnl",), range=RANGE, accounts={"id": acc_b})),
+    ], now=now)
+    text = json.dumps(out)
+    for leak in ("7777", "7778", "7779", "8888", "BONLY", acc_b):
+        assert leak not in text, leak
+    split, filt, b_acc = (c_["payload"] for c_ in out["cards"])
+    assert split["value"]["v1"] == pytest.approx(100 + 101 + 102 + 2)
+    assert filt["count"] == 0
+    assert b_acc["value"]["v1"] == pytest.approx(305) and b_acc["notice"] == wrun.S_ACCOUNT_GONE
+    wrun._reset_state()
+
+
 def test_b_sees_only_b(two):
     c, _acc_a, _acc_b = two
     _sc, res = run(c, raw_plan(measures=("net_pnl",), range=RANGE, split={"by": "setup"}), uid=B)
