@@ -396,6 +396,21 @@ def test_update_routine_and_tracker_copies(db):
     assert trackers.get(MEMBER, mt, conn=db)["kind"] == "number"
 
 
+def test_a_template_update_never_adds_a_shared_slot_to_the_members_style(db):
+    """W11-R2: the P3a additive update ("Update my copy") adds a newer version's NON-slot blocks only; an `inline:`
+    slot of a shared payload never lands in a member's own style."""
+    gid = _template_listing(db)
+    mine = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, conn=db)["style"]["id"]
+    payload = json.loads(db.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
+                                    (gid,)).fetchone()[0])
+    payload["blocks"] += [{"block": "built_x", "enabled": True, "settings": {"ref": "inline:d1"}},
+                          {"block": "chart", "enabled": True, "settings": {"tf": "W"}}]
+    db.execute("UPDATE j2_template_gallery SET payload_json = ?, version = 2 WHERE id = ?", (json.dumps(payload), gid))
+    db.commit()
+    plan = gallery.plan_update(MEMBER, mine, conn=db)
+    assert plan["addBlocks"] == ["chart"]
+
+
 def test_an_update_rings_a_tool_watcher_with_a_my_tools_link(db, monkeypatch):
     rung = []
     monkeypatch.setattr(gallery, "_ring", lambda uid, title, msg, data: rung.append((uid, data)) or True)

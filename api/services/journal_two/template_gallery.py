@@ -3223,7 +3223,9 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
         adopted = set(json.loads((src and src["source_block_ids"]) or "[]"))
     except (TypeError, ValueError):
         adopted = set()
-    add_blocks = [b for b in _block_ids(theirs) if b not in have and b not in adopted]
+    # Task 11.8 (W11-R2): a member's own style never holds an `inline:` / `template` slot of a shared payload, so the
+    # additive update never adds a template slot family block (those parts are made only by an adoption).
+    add_blocks = [b for b in _block_ids(theirs) if b not in have and b not in adopted and js.slot_family(b) is None]
     mine_props = mine.get("properties") or {}
     add_props = [p for p in theirs["properties"] if p not in mine_props]
     # "The author's new outline" means the author changed it since this copy was made or last updated, so
