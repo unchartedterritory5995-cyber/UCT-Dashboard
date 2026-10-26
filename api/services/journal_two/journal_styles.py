@@ -177,7 +177,14 @@ S_SLOT_TOOL = "Pick a routine or tracker for this spot."
 S_SLOT_BIND = "Pick the day this block is for."
 S_SLOT_DISPLAY = "That display isn't available."
 
-_UUID4_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+
+def _is_uuid4(raw: object) -> bool:
+    """A lowercase uuid4, exactly: THE one rule (`create_keys.clean_create_key`, its one home), with no trimming or
+    case folding (a stored ref is the id as issued)."""
+    from api.services.journal_two import create_keys
+    return isinstance(raw, str) and create_keys.clean_create_key(raw) == raw
+
+
 _TEMPLATE_KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 #: Display options per tool family (W11-R2), the first is the default.
 SLOT_DISPLAYS: dict[str, tuple[str, ...]] = {"routine": ("items", "pnl"), "tracker": ("chart", "pnl")}
@@ -245,7 +252,7 @@ def slot_settings_of(family: str, settings: Any) -> dict:
                 raise StyleValidationError(S_SLOT_REV)
             out: dict = {"ref": ref, "defRev": s["defRev"]}
         elif ref.startswith("def:"):
-            if not _UUID4_RE.fullmatch(ref[len("def:"):]):
+            if not _is_uuid4(ref[len("def:"):]):
                 raise StyleValidationError(S_SLOT_REF)
             if not _is_rev(s.get("defRev")):
                 raise StyleValidationError(S_SLOT_REV)
@@ -273,7 +280,7 @@ def slot_settings_of(family: str, settings: Any) -> dict:
     key, value = given[0], s[given[0]]
     if key == "ref":
         ok = isinstance(value, str) and (
-            (value.startswith(f"{family}:") and _UUID4_RE.fullmatch(value[len(family) + 1:]) is not None)
+            (value.startswith(f"{family}:") and _is_uuid4(value[len(family) + 1:]))
             or (family == "tracker" and value in SLOT_CHECKIN_REFS))
     elif key == "template":
         ok = _template_key_ok(family, value)

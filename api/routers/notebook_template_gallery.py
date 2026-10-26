@@ -82,6 +82,7 @@ from api.middleware.auth_middleware import (
 )
 from api.services import daily_counters
 from api.services.journal_two import journal_styles as js
+from api.services.journal_two import notes as notes_service
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import template_gallery as gallery
 from api.services.journal_two import template_library
@@ -192,6 +193,14 @@ async def paid_body(request: Request, _user: dict = Depends(require_paid)) -> di
     return await _read_json(request)
 
 
+async def library_body(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`/styles` and `/{id}/adopt` (Task 11.12 m-8): while wave 11 is on they carry wave 11's inputs (`edits`, `keep`,
+    `answers`, `choices`), so the body is read by the wave 11 reader (16 KB, depth 16); off, by today's."""
+    if _w11_on():
+        return await w11_body(request, _user)
+    return await _read_json(request)
+
+
 async def admin_body(request: Request, _user: dict = Depends(require_admin)) -> dict[str, Any]:
     return await _read_json(request)
 
@@ -207,13 +216,27 @@ def _cap(env: str, default: int) -> int:
         return default
 
 
-def _daily_take(scope: str, user: dict, cap_env: str, default: int, sentence: str) -> str:
-    """One durable charge for today (ET), or a 429 with the plain sentence. Returns the day
-    so a refused write can give the charge back."""
+def _hit(limit: str, scope: str, user: dict, sentence: str, *, w11: bool = False) -> None:
+    """THE in-process rate rule of this router: one `public.enforce_rate` hit, keyed on the member. `w11` only
+    changes the SHAPE of the 429 (a wave 11 door answers `{code: rate, message}` with no-store); the bucket and
+    the count are the same, so a scope shared by an old and a wave 11 door is one budget."""
+    try:
+        public.enforce_rate(limit, scope, f"member:{user['id']}", sentence, public=False)
+    except HTTPException as e:
+        if w11 and e.status_code == 429:
+            raise _err(429, "rate", sentence) from None
+        raise
+
+
+def _daily_take(scope: str, user: dict, cap_env: str, default: int, sentence: str, *, w11: bool = False) -> str:
+    """One durable charge for today (ET), or a 429 with the plain sentence (`{code: rate}` for a wave 11 door).
+    Returns the day so a refused write can give the charge back."""
     from api.services.journal_two.calendar import et_today
     day = et_today()
     refused = daily_counters.take(day, [daily_counters.Charge(scope, str(user["id"]), 1, _cap(cap_env, default))])
     if refused is not None:
+        if w11:
+            raise _err(429, "rate", sentence)
         raise HTTPException(status_code=429, detail=sentence)
     return day
 
@@ -235,13 +258,16 @@ def _server_error(e: gallery.GalleryServerError) -> HTTPException:
     return HTTPException(status_code=500, detail=str(e))
 
 
-def _charged_publish(user: dict, publish: Any) -> Any:
-    """ONE charge rule for every publish route -- an outline, a style, an example note (P3b review M-7): the
-    in-process 10/hour, then one durable charge for today, then `publish()`. A refusal of any kind gives the day's
-    charge back: a 400 or 409 (`GalleryError`), a 404 (`None`), and an unexpected failure too, so a typo or a
-    server fault never costs a member a slot. Returns what `publish()` returned."""
-    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
+def _charged_publish(user: dict, publish: Any, *, w11: bool = False) -> Any:
+    """ONE charge rule for every publish route -- an outline, a style, an example note, a layout, and since wave 11
+    a widget, routine or tracker (`POST /tools`) and a template (P3b review M-7): the in-process 10/hour, then one
+    durable charge for today, then `publish()`. A refusal of any kind gives the day's charge back: a 400 or 409
+    (`GalleryError`), a 404 (`None`), and an unexpected failure too, so a typo or a server fault never costs a
+    member a slot. Returns what `publish()` returned. `w11` (Task 11.12) only shapes the 429s for a wave 11 door;
+    such a door hands in a `publish` already wrapped in `_w11`, so its refusals arrive mapped."""
+    _hit(PUBLISH_RATE, SCOPE_PUBLISH, user, PUBLISH_RATE_SENTENCE, w11=w11)
+    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE,
+                      w11=w11)
     try:
         item = publish()
     except gallery.GalleryError as e:
@@ -293,7 +319,7 @@ def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any
 
 
 @router.post("/styles", dependencies=[Depends(_require_library)])
-def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> Any:
+def publish_style_endpoint(body: dict[str, Any] = Depends(library_body), user: dict = Depends(require_paid)) -> Any:
     """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
     held revision of an approved one. 404 for everyone while the library is off (R-P3-10), by the
     `_require_library` route dependency, before the plan check and the body.
@@ -307,10 +333,10 @@ def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict
             category=body.get("category"), trading_style=body.get("tradingStyle")))
         dropped = item.pop("droppedProperties", 0)
         return {"template": item, "droppedProperties": dropped}
-    item = _publish_charged(user, lambda: gallery.publish_style(
+    item = _charged_publish(user, lambda: _w11(lambda: gallery.publish_style(
         user["id"], body.get("styleId"), title=body.get("title"), description=body.get("description"),
         category=body.get("category"), trading_style=body.get("tradingStyle"), edits=body.get("edits"),
-        keep=_keep(body)))
+        keep=_keep(body))), w11=True)
     dropped = item.pop("droppedProperties", 0)
     out = {"template": item, "droppedProperties": dropped}
     if "droppedSlots" in item:
@@ -526,6 +552,13 @@ W11_MAX_BODY_DEPTH = 16
 PREVIEW_MINE_RATE = "10/minute"
 SCOPE_PREVIEW_MINE = "notebook-gallery-preview-mine"
 NOTIFY_SENTENCE = "notify must be true or false"
+#: m-2: the wave 11 previews' 429 (the plan's words for the preview scope); the scope is shared with P3b's example
+#: preview, whose own sentence stays its own.
+W11_PREVIEW_RATE_SENTENCE = "Too many previews in an hour. Try again later."
+PREVIEW_MINE_RATE_SENTENCE = "Too many previews at once. Try again in a minute."
+NOTE_CONFLICT_SENTENCE = "That note changed while it was being made. Try again."
+#: I-1: a Use's own note fields (`title`, `ticker`); anything else in the body is not a note field.
+TITLE_TEXT_SENTENCE = "title must be text"
 #: The new paths this block adds (the 404 rail enumerates the router's routes against it).
 W11_PATHS = (
     "/share/preview", "/tools", "/library", "/tools/updates/{kind}/{copy_id}", "/notes/{note_id}/helpful-prompt",
@@ -561,16 +594,6 @@ async def w11_body(request: Request, _user: dict = Depends(require_paid)) -> dic
         lambda: body_cap.read_capped_body(request, W11_MAX_BODY_BYTES, TOO_LARGE_SENTENCE), W11_MAX_BODY_DEPTH, _err)
 
 
-def _rate(limit: str, scope: str, user: dict, sentence: str) -> None:
-    """One in-process hit per request, keyed on the member (`public.enforce_rate`'s bucket, this block's error)."""
-    from api.limiter import limiter
-    if not limiter.enabled:
-        return
-    from limits import parse
-    if not limiter.limiter.hit(parse(limit), scope, f"member:{user['id']}"):
-        raise _err(429, "rate", sentence)
-
-
 def _w11(fn) -> Any:
     """Run `fn()`; answer every refusal from its CLASS (W9-R14). None is the one 404."""
     try:
@@ -589,11 +612,17 @@ def _w11(fn) -> Any:
     except gallery.GalleryServerError as e:
         raise _err(500, "server", str(e))
     except wdefs.WidgetError as e:
+        # m-3: by STATUS only (W9-R14). The widget store's cap never reaches here as a WidgetError: every wave 11
+        # door that can make a widget wraps it in `CountCapError` (`template_gallery._cap_sentence`).
         if e.status == 404:
             raise public.not_found()
-        if e.sentence == wdefs.S_CAP:
-            raise _err(409, "count_cap", e.sentence)
         raise _err(409 if e.status == 409 else 400, "conflict" if e.status == 409 else "invalid", e.sentence)
+    except notes_service.NoteValidationError as e:     # I-1: a Use's note fields, refused by the notes module
+        raise _err(400, "invalid", str(e))
+    except notes_service.NoteConflictError:
+        raise _err(409, "conflict", NOTE_CONFLICT_SENTENCE)
+    except notes_service.NoteLockedError as e:
+        raise _err(423, "locked", str(e))
     except js.StyleNotFound:
         raise public.not_found()
     except js.StyleValidationError as e:
@@ -611,32 +640,6 @@ def _w11(fn) -> Any:
     return out
 
 
-def _w11_charged(user: dict, fn, *, rate: str, scope: str, daily_scope: str, cap_env: str, cap: int,
-                 sentence: str) -> Any:
-    """`_charged_publish` / `_spend_adopt`'s rule for a wave 11 door: the in-process hourly hit, one durable charge
-    for today, then `_w11(fn)`; ANY refusal (a 4xx, the 404, an unexpected failure) gives the day's charge back."""
-    _rate(rate, scope, user, sentence)
-    from api.services.journal_two.calendar import et_today
-    day = et_today()
-    if daily_counters.take(day, [daily_counters.Charge(daily_scope, str(user["id"]), 1, _cap(cap_env, cap))]):
-        raise _err(429, "rate", sentence)
-    try:
-        return _w11(fn)
-    except BaseException:
-        _give_back(day, daily_scope, user)
-        raise
-
-
-def _publish_charged(user: dict, fn) -> Any:
-    return _w11_charged(user, fn, rate=PUBLISH_RATE, scope=SCOPE_PUBLISH, daily_scope=DAILY_PUBLISH_SCOPE,
-                        cap_env="NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", cap=10, sentence=PUBLISH_RATE_SENTENCE)
-
-
-def _adopt_charged(user: dict, fn) -> Any:
-    return _w11_charged(user, fn, rate=ADOPT_RATE, scope=SCOPE_ADOPT, daily_scope=DAILY_ADOPT_SCOPE,
-                        cap_env="NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", cap=50, sentence=ADOPT_RATE_SENTENCE)
-
-
 def _key(request: Request) -> str | None:
     """W11-R34: the request's `Idempotency-Key`, as sent (the service applies the one uuid4 rule)."""
     return request.headers.get(gallery.IDEMPOTENCY_HEADER)
@@ -649,6 +652,28 @@ def _notify(body: dict) -> bool:
     if not isinstance(notify, bool):
         raise _err(400, "invalid", NOTIFY_SENTENCE)
     return notify
+
+
+def _note_fields(body: dict) -> dict:
+    """I-1: a Use's note fields, checked BEFORE any charge by the notes module's own rules: the ticker by
+    `notes._validate_ticker` (type, length, grammar) and the title by type and `notes.MAX_TITLE_CHARS`. A refusal is
+    400 `invalid`; a Use never answers 500 for what a member typed."""
+    out: dict = {}
+    if "title" in body and body["title"] is not None:
+        title = body["title"]
+        if not isinstance(title, str):
+            raise _err(400, "invalid", TITLE_TEXT_SENTENCE)
+        if len(title.strip()) > notes_service.MAX_TITLE_CHARS:
+            raise _err(400, "invalid", "title too long")
+        out["title"] = title
+    if "ticker" in body:
+        try:
+            ticker = notes_service._validate_ticker(body["ticker"])
+        except notes_service.NoteValidationError as e:
+            raise _err(400, "invalid", str(e))
+        if ticker is not None:
+            out["ticker"] = ticker
+    return out
 
 
 def _keep(body: dict) -> Any:
@@ -739,7 +764,8 @@ def _contains(conn, ids: list[str]) -> dict[str, list[str]]:
 
 
 def _viewer_credits(conn, user_id: str, items: list[dict]) -> dict[str, str]:
-    """{item id: the credit of the viewer's newest copy of it} (W11-R7, `credit_for`: the copy's snapshot)."""
+    """{item id: the credit of the viewer's newest copy of it} (W11-R7, the copy's snapshot). m-6: ONE read of the
+    viewer's credit rows, then ONE `library_facts` call per copy kind (at most four), never a read per copy."""
     kinds = {i["id"]: ("template" if i.get("itemType") == "style" else gallery.TOOL_KIND_OF.get(i.get("itemType")))
              for i in items if not i.get("mine") and isinstance(i.get("id"), str)}
     kinds = {k: v for k, v in kinds.items() if v}
@@ -752,9 +778,13 @@ def _viewer_credits(conn, user_id: str, items: list[dict]) -> dict[str, str]:
             f" ({marks}) ORDER BY created_at, rowid", (user_id, *kinds)):
         if kinds.get(gid) == kind:
             newest[gid] = (kind, tool_id)
+    by_kind: dict[str, list[str]] = {}
+    for kind, tool_id in newest.values():
+        by_kind.setdefault(kind, []).append(tool_id)
+    facts = {kind: gallery.library_facts(user_id, kind, ids, conn=conn) for kind, ids in by_kind.items()}
     out = {}
     for gid, (kind, tool_id) in newest.items():
-        credit = gallery.credit_for(user_id, kind, tool_id, conn=conn)
+        credit = (facts.get(kind, {}).get(tool_id) or {}).get("credit")
         if credit:
             out[gid] = credit
     return out
@@ -798,7 +828,7 @@ def share_preview_endpoint(body: dict[str, Any] = Depends(w11_body),
     """`{kind, id, edits?, keep?}` -> `{travels, slots, kept, notShared, prefill, outline?, outlineGone?,
     droppedSlots?, droppedProperties?}` (W11-R22): what sharing one of the member's own widgets, routines, trackers
     or templates would send. The author only; nothing is written or stored."""
-    _rate(PREVIEW_RATE, SCOPE_PREVIEW, user, PREVIEW_RATE_SENTENCE)
+    _hit(PREVIEW_RATE, SCOPE_PREVIEW, user, W11_PREVIEW_RATE_SENTENCE, w11=True)
     return _ok(_w11(lambda: gallery.share_preview(user["id"], body.get("kind"), body.get("id"),
                                                   edits=body.get("edits"), keep=_keep(body))))
 
@@ -809,9 +839,9 @@ def publish_tool_endpoint(body: dict[str, Any] = Depends(w11_body),
     """`{kind, id, title, description?, edits, keep?}` -> `{template}`: a PENDING widget, routine or tracker item
     (or a held revision of an approved one). ⛔ The LISTED title is the reduced payload's (11.15 M-6), never
     `title` as sent: the service fills only what the payload leaves blank."""
-    item = _publish_charged(user, lambda: gallery.publish_tool(
+    item = _charged_publish(user, lambda: _w11(lambda: gallery.publish_tool(
         user["id"], body.get("kind"), body.get("id"), title=body.get("title"), description=body.get("description"),
-        edits=body.get("edits"), keep=_keep(body)))
+        edits=body.get("edits"), keep=_keep(body))), w11=True)
     return _ok({"template": item})
 
 
@@ -823,10 +853,18 @@ def library_endpoint(group: str = "", user: dict = Depends(require_paid)) -> JSO
     keys = template_library.GROUP_KEYS
     if group and group not in keys:
         raise _err(400, "invalid", "Unknown group.")
-    rows: list[dict] = []
-    for g in ([group] if group else list(keys)):
-        listed = _w11(lambda: gallery.list_gallery(user["id"], item_type="style", group=g, is_admin=_is_admin(user)))
-        rows.extend(r for r in listed if r.get("firm") and r.get("group") == g)
+    # m-6: ONE list read across every group, put in GROUPS order (stable: newest first inside a group). The list is
+    # capped at `LIST_LIMIT` rows; only a capped answer (which could have cut an official row) is re-read per group.
+    order = {k: i for i, k in enumerate(keys)}
+
+    def official(listed: list[dict]) -> list[dict]:
+        return [r for r in listed if r.get("firm") and r.get("group") in order]
+    listed = _w11(lambda: gallery.list_gallery(user["id"], item_type="style", group=group or None,
+                                               is_admin=_is_admin(user)))
+    if len(listed) >= gallery.LIST_LIMIT and not group:
+        listed = [r for g in keys for r in _w11(lambda: gallery.list_gallery(
+            user["id"], item_type="style", group=g, is_admin=_is_admin(user)))]
+    rows = sorted(official(listed), key=lambda r: order[r["group"]])
     return _ok({"templates": _card_facts(user["id"], rows, in_yours=True),
                 "groups": [{"key": k, "label": label} for k, label in template_library.GROUPS]})
 
@@ -837,7 +875,7 @@ def update_tool_endpoint(kind: str, copy_id: str, body: dict[str, Any] = Depends
     """`{answers?}` -> `{kind, id, version, tool}`: the LISTED version taken into the member's adopted copy. A new
     choice left unanswered is 400 `unresolved` (the client then opens "Make it yours" for the copy); 404 when the
     copy is not the member's library copy or nothing newer is listed."""
-    _rate(ADOPT_RATE, SCOPE_ADOPT, user, ADOPT_RATE_SENTENCE)
+    _hit(ADOPT_RATE, SCOPE_ADOPT, user, ADOPT_RATE_SENTENCE, w11=True)
     return _ok(_w11(lambda: gallery.update_tool(user["id"], kind, copy_id, answers=body.get("answers"))))
 
 
@@ -852,8 +890,8 @@ def preview_mine_endpoint(gallery_id: str, body: dict[str, Any] = Depends(w11_bo
                           user: dict = Depends(require_paid)) -> JSONResponse:
     """`{answers?}` -> `{slots, cards, tools, questions, credit}` (W11-R12, R24, R27b): the item with the viewer's
     own data. Spends the shared preview scope AND its own short per-member window (11.9 m-1)."""
-    _rate(PREVIEW_MINE_RATE, SCOPE_PREVIEW_MINE, user, PREVIEW_RATE_SENTENCE)
-    _rate(PREVIEW_RATE, SCOPE_PREVIEW, user, PREVIEW_RATE_SENTENCE)
+    _hit(PREVIEW_MINE_RATE, SCOPE_PREVIEW_MINE, user, PREVIEW_MINE_RATE_SENTENCE, w11=True)
+    _hit(PREVIEW_RATE, SCOPE_PREVIEW, user, W11_PREVIEW_RATE_SENTENCE, w11=True)
     return _ok(_w11(lambda: template_preview.preview_mine(user["id"], gallery_id, answers=body.get("answers"))))
 
 
@@ -862,8 +900,8 @@ def adopt_tool_endpoint(gallery_id: str, request: Request, body: dict[str, Any] 
                         user: dict = Depends(require_paid)) -> JSONResponse:
     """`{answers?, notify?}` -> `{kind, id, credit}` (`replayed: true` for a repeated `Idempotency-Key`)."""
     notify = _notify(body)
-    return _ok(_adopt_charged(user, lambda: gallery.adopt_tool(
-        user["id"], gallery_id, answers=body.get("answers"), notify=notify, key=_key(request))))
+    return _ok(_spend_adopt(user, lambda: _w11(lambda: gallery.adopt_tool(
+        user["id"], gallery_id, answers=body.get("answers"), notify=notify, key=_key(request))), w11=True))
 
 
 @router.post("/{gallery_id}/use-template", dependencies=[Depends(_require_w11)])
@@ -872,10 +910,10 @@ def use_template_endpoint(gallery_id: str, request: Request, body: dict[str, Any
     """`{answers?, choices?, ticker?, title?}` -> `{note, skipped, style, credit, created, reused}`: a note made
     from the member's copy of a listed template (the first Use adopts it, W11-R4). Two at once make one copy
     (Review Focus 2). The note is served as every note is (`_servable_note`)."""
-    fields = {k: body[k] for k in ("title", "ticker") if k in body}
-    out = _adopt_charged(user, lambda: gallery.use_library_template(
+    fields = _note_fields(body)
+    out = _spend_adopt(user, lambda: _w11(lambda: gallery.use_library_template(
         user["id"], gallery_id, answers=body.get("answers"), choices=body.get("choices"), payload=fields,
-        key=_key(request)))
+        key=_key(request))), w11=True)
     from api.routers.journal_two import _servable_note
     return _ok({**out, "note": _servable_note(out["note"])})
 
@@ -885,7 +923,7 @@ def answer_helpful_prompt_endpoint(gallery_id: str, body: dict[str, Any] = Depen
                                    user: dict = Depends(require_paid)) -> JSONResponse:
     """`{answer: yes|not_really|dismissed}` -> `{answer, helpful, count}`. "yes" also marks Helpful (409
     `helpful_days` before the 3rd day). The wave gate runs before the answer is validated (11.11 m-3)."""
-    _rate(HELPFUL_RATE, SCOPE_HELPFUL, user, HELPFUL_RATE_SENTENCE)
+    _hit(HELPFUL_RATE, SCOPE_HELPFUL, user, HELPFUL_RATE_SENTENCE, w11=True)
     return _ok(_w11(lambda: gallery.answer_helpful_prompt(user["id"], gallery_id, body.get("answer"))))
 
 
@@ -939,12 +977,13 @@ def use_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[st
     return out
 
 
-def _spend_adopt(user: dict, adopt) -> dict[str, Any]:
-    """THE adopt budget, for a style and a layout alike (R-P3-11, F16): 30/hour in-process plus a durable 50/day,
-    and the day's charge given back on every refusal (a `GalleryError`, 400 or 409), on a None (404) and on an
-    exception. ONE copy: both adopt routes call this, never a block of their own."""
-    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
+def _spend_adopt(user: dict, adopt, *, w11: bool = False) -> dict[str, Any]:
+    """THE adopt budget, for a style, a layout, and since wave 11 a tool and a template's Use alike (R-P3-11, F16):
+    30/hour in-process plus a durable 50/day, and the day's charge given back on every refusal (a `GalleryError`,
+    400 or 409), on a None (404) and on an exception. ONE copy: every adopt route calls this, never a block of its
+    own. `w11` (Task 11.12) only shapes the 429s; a wave 11 door hands in an `adopt` already wrapped in `_w11`."""
+    _hit(ADOPT_RATE, SCOPE_ADOPT, user, ADOPT_RATE_SENTENCE, w11=w11)
+    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE, w11=w11)
     try:
         out = adopt()
     except gallery.GalleryError as e:
@@ -960,7 +999,7 @@ def _spend_adopt(user: dict, adopt) -> dict[str, Any]:
 
 
 @router.post("/{gallery_id}/adopt", dependencies=[Depends(_require_library)])
-def adopt_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Depends(paid_body),
+def adopt_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Depends(library_body),
                    user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{notify?: bool}` -> `{style, notify, credit}`: the member's own copy of a listed style (R-P3-10:
     404 while the library is off, by `_require_library`, before the plan and the body). Rate-limited per
@@ -976,9 +1015,9 @@ def adopt_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Dep
         raise HTTPException(status_code=400, detail="notify must be true or false")
     if not _w11_on():
         return _spend_adopt(user, lambda: gallery.adopt_style(user["id"], gallery_id, notify=notify))
-    return _ok(_adopt_charged(user, lambda: gallery.adopt_style(
+    return _ok(_spend_adopt(user, lambda: _w11(lambda: gallery.adopt_style(
         user["id"], gallery_id, notify=notify, answers=body.get("answers"), choices=body.get("choices"),
-        key=_key(request))))
+        key=_key(request))), w11=True))
 
 
 LAYOUT_VERSION_SENTENCE = "Say which version you previewed: version must be a whole number."

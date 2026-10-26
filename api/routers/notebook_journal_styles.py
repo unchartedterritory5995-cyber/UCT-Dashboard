@@ -112,7 +112,8 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py reads
     the sentence as a literal in the HTTPException call)."""
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="Journal styles require a paid plan")
+        raise HTTPException(status_code=402, detail="Journal styles require a paid plan",
+                            headers={"Cache-Control": "no-store"})
     return user
 
 
@@ -131,13 +132,13 @@ async def paid_body(request: Request, _user: dict = Depends(require_paid)) -> di
 
 def _bad(e: Exception) -> HTTPException:
     if isinstance(e, nk.KindInUse):
-        return HTTPException(status_code=409, detail=str(e))
-    return HTTPException(status_code=400, detail=str(e))
+        return HTTPException(status_code=409, detail=str(e), headers={"Cache-Control": "no-store"})
+    return HTTPException(status_code=400, detail=str(e), headers={"Cache-Control": "no-store"})
 
 
 def _found(value: Any) -> Any:
     if value is None:
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
+        raise HTTPException(status_code=404, detail=NOT_FOUND, headers={"Cache-Control": "no-store"})
     return value
 
 
@@ -185,14 +186,20 @@ def _w11_store(fn) -> Any:
     return out
 
 
-@router.get("/journal-styles")
+def _view_gate(view: str | None = None) -> None:
+    """m-1: `?view=` is a wave 11 door, so its gate runs BEFORE the plan check (a route dependency): with wave 11
+    off it is the router's 404 whatever the plan. No `view` is today's route and is never gated here."""
+    if view is not None:
+        _require_w11()
+
+
+@router.get("/journal-styles", dependencies=[Depends(_view_gate)])
 def list_styles_endpoint(view: str | None = None, user: dict = Depends(require_paid)) -> Any:
     """No `view`: today's answer exactly (`{kinds, styles, blockKinds}`). Wave 11 (Task 11.12): `?view=live|archived|
     deleted` is My tools' Templates tab, `{kinds, styles}` with each of the member's own styles carrying `usedIn`,
     `credit`, `fromLibrary`, `updateAvailable`, `sourceGalleryId`, `archivedAt` and `deletedAt`; 404 while wave 11
     is off, 400 for any other view."""
     if view is not None:
-        _require_w11()
         if view not in W11_VIEWS:
             raise HTTPException(status_code=400, detail="Choose live, archived or deleted.", headers=dict(NO_STORE))
     rows = js.list_styles(user["id"]) if view is None else _w11_store(lambda: js.list_styles(user["id"], view=view))
@@ -331,9 +338,10 @@ def delete_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> 
 
 
 @router.post("/journal-styles/{style_id}/restore")
-def restore_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+def restore_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    # m-1 (Task 11.12): My tools' Templates tab restores through this route, so its 200 is no-store too.
     try:
-        return {"style": js.served_style(_found(js.restore_style(user["id"], style_id)), user["id"])}
+        return _ok({"style": js.served_style(_found(js.restore_style(user["id"], style_id)), user["id"])})
     except js.StyleValidationError as e:
         raise _bad(e)
 

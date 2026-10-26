@@ -136,33 +136,43 @@ def _routine_ids_in_notes(db):
 
 # ── the gate ──────────────────────────────────────────────────────────────────────────────────────
 
-def _new_routes(app):
-    """(method, path-after-prefix) of every route of the two routers that is one of the recorded new doors."""
+def _gate_routes():
+    """m-5: the wave 11 doors DERIVED from the route table: every route of the two routers carrying the wave 11
+    gate (`_require_w11`) as a route dependency. A new door is covered the day it lands; one that forgets the gate
+    falls out of this set and fails the typed-subset check below."""
     from api.routers import notebook_journal_styles, notebook_template_gallery
     found = []
-    for router, prefix, doors in ((notebook_template_gallery.router, GALLERY, NEW_GALLERY_DOORS),
-                                  (notebook_journal_styles.router, STYLES, NEW_STYLE_DOORS)):
+    for router, gate, prefix in ((notebook_template_gallery.router, notebook_template_gallery._require_w11, GALLERY),
+                                 (notebook_journal_styles.router, notebook_journal_styles._require_w11, STYLES)):
         for r in router.routes:
-            for m in r.methods:
-                if r.path.startswith(prefix) and (m, r.path[len(prefix):]) in doors:
-                    found.append((m, r.path, router is notebook_template_gallery.router))
+            if any(getattr(d, "dependency", None) is gate for d in getattr(r, "dependencies", [])):
+                for m in r.methods:
+                    found.append((m, r.path, router is notebook_template_gallery.router, prefix))
     return found
 
 
 def test_every_new_route_404_when_w11_off(app, client, monkeypatch):
-    found = _new_routes(app)
-    assert len(found) >= 12 and len(found) == len(NEW_GALLERY_DOORS) + len(NEW_STYLE_DOORS), found   # non-vacuity
-    as_user(app, MEMBER)
-    waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    found = _gate_routes()
+    derived = {(m, p[len(pre):]) for m, p, _g, pre in found}
+    typed = set(NEW_GALLERY_DOORS) | set(NEW_STYLE_DOORS)
+    assert len(found) >= 12, found                                       # non-vacuity
+    assert typed <= derived, typed - derived                             # every recorded door still carries the gate
+    assert ("GET", "/{gallery_id}") not in derived                       # control: an ungated route is not derived
     huge = {"x": "a" * (40 * 1024)}                     # a body the door would refuse: the gate answers first
-    for method, path, is_gallery in found:
-        r = _send(client, method, _concrete(path), huge)
-        assert r.status_code == 404, (method, path, r.status_code, r.text)
-        assert _no_store(r), (method, path)
+    waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    for plan in (PAID, FREE):                           # the gate runs before the plan check
+        as_user(app, MEMBER, plan)
+        for method, path, is_gallery, _pre in found:
+            r = _send(client, method, _concrete(path), huge)
+            assert r.status_code == 404, (plan, method, path, r.status_code, r.text)
+            assert _no_store(r), (method, path)
+        r = client.get(f"{STYLES}?view=live")                      # the one wave 11 door on a shared route (m-1)
+        assert r.status_code == 404 and _no_store(r), (plan, r.status_code)
+    as_user(app, MEMBER)
     # wave 11 on, the library switch off: every gallery door is still the 404 (journal styles do not need it)
     waves(monkeypatch, *ALL_WAVES)
     monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    for method, path, is_gallery in found:
+    for method, path, is_gallery, _pre in found:
         if is_gallery:
             assert _send(client, method, _concrete(path), huge).status_code == 404, (method, path)
     # control: both on, the gate lets a door through
@@ -563,3 +573,116 @@ def test_my_tools_rows_carry_library_facts(app, client, db, monkeypatch):
     waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
     rows = {x["id"]: x for x in client.get("/api/j2/routines").json()["routines"]}
     assert "credit" not in rows[copy["id"]] and "updateAvailable" not in rows[copy["id"]]
+
+
+# -- fix round 1 ------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("body", [
+    {"ticker": "not a ticker!!"}, {"ticker": "A" * 30}, {"title": "x" * 12000},
+    {"title": 1}, {"title": True}, {"title": ["a"]}, {"title": {"a": 1}},
+    {"ticker": 1}, {"ticker": True}, {"ticker": ["A"]}, {"ticker": {"a": 1}},
+])
+def test_use_template_refuses_bad_note_fields_with_400(app, client, db, body):
+    """I-1: a Use's note fields are checked by the notes module's own rules before any charge: never a 500."""
+    gid = _official(db)
+    as_user(app, MEMBER)
+    r = _send(client, "POST", f"{GALLERY}/{gid}/use-template", {**body, "choices": {"routine_a": {"create": True}}})
+    assert r.status_code == 400 and r.json()["detail"]["code"] == "invalid" and _no_store(r), (body, r.text)
+    assert db.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?", (MEMBER,)).fetchone()[0] == 0
+    ok = _send(client, "POST", f"{GALLERY}/{gid}/use-template",
+               {"ticker": "nvda", "title": "Prep", "choices": {"routine_a": {"create": True}}})
+    assert ok.status_code == 200 and ok.json()["note"]["ticker"] == "NVDA"               # control
+
+
+def test_a_note_refusal_from_the_service_is_a_400(app, client, db, monkeypatch):
+    from api.services.journal_two import notes as notes_service
+    as_user(app, MEMBER)
+
+    def refuse(*a, **k):
+        raise notes_service.NoteValidationError("folder not found")
+    monkeypatch.setattr(gallery, "use_library_template", refuse)
+    r = _send(client, "POST", f"{GALLERY}/g1/use-template", {})
+    assert r.status_code == 400 and r.json()["detail"] == {"code": "invalid", "message": "folder not found"}
+    assert _no_store(r)
+
+
+@pytest.mark.parametrize("w11_on", [True, False])
+def test_one_charge_rule_in_both_flag_states(app, client, db, monkeypatch, w11_on):
+    """I-2: /styles charges through `_charged_publish` and /adopt through `_spend_adopt`, whatever the flag, and the
+    wave 11 doors use the same two functions."""
+    from api.routers import notebook_template_gallery as tgr
+    calls = []
+    real_pub, real_adopt = tgr._charged_publish, tgr._spend_adopt
+    monkeypatch.setattr(tgr, "_charged_publish", lambda *a, **k: calls.append("publish") or real_pub(*a, **k))
+    monkeypatch.setattr(tgr, "_spend_adopt", lambda *a, **k: calls.append("adopt") or real_adopt(*a, **k))
+    monkeypatch.setattr(gallery, "publish_style", lambda *a, **k: {"id": "g", "droppedProperties": 0})
+    monkeypatch.setattr(gallery, "adopt_style", lambda *a, **k: {"style": {"id": "s"}, "notify": False,
+                                                                   "credit": None})
+    if not w11_on:
+        waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    as_user(app, AUTHOR)
+    assert _send(client, "POST", f"{GALLERY}/styles", {"styleId": "s", "title": "T",
+                                                      "category": "journal"}).status_code == 200
+    assert _send(client, "POST", f"{GALLERY}/g1/adopt", {}).status_code == 200
+    assert calls == ["publish", "adopt"]
+    if w11_on:
+        monkeypatch.setattr(gallery, "publish_tool", lambda *a, **k: {"id": "g"})
+        monkeypatch.setattr(gallery, "adopt_tool", lambda *a, **k: {"kind": "routine", "id": "r", "credit": None})
+        _send(client, "POST", f"{GALLERY}/tools", {"kind": "widget", "id": "w"})
+        _send(client, "POST", f"{GALLERY}/g1/adopt-tool", {})
+        assert calls == ["publish", "adopt", "publish", "adopt"]
+        for gone in ("_w11_charged", "_publish_charged", "_adopt_charged", "_rate"):
+            assert not hasattr(tgr, gone), gone                   # no second copy of a charge or rate rule
+
+
+def test_preview_429_words_are_the_previews_own(app, client, monkeypatch):
+    """m-2: a template or widget preview's 429 never talks about example notes."""
+    from api.routers import notebook_template_gallery as tgr
+    monkeypatch.setattr(gallery, "share_preview", lambda *a, **k: {"travels": {}})
+    as_user(app, MEMBER)
+    for _ in range(60):
+        _send(client, "POST", f"{GALLERY}/share/preview", {"kind": "widget", "id": "w"})
+    r = _send(client, "POST", f"{GALLERY}/share/preview", {"kind": "widget", "id": "w"})
+    assert r.status_code == 429 and r.json()["detail"]["message"] == tgr.W11_PREVIEW_RATE_SENTENCE
+    assert "example" not in r.json()["detail"]["message"]
+
+
+def test_styles_and_adopt_read_wave_11_bodies_through_the_wave_11_reader(app, client, monkeypatch):
+    """m-8: while wave 11 is on, /styles and /adopt take at most 16 KB and depth 16; off, the old reader."""
+    monkeypatch.setattr(gallery, "publish_style", lambda *a, **k: {"id": "g", "droppedProperties": 0})
+    as_user(app, AUTHOR)
+    big = {"styleId": "s", "title": "T", "category": "journal", "pad": "a" * (20 * 1024)}
+    r = _send(client, "POST", f"{GALLERY}/styles", big)
+    assert r.status_code == 413 and _no_store(r)
+    deep: dict = {}
+    node = deep
+    for _ in range(30):
+        node["n"] = {}
+        node = node["n"]
+    assert _send(client, "POST", f"{GALLERY}/g1/adopt", {"answers": deep}).status_code == 400
+    waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    assert _send(client, "POST", f"{GALLERY}/styles", big).status_code == 200          # the old 256 KB reader
+
+
+def test_library_reads_the_list_once(app, client, db, monkeypatch):
+    """m-6: one list read for /library across every group, still in GROUPS order."""
+    _official(db, title="Weekend swing review", group="weekly_monthly", template="swing_weekend")
+    _official(db, title="Night-before prep", group="night_before", template="night_before")
+    seen = []
+    real = gallery.list_gallery
+    monkeypatch.setattr(gallery, "list_gallery", lambda *a, **k: seen.append(k) or real(*a, **k))
+    as_user(app, MEMBER)
+    rows = client.get(f"{GALLERY}/library").json()["templates"]
+    assert len(seen) == 1 and [r["group"] for r in rows] == ["night_before", "weekly_monthly"]
+
+
+def test_journal_styles_402_and_restore_are_no_store(app, client, db):
+    """m-1: the journal-styles router's 402 and the Templates tab's restore carry no-store."""
+    s = style(db, uid=MEMBER, name="Mine")
+    as_user(app, MEMBER, FREE)
+    r = _send(client, "POST", f"{STYLES}/{s['id']}/archive")
+    assert r.status_code == 402 and _no_store(r)
+    as_user(app, MEMBER)
+    js.delete_style(MEMBER, s["id"], db)
+    r = _send(client, "POST", f"{STYLES}/{s['id']}/restore")
+    assert r.status_code == 200 and _no_store(r)
