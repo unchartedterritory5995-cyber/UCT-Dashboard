@@ -1456,13 +1456,12 @@ def _address_form(text: str) -> str:
 
 
 def _host_skeletons(href: str) -> set[str]:
-    """The skeletons (both, R47) of an href's host in every spelling (`_href_variants`), `www.` removed."""
+    """The skeletons (both, R47) of an href's host in every spelling (`_href_variants`: with and
+    without `www.`, so a text holding the bare host matches)."""
     out: set[str] = set()
     for v in _href_variants(href):
         m = _HOST.match(v)
         host = m.group(2) if m else ""
-        if host.lower().startswith("www."):
-            host = host[4:]
         for latin in (True, False):
             s = _skeleton(host, latin=latin)
             if s:

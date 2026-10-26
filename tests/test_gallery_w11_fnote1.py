@@ -649,7 +649,7 @@ def test_the_skeleton_is_the_one_authority(db):
            ("пример.рф", ["https://xn--e1afmkfd.xn--p1ai/a"]),
            ("www.example.com", ["https://example.com"]), ("bücher", ["https://x.com/b%C3%BCcher"]),
            ("+1 (555) 987-6543", ["tel:+15559876543"]), ("me@x.io", ["mailto:me@x.io"]),
-           ("BROKER.EXAMPLE.COM", [URL]))
+           ("BROKER.EXAMPLE.COM", [URL]), ("my broker example com notes", ["https://www.broker.example.com/x"]))
     for text, hrefs in yes:
         assert gallery._link_text_is_an_address(text, hrefs), ascii(text)
     for text, hrefs in (("my notes", ["https://x.example/a"]), ("anything", []), ("⠀​", [URL]),
