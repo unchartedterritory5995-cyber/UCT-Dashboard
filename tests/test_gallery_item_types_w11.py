@@ -12,13 +12,14 @@ the template library's three member tables (storage only).
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 
 import pytest
 
 from api.services.journal_two import account_purge as ap
 from api.services.journal_two import template_gallery as gallery
-from tests._style_library_helpers import _row, conn, lib_on  # noqa: F401  (fixtures + helpers)
+from tests._style_library_helpers import _row, _style, conn, lib_on  # noqa: F401  (fixtures + helpers)
 from tests.test_account_tombstones import GONE, KEPT, authdb  # noqa: F401  (fixture + ids)
 from tests import test_account_deletion_manifest as manifest_rail
 
@@ -34,9 +35,12 @@ def test_the_tool_types_are_the_ruled_three_in_order():
 
 # ── the tool types are absent while wave 11 is off ─────────────────────────────────────────────────
 
-def _reads(conn, gid: str, item_type: str, handle: str) -> dict[str, bool]:
-    """Every door a tool row can be reached through, each answering "present?" for a viewer who is not the author
-    (plus the author's and an admin's single read: a hidden type is absent for them too)."""
+def _reads(conn, gid: str, item_type: str, handle: str, report_id: str, title: str) -> dict[str, bool]:
+    """Every door a tool row can be reached through, each answering "present?": the viewer's list, type filter,
+    search and feed; the author's own "mine"; every single read (a hidden type is absent for its author and an admin
+    too); Helpful and report; the author page's items AND its count; the admin queue, an admin act and an admin
+    report act. `/use` is not here: it refuses a tool row in every state (`test_use_refuses_every_tool_type`).
+    Evaluated in this order, so the queue is read before the report act closes the report."""
     def _filtered() -> bool:
         try:
             return gid in {x["id"] for x in gallery.list_gallery("viewer", item_type=item_type, conn=conn)}
@@ -44,33 +48,69 @@ def _reads(conn, gid: str, item_type: str, handle: str) -> dict[str, bool]:
             assert str(e) == "Unknown item type."
             return False
     page = gallery.author_page("viewer", handle, conn=conn)
+    queue = gallery.admin_queue(conn=conn)
     return {
         "list": gid in {x["id"] for x in gallery.list_gallery("viewer", conn=conn)},
         "list_by_type": _filtered(),
+        "search": gid in {x["id"] for x in gallery.list_gallery("viewer", q=title, conn=conn)},
+        "mine": gid in {x["id"] for x in gallery.list_gallery("author", section="mine", conn=conn)},
+        "feed": gid in {x["id"] for x in gallery.feed("viewer", conn=conn)},
         "get": gallery.get_item("viewer", gid, conn=conn) is not None,
         "get_author": gallery.get_item("author", gid, conn=conn) is not None,
         "get_admin": gallery.get_item("admin", gid, is_admin=True, conn=conn) is not None,
         "helpful": gallery.set_helpful("viewer", gid, True, conn=conn) is not None,
         "report": gallery.report("viewer", gid, reason="broken", conn=conn) is not None,
         "author_page": page is not None and gid in {x["id"] for x in page["items"]},
+        "author_page_count": page is not None and page["author"]["itemCount"] == 1,
+        "admin_queue": gid in {x["id"] for x in queue["reported"]},
+        "admin_act": gallery.admin_act("admin", gid, "feature", conn=conn) is not None,
+        "admin_report_act": gallery.admin_report_act("admin", report_id, "dismiss", conn=conn),
     }
+
+
+def _open_report(conn, gid: str) -> str:
+    """An open report on `gid` from a third member, written directly (a probe), for the admin doors."""
+    rid = f"rep-{gid}"
+    conn.execute("INSERT INTO j2_template_gallery_reports (id, gallery_id, user_id, reason, note, status, created_at)"
+                 " VALUES (?, ?, 'reporter', 'broken', '', 'open', 'x')", (rid, gid))
+    conn.commit()
+    return rid
 
 
 @pytest.mark.parametrize("item_type", gallery.TOOL_ITEM_TYPES)
 def test_tool_types_hidden_while_w11_off_and_listed_when_on(conn, lib_on, monkeypatch, item_type):
-    gid = _row(conn, item_type=item_type, user_id="author", title=f"My {item_type}")
+    title = f"My {item_type}"
+    gid = _row(conn, item_type=item_type, user_id="author", title=title)
     handle = gallery.author_handle("author", conn)
+    assert gallery.set_follow("viewer", handle, True, conn=conn) == {"following": True}
+    rid = _open_report(conn, gid)
     monkeypatch.setenv(W11, "0")
     assert item_type in gallery._hidden_item_types()
-    off = _reads(conn, gid, item_type, handle)
+    off = _reads(conn, gid, item_type, handle, rid, title)
     assert off == {k: False for k in off}, off
     # stored, never deleted: the row is exactly where it was
     assert conn.execute("SELECT item_type, status FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[:] \
         == (item_type, "approved")
     monkeypatch.setenv(W11, "1")
     assert item_type not in gallery._hidden_item_types()
-    on = _reads(conn, gid, item_type, handle)
+    on = _reads(conn, gid, item_type, handle, rid, title)
     assert on == {k: True for k in on}, on
+
+
+@pytest.mark.parametrize("wave11", ["0", "1"])
+@pytest.mark.parametrize("item_type", gallery.TOOL_ITEM_TYPES)
+def test_use_refuses_every_tool_type(conn, lib_on, monkeypatch, item_type, wave11):
+    """Review M1: `/use` copies a listed OUTLINE into the member's templates. A shared widget, routine or tracker is
+    not one (its body is `{}`; adopting it is its own door), so `/use` answers the same refusal as for an example
+    note or a layout, in either wave 11 state, and no use is counted and no template is written."""
+    monkeypatch.setenv(W11, wave11)
+    gid = _row(conn, item_type=item_type, user_id="author")
+    assert gallery.use_template("viewer", gid, conn=conn) is None
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery_uses WHERE gallery_id = ?", (gid,)).fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM j2_note_templates WHERE user_id = 'viewer'").fetchone()[0] == 0
+    # control: the same viewer can use an outline, so the refusal is the type's, not the viewer's
+    outline = _row(conn, item_type="outline", user_id="author")
+    assert gallery.use_template("viewer", outline, conn=conn) is not None
 
 
 @pytest.mark.parametrize("item_type", gallery.TOOL_ITEM_TYPES)
@@ -99,8 +139,14 @@ def test_official_author_label_is_uct(conn, lib_on, monkeypatch):
     conn.commit()
     ids = {"official": _kind_row(conn, "official", None), "firm": _kind_row(conn, "firm", None),
            "member": _kind_row(conn, "member", "author")}
-    labels = {k: gallery.get_item("viewer", gid, conn=conn)["author"] for k, gid in ids.items()}
-    assert labels == {"official": gallery.FIRM_AUTHOR, "firm": gallery.FIRM_AUTHOR, "member": "Pat"}
+    gallery.author_handle("author", conn)                                # the member author's opaque handle exists
+    items = {k: gallery.get_item("viewer", gid, conn=conn) for k, gid in ids.items()}
+    assert {k: v["author"] for k, v in items.items()} == {"official": gallery.FIRM_AUTHOR, "firm": gallery.FIRM_AUTHOR,
+                                                          "member": "Pat"}
+    # review M2: the summary's `firm` badge and its handle branch read the same UCT_KINDS as the label
+    assert {k: v["firm"] for k, v in items.items()} == {"official": True, "firm": True, "member": False}
+    assert items["official"]["authorHandle"] is None and items["firm"]["authorHandle"] is None
+    assert items["member"]["authorHandle"] is not None                   # control: a member's handle travels
     assert gallery.FIRM_AUTHOR == "UCT"
 
 
@@ -147,34 +193,26 @@ def test_the_held_write_is_keyed_on_the_tool_source(conn):
 
 # ── the three member tables: schema, purge, tombstone replay ──────────────────────────────────────
 
-def _member_tables_and_left(purged: set[str]) -> tuple[list[str], list[str]]:
-    """The schema-derived rail's own computation (tests/test_account_deletion_manifest.py): every `j2_*` table
-    `ensure_schema` creates with a `user_id` column, and those neither purged nor trigger-emptied."""
+def _schema_member_tables() -> set[str]:
+    """The `j2_*` tables `ensure_schema` creates with a `user_id` column. Only which tables EXIST is read here;
+    whether each is purged or trigger-emptied is the real rail's question, asked of the real rail below (review M4)."""
     from api.services.journal_two.db import ensure_schema
     c = sqlite3.connect(":memory:")
     try:
         ensure_schema(c)
         tables = [r[0] for r in c.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'j2\\_%' ESCAPE '\\'")]
-        member = sorted(t for t in tables if any(col[1] == "user_id" for col in c.execute(f'PRAGMA table_info("{t}")')))
-        triggers = c.execute("SELECT tbl_name, sql FROM sqlite_master WHERE type = 'trigger'").fetchall()
+        return {t for t in tables if any(col[1] == "user_id" for col in c.execute(f'PRAGMA table_info("{t}")'))}
     finally:
         c.close()
-    import re
-    emptied = set()
-    for base, sql in triggers:
-        if base in purged and re.search(r"\bAFTER\s+DELETE\b", sql or "", re.IGNORECASE):
-            emptied.update(re.findall(r"DELETE\s+FROM\s+(\w+)", sql, re.IGNORECASE))
-    return member, [t for t in member if t not in purged and t not in emptied]
 
 
 def test_purge_rail_derives_the_new_tables_from_the_schema(monkeypatch):
-    purged = manifest_rail._runtime_purged()
-    member, left = _member_tables_and_left(purged)
-    assert set(NEW_TABLES) <= set(member), "ensure_schema did not create the three tables with user_id"
-    assert set(NEW_TABLES) <= purged
-    assert left == []
-    # A misspelled purge entry leaves the real table behind, and the rail names it.
+    assert set(NEW_TABLES) <= _schema_member_tables(), "ensure_schema did not create the three tables with user_id"
+    assert set(NEW_TABLES) <= manifest_rail._runtime_purged()
+    # The real schema-derived rail passes over the real purge list ...
+    manifest_rail.test_every_member_table_the_schema_creates_is_purged_or_emptied_by_a_trigger()
+    # ... and a misspelled purge entry leaves the real table behind, which that rail names.
     misspelled = tuple("j2_gallery_credit" if t == "j2_gallery_credits" else t for t in ap._DIRECT_USER_TABLES)
     monkeypatch.setattr(ap, "_DIRECT_USER_TABLES", misspelled)
     with pytest.raises(AssertionError, match="j2_gallery_credits"):
@@ -204,3 +242,64 @@ def test_tombstone_replay_for_each_new_table(authdb, tmp_path):
             assert {r[0] for r in dst.execute(f"SELECT user_id FROM {t}")} == {KEPT}, t
     finally:
         dst.close()
+
+
+# ── W11-R19: publishing a style never carries a template slot (until Task 11.8's reducer) ──────────────
+
+CANARY = "zzq-canary-7f3a"
+DEF_ID, ROUTINE_ID, TRACKER_ID = ("0f8b6c1e-2a4d-4b7e-9c3a-5d6e7f8a9b0c", "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+                                  "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e")
+
+
+def _para(text):
+    return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
+
+
+def _store(conn, style_id, blocks, outline):
+    """The stored rows written directly, as a style already on disk holds them (a canary key included, which the
+    save path's reducer would drop): the strip must hold whatever is stored."""
+    conn.execute("UPDATE j2_journal_styles SET blocks_json = ?, outline_body_json = ? WHERE id = ?",
+                 (json.dumps(blocks), json.dumps(outline), style_id))
+    conn.commit()
+
+
+def test_publish_strips_every_template_slot_and_its_placeholder(conn, lib_on, monkeypatch):
+    monkeypatch.setenv(W11, "1")
+    s = _style(conn)
+    family = [
+        {"block": "built_a", "settings": {"ref": f"def:{DEF_ID}", "defRev": 3, "note": CANARY}},
+        {"block": "routine_a", "settings": {"ref": f"routine:{ROUTINE_ID}", "bind": "note-day", "x": CANARY}},
+        {"block": "tracker_b", "settings": {"ref": f"tracker:{TRACKER_ID}", "display": "chart", "x": CANARY}},
+    ]
+    outline = {"type": "doc", "content": [
+        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]},
+        _para("{{block:built_a}}"), _para("{{block:chart}}"),
+        {"type": "bulletList", "content": [{"type": "listItem", "content": [_para("{{block:routine_a}}")]}]},
+        _para("{{block:tracker_b}}"), _para("Keep it simple."),
+    ]}
+    _store(conn, s["id"], [{"block": "chart", "settings": {"tf": "D"}}, *family], outline)
+    item = gallery.publish_style("author", s["id"], title="Slots", description="", category="journal",
+                                 trading_style=None, conn=conn)
+    payload = json.loads(conn.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
+                                      (item["id"],)).fetchone()[0])
+    text = json.dumps(payload)
+    for leaked in (CANARY, DEF_ID, ROUTINE_ID, TRACKER_ID, "def:", "routine:", "tracker:",
+                   "built_a", "routine_a", "tracker_b"):
+        assert leaked not in text, leaked
+    assert [b["block"] for b in payload["blocks"]] == ["chart"]                  # the ordinary block travels
+    assert "{{block:chart}}" in text and "Keep it simple." in text              # and so does the rest of the outline
+
+
+def test_publish_of_a_style_without_slots_is_unchanged(conn, lib_on):
+    """Control: a style holding no template slot publishes exactly what it did before W11-R19."""
+    s = _style(conn)
+    outline = {"type": "doc", "content": [
+        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]},
+        _para("{{block:chart}}"), {"type": "bulletList", "content": [{"type": "listItem", "content": [_para("a")]}]},
+    ]}
+    blocks = [{"block": "chart", "settings": {"tf": "W"}}, {"block": "myPnlStats", "settings": {"range": "1w"}}]
+    _store(conn, s["id"], blocks, outline)
+    payload = gallery.style_payload("author", s["id"], conn)
+    assert payload["blocks"] == [blocks[0], {"block": "myPnlStats", "settings": {}}]   # R50's snapshot rule only
+    assert payload["outlineBodyJson"] == gallery.sanitize_body(outline, "author")
+    assert gallery._without_slot_placeholders(outline) == outline

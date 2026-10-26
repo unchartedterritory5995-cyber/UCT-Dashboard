@@ -678,7 +678,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "description": row["description"] or "",
         "category": row["category"],
         "author": _author_label(row),
-        "firm": row["kind"] == "firm",
+        "firm": row["kind"] in UCT_KINDS,          # a firm pick or an official template (W11-R4): both are UCT's
         "featured": bool(row["featured"]),
         "usedBy": int(row["used_by"] or 0) if "used_by" in row.keys() else 0,
         "itemType": row["item_type"] if "item_type" in keys else "outline",
@@ -695,7 +695,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         # R-P3-2: the opaque handle is the only author key that leaves the server. A firm item has none; a
         # member item whose author is anonymous still has one, because the LABEL is what is anonymous.
         # None for a member item whose author has no handle row yet.
-        "authorHandle": (row["author_handle"] if "author_handle" in keys else None) if row["kind"] != "firm" else None,
+        "authorHandle": (row["author_handle"] if "author_handle" in keys else None) if row["kind"] not in UCT_KINDS else None,
         "listedAt": row["listed_at"],
         "updatedAt": row["updated_at"],
         "mine": mine,
@@ -1262,6 +1262,13 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
             props[pid] = value
         else:
             dropped += 1
+    # ⛔ Wave 11 (ruling W11-R19): since Task 11.3 `KNOWN_BLOCKS` accepts the template slot families
+    # (`built_<k>`, `routine_<k>`, `tracker_<k>`), whose settings name the member's OWN rows (`def:` / `routine:` /
+    # `tracker:` ids). None of that may travel, so EVERY family-slot block and its outline placeholder is dropped
+    # here (`journal_styles.slot_family`, never a re-typed pattern). Task 11.8 replaces this strip with
+    # `share.share_template`, the one reducer (W11-R1).
+    if outline:
+        outline = _without_slot_placeholders(outline)
     return {
         "kindId": style["kindId"],
         "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
@@ -1269,10 +1276,44 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
         # author's; the copy is a scaffold, filled with each adopter's own defaults when they make a note.
         "blocks": [{**b, "settings": {}} if b["block"] in js.SNAPSHOT_SLOT_KINDS else b
                    for b in (style.get("blocks") or [])
-                   if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS],
+                   if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS
+                   and js.slot_family(b.get("block")) is None],
         "properties": props,
         "droppedProperties": dropped,
     }
+
+
+def _placeholder_text(node: Any) -> str:
+    return "".join(c.get("text") or "" for c in node.get("content") or []
+                   if isinstance(c, dict) and c.get("type") == "text")
+
+
+def _without_slot_placeholders(body: Any) -> Any:
+    """W11-R19: `body` with every `{{block:<id>}}` paragraph whose id is a template slot family removed, at any
+    depth (the composer's placeholder grammar, `journal_styles.PLACEHOLDER_RE`). A container left empty keeps one
+    empty paragraph, so the outline stays a valid document. Every other node is untouched. Total."""
+    from api.services.journal_two import journal_styles as js
+
+    def is_slot_placeholder(node: Any) -> bool:
+        if not isinstance(node, dict) or node.get("type") != "paragraph":
+            return False
+        m = js.PLACEHOLDER_RE.match(_placeholder_text(node).strip())
+        return bool(m) and js.slot_family(m.group(1)) is not None
+
+    def strip(content: list) -> list:
+        kept = []
+        for node in content:
+            if is_slot_placeholder(node):
+                continue
+            if isinstance(node, dict) and isinstance(node.get("content"), list):
+                inner = strip(node["content"])
+                node = {**node, "content": inner if inner or not node["content"] else [{"type": "paragraph"}]}
+            kept.append(node)
+        return kept
+
+    if not isinstance(body, dict) or not isinstance(body.get("content"), list):
+        return body
+    return {**body, "content": strip(body["content"])}
 
 
 def _clean_trading_style(raw: Any) -> str | None:
@@ -1526,7 +1567,10 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
     about their own content; copies others already made are theirs and stay.
 
     P3a Task 7: each member watching a STYLE is told once that it was taken down, after the delete has
-    committed, so a failed notice can never keep a listing up. The watches are read before the delete."""
+    committed, so a failed notice can never keep a listing up. The watches are read before the delete.
+
+    Wave 11 (Task 11.7 review M5, accepted): an intended exception to "kept while wave 11 is off" -- the author may
+    take down their own widget, routine or tracker listing even while it reads as absent everywhere else."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -2306,8 +2350,9 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
         row = _row(conn, gallery_id, user_id)
         # An example note is a snapshot of another member's note shown on their style, never a template to copy.
         # P4b-R-X8: nor is a layout. Copying one would write an empty note template under its title and count a
-        # use; either reads exactly like an item `/use` cannot see.
-        if not _can_see(row, user_id, False, conn) or row["item_type"] in (EXAMPLE_ITEM, LAYOUT_ITEM):
+        # use; either reads exactly like an item `/use` cannot see. Wave 11 (Task 11.7 fix round 1): nor is a shared
+        # widget, routine or tracker -- its body is `{}`, and adopting one is its own door (Task 11.8).
+        if not _can_see(row, user_id, False, conn) or row["item_type"] in (EXAMPLE_ITEM, LAYOUT_ITEM, *TOOL_ITEM_TYPES):
             return None
         count = conn.execute(
             "SELECT COUNT(*) AS c FROM j2_note_templates WHERE user_id = ?", (user_id,),

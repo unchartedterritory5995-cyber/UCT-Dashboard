@@ -173,7 +173,10 @@ export const EVENT_SCHEMAS = Object.freeze({
     failed: num,
   },
   library_viewed: {
-    type: oneOf('all', 'outline', 'style', 'page_layout'),
+    // 'all' + styleLibrary.js's LISTED_ITEM_TYPES keys (notebookTelemetry.test.js derives that list, and
+    // tests/test_notebook_telemetry_events.py holds it equal to the server's, which reads the gallery's own list).
+    // Literal here only because this file is eager and styleLibrary.js is lazy (R-P3-5).
+    type: oneOf('all', 'outline', 'style', 'page_layout', 'widget_definition', 'routine', 'tracker'),
     view: oneOf('browse', 'following', 'author'),
   },
   style_adopted: {

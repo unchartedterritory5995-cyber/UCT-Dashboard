@@ -19,6 +19,7 @@ import { GALLERY_KEY, getGalleryTemplate } from './templateGallery'
 import { STYLES_URL, previewJournalStyle } from './journalStyles'
 import { styleLibraryEnabled } from './styleLibraryFlag'
 import { NOTE_KIND_PROPERTY } from './noteKinds'
+import { widgetsWaveOn } from './notebookWidgetsFlags'
 
 export const ITEM_TYPES = Object.freeze([
   { key: 'outline', label: 'Outlines' },
@@ -40,6 +41,19 @@ export const EXAMPLE_NOTE_TYPE = 'example_note'
 /** The item types a member can list or filter by: every type but the example note (the server's
  *  LISTED_ITEM_TYPES). The library's type chips and its initial type read this, never ITEM_TYPES. */
 export const LISTED_ITEM_TYPES = Object.freeze(ITEM_TYPES.filter((t) => t.key !== EXAMPLE_NOTE_TYPE))
+
+/** Notebook widgets wave 11 (Task 11.7, ruling W11-R17): the server's TOOL_ITEM_TYPES (tests/test_style_library.py
+ *  parses this line and holds the two equal). The server answers them as absent while wave 11 is off, so the
+ *  library offers no chip for them then either. */
+export const TOOL_ITEM_TYPES = Object.freeze(['widget_definition', 'routine', 'tracker'])
+
+/** The type chips the library offers right now: every listed type, minus `page_layout` while layout sharing is off
+ *  (the list answer's `capabilities.layoutSharing`) and minus the tool types while wave 11 is off. ONE rule, read by
+ *  the chip row AND the initial type, so a door can never open on a chip the row does not offer. */
+export function offeredItemTypes({ layoutSharing = false, toolsOn = widgetsWaveOn(11) } = {}) {
+  return LISTED_ITEM_TYPES.filter((t) => (t.key !== 'page_layout' || layoutSharing)
+    && (toolsOn || !TOOL_ITEM_TYPES.includes(t.key)))
+}
 
 export const TRADING_STYLES = Object.freeze([
   { key: 'swing', label: 'Swing' },

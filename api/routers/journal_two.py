@@ -243,6 +243,8 @@ _J2_TELEMETRY_EVENTS = {
 # streak is the member's network, not our outage. tests/test_notebook_slo.py pins
 # it to the word the client source sends.
 SAVE_FAILED_OFFLINE_REASON = "offline"
+from api.services.journal_two.template_gallery import LISTED_ITEM_TYPES as _LISTED_LIBRARY_TYPES  # noqa: E402
+
 _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     "note_open_ms": {
         "ms": "num",
@@ -323,9 +325,11 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
         "changed": "num",
         "failed": "num",
     },
-    # P3a Task 11 — the community style library.
+    # P3a Task 11 — the community style library. `type` is "all" plus every type a member can list or filter by,
+    # DERIVED from the gallery's own LISTED_ITEM_TYPES (wave 11, ruling W11-R17 c2), so a type the library gains is
+    # counted the day it lands instead of reading as "other"; the client's one-line oneOf is held equal to it.
     "library_viewed": {
-        "type": ("all", "outline", "style", "page_layout"),
+        "type": ("all", *_LISTED_LIBRARY_TYPES),
         "view": ("browse", "following", "author"),
     },
     "style_adopted": {

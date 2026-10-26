@@ -167,6 +167,15 @@ def test_the_client_lists_are_the_server_lists():
     assert len(gallery.TRADING_STYLES) >= 2          # non-vacuity
 
 
+def test_the_client_tool_types_are_the_server_tool_types():
+    """Wave 11 (W11-R17): the client's TOOL_ITEM_TYPES (the chips hidden while wave 11 is off) is the server's."""
+    text = STYLE_LIB.read_text(encoding="utf-8")
+    m = re.search(r"export const TOOL_ITEM_TYPES = Object\.freeze\(\[(.*?)\]\)", text, re.S)
+    assert m, "TOOL_ITEM_TYPES not found in styleLibrary.js"
+    assert tuple(re.findall(r"'([a-z_]+)'", m.group(1))) == gallery.TOOL_ITEM_TYPES
+    assert len(gallery.TOOL_ITEM_TYPES) == 3         # non-vacuity
+
+
 # ── Task 4: publishing a style, and held revisions ───────────────────────────────────────
 
 from api.services.journal_two import journal_styles as js

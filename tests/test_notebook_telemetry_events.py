@@ -216,14 +216,18 @@ def test_the_p3a_library_events_are_on_both_sides_and_read_not_typed():
     """P3a Task 11: the community style library's two events. Read out of the
     client like the rest; the parity rails above already hold the schemas equal,
     so this proves the read SAW them (non-vacuity) and that the type enum is the
-    gallery's own ITEM_TYPES plus 'all' (a type the library gains would
+    gallery's own LISTED_ITEM_TYPES plus 'all' (a type the library gains would
     otherwise count as 'other' forever)."""
     from api.routers.journal_two import _NOTEBOOK_PROP_SCHEMAS
     from api.services.journal_two import template_gallery
     names = set(_client_event_names())
     assert {"library_viewed", "style_adopted"} <= names
     assert {"library_viewed", "style_adopted"} <= _J2_TELEMETRY_EVENTS
-    assert set(_NOTEBOOK_PROP_SCHEMAS["library_viewed"]["type"]) == {"all", *template_gallery.ITEM_TYPES}
+    # P3b (R-P3b-2): an example note is never a chip, so never a viewed type: the enum is "all" plus the LISTED
+    # types (the client's own rail, notebookTelemetry.test.js, reads it the same way). This compared against
+    # ITEM_TYPES and was red from P3b until wave 11 (ruling W11-R17 c2).
+    assert set(_NOTEBOOK_PROP_SCHEMAS["library_viewed"]["type"]) == {"all", *template_gallery.LISTED_ITEM_TYPES}
+    assert set(template_gallery.TOOL_ITEM_TYPES) <= set(_NOTEBOOK_PROP_SCHEMAS["library_viewed"]["type"])   # non-vacuity: wave 11 counted
     assert _NOTEBOOK_PROP_SCHEMAS["style_adopted"] == {"notify": "bool"}
 
 

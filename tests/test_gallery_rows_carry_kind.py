@@ -3,11 +3,10 @@
 Since P5, `_library_hides` reads `row["kind"]` whenever `_hidden_styles()` hides a kind: the library switch on and
 the starter-packs switch off, which is production's state the day P5 merges. Since wave 11 (Task 11.7) that answer is
 `"firm+official"` while wave 11 is off too (production's state the day it merges): the rule then reads `kind` for the
-official rows as well. P3b's example reads build their own
-narrow SELECTs of the style an example shows (`_example_style_shown`, `_linked_style`) and of the example itself
-(the image route), and pass those rows to `_can_see`. A SELECT that leaves `kind` out answers IndexError, so every
-example read and every example image route answers 500 once NOTEBOOK_EXAMPLE_NOTES_ENABLED is armed. git merged
-those SELECTs silently.
+official rows as well. P3b's example reads build their own narrow SELECTs of the style an example shows
+(`_example_style_shown`, `_linked_style`) and of the example itself (the image route), and pass those rows to
+`_can_see`. A SELECT that leaves `kind` out answers IndexError, so every example read and every example image route
+answers 500 once NOTEBOOK_EXAMPLE_NOTES_ENABLED is armed. git merged those SELECTs silently.
 
 Two rails:
 * behaviour: library ON, starter OFF, examples ON, a stranger reads an approved example, its style and its image,
