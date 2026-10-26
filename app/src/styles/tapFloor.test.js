@@ -453,3 +453,37 @@ describe('the template library floors every control at 44px at every width', () 
     }
   })
 })
+
+// Wave 11 campaign dry run, D-W11-004: the feedback "?" button (components/FeedbackWidget.jsx, app chrome
+// on every page) measured 40x40 at 820 and 390 px. Its touch-tier size is a fixed `width`/`height` with
+// `!important` (it has to beat the component's inline styles), so the relationship rule above, which reads
+// `min-*: var(--tap-min)`, never saw it. Retest: any campaign persona at 820 or 390 (P01 a.02 shows it).
+const FEEDBACK_CSS = join(SRC, 'components', 'FeedbackWidget.module.css')
+
+/** The last `prop` value for exactly `selector` among the @media bodies that apply at `width`. */
+function lastAt(css, width, selector, prop) {
+  let v
+  const rule = /([^{}]+)\{([^{}]*)\}/g
+  const text = mediaBodies(stripComments(css), width)
+  let m
+  while ((m = rule.exec(text))) {
+    if (!m[1].split(',').map((x) => x.trim()).includes(selector)) continue
+    for (const d of m[2].matchAll(/([-a-zA-Z]+)\s*:\s*([^;]+?)\s*(?:;|$)/g)) if (d[1] === prop) v = d[2].trim()
+  }
+  return v
+}
+const isFloor = (v) => /^var\(--tap-min(?:,\s*44px)?\)(?:\s*!important)?$/.test(String(v || ''))
+
+describe('D-W11-004: the feedback "?" button is a 44 px finger target on the touch tier', () => {
+  it.each([390, 820])('at %i px its width and height are the --tap-min floor', (w) => {
+    const css = readFileSync(FEEDBACK_CSS, 'utf8')
+    expect(isFloor(lastAt(css, w, '.fab', 'width')), `width at ${w}`).toBe(true)
+    expect(isFloor(lastAt(css, w, '.fab', 'height')), `height at ${w}`).toBe(true)
+  })
+
+  it('CONTROL: the measured 40 px declaration fails the check', () => {
+    const old = '@media (max-width: 1024px) { .fab { width: 40px !important; height: 40px !important; } }'
+    expect(isFloor(lastAt(old, 820, '.fab', 'width'))).toBe(false)
+    expect(lastAt(old, 820, '.fab', 'height')).toBe('40px !important')
+  })
+})

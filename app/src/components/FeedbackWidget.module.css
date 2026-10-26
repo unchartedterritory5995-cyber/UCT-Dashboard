@@ -22,8 +22,10 @@
     right: auto !important;
     left: 14px !important;
     bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
-    width: 40px !important;
-    height: 40px !important;
+    /* D-W11-004: was 40x40, under the 44 px finger floor (wave 11 campaign dry run).
+       Rail: app/src/styles/tapFloor.test.js. */
+    width: var(--tap-min, 44px) !important;
+    height: var(--tap-min, 44px) !important;
     font-size: 18px !important;
   }
   .panel {
