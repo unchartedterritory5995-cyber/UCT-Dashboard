@@ -55,6 +55,8 @@ import styles from './TemplateGallery.module.css'
 // adoption sheet, loaded on demand). Both only while wave 11 is on; off, every card is exactly as before.
 import { widgetsWaveOn, doorLostSentence } from '../../lib/notebookWidgetsFlags'
 import LibraryCardFacts, { ADOPT_KIND } from './library/LibraryCardFacts'
+// Task 11.18: a listed widget, routine or tracker's Helpful (the 3-day rule's sentence is said under it, W11-R8).
+import { useHelpfulToggle } from './useHelpfulToggle'
 
 const ALL = ''
 
@@ -126,6 +128,8 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
   // tool type is made the member's through the adoption sheet (its own preview with their data), not copied.
   const w11 = widgetsWaveOn(11)
   const adoptKind = w11 ? ADOPT_KIND[item.itemType] : undefined
+  const { helped, helpfulCount, voting, toggleHelpful, daysNote } = useHelpfulToggle(item, onMessage)
+  const helpfulOffered = Boolean(adoptKind) && !item.mine
   const openAdopt = async () => {
     try {
       const mod = await import('./library/openAdoptSheet')
@@ -144,7 +148,8 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
           {!w11 && item.usedBy > 0 && <> · Used by {item.usedBy}</>}
         </span>
       </div>
-      {w11 ? <LibraryCardFacts item={item} /> : item.description && <p className={styles.cardDesc}>{item.description}</p>}
+      {w11 ? <LibraryCardFacts item={item} helpfulCount={helpfulOffered ? helpfulCount : undefined} />
+        : item.description && <p className={styles.cardDesc}>{item.description}</p>}
       <PreviewLines lines={item.preview} />
       <div className={styles.actions} role="group" aria-labelledby={`${uid}-title`}>
         {adoptKind ? (
@@ -164,6 +169,13 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
             </button>
           </>
         )}
+        {helpfulOffered && (
+          <button type="button" className={styles.btn} onClick={toggleHelpful} disabled={voting}
+            aria-pressed={helped} aria-label={`Helpful: ${item.title}`}
+            aria-describedby={daysNote ? `${uid}-helpful-days` : undefined}>
+            <UIcon name="thumbsUp" size={13} gold={false} /> Helpful
+          </button>
+        )}
         {!item.mine && (
           <button type="button" ref={reportBtnRef} className={styles.btn} onClick={() => setReporting((v) => !v)}
             aria-expanded={reporting} aria-label={`Report ${item.title}`}>
@@ -172,6 +184,7 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
         )}
         {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
+      {daysNote && <p className={styles.note} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>}
       {reporting && (
         <ReportForm
           item={item}

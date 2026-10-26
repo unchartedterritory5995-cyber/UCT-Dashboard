@@ -84,6 +84,9 @@ beforeEach(() => {
     if (m) return answer(server.useFails ? 'template-gallery.use.not-found' : 'template-gallery.use')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/report$/)
     if (m) return answer(server.reportAnswer || 'template-gallery.report')
+    m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
+    if (m && server.helpfulRefusal) return json(server.helpfulRefusal.body, server.helpfulRefusal.status)
+    if (m) return answer(method === 'POST' ? 'template-gallery.helpful' : 'template-gallery.unhelpful')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)$/)
     if (m && method === 'GET') return m[1] === ITEM.id ? answer('template-gallery.item') : answer('template-gallery.item.not-found')
     if (m && method === 'DELETE') {
@@ -411,6 +414,27 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
     expect(within(galleryCard(ALICE.title)).getByRole('button', { name: `Use template ${ALICE.title}` })).toBeInTheDocument()
   })
 
+  it('helpful_days_sentence_under_button (a tool card)', async () => {
+    const DAYS = 'You can mark this helpful after using it on 3 different days.'
+    server.helpfulRefusal = { status: 409, body: { detail: { code: 'helpful_days', message: DAYS } } }
+    const { user } = await openWith({ w11: true })
+    const widget = galleryCard('Win rate widget')
+    const btn = within(widget).getByRole('button', { name: 'Helpful: Win rate widget' })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    await user.click(btn)
+    const note = await within(widget).findByText(DAYS)
+    expect(btn).toHaveAttribute('aria-describedby', note.id)
+    expect(btn.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await waitFor(() => expect(btn).toBeEnabled())
+    expect(sentTo('/api/j2/template-gallery/tool-w/helpful', 'POST')).toHaveLength(1)
+    // Only that card says it; an outline card has no Helpful at all (its rule is unchanged, W11-R8).
+    expect(within(galleryCard('Focus tracker')).queryByText(DAYS)).toBeNull()
+    expect(within(galleryCard(ALICE.title)).queryByRole('button', { name: /^Helpful/ })).toBeNull()
+    server.helpfulRefusal = null
+    await user.click(btn)
+    await waitFor(() => expect(within(widget).queryByText(DAYS)).toBeNull())
+  })
+
   it('CONTROL: wave 11 off, a card is exactly as before (no facts, the description, Preview and Use template)', async () => {
     await openWith({ w11: false })
     const alice = galleryCard(ALICE.title)
@@ -418,6 +442,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
     expect(within(alice).getByText(ALICE.description)).toBeInTheDocument()
     expect(within(alice).getByRole('button', { name: `Preview ${ALICE.title}` })).toBeInTheDocument()
     expect(within(galleryCard('Win rate widget')).getByRole('button', { name: 'Use template Win rate widget' })).toBeInTheDocument()
+    expect(within(galleryCard('Win rate widget')).queryByRole('button', { name: /^Helpful/ })).toBeNull()
     expect(document.querySelector('[data-template-library]')).toBeNull()
   })
 })

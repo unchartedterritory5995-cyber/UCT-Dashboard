@@ -68,14 +68,23 @@ async function call(url, init = {}) {
   })
   if (!res.ok) {
     let detail = ''
+    let code = ''
     try {
       const body = await res.json()
-      detail = typeof body?.detail === 'string' ? body.detail : ''
+      // Wave 11 (Task 11.18): a refusal the server explains as `{code, message}` (W9-R14: the code is the error
+      // class's) carries both, so a caller can act on the code; a plain-string `detail` reads exactly as before.
+      const d = body?.detail
+      if (typeof d === 'string') detail = d
+      else if (d !== null && typeof d === 'object') {
+        detail = typeof d.message === 'string' ? d.message.trim() : ''
+        code = typeof d.code === 'string' ? d.code : ''
+      }
     } catch {
       detail = ''
     }
     const err = new Error(detail || `request failed (${res.status})`)
     err.status = res.status
+    if (code) err.code = code
     throw err
   }
   return res.json()

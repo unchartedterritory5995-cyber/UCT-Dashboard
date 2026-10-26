@@ -90,6 +90,7 @@ beforeEach(() => {
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/adopt$/)
     if (m) return answer(server.adoptAnswer)
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
+    if (m && server.helpfulRefusal) return json(server.helpfulRefusal.body, server.helpfulRefusal.status)
     if (m) return answer(method === 'POST' ? 'template-gallery.helpful' : 'template-gallery.unhelpful')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)$/)
     if (m && method === 'GET') return m[1] === STYLE.id ? answer('template-gallery.styles.item') : answer('template-gallery.item.not-found')
@@ -729,5 +730,44 @@ describe('W11-R25 -- Adopt on a style with family slots', () => {
     expect(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeInTheDocument()
     expect(itemReads()).toEqual([])
     expect(openAdoptSheet).not.toHaveBeenCalled()
+  })
+})
+
+// Task 11.18 (W11-R8): marking a style Helpful needs use on 3 different days. The server's 409 `helpful_days` is said
+// UNDER the Helpful button (never a toast), the button stays enabled, and nothing else changes.
+describe('Task 11.18 -- Helpful after three days', () => {
+  const DAYS = 'You can mark this helpful after using it on 3 different days.'
+  it('helpful_days_sentence_under_button (style card)', async () => {
+    server.library = true
+    server.helpfulRefusal = { status: 409, body: { detail: { code: 'helpful_days', message: DAYS } } }
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    const user = await openStyles()
+    const card = styleCard()
+    const btn = within(card).getByRole('button', { name: `Helpful: ${STYLE.title}` })
+    await user.click(btn)
+    const note = await within(card).findByText(DAYS)
+    expect(note).toHaveAttribute('data-helpful-days')
+    expect(btn).toHaveAttribute('aria-describedby', note.id)
+    expect(btn.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await waitFor(() => expect(btn).toBeEnabled())
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('alert')).toBeNull()                            // no toast
+    expect(sentTo(`/api/j2/template-gallery/${STYLE.id}/helpful`, 'POST')).toHaveLength(1)
+    // The button still answers: a later success clears the sentence.
+    server.helpfulRefusal = null
+    await user.click(btn)
+    await waitFor(() => expect(within(card).queryByText(DAYS)).toBeNull())
+    expect(btn).toHaveAttribute('aria-pressed', String(contractBody('template-gallery.helpful').helpful))
+  })
+
+  it('CONTROL: any other 409 is still the toast, never the 3-day sentence', async () => {
+    server.library = true
+    server.helpfulRefusal = { status: 409, body: { detail: { code: 'conflict', message: 'Someone else changed this.' } } }
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Helpful: ${STYLE.title}` }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Someone else changed this.')
+    expect(screen.queryByText(DAYS)).toBeNull()
+    expect(document.querySelector('[data-helpful-days]')).toBeNull()
   })
 })

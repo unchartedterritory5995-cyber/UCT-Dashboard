@@ -54,7 +54,8 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   const [adopting, setAdopting] = useState(false)
   const [reporting, setReporting] = useState(false)
   // Helpful, re-seeded from the server when the item changes (review M-6): one shared copy (P4b review M-1).
-  const { helped, helpfulCount, voting, toggleHelpful } = useHelpfulToggle(item, onMessage)
+  // Wave 11 (Task 11.18): `daysNote` is the 3-day rule's refusal, said under the Helpful button (W11-R8).
+  const { helped, helpfulCount, voting, toggleHelpful, daysNote } = useHelpfulToggle(item, onMessage)
   const adoptBtnRef = useRef(null)
   const reportBtnRef = useRef(null)
   const ts = tradingStyleLabel(item.tradingStyle)
@@ -145,7 +146,8 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         )}
         {!item.mine && (
           <button type="button" className={styles.btn} onClick={toggleHelpful} disabled={voting}
-            aria-pressed={helped} aria-label={`Helpful: ${item.title}`}>
+            aria-pressed={helped} aria-label={`Helpful: ${item.title}`}
+            aria-describedby={daysNote ? `${uid}-helpful-days` : undefined}>
             <UIcon name="thumbsUp" size={13} gold={false} /> Helpful
           </button>
         )}
@@ -157,6 +159,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         )}
         {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
+      {daysNote && <p className={styles.note} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>}
       {confirming && (
         <div className={styles.confirm} role="group" aria-label={`Adopt ${item.title}?`}>
           <label className={styles.check} htmlFor={`${uid}-notify`}>

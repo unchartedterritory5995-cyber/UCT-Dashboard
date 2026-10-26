@@ -1,0 +1,60 @@
+/* Notebook widgets wave 11 (Task 11.18): the 3rd-day "Was <title> helpful?" line above a note's body. */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm, 8px);
+  margin: 0 0 12px;
+  padding: 6px 8px 6px 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.question {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-md, 15px);
+  color: var(--text-primary, var(--text));
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+}
+
+.btn,
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary, var(--text));
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  cursor: pointer;
+}
+
+.btn {
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.iconBtn {
+  padding: 0;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.btn:focus-visible,
+.iconBtn:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}

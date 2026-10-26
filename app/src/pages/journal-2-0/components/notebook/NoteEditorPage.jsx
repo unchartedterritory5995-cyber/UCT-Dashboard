@@ -193,6 +193,10 @@ const ScreenshotTagOffer = lazyChunk(() => import('./ScreenshotTagOffer'))
 // "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
 const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
+// Notebook widgets wave 11 (Task 11.18, W11-R9): the 3rd-day "Was <title> helpful?" line. LAZY, its ONE dynamic
+// import, and mounted only for a styled note while wave 11 is on (the server decides whether it shows). It is handed
+// the note id alone: answering it is never an editor transaction or a note write.
+const HelpfulPromptLine = lazyChunk(() => import('./library/HelpfulPromptLine'))
 // Notebook widgets F3 (ruling R45's fallback lever): the widget palette is its own chunk, off the first open.
 // The editor warms it once idle (`warmWidgetPalette` below), so the toolbar's palette opens without a wait and
 // still opens offline once that warm has landed. A failed warm costs nothing: the open asks again (lazyChunk).
@@ -5834,6 +5838,10 @@ export default function NoteEditorPage({
               onLinkFromNote={canvasOn ? linkCanvasFromNote : null}
             />
           </Suspense>
+        )}
+
+        {note?.styleId && widgetsWaveOn(11) && (
+          <Suspense fallback={null}><HelpfulPromptLine key={noteId} noteId={noteId} /></Suspense>
         )}
 
         {/* ⛔ A canvas note keeps its editor MOUNTED (it is the board's store);
