@@ -530,6 +530,16 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   analysis doc §4.5); a confluence tag (one chart, two setups: TEAM Launchpad+Oops, Slingshot-after-PEG); whether
   XOM/PANW ("they can look prettier") stay as okay. Detector gaps listed in §4.6 for the pattern-engine owner.
 
+- **2026-10-25/26 cards + playbooks + the merge handoff:** owner "Yes do it fully all autonomously" / "You decide"
+  (XOM retired by my call, PANW kept okay with the earnings-risk note: docs/study/audits/2026-10-25/retire_xom_sling_pod.py,
+  OWNER RUNS scratchpad retire_xom_sling_run.ps1). Live setup lessons REFRESHED on the pod (115 items, refresh_setup_lessons_pod.py
+  ran exit 0). PR #469 = this branch (docs/scripts, 29 commits, checks green). PR #470 = feat/study-setup-cards
+  (worktree C:\Users\pgosz\uct-worktrees\study-hve-overlay; setupCatalog.js essences x5, setupPlaybooks.js +4 playbooks,
+  rail 9->13, recall.playbooks/bible regenerated; the resume branch merged INTO it locally so its bank rail is green).
+  THE CLASSIFIER NOW BLOCKS ME from `gh pr merge` (Merge Without Review) and from railway ssh writes: the OWNER merges
+  #470 (it contains #469) and runs scratchpad import_contrasts_run.ps1 (20 contrast drills as drafts). After the merge:
+  verify the Setups page cards/playbooks on the site and send a render; then Gap Support + Go Signal rulings.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
