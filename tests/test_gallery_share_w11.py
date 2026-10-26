@@ -447,8 +447,8 @@ def _dumps(n, tb_aliases, tb_funcs, dump_aliases, dump_helpers, body=()) -> bool
             or fname in _TRACEBACK_FUNCS                  # tb = traceback; tb.print_exc(), whatever the owner
             or (fname in _DUMP_NAMES and not _is_future_exception(n))
             or (isinstance(func, ast.Name) and (fname in dump_aliases or fname in dump_helpers))
-            or any(k.arg == "exc_info" and not (isinstance(k.value, ast.Constant) and k.value.value is False)
-                   for k in n.keywords)
+            or any(k.arg in ("exc_info", "stack_info")
+                   and not (isinstance(k.value, ast.Constant) and k.value.value is False) for k in n.keywords)
             or any(k.arg is None and _splat_dumps(k, body) for k in n.keywords))
 
 
@@ -470,6 +470,50 @@ def _dump_helpers(tree, tb_aliases, tb_funcs) -> set:
     return found
 
 
+_GENERAL = {"Exception", "BaseException"}
+
+
+def _raises_a_refusal(stmts) -> bool:
+    """Does this code itself `raise` a refusal (`raise GalleryError(...)`), outside a nested function or class? A
+    nested `try` whose own handler catches it is not looked through (that handler is judged on its own)."""
+    todo = list(stmts)
+    while todo:
+        n = todo.pop()
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+            continue
+        if isinstance(n, ast.Raise) and n.exc is not None:
+            exc = n.exc.func if isinstance(n.exc, ast.Call) else n.exc
+            if (getattr(exc, "id", None) or getattr(exc, "attr", None)) in _REFUSALS:
+                return True
+        if isinstance(n, ast.Try):
+            todo.extend(n.orelse + n.finalbody + [x for h in n.handlers for x in h.body])
+            if not any(h.type is None or _caught_names(h.type) & (_REFUSALS | _GENERAL) for h in n.handlers):
+                todo.extend(n.body)
+            continue
+        todo.extend(ast.iter_child_nodes(n))
+    return False
+
+
+def _refusal_handlers(tree) -> list:
+    """The handlers that can catch a refusal: one naming a refusal class, and (F-NOTE-1) a GENERAL one (`except:`,
+    `except Exception`, `except BaseException`) on a `try` whose own body raises a refusal -- `except Exception as e:
+    print(e)` there prints the refusal's text exactly as `except GalleryError` would."""
+    out = []
+    for t in ast.walk(tree):
+        if not isinstance(t, ast.Try):
+            continue
+        raises = None
+        for h in t.handlers:
+            if _caught_names(h.type) & _REFUSALS:
+                out.append(h)
+            elif h.type is None or _caught_names(h.type) & _GENERAL:
+                if raises is None:
+                    raises = _raises_a_refusal(t.body)
+                if raises:
+                    out.append(h)
+    return out
+
+
 def _exception_text_in_logs(src: str) -> list[str]:
     """THE POSITIVE RULE (fix round 4, m3), inside a handler for a refusal class (`_REFUSALS`): a call may be handed
     the caught refusal -- or any name DERIVED from it (an assignment, a `for` target, a comprehension, a walrus,
@@ -487,7 +531,10 @@ def _exception_text_in_logs(src: str) -> list[str]:
     a traceback function by its name whatever its owner (`__import__('traceback').print_exc()`); a `**kw` that carries
     or may carry `exc_info`; a helper defined ANYWHERE whose body dumps (`_dump()`); and any `raise` of a non-refusal
     inside a refusal handler unless it says `from None` (`raise X from e` and a bare `raise X(...)` both chain the
-    refusal, so a later system handler's allowed traceback prints its text)."""
+    refusal, so a later system handler's allowed traceback prints its text).
+
+    F-NOTE-1 (W11-R42), two more: a GENERAL handler on a `try` that itself raises a refusal is a refusal handler
+    (`_refusal_handlers`), and `stack_info=` other than a literal False is a dump like `exc_info=`."""
     tree = ast.parse(src)
     parents = _parents(tree)
     tb_aliases = {"traceback"} | {al.asname for n in ast.walk(tree) if isinstance(n, ast.Import)
@@ -497,9 +544,7 @@ def _exception_text_in_logs(src: str) -> list[str]:
                                         for al in n.names}
     helpers = _dump_helpers(tree, tb_aliases, tb_funcs)
     bad = []
-    for h in ast.walk(tree):
-        if not (isinstance(h, ast.ExceptHandler) and _caught_names(h.type) & _REFUSALS):
-            continue
+    for h in _refusal_handlers(tree):
         # local aliases and imports inside the handler count too
         dump_aliases: set = set()
         for n in (x for stmt in h.body for x in ast.walk(stmt)):
@@ -564,8 +609,8 @@ def _exception_text_in_logs(src: str) -> list[str]:
                 if _dumps(n, tb_aliases, tb_funcs, dump_aliases, helpers, h.body):
                     bad.append(ast.unparse(n))
                     continue
-                if fname in _REFUSALS or fname == "type":
-                    continue                             # a new refusal, or `type(e)`, keeps it a refusal / a name
+                if fname in _REFUSALS or fname in ("type", "isinstance"):
+                    continue                             # a new refusal, `type(e)` or `isinstance(e, X)`: no text
                 if any(_unsafe_reads(x, tainted, parents) for x in [*n.args, *(k.value for k in n.keywords)]):
                     bad.append(ast.unparse(n))
     for n in ast.walk(tree):
@@ -600,7 +645,10 @@ def test_no_log_call_in_the_gallery_names_a_refusal():
              "ei = sys.exc_info; print(ei())", "lg = log.exception; lg('x')",
              "log.error('x', **{'exc_info': True})", "kw = {'exc_info': True}; log.error('x', **kw)",
              "__import__('traceback').print_exc()", "tb = traceback; tb.print_exc()", "_dump()",
-             "raise RuntimeError('boom') from e", "raise RuntimeError('boom')")
+             "raise RuntimeError('boom') from e", "raise RuntimeError('boom')",
+             # F-NOTE-1 (W11-R42)
+             "log.error('x', stack_info=True)", "log.warning('x', stack_info=1)",
+             "log.error('x', **{'stack_info': True})")
     for exc in ("share.ShareError", "LibraryError", "(GalleryError, ValueError)"):
         for form in forms:
             planted = (f"def f():\n    try:\n        pass\n    except {exc} as e:\n        {form}\n"
@@ -612,12 +660,30 @@ def test_no_log_call_in_the_gallery_names_a_refusal():
                # round 5: a future's own exception, a refusal raised again, a chain cut, a clean helper, kwargs
                "self._future.exception()", "raise e", "raise RuntimeError('boom') from None",
                "raise share.ShareError('own_words', S_X) from e", "_clean()", "log.info('x', **{'extra': 1})",
-               "log.error('x', **{'exc_info': False})")
+               "log.error('x', **{'exc_info': False})", "log.error('x', stack_info=False)",
+               "if isinstance(e, GalleryError): raise")
     for form in allowed:
         ok_src = (f"def f():\n    try:\n        pass\n    except ShareError as e:\n        {form}\n"
                   "\ndef _clean():\n    return 1\n\ndef _dump():\n    traceback.print_exc()\n")
         assert _exception_text_in_logs(ok_src) == [], form
     for ok_src in ("def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {e}')\n",
-                   "def f():\n    try:\n        pass\n    except Exception:\n        traceback.print_exc()\n"):
+                   "def f():\n    try:\n        pass\n    except Exception:\n        traceback.print_exc()\n",
+                   # F-NOTE-1: a general handler whose try raises no refusal of its own stays a system handler, and
+                   # one whose refusal is caught by an inner refusal handler is judged by that inner handler
+                   "def f():\n    try:\n        go()\n    except Exception as e:\n        print(e)\n",
+                   "def f():\n    try:\n        def g():\n            raise GalleryError('x')\n        g\n"
+                   "    except Exception as e:\n        print(e)\n",
+                   "def f():\n    try:\n        try:\n            raise GalleryError('x')\n"
+                   "        except GalleryError:\n            pass\n    except Exception as e:\n        print(e)\n"):
         assert _exception_text_in_logs(ok_src) == [], ok_src
+    # F-NOTE-1 (W11-R42): a refusal raised inside a try whose handler is a GENERAL one
+    for handler in ("except Exception as e:", "except BaseException as e:", "except (Exception, KeyError) as e:",
+                    "except:"):
+        for raised in ("raise GalleryError(S_X)", "raise share.ShareError('own_words', S_X)",
+                       "if x:\n            raise LibraryError(S_X)"):
+            for form in ("print(e)", "log.warning('x %s', e)", "traceback.print_exc()", "print(sys.exc_info())"):
+                if handler == "except:" and "e)" in form and "exc_info" not in form:
+                    continue                             # a bare `except:` binds no name to print
+                planted = f"def f():\n    try:\n        {raised}\n    {handler}\n        {form}\n"
+                assert _exception_text_in_logs(planted), (handler, raised, form)
     assert _exception_text_in_logs("def f(err):\n    print(err.sentence)\n")
