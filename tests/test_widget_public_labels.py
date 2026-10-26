@@ -427,8 +427,9 @@ def test_i2_control_a_plain_trading_days_pnl_widget_still_shows():
 
 
 def test_i1_a_defref_stored_routine_split_trading_days_plan_is_hidden(conn):
-    """Review I-1: a plan over DEF_MAX_BYTES is stored by reference, so the reducer has no plan to read; the stamp
-    `build_payload` wrote from the plan it RAN decides. Run by the real engine: a Trading days plan split by check-in
+    """Review I-1: a plan over DEF_MAX_BYTES is stored by reference, so the reducer has no plan to read. Under
+    W10-R77 the stamp `build_payload` wrote from the plan it RAN may only HIDE, and a node with no judgeable plan
+    fails closed anyway, so this case is hidden more than one way. Run by the real engine: a Trading days plan split by check-in
     mood (day state, no routine needed to seed), padded with long formulas until it is stored as a `defRef`."""
     expr = " + ".join(["[day_net]"] * 120)
     formulas = [{"id": f"f{i}", "name": f"Pad {i}", "expr": expr} for i in range(1, 4)]
