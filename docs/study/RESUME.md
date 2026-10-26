@@ -540,6 +540,27 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   #470 (it contains #469) and runs scratchpad import_contrasts_run.ps1 (20 contrast drills as drafts). After the merge:
   verify the Setups page cards/playbooks on the site and send a render; then Gap Support + Go Signal rulings.
 
+- **2026-10-26 Gap Support + Go Signal pass 2 found, imported, and the gap overlay built (both branches pushed):**
+  NEW finders scripts/study/find_gap_support_examples.py and find_go_signal_examples.py (detector gate + universal
+  rules + gallery score; ran read-only on the pod: gap support 575 passing / 120 picks in 98s, go signal 1200 passing
+  in 48s). Shortlists in docs/study/setups/setup_examples.json blocks gap_support_pass2 (TWLO, TTD, CLS, QBTS, FTAI,
+  CAVA, VECO, AFRM, KKR, ARGX, TER, UBER, DOCS, KYMR) and go_signal_pass2 (TSLA 2023-05-31, MDB, HOOD 2024-11-15,
+  TEAM 2024-11-05, DUOL 2023-11-16, MU 2024-03-19, RKLB, SOFI 2025-06-23, HL, DOCN, SMH 2026-04-15, DASH, PHM, ONON).
+  gen_setup_examples.py fact lines for both setups now map detector codes to words; spot.setups.json regenerated
+  (246 items). The 28 drafts are ON THE POD (import_blocks_run.ps1 ran: inserted 28). Commit 3630ca98d7 on
+  feat/study-resume-1023 (350 tests passed), merged into feat/study-setup-cards at 45c522d277 (PR #470).
+  GAP OVERLAY (commit b7d5bfa357 on feat/study-setup-cards): app/src/pages/study/gapSupportOverlay.js draws a gold
+  dashed ray at facts.gap_top (else the prior bar's high) and a fainter ray at the gap-day low, both from the gap
+  bar (facts.gap_asof); app/src/pages/study/studyOverlays.js is the ONE dispatcher for HVE + Gap Support that
+  SpotDrill.annotationsFor and StudyReview both ask (vitest 21 files passed). Pass-1 drafts without gap_asof draw
+  nothing. REVIEW QUEUE on /admin/pattern-review?mode=study, Type = spot, Skill = Gap Support: 42 drafts = 18
+  fixtures + 10 pass-1 (AXP, MU, NFLX, UAL, LYFT, EDU, BABA, TTD 2022, SBUX, FMS) + 14 pass-2 from position 29
+  (ARGX first). Go Signal queue: the 14 pass-2 drafts. Both definitions still "owner ruling pending".
+  OWNER STILL RUNS: merge PR #470 on GitHub (contains #469); scratchpad import_contrasts_run.ps1 (20 contrast
+  drills) and retire_xom_sling_run.ps1 (the classifier blocks those pod writes from me). NEXT after #470 deploys:
+  verify the Setups page cards/playbooks + the gap rays on the review screen and send renders; then the Gap
+  Support one-at-a-time review from ARGX and the Go Signal review, rulings recorded as source_ruling fixtures.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
