@@ -12,6 +12,8 @@ import { installToolsFetch } from './__fixtures__/toolsFixtures'
 import { FAILURE_COPY } from '../../../lib/builtWidgets'
 import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
 import { openSetsDialog } from '../widgets/SetsDialog'
+import { openSharePreview } from '../library/openSharePreview.js'
+import { openAdoptSheet } from '../library/openAdoptSheet.js'
 import { FULLSCREEN_SHEET_ATTR } from '../../../../../components/mobile/fullscreenSheetAttr'
 
 const bp = vi.hoisted(() => ({ phone: false, touch: false }))
@@ -21,6 +23,15 @@ vi.mock('../../../../../hooks/useBreakpoint', () => ({
 }))
 vi.mock('../widgetBuilder/openWidgetBuilder.js', () => ({ openWidgetBuilder: vi.fn(() => () => {}) }))
 vi.mock('../widgets/SetsDialog', () => ({ openSetsDialog: vi.fn(() => () => {}) }))
+// Wave 11 (Task 11.19): the library doors and the Templates tab, off by default so every wave 8/9 test is unchanged.
+const flags = vi.hoisted(() => ({ on: false }))
+vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => {
+  const real = await orig()
+  return { ...real, widgetsWaveOn: (w) => (w === 11 ? flags.on : real.widgetsWaveOn(w)) }
+})
+vi.mock('../../../lib/styleLibraryFlag', async (orig) => ({ ...(await orig()), styleLibraryEnabled: () => flags.on }))
+vi.mock('../library/openSharePreview.js', () => ({ openSharePreview: vi.fn(() => () => {}) }))
+vi.mock('../library/openAdoptSheet.js', () => ({ openAdoptSheet: vi.fn(() => () => {}) }))
 
 // Server sentences are the SERVER'S: each test sends a sentence the client cannot know, so showing anything but what
 // the server said fails.
@@ -37,6 +48,9 @@ beforeEach(() => {
   net = installFetch()
   openWidgetBuilder.mockClear()
   openSetsDialog.mockClear()
+  openSharePreview.mockClear()
+  openAdoptSheet.mockClear()
+  flags.on = false
 })
 afterEach(() => {
   cleanup()
@@ -87,6 +101,42 @@ describe('My tools, Widgets tab', () => {
     await openSheet()
     expect(rowOf('Net P&L by setup')).toHaveTextContent("Based on Sam's Morning edge")
     expect(rowOf('Win rate')).toHaveTextContent("Based on a former member's Gap fill")
+  })
+
+  it('tools_rows_show_credit_and_share (widgets, wave 11)', async () => {
+    flags.on = true
+    net.lists.live = [
+      net.lists.live[0],
+      { ...net.lists.live[1], credit: "Based on Sam's Win rate", sourceGalleryId: 'g7', fromLibrary: true },
+    ]
+    await openSheet()
+    expect(rowOf('Win rate')).toHaveTextContent("Based on Sam's Win rate")   // the server's words
+    await menuFor('Net P&L by setup')
+    fireEvent.click(menuItem('Share to library'))
+    await waitFor(() => expect(openSharePreview).toHaveBeenCalledTimes(1))
+    expect(openSharePreview.mock.calls[0][0]).toMatchObject({ kind: 'widget', id: 'w1' })
+    await menuFor('Win rate')
+    expect(screen.queryByRole('menuitem', { name: 'Share to library' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Version history' })).toBeInTheDocument()
+  })
+
+  it('update_from_library_calls_update_or_opens_sheet (widgets)', async () => {
+    flags.on = true
+    const UPDATE = '/api/j2/template-gallery/tools/updates/widget/w2'
+    let answer = () => ({ kind: 'widget', id: 'w2' })
+    net = installFetch([['POST', UPDATE, () => answer()]])
+    net.lists.live = [{ ...net.lists.live[1], credit: "Based on Sam's Win rate", sourceGalleryId: 'g7', fromLibrary: true, updateAvailable: true }]
+    await openSheet()
+    await menuFor('Win rate')
+    fireEvent.click(menuItem('Update from the library'))
+    await saysLive('Updated “Win rate” from the library.')
+    expect(net.calls.filter((c) => c.path === UPDATE)).toHaveLength(1)
+    answer = () => refuse(400, 'unresolved', 'SERVER: answer each choice.')
+    await menuFor('Win rate')
+    fireEvent.click(menuItem('Update from the library'))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    expect(openAdoptSheet.mock.calls[0][0]).toMatchObject({ galleryId: 'g7', kind: 'widget', mode: 'update', copyId: 'w2' })
+    expect(openAdoptSheet.mock.calls[0][0]).not.toHaveProperty('title')    // the credit is the server's (W11-R24)
   })
 
   it('used_in_opens_note_list', async () => {
@@ -357,7 +407,7 @@ describe('My tools, Widgets tab', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   })
 
-  it('Templates still has no controls in w9; Routines and Trackers are real lists (Task 9.18)', async () => {
+  it('coming_soon_when_w11_off: Templates has no controls; Routines and Trackers are real lists (Task 9.18)', async () => {
     await openSheet()
     fireEvent.click(screen.getByRole('tab', { name: 'Templates' }))
     expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'true')

@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { SLOT_ID_RE, slotFamily, slotLabel, bindWords, TYPE_LABELS } from './templateSlots'
+import { SLOT_ID_RE, slotFamily, slotLabel, slotNamesOf, bindWords, TYPE_LABELS } from './templateSlots'
 
 const REPO = path.resolve(__dirname, '../../../../..')
 const read = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8')
@@ -111,3 +111,17 @@ describe('templateSlots', () => {
     expect(crlf(eagerSrc).includes('\r\n')).toBe(true)                    // non-vacuity: the CRLF form is CRLF
   })
 })
+
+describe('slotNamesOf (W11-R21, Task 11.19)', () => {
+  it('reads slotNames and block displayName, only non-blank strings, and {} when there are none', () => {
+    expect(slotNamesOf({ slotNames: { 'def:a': ' Equity curve ', 'shelf:x': '', 'routine:r': 7 },
+      blocks: [{ block: 'tracker_b', displayName: 'Sleep' }, { block: 'chart', displayName: 'Not a slot' }, { block: 'built_c', displayName: '  ' }] }))
+      .toEqual({ 'def:a': 'Equity curve', tracker_b: 'Sleep' })
+    for (const none of [null, undefined, {}, { slotNames: ['x'] }, { blocks: 'x' }]) expect(slotNamesOf(none)).toEqual({})
+    // Through slotLabel: a name by ref wins, else the family word.
+    const names = slotNamesOf({ slotNames: { 'def:a': 'Equity curve' } })
+    expect(slotLabel({ block: 'built_a', settings: { ref: 'def:a' } }, names)).toBe('Widget: Equity curve')
+    expect(slotLabel({ block: 'built_b', settings: { ref: 'def:b' } }, names)).toBe('Widget')
+  })
+})
+

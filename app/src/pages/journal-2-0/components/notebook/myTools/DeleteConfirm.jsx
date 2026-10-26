@@ -12,8 +12,12 @@ import styles from './myTools.module.css'
  *
  * Accessible: the field is labelled by what to type; the field AND the Delete button are described by what deleting
  * does and by why the button is off; a refusal is an alert; Enter in the field deletes once the name matches.
+ *
+ * Wave 11 (Task 11.19): the Templates tab uses the same panel for a template. `remove(typedName)` is its request
+ * (lib/templateLibrary's `deleteTemplate`, the same `{ok, data} | {ok: false, code, message}` answer), `what` its own
+ * sentence for what deleting does, `deletedText` what the list says after. Without them it is the widget's panel.
  */
-export default function DeleteConfirm({ d, onBack, onDeleted, onGone }) {
+export default function DeleteConfirm({ d, onBack, onDeleted, onGone, remove = null, what = null, deletedText = null, backLabel }) {
   const id = useId()
   const [typed, setTyped] = useState('')
   const [busy, setBusy] = useState(false)
@@ -30,20 +34,25 @@ export default function DeleteConfirm({ d, onBack, onDeleted, onGone }) {
     if (!matches || busy) return
     setBusy(true)
     setError('')
-    const got = await postJson(`/${encodeURIComponent(String(d.id))}/delete`, { typedName: typed })
+    const got = typeof remove === 'function' ? await remove(typed)
+      : await postJson(`/${encodeURIComponent(String(d.id))}/delete`, { typedName: typed })
     setBusy(false)
-    if (got.ok) onDeleted(got.data, `“${name}” moved to Recently deleted. It's kept for ${RECENTLY_DELETED_DAYS} days.`)
+    if (got.ok) onDeleted(got.data, deletedText || `“${name}” moved to Recently deleted. It's kept for ${RECENTLY_DELETED_DAYS} days.`)
     else if (got.code === 'unavailable') onGone?.(actionFailure(got))
     else setError(actionFailure(got))
   }
 
   return (
     <div className={styles.pushPanel} data-testid="my-tools-delete">
-      <PanelHead title={`Delete “${name}” permanently?`} onBack={onBack} focusHeading={false} />
+      <PanelHead title={`Delete “${name}” permanently?`} onBack={onBack} focusHeading={false} {...(backLabel ? { backLabel } : {})} />
       <form className={styles.form} onSubmit={submit}>
         <p className={styles.sentence} id={`${id}-what`}>
-          {`It moves to Recently deleted for ${RECENTLY_DELETED_DAYS} days, then it is gone for good.`}
-          {used > 0 ? ` Your ${notesWord(used)} keep${used === 1 ? 's' : ''} the widget as a snapshot.` : ''}
+          {what || (
+            <>
+              {`It moves to Recently deleted for ${RECENTLY_DELETED_DAYS} days, then it is gone for good.`}
+              {used > 0 ? ` Your ${notesWord(used)} keep${used === 1 ? 's' : ''} the widget as a snapshot.` : ''}
+            </>
+          )}
         </p>
         <label className={styles.fieldLabel} htmlFor={id}>
           {'Type '}<strong className={styles.typeName}>{name}</strong>{' to confirm'}

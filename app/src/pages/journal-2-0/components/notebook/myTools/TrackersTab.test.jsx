@@ -6,6 +6,7 @@ import MyToolsSheet from './MyToolsSheet'
 import { installToolsFetch, refuse } from './__fixtures__/toolsFixtures'
 import { openTrackerEditor } from '../routines/openTrackerEditor.js'
 import { openRoutineEditor } from '../routines/openRoutineEditor.js'
+import { openSharePreview } from '../library/openSharePreview.js'
 
 const bp = vi.hoisted(() => ({ phone: false, touch: false }))
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
@@ -14,6 +15,11 @@ vi.mock('../../../../../hooks/useBreakpoint', () => ({
 }))
 vi.mock('../routines/openRoutineEditor.js', () => ({ openRoutineEditor: vi.fn(() => () => {}) }))
 vi.mock('../routines/openTrackerEditor.js', () => ({ openTrackerEditor: vi.fn(() => () => {}) }))
+// Wave 11 (Task 11.19): the library doors, off by default here so the wave 9 assertions read what they read before.
+const flags = vi.hoisted(() => ({ on: false }))
+vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 11 && flags.on }))
+vi.mock('../../../lib/styleLibraryFlag', async (orig) => ({ ...(await orig()), styleLibraryEnabled: () => flags.on }))
+vi.mock('../library/openSharePreview.js', () => ({ openSharePreview: vi.fn(() => () => {}) }))
 
 const S_CONFLICT = 'SERVER: this tracker changed in another tab.'
 const live = () => screen.getByTestId('my-tools-message')
@@ -26,6 +32,8 @@ beforeEach(() => {
   net = installToolsFetch()
   openTrackerEditor.mockClear()
   openRoutineEditor.mockClear()
+  openSharePreview.mockClear()
+  flags.on = false
 })
 afterEach(() => {
   cleanup()
@@ -154,5 +162,25 @@ describe('My tools, Trackers tab', () => {
       fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
       await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
     }
+  })
+
+  it('tools_rows_show_credit_and_share', async () => {
+    flags.on = true
+    const [mood, sleep, coffee] = net.data.trackers.active
+    net = installToolsFetch([['GET', 'trackers?filter=active', () => ({
+      trackers: [mood, sleep, { ...coffee, credit: "Based on a former member's Coffee", sourceGalleryId: 'g2', fromLibrary: true }],
+    })]])
+    await openTab()
+    expect(rowOf('Coffee')).toHaveTextContent("Based on a former member's Coffee")
+    expect(rowOf('Sleep')).not.toHaveTextContent('Based on')
+    await menuFor('Sleep')
+    fireEvent.click(menuItem('Share to library'))
+    await waitFor(() => expect(openSharePreview).toHaveBeenCalledTimes(1))
+    expect(openSharePreview.mock.calls[0][0]).toMatchObject({ kind: 'tracker', id: 't1' })
+    await menuFor('Coffee')
+    expect(menuLabels()).not.toContain('Share to library')                  // a copy
+    expect(menuLabels()).toContain('Rename')
+    await menuFor('Check-in mood')
+    expect(menuLabels()).toEqual(['Open'])                                  // a check-in tracker: Open only, never shared
   })
 })

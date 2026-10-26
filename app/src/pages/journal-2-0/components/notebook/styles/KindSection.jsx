@@ -15,7 +15,7 @@ import useJournalStyles from '../../../hooks/useJournalStyles'
 import { defaultStyleFor, stylesOfKind, previewJournalStyle } from '../../../lib/journalStyles'
 import { kindIcon } from '../../../lib/noteKinds'
 import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
-import { familyLabel, slotFamily } from '../../../lib/templateSlots'
+import { familyLabel, slotFamily, slotLabel, slotNamesOf } from '../../../lib/templateSlots'
 import { WIDGET_REGISTRY } from '../../../../../widgets/registry'
 import TemplatePreview from '../TemplatePreview'
 import { styleLibraryEnabled } from '../../../lib/styleLibraryFlag'
@@ -34,19 +34,29 @@ const KNOWN_BLOCKS = new Set(BLOCK_KINDS.map((b) => b.id))
 // Wave 11 (Task 11.14): a template slot names its target. A filled built slot is a `builtWidget` embed (its
 // `title`), a routine or tracker slot a trader block (its `name` when the preview carries one); an unfilled slot keeps
 // its family id. Each reads `Widget: Equity curve`, or the family word alone when no name came with it.
+// Ruling W11-R21: an unfilled slot (and a placed routine or tracker with no name of its own) takes the display name the
+// served style or the preview answer carries for it (`names`, read by `slotNamesOf`), through `slotLabel`.
 const NODE_FAMILY = Object.freeze({ builtWidget: 'built', routine: 'routine', tracker: 'tracker' })
-function blockLine(node) {
+const ownName = (v) => (typeof v === 'string' && v.trim() ? v : null)
+function blockLine(node, names = {}) {
   const id = node.attrs?.widgetId
   const p = node.attrs?.params || {}
   if (id === 'chart' && p.symbol) return `Chart · ${p.symbol} · ${tfWord(p.tf)}`
   if (KNOWN_BLOCKS.has(id)) return blockLabel(id)
-  const fam = slotFamily(id) || (Object.hasOwn(NODE_FAMILY, id) ? NODE_FAMILY[id] : null)
-  if (fam) return familyLabel(fam, p.title ?? p.name)
+  if (slotFamily(id)) {
+    const own = ownName(p.title) ?? ownName(p.name)
+    return own ? familyLabel(slotFamily(id), own) : slotLabel({ block: id, settings: p }, names)
+  }
+  if (Object.hasOwn(NODE_FAMILY, id)) {
+    const ref = p.routineId ? `routine:${p.routineId}` : p.trackerId ? `tracker:${p.trackerId}` : p.defId ? `def:${p.defId}` : null
+    const named = ref && Object.hasOwn(names, ref) ? names[ref] : null
+    return familyLabel(NODE_FAMILY[id], ownName(p.title) ?? ownName(p.name) ?? named)
+  }
   return WIDGET_REGISTRY[id]?.labels?.header || blockLabel(id)
 }
-const labelled = (n) => {
-  if (n?.type === 'widgetEmbed') return { type: 'paragraph', content: [{ type: 'text', text: blockLine(n), marks: [{ type: 'italic' }] }] }
-  return Array.isArray(n?.content) ? { ...n, content: n.content.map(labelled) } : n
+const labelled = (n, names = {}) => {
+  if (n?.type === 'widgetEmbed') return { type: 'paragraph', content: [{ type: 'text', text: blockLine(n, names), marks: [{ type: 'italic' }] }] }
+  return Array.isArray(n?.content) ? { ...n, content: n.content.map((c) => labelled(c, names)) } : n
 }
 
 export default function KindSection({ onCreate, busy = false, autoFocusFirst = false }) {
@@ -64,7 +74,9 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
     setPreview({ style, loading: true })
     try {
       const out = await previewJournalStyle({ styleId: style.id })
-      setPreview({ style, loading: false, body: labelled(out.bodyJson), ticker: out.ticker })
+      // The names the style itself carries, then the preview answer's (the newer reading wins).
+      const names = { ...slotNamesOf(style), ...slotNamesOf(out) }
+      setPreview({ style, loading: false, body: labelled(out.bodyJson, names), ticker: out.ticker })
     } catch (e) {
       setPreview({ style, loading: false, error: reportError(e, "Couldn't build the preview.") })   // never a bare "500" (M-2)
     }

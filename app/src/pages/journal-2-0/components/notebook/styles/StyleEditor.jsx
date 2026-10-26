@@ -12,7 +12,7 @@ import useJ2PropertyDefs from '../../../hooks/useJ2PropertyDefs'
 import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
 import { BLOCK_KINDS, SNAPSHOT_BLOCK_LABELS, blockLabel, optionWord, tfWord } from '../../../lib/journalBlocks'
-import { bindWords, slotFamily, slotLabel } from '../../../lib/templateSlots'
+import { bindWords, slotFamily, slotLabel, slotNamesOf } from '../../../lib/templateSlots'
 import { isTier3Block, tier3Enabled } from '../../../lib/tier3Flag'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import { createJournalStyle, MAX_STYLE_NAME_CHARS, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
@@ -52,22 +52,30 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
   const [mode, setMode] = useState(initialMode)
   const [templateId, setTemplateId] = useState(style?.outlineTemplateId || '')
   const [outlineText, setOutlineText] = useState(() => (readOnlyOutline ? '' : docToOutlineText(style?.outlineBodyJson)))
-  const [blocks, setBlocks] = useState(() => (style?.blocks || []).map((b) => ({ ...b, settings: { ...(b.settings || {}) } })))
-  // Wave 11 (Task 11.14 fix round 1, M3): when a family repeats (a template with three widgets), each slot is numbered
-  // in the style's own order ("Widget 1", "Widget 2"), so every checkbox, move button and announcement names ONE row.
-  // Keyed by block id and fixed at open, so a number follows its slot through a reorder. Superseded by the slot's
-  // display name once the server sends it (ruling W11-R21).
+  // A slot's `displayName` (W11-R21) is the server's reading for this member, never part of the style: it is not sent
+  // back on save.
+  // eslint-disable-next-line no-unused-vars
+  const [blocks, setBlocks] = useState(() => (style?.blocks || []).map(({ displayName, ...b }) => ({ ...b, settings: { ...(b.settings || {}) } })))
+  // Wave 11: each slot row is named by the display name the served style carries for it (ruling W11-R21, Tasks
+  // 11.5/11.6: "Widget: Equity curve"), read by `slotNamesOf`; with none, the family word ("Widget"). When two slot
+  // rows would read the same (a template with three unnamed widgets, or two widgets of one name), each of them is
+  // numbered in the style's own order ("Widget 1", "Widget 2"; Task 11.14 fix round 1, M3), so every checkbox, move
+  // button and announcement names ONE row. Keyed by block id and fixed at open, so a number follows its slot through
+  // a reorder.
+  const [slotNames] = useState(() => slotNamesOf(style))
   const [slotOrdinal] = useState(() => {
-    const ids = (style?.blocks || []).map((b) => b.block)
-    const out = {}
-    for (const fam of ['built', 'routine', 'tracker']) {
-      const own = ids.filter((id) => slotFamily(id) === fam)
-      if (own.length > 1) own.forEach((id, n) => { out[id] = n + 1 })
+    const slots = (style?.blocks || []).filter((b) => slotFamily(b?.block))
+    const byLabel = new Map()
+    for (const b of slots) {
+      const label = slotLabel(b, slotNames)
+      byLabel.set(label, [...(byLabel.get(label) || []), b.block])
     }
+    const out = {}
+    for (const ids of byLabel.values()) if (ids.length > 1) ids.forEach((id, n) => { out[id] = n + 1 })
     return out
   })
   const slotRowLabel = (b) => {
-    const base = slotLabel(b)
+    const base = slotLabel(b, slotNames)
     return base && Object.hasOwn(slotOrdinal, b.block) ? `${base} ${slotOrdinal[b.block]}` : base
   }
   const [properties, setProperties] = useState(() => ({ ...(style?.properties || {}) }))

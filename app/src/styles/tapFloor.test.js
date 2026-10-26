@@ -322,6 +322,28 @@ function minHeightAt(css, cls, width) {
   return won
 }
 
+// Wave 11 (Task 11.19): the Templates tab's rows are My tools rows too (56px), and every control in the tab wears a
+// class from myTools.module.css, so the floors above cover it. Read from the source, never a list typed here.
+const TEMPLATES_TAB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'TemplatesTab.jsx')
+const classNamesIn = (src) => [...src.matchAll(/styles\.([A-Za-z][\w]*)/g)].map((m) => m[1])
+
+describe('My tools: the Templates tab rows are 56px and every control is floored', () => {
+  it('the template rows are drawn with My tools’ own row class, from My tools’ own stylesheet', () => {
+    const src = readFileSync(TEMPLATES_TAB, 'utf8')
+    expect(src).toMatch(/className=\{`\$\{styles\.row\}/)
+    expect(src).toMatch(/import styles from '\.\/myTools\.module\.css'/)
+    expect(src).not.toMatch(/style=\{\{/)                                   // no inline geometry beside the floors
+  })
+
+  it('every class the tab uses exists in myTools.module.css (so the floors above reach it)', () => {
+    const css = readFileSync(MY_TOOLS_CSS, 'utf8')
+    const used = [...new Set(classNamesIn(readFileSync(TEMPLATES_TAB, 'utf8')))]
+    expect(used.length).toBeGreaterThan(10)                               // non-vacuity
+    expect(used.filter((c) => !new RegExp(`\\.${c}(?![\\w-])`).test(css))).toEqual([])
+    expect(classNamesIn('<b className={styles.nope} />')).toEqual(['nope'])  // CONTROL: the reader sees one
+  })
+})
+
 describe('My tools: the Routines and Trackers rows are 56px on phone', () => {
   it('the tool rows are drawn with My tools’ own row class', () => {
     const src = readFileSync(TOOLS_TAB, 'utf8')

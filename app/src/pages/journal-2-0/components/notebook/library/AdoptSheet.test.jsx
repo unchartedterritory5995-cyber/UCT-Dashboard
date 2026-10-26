@@ -11,7 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import AdoptSheet, {
-  ADDED_SENTENCE, DEBOUNCE_MS, MISSING_HINT, TITLE, creditLine, createWords, useYourWords,
+  ADDED_SENTENCE, DEBOUNCE_MS, MISSING_HINT, TITLE, UPDATED_SENTENCE, creditLine, createWords, useYourWords,
 } from './AdoptSheet'
 import { openAdoptSheet } from './openAdoptSheet'
 
@@ -245,6 +245,41 @@ describe('Use', () => {
     expect(onDone.mock.calls[0][0]).toMatchObject({ kind: 'widget', id: 'd-new' })
     // The sheet has made its one copy: no second Use.
     expect(screen.queryByRole('button', { name: 'Use' })).toBeNull()
+  })
+
+  it('mode update (Task 11.19): Use sends exactly ONE updateTool for the copy and no adoptTool', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const UPDATE = '/api/j2/template-gallery/tools/updates/routine/r-copy'
+    const orig = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => (url === UPDATE
+      ? (net.calls.push({ url, method: init.method, body: JSON.parse(init.body) }), json(200, { kind: 'routine', id: 'r-copy' }))
+      : orig(url, init)))
+    const { onDone, navigate } = mount({ kind: 'routine', mode: 'update', copyId: 'r-copy' })
+    await ready()
+    const btn = useButton()
+    fireEvent.click(btn)
+    fireEvent.click(btn)                                                    // a double press: still one update
+    expect((await screen.findByRole('status')).textContent).toBe(UPDATED_SENTENCE)
+    const updates = net.calls.filter((c) => c.url === UPDATE)
+    expect(updates).toHaveLength(1)
+    expect(updates[0]).toMatchObject({ method: 'POST', body: { answers: { p1: 'Breakout', p2: { any: true }, p3: 'a-plus' } } })
+    expect(net.calls.some((c) => c.url === ADOPT_TOOL || c.url === USE)).toBe(false)
+    expect(net.previews().length).toBeGreaterThanOrEqual(1)                 // the listed item still previews
+    expect(onDone.mock.calls[0][0]).toMatchObject({ kind: 'routine', id: 'r-copy' })
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('a fresh adoption is unchanged: no mode (or update without a copy) adopts and never updates', async () => {
+    for (const props of [{}, { mode: 'update' }, { mode: 'update', copyId: '' }]) {
+      const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+      mount({ kind: 'widget', ...props })
+      await ready()
+      fireEvent.click(useButton())
+      expect((await screen.findByRole('status')).textContent).toBe(ADDED_SENTENCE)
+      expect(net.calls.filter((c) => c.url === ADOPT_TOOL)).toHaveLength(1)
+      expect(net.calls.some((c) => String(c.url).includes('/tools/updates/'))).toBe(false)
+      cleanup()
+    }
   })
 
   it('while Use is in flight the sheet cannot be closed, so its answer always lands', async () => {

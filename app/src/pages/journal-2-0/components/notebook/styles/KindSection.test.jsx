@@ -177,4 +177,22 @@ describe('New note: pick a kind', () => {
     expect(screen.getByText('Widget').tagName).toBe('EM')                  // an unfilled slot
     expect(screen.queryByText(/newer version/)).toBeNull()
   })
+
+  it("W11-R21: an unfilled slot takes the display name the preview or the style carries", async () => {
+    // Task 11.19 (carry R21): with a name (by ref from the preview answer's `slotNames`, or `displayName` on the
+    // style's block) the line reads "Widget: Equity curve"; without one it stays the family word.
+    const preview = { ...previewBody, slotNames: { 'def:d9': 'Equity curve' }, bodyJson: { type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: { widgetId: 'built_a', params: { ref: 'def:d9', defRev: 1 } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'routine_1', params: {} } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'tracker_b', params: {} } },
+    ] } }
+    const list = { ...listBody, styles: listBody.styles.map((st) => (st.id === 's-mine'
+      ? { ...st, blocks: [{ block: 'routine_1', enabled: true, settings: {}, displayName: 'Pre-market routine' }] } : st)) }
+    renderSection({}, { list, preview })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    expect((await screen.findByText('Widget: Equity curve')).tagName).toBe('EM')
+    expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')
+    expect(screen.getByText('Tracker').tagName).toBe('EM')                 // no name for it: the family word
+  })
 })

@@ -312,6 +312,33 @@ describe('the Styles manager', () => {
     expect(names('checkbox').slice(0, 2)).toEqual(['Use Widget 2', 'Use Widget 1'])   // the number follows its slot
   })
 
+  it("W11-R21: a slot's display name from the served style names its row; repeats only of one name are numbered", async () => {
+    // Task 11.19 (carry R21): the server (11.5/11.6) sends each slot's name, as `slotNames` by ref or block id, or as
+    // `displayName` on the block. With a name, a row reads "Widget: Equity curve" and needs no number; two rows of the
+    // SAME name are still numbered, so every control names one row; the name is never sent back on save.
+    const NAMED = [
+      { block: 'built_a', enabled: true, settings: { ref: 'def:7d1e3f0a-1111-4222-8333-444455556666', defRev: 3 } },
+      { block: 'built_b', enabled: true, settings: { ref: 'shelf:win-rate', defRev: 1 }, displayName: 'Win rate' },
+      { block: 'routine_1', enabled: true, settings: { ref: 'routine:0b2c3d4e-1111-4222-8333-444455556666' }, displayName: 'Morning routine' },
+      { block: 'routine_2', enabled: true, settings: { template: 'nb' }, displayName: 'Morning routine' },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: NAMED,
+      slotNames: { 'def:7d1e3f0a-1111-4222-8333-444455556666': 'Equity curve' } })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const boxes = within(list).getAllByRole('checkbox').map((el) => el.getAttribute('aria-label'))
+    expect(boxes).toEqual(['Use Widget: Equity curve', 'Use Widget: Win rate', 'Use Routine: Morning routine 1',
+      'Use Routine: Morning routine 2'])
+    fireEvent.click(screen.getByRole('button', { name: 'Move Widget: Equity curve down' }))
+    expect(screen.getByText('Widget: Equity curve moved to position 2 of 4.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
+    expect(put().blocks.some((b) => 'displayName' in b)).toBe(false)
+    expect(put().blocks.map((b) => b.block)).toEqual(['built_b', 'built_a', 'routine_1', 'routine_2'])
+  })
+
   it('reorders blocks with Move up/Move down and keeps an unknown block', async () => {
     routes.unshift(['GET', MEMBER_URL, UNKNOWN_BLOCK])
     installFetch()

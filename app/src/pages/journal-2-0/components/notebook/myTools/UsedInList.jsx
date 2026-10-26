@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import PanelHead from './PanelHead'
 import { DEFS_URL, getJson } from '../../../lib/builtWidgets'
 import { usedIn as toolUsedIn } from '../../../lib/toolsCrud'
+import { templateUsedIn } from '../../../lib/templateLibrary'
 import { COPY as TOOL_COPY } from '../routines/toolEditorLib'
 import {
-  COPY, LIST_RENDER_MAX, NO_RETRY, editedText, noteHref, openNoteInPlace, readFailure, usedInHeading,
+  COPY, LIST_RENDER_MAX, NO_RETRY, TEMPLATE_COPY, editedText, noteHref, openNoteInPlace, readFailure, usedInHeading,
 } from './myToolsLib'
 import styles from './myTools.module.css'
 
@@ -12,7 +13,9 @@ import styles from './myTools.module.css'
  * "Used in N notes" (spec 5.8): the member's notes that hold this widget, routine or tracker (`kind`: 'widget', the
  * default, 'routine' or 'tracker'), newest first. A widget's from `GET /api/j2/widget-definitions/{id}/used-in`; a
  * routine's or tracker's through lib/toolsCrud's `usedIn` (Task 9.18), never a second fetch. Both read the
- * `j2_tool_uses` projection: live notes only, never another member's. Each is a real link to its note. A plain click opens the note in place and closes My tools: through the
+ * `j2_tool_uses` projection: live notes only, never another member's. A template's (`kind: 'template'`, wave 11 Task
+ * 11.19) from `GET /api/j2/journal-styles/{id}/used-in` through lib/templateLibrary (the member's live notes made with
+ * that template, `{notes: [{id, title, updatedAt}]}`). Each is a real link to its note. A plain click opens the note in place and closes My tools: through the
  * app router's `navigate` when the door that opened My tools passed one, else through the router's own history move
  * (`openNoteInPlace`). A modified click (a new tab) is the browser's.
  */
@@ -20,6 +23,10 @@ const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const plainClick = (e) => !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
 
 const isTool = (kind) => kind === 'routine' || kind === 'tracker'
+/** A routine, tracker or template list answers with its own sentence (the server's when it sent one). */
+const ownSentence = (kind) => isTool(kind) || kind === 'template'
+/** A template's notes name their id `id` (journal_styles.style_used_in); the list reads `noteId`. */
+const asNote = (n) => (isRecord(n) && !n.noteId && n.id ? { ...n, noteId: n.id } : n)
 
 export default function UsedInList({ d, kind = 'widget', onBack, onNavigate, navigate = null, backLabel }) {
   const [state, setState] = useState({ status: 'loading' })
@@ -27,6 +34,12 @@ export default function UsedInList({ d, kind = 'widget', onBack, onNavigate, nav
   useEffect(() => () => { mounted.current = false }, [])
 
   const read = useCallback(async () => {
+    if (kind === 'template') {
+      const got = await templateUsedIn(d.id)
+      const raw = got.ok ? (Array.isArray(got.data.notes) ? got.data.notes : null) : null
+      const notes = raw ? raw.map(asNote).filter((n) => isRecord(n) && n.noteId) : null
+      return notes ? { status: 'ok', notes } : { status: 'error', code: got.code, message: got.ok ? '' : got.message }
+    }
     if (isTool(kind)) {
       const got = await toolUsedIn(kind, d.id)
       const notes = got.ok && Array.isArray(got.data) ? got.data.filter((n) => isRecord(n) && n.noteId) : null
@@ -78,14 +91,14 @@ export default function UsedInList({ d, kind = 'widget', onBack, onNavigate, nav
         <div className={styles.stateBox}>
           <p className={styles.sentence} data-testid="used-in-failed">
             {/* A tool's: the editor's own sentence for a failed read (`network`); the server's for anything it said. */}
-            {isTool(kind) ? (state.code === 'network' || !state.message ? TOOL_COPY.usedInFailed : state.message)
+            {ownSentence(kind) ? (state.code === 'network' || !state.message ? TOOL_COPY.usedInFailed : state.message)
               : readFailure(state.code, COPY.usedInFailed)}
           </p>
           {!NO_RETRY.has(state.code) && <button type="button" className={styles.btn} onClick={retry}>Try again</button>}
         </div>
       )}
       {state.status === 'ok' && notes.length === 0 && (
-        <p className={styles.sentence}>{isTool(kind) ? TOOL_COPY.usedInEmpty : COPY.usedInEmpty}</p>
+        <p className={styles.sentence}>{kind === 'template' ? TEMPLATE_COPY.usedInEmpty : isTool(kind) ? TOOL_COPY.usedInEmpty : COPY.usedInEmpty}</p>
       )}
       {shown.length > 0 && (
         <ul className={styles.noteList}>

@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   GALLERY, LIBRARY_COPY, sharePreview, publishTool, publishTemplate, libraryList, previewMine, adoptTool, useTemplate,
   adoptTemplate, updateTool, helpfulPrompt, answerHelpfulPrompt,
+  STYLES, listTemplates, getTemplate, renameTemplate, duplicateTemplate, archiveTemplate, unarchiveTemplate,
+  deleteTemplate, restoreTemplate, templateUsedIn,
 } from './templateLibrary'
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
@@ -36,6 +38,16 @@ const CALLS = [
   ['updateTool', () => updateTool('tracker', 'c1', {}), { url: `${GALLERY}/tools/updates/tracker/c1`, method: 'POST' }],
   ['helpfulPrompt', () => helpfulPrompt('n1'), { url: `${GALLERY}/notes/n1/helpful-prompt`, method: 'GET' }],
   ['answerHelpfulPrompt', () => answerHelpfulPrompt('g1', 'yes'), { url: `${GALLERY}/g1/helpful-prompt`, method: 'POST' }],
+  // Task 11.19: My tools' Templates tab, the journal-styles router's wave 11 routes.
+  ['listTemplates', () => listTemplates('archived'), { url: `${STYLES}?view=archived`, method: 'GET' }],
+  ['getTemplate', () => getTemplate('s1'), { url: `${STYLES}/s1`, method: 'GET' }],
+  ['renameTemplate', () => renameTemplate('s1', ' Morning prep '), { url: `${STYLES}/s1`, method: 'PUT' }],
+  ['duplicateTemplate', () => duplicateTemplate('s1'), { url: `${STYLES}/s1/duplicate`, method: 'POST' }],
+  ['archiveTemplate', () => archiveTemplate('s1'), { url: `${STYLES}/s1/archive`, method: 'POST' }],
+  ['unarchiveTemplate', () => unarchiveTemplate('s1'), { url: `${STYLES}/s1/unarchive`, method: 'POST' }],
+  ['deleteTemplate', () => deleteTemplate('s1', 'Morning prep'), { url: `${STYLES}/s1/delete`, method: 'POST' }],
+  ['restoreTemplate', () => restoreTemplate('s1'), { url: `${STYLES}/s1/restore`, method: 'POST' }],
+  ['templateUsedIn', () => templateUsedIn('s1'), { url: `${STYLES}/s1/used-in`, method: 'GET' }],
 ]
 
 describe('templateLibrary: the routes and the bodies', () => {
@@ -105,6 +117,35 @@ describe('templateLibrary: refusals', () => {
     expect((await publishTool('template', 's1')).ok).toBe(false)
     expect((await answerHelpfulPrompt('g1', 'maybe')).ok).toBe(false)
     expect((await updateTool('widget', null)).ok).toBe(false)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('templateLibrary: the Templates tab calls (Task 11.19)', () => {
+  it('rename sends the name only, trimmed; delete sends the typed name exactly', async () => {
+    await renameTemplate('s1', '  Morning prep ')
+    expect(sent().body).toEqual({ name: 'Morning prep' })
+    fetchMock.mockClear()
+    await deleteTemplate('s1', ' Morning prep')
+    expect(sent().body).toEqual({ typedName: ' Morning prep' })        // never trimmed: the server compares exactly
+  })
+
+  it("the journal-styles router's plain-sentence refusal is shown as the server worded it", async () => {
+    const message = 'SERVER: Archive this template before deleting it.'
+    fetchMock.mockResolvedValueOnce(json(400, { detail: message }))
+    expect(await deleteTemplate('s1', 'x')).toEqual({ ok: false, code: 'invalid', message })
+    fetchMock.mockResolvedValueOnce(json(404, { detail: 'Not found' }))
+    expect(await restoreTemplate('s1')).toEqual({ ok: false, code: 'unavailable', message: LIBRARY_COPY.unavailable })
+    fetchMock.mockResolvedValueOnce(json(400, { detail: '   ' }))      // a blank sentence is no sentence
+    expect(await archiveTemplate('s1')).toEqual({ ok: false, code: 'network', message: LIBRARY_COPY.network })
+  })
+
+  it('a view outside the three, a missing id or a blank name makes no request', async () => {
+    expect((await listTemplates('picker')).ok).toBe(false)
+    expect((await listTemplates()).ok).toBe(false)
+    expect((await archiveTemplate('')).ok).toBe(false)
+    expect((await renameTemplate('s1', '   ')).ok).toBe(false)
+    expect((await deleteTemplate('s1')).ok).toBe(false)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

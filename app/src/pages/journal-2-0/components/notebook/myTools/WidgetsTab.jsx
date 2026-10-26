@@ -11,18 +11,21 @@ import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
 import {
   FILTERS, LIST_RENDER_MAX, NO_RETRY, RECENTLY_DELETED_DAYS, COPY, usedInText, archiveSentence, editedText, dayText,
-  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName,
+  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName, LIBRARY_ACTIONS, creditText, isLibraryCopy,
 } from './myToolsLib'
+import { libraryOn, openShare, takeUpdate } from './libraryActions'
 import styles from './myTools.module.css'
 
 /**
  * My tools, Widgets tab (spec 5.8): the member's saved widgets in three lists, Active · Archived · Recently deleted.
  *
  *  * Each row: the name, a static drawing of its view, "Used in N notes" (which lists those notes, each opening its
- *    note), when it was last edited, and for an adopted widget "Based on X's Y" (no adopted widget exists before
- *    wave 11; the row reads `basedOn: {author, name}` when one does, `author` null for a former member).
+ *    note), when it was last edited, and for an adopted widget the library's credit line: the server's own `credit`
+ *    ("Based on Sam's Morning edge", W11-R7/R24), else the wave 8 `basedOn: {author, name}` read.
  *  * Active: Open (the builder), Rename, Duplicate, Version history, Archive. Archived: Restore, Delete permanently
- *    (the name typed). Recently deleted: Restore, for RECENTLY_DELETED_DAYS. "Share to library" is wave 11.
+ *    (the name typed). Recently deleted: Restore, for RECENTLY_DELETED_DAYS. While wave 11 and the library are on
+ *    (Task 11.19): "Share to library" on the member's own widgets, "Update from the library" on a copy the server
+ *    marks `updateAvailable`.
  *  * Every action is a ContextPopover on the row (a bottom sheet on touch, an anchored menu on desktop); on desktop
  *    the row's main action is also a button of its own.
  *  * A panel (the notes, the versions, rename, archive, delete) pushes in place of the list inside the one sheet;
@@ -60,7 +63,7 @@ function Row({ d, filter, phone, touch, highlight, busy, menuOpen, onMenu, onPri
   const view = isRecord(d.plan?.view) ? d.plan.view.type : null
   const viewName = VIEW_NAME.get(view)
   const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
-  const based = basedOnText(d)
+  const based = creditText(d) || basedOnText(d)
   const primary = filter === 'live' ? 'Open' : 'Restore'
   const primaryOff = busy || (filter === 'live' && d.tooNew === true)
   return (
@@ -459,6 +462,21 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
     refresh('deleted')
   })
 
+  // ── the library (wave 11, Task 11.19) ───────────────────────────────────────────────────────────
+  const share = async (d) => {
+    setMenu(null)
+    const got = await openShare({ kind: 'widget', id: d.id, onDone: (text) => { if (mounted.current) say(text) } })
+    if (!got.ok && mounted.current) say(got.text, 'error')
+  }
+  const update = (d) => act(d, async () => {
+    const got = await takeUpdate({ kind: 'widget', d, onSheetDone: () => { if (mounted.current) refresh('live') } })
+    return got.ok ? { ok: true, data: got } : { ok: false, code: got.code, message: got.text }
+  }, (out) => {
+    if (out?.opened) return
+    say(out?.text || LIBRARY_ACTIONS.updated(d.name))
+    refresh('live')
+  })
+
   const primary = (d) => {
     if (filter === 'live') openBuilder({ defId: d.id })
     else if (filter === 'archived') unarchive(d)
@@ -479,10 +497,15 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
           hint: `Needs the name typed. Kept in Recently deleted for ${RECENTLY_DELETED_DAYS} days.` },
       ]
     }
+    const copy = isLibraryCopy(d) || !!basedOnText(d)
+    const library = !libraryOn() ? []
+      : copy ? (d.updateAvailable === true ? [{ key: 'update', label: LIBRARY_ACTIONS.update, onClick: () => { setMenu(null); update(d) } }] : [])
+        : [{ key: 'share', label: LIBRARY_ACTIONS.share, disabled: tooNew, onClick: () => share(d) }]
     return [
       { key: 'open', label: 'Open', disabled: tooNew, onClick: () => openBuilder({ defId: d.id }) },
       { key: 'rename', label: 'Rename', disabled: tooNew, onClick: () => push('rename', d) },
       { key: 'duplicate', label: 'Duplicate', disabled: tooNew, onClick: () => duplicate(d) },
+      ...library,
       { key: 'history', label: 'Version history', onClick: () => push('history', d) },
       ...usedIn,
       { separator: true },

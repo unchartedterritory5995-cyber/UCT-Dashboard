@@ -85,3 +85,30 @@ export const TYPE_LABELS = Object.freeze({
   tracker: 'Tracker',
   number: 'Number',
 })
+
+/**
+ * The display names a served style (or a preview answer) carries for its slots (ruling W11-R21, Tasks 11.5/11.6): the
+ * member's own widget, routine or tracker name, resolved by the server for that member only. Two shapes are read, so
+ * this works before, while and after the server sends them:
+ *   * `source.slotNames`: `{<ref or block id>: name}`;
+ *   * `source.blocks[i].displayName`: the name on the block itself, keyed by its block id.
+ * Only non-blank strings count. `{}` when the source names none (today's served style): `slotLabel` then reads the
+ * family word, exactly as before.
+ */
+export function slotNamesOf(source) {
+  const out = {}
+  const src = source && typeof source === 'object' ? source : {}
+  const keep = (k, v) => {
+    if (typeof k !== 'string' || !k || typeof v !== 'string' || !v.trim()) return
+    out[k] = v.trim()
+  }
+  if (src.slotNames && typeof src.slotNames === 'object' && !Array.isArray(src.slotNames)) {
+    for (const [k, v] of Object.entries(src.slotNames)) keep(k, v)
+  }
+  if (Array.isArray(src.blocks)) {
+    for (const b of src.blocks) {
+      if (b && typeof b === 'object' && slotFamily(b.block)) keep(b.block, b.displayName)
+    }
+  }
+  return out
+}

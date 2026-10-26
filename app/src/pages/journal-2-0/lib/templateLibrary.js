@@ -54,6 +54,8 @@ async function refusal(res) {
   const at = slot ? { slot } : {}
   if (code) return { ok: false, code, message: message || LIBRARY_COPY.network, ...at }
   if (message) return { ok: false, code: 'invalid', message, ...at }
+  // The journal-styles router (Task 11.19's Templates tab) refuses with a plain-sentence `detail`: the server's words.
+  if (typeof detail === 'string' && detail.trim()) return { ok: false, code: 'invalid', message: detail.trim() }
   return fail('network')
 }
 
@@ -186,4 +188,72 @@ export function helpfulPrompt(noteId) {
 export function answerHelpfulPrompt(galleryId, answer) {
   if (!isId(galleryId) || !HELPFUL_ANSWERS.has(answer)) return Promise.resolve(fail('unavailable'))
   return post(`${GALLERY}/${enc(galleryId)}/helpful-prompt`, { answer })
+}
+
+// ── My tools' Templates tab (Task 11.19) ──────────────────────────────────────────────────────────
+// The member's own templates are their journal styles (ruling W11-R10), read and written through the journal-styles
+// router's wave 11 routes (Task 11.12 over Task 11.13's store). Same answers as every call above: `{ok, data}` or
+// `{ok: false, code, message}`, never a throw; a 404 is `unavailable` (wave 11 off, or the template went away).
+
+export const STYLES = '/api/j2/journal-styles'
+/** The Templates tab's three lists, keyed by the router's `?view=`. */
+export const TEMPLATE_VIEWS = Object.freeze(['live', 'archived', 'deleted'])
+
+function put(url, raw) {
+  const body = bodyOf(raw)
+  if (body === null) return Promise.resolve(fail('network'))
+  return call(() => fetch(url, { method: 'PUT', credentials: 'include', headers: JSON_HEADERS, body }))
+}
+const styleUrl = (id, tail = '') => `${STYLES}/${enc(id)}${tail}`
+
+/** One of the three lists: `{kinds, styles}` (each style with `usedIn`, `credit`, `fromLibrary`, Task 11.13). */
+export function listTemplates(view) {
+  if (!TEMPLATE_VIEWS.includes(view)) return Promise.resolve(fail('unavailable'))
+  return call(() => fetch(`${STYLES}?view=${view}`, { method: 'GET', credentials: 'include' }))
+}
+
+/** One template, whole (its outline too): `{style}`. */
+export function getTemplate(id) {
+  if (!isId(id)) return Promise.resolve(fail('unavailable'))
+  return call(() => fetch(styleUrl(id), { method: 'GET', credentials: 'include' }))
+}
+
+/** Rename: the name only (`PUT /journal-styles/{id}` is a patch). */
+export function renameTemplate(id, name) {
+  if (!isId(id) || typeof name !== 'string' || !name.trim()) return Promise.resolve(fail('unavailable'))
+  return put(styleUrl(id), { name: name.trim() })
+}
+
+export function duplicateTemplate(id) {
+  if (!isId(id)) return Promise.resolve(fail('unavailable'))
+  return post(styleUrl(id, '/duplicate'), {})
+}
+
+export function archiveTemplate(id) {
+  if (!isId(id)) return Promise.resolve(fail('unavailable'))
+  return post(styleUrl(id, '/archive'), {})
+}
+
+/** Restore from Archived. */
+export function unarchiveTemplate(id) {
+  if (!isId(id)) return Promise.resolve(fail('unavailable'))
+  return post(styleUrl(id, '/unarchive'), {})
+}
+
+/** "Delete permanently": only an archived template, with its name typed (the server checks both again). */
+export function deleteTemplate(id, typedName) {
+  if (!isId(id) || typeof typedName !== 'string') return Promise.resolve(fail('unavailable'))
+  return post(styleUrl(id, '/delete'), { typedName })
+}
+
+/** Restore from Recently deleted (the existing restore route; refused after 30 days with the server's sentence). */
+export function restoreTemplate(id) {
+  if (!isId(id)) return Promise.resolve(fail('unavailable'))
+  return post(styleUrl(id, '/restore'), {})
+}
+
+/** The member's live notes made with this template: `{notes: [{id, title, updatedAt}]}`. */
+export function templateUsedIn(id) {
+  if (!isId(id)) return Promise.resolve(fail('unavailable'))
+  return call(() => fetch(styleUrl(id, '/used-in'), { method: 'GET', credentials: 'include' }))
 }

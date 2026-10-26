@@ -8,6 +8,8 @@
 //   * `onDone(answer)`: once the item is the member's (`{kind, editor, ...the server's answer}`). A template's Use has
 //     made the note and the sheet opens it (through `navigate` when given, else in place through history).
 //   * The credit line is the server's own `credit` from the preview answer (W11-R24); nothing here builds one.
+//   * `mode: 'update'` + `copyId` (Task 11.19, My tools' "Update from the library" when the new version asks a
+//     question): Use takes the listed version into the member's copy `copyId` (`updateTool`), never a new copy.
 //
 // ⛔ LAZY. Only dynamic imports reach this file (the template detail's "Use this template", Task 11.16). A static
 // import from anything on the Notebook's first open would put the adoption sheet on that first open (the bytes gate).
@@ -17,7 +19,7 @@ import AdoptSheet from './AdoptSheet'
 
 let _open = null
 
-export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigate } = {}) {
+export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigate, mode = 'adopt', copyId = null } = {}) {
   if (_open) return _open.close
   const host = document.createElement('div')
   host.setAttribute('data-adopt-sheet-root', '')
@@ -31,7 +33,7 @@ export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigat
   }
   _open = { close }
   root.render(createElement(AdoptSheet, {
-    galleryId, kind, editor,
+    galleryId, kind, editor, mode, copyId,
     navigate: typeof navigate === 'function' ? navigate : null,
     onClose: close, onDone: typeof onDone === 'function' ? onDone : undefined,
   }))

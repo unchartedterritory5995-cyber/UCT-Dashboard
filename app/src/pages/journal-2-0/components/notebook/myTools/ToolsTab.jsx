@@ -13,8 +13,10 @@ import { ArchivePanel, DeletePanel } from '../routines/ToolManage'
 import UsedInList from './UsedInList'
 import PanelHead from './PanelHead'
 import {
-  LIST_RENDER_MAX, TOOL_FILTERS, TOOL_LIST_COPY, dayText, keptUntilText,
+  LIBRARY_ACTIONS, LIST_RENDER_MAX, TOOL_FILTERS, TOOL_LIST_COPY, creditText, dayText, fromTemplateText, isLibraryCopy,
+  keptUntilText,
 } from './myToolsLib'
+import { libraryOn, openShare, takeUpdate } from './libraryActions'
 import styles from './myTools.module.css'
 
 /**
@@ -23,10 +25,13 @@ import styles from './myTools.module.css'
  *
  *  * Each row: the name, a static glyph (`check` for a routine, `graph` for a tracker), what it is (a routine's
  *    schedule in words, a tracker's kind and unit), "Used in N notes" (which lists those notes), when it was last
- *    edited, and "From template: X" when it came from one (none before wave 11).
+ *    edited, "From template: X" when a template made it (wave 11, `settings.fromTemplate`), and the library's credit
+ *    line for a copy ("Based on Sam's Morning routine", the server's words).
  *  * The two check-in trackers come FIRST on Trackers, read-only: "From your check-ins", and Open only.
  *  * Active: Open (the editor), Rename, Duplicate, Archive. Archived: Restore, Delete permanently (the name typed).
- *    Recently deleted: Restore, kept RECENTLY_DELETED_DAYS days. "Share to library" is wave 11.
+ *    Recently deleted: Restore, kept RECENTLY_DELETED_DAYS days. While wave 11 and the library are on (Task 11.19):
+ *    "Share to library" on the member's own work (never a copy, never a check-in tracker), and "Update from the
+ *    library" on a copy the server marks `updateAvailable`.
  *  * Every action is a ContextPopover on the row (a bottom sheet on touch); on desktop the row's main action is also a
  *    button of its own. A panel (the notes, rename, archive, delete) pushes in place of the list; the list stays
  *    mounted, hidden, so Back (or Escape) returns focus to the row it came from.
@@ -52,11 +57,12 @@ function whatText(kind, d) {
   return unit ? `${kindWords(d.kind)} · ${unit}` : kindWords(d.kind)
 }
 
-/** "From template: Trade review" when the tool came from a template (wave 11 fills it), '' otherwise. */
+/** "From template: Pre-market prep" when a template made the tool (W11-R13: the title is `settings.fromTemplate`); a
+ *  wave 9 template's tool (its key only, no title) reads "From a template", never the key. '' otherwise. */
 function templateText(d) {
-  if (typeof d.sourceTemplateKey !== 'string' || !d.sourceTemplateKey) return ''
-  const name = typeof d.sourceTemplateName === 'string' && d.sourceTemplateName.trim() ? d.sourceTemplateName.trim() : ''
-  return name ? `From template: ${name}` : 'From a template'
+  const named = fromTemplateText(d)
+  if (named) return named
+  return typeof d.sourceTemplateKey === 'string' && d.sourceTemplateKey ? 'From a template' : ''
 }
 
 /** The check-in trackers first (the server sends them first; this keeps it so whatever order arrives). */
@@ -67,6 +73,7 @@ function Row({ kind, d, filter, phone, touch, busy, menuOpen, onMenu, onPrimary,
   const builtin = d.readOnly === true
   const primary = filter === 'active' ? 'Open' : 'Restore'
   const template = templateText(d)
+  const credit = creditText(d)
   return (
     <li className={`${styles.row}`} data-tool-id={d.id}
       data-testid="my-tools-tool-row">
@@ -100,6 +107,7 @@ function Row({ kind, d, filter, phone, touch, busy, menuOpen, onMenu, onPrimary,
             </>
           )}
           {template && <><span aria-hidden="true">·</span><span>{template}</span></>}
+          {credit && <><span aria-hidden="true">·</span><span data-credit="">{credit}</span></>}
         </span>
       </div>
       {!phone && (
@@ -447,6 +455,21 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
     refresh('deleted')
   })
 
+  // ── the library (wave 11, Task 11.19) ───────────────────────────────────────────────────────────
+  const share = async (d) => {
+    setMenu(null)
+    const got = await openShare({ kind, id: d.id, onDone: (text) => { if (mounted.current) say(text) } })
+    if (!got.ok && mounted.current) say(got.text, 'error')
+  }
+  const update = (d) => act(d, async () => {
+    const got = await takeUpdate({ kind, d, onSheetDone: () => { if (mounted.current) refresh(filterRef.current) } })
+    return got.ok ? { ok: true, data: got } : { ok: false, code: got.code, message: got.text }
+  }, (out) => {
+    if (out?.opened) return
+    say(out?.text || LIBRARY_ACTIONS.updated(d.name))
+    refresh('active')
+  })
+
   const rowControl = (d) => rootRef.current?.querySelector(actionsFor(d.id)) || null
   const primary = (d, from) => {
     if (filter === 'active') openEditor(d, from)
@@ -469,10 +492,15 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
     }
     const open = { key: 'open', label: 'Open', onClick: () => openEditor(d, rowControl(d)) }
     if (d.readOnly === true) return [open]                // a check-in tracker: read-only, Open only
+    const copy = isLibraryCopy(d)
+    const library = !libraryOn() ? []
+      : copy ? (d.updateAvailable === true ? [{ key: 'update', label: LIBRARY_ACTIONS.update, onClick: () => { setMenu(null); update(d) } }] : [])
+        : [{ key: 'share', label: LIBRARY_ACTIONS.share, onClick: () => share(d) }]
     return [
       open,
       { key: 'rename', label: 'Rename', onClick: () => push('rename', d) },
       { key: 'duplicate', label: 'Duplicate', onClick: () => { setMenu(null); duplicate(d) } },
+      ...library,
       ...usedIn,
       { separator: true },
       { key: 'archive', label: 'Archive', onClick: () => archive(d), hint: archiveSentence(used) },

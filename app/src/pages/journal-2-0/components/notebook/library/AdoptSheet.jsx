@@ -19,7 +19,7 @@
 // ⛔ LAZY. Reached only through `openAdoptSheet` (its own root).
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
-import { adoptTool, previewMine, useTemplate } from '../../../lib/templateLibrary'
+import { adoptTool, previewMine, updateTool, useTemplate } from '../../../lib/templateLibrary'
 import { bindWords } from '../../../lib/templateSlots'
 import { openNoteInPlace, noteHref } from '../../../lib/noteHref'
 import MiniPreview from '../widgetBuilder/miniPreview'
@@ -33,6 +33,10 @@ export const USE_LABEL = 'Use'
 export const CHANGE_LABEL = 'Change'
 export const MISSING_HINT = 'Pick a value for each choice, or Any.'
 export const ADDED_SENTENCE = 'Added to My tools.'
+/** Task 11.19: an update of the member's copy (My tools' "Update from the library", when the new version asks). */
+export const UPDATED_SENTENCE = 'Updated from the library.'
+/** The kinds a copy can be updated (Task 11.8's `update_tool`): never a template, which updates in the styles manager. */
+const UPDATABLE = new Set(['widget', 'routine', 'tracker'])
 export const LOADING_SENTENCE = 'Getting your preview ready…'
 export const UPDATING_SENTENCE = 'Updating the preview…'
 export const UNPICKED = 'Not picked yet'
@@ -152,10 +156,15 @@ function PreviewTool({ tool }) {
  * @param onClose   Cancel, Done, Escape or the Sheet's own close
  * @param editor    the editor the door was opened from, handed back to `onDone` as it came (the sheet never writes it)
  * @param onDone    `(answer) => void` once the item is the member's: `{kind, editor, ...server answer}`
+ * @param mode      'adopt' (the default: Use makes a new copy) or 'update' (Task 11.19: Use takes the listed version
+ *                  into the member's copy `copyId` through `updateTool`, never a new copy; a widget, routine or
+ *                  tracker only, anything else stays an adoption)
+ * @param copyId    the member's copy, for mode 'update'
  */
-export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone }) {
+export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone, mode = 'adopt', copyId = null }) {
   const uid = useId()
-  const isTemplate = kind === 'template'
+  const isUpdate = mode === 'update' && UPDATABLE.has(kind) && (typeof copyId === 'string' ? copyId !== '' : Number.isFinite(copyId))
+  const isTemplate = kind === 'template' && !isUpdate
   const [answer, setAnswer] = useState(null)             // the latest preview: {slots, cards, tools, questions, credit?}
   const [slots, setSlots] = useState(null)               // the choices, from the first answer
   const [questions, setQuestions] = useState([])
@@ -259,7 +268,8 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
     setUseProblem(null)
     const body = { answers: { ...answers } }
     if (isTemplate) body.choices = { ...choices }
-    const out = isTemplate ? await useTemplate(galleryId, body) : await adoptTool(galleryId, body)
+    const out = isUpdate ? await updateTool(kind, copyId, body)
+      : isTemplate ? await useTemplate(galleryId, body) : await adoptTool(galleryId, body)
     if (!alive.current) return
     if (!out.ok) {
       useLock.current = false
@@ -307,7 +317,7 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
         {useProblem && !atSlot(useProblem) && <Refusal p={useProblem} />}
         {added ? (
           <>
-            <p className={styles.sent} role="status">{ADDED_SENTENCE}</p>
+            <p className={styles.sent} role="status">{isUpdate ? UPDATED_SENTENCE : ADDED_SENTENCE}</p>
             <div className={styles.actions}>
               <button type="button" className={styles.btnPrimary} ref={doneRef} onClick={onClose}>Done</button>
             </div>

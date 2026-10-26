@@ -34,8 +34,64 @@ export const RECENTLY_DELETED_DAYS = 30
  *  are not, so they say how many more there are rather than drawing an unbounded list. */
 export const LIST_RENDER_MAX = 100
 
+/** What a tab says instead of its controls. Templates says so while wave 11 is off (Task 11.19 shows the real tab
+ *  while `widgetsWaveOn(11)`; MyToolsSheet decides). */
 export const COMING_SOON = Object.freeze({
   templates: 'Templates are coming soon.',
+})
+
+// ── wave 11 (Task 11.19): the Templates tab, and the library lines every tab shares ───────────────────
+
+/** How long Recently deleted keeps a template: the server's 30 days (journal_styles.RECENTLY_DELETED_DAYS). */
+export const TEMPLATE_DELETED_DAYS = 30
+
+export const TEMPLATE_COPY = Object.freeze({
+  loading: 'Loading your templates…',
+  loadFailed: "Your templates couldn't be loaded just now.",
+  offlineList: "You're offline. Your templates show here when you're back online.",
+  emptyActive: 'No templates yet. Save a note’s setup as a template, or use one from the Template library.',
+  emptyArchived: "Nothing archived. An archived template stays in its notes; new notes can't use it until you restore it.",
+  emptyDeleted: `Nothing deleted in the last ${TEMPLATE_DELETED_DAYS} days.`,
+  usedInEmpty: "This template isn't in any note yet.",
+  editorFailed: "The template editor couldn't open. Try again.",
+  gone: "That template isn't available.",
+  heading: (n) => `${n} template${n === 1 ? '' : 's'}`,
+})
+
+/** Spec 5.8 / W11-R10: archiving a template says what happens to its notes and to new notes. No zeros (W9-R7): a
+ *  template in no note says only the second half. */
+export const templateArchiveSentence = (n) => (Number.isInteger(n) && n > 0
+  ? `It stays in your ${notesWord(n)}. New notes can't use it until you restore it.`
+  : "New notes can't use it until you restore it.")
+
+/** Whether an item came from the library (an adopted copy, or something made from one): it carries a credit and is
+ *  never shared again (the server refuses too, `adopted`). */
+export function isLibraryCopy(d) {
+  if (!isRecord(d)) return false
+  return d.fromLibrary === true || (typeof d.sourceGalleryId === 'string' && d.sourceGalleryId !== '')
+}
+
+/** The credit line the SERVER built for a copy (W11-R7, W11-R24: "Based on <label>'s <title>" or "Based on a former
+ *  member's <title>"); the client never assembles it. '' when there is none. */
+export function creditText(d) {
+  return isRecord(d) && typeof d.credit === 'string' ? d.credit.trim() : ''
+}
+
+/** "From template: Pre-market prep" for a routine or tracker a template made (W11-R13: `settings.fromTemplate`, at
+ *  most 80 characters); '' when it names none. */
+export function fromTemplateText(d) {
+  const s = isRecord(d) && isRecord(d.settings) ? d.settings : {}
+  const name = typeof s.fromTemplate === 'string' ? s.fromTemplate.trim().slice(0, 80) : ''
+  return name ? `From template: ${name}` : ''
+}
+
+/** The library actions' words, one place for every tab. */
+export const LIBRARY_ACTIONS = Object.freeze({
+  share: 'Share to library',
+  update: 'Update from the library',
+  updated: (name) => `Updated “${name}” from the library.`,
+  shareFailed: "Share to library couldn't open. Try again.",
+  updateFailed: "The library update couldn't open. Try again.",
 })
 
 /** The Routines and Trackers tabs' three lists, keyed by the server's `?filter=` (GET /api/j2/routines|trackers). */
