@@ -377,3 +377,74 @@
   font-size: var(--text-sm, 13px);
   color: var(--text-primary, var(--text));
 }
+
+/* ── Task 11.16: library cards' facts, the Template library section and the template detail ─────────── */
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.factLine {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary, var(--text-muted));
+}
+
+.typeChip,
+.badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: var(--text-sm, 13px);
+  color: var(--text-primary, var(--text));
+}
+
+.badge {
+  border-color: var(--ut-gold);
+}
+
+.librarySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 12px);
+  margin: var(--space-md, 12px) 0;
+}
+
+.libraryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+}
+
+.libraryRow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(min(100%, 240px), 280px);
+  gap: var(--space-sm, 8px);
+  margin: 0;
+  padding: 0 0 4px;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.libraryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.libraryCard .actions {
+  justify-content: flex-start;
+  margin-top: auto;
+}
