@@ -1,0 +1,159 @@
+{
+ "viewport": "390",
+ "step": "W8.2",
+ "title": "log 5 trades and watch the preview switch to real data",
+ "checks": [
+  {
+   "what": "the sample-trades banner is gone once 5 trades are logged",
+   "ok": true,
+   "read": "banner count 0"
+  },
+  {
+   "what": "the preview no longer says sample data",
+   "ok": true,
+   "read": "Net P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades."
+  },
+  {
+   "what": "the preview counts the member's 5 trades",
+   "ok": true,
+   "read": "Net P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades."
+  }
+ ],
+ "rendered": [
+  {
+   "what": "preview summary (live region)",
+   "text": "Net P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades."
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "trades logged through POST /api/j2/trades (the Trades page's door)",
+   "value": [
+    "c0a3c1c1-1919-49bd-8897-7c1a151022b4",
+    "ade8296e-a2a2-417b-bbef-9bd7c40a38d2",
+    "95be4bec-4d09-4d4a-8c30-d5c9a6603674",
+    "f6512158-33d7-490b-9ae2-a7999d8dc5e0",
+    "80016494-c152-4a04-af88-2b96323c55f4"
+   ]
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 35,
+   "small": [
+    {
+     "label": "Table",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Bar",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Line, suggested",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Calendar heat map",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Gold",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Green",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Red",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Blue",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Purple",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Teal",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Orange",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 18,
+     "h": 18
+    }
+   ],
+   "smallCount": 12,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W8_2-main.png"
+ ]
+}

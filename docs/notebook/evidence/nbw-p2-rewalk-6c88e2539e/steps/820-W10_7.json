@@ -1,0 +1,277 @@
+{
+ "viewport": "820",
+ "step": "W10.7",
+ "title": "share AND publish, private window: a notes list with distinctive titles and a by-account widget leak no title or account name (DOM text, attributes, alts, payload); labels numbered; the account line for every dedicated widget and the calculator",
+ "checks": [
+  {
+   "what": "the notes list widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the by-account widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "both are switched on for shared pages",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the member has distinctive titles to leak",
+   "ok": true,
+   "read": "[\"Check-in split in public 820\", \"Idea 1 (820)\", \"Idea 2 (820)\", \"Idea 3 (820)\", \"Marmot private thesis 820\", \"Older note 820\", \"Quokka confidential ledger 820\", \"Routine walk 820\", \"Routine widgets in public 820\", \"TSLA plan (820)\", \"Widgets walk 820\", \"Widgets walk 820 (second note)\"]"
+  },
+  {
+   "what": "share: no real note title or account name in the DOM text, attributes, image alts, or the payload response",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "share: no ready-made widget or calculator reaches the public page",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "share: the account line stands in for them (adjacent private items share one line, by design)",
+   "ok": true,
+   "read": "10 account lines for 10 run(s) of adjacent private items"
+  },
+  {
+   "what": "share: the notes list is numbered 'Note 1…' in the payload",
+   "ok": true,
+   "read": "[\"Note 1\", \"Note 2\", \"Note 3\", \"Note 4\", \"Note 5\", \"Note 6\"]"
+  },
+  {
+   "what": "share: the by-account widget is numbered 'Account 1…' in the payload",
+   "ok": true,
+   "read": "[\"Account 1\", \"Account 2\"]"
+  },
+  {
+   "what": "share: the page draws the numbered labels",
+   "ok": true,
+   "read": "Formulas and ready-made widgets 820\n\n\n\n\nMy notes list\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\n\nLast 90 days\n\nNote 12026-10-25\n1\nNote 22026-10-25\n1\nNote 32026-10-25\n1\nNote 42026-10-25\n1\nNote 52026-10-25\n1\nNote 62026-10-25\n1\nNote 72026-10-25\n1\nNote 82026-10-25\n1\nNote 92026-10-25\n1\nNote 102026-10-25\n1\nNote 112026-10-25\n1\nNote 122026-10-25\n1\nNote 132026-10-25\n1\n\nA private account item is not shown on "
+  },
+  {
+   "what": "share: no built widget carries an archived image in the payload",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "publish: no real note title or account name in the DOM text, attributes, image alts, or the payload response",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "publish: no ready-made widget or calculator reaches the public page",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "publish: the account line stands in for them (adjacent private items share one line, by design)",
+   "ok": true,
+   "read": "10 account lines for 10 run(s) of adjacent private items"
+  },
+  {
+   "what": "publish: the notes list is numbered 'Note 1…' in the payload",
+   "ok": true,
+   "read": "[\"Note 1\", \"Note 2\", \"Note 3\", \"Note 4\", \"Note 5\", \"Note 6\"]"
+  },
+  {
+   "what": "publish: the by-account widget is numbered 'Account 1…' in the payload",
+   "ok": true,
+   "read": "[\"Account 1\", \"Account 2\"]"
+  },
+  {
+   "what": "publish: the page draws the numbered labels",
+   "ok": true,
+   "read": "Formulas and ready-made widgets 820\n\n\n\n\nMy notes list\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\n\nLast 90 days\n\nNote 12026-10-25\n1\nNote 22026-10-25\n1\nNote 32026-10-25\n1\nNote 42026-10-25\n1\nNote 52026-10-25\n1\nNote 62026-10-25\n1\nNote 72026-10-25\n1\nNote 82026-10-25\n1\nNote 92026-10-25\n1\nNote 102026-10-25\n1\nNote 112026-10-25\n1\nNote 122026-10-25\n1\nNote 132026-10-25\n1\n\nA private account item is not shown on "
+  },
+  {
+   "what": "publish: no built widget carries an archived image in the payload",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "the notes list, in the member's own editor",
+   "text": "My notes list\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nMarmot private thesis 8202026-10-25\n1\nQuokka confidential ledger 8202026-10-25\n1\nTSLA plan (820)2026-10-25\n1\nIdea 3 (820)2026-10-25\n1\nIdea 2 (820)2026-10-25\n1\nIdea 1 (820)2026-10-25\n1\nOlder note 8202026-10-25\n1\nFormulas and ready-made widgets 8202026-10-25\n1\nCheck-in split in public 8202026-10-25\n1\nRoutine widgets in public 8202026-10-25\n1\nRoutine walk 8202026-10-25\n1\nWidgets walk 820 (second note)2026-10-25\n1\nWidgets walk 8202026-10-25\n1\nShow as table\n\nYour notes in the Journal."
+  },
+  {
+   "what": "by account, in the member's own editor",
+   "text": "By account\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nMain book\n+$900.00\nSwing book\n-$200.00\nShow as table\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "public addresses",
+   "text": "{\"share\": \"http://127.0.0.1:8097/share/n/A6YiqzMrWKsx2Ew7HugmLv8QUv5Fvbvi\", \"publish\": \"http://127.0.0.1:8097/p/0mf8H6g0iSsUcjuAT6WZow\"}"
+  },
+  {
+   "what": "words that must not reach a public page (the member's other note titles and account names)",
+   "text": "[\"Check-in split in public 820\", \"Idea 1 (820)\", \"Idea 2 (820)\", \"Idea 3 (820)\", \"Marmot private thesis 820\", \"Older note 820\", \"Quokka confidential ledger 820\", \"Routine walk 820\", \"Routine widgets in public 820\", \"TSLA plan (820)\", \"Widgets walk 820\", \"Widgets walk 820 (second note)\", \"Main book\", \"Swing book\"]"
+  },
+  {
+   "what": "share: public payload response",
+   "text": "{\"url\": \"http://127.0.0.1:8097/api/j2/shared/A6YiqzMrWKsx2Ew7HugmLv8QUv5Fvbvi\", \"status\": 200}"
+  },
+  {
+   "what": "share: public page",
+   "text": "Formulas and ready-made widgets 820\n\n\n\n\nMy notes list\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\n\nLast 90 days\n\nNote 12026-10-25\n1\nNote 22026-10-25\n1\nNote 32026-10-25\n1\nNote 42026-10-25\n1\nNote 52026-10-25\n1\nNote 62026-10-25\n1\nNote 72026-10-25\n1\nNote 82026-10-25\n1\nNote 92026-10-25\n1\nNote 102026-10-25\n1\nNote 112026-10-25\n1\nNote 122026-10-25\n1\nNote 132026-10-25\n1\n\nA private account item is not shown on public pages.\n\n\n\n\nBy account\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\n\nLast 90 days\n\nAccount 1\n+$900.00\nAccount 2\n-$200.00\n\nSource: your manual trades\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\nThis week's review.\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "share: image alts",
+   "text": "[]"
+  },
+  {
+   "what": "share: notes list rows (payload)",
+   "text": "[\"Note 1\", \"Note 2\", \"Note 3\", \"Note 4\", \"Note 5\", \"Note 6\", \"Note 7\", \"Note 8\", \"Note 9\", \"Note 10\", \"Note 11\", \"Note 12\", \"Note 13\"]"
+  },
+  {
+   "what": "share: by-account rows (payload)",
+   "text": "[\"Account 1\", \"Account 2\"]"
+  },
+  {
+   "what": "publish: public payload response",
+   "text": "{\"url\": \"http://127.0.0.1:8097/api/j2/published/0mf8H6g0iSsUcjuAT6WZow\", \"status\": 200}"
+  },
+  {
+   "what": "publish: public page",
+   "text": "Formulas and ready-made widgets 820\n\n\n\n\nMy notes list\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\n\nLast 90 days\n\nNote 12026-10-25\n1\nNote 22026-10-25\n1\nNote 32026-10-25\n1\nNote 42026-10-25\n1\nNote 52026-10-25\n1\nNote 62026-10-25\n1\nNote 72026-10-25\n1\nNote 82026-10-25\n1\nNote 92026-10-25\n1\nNote 102026-10-25\n1\nNote 112026-10-25\n1\nNote 122026-10-25\n1\nNote 132026-10-25\n1\n\nA private account item is not shown on public pages.\n\n\n\n\nBy account\nSnapshot\nas of Oct 25, 2026, 8:41 PM ET\n\nLast 90 days\n\nAccount 1\n+$900.00\nAccount 2\n-$200.00\n\nSource: your manual trades\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\nThis week's review.\n\nA private account item is not shown on public pages.\n\n\n\n\nA private account item is not shown on public pages.\n\n\n\n\nPublished with UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "publish: image alts",
+   "text": "[]"
+  },
+  {
+   "what": "publish: notes list rows (payload)",
+   "text": "[\"Note 1\", \"Note 2\", \"Note 3\", \"Note 4\", \"Note 5\", \"Note 6\", \"Note 7\", \"Note 8\", \"Note 9\", \"Note 10\", \"Note 11\", \"Note 12\", \"Note 13\"]"
+  },
+  {
+   "what": "publish: by-account rows (payload)",
+   "text": "[\"Account 1\", \"Account 2\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "screenshots": [
+  "820/W10_7-share-public.png",
+  "820/W10_7-publish-public.png",
+  "820/W10_7-main.png"
+ ],
+ "notes": [
+  {
+   "what": "share: public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8097/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  },
+  {
+   "what": "publish: public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8097/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 147,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 7,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ }
+}

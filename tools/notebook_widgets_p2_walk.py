@@ -31,6 +31,11 @@ R-RAW: walk.json is rewritten after every step, before any verdict.
 Usage (PowerShell, data dir single-quoted):
     python tools/notebook_widgets_p2_walk.py --data-dir 'C:\\data-nbw-walk' --port 8093 `
         --tip <sha> --out docs/notebook/evidence/nbw-p2-ship-<shortsha>
+    # the re-walk after the walk fix rounds (W8.7, W8.8, W10.3, W10.4, W10.7, W10.8 and the new R73, R73.I2, R74
+    # steps, with the steps that seed them; "R73" also selects R73.I2):
+    python tools/notebook_widgets_p2_walk.py --data-dir 'C:\\data-nbw-rewalk' --port 8097 --tip <sha> `
+        --out docs/notebook/evidence/nbw-p2-rewalk-<shortsha> --phases on `
+        --only "W8.1,W8.2,W8.3,W8.7,W8.8,W9.1,W9.5,R73,W10.3,W10.4,W10.5,W10.6,W10.7,W10.8,R74"
     # against a sandbox already running (iterating on this tool only; never evidence):
     python tools/notebook_widgets_p2_walk.py --base http://127.0.0.1:8091 --out <dir> --only W8.1
 
@@ -408,6 +413,23 @@ def embeds(note: dict, widget_id: str | None = None) -> list[dict]:
     return out
 
 
+def all_embeds(obj) -> list[dict]:
+    """Every widgetEmbed's attrs anywhere in a payload (a share or a published page, whatever its envelope)."""
+    out = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "widgetEmbed":
+                out.append(n.get("attrs") or {})
+            for v in n.values():
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+    walk(obj)
+    return out
+
+
 def goto_note(pg, base: str, nid: str):
     pg.goto(base + f"/journal/notebook?note={nid}", wait_until="domcontentloaded", timeout=60000)
     h._dismiss_intro(pg)
@@ -416,7 +438,7 @@ def goto_note(pg, base: str, nid: str):
     return ed
 
 
-def slash(pg, ed, text: str, pick: str | None = None) -> None:
+def slash(pg, ed, text: str, pick: str | None = None, open_only: bool = False) -> None:
     """Type a slash command on a fresh line at the end of the note, and pick its row (Enter, or the row whose text
     matches `pick`). One retry when the menu does not open (the caret did not land in the text)."""
     menu = pg.get_by_role("listbox", name="Insert block").last
@@ -438,6 +460,9 @@ def slash(pg, ed, text: str, pick: str | None = None) -> None:
                 raise
             for _ in text:
                 pg.keyboard.press("Backspace")
+    if open_only:
+        pg.wait_for_timeout(600)
+        return
     if pick:
         menu.get_by_role("option").filter(has_text=re.compile(pick)).first.click(timeout=T)
     else:
@@ -548,6 +573,128 @@ def private_runs(note: dict) -> int:
         else:
             in_run = False
     return runs
+
+
+PUBLIC_DOM_JS = """() => {
+  const body = document.body;
+  const attrs = [];
+  for (const el of body.querySelectorAll('*')) for (const a of el.attributes) attrs.push(a.name + '=' + a.value);
+  return { text: body.innerText, title: document.title, attrs,
+           alts: [...document.querySelectorAll('img')].map(i => i.getAttribute('alt')),
+           srcs: [...document.querySelectorAll('img')].map(i => i.getAttribute('src')) };
+}"""
+
+
+def share_links(pg, publish: bool = True) -> dict:
+    """The note's share link (Create link) and, with `publish`, its published page (Publish this note), both read off
+    the Share dialog the member uses."""
+    pg.get_by_role("button", name="Share", exact=True).click(timeout=T)
+    sh = pg.get_by_role("dialog", name="Share this note")
+    sh.wait_for(timeout=T)
+    out = {}
+    addr = sh.get_by_label("Share link address")
+    if not (addr.count() and addr.first.is_visible()):
+        sh.get_by_role("button", name="Create link", exact=True).click(timeout=T)
+    out["share"] = addr.input_value(timeout=T)
+    if publish:
+        paddr = sh.get_by_label("Published page address")
+        if not (paddr.count() and paddr.first.is_visible()):
+            sh.get_by_role("button", name="Publish this note", exact=True).click(timeout=T)
+        out["publish"] = paddr.input_value(timeout=T)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+    return out
+
+
+def public_api_url(url: str) -> str:
+    return url.replace("/share/n/", "/api/j2/shared/").replace("/p/", "/api/j2/published/", 1)
+
+
+def open_public(browser, vp: str, url: str, wait_text: str | None = None) -> dict:
+    """A stranger's private window on a share or published page: the rendered DOM (text, every attribute, every image's
+    alt and src) and the public payload's network response as the page itself fetched it."""
+    pub = browser.new_context(viewport={"width": VIEWPORTS[vp][0], "height": VIEWPORTS[vp][1]})
+    pp = pub.new_page()
+    pw = Watch(pp)
+    with pp.expect_response(lambda r: ("/api/j2/shared/" in r.url or "/api/j2/published/" in r.url)
+                            and r.request.method == "GET", timeout=60000) as resp:
+        pp.goto(url, wait_until="domcontentloaded", timeout=60000)
+    raw = resp.value.text()
+    if wait_text:
+        pp.get_by_text(wait_text).first.wait_for(timeout=T)
+    pp.wait_for_timeout(1500)
+    pp.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")      # draw anything below the fold
+    pp.wait_for_timeout(800)
+    pp.evaluate("() => window.scrollTo(0, 0)")
+    pp.wait_for_timeout(300)
+    dom = pp.evaluate(PUBLIC_DOM_JS)
+    try:
+        payload = json.loads(raw)
+    except Exception:  # noqa: BLE001
+        payload = {}
+    return {"ctx": pub, "page": pp, "watch": pw, "dom": dom, "raw": raw, "payload": payload,
+            "response": {"url": resp.value.url[:200], "status": resp.value.status}}
+
+
+def leaks_in(pub: dict, words: list[str]) -> dict:
+    """Which of `words` appear in the public page's text, title, attributes, image alts, or the payload response."""
+    dom = pub["dom"]
+    hay = {"text": dom.get("text") or "", "title": dom.get("title") or "", "attrs": "\n".join(dom.get("attrs") or []),
+           "alts": "\n".join(a or "" for a in dom.get("alts") or []), "payload": pub["raw"] or ""}
+    return {k: [w for w in words if w and w in v] for k, v in hay.items() if any(w and w in v for w in words)}
+
+
+def shoot_public(st, vp: str, pp, name: str) -> None:
+    shot = OUT / vp / name
+    shot.parent.mkdir(parents=True, exist_ok=True)
+    pp.screenshot(path=str(shot), full_page=True)
+    st.row.setdefault("screenshots", []).append(str(shot.relative_to(OUT)).replace("\\", "/"))
+
+
+def member_note_titles(ctx, base: str) -> list[str]:
+    r = ctx.request.get(base + "/api/j2/notes?limit=200")
+    body = r.json() if r.ok else {}
+    notes = body.get("notes", body) if isinstance(body, dict) else body
+    return sorted({(n.get("title") or "").strip() for n in (notes or []) if isinstance(n, dict) and (n.get("title") or "").strip()})
+
+
+def build_saved(pg, e, source: str, name: str, list_view: bool = False, split: str | None = None,
+                split_pick: str | None = None):
+    """Start blank over `source`, optionally a List view or a split (and the split's own pick, e.g. which routine),
+    named `name`, saved and placed; returns (the placed frame, the save's HTTP status, the live summary)."""
+    slash(pg, e, "/build")
+    dlg = builder(pg)
+    dlg.get_by_role("button", name="Start blank").click(timeout=T)
+    dlg.get_by_role("radio", name=source).click(timeout=T)
+    wait_live(pg)
+    if split:
+        dlg.get_by_role("button", name=re.compile(r"split", re.I)).first.click(timeout=T)
+        dlg.get_by_role("button", name=split, exact=True).click(timeout=T)
+        if split_pick:
+            dlg.get_by_role("button", name=re.compile(split_pick)).first.click(timeout=T)
+        wait_live(pg, "t => /split by/i.test(t)")
+    if list_view:
+        dlg.get_by_role("radio", name="List").check(timeout=T, force=True)
+    nm = dlg.get_by_label("Name", exact=True)
+    nm.fill(name)
+    pg.wait_for_timeout(600)
+    said = live_text(pg)
+    with pg.expect_response(lambda r: r.url.endswith("/api/j2/widget-definitions") and r.request.method == "POST",
+                            timeout=T) as resp:
+        dlg.get_by_role("button", name="Save", exact=True).click(timeout=T)
+    dlg.wait_for(state="hidden", timeout=T)
+    fr = embed_in(pg, name)
+    fr.wait_for(timeout=T)
+    return fr, resp.value.status, said
+
+
+def share_on(fr) -> bool:
+    """A placed built widget's own "Show on shared pages" switch, turned on."""
+    sw = fr.get_by_role("switch")
+    sw.scroll_into_view_if_needed()
+    if sw.get_attribute("aria-checked") != "true":
+        sw.click(timeout=T)
+    return sw.get_attribute("aria-checked") == "true"
 
 
 def confirm_archive(sheet) -> None:
@@ -756,16 +903,31 @@ def wave8(browser, base: str, vp: str) -> None:
             pp = pub.new_page()
             pw = Watch(pp)
             pp.goto(url, wait_until="domcontentloaded", timeout=60000)
-            img = pp.get_by_role("img", name=re.compile("Daily P&L bars"))
-            img.first.wait_for(timeout=T)
+            # Walk fix (W8.7, W10.7): a public built widget is drawn from the server's reduced params, never from
+            # the archived image of the member's editor frame.
+            frame = pp.locator("[data-snapshot-frame]").filter(has_text="Daily P&L bars").first
+            frame.wait_for(timeout=T)
+            pp.wait_for_timeout(1200)
             ptxt = st.read("public page", pp.locator("body").inner_text())
+            ftxt = st.read("public widget", frame.inner_text())
             html = pp.content()
-            st.check("the private window shows the widget's result (its archived image)", img.count() >= 1,
-                     img.first.get_attribute("alt") or "")
+            st.check("the private window shows the widget's result (its 5 days)", all(d in ftxt for d in SESSIONS), ftxt[:300])
+            ctl = frame.evaluate("""f => [...f.querySelectorAll('button, [role=button], [role=switch], input, select, textarea, a[href]')]
+                                     .map(e => (e.getAttribute('aria-label') || e.innerText || e.tagName).trim().slice(0, 40))""")
+            words = [x for x in ("Show on shared pages", "See it now", "Change", "Show as table", "More for this widget")
+                     if x in ftxt or x in (frame.evaluate("f => f.outerHTML") or "")]
+            st.read("controls inside the public widget", json.dumps({"controls": ctl, "control_words": words}))
+            st.check("the public widget shows no author control (no switch, See it now, Change, Show as table, menu)",
+                     not ctl and not words, json.dumps({"controls": ctl, "words": words}))
+            imgs = pp.evaluate("() => [...document.querySelectorAll('img')].map(i => [i.getAttribute('alt'), i.getAttribute('src')])")
+            st.read("public images", json.dumps(imgs))
+            st.check("the public page draws no archived image of the widget",
+                     not any("Daily P&L" in (a or "") or "/att/" in (s or "") for a, s in imgs), json.dumps(imgs)[:300])
             st.check("no summary sentence on the public page", "split by day" not in ptxt and "split by day" not in html, ptxt[:300])
             api = pub.request.get(url.replace("/share/n/", "/api/j2/shared/")).text()
-            leaks = [k for k in ('"summary"', '"def"', '"defId"', '"scopeLabel"', '"accountId"') if k in api]
-            st.check("the shared payload carries no definition, summary or account", not leaks, f"keys seen: {leaks}")
+            leaks = [k for k in ('"summary"', '"def"', '"defId"', '"scopeLabel"', '"accountId"', '"fallback"') if k in api]
+            st.check("the shared payload carries no definition, summary, account or archived image", not leaks,
+                     f"keys seen: {leaks}")
             shot = OUT / vp / "W8_7-public.png"
             shot.parent.mkdir(parents=True, exist_ok=True)
             pp.screenshot(path=str(shot), full_page=True)
@@ -801,8 +963,23 @@ def wave8(browser, base: str, vp: str) -> None:
         if not S.get("n2"):
             S["n2"] = make_note(ctx, base, f"Widgets walk {vp} (second note)", ("The same widget, elsewhere.",))
         e2 = goto_note(pg, base, S["n2"])
-        # the member's own widget (its row reads its summary), not the firm's example of the same name
-        slash(pg, e2, "/Daily P&L", pick=r"split by day")
+        # Walk fix (W8.8): the typed query lists the firm's example and the member's own widget under one title,
+        # and each row is marked "Example" or "Yours" inside its accessible name.
+        slash(pg, e2, "/Daily P&L", open_only=True)
+        menu = pg.get_by_role("listbox", name="Insert block").last
+        opts = [o.strip() for o in menu.get_by_role("option").filter(has_text="Daily P&L bars").all_inner_texts()]
+        names = menu.get_by_role("option").filter(has_text="Daily P&L bars").evaluate_all(
+            "els => els.map(e => (e.getAttribute('aria-label') || e.textContent || '').trim())")
+        try:
+            aria = menu.aria_snapshot()
+        except Exception as ex_:  # noqa: BLE001
+            aria = f"(no aria snapshot: {ex_})"
+        st.read("typed /Daily P&L options", json.dumps({"text": opts, "names": names, "aria": aria}))
+        ex = [n for n in names if re.search(r"(?<![A-Za-z])Example(?![a-z])", n)]
+        mine = [n for n in names if re.search(r"(?<![A-Za-z])Yours(?![a-z])", n)]
+        st.check("the firm's example row is marked Example and the member's own row Yours",
+                 len(ex) == 1 and len(mine) == 1 and not set(ex) & set(mine), json.dumps(names))
+        menu.get_by_role("option").filter(has_text="Daily P&L bars").filter(has_text=re.compile(r"(?<![A-Za-z])Yours(?![a-z])")).first.click(timeout=T)
         embed_in(pg, "Daily P&L bars").wait_for(timeout=T)
         d2 = poll(lambda: placed_def(ctx, base, S["n2"]), 30, 0.5)
         st.check("the same widget is placed in a second note", d2 == S.get("def1"), f"n2={d2} def1={S.get('def1')}")
@@ -959,6 +1136,7 @@ def wave8(browser, base: str, vp: str) -> None:
 # ── wave 9 (Task 9.20 Step 4) ─────────────────────────────────────────────────────────────
 
 ACCOUNT_LINE = "A private account item is not shown on public pages."
+HIDDEN_LINE = _const("api/services/journal_two/public_note_payload.py", "HIDDEN_WIDGET_LINE")
 FLAG_OFF_LINE = "Not available right now."
 CALENDAR_WHY = ("the walk runs on {today} ET, which is not a market session, and a routine created today has no "
                 "scheduled day on or before today, so the server has nothing to count")
@@ -1386,6 +1564,117 @@ def wave9(browser, base: str, vp: str) -> None:
         finally:
             pg.set_viewport_size({"width": wd, "height": hh})
 
+    def tool_words() -> list[str]:
+        """The member's routine and tracker names and items, read off their own doors: none may reach a public page."""
+        words = []
+        for path in ("/api/j2/routines", "/api/j2/trackers"):
+            r = ctx.request.get(base + path)
+            body = r.json() if r.ok else {}
+
+            def walk(n, key=None):
+                if isinstance(n, dict):
+                    for k, v in n.items():
+                        walk(v, k)
+                elif isinstance(n, list):
+                    for v in n:
+                        walk(v, key)
+                elif isinstance(n, str) and key in ("name", "label", "text", "title") and len(n.strip()) >= 4:
+                    words.append(n.strip())
+            walk(body)
+        return sorted(set(words))
+
+    def r73_public(st, links: dict, hidden: list[str], shown: list[str], forbidden: list[str], tag: str):
+        for kind in ("share", "publish"):
+            url = links.get(kind)
+            if not url:
+                st.check(f"{kind}: the page address was given", False, json.dumps(links))
+                continue
+            pub = open_public(browser, vp, url, wait_text=HIDDEN_LINE)
+            try:
+                pp = pub["page"]
+                st.read(f"{kind}: public payload response", json.dumps(pub["response"]))
+                ptxt = st.read(f"{kind}: public page", pub["dom"]["text"])
+                blocks = pp.get_by_text(HIDDEN_LINE, exact=True)
+                exact = pp.evaluate("(s) => [...document.querySelectorAll('body *')].filter(e => e.children.length === 0"
+                                    " && (e.textContent || '').includes(s)).map(e => e.textContent.trim())", HIDDEN_LINE)
+                st.read(f"{kind}: the hidden blocks' text", json.dumps(exact))
+                st.check(f"{kind}: each hidden widget reads exactly \"{HIDDEN_LINE}\"",
+                         len(exact) == len(hidden) and all(x == HIDDEN_LINE for x in exact),
+                         f"{len(exact)} blocks for {len(hidden)} hidden widget(s): {json.dumps(exact)}")
+                found = leaks_in(pub, forbidden + hidden)
+                st.check(f"{kind}: no routine or tracker name, item, value or hidden widget's title in the DOM text, "
+                         "attributes, image alts or the payload response", not found, json.dumps(found)[:600])
+                ems = all_embeds(pub["payload"])
+                titles = [(x.get("params") or {}).get("title") for x in ems if x.get("widgetId") == "builtWidget"]
+                st.read(f"{kind}: built widgets in the payload", json.dumps(titles))
+                st.check(f"{kind}: no hidden widget reaches the payload", not any(t in hidden for t in titles), json.dumps(titles))
+                for t in shown:
+                    fr = pp.locator("[data-snapshot-frame]").filter(has_text=t).first
+                    ok = fr.count() > 0
+                    ftxt = fr.inner_text() if ok else ""
+                    st.read(f"{kind}: {t} (public)", ftxt)
+                    st.check(f"{kind}: '{t}' still renders publicly, with its figures",
+                             ok and t in titles and bool(re.search(r"\d", ftxt.replace(t, ""))), ftxt[:300])
+                shoot_public(st, vp, pp, f"{tag}-{kind}-public.png")
+                st.note(f"{kind}: public page events", pub["watch"].take())
+            finally:
+                pub["ctx"].close()
+
+    def r73(st):
+        if not S.get("n_r73"):
+            S["n_r73"] = make_note(ctx, base, f"Routine widgets in public {vp}", ("Day state, shared.",))
+        if S.get("tracker_id") and not S.get("r73_logged"):
+            # past nights for the Sleep tracker, through its own day door, so the tracker widget has figures to hide
+            got = [ctx.request.put(base + f"/api/j2/trackers/{S['tracker_id']}/days/{d}", data={"value": v}).status
+                   for d, v in zip(SESSIONS, (400, 420, 480, 390, 455))]
+            st.note("Sleep logged on the week's nights (PUT /api/j2/trackers/{id}/days/{day})", got)
+            S["r73_logged"] = True
+        e = goto_note(pg, base, S["n_r73"])
+        fr1, c1, said1 = build_saved(pg, e, "Routine history", "Routine widget R73")
+        st.read("routine widget, summary", said1)
+        fr2, c2, said2 = build_saved(pg, e, "Tracker history", "Tracker widget R73")
+        st.read("tracker widget, summary", said2)
+        st.check("both widgets were saved", c1 in (200, 201) and c2 in (200, 201), f"HTTP {c1}, {c2}")
+        fr1, fr2 = embed_in(pg, "Routine widget R73"), embed_in(pg, "Tracker widget R73")
+        st.check("both are switched on for shared pages", share_on(fr1) and share_on(fr2), "")
+        pg.wait_for_timeout(1500)
+        e1 = st.read("routine widget, in the member's editor", fr1.inner_text())
+        e2 = st.read("tracker widget, in the member's editor", fr2.inner_text())
+        st.check("in the member's own editor both widgets are drawn (the hide is a public-page rule only)",
+                 "Routine widget R73" in e1 and "Tracker widget R73" in e2, (e1 + " || " + e2)[:300])
+        body2 = e2.split("Last 90 days", 1)[-1].split("Show as table", 1)[0]
+        figs = sorted({x for x in re.findall(r"\d+h \d+m|\d+\.\d+|\d{3,}", body2) if x != vp}
+                      | set(re.findall(r"from \d+ entr\w+", body2)))
+        st.check("the member's tracker widget draws its figures (the numbers a public page must not show)", bool(figs), json.dumps(figs))
+        if not re.search(r"\d+ (of|days?|ticked)", e1):
+            st.note("the routine widget has no day to count yet", "a routine created today on a non-session day has no "
+                    "scheduled day on or before today (see W9.3), so its public check rests on its name and title")
+        links = share_links(pg, publish=True)
+        st.read("public addresses", json.dumps(links))
+        forbidden = tool_words() + ["7h 30m", "7:30", "Routine history", "Tracker history"] + figs
+        st.read("words that must not reach a public page", json.dumps(forbidden))
+        r73_public(st, links, ["Routine widget R73", "Tracker widget R73"], [], forbidden, "R73")
+
+    def r73_i2(st):
+        if not S.get("n_i2"):
+            S["n_i2"] = make_note(ctx, base, f"Check-in split in public {vp}", ("Mood, and plain P&L.",))
+        e = goto_note(pg, base, S["n_i2"])
+        fr1, c1, said1 = build_saved(pg, e, "Trading days", "Mood split I2", split="Check-in mood")
+        st.read("mood split, summary", said1)
+        st.check("the split reads check-in mood", "mood" in said1.lower(), said1)
+        fr2, c2, said2 = build_saved(pg, e, "Trading days", "Trading days P&L I2")
+        st.read("plain trading days, summary", said2)
+        st.check("both widgets were saved", c1 in (200, 201) and c2 in (200, 201), f"HTTP {c1}, {c2}")
+        fr1, fr2 = embed_in(pg, "Mood split I2"), embed_in(pg, "Trading days P&L I2")
+        st.check("both are switched on for shared pages", share_on(fr1) and share_on(fr2), "")
+        pg.wait_for_timeout(1500)
+        st.read("mood split, in the member's editor", fr1.inner_text())
+        st.read("plain trading days, in the member's editor", fr2.inner_text())
+        links = share_links(pg, publish=True)
+        st.read("public addresses", json.dumps(links))
+        forbidden = ["Check-in mood", "check-in mood", "no check-in mood"]
+        r73_public(st, links, ["Mood split I2"], ["Trading days P&L I2"], forbidden, "R73_I2")
+
     steps = [("W9.1", "/routine: New routine from the Pre-market starter, tick two items, reload: no unsaved change, both ticks there", s1),
              ("W9.2", "the same note in a second tab, tick a third item: both tabs show all three", s2),
              ("W9.3", "skip a day and read the consistency sentence", s3),
@@ -1394,6 +1683,8 @@ def wave9(browser, base: str, vp: str) -> None:
              ("W9.6", "flip 'P&L on days you finished it' on a member with trades", s6),
              ("W9.7", "reminder on for the next 5-minute slot: one bell item, then none at the next slot", s7),
              ("W9.8", "build a widget over Routine history and over Trading days split by 'routine done'", s8),
+             ("R73", "share a built widget over Routine history and one over Tracker history (share and publish): each reads exactly the hidden sentence, no routine or tracker numbers or names", r73),
+             ("R73.I2", "a Trading days widget split by check-in mood is hidden publicly the same way; a plain trading-days P&L widget still renders", r73_i2),
              ("W9.9", "My tools: Routines and Trackers tabs, rename, archive, restore, delete permanently", s9),
              ("W9.10", "share the note, open the link in a private window: the account line in place of each block", s10)]
     if vp == "390":
@@ -1649,7 +1940,9 @@ def wave10(browser, base: str, vp: str) -> None:
         dlg.get_by_role("button", name="Start blank").click(timeout=T)
         dlg.get_by_role("radio", name="Notes").click(timeout=T)
         wait_live(pg, "t => /notes/i.test(t)")
-        st.read("notes source, the coverage switch", dlg.get_by_text(re.compile(r"^Show how many")).first.inner_text())
+        cov = st.read("notes source, the coverage switch", dlg.get_by_text(re.compile(r"^Show how many")).first.inner_text())
+        st.check("the notes source's coverage switch counts notes, never trades (walk fix W10.3)",
+                 "notes" in cov and not re.search(r"\btrades?\b", cov, re.I), cov)
         dlg.get_by_role("button", name="Filter", exact=True).click(timeout=T)
         dlg.get_by_role("button", name="Property", exact=True).click(timeout=T)
         dlg.get_by_role("button", name=re.compile(r"^Conviction")).first.click(timeout=T)
@@ -1672,10 +1965,21 @@ def wave10(browser, base: str, vp: str) -> None:
                  and "2 notes" in said, said)
         st.note("the summed measure's label (does it name the property?)", said)
         st.check("the sum is 13 (5 + 8)", "13" in prev, prev[:300])
+        st.check("the notes widget's summary and preview never say trades", not re.search(r"\btrades?\b", said + "\n" + prev, re.I),
+                 (said + " || " + prev)[:400])
         with pg.expect_response(lambda r: r.url.endswith("/api/j2/widget-definitions") and r.request.method == "POST", timeout=T) as resp:
             dlg.get_by_role("button", name="Save", exact=True).click(timeout=T)
         st.check("the notes widget was saved", resp.value.status in (200, 201), f"HTTP {resp.value.status}")
+        saved = resp.value.json()
+        S["notes_sum_title"] = (saved.get("definition") or saved).get("name")
         dlg.wait_for(state="hidden", timeout=T)
+        pg.wait_for_timeout(1500)
+        fr = pg.locator("[data-snapshot-frame]").filter(has_text=re.compile(r"Sum of")).last
+        fr.wait_for(timeout=T)
+        fr.scroll_into_view_if_needed()
+        ftxt = st.read("the placed notes widget", fr.inner_text())
+        st.check("the placed notes widget never says trades (no 'Source: your manual trades')",
+                 not re.search(r"\btrades?\b", ftxt, re.I), ftxt[:400])
 
     def s4(st):
         if not S.get("n_old"):
@@ -1697,7 +2001,18 @@ def wave10(browser, base: str, vp: str) -> None:
         st.surface = "[role=dialog]"
         cmp_ = how.get_by_role("region", name="Updated version available")
         txt = st.read("compare", how.inner_text())
-        st.check("it compares this note's version with the update", "In this note" in txt and "Updated" in txt, txt[:400])
+        region = cmp_.inner_text() if cmp_.count() else ""
+        changes = how.locator("[data-testid=built-how-changes] li").all_inner_texts()
+        st.read("What changes (list)", json.dumps(changes))
+        st.check("the update says what changes, as a list", "What changes" in region and len(changes) >= 1, region[:400])
+        st.check("the list names the real difference (the running total with the drawdown band)",
+                 any("running total" in c.lower() for c in changes), json.dumps(changes))
+        own = how.locator("[data-testid=built-how-latest]")
+        if "In this note" in region:
+            sums = how.locator("[class*=howCompare] p").all_inner_texts()
+            st.check("when both sentences are shown, they differ", len(set(s.strip() for s in sums)) == len(sums), json.dumps(sums))
+        else:
+            st.check("no identical pair of sentences is shown", own.count() == 0, region[:300])
         with pg.expect_response(lambda r: "/api/j2/widget-definitions/run" in r.url, timeout=T) as resp:
             how.get_by_role("button", name="Use the updated version").click(timeout=T)
         st.check("the update re-ran the widget (HTTP 200)", resp.value.status == 200, f"HTTP {resp.value.status}")
@@ -1792,71 +2107,79 @@ def wave10(browser, base: str, vp: str) -> None:
 
     def s7(st):
         e = goto_note(pg, base, S["n4"])
-        # a notes list widget, shared
-        slash(pg, e, "/build")
-        dlg = builder(pg)
-        dlg.get_by_role("button", name="Start blank").click(timeout=T)
-        dlg.get_by_role("radio", name="Notes").click(timeout=T)
-        dlg.get_by_role("radio", name="List").check(timeout=T, force=True)
-        nm = dlg.get_by_label("Name", exact=True)
-        nm.fill("My notes list")
-        wait_live(pg, "t => /notes/i.test(t)")
-        with pg.expect_response(lambda r: r.url.endswith("/api/j2/widget-definitions") and r.request.method == "POST", timeout=T):
-            dlg.get_by_role("button", name="Save", exact=True).click(timeout=T)
-        dlg.wait_for(state="hidden", timeout=T)
+        # distinctive titles, made through the notes door, for the notes list to list
+        if not S.get("w10_7_titles"):
+            S["w10_7_titles"] = [f"Quokka confidential ledger {vp}", f"Marmot private thesis {vp}"]
+            for t in S["w10_7_titles"]:
+                make_note(ctx, base, t, ("Private words.",))
+        e = goto_note(pg, base, S["n4"])
+        lst, c1, _ = build_saved(pg, e, "Notes", "My notes list", list_view=True)
+        st.check("the notes list widget was saved", c1 in (200, 201), f"HTTP {c1}")
+        acc, c2, _ = build_saved(pg, e, "Closed trades", "By account", split="Account")
+        st.check("the by-account widget was saved", c2 in (200, 201), f"HTTP {c2}")
         lst = embed_in(pg, "My notes list")
-        lst.wait_for(timeout=T)
-        lst.get_by_role("switch").click(timeout=T)
+        acc = embed_in(pg, "By account")
+        st.check("both are switched on for shared pages", share_on(lst) and share_on(acc), "")
         pg.wait_for_timeout(1500)
-        in_editor = st.read("the shared notes list, in the editor (what the archive image is drawn from)", lst.inner_text())
-        fb = poll(lambda: next((x.get("fallback") for x in embeds(get_note(ctx, base, S["n4"]), "builtWidget")
-                                if (x.get("params") or {}).get("title") == "My notes list" and x.get("fallback")), None), 40, 1.0)
-        st.note("archive of the shared notes list", fb)
-        pg.get_by_role("button", name="Share", exact=True).click(timeout=T)
-        sh = pg.get_by_role("dialog", name="Share this note")
-        sh.get_by_role("button", name="Create link", exact=True).click(timeout=T)
-        url = sh.get_by_label("Share link address").input_value(timeout=T)
-        S["share_url_n4"] = url
-        pg.keyboard.press("Escape")
-        pub = browser.new_context(viewport={"width": VIEWPORTS[vp][0], "height": VIEWPORTS[vp][1]})
-        try:
-            pp = pub.new_page()
-            pw = Watch(pp)
-            pp.goto(url, wait_until="domcontentloaded", timeout=60000)
-            pp.get_by_text(ACCOUNT_LINE).first.wait_for(timeout=T)
-            ptxt = st.read("public page", pp.locator("body").inner_text())
-            k = ptxt.count(ACCOUNT_LINE)
-            api = pub.request.get(url.replace("/share/n/", "/api/j2/shared/")).json()
-            runs = private_runs(get_note(ctx, base, S["n4"]))
-            left = [x.get("widgetId") for x in embeds(api.get("note") or {}) if x.get("widgetId") in DEDICATED_IDS]
-            st.read("public payload", json.dumps([n.get("type") for n in ((api.get("note") or {}).get("bodyJson") or {}).get("content", [])]))
-            st.check("no ready-made widget or calculator reaches the public page", not left, json.dumps(left))
-            st.check("the account line stands in for them (adjacent private items share one line, by design)",
-                     k == runs and k >= 1, f"{k} account lines for {runs} run(s) of adjacent private items")
-            lists = [x for x in embeds(api.get("note") or {}, "builtWidget") if (x.get("params") or {}).get("title") == "My notes list"]
-            rows = ((lists[0].get("params") or {}).get("rows") or []) if lists else []
-            labels = [r.get("label") for r in rows]
-            st.read("shared notes list rows (public payload)", json.dumps(labels))
-            st.check("the shared notes list reads 'Note 1…' in the public payload", bool(labels) and labels[0] == "Note 1", json.dumps(labels[:4]))
-            titles_in_editor = [t for t in ("Idea 1", "Idea 2", "Idea 3", "Widgets walk") if t in in_editor]
-            st.check("the shared notes list in the editor (the archive image's source) reads 'Note 1…', not titles",
-                     "Note 1" in in_editor and not titles_in_editor, f"titles drawn: {titles_in_editor}")
-            imgs = pp.get_by_role("img").all()
-            st.read("public images", json.dumps([i.get_attribute("alt") for i in imgs]))
-            if fb and fb.get("url"):
-                got = ctx.request.get(base + fb["url"])
-                if got.ok:
-                    dest = OUT / vp / "W10_7-notes-list-archive.png"
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    dest.write_bytes(got.body())
-                    st.row.setdefault("screenshots", []).append(str(dest.relative_to(OUT)).replace("\\", "/"))
-            shot = OUT / vp / "W10_7-public.png"
-            shot.parent.mkdir(parents=True, exist_ok=True)
-            pp.screenshot(path=str(shot), full_page=True)
-            st.row.setdefault("screenshots", []).append(str(shot.relative_to(OUT)).replace("\\", "/"))
-            st.note("public page events", pw.take())
-        finally:
-            pub.close()
+        st.read("the notes list, in the member's own editor", lst.inner_text())
+        st.read("by account, in the member's own editor", acc.inner_text())
+        links = share_links(pg, publish=True)
+        S["share_url_n4"], S["publish_url_n4"] = links["share"], links.get("publish")
+        st.read("public addresses", json.dumps(links))
+        me_note = get_note(ctx, base, S["n4"])
+        own_title = me_note.get("title") or ""
+        titles = [t for t in member_note_titles(ctx, base) if t != own_title]
+        forbidden = titles + ["Main book", "Swing book"]
+        st.read("words that must not reach a public page (the member's other note titles and account names)",
+                json.dumps(forbidden))
+        st.check("the member has distinctive titles to leak", all(t in titles for t in S["w10_7_titles"]), json.dumps(titles))
+        for kind in ("share", "publish"):
+            url = links.get(kind)
+            if not url:
+                st.check(f"the {kind} page address was given", False, json.dumps(links))
+                continue
+            pub = open_public(browser, vp, url, wait_text=ACCOUNT_LINE)
+            try:
+                st.read(f"{kind}: public payload response", json.dumps(pub["response"]))
+                ptxt = st.read(f"{kind}: public page", pub["dom"]["text"])
+                found = leaks_in(pub, forbidden)
+                st.check(f"{kind}: no real note title or account name in the DOM text, attributes, image alts, "
+                         "or the payload response", not found, json.dumps(found)[:600])
+                st.read(f"{kind}: image alts", json.dumps(pub["dom"]["alts"]))
+                ems = all_embeds(pub["payload"])
+                left = [x.get("widgetId") for x in ems if x.get("widgetId") in DEDICATED_IDS]
+                st.check(f"{kind}: no ready-made widget or calculator reaches the public page", not left, json.dumps(left))
+                k = ptxt.count(ACCOUNT_LINE)
+                runs = private_runs(me_note)
+                st.check(f"{kind}: the account line stands in for them (adjacent private items share one line, by design)",
+                         k == runs and k >= 1, f"{k} account lines for {runs} run(s) of adjacent private items")
+                built = {(x.get("params") or {}).get("title"): x.get("params") or {} for x in ems if x.get("widgetId") == "builtWidget"}
+                rows = (built.get("My notes list") or {}).get("rows") or []
+                labels = [r.get("label") for r in rows]
+                st.read(f"{kind}: notes list rows (payload)", json.dumps(labels))
+                st.check(f"{kind}: the notes list is numbered 'Note 1…' in the payload",
+                         bool(labels) and all(re.fullmatch(r"Note \d+", str(x or "")) for x in labels), json.dumps(labels[:6]))
+                arows = (built.get("By account") or {}).get("rows") or []
+                alabels = [r.get("label") for r in arows]
+                st.read(f"{kind}: by-account rows (payload)", json.dumps(alabels))
+                st.check(f"{kind}: the by-account widget is numbered 'Account 1…' in the payload",
+                         bool(alabels) and all(re.fullmatch(r"Account \d+", str(x or "")) for x in alabels), json.dumps(alabels))
+                st.check(f"{kind}: the page draws the numbered labels",
+                         "Note 1" in ptxt and "Account 1" in ptxt, ptxt[:400])
+                st.check(f"{kind}: no built widget carries an archived image in the payload",
+                         not any(x.get("fallback") for x in ems if x.get("widgetId") == "builtWidget"), "")
+                shoot_public(st, vp, pub["page"], f"W10_7-{kind}-public.png")
+                st.note(f"{kind}: public page events", pub["watch"].take())
+            finally:
+                pub["ctx"].close()
+
+    NAME_ERR = "Give the field a name."
+    FOOTER_JS = """() => { const b = document.querySelector('[data-testid=builder-save]'); if (!b) return null;
+      let top = null, el = b.parentElement;
+      while (el && el.getAttribute('role') !== 'dialog') {
+        if (/footer/i.test(String(el.className || ''))) { const r = el.getBoundingClientRect(); top = top === null ? r.top : Math.min(top, r.top) }
+        el = el.parentElement }
+      return top }"""
 
     def s8(st):
         e = goto_note(pg, base, S["n4"])
@@ -1866,21 +2189,40 @@ def wave10(browser, base: str, vp: str) -> None:
         dlg.get_by_role("button", name="Start blank").click(timeout=T)
         dlg.get_by_role("button", name="Add your own field").click(timeout=T)
         f = formula_field(dlg)
+        f.wait_for(timeout=T)
+        pg.wait_for_timeout(500)
+        t0 = st.read("the new field, untouched", f.inner_text())
+        st.check("'Give the field a name.' is absent before the member has typed, left the field or tried to save",
+                 NAME_ERR not in t0, t0[:300])
         box = f.get_by_label("Formula", exact=True)
         box.scroll_into_view_if_needed()
         box.click()
         wd, hh = VIEWPORTS[vp]
-        pg.set_viewport_size({"width": wd, "height": int(hh * 0.55)})
+        kb_h = 400                       # the soft keyboard leaves about 390x400 (emulated by shrinking the viewport)
+        pg.set_viewport_size({"width": wd, "height": kb_h})
         try:
-            pg.wait_for_timeout(700)
+            pg.wait_for_timeout(900)
             pg.keyboard.type("[Net", delay=50)
             sug = dlg.get_by_role("listbox", name="Suggestions")
             sug.wait_for(timeout=T)
+            pg.wait_for_timeout(500)
             vh = pg.evaluate("() => window.visualViewport ? window.visualViewport.height : window.innerHeight")
             sb, bb = sug.bounding_box(), box.bounding_box()
-            st.read("suggestions / box / visual viewport", json.dumps({"suggestions": sb, "box": bb, "visualViewport": vh}))
-            st.check("autocomplete stays above the keyboard (inside the visual viewport)",
-                     bool(sb) and sb["y"] >= 0 and sb["y"] + sb["height"] <= vh + 1, json.dumps(sb))
+            ft = pg.evaluate(FOOTER_JS)
+            side = sug.get_attribute("data-side")
+            st.read("suggestions / box / footer top / visual viewport",
+                    json.dumps({"suggestions": sb, "box": bb, "footerTop": ft, "visualViewport": vh, "side": side}))
+            st.check("the focused Formula box sits fully above the sticky footer (and on screen)",
+                     bool(bb) and ft is not None and bb["y"] >= 0 and bb["y"] + bb["height"] <= ft + 1,
+                     json.dumps({"box": bb, "footerTop": ft}))
+            st.check("the suggestions list is fully inside the visible viewport",
+                     bool(sb) and sb["y"] >= 0 and sb["y"] + sb["height"] <= vh + 1 and sb["height"] > 0, json.dumps(sb))
+            st.check("the suggestions list does not sit under the sticky footer",
+                     bool(sb) and ft is not None and sb["y"] + sb["height"] <= ft + 1,
+                     json.dumps({"suggestions": sb, "footerTop": ft}))
+            t1 = st.read("the field while typing in Formula", f.inner_text())
+            st.check("'Give the field a name.' is still absent while the member types in the Formula box",
+                     NAME_ERR not in t1, t1[:300])
             pp_ = dlg.locator("[data-testid=builder-phone-preview]")
             hidden = pp_.evaluate("e => e.hidden") if pp_.count() else None
             st.check("the sticky summary hides while the keyboard is open", hidden is True, f"hidden={hidden}")
@@ -1891,9 +2233,16 @@ def wave10(browser, base: str, vp: str) -> None:
             shot.parent.mkdir(parents=True, exist_ok=True)
             pg.screenshot(path=str(shot))
             st.row.setdefault("screenshots", []).append(str(shot.relative_to(OUT)).replace("\\", "/"))
+            pg.keyboard.press("Escape")         # the suggestions close
+            pg.wait_for_timeout(300)
         finally:
             pg.set_viewport_size({"width": wd, "height": hh})
-        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(500)
+        # leave the field group (focus moves to the dialog's title): now the name error may show
+        dlg.get_by_role("heading").first.click(timeout=T)
+        pg.wait_for_timeout(600)
+        t2 = st.read("the field after focus left it", f.inner_text())
+        st.check("'Give the field a name.' shows once focus has left the field", NAME_ERR in t2, t2[:300])
         dlg.get_by_role("button", name="Close", exact=True).first.click(timeout=T)
         for lbl in ("Discard", "Discard changes", "Close without saving", "Don't save"):
             b = pg.get_by_role("button", name=lbl, exact=True)
@@ -1901,13 +2250,78 @@ def wave10(browser, base: str, vp: str) -> None:
                 b.first.click()
                 break
 
+    def r74(st):
+        prop = f"Zircon heft {vp}"
+        if not S.get("r74_prop"):
+            r = ctx.request.post(base + "/api/j2/property-defs", data={"name": prop, "type": "number"})
+            pid = (r.json().get("propertyDef") or {}).get("id") if r.ok else None
+            st.note("distinctive number property (POST /api/j2/property-defs)", {"status": r.status, "id": pid})
+            for i, v in enumerate([6, 7]):
+                nid = make_note(ctx, base, f"Weighted idea {i + 1} ({vp})", ("A weighted idea.",))
+                ctx.request.put(base + f"/api/j2/notes/{nid}", data={"properties": {pid: v}})
+            S["r74_prop"] = pid
+            S["r74_note"] = make_note(ctx, base, f"Property sum in public {vp}", ("Summed by a property.",))
+        e = goto_note(pg, base, S["r74_note"])
+        slash(pg, e, "/build")
+        dlg = builder(pg)
+        dlg.get_by_role("button", name="Start blank").click(timeout=T)
+        dlg.get_by_role("radio", name="Notes").click(timeout=T)
+        wait_live(pg, "t => /notes/i.test(t)")
+        dlg.get_by_role("button", name=re.compile(r"Change measures")).click(timeout=T)
+        dlg.get_by_role("button", name="Sum of a property").click(timeout=T)
+        dlg.get_by_role("button", name=re.compile("^" + re.escape(prop))).first.click(timeout=T)
+        done = dlg.get_by_role("button", name="Done", exact=True)
+        if done.count() and done.first.is_visible():
+            done.first.click(timeout=T)
+        said = st.read("builder summary", wait_live(pg, "t => /Sum of/.test(t)"))
+        st.check("in the member's builder the measure names the real property", prop in said, said)
+        with pg.expect_response(lambda r: r.url.endswith("/api/j2/widget-definitions") and r.request.method == "POST", timeout=T) as resp:
+            dlg.get_by_role("button", name="Save", exact=True).click(timeout=T)
+        st.check("the widget was saved", resp.value.status in (200, 201), f"HTTP {resp.value.status}")
+        saved = resp.value.json()
+        title = (saved.get("definition") or saved).get("name") or ""
+        st.read("its name", title)
+        dlg.wait_for(state="hidden", timeout=T)
+        fr = pg.locator("[data-snapshot-frame]").filter(has_text=re.compile(r"Sum of")).last
+        fr.wait_for(timeout=T)
+        st.check("it is switched on for shared pages", share_on(fr), "")
+        pg.wait_for_timeout(1500)
+        etxt = st.read("the placed widget, in the member's editor", fr.inner_text())
+        st.check("in the member's own editor the placed widget shows the real property name", prop in etxt, etxt[:300])
+        links = share_links(pg, publish=True)
+        st.read("public addresses", json.dumps(links))
+        for kind in ("share", "publish"):
+            url = links.get(kind)
+            if not url:
+                st.check(f"{kind}: the page address was given", False, json.dumps(links))
+                continue
+            pub = open_public(browser, vp, url)
+            try:
+                pp = pub["page"]
+                pp.locator("[data-snapshot-frame]").first.wait_for(timeout=T)
+                pp.wait_for_timeout(800)
+                pub["dom"] = pp.evaluate(PUBLIC_DOM_JS)
+                ptxt = st.read(f"{kind}: public page", pub["dom"]["text"])
+                found = leaks_in(pub, [prop, "Zircon"])
+                st.check(f"{kind}: the real property name never appears (DOM text, attributes, alts, payload response)",
+                         not found, json.dumps(found)[:400])
+                st.check(f"{kind}: the public widget reads 'Sum of Property 1'", "Sum of Property 1" in ptxt, ptxt[:400])
+                labels = [m.get("label") for x in all_embeds(pub["payload"]) if x.get("widgetId") == "builtWidget"
+                          for m in ((x.get("params") or {}).get("measures") or []) if isinstance(m, dict)]
+                st.read(f"{kind}: measure labels (payload)", json.dumps(labels))
+                shoot_public(st, vp, pp, f"R74-{kind}-public.png")
+                st.note(f"{kind}: public page events", pub["watch"].take())
+            finally:
+                pub["ctx"].close()
+
     steps = [("W10.1", "/build: Closed trades, 'Add your own field', [Net P&L] / [Risk $] with autocomplete, first-row line and skip notice, Average, save, insert", s1),
              ("W10.2", "type a broken formula (If([net] > 0, 1), read the inline sentence, fix it with the keyboard only", s2),
              ("W10.3", "build over Options strategies split by Strategy, and over Notes filtered by a number property, summed", s3),
              ("W10.4", "Equity curve r1 from an older note: Updated version available, compare, use it; a running total with the drawdown band", s4),
              ("W10.5", "insert each of the seven dedicated widgets; prop-firm limits in Change; Plan vs actual on a linked and an unlinked trade", s5),
              ("W10.6", "/size: a long and a short, an unset account size, a stop equal to entry", s6),
-             ("W10.7", "share, private window: the account line for every dedicated widget and the calculator; a shared notes list reads 'Note 1…'", s7)]
+             ("W10.7", "share AND publish, private window: a notes list with distinctive titles and a by-account widget leak no title or account name (DOM text, attributes, alts, payload); labels numbered; the account line for every dedicated widget and the calculator", s7),
+             ("R74", "a 'Sum of a property' widget with a distinctive property name reads 'Sum of Property 1' publicly; the member's editor shows the real name", r74)]
     if vp == "390":
         steps.append(("W10.8", "at 390 px with the keyboard open in the Formula box (sticky summary hides, autocomplete above the keyboard)", s8))
     try:

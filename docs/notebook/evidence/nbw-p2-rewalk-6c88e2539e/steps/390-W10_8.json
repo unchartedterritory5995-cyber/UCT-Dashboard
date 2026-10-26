@@ -1,0 +1,220 @@
+{
+ "viewport": "390",
+ "step": "W10.8",
+ "title": "at 390 px with the keyboard open in the Formula box (sticky summary hides, autocomplete above the keyboard)",
+ "checks": [
+  {
+   "what": "'Give the field a name.' is absent before the member has typed, left the field or tried to save",
+   "ok": true,
+   "read": "Name\nFormula\n\nType a formula.\n\nFormat\nNumber\nMoney\nPercent\nR\nRemove"
+  },
+  {
+   "what": "the focused Formula box sits fully above the sticky footer (and on screen)",
+   "ok": true,
+   "read": "{\"box\": {\"x\": 26, \"y\": 259.078125, \"width\": 338, \"height\": 62.78125}, \"footerTop\": 330}"
+  },
+  {
+   "what": "the suggestions list is fully inside the visible viewport",
+   "ok": true,
+   "read": "{\"x\": 26, \"y\": 201.078125, \"width\": 338, \"height\": 54}"
+  },
+  {
+   "what": "the suggestions list does not sit under the sticky footer",
+   "ok": true,
+   "read": "{\"suggestions\": {\"x\": 26, \"y\": 201.078125, \"width\": 338, \"height\": 54}, \"footerTop\": 330}"
+  },
+  {
+   "what": "'Give the field a name.' is still absent while the member types in the Formula box",
+   "ok": true,
+   "read": "Name\nFormula\nNet P&L\n\nA [ is missing its ].\n\nFormat\nNumber\nMoney\nPercent\nR\nRemove"
+  },
+  {
+   "what": "the sticky summary hides while the keyboard is open",
+   "ok": true,
+   "read": "hidden=True"
+  },
+  {
+   "what": "no horizontal page scroll with the keyboard open",
+   "ok": true,
+   "read": "{\"vw\": 390, \"docScrollWidth\": 390, \"bodyScrollWidth\": 390, \"inner\": [[390, 390], [342, 342], [342, 342]], \"horizontal\": false, \"offenders\": []}"
+  },
+  {
+   "what": "'Give the field a name.' shows once focus has left the field",
+   "ok": true,
+   "read": "Name\n\nGive the field a name.\n\nFormula\n\nA [ is missing its ].\n\nFormat\nNumber\nMoney\nPercent\nR\nRemove"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "the new field, untouched",
+   "text": "Name\nFormula\n\nType a formula.\n\nFormat\nNumber\nMoney\nPercent\nR\nRemove"
+  },
+  {
+   "what": "suggestions / box / footer top / visual viewport",
+   "text": "{\"suggestions\": {\"x\": 26, \"y\": 201.078125, \"width\": 338, \"height\": 54}, \"box\": {\"x\": 26, \"y\": 259.078125, \"width\": 338, \"height\": 62.78125}, \"footerTop\": 330, \"visualViewport\": 400, \"side\": \"above\"}"
+  },
+  {
+   "what": "the field while typing in Formula",
+   "text": "Name\nFormula\nNet P&L\n\nA [ is missing its ].\n\nFormat\nNumber\nMoney\nPercent\nR\nRemove"
+  },
+  {
+   "what": "the field after focus left it",
+   "text": "Name\n\nGive the field a name.\n\nFormula\n\nA [ is missing its ].\n\nFormat\nNumber\nMoney\nPercent\nR\nRemove"
+  }
+ ],
+ "verdict": "PASS",
+ "metrics_keyboard_open": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 38,
+   "small": [
+    {
+     "label": "Number, suggested",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Number with comparison",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Table",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "List",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Gold",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Green",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Red",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Blue",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Purple",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Teal",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Orange",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 18,
+     "h": 18
+    }
+   ],
+   "smallCount": 12,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W10_8-keyboard.png",
+  "390/W10_8-main.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 7,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ }
+}

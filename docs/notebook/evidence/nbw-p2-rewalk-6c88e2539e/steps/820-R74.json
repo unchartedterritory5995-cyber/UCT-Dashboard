@@ -1,0 +1,189 @@
+{
+ "viewport": "820",
+ "step": "R74",
+ "title": "a 'Sum of a property' widget with a distinctive property name reads 'Sum of Property 1' publicly; the member's editor shows the real name",
+ "checks": [
+  {
+   "what": "in the member's builder the measure names the real property",
+   "ok": true,
+   "read": "Notes and Sum of a property: Zircon heft 820 for notes in the last 90 days, all accounts. 16 notes."
+  },
+  {
+   "what": "the widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "it is switched on for shared pages",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "in the member's own editor the placed widget shows the real property name",
+   "ok": true,
+   "read": "Notes and Sum of a property: Zircon heft 820, last 90 days\nSnapshot\nas of Oct 25, 2026, 8:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nNotes\n16\nfrom 16 notes\nSum of a property: Zircon heft 820\n13\nfrom 2 of 16 notes\nShow as table\n\nYour notes in the Journal."
+  },
+  {
+   "what": "share: the real property name never appears (DOM text, attributes, alts, payload response)",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "share: the public widget reads 'Sum of Property 1'",
+   "ok": true,
+   "read": "Property sum in public 820\n\n\n\n\nNotes and Sum of Property 1, last 90 days\nSnapshot\nas of Oct 25, 2026, 8:42 PM ET\n\nLast 90 days\n\nNotes\n16\nfrom 16 notes\nSum of Property 1\n13\nfrom 16 notes\n\nSummed by a property.\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "publish: the real property name never appears (DOM text, attributes, alts, payload response)",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "publish: the public widget reads 'Sum of Property 1'",
+   "ok": true,
+   "read": "Property sum in public 820\n\n\n\n\nNotes and Sum of Property 1, last 90 days\nSnapshot\nas of Oct 25, 2026, 8:42 PM ET\n\nLast 90 days\n\nNotes\n16\nfrom 16 notes\nSum of Property 1\n13\nfrom 16 notes\n\nSummed by a property.\n\nPublished with UCT Intelligence — Navigate the market, effectively."
+  }
+ ],
+ "rendered": [
+  {
+   "what": "builder summary",
+   "text": "Notes and Sum of a property: Zircon heft 820 for notes in the last 90 days, all accounts. 16 notes."
+  },
+  {
+   "what": "its name",
+   "text": "Notes and Sum of a property, last 90 days"
+  },
+  {
+   "what": "the placed widget, in the member's editor",
+   "text": "Notes and Sum of a property: Zircon heft 820, last 90 days\nSnapshot\nas of Oct 25, 2026, 8:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nNotes\n16\nfrom 16 notes\nSum of a property: Zircon heft 820\n13\nfrom 2 of 16 notes\nShow as table\n\nYour notes in the Journal."
+  },
+  {
+   "what": "public addresses",
+   "text": "{\"share\": \"http://127.0.0.1:8097/share/n/9PcrgUXjnW8jwL8-5JVR70QYUyVhmcYb\", \"publish\": \"http://127.0.0.1:8097/p/UDUAGXjJkAoBt22IVkQHcQ\"}"
+  },
+  {
+   "what": "share: public page",
+   "text": "Property sum in public 820\n\n\n\n\nNotes and Sum of Property 1, last 90 days\nSnapshot\nas of Oct 25, 2026, 8:42 PM ET\n\nLast 90 days\n\nNotes\n16\nfrom 16 notes\nSum of Property 1\n13\nfrom 16 notes\n\nSummed by a property.\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "share: measure labels (payload)",
+   "text": "[\"Notes\", \"Sum of Property 1\"]"
+  },
+  {
+   "what": "publish: public page",
+   "text": "Property sum in public 820\n\n\n\n\nNotes and Sum of Property 1, last 90 days\nSnapshot\nas of Oct 25, 2026, 8:42 PM ET\n\nLast 90 days\n\nNotes\n16\nfrom 16 notes\nSum of Property 1\n13\nfrom 16 notes\n\nSummed by a property.\n\nPublished with UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "publish: measure labels (payload)",
+   "text": "[\"Notes\", \"Sum of Property 1\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "distinctive number property (POST /api/j2/property-defs)",
+   "value": {
+    "status": 200,
+    "id": "f27d8a413c9b4b4dbcdb206165e6874d"
+   }
+  },
+  {
+   "what": "share: public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8097/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  },
+  {
+   "what": "publish: public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8097/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  }
+ ],
+ "screenshots": [
+  "820/R74-share-public.png",
+  "820/R74-publish-public.png",
+  "820/R74-main.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 83,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ }
+}

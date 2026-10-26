@@ -1,0 +1,131 @@
+{
+ "viewport": "390",
+ "step": "W8.8",
+ "title": "edit a widget used in two notes and answer both ways",
+ "checks": [
+  {
+   "what": "the firm's example row is marked Example and the member's own row Yours",
+   "ok": true,
+   "read": "[\"Daily P&L bars ExampleOne bar for each day you traded, last 30 days.\", \"Daily P&L bars YoursNet P&L, split by day, for closed trades in the last 30 days, all accounts.\"]"
+  },
+  {
+   "what": "the same widget is placed in a second note",
+   "ok": true,
+   "read": "n2=1abd2ab1-5eb0-49e4-ae43-cbbc4fc09816 def1=1abd2ab1-5eb0-49e4-ae43-cbbc4fc09816"
+  },
+  {
+   "what": "Update all 2 notes was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the one widget took the new name",
+   "ok": true,
+   "read": "Daily P&L bars (walk)"
+  },
+  {
+   "what": "both notes still point at the one widget",
+   "ok": true,
+   "read": "n1=1abd2ab1-5eb0-49e4-ae43-cbbc4fc09816 n2=1abd2ab1-5eb0-49e4-ae43-cbbc4fc09816"
+  },
+  {
+   "what": "Save as a new widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "this note now uses a new widget; the other note keeps the old one",
+   "ok": true,
+   "read": "n2=35389d9b-f862-43bc-aa99-78600b584866 n1=1abd2ab1-5eb0-49e4-ae43-cbbc4fc09816 def1=1abd2ab1-5eb0-49e4-ae43-cbbc4fc09816"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "typed /Daily P&L options",
+   "text": "{\"text\": [\"Daily P&L bars Example\\nOne bar for each day you traded, last 30 days.\", \"Daily P&L bars Yours\\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\"], \"names\": [\"Daily P&L bars ExampleOne bar for each day you traded, last 30 days.\", \"Daily P&L bars YoursNet P&L, split by day, for closed trades in the last 30 days, all accounts.\"], \"aria\": \"- listbox \\\"Insert block\\\":\\n  - option \\\"Daily P&L bars Example One bar for each day you traded, last 30 days.\\\" [selected]\\n  - option \\\"Daily P&L bars Yours Net P&L, split by day, for closed trades in the last 30 days, all accounts.\\\"\"}"
+  },
+  {
+   "what": "save question (answering Update all 2 notes)",
+   "text": "Edit widget\n×\n\nDaily P&L bars (walk) · 5 trades · +$500.00\nShow the preview\nBack\nSave your changes\n\nThis widget is in 2 notes.\n\nUpdate all 2 notes\nEach note shows the new version the next time you press See it now.\nSave as a new widget\nOnly this note changes. The other notes keep the widget as it was.\nUpdate all 2 notes\nUndo\nRedo\nSave"
+  },
+  {
+   "what": "definition after Update all",
+   "text": "{\"name\": \"Daily P&L bars (walk)\", \"rev\": 2, \"usedIn\": 2}"
+  },
+  {
+   "what": "save question (answering Save as a new widget)",
+   "text": "Edit widget\n×\n\nDaily P&L bars (this note) · 5 trades · +$500.00\nShow the preview\nBack\nSave your changes\n\nThis widget is in 2 notes.\n\nUpdate all 2 notes\nEach note shows the new version the next time you press See it now.\nSave as a new widget\nOnly this note changes. The other notes keep the widget as it was.\nUpdate all 2 notes\nUndo\nRedo\nSave"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 48,
+   "small": [
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 3,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W8_8-main.png"
+ ]
+}

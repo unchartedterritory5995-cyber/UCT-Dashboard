@@ -1,0 +1,77 @@
+{
+ "viewport": "390",
+ "step": "W8.3",
+ "title": "save and insert",
+ "checks": [
+  {
+   "what": "the widget was saved (HTTP 200/201)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the widget is in the note with its 5 days",
+   "ok": true,
+   "read": "Daily P&L bars\nOnly you\nas of Oct 25, 2026, 8:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\nShow as table\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "the saved note carries the built widget",
+   "ok": true,
+   "read": "defId=1abd2ab1-5eb0-49e4-ae43-cbbc4fc09816"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "placed widget",
+   "text": "Daily P&L bars\nOnly you\nas of Oct 25, 2026, 8:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\nShow as table\n\nYour closed trades in the Journal."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 10,
+   "small": [
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    }
+   ],
+   "smallCount": 1,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W8_3-main.png"
+ ]
+}

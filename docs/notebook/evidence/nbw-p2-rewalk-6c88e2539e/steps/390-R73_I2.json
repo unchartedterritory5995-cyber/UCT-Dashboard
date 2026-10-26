@@ -1,0 +1,225 @@
+{
+ "viewport": "390",
+ "step": "R73.I2",
+ "title": "a Trading days widget split by check-in mood is hidden publicly the same way; a plain trading-days P&L widget still renders",
+ "checks": [
+  {
+   "what": "the split reads check-in mood",
+   "ok": true,
+   "read": "Average day P&L, split by check-in mood, for trading days in the last 90 days, all accounts. 63 days."
+  },
+  {
+   "what": "both widgets were saved",
+   "ok": true,
+   "read": "HTTP 200, 200"
+  },
+  {
+   "what": "both are switched on for shared pages",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "share: each hidden widget reads exactly \"This widget isn't shown on public pages.\"",
+   "ok": true,
+   "read": "1 blocks for 1 hidden widget(s): [\"This widget isn't shown on public pages.\"]"
+  },
+  {
+   "what": "share: no routine or tracker name, item, value or hidden widget's title in the DOM text, attributes, image alts or the payload response",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "share: no hidden widget reaches the payload",
+   "ok": true,
+   "read": "[\"Trading days P&L I2\"]"
+  },
+  {
+   "what": "share: 'Trading days P&L I2' still renders publicly, with its figures",
+   "ok": true,
+   "read": "Trading days P&L I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\n\nLast 90 days\n\nAverage day P&L\n+$100.00small sample\nfrom 5 days\n\nSource: your manual trades"
+  },
+  {
+   "what": "publish: each hidden widget reads exactly \"This widget isn't shown on public pages.\"",
+   "ok": true,
+   "read": "1 blocks for 1 hidden widget(s): [\"This widget isn't shown on public pages.\"]"
+  },
+  {
+   "what": "publish: no routine or tracker name, item, value or hidden widget's title in the DOM text, attributes, image alts or the payload response",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "publish: no hidden widget reaches the payload",
+   "ok": true,
+   "read": "[\"Trading days P&L I2\"]"
+  },
+  {
+   "what": "publish: 'Trading days P&L I2' still renders publicly, with its figures",
+   "ok": true,
+   "read": "Trading days P&L I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\n\nLast 90 days\n\nAverage day P&L\n+$100.00small sample\nfrom 5 days\n\nSource: your manual trades"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "mood split, summary",
+   "text": "Average day P&L, split by check-in mood, for trading days in the last 90 days, all accounts. 63 days."
+  },
+  {
+   "what": "plain trading days, summary",
+   "text": "Average day P&L for trading days in the last 90 days, all accounts. 63 days."
+  },
+  {
+   "what": "mood split, in the member's editor",
+   "text": "Mood split I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nNone of these days have a value for Check-in mood yet.\n\nYour trading days in the Journal (day P&L incl. options)."
+  },
+  {
+   "what": "plain trading days, in the member's editor",
+   "text": "Trading days P&L I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\nShow on shared pages\nSee it now\nChange\n\nLast 90 days\n\nAverage day P&L\n+$100.00small sample\nfrom 5 days\nShow as table\n\nYour trading days in the Journal (day P&L incl. options)."
+  },
+  {
+   "what": "public addresses",
+   "text": "{\"share\": \"http://127.0.0.1:8097/share/n/cRxVYrqm8_m908StWVUa_Ew8smCez-6a\", \"publish\": \"http://127.0.0.1:8097/p/wKDrguU1-jq-Ze9KWpmp2Q\"}"
+  },
+  {
+   "what": "share: public payload response",
+   "text": "{\"url\": \"http://127.0.0.1:8097/api/j2/shared/cRxVYrqm8_m908StWVUa_Ew8smCez-6a\", \"status\": 200}"
+  },
+  {
+   "what": "share: public page",
+   "text": "Check-in split in public 390\n\n\n\n\nThis widget isn't shown on public pages.\n\n\n\n\nTrading days P&L I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\n\nLast 90 days\n\nAverage day P&L\n+$100.00small sample\nfrom 5 days\n\nSource: your manual trades\n\nMood, and plain P&L.\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "share: the hidden blocks' text",
+   "text": "[\"This widget isn't shown on public pages.\"]"
+  },
+  {
+   "what": "share: built widgets in the payload",
+   "text": "[\"Trading days P&L I2\"]"
+  },
+  {
+   "what": "share: Trading days P&L I2 (public)",
+   "text": "Trading days P&L I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\n\nLast 90 days\n\nAverage day P&L\n+$100.00small sample\nfrom 5 days\n\nSource: your manual trades"
+  },
+  {
+   "what": "publish: public payload response",
+   "text": "{\"url\": \"http://127.0.0.1:8097/api/j2/published/wKDrguU1-jq-Ze9KWpmp2Q\", \"status\": 200}"
+  },
+  {
+   "what": "publish: public page",
+   "text": "Check-in split in public 390\n\n\n\n\nThis widget isn't shown on public pages.\n\n\n\n\nTrading days P&L I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\n\nLast 90 days\n\nAverage day P&L\n+$100.00small sample\nfrom 5 days\n\nSource: your manual trades\n\nMood, and plain P&L.\n\nPublished with UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "publish: the hidden blocks' text",
+   "text": "[\"This widget isn't shown on public pages.\"]"
+  },
+  {
+   "what": "publish: built widgets in the payload",
+   "text": "[\"Trading days P&L I2\"]"
+  },
+  {
+   "what": "publish: Trading days P&L I2 (public)",
+   "text": "Trading days P&L I2\nSnapshot\nas of Oct 25, 2026, 8:44 PM ET\n\nLast 90 days\n\nAverage day P&L\n+$100.00small sample\nfrom 5 days\n\nSource: your manual trades"
+  }
+ ],
+ "verdict": "PASS",
+ "screenshots": [
+  "390/R73_I2-share-public.png",
+  "390/R73_I2-publish-public.png",
+  "390/R73_I2-main.png"
+ ],
+ "notes": [
+  {
+   "what": "share: public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8097/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  },
+  {
+   "what": "publish: public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8097/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 46,
+   "small": [
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ }
+}

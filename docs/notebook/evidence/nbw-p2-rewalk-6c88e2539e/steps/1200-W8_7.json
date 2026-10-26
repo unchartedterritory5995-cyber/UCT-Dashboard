@@ -1,0 +1,291 @@
+{
+ "viewport": "1200",
+ "step": "W8.7",
+ "title": "share on, then open the share link in a private window (result only, no summary)",
+ "checks": [
+  {
+   "what": "Show on shared pages is on",
+   "ok": true,
+   "read": "true"
+  },
+  {
+   "what": "the shared widget's image was archived into the note",
+   "ok": true,
+   "read": "{\"url\": \"/api/j2/notes/attachments/cb273df6-18bb-402e-8aba-5b64ba8ece1c/2fe3d85bedb54c50971ea90225d53697/inline/f228d983b5a2fc6bcfe49e8036ec6065.png\", \"w\": 696, \"h\": 383}"
+  },
+  {
+   "what": "the private window shows the widget's result (its 5 days)",
+   "ok": true,
+   "read": "Daily P&L bars\nSnapshot\nas of Oct 25, 2026, 8:34 PM ET\n\nLast 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\n\nSource: your manual trades"
+  },
+  {
+   "what": "the public widget shows no author control (no switch, See it now, Change, Show as table, menu)",
+   "ok": true,
+   "read": "{\"controls\": [], \"words\": []}"
+  },
+  {
+   "what": "the public page draws no archived image of the widget",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "no summary sentence on the public page",
+   "ok": true,
+   "read": "Widgets walk 1200\n\n\n\n\nDaily P&L bars\nSnapshot\nas of Oct 25, 2026, 8:34 PM ET\n\nLast 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\n\nSource: your manual trades\n\nMy week in numbers.\n\n\n\n\nWritten in UCT Intelligence — Navigate the market, effe"
+  },
+  {
+   "what": "the shared payload carries no definition, summary, account or archived image",
+   "ok": true,
+   "read": "keys seen: []"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "share link",
+   "text": "http://127.0.0.1:8097/share/n/D-X1JLmbDhJUOlB5Ry_EvpCQF726mqcA"
+  },
+  {
+   "what": "public page",
+   "text": "Widgets walk 1200\n\n\n\n\nDaily P&L bars\nSnapshot\nas of Oct 25, 2026, 8:34 PM ET\n\nLast 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\n\nSource: your manual trades\n\nMy week in numbers.\n\n\n\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "public widget",
+   "text": "Daily P&L bars\nSnapshot\nas of Oct 25, 2026, 8:34 PM ET\n\nLast 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\n\nSource: your manual trades"
+  },
+  {
+   "what": "controls inside the public widget",
+   "text": "{\"controls\": [], \"control_words\": []}"
+  },
+  {
+   "what": "public images",
+   "text": "[]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "a 'looks like a scan' notice in the note after the archive (observation)",
+   "value": null
+  },
+  {
+   "what": "public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8097/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  }
+ ],
+ "screenshots": [
+  "1200/W8_7-public.png",
+  "1200/W8_7-main.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 94,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 80,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": [
+    {
+     "id": "target-size",
+     "impact": "serious",
+     "help": "All touch targets must be 24px large, or leave sufficient space",
+     "nodes": 1,
+     "targets": [
+      "._toggle_1cf6f_87"
+     ]
+    }
+   ]
+  }
+ }
+}
