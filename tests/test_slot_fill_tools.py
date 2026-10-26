@@ -153,8 +153,9 @@ def test_questions_only_for_unresolved_slots(db, monkeypatch):
         out = sf.tool_questions(style, user_id=A, conn=conn, inline_routines=inline, inline_trackers={})
     finally:
         conn.close()
-    # the outline's placeholders first (tracker_a, routine_a), then the rest in block order; a ref asks nothing
-    assert [q["slot"] for q in out] == ["tracker_a", "routine_a", "routine_c"]
+    # the note's own order (W11-R28): the unplaced blocks right after the heading, then the placeholders;
+    # a ref asks nothing, and an inline entry the payload does not hold asks nothing
+    assert [q["slot"] for q in out] == ["routine_c", "tracker_a", "routine_a"]
     by = {q["slot"]: q for q in out}
     assert by["routine_a"] == {"slot": "routine_a", "kind": "routine", "createName": "Pre-market routine",
                                "use": {"id": mine["id"], "name": "Morning routine"}}
@@ -341,8 +342,8 @@ def test_choice_remembered_on_the_style(db):
         {"ref": f"routine:{made}", "bind": "next-trading-day", "display": "pnl"},
         {"ref": f"tracker:{mine['id']}", "bind": "week", "display": "pnl"},
         {"ref": "checkin:focus", "bind": "note-day", "display": "chart"}]
-    assert after["version"] == style["version"] + 1
-    assert note["styleVersion"] == after["version"]                     # the note is stamped with what it used
+    assert after["version"] == style["version"]                         # remembering is not an edit (fix round 1)
+    assert note["styleVersion"] == style["version"]                     # the version it was composed from
     # remembered: the next use asks nothing and makes nothing new
     conn = _conn()
     try:
@@ -713,3 +714,167 @@ def test_public_aliases_are_the_one_implementation(db, monkeypatch):
     assert js.served_style(style, A)["blocks"] == []
     out = js.compose(A, style, ticker=None, conn=None, now=NOW)
     assert _tool_nodes(out["bodyJson"]) == [] and out["skipped"] == [] and "slotNames" not in out
+
+
+# -- Fix round 1 ------------------------------------------------------------------------------------
+
+def _routine_ids(note):
+    return [n["attrs"]["params"]["routineId"] for n in _tool_nodes(note["bodyJson"], "routine")]
+
+
+def _race(user, sid, choice_list, delay=0.0):
+    import time
+    js = _js()
+    gate = threading.Barrier(len(choice_list))
+    res, errs = [None] * len(choice_list), []
+
+    def go(i, ch):
+        try:
+            gate.wait(5)
+            if i and delay:
+                time.sleep(delay)
+            res[i] = js.create_styled_note(user, {"styleId": sid, "title": "Prep", "choices": ch})[0]
+        except Exception as e:  # noqa: BLE001
+            errs.append((i, type(e).__name__, str(e)))
+    threads = [threading.Thread(target=go, args=(i, ch)) for i, ch in enumerate(choice_list)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(60)
+    return res, errs
+
+
+def test_create_and_use_at_once_name_one_routine(db):
+    """I1, Review Focus 2's third case (the reviewer's S3, real threads): one tab creates the routine while the other
+    picks "Use your Morning routine", order alternated, 0 to 30 ms apart. 20 rounds, 0 divergent ids."""
+    js = _js()
+    divergent, errors = [], []
+    for k in range(20):
+        u = f"u-race-{k}"
+        mine = _routine(user=u, name="Morning routine")
+        style = _stored(("routine_a", TPL), user=u)
+        order = [{"routine_a": {"create": True}}, {"routine_a": {"use": mine["id"]}}]
+        if k % 2:
+            order.reverse()
+        res, errs = _race(u, style["id"], order, delay=0.01 * (k % 4))
+        errors += errs
+        ids = {i for n in res if n for i in _routine_ids(n)}
+        remembered = js.get_style(u, style["id"])["blocks"][0]["settings"].get("ref")
+        if len([n for n in res if n]) != 2 or len(ids) != 1 or remembered != "routine:" + next(iter(ids), ""):
+            divergent.append({"round": k, "ids": ids, "remembered": remembered})
+        # each note is stamped with the version it was composed from, and remembering moved none
+        assert all(n["styleVersion"] == style["version"] for n in res if n)
+    assert not errors, errors
+    assert divergent == [], divergent
+
+
+def test_a_choice_naming_another_members_routine_never_lands_in_the_style(db, monkeypatch):
+    """I2 (the reviewer's r116_unchecked): only enabled, shown slots are eligible, and every use id is checked as the
+    member's own BEFORE it is remembered. Member B's routine id never lands in member A's style."""
+    from api.services.journal_two.widget_engine.share import ShareError
+    js, sf = _js(), _sf()
+    theirs = _routine(user=B, name="Theirs")
+    disabled = js.create_style(A, {"name": "Off", "kindId": "trade_plan", "blocks": [
+        {"block": "routine_a", "enabled": False, "settings": {"template": "premarket_routine"}}],
+        "outlineBodyJson": {"type": "doc", "content": []}})
+    js.create_styled_note(A, {"styleId": disabled["id"], "title": "P", "choices": {"routine_a": {"use": theirs["id"]}}})
+    assert js.get_style(A, disabled["id"])["blocks"][0]["settings"]["template"] == "premarket_routine"
+    # an enabled slot: the foreign answer is refused and nothing is written (no note, no change)
+    shown = _stored(("routine_a", TPL))
+    with pytest.raises(ShareError) as e:
+        js.create_styled_note(A, {"styleId": shown["id"], "title": "P", "choices": {"routine_a": {"use": theirs["id"]}}})
+    assert e.value.code == "not_yours" and e.value.sentence == "That choice isn't in your account."
+    assert js.get_style(A, shown["id"])["blocks"][0]["settings"]["template"] == "premarket_routine"
+    # remember_choices itself refuses an unchecked id (a caller that hands it raw answers), writing nothing
+    conn = _conn()
+    try:
+        for bad in (theirs["id"], str(uuid.uuid4())):
+            with pytest.raises(ShareError):
+                sf.remember_choices(A, shown["id"], {"routine_a": {"use": bad}}, {}, conn=conn)
+        conn.commit()
+    finally:
+        conn.close()
+    # wave 9 off: the slot is hidden, so its answer is ignored and the template slot is kept
+    _waves(monkeypatch, 1, 2, 3, 4, 5, 6, 8, 10, 11)
+    js.create_styled_note(A, {"styleId": shown["id"], "title": "P", "choices": {"routine_a": {"use": theirs["id"]}}})
+    conn = _conn()
+    try:
+        sf.remember_choices(A, shown["id"], {"routine_a": {"use": theirs["id"]}}, {}, conn=conn)
+        conn.commit()
+        raw = [r[0] for r in conn.execute("SELECT blocks_json FROM j2_journal_styles WHERE user_id = ?", (A,))]
+    finally:
+        conn.close()
+    assert not any(theirs["id"] in r for r in raw), raw
+    assert _count("j2_notes") == 2                                       # the two creates whose answer was ignored
+
+
+def test_switching_a_note_to_a_style_skips_an_unanswered_template_slot_in_plan_and_write(db):
+    """I3 (W11-R30): there is nothing to answer on when a note is switched to a style, so an unanswered template slot
+    is skipped with its line, and the dry run plans exactly what the write writes."""
+    from api.services.journal_two import notes
+    js = _js()
+    mine = _routine(name="Morning routine")
+    style = _stored(("routine_a", TPL), ("routine_b", {"ref": f"routine:{mine['id']}"}),
+                    ("tracker_a", {"template": "sleep"}))
+    note = notes.create_note(A, {"title": "Old", "bodyJson": {"type": "doc", "content": [{"type": "paragraph"}]}})
+    planned = js.plan_style_update(A, note["id"], style_id=style["id"])
+    updated, plan = js.apply_style_update(A, note["id"], style_id=style["id"])
+    written = [n["attrs"]["params"].get("routineId") or n["attrs"]["params"].get("trackerId")
+               for n in _tool_nodes(updated["bodyJson"])]
+    assert [a["block"] for a in planned["add"]] == ["routine_b"] == [a["block"] for a in plan["add"]]
+    assert written == [mine["id"]]
+    assert {(x["block"], x["reason"]) for x in planned["skipped"]} == {
+        ("routine_a", "slot-unanswered:routine_a"), ("tracker_a", "slot-unanswered:tracker_a")}
+    lines = _lines(updated["bodyJson"])
+    assert "Make a new note from this template to choose its routine." in lines
+    assert "Make a new note from this template to choose its tracker." in lines
+    assert _count("j2_routines") == 1 and _count("j2_trackers") == 0     # nothing was created
+
+
+def test_questions_follow_the_notes_block_order(db):
+    """W11-R28: the questions come in the order the note shows the blocks, from compose's own placement."""
+    js, sf = _js(), _sf()
+    outline = {"type": "doc", "content": [
+        _ph("routine_c"),                                              # before the first heading: stays first
+        _heading(),
+        {"type": "bulletList", "content": [{"type": "listItem", "content": [_ph("tracker_b")]}]},  # nested: no place
+        _ph("tracker_a"),
+        _ph("routine_a")]}
+    style = _style(("routine_a", TPL), ("routine_b", {"template": "tilt_reset"}), ("tracker_a", {"template": "sleep"}),
+                   ("tracker_b", {"template": "energy"}), ("routine_c", {"template": "eod_review"}), outline=outline)
+    conn = _conn()
+    try:
+        asked = [q["slot"] for q in sf.tool_questions(style, user_id=A, conn=conn)]
+    finally:
+        conn.close()
+    out = js.compose(A, style, ticker=None, conn=None, now=NOW, choices={q: {"create": True} for q in asked})
+    by_id = {t: bid for bid, t in out["toolsCreated"].items()}
+    composed_order = [by_id[n["attrs"]["params"].get("routineId") or n["attrs"]["params"].get("trackerId")]
+                      for n in _tool_nodes(out["bodyJson"])]
+    assert asked == composed_order == ["routine_c", "routine_b", "tracker_b", "tracker_a", "routine_a"]
+    assert js.placement_order(outline["content"], style["blocks"]) == asked
+
+
+def test_create_restores_an_archived_template_routine(db):
+    """M1 ruling: "Create" for a template-made routine that is ARCHIVED restores it live and uses it."""
+    from api.services.journal_two import routines
+    sf = _sf()
+    block = {"block": "routine_a", "settings": TPL}
+    first, _ = sf.build_tool_slot(block, _ctx(choices={"routine_a": {"create": True}}))
+    rid = first["attrs"]["params"]["routineId"]
+    routines.archive(A, rid, now=NOW)
+    again, _ = sf.build_tool_slot(block, _ctx(choices={"routine_a": {"create": True}}))
+    assert again["attrs"]["params"]["routineId"] == rid
+    assert routines.get(A, rid)["archived"] is False and _count("j2_routines") == 1
+
+
+def test_an_empty_daily_note_switched_to_a_style_binds_its_daily_date(db):
+    """M2: the daily date wins over the created day (W11-R14)."""
+    from api.services.journal_two import notes
+    js = _js()
+    mine = _routine(name="Morning routine")
+    style = _stored(("routine_a", {"ref": f"routine:{mine['id']}", "bind": "next-trading-day"}))
+    note = notes.create_note(A, {"title": "Day", "bodyJson": {"type": "doc", "content": [{"type": "paragraph"}]}},
+                             daily_date="2026-11-25")
+    updated, _plan = js.apply_style_update(A, note["id"], style_id=style["id"])
+    assert _tool_nodes(updated["bodyJson"])[0]["attrs"]["params"]["day"] == "2026-11-27"   # skips Thanksgiving

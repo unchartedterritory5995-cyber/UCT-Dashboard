@@ -832,3 +832,11 @@ def test_resolve_many_is_one_owned_read(R):
                    theirs["id"]: None, "nope": None}
     assert R.resolve_many(A, []) == {} and R.resolve_many("", [mine["id"]]) == {}
     assert [c["id"] for c in R.match_candidates(A, now=at("2026-11-02"))] == [mine["id"]]
+
+
+def test_duplicate_drops_from_template(R):
+    """W11-R29: a copy is the member's own, not a template's."""
+    r = make(R, settings={"fromTemplate": "Pre-market prep"}, source_template_key="tpl:premarket_routine")
+    copy = R.duplicate(A, r["id"], now=at("2026-11-02"))
+    assert "fromTemplate" not in copy["settings"] and copy["sourceTemplateKey"] is None
+    assert R.get(A, r["id"], now=at("2026-11-02"))["settings"]["fromTemplate"] == "Pre-market prep"

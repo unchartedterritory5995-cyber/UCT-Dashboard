@@ -594,3 +594,11 @@ def test_resolve_many_is_one_owned_read(T):
     assert got == {mine["id"]: {"name": "Mine", "kind": "duration", "archived": False}, theirs["id"]: None,
                    "checkin:mood": {"name": "Check-in mood", "kind": "scale", "archived": False}}
     assert [c["id"] for c in T.match_candidates(A)] == [mine["id"]]
+
+
+def test_duplicate_drops_from_template(T):
+    """W11-R29: a copy is the member's own, not a template's."""
+    t = make(T, settings={"fromTemplate": "Sleep and focus"}, source_template_key="tpl:sleep", now=NOW)
+    copy = T.duplicate(A, t["id"], now=NOW)
+    assert copy["settings"] == {"days": "trading"} and copy["sourceTemplateKey"] is None
+    assert T.get(A, t["id"])["settings"]["fromTemplate"] == "Sleep and focus"

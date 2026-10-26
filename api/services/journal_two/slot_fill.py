@@ -450,6 +450,9 @@ TOOL_ID_KEYS = {"routine": "routineId", "tracker": "trackerId"}
 TOOL_WORDS = {"routine": "Routine", "tracker": "Tracker"}
 #: A preview of a tool slot (it reads nothing); journal_styles words its line by the slot's bind.
 TOOL_PREVIEW = "tool-preview"
+#: Fix round 1 (I3, ruling W11-R30): a template slot left unanswered where nothing can ask (switching a note to a
+#: style). Skipped with its line, in the update dry run and in the write alike.
+UNANSWERED = "slot-unanswered"
 #: A `{"use": id}` answer that is not one of the member's own (W9-R18: never a read of another member's row).
 S_CHOICE_NOT_YOURS = "That choice isn't in your account."
 #: At most this many tool ids are read per family per request (one statement each); later ids read as unknown.
@@ -685,15 +688,19 @@ def build_tool_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
         made = _made_by_template(family, s, ctx)
         if made is None:
             return None, f"{MISSING}:{bid}"
+        if ctx.get("tool_answers") is False:
+            return None, f"{UNANSWERED}:{bid}"            # W11-R30: no surface to answer on, so never asked
         choices = ctx.get("choices") if isinstance(ctx.get("choices"), dict) else {}
         choice = choices.get(bid)
         if isinstance(choice, dict) and choice.get("use") is not None:
             got = _owned_choice(family, uid, choice.get("use"), conn)
+            ctx.setdefault("chosen", {})[bid] = got["id"]          # verified as the member's own (I2)
         elif isinstance(choice, dict) and choice.get("create") is True:
             if "inline" in s and not (isinstance(ctx.get("gallery_id"), str) and ctx["gallery_id"]):
                 return None, f"{UNREADABLE}:{bid}"           # an inline tool only ever comes from a gallery item
             got = _create_from_template(family, s, made, uid, ctx)
             ctx.setdefault("created", {})[bid] = got["id"]
+            ctx.setdefault("chosen", {})[bid] = got["id"]
         else:
             tt = _tt()
             raise tt.LibraryError(tt.S_CHOOSE_ROUTINE if family == "routine" else tt.S_CHOOSE_TRACKER)
@@ -708,30 +715,25 @@ def build_tool_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
     return tool_node(family, got["id"], got.get("name"), day, s["bind"], s["display"], now=ctx.get("now")), None
 
 
-def _outline_order(style: dict) -> list[str]:
-    """The block ids the outline places, in document order (depth first)."""
+def _outline_content(style: dict, user_id: Any, conn: sqlite3.Connection | None) -> list:
+    """The top-level content `compose` would place blocks into (`journal_styles._outline_doc`: a linked template
+    when it is the member's, else the style's own outline). A shared payload has none."""
     js = _js()
-    body = style.get("outlineBodyJson")
-    content = body.get("content") if isinstance(body, dict) and isinstance(body.get("content"), list) else []
-    out: list[str] = []
-    stack = list(reversed(content))
-    while stack:
-        n = stack.pop()
-        if not isinstance(n, dict):
-            continue
-        kind = js._placeholder_kind(n)
-        if kind is not None and kind not in out:
-            out.append(kind)
-        if isinstance(n.get("content"), list):
-            stack.extend(reversed(n["content"]))
-    return out
+    if conn is None or not isinstance(user_id, str) or not user_id:
+        body = style.get("outlineBodyJson")
+        return body.get("content") if isinstance(body, dict) and isinstance(body.get("content"), list) else []
+    try:
+        return js._outline_doc(user_id, style, conn).get("content") or []
+    except Exception as e:  # noqa: BLE001 -- an outline that cannot be read orders by block order
+        js._log.warning("template outline not read: %s", type(e).__name__)
+        return []
 
 
 def tool_questions(style: dict, *, user_id: str, conn: sqlite3.Connection | None,
                    inline_routines: dict | None = None, inline_trackers: dict | None = None) -> list[dict]:
     """The reuse questions the adoption sheet asks (`AdoptSheet.jsx`): one per unresolved routine or tracker slot
-    (`template` or `inline`; a `ref` asks nothing), in outline order (the outline's placeholders first, then the
-    rest in block order): `{"slot", "kind", "createName", "use": {"id", "name"} | None}`, `use` being
+    (`template` or `inline`; a `ref` asks nothing), in the note's own block order (`journal_styles.placement_order`,
+    W11-R28): `{"slot", "kind", "createName", "use": {"id", "name"} | None}`, `use` being
     `template_tools.best_match` over the member's OWN tools (one read per family per call). A slot whose wave is
     dark asks nothing (the one decider, `journal_styles.slot_wave_off`). Writes nothing."""
     js = _js()
@@ -741,11 +743,12 @@ def tool_questions(style: dict, *, user_id: str, conn: sqlite3.Connection | None
     ctx = {"user_id": user_id, "conn": conn, "definitions": {}, "defs": {}, "defs_loaded": True,
            "tools": {}, "tools_loaded": True,
            "inline_routines": dict(inline_routines or {}), "inline_trackers": dict(inline_trackers or {})}
-    rank = {bid: i for i, bid in enumerate(_outline_order(style))}
+    # W11-R28: the note's final block order, from compose's own placement.
+    rank = {bid: i for i, bid in enumerate(js.placement_order(_outline_content(style, user_id, conn), blocks))}
 
     def position(p: tuple[int, dict]) -> tuple:
         bid = p[1].get("block")
-        return (0, rank[bid], p[0]) if isinstance(bid, str) and bid in rank else (1, 0, p[0])
+        return (rank.get(bid, len(rank)), p[0])
 
     pools: dict[str, list] = {}
     out: list[dict] = []
@@ -777,9 +780,15 @@ def remember_choices(user_id: str, style_id: Any, choices: Any, created: Any, *,
                      conn: sqlite3.Connection) -> None:
     """"The choice is remembered for that template": rewrite the member's OWN style's `template` / `inline` routine
     and tracker slots to `{"ref": "routine:<id>"}` (`"tracker:<id>"`; a check-in id as itself), keeping `bind` and
-    `display`, from `created` (`{block id: tool id}`) and the `{"use": id}` answers in `choices`. The style's
-    version moves when a slot changed. Runs in the CALLER's transaction and never commits; a style that is not the
-    member's, or holds nothing to remember, is left as it is."""
+    `display`, from `created` (`{block id: tool id}`, the ids a fill created or verified) and the `{"use": id}`
+    answers in `choices`.
+
+    Fix round 1 (I2): only an ENABLED slot that is SHOWN now (`journal_styles.slot_wave_off`, the one decider) is
+    eligible; a disabled or hidden slot's answer is ignored and its template slot is kept. Every id is validated
+    `WHERE id = ? AND user_id = ?` BEFORE anything is written: one that is not the member's live routine (tracker)
+    raises ShareError `not_yours` ("That choice isn't in your account.") and nothing is written. A slot that is a
+    ref already keeps its ref. Remembering is not an edit of the template: no version moves (so a note stamped with
+    the version it was composed from stays current). Runs in the CALLER's transaction and never commits."""
     js = _js()
     if not isinstance(style_id, str) or not style_id or style_id.startswith(js.BUILTIN_PREFIX):
         return
@@ -793,24 +802,30 @@ def remember_choices(user_id: str, style_id: Any, choices: Any, created: Any, *,
         return
     made = created if isinstance(created, dict) else {}
     answers = choices if isinstance(choices, dict) else {}
-    changed = False
+    plan: list[tuple[dict, dict]] = []
     for b in blocks if isinstance(blocks, list) else []:
-        if not isinstance(b, dict) or js.slot_family(b.get("block")) not in TOOL_ID_KEYS:
+        if not isinstance(b, dict) or js.slot_family(b.get("block")) not in TOOL_ID_KEYS or not b.get("enabled"):
             continue
+        if js.slot_wave_off(b["block"], b.get("settings")):
+            continue                                       # hidden now: kept exactly as stored
         s = tool_settings(b)
         if s is None or "ref" in s:
             continue
         family, bid = js.slot_family(b["block"]), b["block"]
         answer = answers.get(bid) if isinstance(answers.get(bid), dict) else {}
         tid = made.get(bid) if isinstance(made.get(bid), str) else answer.get("use")
-        if not isinstance(tid, str) or not tid:
+        if tid is None:
             continue
+        _owned_choice(family, user_id, tid, conn)         # raises not_yours before any write
         ref = tid if family == "tracker" and tid in _CHECKINS else f"{family}:{tid}"
         try:
-            b["settings"] = js.slot_settings_of(family, {"ref": ref, "bind": s["bind"], "display": s["display"]})
+            new = js.slot_settings_of(family, {"ref": ref, "bind": s["bind"], "display": s["display"]})
         except js.StyleValidationError:
             continue
-        changed = True
-    if changed:
-        conn.execute("UPDATE j2_journal_styles SET blocks_json = ?, version = version + 1, updated_at = ?"
-                     " WHERE id = ? AND user_id = ?", (json.dumps(blocks), js._now(), style_id, user_id))
+        plan.append((b, new))
+    if not plan:
+        return
+    for b, new in plan:
+        b["settings"] = new
+    conn.execute("UPDATE j2_journal_styles SET blocks_json = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+                 (json.dumps(blocks), js._now(), style_id, user_id))

@@ -436,6 +436,13 @@ def create(user_id: str, *, name: Any, kind: Any, unit: Any = None, settings: di
                               " updated_at = ? WHERE id = ? AND user_id = ?",
                               (_iso(now_dt), have["id"], user_id))
                     return _shape(_owned(c, user_id, have["id"]), c)
+            if have is not None and have["archived_at"] is not None:
+                # Task 11.6 fix round 1 (M1 ruling): "Create" for an archived template-made tracker
+                # restores it live, as the deleted path does (W9-R12), the cap checked.
+                _check_cap(c, user_id)
+                c.execute(f"UPDATE {_T} SET archived_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?",
+                          (_iso(now_dt), have["id"], user_id))
+                return _shape(_owned(c, user_id, have["id"]), c)
             if have is not None:
                 return _shape(have, c)
         _check_cap(c, user_id)
@@ -637,7 +644,8 @@ def duplicate(user_id: str, tid: str, *, now: datetime | None = None,
             raise NotFound()
         _check_cap(c, user_id)
         name = (row["name"] + " copy")[:NAME_MAX]
-        new_id = _insert(c, user_id, name, row["kind"], row["unit"], _settings(row),
+        settings = {k: v for k, v in _settings(row).items() if k != "fromTemplate"}   # W11-R29
+        new_id = _insert(c, user_id, name, row["kind"], row["unit"], settings,
                          _iso(now_dt), None)
         return _shape(_owned(c, user_id, new_id), c)
 

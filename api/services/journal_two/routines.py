@@ -562,6 +562,13 @@ def create(user_id: str, *, name: Any, items: list[dict], schedule: dict,
                               " updated_at = ? WHERE id = ? AND user_id = ?",
                               (_iso(now_dt), have["id"], user_id))
                     return _shape(c, _owned(c, user_id, have["id"]), today)
+            if have is not None and have["archived_at"] is not None:
+                # Task 11.6 fix round 1 (M1 ruling): "Create" for a template-made routine that is
+                # ARCHIVED restores it live, as the deleted path does (W9-R12), the cap checked.
+                _check_cap(c, user_id)
+                c.execute(f"UPDATE {_R} SET archived_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?",
+                          (_iso(now_dt), have["id"], user_id))
+                return _shape(c, _owned(c, user_id, have["id"]), today)
             if have is not None:
                 return _shape(c, have, today)
         _check_cap(c, user_id)
@@ -814,7 +821,8 @@ def duplicate(user_id: str, rid: str, *, now: datetime | None = None,
             for r in _raw_items(row)][:ITEMS_CAP]
         sched = _schedule_today(_schedules(c, user_id, rid), today) or {"kind": "every"}
         name = (row["name"] + " copy")[:NAME_MAX]
-        new_id = _insert(c, user_id, name, items, sched, _settings(row), today, _iso(now_dt),
+        settings = {k: v for k, v in _settings(row).items() if k != "fromTemplate"}   # W11-R29
+        new_id = _insert(c, user_id, name, items, sched, settings, today, _iso(now_dt),
                          None)
         return _shape(c, _owned(c, user_id, new_id), today)
 
