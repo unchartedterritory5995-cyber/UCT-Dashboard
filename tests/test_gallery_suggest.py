@@ -167,3 +167,58 @@ def test_number_never_suggested(conn):
     assert gs.suggest(UID, ("number", "setup"), conn=conn)["number"] is None
     with pytest.raises(ValueError):
         gs.suggest("", ("setup",), conn=conn)
+
+
+# -- fix round 1 (ruling c2, review M-2, M-3) ----------------------------------------------------------
+
+def test_suggestion_matches_the_choice_source(conn):
+    """Ruling c2: a notes tag choice suggests a NOTE tag; a mistake tag choice a mistake; a notes symbol choice
+    a note ticker. Each scan runs once however many choices read it."""
+    add_trade(conn, UID, day="2026-10-20", symbol="NVDA", mistakes=["fomo"], emotions=["calm"])
+    add_trade(conn, UID, day="2026-10-21", symbol="NVDA", mistakes=["fomo"], emotions=["calm", "bored"])
+    add_trade(conn, UID, day="2026-10-22", symbol="NVDA", emotions=["calm"])
+    for tags, ticker in ((["earnings", "swing"], "aapl"), (["earnings"], "AAPL"), (["swing", "earnings"], "MSFT")):
+        nid = _note(conn, UID)
+        conn.execute("UPDATE j2_notes SET tags = ?, ticker = ? WHERE id = ?", (json.dumps(tags), ticker, nid))
+    conn.commit()
+    slots = [{"id": "p1", "type": "tag", "source": "notes", "field": "tag"},
+             {"id": "p2", "type": "tag", "source": "closed_trades", "field": "mistake"},
+             {"id": "p3", "type": "tag", "source": "closed_trades", "field": "emotion"},
+             {"id": "p4", "type": "symbol", "source": "notes", "field": "ticker"},
+             {"id": "p5", "type": "symbol", "source": "closed_trades", "field": "symbol"},
+             {"id": "p6", "type": "number", "source": "closed_trades", "field": "net"},
+             {"id": "bad", "type": "nope"}]
+    seen: list[str] = []
+    conn.set_trace_callback(seen.append)
+    try:
+        out = gs.suggest_for(UID, slots, conn=conn)
+    finally:
+        conn.set_trace_callback(None)
+    assert out == {"p1": {"value": "earnings", "label": "earnings"},
+                   "p2": {"value": "fomo", "label": "fomo"},
+                   "p3": {"value": "calm", "label": "calm"},
+                   "p4": {"value": "AAPL", "label": "AAPL"},
+                   "p5": {"value": "NVDA", "label": "NVDA"},
+                   "p6": None}
+    assert sum("FROM j2_trades" in s for s in seen) == 1 and sum("FROM j2_notes" in s for s in seen) == 1
+
+
+def test_both_scans_run_on_an_index_without_a_sort(conn):
+    """Review M-2: each scan reads an index in its own order (no temp B-tree sorts every row before the limit)."""
+    plans = [conn.execute("EXPLAIN QUERY PLAN " + gs.trades_sql(), (UID,)).fetchall(),
+             conn.execute("EXPLAIN QUERY PLAN " + gs.notes_sql(UID)[0], gs.notes_sql(UID)[1]).fetchall()]
+    for rows in plans:
+        text = " | ".join(str(r[-1]) for r in rows)
+        assert "USING INDEX" in text and "TEMP B-TREE" not in text, text
+
+
+def test_the_bound_decides_the_answer(conn, monkeypatch):
+    """Review M-3: the scan stops at `SCAN_LIMIT` newest rows: past the bound, older rows cannot decide."""
+    for d in ("2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05"):
+        add_trade(conn, UID, day=d, setup="Old")
+    for d in ("2026-10-20", "2026-10-21", "2026-10-22"):
+        add_trade(conn, UID, day=d, setup="New")
+    assert gs.suggest(UID, ("setup",), conn=conn)["setup"]["value"] == "Old"
+    monkeypatch.setattr(gs, "SCAN_LIMIT", 3)
+    assert gs.suggest(UID, ("setup",), conn=conn)["setup"]["value"] == "New"
+    assert "LIMIT 3" in gs.trades_sql() and "LIMIT 3" in gs.notes_sql(UID)[0]

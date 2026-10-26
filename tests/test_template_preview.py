@@ -349,3 +349,152 @@ def test_credit_is_built_by_the_server(conn):
     tp._CACHE.clear()
     assert _go(conn, gone)["credit"] == "Based on a former member's Old base"
     assert tp.preview_mine(B, member, conn=conn, now=NOW)["credit"] is None    # the viewer's own item
+
+
+# -- fix round 1 (review I-1, I-2, I-3, M-4, M-5; rulings W11-R27, W11-R20) ---------------------------
+
+def _book_setups():
+    return tp._book_values({"type": "setup", "source": "closed_trades", "field": "setup"})
+
+
+def test_sample_mode_never_filters_the_book_with_a_real_value(conn):
+    """W11-R27 (review I-1): 3 trades on a setup the Sample data book does not hold. The card is the book's,
+    labelled, with the book's own numbers: never a real value over the book, never an empty card."""
+    add_user(conn, B)
+    _trades(conn, 3, setup="MyRealSetup")
+    gid = _row(conn, _template(1))
+    book_top = _book_setups()[0]
+    assert "MyRealSetup" not in _book_setups()
+    for answers in (None, {"p1": "MyRealSetup"}):
+        tp._CACHE.clear()
+        out = _go(conn, gid, answers=answers)
+        card = out["cards"][0]
+        assert card["sample"] is True and card["payload"]["sample"] is True
+        assert card["payload"]["count"] > 0                                    # the book's rows, not an empty card
+        assert out["slots"][0]["suggested"] == {"value": book_top, "label": book_top}
+        assert out["slots"][0]["value"] == book_top
+        assert "MyRealSetup" not in json.dumps(out)
+    # an answer the book DOES hold runs as given
+    tp._CACHE.clear()
+    held = _book_setups()[-1]
+    out = _go(conn, gid, answers={"p1": held})
+    assert out["slots"][0]["value"] == held and out["cards"][0]["payload"]["count"] > 0
+    # five trades: real again, the member's own value
+    _trades(conn, 2, setup="MyRealSetup")
+    tp._CACHE.clear()
+    out = _go(conn, gid)
+    assert out["cards"][0]["sample"] is False and out["slots"][0]["value"] == "MyRealSetup"
+    assert out["cards"][0]["payload"]["count"] == 5
+
+
+def _symbol_template():
+    plan = {"v": 1, "source": "closed_trades", "measures": [{"key": "trades"}], "range": {"token": "all"},
+            "filters": [{"field": "symbol", "op": "contains", "values": ["AA"]}]}
+    shared = share.share_plan(plan, catalog=S.CATALOG)
+    return {"format": 2, "name": "T", "description": "", "definitions": [
+        {"key": "d1", "plan": shared.payload["plan"], "name": "Sym", "description": ""}],
+        "blocks": [{"block": "built_a", "enabled": True, "settings": {"ref": "inline:d1"}}],
+        "routines": [], "trackers": [], "slots": [dict(s) for s in shared.slots]}
+
+
+def test_refused_answers_raise_naming_the_choice(conn):
+    """Review I-2: an answer the reducer or the plan refuses is a ShareError with `.slot`, in their own words,
+    never a card sentence and never the builder's save wording."""
+    add_user(conn, B)
+    mine = add_account(conn, UID, "Mine")
+    _trades(conn, 6)
+    acc_plan = {**SETUP_PLAN, "filters": [], "accounts": {"id": mine}}
+    shared = share.share_plan(copy.deepcopy(acc_plan), catalog=S.CATALOG)
+    acc_gid = _row(conn, {"format": 2, "name": "T", "definitions": [
+        {"key": "d1", "plan": shared.payload["plan"], "name": "A", "description": ""}], "routines": [],
+        "trackers": [], "blocks": [{"block": "built_a", "enabled": True, "settings": {"ref": "inline:d1"}}],
+        "slots": [dict(s) for s in shared.slots]})
+    sid = shared.slots[0]["id"]
+    with pytest.raises(share.ShareError) as e:
+        _go(conn, acc_gid, answers={sid: [mine]})                         # one account, never a list
+    assert e.value.slot == sid and e.value.sentence == share.S_NEED_VALUE.format(label="Account")
+    gid = _row(conn, _template(1))
+    with pytest.raises(share.ShareError) as e:
+        _go(conn, gid, answers={"p1": "x" * 100_000})                     # oversized: refused before resolving
+    assert e.value.slot == "p1" and e.value.sentence == "Text can be at most 200 characters."
+    with pytest.raises(share.ShareError) as e:
+        _go(conn, gid, answers={"p1": ["Flag"] * 51})
+    assert e.value.slot == "p1" and e.value.sentence == "A filter can hold up to 50 values."
+    with pytest.raises(share.ShareError) as e:
+        _go(conn, gid, answers={"p1": {"any": True, "x": 1}})
+    assert e.value.slot == "p1"
+    # a refusal only `resolve_plan` makes (a contains filter takes one value) is traced to its choice
+    sym = _row(conn, _symbol_template())
+    with pytest.raises(share.ShareError) as e:
+        _go(conn, sym, answers={"p1": ["AA", "BB"]})
+    assert e.value.slot == "p1" and e.value.sentence == "This filter takes exactly one value."
+    assert len(tp._CACHE) == 0                                                # nothing refused was cached
+
+
+def test_answers_are_trimmed_to_declared_choices_before_keying(conn, monkeypatch):
+    """Review I-3: undeclared ids neither key the cache nor are echoed; one member's junk evicts nobody."""
+    add_user(conn, B)
+    _trades(conn, 6)
+    other = _row(conn, _template(1))
+    tp.preview_mine(B, other, conn=conn, now=NOW)                             # another viewer's entry
+    gid = _row(conn, _template(1))
+    calls = []
+    real = tp.gallery_suggest.suggest_for
+    monkeypatch.setattr(tp.gallery_suggest, "suggest_for", lambda *a, **k: calls.append(1) or real(*a, **k))
+    for i in range(600):
+        out = tp.preview_mine(UID, gid, conn=conn, now=NOW, answers={"junk": i, f"p{i + 9}": "x"})
+    assert len(tp._CACHE) == 2 and len(calls) == 1                            # one key; the other viewer kept
+    assert "junk" not in json.dumps(out) and [s["id"] for s in out["slots"]] == ["p1"]
+    with pytest.raises(share.ShareError):
+        tp.preview_mine(UID, gid, conn=conn, now=NOW, answers={"p1": "y" * 5000})
+    assert len(tp._CACHE) == 2                                                # refused, not cached
+    assert tp.clean_answers([{"id": "p1", "type": "setup", "any": True}],
+                            {"p1": "Flag", "zz": 1}) == {"p1": "Flag"}
+
+
+def test_undeclared_pick_id_is_refused_with_its_slot(conn):
+    add_user(conn, B)
+    payload = _template(1)
+    payload["slots"] = []                                                      # the plan names p1; nothing declares it
+    with pytest.raises(share.ShareError) as e:
+        _go(conn, _row(conn, payload))
+    assert e.value.code == "unresolved" and e.value.slot == "p1" and e.value.sentence == share.S_UNRESOLVED
+
+
+def test_dark_wave_widget_hidden_by_the_one_decider(conn, monkeypatch):
+    """W11-R20: a widget whose plan needs a dark wave is hidden in the preview exactly as in the served style:
+    `journal_styles._slot_wave_off(block, settings, ctx)` decides, for a template slot and a listed widget."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.widget_engine import shelf
+    add_user(conn, B)
+    _trades(conn, 6)
+    w10_plan = shelf.revision("shelf:equity-curve", 2)["plan"]
+    payload = _template(1)
+    payload["definitions"].append({"key": "d9", "plan": w10_plan, "name": "Curve", "description": ""})
+    payload["blocks"].append({"block": "built_b", "enabled": True, "settings": {"ref": "inline:d9"}})
+    gid = _row(conn, payload)
+    widget = _row(conn, {"name": "Curve", "description": "", "plan": w10_plan, "slots": []},
+                  item_type="widget_definition")
+    assert {c["slot"] for c in _go(conn, gid)["cards"]} == {"built_a", "built_b"}
+    assert _go(conn, widget)["cards"][0]["slot"] == "widget"
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED")
+    tp._CACHE.clear()
+    assert [c["slot"] for c in _go(conn, gid)["cards"]] == ["built_a"]
+    assert _go(conn, widget)["cards"] == []
+    ctx = js._slot_ctx(None, conn, payload["blocks"], {d["key"]: d for d in payload["definitions"]})
+    assert js._slot_wave_off("built_b", {"ref": "inline:d9"}, ctx) is True          # the decider agrees
+    assert js._slot_wave_off("built_a", {"ref": "inline:d1"}, ctx) is False
+    seen = []
+    real = js._slot_wave_off
+    monkeypatch.setattr(js, "_slot_wave_off", lambda *a: seen.append(a) or real(*a))
+    tp._CACHE.clear()
+    _go(conn, gid)
+    _go(conn, widget)
+    assert {a[0] for a in seen} >= {"built_a", "built_b"} and all(len(a) == 3 for a in seen)
+
+
+def test_anonymous_author_credit_reads_mid_sentence(conn):
+    add_user(conn, B)
+    conn.execute("UPDATE users SET display_name = 'b@example.test' WHERE id = ?", (B,))
+    conn.commit()
+    assert _go(conn, _row(conn, _template(1), title="Gap fill"))["credit"] == "Based on a UCT member's Gap fill"

@@ -63,6 +63,9 @@ CREDIT_FORMER = "Based on a former member's {title}"
 
 #: The card slot of a single listed widget, and the tool slot of a single listed routine or tracker.
 WIDGET_SLOT = "widget"
+#: How a single listed widget is put to the one wave decider: as the built slot an adoption places.
+LISTED_WIDGET_BLOCK = "built_a"
+LISTED_WIDGET_KEY = "w"
 _TOOL_TYPES = {"routine": "routine", "tracker": "tracker"}
 
 
@@ -79,6 +82,11 @@ def _js():
 def _run():
     from api.services.journal_two.widget_engine import run
     return run
+
+
+def _plan():
+    from api.services.journal_two.widget_engine import plan
+    return plan
 
 
 def _catalog():
@@ -123,22 +131,52 @@ def _refuse(sentence: str, sid: str) -> share.ShareError:
     return err
 
 
+#: The most a preview's answers may weigh altogether: the gallery route's own body bound (16 KB).
+MAX_ANSWERS_BYTES = 16 * 1024
+#: Choices that take exactly one text (an account, a property, a routine or tracker ref); the rest take one text or
+#: a list of texts (a filter's values).
+_SINGLE_TYPES = frozenset({"account", "property", "routine", "tracker"})
+#: The sources the Sample data book carries rows for (`run.sample_rows`).
+_BOOK_SOURCES = ("closed_trades", "open_positions", "trading_days")
+#: The value choices the book can be filtered by. An account is never the book's (a sample run reads every account).
+_BOOK_TYPES = frozenset({"setup", "tag", "symbol"})
+
+
+def _label_of(slot: Mapping) -> str:
+    return slot.get("label") or share.TYPE_LABELS.get(slot.get("type"), "this choice")
+
+
+def _text_ok(x: Any, label: str, sid: str) -> None:
+    if not isinstance(x, str) or not x.strip():
+        raise _refuse(share.S_NEED_VALUE.format(label=label), sid)
+    if len(x) > _plan().MAX_TEXT:                       # the plan's own bound, in its own words (as resolve answers)
+        raise _refuse(_plan().S_TEXT_TOO_LONG, sid)
+
+
 def _check_answer(slot: Mapping, a: Any) -> None:
-    """The viewer's own answer for one choice, refused in the reducer's own words when it cannot fill it."""
-    label = slot.get("label") or share.TYPE_LABELS.get(slot.get("type"), "this choice")
-    if isinstance(a, Mapping) and a.get("any") is True:
-        if slot.get("any") is not True:
-            raise _refuse(share.S_NO_ANY.format(label=label), slot["id"])
-        return
+    """The viewer's own answer for one choice, refused (naming the choice) in the reducer's and the plan's own words
+    when it cannot fill it: Any where Any is not offered, a non-number for a number, a list where one value goes,
+    an empty or over-long text, too many values."""
+    sid, label = slot["id"], _label_of(slot)
+    if isinstance(a, Mapping):
+        if a.get("any") is True and set(a) == {"any"}:
+            if slot.get("any") is not True:
+                raise _refuse(share.S_NO_ANY.format(label=label), sid)
+            return
+        raise _refuse(share.S_NEED_VALUE.format(label=label), sid)
     if slot.get("type") == "number":
         if not _number(a):
-            raise _refuse(share.S_NEED_NUMBER.format(label=label), slot["id"])
+            raise _refuse(share.S_NEED_NUMBER.format(label=label), sid)
         return
-    if isinstance(a, str) and a.strip():
+    if isinstance(a, list):
+        if slot.get("type") in _SINGLE_TYPES or not a:
+            raise _refuse(share.S_NEED_VALUE.format(label=label), sid)
+        if len(a) > _plan().MAX_FILTER_VALUES:
+            raise _refuse(_plan().S_TOO_MANY_VALUES, sid)
+        for x in a:
+            _text_ok(x, label, sid)
         return
-    if isinstance(a, list) and a and all(isinstance(x, str) and x.strip() for x in a):
-        return
-    raise _refuse(share.S_NEED_VALUE.format(label=label), slot["id"])
+    _text_ok(a, label, sid)
 
 
 def _slots_of(payload: Mapping) -> list[dict]:
@@ -153,30 +191,87 @@ def _slots_of(payload: Mapping) -> list[dict]:
     return out
 
 
-def _choices(slots: list[dict], answers: Mapping, user_id: str, conn: sqlite3.Connection
-             ) -> tuple[list[dict], dict[str, Any]]:
-    """(the served `slots`, {slot id: the value each choice runs with}). A choice with no value is absent."""
-    suggested = gallery_suggest.suggest(user_id, {s["type"] for s in slots}, conn=conn) if slots else {}
+def clean_answers(slots: list[dict], answers: Mapping) -> dict:
+    """W11 fix round 1 (I-3): the answers the preview takes, keyed and cached: ONLY the payload's declared choices
+    (any other key is dropped, so it can neither key a cache entry nor be echoed), each one checked
+    (`_check_answer`), and all of them together within `MAX_ANSWERS_BYTES`."""
+    declared = {s["id"]: s for s in slots}
+    out: dict[str, Any] = {}
+    for sid, a in answers.items():
+        if sid in declared and a is not None:
+            _check_answer(declared[sid], a)
+            out[sid] = copy.deepcopy(a)
+    if out and len(_canonical(out).encode("utf-8")) > MAX_ANSWERS_BYTES:
+        biggest = max(out, key=lambda k: len(_canonical(out[k])))
+        raise _refuse(_plan().S_TEXT_TOO_LONG, biggest)
+    return out
+
+
+# -- the Sample data book (ruling W11-R27) ----------------------------------------------------------
+
+def _book_values(slot: Mapping) -> list | None:
+    """The values the Sample data book holds for a choice it can be filtered by (a setup, tag or symbol of a source
+    the book carries), most used first, ties by first met; None for any other choice (it never filters the book)."""
+    source, fld = slot.get("source"), slot.get("field")
+    if slot.get("type") not in _BOOK_TYPES or source not in _BOOK_SOURCES or not isinstance(fld, str):
+        return None
+    field = _catalog().sources[source].fields.get(fld)
+    if field is None:
+        return None
+    from collections import Counter
+    counts: Counter = Counter()
+    order: dict = {}
+    for row in _run().sample_rows(source):
+        v = field.py(row)
+        for x in (v if isinstance(v, list) else [v]):
+            if isinstance(x, str) and x.strip():
+                counts[x] += 1
+                order.setdefault(x, len(order))
+    return sorted(counts, key=lambda k: (-counts[k], order[k]))
+
+
+def _in_book(a: Any, values: list, ci: bool) -> bool:
+    have = {v.lower() for v in values} if ci else set(values)
+    items = a if isinstance(a, list) else [a]
+    return all(isinstance(x, str) and (x.lower() if ci else x) in have for x in items)
+
+
+def _choices(slots: list[dict], answers: Mapping, user_id: str, conn: sqlite3.Connection, *, sample: bool
+             ) -> tuple[list[dict], dict[str, Any], dict[str, Any]]:
+    """(the served `slots`, {slot id: the value each choice runs with}, {slot id: what it runs with when the
+    viewer's own answer is set aside}). A choice with no value is absent from the second.
+
+    `answers` is `clean_answers`' output. Under `run.SAMPLE_BELOW` closed trades (`sample`), ruling W11-R27: the
+    member's real values never filter the Sample data book. A choice the book can be filtered by, that the member
+    has a value for, is suggested the book's own most used value instead; one they have no value for keeps no
+    suggestion (Review Focus 5: Any where allowed, else "Pick a ..."). An answer naming a value the book lacks runs
+    with the book's most used value (else Any where allowed); the card says so through its Sample data label."""
+    real = gallery_suggest.suggest_for(user_id, slots, conn=conn) if slots else {}
     out: list[dict] = []
     used: dict[str, Any] = {}
+    defaults: dict[str, Any] = {}
     for s in slots:
         sid = s["id"]
         any_ok = s.get("any") is True
-        sug = suggested.get(s["type"])
-        if sid in answers and answers[sid] is not None:
-            _check_answer(s, answers[sid])
-            value = copy.deepcopy(answers[sid])
-        elif sug is not None:
-            value = sug["value"]
-        elif any_ok:
-            value = {"any": True}
-        else:
-            value = None
-        out.append({"id": sid, "type": s["type"], "label": s.get("label") or share.TYPE_LABELS[s["type"]],
-                    "any": any_ok, "suggested": sug, "value": value})
+        sug = real.get(sid)
+        book = _book_values(s) if sample else None
+        book_sug = {"value": book[0], "label": book[0]} if book else None
+        if book is not None and sug is not None:
+            sug = book_sug                                   # the member's own value never filters the book
+        default = sug["value"] if sug is not None else ({"any": True} if any_ok else None)
+        value = answers.get(sid, default)
+        if book is not None and sid in answers and not (isinstance(value, Mapping) and value.get("any") is True):
+            fld = _catalog().sources[s["source"]].fields[s["field"]]
+            if not _in_book(value, book, bool(getattr(fld, "ci", False))):
+                # never a real value over the book (W11-R27): the book's own, else Any where allowed
+                value = book_sug["value"] if book_sug else ({"any": True} if any_ok else None)
+        out.append({"id": sid, "type": s["type"], "label": _label_of(s), "any": any_ok, "suggested": sug,
+                    "value": copy.deepcopy(value)})
         if value is not None:
             used[sid] = value
-    return out, used
+        if default is not None:
+            defaults[sid] = default
+    return out, used, defaults
 
 
 def _pick_ids(obj: Any) -> list[str]:
@@ -197,21 +292,48 @@ def _pick_ids(obj: Any) -> list[str]:
     return list(dict.fromkeys(out))
 
 
-def _resolve(plan: Any, slots: list[dict], served: list[dict], used: Mapping) -> tuple[dict | None, str | None]:
-    """(a plan with every choice filled, None) or (None, the card's sentence)."""
+def _resolve(plan: Any, slots: list[dict], served: list[dict], used: Mapping, *, answered: Mapping = None,
+             defaults: Mapping = None) -> tuple[dict | None, str | None]:
+    """(a plan with every choice filled, None) or (None, the card's sentence).
+
+    A refusal `share.resolve_plan` traces to ONE of the viewer's own answers (the plan resolves once that answer
+    is set back to its default) is raised as `share.ShareError` naming that choice, in share's own words (I-2);
+    any other refusal is the card's sentence. A plan naming a choice the payload does not declare is refused
+    with that choice id (`unresolved`)."""
     if not isinstance(plan, Mapping):
         return None, _js().SLOT_UNREADABLE_SENTENCES["built"]
+    answered = answered or {}
+    defaults = defaults or {}
     by_id = {s["id"]: s for s in served}
-    for sid in _pick_ids(plan):
+    ids = _pick_ids(plan)
+    for sid in ids:
+        if sid not in by_id:
+            err = share.ShareError("unresolved", share.S_UNRESOLVED)
+            err.slot = sid
+            raise err
         if sid not in used:
-            label = by_id[sid]["label"] if sid in by_id else share.TYPE_LABELS["number"]
-            return None, S_PICK.format(label=str(label).lower())
-    if not _pick_ids(plan):
+            return None, S_PICK.format(label=str(by_id[sid]["label"]).lower())
+    if not ids:
         return copy.deepcopy(dict(plan)), None
+    catalog = _catalog()
     try:
-        return share.resolve_plan(dict(plan), slots, dict(used), catalog=_catalog()), None
+        return share.resolve_plan(dict(plan), slots, dict(used), catalog=catalog), None
     except share.ShareError as e:
-        return None, e.sentence
+        failure = e
+    for sid in ids:
+        if sid not in answered:
+            continue
+        trial = dict(used)
+        if sid in defaults:
+            trial[sid] = defaults[sid]
+        else:
+            trial.pop(sid, None)
+        try:
+            share.resolve_plan(dict(plan), slots, trial, catalog=catalog)
+        except share.ShareError:
+            continue
+        raise _refuse(failure.sentence, sid)
+    return None, failure.sentence
 
 
 # -- built slots -----------------------------------------------------------------------------------
@@ -345,19 +467,23 @@ def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Con
               now: datetime) -> dict:
     js = _js()
     slots = _slots_of(payload)
-    served, used = _choices(slots, answers, user_id, conn)
+    served, used, defaults = _choices(slots, answers, user_id, conn, sample=_run().wants_sample(conn, user_id))
     definitions = {d["key"]: d for d in payload.get("definitions") if isinstance(d, Mapping)
                    and isinstance(d.get("key"), str)} if isinstance(payload.get("definitions"), list) else {}
     note_day = trading_days.today_et(now).isoformat()
+    blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
+    # The ONE decider's slot ctx (W11-R20, 11.5 fix round 1): the inline definitions, and the author's own `def:`
+    # refs in one owned read. A non-author gets no member here, so nothing of anyone's is read for them.
+    wave_ctx = js._slot_ctx(user_id if author else None, conn, blocks, definitions)
     cards: list[dict] = []
     tools: list[dict] = []
     pending: list[tuple[dict, dict]] = []
-    for b in payload.get("blocks") if isinstance(payload.get("blocks"), list) else []:
+    for b in blocks:
         if not isinstance(b, Mapping) or b.get("enabled", True) is False:
             continue
         bid = b.get("block")
         family = js.slot_family(bid)
-        if family is None or js._slot_wave_off(bid, b.get("settings")):
+        if family is None or js._slot_wave_off(bid, b.get("settings"), wave_ctx):
             continue                                 # not a family slot, or its wave is dark: no card, no line
         block = {"block": bid, "settings": b.get("settings")}
         if family == "built":
@@ -370,9 +496,8 @@ def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Con
                                                   definitions=definitions)
             card: dict = {"slot": bid, "title": title, "sample": False}
             if sentence is None:
-                resolved, sentence = _resolve(plan, slots, served, used)
-                if resolved is not None and slot_fill._dark(resolved):
-                    continue                         # its plan needs a dark wave: dropped, as the fill drops it
+                resolved, sentence = _resolve(plan, slots, served, used, answered=answers,
+                                              defaults=defaults)
             if sentence is not None:
                 card["sentence"] = sentence
             else:
@@ -406,17 +531,21 @@ def _questions(payload: Mapping, *, user_id: str, conn: sqlite3.Connection) -> l
 def _widget(payload: Mapping, *, user_id: str, conn: sqlite3.Connection, answers: Mapping,
             now: datetime) -> dict:
     slots = _slots_of(payload)
-    served, used = _choices(slots, answers, user_id, conn)
+    served, used, defaults = _choices(slots, answers, user_id, conn, sample=_run().wants_sample(conn, user_id))
     name = payload.get("name")
     card: dict = {"slot": WIDGET_SLOT,
                   "title": name if isinstance(name, str) and name.strip() else slot_fill.DEFAULT_TITLE,
                   "sample": False}
-    resolved, sentence = _resolve(payload.get("plan"), slots, served, used)
+    js = _js()
+    # A listed widget is judged by the ONE decider too, as the built slot an adoption would place (W11-R20).
+    if js._slot_wave_off(LISTED_WIDGET_BLOCK, {"ref": "inline:" + LISTED_WIDGET_KEY},
+                         {"definitions": {LISTED_WIDGET_KEY: {"plan": payload.get("plan")}}}):
+        return {"slots": served, "cards": [], "tools": [], "questions": []}
+    resolved, sentence = _resolve(payload.get("plan"), slots, served, used, answered=answers,
+                                  defaults=defaults)
     cards = [card]
     if sentence is not None:
         card["sentence"] = sentence
-    elif slot_fill._dark(resolved):
-        cards = []
     else:
         _run_cards(user_id, [(card, resolved)], now)
     return {"slots": served, "cards": cards, "tools": [], "questions": []}
@@ -449,7 +578,10 @@ def credit_line(row: Any, user_id: str) -> str | None:
         return None
     if not row["author_handle"]:
         return CREDIT_FORMER.format(title=title)
-    return CREDIT.format(label=tg._author_label(row), title=title)
+    label = tg._author_label(row)
+    if label == tg.ANONYMOUS_AUTHOR:                  # "A UCT member" mid-sentence reads "a UCT member" (M-4)
+        label = label[:1].lower() + label[1:]
+    return CREDIT.format(label=label, title=title)
 
 
 # -- the door --------------------------------------------------------------------------------------
@@ -477,11 +609,13 @@ def preview_mine(user_id: str, gallery_id: str, *, answers: dict | None = None, 
         item_type = row["item_type"]
         if item_type != "style" and item_type not in tg.TOOL_ITEM_TYPES:
             return None
+        payload = tg._listed_payload(row) or {}
+        # I-3: only the declared choices, each checked, key the cache, run and are echoed
+        answers = clean_answers(_slots_of(payload), answers)
         key = cache_key(gallery_id, row["version"], user_id, trading_days.today_et(now).isoformat(), answers)
         hit = _CACHE.get(key)
         if hit is not None:
             return copy.deepcopy(hit)
-        payload = tg._listed_payload(row) or {}
         author = row["user_id"] == user_id
         if item_type == "style":
             out = _template(payload, author=author, user_id=user_id, conn=c, answers=answers, now=now)
