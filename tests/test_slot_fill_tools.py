@@ -987,6 +987,7 @@ def test_a_use_answer_is_only_what_the_question_can_offer(db):
     hours = _tracker(name="Hours", kind="duration")
     cases = [({"block": "routine_a", "settings": TPL}, old["id"]),
              ({"block": "tracker_a", "settings": {"template": "sleep"}}, "checkin:mood"),
+             ({"block": "tracker_a", "settings": {"template": "energy"}}, "checkin:mood"),   # same kind (scale)
              ({"block": "tracker_a", "settings": {"template": "sleep"}}, scale["id"])]   # sleep is a duration
     for block, bad in cases:
         with pytest.raises(ShareError) as e:
