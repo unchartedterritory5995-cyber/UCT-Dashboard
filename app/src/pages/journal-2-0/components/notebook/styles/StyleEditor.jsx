@@ -12,6 +12,7 @@ import useJ2PropertyDefs from '../../../hooks/useJ2PropertyDefs'
 import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
 import { BLOCK_KINDS, SNAPSHOT_BLOCK_LABELS, blockLabel, optionWord, tfWord } from '../../../lib/journalBlocks'
+import { bindWords, slotFamily, slotLabel } from '../../../lib/templateSlots'
 import { isTier3Block, tier3Enabled } from '../../../lib/tier3Flag'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import { createJournalStyle, MAX_STYLE_NAME_CHARS, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
@@ -139,7 +140,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
     const [item] = next.splice(from, 1)
     next.splice(to, 0, item)
     setBlocks(next)
-    setMoved(`${blockLabel(item.block)} moved to position ${to + 1} of ${next.length}.`)
+    setMoved(`${slotLabel(item) || blockLabel(item.block)} moved to position ${to + 1} of ${next.length}.`)
     pendingFocus.current = dir ? { id: item.block, dir } : null
   }
   const toggle = (i, on) => setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, enabled: on } : b)))
@@ -244,8 +245,14 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
         {blocks.length === 0 && <p className={styles.hint}>No blocks yet. Add one below.</p>}
         <ol className={styles.blocks} aria-label="Blocks in this style">
           {blocks.map((b, i) => {
-            const known = KNOWN.has(b.block) || Object.hasOwn(SNAPSHOT_BLOCK_LABELS, b.block)
-            const label = known ? blockLabel(b.block) : 'A block from a newer version'
+            // Wave 11 (Task 11.14): a template slot (built_<k>, routine_<k>, tracker_<k>) is a block this bundle knows,
+            // named by its family (a style's slot settings carry a ref, not a name, so the target's name is not
+            // known here); a routine or tracker slot also says which day it binds to. Its settings are the
+            // server's and are kept verbatim on save.
+            const fam = slotFamily(b.block)
+            const known = KNOWN.has(b.block) || Object.hasOwn(SNAPSHOT_BLOCK_LABELS, b.block) || fam !== null
+            const label = fam ? slotLabel(b) : known ? blockLabel(b.block) : 'A block from a newer version'
+            const binds = fam === 'routine' || fam === 'tracker' ? bindWords(b.settings?.bind) : ''
             const kind = kindOf(b.block)
             return (
               <li
@@ -273,6 +280,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
                   <input type="checkbox" checked={Boolean(b.enabled)} disabled={!known}
                     aria-label={`Use ${label}`} onChange={(e) => toggle(i, e.target.checked)} />
                   <span>{label}</span>
+                  {binds && <span className={styles.muted}> · {binds}</span>}
                   {!known && <span className={styles.muted}> ({b.block})</span>}
                 </label>
                 {kind?.settings.map((s) => (

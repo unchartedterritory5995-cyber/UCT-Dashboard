@@ -15,6 +15,7 @@ import useJournalStyles from '../../../hooks/useJournalStyles'
 import { defaultStyleFor, stylesOfKind, previewJournalStyle } from '../../../lib/journalStyles'
 import { kindIcon } from '../../../lib/noteKinds'
 import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
+import { familyLabel, slotFamily } from '../../../lib/templateSlots'
 import { WIDGET_REGISTRY } from '../../../../../widgets/registry'
 import TemplatePreview from '../TemplatePreview'
 import { styleLibraryEnabled } from '../../../lib/styleLibraryFlag'
@@ -30,11 +31,17 @@ const iconOf = (k) => (UICON_NAMES.includes(kindIcon(k)) ? kindIcon(k) : 'docume
 // the chart with its ticker, a style block by its catalog name, any other widget this app KNOWS by its own
 // name, and only a block this bundle does not know at all as one from a newer version.
 const KNOWN_BLOCKS = new Set(BLOCK_KINDS.map((b) => b.id))
+// Wave 11 (Task 11.14): a template slot names its target. A filled built slot is a `builtWidget` embed (its
+// `title`), a routine or tracker slot a trader block (its `name` when the preview carries one); an unfilled slot keeps
+// its family id. Each reads `Widget: Equity curve`, or the family word alone when no name came with it.
+const NODE_FAMILY = Object.freeze({ builtWidget: 'built', routine: 'routine', tracker: 'tracker' })
 function blockLine(node) {
   const id = node.attrs?.widgetId
   const p = node.attrs?.params || {}
   if (id === 'chart' && p.symbol) return `Chart · ${p.symbol} · ${tfWord(p.tf)}`
   if (KNOWN_BLOCKS.has(id)) return blockLabel(id)
+  const fam = slotFamily(id) || (Object.hasOwn(NODE_FAMILY, id) ? NODE_FAMILY[id] : null)
+  if (fam) return familyLabel(fam, p.title ?? p.name)
   return WIDGET_REGISTRY[id]?.labels?.header || blockLabel(id)
 }
 const labelled = (n) => {

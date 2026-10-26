@@ -256,6 +256,34 @@ describe('the Styles manager', () => {
     await waitFor(() => expect(screen.queryByText('Style deleted.')).toBeNull())
   })
 
+  it("names a template's widget, routine and tracker blocks, says their day, and saves their settings verbatim", async () => {
+    // Wave 11 (Task 11.14): the three slot families are blocks this bundle knows (toggleable), never "a newer version".
+    const SLOTS = [
+      { block: 'built_a', enabled: true, settings: { ref: 'def:7d1e3f0a-1111-4222-8333-444455556666', defRev: 3 } },
+      { block: 'routine_1', enabled: true, settings: { ref: 'routine:0b2c3d4e-1111-4222-8333-444455556666', bind: 'next-trading-day' } },
+      { block: 'tracker_b', enabled: false, settings: { ref: 'checkin:mood', bind: 'week', display: 'chart' } },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: SLOTS })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const rows = within(list).getAllByRole('listitem')
+    expect(rows.map((li) => li.textContent.replace(/\s+/g, ' ').trim())).toEqual([
+      'Widget', 'Routine · For the next trading day', 'Tracker · For the trading week',
+    ].map((t) => expect.stringContaining(t)))
+    expect(within(list).queryByText(/newer version/)).toBeNull()
+    expect(within(rows[0]).getByRole('checkbox', { name: 'Use Widget' })).not.toBeDisabled()
+    fireEvent.click(within(rows[2]).getByRole('checkbox', { name: 'Use Tracker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move Widget down' }))
+    expect(screen.getByText('Widget moved to position 2 of 3.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
+    expect(put().blocks.map((b) => b.block)).toEqual(['routine_1', 'built_a', 'tracker_b'])
+    expect(put().blocks.map((b) => b.settings)).toEqual([SLOTS[1].settings, SLOTS[0].settings, SLOTS[2].settings])
+    expect(put().blocks[2].enabled).toBe(true)
+  })
+
   it('reorders blocks with Move up/Move down and keeps an unknown block', async () => {
     routes.unshift(['GET', MEMBER_URL, UNKNOWN_BLOCK])
     installFetch()

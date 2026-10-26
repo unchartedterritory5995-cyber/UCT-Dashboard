@@ -90,6 +90,14 @@ export const SNAPSHOT_BLOCK_LABELS = Object.freeze({
   myPositionsRisk: 'My open positions and risk',
   myRulesCheck: 'My rules check',
   myMistakes: 'My recurring mistakes',
+  // Wave 11 (Task 11.14): the six wave 10 dedicated kinds a template may hold (journal_styles.SNAPSHOT_SLOT_KINDS),
+  // each named by notebook_widgets.KIND_TITLE (railed by tests/test_journal_styles_store.py and _compose.py).
+  myRiskLeftToday: 'Risk left today',
+  myGamePlan: 'Pre-market game plan',
+  myTiltCheck: 'Tilt check',
+  myRevengeClean: 'Revenge trades',
+  myPropFirm: 'Prop-firm rules',
+  myAlertsFired: 'Alerts that fired',
 })
 
 // Notebook widgets phase 2, wave 9 (W9-R4): the live trader blocks. NOT journal-style kinds (never in
@@ -97,11 +105,21 @@ export const SNAPSHOT_BLOCK_LABELS = Object.freeze({
 // Wave 10 (W10-R8): the position size calculator, the same kind of block.
 export const TOOL_BLOCK_LABELS = Object.freeze({ routine: 'Routine', tracker: 'Tracker', sizeCalc: 'Position size calculator' })
 
+// Wave 11 (W11-R2/R3): a template slot's id is `built_<k>`, `routine_<k>` or `tracker_<k>`. Twin of the server's
+// journal_styles.SLOT_ID_RE and of lib/templateSlots.js's SLOT_ID_RE (railed by templateSlots.test.js); kept here as
+// its own literal because this file is eager and imports nothing.
+const SLOT_FAMILY_RE = /^(built|routine|tracker)_[a-z0-9]{1,2}$/
+const SLOT_FAMILY_LABELS = Object.freeze({ built: 'Widget', routine: 'Routine', tracker: 'Tracker' })
+
 /** A block's member-facing name; an id this bundle does not know reads as a newer-version block. */
 export function blockLabel(id) {
   const k = BLOCK_KINDS.find((b) => b.id === id)
   if (k) return k.label
-  return TOOL_BLOCK_LABELS[id] || SNAPSHOT_BLOCK_LABELS[id] || `A block from a newer version (${id})`
+  const known = TOOL_BLOCK_LABELS[id] || SNAPSHOT_BLOCK_LABELS[id]
+  if (known) return known
+  const fam = typeof id === 'string' ? SLOT_FAMILY_RE.exec(id) : null
+  if (fam) return SLOT_FAMILY_LABELS[fam[1]]
+  return `A block from a newer version (${id})`
 }
 
 /** The node's searchText for a block id (the server builder writes the same line). */

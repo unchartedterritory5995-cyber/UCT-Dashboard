@@ -157,4 +157,24 @@ describe('New note: pick a kind', () => {
     await Promise.resolve()
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
+
+  it('style_with_built_slot_shows_widget_name', async () => {
+    // Wave 11 (Task 11.14): a template's slots in the preview name their target, never "a newer version".
+    const preview = { ...previewBody, bodyJson: { type: 'doc', content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Review' }] },
+      { type: 'widgetEmbed', attrs: { widgetId: 'builtWidget', params: { title: 'Equity curve', defId: 'd1', defRev: 2 } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'routine', params: { routineId: 'r1', name: 'Pre-market routine', bind: 'note-day' } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'tracker', params: { trackerId: 't1', day: '2026-10-27' } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'built_b', params: {} } },
+    ] } }
+    renderSection({}, { preview })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    const line = await screen.findByText('Widget: Equity curve')
+    expect(line.tagName).toBe('EM')
+    expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')
+    expect(screen.getByText('Tracker').tagName).toBe('EM')                 // no name came with it: the family word
+    expect(screen.getByText('Widget').tagName).toBe('EM')                  // an unfilled slot
+    expect(screen.queryByText(/newer version/)).toBeNull()
+  })
 })
