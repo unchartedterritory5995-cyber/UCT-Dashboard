@@ -360,6 +360,11 @@ _LOG_ATTRS = ("debug", "info", "warning", "warn", "error", "exception", "critica
 #: exception is not one, and keeps its `: {e}` (HEAD's lines, rail G6).
 _REFUSALS = {"ShareError", "LibraryError", "GalleryError", "GalleryConflict", "ToolError", "CountCapError",
              "KeyReused"}
+#: What a refusal handler MAY pass on about the refusal it caught (fix round 4, m3): its code and its slot (neither
+#: carries author text) and its type's name. Everything else read from it is text.
+_SAFE_ATTRS = {"code", "slot"}
+_TRACEBACK_FUNCS = {"print_exc", "print_exception", "format_exc", "format_exception", "print_last", "print_tb",
+                    "format_tb", "extract_tb", "print_stack", "format_exception_only"}
 
 
 def _caught_names(t) -> set:
@@ -372,58 +377,89 @@ def _is_log(n) -> bool:
     return isinstance(n, ast.Call) and (name == "print" or name in _LOG_ATTRS)
 
 
-def _type_name_only(call, name_node) -> bool:
-    """`name_node` is used only inside `type(<x>).__name__`, which names no text."""
-    return any(isinstance(p, ast.Attribute) and p.attr == "__name__" and isinstance(p.value, ast.Call)
-               and getattr(p.value.func, "id", None) == "type" and name_node in ast.walk(p)
-               for p in ast.walk(call))
+def _parents(tree) -> dict:
+    return {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
 
 
-def _reads(expr, names) -> bool:
-    return any(isinstance(x, ast.Name) and x.id in names and not _type_name_only(expr, x) for x in ast.walk(expr))
+def _unsafe_reads(expr, names, parents) -> bool:
+    """Does `expr` read one of `names` in any form but `<name>.code`, `<name>.slot` or `type(<name>).__name__`?"""
+    for x in ast.walk(expr):
+        if not (isinstance(x, ast.Name) and x.id in names):
+            continue
+        up = parents.get(x)
+        if isinstance(up, ast.Attribute) and up.attr in _SAFE_ATTRS:
+            continue
+        if (isinstance(up, ast.Call) and getattr(up.func, "id", None) == "type"
+                and isinstance(parents.get(up), ast.Attribute) and parents[up].attr == "__name__"):
+            continue
+        return True
+    return False
 
 
 def _exception_text_in_logs(src: str) -> list[str]:
-    """Inside a handler for a refusal class (`_REFUSALS`), every way its text can reach a log:
-
-    * a print / logging / `.write` call (`sys.stderr.write`) reading the caught value in any form but
-      `type(e).__name__` (`{e}`, `str(e)`, `e.sentence`, `"%s" % e`, `e.args`, a bare `e`), or reading a name
-      DERIVED from it (`msg = str(e)`, then `print(msg)`, transitively);
-    * any traceback dump (`traceback.print_exc`, `format_exc`, `print_exception`, ...), any `.exception(...)` log
-      call whatever its arguments, and any call passing `exc_info` (other than a literal False): each prints `str(e)`;
-
-    plus any log call anywhere reading a `.sentence`. Ruling W11-R35: refusal text only, never every log line."""
+    """THE POSITIVE RULE (fix round 4, m3), inside a handler for a refusal class (`_REFUSALS`): a call may be handed
+    the caught refusal -- or any name DERIVED from it (an assignment, a `for` target, a comprehension, a walrus,
+    transitively) -- only as its code, its slot or its type's name. So `print(e)`, `log.warning('%s', e)`,
+    `sys.stderr.write(str(e))`, `_say(e)` (a log helper) and `raise RuntimeError(str(e))` (a re-wrap into a system
+    exception a later handler prints) are all findings; a new refusal built from it (`raise GalleryError(...)`) is
+    not. Also findings in a refusal handler, whatever they are handed: a traceback dump (the `traceback` module under
+    any alias, or a function imported from it), `sys.exc_info()`, an `exc_info=` other than a literal False, and a
+    logger's `.exception(<msg>)` (each prints `str(e)`). A future's own `.exception()` takes no message and is not a
+    log. Plus any log call anywhere reading a `.sentence`. Ruling W11-R35: refusal text only, never every log line."""
     tree = ast.parse(src)
+    parents = _parents(tree)
+    tb_aliases = {"traceback"} | {al.asname for n in ast.walk(tree) if isinstance(n, ast.Import)
+                                  for al in n.names if al.name == "traceback" and al.asname}
+    tb_funcs = set(_TRACEBACK_FUNCS) | {al.asname or al.name for n in ast.walk(tree)
+                                        if isinstance(n, ast.ImportFrom) and n.module == "traceback"
+                                        for al in n.names}
     bad = []
     for h in ast.walk(tree):
         if not (isinstance(h, ast.ExceptHandler) and _caught_names(h.type) & _REFUSALS):
             continue
+        # local aliases and imports inside the handler count too
+        for n in (x for stmt in h.body for x in ast.walk(stmt)):
+            if isinstance(n, ast.Import):
+                tb_aliases |= {al.asname for al in n.names if al.name == "traceback" and al.asname}
+            if isinstance(n, ast.ImportFrom) and n.module == "traceback":
+                tb_funcs |= {al.asname or al.name for al in n.names}
         tainted = {h.name} if h.name else set()
         grew = True
         while grew:                                      # names derived from the caught value, transitively
             grew = False
             for stmt in h.body:
                 for n in ast.walk(stmt):
-                    value = getattr(n, "value", None)
-                    if isinstance(n, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and value is not None \
-                            and _reads(value, tainted):
-                        targets = n.targets if isinstance(n, ast.Assign) else [n.target]
-                        for t in targets:
-                            for x in ast.walk(t):
-                                if isinstance(x, ast.Name) and x.id not in tainted:
-                                    tainted.add(x.id)
-                                    grew = True
+                    if isinstance(n, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+                        source, targets = n.value, (n.targets if isinstance(n, ast.Assign) else [n.target])
+                    elif isinstance(n, (ast.For, ast.comprehension)):
+                        source, targets = n.iter, [n.target]
+                    else:
+                        continue
+                    if source is None or not _unsafe_reads(source, tainted, parents):
+                        continue
+                    for t in targets:
+                        for x in ast.walk(t):
+                            if isinstance(x, ast.Name) and x.id not in tainted:
+                                tainted.add(x.id)
+                                grew = True
         for stmt in h.body:
             for n in ast.walk(stmt):
                 if not isinstance(n, ast.Call):
                     continue
                 func = n.func
+                fname = getattr(func, "id", None) or getattr(func, "attr", None)
                 owner = getattr(getattr(func, "value", None), "id", None)
-                attr = getattr(func, "attr", None)
-                dumps = owner == "traceback" or attr == "exception" or any(
-                    k.arg == "exc_info" and not (isinstance(k.value, ast.Constant) and k.value.value is False)
-                    for k in n.keywords)
-                if dumps or (_is_log(n) and _reads(n, tainted)):
+                dumps = ((owner in tb_aliases) or (isinstance(func, ast.Name) and fname in tb_funcs)
+                         or (fname == "exc_info" and owner == "sys")
+                         or (fname == "exception" and (n.args or n.keywords))
+                         or any(k.arg == "exc_info" and not (isinstance(k.value, ast.Constant)
+                                                             and k.value.value is False) for k in n.keywords))
+                if dumps:
+                    bad.append(ast.unparse(n))
+                    continue
+                if fname in _REFUSALS or fname == "type":
+                    continue                             # a new refusal, or `type(e)`, keeps it a refusal / a name
+                if any(_unsafe_reads(x, tainted, parents) for x in [*n.args, *(k.value for k in n.keywords)]):
                     bad.append(ast.unparse(n))
     for n in ast.walk(tree):
         if isinstance(n, ast.Call) and _is_log(n) and any(isinstance(x, ast.Attribute) and x.attr == "sentence"
@@ -433,10 +469,10 @@ def _exception_text_in_logs(src: str) -> list[str]:
 
 
 def test_no_log_call_in_the_gallery_names_a_refusal():
-    """Rail (fix round 1 M-2, scoped by W11-R35, widened by fix round 3 M-4): no print / logging / stream write in
-    template_gallery.py carries a refusal's text in ANY form, only its type name; a system exception's `{e}` is
-    allowed. Non-vacuity: every form is caught when planted in a refusal handler, the allowed forms are not, and the
-    gallery's own system lines (the seeds) do carry `{e}`, so the scope is what lets them pass."""
+    """Rail (fix round 1 M-2, scoped by W11-R35, widened by rounds 3 and 4): no call in template_gallery.py is handed
+    a refusal's text in ANY form, only its code, its slot or its type name; a system exception's `{e}` is allowed.
+    Non-vacuity: every form is caught when planted in a refusal handler, the allowed forms are not, and the gallery's
+    own system lines (the seeds) do carry `{e}`, so the scope is what lets them pass."""
     src = GALLERY_SRC.read_text(encoding="utf-8")
     assert _exception_text_in_logs(src) == []
     assert "official seed skipped (official templates): {type(e).__name__}: {e}" in src
@@ -446,16 +482,22 @@ def test_no_log_call_in_the_gallery_names_a_refusal():
              "log.exception('x')", "log.error('x', exc_info=True)", "log.warning('x', exc_info=e)",
              "sys.stderr.write(str(e))", "sys.stderr.write(f'{e}')",
              "msg = str(e); print(msg)", "msg = f'{e}'; out = msg.upper(); log.info(out)",
-             "parts = [e]; print(parts)")
+             "parts = [e]; print(parts)",
+             # round 4 (m3): the six the r3 review planted
+             "for a in e.args: print(a)", "from traceback import print_exc; print_exc()",
+             "import traceback as tb; tb.print_exc()", "print(sys.exc_info())",
+             "log.warning('%s', sys.exc_info()[1])", "_say(e)", "raise RuntimeError(str(e))")
     for exc in ("share.ShareError", "LibraryError", "(GalleryError, ValueError)"):
         for form in forms:
             planted = f"def f():\n    try:\n        pass\n    except {exc} as e:\n        {form}\n"
             assert _exception_text_in_logs(planted), (exc, form)
-    for ok_src in ("def f():\n    try:\n        pass\n    except ShareError as e:\n        print(f'x {type(e).__name__}')\n",
-                   "def f():\n    try:\n        pass\n    except ShareError as e:\n"
-                   "        name = type(e).__name__; print(name)\n",
-                   "def f():\n    try:\n        pass\n    except ShareError as e:\n        log.error('x', exc_info=False)\n",
-                   "def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {e}')\n",
+    allowed = ("print(f'x {type(e).__name__}')", "name = type(e).__name__; print(name)",
+               "log.error('x', exc_info=False)", "log.info('%s', e.code)", "print(e.slot, e.code)",
+               "fut.exception()", "raise GalleryError(S_KEY_REUSED) from e", "raise", "out.append(e.code)")
+    for form in allowed:
+        ok_src = f"def f():\n    try:\n        pass\n    except ShareError as e:\n        {form}\n"
+        assert _exception_text_in_logs(ok_src) == [], form
+    for ok_src in ("def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {e}')\n",
                    "def f():\n    try:\n        pass\n    except Exception:\n        traceback.print_exc()\n"):
         assert _exception_text_in_logs(ok_src) == [], ok_src
     assert _exception_text_in_logs("def f(err):\n    print(err.sentence)\n")

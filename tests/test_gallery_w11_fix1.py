@@ -496,3 +496,164 @@ def test_a_use_whose_note_finds_an_existing_template_tool_reports_it_reused(db):
     assert u2["style"]["id"] != u1["style"]["id"]
     assert u2["created"]["routines"] == [] and [x["id"] for x in u2["reused"]["routines"]] == [rid]
     assert db.execute("SELECT COUNT(*) FROM j2_routines WHERE user_id = ?", (MEMBER,)).fetchone()[0] == 1
+
+
+# ── fix round 4 ────────────────────────────────────────────────────────────────────────────────────
+
+def _link(text, href, *more):
+    return {"type": "text", "text": text, "marks": [{"type": "link", "attrs": {"href": href}}, *more]}
+
+
+def _stored(db, gid):
+    return db.execute("SELECT payload_json, body_json FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()
+
+
+def test_a_no_slot_template_takes_the_same_address_path(db):
+    """I-B: a template holding no tool slot is shared by the ONE path too (`_shared_outline`): link cards, web
+    embeds and link hrefs carrying the canary reach neither the listing nor the adopter's copy; the words stay."""
+    outline = {"type": "doc", "content": [
+        heading("Plan"), {"type": "paragraph", "content": [_link("my broker", f"https://{CANARY}.x.com/a")]},
+        para("stays"),
+        {"type": "linkPreview", "attrs": {"url": f"https://{CANARY}.example.com/acct/123", "title": "card"}},
+        {"type": "webEmbed", "attrs": {"provider": "youtube", "ref": "dQw4w9WgXcQ",
+                                       "url": f"https://www.youtube.com/watch?v=dQw4w9WgXcQ&{CANARY}"}}]}
+    s = style(db, blocks=[], outline=outline)
+    assert CANARY in json.dumps(js.get_style(AUTHOR, s["id"], db, full=True)["outlineBodyJson"])   # control
+    gid = list_template(db, s["id"])
+    for col in _stored(db, gid):
+        assert col and CANARY not in col.lower() and "linkPreview" not in col and "webEmbed" not in col
+    assert "my broker" in _stored(db, gid)[0] and "stays" in _stored(db, gid)[0]
+    out = gallery.adopt_style(MEMBER, gid, conn=db)
+    copy = js.get_style(MEMBER, out["style"]["id"], db, full=True)
+    assert CANARY not in json.dumps(out).lower() and CANARY not in json.dumps(copy).lower()
+    assert "my broker" in json.dumps(copy)
+
+
+def test_a_link_whose_text_is_its_address_goes_whole(db):
+    """I-C (ruling W11-R40): an autolinked URL -- linked text that IS its address, by normalised equality or because
+    it parses as a URL, domain or email -- is dropped, text included. Other link text travels; a URL written in
+    plain prose with no link mark is the author's visible text and travels unchanged."""
+    w = widget(db)
+    gone = [_link(f"https://{CANARY}.example.com/acct/123", f"https://{CANARY}.example.com/acct/123"),
+            _link(f"WWW.{CANARY}.example.com/", f"http://{CANARY}.example.com"),
+            _link(f"{CANARY}.example.com", "https://elsewhere.example.org"),
+            _link(f"me@{CANARY}.com", f"mailto:me@{CANARY}.com")]
+    outline = {"type": "doc", "content": [
+        heading("Plan"), para("{{block:built_a}}"),
+        *[{"type": "paragraph", "content": [n, {"type": "text", "text": f" kept{i}"}]} for i, n in enumerate(gone)],
+        {"type": "paragraph", "content": [_link("my broker", f"https://{CANARY}.x.com")]},
+        para("see https://prose.example.com/plain for more")]}
+    for blocks in ([built("a", w["id"])], []):
+        s = style(db, blocks=blocks, outline=outline if blocks else
+                  {**outline, "content": [c for c in outline["content"] if "{{block:" not in json.dumps(c)]})
+        gid = list_template(db, s["id"], title=f"T{len(blocks)}")
+        payload = _stored(db, gid)[0]
+        assert CANARY not in payload.lower()
+        assert all(f" kept{i}" in payload for i in range(len(gone)))       # only the address text went
+        assert "my broker" in payload and "https://prose.example.com/plain" in payload
+    for text, hrefs, want in (("Example.com/", ["https://www.example.com"], True), ("my broker", ["https://a.b"], False),
+                              ("https://a.b/c", [], True), ("read this", [], False), ("x@y.io", [], True)):
+        assert gallery._text_is_its_address(text, hrefs) is want, text
+
+
+def test_a_stored_outline_is_cleaned_again_on_adopt(db):
+    """m4: a listing written by hand (or before the fix) with a link card is cleaned on its way into the copy."""
+    s = style(db, blocks=[], outline={"type": "doc", "content": [heading("Plan"), para("stays")]})
+    gid = list_template(db, s["id"])
+    p = json.loads(_stored(db, gid)[0])
+    p["outlineBodyJson"]["content"].append(
+        {"type": "linkPreview", "attrs": {"url": f"https://{CANARY}.example.com", "title": "card"}})
+    db.execute("UPDATE j2_template_gallery SET payload_json = ? WHERE id = ?", (json.dumps(p), gid))
+    db.commit()
+    out = gallery.adopt_style(MEMBER, gid, conn=db)
+    copy = js.get_style(MEMBER, out["style"]["id"], db, full=True)
+    assert CANARY not in json.dumps(copy).lower() and "stays" in json.dumps(copy)
+
+
+def test_the_address_rule_reads_nodes_and_marks_from_the_schema(db, monkeypatch):
+    """m5: nodes and marks are told apart by NODE_POLICY, never by a name: a new "drop" MARK row is stripped as a
+    mark (its words stay) and a new "drop" node row goes whole."""
+    from api.services.journal_two import public_note_payload as pnp
+    nodes, marks = gallery._address_rules()
+    assert {"linkPreview", "webEmbed"} <= nodes and "link" in marks and not (nodes & marks)
+    monkeypatch.setitem(pnp.NODE_POLICY, "secretMark", {"share": "mark", "publish": "mark", "gallery": "mark"})
+    monkeypatch.setitem(pnp.EXAMPLE_OVERRIDES, "secretMark", "drop")
+    nodes, marks = gallery._address_rules()
+    assert "secretMark" in marks and "secretMark" not in nodes
+    doc = {"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "text": "words", "marks": [{"type": "secretMark", "attrs": {"v": CANARY}}]}]}]}
+    out = gallery._without_links(doc)
+    assert CANARY not in json.dumps(out) and "words" in json.dumps(out)
+
+
+def test_a_purged_template_tool_that_is_made_again_is_created(db):
+    """m1: a template routine deleted more than 30 days ago is PURGED and made anew by the store: `created`."""
+    from datetime import datetime, timedelta, timezone
+    gid, _s, _w = _template(db)
+    a1 = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, key=str(uuid.uuid4()), conn=db)
+    rid = a1["created"]["routines"][0]["id"]
+    db.execute("UPDATE j2_routines SET deleted_at = ? WHERE id = ?",
+               ((datetime.now(timezone.utc) - timedelta(days=31)).isoformat(), rid))
+    db.commit()
+    a2 = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, key=str(uuid.uuid4()), conn=db)
+    assert a2["reused"]["routines"] == [] and len(a2["created"]["routines"]) == 1
+    assert a2["created"]["routines"][0]["id"] != rid
+
+
+def _live_notes(db):
+    return db.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL", (MEMBER,)).fetchone()[0]
+
+
+def test_a_live_holder_taken_over_at_the_edge_never_makes_two_notes(db, monkeypatch):
+    """m2, real threads: request A is inside its compose when its reservation is aged past the 60 s edge; request B
+    (same key, its own connection) takes the key over and finishes. A's final compare-and-set loses: its note goes to
+    the trash and it answers B's note. One live note, one answer. Control: aged to just under the edge, B does not
+    take over (it is told the first request is on its way) and A's note is the key's."""
+    from datetime import datetime, timedelta, timezone
+    gid, _s, _w = _template(db)
+    gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, conn=db)
+    monkeypatch.setattr(gallery, "_wait_for_key", lambda uid, key, timeout_s=15.0: None)
+    real = js.create_styled_note
+    for age, takeover in ((gallery.USE_RESERVATION_STALE_SECS + 1, True), (gallery.USE_RESERVATION_STALE_SECS - 5, False)):
+        base = _live_notes(db)
+        k = str(uuid.uuid4())
+        inside, go = threading.Event(), threading.Event()
+
+        def slow(user_id, payload, conn=None, _first=[]):  # noqa: B006 -- one flag per round
+            if threading.current_thread().name == "A" and not _first:
+                _first.append(1)
+                inside.set()
+                go.wait(30)
+            return real(user_id, payload, conn)
+        monkeypatch.setattr(js, "create_styled_note", slow)
+        out = {}
+
+        def run(name):
+            c = auth_db.get_connection()
+            try:
+                out[name] = gallery.use_library_template(MEMBER, gid, payload={}, key=k, conn=c)
+            except Exception as e:  # noqa: BLE001 -- asserted below
+                out[name] = e
+            finally:
+                c.close()
+        a = threading.Thread(target=run, args=("A",), name="A")
+        a.start()
+        assert inside.wait(30)
+        db.execute("UPDATE j2_tool_create_keys SET created_at = ? WHERE user_id = ? AND key = ?",
+                   ((datetime.now(timezone.utc) - timedelta(seconds=age)).isoformat(), MEMBER, k))
+        db.commit()
+        b = threading.Thread(target=run, args=("B",), name="B")
+        b.start()
+        b.join(60)
+        go.set()
+        a.join(60)
+        key_note = db.execute("SELECT new_id FROM j2_tool_create_keys WHERE user_id = ? AND key = ?",
+                              (MEMBER, k)).fetchone()[0]
+        assert _live_notes(db) - base == 1, (age, out)
+        assert not isinstance(out["A"], Exception), out["A"]
+        if takeover:
+            assert not isinstance(out["B"], Exception), out["B"]
+            assert out["A"]["note"]["id"] == out["B"]["note"]["id"] == key_note and out["A"]["replayed"]
+        else:
+            assert isinstance(out["B"], gallery.GalleryConflict)
+            assert out["A"]["note"]["id"] == key_note and not out["A"].get("replayed")

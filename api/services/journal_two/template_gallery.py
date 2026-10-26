@@ -1323,38 +1323,94 @@ HOLDS_ADOPTED_SENTENCE = "This template holds something from the library, so it 
 OUTLINE_GONE_SENTENCE = "This template's outline came from a template you deleted, so it is shared without an outline."
 
 
-def _address_nodes() -> frozenset:
-    """The NODE types an example note drops whole because they carry an address (ruling P3b-T2-R8:
-    `public_note_payload.EXAMPLE_OVERRIDES` rows decided "drop", minus the `link` MARK, whose words stay). Read from
-    that table, never restated: a node added there is dropped here the same day."""
+def _address_rules() -> tuple[frozenset, frozenset]:
+    """(address NODES, address MARKS) a shared template's outline drops, both read from the schema, never restated:
+
+    * the example notes' "drop" rows (ruling P3b-T2-R8, `public_note_payload.EXAMPLE_OVERRIDES`), split into marks and
+      nodes by `NODE_POLICY` (a row whose gallery action is `mark` or `link-mark` is a MARK; fix round 4, m5);
+    * every `link-mark` row of `NODE_POLICY` (a mark carrying an `href`, W11-R33).
+
+    A node or mark added to either table is handled here the same day."""
     from api.services.journal_two import public_note_payload as pnp
-    return frozenset(k for k, v in pnp.EXAMPLE_OVERRIDES.items() if v == "drop" and k != "link")
+    marks = {k for k, v in pnp.NODE_POLICY.items() if v.get("gallery") in ("mark", "link-mark")}
+    dropped = {k for k, v in pnp.EXAMPLE_OVERRIDES.items() if v == "drop"}
+    link_marks = {k for k, v in pnp.NODE_POLICY.items() if v.get("gallery") == "link-mark"}
+    return frozenset(dropped - marks), frozenset((dropped & marks) | link_marks)
+
+
+def _address_nodes() -> frozenset:
+    """The NODE types dropped whole (a link card, a web embed): `_address_rules`'s first half."""
+    return _address_rules()[0]
+
+
+_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:(//)?", re.I)
+_URLISH = re.compile(r"^(?:[a-z][a-z0-9+.-]*://\S+|www\.\S+|mailto:\S+|[^\s@/]+@[^\s@/]+\.[a-z]{2,}"
+                     r"|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[/:?#]\S*)?)$", re.I)
+
+
+def _bare_address(text: str) -> str:
+    """An address normalised for comparison (ruling W11-R40): scheme, `www.`, a trailing slash and case removed."""
+    t = _SCHEME.sub("", text.strip().lower())
+    if t.startswith("www."):
+        t = t[4:]
+    return t.rstrip("/")
+
+
+def _text_is_its_address(text: Any, hrefs: list) -> bool:
+    """Ruling W11-R40: a link's visible text IS its address -- it equals one of its hrefs once both are normalised
+    (`_bare_address`), or it parses as a URL, a domain or an email on its own (`_URLISH`). An autolinked URL is
+    exactly this."""
+    if not isinstance(text, str) or not text.strip():
+        return False
+    bare = _bare_address(text)
+    if any(isinstance(h, str) and h.strip() and _bare_address(h) == bare for h in hrefs):
+        return True
+    return bool(_URLISH.match(text.strip()))
 
 
 def _without_links(body: Any) -> Any:
     """Ruling W11-R33: a shared template's outline keeps a link's TEXT and drops the link itself (its `href` is the
-    author's own address). Every `link` mark goes, at any depth, and (fix round 3, I-A) every node that carries an
-    address as an attribute -- a link card, a web embed (`_address_nodes`, the example notes' rule) -- goes whole.
-    Nothing else changes. Total."""
-    dropped = _address_nodes()
+    author's own address). Every address MARK goes, at any depth; every node that carries an address as an attribute
+    -- a link card, a web embed -- goes whole (`_address_rules`, the example notes' rule). Ruling W11-R40 (fix round
+    4): a linked text that IS its address (`_text_is_its_address`, an autolinked URL) goes whole, text included.
+    Plain prose that merely contains a URL, with no link mark, is the author's visible text and is unchanged.
+    Total."""
+    nodes, marks = _address_rules()
+
+    def address_text(n: Any) -> bool:
+        if not (isinstance(n, dict) and n.get("type") == "text" and isinstance(n.get("marks"), list)):
+            return False
+        hrefs = [(m.get("attrs") or {}).get("href") for m in n["marks"]
+                 if isinstance(m, dict) and m.get("type") in marks and isinstance(m.get("attrs"), dict)]
+        return bool(hrefs) and _text_is_its_address(n.get("text"), hrefs)
 
     def walk(node: Any) -> Any:
         if isinstance(node, list):
             return [walk(n) for n in node
-                    if not (isinstance(n, dict) and n.get("type") in dropped)]
+                    if not (isinstance(n, dict) and n.get("type") in nodes) and not address_text(n)]
         if not isinstance(node, dict):
             return node
         out = {k: (walk(v) if k == "content" else v) for k, v in node.items()}
         if isinstance(out.get("marks"), list):
-            marks = [m for m in out["marks"] if not (isinstance(m, dict) and m.get("type") == "link")]
-            if marks:
-                out["marks"] = marks
+            kept = [m for m in out["marks"] if not (isinstance(m, dict) and m.get("type") in marks)]
+            if kept:
+                out["marks"] = kept
             else:
                 out.pop("marks")
         return out
-    if isinstance(body, dict) and body.get("type") in dropped:
+    if isinstance(body, dict) and body.get("type") in nodes:
         return {"type": "doc", "content": []}
     return walk(body)
+
+
+def _shared_outline(outline: Any, owner_id: str) -> Any:
+    """THE one path a template outline travels by (fix round 4, I-B): the gallery reducer (`sanitize_body`), then,
+    while wave 11 is on, `_without_links` -- for EVERY template share, slot or no slot, and again when a stored
+    listing is adopted (m4, defence in depth: a row written by hand or before the fix). Wave 11 off: P3a's reduce."""
+    if not outline:
+        return None
+    clean = sanitize_body(outline, owner_id)
+    return _without_links(clean) if notebook_widgets_wave_on(11) else clean
 
 
 def _p3a_blocks(blocks: Any) -> list[dict]:
@@ -1551,8 +1607,7 @@ def _style_share(user_id: str, style_id: Any, conn: sqlite3.Connection, *, edits
         # ⛔ W11-R19: no template slot travels (wave 11 off, or none held) -- `_without_template_slots`, the strip
         # the read side shares for a listing the reducer did not write.
         blocks, outline = _without_template_slots(raw_blocks, outline)
-        payload = {**base, "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
-                   "blocks": _p3a_blocks(blocks)}
+        payload = {**base, "outlineBodyJson": _shared_outline(outline, user_id), "blocks": _p3a_blocks(blocks)}
         return {"payload": payload, "droppedProperties": dropped, "kept": [], "notShared": not_shared,
                 "slots": [], "prefill": prefill, "outlineGone": outline_gone}
     # The slots' own targets: the member's OWN rows only, each read once; a target that is not theirs leaves its
@@ -1596,7 +1651,7 @@ def _style_share(user_id: str, style_id: Any, conn: sqlite3.Connection, *, edits
     blocks = [p3a.get(b["block"], b) if js.slot_family(b["block"]) is None else b for b in shared["blocks"]]
     slot_ids = frozenset(b["block"] for b in blocks if js.slot_family(b["block"]) is not None)
     outline = _without_slot_placeholders(outline, slot_ids) if outline else outline
-    payload = {**base, "outlineBodyJson": _without_links(sanitize_body(outline, user_id)) if outline else None,
+    payload = {**base, "outlineBodyJson": _shared_outline(outline, user_id),
                "blocks": blocks,
                "name": shared["name"], "description": shared["description"],
                "definitions": shared["definitions"], "routines": shared["routines"],
@@ -3099,7 +3154,7 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
                         settings={**({"days": days} if days else {}), **({"fromTemplate": title} if title else {})},
                         source_template_key=tkey, source_gallery_id=row["id"], conn=conn)
                 made_tools[(family, key)] = tool["id"]
-                (reused if had is not None else created)["routines" if family == "routine" else "trackers"].append(
+                (reused if had is not None and had[0] == tool["id"] else created)["routines" if family == "routine" else "trackers"].append(
                     {"id": tool["id"], "name": tool.get("name")})
                 _write_credit(conn, user_id, family, tool["id"], row, version, now, source_key=key,
                               part=_template_part(payload, family, key))
@@ -3169,7 +3224,7 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
         style = js.create_style(user_id, {
             "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
             "kindId": payload["kindId"], "blocks": blocks,
-            "outlineBodyJson": payload["outlineBodyJson"],
+            "outlineBodyJson": _shared_outline(payload["outlineBodyJson"], row["user_id"] or ""),
             "properties": payload["properties"]}, conn,
             provenance=(row["id"], version, json.dumps(_block_ids(payload)),
                         _outline_hash(payload["outlineBodyJson"])),
@@ -3954,12 +4009,7 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
             note = notes_service.get_note(user_id, note_id, conn) if note_id else None
             if note is None:
                 raise GalleryConflict(S_KEY_IN_FLIGHT)
-            copy_id = _newest_copy(conn, user_id, row["id"])
-            return {"note": note, "skipped": [], "replayed": True,
-                    "style": js.served_style(js.get_style(user_id, copy_id, conn), user_id, conn) if copy_id else None,
-                    "credit": _use_credit(conn, user_id, copy_id, row) if copy_id else None,
-                    "created": {"widgets": [], "routines": [], "trackers": []},
-                    "reused": {"routines": [], "trackers": []}}
+            return _use_replay(conn, user_id, row, note)
         _key_remember(conn, user_id, k, "gallery_use_template", row["id"], "")
         reserved = k is not None
         created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
@@ -3984,9 +4034,20 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
             user_id, {**{k_: fields[k_] for k_ in _NOTE_FIELDS if k_ in fields}, "styleId": copy_id, "choices": picks},
             conn)
         if reserved:
-            conn.execute(f"UPDATE {_KEYS_TABLE} SET new_id = ? WHERE user_id = ? AND key = ?", (note["id"], user_id, k))
+            # Fix round 4 (m2): compare-and-set. A request taken over past USE_RESERVATION_STALE_SECS while still
+            # alive, or its taker, loses here: its own note goes to the trash and it answers the winner's.
+            won = conn.execute(f"UPDATE {_KEYS_TABLE} SET new_id = ? WHERE user_id = ? AND key = ? AND new_id = ''",
+                               (note["id"], user_id, k)).rowcount
             conn.commit()
             reserved = False
+            if not won:
+                winner = conn.execute(f"SELECT new_id FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?",
+                                      (user_id, k)).fetchone()
+                winner_note = (notes_service.get_note(user_id, winner[0], conn)
+                               if winner and winner[0] else None)
+                if winner_note is not None:
+                    notes_service.delete_note(user_id, note["id"], conn)
+                    return _use_replay(conn, user_id, row, winner_note)
         # What this Use made: a slot that now names a tool it did not name before, and was not the member's own pick.
         made_now = {bid: tid for bid, tid in _tool_slot_refs(conn, user_id, copy_id).items()
                     if before.get(bid) != tid
@@ -4013,6 +4074,17 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
     finally:
         if owned:
             conn.close()
+
+
+def _use_replay(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, note: dict) -> dict:
+    """A Use's replay answer: the key's first note, with the copy as it is now and nothing made."""
+    from api.services.journal_two import journal_styles as js
+    copy_id = _newest_copy(conn, user_id, row["id"])
+    return {"note": note, "skipped": [], "replayed": True,
+            "style": js.served_style(js.get_style(user_id, copy_id, conn), user_id, conn) if copy_id else None,
+            "credit": _use_credit(conn, user_id, copy_id, row) if copy_id else None,
+            "created": {"widgets": [], "routines": [], "trackers": []},
+            "reused": {"routines": [], "trackers": []}}
 
 
 def _use_credit(conn: sqlite3.Connection, user_id: str, copy_id: str, row: sqlite3.Row) -> str | None:
