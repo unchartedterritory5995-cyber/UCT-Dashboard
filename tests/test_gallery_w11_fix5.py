@@ -100,8 +100,6 @@ ADDRESS_TEXT = [
     ("tel same", [_lt("tel:+15559876543", "tel:+15559876543")], "9876543"),
     ("tel formatted", [_lt("+1 (555) 987-6543", "tel:+15559876543")], "987-6543"),
     ("tel formatted, no plus", [_lt("(555) 987-6543", "tel:+15559876543")], "987-6543"),
-    ("javascript href, url text", [_lt(f"https://{C}.example.com/a", "javascript:alert(1)")], C),
-    ("mark with no attrs, url text", [_lt(f"https://{C}.example.com/a", ...)], C),
     ("data uri", [_lt(f"data:text/plain,{C}", f"data:text/plain,{C}")], C),
     ("split across nodes (bold tail)", [_lt("https://broker.example.com/acct/", f"https://broker.example.com/acct/{C}"),
                                         _lt(C, f"https://broker.example.com/acct/{C}", {"type": "bold"})], C),
@@ -124,7 +122,10 @@ ADDRESS_TEXT = [
     ("ip address", [_lt("10.20.30.40:8443/acct", "https://10.20.30.40:8443/acct")], "10.20.30.40"),
     ("ip bare, href longer", [_lt("10.20.30.40", "https://10.20.30.40:8443/acct/9")], "10.20.30.40"),
     ("path only", [_lt(f"/acct/{C}", f"https://broker.example.com/acct/{C}")], C),
-    ("domain, other href", [_lt(f"{C}.example.com", "https://elsewhere.example.org")], C),
+    # W11-R47: words that appear in their own address go too (the ruling's accepted cost)
+    ("a ticker in its own href", [_lt("AAPL", "https://q.com/AAPL")], "AAPL"),
+    ("a date in its own href", [_lt("2026-10-26", "https://cal.example.com/2026-10-26")], "2026-10-26"),
+    ("a number-only piece of its href", [_lt(C, f"https://broker.example.com/acct/{C}/")], C),
 ]
 
 
@@ -136,14 +137,26 @@ def test_a_link_whose_full_text_is_its_address_goes_whole(db, name, nodes, secre
 
 
 @pytest.mark.parametrize("text,href", [
-    ("my broker", f"https://{C}.x.com"), ("read the filing", "https://sec.gov/x"), ("AAPL", "https://q.com/AAPL"),
-    ("2026-10-26", "https://cal.example.com/2026-10-26"), ("Q3 report", "https://ir.example.com/q3"),
+    ("my broker", f"https://{C}.x.com"), ("read the filing", "https://sec.gov/x"), ("my notes", "https://x.example/a"),
+    ("Q3 report", "https://ir.example.com/q3"),
     ("e.g.", "https://example.com"), ("S&P 500", "https://example.com/spx"),
 ])
 def test_words_that_are_not_an_address_travel(db, text, href):
     """No false positives: link text that is words keeps its words (the href goes, W11-R33)."""
     out = _shared(_lt(text, href))
     assert text in out and href not in out
+
+
+@pytest.mark.parametrize("nodes", [
+    [_lt(f"https://{C}.example.com/a", "javascript:alert(1)")],
+    [_lt(f"https://{C}.example.com/a", ...)],
+    [_lt(f"{C}.example.com", "https://elsewhere.example.org")],
+], ids=["javascript href", "no href", "another address"])
+def test_link_text_that_is_not_its_own_address_travels_as_prose_does(db, nodes):
+    """W11-R47 (superseding the URL-shape forms): a link's text that is NOT in its own href is visible text, exactly
+    like a URL written in plain prose (W11-R40), and travels; only the href goes."""
+    out = _shared(*nodes)
+    assert C in out and "href" not in out
 
 
 def test_a_run_is_judged_whole_and_words_beside_an_address_travel(db):
@@ -155,8 +168,8 @@ def test_a_run_is_judged_whole_and_words_beside_an_address_travel(db):
     assert "my acct " in words and "statement" in words and C not in words
     prose = _shared({"type": "text", "text": f"see https://{C}.example.com/plain"})
     assert f"https://{C}.example.com/plain" in prose
-    # two adjacent links with DIFFERENT hrefs are two runs, judged apart
-    two = _shared(_lt("my broker", "https://a.example.com"), _lt(f"{C}.example.com", "https://b.example.com"))
+    # two adjacent links with DIFFERENT hrefs: the joined run is not an address, so each linked node is judged
+    two = _shared(_lt("my broker", "https://a.example.com"), _lt(f"{C}.example.com", f"https://{C}.example.com"))
     assert "my broker" in two and C not in two
 
 

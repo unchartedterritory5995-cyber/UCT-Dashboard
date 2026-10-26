@@ -52,6 +52,7 @@ here; its tables (community.db) are not used.
 """
 from __future__ import annotations
 
+import bisect
 import hashlib
 import json
 import os
@@ -59,6 +60,7 @@ import re
 import secrets
 import sqlite3
 import unicodedata
+import urllib.parse
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1355,129 +1357,135 @@ def _address_nodes() -> frozenset:
     return _address_rules()[0]
 
 
-_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:(//)?", re.I)
-#: Fix round 5 (m-d), F-NOTE-1 (r5 m-3): what is invisible in the editor is never a reason for an address to read as
-#: prose. EVERY format character (Unicode category Cf: the zero-width characters, the word joiner, the soft hyphen, the
-#: BOM, LRM / RLM and every bidi control, the invisible operators...) is removed before a link's text is judged, by
-#: category and never by a hand list, plus the default-ignorable characters that are not Cf (the combining grapheme
-#: joiner, the variation selectors, the Hangul fillers, the Khmer inherent vowels).
-_IGNORABLE_NOT_CF = frozenset(
-    [0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5, 0x3164, 0xFFA0, *range(0x180B, 0x1810), *range(0xFE00, 0xFE10),
-     *range(0xE0100, 0xE01F0)])
+#: Ruling W11-R46: the published Default_Ignorable_Code_Point set, unassigned (Cn) code points included, as inclusive
+#: ranges. Source: Unicode 16.0.0, DerivedCoreProperties.txt, the `Default_Ignorable_Code_Point` property
+#: (https://www.unicode.org/Public/16.0.0/ucd/DerivedCoreProperties.txt; 16.0.0 is this interpreter's
+#: `unicodedata.unidata_version`). Every one of them is removed from the text a shared outline carries.
+_DEFAULT_IGNORABLE = (
+    (0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5), (0x180B, 0x180F),
+    (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0x3164, 0x3164), (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF),
+    (0xFFA0, 0xFFA0), (0xFFF0, 0xFFF8), (0x1BCA0, 0x1BCA3), (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF),
+)
+_DI_STARTS = [a for a, _ in _DEFAULT_IGNORABLE]
 
 
-def _strip_invisible(text: str) -> str:
-    return "".join(ch for ch in text if unicodedata.category(ch) != "Cf" and ord(ch) not in _IGNORABLE_NOT_CF)
-
-#: The full stops IDNA reads as a label separator (ideographic, fullwidth, halfwidth): an address written with one is
-#: still that address.
-_DOTS = str.maketrans({"。": ".", "．": ".", "｡": "."})
-_WRAP_OPEN = "<([{\"'“‘"
-_WRAP_CLOSE = ">)]}\"'”’.,;:!?"
-_LABEL = r"[^\W_](?:[\w-]*[^\W_])?"                  # a domain label in ANY script (an IDN), never edged by - or _
-_TLD = r"(?:[^\W\d_]{2,}|xn--[a-z0-9-]+)"
-_URLISH = re.compile(
-    r"^(?:[a-z][a-z0-9+.-]*://\S+|www\.\S+|(?:mailto|tel|sms|data|javascript|vbscript|blob|file):\S+"
-    rf"|[^\s@/]+@{_LABEL}(?:\.{_LABEL})*\.{_TLD}"
-    rf"|(?:{_LABEL}\.)+{_TLD}(?:[/:?#]\S*)?"
-    r"|\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:[/?#]\S*)?)$", re.I)
-_PHONE = re.compile(r"^\+?[\d\s().\-]+$")
+def _is_default_ignorable(ch: str) -> bool:
+    i = bisect.bisect_right(_DI_STARTS, ord(ch)) - 1
+    return i >= 0 and ord(ch) <= _DEFAULT_IGNORABLE[i][1]
 
 
-def _normal_text(text: str) -> str:
-    """A link's text as an address reads it (fix round 5, m-d): NFKC, the invisible characters removed, IDNA's full
-    stops read as `.`, wrapping punctuation (`<>`, `()`, `[]`, quotes) and trailing `.,;:!?` trimmed."""
-    t = _strip_invisible(unicodedata.normalize("NFKC", text)).translate(_DOTS).strip()
-    while True:
-        s = t.lstrip(_WRAP_OPEN).rstrip(_WRAP_CLOSE).strip()
-        if s == t:
-            return t
-        t = s
+def _without_ignorables(text: str) -> str:
+    """W11-R46: `text` with every Default_Ignorable_Code_Point removed (the text that travels)."""
+    return "".join(ch for ch in text if not _is_default_ignorable(ch))
 
 
-def _unicode_host(t: str) -> str:
-    """`t` with every punycode label of its host (`xn--...`) read as the Unicode it encodes, so an IDN written in
-    either form compares equal (fix round 5, m-d). A label that does not decode is left as it is."""
-    host = re.match(r"[^/?#]*", t).group(0)
-    labels = []
-    for lab in host.split("."):
-        if lab.startswith("xn--"):
-            try:
-                lab = lab.encode("ascii").decode("idna")
-            except (UnicodeError, ValueError):
-                pass
-        labels.append(lab)
-    return ".".join(labels) + t[len(host):]
+def _skeleton(text: str, *, latin: bool) -> str:
+    """Ruling W11-R47: NFKC, casefold, then only the letters and digits: `[a-z0-9]` (`latin`, the ruling's own
+    skeleton) or every alphanumeric character (so an address written in another script, an IDN, has a skeleton too).
+    Every space, line break, punctuation mark, invisible, combining or blank character is gone by construction."""
+    t = unicodedata.normalize("NFKC", text).casefold()
+    if latin:
+        return "".join(ch for ch in t if "a" <= ch <= "z" or "0" <= ch <= "9")
+    return "".join(ch for ch in t if ch.isalnum())
 
 
-def _bare_address(text: str) -> str:
-    """An address normalised for comparison (ruling W11-R40): `_normal_text`, then scheme, `www.`, a trailing slash
-    and case removed, and the host's punycode read as Unicode."""
-    t = _SCHEME.sub("", _normal_text(text).lower())
-    if t.startswith("www."):
-        t = t[4:]
-    return _unicode_host(t.rstrip("/"))
+_HOST = re.compile(r"^((?:[a-z][a-z0-9+.-]*:)?(?://)?(?:[^@/?#]*@)?)([^/?#:]*)(.*)$", re.I | re.S)
 
 
-def _text_is_its_address(text: Any, hrefs: list) -> bool:
-    """Ruling W11-R40: a link's visible text IS its address. After `_normal_text` it equals one of its hrefs once both
-    are normalised (`_bare_address`, IDN and punycode alike), or it parses as a URL, a domain (in any script), an
-    email, an IP or a `mailto:` / `tel:` / `data:` address on its own (`_URLISH`), or it is an address-shaped piece
-    of its own href (no space, a `.` `/` `@` or `:`, contained in the href: a bare host, an IP, a path), or it is a
-    phone number (seven digits or more, linked to `tel:` / `sms:` or written `+...`). An autolinked URL is exactly
-    this. Fix round 5 (m-d) widened every half; the caller judges a link's FULL text (`_without_links`)."""
+def _href_variants(href: str) -> set[str]:
+    """The spellings one href is the same address in: as written and percent-decoded; its host as written, in
+    Unicode (punycode decoded) and in punycode (IDNA encoded); each with and without a leading `www.`."""
+    out: set[str] = set()
+    for h in {href, urllib.parse.unquote(href)}:
+        m = _HOST.match(h)
+        if not m:
+            out.add(h)
+            continue
+        head, host, rest = m.groups()
+        hosts = {host}
+        for label_fn in (_decode_label, _encode_label):
+            hosts.add(".".join(label_fn(lab) for lab in host.split(".")))
+        for x in list(hosts):
+            hosts.add(x[4:] if x.lower().startswith("www.") else "www." + x)
+        out.update(head + x + rest for x in hosts)
+    return out
+
+
+def _decode_label(lab: str) -> str:
+    if lab.lower().startswith("xn--"):
+        try:
+            return lab.encode("ascii").decode("idna")
+        except (UnicodeError, ValueError):
+            return lab
+    return lab
+
+
+def _encode_label(lab: str) -> str:
+    if lab and not lab.isascii():
+        try:
+            return lab.encode("idna").decode("ascii")
+        except (UnicodeError, ValueError):
+            return lab
+    return lab
+
+
+def _text_in_address(text: Any, hrefs: list) -> bool:
+    """⛔ THE one authority for "this link text is its address" (ruling W11-R47, which supersedes the form-by-form
+    detection of W11-R40, fix round 5 and F-NOTE-1): the text's skeleton (`_skeleton`) is non-empty and is a
+    substring of the skeleton of one of `hrefs` (in any of its spellings, `_href_variants`). It is judged on both
+    skeletons, the ruling's `[a-z0-9]` one and the every-script one, and either is enough. A line break, a space, a
+    zero-width or combining character, a blank, a bracket or a full stop inside the text therefore cannot hide the
+    address: none of them is in a skeleton. A link with no href has no address to be (its text travels, as prose
+    does). Cost, accepted by the ruling: words that appear in their own address ("Docs" -> docs.python.org) go."""
     if not isinstance(text, str):
         return False
-    t = _normal_text(text)
-    if not t:
+    variants = [v for h in hrefs if isinstance(h, str) and h.strip() for v in _href_variants(h)]
+    if not variants:
         return False
-    bare = _bare_address(t)
-    linked = [h for h in hrefs if isinstance(h, str) and h.strip()]
-    bare_hrefs = [_bare_address(h) for h in linked]
-    if bare in bare_hrefs or _URLISH.match(t):
-        return True
-    if bare and not re.search(r"\s", t) and re.search(r"[./@:]", t) and any(bare in b for b in bare_hrefs):
-        return True
-    phone_href = any(h.strip().lower().startswith(("tel:", "sms:")) for h in linked)
-    return (len(re.sub(r"\D", "", t)) >= 7 and bool(_PHONE.match(t))
-            and (phone_href or t.startswith("+")))
+    for latin in (True, False):
+        t = _skeleton(text, latin=latin)
+        if t and any(t in _skeleton(v, latin=latin) for v in variants):
+            return True
+    return False
 
 
 def _without_links(body: Any) -> Any:
     """Ruling W11-R33: a shared template's outline keeps a link's TEXT and drops the link itself (its `href` is the
     author's own address). Every address MARK goes, at any depth; every node that carries an address as an attribute
-    -- a link card, a web embed -- goes whole (`_address_rules`, the example notes' rule). Ruling W11-R40 (fix round
-    4): a linked text that IS its address (`_text_is_its_address`, an autolinked URL) goes whole, text included.
-    Fix round 5 (m-d): "a link" is the RUN of adjacent text nodes carrying the same address marks (the editor splits
-    a link at every other mark change, so a bold part of an autolinked URL is its own node): the run's JOINED text is
-    judged and the whole run goes; a node whose own text is an address goes too. F-NOTE-1 (r5 m-3): two marks are the
-    same link when their hrefs are equal once normalised (`_bare_address`: scheme, case, a trailing slash), and a line
-    break between two parts of one link joins them (it adds no text). Plain prose that merely contains a URL, with no
-    link mark, is the author's visible text and is unchanged.
+    -- a link card, a web embed -- goes whole (`_address_rules`, the example notes' rule).
+
+    Ruling W11-R47: a linked text that is its own address (`_text_in_address`) goes whole, text included. "A link" is
+    one text node carrying an address mark, or the RUN of adjacent ones (any hrefs), joined across the node breaks
+    between them, a `hardBreak` and a text node with nothing but spaces, line breaks or punctuation in it. Each linked
+    part is judged against EVERY href in the run (which is the joined text's judgement, see below), and a run whose
+    linked parts all go loses its joiners too. Plain prose that merely contains a URL, with no link mark, is the
+    author's visible text and is unchanged. Ruling W11-R46: every text that travels has its Default_Ignorable_Code_Point
+    characters removed (`_without_ignorables`); a text node left empty goes.
 
     ⛔ It runs on the RAW outline, BEFORE the gallery reducer (`_shared_outline`, fix round 5, I-1): the reducer
     unlinks a link it will not keep (an email in the query, a quote, a `tel:` / `data:` href...) and leaves its text
     as plain prose, which this rule could then no longer see. Total; it only ever removes."""
     nodes, marks = _address_rules()
 
-    def link_key(n: Any) -> tuple | None:
-        """A text node's address marks as a comparable key (`(type, href)` pairs), or None when it carries none."""
-        if not (isinstance(n, dict) and n.get("type") == "text" and isinstance(n.get("marks"), list)):
-            return None
-        found = [m for m in n["marks"] if isinstance(m, dict) and m.get("type") in marks]
-        if not found:
-            return None
-        def href_key(m: dict) -> str:
-            h = (m.get("attrs") or {}).get("href") if isinstance(m.get("attrs"), dict) else None
-            return json.dumps(_bare_address(h) if isinstance(h, str) else h)
-        return tuple(sorted((str(m.get("type")), href_key(m)) for m in found))
-
-    def is_break(n: Any) -> bool:
-        return isinstance(n, dict) and n.get("type") == "hardBreak"
-
-    def hrefs_of(n: dict) -> list:
-        return [(m.get("attrs") or {}).get("href") for m in (n.get("marks") if isinstance(n.get("marks"), list) else [])
+    def hrefs_of(n: Any) -> list:
+        ms = n.get("marks") if isinstance(n, dict) and isinstance(n.get("marks"), list) else []
+        return [(m.get("attrs") or {}).get("href") for m in ms
                 if isinstance(m, dict) and m.get("type") in marks and isinstance(m.get("attrs"), dict)]
+
+    def is_link(n: Any) -> bool:
+        return (isinstance(n, dict) and n.get("type") == "text" and isinstance(n.get("marks"), list)
+                and any(isinstance(m, dict) and m.get("type") in marks for m in n["marks"]))
+
+    def is_joiner(n: Any) -> bool:
+        if not isinstance(n, dict):
+            return False
+        if n.get("type") == "hardBreak":
+            return True
+        return (n.get("type") == "text" and isinstance(n.get("text"), str) and not is_link(n)
+                and not _skeleton(n["text"], latin=False))
+
+    def text_of(n: Any) -> str:
+        return n.get("text") if isinstance(n, dict) and isinstance(n.get("text"), str) else ""
 
     def kept_children(items: list) -> list:
         out, i = [], 0
@@ -1486,36 +1494,42 @@ def _without_links(body: Any) -> Any:
             if isinstance(n, dict) and n.get("type") in nodes:
                 i += 1
                 continue
-            key = link_key(n)
-            if key is None:
+            if not is_link(n):
                 out.append(n)
                 i += 1
                 continue
-            j = i
+            j = i + 1
             while j < len(items):
-                if link_key(items[j]) == key:
+                if is_link(items[j]):
                     j += 1
                     continue
                 k = j
-                while k < len(items) and is_break(items[k]):
+                while k < len(items) and is_joiner(items[k]):
                     k += 1
-                if k == j or k >= len(items) or link_key(items[k]) != key:
+                if k == j or k >= len(items) or not is_link(items[k]):
                     break
-                j = k                                        # a line break inside one link joins its parts
+                j = k                                    # a break between two linked parts joins them
             run = items[i:j]
-            joined = "".join(x.get("text") if isinstance(x.get("text"), str) else "" for x in run)
             hrefs = [h for x in run for h in hrefs_of(x)]
-            if not _text_is_its_address(joined, hrefs):
-                out.extend(x for x in run if not _text_is_its_address(x.get("text"), hrefs_of(x)))
+            # The run's JOINED text is in an href's skeleton exactly when every linked part's is (a joiner adds
+            # nothing to a skeleton), so judging each linked part against the run's hrefs is that judgement and a
+            # little more: a part that is in ANOTHER part's address goes too. A run left with no linked part loses
+            # its joiners with it.
+            kept = [x for x in run if not (is_link(x) and _text_in_address(text_of(x), hrefs))]
+            if any(is_link(x) for x in kept):
+                out.extend(kept)
             i = j
         return out
 
     def walk(node: Any) -> Any:
         if isinstance(node, list):
-            return [walk(n) for n in kept_children(node)]
+            walked = [walk(n) for n in kept_children(node)]
+            return [w for w in walked if not (isinstance(w, dict) and w.get("type") == "text" and w.get("text") == "")]
         if not isinstance(node, dict):
             return node
         out = {k: (walk(v) if k == "content" else v) for k, v in node.items()}
+        if out.get("type") == "text" and isinstance(out.get("text"), str):
+            out["text"] = _without_ignorables(out["text"])
         if isinstance(out.get("marks"), list):
             kept = [m for m in out["marks"] if not (isinstance(m, dict) and m.get("type") in marks)]
             if kept:

@@ -22,7 +22,8 @@ from api.services.journal_two import journal_styles as js
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two import template_gallery as gallery
 from tests._gallery_w11_helpers import (  # noqa: F401 -- db is a fixture
-    AUTHOR, MEMBER, OTHER, built, db, heading, list_template, list_tool, para, routine, style, waves, widget, ALL_WAVES,
+    AUTHOR, MEMBER, OTHER, approve, built, db, heading, list_template, list_tool, para, routine, style, waves, widget,
+    ALL_WAVES,
 )
 
 TOOL_CHOICES = {"routine_a": {"create": True}}
@@ -199,6 +200,34 @@ def test_a_guarded_create_rolls_back_its_own_transaction_on_any_exception(db, to
             c.rollback()
         c.close()
     assert res == {"in_tx": False, "notes": n0, "others_can_write": True}
+
+
+@pytest.mark.parametrize("guarded", [True, False], ids=["guarded", "unguarded"])
+@pytest.mark.parametrize("exc", [RuntimeError("read failed"), Boom()], ids=["Exception", "BaseException"])
+def test_path1_never_holds_the_lock_outside_the_try_that_rolls_back(db, monkeypatch, exc, guarded, path_seen):
+    """F-NOTE-1 review m-1, ported (`rfn1_conc.py`): on path 1 the style is re-read UNDER the create's lock. That read
+    raising (any exception) on a caller-supplied connection leaves no transaction open and others able to write."""
+    sid, choices = _guarded_style(db, True)
+    real, raised = js.get_style, []
+
+    def get_style(*a, **kw):
+        c = a[2] if len(a) > 2 else kw.get("conn")
+        if c is not None and c.in_transaction and not raised:
+            raised.append(1)
+            raise exc
+        return real(*a, **kw)
+    monkeypatch.setattr(js, "get_style", get_style)
+    c = auth_db.get_connection()
+    kw = {"before_insert": lambda conn: None} if guarded else {}
+    try:
+        with pytest.raises(type(exc)):
+            js.create_styled_note(MEMBER, {"styleId": sid, "choices": choices}, c, **kw)
+        res = {"raised": bool(raised), "in_tx": c.in_transaction, "others_can_write": _can_write(auth_db._DB_PATH)}
+    finally:
+        if c.in_transaction:
+            c.rollback()
+        c.close()
+    assert res == {"raised": True, "in_tx": False, "others_can_write": True}
 
 
 @pytest.mark.parametrize("tools", [False, True], ids=["path2", "path1"])
@@ -455,7 +484,7 @@ def test_get_item_with_wave_11_off_is_byte_identical_to_before_task_11_8(db, mon
     assert "99887766" not in live_on[(g_p3a, MEMBER)]
 
 
-# ── r5 m-3: the last address forms, on every share path ────────────────────────────────────────────────────────────
+# ── W11-R47: ONE skeleton comparison closes every address form, on every share path ───────────────────────────────
 
 ACCT, HOST = "99887766", "broker.example.com"
 URL = f"https://{HOST}/acct/{ACCT}"
@@ -466,48 +495,153 @@ def _lk(text, href=URL, *more):
     return {"type": "text", "text": text, "marks": [{"type": "link", "attrs": {"href": href}}, *more]}
 
 
-#: The reviewer's r5 leaking forms (`r118e_address.py`), each of which carried the account number into the listing.
-#: The invisible ones are written as escapes: every one is a format (Cf) or default-ignorable character.
-LAST_FORMS = {
+#: Every leaking form found so far, each of which carried the account number into a share: the r5 review's
+#: (`r118e_address.py`), W11-R45's split autolink piece, and F-NOTE-1's review (`rfn1_paths.py`, `rfn1_forms.py`: a
+#: line-break character INSIDE one text node, a visible blank, a combining mark, U+2065). Written as escapes.
+ADDRESS_FORMS = {
     "LRM in the host": [_lk(f"broker‎.example.com/acct/{ACCT}")],
     "RLM in the host": [_lk(f"broker‏.example.com/acct/{ACCT}")],
     "RLO in the host": [_lk(f"broker‮.example.com/acct/{ACCT}")],
     "LRI/PDI wrapping": [_lk(f"⁦{HOST}/acct/{ACCT}⁩")],
     "invisible times in the host": [_lk(f"broker⁢.example.com/acct/{ACCT}")],
     "combining grapheme joiner in the host": [_lk(f"broker͏.example.com/acct/{ACCT}")],
-    "a line break inside the link": [_lk(f"https://{HOST}/acct/"), {"type": "hardBreak"}, _lk(ACCT)],
+    "unassigned U+2065 in the host": [_lk(f"broker⁥.example.com/acct/{ACCT}")],
+    "a hardBreak inside the link": [_lk(f"https://{HOST}/acct/"), {"type": "hardBreak"}, _lk(ACCT)],
+    "two hardBreaks inside the link": [_lk(f"https://{HOST}/acct/"), {"type": "hardBreak"}, {"type": "hardBreak"},
+                                       _lk(ACCT)],
     "hrefs differ only by a trailing slash": [_lk(f"https://{HOST}/acct/"), _lk(ACCT, URL + "/", BOLD)],
     "hrefs differ only by case": [_lk(f"https://{HOST}/acct/"), _lk(ACCT, URL.upper(), BOLD)],
     "hrefs differ only by scheme": [_lk(f"https://{HOST}/acct/"), _lk(ACCT, URL.replace("https:", "http:"), BOLD)],
+    "R45: a split piece in its own longer href": [_lk(f"https://{HOST}/acct/", f"https://{HOST}/acct/"),
+                                                  _lk(ACCT, f"https://{HOST}/acct/{ACCT}/", BOLD)],
+    "LF inside one text node": [_lk(f"https://{HOST}/acct/\n{ACCT}")],
+    "CRLF inside one text node": [_lk(f"https://{HOST}/acct/\r\n{ACCT}")],
+    "U+2028 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
+    "U+2029 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
+    "TAB inside one text node": [_lk(f"https://{HOST}/acct/\t{ACCT}")],
+    "ideographic space inside": [_lk(f"https://{HOST}/acct/　{ACCT}")],
+    "LF inside the bare host form": [_lk(f"{HOST}/acct/\n{ACCT}")],
+    "LF inside the host": [_lk(f"broker.example\n.com/acct/{ACCT}")],
+    "braille blank in the host": [_lk(f"broker⠀.example.com/acct/{ACCT}")],
+    "combining low line in the host": [_lk(f"broker̲.example.com/acct/{ACCT}")],
+    "number only, linked": [_lk(ACCT)],
+    "fullwidth letters in the host": [_lk("\uff42\uff52\uff4f\uff4b\uff45\uff52.example.com/acct/" + ACCT)],
+    "a stray accented letter in the host": [_lk(f"broker\u00e9.example.com/acct/{ACCT}")],
+    "a piece its own href lacks, beside one that holds it": [_lk(f"https://{HOST}/acct/", f"https://{HOST}/acct/"),
+                                                             _lk(ACCT, f"https://{HOST}/acct/", BOLD),
+                                                             _lk(".", URL)],
+    "a whitespace text node between the parts": [_lk(f"https://{HOST}/acct/"), {"type": "text", "text": " \n "},
+                                                  _lk(ACCT)],
 }
 
 
-@pytest.mark.parametrize("slot", [True, False], ids=["slot", "noslot"])
-@pytest.mark.parametrize("name", list(LAST_FORMS))
-def test_the_last_address_forms_never_reach_the_listing_or_the_copy(db, name, slot):
-    """F-NOTE-1 (r5 m-3, ruling W11-R40): each form, on a slot template and a no-slot one. Neither the account number
-    nor the broker's host reaches `payload_json`, `body_json` or the adopter's copy; the words beside it travel.
-    Control: the author's own style still holds the account number (the share removed it, not the setup)."""
+def _leaks(blob) -> list:
+    s = blob if isinstance(blob, str) else json.dumps(blob, default=str, ensure_ascii=False)
+    return [x for x in (ACCT, HOST, "broker") if x in s]
+
+
+def _every_share_path(db, content, slot):
+    """Share one outline paragraph through EVERY path and return what each answer or row holds: the share preview,
+    the listing's `payload_json` / `body_json` / `preview_json`, `list_gallery`, `get_item`, the adopt answer and the
+    adopter's copy, and a Use note's `body_json || body_plain`."""
     w = widget(db)
-    head = [heading("Plan")] + ([para("{{block:built_a}}")] if slot else [])
-    outline = {"type": "doc", "content": head + [
-        {"type": "paragraph", "content": LAST_FORMS[name] + [{"type": "text", "text": " my statement"}]}]}
+    head = [heading("Plan")] + ([para("{{block:built_a}}")] if slot else []) + [para("stays")]
+    outline = {"type": "doc", "content": head + [{"type": "paragraph", "content": content}]}
     s = style(db, blocks=[built("a", w["id"])] if slot else [], outline=outline)
-    assert ACCT in json.dumps(js.get_style(AUTHOR, s["id"], db, full=True)["outlineBodyJson"])
-    gid = list_template(db, s["id"], title=f"F{int(slot)}")
-    payload, body = db.execute("SELECT payload_json, body_json FROM j2_template_gallery WHERE id = ?",
-                               (gid,)).fetchone()
+    got = {"share_preview": gallery.share_preview(AUTHOR, "template", s["id"], conn=db)}
+    gid = gallery.publish_style(AUTHOR, s["id"], title="T", description="", category="journal", trading_style=None,
+                                conn=db)["id"]
+    row = db.execute("SELECT payload_json, body_json, preview_json FROM j2_template_gallery WHERE id = ?",
+                     (gid,)).fetchone()
+    got.update(payload_json=row[0] or "", body_json=row[1] or "", preview_json=row[2] or "")
+    approve(db, gid)
+    got["list_gallery"] = gallery.list_gallery(MEMBER, conn=db)
+    got["get_item"] = gallery.get_item(MEMBER, gid, conn=db)
     ad = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, key=str(uuid.uuid4()), conn=db)
-    copy = json.dumps(js.get_style(MEMBER, ad["style"]["id"], db, full=True), ensure_ascii=False)
-    for where, blob in (("payload_json", payload), ("body_json", body), ("copy", copy)):
-        assert blob and ACCT not in blob and HOST not in blob, (name, where)
-    assert "my statement" in payload and "my statement" in copy
+    got["adopt"] = ad
+    got["copy"] = js.get_style(MEMBER, ad["style"]["id"], db, full=True)
+    u = gallery.use_library_template(OTHER, gid, payload={}, key=str(uuid.uuid4()), conn=db,
+                                     answers={"p1": "Flag"} if slot else None)
+    got["use_note"] = db.execute("SELECT body_json || body_plain FROM j2_notes WHERE id = ?",
+                                 (u["note"]["id"],)).fetchone()[0]
+    return s, got
+
+
+@pytest.mark.parametrize("slot", [True, False], ids=["slot", "noslot"])
+@pytest.mark.parametrize("name", list(ADDRESS_FORMS))
+def test_no_address_form_reaches_any_share_path(db, name, slot):
+    """W11-R47 (closing r5 m-3, R45 and the F-NOTE-1 review's I-1 and m-2): each form, on a slot template and a
+    no-slot one. Neither the account number nor the broker's host reaches any share path; the words beside it
+    travel. Control: the author's own style still holds the account number (the share removed it)."""
+    s, got = _every_share_path(db, ADDRESS_FORMS[name] + [{"type": "text", "text": " my statement"}], slot)
+    assert ACCT in json.dumps(js.get_style(AUTHOR, s["id"], db, full=True)["outlineBodyJson"])
+    bad = {k: _leaks(v) for k, v in got.items() if _leaks(v)}
+    assert not bad, (name, ascii(bad))
+    assert "my statement" in got["payload_json"] and "my statement" in json.dumps(got["copy"])
+
+
+@pytest.mark.parametrize("slot", [True, False], ids=["slot", "noslot"])
+def test_a_link_whose_text_is_not_in_its_address_travels_as_text(db, slot):
+    """The control W11-R47 names: "my notes" linked to https://x.example/a is not its address, so its words reach
+    every path (only the href goes)."""
+    _s, got = _every_share_path(db, [_lk("my notes", "https://x.example/a")], slot)
+    for where in ("payload_json", "body_json", "get_item", "adopt", "copy", "use_note"):
+        blob = got[where] if isinstance(got[where], str) else json.dumps(got[where], default=str)
+        assert "my notes" in blob and "x.example" not in blob, where
 
 
 def test_a_line_break_between_two_different_links_does_not_join_them(db):
-    """The join is for ONE link: a line break between two links to different places leaves each judged alone, so a
-    plain-word link beside an address link keeps its words."""
+    """A plain-word link beside an address link keeps its words: the joined run is not an address, so each linked
+    node is judged alone."""
     out = json.dumps(gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
         _lk("my broker", "https://elsewhere.example.org/"), {"type": "hardBreak"},
         _lk(f"https://{HOST}/acct/")]}]}, AUTHOR))
     assert "my broker" in out and HOST not in out
+
+
+def test_the_skeleton_is_the_one_authority(db):
+    """W11-R47: the hand lists it replaced are gone, and the one comparison reads both skeletons and every spelling
+    of the href (Unicode and punycode host, `www.`, percent-encoding)."""
+    for gone in ("_text_is_its_address", "_normal_text", "_bare_address", "_URLISH", "_PHONE", "_DOTS",
+                 "_WRAP_OPEN", "_IGNORABLE_NOT_CF", "_strip_invisible"):
+        assert not hasattr(gallery, gone), gone
+    yes = (("bücher.de/x", ["https://xn--bcher-kva.de/x"]), ("xn--bcher-kva.de", ["https://bücher.de"]),
+           ("пример.рф", ["https://xn--e1afmkfd.xn--p1ai/a"]),
+           ("www.example.com", ["https://example.com"]), ("bücher", ["https://x.com/b%C3%BCcher"]),
+           ("+1 (555) 987-6543", ["tel:+15559876543"]), ("me@x.io", ["mailto:me@x.io"]))
+    for text, hrefs in yes:
+        assert gallery._text_in_address(text, hrefs), ascii(text)
+    for text, hrefs in (("my notes", ["https://x.example/a"]), ("anything", []), ("⠀​", [URL]),
+                        ("документы", ["https://docs.example.com/"])):
+        assert not gallery._text_in_address(text, hrefs), ascii(text)
+
+
+# ── W11-R46: text that travels carries no Default_Ignorable_Code_Point ─────────────────────────────────────────────
+
+#: Spot members of Unicode 16.0's Default_Ignorable_Code_Point (DerivedCoreProperties.txt), Cn ones included, and
+#: neighbours that are NOT members.
+DI_MEMBERS = [0x00AD, 0x034F, 0x061C, 0x115F, 0x17B4, 0x180B, 0x180E, 0x180F, 0x200B, 0x200D, 0x200E, 0x202A,
+              0x2060, 0x2065, 0x206F, 0x3164, 0xFE00, 0xFE0F, 0xFEFF, 0xFFA0, 0xFFF0, 0xFFF8, 0x1BCA0, 0x1D173,
+              0xE0000, 0xE0001, 0xE0041, 0xE01EF, 0xE0FFF]
+DI_NOT = [0x0020, 0x00A0, 0x00AC, 0x0600, 0x200A, 0x2028, 0x2070, 0x2800, 0x3000, 0xFFF9, 0xFFFC, 0x1D172, 0xE1000,
+          ord("a")]
+
+
+def test_the_default_ignorable_table_matches_the_published_set():
+    for cp in DI_MEMBERS:
+        assert gallery._is_default_ignorable(chr(cp)), hex(cp)
+    for cp in DI_NOT:
+        assert not gallery._is_default_ignorable(chr(cp)), hex(cp)
+
+
+@pytest.mark.parametrize("cp", DI_MEMBERS, ids=[hex(c) for c in DI_MEMBERS])
+def test_text_that_travels_has_every_default_ignorable_removed(db, cp):
+    """Prose that travels (no link) arrives without the character; a text node made only of it goes."""
+    ch = chr(cp)
+    out = gallery._shared_outline({"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": f"keep{ch} these{ch} words"}]},
+        {"type": "paragraph", "content": [{"type": "text", "text": "a"}, {"type": "text", "text": ch * 2,
+                                                                          "marks": [{"type": "bold"}]}]}]}, AUTHOR)
+    blob = json.dumps(out, ensure_ascii=False)
+    assert "keep these words" in blob and ch not in blob
+    assert out["content"][1]["content"] == [{"type": "text", "text": "a"}]

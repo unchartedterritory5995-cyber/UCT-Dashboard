@@ -530,13 +530,13 @@ def test_a_no_slot_template_takes_the_same_address_path(db):
 
 
 def test_a_link_whose_text_is_its_address_goes_whole(db):
-    """I-C (ruling W11-R40): an autolinked URL -- linked text that IS its address, by normalised equality or because
-    it parses as a URL, domain or email -- is dropped, text included. Other link text travels; a URL written in
+    """I-C (ruling W11-R40, W11-R47): an autolinked URL -- linked text that IS its address (its skeleton is in its own
+    href's) -- is dropped, text included. Other link text travels; a URL written in
     plain prose with no link mark is the author's visible text and travels unchanged."""
     w = widget(db)
     gone = [_link(f"https://{CANARY}.example.com/acct/123", f"https://{CANARY}.example.com/acct/123"),
             _link(f"WWW.{CANARY}.example.com/", f"http://{CANARY}.example.com"),
-            _link(f"{CANARY}.example.com", "https://elsewhere.example.org"),
+            _link(f"{CANARY}.example.com", f"https://www.{CANARY}.example.com/acct"),
             _link(f"me@{CANARY}.com", f"mailto:me@{CANARY}.com")]
     outline = {"type": "doc", "content": [
         heading("Plan"), para("{{block:built_a}}"),
@@ -551,9 +551,12 @@ def test_a_link_whose_text_is_its_address_goes_whole(db):
         assert CANARY not in payload.lower()
         assert all(f" kept{i}" in payload for i in range(len(gone)))       # only the address text went
         assert "my broker" in payload and "https://prose.example.com/plain" in payload
+    # W11-R47: "is its address" is ONE skeleton comparison against the link's own href; a link with no href has no
+    # address to be, so its text travels as prose does.
     for text, hrefs, want in (("Example.com/", ["https://www.example.com"], True), ("my broker", ["https://a.b"], False),
-                              ("https://a.b/c", [], True), ("read this", [], False), ("x@y.io", [], True)):
-        assert gallery._text_is_its_address(text, hrefs) is want, text
+                              ("https://a.b/c", [], False), ("read this", [], False), ("x@y.io", [], False),
+                              ("x@y.io", ["mailto:x@y.io"], True)):
+        assert gallery._text_in_address(text, hrefs) is want, text
 
 
 def test_a_stored_outline_is_cleaned_again_on_adopt(db):

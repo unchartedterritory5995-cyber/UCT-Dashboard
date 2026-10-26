@@ -2461,24 +2461,26 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
             # A style whose version moved while composing is composed again, once; past that the last body is used
             # and only its tool slots, cheap, are taken from the style under the lock. The lock is never held
             # across a built-slot run or any engine call (the 2026-07-01 auth.db outage class).
-            composed_from = style
-            current = style
-            for attempt in range(STYLE_COMPOSE_TRIES):
-                composed = compose(user_id, composed_from, ticker=ticker, conn=conn, mode="create",
-                                   after_build=prefill, now=now, note_day=note_day, answers=answers,
-                                   choices=choices, tools_later=True)
-                _lock_for_style(conn)
-                began = True
-                current = get_style(user_id, style["id"], conn)
-                if current is None:
-                    conn.rollback()
-                    raise StyleNotFound(style_id)
-                if current["version"] == composed_from["version"] or attempt == STYLE_COMPOSE_TRIES - 1:
-                    break
-                conn.rollback()                              # never compose while holding the lock
-                began = False
-                composed_from = current
             try:
+                # F-NOTE-1 fix round 1 (m-1): the lock, the re-read under it and everything after are inside the
+                # ONE try that rolls back, so no exception (a BaseException included) can leave the lock held.
+                composed_from = style
+                current = style
+                for attempt in range(STYLE_COMPOSE_TRIES):
+                    composed = compose(user_id, composed_from, ticker=ticker, conn=conn, mode="create",
+                                       after_build=prefill, now=now, note_day=note_day, answers=answers,
+                                       choices=choices, tools_later=True)
+                    _lock_for_style(conn)
+                    began = True
+                    current = get_style(user_id, style["id"], conn)
+                    if current is None:
+                        conn.rollback()
+                        raise StyleNotFound(style_id)
+                    if current["version"] == composed_from["version"] or attempt == STYLE_COMPOSE_TRIES - 1:
+                        break
+                    conn.rollback()                              # never compose while holding the lock
+                    began = False
+                    composed_from = current
                 ctx = {"user_id": user_id, "conn": conn, "now": now, "note_day": note_day, "fill_widgets": True,
                        "choices": dict(choices or {}), "answers": dict(answers or {}), "tool_answers": True,
                        "inline_routines": {}, "inline_trackers": {}, "definitions": {}, "defs": {}, "tools": {},
