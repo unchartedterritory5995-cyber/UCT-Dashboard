@@ -292,6 +292,8 @@ BREAKS = [
         dict(copy.deepcopy(_row(d, "morning-routine")), seedKey="uct-template-morning-routine-v2")))),
     ("a retired key that is no row", "uct-template-nothing-v1", _break(lambda d: d.update(
         retired=["uct-template-nothing-v1"]))),
+    ("a retired row with no newer row", "uct-template-morning-routine-v1", _break(lambda d: d.update(
+        retired=["uct-template-morning-routine-v1"]))),
 ]
 
 
@@ -375,6 +377,9 @@ def test_a_broken_seed_boots_and_every_read_keeps_working(db, broken_seed, capsy
     out = capsys.readouterr().out
     assert "ERROR" in out and "uct-template-morning-routine-v1" in out
     assert _official(db) == []
+    st = tl.library_state()                                                   # never raises: the error is state
+    assert st.error and "uct-template-morning-routine-v1" in st.error and st.rows == () and st.retired == ()
+    assert tl.seed_template_library(db) == 0 and tl.rows() == [] and tl.live_rows() == []
     assert gallery.list_gallery(MEMBER, group="habits", conn=db) == []
     assert gallery.list_gallery(MEMBER, conn=db) is not None                  # the other rows still list
     with pytest.raises(gallery.GalleryError):
