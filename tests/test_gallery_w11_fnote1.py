@@ -532,6 +532,10 @@ ADDRESS_FORMS = {
                                                              _lk(".", URL)],
     "a whitespace text node between the parts": [_lk(f"https://{HOST}/acct/"), {"type": "text", "text": " \n "},
                                                   _lk(ACCT)],
+    "a fullwidth letter inside the host": [_lk(f"broｋer.example.com/acct/{ACCT}")],
+    "the holder before a break, the lacking piece after it": [_lk(f"https://{HOST}/acct/", URL),
+                                                              {"type": "hardBreak"},
+                                                              _lk(ACCT, f"https://{HOST}/acct/", BOLD)],
 }
 
 
@@ -599,6 +603,23 @@ def test_a_line_break_between_two_different_links_does_not_join_them(db):
     assert "my broker" in out and HOST not in out
 
 
+def test_the_skeleton_is_nfkc_casefold_letters_and_digits():
+    """W11-R47's skeleton, exactly: NFKC, casefold, then only `[a-z0-9]` (the ruling's) or only alphanumerics (every
+    script). A fullwidth letter folds, capitals fold, and every space, line break, mark, blank and punctuation goes."""
+    s = "ＡB\n c d̲e⠀f.-_g9é　h\t​i"
+    assert gallery._skeleton(s, latin=True) == "abcdefg9hi"
+    assert gallery._skeleton(s, latin=False) == "abcdefg9éhi"
+
+
+def test_a_run_whose_linked_parts_all_go_takes_its_blank_joiners_with_it(db):
+    """A blank text node between two linked parts of one address is part of that link: it goes with them, and the
+    words after it stay exactly as written."""
+    out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
+        _lk(f"https://{HOST}/acct/"), {"type": "text", "text": " \n "}, _lk(ACCT),
+        {"type": "text", "text": " my statement"}]}]}, AUTHOR)
+    assert out["content"][0]["content"] == [{"type": "text", "text": " my statement"}]
+
+
 def test_the_skeleton_is_the_one_authority(db):
     """W11-R47: the hand lists it replaced are gone, and the one comparison reads both skeletons and every spelling
     of the href (Unicode and punycode host, `www.`, percent-encoding)."""
@@ -608,7 +629,8 @@ def test_the_skeleton_is_the_one_authority(db):
     yes = (("bücher.de/x", ["https://xn--bcher-kva.de/x"]), ("xn--bcher-kva.de", ["https://bücher.de"]),
            ("пример.рф", ["https://xn--e1afmkfd.xn--p1ai/a"]),
            ("www.example.com", ["https://example.com"]), ("bücher", ["https://x.com/b%C3%BCcher"]),
-           ("+1 (555) 987-6543", ["tel:+15559876543"]), ("me@x.io", ["mailto:me@x.io"]))
+           ("+1 (555) 987-6543", ["tel:+15559876543"]), ("me@x.io", ["mailto:me@x.io"]),
+           ("BROKER.EXAMPLE.COM", [URL]))
     for text, hrefs in yes:
         assert gallery._text_in_address(text, hrefs), ascii(text)
     for text, hrefs in (("my notes", ["https://x.example/a"]), ("anything", []), ("⠀​", [URL]),
