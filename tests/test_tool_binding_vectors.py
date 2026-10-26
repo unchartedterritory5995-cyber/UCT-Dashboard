@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from api.services import session_calendar
 from api.services.journal_two import tool_binding as tb
 
 VECTORS = json.loads(
@@ -26,6 +27,10 @@ def test_vector_file_is_version_one_and_lf():
 
 @pytest.mark.parametrize("case", VECTORS["bind"], ids=_id)
 def test_bind_vectors(case):
+    if case.get("raises"):
+        with pytest.raises(ValueError):
+            tb.bind_day(case["note_day"], case["bind"])
+        return
     assert tb.bind_day(case["note_day"], case["bind"]) == case["expected"], case["why"]
 
 
@@ -63,3 +68,11 @@ def test_every_bind_appears_in_three_vectors():
         binds = {c["bind"] for c in VECTORS[section]}
         assert "week" in binds and binds - {"week"}, section
     assert {c["kind"] for c in VECTORS["search"]} == set(tb.KINDS)
+
+
+def test_vector_file_horizon_matches_the_calendar():
+    assert str(session_calendar.horizon()) == VECTORS["assumes_horizon"], (
+        "The market calendar's horizon moved: move the past-horizon bind and label cases in "
+        "tests/fixtures/toolBindingVectors.json (the 2028-12-29 / 2029-01 rows) past the new "
+        "horizon, then update assumes_horizon. Edit the file as text."
+    )

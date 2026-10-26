@@ -13,12 +13,19 @@ answer: both run over ``tests/fixtures/toolBindingVectors.json``. Pure: no I/O b
 """
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 
 from api.services.journal_two import trading_days
 
 BINDS = ("note-day", "next-trading-day", "week")
 KINDS = ("routine", "tracker")
+# The binds a block's label and search text may name: a template's three, plus "today", which a
+# member's own follow-today block uses (only templates refuse it, in ``bind_day``).
+LABEL_BINDS = BINDS + ("today",)
+
+# The client's DAY_RE: ``fromisoformat`` alone also accepts forms such as ``2026-W44-2``.
+_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 _WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -26,7 +33,7 @@ _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
 
 def _parse_day(day) -> date | None:
     """A ``YYYY-MM-DD`` that is a real calendar day, else None."""
-    if not isinstance(day, str) or len(day) != 10:
+    if not isinstance(day, str) or not _DAY_RE.match(day):
         return None
     try:
         return date.fromisoformat(day)
@@ -75,7 +82,10 @@ def _short(d: date) -> str:
 
 def for_day_label(day: str, bind: str) -> str:
     """``For Tue Oct 27``; for ``week``, ``For the week of Oct 19`` (that week's Monday). The
-    client's ``forDayLabel`` words, exactly; '' for a non-day."""
+    client's ``forDayLabel`` words, exactly; '' for a non-day. Raises ``ValueError`` for a bind
+    outside ``LABEL_BINDS``."""
+    if bind not in LABEL_BINDS:
+        raise ValueError("A tool block binds to the note's day, the next trading day, the week or today.")
     d = _parse_day(day)
     if d is None:
         return ""

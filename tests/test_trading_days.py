@@ -146,6 +146,7 @@ def test_et_day_of_bare_date_and_iso():
     assert td.et_day_of("2026-10-28T03:30:00Z") == "2026-10-27"
     assert td.et_day_of("2026-10-28T00:00:00Z") == "2026-10-27"
     assert td.et_day_of("2026-10-28T00:00:00+00:00") == "2026-10-27"
+    assert td.et_day_of("2026-10-28T03:30:00z") == "2026-10-27"  # a lowercase z is UTC too
     assert td.et_day_of("2026-10-27T23:30:00-04:00") == "2026-10-27"
     # A naive timestamp is read as UTC (the timeutil rule for stored stamps).
     assert td.et_day_of("2026-10-28T03:30:00") == "2026-10-27"

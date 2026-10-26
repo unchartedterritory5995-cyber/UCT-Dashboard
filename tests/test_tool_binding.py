@@ -52,3 +52,24 @@ def test_week_monday_is_from_the_date_parts():
 def test_search_text_refuses_an_unknown_kind():
     with pytest.raises(ValueError):
         tb.search_text("widget", "x", "2026-10-27", "note-day")
+
+
+def test_label_and_search_take_the_three_binds_and_today_only():
+    for bind in tb.BINDS + ("today",):
+        assert tb.for_day_label("2026-10-27", bind).startswith("For ")
+        assert tb.search_text("routine", "R", "2026-10-27", bind).startswith("[routine: R ")
+    assert tb.for_day_label("2026-10-27", "today") == "For Tue Oct 27"
+    for bad in ("tomorrow", "", None, "Week"):
+        with pytest.raises(ValueError):
+            tb.for_day_label("2026-10-27", bad)
+        with pytest.raises(ValueError):
+            tb.search_text("tracker", "T", "2026-10-27", bad)
+
+
+def test_an_iso_week_date_is_not_a_day():
+    now = datetime(2026, 10, 30, 15, tzinfo=timezone.utc)
+    with pytest.raises(ValueError):
+        tb.bind_day("2026-W44-2", "note-day")
+    assert tb.week_monday("2026-W44-2") == ""
+    assert tb.for_day_label("2026-W44-2", "note-day") == ""
+    assert tb.note_day(daily_date="2026-W44-2", created_at="2026-10-28T03:30:00Z", now=now) == "2026-10-27"

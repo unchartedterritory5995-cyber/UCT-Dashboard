@@ -58,8 +58,10 @@ def et_day_of(ts: str | None) -> str | None:
             return None
     if not _STAMP_RE.match(s):
         return None
+    if s[-1] in "zZ":
+        s = s[:-1] + "+00:00"
     try:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(s)
     except ValueError:
         return None
     if dt.tzinfo is None:
