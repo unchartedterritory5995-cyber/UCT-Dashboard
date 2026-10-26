@@ -926,14 +926,14 @@ def resolve_plan(plan: dict, slots: Sequence[dict], answers: Mapping[str, Any], 
         if isinstance(f, dict) and isinstance(f.get("expr"), str):
             f["expr"] = PICK_TOKEN_RE.sub(token, f["expr"])
 
-    if has_unresolved(out):
-        raise ShareError("unresolved", S_UNRESOLVED)
     try:
         resolved = wplan.validate_plan(out, catalog)
     except wplan.PlanError as e:
         raise ShareError("invalid", e.sentence) from None
     except (TypeError, ValueError, KeyError, AttributeError):
         raise ShareError("invalid", S_UNREADABLE) from None
-    if has_unresolved(resolved):                    # the rail: never a marker in a resolved plan
+    # THE rail (one copy): a marker `validate_plan` let through (a `[#p` in a formula's name, a
+    # pick in a place no answer reaches) never leaves this function.
+    if has_unresolved(resolved):
         raise ShareError("unresolved", S_UNRESOLVED)
     return resolved

@@ -122,6 +122,16 @@ def test_resolved_plan_validates_and_has_no_marker():
     with pytest.raises(share.ShareError) as e:
         _resolve(plan, slots, {"p1": "acc", "p2": "Flag", "p3": "AA", "p4": "x", "p5": 9, "p6": 2})
     assert e.value.code == "invalid" and e.value.sentence == wplan.S_FILTER_LOW_ABOVE_HIGH
+    # a hostile shared plan whose formula NAME carries a token: validate_plan accepts the name, so
+    # only the post-validation rail stops the marker leaving resolve_plan
+    hostile = {"v": 3, "source": "closed_trades", "measures": [{"formula": "f1", "agg": "sum"}],
+               "formulas": [{"id": "f1", "name": "Field [#p1]", "expr": "[r] + [#p1]", "format": "r"}]}
+    hp, hs = _shared({**hostile, "formulas": [{**hostile["formulas"][0], "name": "x",
+                                               "expr": "[r] + 1"}]})
+    assert hp["formulas"][0]["expr"] == "[r] + [#p1]"
+    with pytest.raises(share.ShareError) as e:
+        _resolve({**hp, "formulas": [{**hp["formulas"][0], "name": "Field [#p1]"}]}, hs, {"p1": 2})
+    assert e.value.code == "unresolved"
     # has_unresolved is total and finds a marker anywhere
     assert share.has_unresolved({"a": [{"b": {"pick": "p3"}}]})
     assert share.has_unresolved(["x", "[r] * [#p12]"])
