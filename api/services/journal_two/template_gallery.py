@@ -368,20 +368,20 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     try:
         seed_firm_templates(conn)
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
-        print(f"[template-gallery] firm seed skipped (firm templates): {type(e).__name__}")
+        print(f"[template-gallery] firm seed skipped (firm templates): {type(e).__name__}: {e}")
     try:
         seed_firm_styles(conn)          # P5: the starter packs' firm styles, same never-crash rule
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
-        print(f"[template-gallery] firm seed skipped (firm styles): {type(e).__name__}")
+        print(f"[template-gallery] firm seed skipped (firm styles): {type(e).__name__}: {e}")
     try:
         from api.services.journal_two import template_library   # Task 11.10: the official templates (W11-R4)
         template_library.seed_template_library(conn)
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
-        print(f"[template-gallery] official seed skipped (official templates): {type(e).__name__}")
+        print(f"[template-gallery] official seed skipped (official templates): {type(e).__name__}: {e}")
     try:
         fill_missing_previews(conn)
     except Exception as e:  # noqa: BLE001 -- a preview is a courtesy, never a failed boot
-        print(f"[template-gallery] preview fill skipped: {type(e).__name__}")
+        print(f"[template-gallery] preview fill skipped: {type(e).__name__}: {e}")
 
 
 def fill_missing_previews(conn: sqlite3.Connection) -> int:
@@ -730,6 +730,9 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "featured": bool(row["featured"]),
         "usedBy": int(row["used_by"] or 0) if "used_by" in row.keys() else 0,
         "itemType": row["item_type"] if "item_type" in keys else "outline",
+        # Task 11.10 / 11.8 fix round 1: an official template's group (`template_library.GROUPS`), which the
+        # client's TemplateLibrarySection groups by (`row.group`); None for every other row.
+        "group": row["template_group"] if "template_group" in keys else None,
         "version": int(row["version"] or 1) if "version" in keys else 1,
         "tradingStyle": row["trading_style"] if "trading_style" in keys else None,
         # P4b: which page a shared layout is for ('today' | 'trade'); None for every other type. CLAMPED to
@@ -785,7 +788,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
 _LIST_COLUMNS = ("g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
                  " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
                  " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at, g.source_style_id,"
-                 " g.source_page,")
+                 " g.source_page, g.template_group,")
 #: ⛔ P3b-T5-R7 (review I-1): `source_style_id` is READ by every list, and `_summary` still EMITS it only for the
 #: author and admins (`sourceStyleId`). Without it the author's Your submissions row could not say which of their
 #: styles it is, so the Share form's "Add an example note" door never found its item. `source_page` (P4b) is read
@@ -1809,7 +1812,7 @@ def _ring(user_id: str, title: str, message: str, data: dict) -> bool:
                          data={"source": LIBRARY_NOTICE_SOURCE, **data}, user_id=user_id)
         return True
     except Exception as e:  # noqa: BLE001 -- a notice never fails an approval or an unpublish
-        print(f"[template-gallery] notice to {user_id} not delivered: {type(e).__name__}")
+        print(f"[template-gallery] notice to {user_id} not delivered: {type(e).__name__}: {e}")
         return False
 
 
@@ -4513,7 +4516,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
                 _ring_update_watchers(conn, gallery_id)
             except Exception as e:  # noqa: BLE001 -- the review has committed; a notice never fails it (review I1)
                 conn.rollback()      # only the current watcher's uncommitted mark; earlier ones are committed
-                print(f"[template-gallery] update notices for {gallery_id} stopped: {type(e).__name__}")
+                print(f"[template-gallery] update notices for {gallery_id} stopped: {type(e).__name__}: {e}")
         return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
     except Exception as e:
         # Only a failure that touched the copies rolls back here (the listing must not stand without them); every

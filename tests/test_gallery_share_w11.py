@@ -356,41 +356,64 @@ def test_a_refused_share_is_never_stored_or_logged(db, capsys):
 
 
 _LOG_ATTRS = ("debug", "info", "warning", "warn", "error", "exception", "critical", "log")
+#: The refusal classes (ruling W11-R35): their TEXT may echo the author's own words (11.4 m3). A seed or system
+#: exception is not one, and keeps its `: {e}` (HEAD's lines, rail G6).
+_REFUSALS = {"ShareError", "LibraryError", "GalleryError", "GalleryConflict", "ToolError", "CountCapError",
+             "KeyReused"}
+
+
+def _caught_names(t) -> set:
+    nodes = t.elts if isinstance(t, ast.Tuple) else [t] if t is not None else []
+    return {getattr(x, "id", None) or getattr(x, "attr", None) for x in nodes}
 
 
 def _exception_text_in_logs(src: str) -> list[str]:
-    """Every print or logging call that formats a caught exception's VALUE (`{e}`, `str(e)`, `e.sentence`,
-    `"%s" % e`, a bare `e` argument) rather than only its type name (`type(e).__name__`). A share refusal's text may
-    echo the author's own formula (11.4 m3), so no log line may carry any exception's text."""
+    """Every print or logging call that formats a caught REFUSAL's value (`{e}`, `str(e)`, `e.sentence`, `"%s" % e`,
+    a bare `e` argument) rather than only its type name, inside a handler for a refusal class (`_REFUSALS`), plus
+    any log call reading a `.sentence` anywhere. Ruling W11-R35: refusal text only, never every log line."""
     tree = ast.parse(src)
-    caught = {h.name for h in ast.walk(tree) if isinstance(h, ast.ExceptHandler) and h.name}
     bad = []
-    for n in ast.walk(tree):
-        if not isinstance(n, ast.Call):
-            continue
+
+    def is_log(n):
         name = getattr(n.func, "id", None) or getattr(n.func, "attr", None)
-        if name != "print" and name not in _LOG_ATTRS:
+        return isinstance(n, ast.Call) and (name == "print" or name in _LOG_ATTRS)
+
+    def type_name_only(call, name_node):
+        return any(isinstance(p, ast.Attribute) and p.attr == "__name__" and isinstance(p.value, ast.Call)
+                   and getattr(p.value.func, "id", None) == "type" and name_node in ast.walk(p)
+                   for p in ast.walk(call))
+
+    for h in ast.walk(tree):
+        if not (isinstance(h, ast.ExceptHandler) and h.name and _caught_names(h.type) & _REFUSALS):
             continue
-        for node in ast.walk(n):
-            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "type":
-                continue                                             # type(e) alone names no text
-            if isinstance(node, ast.Name) and node.id in caught:
-                parent_ok = any(isinstance(p, ast.Attribute) and p.attr == "__name__"
-                                and isinstance(p.value, ast.Call) and getattr(p.value.func, "id", None) == "type"
-                                and node in ast.walk(p) for p in ast.walk(n))
-                if not parent_ok:
-                    bad.append(ast.unparse(n))
-                    break
+        for stmt in h.body:
+            for n in ast.walk(stmt):
+                if isinstance(n, ast.Call) and is_log(n):
+                    for node in ast.walk(n):
+                        if isinstance(node, ast.Name) and node.id == h.name and not type_name_only(n, node):
+                            bad.append(ast.unparse(n))
+                            break
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and is_log(n) and any(isinstance(x, ast.Attribute) and x.attr == "sentence"
+                                                         for x in ast.walk(n)):
+            bad.append(ast.unparse(n))
     return bad
 
 
 def test_no_log_call_in_the_gallery_names_a_refusal():
-    """Rail (fix round 1, M-2): no `print` / logging call in template_gallery.py formats an exception's text in ANY
-    form, only its type name. Non-vacuity: every form is caught when planted, and the allowed form is not."""
-    assert _exception_text_in_logs(GALLERY_SRC.read_text(encoding="utf-8")) == []
-    for form in ("print(f'x {e}')", "print(f'x {e.sentence}')", "print('x', str(e))", "print('x %s' % e)",
-                 "log.warning('x %s', e)", "log.exception(e)"):
-        planted = f"def f():\n    try:\n        pass\n    except Exception as e:\n        {form}\n"
-        assert _exception_text_in_logs(planted), form
-    ok = "def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {type(e).__name__}')\n"
-    assert _exception_text_in_logs(ok) == []
+    """Rail (fix round 1, M-2, scoped by W11-R35): no `print` / logging call in template_gallery.py formats a
+    refusal's text in ANY form, only its type name; a system exception's `{e}` is allowed. Non-vacuity: every form
+    is caught when planted in a refusal handler, the allowed forms are not, and the gallery's own system lines
+    (the seeds) do carry `{e}`, so the scope is what lets them pass."""
+    src = GALLERY_SRC.read_text(encoding="utf-8")
+    assert _exception_text_in_logs(src) == []
+    assert "official seed skipped (official templates): {type(e).__name__}: {e}" in src
+    for exc in ("share.ShareError", "LibraryError", "(GalleryError, ValueError)"):
+        for form in ("print(f'x {e}')", "print(f'x {e.sentence}')", "print('x', str(e))", "print('x %s' % e)",
+                     "log.warning('x %s', e)", "log.exception(e)"):
+            planted = f"def f():\n    try:\n        pass\n    except {exc} as e:\n        {form}\n"
+            assert _exception_text_in_logs(planted), (exc, form)
+    for ok_src in ("def f():\n    try:\n        pass\n    except ShareError as e:\n        print(f'x {type(e).__name__}')\n",
+                   "def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {e}')\n"):
+        assert _exception_text_in_logs(ok_src) == []
+    assert _exception_text_in_logs("def f(err):\n    print(err.sentence)\n")

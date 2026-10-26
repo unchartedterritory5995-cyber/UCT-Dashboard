@@ -288,3 +288,18 @@ def test_a_callers_open_transaction_is_never_committed(db):
     db.rollback()
     assert db.execute("SELECT COUNT(*) FROM j2_gallery_use_days WHERE user_id = 'probe'").fetchone()[0] == 0
     assert [i["text"] for i in routines.get(MEMBER, mine, conn=db)["items"]] == ["Coffee"]
+
+
+# ── 11.10 list rows: `group` (the client's TemplateLibrarySection reads `row.group`) ─────────────────
+
+def test_a_list_row_carries_its_template_group(db):
+    gid, _s, _w = _template(db)
+    db.execute("UPDATE j2_template_gallery SET template_group = 'before_open' WHERE id = ?", (gid,))
+    db.commit()
+    rows = {r["id"]: r for r in gallery.list_gallery(MEMBER, conn=db)}
+    assert rows[gid]["group"] == "before_open"
+    grouped = gallery.list_gallery(MEMBER, group="before_open", conn=db)
+    assert [r["id"] for r in grouped] == [gid] and grouped[0]["group"] == "before_open"
+    db.execute("UPDATE j2_template_gallery SET template_group = NULL WHERE id = ?", (gid,))
+    db.commit()
+    assert {r["id"]: r for r in gallery.list_gallery(MEMBER, conn=db)}[gid]["group"] is None
