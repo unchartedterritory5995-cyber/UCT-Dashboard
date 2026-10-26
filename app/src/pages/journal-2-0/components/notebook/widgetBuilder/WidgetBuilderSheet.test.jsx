@@ -10,7 +10,7 @@ import WidgetBuilderSheet, {
 import { ANNOUNCE_DELAY_MS } from './PreviewPane'
 import { DRAFT_PREFIX, DRAFT_TTL_MS } from './builderDraft'
 import { openWidgetBuilder } from './openWidgetBuilder'
-import { __resetBuiltCaches, FAILURE_COPY } from '../../../lib/builtWidgets'
+import { __resetBuiltCaches, FAILURE_COPY, LAST_RESULT_SENTENCE } from '../../../lib/builtWidgets'
 import {
   installFetch, answer, refusal, deferred, payload, callsTo, bodyOf, SUMMARY, CATALOG,
 } from './__fixtures__/builderFixtures'
@@ -435,11 +435,14 @@ describe('WidgetBuilderSheet', () => {
     await flush(ANNOUNCE_DELAY_MS)
     expect(live).toHaveTextContent(SUMMARY)
     expect(live.textContent).toBe(SUMMARY)
-    // A failure is shown, never announced through this region.
+    // A failure's own sentence is shown, never announced through this region. What the region says is that the
+    // summary is the last result (F-DEF-1 r1, ruling W11-R50), once, after it settles.
     route('POST', (u) => u.endsWith('/preview'), () => refusal(503, 'busy', 'x'))
     fireEvent.change(screen.getByLabelText('Target for a progress bar'), { target: { value: '3' } })
     await flush(PREVIEW_DEBOUNCE_MS + ANNOUNCE_DELAY_MS)
-    expect(live.textContent).toBe(SUMMARY)
+    await flush(ANNOUNCE_DELAY_MS)
+    expect(live.textContent).toBe(`${LAST_RESULT_SENTENCE} ${SUMMARY}`)
+    expect(live.textContent).not.toContain(FAILURE_COPY.busy)
     // The only live region in the builder.
     expect(document.querySelectorAll('[aria-live="polite"]')).toHaveLength(1)
   })

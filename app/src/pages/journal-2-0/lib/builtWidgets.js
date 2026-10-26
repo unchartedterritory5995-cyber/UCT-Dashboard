@@ -42,6 +42,10 @@ export const MARK_EXAMPLE = 'Example'
 export const MARK_YOURS = 'Yours'
 /** Anything else (a network error, a 500, an unreadable answer): the snapshot is untouched. */
 export const FAILED_SENTENCE = "Couldn't refresh. The saved snapshot is unchanged."
+/** The builder preview keeps its last good result on screen, dimmed, when a preview fails or cannot be asked for.
+ *  Opacity is never the only cue (WCAG 1.4.1, ruling W11-R50): this sentence is shown beside it, on the phone summary
+ *  bar, and in the pane's one polite live region (widgetBuilder/PreviewPane.jsx). */
+export const LAST_RESULT_SENTENCE = 'Showing the last result.'
 
 /** The member sentence for a failed call. `superseded` is internal (the caller already has a newer request in
  *  flight) and answers '' so the caller shows nothing; `invalid` and `formula` show the server's own sentence. */

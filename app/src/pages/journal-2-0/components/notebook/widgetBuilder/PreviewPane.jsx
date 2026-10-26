@@ -12,7 +12,7 @@ import ListView from '../widgets/builtViews/ListView'
 import ProgressView from '../widgets/builtViews/ProgressView'
 import { CoverageNote, Footnotes } from '../widgets/builtViews/Counts'
 import { measuresOf, cellOf, countNoun } from '../widgets/builtViews/builtModel'
-import { failureText } from '../../../lib/builtWidgets'
+import { failureText, LAST_RESULT_SENTENCE } from '../../../lib/builtWidgets'
 import styles from './WidgetBuilderSheet.module.css'
 
 /**
@@ -22,9 +22,12 @@ import styles from './WidgetBuilderSheet.module.css'
  * ⛔ THE LAST GOOD RESULT STAYS. A preview that fails (busy, took too long, the preview pausing, offline) keeps the
  * last answer on screen, dimmed, with the failure's own sentence (lib/builtWidgets failureText) — never a blank.
  * `stale` (Task 10.16 fix 1, m-6): no preview could be asked for (one of the member's own fields is refused, and says
- * why beside it): the last answer is dimmed the same way, with no sentence of its own.
- * ⛔ The live region announces ONLY the summary sentence, a second after it settles (spec 5.11), never a table, a
- * failure or "Updating".
+ * why beside it): the last answer is dimmed the same way.
+ * ⛔ OPACITY IS NEVER THE ONLY CUE (F-DEF-1 r1, ruling W11-R50, WCAG 1.4.1): whenever a last result is kept under a
+ * failure or while stale, LAST_RESULT_SENTENCE is shown beside the preview (not inside the dimmed part) and leads the
+ * phone summary bar.
+ * ⛔ The live region announces ONLY the summary sentence (led by LAST_RESULT_SENTENCE while the last result is
+ * kept), a second after it settles (spec 5.11), never a table, a failure's own sentence or "Updating".
  *
  * Phone (<= 640 px): a one-line sticky summary ("<name> · 47 trades · +$2,140.00") that opens the full preview on
  * tap and is not drawn while the keyboard is open, so a field being typed in keeps the screen.
@@ -48,6 +51,9 @@ export function summaryLine(name, payload, unit) {
   if (m && v && typeof v === 'object' && (finite(v.v1) || v.s1 === 'hide')) parts.push(cellOf(v, 1, m).text)
   return parts.join(' · ')
 }
+
+/** True when a last good result is on screen but is not the answer to what the member asked now. */
+export const showingLast = (payload, status, error, stale) => !!payload && ((status === 'error' && !!error) || !!stale)
 
 /** The summary sentence, announced politely a second after it last changed. One region, one sentence. */
 function useAnnounced(summary) {
@@ -91,6 +97,7 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
             canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
         </div>
       )}
+      {(failed || stale) && <p className={styles.previewLast} data-testid="builder-preview-last">{LAST_RESULT_SENTENCE}</p>}
       <div className={`${styles.previewView} ${failed || stale ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
         data-stale={stale ? '' : undefined}
         data-testid="builder-preview-view">
@@ -139,8 +146,9 @@ export default function PreviewPane({
 }) {
   const [open, setOpen] = useState(false)
   const bodyId = useId()
+  const last = showingLast(payload, status, error, stale)
   const said = useAnnounced(typeof payload?.summary === 'string' && payload.summary
-    ? `${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${payload.summary}` : '')
+    ? `${last ? `${LAST_RESULT_SENTENCE} ` : ''}${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${payload.summary}` : '')
   const summary = typeof payload?.summary === 'string' ? payload.summary : ''
   const body = (
     <PreviewBody payload={payload} status={status} error={error} onRetry={onRetry}
@@ -161,7 +169,7 @@ export default function PreviewPane({
             <button type="button" className={styles.summaryBar} aria-expanded={open} aria-controls={bodyId}
               onClick={() => setOpen((v) => !v)} data-testid="builder-summary-bar">
               <span className={`${styles.summaryText} ${status === 'error' || stale ? styles.dimmed : ''}`}>
-                {summaryLine(name, payload, unit)}
+                {last ? `${LAST_RESULT_SENTENCE} ` : ''}{summaryLine(name, payload, unit)}
               </span>
               <UIcon name={open ? 'chevronUp' : 'chevronDown'} size={16} gold={false} aria-hidden="true" />
               <span className={styles.srOnly}>{open ? 'Hide the preview' : 'Show the preview'}</span>

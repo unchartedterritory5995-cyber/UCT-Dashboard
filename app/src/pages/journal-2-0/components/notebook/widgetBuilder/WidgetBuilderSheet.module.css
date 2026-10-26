@@ -679,13 +679,20 @@
 .previewView[aria-busy='true'] {
   opacity: 0.85;
 }
-/* The last good result under a failure: visibly older, still readable (rail: builderCss.test.js, 4.5:1).
+/* The last good result under a failure or while stale: still readable (rail: builderCss.test.js, 4.5:1).
    D-W11-007: 0.75 took --success-ink to 4.42:1 (axe, wave 11 campaign dry run), and every ink the
    views draw except the bright text with it; no ink token survives 0.75 in all three themes. 0.9 is
-   the lowest opacity at which every derived ink holds 4.5:1; the failure message above the preview
-   still says the result is the older one. */
+   the lowest opacity at which every derived ink holds 4.5:1, so the dimming is slight: the cue that
+   the result is the older one is the TEXT, `.previewLast` below ("Showing the last result.", shown
+   beside the preview and leading the phone summary bar; W11-R50, WCAG 1.4.1). */
 .dimmed {
   opacity: 0.9;
+}
+/* Beside the dimmed preview, never inside it, so it is drawn at full strength. */
+.previewLast {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 .previewTitle {
   margin: 0;
