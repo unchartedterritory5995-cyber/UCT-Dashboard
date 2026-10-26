@@ -513,6 +513,23 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   NEXT: Gap Support + Go Signal rulings, base/gap setup families without finders, setupCatalog.js card rewords (pending
   owner OK), the two bad SPY bars, the PR for feat/study-resume-1023 when the owner says so.
 
+- **2026-10-25 setup DIFFERENTIATION pass (branch feat/study-resume-1023 @ 7782bf94f9, pushed):** owner asked for
+  inference over "all of the information and context around the nuance and subtle differentiation factors to improve
+  the setup recognition and education system." Analysis in docs/study/analysis/2026-10-25-setup-differentiation.md
+  (mental model + measured signature per setup, the confusion matrix, what changed). CODE: gen_setup_examples.py
+  SETUPS definitions rewritten in the owner's words (bank spot.setups.json regenerated, lesson text only);
+  Slingshot fact line now states pullback sessions/depth, trigger gain, close position, gap;
+  find_slingshot_examples.py gallery score v3 (every great passes, every cut fails on the 26 graded charts; $10
+  floor; 200-day gate removed; must-work tightened); NEW scripts/study/gen_contrasts.py -> docs/study/bank/
+  recall.contrasts.json (20 recall drills, one per confusion-matrix row, answers = owner rulings). 350 tests pass.
+  OWNER RUNS (classifier blocked my remote writes): scratchpad refresh_setup_lessons_run.ps1 (= docs/study/audits/
+  2026-10-25/refresh_setup_lessons_pod.py, refreshes the definition sentence on live setup items, keeps fact lines
+  + Owner's notes, idempotent) and scratchpad import_contrasts_run.ps1 (imports the 20 contrast drills as DRAFTS;
+  build_pod_import_contrasts.py regenerates pod_import_contrasts.py). PENDING OWNER OK: setupCatalog.js essences for
+  Launchpad/HVE/Oops/Kicker/Slingshot and setupPlaybooks.js entries for Kicker/Oops/Slingshot/HVE (drafts in the
+  analysis doc §4.5); a confluence tag (one chart, two setups: TEAM Launchpad+Oops, Slingshot-after-PEG); whether
+  XOM/PANW ("they can look prettier") stay as okay. Detector gaps listed in §4.6 for the pattern-engine owner.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
