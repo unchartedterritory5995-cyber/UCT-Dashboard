@@ -863,15 +863,18 @@ def _with_library_facts(user_id: str, styles: list[dict], conn: sqlite3.Connecti
     counts = _used_in_counts(user_id, conn)
     facts = tg.library_facts(user_id, "template", [s["id"] for s in styles], conn=conn) if styles else {}
     gids = list(dict.fromkeys(s["sourceGalleryId"] for s in styles if s.get("sourceGalleryId")))
-    owners: dict = {}
+    # Task 11.12 (carry 15): THE `_from_library` rule (P3a-T10-R5) is template_gallery's, batched in one statement;
+    # this module keeps no copy of it.
+    lib = tg.from_library_many(user_id, gids, conn=conn) if gids else {}
+    present: set = set()
     if gids:
-        owners = {r["id"]: r["user_id"] for r in conn.execute(
-            f"SELECT id, user_id FROM j2_template_gallery WHERE id IN ({_marks(len(gids))})", gids)}
+        present = {r[0] for r in conn.execute(
+            f"SELECT id FROM j2_template_gallery WHERE id IN ({_marks(len(gids))})", gids)}
 
     def from_lib(gid: Any) -> bool:
-        return bool(gid) and (gid not in owners or owners[gid] != user_id)
+        return bool(gid) and bool(lib.get(gid))
 
-    need = [g for g in gids if from_lib(g) and g in owners
+    need = [g for g in gids if from_lib(g) and g in present
             and any(s.get("sourceGalleryId") == g and (facts.get(s["id"]) or {}).get("credit") is None
                     for s in styles)]
     fallback: dict = {}
@@ -937,26 +940,6 @@ def _copy_name(name: str) -> str:
     return name[:MAX_STYLE_NAME_CHARS - len(suffix)].rstrip() + suffix
 
 
-def _copy_credit(conn: sqlite3.Connection, user_id: str, src_id: str, new_id: str) -> None:
-    """W11-R36 c4: a duplicate of a library copy keeps the copy's credit snapshot (`j2_gallery_credits`, read by
-    `template_gallery.credit_for`), copied row for row under the new id. The columns are read from the table, so
-    template_gallery's own schema stays the one authority over them."""
-    cols = [r[1] for r in conn.execute("PRAGMA table_info(j2_gallery_credits)")]
-    if not cols:
-        return
-    sel, params = [], []
-    for c in cols:
-        if c == "tool_id":
-            sel.append("?"); params.append(new_id)
-        elif c == "created_at":
-            sel.append("?"); params.append(_now())
-        else:
-            sel.append(c)
-    conn.execute(f"INSERT OR IGNORE INTO j2_gallery_credits ({', '.join(cols)}) SELECT {', '.join(sel)}"
-                 " FROM j2_gallery_credits WHERE user_id = ? AND tool_kind = 'template' AND tool_id = ?",
-                 (*params, user_id, src_id))
-
-
 def duplicate_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:
     """My tools' Duplicate (Task 11.13): a new live style named "<name> copy" with the source's kind, outline,
     blocks and properties copied AS STORED (a family slot's ref -- a remembered routine, tracker or widget -- is
@@ -1004,7 +987,9 @@ def duplicate_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | N
         if prov:
             conn.execute("UPDATE j2_journal_styles SET " + ", ".join(f"{c} = ?" for c in _PROVENANCE_COLS)
                          + " WHERE id = ? AND user_id = ?", (*prov, sid, user_id))
-            _copy_credit(conn, user_id, style_id, sid)
+            # W11-R36 c4, Task 11.12 (carry 15): the ONE credit copier is template_gallery's.
+            from api.services.journal_two import template_gallery as tg
+            tg.copy_credit(conn, style_id, sid, user_id=user_id)
         if began:
             conn.commit()
         return _view_style(user_id, sid, conn)

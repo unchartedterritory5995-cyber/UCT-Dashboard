@@ -678,7 +678,9 @@ def list_widgets(view: str = "live", user: dict = Depends(require_paid)) -> Any:
     if view not in LIST_VIEWS:
         raise _err(400, "invalid", wplan.S_UNREADABLE)
     items = wdefs.list_defs(_uid(user), archived=view == "archived", deleted=view == "deleted")
-    return _ok({"widgets": items})
+    # Wave 11 (Task 11.12, carry 8): library copies carry `sourceGalleryId`, `credit`, `updateAvailable`.
+    from api.routers.notebook_routines import with_library_facts
+    return _ok({"widgets": with_library_facts(_uid(user), "widget", items)})
 
 
 @router.post("")

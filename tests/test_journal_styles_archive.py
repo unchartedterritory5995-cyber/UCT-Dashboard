@@ -303,7 +303,7 @@ def test_the_templates_tab_read_is_a_constant_number_of_statements(db):
             s = _mine(db, f"c{i}")
             db.execute("UPDATE j2_journal_styles SET source_gallery_id = ? WHERE id = ?", (gid, s["id"]))
             if i % 2:                                                    # half carry a snapshot, half do not
-                js._copy_credit(db, MEMBER, adopted["id"], s["id"])
+                gallery.copy_credit(db, adopted["id"], s["id"], user_id=MEMBER)   # carry 15: the one copier
         db.commit()
         holder = {}
         counts[k] = len(_statements(db, lambda: holder.setdefault("v", js.list_styles(MEMBER, db, view="live"))))

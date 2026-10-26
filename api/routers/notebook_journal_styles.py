@@ -13,6 +13,13 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
   DELETE /api/j2/journal-styles/{style_id}              soft delete (Undo = restore)
   POST   /api/j2/journal-styles/{style_id}/restore      undo a delete
   POST   /api/j2/journal-styles/{style_id}/default      make it its kind's default
+  Wave 11 (Task 11.12, W11-R10; each 404 while NOTEBOOK_WIDGETS_W11_ENABLED is off, read per request):
+  GET    /api/j2/journal-styles?view=live|archived|deleted   My tools' Templates tab lists (no `view`: today's answer)
+  POST   /api/j2/journal-styles/{style_id}/archive      hide it from the picker (notes keep their stamp)
+  POST   /api/j2/journal-styles/{style_id}/unarchive    back to the picker
+  POST   /api/j2/journal-styles/{style_id}/duplicate    "<name> copy"
+  POST   /api/j2/journal-styles/{style_id}/delete       {typedName}: only from Archived (the soft delete)
+  GET    /api/j2/journal-styles/{style_id}/used-in      the member's live notes made from it
   GET    /api/j2/trader-blocks/market-context           the readings a market context stamp freezes (P2a)
   PUT    /api/j2/trader-blocks/positions/{position_id}/pre-entry  Log Trade's ticks for an open position (P2a)
   POST   /api/j2/trader-blocks/price-stamp              one price fact row for a stamped line ({noteId,
@@ -61,6 +68,7 @@ import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import daily_counters
@@ -142,10 +150,56 @@ def _optional_text(body: dict, key: str) -> str | None:
 
 # ── styles ───────────────────────────────────────────────────────────────────────────
 
+# ── wave 11 (Task 11.12): My tools' Templates tab ────────────────────────────────────────────
+#
+# Each wave 11 door below is gated by `_require_w11` (a route dependency, resolved before the plan check and the
+# body): while wave 11 is off every caller gets the router's one 404, read per request. Every 200 and every refusal
+# here is `Cache-Control: no-store`; a refusal keeps this router's plain-sentence `detail` (its `_bad`), which the
+# client reads as `{code: 'invalid', message}`.
+W11_VIEWS = ("live", "archived", "deleted")
+NO_STORE = {"Cache-Control": "no-store"}
+
+
+def _w11_on() -> bool:
+    from api.services.journal_two.notebook_widgets import notebook_widgets_wave_on
+    return notebook_widgets_wave_on(11)
+
+
+def _require_w11() -> None:
+    if not _w11_on():
+        raise HTTPException(status_code=404, detail=NOT_FOUND, headers=dict(NO_STORE))
+
+
+def _ok(content: Any) -> JSONResponse:
+    return JSONResponse(content=content, headers=dict(NO_STORE))
+
+
+def _w11_store(fn) -> Any:
+    """Run one Templates-tab store call: a refusal is 400 with its sentence, a None (not the member's) the 404."""
+    try:
+        out = fn()
+    except js.StyleValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e), headers=dict(NO_STORE))
+    if out is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND, headers=dict(NO_STORE))
+    return out
+
+
 @router.get("/journal-styles")
-def list_styles_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"kinds": nk.list_kinds(user["id"]), "styles": js.served_styles(js.list_styles(user["id"]), user["id"]),
-            "blockKinds": [k["id"] for k in js.BLOCK_KINDS]}
+def list_styles_endpoint(view: str | None = None, user: dict = Depends(require_paid)) -> Any:
+    """No `view`: today's answer exactly (`{kinds, styles, blockKinds}`). Wave 11 (Task 11.12): `?view=live|archived|
+    deleted` is My tools' Templates tab, `{kinds, styles}` with each of the member's own styles carrying `usedIn`,
+    `credit`, `fromLibrary`, `updateAvailable`, `sourceGalleryId`, `archivedAt` and `deletedAt`; 404 while wave 11
+    is off, 400 for any other view."""
+    if view is not None:
+        _require_w11()
+        if view not in W11_VIEWS:
+            raise HTTPException(status_code=400, detail="Choose live, archived or deleted.", headers=dict(NO_STORE))
+    rows = js.list_styles(user["id"]) if view is None else _w11_store(lambda: js.list_styles(user["id"], view=view))
+    out = {"kinds": nk.list_kinds(user["id"]), "styles": js.served_styles(rows, user["id"])}   # the ONE list read
+    if view is None:
+        return {**out, "blockKinds": [k["id"] for k in js.BLOCK_KINDS]}
+    return _ok(out)
 
 
 @router.post("/journal-styles")
@@ -220,6 +274,38 @@ def install_starter_pack_endpoint(pack: str, user: dict = Depends(require_paid))
         give_back()
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return out
+
+
+@router.post("/journal-styles/{style_id}/archive", dependencies=[Depends(_require_w11)])
+def archive_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{style}`: hidden from the picker, the kind section and the default choice (W11-R10)."""
+    return _ok({"style": js.served_style(_w11_store(lambda: js.archive_style(user["id"], style_id)), user["id"])})
+
+
+@router.post("/journal-styles/{style_id}/unarchive", dependencies=[Depends(_require_w11)])
+def unarchive_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{style}`: back in the picker (not the default again)."""
+    return _ok({"style": js.served_style(_w11_store(lambda: js.unarchive_style(user["id"], style_id)), user["id"])})
+
+
+@router.post("/journal-styles/{style_id}/duplicate", dependencies=[Depends(_require_w11)])
+def duplicate_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{style}`: "<name> copy" (a library copy keeps its provenance and credit, W11-R36 c4)."""
+    return _ok({"style": js.served_style(_w11_store(lambda: js.duplicate_style(user["id"], style_id)), user["id"])})
+
+
+@router.post("/journal-styles/{style_id}/delete", dependencies=[Depends(_require_w11)])
+def delete_typed_endpoint(style_id: str, body: dict = Depends(paid_body), user: dict = Depends(require_paid)) -> Any:
+    """`{typedName}` -> `{style}`: "Delete permanently", only from Archived with the name typed exactly; the
+    existing SOFT delete (Recently deleted lists it for 30 days)."""
+    return _ok({"style": js.served_style(_w11_store(
+        lambda: js.delete_style_typed(user["id"], style_id, body.get("typedName"))), user["id"])})
+
+
+@router.get("/journal-styles/{style_id}/used-in", dependencies=[Depends(_require_w11)])
+def used_in_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{notes: [{id, title, updatedAt}]}`: the member's live notes made from this template."""
+    return _ok({"notes": _w11_store(lambda: js.style_used_in(user["id"], style_id))})
 
 
 @router.get("/journal-styles/{style_id}")

@@ -500,7 +500,7 @@ def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Con
             continue
         bid = b.get("block")
         family = js.slot_family(bid)
-        if family is None or js._slot_wave_off(bid, b.get("settings"), wave_ctx):
+        if family is None or js.slot_wave_off(bid, b.get("settings"), wave_ctx):
             continue                                 # not a family slot, or its wave is dark: no card, no line
         block = {"block": bid, "settings": b.get("settings")}
         if family == "built":
@@ -556,7 +556,7 @@ def _widget(payload: Mapping, *, user_id: str, conn: sqlite3.Connection, answers
                   "sample": False}
     js = _js()
     # A listed widget is judged by the ONE decider too, as the built slot an adoption would place (W11-R20).
-    if js._slot_wave_off(LISTED_WIDGET_BLOCK, {"ref": "inline:" + LISTED_WIDGET_KEY},
+    if js.slot_wave_off(LISTED_WIDGET_BLOCK, {"ref": "inline:" + LISTED_WIDGET_KEY},
                          {"definitions": {LISTED_WIDGET_KEY: {"plan": payload.get("plan")}}}):
         return {"slots": served, "cards": [], "tools": [], "questions": []}
     resolved, sentence = _resolve(payload.get("plan"), slots, served, used, answered=answers,
@@ -590,7 +590,7 @@ def credit_line(row: Any, user_id: str) -> str | None:
     tg = _tg()
     if row["kind"] not in tg.UCT_KINDS and row["user_id"] == user_id:
         return None
-    return tg.credit_text(row["title"], label=tg._author_label(row),
+    return tg.credit_text(row["title"], label=tg.author_label(row),
                           former=row["kind"] not in tg.UCT_KINDS and not row["author_handle"])
 
 
@@ -613,13 +613,13 @@ def preview_mine(user_id: str, gallery_id: str, *, answers: dict | None = None, 
     now = now or datetime.now(timezone.utc)
     tg = _tg()
     with _read(conn) as c:
-        row = tg._row(c, gallery_id, user_id)
-        if not tg._can_see(row, user_id, False, c):
+        row = tg.gallery_row(c, gallery_id, user_id)
+        if not tg.can_see(row, user_id, False, c):
             return None
         item_type = row["item_type"]
         if item_type != "style" and item_type not in tg.TOOL_ITEM_TYPES:
             return None
-        payload = tg._listed_payload(row) or {}
+        payload = tg.listed_payload(row) or {}
         # I-3: only the declared choices, each checked, key the cache, run and are echoed
         answers = clean_answers(_slots_of(payload), answers)
         key = cache_key(gallery_id, row["version"], user_id, trading_days.today_et(now).isoformat(), answers)
@@ -634,7 +634,7 @@ def preview_mine(user_id: str, gallery_id: str, *, answers: dict | None = None, 
         else:
             family = _TOOL_TYPES[item_type]
             # the ONE decider (W11-R20), asked as the slot an adoption places: wave 9 off reads as not visible
-            if _js()._slot_wave_off(f"{family}_a", {"inline": "t", "bind": "note-day"}):
+            if _js().slot_wave_off(f"{family}_a", {"inline": "t", "bind": "note-day"}):
                 return None
             out = _standalone_tool(family, payload)
         out["credit"] = credit_line(row, user_id)
