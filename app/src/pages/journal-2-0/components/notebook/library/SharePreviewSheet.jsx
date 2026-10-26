@@ -332,7 +332,6 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
   const [answer, setAnswer] = useState(null)               // the server's {travels, slots, kept, notShared, prefill}
   const [problem, setProblem] = useState(null)             // {code, message} of the last refused ask
   const [answeredSig, setAnsweredSig] = useState(null)     // what the answer on screen was asked for
-  const [busy, setBusy] = useState(true)                   // an ask is waiting or in flight
   const [category, setCategory] = useState('')
   const [tradingStyle, setTradingStyle] = useState('')
   const [sending, setSending] = useState(false)
@@ -349,7 +348,6 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
   const ask = useCallback(async () => {
     if (inFlight.current) { again.current = true; return }
     inFlight.current = true
-    setBusy(true)
     const { edits, keep: k } = latest.current
     const sig = sigOf(edits, k)
     const out = await sharePreview(kind, id, { edits, keep: k })
@@ -374,8 +372,6 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
     if (again.current) {
       again.current = false
       ask()
-    } else if (!timer.current) {
-      setBusy(false)
     }
   }, [kind, id])
 
@@ -390,7 +386,6 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
     setFields(nextFields)
     setKeep(nextKeep)
     latest.current = { edits: editsOf(kind, nextFields), keep: [...nextKeep] }
-    setBusy(true)
     clearTimeout(timer.current)
     timer.current = setTimeout(() => { timer.current = null; ask() }, DEBOUNCE_MS)
   }
@@ -402,7 +397,9 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
   }
 
   const currentSig = fields ? sigOf(editsOf(kind, fields), [...keep]) : null
-  const fresh = Boolean(answer) && !problem && !busy && answeredSig === currentSig
+  // ONE test of "the answer on screen is the answer for the fields on screen": what it was asked for. A waiting or
+  // in-flight ask is always for other fields than the answer on screen, so it needs no second flag.
+  const fresh = Boolean(answer) && !problem && answeredSig === currentSig
   const blocked = Boolean(problem && BLOCKING_CODES.includes(problem.code))
   const canSend = fresh && !sending && !sent && (kind !== 'template' || Boolean(category))
 
