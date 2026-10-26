@@ -100,9 +100,13 @@ describe('templateSlots', () => {
       expect(serverTypeLabels(form(share))).toEqual(TYPE_LABELS)
       // Control: a tampered regex or word is still read, and so still disagrees.
       const tamper = (t) => t.replace('[a-z0-9]{1,2}$', '[a-z0-9]{1,3}$')
-      expect(serverSlotRe(tamper(form(styles)))).not.toBe(SLOT_ID_RE.source)
-      expect(eagerSlotRe(tamper(form(eagerSrc)))).not.toBe(SLOT_ID_RE.source)
-      expect(serverTypeLabels(form(share).replace('"Kind of note"', '"Note kind"'))).not.toEqual(TYPE_LABELS)
+      // The reader must READ the tampered text (not return null), so assert the tampered value itself.
+      const tampered = SLOT_ID_RE.source.replace('{1,2}$', '{1,3}$')
+      expect(serverSlotRe(tamper(form(styles)))).toBe(tampered)
+      expect(eagerSlotRe(tamper(form(eagerSrc)))).toBe(tampered)
+      const relabelled = serverTypeLabels(form(share).replace('"Kind of note"', '"Note kind"'))
+      expect(relabelled).not.toBeNull()
+      expect(Object.values(relabelled)).toContain('Note kind')
     }
     expect(crlf(eagerSrc).includes('\r\n')).toBe(true)                    // non-vacuity: the CRLF form is CRLF
   })
