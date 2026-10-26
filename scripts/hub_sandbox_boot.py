@@ -157,6 +157,17 @@ KILL_LIST = {
     "YT_OAUTH_CLIENT_ID": "",
     "YT_OAUTH_CLIENT_SECRET": "",
     "YT_OAUTH_REFRESH_TOKEN": "",
+    # Fix round 2 (review N3): web push, the connector OAuth apps, the broker, and the inbound-webhook
+    # secrets. Blank kills each capability; every one is read in api/.
+    "WEB_PUSH_VAPID_PRIVATE_KEY": "",
+    "MSGRAPH_CLIENT_SECRET": "",
+    "NOTION_CLIENT_SECRET": "",
+    "REDDIT_CLIENT_SECRET": "",
+    "SNAPTRADE_CONSUMER_KEY": "",
+    "SNAPTRADE_CLIENT_ID": "",
+    "SNAPTRADE_WEBHOOK_SECRET": "",
+    "ZOOM_WEBHOOK_SECRET_TOKEN": "",
+    "ZOOM_S2S_CLIENT_SECRET": "",
 
     # R2 / shared object storage — blank kills the capability, not just one door.
     # Load-bearing beside USE_REMOTE_BARS=1, whose branch would otherwise try to

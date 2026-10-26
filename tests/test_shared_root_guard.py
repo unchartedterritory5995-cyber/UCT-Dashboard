@@ -52,6 +52,9 @@ def _spellings(root: Path, tmp_path: Path) -> dict:
             "admin share localhost": f"\\\\localhost\\{letter}$" + rest,
             "admin share 127 sub": f"\\\\127.0.0.1\\{letter.lower()}$" + rest + "\\sub",
             "device UNC admin share": f"\\\\?\\UNC\\localhost\\{letter}$" + rest,
+            # R1 (ruling W11-R52): the NT object-manager prefix, ONE leading separator
+            "nt prefix": "\\??\\" + r, "nt prefix sub": "\\??\\" + r + "\\sub",
+            "nt prefix forward": "/??/" + r.replace("\\", "/"),
         })
     return out
 
@@ -158,6 +161,60 @@ def test_the_pytest_tripwire_blocks_a_write_through_a_device_spelling(fake):
         with open(sandbox / "control.txt", "w") as fh:                        # control: allowed
             fh.write("x")
     assert not (root / "sub" / "written.txt").exists()
+
+
+@pytest.mark.parametrize("p", ["C:\\scratch\\what?", "\\??\\Z:\\anything", "/??/Z:/anything", "sb?x"])
+def test_r1_any_question_mark_or_nt_prefix_is_refused_before_resolving(p, monkeypatch):
+    monkeypatch.setattr(guard.os.path, "realpath",
+                        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("resolved")))
+    assert guard.refuse(p, roots=["Z:\\elsewhere"])
+
+
+def test_r1_control_a_long_path_device_prefix_into_a_scratch_dir_is_no_tripwire_hit(fake):
+    root, sandbox = fake
+    croots = guard.canonical_roots([str(root)])
+    assert guard.hit("\\\\?\\" + str(sandbox / "x.db"), croots) is None
+    assert guard.hit("\\??\\" + str(sandbox / "x.db"), croots) is None
+
+
+def test_r1_the_tripwire_reports_a_stray_question_mark_it_cannot_map(fake):
+    root, _ = fake
+    croots = guard.canonical_roots([str(root)])
+    assert guard.hit("?" + str(root / "x.db"), croots)                 # not a device prefix: reported
+    assert guard.hit("\\?" + str(root / "x.db"), croots)
+
+
+def test_r1_the_tripwire_blocks_a_write_through_the_nt_prefix(fake):
+    root, sandbox = fake
+    if not WINDOWS:
+        pytest.skip("the NT prefix is a Windows spelling")
+    target = "\\??\\" + str(root / "sub" / "nt.txt")
+    with rootconf.pretend_shared_root(str(root)):
+        before = len(rootconf.SHARED_ROOT_VIOLATIONS)
+        with pytest.raises(rootconf.SharedDataRootWrite):
+            open(target, "w").close()
+        assert len(rootconf.SHARED_ROOT_VIOLATIONS) == before + 1
+        rootconf.SHARED_ROOT_VIOLATIONS.pop()
+        with open(sandbox / "control-nt.txt", "w") as fh:
+            fh.write("x")
+    assert not (root / "sub" / "nt.txt").exists()
+
+
+def test_n5_the_last_two_copies_ask_the_guard(fake, monkeypatch):
+    import tools.notebook_daily_prep_probe as prep
+    from tools.wisdom import evals_common
+    root, sandbox = fake
+    monkeypatch.setattr(prep, "shared_roots", lambda: [str(root)])
+    with pytest.raises(prep.SharedRootRefused):
+        prep.refuse_shared_root({"db": "\\??\\" + str(root / "x.db")})
+    prep.refuse_shared_root({"db": str(sandbox / "x.db")})                           # control
+    monkeypatch.setattr(evals_common, "_SHARED_ROOTS", (str(root),))
+    with pytest.raises(SystemExit):
+        evals_common.refuse_shared_root(str(root / "sub" / "e.db"), "--db")
+    assert evals_common.refuse_shared_root(str(sandbox / "e.db"), "--db") == str(sandbox / "e.db")
+    for fn in (prep.refuse_shared_root, evals_common.refuse_shared_root):
+        src = inspect.getsource(fn)
+        assert "guard" in src and "startswith(" not in src, fn.__qualname__
 
 
 def test_the_copies_are_gone():

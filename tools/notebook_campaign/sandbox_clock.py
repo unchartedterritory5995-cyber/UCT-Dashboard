@@ -611,8 +611,10 @@ ALWAYS_UNSHIFTABLE = (
     "default_factory captured then keeps the real function)",
     "the browser: its clock is the runner's job (Playwright context.clock), never this process's",
     "identity checks: in api code under the shift `type(x) is datetime` is False (the name is the shifted "
-    "class, the value a real datetime); none exists in api/ today. A name fetched by a builtin call "
-    "(`getattr(datetime_module, 'datetime')`) is the real one",
+    "class, the value a real datetime); none exists in api/ today. A builtin `getattr` on api's OWN swept "
+    "module global (`getattr(datetime_module, 'datetime')`) is shifted; through sys.modules it is real",
+    "pickling the shifted CLASS object itself (`pickle.dumps(datetime)` in api code) raises PicklingError; "
+    "instances pickle normally. None in api/ today",
     "pandas / numpy clocks (`Timestamp.now()`, `datetime64('now')`) read the C clock; none in api/ today",
 )
 
@@ -710,6 +712,71 @@ def remint_sessions(data_dir: Path, clock: OffsetClock, personas, out_name: str 
     return {"kept": kept, "reused": reused, "minted": minted, "personas": want, "file": str(spath)}
 
 
+# ── the two product paths that delete session rows under a shifted clock (review R2) ───────────
+
+#: Set by the clock launcher only, through env the app ALREADY reads: `session_guard.device_limit()`
+#: reads SESSION_DEVICE_LIMIT, and 0 turns the limit off (`_surplus_sessions` returns [] for <= 0). With
+#: the limit on, the third launcher-minted session of a member deleted the oldest one.
+CLOCK_ENV = {"SESSION_DEVICE_LIMIT": "0"}
+
+#: Scheduler jobs a clock sandbox never registers, by the id api/main.py gives them. `session_cleanup`
+#: runs `auth_service.cleanup_expired_sessions` (`DELETE FROM sessions WHERE expires_at < now`) on the
+#: REAL 03:00 ET with a SHIFTED now, deleting every seeded session the shifted now reads as expired.
+DROPPED_JOB_IDS = frozenset({"session_cleanup"})
+
+
+def apply_clock_env(environ) -> dict:
+    environ.update(CLOCK_ENV)
+    return dict(CLOCK_ENV)
+
+
+def _noop_cleanup_expired_sessions():
+    """The clock sandbox's stand-in: deletes nothing (a session's life is the shifted clock's business,
+    and a seeded row the manifest still names must survive every shifted boot)."""
+    return 0
+
+
+def neutralize_session_sweeps():
+    """After `api.main` is imported and before the lifespan runs: (1) every scheduler drops an add_job
+    whose id is in DROPPED_JOB_IDS (by id, never by position; the lifespan registers jobs when it starts);
+    (2) `auth_service.cleanup_expired_sessions`, and any api.* global bound to it, becomes a no-op, so a
+    direct call deletes nothing either. Returns the report line and an `undo` for rails."""
+    from apscheduler.schedulers.base import BaseScheduler
+    from api.services import auth_service
+    original_add = BaseScheduler.add_job
+    dropped: list[str] = []
+
+    def add_job(self, func, *args, **kwargs):
+        if kwargs.get("id") in DROPPED_JOB_IDS:
+            dropped.append(kwargs["id"])
+            print(f"  [clock] scheduler job {kwargs['id']!r} NOT registered (it deletes session rows on a "
+                  "shifted now)", flush=True)
+            return None
+        return original_add(self, func, *args, **kwargs)
+
+    BaseScheduler.add_job = add_job
+    original_fn = auth_service.cleanup_expired_sessions
+    rebound = []
+    for name, mod in list(sys.modules.items()):
+        if mod is None or not _named_in(name, SCOPE):
+            continue
+        d = getattr(mod, "__dict__", None)
+        if not isinstance(d, dict):
+            continue
+        for k, v in list(d.items()):
+            if v is original_fn:
+                d[k] = _noop_cleanup_expired_sessions
+                rebound.append((d, k))
+
+    def undo():
+        BaseScheduler.add_job = original_add
+        for d, k in rebound:
+            d[k] = original_fn
+
+    return {"dropped_job_ids": sorted(DROPPED_JOB_IDS), "cleanup_fn_rebound_in": len(rebound),
+            "dropped_so_far": dropped, "undo": undo}
+
+
 # ── the launcher ───────────────────────────────────────────────────────────────────────────────
 
 def main(argv=None) -> int:
@@ -747,6 +814,7 @@ def main(argv=None) -> int:
     nonce = sid.mint()
     pins = hsb.apply_sandbox_env(sandbox, args.test_email,
                                  allow_model_keys=hsb.model_keys_opted_in(False))
+    clock_env = apply_clock_env(os.environ)
     import conftest  # noqa: E402 -- armed by apply_sandbox_env
     fixture = app_root / "scripts" / "fixtures" / "wire_data.sample.json"
     target = Path(sandbox) / "wire_data.json"
@@ -757,6 +825,7 @@ def main(argv=None) -> int:
     shift = ClockShift(instant).install()
     from api.main import app as _app  # noqa: E402
     shift.sweep_all()
+    sweeps = neutralize_session_sweeps()
     rep = shift.report()
     print("")
     print("  " + "-" * 68)
@@ -771,6 +840,8 @@ def main(argv=None) -> int:
     print(f"  SHIFTED NOW  : {rep['now_et_words']}  ({rep['now_et']})")
     print(f"  Swept        : {rep['modules_swept']} api.* modules, {rep['names_rebound']} names rebound;"
           " late imports swept by a meta-path hook")
+    print(f"  Sessions env : {clock_env}")
+    print(f"  Session sweep: { {k: v for k, v in sweeps.items() if k != 'undo'} }")
     print("  " + "-" * 68, flush=True)
     unshift = print_unshiftable(app_root, Path(sandbox))
     if not args.no_remint:

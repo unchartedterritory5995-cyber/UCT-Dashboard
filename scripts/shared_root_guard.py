@@ -25,6 +25,15 @@ Two entry points over one canonicalisation:
   `\\\\?\\UNC\\h\\C$\\x` and `\\\\h\\C$\\x` -> `C:\\x`, for ANY host: refusing a write to another box's
   admin share costs a test nothing) and compares.
 
+R1 (ruling W11-R52): the NT object-manager prefix `\\??\\` (and `/??/`) starts with ONE separator, so the
+two-separator test misses it, and Windows opens it straight onto the drive. `refuse()` rejects any path
+holding a `?` at all, and `device_to_drive` maps the `\\??\\` prefix so `hit()` sees it; `hit()` also reports
+any `?` left after the device prefixes are mapped away (a literal `?` is never a valid Win32 name).
+
+N4: `hit()` is string-only by design (it runs on every `open()`), so it cannot see a junction or an 8.3
+short name that leads into a root; `refuse()` resolves both, and every launcher calls `refuse()` on its
+data dir before anything is pinned.
+
 Stdlib only, imports nothing from `api`, opens nothing. Roots default to C:\\data and /data;
 callers that derive their own (conftest's census) pass them.
 """
@@ -52,6 +61,11 @@ def _text(path) -> str | None:
     return raw if isinstance(raw, str) else None
 
 
+def has_nt_prefix(raw: str) -> bool:
+    """`\\??\\...` or `/??/...`: the NT object-manager namespace, one leading separator."""
+    return len(raw) >= 4 and raw[0] in _SEPS and raw[1] == "?" and raw[2] == "?" and raw[3] in _SEPS
+
+
 def starts_with_two_separators(path) -> bool:
     raw = _text(path)
     return bool(raw) and len(raw) >= 2 and raw[0] in _SEPS and raw[1] in _SEPS
@@ -61,7 +75,10 @@ def device_to_drive(raw: str) -> str:
     """`\\\\?\\C:\\x` / `\\\\.\\C:\\x` -> `C:\\x`; `\\\\?\\UNC\\h\\s\\x` -> `\\\\h\\s\\x`; an admin share
     `\\\\h\\C$\\x` (any host) -> `C:\\x`. Anything else is returned unchanged. Pure string work."""
     s = raw
-    for _ in range(3):                      # \\?\UNC\h\C$\x needs two steps
+    for _ in range(4):                      # \\?\UNC\h\C$\x needs two steps
+        if has_nt_prefix(s):
+            s = s[4:]
+            continue
         if len(s) >= 4 and s[0] in _SEPS and s[1] in _SEPS and s[2] in "?." and s[3] in _SEPS:
             rest = s[4:]
             if rest[:3].upper() == "UNC" and (len(rest) == 3 or rest[3] in _SEPS):
@@ -117,8 +134,11 @@ def hit(path, roots) -> str | None:
     lowered = raw.lower()
     if not any(os.path.basename(r).lower() in lowered for r in roots):
         return None
+    mapped = device_to_drive(raw)
+    if "?" in mapped:
+        return mapped                       # an unmapped `?` is no valid local path: report, never guess
     try:
-        full = _canon(device_to_drive(raw))
+        full = _canon(mapped)
     except (ValueError, OSError):
         return None
     return full if _inside(full, list(roots)) else None
@@ -131,6 +151,9 @@ def refuse(path, roots=None) -> str | None:
         return "no data dir given"
     if "\x00" in raw:
         return f"{raw!r} contains a NUL byte"
+    if "?" in raw or has_nt_prefix(raw):
+        return (f"{raw!r} holds a '?' (an NT object-manager \\??\\ or \\?\\ device prefix, or no valid "
+                "local name); a sandbox data dir is a plain local path")
     if starts_with_two_separators(raw):
         return (f"{raw!r} begins with two separators (a \\\\?\\ / \\\\.\\ device path or a UNC share); "
                 "a sandbox data dir is a plain local path")

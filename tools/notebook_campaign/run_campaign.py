@@ -1428,8 +1428,12 @@ class Campaign:
         # Under a clock group, a session the launcher vouched for at the shifted now: a seeded one the
         # server reads as expired would be DELETED by its own validate_session on this very request
         # (found in the fix-round dry run: the probe, not the launcher, removed P13's seeded row).
-        any_session = (next(iter(v for v in (self.session_override or {}).values() if v), None)
-                       or next((m["session"] for m in self.manifest["members"].values() if m.get("session")), None))
+        vouched = next(iter(v for v in (self.session_override or {}).values() if v), None)
+        if getattr(self, "clock_server", None) is not None:
+            any_session = vouched                    # review N7: never a seeded cookie under a clock group
+        else:
+            any_session = vouched or next((m["session"] for m in self.manifest["members"].values()
+                                           if m.get("session")), None)
         import urllib.request
         req = urllib.request.Request(self.base + "/api/j2/template-gallery/library",
                                      headers={"Cookie": f"uct_session={any_session}"} if any_session else {})

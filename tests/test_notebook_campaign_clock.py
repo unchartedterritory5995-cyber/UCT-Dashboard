@@ -346,6 +346,118 @@ def test_i3_the_runner_probes_with_a_launcher_vouched_session_under_a_clock_grou
     assert sent == ["uct_session=minted-p13", "uct_session=seeded-p01"]
 
 
+# ── fix round 2 (ruling W11-R52) ─────────────────────────────────────────────────────────
+
+def test_r2_the_session_cleanup_job_is_dropped_by_id_and_kept_without_the_shim():
+    from apscheduler.schedulers.background import BackgroundScheduler
+    noop = lambda: None  # noqa: E731
+    plain = BackgroundScheduler()
+    plain.add_job(noop, "interval", seconds=3600, id="session_cleanup")      # control: a plain boot keeps it
+    assert "session_cleanup" in {j.id for j in plain.get_jobs()}
+    rep = sc.neutralize_session_sweeps()
+    try:
+        shifted = BackgroundScheduler()
+        shifted.add_job(noop, "interval", seconds=3600, id="session_cleanup")
+        shifted.add_job(noop, "interval", seconds=3600, id="cot_daily_catchup")
+        assert {j.id for j in shifted.get_jobs()} == {"cot_daily_catchup"}
+        assert rep["dropped_so_far"] == ["session_cleanup"]
+    finally:
+        rep["undo"]()
+    again = BackgroundScheduler()
+    again.add_job(noop, "interval", seconds=3600, id="session_cleanup")
+    assert "session_cleanup" in {j.id for j in again.get_jobs()}
+
+
+def test_r2_the_dropped_id_is_the_one_api_main_gives_the_cleanup_job():
+    import ast
+    tree = ast.parse((REPO / "api" / "main.py").read_text(encoding="utf-8"))
+    ids = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "add_job" and node.args \
+                and isinstance(node.args[0], ast.Name) and node.args[0].id == "cleanup_expired_sessions":
+            ids |= {k.value.value for k in node.keywords if k.arg == "id" and isinstance(k.value, ast.Constant)}
+    assert ids == set(sc.DROPPED_JOB_IDS)
+
+
+def test_r2_a_direct_cleanup_call_under_the_shift_deletes_nothing(auth_store):
+    from api.services import auth_service
+    u = auth_service.create_user("clock-sweep@local.dev", "pw-123456!")
+    auth_service.create_session(u["id"], user_agent="seed")
+    before = _session_rows(auth_store)
+    sh = sc.ClockShift(datetime.now(timezone.utc) + timedelta(days=45))
+    sh.install()
+    rep = sc.neutralize_session_sweeps()
+    try:
+        assert auth_service.cleanup_expired_sessions() == 0
+    finally:
+        rep["undo"]()
+        sh.uninstall()
+    assert _session_rows(auth_store) == before
+
+
+def test_r2_three_shifted_boots_leave_every_session_row(auth_store, tmp_path, monkeypatch):
+    from api.services import auth_service
+    monkeypatch.delenv("SESSION_DEVICE_LIMIT", raising=False)
+    u = auth_service.create_user("clock-three@local.dev", "pw-123456!")
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / sc.MANIFEST_NAME).write_text(json.dumps({"members": {"P13": {
+        "user_id": u["id"], "session": auth_service.create_session(u["id"], user_agent="seed")}}}), encoding="utf-8")
+    env = {}
+    sc.apply_clock_env(env)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    seen_rows: dict = dict(_session_rows(auth_store))
+    for days in (45, 80, 115):
+        sh = sc.ClockShift(datetime.now(timezone.utc) + timedelta(days=days))
+        sh.install()
+        try:
+            out = sc.remint_sessions(data, sh.clock, ["P13"])
+        finally:
+            sh.uninstall()
+        assert out["minted"] == 1, (days, out)
+        now_rows = _session_rows(auth_store)
+        assert all(now_rows.get(t) == e for t, e in seen_rows.items()), days        # nothing deleted
+        seen_rows = now_rows
+    assert len(seen_rows) == 4
+
+
+def test_r2_control_with_the_device_limit_on_a_third_mint_deletes_a_row(auth_store, tmp_path, monkeypatch):
+    # Proves the rail above can fail: without the clock env the product's own limit removes a row.
+    from api.services import auth_service
+    monkeypatch.setenv("SESSION_DEVICE_LIMIT", "2")
+    u = auth_service.create_user("clock-limit@local.dev", "pw-123456!")
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / sc.MANIFEST_NAME).write_text(json.dumps({"members": {"P13": {
+        "user_id": u["id"], "session": auth_service.create_session(u["id"], user_agent="seed")}}}), encoding="utf-8")
+    for days in (45, 80, 115):
+        sh = sc.ClockShift(datetime.now(timezone.utc) + timedelta(days=days))
+        sh.install()
+        try:
+            sc.remint_sessions(data, sh.clock, ["P13"])
+        finally:
+            sh.uninstall()
+    assert len(_session_rows(auth_store)) < 4
+
+
+def test_n7_under_a_clock_group_the_probe_sends_no_seeded_cookie(monkeypatch):
+    import urllib.request
+    g = object.__new__(rc.Campaign)
+    g.base = "http://127.0.0.1:1"
+    g.manifest = {"members": {"P01": {"session": "seeded-p01"}}}
+    g.session_override = {}
+    g.clock_server = object()
+    sent = []
+
+    def fake_urlopen(req, timeout=None):
+        sent.append(req.headers.get("Cookie"))
+        raise OSError("not a server")
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    g.probe_w11()
+    assert sent == [None]
+
+
 def test_m2_durations_stay_on_the_real_monotonic_clock(shift):
     shift.install()
     try:
@@ -456,8 +568,9 @@ def test_i3_control_a_live_seeded_session_is_kept_not_reminted(auth_store, tmp_p
 
 
 # I4: every outbound channel credential the app reads is BLANK after apply_sandbox_env.
-_CHANNEL_RE = re.compile(r"""["']([A-Z][A-Z0-9_]*(?:_WEBHOOK_URL|_WEBHOOK|_BOT_TOKEN)|RESEND_API_KEY|STRIPE_SECRET_KEY|"""
-                         r"""STRIPE_WEBHOOK_SECRET|YT_OAUTH_[A-Z_]+)["']""")
+_CHANNEL_RE = re.compile(r"""["']([A-Z][A-Z0-9_]*(?:_WEBHOOK_URL|_WEBHOOK|_BOT_TOKEN|_CLIENT_SECRET|_WEBHOOK_SECRET|"""
+                         r"""_WEBHOOK_SECRET_TOKEN|_VAPID_PRIVATE_KEY|_CONSUMER_KEY)|RESEND_API_KEY|STRIPE_SECRET_KEY|"""
+                         r"""YT_OAUTH_[A-Z_]+)["']""")
 
 
 def _channel_names() -> set:
@@ -517,6 +630,7 @@ def test_m2_main_pins_the_hub_env_before_the_shift_and_the_api_import(tmp_path, 
     def install(self):
         order.append("install")
         seen["env_at_install"] = os.environ.get("CLOCK_ORDER_PROBE_PIN")
+        seen["device_limit_at_install"] = os.environ.get("SESSION_DEVICE_LIMIT")
         shifts.append(self)
         return real_install(self)
 
@@ -535,6 +649,8 @@ def test_m2_main_pins_the_hub_env_before_the_shift_and_the_api_import(tmp_path, 
     monkeypatch.setitem(sys.modules, "api.main", _ApiMain("api.main"))
     monkeypatch.setitem(sys.modules, "uvicorn", uv)
     monkeypatch.setattr(sc.ClockShift, "install", install)
+    monkeypatch.setattr(sc, "neutralize_session_sweeps", lambda: (order.append("sweeps"), {"undo": None})[1])
+    monkeypatch.setenv("SESSION_DEVICE_LIMIT", "2")
     monkeypatch.setattr(sys, "path", list(sys.path))
     monkeypatch.delenv("CLOCK_ORDER_PROBE_PIN", raising=False)
     monkeypatch.chdir(tmp_path)
@@ -547,5 +663,5 @@ def test_m2_main_pins_the_hub_env_before_the_shift_and_the_api_import(tmp_path, 
         for s_ in shifts:
             s_.uninstall()
     assert rc_ == 0
-    assert order[:5] == ["port", "env", "reporter", "install", "api-import"] and order[-1] == "serve"
-    assert seen == {"env_at_install": "pinned", "shifted_at_import": True}
+    assert order[:6] == ["port", "env", "reporter", "install", "api-import", "sweeps"] and order[-1] == "serve"
+    assert seen == {"env_at_install": "pinned", "device_limit_at_install": "0", "shifted_at_import": True}

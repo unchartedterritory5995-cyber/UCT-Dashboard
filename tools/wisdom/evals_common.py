@@ -17,11 +17,14 @@ _SHARED_ROOTS = ("/data", "C:\\data")
 
 
 def refuse_shared_root(path: str, label: str) -> str:
-    target = os.path.normcase(os.path.abspath(path))
-    for root in _SHARED_ROOTS:
-        base = os.path.normcase(os.path.abspath(root))
-        if target == base or target.startswith(base + os.sep):
-            raise SystemExit(f"{label} must not live under the shared data root ({root}): {path}")
+    """THE refusal authority (scripts/shared_root_guard.py, ruling W11-R51/R52), never a local compare."""
+    scripts = str(REPO / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import shared_root_guard
+    why = shared_root_guard.refuse(path, roots=_SHARED_ROOTS)
+    if why:
+        raise SystemExit(f"{label} must not live under the shared data root: {why}")
     return path
 
 
