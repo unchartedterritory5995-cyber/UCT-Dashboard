@@ -268,3 +268,15 @@ def test_the_prompt_never_writes_the_note(db):
         db.set_trace_callback(None)
     assert not [s for s in written if "j2_notes" in s and not s.lstrip().upper().startswith("SELECT")]
     assert [tuple(r) for r in db.execute("SELECT * FROM j2_notes ORDER BY id")] == before
+
+
+def test_a_later_yes_after_another_answer_changes_nothing(db):
+    """Once per (member, item): a "yes" posted after "dismissed" neither replaces the answer nor marks Helpful."""
+    gid = _listed_style(db)
+    sid = _copy(db, gid)
+    for ts in (DAY1, DAY2, DAY3):
+        _note(db, sid, ts)
+    assert gallery.answer_helpful_prompt(MEMBER, gid, "dismissed", conn=db)["answer"] == "dismissed"
+    assert gallery.answer_helpful_prompt(MEMBER, gid, "yes", conn=db) == {"answer": "dismissed", "helpful": False,
+                                                                          "count": 0}
+    assert _helpful_rows(db, gid) == 0
