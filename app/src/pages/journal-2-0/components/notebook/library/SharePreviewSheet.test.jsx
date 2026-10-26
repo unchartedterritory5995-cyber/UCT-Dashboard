@@ -471,10 +471,14 @@ describe('the share preview of a template', () => {
   })
 
   it("F-FE-1 F1: the template's outline travels in the server's words, inside Exactly what travels", async () => {
-    // template_gallery.share_preview's `outline` (11.15 M-4, W11-R33): sanitized, every link mark already dropped.
+    // template_gallery.share_preview's `outline` in the SERVER's sanitized shape (11.15 M-4, W11-R33/R40): the author
+    // linked "the levels sheet"; `_without_links` dropped the link mark and kept its text. That the href never travels
+    // is the server's guarantee (railed by the be canary tests); here: the kept text is drawn, and the sheet draws
+    // the server's nodes as given, so with no mark in the answer there is no anchor (fix round 1 m-3).
     const OUTLINE = { type: 'doc', content: [
       { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Before the bell' }] },
-      { type: 'paragraph', content: [{ type: 'text', text: 'What would change the plan?' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'What would change the plan? Check ' },
+        { type: 'text', text: 'the levels sheet', marks: [{ type: 'bold' }] }] },
     ] }
     installServer((b) => ({ ...templateAnswer(b), outline: OUTLINE, outlineGone: false }))
     mount({ kind: 'template', id: 's1' })
@@ -482,8 +486,9 @@ describe('the share preview of a template', () => {
     const box = travels().querySelector('[data-outline-travels]')
     expect(within(box).getByRole('heading', { name: 'Outline' })).toBeTruthy()
     expect(within(box).getByText('Before the bell')).toBeTruthy()
-    expect(within(box).getByText('What would change the plan?')).toBeTruthy()
-    expect(box.querySelector('a')).toBeNull()
+    expect(box.textContent).toContain('What would change the plan? Check the levels sheet')
+    // m-4: the author's headings sit BELOW the sheet's own (h2 title, h3 Exactly what travels, h4 Outline).
+    expect(within(box).getByRole('heading', { name: 'Before the bell' }).tagName).toBe('H5')
   })
 
   it("F-FE-1 F1: an outline that is gone draws no outline and says so ONCE, in the server's own sentence", async () => {

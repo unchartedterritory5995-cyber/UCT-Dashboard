@@ -9,6 +9,7 @@
 //   * template-adopt-sheet        -- "Make it yours": the choices, the preview cards and the routine;
 //   * template-slot-picker        -- one choice's picker, its values loaded;
 //   * template-share-preview      -- the share preview for a widget: what travels, the fields, the kept number;
+//   * template-share-preview-outline -- the share preview for a template, with the outline that travels (F-FE-1);
 //   * helpful-prompt-line         -- the 3rd-day "Was <title> helpful?" line.
 import { describe, beforeEach, afterEach, vi, expect } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
@@ -85,6 +86,23 @@ const SHARE_ANSWER = {
     numbers: [{ path: 'filters/0/values/0', value: 2.5, label: 'Hold days' }] },
 }
 
+/** A template's share preview (F-FE-1 fix round 1, m-4): what travels, with the outline in the server's sanitized
+ *  shape (headings and prompts; the author's link kept as text). */
+const TEMPLATE_SHARE_ANSWER = {
+  travels: { format: 2, name: 'My prep', description: 'Before the open',
+    blocks: [{ block: 'routine_a', enabled: true, settings: { inline: 'r1', bind: 'note-day', display: 'items' } }],
+    definitions: [], routines: [{ key: 'r1', name: 'Morning prep', items: [{ text: 'Check news' }], schedule: { kind: 'every' } }],
+    trackers: [], slots: [] },
+  slots: [], kept: [], notShared: [],
+  prefill: { name: 'My prep', description: 'Before the open', blocks: { routine_a: { name: 'Morning prep', items: [{ text: 'Check news' }] } } },
+  outline: { type: 'doc', content: [
+    { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Before the bell' }] },
+    { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Levels' }] },
+    { type: 'paragraph', content: [{ type: 'text', text: 'Mark the levels sheet.' }] },
+  ] },
+  outlineGone: false,
+}
+
 function installFetch() {
   vi.stubGlobal('fetch', vi.fn(async (url, init = {}) => {
     const method = (init.method || 'GET').toUpperCase()
@@ -92,7 +110,9 @@ function installFetch() {
     const p = u.pathname
     if (p === `${G}/library` && method === 'GET') return json(200, { templates: LIBRARY })
     if (p.endsWith('/preview-mine') && method === 'POST') return json(200, PREVIEW)
-    if (p === `${G}/share/preview` && method === 'POST') return json(200, SHARE_ANSWER)
+    if (p === `${G}/share/preview` && method === 'POST') {
+      return json(200, JSON.parse(init.body || '{}').kind === 'template' ? TEMPLATE_SHARE_ANSWER : SHARE_ANSWER)
+    }
     if (p === `${G}/notes/n1/helpful-prompt` && method === 'GET') {
       return json(200, { show: true, itemId: 'g-open', title: 'Pre-market prep', line: 'Was Pre-market prep helpful?' })
     }
@@ -164,6 +184,15 @@ describe('a11y: the template library (wave 11)', () => {
     expect(await screen.findByDisplayValue('Risk multiple')).toBeTruthy()
     expect(screen.getByText('Your setups are left out; people pick their own.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Send for review' })).toBeTruthy()
+    await settle()
+  })
+
+  axeSurface('template-share-preview-outline', async () => {
+    render(<SharePreviewSheet kind="template" id="s1" onClose={() => {}} onDone={() => {}} />)
+    await waitFor(() => expect(document.querySelector('[data-outline-travels]')).not.toBeNull())
+    expect(screen.getByRole('heading', { name: 'Before the bell' }).tagName).toBe('H5')
+    expect(screen.getByRole('heading', { name: 'Levels' }).tagName).toBe('H6')
+    expect(screen.getByText('Mark the levels sheet.')).toBeTruthy()
     await settle()
   })
 

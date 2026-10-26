@@ -287,7 +287,8 @@ function OutlineTravels({ answer }) {
   return (
     <div className={styles.group} data-outline-travels="">
       <h4 className={styles.subheading}>{OUTLINE_LABEL}</h4>
-      <DocBody body={o} />
+      {/* m-4: under the sheet's h2 title, the h3 "Exactly what travels" and this h4, the author's headings are h5-h6. */}
+      <DocBody body={o} headingBase={5} />
     </div>
   )
 }

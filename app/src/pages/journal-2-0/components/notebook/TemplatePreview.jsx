@@ -20,8 +20,21 @@
 // silently dropped); an unknown leaf renders nothing. Never raw JSON, either
 // way -- there is no code path in this file that stringifies a node for
 // display.
+import { createContext, useContext } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import styles from './TemplatePreview.module.css'
+
+// The level a body's TOP heading renders at (wave 11 F-FE-1 fix round 1, m-4). A body's own heading levels 2-4 map to
+// base..base+2, capped at h6, so a body drawn deep inside a sheet (the share preview's "Outline", under its h4) never
+// out-ranks the sheet's own headings. Default 2: every existing caller renders exactly as before.
+const HeadingBase = createContext(2)
+
+function Heading({ node }) {
+  const base = useContext(HeadingBase)
+  const level = Math.min(Math.max(Number(node.attrs?.level) || 2, 2), 4)
+  const Tag = `h${Math.min(6, base + level - 2)}`
+  return <Tag className={styles.heading}><Inline nodes={node.content} /></Tag>
+}
 
 function Marks({ marks, children }) {
   let out = children
@@ -64,11 +77,8 @@ function ListItems({ items }) {
 function Block({ node, inline = false }) {
   if (!node || typeof node !== 'object') return null
   switch (node.type) {
-    case 'heading': {
-      const level = Math.min(Math.max(Number(node.attrs?.level) || 2, 2), 4)
-      const Tag = `h${level}`
-      return <Tag className={styles.heading}><Inline nodes={node.content} /></Tag>
-    }
+    case 'heading':
+      return <Heading node={node} />
     case 'paragraph': {
       const content = <Inline nodes={node.content} />
       if (inline) return content
@@ -109,10 +119,17 @@ function Block({ node, inline = false }) {
 }
 
 /** The preview body: every top-level block of a TipTap doc, read-only. */
-export function DocBody({ body }) {
+/** `headingBase` (default 2): the level the body's top heading takes, so a caller nesting it under its own headings
+ *  keeps the page's heading order (h2..h6). */
+export function DocBody({ body, headingBase = 2 }) {
   const blocks = (body && body.content) || []
   if (!blocks.length) return <p className={styles.status}>This template makes an empty page.</p>
-  return <div className={styles.body} data-template-preview-body="">{blocks.map((n, i) => <Block key={i} node={n} />)}</div>
+  const base = Number.isInteger(headingBase) ? Math.min(Math.max(headingBase, 2), 6) : 2
+  return (
+    <HeadingBase.Provider value={base}>
+      <div className={styles.body} data-template-preview-body="">{blocks.map((n, i) => <Block key={i} node={n} />)}</div>
+    </HeadingBase.Provider>
+  )
 }
 
 // Wave 12 (lane 12A): `showUse` (default true) -- the community gallery's review queue
