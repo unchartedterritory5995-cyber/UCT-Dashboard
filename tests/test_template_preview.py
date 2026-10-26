@@ -544,7 +544,7 @@ def _number_template():
         "routines": [], "trackers": [], "slots": [dict(s) for s in shared.slots]}
 
 
-def test_crash_inputs_are_refused_with_their_slot(conn):
+def test_crash_inputs_are_refused_with_their_slot(conn, monkeypatch):
     """Re-review m-1: well-formed JSON a route can hand over is REFUSED with the slot, never a crash: a lone
     surrogate in a text answer, and an int too large for a float on a number choice."""
     add_user(conn, B)
@@ -560,10 +560,14 @@ def test_crash_inputs_are_refused_with_their_slot(conn):
     assert e.value.slot == "p1" and e.value.sentence == share.S_BAD_CHARACTER
     num = _row(conn, _number_template())
     sid = tp._slots_of(_number_template())[0]["id"]
+    resolves = []
+    real_resolve = share.resolve_plan
+    monkeypatch.setattr(share, "resolve_plan", lambda *a, **k: resolves.append(1) or real_resolve(*a, **k))
     for huge in (10 ** 400, -(10 ** 400)):
         with pytest.raises(share.ShareError) as e:
             _go(conn, num, answers={sid: huge})
         assert e.value.slot == sid and e.value.sentence.startswith("Type a number for")
+    assert resolves == []                                                  # refused by the preview's own check
     for fine in (1e308, -1e308, 2 ** 63, 5e-324, -0.0):                     # big but finite: they run
         tp._CACHE.clear()
         assert "cards" in _go(conn, num, answers={sid: fine})
