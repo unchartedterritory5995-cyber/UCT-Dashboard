@@ -530,3 +530,92 @@ def test_use_answer_is_never_a_book_value(conn):
         sent = slot["value"] if slot["value"] is not None else (slot["suggested"] or {}).get("value")
         assert sent is None or sent not in book
         assert slot["suggested"] is None or slot["suggested"]["value"] not in book
+
+
+# -- fix round 3 (re-review m-1, m-2, m-4, m-5) --------------------------------------------------------
+
+def _number_template():
+    plan = {"v": 1, "source": "closed_trades", "measures": [{"key": "trades"}], "range": {"token": "all"},
+            "filters": [{"field": "net", "op": "gt", "values": [250]}]}
+    shared = share.share_plan(plan, catalog=S.CATALOG)
+    return {"format": 2, "name": "T", "description": "", "definitions": [
+        {"key": "d1", "plan": shared.payload["plan"], "name": "Big", "description": ""}],
+        "blocks": [{"block": "built_a", "enabled": True, "settings": {"ref": "inline:d1"}}],
+        "routines": [], "trackers": [], "slots": [dict(s) for s in shared.slots]}
+
+
+def test_crash_inputs_are_refused_with_their_slot(conn):
+    """Re-review m-1: well-formed JSON a route can hand over is REFUSED with the slot, never a crash: a lone
+    surrogate in a text answer, and an int too large for a float on a number choice."""
+    add_user(conn, B)
+    _trades(conn, 6)
+    slots = [{"id": "p1", "type": "setup", "any": True, "label": "Setup"}]
+    for raw in ('{"p1": "\\ud800"}', '{"p1": ["Flag", "\\udfff"]}'):
+        with pytest.raises(share.ShareError) as e:
+            tp.clean_answers(slots, json.loads(raw))
+        assert e.value.slot == "p1" and e.value.sentence == share.S_BAD_CHARACTER
+    gid = _row(conn, _template(1))
+    with pytest.raises(share.ShareError) as e:
+        _go(conn, gid, answers=json.loads('{"p1": "Fl\\udc00ag"}'))
+    assert e.value.slot == "p1" and e.value.sentence == share.S_BAD_CHARACTER
+    num = _row(conn, _number_template())
+    sid = tp._slots_of(_number_template())[0]["id"]
+    for huge in (10 ** 400, -(10 ** 400)):
+        with pytest.raises(share.ShareError) as e:
+            _go(conn, num, answers={sid: huge})
+        assert e.value.slot == sid and e.value.sentence.startswith("Type a number for")
+    for fine in (1e308, -1e308, 2 ** 63, 5e-324, -0.0):                     # big but finite: they run
+        tp._CACHE.clear()
+        assert "cards" in _go(conn, num, answers={sid: fine})
+    assert len(tp._CACHE) == 1                                             # nothing refused was cached
+
+
+def test_refusal_trace_default_uses_the_fields_case_rule(conn):
+    """Re-review m-2: the default an answer is reset to when tracing a refusal follows the same case rule
+    as the card's run (a symbol is case-insensitive): an own lowercase symbol the book holds stays the
+    member's, never swapped for the book's spelling."""
+    add_user(conn, B)
+    plan = {"v": 1, "source": "closed_trades", "measures": [{"key": "trades"}], "range": {"token": "all"},
+            "filters": [{"field": "symbol", "op": "in", "values": ["ZZZ"]}]}
+    slots = [dict(s) for s in share.share_plan(plan, catalog=S.CATALOG).slots]
+    low = tp._book_values(slots[0])[0].lower()
+    for i in range(3):
+        add_trade(conn, UID, day=f"2026-10-{10 + i:02d}", symbol=low, pnl=1.0)
+    served, used, defaults = tp._choices(slots, {"p1": low}, UID, conn, sample=True)
+    assert used["p1"] == low and defaults["p1"] == low and "sampleValue" not in served[0]
+
+
+def test_standalone_tool_hidden_while_wave_9_is_off(conn, monkeypatch):
+    """Re-review m-4: a listed routine or tracker answers as not visible while wave 9 is off, exactly as its
+    template slot is hidden: the ONE decider (`journal_styles._slot_wave_off`) is asked."""
+    from api.services.journal_two import journal_styles as js
+    add_user(conn, B)
+    routine = _row(conn, {"name": "Pre", "items": [{"text": "a"}], "schedule": {"kind": "every"}},
+                   item_type="routine")
+    tracker = _row(conn, {"name": "Sleep", "kind": "duration", "unit": None, "days": "any"},
+                   item_type="tracker")
+    assert _go(conn, routine)["tools"][0]["name"] == "Pre" and _go(conn, tracker)["tools"]
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED")
+    tp._CACHE.clear()
+    seen = []
+    real = js._slot_wave_off
+    monkeypatch.setattr(js, "_slot_wave_off", lambda *a: seen.append(a[0]) or real(*a))
+    assert _go(conn, routine) is None and _go(conn, tracker) is None
+    assert seen == ["routine_a", "tracker_a"]
+    tpl = _row(conn, _template(0, tools=True))
+    assert _go(conn, tpl)["tools"] == []                                     # the template slot agrees
+
+
+def test_the_sample_decision_is_read_once_and_shared_with_the_batch(conn, monkeypatch):
+    """Re-review m-5: one `wants_sample` answer per request decides both the choices and the batch run, so the
+    5th trade can never land between the two."""
+    add_user(conn, B)
+    _trades(conn, 3, setup="MyRealSetup")
+    gid = _row(conn, _template(2))
+    reads, batch = [], []
+    real_ws, real_batch = run.wants_sample, run.run_plans_batch
+    monkeypatch.setattr(run, "wants_sample", lambda *a: reads.append(1) or real_ws(*a))
+    monkeypatch.setattr(run, "run_plans_batch", lambda *a, **k: batch.append(k.get("sample")) or real_batch(*a, **k))
+    out = _go(conn, gid)
+    assert reads == [1] and batch == [True]
+    assert all(c["sample"] is True and c["payload"]["count"] > 0 for c in out["cards"])

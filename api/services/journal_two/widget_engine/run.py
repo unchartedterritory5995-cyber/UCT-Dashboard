@@ -1256,7 +1256,7 @@ def _scope(payload: dict, acc: str, name: Any) -> None:
 
 
 def run_plans_batch(user_id: str, cards: list[tuple[str, dict]], *,
-                    now: datetime | None = None) -> dict:
+                    now: datetime | None = None, sample: bool | None = None) -> dict:
     """Up to `MAX_EXAMPLES` plans for the session member, in ONE batch through the `example` lane:
     `{"cards": [{"key", "payload"} | {"key", "code", "message"}]}`, in the order given.
 
@@ -1276,9 +1276,14 @@ def run_plans_batch(user_id: str, cards: list[tuple[str, dict]], *,
     * A card whose plan does not validate (or is too new) is `{"key", "code", "message"}` with the
       plan module's own sentence; the other cards still run. Nothing to run reads nothing.
 
+    * `sample` is the caller's own `wants_sample` answer for this request, when it already read one (the preview
+      decides its choices on it, so the batch must run on the SAME answer); None reads it here.
+
     Raises `PlanError` (more than `MAX_EXAMPLES` cards), `EngineBusy` or `EngineTooLong`."""
     if not isinstance(user_id, str) or not user_id:
         raise ValueError("a run needs the session member's id")
+    if sample is not None and not isinstance(sample, bool):
+        raise ValueError("sample is the caller's wants_sample answer, a bool")
     pairs = _batch_cards(cards)
     now = now or datetime.now(timezone.utc)
     failed: dict[str, dict] = {}
@@ -1296,7 +1301,8 @@ def run_plans_batch(user_id: str, cards: list[tuple[str, dict]], *,
     w10 = _w10_on()
     with _connection() as conn:
         with deadline(conn):
-            sample = wants_sample(conn, user_id)
+            if sample is None:
+                sample = wants_sample(conn, user_id)
             items: list[tuple[str, dict, str | None, list[str], bool]] = []
             for key, p in bases:
                 own = _never_sample(p)

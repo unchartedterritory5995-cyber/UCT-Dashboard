@@ -120,8 +120,9 @@ def cache_key(gallery_id: str, version: Any, user_id: str, et_day: str, answers:
 
 
 def _number(x: Any) -> bool:
-    return (isinstance(x, (int, float)) and not isinstance(x, bool) and x == x
-            and x not in (float("inf"), float("-inf")))
+    """THE reducer's own number test (`share._is_number`: finite, never a bool, an int too large for a float
+    refused), so the preview and the resolve can never disagree about what a number is."""
+    return share._is_number(x)
 
 
 def _refuse(sentence: str, sid: str) -> share.ShareError:
@@ -152,6 +153,10 @@ def _text_ok(x: Any, label: str, sid: str) -> None:
         raise _refuse(share.S_NEED_VALUE.format(label=label), sid)
     if len(x) > _plan().MAX_TEXT:                       # the plan's own bound, in its own words (as resolve answers)
         raise _refuse(_plan().S_TEXT_TOO_LONG, sid)
+    try:
+        x.encode("utf-8")                                # a lone surrogate is refused, never a crash (fix round 3)
+    except UnicodeEncodeError:
+        raise _refuse(share.S_BAD_CHARACTER, sid) from None
 
 
 def _check_answer(slot: Mapping, a: Any) -> None:
@@ -231,6 +236,11 @@ def _book_values(slot: Mapping) -> list | None:
     return sorted(counts, key=lambda k: (-counts[k], order[k]))
 
 
+def fld_of(slot: Mapping) -> Any:
+    """The catalog field a choice filters (a book-filterable choice always names one)."""
+    return _catalog().sources[slot["source"]].fields[slot["field"]]
+
+
 def _in_book(a: Any, values: list, ci: bool) -> bool:
     have = {v.lower() for v in values} if ci else set(values)
     items = a if isinstance(a, list) else [a]
@@ -273,7 +283,7 @@ def _choices(slots: list[dict], answers: Mapping, user_id: str, conn: sqlite3.Co
         if sid in answers:
             default = sug["value"] if sug is not None else ({"any": True} if any_ok else None)
             if book is not None and default is not None and not isinstance(default, Mapping) \
-                    and not _in_book(default, book, False):
+                    and not _in_book(default, book, bool(getattr(fld_of(s), "ci", False))):
                 default = book[0] if book else ({"any": True} if any_ok else None)
             if default is not None:
                 defaults[sid] = default
@@ -377,7 +387,7 @@ def _with_range(plan: dict, s: dict) -> dict:
     return plan
 
 
-def _run_cards(user_id: str, pending: list[tuple[dict, dict]], now: datetime) -> None:
+def _run_cards(user_id: str, pending: list[tuple[dict, dict]], now: datetime, *, sample: bool) -> None:
     """Fill each pending card (`(card, plan)`) from ONE `run_plans_batch` call; past the cap, the not-previewed
     sentence. A card the batch refused carries the plan module's own sentence."""
     run = _run()
@@ -386,7 +396,8 @@ def _run_cards(user_id: str, pending: list[tuple[dict, dict]], now: datetime) ->
         card["sentence"] = S_NOT_PREVIEWED
     if not batch:
         return
-    answer = run.run_plans_batch(user_id, [(f"c{i}", plan) for i, (_c, plan) in enumerate(batch)], now=now)
+    answer = run.run_plans_batch(user_id, [(f"c{i}", plan) for i, (_c, plan) in enumerate(batch)], now=now,
+                                 sample=sample)              # the ONE sample decision of this request (m-5)
     by_key = {c["key"]: c for c in answer["cards"]}
     for i, (card, _plan) in enumerate(batch):
         got = by_key.get(f"c{i}") or {}
@@ -473,7 +484,8 @@ def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Con
               now: datetime) -> dict:
     js = _js()
     slots = _slots_of(payload)
-    served, used, defaults = _choices(slots, answers, user_id, conn, sample=_run().wants_sample(conn, user_id))
+    sample = _run().wants_sample(conn, user_id)              # read ONCE: the choices and the batch share it
+    served, used, defaults = _choices(slots, answers, user_id, conn, sample=sample)
     definitions = {d["key"]: d for d in payload.get("definitions") if isinstance(d, Mapping)
                    and isinstance(d.get("key"), str)} if isinstance(payload.get("definitions"), list) else {}
     note_day = trading_days.today_et(now).isoformat()
@@ -516,7 +528,7 @@ def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Con
                 continue
             tools.append(_tool(bid, family, st, author=author, user_id=user_id, conn=conn, payload=payload,
                                note_day=note_day))
-    _run_cards(user_id, pending, now)
+    _run_cards(user_id, pending, now, sample=sample)
     return {"slots": served, "cards": cards, "tools": tools,
             "questions": _questions(payload, user_id=user_id, conn=conn)}
 
@@ -537,7 +549,8 @@ def _questions(payload: Mapping, *, user_id: str, conn: sqlite3.Connection) -> l
 def _widget(payload: Mapping, *, user_id: str, conn: sqlite3.Connection, answers: Mapping,
             now: datetime) -> dict:
     slots = _slots_of(payload)
-    served, used, defaults = _choices(slots, answers, user_id, conn, sample=_run().wants_sample(conn, user_id))
+    sample = _run().wants_sample(conn, user_id)              # read ONCE: the choices and the batch share it
+    served, used, defaults = _choices(slots, answers, user_id, conn, sample=sample)
     name = payload.get("name")
     card: dict = {"slot": WIDGET_SLOT,
                   "title": name if isinstance(name, str) and name.strip() else slot_fill.DEFAULT_TITLE,
@@ -553,7 +566,7 @@ def _widget(payload: Mapping, *, user_id: str, conn: sqlite3.Connection, answers
     if sentence is not None:
         card["sentence"] = sentence
     else:
-        _run_cards(user_id, [(card, resolved)], now)
+        _run_cards(user_id, [(card, resolved)], now, sample=sample)
     return {"slots": served, "cards": cards, "tools": [], "questions": []}
 
 
@@ -628,7 +641,11 @@ def preview_mine(user_id: str, gallery_id: str, *, answers: dict | None = None, 
         elif item_type == "widget_definition":
             out = _widget(payload, user_id=user_id, conn=c, answers=answers, now=now)
         else:
-            out = _standalone_tool(_TOOL_TYPES[item_type], payload)
+            family = _TOOL_TYPES[item_type]
+            # the ONE decider (W11-R20), asked as the slot an adoption places: wave 9 off reads as not visible
+            if _js()._slot_wave_off(f"{family}_a", {"inline": "t", "bind": "note-day"}):
+                return None
+            out = _standalone_tool(family, payload)
         out["credit"] = credit_line(row, user_id)
     _CACHE.set(key, out, CACHE_TTL_S)
     return copy.deepcopy(out)

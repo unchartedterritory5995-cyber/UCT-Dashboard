@@ -198,7 +198,14 @@ def _safe(path: str, value: Any) -> Any:
 
 
 def _is_number(x: Any) -> bool:
-    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+    """A finite int or float (never a bool). Fails CLOSED: an int too large for a float is not a number here
+    (`math.isfinite` raises OverflowError on it; Task 11.9 fix round 3)."""
+    if not isinstance(x, (int, float)) or isinstance(x, bool):
+        return False
+    try:
+        return math.isfinite(x)
+    except OverflowError:
+        return False
 
 
 def _edit_text(raw: Any, limit: int, sentence: str) -> str | None:

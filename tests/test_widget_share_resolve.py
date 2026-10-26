@@ -198,3 +198,17 @@ def test_every_shared_formula_round_trips(expr):
     if not expr.startswith(("Round", "Bucket")):
         got = _resolve(plan, slots, {sid: -(len(ids) - i) - 0.5 for i, sid in enumerate(ids)})
         assert got["formulas"][0]["expr"].count("(") == got["formulas"][0]["expr"].count(")")
+
+
+def test_is_number_fails_closed_on_an_int_too_large_for_a_float():
+    """Task 11.9 fix round 3: an int past float range is not a number (never an OverflowError), so a number
+    choice answered with one is refused with the reducer's own sentence."""
+    assert share._is_number(10 ** 400) is False and share._is_number(-(10 ** 400)) is False
+    assert share._is_number(2 ** 63) is True and share._is_number(1e308) is True
+    assert share._is_number(True) is False and share._is_number(float("inf")) is False
+    plan, slots = _shared({"v": 1, "source": "closed_trades", "measures": [{"key": "trades"}],
+                           "filters": [{"field": "net", "op": "gt", "values": [250]}]})
+    sid = slots[0]["id"]
+    with pytest.raises(share.ShareError) as e:
+        _resolve(plan, slots, {sid: 10 ** 400})
+    assert e.value.sentence.startswith("Type a number for")
