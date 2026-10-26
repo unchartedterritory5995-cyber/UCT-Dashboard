@@ -30,7 +30,10 @@ Each property is its own test, parametrized over the matrix rows it applies to:
                                   12 a malformed body: gate, then member, then body (I-1)
 
 Share links (`notebook_shares.py`) and publish-to-web (`notebook_publish.py`, B4) are both
-rows of the one matrix; every property runs over both where it applies.
+rows of the one matrix; every property runs over both where it applies. Wave 11's share preview
+(`POST /api/j2/template-gallery/share/preview`, `notebook_template_gallery.py`) is a row too: the
+derivation finds it by its `share` segment, so the behaviour app mounts the gallery router as well,
+and its gate, its body reader and its 429 are wave 11's (`_require_w11`, `w11_body`, `{code, message}`).
 """
 from __future__ import annotations
 
@@ -52,6 +55,15 @@ from api.middleware import auth_middleware as authmw
 
 G_SHARE = "J2_SHARE_LINKS_ENABLED"
 G_PUBLISH = "NOTEBOOK_PUBLISH_ENABLED"
+#: Wave 11's switch. Off, `notebook_template_gallery._require_w11` answers the one 404 (it also needs the style
+#: library on, which the behaviour app holds on, so turning THIS flag off proves that route dependency is the gate).
+G_W11 = "NOTEBOOK_WIDGETS_W11_ENABLED"
+GALLERY_ROUTER = "api.routers.notebook_template_gallery"
+#: A gate that is a ROUTE dependency of the row (beside its router's own): the column's flag -> the serving
+#: router's gate function, checked by identity in `test_the_gate_column_is_the_dependency_tree`.
+GATE_DEPENDENCIES = {G_W11: "_require_w11"}
+#: The body column -> the serving router's reader dependency.
+BODY_READERS = {"expiry": "expiry_body", "w11": "w11_body"}
 
 #: The route-selection rule: under /api/j2, any path with one of these SEGMENTS.
 SEGMENTS = frozenset({"share", "shared", "publish", "published"})
@@ -59,11 +71,12 @@ SEGMENTS = frozenset({"share", "shared", "publish", "published"})
 #: ⛔ The authority on what each public-note route may do. Every derived route has a row;
 #: every row names a real route. Columns:
 #:   auth    'owner' (a signed-in member acting on their own things) | 'public' (no auth)
-#:   gate    the env flag whose OFF answers 404 before anything runs
+#:   gate    the env flag whose OFF answers 404 before anything runs (G_W11: through `_require_w11`)
 #:   bucket  the limiter scope that counts it, or None
 #:   plan    'paid' (the router's own require_paid) | 'session' (get_current_user only) | None
 #:   body    'expiry' (reads `{expiresInDays}` through the router's `expiry_body` dependency,
-#:           AFTER the gate and the member -- wave-8 final review I-1) | None (reads no body)
+#:           AFTER the gate and the member -- wave-8 final review I-1) | 'w11' (wave 11's reader,
+#:           `w11_body`: 16 KB, depth 16, AFTER the gate and the member) | None (reads no body)
 PROOF_MATRIX: dict[tuple[str, str], dict[str, Any]] = {
     ("GET", "/api/j2/notes/{note_id}/share"):
         {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session", "body": None},
@@ -98,6 +111,11 @@ PROOF_MATRIX: dict[tuple[str, str], dict[str, Any]] = {
         {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None, "body": None},
     ("GET", "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}"):
         {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None, "body": None},
+    # ── wave 11 (Task 11.12): what sharing one of the member's own tools would send; the author only, nothing
+    #    written. Read off the route: `dependencies=[Depends(_require_w11)]`, `w11_body` (-> the gallery's
+    #    `require_paid`), and `_hit(PREVIEW_RATE, SCOPE_PREVIEW, ...)` keyed on the member. ──
+    ("POST", "/api/j2/template-gallery/share/preview"):
+        {"auth": "owner", "gate": G_W11, "bucket": "notebook-gallery-preview", "plan": "paid", "body": "w11"},
 }
 
 #: Ruling D-B10, verbatim numbers: (requests allowed, per) for each bucket.
@@ -108,6 +126,8 @@ BUCKET_LIMITS: dict[str, tuple[int, str]] = {
     "notebook-publish-public": (60, "minute"),
     "notebook-publish-images": (240, "minute"),
     "notebook-publish-mint": (30, "hour"),
+    # Wave 11's preview scope (the gallery's SCOPE_PREVIEW at PREVIEW_RATE): the plan's 60/hour, per member.
+    "notebook-gallery-preview": (60, "hour"),
 }
 
 PUBLIC_HEADERS = {
@@ -175,10 +195,10 @@ def test_the_matrix_columns_are_well_formed():
     for row, spec in PROOF_MATRIX.items():
         assert set(spec) == {"auth", "gate", "bucket", "plan", "body"}, row
         assert spec["auth"] in ("owner", "public"), row
-        assert spec["gate"] in (G_SHARE, G_PUBLISH), row
+        assert spec["gate"] in (G_SHARE, G_PUBLISH, G_W11), row
         assert spec["bucket"] is None or spec["bucket"] in BUCKET_LIMITS, row
         assert (spec["plan"] is None) == (spec["auth"] == "public"), row
-        assert spec["body"] in (None, "expiry"), row
+        assert spec["body"] is None or spec["body"] in BODY_READERS, row
         if spec["body"] is not None:
             assert row[0] in ("POST", "PATCH") and spec["plan"] == "paid", row
 
@@ -196,6 +216,8 @@ def _dep_calls(route: APIRoute) -> set:
 
 
 def _router_module_for(path: str):
+    if path.startswith("/api/j2/template-gallery/"):
+        return importlib.import_module(GALLERY_ROUTER)
     name = ("api.routers.notebook_publish" if "/publish" in path
             else "api.routers.notebook_shares")
     return importlib.import_module(name)
@@ -228,6 +250,44 @@ def test_the_plan_column_is_the_dependency_tree(row):
         assert authmw.get_current_user not in calls, f"{method} {path} is public by design"
 
 
+def test_the_router_lookup_names_the_router_that_serves_each_row():
+    """CONTROL for `_router_module_for`: every row's router is the module whose function the app actually serves,
+    so the plan, body and gate checks read the dependencies of the RIGHT router."""
+    for method, path in PROOF_MATRIX:
+        assert _served_route(method, path).endpoint.__module__ == _router_module_for(path).__name__, (method, path)
+
+
+GATED_ROWS = sorted(r for r, s in PROOF_MATRIX.items() if s["gate"] in GATE_DEPENDENCIES)
+
+
+def test_the_gated_rows_are_found():
+    """Non-vacuity: the gate check below runs over the wave 11 row."""
+    assert ("POST", "/api/j2/template-gallery/share/preview") in GATED_ROWS, GATED_ROWS
+
+
+@pytest.mark.parametrize("row", GATED_ROWS, ids=lambda r: f"{r[0]} {r[1]}")
+def test_the_gate_column_is_the_dependency_tree(row):
+    """The row's gate is a direct dependency of the route with nothing ahead of it but its router's own gate, so it
+    is resolved before the plan check and before a byte of the body (11.11 m-3)."""
+    method, path = row
+    route = _served_route(method, path)
+    module = _router_module_for(path)
+    gate = getattr(module, GATE_DEPENDENCIES[PROOF_MATRIX[row]["gate"]])
+    direct = [d.call for d in route.dependant.dependencies]
+    assert gate in direct, f"{method} {path} does not carry {gate.__name__}"
+    ahead = direct[:direct.index(gate)]
+    assert ahead == [module._require_enabled], f"{method} {path}: {gate.__name__} is not resolved first: {direct}"
+
+
+def test_the_wave11_bucket_is_the_routers_preview_scope():
+    """The bucket column names the gallery's OWN preview scope constant and its rate, not a copy that could drift."""
+    tgr = importlib.import_module(GALLERY_ROUTER)
+    spec = PROOF_MATRIX[("POST", "/api/j2/template-gallery/share/preview")]
+    assert spec["bucket"] == tgr.SCOPE_PREVIEW
+    allowed, per = BUCKET_LIMITS[spec["bucket"]]
+    assert tgr.PREVIEW_RATE == f"{allowed}/{per}"
+
+
 @pytest.mark.parametrize("row", sorted(PROOF_MATRIX), ids=lambda r: f"{r[0]} {r[1]}")
 def test_the_body_column_is_the_dependency_tree_and_no_route_declares_a_fastapi_body(row):
     """Wave-8 final review I-1, structurally. FastAPI decodes a DECLARED body (a `Body(...)`
@@ -240,13 +300,20 @@ def test_the_body_column_is_the_dependency_tree_and_no_route_declares_a_fastapi_
     assert route.body_field is None, (
         f"{method} {path} declares a FastAPI body -- it is decoded BEFORE the gate and the "
         "session; read it in a dependency that depends on require_paid (expiry_body)")
-    reader = getattr(_router_module_for(path), "expiry_body", None)
-    assert reader is not None, f"{path}'s router has no expiry_body dependency"
-    reads = reader in _dep_calls(route)
-    assert reads == (PROOF_MATRIX[row]["body"] == "expiry"), (
-        f"{method} {path}: the matrix says body={PROOF_MATRIX[row]['body']!r}, the route "
-        f"{'reads' if reads else 'does not read'} one through expiry_body")
-    if reads:
+    module = _router_module_for(path)
+    column = PROOF_MATRIX[row]["body"]
+    if column is not None:
+        assert getattr(module, BODY_READERS[column], None) is not None, (
+            f"{path}'s router has no {BODY_READERS[column]} dependency")
+    calls = _dep_calls(route)
+    for value, name in BODY_READERS.items():
+        candidate = getattr(module, name, None)
+        reads = candidate is not None and candidate in calls
+        assert reads == (column == value), (
+            f"{method} {path}: the matrix says body={column!r}, the route "
+            f"{'reads' if reads else 'does not read'} one through {name}")
+    if column is not None:
+        reader = getattr(module, BODY_READERS[column])
         paid = _router_module_for(path).require_paid
         direct = [d for d in route.dependant.dependencies if d.call is reader]
         assert len(direct) == 1, f"{method} {path}: expiry_body is not a direct dependency of the route"
@@ -285,12 +352,14 @@ def _fresh_limiter():
 def gates_on(monkeypatch):
     monkeypatch.setenv(G_SHARE, "1")
     monkeypatch.setenv(G_PUBLISH, "1")
+    monkeypatch.setenv(G_W11, "1")
 
 
 @pytest.fixture
 def gates_off(monkeypatch):
     monkeypatch.delenv(G_SHARE, raising=False)
     monkeypatch.delenv(G_PUBLISH, raising=False)
+    monkeypatch.delenv(G_W11, raising=False)
 
 
 @pytest.fixture
@@ -305,11 +374,16 @@ def att_root(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def app(db_path):
-    from api.routers import notebook_publish, notebook_shares
+def app(db_path, monkeypatch):
+    from api.routers import notebook_publish, notebook_shares, notebook_template_gallery
+    from api.services.journal_two import template_gallery as gallery
+    # The gallery router's own gate and the style library stay ON: the wave 11 row's gate is G_W11 alone.
+    monkeypatch.setenv(gallery.FLAG, "1")
+    monkeypatch.setenv(gallery.LIBRARY_FLAG, "1")
     fa = FastAPI()
     fa.include_router(notebook_shares.router)
     fa.include_router(notebook_publish.router)
+    fa.include_router(notebook_template_gallery.router)
     yield fa
     fa.dependency_overrides.clear()
 
@@ -347,7 +421,8 @@ def _table_rows(table: str) -> list[tuple]:
 
 def snapshot() -> dict[str, list[tuple]]:
     """Every row any public-note door could write. Equal before and after = nothing written."""
-    return {t: _table_rows(t) for t in ("j2_note_shares", "j2_note_publications", "j2_notes")}
+    return {t: _table_rows(t) for t in ("j2_note_shares", "j2_note_publications", "j2_notes",
+                                        "j2_template_gallery", "j2_widget_definitions")}
 
 
 def _run(sql: str, params: tuple = ()) -> None:
@@ -379,12 +454,22 @@ def _reference_pic(user_id: str, note_id: str, name: str = "pic.png") -> None:
         {"type": "image", "attrs": {"src": f"/api/j2/notes/attachments/{user_id}/{note_id}/inline/{name}"}}]}})
 
 
+#: A saved widget's plan (the wave 11 row previews sharing it). Waves 1-10 stay on so the widget store accepts it.
+WIDGET_PLAN = {"v": 1, "source": "closed_trades", "measures": [{"key": "trades"}], "range": {"token": "all"}}
+
+
 @pytest.fixture
-def world(db_path, att_root, gates_on):
+def world(db_path, att_root, gates_on, monkeypatch):
     """Member A: a shared AND published note with an image on disk, and a published folder
     holding one note with an image. Member B: a note and a published folder of their own.
+    Each also has a saved widget (the wave 11 share preview's thing).
     Returned ids are what the row builders below turn into concrete requests."""
     from api.services.journal_two import note_publish, note_shares, notes
+    from api.services.journal_two import widget_definitions as wd
+    for wave in range(1, 11):
+        monkeypatch.setenv(f"NOTEBOOK_WIDGETS_W{wave}_ENABLED", "1")
+    a_widget = wd.create(A, "Alpha widget", dict(WIDGET_PLAN))["id"]
+    b_widget = wd.create(B, "Bravo widget", dict(WIDGET_PLAN))["id"]
     na = _note(A, "Alpha shared note")
     _png(att_root, A, na["id"])
     _reference_pic(A, na["id"])
@@ -402,7 +487,8 @@ def world(db_path, att_root, gates_on):
     return {"A_note": na["id"], "A_token": tok, "B_note": nb["id"],
             "A_pub": a_pub, "A_folder": fa["id"], "A_folder_pub": a_folder_pub,
             "A_member": member["id"], "A_pid": note_publish.pid_for(a_folder_pub, member["id"]),
-            "B_folder": fb["id"], "B_folder_pub": b_folder_pub}
+            "B_folder": fb["id"], "B_folder_pub": b_folder_pub,
+            "A_widget": a_widget, "B_widget": b_widget}
 
 
 MISSING_NOTE = "note-that-does-not-exist-0000"
@@ -410,6 +496,7 @@ MISSING_TOKEN = "tok-that-does-not-exist-0000000000000000000"
 MISSING_FOLDER = "folder-that-does-not-exist-00"
 MISSING_SLUG = "slug-that-does-not-exist-0"
 MISSING_PID = "pid-that-does-not-exist-0"
+MISSING_WIDGET = "widget-that-does-not-exist-0"
 
 #: row -> build(world, target) -> (method, url). `target` is 'A' (member A's real thing),
 #: 'missing' (an id that exists nowhere) or 'own' (the caller B's own thing).
@@ -438,6 +525,10 @@ def _folder_slug(w: dict, target: str) -> str:
 
 def _pid(w: dict, target: str) -> str:
     return {"A": w["A_pid"], "missing": MISSING_PID, "own": w["A_pid"]}[target]
+
+
+def _widget_for(w: dict, target: str) -> str:
+    return {"A": w["A_widget"], "missing": MISSING_WIDGET, "own": w["B_widget"]}[target]
 
 
 BUILDERS: dict[tuple[str, str], RequestBuilder] = {
@@ -473,7 +564,24 @@ BUILDERS: dict[tuple[str, str], RequestBuilder] = {
         lambda w, t: ("GET", f"/api/j2/shared/{_token_for(w, t)}"),
     ("GET", "/api/j2/shared/{token}/att/{sub}/{filename}"):
         lambda w, t: ("GET", f"/api/j2/shared/{_token_for(w, t)}/att/inline/pic.png"),
+    ("POST", "/api/j2/template-gallery/share/preview"):
+        lambda w, t: ("POST", "/api/j2/template-gallery/share/preview"),
 }
+
+#: row -> build(world, target) -> the JSON body the row's request carries (its thing is named in the body, not the
+#: path). A row absent here sends no body.
+BODIES: dict[tuple[str, str], Callable[[dict, str], dict]] = {
+    ("POST", "/api/j2/template-gallery/share/preview"):
+        lambda w, t: {"kind": "widget", "id": _widget_for(w, t)},
+}
+
+
+def _body_kw(row, w: dict, target: str) -> dict:
+    return {"json": BODIES[row](w, target)} if row in BODIES else {}
+
+
+#: Rows whose refusals (the 429 included) are wave 11's `{"detail": {"code", "message"}}` with no-store.
+W11_ROWS = frozenset(r for r, s in PROOF_MATRIX.items() if s["gate"] == G_W11)
 
 
 def test_every_row_has_a_request_builder():
@@ -503,8 +611,8 @@ def test_1_member_B_cannot_touch_A_and_the_answer_equals_a_missing_id(row, app, 
     before = snapshot()
     method, url_a = BUILDERS[row](world, "A")
     _, url_missing = BUILDERS[row](world, "missing")
-    on_a = _call(client, method, url_a)
-    on_missing = _call(client, method, url_missing)
+    on_a = _call(client, method, url_a, **_body_kw(row, world, "A"))
+    on_missing = _call(client, method, url_missing, **_body_kw(row, world, "missing"))
     assert _sig(on_a) == _sig(on_missing), (
         f"{row}: B acting on A's thing answered differently from a missing id -- an oracle")
     assert snapshot() == before, f"{row}: B's attempt on A's thing WROTE something"
@@ -521,6 +629,20 @@ def test_1_control_A_can_do_what_B_cannot(app, client, world):
     as_member(app, A)
     assert client.get(f"/api/j2/notes/{world['A_note']}/share").json()["share"]["token"] == world["A_token"]
     assert client.delete(f"/api/j2/notes/{world['A_note']}/share").json() == {"revoked": True}
+
+
+def test_1_control_A_and_B_can_preview_sharing_their_own_widget(app, client, world):
+    """CONTROL for the wave 11 row: the owner's own preview is answered, so B's 404 on A's widget above is the
+    ownership check, not a door that refuses everybody."""
+    row = ("POST", "/api/j2/template-gallery/share/preview")
+    before = snapshot()
+    for who, target in ((A, "A"), (B, "own")):
+        as_member(app, who)
+        method, url = BUILDERS[row](world, target)
+        r = _call(client, method, url, **_body_kw(row, world, target))
+        assert r.status_code == 200 and "travels" in r.json(), (who, r.status_code, r.text)
+        assert r.headers.get("cache-control") == "no-store"
+    assert snapshot() == before, "a share preview wrote something"
 
 
 def test_1_control_A_can_publish_refresh_extend_and_unpublish(app, client, world):
@@ -1072,17 +1194,23 @@ def test_6_the_bucket_admits_its_limit_then_answers_429_with_a_sentence(row, app
         as_member(app, A)
     else:
         signed_out(app)
-    method, url = BUILDERS[row](world, "A" if spec["auth"] == "owner" else "missing")
+    target = "A" if spec["auth"] == "owner" else "missing"
+    method, url = BUILDERS[row](world, target)
+    kw = _body_kw(row, world, target)
     # The address as production hands it over: behind a Cloudflare edge, which Railway
     # writes as the left-most X-Forwarded-For entry (request_ip.client_ip trusts
     # CF-Connecting-IP only there; tests/test_request_ip_probe.py pins why).
     headers = _via_cloudflare("203.0.113.7")
     for i in range(allowed):
-        r = _call(client, method, url, headers=headers)
+        r = _call(client, method, url, headers=headers, **kw)
         assert r.status_code != 429, f"{row}: refused at request {i + 1} of {allowed}"
-    over = _call(client, method, url, headers=headers)
+    over = _call(client, method, url, headers=headers, **kw)
     assert over.status_code == 429, (row, over.status_code)
     detail = over.json()["detail"]
+    if row in W11_ROWS:
+        assert isinstance(detail, dict) and detail.get("code") == "rate", detail
+        assert over.headers.get("cache-control") == "no-store", over.headers
+        detail = detail["message"]
     assert isinstance(detail, str) and detail.endswith(".") and " " in detail, detail
     if spec["auth"] == "public":
         for k, v in PUBLIC_HEADERS.items():
@@ -1094,7 +1222,7 @@ def test_6_the_bucket_admits_its_limit_then_answers_429_with_a_sentence(row, app
         # ...and the bucket is per member: another member is still served.
         as_member(app, B)
         _, url_b = BUILDERS[row](world, "own")
-        assert _call(client, method, url_b).status_code != 429
+        assert _call(client, method, url_b, **_body_kw(row, world, "own")).status_code != 429
 
 
 # ── 7. no enumeration oracle ────────────────────────────────────────────────────────────
@@ -1192,6 +1320,7 @@ WRITE_SPIES = {
     "api.services.journal_two.note_publish": (
         "publish_note", "publish_folder", "refresh", "set_expiry", "revoke", "list_mine",
         "resolve", "resolve_member", "resolve_attachment"),
+    "api.services.journal_two.template_gallery": ("share_preview",),
 }
 
 
@@ -1237,6 +1366,11 @@ def test_8_control_the_spies_can_see_a_call(app, client, world, spies, monkeypat
     with pytest.raises(AssertionError):
         client.get(f"/api/j2/published/{world['A_pub']}")
     assert "api.services.journal_two.note_publish.resolve" in spies, spies
+    monkeypatch.setenv(G_W11, "1")
+    as_member(app, A)
+    with pytest.raises(AssertionError):
+        client.post("/api/j2/template-gallery/share/preview", json={"kind": "widget", "id": world["A_widget"]})
+    assert "api.services.journal_two.template_gallery.share_preview" in spies, spies
 
 
 # ── 8b / 12. a malformed body (wave-8 final review I-1) ─────────────────────────────────
@@ -1254,9 +1388,10 @@ MALFORMED = {"content": b"{", "headers": {"Content-Type": "application/json"}}
 
 def test_the_body_rows_are_every_post_and_patch_row():
     """Non-vacuity: the malformed-body rails below run over something, and over exactly the
-    matrix's write rows -- the four expiry doors and refresh."""
-    assert len(BODY_ROWS) == 5, BODY_ROWS
+    matrix's write rows -- the four expiry doors, refresh and wave 11's share preview."""
+    assert len(BODY_ROWS) == 6, BODY_ROWS
     assert sum(1 for r in BODY_ROWS if PROOF_MATRIX[r]["body"] == "expiry") == 4
+    assert sum(1 for r in BODY_ROWS if PROOF_MATRIX[r]["body"] == "w11") == 1
 
 
 @pytest.mark.parametrize("row", BODY_ROWS, ids=_ids)
@@ -1303,6 +1438,18 @@ def test_12_signed_in_a_malformed_body_is_422_with_the_routes_own_sentence(row, 
         for kw in ({}, {"content": b"null", "headers": {"Content-Type": "application/json"}}):
             ok = _call(client, method, url, **kw)
             assert ok.status_code == 200, (row, kw, ok.text)
+    elif PROOF_MATRIX[row]["body"] == "w11":
+        # Wave 11's reader: anything that is not a JSON object is 400 `invalid` with its ONE unreadable sentence.
+        from api.services.journal_two import widget_request_body as wbody
+        for raw in (b"{", b"[1, 2]", b'"text"', b"7"):
+            before = snapshot()
+            r = _call(client, method, url, content=raw, headers={"Content-Type": "application/json"})
+            assert r.status_code == 400, (row, raw, r.status_code, r.text)
+            assert r.json() == {"detail": {"code": "invalid", "message": wbody.S_UNREADABLE_BODY}}, (row, raw)
+            assert r.headers.get("cache-control") == "no-store", (row, raw)
+            assert snapshot() == before, (row, raw)
+        ok = _call(client, method, url, **_body_kw(row, world, "A"))                      # CONTROL
+        assert ok.status_code == 200, (row, ok.text)
     else:
         r = _call(client, method, url, **MALFORMED)
         assert r.status_code == 200, (row, r.status_code, r.text)
@@ -1339,7 +1486,7 @@ def _paid_sentence(path: str) -> str:
 def test_10_a_free_member_is_refused_exactly_where_the_plan_is_paid(row, app, client, world):
     as_member(app, A, FREE)
     method, url = BUILDERS[row](world, "A")
-    r = _call(client, method, url)
+    r = _call(client, method, url, **_body_kw(row, world, "A"))
     if PROOF_MATRIX[row]["plan"] == "paid":
         assert r.status_code == 402, (row, r.status_code)
         assert r.json()["detail"] == _paid_sentence(row[1]), (row, r.json())
