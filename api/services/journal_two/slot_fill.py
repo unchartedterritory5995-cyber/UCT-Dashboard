@@ -628,14 +628,48 @@ def tool_node(family: str, tool_id: str, name: Any, day: str, bind: str, display
         "searchText": _tb().search_text(family, shown, day, bind)}}
 
 
-def _owned_choice(family: str, uid: str, tid: Any, conn: sqlite3.Connection | None) -> dict:
-    """The member's own routine (tracker) a `{"use": id}` answer names, else ShareError `not_yours`. The read is
-    `WHERE id = ? AND user_id = ?` (the store's `get`), so another member's row is never read."""
+def _owned_choice(family: str, uid: str, tid: Any, conn: sqlite3.Connection | None, *,
+                  kind: Any = None) -> dict:
+    """The routine (tracker) a `{"use": id}` answer names, when it is one the question can OFFER (fix round 3, m-3):
+    the member's own LIVE (not archived, not deleted) routine (tracker), never a built-in check-in, and for a tracker
+    of the template tracker's `kind` when that is known. Anything else raises ShareError `not_yours` ("That choice
+    isn't in your account."). The read is `WHERE id = ? AND user_id = ?` (the store's `get`), so another member's row
+    is never read."""
     from api.services.journal_two.widget_engine.share import ShareError
-    got = _store(family).get(uid, tid, conn=conn) if isinstance(tid, str) and tid else None
-    if not isinstance(got, dict):
+    if not isinstance(tid, str) or not tid or tid in _CHECKINS:
+        raise ShareError("not_yours", S_CHOICE_NOT_YOURS)
+    got = _store(family).get(uid, tid, conn=conn)
+    if not isinstance(got, dict) or got.get("archived") or got.get("readOnly"):
+        raise ShareError("not_yours", S_CHOICE_NOT_YOURS)
+    if family == "tracker" and isinstance(kind, str) and got.get("kind") != kind:
         raise ShareError("not_yours", S_CHOICE_NOT_YOURS)
     return got
+
+
+def prevalidate_answers(style: dict, choices: Any, *, user_id: str, conn: sqlite3.Connection | None) -> None:
+    """Fix round 3 (m-2): a cheap, UNLOCKED check of a styled create's answers before anything is composed or run, so
+    a create that will be refused fails fast with no engine run: every enabled, shown `template` / `inline` routine
+    or tracker slot is answered, and each `{"use": id}` names one the question can offer (`_owned_choice`). The
+    locked step re-checks everything and stays the authority (an id deleted meanwhile is still refused there)."""
+    js = _js()
+    answers = choices if isinstance(choices, dict) else {}
+    for b in style.get("blocks") or [] if isinstance(style, dict) else []:
+        if (not isinstance(b, dict) or not b.get("enabled") or js.slot_family(b.get("block")) not in TOOL_ID_KEYS
+                or js.slot_wave_off(b["block"], b.get("settings"))):
+            continue
+        s = tool_settings(b)
+        if s is None or "ref" in s:
+            continue
+        family = js.slot_family(b["block"])
+        made = _made_by_template(family, s, {})
+        if made is None and "template" in s:
+            continue                                       # the slot's own sentence, never a refusal
+        choice = answers.get(b["block"])
+        if isinstance(choice, dict) and choice.get("use") is not None:
+            _owned_choice(family, user_id, choice.get("use"), conn, kind=(made or {}).get("kind"))
+        elif not (isinstance(choice, dict) and choice.get("create") is True):
+            tt = _tt()
+            raise tt.LibraryError(tt.S_CHOOSE_ROUTINE if family == "routine" else tt.S_CHOOSE_TRACKER)
 
 
 def _create_from_template(family: str, s: dict, made: dict, uid: str, ctx: dict) -> dict:
@@ -693,7 +727,7 @@ def build_tool_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
         choices = ctx.get("choices") if isinstance(ctx.get("choices"), dict) else {}
         choice = choices.get(bid)
         if isinstance(choice, dict) and choice.get("use") is not None:
-            got = _owned_choice(family, uid, choice.get("use"), conn)
+            got = _owned_choice(family, uid, choice.get("use"), conn, kind=made.get("kind"))
             ctx.setdefault("chosen", {})[bid] = got["id"]          # verified as the member's own (I2)
         elif isinstance(choice, dict) and choice.get("create") is True:
             if "inline" in s and not (isinstance(ctx.get("gallery_id"), str) and ctx["gallery_id"]):
@@ -816,7 +850,8 @@ def remember_choices(user_id: str, style_id: Any, choices: Any, created: Any, *,
         tid = made.get(bid) if isinstance(made.get(bid), str) else answer.get("use")
         if tid is None:
             continue
-        _owned_choice(family, user_id, tid, conn)         # raises not_yours before any write
+        made_by = _made_by_template(family, s, {}) or {}
+        _owned_choice(family, user_id, tid, conn, kind=made_by.get("kind"))   # raises not_yours before any write
         ref = tid if family == "tracker" and tid in _CHECKINS else f"{family}:{tid}"
         try:
             new = js.slot_settings_of(family, {"ref": ref, "bind": s["bind"], "display": s["display"]})

@@ -298,10 +298,10 @@ def test_use_choice_must_be_owned(db):
     node, why = sf.build_tool_slot(block, _ctx(choices={"routine_a": {"use": mine["id"]}}))
     assert why is None and node["attrs"]["params"]["routineId"] == mine["id"]
     assert _count("j2_routines") == 1
-    # a tracker choice may name a check-in tracker (it is every member's)
-    tnode, _ = sf.build_tool_slot({"block": "tracker_a", "settings": {"template": "energy"}},
-                                  _ctx(choices={"tracker_a": {"use": "checkin:mood"}}))
-    assert tnode["attrs"]["params"]["trackerId"] == "checkin:mood"
+    # fix round 3 (m-3): only what the question can offer -- a check-in is never offered for a template tracker
+    with pytest.raises(ShareError):
+        sf.build_tool_slot({"block": "tracker_a", "settings": {"template": "energy"}},
+                           _ctx(choices={"tracker_a": {"use": "checkin:mood"}}))
 
 
 def test_missing_choice_refused_with_sentence(db):
@@ -971,3 +971,115 @@ def test_a_style_changed_while_composing_is_composed_again(db, monkeypatch):
     assert len(calls) == 2 and note["styleVersion"] == after["version"]
     assert note["bodyJson"]["content"][0]["content"][0]["text"] == "Edited"   # the body is the edited style's
     assert _routine_ids(note) and after["blocks"][0]["settings"]["ref"] == "routine:" + _routine_ids(note)[0]
+
+
+# -- Fix round 3 ----------------------------------------------------------------------------------------
+
+def test_a_use_answer_is_only_what_the_question_can_offer(db):
+    """m-3: an archived routine, a check-in, and a tracker of another kind are refused with the not-yours sentence;
+    nothing is created or remembered."""
+    from api.services.journal_two import routines
+    from api.services.journal_two.widget_engine.share import ShareError
+    js, sf = _js(), _sf()
+    old = _routine(name="Old routine")
+    routines.archive(A, old["id"], now=NOW)
+    scale = _tracker(name="Mood log", kind="scale")
+    hours = _tracker(name="Hours", kind="duration")
+    cases = [({"block": "routine_a", "settings": TPL}, old["id"]),
+             ({"block": "tracker_a", "settings": {"template": "sleep"}}, "checkin:mood"),
+             ({"block": "tracker_a", "settings": {"template": "sleep"}}, scale["id"])]   # sleep is a duration
+    for block, bad in cases:
+        with pytest.raises(ShareError) as e:
+            sf.build_tool_slot(block, _ctx(choices={block["block"]: {"use": bad}}))
+        assert e.value.sentence == "That choice isn't in your account."
+    node, _ = sf.build_tool_slot({"block": "tracker_a", "settings": {"template": "sleep"}},
+                                 _ctx(choices={"tracker_a": {"use": hours["id"]}}))
+    assert node["attrs"]["params"]["trackerId"] == hours["id"]               # the same kind, live: offered
+    style = _stored(("routine_a", TPL))
+    with pytest.raises(ShareError):
+        js.create_styled_note(A, {"styleId": style["id"], "title": "P", "choices": {"routine_a": {"use": old["id"]}}})
+    assert js.get_style(A, style["id"])["blocks"][0]["settings"]["template"] == "premarket_routine"
+    assert _count("j2_notes") == 0
+
+
+def test_a_refused_create_runs_no_engine(db, monkeypatch):
+    """m-2: a create that will be refused (no answer, a foreign answer) fails before any compose or engine run."""
+    from api.services.journal_two.widget_engine import run
+    from api.services.journal_two.widget_engine.share import ShareError
+    from api.services.journal_two import template_tools as tt
+    js = _js()
+    runs = []
+
+    def spy(*a, **k):
+        runs.append(1)
+        return {"asOf": "2026-10-26T15:30:00Z", "source": None, "sourceKey": "closed_trades", "view": "line",
+                "title": "x", "defId": None, "defRev": None, "latestRev": None, "def": None, "count": 1}
+    monkeypatch.setattr(run, "run_plan", spy)
+    theirs = _routine(user=B, name="Theirs")
+    style = _stored(("built_a", {"ref": "shelf:equity-curve", "defRev": 1}), ("routine_a", TPL))
+    with pytest.raises(tt.LibraryError):
+        js.create_styled_note(A, {"styleId": style["id"], "title": "P"})
+    with pytest.raises(ShareError):
+        js.create_styled_note(A, {"styleId": style["id"], "title": "P", "choices": {"routine_a": {"use": theirs["id"]}}})
+    assert runs == []
+    js.create_styled_note(A, {"styleId": style["id"], "title": "P", "choices": {"routine_a": {"create": True}}})
+    assert runs == [1]                                                     # control: an answered create runs it
+
+
+def test_a_stale_editor_save_never_undoes_a_remembered_choice(db):
+    """W11-R32 (the reviewer's E2, sequential): the editor loads the style, a note remembers the routine, the editor
+    then saves its stale copy (a rename that also sends blocks, with a bind edit). The ref is kept, the bind edit is
+    the member's and lands, and the next note names the same routine. Sending a different ref still replaces it."""
+    js = _js()
+    mine = _routine(name="Morning routine")
+    style = _stored(("routine_a", TPL))
+    editor_copy = js.get_style(A, style["id"])
+    n1, _ = js.create_styled_note(A, {"styleId": style["id"], "title": "A", "choices": {"routine_a": {"create": True}}})
+    made = _routine_ids(n1)[0]
+    stale = [dict(b) for b in editor_copy["blocks"]]
+    stale[0] = {**stale[0], "settings": {**stale[0]["settings"], "bind": "next-trading-day"}}
+    js.update_style(A, style["id"], {"name": "Renamed", "blocks": stale})
+    assert js.get_style(A, style["id"])["blocks"][0]["settings"] == {
+        "ref": f"routine:{made}", "bind": "next-trading-day", "display": "items"}
+    n2, _ = js.create_styled_note(A, {"styleId": style["id"], "title": "B",
+                                      "choices": {"routine_a": {"use": mine["id"]}}})
+    assert _routine_ids(n2) == [made]
+    js.update_style(A, style["id"], {"blocks": [{"block": "routine_a", "enabled": True,
+                                                 "settings": {"ref": f"routine:{mine['id']}"}}]})
+    assert js.get_style(A, style["id"])["blocks"][0]["settings"]["ref"] == f"routine:{mine['id']}"
+
+
+def test_block_sending_edits_racing_creates_never_divert_the_routine(db):
+    """W11-R32 (the reviewer's R5): an editor that sends blocks (flipping the bind) races a create and a use, 60
+    rounds. 0 rounds where the two notes name two routines or the remembered ref is lost."""
+    import random
+    import time
+    js = _js()
+    rng = random.Random(116)
+    bad = []
+    for k in range(60):
+        u = f"u-r5-{k}"
+        mine = _routine(user=u, name="Morning routine")
+        style = _stored(("routine_a", TPL), user=u)
+
+        def edit(u=u, sid=style["id"], n=1 + k % 3):
+            for _e in range(n):
+                time.sleep(rng.choice([0, 0.001, 0.003, 0.008]))
+                cur = js.get_style(u, sid)
+                b = [dict(x) for x in cur["blocks"]]
+                s0 = dict(b[0]["settings"])
+                s0["bind"] = "next-trading-day" if s0["bind"] == "note-day" else "note-day"
+                b[0]["settings"] = s0
+                js.update_style(u, sid, {"blocks": b})
+        order = [{"routine_a": {"create": True}}, {"routine_a": {"use": mine["id"]}}]
+        if k % 2:
+            order.reverse()
+        editor = threading.Thread(target=edit)
+        editor.start()
+        res, errs = _race(u, style["id"], order, delay=rng.choice([0, 0.002, 0.005]))
+        editor.join(30)
+        ids = {i for n in res if n for i in _routine_ids(n)}
+        ref = js.get_style(u, style["id"])["blocks"][0]["settings"].get("ref")
+        if errs or len([n for n in res if n]) != 2 or len(ids) != 1 or ref != "routine:" + next(iter(ids), ""):
+            bad.append({"round": k, "errs": errs, "ids": ids, "ref": ref})
+    assert bad == [], bad

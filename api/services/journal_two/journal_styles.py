@@ -849,6 +849,44 @@ _CONTENT_KEYS = {"kindId": "kind_id", "outlineTemplateId": "outline_template_id"
                  "outlineBodyJson": "outline_body_json", "blocks": "blocks_json", "properties": "properties_json"}
 
 
+def _keep_remembered(sent: list[dict], stored_json: Any) -> list[dict]:
+    """Ruling W11-R32: a save never silently undoes a remembered choice. For each family slot the save sends in its
+    unanswered form (`template` / `inline`) while the STORED slot of that id is a remembered ref (`routine:`,
+    `tracker:`, a check-in, or `def:`), the save is a stale copy of that slot: the stored ref is kept, with the
+    save's own `bind` / `display` (`range` for a built slot), which ARE the member's edits. Only sending a
+    different ref (an explicit change of the slot) replaces it. Remembering moves no version, so the version the
+    editor loaded cannot tell a stale copy apart; the per-slot rule can."""
+    try:
+        stored = json.loads(stored_json or "[]")
+    except (TypeError, ValueError):
+        return sent
+    refs = {b["block"]: b.get("settings") for b in stored if isinstance(b, dict) and isinstance(b.get("block"), str)
+            and isinstance(b.get("settings"), dict) and isinstance(b["settings"].get("ref"), str)}
+    out = []
+    for b in sent:
+        family = slot_family(b.get("block"))
+        old = refs.get(b.get("block"))
+        s = b.get("settings") if isinstance(b.get("settings"), dict) else {}
+        if family is None or old is None or "ref" in s and not str(s.get("ref", "")).startswith("inline:"):
+            out.append(b)
+            continue
+        if family in ("routine", "tracker") and ("template" in s or "inline" in s):
+            keep = {"ref": old["ref"], "bind": s.get("bind", old.get("bind")),
+                    "display": s.get("display", old.get("display"))}
+        elif family == "built" and str(s.get("ref", "")).startswith("inline:") and str(old["ref"]).startswith("def:"):
+            keep = {k: old[k] for k in ("ref", "defRev") if k in old}
+            if "range" in s:
+                keep["range"] = s["range"]
+        else:
+            out.append(b)
+            continue
+        try:
+            out.append({**b, "settings": slot_settings_of(family, keep)})
+        except StyleValidationError:
+            out.append(b)
+    return out
+
+
 def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connection | None = None, *,
                  commit: bool = True) -> dict | None:
     """Patch one of the member's styles. `commit=False` (ruling P3a-FIN-R1) leaves the write open on the caller's
@@ -860,9 +898,17 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
         raise StyleValidationError("Send a style object.")
     owned = conn is None
     conn = conn or get_connection()
+    began = False
     try:
+        if "blocks" in patch and not conn.in_transaction:
+            # Fix round 3 (W11-R32): read and write the blocks under ONE short write lock, so a choice remembered by
+            # a create between this save's read and its write is seen by `_keep_remembered`, never overwritten.
+            _lock_for_style(conn)
+            began = True
         r = _load_row(user_id, style_id, conn)
         if r is None:
+            if began:
+                conn.rollback()
             return None
         sets, params, content_changed = [], [], False
         if "name" in patch:
@@ -877,6 +923,7 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
             cleaned["outlineBodyJson"] = json.dumps(o) if o else None
         if "blocks" in patch:
             sent = _clean_blocks(patch["blocks"], legacy=_legacy_blocks(r["blocks_json"]))
+            sent = _keep_remembered(sent, r["blocks_json"])
             # Final review I-1: a slot hidden from the client (its wave is off) is kept, not dropped, and
             # at the index it was STORED at (cleanup queue: it used to be appended, so a save while a wave
             # was off moved the slot to the end of the style for good).
@@ -914,13 +961,19 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
         if content_changed:
             sets.append("version = version + 1")
         if not sets:
+            if began:
+                conn.rollback()
             return _row(r, full=True)
         sets.append("updated_at = ?"); params.append(_now())
         conn.execute(f"UPDATE j2_journal_styles SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
                      (*params, style_id, user_id))
-        if commit or owned:
+        if commit or owned or began:
             conn.commit()
         return get_style(user_id, style_id, conn)
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -2037,6 +2090,9 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
         now = datetime.now(timezone.utc)
         note_day = tool_binding.note_day(daily_date=None, created_at=now.isoformat(), now=now)
         began = False
+        if _asks_tools(style):
+            # Fix round 3 (m-2): a create that will be refused fails here, before any compose or engine run.
+            _sf.prevalidate_answers(style, choices, user_id=user_id, conn=conn)
         if _asks_tools(style) and not conn.in_transaction:
             # Fix round 1 (I1) and round 2 (ruling W11-R31): the slow part (the built slots, the prep pack) is
             # composed WITHOUT any lock, routine and tracker slots left as markers. Then ONE short IMMEDIATE
