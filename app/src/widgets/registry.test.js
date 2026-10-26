@@ -39,7 +39,7 @@ import {
 import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 import { GROUPS as COT_RAIL_GROUPS } from '../pages/cot/cotRead'
 import { SCREENER_CAPTURE_ROW_CAP, COT_CAPTURE_GROUPS, registerPanel } from './registry'
-import { BLOCK_KINDS, blockSearch } from '../pages/journal-2-0/lib/journalBlocks'
+import { BLOCK_KINDS, blockSearch, TOOL_BLOCK_LABELS, blockLabel } from '../pages/journal-2-0/lib/journalBlocks'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
@@ -56,23 +56,40 @@ const IDS = [
   'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
   // Wave 6 (Task 20).
   'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions',
+  // Wave 8 (Task 8.13): the generic built-widget kind.
+  'builtWidget',
+  // Wave 10 (Task 10.14): the seven ready-made dedicated kinds, after builtWidget.
+  'myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired',
   // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
   // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
   'preEntryChecklist', 'priceStamps', 'positionSizing',
+  // Wave 10 (Task 10.20): the position size calculator, a live trader block (W10-R8), the row after positionSizing.
+  'sizeCalc',
   // Notebook P2b (part b): six more blocks, same binding.
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview',
   // P2 Tier 3 Task 3: the mood and focus check-in, same binding.
   'moodCheckIn',
+  // Notebook widgets phase 2, wave 9 (Task 9.13): the routine block, a LIVE trader block (W9-R4), same binding.
+  'routine',
+  // Wave 9 (Task 9.14): the tracker block, the routine's twin.
+  'tracker',
 ]
 const G040_KINDS = ['screener', 'cot', 'modelbook']
+// Wave 10 (Task 10.14): the ready-made dedicated kinds (WIDGET_KINDS rows with `dedicated: 1`).
+const DEDICATED_KINDS = ['myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired']
 // Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
 const NOTEBOOK_WIDGET_KINDS = ['myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
   'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
-  'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions']
+  'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions',
+  'builtWidget', ...DEDICATED_KINDS]
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
+// Wave 9 (W9-R4): live trader blocks. `block: true` like BLOCK_IDS, but no journalBlocks BLOCK_KINDS row (no
+// catalog search line, no style settings), so the catalog rails below read BLOCK_IDS only.
+// Wave 10 (Task 10.20, W10-R8): the position size calculator is one too (a TOOL_BLOCK_LABELS row, no catalog row).
+const TOOL_BLOCK_IDS = ['routine', 'tracker', 'sizeCalc']
 // The ids a /charts board can hold — everything except the capture-only kinds.
-const CAPTURE_ONLY = [...G040_KINDS, ...NOTEBOOK_WIDGET_KINDS, ...BLOCK_IDS]
+const CAPTURE_ONLY = [...G040_KINDS, ...NOTEBOOK_WIDGET_KINDS, ...BLOCK_IDS, ...TOOL_BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
 
 describe('widget registry — metadata pins', () => {
@@ -96,10 +113,21 @@ describe('widget registry — metadata pins', () => {
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
       tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
       myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
+      builtWidget: 'Widget',
+      myTiltCheck: 'Tilt check',
+      myRevengeClean: 'Revenge trades',
+      myPlanVsActual: 'Plan vs actual',
+      myRiskLeftToday: 'Risk left today',
+      myPropFirm: 'Prop-firm rules',
+      myGamePlan: 'Pre-market game plan',
+      myAlertsFired: 'Alerts that fired',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      sizeCalc: 'Position size calculator',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
+      routine: 'Routine',
+      tracker: 'Tracker',
     })
   })
 
@@ -119,10 +147,21 @@ describe('widget registry — metadata pins', () => {
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
       tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
       myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
+      builtWidget: 'Widget',
+      myTiltCheck: 'Tilt check',
+      myRevengeClean: 'Revenge trades',
+      myPlanVsActual: 'Plan vs actual',
+      myRiskLeftToday: 'Risk left today',
+      myPropFirm: 'Prop-firm rules',
+      myGamePlan: 'Pre-market game plan',
+      myAlertsFired: 'Alerts that fired',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      sizeCalc: 'Position size calculator',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
+      routine: 'Routine',
+      tracker: 'Tracker',
     })
   })
 
@@ -142,10 +181,21 @@ describe('widget registry — metadata pins', () => {
       marketOnMyNames: 'Market on my names', tickerFlow: 'Options flow on a ticker',
       tradeRecap: 'Trade recap', myPnlCalendar: 'My P&L calendar', mySetupEdge: 'My setup edge',
       myScreenToday: 'My screen today', roomBuzzOnMyNames: 'Room buzz on my names', myEarningsReactions: 'My earnings reactions',
+      builtWidget: 'Widget',
+      myTiltCheck: 'Tilt check',
+      myRevengeClean: 'Revenge trades',
+      myPlanVsActual: 'Plan vs actual',
+      myRiskLeftToday: 'Risk left today',
+      myPropFirm: 'Prop-firm rules',
+      myGamePlan: 'Pre-market game plan',
+      myAlertsFired: 'Alerts that fired',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      sizeCalc: 'Position size calculator',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
       moodCheckIn: 'Mood and focus check-in',
+      routine: 'Routine',
+      tracker: 'Tracker',
     })
   })
 
@@ -190,9 +240,18 @@ describe('widget registry — metadata pins', () => {
       myScreenToday: { w: 6, h: 8, minW: 3, minH: 4 },
       roomBuzzOnMyNames: { w: 6, h: 8, minW: 3, minH: 4 },
       myEarningsReactions: { w: 6, h: 8, minW: 3, minH: 4 },
+      builtWidget: { w: 6, h: 8, minW: 3, minH: 4 },
+      myTiltCheck: { w: 6, h: 8, minW: 3, minH: 4 },
+      myRevengeClean: { w: 6, h: 8, minW: 3, minH: 4 },
+      myPlanVsActual: { w: 6, h: 8, minW: 3, minH: 4 },
+      myRiskLeftToday: { w: 6, h: 8, minW: 3, minH: 4 },
+      myPropFirm: { w: 6, h: 8, minW: 3, minH: 4 },
+      myGamePlan: { w: 6, h: 8, minW: 3, minH: 4 },
+      myAlertsFired: { w: 6, h: 8, minW: 3, minH: 4 },
       preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
       priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
       positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
+      sizeCalc: { w: 6, h: 4, minW: 3, minH: 2 },
       myRules: { w: 6, h: 4, minW: 3, minH: 2 },
       prepWire: { w: 6, h: 4, minW: 3, minH: 2 },
       prepEarnings: { w: 6, h: 4, minW: 3, minH: 2 },
@@ -200,6 +259,8 @@ describe('widget registry — metadata pins', () => {
       prepLevels: { w: 6, h: 4, minW: 3, minH: 2 },
       tradeReview: { w: 6, h: 4, minW: 3, minH: 2 },
       moodCheckIn: { w: 6, h: 4, minW: 3, minH: 2 },
+      routine: { w: 6, h: 4, minW: 3, minH: 2 },
+      tracker: { w: 6, h: 4, minW: 3, minH: 2 },
     })
   })
 
@@ -298,7 +359,9 @@ describe('widget registry — workspace host bindings', () => {
     // An unbound panel a member could add would render nothing; a bound one would be
     // a workspace widget wearing a capture's name. Both directions, by name.
     const captureOnly = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].captureOnly === true)
-    expect(captureOnly).toEqual(CAPTURE_ONLY)
+    // In menu order (IDS): sizeCalc (Task 10.20) sits after positionSizing, not at the end of TOOL_BLOCK_IDS.
+    expect(captureOnly).toEqual(IDS.filter(id => CAPTURE_ONLY.includes(id)))
+    expect([...captureOnly].sort()).toEqual([...CAPTURE_ONLY].sort())
     for (const id of captureOnly) {
       expect(WORKSPACE_WIDGETS[id], `${id} is capture-only and must not be bound in WidgetHost`).toBeUndefined()
       for (const [menu, on] of Object.entries(WIDGET_REGISTRY[id].menus)) {
@@ -485,6 +548,64 @@ const CAPTURE_FIXTURES = {
     asOf: '2026-10-20T14:05:00Z', source: 'market', partial: false, share: false,
     rows: [{ symbol: 'TSLA', day: '2026-10-15', epsActual: 0.73, epsEst: 0.68, revActual: 25100000000, revEst: 24800000000, nextDayPct: -4.6 }],
   },
+  // Wave 8 (Task 8.13): the built payload's keys (widget_engine/payload.py), figures included, so the plain-text pin
+  // proves none of them reaches the search line.
+  builtWidget: {
+    asOf: '2026-10-24T14:05:00Z', source: 'manual', sourceKey: 'closed_trades', view: 'table', title: 'Net P&L by setup',
+    summary: 'Net P&L, split by setup, for closed trades in the last 90 days, all accounts. 47 trades.',
+    defId: 'd-81f', defRev: 3, latestRev: 4, def: { v: 1, source: 'closed_trades', measures: [{ key: 'net_pnl' }] },
+    scopeLabel: 'All my accounts', rangeLabel: 'Last 90 days', range: { token: 'last_90d' }, accountId: 'acc-77',
+    filter: ['Flag'], count: 47, capped: false, sample: false, notice: 'Running from the saved copy in this note.',
+    truncated: 0, measures: [{ label: 'Net P&L', unit: 'trades', kind: 'sum', fmt: 'money' }],
+    value: { v1: 2140.55, n1: 47, s1: '', n: 47 }, compare: { v1: 1500.25, n1: 40, s1: '', n: 40 }, compareLabel: 'previous 90 days',
+    rows: [{ label: 'Flag', label2: null, v1: 1873.21, n1: 31, s1: '', n: 31, flagged: false }],
+    series: [], points: [], cells: [], coverage: [{ have: 9, total: 47, hint: 'stops' }],
+    footnotes: ['Max drawdown: within your newest 5,000 trades.'], labelKind: 'account', label2Kind: 'account',
+    sourceDetail: 'Your closed trades in the Journal.', share: false,
+  },
+  // Wave 10 (Task 10.14): the dedicated payloads (api/services/journal_two/shelf_discipline.py, shelf_compose.py),
+  // figures included, and `settings`, the member's own request (lib/dedicatedWidgets.js).
+  myTiltCheck: {
+    asOf: '2026-10-24T14:05:00Z', source: 'broker', from: '2026-07-26', to: '2026-10-24', windowMinutes: 30,
+    after: { n: 9, winRate: 0.33, avgNet: -81.25 }, other: { n: 61, winRate: 0.52, avgNet: 44.5 }, datesOnly: 4,
+    estimated: 2, noResult: 1, lines: ['After a loss: 9 trades.'], capped: true, settings: { from: '2026-07-26' },
+    sourceDetail: 'Your closed trades in the Journal.', share: false,
+  },
+  myRevengeClean: {
+    asOf: '2026-10-24T14:05:00Z', source: 'manual', from: '2026-09-12', to: '2026-10-23', window: 30, clean: 27,
+    checked: 29, notChecked: 2, notRead: 0, tooMany: 0, olderNotRead: 0, noTrades: 0,
+    days: [{ day: '2026-10-23', state: 'clean' }],
+    flagged: [{ day: '2026-10-21', symbol: 'TSLA', minutesApart: 7 }], lines: ['27 of 29 days clean.'], truncated: 3,
+    share: false,
+  },
+  myPlanVsActual: {
+    asOf: '2026-10-24T14:05:00Z', source: 'broker', available: true, tradeId: 'tr-77', symbol: 'NVDA', side: 'Long',
+    rows: [{ text: 'Entry: 0.42 above plan', slippage: 0.42 }], lines: ['Entry: 0.42 above plan'], followedPlan: false,
+    size: { state: 'kept', planned: 200, actual: 200, deltaPct: 0 }, settings: { tradeId: 'tr-77' }, share: false,
+  },
+  myRiskLeftToday: {
+    asOf: '2026-10-24T14:05:00Z', source: 'mixed', day: '2026-10-24', session: '2026-10-24',
+    accounts: [{ accountId: 'acc-9', name: 'Main', limit: 1500, net: -620, left: 880, openRisk: 410 }], openRisk: 410,
+    flaggedCounted: 1, lines: ['Main: $880 left today.'], truncated: 2, positionsCapped: true, share: false,
+  },
+  myPropFirm: {
+    asOf: '2026-10-24T14:05:00Z', source: 'broker', since: '2026-10-01', countingFrom: '2026-10-01', accountId: 'acc-9',
+    daily: { limit: 1100, todayNet: -275, used: 275, left: 825 },
+    trailing: { limit: 2600, peak: 1900, current: 1300, drawdown: 600, left: 2000 }, flaggedCounted: 0,
+    lines: ['$825 left today.'], notes: ['Within your newest 5,000 trades.'], notices: ['Includes 1 trade you excluded.'],
+    settings: { dailyLoss: 1100, maxDrawdown: 2600, since: '2026-10-01', accountId: 'acc-9' }, share: false,
+  },
+  myGamePlan: {
+    asOf: '2026-10-24T12:05:00Z', source: 'broker', day: '2026-10-24',
+    wire: { wireDate: '2026-10-24', headline: 'Breadth thrust', exposure: 70, lines: ['Breadth thrust'] },
+    reporting: { names: [{ symbol: 'AMD', when: 'after the close' }], lastNight: [], lines: ['AMD reports after the close.'] },
+    risk: { openPositions: 3, openRisk: 455, lines: ['3 open positions.'] }, lines: ['Breadth thrust'], share: false,
+  },
+  myAlertsFired: {
+    asOf: '2026-10-24T14:05:00Z', source: 'manual', since: '2026-10-23T20:00:00Z',
+    rows: [{ at: '2026-10-24T13:31:00Z', symbol: 'NVDA', what: 'Crossed above 191.25', kind: 'price' }],
+    lines: ['1 alert fired since the last session.'], truncated: 4, capped: true, share: false,
+  },
 }
 
 /** Notebook widgets (Task 6): the exact search lines, and a guard that no account figure leaks. */
@@ -504,6 +625,15 @@ const NOTEBOOK_WIDGET_LINES = {
   myScreenToday: '[my screen today: Tight flags · 1 hit]',
   roomBuzzOnMyNames: '[room buzz on my names: 2 names]',
   myEarningsReactions: '[my earnings reactions: 1 name]',
+  builtWidget: '[widget: Net P&L by setup · as of 2026-10-24]',
+  // Wave 10: a kind and a day, never a figure (the tilt numbers, the limits, the account, the trade id).
+  myTiltCheck: '[tilt check: as of 2026-10-24]',
+  myRevengeClean: '[revenge trades: as of 2026-10-24]',
+  myPlanVsActual: '[plan vs actual: as of 2026-10-24]',
+  myRiskLeftToday: '[risk left today: as of 2026-10-24]',
+  myPropFirm: '[prop firm rules: as of 2026-10-24]',
+  myGamePlan: '[game plan: as of 2026-10-24]',
+  myAlertsFired: '[alerts that fired: as of 2026-10-24]',
 }
 
 describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
@@ -532,9 +662,15 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
     const figures = ['9876', '12345', '4321', '250000', '61.5', '8.5', '109876', '75', '1234', '300', '4.25', '1.75', '900', '987654', '123456',
       // wave 6: prices, R, P&L, day P&L, expectancy, counts of mentions and people, EPS, revenue, moves, and the request ids
       '181', '196', '2.4', '7654', '4567', '2345', '0.85', '0.58', '37', '23', '0.73', '0.68', '251', '248', '4.6', '224',
-      'tr-9f1c', 'u:abc123', '3742', '3699']
+      'tr-9f1c', 'u:abc123', '3742', '3699',
+      // wave 8: a built widget's figures, counts and ids (its title is the member's own words and is kept)
+      '2140', '1873', '47', '31', 'd-81f', 'acc-77', '5,000',
+      // wave 10: the dedicated widgets' figures, limits and ids
+      '81.25', '44.5', '0.33', '0.52', '27', '29', '880', '620', '410', '1100', '825', '2600', '600', '455',
+      '191.25', 'acc-9', 'tr-77']
     for (const id of ['myPnlStats', 'myPositionsRisk', 'tickerCard', 'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
-      'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions']) {
+      'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions',
+      'builtWidget', ...DEDICATED_KINDS]) {
       const line = paramsPlainText(id, normalizeParams(id, CAPTURE_FIXTURES[id]))
       for (const f of figures) expect(line, `${id} leaked ${f}`).not.toContain(f)
     }
@@ -562,6 +698,69 @@ describe('widget registry — notebook widget snapshot kinds (Task 6)', () => {
       const norm = normalizeParams(id, CAPTURE_FIXTURES[id])
       for (const k of Object.keys(CAPTURE_FIXTURES[id])) expect(norm, `${id}.${k} dropped`).toHaveProperty(k)
     }
+  })
+
+  it('dedicated_rows_are_snapshot_kinds_with_declared_params (wave 10)', () => {
+    expect(WIDGET_KINDS.filter((k) => k.dedicated).map((k) => k.id)).toEqual(DEDICATED_KINDS)
+    // the seven rows sit right after builtWidget, in WIDGET_KINDS order
+    const at = WIDGET_IDS.indexOf('builtWidget')
+    expect(WIDGET_IDS.slice(at + 1, at + 8)).toEqual(DEDICATED_KINDS)
+    for (const id of DEDICATED_KINDS) {
+      const w = WIDGET_REGISTRY[id]
+      const byKey = Object.fromEntries(w.paramsSchema.map((f) => [f.key, f.type]))
+      // a snapshot kind: the shared shape (asOf, source, share, the common honesty keys) ...
+      expect(byKey, id).toMatchObject({ asOf: 'string', source: 'string', share: 'boolean', sourceDetail: 'string',
+        tooLarge: 'boolean', empty: 'string', from: 'string', to: 'string' })
+      // ... the member's own settings (the request, lib/dedicatedWidgets.js) and the server's lines, as json
+      expect(byKey, id).toMatchObject({ settings: 'json', lines: 'json' })
+      expect(w.labels.header, id).toBe(WIDGET_KINDS.find((k) => k.id === id).title)
+      expect(validateParams(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toEqual({ ok: true, errors: [] })
+    }
+    const types = (id) => Object.fromEntries(WIDGET_REGISTRY[id].paramsSchema.map((f) => [f.key, f.type]))
+    expect(types('myTiltCheck')).toMatchObject({ windowMinutes: 'number', after: 'json', other: 'json', capped: 'boolean' })
+    expect(types('myPlanVsActual')).toMatchObject({ tradeId: 'string', rows: 'json', followedPlan: 'boolean', size: 'json' })
+    expect(types('myPropFirm')).toMatchObject({ since: 'string', accountId: 'string', daily: 'json', trailing: 'json',
+      notes: 'json', notices: 'json' })
+    expect(types('myRiskLeftToday')).toMatchObject({ accounts: 'json', openRisk: 'number', positionsCapped: 'boolean' })
+    expect(types('myGamePlan')).toMatchObject({ wire: 'json', reporting: 'json', risk: 'json' })
+    expect(types('myAlertsFired')).toMatchObject({ since: 'string', rows: 'json', capped: 'boolean' })
+    expect(types('myRevengeClean')).toMatchObject({ clean: 'number', checked: 'number', flagged: 'json',
+      noTrades: 'number', days: 'json' })   // W10-R54 (Task 10.15 round 1): the dated strip
+    // no phase 1 row carries `settings` (W10-R1: phase 1 params unchanged)
+    for (const k of WIDGET_KINDS.filter((x) => !x.dedicated)) {
+      expect(WIDGET_REGISTRY[k.id].paramsSchema.some((f) => f.key === 'settings'), k.id).toBe(false)
+    }
+  })
+
+  it('a freshly placed built widget keeps its wave 10 keys (10.18 concern 1)', () => {
+    const payload = { ...CAPTURE_FIXTURES.builtWidget, view: 'progress',
+      drawdown: { line: 'From Oct 2 to Oct 9.' }, target: 1000, targetLabel: 'Weekly goal', stop: { losses: 3, after: 3 },
+      quadrants: 'excursion' }
+    const norm = normalizeParams('builtWidget', payload)
+    expect(norm.drawdown).toEqual({ line: 'From Oct 2 to Oct 9.' })
+    expect(norm.target).toBe(1000)
+    expect(norm.targetLabel).toBe('Weekly goal')
+    expect(norm.stop).toEqual({ losses: 3, after: 3 })
+    expect(norm.quadrants).toBe('excursion')
+    // a goal with no target (null) is absent, which the views read exactly as null (builtModel.w10Of)
+    expect(normalizeParams('builtWidget', { ...payload, target: null })).not.toHaveProperty('target')
+  })
+
+  it('builtWidget (wave 8): capture-only, in no menu, a json range, and a search line with the title and a day only', () => {
+    const w = WIDGET_REGISTRY.builtWidget
+    expect(w.captureOnly).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false)).toBe(true)
+    const byKey = Object.fromEntries(w.paramsSchema.map((f) => [f.key, f.type]))
+    // `range` is the plan range OBJECT the server echoes; a string field would store "[object Object]"
+    expect(byKey).toMatchObject({ range: 'json', def: 'json', value: 'json', rows: 'json', footnotes: 'json', filter: 'json',
+      defRev: 'number', count: 'number', capped: 'boolean', labelKind: 'string', label2Kind: 'string' })
+    const norm = normalizeParams('builtWidget', CAPTURE_FIXTURES.builtWidget)
+    expect(norm.range).toEqual({ token: 'last_90d' })
+    const line = paramsPlainText('builtWidget', norm)
+    expect(line).toBe('[widget: Net P&L by setup · as of 2026-10-24]')
+    // no digit from a figure: every digit in the line is the day's
+    expect(line.replace('2026-10-24', '')).not.toMatch(/\d/)
+    expect(paramsPlainText('builtWidget', { asOf: '2026-10-24T14:05:00Z' })).toBe('[widget: widget · as of 2026-10-24]')
   })
 })
 
@@ -861,7 +1060,9 @@ describe('widget registry — journal embed bindings', () => {
 
   it('⛔ IR-B2: every block id has exactly ONE BLOCK_COMPONENTS entry, and no non-block id has one', () => {
     const blocks = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].block === true)
-    expect(blocks).toEqual(BLOCK_IDS)
+    // In menu order (IDS): sizeCalc sits after positionSizing, so the two lists are not simply concatenated.
+    expect(blocks).toEqual(IDS.filter((id) => [...BLOCK_IDS, ...TOOL_BLOCK_IDS].includes(id)))
+    expect([...blocks].sort()).toEqual([...BLOCK_IDS, ...TOOL_BLOCK_IDS].sort())
     expect(blockBindingProblems(blocks, blockComponentKeys())).toEqual([])
   })
 
@@ -896,6 +1097,61 @@ describe('widget registry — journal embed bindings', () => {
     expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps, captureOnly: false })).toThrow(/block entry must be captureOnly/)
     expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps, block: 'yes' })).toThrow(/block must be true when present/)
     expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps })).not.toThrow()            // control: the real shape passes
+  })
+
+  it('wave 9 (Task 9.13): routine is captureOnly and a block, in no menu, bound ONCE in BLOCK_COMPONENTS, its line [routine]', () => {
+    const w = WIDGET_REGISTRY.routine
+    expect(w, 'routine is registered').toBeDefined()
+    expect(w.captureOnly).toBe(true)
+    expect(w.block).toBe(true)
+    expect(isTraderBlock('routine')).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false), 'routine menus').toBe(true)
+    expect(blockComponentKeys().filter((k) => k === 'routine')).toEqual(['routine'])          // IR-B2: exactly once
+    expect(paramsPlainText('routine', {})).toBe('[routine]')
+    expect(paramsPlainText('routine', { routineId: 'r1', day: '2026-10-27', bind: 'today' })).toBe('[routine]')
+    expect(w.paramsSchema.map((f) => [f.key, f.type, f.default])).toEqual([
+      ['routineId', 'string', ''], ['day', 'string', ''], ['bind', 'string', 'note-day'], ['display', 'string', 'items'],
+    ])
+    expect(BLOCK_KINDS.find((k) => k.id === 'routine'), 'W9-R4: no BLOCK_KINDS row').toBeUndefined()
+  })
+
+  it('wave 9 (Task 9.14): tracker is captureOnly and a block, in no menu, bound ONCE in BLOCK_COMPONENTS, its line [tracker]', () => {
+    const w = WIDGET_REGISTRY.tracker
+    expect(w, 'tracker is registered').toBeDefined()
+    expect(w.captureOnly).toBe(true)
+    expect(w.block).toBe(true)
+    expect(isTraderBlock('tracker')).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false), 'tracker menus').toBe(true)
+    expect(blockComponentKeys().filter((k) => k === 'tracker')).toEqual(['tracker'])          // IR-B2: exactly once
+    expect(WIDGET_IDS.indexOf('tracker')).toBe(WIDGET_IDS.indexOf('routine') + 1)             // the row after routine
+    expect(paramsPlainText('tracker', {})).toBe('[tracker]')
+    expect(paramsPlainText('tracker', { trackerId: 't1', day: '2026-10-27', bind: 'today', display: 'pnl' })).toBe('[tracker]')
+    expect(w.paramsSchema.map((f) => [f.key, f.type, f.default])).toEqual([
+      ['trackerId', 'string', ''], ['day', 'string', ''], ['bind', 'string', 'note-day'], ['display', 'string', 'chart'],
+    ])
+    expect(BLOCK_KINDS.find((k) => k.id === 'tracker'), 'W9-R4: no BLOCK_KINDS row').toBeUndefined()
+  })
+
+  it('size_calc_block_row: wave 10 (Task 10.20) sizeCalc is captureOnly and a block, in no menu, bound ONCE, after positionSizing', () => {
+    const w = WIDGET_REGISTRY.sizeCalc
+    expect(w, 'sizeCalc is registered').toBeDefined()
+    expect(w.labels).toEqual({ header: 'Position size calculator', menu: 'Position size calculator', tab: 'Position size calculator' })
+    expect(w.captureOnly).toBe(true)
+    expect(w.block).toBe(true)
+    expect(isTraderBlock('sizeCalc')).toBe(true)
+    expect(Object.values(w.menus).every((on) => on === false), 'sizeCalc menus').toBe(true)
+    expect(blockComponentKeys().filter((k) => k === 'sizeCalc')).toEqual(['sizeCalc'])          // IR-B2: exactly once
+    expect(WIDGET_IDS.indexOf('sizeCalc')).toBe(WIDGET_IDS.indexOf('positionSizing') + 1)       // the row after positionSizing
+    expect(w.paramsSchema.map((f) => [f.key, f.type])).toEqual([
+      ['symbol', 'string'], ['entry', 'number'], ['stop', 'number'], ['riskPct', 'number'], ['accountSize', 'number'],
+    ])
+    expect(paramsPlainText('sizeCalc', {})).toBe('[position size calculator]')
+    // the plain text never carries what the member typed (their account size is private, W10-R8)
+    expect(paramsPlainText('sizeCalc', { symbol: 'NVDA', entry: 100, stop: 95, riskPct: 1, accountSize: 54321 }))
+      .toBe('[position size calculator]')
+    expect(BLOCK_KINDS.find((k) => k.id === 'sizeCalc'), 'no BLOCK_KINDS row (a TOOL_BLOCK_LABELS row instead)').toBeUndefined()
+    expect(TOOL_BLOCK_LABELS.sizeCalc).toBe('Position size calculator')
+    expect(blockLabel('sizeCalc')).toBe('Position size calculator')
   })
 
   it('S20: a block\'s plain text IS its catalog search line', () => {

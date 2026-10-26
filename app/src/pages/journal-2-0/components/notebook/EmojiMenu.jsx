@@ -34,11 +34,14 @@
  * shortcode (`:rocket:`) converts on the closing colon without the menu.
  */
 import { Extension, InputRule } from '@tiptap/core'
-import { PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
 import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
-import { SHORTCODE_BODY, emojiByName, searchEmoji } from '../../lib/emojiData'
+// ⛔ NEVER import lib/emojiData here: the emoji list is ~200 lines of data that loads on the first `:`
+// (lib/emojiLoader.js, wave 7 task 7.5). Only the shortcode SHAPE is eager.
+import { SHORTCODE_BODY } from '../../lib/emojiShortcode'
+import { loadEmoji, loadedEmoji } from '../../lib/emojiLoader'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { guardedCommand, sessionStillOpen } from '../../lib/suggestionSession'
 import styles from './EmojiMenu.module.css'
@@ -118,10 +121,29 @@ EmojiList.displayName = 'EmojiList'
 
 // `:rocket:` typed whole: converts on the closing colon. The opening colon must
 // start a word, exactly as for the menu (no lookbehind -- the lead is captured).
-// Built from the one shortcode shape (lib/emojiData.js), case-insensitive like
+// Built from the one shortcode shape (lib/emojiShortcode.js), case-insensitive like
 // the menu, so `:Rocket:` converts exactly as picking `:Rocket` would.
 const SHORTCODE_FIND = new RegExp(`(^|[\\s([{])(:(${SHORTCODE_BODY}):)$`, 'i')
 export const EMOJI_INPUT_PATTERN = SHORTCODE_FIND
+
+function convertWhenLoaded(editor, start, name) {
+  const maps = []
+  const onTr = ({ transaction }) => { maps.push(transaction.mapping) }
+  editor.on('transaction', onTr)
+  loadEmoji().then((mod) => {
+    editor.off('transaction', onTr)
+    if (editor.isDestroyed) return
+    const emoji = mod.emojiByName(name)
+    if (!emoji) return
+    let from = start
+    for (const m of maps) from = m.map(from, 1)
+    const typed = `:${name}:`
+    const { doc } = editor.state
+    const to = from + typed.length
+    if (to > doc.content.size || doc.textBetween(from, to, '\n', '\n') !== typed) return
+    editor.view.dispatch(editor.state.tr.insertText(emoji.char, from, to))
+  }, () => { editor.off('transaction', onTr) })
+}
 
 export const EmojiMenuExtension = Extension.create({
   name: 'emojiMenu',
@@ -130,17 +152,33 @@ export const EmojiMenuExtension = Extension.create({
     return [new InputRule({
       find: SHORTCODE_FIND,
       handler: ({ state, range, match }) => {
-        const emoji = emojiByName(match[3])
-        if (!emoji) return null
         const start = range.from + match[1].length
-        state.tr.insertText(emoji.char, start, range.to)
-        return undefined
+        const mod = loadedEmoji()
+        if (mod) {
+          const emoji = mod.emojiByName(match[3])
+          if (!emoji) return null
+          state.tr.insertText(emoji.char, start, range.to)
+          return undefined
+        }
+        // The data has not landed (the very first shortcode typed): let the closing colon in as
+        // text, and convert once it arrives IF the document still holds `:name:` where it was
+        // typed. Every transaction meanwhile is collected so the position is mapped, never assumed.
+        convertWhenLoaded(this.editor, start, match[3])
+        return null
       },
     })]
   },
 
   addProseMirrorPlugins() {
-    return [Suggestion({
+    return [new Plugin({
+      // The first `:` typed starts the data download, so it is usually here before a name is.
+      props: {
+        handleTextInput: (_view, _from, _to, text) => {
+          if (text === ':' && !loadedEmoji()) loadEmoji().catch(() => {})
+          return false
+        },
+      },
+    }), Suggestion({
       editor: this.editor,
       pluginKey: emojiMenuPluginKey,
       char: ':',
@@ -152,7 +190,15 @@ export const EmojiMenuExtension = Extension.create({
       // answers no for a query too short (":D", ":P") or emoticon-shaped
       // (":oP", ":-1"). An empty list renders nothing and passes every key
       // through (EmojiList).
-      items: ({ query }) => (emojiMenuArms(query) ? searchEmoji(query) : []),
+      // Until the data lands the answer is [] (nothing drawn, every key passes through); it answers
+      // from the promise, which Suggestion awaits before `onStart`/`onUpdate`, so the list appears
+      // when the data does with no second query to trigger.
+      items: ({ query }) => {
+        if (!emojiMenuArms(query)) return []
+        const mod = loadedEmoji()
+        if (mod) return mod.searchEmoji(query)
+        return loadEmoji().then((m) => m.searchEmoji(query), () => [])
+      },
       command: emojiCommand,
       render: () => {
         let component

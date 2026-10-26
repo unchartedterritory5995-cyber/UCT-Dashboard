@@ -1,0 +1,528 @@
+/* Notebook widgets phase 2, wave 9 (Task 9.16): the routine and tracker editors.
+ *
+ * ⛔ Every control is at least var(--tap-min) (44 px) at EVERY width, desktop included, in its BASE rule:
+ * styles/tapFloor.test.js walks this file and fails any clickable class (a rule with `cursor: pointer`) without a
+ * floor at 390, 820 or 1200 px, and any field without one. Text fields and selects are 16 px or larger, so a phone
+ * does not zoom into them.
+ * ⛔ Text colours are tokens: --danger-ink for a refusal, --text-muted for a hint (ruling D-A4). The focus ring is a
+ * real colour (--focus-ring is a box-shadow value; an outline naming it draws nothing). */
+
+.sheetPanel {
+  width: 100%;
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text-heading);
+}
+
+/* ── text ── */
+.hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.sentence {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--text-primary, var(--text));
+  line-height: 1.45;
+}
+.fieldError {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.4;
+  color: var(--danger-ink, var(--color-danger));
+}
+
+/* The ONE live region: a box while it says something, nothing between messages (it stays mounted). */
+.notice {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary, var(--text));
+  font-size: var(--text-md);
+  line-height: 1.4;
+}
+.liveIdle {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+}
+.noticeActions {
+  display: flex;
+  gap: var(--space-sm);
+}
+.stateBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-lg) 0;
+}
+
+/* ── levels ── */
+.mainLevel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+.mainLevel[hidden] {
+  display: none;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.panelTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text-heading);
+}
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+/* ── the form ── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.legend,
+.fieldLabel {
+  padding: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.legend {
+  margin-bottom: var(--space-xs);
+}
+.smallLabel {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.typeName {
+  color: var(--text-heading);
+  overflow-wrap: anywhere;
+}
+
+.input,
+.select {
+  min-height: var(--tap-min);
+  min-width: 0;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--field-edge, var(--border)); /* 3:1 against every surface (--border is 1.2:1) */
+  background: var(--bg-base);
+  color: var(--text-primary, var(--text));
+  font: inherit;
+  font-size: max(16px, var(--text-md)); /* 16 px and up: a phone does not zoom into the field */
+}
+.select {
+  cursor: pointer;
+}
+.input[aria-invalid='true'],
+.select[aria-invalid='true'] {
+  border-color: var(--danger-ink, var(--color-danger));
+}
+
+/* ── controls ── */
+.btn,
+.btnPrimary,
+.btnDanger,
+.chip,
+.day,
+.iconBtn,
+.backBtn,
+.linkBtn,
+.noteLink,
+.radioRow,
+.switch {
+  font: inherit;
+  cursor: pointer;
+}
+.btn,
+.btnPrimary,
+.btnDanger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary, var(--text));
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+.btn:hover:not([aria-disabled='true']),
+.iconBtn:hover:not([aria-disabled='true']),
+.chip:hover:not([aria-pressed='true']) {
+  background: var(--bg-hover);
+}
+.btnPrimary {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: var(--bg-base);
+  font-weight: 600;
+}
+.btnPrimary:hover:not([aria-disabled='true']) {
+  background: var(--ut-gold-bright, var(--ut-gold));
+}
+.btnDanger {
+  border-color: var(--danger-ink, var(--color-danger));
+  color: var(--danger-ink, var(--color-danger));
+  font-weight: 600;
+}
+.btn[aria-disabled='true'],
+.btnPrimary[aria-disabled='true'],
+.btnDanger[aria-disabled='true'],
+.iconBtn[aria-disabled='true'],
+.linkBtn[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+/* The tool picker's list (Task 9.19): one full-width row per routine or tracker. */
+.pickList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.pickList .btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.chips,
+.days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.chip,
+.day {
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--field-edge, var(--border));
+  background: var(--bg-elevated);
+  color: var(--text-primary, var(--text));
+  font-size: var(--text-md);
+}
+.chip[aria-pressed='true'],
+.day[aria-pressed='true'] {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: var(--bg-base);
+  font-weight: 600;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary, var(--text));
+  font-size: var(--text-lg);
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary, var(--text));
+}
+
+.linkBtn {
+  align-self: flex-start;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 var(--space-xs);
+  border: 0;
+  background: transparent;
+  color: var(--ut-gold);
+  font-size: var(--text-md);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── items ── */
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.itemMain {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+.itemMain .input {
+  flex: 1 1 auto;
+}
+.itemMoves {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.itemOpts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+@media (max-width: 640px) {
+  .itemMain {
+    flex-wrap: wrap;
+  }
+  .itemMain .input {
+    flex-basis: 100%;
+  }
+}
+
+/* ── switches: the whole 44 px button is the target; the track and knob are drawn inside it ── */
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.switchLabel {
+  font-size: var(--text-md);
+  color: var(--text-primary, var(--text));
+}
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.switch::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 50%;
+  height: 24px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid var(--field-edge, var(--border));
+  background: var(--bg-base);
+}
+.switchOn::before {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+.knob {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transform: translateY(-50%);
+  transition: left 0.15s ease;
+}
+.switchOn .knob {
+  left: 28px;
+  background: var(--bg-base);
+}
+@media (prefers-reduced-motion: reduce) {
+  .knob {
+    transition: none;
+  }
+}
+
+/* ── radios: the whole row is the target ── */
+.radios {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.radioRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap-min);
+  font-size: var(--text-md);
+  color: var(--text-primary, var(--text));
+}
+.radioRow input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--ut-gold);
+}
+.radioRow input[aria-disabled='true'] + span {
+  color: var(--text-muted);
+}
+
+.reminder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+/* ── the read-only view and the manage section ── */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.summaryName {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.summaryList {
+  margin: 0;
+  padding-left: 1.25em;
+  color: var(--text-primary, var(--text));
+  line-height: 1.6;
+}
+.manage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}
+
+.noteList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.noteLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: var(--tap-min);
+  padding: 6px var(--space-xs);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-heading);
+  text-decoration: none;
+}
+.noteLink:hover {
+  background: var(--bg-hover);
+}
+.noteTitle {
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.noteMeta {
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ── focus: a real colour, on every control ── */
+.btn:focus-visible,
+.btnPrimary:focus-visible,
+.btnDanger:focus-visible,
+.chip:focus-visible,
+.day:focus-visible,
+.iconBtn:focus-visible,
+.backBtn:focus-visible,
+.linkBtn:focus-visible,
+.noteLink:focus-visible,
+.input:focus-visible,
+.select:focus-visible,
+.switch:focus-visible,
+.radioRow input:focus-visible,
+.panelTitle:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}

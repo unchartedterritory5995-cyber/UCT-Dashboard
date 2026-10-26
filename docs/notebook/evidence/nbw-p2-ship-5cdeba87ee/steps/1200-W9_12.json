@@ -1,0 +1,263 @@
+{
+ "viewport": "1200",
+ "step": "W9.12",
+ "title": "set NOTEBOOK_WIDGETS_W9_ENABLED=0, reload: each block says 'Not available right now.', nothing else changes",
+ "checks": [
+  {
+   "what": "the sandbox serves wave 9 off",
+   "ok": true,
+   "read": "False"
+  },
+  {
+   "what": "each routine and tracker block says 'Not available right now.'",
+   "ok": true,
+   "read": "3 blocks say it"
+  },
+  {
+   "what": "no tick, value or skip control is drawn",
+   "ok": true,
+   "read": "0"
+  },
+  {
+   "what": "the opening wrote nothing to the note",
+   "ok": true,
+   "read": "[\"POST http://127.0.0.1:8093/api/j2/notes/86826f33e10747469ea066a549cf02d1/opened\"]"
+  },
+  {
+   "what": "nothing else in the note changed (its body is byte-identical)",
+   "ok": true,
+   "read": "same=True"
+  },
+  {
+   "what": "the widgets placed beside the blocks still draw",
+   "ok": true,
+   "read": "2"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "wave 9 on /api/auth/me",
+   "text": "False"
+  },
+  {
+   "what": "note body",
+   "text": "Routine\nRemove\nNot available right now.\n\nPre-market, then the open.\n\nTracker\nRemove\nNot available right now.\n\n\n\n\nTracker\nRemove\nNot available right now.\n\n\n\n\n‹\nMore\nBest run, last 90 days\nOnly you\nas of Oct 25, 2026, 5:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nStart ticking your routine; history shows here from day one.\n\nSource: your manual trades\n\n\n\n\n‹\nMore\nAverage day P&L by routine done, last 90 days\nOnly you\nas of Oct 25, 2026, 5:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNone of these days have a value for Routine done yet.\n\nYour trading days in the Journal (day P&L incl. options)."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "http": 404,
+    "method": "POST",
+    "url": "http://127.0.0.1:8093/api/j2/routines/days"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+   },
+   {
+    "http": 404,
+    "method": "POST",
+    "url": "http://127.0.0.1:8093/api/j2/trackers/days"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 105,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 88,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W9_12-main.png"
+ ]
+}

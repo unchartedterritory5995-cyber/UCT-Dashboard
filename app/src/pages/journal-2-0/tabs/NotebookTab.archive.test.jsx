@@ -143,7 +143,8 @@ describe('the bulk bar', () => {
     renderTab()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select First note' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Second note' }))
-    fireEvent.click(screen.getByRole('button', { name: /^Archive$/ }))
+    // Task 7.3: the bar's chunk is fetched on the first selection, so the bar arrives a tick later.
+    fireEvent.click(await screen.findByRole('button', { name: /^Archive$/ }))
     await waitFor(() => expect(batchCalls).toHaveLength(1))
     expect(batchCalls[0]).toMatchObject({ op: 'archive', ids: ['n1', 'n2'] })
     expect(await screen.findByText('Archived 2 notes. They are under Archived, in the sidebar.')).toBeInTheDocument()
@@ -156,7 +157,7 @@ describe('the bulk bar', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'go to archive' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select First note' }))
-    expect(screen.getByRole('button', { name: /^Unarchive$/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^Unarchive$/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Move' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Tags/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^Unarchive$/ }))

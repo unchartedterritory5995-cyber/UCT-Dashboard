@@ -1,0 +1,144 @@
+{
+ "publish": {
+  "content": [
+   {
+    "content": [
+     {
+      "text": "This widget isn't shown on public pages.",
+      "type": "text"
+     }
+    ],
+    "type": "paragraph"
+   },
+   {
+    "content": [
+     {
+      "text": "This widget isn't shown on public pages.",
+      "type": "text"
+     }
+    ],
+    "type": "paragraph"
+   },
+   {
+    "attrs": {
+     "caption": "",
+     "capturedAt": "2026-10-29T15:30:00Z",
+     "layout": {
+      "width": "full"
+     },
+     "mode": "snapshot",
+     "params": {
+      "asOf": "2026-10-29T15:30:00Z",
+      "cells": [],
+      "count": 3,
+      "labelKind": null,
+      "measures": [
+       {
+        "fmt": "money",
+        "kind": "sum",
+        "label": "Net P&L",
+        "unit": "trades"
+       }
+      ],
+      "points": [],
+      "rangeLabel": "Last 90 days",
+      "rows": [
+       {
+        "label": "Breakout",
+        "label2": null,
+        "n": 3,
+        "n1": 3,
+        "s1": "",
+        "v1": 120.0
+       }
+      ],
+      "series": [],
+      "share": true,
+      "title": "Net P&L by setup",
+      "value": {
+       "n": 3,
+       "n1": 3,
+       "v1": 120.0
+      },
+      "view": "table"
+     },
+     "v": 1,
+     "widgetId": "builtWidget"
+    },
+    "type": "widgetEmbed"
+   }
+  ],
+  "type": "doc"
+ },
+ "share": {
+  "content": [
+   {
+    "content": [
+     {
+      "text": "This widget isn't shown on public pages.",
+      "type": "text"
+     }
+    ],
+    "type": "paragraph"
+   },
+   {
+    "content": [
+     {
+      "text": "This widget isn't shown on public pages.",
+      "type": "text"
+     }
+    ],
+    "type": "paragraph"
+   },
+   {
+    "attrs": {
+     "caption": "",
+     "capturedAt": "2026-10-29T15:30:00Z",
+     "layout": {
+      "width": "full"
+     },
+     "mode": "snapshot",
+     "params": {
+      "asOf": "2026-10-29T15:30:00Z",
+      "cells": [],
+      "count": 3,
+      "labelKind": null,
+      "measures": [
+       {
+        "fmt": "money",
+        "kind": "sum",
+        "label": "Net P&L",
+        "unit": "trades"
+       }
+      ],
+      "points": [],
+      "rangeLabel": "Last 90 days",
+      "rows": [
+       {
+        "label": "Breakout",
+        "label2": null,
+        "n": 3,
+        "n1": 3,
+        "s1": "",
+        "v1": 120.0
+       }
+      ],
+      "series": [],
+      "share": true,
+      "title": "Net P&L by setup",
+      "value": {
+       "n": 3,
+       "n1": 3,
+       "v1": 120.0
+      },
+      "view": "table"
+     },
+     "v": 1,
+     "widgetId": "builtWidget"
+    },
+    "type": "widgetEmbed"
+   }
+  ],
+  "type": "doc"
+ }
+}

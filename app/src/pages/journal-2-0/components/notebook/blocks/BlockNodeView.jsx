@@ -16,6 +16,7 @@ export const BLOCK_COMPONENTS = {
   preEntryChecklist: () => import('./PreEntryChecklistBlock'),
   priceStamps: () => import('./PriceStampsBlock'),
   positionSizing: () => import('./PositionSizingBlock'),
+  sizeCalc: () => import('./SizeCalcBlock'),
   myRules: () => import('./MyRulesBlock'),
   prepWire: () => import('./PrepWireBlock'),
   prepEarnings: () => import('./PrepEarningsBlock'),
@@ -23,6 +24,8 @@ export const BLOCK_COMPONENTS = {
   prepLevels: () => import('./PrepLevelsBlock'),
   tradeReview: () => import('./TradeReviewBlock'),
   moodCheckIn: () => import('./MoodCheckInBlock'),
+  routine: () => import('./RoutineBlock'),
+  tracker: () => import('./TrackerBlock'),
 }
 
 /** A body that throws (or whose chunk fails twice) shows BLOCK_ERROR_SENTENCE inside the block's own

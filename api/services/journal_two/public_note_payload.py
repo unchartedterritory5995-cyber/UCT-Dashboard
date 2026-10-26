@@ -99,6 +99,7 @@ from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
+from api.services.journal_two import shelf_kind_names   # constants only: the closure stays engine-free
 
 # ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
 # `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
@@ -291,6 +292,13 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeReview"): "private",
     # P2 Tier 3: the member's own mood and focus. A stranger sees the neutral line, never a level.
     ("widgetEmbed", "moodCheckIn"): "private",
+    # Notebook widgets phase 2, wave 9 (W9-R4): a routine and a tracker are the member's own account items.
+    # Not snapshot kinds and not "member-optin": `params.share` can never reveal them, in any mode.
+    ("widgetEmbed", "routine"): "private",
+    ("widgetEmbed", "tracker"): "private",
+    # Notebook widgets wave 10 (W10-R7, W10-R8): the position size calculator holds the member's account size and
+    # what they typed. Private like the rows of DEDICATED_KINDS below the table: never shown, `share` or not.
+    ("widgetEmbed", "sizeCalc"): "private",
     # Notebook widgets (Task 6): frozen snapshots fetched by their own slash items. Task 5 moves the two
     # account kinds to "member-optin"; until then they are the neutral private line.
     ("widgetEmbed", "myWatchlistToday"): "mixed",    # the member's list beside live prices
@@ -305,6 +313,10 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "tradeRecap"): "member-optin",
     ("widgetEmbed", "myPnlCalendar"): "member-optin",
     ("widgetEmbed", "mySetupEdge"): "member-optin",
+    # Notebook widgets phase 2: a member-built widget. Its figures are the member's own account data, so it is
+    # neutral unless `params.share` is the boolean True, and then only the result keys below (Task 8.12). Its
+    # KIND_WAVE / ACCOUNT_KINDS rows and the client registry row landed together in Task 8.13.
+    ("widgetEmbed", "builtWidget"): "member-optin",
     ("widgetEmbed", "marketOnMyNames"): "mixed",
     ("widgetEmbed", "tickerFlow"): "mixed",
     ("widgetEmbed", "myScreenToday"): "mixed",
@@ -324,6 +336,16 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     # the neutral line until somebody decides what a stranger may see of a plan.
     ("tradeCanvas", None): "mixed",
 }
+
+#: Notebook widgets wave 10 (Task 10.12, W10-R7): the seven ready-made dedicated widgets. Each reads the
+#: member's own trades, accounts, limits or alerts, so each is "private": the account line in every public mode,
+#: example included (ruling W10-R49), and `params.share` can never reveal one (they are not "member-optin").
+#: Read from `shelf_kind_names`, the constants-only leaf, so this module stays out of the engine's import closure.
+DEDICATED_KINDS: frozenset[str] = frozenset(shelf_kind_names.KINDS)
+#: The blocks and kinds the global privacy constraint names "neutral line on share, publish, gallery and
+#: example": the seven above and the position size calculator (W10-R8). Example mode shows the line, not a drop.
+NEUTRAL_IN_EXAMPLE: frozenset[str] = DEDICATED_KINDS | {"sizeCalc"}
+MARKET_DATA_VENDORS.update({("widgetEmbed", k): "private" for k in sorted(DEDICATED_KINDS)})
 
 #: vendor -> verdict. ⭐ Loosening Massive is this one line: "massive": SHOWN.
 VENDOR_VERDICT: dict[str, str] = {
@@ -504,6 +526,13 @@ EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
                    "empty", "truncated", "tooLarge", "mistakesTruncated"),
     "myPnlCalendar": ("asOf", "source", "month", "days", "best", "worst", "empty", "share", "truncated", "tooLarge"),
     "mySetupEdge": ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge"),
+    # A built widget (Task 8.12): the RESULT only. NEVER `def`, `defRef`, `defId`, `defRev`, `latestRev`,
+    # `summary`, `scopeLabel`, `filter`, `accountId`, `range`, `coverage`, `sample`, and never `footnotes` or
+    # `sourceDetail` (the payload carries both; they name scope and provenance a stranger must not read).
+    # Railed in tests/test_public_note_payload.py.
+    "builtWidget": ("asOf", "source", "title", "view", "measures", "value", "compare", "compareLabel", "rows",
+                    "series", "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge",
+                    "empty", "share", "labelKind", "label2Kind"),
 }
 
 #: Ruling R60: what a SHOWN account widget's structured params may publish, item by item. Every list or
@@ -542,6 +571,16 @@ EMBED_ROW_KEYS: dict[str, dict[str, Any]] = {
     "tradeRecap": {"bars": ("t", "o", "h", "l", "c"), "mistakes": SCALAR_ITEMS},
     "myPnlCalendar": {"days": ("day", "pnl"), "best": ("day", "pnl"), "worst": ("day", "pnl")},
     "mySetupEdge": {"rows": ("setup", "n", "expectancyR", "winRate", "thin")},
+    # A built widget (Task 8.12): fixed keys per list; an id, a nested object or a key a builder adds later stays home.
+    "builtWidget": {
+        "measures": ("label", "unit", "kind", "fmt"),
+        "value": ("v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n"),
+        "compare": ("v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n"),
+        "rows": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
+        "series": ("label", "label2", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3", "n", "flagged"),
+        "points": ("x", "y", "d", "r"),
+        "cells": ("label", "v1", "v2", "v3", "n1", "n2", "n3", "s1", "s2", "s3"),
+    },
 }
 
 
@@ -565,6 +604,71 @@ def _allowed_item(item: Any, keys: Any) -> Any:
 _DROP = object()
 
 
+#: Label kind -> the word a public copy numbers it with: THE ONE TABLE, `widget_engine.public_words` (R-25 accounts,
+#: W10-R7 note titles, the W10.7 walk fix's other member names, W10-R74 properties). Re-exported here by name.
+from api.services.journal_two.widget_engine.public_words import RELABEL_WORDS, numbered  # noqa: E402
+
+
+def _built_label_kinds(params: Mapping[str, Any], out: dict[str, Any]) -> None:
+    """The W10.7 walk fix: a built widget's label kinds are RE-DERIVED from the frozen plan the note carries
+    (`widget_engine.payload.label_kinds`, the one rule the payload marks with), so a snapshot made before a field
+    was marked is numbered too. A derived kind wins; with no frozen plan (a `defRef`), or a plan that marks
+    nothing, the stored marker stands (never the other way: a marker can only add a relabel). And a source whose
+    rows carry no broker or manual origin (a note, a routine, an options strategy) publishes no `source`, whose only
+    words are about trades (`sources.ORIGIN_SOURCES`)."""
+    from api.services.journal_two.widget_engine import payload as wpayload
+    from api.services.journal_two.widget_engine import sources as wsources
+    plan = params.get("def") if isinstance(params.get("def"), dict) else None
+    derived = wpayload.label_kinds(plan)
+    for key, kind in zip(("labelKind", "label2Kind"), derived):
+        if kind is not None:
+            out[key] = kind
+    # Ruling W10-R74: a property measure is numbered ("Sum of Property 1") in its label and the title.
+    if "measures" in out:
+        out["measures"], title = wpayload.public_property_labels(plan, out["measures"], out.get("title"))
+        if "title" in out:
+            out["title"] = title
+    src = plan.get("source") if plan is not None else params.get("sourceKey")
+    if isinstance(src, str) and src in wsources.SOURCES and src not in wsources.ORIGIN_SOURCES:
+        out.pop("source", None)
+
+
+#: Ruling W10-R73: what a public page shows in place of a built widget that reads routines or trackers.
+HIDDEN_WIDGET_LINE = "This widget isn't shown on public pages."
+
+
+def _built_hidden(params: Mapping[str, Any]) -> bool:
+    """W10-R73: is this built widget one a public page shows no data of? The one rule,
+    `widget_engine.payload.hidden_publicly`, asked of the frozen plan, else (ruling W10-R77) of the stored
+    `sourceKey` and the stored snapshot itself; a stored `publicHidden` can only add a hide."""
+    from api.services.journal_two.widget_engine import payload as wpayload
+    plan = params.get("def") if isinstance(params.get("def"), dict) else None
+    return wpayload.hidden_publicly(plan, params.get("sourceKey"), params.get("publicHidden"), params)
+
+
+def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:
+    """Ruling R-25: even a SHARED built widget never publishes an account NAME. Where the payload says a label
+    field is an account (`labelKind` / `label2Kind`), each distinct label becomes "Account N", numbered by first
+    appearance across rows, series and cells so one account keeps one number. Two kinds never share a numbering
+    map. Ruling W10-R7 adds "note" on the same path: a note's title becomes "Note N"; the W10.7 walk fix every
+    other kind in RELABEL_WORDS. Any other kind value is left alone."""
+    if widget_id != "builtWidget":
+        return
+    for kind_key, field in (("labelKind", "label"), ("label2Kind", "label2")):
+        word = RELABEL_WORDS.get(out.get(kind_key)) if isinstance(out.get(kind_key), str) else None
+        if word is None:
+            continue
+        numbering: dict[str, str] = {}
+        for list_key in ("rows", "series", "cells"):
+            for item in out.get(list_key) or []:
+                if not isinstance(item, dict) or item.get(field) is None:
+                    continue
+                name = str(item[field])
+                if name not in numbering:
+                    numbering[name] = numbered(out[kind_key], len(numbering) + 1)
+                item[field] = numbering[name]
+
+
 def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
     """`params` reduced to what a stranger may read for this shown widget: the EMBED_PARAM_KEYS names, each
     structured value through EMBED_ROW_KEYS (ruling R60). Scalars pass as they are."""
@@ -585,6 +689,9 @@ def allowed_params(widget_id: Any, params: Mapping[str, Any]) -> dict[str, Any]:
             # would still tell a stranger how many rows (or bars) the member has.
             out[k] = ([] if rows[k] == () else
                       [x for x in (_allowed_item(i, rows[k]) for i in v) if x is not _DROP])
+    if widget_id == "builtWidget":
+        _built_label_kinds(params, out)
+    _relabel_accounts(widget_id, out)
     return out
 
 #: Container types whose schema requires content: emptied by a drop, they get one empty
@@ -1312,13 +1419,21 @@ def _is_neutral(node: Any, line: str | None = None) -> bool:
     return found is not None and (line is None or found == line)
 
 
+# W9-R4: trader blocks that print the ACCOUNT line (not the market line) when they are neutral. Deliberately
+# not in `_is_account_kind`, which is the share-switch door: nothing here can ever be switched on.
+ACCOUNT_LINE_BLOCKS = frozenset({"routine", "tracker", "sizeCalc"})
+
+
 def _is_account_kind(widget_id: Any) -> bool:
     return MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) == "member-optin"
 
 
 def _neutral_for_embed(widget_id: Any) -> dict:
-    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind."""
-    return _neutral(ACCOUNT_NEUTRAL_LINE if _is_account_kind(widget_id) else NEUTRAL_LINE)
+    """The ONE place that chooses the line for a widgetEmbed: the account line for an account kind, an account
+    block (ACCOUNT_LINE_BLOCKS) and a dedicated widget (DEDICATED_KINDS)."""
+    account = _is_account_kind(widget_id) or (isinstance(widget_id, str)
+                                              and (widget_id in ACCOUNT_LINE_BLOCKS or widget_id in DEDICATED_KINDS))
+    return _neutral(ACCOUNT_NEUTRAL_LINE if account else NEUTRAL_LINE)
 
 
 def _reduce_marks(marks: Any, mode: str = "share", ctx: "_Ctx | None" = None) -> list | None:
@@ -1412,8 +1527,21 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
                 return [_neutral_for_embed(widget_id)]
         elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
             return [_neutral_for_embed(widget_id)]
+        if widget_id == "builtWidget" and _built_hidden(params):
+            # Ruling W10-R73: a built widget over routines or trackers serves no data at all, shared or not.
+            return [_neutral(HIDDEN_WIDGET_LINE)]
         kept = {k: copy.deepcopy(attrs[k]) for k in EMBED_KEPT_ATTRS if k in attrs}
+        if widget_id == "builtWidget" and "frozen" in kept:
+            # Ruling R-26: `frozen` is a flag. A hand-made body could put anything there, so a built
+            # widget's public copy keeps only whether it is frozen.
+            kept["frozen"] = kept["frozen"] is True
         kept["params"] = copy.deepcopy(allowed_params(widget_id, params))       # ruling R60
+        if widget_id == "builtWidget":
+            # The W10.7 / W8.7 walk fix: a public page draws a built widget from THESE params (reduced and
+            # relabelled above), never from its archived image. That image is a picture of the member's editor:
+            # it can hold their real note titles, folder and account names and their own controls, so it never
+            # travels (and `referenced_images` then refuses to serve it).
+            kept.pop("fallback", None)
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
@@ -1526,6 +1654,11 @@ def _example_neutral(node: dict, ctx: _Ctx) -> list:
         widget_id = attrs.get("widgetId")
         if widget_id in trader_blocks.BLOCK_IDS:
             return _reset_block(attrs, ctx)
+        if isinstance(widget_id, str) and widget_id in NEUTRAL_IN_EXAMPLE:
+            # W10-R49: the global privacy constraint's "neutral line ... example", the line share mode shows.
+            line = _neutral_for_embed(widget_id)
+            ctx.note("account", widget_id, line["content"][0]["text"])
+            return [line]
         if MARKET_DATA_VENDORS.get(("widgetEmbed", widget_id)) in ("private", "member-optin"):
             ctx.note("dropped", widget_id)           # an account kind is dropped in an example, as private was
             return []
@@ -1844,7 +1977,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "ACCOUNT_NEUTRAL_LINE", "ACCOUNT_LINE_BLOCKS", "DEDICATED_KINDS", "NEUTRAL_IN_EXAMPLE", "RELABEL_WORDS", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "ATTR_POLICY", "EMBED_ROW_KEYS", "SCALAR_ITEMS", "PAIR_ITEMS", "allowed_params", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",

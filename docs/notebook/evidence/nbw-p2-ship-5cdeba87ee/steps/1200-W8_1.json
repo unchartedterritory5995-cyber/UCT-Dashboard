@@ -1,0 +1,246 @@
+{
+ "viewport": "1200",
+ "step": "W8.1",
+ "title": "build from an example on sample data (a fresh account)",
+ "checks": [
+  {
+   "what": "the gallery says it uses sample trades on a fresh account",
+   "ok": true,
+   "read": "These use sample trades. Link a broker or log a trade to see yours."
+  },
+  {
+   "what": "the preview says it is sample data",
+   "ok": true,
+   "read": "Sample data · Net P&L, split by day, for closed trades in the last 30 days, all accounts. 17 trades."
+  },
+  {
+   "what": "the preview pane wears the Sample data ribbon",
+   "ok": true,
+   "read": "PREVIEW\n\nSample data\n\nDaily P&L bars\n\nAll my accounts · Last 30 days\n\n2026-09-24\n+$242.71\n2026-09-25\n+$326.76\n2026-09-28\n+$249.04\n2026-09-29\n+$680.08\n2026-10-01\n-$90.26\n2026-10-09\n-$571.70\n2026-10-12\n"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "gallery banner",
+   "text": "These use sample trades. Link a broker or log a trade to see yours."
+  },
+  {
+   "what": "preview summary (live region)",
+   "text": "Sample data · Net P&L, split by day, for closed trades in the last 30 days, all accounts. 17 trades."
+  },
+  {
+   "what": "preview pane",
+   "text": "PREVIEW\n\nSample data\n\nDaily P&L bars\n\nAll my accounts · Last 30 days\n\n2026-09-24\n+$242.71\n2026-09-25\n+$326.76\n2026-09-28\n+$249.04\n2026-09-29\n+$680.08\n2026-10-01\n-$90.26\n2026-10-09\n-$571.70\n2026-10-12\n+$205.18\n2026-10-14\n-$55.61\n2026-10-19\n+$30.62\n2026-10-20\n-$156.24\n2026-10-21\n+$64.31\n2026-10-23\n-$276.70\nShow as table\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts. 17 trades.\n\nSample data · Net P&L, split by day, for closed trades in the last 30 days, all accounts. 17 trades."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 83,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 69,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": [
+    {
+     "id": "target-size",
+     "impact": "serious",
+     "help": "All touch targets must be 24px large, or leave sufficient space",
+     "nodes": 1,
+     "targets": [
+      "._toggle_1cf6f_87"
+     ]
+    }
+   ]
+  }
+ },
+ "screenshots": [
+  "1200/W8_1-main.png"
+ ]
+}

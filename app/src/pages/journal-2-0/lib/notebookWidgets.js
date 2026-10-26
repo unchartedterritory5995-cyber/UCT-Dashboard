@@ -9,10 +9,14 @@
 // merge live in notebookWidgetsFetch.js, which only lazy code imports (Task 16D: first-open bytes).
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
 
-/** All fifteen kinds, in menu order. `group` is when a member reaches for it: before the open,
+/** All twenty-three kinds, in menu order. `group` is when a member reaches for it: before the open,
  *  planning a trade, or reviewing. `account` kinds read the member's own account and stay off
  *  public pages unless the member switches `share` on. `pick`: the / menu lists the member's own
- *  trades or screens to choose from (SlashMenu pickItems), so the kind is never inserted bare. */
+ *  trades or screens to choose from (SlashMenu pickItems), so the kind is never inserted bare.
+ *  `built` (wave 8): a widget the member built; it is inserted from the builder or the Mine rows,
+ *  never as a bare / menu snapshot item, and it refreshes through lib/builtWidgets.js.
+ *  `dedicated` (wave 10): a ready-made widget; it refreshes through its own POST door
+ *  (lib/dedicatedWidgets.js), and its numbers never reach a public page, `share` or not. */
 export const WIDGET_KINDS = Object.freeze([
   { id: 'myWatchlistToday', wave: 1, group: 'open', title: 'My watchlist today',
     description: 'Your names: price, move, earnings; refreshes',
@@ -53,6 +57,21 @@ export const WIDGET_KINDS = Object.freeze([
     description: 'Your P&L by day' },
   { id: 'mySetupEdge', wave: 6, group: 'review', title: 'My setup edge', account: true,
     description: 'Expectancy by setup' },
+  { id: 'builtWidget', wave: 8, group: 'review', title: 'Widget', built: 1, account: true, description: 'A widget you built' },
+  { id: 'myTiltCheck', wave: 10, group: 'review', title: 'Tilt check', account: true, dedicated: 1,
+    description: 'Trades soon after a loss vs the rest', keywords: ['tilt', 'revenge', 'after a loss', 'discipline'] },
+  { id: 'myRevengeClean', wave: 10, group: 'review', title: 'Revenge trades', account: true, dedicated: 1,
+    description: 'Clean days in the last 30 trading days', keywords: ['revenge', 'clean days', 'discipline'] },
+  { id: 'myPlanVsActual', wave: 10, group: 'review', title: 'Plan vs actual', pick: 1, account: true, dedicated: 1,
+    description: "One trade's plan against its fills", keywords: ['plan', 'slippage', 'execution'] },
+  { id: 'myRiskLeftToday', wave: 10, group: 'review', title: 'Risk left today', account: true, dedicated: 1,
+    description: "Daily loss limit, today's P&L and open risk", keywords: ['risk', 'daily loss', 'limit', 'room'] },
+  { id: 'myPropFirm', wave: 10, group: 'review', title: 'Prop-firm rules', account: true, dedicated: 1,
+    description: 'Room left under your challenge limits', keywords: ['prop', 'funded', 'challenge', 'drawdown'] },
+  { id: 'myGamePlan', wave: 10, group: 'review', title: 'Pre-market game plan', account: true, dedicated: 1,
+    description: 'The wire, names reporting and open risk', keywords: ['game plan', 'premarket', 'morning'] },
+  { id: 'myAlertsFired', wave: 10, group: 'review', title: 'Alerts that fired', account: true, dedicated: 1,
+    description: 'Your alerts since the last session', keywords: ['alerts', 'fired', 'triggers'] },
 ])
 
 /** Notebook widgets Task 16: existing /charts widget kinds the / menu inserts by fetch-and-freeze, through
@@ -87,6 +106,9 @@ const BY_ID = new Map(WIDGET_KINDS.map((k) => [k.id, k]))
 export const widgetKind = (id) => BY_ID.get(id) || null
 /** Is this widget id one of the snapshot kinds (the embed host hands it the refresh doors)? */
 export const isSnapshotKind = (id) => BY_ID.has(id)
+/** W10-R56: a ready-made dedicated kind (its row's `dedicated`). Private whatever `share` says: no share switch,
+ *  always the "Only you" chip, never archived to an image. The ONE predicate every one of those reads. */
+export const isDedicatedKind = (id) => BY_ID.get(id)?.dedicated === 1
 
 /** A frozen widgetEmbed node for one payload, built by the SAME attr constructor every capture
  *  uses (params normalized through the registry, searchText derived from them). */

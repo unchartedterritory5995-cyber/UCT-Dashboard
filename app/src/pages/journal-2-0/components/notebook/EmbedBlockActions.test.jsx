@@ -106,14 +106,36 @@ describe('where it shows (the stylesheet is the authority; jsdom applies none)',
   const here = dirname(fileURLToPath(import.meta.url))
   const css = readFileSync(resolve(here, 'WidgetEmbedView.module.css'), 'utf8').replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '')
   const view = readFileSync(resolve(here, 'WidgetEmbedView.jsx'), 'utf8')
+  // W10-R75: the touch block exactly. A bare '@media (max-width: 1024px)' also matched the earlier
+  // '@media (max-width: 1024px), (hover: none) {' block (O4, 83752cd46e) and read the wrong rules.
+  const TOUCH_BLOCK = '@media (max-width: 1024px) {'
+  /** The stylesheet with every `@media ... { ... }` block removed (balanced braces). */
+  const withoutMedia = (text) => {
+    let out = ''
+    let i = 0
+    while (i < text.length) {
+      const at = text.indexOf('@media', i)
+      if (at < 0) { out += text.slice(i); break }
+      out += text.slice(i, at)
+      let j = text.indexOf('{', at)
+      let depth = 0
+      for (; j < text.length; j += 1) {
+        if (text[j] === '{') depth += 1
+        else if (text[j] === '}') { depth -= 1; if (depth === 0) break }
+      }
+      i = j + 1
+    }
+    return out
+  }
 
   it('hidden by default, so a desktop never sees it', () => {
-    const base = css.slice(0, css.indexOf('@media (max-width: 1024px)'))
+    // Review m-6: the BASE rules only, with EVERY media block cut out, so a rule inside one cannot satisfy it.
+    const base = withoutMedia(css)
     expect(base).toMatch(/\.blockActions\s*\{[^}]*display:\s*none/)
   })
 
   it('at 1024 px and below the toolbar and the button are shown, and the button is a 44 px target', () => {
-    const at = css.indexOf('@media (max-width: 1024px)')
+    const at = css.indexOf(TOUCH_BLOCK)
     expect(at).toBeGreaterThan(-1)
     const block = css.slice(at, css.indexOf('\n}\n', at) + 3)
     expect(block).toMatch(/\.toolbar\s*\{[^}]*display:\s*inline-flex/)

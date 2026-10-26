@@ -12,7 +12,7 @@ describe('widgetsWaveOn', () => {
   afterEach(() => __resetNotebookFlags())
 
   it('is false for every wave when nothing has latched', () => {
-    for (const wave of [1, 2, 3, 4, 5, 6]) expect(widgetsWaveOn(wave)).toBe(false)
+    for (const wave of [1, 2, 3, 4, 5, 6, 8]) expect(widgetsWaveOn(wave)).toBe(false)
   })
 
   it('is true once that wave is latched on, and the other waves stay false', () => {
@@ -31,7 +31,32 @@ describe('widgetsWaveOn', () => {
   it('answers false for a wave that does not exist', () => {
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     expect(widgetsWaveOn(0)).toBe(false)
-    expect(widgetsWaveOn(7)).toBe(false)
+    expect(widgetsWaveOn(11)).toBe(false)
     expect(widgetsWaveOn(undefined)).toBe(false)
+  })
+
+  it('wave 8 is false unlatched and true once latched', () => {
+    expect(widgetsWaveOn(8)).toBe(false)
+    latchNotebookFlags({ notebook_widgets_w8_enabled: true })
+    expect(widgetsWaveOn(8)).toBe(true)
+  })
+
+  it('wave 9 is false unlatched and true once latched', () => {
+    expect(widgetsWaveOn(9)).toBe(false)
+    latchNotebookFlags({ notebook_widgets_w9_enabled: true })
+    expect(widgetsWaveOn(9)).toBe(true)
+  })
+
+  it('wave 10 is false unlatched and true once latched; wave 11 has no flag yet', () => {
+    expect(widgetsWaveOn(10)).toBe(false)
+    latchNotebookFlags({ notebook_widgets_w10_enabled: true, notebook_widgets_w11_enabled: true })
+    expect(widgetsWaveOn(10)).toBe(true)
+    expect(widgetsWaveOn(11)).toBe(false)
+  })
+
+  it('wave 7 has no flag: always false, even when a payload carries the key', () => {
+    expect(widgetsWaveOn(7)).toBe(false)
+    latchNotebookFlags({ notebook_widgets_w7_enabled: true, notebook_widgets_w8_enabled: true })
+    expect(widgetsWaveOn(7)).toBe(false)
   })
 })

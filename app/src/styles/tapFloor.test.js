@@ -132,3 +132,272 @@ describe('the 44px touch floor covers TABLET, not just phone', () => {
     expect(phoneOnlyTargets(desc)).toEqual(['.input'])
   })
 })
+
+// Wave 8 (Task 8.15): the widget builder. Its controls are the member-facing surface of built widgets, and spec 5.11
+// requires every one of them -- view thumbnails and chip remove buttons included -- to be a 44px target at EVERY
+// touch tier. The rule above only catches a phone-only floor; it says nothing about a control with NO floor. This
+// derives the builder's controls from its own stylesheet (every class whose rule sets `cursor: pointer`), so a
+// control added tomorrow is covered the day it lands, and asks that each is floored at 390 AND 820.
+const BUILDER_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgetBuilder', 'WidgetBuilderSheet.module.css')
+
+/** Classes whose rule declares `cursor: pointer` (the last class of each comma-separated part, as above). */
+function clickableClasses(css) {
+  const found = new Set()
+  const rule = /([^{}]+)\{([^{}]*)\}/g
+  let m
+  while ((m = rule.exec(withoutMedia(css)))) {
+    if (!/cursor:\s*pointer/.test(m[2])) continue
+    for (const part of m[1].split(',')) {
+      const classes = part.match(/\.[A-Za-z][A-Za-z0-9_-]*/g)
+      if (classes) found.add(classes[classes.length - 1])
+    }
+  }
+  return found
+}
+
+function unflooredAt(css, width) {
+  const clean = stripComments(css)
+  const floored = new Set([...tapTargetClasses(mediaBodies(clean, width)), ...tapTargetClasses(withoutMedia(clean))])
+  return [...clickableClasses(clean)].filter((c) => !floored.has(c)).sort()
+}
+
+describe('the widget builder floors every control at 44px on touch', () => {
+  it('the builder has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(BUILDER_CSS, 'utf8')))
+    for (const c of ['.chip', '.chipRemove', '.thumb', '.option', '.btnPrimary', '.summaryBar']) expect(classes).toContain(c)
+  })
+
+  it('every clickable class is floored at phone AND tablet width', () => {
+    const css = readFileSync(BUILDER_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+  })
+
+  it('CONTROL: a clickable class with no floor is SEEN', () => {
+    const bad = '.a { cursor: pointer; } .b { cursor: pointer; }\n@media (max-width: 1024px) { .a { min-height: var(--tap-min); } }'
+    expect(unflooredAt(bad, 390)).toEqual(['.b'])
+    expect(unflooredAt(bad, 820)).toEqual(['.b'])
+    const phoneOnly = '.a { cursor: pointer; }\n@media (max-width: 640px) { .a { min-height: var(--tap-min); } }'
+    expect(unflooredAt(phoneOnly, 820)).toEqual(['.a'])
+  })
+})
+
+// Wave 8 (Task 8.17): My tools. The owner's bar for it is "every control is 44 px or larger", at EVERY width, so this
+// asks more than the builder rail does: each clickable class (derived from the stylesheet, as above) must be floored at
+// 390, 820 AND 1200 px, which in practice means in its base rule.
+const MY_TOOLS_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'myTools.module.css')
+
+describe('My tools floors every control at 44px at every width', () => {
+  it('My tools has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(MY_TOOLS_CSS, 'utf8')))
+    for (const c of ['.btn', '.btnPrimary', '.btnDanger', '.filter', '.moreBtn', '.backBtn', '.linkBtn', '.noteLink', '.option']) {
+      expect(classes).toContain(c)
+    }
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(MY_TOOLS_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('CONTROL: a control floored on touch only is SEEN at desktop width', () => {
+    const touchOnly = '.a { cursor: pointer; }\n@media (max-width: 1024px) { .a { min-height: var(--tap-min); } }'
+    expect(unflooredAt(touchOnly, 820)).toEqual([])
+    expect(unflooredAt(touchOnly, 1200)).toEqual(['.a'])
+  })
+})
+
+// Wave 8 (Task 8.16): "Start from an example", the builder's start screen. Its cards, Start blank, the sample banner's
+// two links and Try again are 44 px at EVERY width (the My tools bar), derived from its own stylesheet as above.
+const GALLERY_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgetBuilder', 'ExamplesGallery.module.css')
+
+describe('the examples gallery floors every control at 44px at every width', () => {
+  it('the gallery has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(GALLERY_CSS, 'utf8')))
+    for (const c of ['.card', '.btn', '.btnPrimary', '.linkBtn']) expect(classes).toContain(c)
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(GALLERY_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+})
+
+// Wave 9 (Task 9.16): the routine and tracker editors. The My tools bar: every clickable class (derived from the
+// stylesheet, as above) is floored at 390, 820 AND 1200 px, and so is every text field and select, at 16 px or larger
+// so a phone does not zoom into it.
+const ROUTINES_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'routines', 'routines.module.css')
+
+/** The font-size a class's base rule declares, '' when none. */
+function baseFontSize(css, cls) {
+  const rule = /([^{}]+)\{([^{}]*)\}/g
+  let m
+  let found = ''
+  while ((m = rule.exec(withoutMedia(stripComments(css))))) {
+    const parts = m[1].split(',').map((p) => p.trim())
+    if (!parts.includes(cls)) continue
+    const fs = /font-size:\s*([^;]+);/.exec(m[2])
+    if (fs) found = fs[1].trim()
+  }
+  return found
+}
+
+describe('the routine and tracker editors floor every control at 44px at every width', () => {
+  it('the editors have clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(ROUTINES_CSS, 'utf8')))
+    for (const c of ['.btn', '.btnPrimary', '.btnDanger', '.chip', '.day', '.iconBtn', '.switch', '.radioRow', '.select', '.linkBtn', '.noteLink', '.backBtn']) {
+      expect(classes).toContain(c)
+    }
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(ROUTINES_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('text fields and selects are floored too, at 16px type or larger', () => {
+    const css = readFileSync(ROUTINES_CSS, 'utf8')
+    const floored = tapTargetClasses(withoutMedia(stripComments(css)))
+    for (const c of ['.input', '.select']) {
+      expect(floored, `${c} has no 44px floor`).toContain(c)
+      expect(baseFontSize(css, c)).toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+    }
+  })
+
+  it('CONTROL: a field at 14px type is SEEN', () => {
+    expect(baseFontSize('.input { font-size: 14px; min-height: var(--tap-min); }', '.input')).not.toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+  })
+})
+
+// Wave 9 (Task 9.18): My tools' Routines and Trackers tabs. Their rows ARE My tools rows (the `.row` class of
+// myTools.module.css, floored above with every other My tools control), and a row is 56px at phone width: a list row
+// is a finger target as a whole, so it gets more than the 44px a single control gets.
+const TOOLS_TAB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'ToolsTab.jsx')
+
+/** Whether a `@media` condition applies at `width` (the same reading `mediaBodies` makes). */
+function mediaApplies(cond, width) {
+  const max = /max-width:\s*(\d+)px/.exec(cond)
+  const min = /min-width:\s*(\d+)px/.exec(cond)
+  return (!max || width <= Number(max[1])) && (!min || width >= Number(min[1]))
+}
+
+/** Every rule that applies at `width`, in SOURCE ORDER: base rules and the rules of each applying `@media` block,
+ *  interleaved as they are written (a later rule of the same selector wins the cascade). */
+function rulesInOrder(css, width) {
+  const out = []
+  let i = 0
+  while (i < css.length) {
+    const open = css.indexOf('{', i)
+    if (open < 0) break
+    const sel = css.slice(i, open).trim()
+    let depth = 1
+    let j = open + 1
+    while (j < css.length && depth) {
+      if (css[j] === '{') depth += 1
+      else if (css[j] === '}') depth -= 1
+      j += 1
+    }
+    const body = css.slice(open + 1, j - 1)
+    if (sel.startsWith('@media')) { if (mediaApplies(sel, width)) out.push(...rulesInOrder(body, width)) } else if (!sel.startsWith('@')) out.push({ sel, body })
+    i = j
+  }
+  return out
+}
+
+/** The `min-height` in px that WINS for `cls` at `width`: the last applying declaration of it in source order (the
+ *  cascade for one selector), never the largest. 0 when nothing declares one. */
+function minHeightAt(css, cls, width) {
+  let won = 0
+  for (const { sel, body } of rulesInOrder(stripComments(css), width)) {
+    if (!sel.split(',').map((p) => p.trim()).includes(cls)) continue
+    const mh = /min-height:\s*(\d+)px/.exec(body)
+    if (mh) won = Number(mh[1])
+  }
+  return won
+}
+
+describe('My tools: the Routines and Trackers rows are 56px on phone', () => {
+  it('the tool rows are drawn with My tools’ own row class', () => {
+    const src = readFileSync(TOOLS_TAB, 'utf8')
+    expect(src).toMatch(/className=\{`\$\{styles\.row\}/)
+    expect(src).toMatch(/import styles from '\.\/myTools\.module\.css'/)
+  })
+
+  it('a row is at least 56px at 390, 820 and 1200px', () => {
+    const css = readFileSync(MY_TOOLS_CSS, 'utf8')
+    for (const w of [390, 820, 1200]) expect(minHeightAt(css, '.row', w), `at ${w}px`).toBeGreaterThanOrEqual(56)
+  })
+
+  it('CONTROL: a row floored at 44px, or only on desktop, is SEEN', () => {
+    expect(minHeightAt('.row { min-height: 44px; }', '.row', 390)).toBeLessThan(56)
+    expect(minHeightAt('@media (min-width: 1025px) { .row { min-height: 56px; } }', '.row', 390)).toBeLessThan(56)
+    expect(minHeightAt('.row { min-height: 56px; }', '.row', 390)).toBe(56)
+  })
+
+  it('CONTROL: the WINNING rule is read, so a phone override below 56px is SEEN under a 56px base', () => {
+    const lowered = '.row { min-height: 56px; }\n@media (max-width: 640px) { .row { min-height: 40px; } }'
+    expect(minHeightAt(lowered, '.row', 390)).toBe(40)
+    expect(minHeightAt(lowered, '.row', 820)).toBe(56)                // the phone block does not apply there
+    // Source order decides: a base rule written AFTER the media block wins at every width.
+    expect(minHeightAt('@media (max-width: 640px) { .row { min-height: 40px; } }\n.row { min-height: 56px; }', '.row', 390)).toBe(56)
+  })
+})
+
+// Wave 10 (Task 10.16): "Your own fields" in the widget builder. The My tools bar: every clickable class (derived
+// from the stylesheet, as above: the autocomplete options, "Add as a measure", "Split by this", "Filter by this",
+// Remove) is floored at 390, 820 AND 1200 px, and the Name, Formula and Format fields are floored too, at 16 px type
+// or larger so a phone does not zoom into them.
+const FORMULA_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgetBuilder', 'sections', 'FormulaSection.module.css')
+
+describe('"Your own fields" floors every control at 44px at every width', () => {
+  it('the section has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(FORMULA_CSS, 'utf8')))
+    for (const c of ['.option', '.offer', '.remove']) expect(classes).toContain(c)
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(FORMULA_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('the Name, Formula and Format fields are floored too, at 16px type or larger', () => {
+    const css = readFileSync(FORMULA_CSS, 'utf8')
+    const floored = tapTargetClasses(withoutMedia(stripComments(css)))
+    for (const c of ['.input', '.box']) {
+      expect(floored, `${c} has no 44px floor`).toContain(c)
+      expect(baseFontSize(css, c)).toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+    }
+  })
+})
+
+// Wave 10 (Task 10.15): the seven ready-made widget embeds. Their one control of their own is "Show as table" (the
+// n/a reasons and See it now are the snapshot frame's, floored above); it is floored at 390, 820 AND 1200 px, derived
+// from the stylesheet so a control added tomorrow is covered the day it lands.
+const DEDICATED_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'widgets', 'DedicatedEmbeds.module.css')
+
+describe('the dedicated widget embeds floor every control at 44px at every width', () => {
+  it('the embeds have clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(DEDICATED_CSS, 'utf8')))
+    expect(classes).toContain('.tableToggle')
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(DEDICATED_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('every bar is drawn 44 px tall', () => {
+    const css = stripComments(readFileSync(DEDICATED_CSS, 'utf8'))
+    expect(/\.bar\s*\{[^}]*height:\s*44px/.test(withoutMedia(css))).toBe(true)
+  })
+})

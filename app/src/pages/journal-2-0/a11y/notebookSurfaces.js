@@ -40,6 +40,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/TagSuggestInput.jsx': { coveredBy: 'bulk-action-bar' },
   'components/notebook/SavedViewEditor.jsx': { recipe: 'saved-view-editor' },
   'components/notebook/TemplatePicker.jsx': { recipe: 'template-picker' },
+  // Wave 7 Task 7.4: the picker's loading box (the lazy chunk and the catalog); rail a11y/dialogs.a11y.test.jsx.
+  'components/notebook/TemplatePickerSkeleton.jsx': { recipe: 'template-picker-skeleton' },
   'components/notebook/MemberTemplates.jsx': { recipe: 'member-templates' },
   // Wave 10 lane DR-C (D-4): the gallery's read-only "preview before you use
   // it" sheet, opened from either template-picker's own cards or from the
@@ -214,6 +216,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PreEntryChecklistBlock.jsx': { recipe: 'trader-block-checklist' },
   'components/notebook/blocks/PriceStampsBlock.jsx': { recipe: 'trader-block-stamps' },
   'components/notebook/blocks/PositionSizingBlock.jsx': { recipe: 'trader-block-sizing' },
+  // Wave 10 Task 10.20: the position size calculator (rail a11y/traderBlockSizeCalc.a11y.test.jsx).
+  'components/notebook/blocks/SizeCalcBlock.jsx': { recipe: 'trader-block-size-calc' },
   // P2b Task 2 stubs: each body task (8, 10, 11) swaps its own line for its own recipe.
   // Task 8: the My rules body (rail a11y/traderBlockMyRules.a11y.test.jsx).
   'components/notebook/blocks/MyRulesBlock.jsx': { recipe: 'trader-block-my-rules' },
@@ -227,6 +231,61 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/TradeReviewBlock.jsx': { recipe: 'trader-block-review' },
   // P2 Tier 3 Task 3: the mood and focus check-in (rail a11y/traderBlockCheckin.a11y.test.jsx).
   'components/notebook/blocks/MoodCheckInBlock.jsx': { recipe: 'trader-block-checkin' },
+  // Wave 9 Task 9.13: the routine block (rail a11y/traderBlockRoutine.a11y.test.jsx: editable, menu, read-only,
+  // archived, read failure, offline).
+  'components/notebook/blocks/RoutineBlock.jsx': { recipe: 'trader-block-routine' },
+  // Wave 9 Task 9.15: the vs P&L panel both blocks flip to (rail a11y/vsPnlPanel.a11y.test.jsx: a routine opened on
+  // its comparison in the block frame, a tracker's ranges, a failed read with its Retry, no days yet).
+  'components/notebook/blocks/VsPnlPanel.jsx': { recipe: 'vs-pnl-panel' },
+  // Wave 9 Task 9.14: the tracker block and its chart (rail a11y/traderBlockTracker.a11y.test.jsx: a scale, a duration
+  // box, the table, the menu, read-only, a check-in, archived, read failure, a refused value, offline).
+  'components/notebook/blocks/TrackerBlock.jsx': { recipe: 'trader-block-tracker' },
+  'components/notebook/blocks/TrackerChart.jsx': { coveredBy: 'trader-block-tracker' },
+  // Wave 9 Task 9.16: the routine and tracker editors (routines/; rail a11y/toolEditors.a11y.test.jsx: a new routine
+  // with its starters, suggestions, weekdays and reminder; an edit with a refusal and Reload; the question, Used in,
+  // archived and delete panels; a new and an edited tracker; a check-in tracker).
+  'components/notebook/routines/RoutineEditorSheet.jsx': { recipe: 'routine-editor' },
+  'components/notebook/routines/TrackerEditorSheet.jsx': { recipe: 'tracker-editor' },
+  'components/notebook/routines/ToolEditor.jsx': { coveredBy: 'routine-editor-edit' },
+  'components/notebook/routines/ToolManage.jsx': { coveredBy: 'routine-editor-manage' },
+  // Wave 9 Task 9.18 (fix 1, I-1): My tools, in the derived population. Routines and Trackers (rail
+  // a11y/myToolsTools.a11y.test.jsx: the lists, the menu, rename with a conflict, archive, the typed-name delete, Used
+  // in, the check-in trackers first, Recently deleted, the phone sheet, offline) and the wave 8 Widgets tab (rail
+  // a11y/myToolsWidgets.a11y.test.jsx: the list, version history, the restore question, the typed-name delete).
+  'components/notebook/myTools/MyToolsSheet.jsx': { recipe: 'my-tools-widgets' },
+  'components/notebook/myTools/WidgetsTab.jsx': { coveredBy: 'my-tools-widgets' },
+  'components/notebook/myTools/VersionHistory.jsx': { recipe: 'my-tools-widget-history' },
+  'components/notebook/myTools/RestoreQuestion.jsx': { recipe: 'my-tools-widget-restore-question' },
+  'components/notebook/myTools/DeleteConfirm.jsx': { recipe: 'my-tools-widget-delete' },
+  'components/notebook/myTools/ToolsTab.jsx': { recipe: 'my-tools-routines' },
+  'components/notebook/myTools/RoutinesTab.jsx': { coveredBy: 'my-tools-routines' },
+  'components/notebook/myTools/TrackersTab.jsx': { recipe: 'my-tools-trackers' },
+  'components/notebook/myTools/UsedInList.jsx': { coveredBy: 'my-tools-tool-used-in' },
+  'components/notebook/myTools/PanelHead.jsx': { coveredBy: 'my-tools-tool-used-in' },
+  // Wave 9 Task 9.19: the tool picker /routine and /track open (rail a11y/toolPicker.a11y.test.jsx: a list with New
+  // routine; none yet; a list that cannot be read, with Try again).
+  'components/notebook/routines/ToolPicker.jsx': { recipe: 'tool-picker' },
+  // Wave 9 Task 9.17 fix 1 (ruling W9-R50): the widget builder, in the derived population (rail
+  // a11y/widgetBuilder.a11y.test.jsx: the main level with a preview, the examples screen, a filter being edited,
+  // "Which routine" with a routine taken, the ranges on a routine source, the Update-all question).
+  'components/notebook/widgetBuilder/WidgetBuilderSheet.jsx': { recipe: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/PreviewPane.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/Section.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/SourceSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/MeasureSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/SplitSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/ViewSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/ViewGlyph.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/sections/NameSection.jsx': { coveredBy: 'widget-builder-main' },
+  'components/notebook/widgetBuilder/ExamplesGallery.jsx': { recipe: 'widget-builder-examples' },
+  'components/notebook/widgetBuilder/ExampleCard.jsx': { coveredBy: 'widget-builder-examples' },
+  'components/notebook/widgetBuilder/miniPreview.jsx': { coveredBy: 'widget-builder-examples' },
+  'components/notebook/widgetBuilder/sections/WhichOnesSection.jsx': { recipe: 'widget-builder-filter-editor' },
+  'components/notebook/widgetBuilder/sections/RefPicker.jsx': { recipe: 'widget-builder-ref-taken' },
+  'components/notebook/widgetBuilder/SaveQuestion.jsx': { recipe: 'widget-builder-save-question' },
+  // Wave 10 Task 10.16: "Your own fields" (rail a11y/widgetBuilder.a11y.test.jsx: a valid field with its offers and the
+  // autocomplete list open; a field in its error state).
+  'components/notebook/widgetBuilder/sections/FormulaSection.jsx': { recipe: 'widget-builder-formulas' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },
@@ -393,4 +452,16 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/notebook/styles/ExamplePreviewSheet.jsx': { recipe: 'example-preview-sheet', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/ExamplesInUse.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
   'components/notebook/styles/StyleItemPreview.jsx': { recipe: 'example-in-use', railFile: 'a11y/exampleNotes.a11y.test.jsx' },
+  // Notebook widgets wave 10 Task 10.15: the seven ready-made ("dedicated") widget embeds and their shared parts, under
+  // components/notebook/widgets/ (outside the derived population; lazy, in the snapshot chunk). Each embed has its own
+  // recipe, and the rail adds one per kind and state (brand-new member, past the limit, a part gap, a capped list,
+  // Show as table); rail a11y/dedicatedEmbeds.a11y.test.jsx. DedicatedParts renders inside every one of them.
+  'components/notebook/widgets/TiltCheckEmbed.jsx': { recipe: 'dedicated-tilt-check', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/RevengeCleanEmbed.jsx': { recipe: 'dedicated-revenge-clean', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/PlanVsActualEmbed.jsx': { recipe: 'dedicated-plan-vs-actual', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/RiskLeftTodayEmbed.jsx': { recipe: 'dedicated-risk-left-today', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/PropFirmEmbed.jsx': { recipe: 'dedicated-prop-firm', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/GamePlanEmbed.jsx': { recipe: 'dedicated-game-plan', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/AlertsFiredEmbed.jsx': { recipe: 'dedicated-alerts-fired', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
+  'components/notebook/widgets/DedicatedParts.jsx': { recipe: 'dedicated-risk-left-today', railFile: 'a11y/dedicatedEmbeds.a11y.test.jsx' },
 })

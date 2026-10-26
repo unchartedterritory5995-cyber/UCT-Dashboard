@@ -70,9 +70,18 @@
 //     async fetch (a child component's state, invisible to this effect's deps).
 //     The keyboard FUNCTION never lags -- Enter reads the live DOM at the
 //     moment it fires -- only the visual ring can be briefly stale.
+//
+// Wave 7 Task 7.4 ("bytes first"): the catalog (lib/notebookTemplates.js, ~64 kB of
+// source) is no longer a static import. `FAMILIES`, `templatesByFamily` and
+// `templatePreview` come from `loadTemplates()` (lib/templatesLoader.js, one memoised,
+// retried import), and NotebookTab mounts this module as its own lazy chunk. Until the
+// catalog has arrived the picker renders TemplatePickerSkeleton (the same box, holding
+// the tour's gallery-door anchor); everything below the loader is the picker exactly as
+// it was, handed the catalog module as a prop.
 import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FAMILIES, templatesByFamily, templatePreview } from '../../lib/notebookTemplates'
+import { loadTemplates, loadedTemplates } from '../../lib/templatesLoader'
+import TemplatePickerSkeleton from './TemplatePickerSkeleton'
 import MemberTemplates from './MemberTemplates'
 import TemplatePreview from './TemplatePreview'
 import { templateGalleryEnabled } from '../../lib/templateGallery'
@@ -123,10 +132,42 @@ function onGalleryKeyDown(e) {
   to.focus()
 }
 
+// Task 7.4: what the picker shows when the catalog could not load (the retry included). Blank note, the
+// member's own templates and the Playbook pointer still work, and a status line says why the rest is missing.
+const NO_CATALOG = Object.freeze({
+  FAMILIES: Object.freeze([]),
+  templatesByFamily: () => [],
+  templatePreview: () => [],
+})
+
+/** The catalog module as soon as it is here: synchronously when it already arrived, else after the load. */
+function useTemplateCatalog() {
+  const [catalog, setCatalog] = useState(loadedTemplates)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (catalog) return undefined
+    let alive = true
+    loadTemplates().then(
+      (mod) => { if (alive) setCatalog(mod) },
+      () => { if (alive) setFailed(true) },
+    )
+    return () => { alive = false }
+  }, [catalog])
+  return { catalog, failed }
+}
+
+export default function TemplatePicker(props) {
+  const { catalog, failed } = useTemplateCatalog()
+  if (catalog) return <TemplatePickerBody {...props} catalog={catalog} />
+  if (failed) return <TemplatePickerBody {...props} catalog={NO_CATALOG} catalogFailed />
+  return <TemplatePickerSkeleton />
+}
+
 // Wave 6: `onPickMember` adds "Your templates" (the member's own, saved from
 // their notes) right after Blank — the templates a member made are the ones
 // they reach for first. Absent, the picker is exactly the built-in catalog.
-export default function TemplatePicker({ onPick, onPickMember, busy = false, autoFocusSearch = false, kindSection }) {
+function TemplatePickerBody({ onPick, onPickMember, busy = false, autoFocusSearch = false, kindSection, catalog, catalogFailed = false }) {
+  const { FAMILIES, templatesByFamily, templatePreview } = catalog
   const navigate = useNavigate()
   // A picker can be on screen twice (the empty notebook and the New-note sheet),
   // so the label ids are per instance.
@@ -173,10 +214,10 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
       .map((f) => ({ ...f, items: templatesByFamily(f.key).filter((t) => templateMatches(t, q)) }))
       .filter((f) => f.items.length > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [q, category],
+    [q, category, catalog],
   )
   const showMemberSection = Boolean(onPickMember) && (category === ALL || category === MEMBER)
-  const noBuiltInMatches = visibleFamilies.length === 0 && category !== MEMBER
+  const noBuiltInMatches = !catalogFailed && visibleFamilies.length === 0 && category !== MEMBER
 
   // 13Q-5: a query or a category change re-aims the search box's "Enter picks
   // this" target. Never at Blank/Playbook (`data-template-anchor`, always
@@ -364,6 +405,12 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
           query={q}
           onPreview={(p) => setPreview(p)}
         />
+      )}
+
+      {catalogFailed && (
+        <p className={styles.emptyFilter} role="status" data-template-catalog-failed="">
+          The templates could not load. Reload the page to try again; a blank note still works.
+        </p>
       )}
 
       {noBuiltInMatches && (

@@ -19,7 +19,7 @@ import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
-import { isSnapshotKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
+import { isSnapshotKind, isDedicatedKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -236,7 +236,9 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // Public share page (SharedNotePage stamps shareView before the editor
   // view exists): every embed renders its ARCHIVED IMAGE — a public reader
   // never mounts live components that poll auth-scoped APIs. The durable
-  // image IS the shared artifact.
+  // image IS the shared artifact -- except a built widget, drawn from the
+  // server-reduced params it carries (a snapshot: it fetches nothing on mount;
+  // `builtPublic` below, the W10.7 walk fix).
   const shareView = !!editor?.storage?.uctJournalWidgets?.shareView
 
   // R-T12-C (fix round, I-1): the market context stamp's "Capture now" writes its params the way a
@@ -589,7 +591,9 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // (shareView keeps every embed on `fallback`; ReadOnlyNote stamps it). So an ACCOUNT snapshot kind
   // may be archived only while the member has it shared: never while private, and switching share
   // off clears `fallback` in the same write (updateSnapshotParams) and does not re-archive.
-  const archiveAllowed = (attrsNow) => widgetKind(attrsNow?.widgetId)?.account !== true || attrsNow?.params?.share === true
+  // W10-R56: a ready-made dedicated kind is private whatever `share` says, so it is never archived to an image.
+  const archiveAllowed = (attrsNow) => !isDedicatedKind(attrsNow?.widgetId)
+    && (widgetKind(attrsNow?.widgetId)?.account !== true || attrsNow?.params?.share === true)
   const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView && !peek && !shareView
     && archiveAllowed(attrs)
   useEffect(() => {
@@ -659,7 +663,13 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsArchive, editor, inView, archiveEpoch])
 
-  const archived = attrs.fallback?.url
+  // ⛔ The W10.7 / W8.7 walk fix: on a public page a BUILT widget is drawn from its params, which the server reduced
+  // and relabelled (public_note_payload: the result only, a note's title as "Note 1", an account as "Account 1"),
+  // NEVER from its archived image. That image is a picture of the member's editor: their real note titles, folder and
+  // account names, and their own controls. The server no longer sends it; this branch never shows one either (an
+  // older server's, or a hand-made body's), and its fallback is the caption line, never the image.
+  const builtPublic = shareView && attrs.widgetId === 'builtWidget'
+  const archived = attrs.fallback?.url && !builtPublic
     ? <ArchivedImage attrs={attrs} />
     : <PlaceholderChip attrs={attrs} reason={decision.reason} shareView={shareView} />
 
@@ -777,7 +787,16 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   ].filter(Boolean)
 
   let body = archived
-  if (decision.kind === 'live' && !shareView) {
+  if (builtPublic) {
+    const Built = EMBED_COMPONENTS.builtWidget
+    body = (
+      <EmbedErrorBoundary fallback={archived}>
+        <Suspense fallback={<div className={styles.loading} style={{ height }} {...RENDER_UNAVAILABLE} />}>
+          <Built attrs={attrs} height={height} editable={false} shareView />
+        </Suspense>
+      </EmbedErrorBoundary>
+    )
+  } else if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
     body = !Live ? archived : !inView ? (
       <div className={styles.loading} style={{ height }} {...RENDER_UNAVAILABLE} />
@@ -802,6 +821,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             mobileDrawBar={annotate && isCoarsePointer}
             {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
             {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams, uid: editor?.storage?.uctJournalWidgets?.uid } : {})}
+            // Wave 8 (Task 8.14): a built widget's ⋯ menu opens the builder at this node (editor + getPos).
+            {...(attrs.widgetId === 'builtWidget' ? { editor, getPos, shareView } : {})}
           />
         </Suspense>
       </EmbedErrorBoundary>

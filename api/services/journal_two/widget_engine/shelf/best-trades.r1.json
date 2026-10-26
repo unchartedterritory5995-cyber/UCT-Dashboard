@@ -1,0 +1,41 @@
+{
+  "id": "shelf:best-trades",
+  "rev": 1,
+  "name": "Best trades",
+  "description": "Your 10 biggest trades by net P&L.",
+  "keywords": [
+    "biggest winners",
+    "top trades",
+    "best trades",
+    "winners"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      },
+      {
+        "key": "total_r"
+      }
+    ],
+    "view": {
+      "type": "list",
+      "auto": false
+    },
+    "sort": {
+      "measure": 0,
+      "dir": "desc",
+      "top": 10
+    },
+    "display": {
+      "title": "Best trades",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+ "viewport": "820",
+ "step": "W10.3",
+ "title": "build over Options strategies split by Strategy, and over Notes filtered by a number property, summed",
+ "checks": [
+  {
+   "what": "options strategies split by Strategy",
+   "ok": true,
+   "read": "Net P&L, split by strategy, for options strategies in the last 90 days, all accounts. 3 strategies."
+  },
+  {
+   "what": "the preview counts the 3 strategies",
+   "ok": true,
+   "read": "Net P&L, split by strategy, for options strategies in the last 90 days, all accounts. 3 strategies."
+  },
+  {
+   "what": "the options widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "notes filtered by the property, the property summed",
+   "ok": true,
+   "read": "Notes and Sum of a property, filtered by property, for notes in the last 90 days, all accounts. 2 notes."
+  },
+  {
+   "what": "the sum is 13 (5 + 8)",
+   "ok": true,
+   "read": "PREVIEW\n\nNotes and Sum of a property, last 90 days\n\nAll my accounts · Last 90 days\n\nNotes\n2\nfrom 2 notes\nSum of a property\n13\nfrom 2 notes\nShow as table\n\nNotes and Sum of a property, filtered by property, for notes in the last 90 days, all accounts. 2 notes.\n\nNotes and Sum of a property, filtered by"
+  },
+  {
+   "what": "the notes widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "options preview summary",
+   "text": "Net P&L, split by strategy, for options strategies in the last 90 days, all accounts. 3 strategies."
+  },
+  {
+   "what": "options preview",
+   "text": "PREVIEW\n\nNet P&L by strategy, last 90 days\n\nAll my accounts · Last 90 days\n\nLong Call\n+$100.00\nLong Put\n+$80.00\nShow as table\n\nNet P&L, split by strategy, for options strategies in the last 90 days, all accounts. 3 strategies.\n\nNet P&L, split by strategy, for options strategies in the last 90 days, all accounts. 3 strategies."
+  },
+  {
+   "what": "notes source, the coverage switch",
+   "text": "Show how many trades each figure is from"
+  },
+  {
+   "what": "notes filtered",
+   "text": "Notes, filtered by property, for notes in the last 90 days, all accounts. 2 notes."
+  },
+  {
+   "what": "notes summed",
+   "text": "Notes and Sum of a property, filtered by property, for notes in the last 90 days, all accounts. 2 notes."
+  },
+  {
+   "what": "notes preview",
+   "text": "PREVIEW\n\nNotes and Sum of a property, last 90 days\n\nAll my accounts · Last 90 days\n\nNotes\n2\nfrom 2 notes\nSum of a property\n13\nfrom 2 notes\nShow as table\n\nNotes and Sum of a property, filtered by property, for notes in the last 90 days, all accounts. 2 notes.\n\nNotes and Sum of a property, filtered by property, for notes in the last 90 days, all accounts. 2 notes."
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "the summed measure's label (does it name the property?)",
+   "value": "Notes and Sum of a property, filtered by property, for notes in the last 90 days, all accounts. 2 notes."
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 100,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 6,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "820/W10_3-main.png"
+ ]
+}

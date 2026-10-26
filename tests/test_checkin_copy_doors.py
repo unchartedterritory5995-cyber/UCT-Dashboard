@@ -291,8 +291,11 @@ def test_import_is_a_restore_and_keeps_the_check_in_picks_and_day(client):
     new_id = created[0]["id"] if isinstance(created[0], dict) else created[0]
     assert new_id != src["id"]
     assert _sidecar(new_id) == SOURCE_ROWS
+    # An import never arrives already shared (ruling R60, c871a0d904): every widget gains `share: False`.
+    # The picks and the day are what a restore keeps; the share switch is the import rule's, not the backup's.
     assert _checkins_in(_stored_body("j2_notes", new_id)) == [
-        {"mood": "4", "focus": "3", "day": DAY}, {"mood": "2", "focus": "5", "day": DAY}]
+        {"mood": "4", "focus": "3", "day": DAY, "share": False},
+        {"mood": "2", "focus": "5", "day": DAY, "share": False}]
     _assert_source_unchanged(src["id"])
 
 

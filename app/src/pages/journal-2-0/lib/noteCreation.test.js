@@ -53,3 +53,10 @@ describe('createNoteViaApi -- earningsFollowup (Tier 2 part B)', () => {
     expect('earningsFollowup' in lastBody).toBe(false)
   })
 })
+
+describe('createNoteFromTemplateViaApi -- unknown key (Task 7.2: the catalog loads on demand)', () => {
+  it('still rejects with `Unknown template: nope` after awaiting the loader', async () => {
+    const { createNoteFromTemplateViaApi } = await import('./noteCreation')
+    await expect(createNoteFromTemplateViaApi('nope')).rejects.toThrow('Unknown template: nope')
+  })
+})

@@ -1,0 +1,136 @@
+{
+ "viewport": "820",
+ "step": "W8.7",
+ "title": "share on, then open the share link in a private window (result only, no summary)",
+ "checks": [
+  {
+   "what": "Show on shared pages is on",
+   "ok": true,
+   "read": "true"
+  },
+  {
+   "what": "the shared widget's image was archived into the note",
+   "ok": true,
+   "read": "{\"url\": \"/api/j2/notes/attachments/7a8f0456-28b5-4a57-8b06-7a589bc45af9/b979b7b5a9934ef6969b887e5e236457/inline/496073d6796ac6f99ea627c56bfa86d5.png\", \"w\": 376, \"h\": 300}"
+  },
+  {
+   "what": "the private window shows the widget's result (its archived image)",
+   "ok": true,
+   "read": "Widget — Daily P&L bars · as of 2026-10-25 · captured Oct 25, 2026"
+  },
+  {
+   "what": "no summary sentence on the public page",
+   "ok": true,
+   "read": "Widgets walk 820\n\n\n\n\nMy week in numbers.\n\narchived snapshot · Widget — Daily P&L bars · as of 2026-10-25 · captured Oct 25, 2026\n\n\n\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "the shared payload carries no definition, summary or account",
+   "ok": true,
+   "read": "keys seen: []"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "share link",
+   "text": "http://127.0.0.1:8093/share/n/8HA_poXdmYJejZHC3TY9cYLhlWExQCwE"
+  },
+  {
+   "what": "public page",
+   "text": "Widgets walk 820\n\n\n\n\nMy week in numbers.\n\narchived snapshot · Widget — Daily P&L bars · as of 2026-10-25 · captured Oct 25, 2026\n\n\n\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "a 'looks like a scan' notice in the note after the archive (observation)",
+   "value": null
+  },
+  {
+   "what": "public page events",
+   "value": [
+    {
+     "http": 401,
+     "method": "GET",
+     "url": "http://127.0.0.1:8093/api/auth/me"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+   ]
+  }
+ ],
+ "screenshots": [
+  "820/W8_7-public.png",
+  "820/W8_7-main.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 79,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ }
+}

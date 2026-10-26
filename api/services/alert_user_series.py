@@ -1269,6 +1269,10 @@ def _definition_label(definition: Mapping[str, Any], def_id: str) -> str:
     return str(def_id)
 
 
+#: Public name for other modules (Task 10.12: no cross-module private imports), the same object.
+definition_label = _definition_label
+
+
 def _plot_label(definition: Mapping[str, Any], plot: Any, plot_key: str,
                 def_id: str) -> str:
     """One plot's label. Qualified by the plot only when there is more than one.

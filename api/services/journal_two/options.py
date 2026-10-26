@@ -672,6 +672,35 @@ def delete_strategy(
 # ── Close / expire ──────────────────────────────────────────────────────────
 
 
+#: The ET wall time a date-only (or expired) close is anchored at: ONE constant, written by
+#: `close_strategy` and read by `exit_is_date_only`.
+DATE_ONLY_CLOSE_ET = "12:00:00"
+
+
+def exit_is_date_only(row) -> bool:
+    """True when a strategy's `closed_at` is not a real execution time: an expired strategy, or a
+    close written as a bare date, which `close_strategy` anchors at exactly 12:00:00 ET (below).
+    The one reader of that anchor: a timing rule asks this before treating the exit as an instant."""
+    try:
+        keys = row.keys()
+    except AttributeError:
+        return True
+    if "status" in keys and row["status"] == "expired":
+        return True
+    closed = row["closed_at"] if "closed_at" in keys else None
+    if not closed:
+        return True
+    try:
+        dt = datetime.fromisoformat(str(closed).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    from api.services.journal_two.calendar import ET as _ET
+    local = dt.astimezone(_ET)
+    return local.microsecond == 0 and local.strftime("%H:%M:%S") == DATE_ONLY_CLOSE_ET
+
+
 def close_strategy(
     user_id: str,
     strategy_id: str,
@@ -703,7 +732,7 @@ def close_strategy(
             # day regardless of DST. Midnight UTC would bucket to the
             # prior day in ET (UTC-4/-5).
             from api.services.journal_two.calendar import ET as _ET
-            local = datetime.fromisoformat(exit_date + "T12:00:00").replace(tzinfo=_ET)
+            local = datetime.fromisoformat(f"{exit_date}T{DATE_ONLY_CLOSE_ET}").replace(tzinfo=_ET)
             exit_dt = local.astimezone(timezone.utc)
     except ValueError as e:
         raise OptionValidationError(f"exitDate invalid: {e}")

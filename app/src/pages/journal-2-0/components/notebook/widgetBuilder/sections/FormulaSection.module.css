@@ -1,0 +1,161 @@
+/* Notebook widgets phase 2 (wave 10, Task 10.16): "Your own fields" in the widget builder.
+ *
+ * ⛔ Every control here is at least var(--tap-min) (44 px) at EVERY width, in its base rule (the My tools bar):
+ * styles/tapFloor.test.js derives this file's clickable classes and fails one without the floor at 390, 820 or
+ * 1200 px. Text fields and the select are 16 px type or larger, so a phone never zooms into them.
+ * ⛔ Colours are tokens only: the error ink is --danger-ink and the field edge --field-edge (ruling D-A4), so each
+ * theme's contrast pair is the one the a11y contrast rail already measured. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--bg-surface, var(--bg-base));
+}
+
+.input,
+.box {
+  min-height: var(--tap-min);
+  padding: 8px 10px;
+  border-radius: var(--control-radius, var(--radius-md));
+  border: 1px solid var(--field-edge, var(--border));
+  background: var(--bg-base);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: max(16px, var(--text-sm));
+  max-width: 100%;
+}
+.box {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  line-height: var(--lh-snug, 1.4);
+}
+.input:focus-visible,
+.box:focus-visible,
+.offer:focus-visible,
+.remove:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+.box[aria-invalid='true'],
+.input[aria-invalid='true'] {
+  border-color: var(--danger-ink, var(--loss));
+}
+
+/* The autocomplete list: under the box, never over the result line it describes. With no room under the box (a
+ * phone keyboard up, the W10.8 walk fix) it opens ABOVE the box instead (.listAbove), laid over what is above it;
+ * FormulaSection sets its max-height from the room it measured (formulaListPlace.js). */
+.boxWrap {
+  position: relative;
+}
+.listAbove {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 4px);
+  z-index: 2;
+}
+.list {
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 264px;
+  overflow-y: auto;
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+}
+.option {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--tap-min);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+.option:hover,
+.optionActive {
+  background: var(--bg-hover);
+  box-shadow: inset 3px 0 0 var(--ut-gold);
+}
+.optionLabel {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+.optionMeta {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-snug);
+  color: var(--danger-ink, var(--loss));
+}
+.first {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-bright);
+}
+
+.offers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.offerGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.offer,
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-accent, var(--border));
+  background: var(--bg-elevated, var(--bg-base));
+  color: var(--text-bright);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.offer[aria-pressed='true'] {
+  border-color: var(--ut-gold);
+  box-shadow: inset 0 0 0 1px var(--ut-gold);
+}
+.offer[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.remove {
+  align-self: flex-start;
+  border-style: dashed;
+  color: var(--text-secondary, var(--text-muted));
+}
+.held {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

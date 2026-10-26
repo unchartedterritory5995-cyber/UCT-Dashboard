@@ -31,11 +31,24 @@ from empty-because-new").
 """
 from __future__ import annotations
 
+import contextvars
 import logging
 import os
 import sqlite3
 
 _logger = logging.getLogger(__name__)
+
+#: The sources that FAILED during the current `interest_for` call (None outside one). Each source
+#: still swallows its own error and answers an empty set -- its contract for every caller -- but it
+#: also notes the failure here, so `interest_for` can tell "this member has no names" from "these
+#: names could not be read" (`failed` in its answer; Task 10.11 fix M3).
+_FAILED: contextvars.ContextVar = contextvars.ContextVar("member_interest_failed", default=None)
+
+
+def _note_failed(name: str) -> None:
+    seen = _FAILED.get()
+    if seen is not None and name not in seen:
+        seen.append(name)
 
 
 def _auth_db_path() -> str:
@@ -61,6 +74,7 @@ def _watchlist_syms(user_id: str) -> set:
         return {r[0].upper() for r in rows if r and r[0]}
     except Exception as e:
         _logger.warning("member_interest._watchlist_syms failed for user %s: %s", user_id, e)
+        _note_failed("watchlist")
         return set()
 
 
@@ -79,6 +93,7 @@ def _flagged_syms(user_id: str) -> set:
         return {r[0].upper() for r in rows if r and r[0]}
     except Exception as e:
         _logger.warning("member_interest._flagged_syms failed for user %s: %s", user_id, e)
+        _note_failed("flagged")
         return set()
 
 
@@ -108,6 +123,7 @@ def _position_syms(user_id: str) -> set:
         # indistinguishable from "this member holds nothing".
         _logger.warning("member_interest._position_syms failed for user %s: %s",
                         user_id, e)
+        _note_failed("positions")
         return set()
 
 
@@ -124,6 +140,7 @@ def _uct20_syms(user_id: str) -> set:
         return out
     except Exception as e:
         _logger.warning("member_interest._uct20_syms failed: %s", e)
+        _note_failed("uct20")
         return set()
 
 
@@ -186,6 +203,7 @@ def interest_for(user_id: str, *, before_source=None) -> dict:
           "by_source": {source_name: set(SYM, ...), ...},   # one per SOURCES
           "all_mine": set(SYM, ...),                         # the union
           "entities": {SYM: {"weight": float, "because": [source, ...]}},
+          "failed": [source_name, ...],                       # sources that could not be read
         }
 
     Never raises. A source that fails contributes nothing to `by_source`,
@@ -213,14 +231,20 @@ def interest_for(user_id: str, *, before_source=None) -> dict:
         "uct20": _uct20_syms,
     }
     by_source: dict[str, set] = {}
-    for name in SOURCES:
-        if before_source is not None:
-            before_source(name)
-        try:
-            by_source[name] = source_fns[name](user_id)
-        except Exception as e:
-            _logger.warning("member_interest.interest_for source %s failed for user %s: %s", name, user_id, e)
-            by_source[name] = set()
+    failed: list[str] = []
+    token = _FAILED.set(failed)
+    try:
+        for name in SOURCES:
+            if before_source is not None:
+                before_source(name)
+            try:
+                by_source[name] = source_fns[name](user_id)
+            except Exception as e:
+                _logger.warning("member_interest.interest_for source %s failed for user %s: %s", name, user_id, e)
+                _note_failed(name)
+                by_source[name] = set()
+    finally:
+        _FAILED.reset(token)
 
     all_mine: set = set()
     for s in by_source.values():
@@ -233,4 +257,5 @@ def interest_for(user_id: str, *, before_source=None) -> dict:
         weight = sum(_BUCKET_WEIGHT[b] for b in touched_buckets)
         entities[sym] = {"weight": weight, "because": because}
 
-    return {"by_source": by_source, "all_mine": all_mine, "entities": entities}
+    return {"by_source": by_source, "all_mine": all_mine, "entities": entities,
+            "failed": [name for name in SOURCES if name in failed]}

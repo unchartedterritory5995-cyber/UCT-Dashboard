@@ -1033,3 +1033,162 @@ end. A future reading that disagrees will carry its own `background:` line, so t
 apart instead of tied. The line in `perf-budgets.json` is unchanged. The L15 q1 run keeps its
 status as recorded: taken before the background half existed, its background is UNKNOWN, which the
 instrument now says out loud rather than calling quiet.
+
+## Phase 2 wave 7 baseline
+
+Task 7.1 of Notebook widgets phase 2, wave 7 ("bytes first"). The number every later wave 7 task
+is measured against, and which candidate modules are actually eager.
+
+**Build:** `git rev-parse HEAD` = `6e9e48ddd8a9045aeaf28d0070972a2a822f695b` (branch
+`feat/notebook-widgets-p2`), clean tree, `cd app && npm run build`, then
+`python tools/notebook_perf_budgets.py --dist app/dist --chunks`, exit 0. The tool printed:
+
+```
+bytes.notebook_first_open: 2,259,009 B across 63 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+- Closure total: **2,259,009 B** across 63 JS chunks.
+- Budget: **2,260,793 B** (unchanged, never raised).
+- Headroom: 2,260,793 - 2,259,009 = **1,784 B**.
+- Wave 7 floor is 25,600 B (25 KB) of headroom before wave 8 (aim 40,960 B), so wave 7 has to free at least
+  **23,816 B** (aim 39,176 B) from this baseline.
+
+`--chunks` prints one `<file> <bytes>` line per closure file after the verdict, largest first.
+The ten largest at this build (the full list is the tool's output; `check_bytes` now returns every
+row in `detail[name]["files"]`):
+
+| file | bytes |
+|---|---|
+| `assets/index-DLfawith.js` | 586,244 |
+| `assets/vendor-react-BrA_wePN.js` | 378,377 |
+| `assets/NotebookFlagGate-CuTQmf6U.js` | 340,785 |
+| `assets/tiptap-S0iTVk3y.js` | 295,418 |
+| `assets/index-BjWq0gek.js` | 216,080 |
+| `assets/askInsert-C3cjIrK5.js` | 96,982 |
+| `assets/FolderSidebar-Cld7sw9u.js` | 44,347 |
+| `assets/CapturedSourceSheet-Dkw0kXE5.js` | 27,764 |
+| `assets/registry-CQGfP3XH.js` | 26,354 |
+| `assets/useDurableNote-Rs8lxxKR.js` | 25,591 |
+
+### Eagerness census
+
+Method: a string literal unique to the module (confirmed with `grep -rnF <string> app/src`: it
+occurs in that module's own source, and otherwise only in tests, fixtures or comments, never in
+another source module's code), then `grep -lF <string>` over the 63 files the `--chunks` list
+names. A string found in a closure file means the module's code is in the first-open closure. A
+candidate found in no closure file would be recorded "lazy already, not a candidate". All paths
+are under `app/src/pages/journal-2-0/`.
+
+| candidate | evidence string | found in (closure file) | verdict |
+|---|---|---|---|
+| `lib/notebookTemplates.js` (66,299 B source) | `Daily & weekly rituals` | `assets/index-DLfawith.js` | EAGER (in the entry chunk) |
+| `components/notebook/BulkActionBar.jsx` | `data-bulk-action` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| `components/notebook/TemplatePicker.jsx` | `data-template-search-status` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| `lib/emojiData.js` (13,937 B source) | `chart_with_downwards_trend` | `assets/tiptap-S0iTVk3y.js` | EAGER (in the tiptap chunk) |
+| `components/notebook/SavedViewEditor.jsx` | `save-view-name` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| `components/connectors/NoteConnectorsTrustStrip.jsx` | `Note connectors sync status` | `assets/NotebookFlagGate-CuTQmf6U.js` | EAGER |
+| onboarding sample notebook: `components/notebook/onboarding/sampleNotebook.js` | `api/j2/onboarding/sample-notebook` | `assets/sampleNotebook-DrlhqVb_.js` (15,489 B) | EAGER (its own chunk is in the static closure) |
+
+Notes on the table:
+
+- Every candidate is eager; none is "lazy already".
+- The sample notebook module is the one that holds the onboarding sample's copy and endpoints
+  (`SAMPLE_URL`, `SAMPLE_PREF`, the member-facing strings). There is no separate onboarding data
+  module; the other `onboarding/` files are the tour, the getting-started list and the capability
+  list. `sampleNotebook.js` already has its own chunk, and the chunk is reached statically (it is statically imported by
+  `ResearchHome.jsx`, `AiActionsPanel.jsx`, `gettingStarted.js`, `capabilityList.js`,
+  `GenericTourEngine.jsx` and `LearnMenuPanel.jsx`), so it counts against first open. A
+  second string from the same module, `notebook_sample`, is also in `NotebookFlagGate-CuTQmf6U.js`
+  because `ResearchHome.jsx` and `gettingStarted.js` name the same preference key; that is a
+  different module using the key, not this module's code.
+- `lib/notebookTemplates.js` sits in the entry chunk (`index-DLfawith.js`, 586,244 B), not in a
+  Notebook chunk, so moving it behind a dynamic import frees entry bytes.
+- `TemplatePicker.jsx` already lazy-loads `TemplateGallery` (`lazyChunk(() => import('./TemplateGallery'))`);
+  the picker itself is the eager part.
+- Sizes of the candidates inside their chunks are not measured here; the source byte counts above
+  are the only sizes quoted, and the minified cost of each is the next task's reading to take.
+
+## Phase 2 wave 7 close-out (Task 7.6)
+
+**Verdict: proceed.** First open at the committed tip `476f691122` is **2,177,601 B** across 62 JS chunks
+against the budget of 2,260,793 B (never raised): **83,192 B of headroom**. That is 57,592 B above the
+25,600 B floor and 42,232 B above the 40,960 B aim. Wave 8 may start.
+
+**Instrument.** Every 7.6 number below was read in a clean detached checkout of the named commit (a
+`git worktree` in the session scratchpad, `app/node_modules` joined to the branch worktree's), with
+`cd app && npm run build`, then `python tools/notebook_perf_budgets.py --dist app/dist` (and `--chunks`),
+exit 0, `VERDICT: PASS` each time. The clean checkout is needed because another agent was editing the
+branch worktree while this task ran (the wave 8 flag, committed as `9da984743b`). The same commit built
+in the branch worktree read 8 B lower than in the clean checkout (`381cc1c6ab`: 2,183,612 B against
+2,183,620 B; the difference is minifier identifier allocation inside `NotebookFlagGate-*.js`, not
+module content), so readings from different trees differ by a few bytes. Deltas below are each taken
+between two readings from the same tree.
+
+### Every wave 7 commit
+
+| commit | task | change | delta (B) | first open after (B) | read by |
+|---|---|---|---|---|---|
+| `6e9e48ddd8` | 7.1 | baseline | | 2,259,009 | 7.1 |
+| `308e5d23ba` | 7.2 | template catalog on demand | +875 | 2,259,884 | 7.2 |
+| `2b10d5e7fb` | 7.3 | bulk action bar on first selection | -6,706 | 2,253,178 | 7.3 |
+| `3dff1f16eb` | 7.3 fix | tests only | 0 | | (no app source) |
+| `3fb3639519` | 7.4 | template picker lazy, tour-anchor skeleton | -60,279 | 2,192,899 | 7.4 |
+| `051061f454` | 7.4 fix | tests only | 0 | | (no app source) |
+| `4df0a57973` | 7.5 | emoji data on the first colon | -8,319 | 2,184,580 recorded; **2,184,409** clean re-read | 7.5; 7.6 |
+| `7326462770` | 7.4 fix | failed catalog load said in the hub sheet | **+191** | 2,184,600 | 7.6 (clean, against 2,184,409) |
+| `befa188ea5` | 7.5 follow-up | a code comment in `EmojiMenu.jsx` (minified away) | 0 | | inside the next row's reading |
+| `381cc1c6ab` | 7.6 | `SavedViewEditor` through `lazyDialog` | **-980** | 2,183,620 | 7.6 (clean) |
+| `9da984743b` | 8.1 (other agent) | wave 8 dark release flag | **+33** | | 7.6 (clean: tip 2,177,601 minus 2,177,568, the strip change read before this commit) |
+| `476f691122` | 7.6 | `NoteConnectorsTrustStrip` through `lazyView`, null fallback | **-6,052** | **2,177,601** (tip) | 7.6 (clean) |
+
+Notes on the table:
+
+- The 7.4 fix commits together cost **+191 B**: `051061f454` touches tests only, and `7326462770` reads
+  2,184,600 B in the clean checkout against 2,184,409 B for its parent `4df0a57973` there.
+- 7.5 recorded 2,184,580 B for `4df0a57973`; the clean checkout reads 2,184,409 B for that commit, 171 B
+  lower. The recorded chain (2,259,009 + 875 - 6,706 - 60,279 - 8,319 = 2,184,580) is internally
+  consistent, so the 171 B is the tree the earlier readings were taken in, not a commit's cost. Which
+  extra bytes that tree carried is not established here. The tip reading and the 7.6 deltas do not depend on it.
+- `-6,052 B` for the trust strip is `2,183,620` (`381cc1c6ab`, clean) minus `2,177,568` (that commit plus the
+  strip change, clean, before `9da984743b` landed). The closure drops from 63 to 62 chunks: the strip and its
+  status hook (`hooks/useNoteConnectors.js`, 19,484 B source) moved into their own chunks
+  (`NoteConnectorsTrustStrip-*.js`, `useNoteConnectors-*.js`), fetched on mount after the first commit.
+- From the 7.1 baseline to the tip, first open fell by 2,259,009 - 2,177,601 = 81,408 B (the two
+  endpoints are readings from different trees, so this carries the few-byte noise described above).
+
+### The census candidates, as they ended
+
+| candidate | ended | how |
+|---|---|---|
+| `lib/notebookTemplates.js` | lazy | 7.2 (`lib/templatesLoader.js`) |
+| `components/notebook/BulkActionBar.jsx` | lazy | 7.3, `lazyView(..., null)`, on first selection |
+| `components/notebook/TemplatePicker.jsx` | lazy | 7.4, `lazyView(..., <TemplatePickerSkeleton />)` |
+| `lib/emojiData.js` | lazy | 7.5 (`lib/emojiLoader.js`), on the first colon |
+| `components/notebook/SavedViewEditor.jsx` | lazy | 7.6, `lazyDialog` (a `lazyChunk` in a `null` Suspense), fetched on its first open |
+| `components/connectors/NoteConnectorsTrustStrip.jsx` | lazy | 7.6, `lazyView(..., null)`, fetched on mount after the first commit |
+| `components/notebook/onboarding/sampleNotebook.js` | **eager, kept** | see below |
+
+**`sampleNotebook.js`: eager, kept.** `ResearchHome.jsx`, which stays eager (Tasks 7.2-7.5 did not fall
+short), imports all nine of the module's exports (`SAMPLE_URL`, `SAMPLE_PREF`, `SAMPLE_COPY`,
+`readSamplePref`, `addSampleNotebook`, `removeSampleNotebook`, `removedMessage`, `describeSampleHold`,
+`isNotebookKey`), and `AiActionsPanel.jsx` (not a candidate) imports `isNotebookKey`. There is no heavy
+part to split off: the module bundles no sample content (the sample is served by
+`/api/j2/onboarding/sample-notebook`); it is 7,744 B of source, copy and three small fetch helpers. The
+15,489 B `sampleNotebook-*.js` chunk is a shared chunk that Rollup named after one of its members: it also
+carries `onboarding/tourAnchorVisibility.js` and `lib/noteBatch.js`, both statically imported by
+`tabs/NotebookTab.jsx` (and `noteBatch.js` by `NoteEditorPage.jsx`), so making `sampleNotebook.js` lazy
+would leave most of that chunk in the closure anyway. Splitting it would mean restructuring
+`ResearchHome.jsx`, which this wave does not do.
+
+### Rails added by 7.6
+
+- `tabs/NotebookTab.savedViewLazy.test.jsx`: the editor's module factory has not run after mount, and runs
+  once on the first "Save view" click, when the dialog appears. Mutation-checked: a static import fails it.
+- `tabs/NotebookTab.trustStripLazy.test.jsx`: with a status read that answers at once, the strip is absent
+  from the first commit and its module factory has not run; then the line appears and the factory has run
+  once. Mutation-checked: a static import fails it.
+- `tabs/NotebookTab.lazyViews.test.js`: both modules are added to `LAZY` (never a static import, exactly
+  one dynamic import each).
+- Both new test files are their own files, so each module-load counter starts at 0 whatever else ran
+  (the order-independence the 7.3 review required).

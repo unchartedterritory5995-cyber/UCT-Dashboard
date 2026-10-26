@@ -1,0 +1,520 @@
+/* Built widget views (wave 8, Task 8.13). Pure CSS; the tables reuse the snapshot frame's table styles. */
+.numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+.metricLabel {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.metricValue {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.metricHidden {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.metricCount {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+/* Wave 10 (Task 10.18): the server's sentence under a figure (a max drawdown's dates, the stop-after line) and the
+   goal notice a Progress view shows in place of its bar. They wrap at any width: never a sideways scroll (R-31). */
+.metricNote,
+.progressNotice {
+  display: block;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+.flagged {
+  margin-left: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.caption {
+  margin: 0 0 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.altCaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Task 8.14: the chart views (inline SVG), drill-down and "How this is made". Real tokens only. The diverging pair
+   is blue (--info) for a gain and orange (--ind-warn) for a loss; a loss is also hatched, never colour alone. */
+.metricBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  border-radius: var(--radius-sm);
+}
+.drillable {
+  cursor: pointer;
+}
+.drillable:hover {
+  background: var(--bg-hover);
+}
+.drillRow {
+  cursor: pointer;
+}
+.drillRow:hover {
+  background: var(--bg-hover);
+}
+.drillable:focus-visible,
+.drillRow:focus-visible,
+.listRow:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 1px;
+}
+.chartWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.chart {
+  display: block;
+  overflow: visible;
+}
+/* R-31: the box a chart measures. A chart wider than it (a long series held at the finger floor on a phone, a year
+   of heat-map cells) scrolls sideways rather than shrinking its text or its marks. */
+.chartBox {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  /* A heat cell drills on a tap (a second tap on touch): never let two taps read as iOS double-tap zoom. Panning
+     and pinch zoom still work. */
+  touch-action: manipulation;
+  /* Its own scrollbar is horizontal, so it changes the box's HEIGHT, never the width the chart is laid out at.
+     The width loop (H14) comes from the frame's VERTICAL scrollbar: SnapshotFrame's frameGutter reserves that for
+     built widgets, and useChartWidth's hysteresis guards whatever is left. */
+}
+/* A chart FITTED to its box (bar, line, scatter): it never scrolls sideways. A block box, so touch-action applies:
+   the Line's tap-to-select then tap-to-drill must never read as iOS double-tap zoom. */
+.chartFit {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+/* Line: the readout of the period under the pointer (or selected by a tap or the keyboard), one line per measure,
+   wrapping. Its top or bottom edge is set inline (LineView readoutPlace), clear of the point it describes. */
+.readout {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.readoutHead {
+  font-weight: 600;
+}
+.guide {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+/* Line: the pointer overlay (the nearest period answers) and each period's keyboard focus band. */
+.overlay {
+  fill: transparent;
+}
+.overlayDrill {
+  cursor: pointer;
+}
+.band {
+  fill: transparent;
+  pointer-events: none;
+}
+.mark[data-built-cell]:focus-visible .band {
+  fill: var(--bg-hover);
+  stroke: var(--ut-gold);
+  stroke-width: 2;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.mark {
+  cursor: default;
+}
+.mark[data-built-cell] {
+  cursor: pointer;
+}
+.mark[data-built-cell]:focus-visible .hit {
+  stroke: var(--ut-gold);
+  stroke-width: 2;
+}
+.hit {
+  fill: transparent;
+}
+.mark[data-built-cell]:hover .hit {
+  fill: var(--bg-hover);
+}
+.label,
+.value,
+.valueDim,
+.tick {
+  font-size: 12px;
+  fill: var(--text-bright);
+}
+.tick,
+.valueDim,
+.flagText,
+.badgeText {
+  fill: var(--text-dim);
+}
+.tick {
+  font-size: 11px;
+}
+.flagText,
+.badgeText {
+  font-size: 11px;
+}
+.value {
+  font-variant-numeric: tabular-nums;
+}
+.barPos {
+  fill: var(--info);
+}
+.barNeg {
+  fill: var(--ind-warn);
+}
+.barThen {
+  fill: var(--text-dim);
+  opacity: 0.6;
+}
+.line {
+  stroke: var(--info);
+  stroke-width: 2;
+}
+.dot,
+.dotWin {
+  fill: var(--info);
+}
+.dotNeg,
+.dotLoss {
+  fill: var(--ind-warn);
+}
+.dotBe {
+  fill: var(--text-dim);
+}
+/* Scatter results by SHAPE: a win is a filled dot, a loss a hollow ring, breakeven a short dash. */
+.ring {
+  fill: none;
+  stroke: var(--ind-warn);
+  stroke-width: 2;
+}
+.dash {
+  fill: var(--text-dim);
+}
+/* A Line point on a small sample is drawn hollow (and named under the chart). */
+.dotHollow {
+  fill: var(--bg-surface);
+  stroke: var(--info);
+  stroke-width: 1.5;
+}
+.barTone2 {
+  opacity: 0.78;
+}
+.barTone3 {
+  opacity: 0.58;
+}
+.heatPos {
+  fill: var(--info);
+}
+.heatNeg {
+  fill: var(--ind-warn);
+}
+.heatZero,
+.heatNone {
+  fill: var(--bg-hover);
+}
+.hatchLine {
+  stroke: var(--bg-surface);
+  stroke-width: 2;
+}
+/* Wave 10 (Task 10.18): a running total's drawdown band is a HATCH in the loss colour (the heat map's), named by a
+   "Drawdown" legend drawing the same pattern: never a flat colour alone. */
+.ddHatch {
+  stroke: var(--ind-warn);
+  stroke-width: 1.5;
+}
+.ddBand {
+  stroke: none;
+}
+/* The excursion scatter's 1R guides and its two quadrant captions (11 px, the tick floor). */
+.guide1r {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.quadrantText {
+  font-size: 11px;
+  fill: var(--text-dim);
+}
+/* The text sits on an opaque backing in the page's own surface and ink (the page's text contrast, whatever the
+   cell's fill), and the hatch never runs under it. */
+.heatTextBack {
+  fill: var(--bg-surface);
+  pointer-events: none;
+}
+.heatText {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--text-bright);
+  pointer-events: none;
+}
+.smallMark {
+  fill: var(--text-bright);
+  pointer-events: none;
+}
+/* The focus / hover ring, drawn last so it is never under the backing. */
+.heatRing {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 2;
+  pointer-events: none;
+}
+.mark[data-built-cell]:hover .heatRing {
+  stroke: var(--text-dim);
+}
+.mark[data-built-cell]:focus-visible .heatRing {
+  stroke: var(--ut-gold);
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+.listLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.listSub {
+  margin-left: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.listBar {
+  flex: none;
+}
+.listValue {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.valueDimText {
+  color: var(--text-dim);
+}
+.compareBars {
+  display: block;
+  margin: 2px 0;
+}
+.compareLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.compareThen {
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.track {
+  fill: var(--bg-hover);
+}
+.coverage,
+.footnotes {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.hint {
+  font-size: 12px;
+}
+.drillPanel {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  top: 0;
+  width: min(360px, 100%);
+  max-height: 320px;
+  overflow: auto;
+  box-sizing: border-box;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+.drillTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.drillTitle {
+  font-weight: 600;
+}
+.drillBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.drillList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.drillRowItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.drillHead {
+  font-weight: 600;
+}
+.drillPart {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.howMade {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.howSummary {
+  margin: 0;
+  line-height: 1.5;
+}
+.howUpdate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+}
+.howHeading {
+  margin: 0;
+  font-size: 13px;
+}
+/* The W10.4 walk fix: what an update changes, one plain line each. */
+.howChanges {
+  margin: 0;
+  padding-left: 1.2em;
+  line-height: 1.5;
+}
+.howCompare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.howActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Touch tier (phone AND tablet): every row or figure that drills is a finger target. */
+@media (max-width: 1024px) {
+  .listRow,
+  .drillRow,
+  .metricBody,
+  .drillRowItem {
+    min-height: var(--tap-min);
+  }
+  /* A table row's height comes from its cells (min-height does nothing on a table row), so the cells carry it. */
+  .drillRow > td {
+    height: var(--tap-min);
+  }
+}

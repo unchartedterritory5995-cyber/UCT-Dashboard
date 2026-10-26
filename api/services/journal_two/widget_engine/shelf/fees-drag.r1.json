@@ -1,0 +1,35 @@
+{
+  "id": "shelf:fees-drag",
+  "rev": 1,
+  "name": "Fees drag",
+  "description": "What fees took: fees beside your gross and net P&L.",
+  "keywords": [
+    "fees",
+    "commissions",
+    "costs",
+    "friction"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "fees"
+      },
+      {
+        "key": "gross_pnl"
+      },
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "display": {
+      "title": "Fees drag",
+      "titleAuto": false,
+      "accent": "orange"
+    }
+  }
+}

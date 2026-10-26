@@ -1,0 +1,65 @@
+{
+  "id": "shelf:exit-quality",
+  "rev": 2,
+  "name": "Exit quality",
+  "description": "How much of the move your exits kept, the best move against the worst, and the R you left.",
+  "keywords": [
+    "exits",
+    "holding losers",
+    "cutting winners",
+    "exit",
+    "exit efficiency",
+    "missed r",
+    "left on the table"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "formulas": [
+      {
+        "id": "f1",
+        "name": "Exit efficiency %",
+        "expr": "[exit_efficiency]",
+        "format": "percent"
+      },
+      {
+        "id": "f2",
+        "name": "MFE to MAE",
+        "expr": "[mfe_r] / Abs([mae_r])",
+        "format": "number"
+      },
+      {
+        "id": "f3",
+        "name": "Missed R",
+        "expr": "[mfe_r] - [r]",
+        "format": "r"
+      }
+    ],
+    "measures": [
+      {
+        "formula": "f1",
+        "agg": "avg"
+      },
+      {
+        "formula": "f2",
+        "agg": "avg"
+      },
+      {
+        "formula": "f3",
+        "agg": "avg"
+      }
+    ],
+    "view": {
+      "type": "number",
+      "auto": false
+    },
+    "display": {
+      "title": "Exit quality",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

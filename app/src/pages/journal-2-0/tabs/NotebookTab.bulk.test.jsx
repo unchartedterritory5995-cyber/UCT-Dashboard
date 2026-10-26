@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -138,7 +138,20 @@ function ok(body, extra = {}) {
   return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body), ...extra })
 }
 
-beforeEach(() => {
+// Task 7.3: the bulk bar is a lazy chunk, resolved once per module registry. Warm it ONCE, from the
+// first test's beforeEach whichever test that is, so every test below reads the bar synchronously
+// without depending on another test having run first (`-t`, `.only` and shuffle all work).
+let barWarmed = false
+async function warmBulkBar() {
+  if (barWarmed) return
+  barWarmed = true
+  render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>)
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select First note' }))
+  await screen.findByRole('group', { name: 'Actions for the selected notes' })
+  cleanup()
+}
+
+beforeEach(async () => {
   vi.clearAllMocks()
   blockedIds = new Set()
   hubEligible = false
@@ -171,6 +184,7 @@ beforeEach(() => {
     if (u.startsWith('/api/j2/notes/tags')) return ok({ tags: [{ tag: 'earnings', count: 1 }] })
     return ok({})
   })
+  await warmBulkBar()
 })
 afterEach(() => {
   setCurrentAccountId(null)

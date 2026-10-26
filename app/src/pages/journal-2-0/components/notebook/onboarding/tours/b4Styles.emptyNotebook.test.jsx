@@ -13,7 +13,7 @@
 // then the sheet's door. Controls: the same tour on a notebook with notes (no inline door), and Back onto
 // step 1 with the sheet still open stays on step 1 (W14-Q2 round 2 still holds).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
@@ -21,12 +21,16 @@ import GenericTourEngine from '../GenericTourEngine'
 import { installTourLayout } from '../__fixtures__/tourLayout'
 import { TOURS } from './b4Styles'
 import { STYLE_LIBRARY_COPY } from './b4Styles.steps'
+import TemplatePickerSkeleton from '../../TemplatePickerSkeleton'
+
+// Task 7.4: a picker module that never arrives, so the sheet holds the skeleton for the whole test.
+const NeverPicker = lazy(() => new Promise(() => {}))
 
 const ENTRY = TOURS.find((t) => t.id === 'style-library')
 const STEP1 = STYLE_LIBRARY_COPY.templates.title
 const STEP2 = STYLE_LIBRARY_COPY.door.title
 
-function Page({ empty }) {
+function Page({ empty, lazySheet = false }) {
   const [sheet, setSheet] = useState(false)
   return (
     <>
@@ -35,7 +39,9 @@ function Page({ empty }) {
       {empty && !sheet && <div><button type="button" data-tour="template-gallery-door">Browse the community gallery</button></div>}
       {sheet && (
         <div role="dialog" aria-label="New note">
-          <button type="button" data-tour="template-gallery-door">Browse the community gallery</button>
+          {lazySheet
+            ? <Suspense fallback={<TemplatePickerSkeleton />}><NeverPicker /></Suspense>
+            : <button type="button" data-tour="template-gallery-door">Browse the community gallery</button>}
         </div>
       )}
     </>
@@ -50,10 +56,10 @@ beforeEach(() => {
 })
 afterEach(() => { restore?.(); vi.restoreAllMocks() })
 
-const mount = (empty) => render(
+const mount = (empty, { lazySheet = false } = {}) => render(
   <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
     <MemoryRouter initialEntries={['/journal/notebook?view=all']}>
-      <Page empty={empty} />
+      <Page empty={empty} lazySheet={lazySheet} />
       <GenericTourEngine entry={ENTRY} onClose={vi.fn()} startWaitMs={50} stepWaitMs={2000} />
     </MemoryRouter>
   </SWRConfig>,
@@ -81,6 +87,19 @@ describe('the Community library tour on an EMPTY notebook (item 9)', () => {
     await screen.findByRole('dialog', { name: STEP1 })
     act(() => { screen.getByRole('button', { name: 'Templates' }).click() })
     await screen.findByRole('dialog', { name: STEP2 }, { timeout: 3000 })
+  })
+
+  // Wave 7 Task 7.4: the picker is a lazy chunk now. While it is on its way (here: a module that NEVER
+  // arrives) the sheet holds the real skeleton, and the tour must still move on to its door step, pointing
+  // at the skeleton's anchor inside the sheet.
+  it('the picker module still loading: the tour reaches its gallery step on the skeleton\'s anchor', async () => {
+    mount(true, { lazySheet: true })
+    await screen.findByRole('dialog', { name: STEP1 })
+    act(() => { screen.getByRole('button', { name: 'Templates' }).click() })
+    await screen.findByRole('dialog', { name: STEP2 }, { timeout: 3000 })
+    const active = document.querySelector('[data-tour-active="true"]')
+    expect(active?.closest('[role="dialog"][aria-label="New note"]')).toBeTruthy()
+    expect(active?.closest('[data-template-picker-skeleton]'), 'the anchor is not the skeleton\'s').toBeTruthy()
   })
 
   it('control: Back onto step 1 with the sheet still open stays on step 1 (the door is the same element)', async () => {

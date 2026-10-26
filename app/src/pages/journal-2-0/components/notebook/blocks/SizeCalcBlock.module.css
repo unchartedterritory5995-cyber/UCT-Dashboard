@@ -1,0 +1,17 @@
+/* The position size calculator block (wave 10, Task 10.20). Every control reaches the 44px floor on touch (phone AND
+   tablet), the house block's pattern (PositionSizingBlock.module.css). */
+.fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.field { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.input { width: 7.5em; min-height: 32px; }
+.symbol { text-transform: uppercase; }
+.result { margin: 6px 0 0; display: grid; gap: 2px; font-size: 13px; }
+.result p { margin: 0; }
+.notice { display: grid; gap: 4px; }
+.tap { min-height: 32px; justify-self: start; }
+@media (max-width: 1024px) {
+  .input, .tap { min-height: var(--tap-min); }
+}
+@media (max-width: 640px) {
+  .fields { flex-direction: column; align-items: stretch; }
+  .field { justify-content: space-between; }
+}

@@ -1,0 +1,42 @@
+/* The tracker block (wave 9, Task 9.14). Every control holds the 44px floor (var(--tap-min)) at EVERY width: a value
+   is logged with a thumb. The input is 16px on touch so iOS does not zoom into it. Colours are tokens only: text is
+   --text / --text-muted (no --gain or --loss for text, ruling D-A4), the chart's line and dots are --accent (a graphic,
+   3:1 or better on --bg-elevated in every theme; TrackerBlock.test.jsx measures it), the input's edge --field-edge. */
+.wrap { display: grid; gap: 6px; min-width: 0; }
+.menuRow { display: flex; justify-content: flex-end; margin-top: -4px; }
+.menuButton { min-width: var(--tap-min); padding: 0 8px; }
+.tap { min-height: var(--tap-min); }
+.tap:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.dayLine { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.value { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice {
+  min-width: var(--tap-min); padding: 0 12px; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text); font: inherit; font-size: 13px;
+}
+.choiceOn { border-color: var(--accent); font-weight: 600; }
+.inputRow { display: flex; align-items: center; gap: 8px; }
+.input {
+  width: 9em; max-width: 100%; min-height: var(--tap-min); padding: 0 10px; box-sizing: border-box;
+  border: 1px solid var(--field-edge); border-radius: 6px; background: transparent; color: var(--text);
+  font: inherit; font-size: 13px;
+}
+.input:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.unit { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.line { margin: 0; font-size: 13px; color: var(--text); }
+.feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 0; font-size: 13px; color: var(--text-muted); }
+.chartWrap { display: grid; gap: 4px; min-width: 0; }
+.chartFit { width: 100%; min-width: 0; overflow: hidden; }
+.chart { display: block; max-width: 100%; height: auto; }
+.chartLine { stroke: var(--accent); stroke-width: 2; }
+.chartDot { fill: var(--accent); }
+.toggle { justify-self: start; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 13px; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text); }
+.table th, .table td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+.table th { color: var(--text-muted); font-weight: 600; }
+.table tbody th { color: var(--text); font-weight: 400; }
+.toggleOn { border-color: var(--accent); font-weight: 600; }
+.caption { text-align: left; color: var(--text-muted); font-size: 12px; padding-bottom: 4px; }
+@media (max-width: 1024px) {
+  .input { font-size: 16px; }
+}

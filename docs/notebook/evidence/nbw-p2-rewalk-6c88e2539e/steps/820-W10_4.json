@@ -1,0 +1,139 @@
+{
+ "viewport": "820",
+ "step": "W10.4",
+ "title": "Equity curve r1 from an older note: Updated version available, compare, use it; a running total with the drawdown band",
+ "checks": [
+  {
+   "what": "the menu says an updated version is available",
+   "ok": true,
+   "read": "How this is made\nManage…\nUpdated version available"
+  },
+  {
+   "what": "the update says what changes, as a list",
+   "ok": true,
+   "read": "Updated version available\nIn this note\n\nNet P&L, split by day, for closed trades in the last 90 days, all accounts. 5 trades.\n\nUpdated\n\nNet P&L, split by day, for closed trades in the last 90 days, all accounts.\n\nWhat changes\nShows a running total, with each drawdown shaded.\nUse the updated version"
+  },
+  {
+   "what": "the list names the real difference (the running total with the drawdown band)",
+   "ok": true,
+   "read": "[\"Shows a running total, with each drawdown shaded.\"]"
+  },
+  {
+   "what": "when both sentences are shown, they differ",
+   "ok": true,
+   "read": "[\"Net P&L, split by day, for closed trades in the last 90 days, all accounts. 5 trades.\", \"Net P&L, split by day, for closed trades in the last 90 days, all accounts.\"]"
+  },
+  {
+   "what": "the update re-ran the widget (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the placement moved to the newer revision",
+   "ok": true,
+   "read": "2"
+  },
+  {
+   "what": "the curve is a running total with the drawdown band (its legend or band is drawn)",
+   "ok": true,
+   "read": "band elements 1; text: Equity curve\nOnly you\nas of Oct 25, 2026, 8:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\n+$700.00\n+$100.00\n2026-10-19\n2026-10-23\nDrawdown\nShow as table\n\nYour closed"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Equity curve r1, as placed",
+   "text": "Equity curve\nOnly you\nas of Oct 25, 2026, 8:40 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\n+$300.00\n-$200.00\n2026-10-19\n2026-10-23\nShow as table\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "placement",
+   "text": "{\"defId\": \"shelf:equity-curve\", \"defRev\": null, \"latestRev\": null}"
+  },
+  {
+   "what": "compare",
+   "text": "How this is made\n×\n\nNet P&L, split by day, for closed trades in the last 90 days, all accounts. 5 trades.\n\nUpdated version available\nIn this note\n\nNet P&L, split by day, for closed trades in the last 90 days, all accounts. 5 trades.\n\nUpdated\n\nNet P&L, split by day, for closed trades in the last 90 days, all accounts.\n\nWhat changes\nShows a running total, with each drawdown shaded.\nUse the updated version\nEdit a copy"
+  },
+  {
+   "what": "What changes (list)",
+   "text": "[\"Shows a running total, with each drawdown shaded.\"]"
+  },
+  {
+   "what": "Equity curve after the update",
+   "text": "Equity curve\nOnly you\nas of Oct 25, 2026, 8:41 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\n+$700.00\n+$100.00\n2026-10-19\n2026-10-23\nDrawdown\nShow as table\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "placement after",
+   "text": "{\"defId\": \"shelf:equity-curve\", \"defRev\": 2, \"drawdown\": null}"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 86,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "820/W10_4-main.png"
+ ]
+}

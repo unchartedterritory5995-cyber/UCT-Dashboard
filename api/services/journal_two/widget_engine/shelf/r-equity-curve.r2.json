@@ -1,0 +1,37 @@
+{
+  "id": "shelf:r-equity-curve",
+  "rev": 2,
+  "name": "R equity curve",
+  "description": "Your running total R over the last 90 days, over the trades whose R is known.",
+  "keywords": [
+    "r curve",
+    "r multiple",
+    "risk units",
+    "total r"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "total_r"
+      }
+    ],
+    "split": {
+      "by": "day"
+    },
+    "view": {
+      "type": "line",
+      "auto": false
+    },
+    "display": {
+      "title": "R equity curve",
+      "titleAuto": false,
+      "accent": "gold",
+      "cumulative": true
+    }
+  }
+}

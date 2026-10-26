@@ -1,0 +1,206 @@
+{
+ "viewport": "390",
+ "step": "W8.10",
+ "title": "at 390 px also with the keyboard open in the name field",
+ "checks": [
+  {
+   "what": "the name field stays on screen above the keyboard",
+   "ok": true,
+   "read": "{\"x\": 13, \"y\": 362.609375, \"width\": 364, \"height\": 44}"
+  },
+  {
+   "what": "the sticky preview summary hides while the keyboard is open",
+   "ok": true,
+   "read": "hidden=True"
+  },
+  {
+   "what": "what was typed is in the field",
+   "ok": true,
+   "read": "Win rate (mine)"
+  },
+  {
+   "what": "no horizontal page scroll with the keyboard open",
+   "ok": true,
+   "read": "{\"vw\": 390, \"docScrollWidth\": 390, \"bodyScrollWidth\": 390, \"inner\": [[390, 390], [342, 342], [342, 342]], \"horizontal\": false, \"offenders\": []}"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "name field box / visual viewport",
+   "text": "{\"box\": {\"x\": 13, \"y\": 362.609375, \"width\": 364, \"height\": 44}, \"visualViewport\": 464}"
+  }
+ ],
+ "verdict": "PASS",
+ "metrics_keyboard_open": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 36,
+   "small": [
+    {
+     "label": "Number",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Number with comparison, suggested",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Table",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "List",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Gold",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Green",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Red",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Blue",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Purple",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Teal",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Orange",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 18,
+     "h": 18
+    }
+   ],
+   "smallCount": 15,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W8_10-keyboard.png",
+  "390/W8_10-main.png"
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 7,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ }
+}

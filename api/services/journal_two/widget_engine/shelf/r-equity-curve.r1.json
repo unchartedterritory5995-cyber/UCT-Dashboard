@@ -1,0 +1,36 @@
+{
+  "id": "shelf:r-equity-curve",
+  "rev": 1,
+  "name": "R equity curve",
+  "description": "R made or lost day by day, over the trades whose R is known.",
+  "keywords": [
+    "r curve",
+    "r multiple",
+    "risk units",
+    "total r"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "total_r"
+      }
+    ],
+    "split": {
+      "by": "day"
+    },
+    "view": {
+      "type": "line",
+      "auto": false
+    },
+    "display": {
+      "title": "R equity curve",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

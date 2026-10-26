@@ -1,0 +1,31 @@
+{
+  "id": "shelf:profit-factor",
+  "rev": 1,
+  "name": "Profit factor",
+  "description": "Money won divided by money lost, after fees.",
+  "keywords": [
+    "PF",
+    "gross profit vs loss",
+    "profitability"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "profit_factor"
+      },
+      {
+        "key": "trades"
+      }
+    ],
+    "display": {
+      "title": "Profit factor",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

@@ -40,6 +40,12 @@ export const EXEMPT = Object.freeze({
     'plain paragraphs of text (headline, exposure, wire date) inside PrepCapture, which carries the status line and the named Capture button; the group around the block is named by BlockNodeView',
   'components/notebook/LibraryCard.jsx':
     'the community library card dispatcher (P4b): renders LayoutLibraryCard, StyleLibraryCard or GalleryCard (each a card with its own named controls) or null; no markup or control of its own',
+  'components/notebook/myTools/RoutinesTab.jsx':
+    'renders ToolsTab with kind routine (the list with its named filters, rows, menu and live region); no markup of its own',
+  'components/notebook/myTools/TrackersTab.jsx':
+    'renders ToolsTab with kind tracker (the list with its named filters, rows, menu and live region); no markup of its own',
+  'components/notebook/myTools/UsedInList.jsx':
+    'a push panel of plain links named by their note titles, under PanelHead (a named Back button and heading); no control that needs aria',
   'components/notebook/FollowupOfferSlot.jsx':
     'the eager gate: renders the lazy FollowupOffer (a named region "Earnings follow-up" with its heading and two named buttons) or null; no markup or control of its own',
 })

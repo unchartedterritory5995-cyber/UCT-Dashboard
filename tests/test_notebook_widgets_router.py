@@ -145,3 +145,15 @@ def test_sixty_a_minute_per_member_then_a_429_sentence(monkeypatch, seen):
     assert _client(other).get(URL + "tickerCard?symbol=AAPL").status_code == 200
     assert (nwr.WIDGET_RATE, nwr.SCOPE_WIDGETS) == ("60/minute", "notebook-widgets")
 
+
+
+def test_get_route_404_for_builtWidget(monkeypatch, seen):
+    """`builtWidget` is a note kind with no phase 1 builder: the GET route answers it exactly like an
+    unknown kind, with wave 8 on (and before the kind rows land in KIND_WAVE in Task 8.13)."""
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W8_ENABLED", "1")
+    monkeypatch.setitem(nw.KIND_WAVE, nw.BUILT_KIND, 8)    # even once the kind has a wave row
+    a = _client().get(URL + "builtWidget")
+    b = _client().get(URL + "noSuchKind")
+    assert a.status_code == 404 and b.status_code == 404
+    assert a.json() == b.json()
+    assert seen == []

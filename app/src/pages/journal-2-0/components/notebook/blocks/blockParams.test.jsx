@@ -67,6 +67,33 @@ describe('useBlockParams', () => {
     for (const [arg] of updateAttributes.mock.calls) expect(Object.keys(arg).sort()).toEqual(['params', 'searchText'])
   })
 
+  it('search_text_option_rides_the_same_update', () => {
+    // Wave 9 (Task 9.13): a live block names its routine and day; that line rides the SAME updateAttributes call.
+    const updateAttributes = vi.fn()
+    const line = '[routine: Pre-market routine · For Tue Oct 27]'
+    function Follow() {
+      const set = useBlockParams({ attrs: { widgetId: 'routine', params: { routineId: 'r1', day: '2026-10-26', bind: 'note-day' } }, updateAttributes, editable: true })
+      return <button type="button" onClick={() => set({ bind: 'today', day: '' }, { searchText: line })}>follow</button>
+    }
+    render(<Follow />)
+    fireEvent.click(screen.getByRole('button', { name: 'follow' }))
+    expect(updateAttributes).toHaveBeenCalledTimes(1)
+    expect(updateAttributes.mock.calls[0][0]).toEqual({
+      params: { routineId: 'r1', day: '', bind: 'today' }, searchText: line,
+    })
+  })
+
+  it('CONTROL: without `searchText` (or with an empty one) the line is the registry\'s', () => {
+    const updateAttributes = vi.fn()
+    function B() {
+      const set = useBlockParams({ attrs: { widgetId: 'routine', params: {} }, updateAttributes, editable: true })
+      return <button type="button" onClick={() => { set({ bind: 'today' }); set({ day: '' }, { searchText: '' }); set({ x: 1 }, { searchText: 7 }) }}>go</button>
+    }
+    render(<B />)
+    fireEvent.click(screen.getByRole('button', { name: 'go' }))
+    expect(updateAttributes.mock.calls.map(([a]) => a.searchText)).toEqual(['[routine]', '[routine]', '[routine]'])
+  })
+
   it('a reader (not editable) writes nothing', () => {
     const updateAttributes = vi.fn()
     render(<Probe attrs={{ widgetId: 'preEntryChecklist', params: {} }} updateAttributes={updateAttributes} editable={false} />)

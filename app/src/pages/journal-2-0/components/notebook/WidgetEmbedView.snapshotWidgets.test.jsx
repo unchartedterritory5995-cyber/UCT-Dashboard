@@ -36,6 +36,9 @@ vi.mock('./widgets/MySetupEdgeEmbed', stub('mySetupEdge'))
 vi.mock('./widgets/MyScreenTodayEmbed', stub('myScreenToday'))
 vi.mock('./widgets/RoomBuzzOnMyNamesEmbed', stub('roomBuzzOnMyNames'))
 vi.mock('./widgets/MyEarningsReactionsEmbed', stub('myEarningsReactions'))
+// Wave 10 (fix round 1, W10-R56): the dedicated kinds, stubbed the same way.
+vi.mock('./widgets/PropFirmEmbed', stub('myPropFirm'))
+vi.mock('./widgets/GamePlanEmbed', stub('myGamePlan'))
 
 import WidgetEmbedView from './WidgetEmbedView'
 import { kickSnapshotWarm } from '../../lib/embedArchive'
@@ -205,6 +208,18 @@ describe('WidgetEmbedView -> snapshot archive and privacy', () => {
     expect(widgetEmbedNode('tradeRecap', PAYLOADS.tradeRecap).attrs.params.tradeId).toBe('tr-1')
     expect(widgetEmbedNode('myScreenToday', PAYLOADS.myScreenToday).attrs.params.definitionId).toBe('u:1')
   })
+
+  // W10-R56 (fix round 1, review I-1): a ready-made dedicated kind is private whatever `share` says, so its numbers
+  // are never rasterised into an archive image, shared or not.
+  for (const kind of ['myPropFirm', 'myGamePlan']) {
+    it(`wave 10: ${kind} is never armed for the archive, even with share on`, async () => {
+      await mount(kind, { asOf: '2026-10-20T13:14:00Z', source: 'broker', lines: ['x'], share: true })
+      expect(kickSnapshotWarm).not.toHaveBeenCalled()
+      cleanup()
+      await mount(kind, { asOf: '2026-10-20T13:14:00Z', source: 'broker', lines: ['x'] })
+      expect(kickSnapshotWarm).not.toHaveBeenCalled()
+    })
+  }
 
   it('a shared account widget is armed', async () => {
     await mount('myPositionsRisk', { ...PAYLOADS.myPositionsRisk, share: true })

@@ -21,7 +21,8 @@ async function openNewNoteSheet() {
   await settle()
   fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
   const sheet = await screen.findByRole('dialog', { name: 'New note' })
-  expect(within(sheet).getAllByText('Blank note').length).toBeGreaterThan(0)   // control
+  // Task 7.4: the sheet's picker is a lazy chunk, so the control waits for it
+  expect((await within(sheet).findAllByText('Blank note', {}, { timeout: 10000 })).length).toBeGreaterThan(0)   // control
   return sheet
 }
 

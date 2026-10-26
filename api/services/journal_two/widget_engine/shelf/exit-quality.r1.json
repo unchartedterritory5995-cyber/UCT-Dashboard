@@ -1,0 +1,42 @@
+{
+  "id": "shelf:exit-quality",
+  "rev": 1,
+  "name": "Exit quality",
+  "description": "How long your wins and losses ran, and how many R each gave.",
+  "keywords": [
+    "exits",
+    "holding losers",
+    "cutting winners",
+    "exit"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "trades"
+      },
+      {
+        "key": "avg_hold_days"
+      },
+      {
+        "key": "expectancy_r"
+      }
+    ],
+    "split": {
+      "by": "result"
+    },
+    "view": {
+      "type": "table",
+      "auto": false
+    },
+    "display": {
+      "title": "Exit quality",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

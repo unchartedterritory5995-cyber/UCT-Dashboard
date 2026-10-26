@@ -204,6 +204,28 @@ _DIRECT_USER_TABLES = (
     # api/services/options_analytics/spread_book.py (never db.py), so on a pod where the book
     # was never opened this is a "no such table" no-op.
     "options_spread_book",
+    # Notebook widgets phase 2 (Task 8.8) -- the member's saved widgets and every
+    # revision of each. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_widget_definitions",
+    "j2_widget_definition_revs",
+    # Notebook widgets phase 2 (Task 8.9) -- the "used in" projection: which of the member's
+    # notes hold which of their saved tools. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_tool_uses",
+    # Notebook widgets phase 2, wave 8 consolidation (ruling R-43) -- which widget each of the
+    # member's create keys made, for 24 hours. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_widget_create_keys",
+    # Notebook widgets phase 2 (Task 9.2) -- routines and trackers, their schedules, ticks,
+    # skips, reminder claims and values. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_routines",
+    "j2_routine_schedules",
+    "j2_routine_ticks",
+    "j2_routine_days",
+    "j2_routine_reminder_claims",
+    "j2_trackers",
+    "j2_tracker_values",
+    # Notebook widgets phase 2 (Task 9.6b) -- the routine and tracker Duplicate's Idempotency-Key
+    # rows (ids and a timestamp only). Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_tool_create_keys",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

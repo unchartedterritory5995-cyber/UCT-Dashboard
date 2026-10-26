@@ -90,8 +90,13 @@ def list_open_positions(
     conn: sqlite3.Connection | None = None,
     *,
     account_id: str | None = None,
+    limit: int | None = None,
 ) -> list[dict[str, Any]]:
-    """Open positions for a user. Optional account_id filter (NULL=all)."""
+    """Open positions for a user. Optional account_id filter (NULL=all). `limit`, when set, bounds
+    the read IN the SQL (`LIMIT ?` on the same order); every caller but the shelf widgets' one read
+    keeps the default, unbounded."""
+    tail = " LIMIT ?" if limit is not None else ""
+    extra: tuple = (int(limit),) if limit is not None else ()
     owned_conn = conn is None
     conn = conn or get_connection()
     try:
@@ -108,8 +113,8 @@ def list_open_positions(
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL AND account_id = ?
                  ORDER BY symbol ASC, entry_date DESC
-                """,
-                (user_id, account_id),
+                """ + tail,
+                (user_id, account_id) + extra,
             ).fetchall()
         else:
             rows = conn.execute(
@@ -124,8 +129,8 @@ def list_open_positions(
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL
                  ORDER BY symbol ASC, entry_date DESC
-                """,
-                (user_id,),
+                """ + tail,
+                (user_id,) + extra,
             ).fetchall()
         return [_row_to_position(r) for r in rows]
     finally:

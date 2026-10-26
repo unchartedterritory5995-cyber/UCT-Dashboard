@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
 // 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
@@ -112,8 +112,29 @@ vi.mock('../components/notebook/ResearchHome', () => ({
   },
 }))
 
+// Task 7.4 (ruling R-6): a seam over the catalog loader, transparent unless a test sets `loaderHooks.getTemplateAsync`,
+// so a test can hold the deep link's catalog load open and land it after the tab has gone.
+const { loaderHooks } = vi.hoisted(() => ({ loaderHooks: { getTemplateAsync: null } }))
+vi.mock('../lib/templatesLoader', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    getTemplateAsync: (...args) => (loaderHooks.getTemplateAsync ?? actual.getTemplateAsync)(...args),
+  }
+})
+
 import NotebookTab from './NotebookTab'
 import * as settleModule from '../lib/offline/settleNoteWrite'
+import { getTemplate } from '../lib/notebookTemplates'
+import { loadTemplates } from '../lib/templatesLoader'
+
+// Task 7.4: the template picker is a lazy chunk that brings the catalog with it. Both are fetched once here so the
+// file's first render does not wait on a cold transform; a picker query right after a render still awaits (findBy),
+// because the first render of a lazy view always suspends for a tick.
+beforeAll(async () => {
+  await import('../components/notebook/TemplatePicker')
+  await loadTemplates()
+}, 60000)
 
 let lastPostBody = null
 
@@ -175,8 +196,9 @@ describe('NotebookTab — Stage A member-validation instrumentation', () => {
 })
 
 describe('NotebookTab — template picker', () => {
-  it('empty notebook renders the picker inline with all families', () => {
+  it('empty notebook renders the picker inline with all families', async () => {
     renderTab()
+    await screen.findByRole('group', { name: 'Daily & weekly rituals' })
     // Wave 10 lane DR-C (D-4): each family label is ALSO a category-filter chip
     // with the identical text (both real, both correct -- the gallery's own
     // rail covers it, TemplatePicker.gallerySearch.test.jsx "every family from
@@ -192,17 +214,17 @@ describe('NotebookTab — template picker', () => {
     expect(screen.getByRole('button', { name: /My Playbook/ })).toBeInTheDocument()
   })
 
-  it('the Templates button opens the sheet picker (second picker instance)', () => {
+  it('the Templates button opens the sheet picker (second picker instance)', async () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
-    expect(screen.getAllByRole('button', { name: /Tilt Log/ }).length).toBeGreaterThanOrEqual(2)
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Tilt Log/ }).length).toBeGreaterThanOrEqual(2))
   })
 
   it('picking Daily Game Plan POSTs seeded body + template title + preset tags', async () => {
     renderTab()
     // Exact, not /Daily Game Plan/: that regex now also matches the card's
     // OWN sibling "Preview Daily Game Plan" button (D-4's Preview action).
-    fireEvent.click(screen.getByRole('button', { name: 'Daily Game Plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Daily Game Plan' }))
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPost().url).toBe('/api/j2/notes')
     expect(lastPostBody.title).toMatch(/^Game Plan — /)
@@ -213,7 +235,7 @@ describe('NotebookTab — template picker', () => {
 
   it('picking Blank note POSTs with no bodyJson (existing blank behavior)', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /Blank note/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Blank note/ }))
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.title).toBe('')
     expect(lastPostBody.bodyJson).toBeUndefined()
@@ -287,7 +309,7 @@ describe('NotebookTab — template picker', () => {
 
   it('13Q-2: a TEMPLATE pick still opens with focus on the TITLE (I-1 unchanged)', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Daily Game Plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Daily Game Plan' }))
     const editor = await screen.findByTestId('note-editor')
     expect(editor).toHaveAttribute('data-open-focus', 'title')
   })
@@ -300,7 +322,7 @@ describe('NotebookTab — template picker', () => {
     // (`!title && !bodyJson`) rather than from the server's response, which the
     // next test pins directly.
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /Blank note/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Blank note/ }))
     const editor = await screen.findByTestId('note-editor')
     expect(editor).toHaveAttribute('data-open-focus', 'body')
   })
@@ -321,7 +343,7 @@ describe('NotebookTab — template picker', () => {
     renderTab()
     // Exact, not /Weekly Review/: that regex now also matches the card's OWN
     // sibling "Preview Weekly Review" button (D-4's Preview action).
-    fireEvent.click(screen.getByRole('button', { name: 'Weekly Review' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Weekly Review' }))
     const editor = await screen.findByTestId('note-editor')
     expect(editor).toHaveAttribute('data-note-id', 'new1')
   })
@@ -332,6 +354,64 @@ describe('NotebookTab — template picker', () => {
     expect(lastPostBody.title).toBe('Earnings Play — GH')
     expect(lastPostBody.tags).toEqual(['earnings'])
     expect(lastPostBody.ticker).toBe('GH')
+  })
+
+  it('Task 7.2: ?new=thesis (the catalog loads on demand) still creates a note titled by the thesis template', async () => {
+    renderTab('/journal/notebook?new=thesis&ticker=gh')
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.tags).toEqual(['thesis'])
+    expect(lastPostBody.ticker).toBe('GH')
+    expect(lastPostBody.title).toMatch(/GH/)
+  })
+
+  it('Task 7.2: the New thesis action on Research Home awaits the catalog and creates the thesis note', async () => {
+    renderTab('/journal/notebook')
+    await screen.findByTestId('research-home')
+    lastPostBody = null
+    await act(async () => { await lastResearchHomeProps().onCreateThesis() })
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.tags).toEqual(['thesis'])
+  })
+
+  // Task 7.4 (ruling R-6): the deep link awaits the catalog. If the tab unmounts while it loads, nothing is made.
+  it('Task 7.4: a deep link whose catalog lands after the tab unmounted creates nothing', async () => {
+    let land = null
+    loaderHooks.getTemplateAsync = () => new Promise((resolve) => { land = resolve })
+    try {
+      const { unmount } = renderTab('/journal/notebook?new=earnings-play&ticker=gh')
+      await waitFor(() => expect(land, 'the deep link never asked for the catalog').toBeTypeOf('function'))
+      unmount()
+      await act(async () => { land(getTemplate('earnings-play')); await new Promise((r) => setTimeout(r, 30)) })
+      expect(lastPostBody, 'a note was created by a tab that had already gone').toBeNull()
+    } finally { loaderHooks.getTemplateAsync = null }
+  })
+
+  // Task 7.4 fix round 1 (R-6): a member who opens a note while the deep link's catalog loads keeps that note; the
+  // late template makes nothing. The note is opened through Research Home's own door (its mock's button).
+  it('Task 7.4: a deep link whose catalog lands after a note was opened creates nothing', async () => {
+    let land = null
+    loaderHooks.getTemplateAsync = () => new Promise((resolve) => { land = resolve })
+    try {
+      renderTab('/journal/notebook?new=earnings-play&ticker=gh')
+      await waitFor(() => expect(land).toBeTypeOf('function'))
+      fireEvent.click(await screen.findByRole('button', { name: 'test: open a note' }))
+      expect(await screen.findByTestId('note-editor')).toHaveAttribute('data-note-id', 'n-plain')
+      await act(async () => { land(getTemplate('earnings-play')); await new Promise((r) => setTimeout(r, 30)) })
+      expect(lastPostBody, 'the late template made a note over the one the member opened').toBeNull()
+      expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'n-plain')
+    } finally { loaderHooks.getTemplateAsync = null }
+  })
+
+  it('Task 7.4 control: the same held load, landing while the tab is still mounted, does create the note', async () => {
+    let land = null
+    loaderHooks.getTemplateAsync = () => new Promise((resolve) => { land = resolve })
+    try {
+      renderTab('/journal/notebook?new=earnings-play&ticker=gh')
+      await waitFor(() => expect(land).toBeTypeOf('function'))
+      await act(async () => { land(getTemplate('earnings-play')) })
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.title).toBe('Earnings Play — GH')
+    } finally { loaderHooks.getTemplateAsync = null }
   })
 
   it('an unknown ?new= key strips quietly without creating anything', async () => {

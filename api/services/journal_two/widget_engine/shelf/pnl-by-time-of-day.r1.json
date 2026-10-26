@@ -1,0 +1,36 @@
+{
+  "id": "shelf:pnl-by-time-of-day",
+  "rev": 1,
+  "name": "P&L by time of day",
+  "description": "Net P&L by the ET hour you closed. Trades with dates only are left out and counted.",
+  "keywords": [
+    "hour",
+    "time of day",
+    "intraday",
+    "session time"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "split": {
+      "by": "hour_et"
+    },
+    "view": {
+      "type": "bar",
+      "auto": false
+    },
+    "display": {
+      "title": "P&L by time of day",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

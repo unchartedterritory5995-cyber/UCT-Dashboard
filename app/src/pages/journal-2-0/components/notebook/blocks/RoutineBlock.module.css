@@ -1,0 +1,42 @@
+/* The routine block (wave 9, Task 9.13). Every control holds the 44px floor (var(--tap-min)) at EVERY width: the
+   items are checkboxes a member ticks with a thumb before the open. Colours are tokens only, so dark and light read
+   from the theme's own --text / --text-muted / --accent (#dcbb5e on dark, #7a5c16 on light, both above 4.5:1 on
+   their own --bg-elevated). ⛔ A not-done day is a WORD, never red and never struck through. */
+.wrap { display: grid; gap: 6px; }
+.menuRow { display: flex; justify-content: flex-end; margin-top: -4px; }
+.menuButton { min-width: var(--tap-min); padding: 0 8px; }
+.tap { min-height: var(--tap-min); }
+.dayLine { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.state { font-weight: 500; color: var(--text-muted); text-decoration: none; }
+.items { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.itemRow { margin: 0; }
+.item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--tap-min);
+  padding: 0 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; text-decoration: none;
+}
+.item:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.item:disabled { cursor: default; opacity: .6; }
+.itemOn { border-color: var(--accent); }
+.readItem { display: flex; align-items: center; gap: 10px; min-height: 32px; font-size: 13px; color: var(--text); }
+.box {
+  display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px;
+  border: 1px solid var(--text-muted); border-radius: 4px; color: var(--accent);
+}
+.boxOn { border-color: var(--accent); }
+.text { flex: 1; min-width: 0; overflow-wrap: anywhere; text-decoration: none; }
+.note { flex: none; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.partial { margin: 0; font-size: 13px; color: var(--text-muted); }
+.skip { justify-self: start; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 13px; }
+.skip:focus-visible, .tap:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.skipOn { border-color: var(--accent); font-weight: 600; }
+.line { margin: 0; font-size: 13px; color: var(--text); text-decoration: none; }
+.milestone { color: var(--accent); font-weight: 600; }
+.feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 0; font-size: 13px; color: var(--text-muted); }
+/* Task 9.15: the from-your-trades hint sits under its item, in muted text (a hint, never a tick). */
+.suggest { display: block; margin: 2px 0 0 10px; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.readItem .suggest { margin: 0; }
+/* Task 9.15 M-3: the vs P&L flip's own toggle (never the Skip control's classes, so a Skip restyle cannot reach it). */
+.toggle { justify-self: start; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 13px; }
+.toggle:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.toggleOn { border-color: var(--accent); font-weight: 600; }

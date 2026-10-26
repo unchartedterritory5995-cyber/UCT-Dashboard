@@ -9,17 +9,16 @@ import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
 import { TASK_PARAM } from '../lib/noteTasks'
-import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
 import { NewNoteCaret } from '../components/notebook/NewNoteMenu'
-import TemplatePicker from '../components/notebook/TemplatePicker'
-import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
+import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { SkipLinkPortal } from '../../../components/skipLinks'
-import { getTemplate, templateWantsTicker } from '../lib/notebookTemplates'
+import { getTemplateAsync, preloadTemplates } from '../lib/templatesLoader'
+import { templateWantsTicker } from '../lib/templateWantsTicker'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
 import { ensureTemplatePropertyDefs, rememberTemplateReveal } from '../lib/templatePropertyDefs'
@@ -39,7 +38,6 @@ import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../lib
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
-import BulkActionBar from '../components/notebook/BulkActionBar'
 import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { getMemberTemplate } from '../lib/memberTemplates'
@@ -66,6 +64,7 @@ import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
+import { widgetsWaveOn, doorLostSentence } from '../lib/notebookWidgetsFlags'
 // Tier 2 part B (R-T2B-7): the earnings follow-up card. The slot is small and static; the card itself is a lazy
 // chunk it fetches the first time a follow-up link is open (V12: a failed fetch leaves the Notebook standing).
 import { earningsFollowupEnabled } from '../lib/earningsFollowupFlag'
@@ -95,11 +94,13 @@ import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 // Each chunk loads through `lazyChunk`: a failed fetch is retried once in place, and a
 // second failure (a deploy since this tab loaded) reloads the page the way every lazy
 // route in App.jsx already does (review M-5).
-function lazyView(load, label) {
+// `fallback` (Task 7.3): a view that is not a page region -- the bulk bar -- passes `null` so nothing
+// flashes while its chunk loads; every other view keeps the skeleton.
+function lazyView(load, label, fallback) {
   const Chunk = lazyChunk(load)
   function LazyNotebookView(props) {
     return (
-      <Suspense fallback={<div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>}>
+      <Suspense fallback={fallback === undefined ? <div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div> : fallback}>
         <Chunk {...props} />
       </Suspense>
     )
@@ -128,6 +129,16 @@ function lazyDialog(load, label) {
   return LazyNotebookDialog
 }
 
+// Task 7.3: the bulk bar is fetched on the FIRST selection (it is only rendered while
+// `selectionOn && selection.count > 0`), so a member who never ticks a note never pays for it.
+const BulkActionBar = lazyView(() => import('../components/notebook/BulkActionBar'), 'bulk actions', null)
+// Task 7.4: the template picker (inline on the empty notebook, and in the New-note sheet) is its own chunk, and it
+// brings the catalog with it (lib/templatesLoader.js). While either loads, the skeleton holds the picker's box and
+// the tour's gallery-door anchor, so a tour waiting on that anchor still finds it.
+const TemplatePicker = lazyView(() => import('../components/notebook/TemplatePicker'), 'templates', <TemplatePickerSkeleton />)
+// Task 7.6: the connected-apps sync line under the list header (and its status hook). It renders nothing until
+// its status read lands, so it loads after first paint with nothing in its place (`null` fallback).
+const NoteConnectorsTrustStrip = lazyView(() => import('../components/connectors/NoteConnectorsTrustStrip'), 'connected apps status', null)
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
 const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
@@ -144,6 +155,9 @@ const PublishFolderSheet = lazyDialog(() => import('../components/notebook/Publi
 const VoiceNoteDialog = lazyDialog(() => import('../components/notebook/VoiceNoteDialog'), 'voice note')
 // Notebook P1: the Journal styles manager, fetched the first time it is opened (a creating door, gated below).
 const StylesManager = lazyDialog(() => import('../components/notebook/styles/StylesManager'), 'journal styles')
+// Task 7.6: the "Save view" name prompt, fetched the first time a member opens it (before that, a closed
+// Sheet renders nothing, which is what lazyDialog renders).
+const SavedViewEditor = lazyDialog(() => import('../components/notebook/SavedViewEditor'), 'save view')
 
 // ── Wave 9 (lane 9D, D2): the folder Publish door ────────────────────────────
 // FolderSidebar renders `extraFolderActions` as `{id, label, onSelect(folder)}` buttons named
@@ -305,6 +319,8 @@ export default function NotebookTab() {
   // ⛔ Best-effort and never awaited into the render path — an instrument that
   // can break the Notebook is worse than no instrument.
   useEffect(() => { reportOptIn().catch(() => {}) }, [])
+  // Task 7.2: warm the template catalog once idle, so a template pick or deep link is usually instant.
+  useEffect(() => preloadTemplates(), [])
 
   // Wave B: reads ?folder= (e.g. __trash__) -- the command palette's "Open
   // Trash" destination. NOT a lazy one-time initializer: NotebookTab does
@@ -435,12 +451,30 @@ export default function NotebookTab() {
     setStylesOpen(true)
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); return p }, { replace: true })
   }, [searchParams, setSearchParams])
+  // Notebook widgets phase 2 (wave 8, Task 8.18): the My tools door, beside Styles, while wave 8 is on. My tools is
+  // lazy (its own root, the openMyTools door), so a static import here would put it on the Notebook's first open.
+  // Links out of it go through this tab's router (R-45).
+  const toolsOn = widgetsWaveOn(8)
+  const openTools = () => {
+    import('../components/notebook/myTools/openMyTools.js')
+      .then((m) => { m.openMyTools({ tab: 'widgets', uid: auth?.user?.id, navigate: (to) => navigate(to) }) },
+        () => setActionError(doorLostSentence()))   // fix round 1 m-1: the / doors' own sentence, never silent
+  }
   const [exportOpen, setExportOpen] = useState(false)
   // Bumped on a successful import to force-remount FolderSidebar, which owns
   // its own useJ2NoteFolders() SWR hook — an import can create new folders
   // and there's no other handle on that hook's mutate() from up here.
   const [folderRefreshKey, setFolderRefreshKey] = useState(0)
   const deepLinkRan = useRef(false)
+  // Task 7.4 (ruling R-6): the deep link awaits the catalog. When it lands, the tab must still be mounted and the
+  // member must not have opened a note or started a create meanwhile. Refs, because the effect's closure is stale.
+  const deepLinkAlive = useRef(true)
+  const openOrCreating = useRef(false)
+  useEffect(() => {
+    deepLinkAlive.current = true
+    return () => { deepLinkAlive.current = false }
+  }, [])
+  useEffect(() => { openOrCreating.current = Boolean(noteId) || creating }, [noteId, creating])
 
   // Folders panel: open/closed + width, persisted locally so it survives reloads.
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -1836,6 +1870,16 @@ export default function NotebookTab() {
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
 
+  // Research Home's "New thesis": the catalog loads on demand (Task 7.2), so the template is awaited.
+  const createThesisNote = async () => {
+    try {
+      const tpl = await getTemplateAsync('thesis')
+      if (tpl) await handlePick(tpl)
+    } catch (e) {
+      console.warn('[notebook] the template catalog did not load; nothing was made', e)
+    }
+  }
+
   // Wave 11 lane 11D: "Trade-plan canvas" in the New note sheet -- a note whose
   // body is a board, made through the canvas's create door (`createTradeCanvasNote`
   // -> createNoteViaApi + settleNoteWrite), then the same tree bookkeeping and
@@ -1923,7 +1967,6 @@ export default function NotebookTab() {
   useEffect(() => {
     if (!newKey || noteId || creating || deepLinkRan.current) return
     deepLinkRan.current = true
-    const tpl = newKey === 'blank' ? null : getTemplate(newKey)
     const ticker = searchParams.get('ticker')
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -1931,8 +1974,18 @@ export default function NotebookTab() {
       next.delete('ticker')
       return next
     }, { replace: true })
-    if (tpl) createFromTemplate(tpl, { ticker })
-    else if (newKey === 'blank') {
+    if (newKey !== 'blank') {
+      // Task 7.2: the catalog loads on demand. The params were stripped above BEFORE the await, so a
+      // slow or failed load can never loop; a key the catalog does not know still creates nothing.
+      // Task 7.4 (R-6): and when it lands, nothing is made if the tab unmounted or a note was opened or a create
+      // started while it loaded.
+      getTemplateAsync(newKey)
+        .then((tpl) => {
+          if (!tpl || !deepLinkAlive.current || openOrCreating.current) return undefined
+          return createFromTemplate(tpl, { ticker })
+        })
+        .catch((e) => console.warn('[notebook] the template catalog did not load; nothing was made', e))
+    } else {
       // Same uppercase-and-trim normalization assembleTemplateContext applies
       // for the template path (templateContext.js) — kept consistent so a
       // deep-linked ticker behaves identically regardless of which "new
@@ -2332,7 +2385,7 @@ export default function NotebookTab() {
           <ResearchHome
             onOpenNote={openNote}
             onCreateNote={() => createNote()}
-            onCreateThesis={() => handlePick(getTemplate('thesis'))}
+            onCreateThesis={createThesisNote}
             onImport={() => setImportOpen(true)}
             hasAnyNotes={hasAnyNotes}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
@@ -2510,6 +2563,12 @@ export default function NotebookTab() {
               <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog" data-tour="styles-button">
                 <UIcon name="sliders" size={16} gold={false} />
                 <span className={styles.actionLabel}>Styles</span>
+              </button>
+            )}
+            {toolsOn && (
+              <button type="button" className={styles.importBtn} onClick={openTools} aria-haspopup="dialog">
+                <UIcon name="wrench" size={16} gold={false} />
+                <span className={styles.actionLabel}>My tools</span>
               </button>
             )}
             <button

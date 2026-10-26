@@ -1,0 +1,162 @@
+{
+ "viewport": "390",
+ "step": "W10.5",
+ "title": "insert each of the seven dedicated widgets; prop-firm limits in Change; Plan vs actual on a linked and an unlinked trade",
+ "checks": [
+  {
+   "what": "the seven ready-made widgets are placed",
+   "ok": true,
+   "read": "{\"Tilt check\": 1, \"Revenge trades\": 1, \"Risk left today\": 1, \"Prop-firm rules\": 1, \"Pre-market game plan\": 1, \"Alerts that fired\": 1, \"Plan vs actual\": 1}"
+  },
+  {
+   "what": "prop-firm limits re-ran it in the request body (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200 tp://127.0.0.1:8093/api/j2/notebook-shelf-widgets/myPropFirm"
+  },
+  {
+   "what": "the prop-firm widget reads room left under the limits",
+   "ok": true,
+   "read": "Prop-firm rules\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nChange\nDaily loss: none used today; $500 left.\nMax drawdown: at your peak; $2,000 left.\nDaily loss limit\nUsed\nLeft\nMax drawdown\nUsed\nLeft\nShow as table\n\nYour accounts, trades and open positions in the Journa"
+  },
+  {
+   "what": "Plan vs actual on the linked trade reads planned vs filled",
+   "ok": true,
+   "read": "Plan vs actual\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\n\nTSLALong\n\nRow\tPlanned\tActual\tWhat happened\nEntry\t$100.00\t$100.00\tEntry: Planned $100.00, filled $100.00; filled at the plan.\nStop\t$98.00\t$98.00\tStop: Planned $98.00, your stop $98.00.\nTarget\t$106.00\t$103.00\t"
+  },
+  {
+   "what": "Plan vs actual on an unlinked trade says it is not linked",
+   "ok": true,
+   "read": "Plan vs actual\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\n\nAAPLLong\n\nThis trade isn't linked to a plan. Link one from the trade's page.\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "no slash text is left behind in the note",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Tilt check",
+   "text": "Tilt check\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nChange\nTilt check needs entry and exit times; your trades have dates only.\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "Revenge trades",
+   "text": "Revenge trades\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nNone of the days you traded in the last 30 trading days could be checked; your trades have dates only.\nSep 14, 2026: No trades\nSep 15, 2026: No trades\nSep 16, 2026: No trades\nSep 17, 2026: No trades\nSep 18, 2026: No trades\nSep 21, 2026: No trades\nSep 22, 2026: No trades\nSep 23, 2026: No trades\nSep 24, 2026: No trades\nSep 25, 2026: No trades\nSep 28, 2026: No trades\nSep 29, 2026: No trades\nSep 30, 2026: No trades\nOct 1, 2026: No trades\nOct 2, 2026: No trades\nOct 5, 2026: No trades\nOct 6, 2026: No trades\nO"
+  },
+  {
+   "what": "Risk left today",
+   "text": "Risk left today\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nSet a daily loss limit in your account settings to see room left.\n\nYour accounts, trades and open positions in the Journal."
+  },
+  {
+   "what": "Prop-firm rules",
+   "text": "Prop-firm rules\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nChange\nEnter your daily loss limit and max drawdown to see room left.\n\nYour accounts, trades and open positions in the Journal."
+  },
+  {
+   "what": "Pre-market game plan",
+   "text": "Pre-market game plan\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nMorning wire\nThe morning wire has not published yet today.\nNames reporting\nEarnings dates couldn't be read right now.\nOpen risk\nNo open positions.\n\nThe morning wire, the earnings calendar and your open positions."
+  },
+  {
+   "what": "Alerts that fired",
+   "text": "Alerts that fired\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nNo alerts fired since the last session.\n\nYour alert history."
+  },
+  {
+   "what": "Plan vs actual",
+   "text": "Plan vs actual\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\n\nTSLALong\n\nRow\tPlanned\tActual\tWhat happened\nEntry\t$100.00\t$100.00\tEntry: Planned $100.00, filled $100.00; filled at the plan.\nStop\t$98.00\t$98.00\tStop: Planned $98.00, your stop $98.00.\nTarget\t$106.00\t$103.00\tTarget: Planned $106.00, exited at $103.00.\nR\t+3.0R\t+1.5R\tR: Planned 3.0R, realized 1.5R.\nSize: planned 100 shares, entered 100.\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "prop-firm after Change",
+   "text": "Prop-firm rules\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\nChange\nDaily loss: none used today; $500 left.\nMax drawdown: at your peak; $2,000 left.\nDaily loss limit\nUsed\nLeft\nMax drawdown\nUsed\nLeft\nShow as table\n\nYour accounts, trades and open positions in the Journal."
+  },
+  {
+   "what": "plan vs actual, linked (TSLA)",
+   "text": "Plan vs actual\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\n\nTSLALong\n\nRow\tPlanned\tActual\tWhat happened\nEntry\t$100.00\t$100.00\tEntry: Planned $100.00, filled $100.00; filled at the plan.\nStop\t$98.00\t$98.00\tStop: Planned $98.00, your stop $98.00.\nTarget\t$106.00\t$103.00\tTarget: Planned $106.00, exited at $103.00.\nR\t+3.0R\t+1.5R\tR: Planned 3.0R, realized 1.5R.\nSize: planned 100 shares, entered 100.\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "plan vs actual, unlinked (AAPL)",
+   "text": "Plan vs actual\nOnly you\nas of Oct 25, 2026, 5:51 PM ET\nNot shown on shared pages\nSee it now\n\nAAPLLong\n\nThis trade isn't linked to a plan. Link one from the trade's page.\n\nYour closed trades in the Journal."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 100,
+   "small": [
+    {
+     "label": "Dismiss",
+     "tag": "BUTTON",
+     "w": 23,
+     "h": 22
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 310,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 6,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W10_5-main.png"
+ ]
+}

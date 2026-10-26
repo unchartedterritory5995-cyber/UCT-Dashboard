@@ -29,8 +29,9 @@ import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCa
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
 import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
-import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import { widgetsWaveOn, WIDGET_CHUNK_LOST, doorLostSentence } from '../../lib/notebookWidgetsFlags'
 import { captureEnabled } from '../../../../widgets/captureRelease'
+import { insertToolBlock } from '../../lib/toolEmbed'
 import styles from './SlashMenu.module.css'
 
 // Notebook P2a: a trader block (and the market context stamp) in the Planning a trade group, dark behind the
@@ -306,6 +307,9 @@ export const ITEMS = [
   traderItem('preEntryChecklist'),
   traderItem('priceStamps'),
   traderItem('positionSizing'),
+  // Wave 10 (Task 10.20): /size, the position size calculator, while wave 10 is on.
+  traderItem('sizeCalc', { cmd: 'size', description: 'Shares for your entry, stop and risk',
+    keywords: ['size', 'shares', 'risk', 'calculator', 'position'], available: () => widgetsWaveOn(10) }),
   // P2b Task 12: My rules, the Daily prep pack and the post-trade review block. Each says what it
   // shows, so six neighbouring rows can be told apart (Task 12 review, finding 6).
   traderItem('myRules', { description: 'Your trading rules and their versions' }),
@@ -349,6 +353,8 @@ export const SLASH_GROUPS = [
   { id: 'open', label: 'Before the open' },
   { id: 'plan', label: 'Planning a trade' },
   { id: 'review', label: 'Reviewing' },
+  { id: 'widgets', label: 'Widgets' },
+  { id: 'tools', label: 'Mine' },
   { id: 'mine', label: 'My presets' },
   { id: 'basics', label: 'Basics' },
   { id: 'more', label: 'More' },
@@ -487,11 +493,11 @@ const SNAPSHOT_SYMBOL_CMD = { tickerCard: 'ticker', tickerFlow: 'flow' }
 const widgetsFetch = () => import('../../lib/notebookWidgetsFetch')
 // F2 cleanup: a lazy chunk that cannot load (lost after a deploy) is said, never silent; offline is offline.
 const lost = () => (typeof navigator !== 'undefined' && navigator.onLine === false ? { ok: false, reason: 'offline' }
-  : { ok: false, message: "This widget couldn't load. Reload the page to try again." })
+  : { ok: false, message: WIDGET_CHUNK_LOST })
 // R58 (UX I-2): the inserts in flight, one per kind and settings, so a second Enter or click adds nothing. Per editor
 // (review m-1): the same widget asked for in another note is that note's own insert.
 const inflight = new WeakMap()
-function snapshotCommand(kind, params) {
+export function snapshotCommand(kind, params) {
   return async ({ editor, range }) => {
     const chain = editor.chain().focus()
     ;(range ? chain.deleteRange(range) : chain.caretAfterWidgetEmbed()).run()
@@ -552,6 +558,8 @@ function snapshotCommand(kind, params) {
 function background(load) {
   let s
   const reset = (uid) => { s = { v: null, at: 0, failedAt: 0, loading: null, uid } }
+  // Fix round 1 m-3: forget this member's rows (the next kick loads them again); a load in flight lands in the old slot.
+  const drop = () => reset(s.uid)
   reset()
   const kick = (editor) => {
     const uid = editor?.storage?.uctJournalWidgets?.uid
@@ -565,7 +573,7 @@ function background(load) {
     }
     return t.v
   }
-  return { kick, wait: () => s.loading || Promise.resolve(), reset }
+  return { kick, wait: () => s.loading || Promise.resolve(), reset, drop }
 }
 
 /** Task 17 (wave 5): the member's own presets and chart sets, under "My presets". The rows and the sets
@@ -594,10 +602,165 @@ const picks = background(() => widgetsFetch().then(async (m) => ({ m, doc: await
 export function pickItems(query, editor) {
   if (!widgetsWaveOn(6)) return []
   const v = picks.kick(editor)
-  return v ? v.m.pickRows(query, v.doc, snapshotCommand) : []
+  // Wave 10 (Task 10.21): `/actual` lists the same trades for Plan vs actual.
+  return v ? v.m.pickRows(query, v.doc, snapshotCommand, { actual: widgetsWaveOn(10) }) : []
 }
 export const __picksLoad = () => picks.wait()
 export const __resetPicks = () => picks.reset()
+
+// ── Notebook widgets phase 2 (wave 8, Task 8.18): the "Mine" group. "Build a widget" first, the member's own widgets
+// (at most BARE_ROWS on a bare `/`, every match when typed), "Manage my tools" last; `/widgets` opens the examples. The
+// list comes through lib/builtWidgets (the ONE widget HTTP client) in this background loader, keyed to the member; that
+// client, the builder and My tools are reached only by dynamic import (first-open bytes). A row inserts through
+// snapshotCommand, the one snapshot insert ("Adding <name>…", then "<name> added."), with a failure said in the
+// client's own words. The kept-draft offer is the builder's own reader (builderDraft.readDraft), never a second one.
+const built = background((uid) => Promise.all([import('../../lib/builtWidgets'), widgetsFetch(),
+  import('./widgetBuilder/builderDraft')]).then(async ([b, f, d]) => {
+  // Fix round 1 m-3: a save, archive, delete or restore anywhere in this tab drops the rows (the client's one hook).
+  b.onWidgetsChanged(dropBuilt)
+  return { b, f, d, uid, list: await b.loadWidgetList() }
+}))
+function dropBuilt() { built.drop() }
+const doorLost = (editor) => editor?.storage?.uctJournalWidgets?.notify?.(doorLostSentence(), 'error')
+// The note page's router (NoteEditorPage puts it on the editor's storage), so a link out of the builder or My tools
+// moves the router instead of loading the whole page (R-45, fix round 1 I-1).
+const routerOf = (editor) => {
+  const nav = editor?.storage?.uctJournalWidgets?.navigate
+  return typeof nav === 'function' ? { navigate: nav } : {}
+}
+const toBuilder = ({ editor, range }) => {
+  editor.chain().focus().deleteRange(range).run()
+  return import('./widgetBuilder/openWidgetBuilder.js')
+    .then((m) => { m.openWidgetBuilder({ editor, start: 'examples', ...routerOf(editor) }) }, () => doorLost(editor))
+}
+const TOOLS_ROW = {
+  title: 'Manage my tools', cmd: 'tools', keywords: ['tools', 'my tools', 'manage', 'widgets'],
+  description: 'Rename, copy, archive and restore your widgets',
+  command: ({ editor, range }) => {
+    editor.chain().focus().deleteRange(range).run()
+    return import('./myTools/openMyTools.js').then((m) => { m.openMyTools({ editor, tab: 'widgets', ...routerOf(editor) }) }, () => doorLost(editor))
+  },
+}
+const GALLERY_ROW = {
+  title: 'Widget examples', cmd: 'widgets', keywords: ['widgets', 'examples', 'gallery'],
+  description: 'Start from a ready-made widget', command: toBuilder,
+}
+function builtRow(v, w) {
+  const title = typeof w.name === 'string' && w.name.trim() ? w.name.trim() : 'Widget'
+  const kind = {
+    id: v.b.BUILT_KIND, title,
+    // Offline is said as the insert's own offline sentence; anything else in the client's words (a 402, busy, a cap).
+    capture: (params) => v.b.runBuilt(params).then((got) => (got.ok ? { ok: true, payload: got.data }
+      : got.code === 'offline' ? { ok: false, reason: 'offline' } : { ok: false, message: v.b.failureText(got.code, got.message) })),
+  }
+  return { title, defId: w.id, keywords: ['widget'], mark: v.b.MARK_YOURS, description: typeof w.summary === 'string' && w.summary ? w.summary : 'A widget you built',
+    command: snapshotCommand(kind, { defId: w.id }) }
+}
+export function builtItems(query, editor) {
+  if (!widgetsWaveOn(8)) return []
+  const v = built.kick(editor)
+  const q = String(query || '').trim().toLowerCase()
+  const kept = v && v.d.readDraft(v.uid, null)
+  const build = { title: 'Build a widget', cmd: 'build', keywords: ['build', 'widget', 'new widget', 'create'],
+    description: kept ? v.d.RESUME_OFFER : 'Start from an example, or from blank', command: toBuilder }
+  const rows = v ? v.list.map((w) => builtRow(v, w)) : []
+  if (!q) return [build, ...rows.slice(0, v ? v.f.BARE_ROWS : 0), TOOLS_ROW].map((it) => ({ ...it, group: 'tools' }))
+  return rankedBlockItems([GALLERY_ROW, build, ...rows, TOOLS_ROW], q)
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __builtLoad = () => built.wait()
+export const __resetBuilt = () => built.reset()
+
+// ── Notebook widgets phase 2 (wave 9, Task 9.19): routines and trackers in the "Mine" group. "Routine (remembered
+// daily)" (/routine) and "Tracker (one value a day)" (/track) open the tool picker; after the widget rows come the
+// member's own routines then trackers (at most BARE_ROWS of each on a bare `/`, every match when typed), each inserting
+// its block at once, bound to the note's day (lib/toolEmbed, the one insert). The lists come through lib/toolsCrud (the
+// ONE routine and tracker client) in this background loader, keyed to the member; that client and the picker are
+// reached only by dynamic import (first-open bytes). A write through that client drops the rows (its one hook).
+const toPicker = (kind) => ({ editor, range }) => {
+  editor.chain().focus().deleteRange(range).run()
+  return import('./routines/openToolPicker.js')
+    .then((m) => { m.openToolPicker({ editor, kind, ...routerOf(editor) }) }, () => doorLost(editor))
+}
+const PICKER_ROWS = Object.freeze({
+  routine: {
+    title: 'Routine (remembered daily)', cmd: 'routine', description: 'Tick it every trading day; it never changes the note',
+    keywords: ['routine', 'habit', 'daily', 'pre-market', 'rules', 'process'], command: toPicker('routine'),
+  },
+  tracker: {
+    title: 'Tracker (one value a day)', cmd: 'track', description: 'Log sleep, focus or anything once a day',
+    keywords: ['track', 'tracker', 'sleep', 'mood', 'log', 'habit'], command: toPicker('tracker'),
+  },
+})
+const TOOL_ROW_WORDS = Object.freeze({
+  routine: { keywords: ['routine'], description: "Your routine, for this note's day" },
+  tracker: { keywords: ['tracker'], description: "Your tracker, for this note's day" },
+})
+const liveTool = (t) => t && typeof t === 'object' && typeof t.id === 'string' && t.id && !t.archived && !t.deleted
+const tools = background(() => Promise.all([import('../../lib/toolsCrud'), widgetsFetch()]).then(async ([c, f]) => {
+  // A create, save, archive, delete or restore through the client anywhere in this tab drops the rows.
+  c.onToolsChanged(dropTools)
+  const [r, t] = await Promise.all([c.listTools('routine'), c.listTools('tracker')])
+  // Fix round 1 (m-3): EITHER read failing is a failed load. A kind is never cached as an empty list: the last good
+  // rows stay (background() keeps them), the 30 s back-off reads again, and the picker item says its own failure line.
+  if (!r.ok) throw r
+  if (!t.ok) throw t
+  return { f, routine: r.data.filter(liveTool), tracker: t.data.filter(liveTool) }
+}))
+function dropTools() { tools.drop() }
+function toolRow(kind, tool) {
+  const title = typeof tool.name === 'string' && tool.name.trim() ? tool.name.trim() : kind === 'routine' ? 'Routine' : 'Tracker'
+  return { title, toolId: tool.id, ...TOOL_ROW_WORDS[kind],
+    command: ({ editor, range }) => { insertToolBlock(editor, kind, tool, range) } }
+}
+/** The member's routine and tracker rows (wave 9), with the two picker items. Typed, every match in menu order: the
+ *  ONE ranking is mineGroupItems', over the whole Mine group (widgets and tools together). */
+export function toolItems(query, editor) {
+  if (!widgetsWaveOn(9)) return []
+  const v = tools.kick(editor)
+  const q = String(query || '').trim().toLowerCase()
+  const rows = (kind) => (v ? v[kind].map((t) => toolRow(kind, t)) : [])
+  if (!q) {
+    const n = v ? v.f.BARE_ROWS : 0
+    return [PICKER_ROWS.routine, ...rows('routine').slice(0, n), PICKER_ROWS.tracker, ...rows('tracker').slice(0, n)]
+      .map((it) => ({ ...it, group: 'tools' }))
+  }
+  return [PICKER_ROWS.routine, PICKER_ROWS.tracker, ...rows('routine'), ...rows('tracker')].filter((it) => blockItemMatches(it, q))
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __toolsLoad = () => tools.wait()
+export const __resetTools = () => tools.reset()
+
+/** The Mine group: the widget rows (wave 8), then the routine and tracker rows (wave 9) before "Manage my tools". With
+ *  wave 9 off this is builtItems' answer exactly. Typed, the two lists are ranked together. */
+export function mineGroupItems(query, editor) {
+  const widgets = builtItems(query, editor)
+  const own = toolItems(query, editor)
+  if (!own.length) return widgets
+  const q = String(query || '').trim().toLowerCase()
+  if (q) return rankedBlockItems([...widgets, ...own], q)
+  const manage = widgets.findIndex((it) => it.cmd === TOOLS_ROW.cmd)
+  return manage < 0 ? [...widgets, ...own] : [...widgets.slice(0, manage), ...own, ...widgets.slice(manage)]
+}
+
+// ── Notebook widgets wave 10 (Task 10.21, spec 8): the ready-made widgets. A bare `/` lists at most eight under
+// "Widgets" (the member's most used, then the defaults), then "All widgets…"; typed, every card is ranked with the
+// blocks. The rows live in lib/builtInWidgets, reached only by this dynamic import (first-open bytes). Dark while
+// wave 10 is off; a shelf that cannot be read leaves the defaults that need none.
+const builtIn = background(() => import('../../lib/builtInWidgets')
+  .then(async (m) => ({ m, doc: await m.loadBuiltIn().catch(() => null) })))
+export function builtInItems(query, editor) {
+  if (!widgetsWaveOn(8) || !widgetsWaveOn(10)) return []
+  const v = builtIn.kick(editor)
+  if (!v) return []
+  const rows = v.m.builtInRows(query, v.doc, snapshotCommand, editor?.storage?.uctJournalWidgets?.uid)
+  if (String(query || '').trim()) return rows
+  const all = { title: v.m.ALL_WIDGETS, description: v.m.ALL_WIDGETS_HINT, command: toBuilder }
+  return [...rows, all].map((it) => ({ ...it, group: 'widgets' }))
+}
+/** Tests only: the load in flight (or none), and a clean slate. */
+export const __builtInLoad = () => builtIn.wait()
+export const __resetBuiltIn = () => builtIn.reset()
 
 export function snapshotWidgetItems(query) {
   const raw = String(query || '').trim()
@@ -608,7 +771,9 @@ export function snapshotWidgetItems(query) {
   for (const kind of [...WIDGET_KINDS, ...CAPTURE_KINDS]) {
     // `held`: a kind Wave R keeps dark (captureRelease.js); no wave flag releases it.
     // `pick`: a kind that needs the member's choice (a trade, a screen) is listed by pickItems instead.
-    if (kind.pick || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
+    // `built` (wave 8): a widget the member built is inserted from the builder or the Mine rows, never bare.
+    // `dedicated` (wave 10): its only door is a POST, which this GET insert cannot reach; builtInItems lists it.
+    if (kind.pick || kind.built || kind.dedicated || !widgetsWaveOn(kind.wave) || (kind.held && !captureEnabled())) continue
     const item = { title: kind.title, description: kind.description, group: kind.group }
     const cmd = kind.cmd || SNAPSHOT_SYMBOL_CMD[kind.id]
     // `/calendar` inserts today's day; `/calendar 3/13` that day; anything else after it offers nothing.
@@ -917,8 +1082,10 @@ function vsItems(rest) {
 }
 
 /** The slash menu's rows for one query. `mine` is mineItems' answer (wave 5), empty otherwise: grouped
- *  under "My presets" on a bare `/`; typed, a preset row keeps its label and a chart set row does not. */
-export function slashItems(query, editor, mine = []) {
+ *  under "My presets" on a bare `/`; typed, a preset row keeps its label and a chart set row does not.
+ *  `builtIn` is builtInItems' answer (wave 10): bare, the "Widgets" group (a phase 1 widget listed there is not listed
+ *  again under its moment); typed, ranked with the blocks, so a name match leads a keyword match. */
+export function slashItems(query, editor, mine = [], builtIn = []) {
   const q = (query || '').toLowerCase()
   const widgets = widgetItems(query)
   const factCaptures = factItems(query)
@@ -929,7 +1096,11 @@ export function slashItems(query, editor, mine = []) {
   // today only columns, never inside a column (they do not nest). A
   // table of contents is an ordinary block and is offered anywhere.
   const here = blockItemsAvailable(editor)
-  if (!q) return groupedSlashItems(here, [...snapshots, ...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures, ...mine])
+  if (!q) {
+    const listed = new Set(builtIn.map((it) => it.title))
+    return groupedSlashItems(here, [...snapshots.filter((it) => !listed.has(it.title)), ...widgets, ...factCaptures,
+      ...consensusCaptures, ...planCaptures, ...mine, ...builtIn])
+  }
   // Widget/fact items match on their own tokenized rules (args after
   // the type name would defeat a plain substring filter).
   // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
@@ -941,11 +1112,17 @@ export function slashItems(query, editor, mine = []) {
     ...snapshots.map(({ group, ...it }) => it), // eslint-disable-line no-unused-vars
     ...mine.map(({ group, ...it }) => (it.cmd === 'preset' ? { ...it, group } : it))]
   const cmd = q.trim().split(/\s+/)[0]
-  const blocks = rankedBlockItems(here, q)
+  const blocks = rankedBlockItems([...here, ...builtIn], q)
   const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
   return [...exact, ...captures.filter((it) => it.cmd === cmd),
     ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
 }
+
+/** The menu's rows for one query, as the Suggestion asks for them. Waves 5, 6, 8 and 9 add the member's own rows
+ *  (mineGroupItems, mineItems, pickItems): whatever is loaded, never awaited. M-3: the caches are keyed to the
+ *  signed-in member the editor holds. Wave 10 adds the ready-made widgets (builtInItems), loaded the same way. */
+export const menuItems = (query, editor) => slashItems(query, editor,
+  [...mineGroupItems(query, editor), ...mineItems(query, editor), ...pickItems(query, editor)], builtInItems(query, editor))
 
 export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -997,7 +1174,7 @@ export const SlashList = forwardRef((props, ref) => {
         return [
           label ? <div key={`g-${item.group}`} className={styles.groupLabel} aria-hidden="true">{label}</div> : null,
           <button
-            key={item.title}
+            key={`${i}:${item.title}`}
             type="button"
             role="option"
             id={`${menuId}-opt-${i}`}
@@ -1006,7 +1183,12 @@ export const SlashList = forwardRef((props, ref) => {
             onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
             onMouseEnter={() => setSelectedIndex(i)}
           >
-            <div className={styles.itemTitle}>{item.title}</div>
+            <div className={styles.itemTitle}>
+              {item.title}
+              {/* The W8.8 walk fix: whose widget this row inserts (an example or the member's own), in the option's
+                  own text, so it is part of its accessible name. */}
+              {item.mark && <>{' '}<span className={styles.itemMark}>{item.mark}</span></>}
+            </div>
             <div className={styles.itemDesc}>{item.description}</div>
           </button>,
         ]
@@ -1037,9 +1219,7 @@ export const SlashMenuExtension = Extension.create({
         // guard in SlashList.onKeyDown) passes every key through.
         allowSpaces: true,
         command: slashCommand,
-        // Waves 5 and 6 add the member's own rows (mineItems, pickItems): whatever is loaded, never awaited.
-        // M-3: the caches are keyed to the signed-in member the editor holds.
-        items: ({ query, editor }) => slashItems(query, editor, [...mineItems(query, editor), ...pickItems(query, editor)]),
+        items: ({ query, editor }) => menuItems(query, editor),
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
           // this closure state must reset in onStart.

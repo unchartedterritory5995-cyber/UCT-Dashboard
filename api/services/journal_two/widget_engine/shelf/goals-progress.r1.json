@@ -1,0 +1,34 @@
+{
+  "id": "shelf:goals-progress",
+  "rev": 1,
+  "name": "Goals progress",
+  "description": "This week's net P&L against your weekly goal.",
+  "keywords": [
+    "goal",
+    "weekly goal",
+    "target",
+    "progress"
+  ],
+  "plan": {
+    "v": 3,
+    "source": "closed_trades",
+    "range": {
+      "token": "this_week"
+    },
+    "measures": [
+      {
+        "key": "net_pnl"
+      }
+    ],
+    "view": {
+      "type": "progress",
+      "auto": false
+    },
+    "display": {
+      "title": "Goals progress",
+      "titleAuto": false,
+      "accent": "gold",
+      "targetGoal": true
+    }
+  }
+}

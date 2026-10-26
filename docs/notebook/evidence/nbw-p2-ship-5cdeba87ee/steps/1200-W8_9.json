@@ -1,0 +1,288 @@
+{
+ "viewport": "1200",
+ "step": "W8.9",
+ "title": "My tools: rename, history restore, archive and restore",
+ "checks": [
+  {
+   "what": "rename says what happened",
+   "ok": true,
+   "read": "Renamed to “Daily P&L (renamed)”."
+  },
+  {
+   "what": "the row shows the new name",
+   "ok": true,
+   "read": "Daily P&L (renamed)"
+  },
+  {
+   "what": "the older version was restored (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "restoring saved the oldest version's plan as a NEW version",
+   "ok": true,
+   "read": "{\"before\": 3, \"rev\": 4, \"name\": \"Daily P&L (renamed)\"}"
+  },
+  {
+   "what": "archive says what happened",
+   "ok": true,
+   "read": "Archived “Daily P&L (renamed)”. Restore it from Archived."
+  },
+  {
+   "what": "the widget is listed under Archived",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "restore from Archived says what happened",
+   "ok": true,
+   "read": "Restored “Daily P&L (renamed)” to your widgets."
+  },
+  {
+   "what": "the widget is back in the Active list",
+   "ok": true,
+   "read": "Daily P&L (renamed)"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "widgets list",
+   "text": "Active\nArchived\nRecently deleted\nBuild a widget\n2 WIDGETS\nDaily P&L bars (this note)\n, Bar\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\nUsed in 1 note\n·\nEdited today\nOpen\nDaily P&L bars (walk)\n, Bar\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\nUsed in 1 note\n·\nEdited today\nOpen\nChart sets and presets have their own place.\nManage chart sets"
+  },
+  {
+   "what": "message after rename",
+   "text": "Renamed to “Daily P&L (renamed)”."
+  },
+  {
+   "what": "version history",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nBack\nVersion history: Daily P&L (renamed)\nOct 25, 4:39 PM\nCurrent version\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nName this version\nOct 25, 4:38 PM\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nName this version\nRestore\nOct 25, 4:38 PM\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nName this version\nRestore"
+  },
+  {
+   "what": "restore question",
+   "text": "Restore the version from Oct 25, 4:38 PM? It is saved as a new version, so nothing is lost. Your notes keep what they show.\n\nCancel\nRestore"
+  },
+  {
+   "what": "message after restore",
+   "text": "Restored the version from Oct 25, 4:38 PM. It's now the newest version."
+  },
+  {
+   "what": "archive question",
+   "text": "Back\nArchive “Daily P&L (renamed)”?\n\nIt stays in your 1 note as a snapshot. See it now keeps working from its saved copy.\n\nIt leaves your widget list; you can restore it from Archived.\n\nCancel\nArchive"
+  },
+  {
+   "what": "message after archive",
+   "text": "Archived “Daily P&L (renamed)”. Restore it from Archived."
+  },
+  {
+   "what": "message after unarchive",
+   "text": "Restored “Daily P&L (renamed)” to your widgets."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 96,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 82,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": [
+    {
+     "id": "target-size",
+     "impact": "serious",
+     "help": "All touch targets must be 24px large, or leave sufficient space",
+     "nodes": 1,
+     "targets": [
+      "._toggle_1cf6f_87"
+     ]
+    }
+   ]
+  }
+ },
+ "screenshots": [
+  "1200/W8_9-main.png"
+ ]
+}

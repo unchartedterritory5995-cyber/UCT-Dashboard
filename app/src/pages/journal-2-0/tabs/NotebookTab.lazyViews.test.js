@@ -20,6 +20,10 @@ const LAZY = [
   '../components/notebook/NoteCalendarView',
   '../components/notebook/NoteTimelineView',
   '../components/notebook/NoteTasksView',
+  // Wave 7 Task 7.3: the bulk bar, mounted on the first selection through `lazyView` (null fallback).
+  '../components/notebook/BulkActionBar',
+  // Wave 7 Task 7.4: the template picker (and the catalog it loads), through `lazyView` with its skeleton fallback.
+  '../components/notebook/TemplatePicker',
   '../components/notebook/import/ImportWizard',
   '../components/notebook/export/ExportDialog',
   // Wave 9 lane 9D: the folder Publish confirmation, on demand through `lazyDialog`. It shipped
@@ -29,6 +33,12 @@ const LAZY = [
   '../components/notebook/VoiceNoteDialog',
   // Notebook P1 lane C: the Journal styles manager, on demand through `lazyDialog` (gated by the switch).
   '../components/notebook/styles/StylesManager',
+  // Wave 7 Task 7.6: the "Save view" name prompt, on its first open through `lazyDialog`.
+  '../components/notebook/SavedViewEditor',
+  // Wave 7 Task 7.6: the connected-apps sync line, after first paint through `lazyView` (null fallback).
+  '../components/connectors/NoteConnectorsTrustStrip',
+  // Notebook widgets phase 2 Task 8.18: the My tools header door (wave 8), its own root through openMyTools.
+  '../components/notebook/myTools/openMyTools.js',
   // Notebook P1: the kind picker is a lazyView of the journal-styles surfaces, whose ONE dynamic import
   // lives in components/notebook/styles/lazyStyles.js (rail: NoteEditorPage.styleChunks.test.js).
   // ⚰️ Wave 8 seam S8-3 put the first-run tour here too, through `lazyChunk` in a bare

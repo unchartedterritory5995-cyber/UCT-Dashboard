@@ -1,0 +1,2407 @@
+{
+ "bar_stop": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 3,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "from": "2026-03-01",
+    "to": "2026-03-31"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": {
+    "by": "setup",
+    "then": null
+   },
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "bar"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "Mar 1 to Mar 31, 2026",
+  "rows": [
+   {
+    "flagged": false,
+    "label": "Flag",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 1.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "Pullback",
+    "label2": null,
+    "n": 2,
+    "n1": 2,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": -2.0,
+    "v2": null,
+    "v3": null
+   }
+  ],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": {
+   "after": 3,
+   "line": "2 of your 3 losses in a row",
+   "losses": 2
+  },
+  "summary": "Current streak, split by setup, for closed trades from Mar 1 to Mar 31, 2026, all accounts. 3 trades.",
+  "title": "Current streak by setup, Mar 1 to Mar 31, 2026",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -2.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "bar"
+ },
+ "compare_drawdown": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": {
+   "n": 3,
+   "n1": 3,
+   "n2": 3,
+   "n3": null,
+   "s1": "",
+   "s2": "",
+   "s3": null,
+   "v1": -60.0,
+   "v2": 120.0,
+   "v3": null
+  },
+  "compareLabel": "Feb 1 to Feb 28, 2026",
+  "count": 4,
+  "coverage": [
+   {
+    "have": 4,
+    "hint": null,
+    "total": 4
+   },
+   {
+    "have": 4,
+    "hint": null,
+    "total": 4
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": {
+    "from": "2026-02-01",
+    "mode": "range",
+    "to": "2026-02-28"
+   },
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    },
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "from": "2026-03-01",
+    "to": "2026-03-31"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "compare"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "drawdown": {
+   "line": "From Mar 2 to Mar 4; not recovered yet.",
+   "peak": "2026-03-02",
+   "recovered": null,
+   "trough": "2026-03-04"
+  },
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   },
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "Mar 1 to Mar 31, 2026",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown and Net P&L for closed trades from Mar 1 to Mar 31, 2026, compared with Feb 1 to Feb 28, 2026, all accounts. 4 trades.",
+  "title": "Max drawdown and Net P&L, Mar 1 to Mar 31, 2026",
+  "truncated": 0,
+  "value": {
+   "n": 4,
+   "n1": 4,
+   "n2": 4,
+   "n3": null,
+   "s1": "",
+   "s2": "",
+   "s3": null,
+   "v1": -240.0,
+   "v2": 0.0,
+   "v3": null
+  },
+  "view": "compare"
+ },
+ "compare_stop": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 1.0,
+   "v2": null,
+   "v3": null
+  },
+  "compareLabel": "Feb 1 to Feb 28, 2026",
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": {
+    "from": "2026-02-01",
+    "mode": "range",
+    "to": "2026-02-28"
+   },
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 2,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "from": "2026-03-01",
+    "to": "2026-03-31"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "compare"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "Mar 1 to Mar 31, 2026",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": {
+   "after": 2,
+   "line": "2 of your 2 losses in a row. Your rule says stop here.",
+   "losses": 2
+  },
+  "summary": "Current streak for closed trades from Mar 1 to Mar 31, 2026, compared with Feb 1 to Feb 28, 2026, all accounts. 3 trades.",
+  "title": "Current streak, Mar 1 to Mar 31, 2026",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -2.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "compare"
+ },
+ "formula_money_pct_count": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 5,
+  "coverage": [
+   {
+    "have": 5,
+    "hint": null,
+    "total": 5
+   },
+   {
+    "have": 5,
+    "hint": null,
+    "total": 5
+   },
+   {
+    "have": 5,
+    "hint": null,
+    "total": 5
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "formulas": [
+    {
+     "expr": "[net] / 2",
+     "format": "money",
+     "id": "f1",
+     "name": "Edge $"
+    },
+    {
+     "expr": "[net] / 1000",
+     "format": "percent",
+     "id": "f2",
+     "name": "Edge %"
+    },
+    {
+     "expr": "CountIf([net] > 100)",
+     "format": "number",
+     "id": "f3",
+     "name": "Big wins"
+    }
+   ],
+   "measures": [
+    {
+     "agg": "avg",
+     "formula": "f1"
+    },
+    {
+     "agg": "avg",
+     "formula": "f2"
+    },
+    {
+     "formula": "f3"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "key": "formula:f1",
+    "kind": "average",
+    "label": "Edge $",
+    "unit": "trades"
+   },
+   {
+    "fmt": "pct",
+    "key": "formula:f2",
+    "kind": "average",
+    "label": "Edge %",
+    "unit": "trades"
+   },
+   {
+    "fmt": "count",
+    "key": "formula:f3",
+    "kind": "count",
+    "label": "Big wins",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Edge $ (average), Edge % (average) and Big wins for closed trades over all time, all accounts. 5 trades.",
+  "title": "Edge $ (average), Edge % (average) and Big wins, all time",
+  "truncated": 0,
+  "value": {
+   "n": 5,
+   "n1": 5,
+   "n2": 5,
+   "n3": 5,
+   "s1": "small",
+   "s2": "small",
+   "s3": "",
+   "v1": 32.0,
+   "v2": 0.064,
+   "v3": 2.0
+  },
+  "view": "number"
+ },
+ "formula_r_rate": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 5,
+  "coverage": [
+   {
+    "have": 5,
+    "hint": null,
+    "total": 5
+   },
+   {
+    "have": 5,
+    "hint": null,
+    "total": 5
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "formulas": [
+    {
+     "expr": "[net] / 100",
+     "format": "r",
+     "id": "f1",
+     "name": "Edge R"
+    },
+    {
+     "expr": "[net] > 100",
+     "format": "number",
+     "id": "f2",
+     "name": "Big"
+    }
+   ],
+   "measures": [
+    {
+     "agg": "sum",
+     "formula": "f1"
+    },
+    {
+     "agg": "share",
+     "formula": "f2"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "r",
+    "key": "formula:f1",
+    "kind": "sum",
+    "label": "Edge R",
+    "unit": "trades"
+   },
+   {
+    "fmt": "pct",
+    "key": "formula:f2",
+    "kind": "rate",
+    "label": "Big",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Edge R (total) and Big (share) for closed trades over all time, all accounts. 5 trades.",
+  "title": "Edge R (total) and Big (share), all time",
+  "truncated": 0,
+  "value": {
+   "n": 5,
+   "n1": 5,
+   "n2": 5,
+   "n3": null,
+   "s1": "",
+   "s2": "small",
+   "s3": null,
+   "v1": 3.2,
+   "v2": 0.4,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "line_cumulative": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 8,
+  "coverage": [
+   {
+    "have": 8,
+    "hint": null,
+    "total": 8
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "cumulative": true,
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": {
+    "by": "day",
+    "then": null
+   },
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "line"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [
+   {
+    "d1": 300.0,
+    "d2": null,
+    "d3": null,
+    "dd1": 0.0,
+    "flagged": false,
+    "label": "2026-03-02",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 300.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "d1": -100.0,
+    "d2": null,
+    "d3": null,
+    "dd1": -100.0,
+    "flagged": false,
+    "label": "2026-03-03",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 200.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "d1": -250.0,
+    "d2": null,
+    "d3": null,
+    "dd1": -350.0,
+    "flagged": false,
+    "label": "2026-03-04",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": -50.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "d1": 120.0,
+    "d2": null,
+    "d3": null,
+    "dd1": -230.0,
+    "flagged": false,
+    "label": "2026-03-05",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 70.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "d1": 400.0,
+    "d2": null,
+    "d3": null,
+    "dd1": 0.0,
+    "flagged": false,
+    "label": "2026-03-06",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 470.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "d1": -80.0,
+    "d2": null,
+    "d3": null,
+    "dd1": -80.0,
+    "flagged": false,
+    "label": "2026-03-09",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 390.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "d1": -60.0,
+    "d2": null,
+    "d3": null,
+    "dd1": -140.0,
+    "flagged": false,
+    "label": "2026-03-10",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 330.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "d1": 50.0,
+    "d2": null,
+    "d3": null,
+    "dd1": -90.0,
+    "flagged": false,
+    "label": "2026-03-11",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 380.0,
+    "v2": null,
+    "v3": null
+   }
+  ],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Net P&L, split by day, for closed trades over all time, all accounts. 8 trades.",
+  "title": "Net P&L by day, all time",
+  "truncated": 0,
+  "value": {
+   "n": 8,
+   "n1": 8,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 380.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "line"
+ },
+ "line_plain": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 8,
+  "coverage": [
+   {
+    "have": 8,
+    "hint": null,
+    "total": 8
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": {
+    "by": "day",
+    "then": null
+   },
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "line"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [
+   {
+    "flagged": false,
+    "label": "2026-03-02",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 300.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "2026-03-03",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": -100.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "2026-03-04",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": -250.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "2026-03-05",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 120.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "2026-03-06",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 400.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "2026-03-09",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": -80.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "2026-03-10",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": -60.0,
+    "v2": null,
+    "v3": null
+   },
+   {
+    "flagged": false,
+    "label": "2026-03-11",
+    "label2": null,
+    "n": 1,
+    "n1": 1,
+    "n2": null,
+    "n3": null,
+    "s1": "",
+    "s2": null,
+    "s3": null,
+    "v1": 50.0,
+    "v2": null,
+    "v3": null
+   }
+  ],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Net P&L, split by day, for closed trades over all time, all accounts. 8 trades.",
+  "title": "Net P&L by day, all time",
+  "truncated": 0,
+  "value": {
+   "n": 8,
+   "n1": 8,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 380.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "line"
+ },
+ "number_drawdown_empty": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 0,
+  "coverage": [
+   {
+    "have": 0,
+    "hint": null,
+    "total": 0
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": "No closed trades in this range. Widen the range, or log a trade.",
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown for closed trades over all time, all accounts. 0 trades.",
+  "title": "Max drawdown, all time",
+  "truncated": 0,
+  "value": {
+   "n": 0,
+   "n1": 0,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 0.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "number_drawdown_none": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "drawdown": {
+   "line": "No drawdown in this range.",
+   "peak": null,
+   "recovered": null,
+   "trough": null
+  },
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown for closed trades over all time, all accounts. 3 trades.",
+  "title": "Max drawdown, all time",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 0.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "number_drawdown_open": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 8,
+  "coverage": [
+   {
+    "have": 8,
+    "hint": null,
+    "total": 8
+   },
+   {
+    "have": 8,
+    "hint": null,
+    "total": 8
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    },
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "drawdown": {
+   "line": "From Mar 2 to Mar 4; recovered Mar 6.",
+   "peak": "2026-03-02",
+   "recovered": "2026-03-06",
+   "trough": "2026-03-04"
+  },
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   },
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown and Net P&L for closed trades over all time, all accounts. 8 trades.",
+  "title": "Max drawdown and Net P&L, all time",
+  "truncated": 0,
+  "value": {
+   "n": 8,
+   "n1": 8,
+   "n2": 8,
+   "n3": null,
+   "s1": "",
+   "s2": "",
+   "s3": null,
+   "v1": -350.0,
+   "v2": 380.0,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "number_drawdown_recovered": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 7,
+  "coverage": [
+   {
+    "have": 7,
+    "hint": null,
+    "total": 7
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "drawdown": {
+   "line": "From Mar 3 to Mar 5; recovered Mar 9.",
+   "peak": "2026-03-03",
+   "recovered": "2026-03-09",
+   "trough": "2026-03-05"
+  },
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown for closed trades over all time, all accounts. 7 trades.",
+  "title": "Max drawdown, all time",
+  "truncated": 0,
+  "value": {
+   "n": 7,
+   "n1": 7,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -120.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "number_drawdown_start": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "drawdown": {
+   "line": "From the start of this range to Mar 3; recovered Mar 4.",
+   "peak": null,
+   "recovered": "2026-03-04",
+   "trough": "2026-03-03"
+  },
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown for closed trades over all time, all accounts. 3 trades.",
+  "title": "Max drawdown, all time",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -70.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "number_drawdown_w10_off": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 7,
+  "coverage": [
+   {
+    "have": 7,
+    "hint": null,
+    "total": 7
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "max_drawdown"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 1,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "extreme",
+    "label": "Max drawdown",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Max drawdown for closed trades over all time, all accounts. 7 trades.",
+  "title": "Max drawdown, all time",
+  "truncated": 0,
+  "value": {
+   "n": 7,
+   "n1": 7,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -120.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "progress_goal": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 1,
+  "coverage": [
+   {
+    "have": 1,
+    "hint": null,
+    "total": 1
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "targetGoal": true,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "token": "this_week"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "progress"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [
+   "1 account has no weekly goal and is not in the target."
+  ],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "This week",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Net P&L for closed trades this week, all accounts. 1 trade.",
+  "target": 1000.0,
+  "targetLabel": "Weekly goal",
+  "title": "Net P&L, this week",
+  "truncated": 0,
+  "value": {
+   "n": 1,
+   "n1": 1,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 300.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "progress"
+ },
+ "progress_goal_missing": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 1,
+  "coverage": [
+   {
+    "have": 1,
+    "hint": null,
+    "total": 1
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "targetGoal": true,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "token": "ytd"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "progress"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": "Set a yearly goal in your account settings to see progress.",
+  "points": [],
+  "range": null,
+  "rangeLabel": "Year to date",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Net P&L for closed trades so far this year, all accounts. 1 trade.",
+  "target": null,
+  "targetLabel": "Yearly goal",
+  "title": "Net P&L, year to date",
+  "truncated": 0,
+  "value": {
+   "n": 1,
+   "n1": 1,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 300.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "progress"
+ },
+ "progress_goal_sample": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 6,
+  "coverage": [
+   {
+    "have": 6,
+    "hint": null,
+    "total": 6
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "targetGoal": true,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "net_pnl"
+    }
+   ],
+   "range": {
+    "token": "this_week"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "progress"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "money",
+    "kind": "sum",
+    "label": "Net P&L",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "This week",
+  "rows": [],
+  "sample": true,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "mixed",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "Net P&L for closed trades this week, all accounts. 6 trades.",
+  "target": null,
+  "targetLabel": "Weekly goal",
+  "title": "Net P&L, this week",
+  "truncated": 0,
+  "value": {
+   "n": 6,
+   "n1": 6,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -338.01,
+   "v2": null,
+   "v3": null
+  },
+  "view": "progress"
+ },
+ "scatter_excursion": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 5,
+  "coverage": [
+   {
+    "have": 5,
+    "hint": null,
+    "total": 5
+   },
+   {
+    "have": 5,
+    "hint": null,
+    "total": 5
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "quadrants": "excursion",
+    "showN": true,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "formulas": [
+    {
+     "expr": "Abs([mae_r])",
+     "format": "r",
+     "id": "f1",
+     "name": "MAE"
+    },
+    {
+     "expr": "[mfe_r]",
+     "format": "r",
+     "id": "f2",
+     "name": "MFE"
+    }
+   ],
+   "measures": [
+    {
+     "agg": "avg",
+     "formula": "f1"
+    },
+    {
+     "agg": "avg",
+     "formula": "f2"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "scatter"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "r",
+    "key": "formula:f1",
+    "kind": "average",
+    "label": "MAE",
+    "unit": "trades"
+   },
+   {
+    "fmt": "r",
+    "key": "formula:f2",
+    "kind": "average",
+    "label": "MFE",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [
+   {
+    "d": "2026-03-02",
+    "r": "win",
+    "x": 0.4,
+    "y": 2.5
+   },
+   {
+    "d": "2026-03-03",
+    "r": "loss",
+    "x": 1.2,
+    "y": 0.3
+   },
+   {
+    "d": "2026-03-04",
+    "r": "win",
+    "x": 1.1,
+    "y": 2.0
+   },
+   {
+    "d": "2026-03-05",
+    "r": "be",
+    "x": 0.3,
+    "y": 0.2
+   },
+   {
+    "d": "2026-03-06",
+    "r": "win",
+    "x": 1.0,
+    "y": 1.0
+   }
+  ],
+  "quadrants": "excursion",
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "summary": "MAE (average) and MFE (average) for closed trades over all time, all accounts. 5 trades.",
+  "title": "MAE (average) and MFE (average), all time",
+  "truncated": 0,
+  "value": {
+   "n": 5,
+   "n1": 5,
+   "n2": 5,
+   "n3": null,
+   "s1": "small",
+   "s2": "small",
+   "s3": null,
+   "v1": 0.8,
+   "v2": 1.2,
+   "v3": null
+  },
+  "view": "scatter"
+ },
+ "stop_empty": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 0,
+  "coverage": [
+   {
+    "have": 0,
+    "hint": null,
+    "total": 0
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 3,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": "No closed trades in this range. Widen the range, or log a trade.",
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": null,
+  "summary": "Current streak for closed trades over all time, all accounts. 0 trades.",
+  "title": "Current streak, all time",
+  "truncated": 0,
+  "value": {
+   "n": 0,
+   "n1": 0,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": null,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "stop_hit": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 4,
+  "coverage": [
+   {
+    "have": 4,
+    "hint": null,
+    "total": 4
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 3,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": {
+   "after": 3,
+   "line": "3 of your 3 losses in a row. Your rule says stop here.",
+   "losses": 3
+  },
+  "summary": "Current streak for closed trades over all time, all accounts. 4 trades.",
+  "title": "Current streak, all time",
+  "truncated": 0,
+  "value": {
+   "n": 4,
+   "n1": 4,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -3.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "stop_none": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 3,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": {
+   "after": 3,
+   "line": "No losses in a row.",
+   "losses": null
+  },
+  "summary": "Current streak for closed trades over all time, all accounts. 3 trades.",
+  "title": "Current streak, all time",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": 1.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ },
+ "stop_under": {
+  "accountId": null,
+  "asOf": "2026-10-24T15:30:00Z",
+  "capped": false,
+  "cells": [],
+  "compare": null,
+  "compareLabel": null,
+  "count": 3,
+  "coverage": [
+   {
+    "have": 3,
+    "hint": null,
+    "total": 3
+   }
+  ],
+  "def": {
+   "accounts": "all",
+   "compare": null,
+   "display": {
+    "accent": "gold",
+    "showN": true,
+    "stopAfter": 3,
+    "subtitle": "",
+    "target": null,
+    "title": "",
+    "titleAuto": true
+   },
+   "filters": [],
+   "measures": [
+    {
+     "key": "current_streak"
+    }
+   ],
+   "range": {
+    "token": "all"
+   },
+   "sort": null,
+   "source": "closed_trades",
+   "split": null,
+   "v": 3,
+   "view": {
+    "auto": true,
+    "type": "number"
+   }
+  },
+  "defId": null,
+  "defRev": null,
+  "empty": null,
+  "filter": null,
+  "footnotes": [],
+  "latestRev": null,
+  "measures": [
+   {
+    "fmt": "signed_count",
+    "kind": "extreme",
+    "label": "Current streak",
+    "unit": "trades"
+   }
+  ],
+  "notice": null,
+  "points": [],
+  "range": null,
+  "rangeLabel": "All time",
+  "rows": [],
+  "sample": false,
+  "scopeLabel": "All my accounts",
+  "series": [],
+  "source": "manual",
+  "sourceDetail": "Your closed trades in the Journal.",
+  "sourceKey": "closed_trades",
+  "stop": {
+   "after": 3,
+   "line": "2 of your 3 losses in a row",
+   "losses": 2
+  },
+  "summary": "Current streak for closed trades over all time, all accounts. 3 trades.",
+  "title": "Current streak, all time",
+  "truncated": 0,
+  "value": {
+   "n": 3,
+   "n1": 3,
+   "n2": null,
+   "n3": null,
+   "s1": "",
+   "s2": null,
+   "s3": null,
+   "v1": -2.0,
+   "v2": null,
+   "v3": null
+  },
+  "view": "number"
+ }
+}

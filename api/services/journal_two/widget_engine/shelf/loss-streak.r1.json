@@ -1,0 +1,35 @@
+{
+  "id": "shelf:loss-streak",
+  "rev": 1,
+  "name": "Loss streak",
+  "description": "Your current streak, your longest loss streak and your longest win streak.",
+  "keywords": [
+    "streak",
+    "losing streak",
+    "tilt",
+    "in a row"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "all"
+    },
+    "measures": [
+      {
+        "key": "current_streak"
+      },
+      {
+        "key": "max_loss_streak"
+      },
+      {
+        "key": "max_win_streak"
+      }
+    ],
+    "display": {
+      "title": "Loss streak",
+      "titleAuto": false,
+      "accent": "red"
+    }
+  }
+}

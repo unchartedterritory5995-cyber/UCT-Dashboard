@@ -1,0 +1,137 @@
+{
+ "viewport": "820",
+ "step": "W8.8",
+ "title": "edit a widget used in two notes and answer both ways",
+ "checks": [
+  {
+   "what": "the firm's example row is marked Example and the member's own row Yours",
+   "ok": true,
+   "read": "[\"Daily P&L bars ExampleOne bar for each day you traded, last 30 days.\", \"Daily P&L bars YoursNet P&L, split by day, for closed trades in the last 30 days, all accounts.\"]"
+  },
+  {
+   "what": "the same widget is placed in a second note",
+   "ok": true,
+   "read": "n2=53a6b8c3-3b8f-4da6-aa8b-923f39a9de8d def1=53a6b8c3-3b8f-4da6-aa8b-923f39a9de8d"
+  },
+  {
+   "what": "Update all 2 notes was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the one widget took the new name",
+   "ok": true,
+   "read": "Daily P&L bars (walk)"
+  },
+  {
+   "what": "both notes still point at the one widget",
+   "ok": true,
+   "read": "n1=53a6b8c3-3b8f-4da6-aa8b-923f39a9de8d n2=53a6b8c3-3b8f-4da6-aa8b-923f39a9de8d"
+  },
+  {
+   "what": "Save as a new widget was saved",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "this note now uses a new widget; the other note keeps the old one",
+   "ok": true,
+   "read": "n2=ade056d7-4352-4426-bc8b-f2fceb3bc0d9 n1=53a6b8c3-3b8f-4da6-aa8b-923f39a9de8d def1=53a6b8c3-3b8f-4da6-aa8b-923f39a9de8d"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "typed /Daily P&L options",
+   "text": "{\"text\": [\"Daily P&L bars Example\\nOne bar for each day you traded, last 30 days.\", \"Daily P&L bars Yours\\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\"], \"names\": [\"Daily P&L bars ExampleOne bar for each day you traded, last 30 days.\", \"Daily P&L bars YoursNet P&L, split by day, for closed trades in the last 30 days, all accounts.\"], \"aria\": \"- listbox \\\"Insert block\\\":\\n  - option \\\"Daily P&L bars Example One bar for each day you traded, last 30 days.\\\" [selected]\\n  - option \\\"Daily P&L bars Yours Net P&L, split by day, for closed trades in the last 30 days, all accounts.\\\"\"}"
+  },
+  {
+   "what": "save question (answering Update all 2 notes)",
+   "text": "is widget is in 2 notes.\n\nUpdate all 2 notes\nEach note shows the new version the next time you press See it now.\nSave as a new widget\nOnly this note changes. The other notes keep the widget as it was.\nUpdate all 2 notes\nPREVIEW\n\nDaily P&L bars (walk)\n\nAll my accounts · Last 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\nShow as table\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades.\n\nUndo\nRedo\nSave"
+  },
+  {
+   "what": "definition after Update all",
+   "text": "{\"name\": \"Daily P&L bars (walk)\", \"rev\": 2, \"usedIn\": 2}"
+  },
+  {
+   "what": "save question (answering Save as a new widget)",
+   "text": "dget is in 2 notes.\n\nUpdate all 2 notes\nEach note shows the new version the next time you press See it now.\nSave as a new widget\nOnly this note changes. The other notes keep the widget as it was.\nUpdate all 2 notes\nPREVIEW\n\nDaily P&L bars (this note)\n\nAll my accounts · Last 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\nShow as table\n\nNet P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades.\n\nUndo\nRedo\nSave"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 81,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 4,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "820/W8_8-main.png"
+ ]
+}

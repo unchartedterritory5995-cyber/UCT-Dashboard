@@ -45,6 +45,9 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  *     position's pre-entry PUT and the closed trade's adherence PUT; the body file writes nothing);
  *   · Task 10 — its block body's one named write;
  *   · P2b Task 8 — lib/blocks/rulesApi.js, the rule edit (a rule's words, its note, its before-entry switch).
+ *   · Wave 9 Task 9.12 — lib/blocks/toolsApi.js, its five named calls (the routine and tracker batch reads, a tick,
+ *     a skip, a logged value); Task 9.13 fix round 1 (ruling W9-R31) adds its two restores (routine, tracker), so
+ *     seven. The routine block itself makes no request at all (RoutineBlock.test.jsx rails that).
  * Never a whole file, never a note URL (the last case below refuses both).
  */
 export const WRITE_EXCEPTIONS = {
@@ -62,6 +65,24 @@ export const WRITE_EXCEPTIONS = {
   'app/src/pages/journal-2-0/lib/blocks/rulesApi.js': [
     { method: 'PUT', url: '/api/j2/trader-blocks/rules/{}',
       why: 'Writes j2_journal_rules and j2_journal_rule_versions (part b Task 3), never a note.' },
+  ],
+  // Wave 9 Task 9.12: the routine and tracker client. Five calls, each a literal method and URL template.
+  'app/src/pages/journal-2-0/lib/blocks/toolsApi.js': [
+    { method: 'POST', url: '/api/j2/routines/days',
+      why: 'A read sent as POST so ids never reach a query string; it writes nothing, and never a note.' },
+    { method: 'PUT', url: '/api/j2/routines/{}/days/{}/items/{}',
+      why: 'Writes one tick to the routine day-tick table (j2_routine_ticks); never a note.' },
+    { method: 'PUT', url: '/api/j2/routines/{}/days/{}',
+      why: "Writes a routine day's skip to the routine skips table (j2_routine_days); never a note." },
+    { method: 'POST', url: '/api/j2/trackers/days',
+      why: 'A read sent as POST so ids never reach a query string; it writes nothing, and never a note.' },
+    { method: 'PUT', url: '/api/j2/trackers/{}/days/{}',
+      why: 'Writes one value to the tracker values table (j2_tracker_values); never a note.' },
+    // Task 9.13 fix round 1 (W9-R31): Restore, from an archived block's ⋯ menu.
+    { method: 'POST', url: '/api/j2/routines/{}/unarchive',
+      why: "Clears the routine's archived stamp in j2_routines (the routine's own row); never a note." },
+    { method: 'POST', url: '/api/j2/trackers/{}/unarchive',
+      why: "Clears the tracker's archived stamp in j2_trackers (the tracker's own row); never a note." },
   ],
 }
 
@@ -108,6 +129,23 @@ export const IMPORT_ALLOW = {
   // P2 Tier 3 Task 3 (ruling R-T3-V2): the check-in's day is todayET, the Journal's ONE Intl-based ET
   // date (never local time, and never lib/tradeCanvas's second copy). calendar.js has no imports.
   'app/src/pages/journal-2-0/lib/calendar': "todayET: the ET date of the check-in's first pick; pure date math over Intl, no imports, no network, no writes",
+  // Wave 9 Task 9.13 (the routine block): its ⋯ menu and icons, and the two doors that menu opens. Each door is a
+  // DYNAMIC import, its own lazy chunk, reached only when the member picks it (never on the Notebook's first open).
+  'app/src/components/mobile/ContextPopover': "the app's ONE action menu (an anchored menu, a bottom sheet on touch); UI only, no network, no writes",
+  'app/src/components/ui/UIcon': "the app's icon set (inline SVG); no imports beyond React, no network, no writes",
+  'app/src/pages/journal-2-0/components/notebook/routines/openRoutineEditor': "the routine editor's door (Task 9.16), a lazy import from the ⋯ menu; the editor writes the routine's own row through lib/toolsCrud, never a note",
+  // Task 9.16 fix round 1 (ruling W9-R47): the tracker block's "Edit tracker", the same lazy door for a tracker.
+  'app/src/pages/journal-2-0/components/notebook/routines/openTrackerEditor': "the tracker editor's door (Task 9.16), a lazy import from the ⋯ menu, editors only; the editor writes the tracker's own row through lib/toolsCrud, never a note",
+  // Task 9.13 fix round 1: the ⋯ button names what opens (M-9: a menu, or a sheet on touch, ContextPopover's own
+  // test), and the day a `next-trading-day` or `week` block reads (W9-R33) comes from the shared market calendar.
+  'app/src/hooks/useBreakpoint': "useIsTouch, the same media query ContextPopover reads to pick a menu or a sheet; no network, no writes",
+  'app/src/lib/marketClock/sessionCalendar': "isTradingDay over the ONE market calendar the server reads too (market_calendar.json); pure, no network, no writes",
+  'app/src/pages/journal-2-0/components/notebook/myTools/openMyTools': "My tools' door (Task 8.17), a lazy import from the ⋯ menu's Manage…, opened on the Routines tab; My tools never writes into a note",
+  // Wave 9 Task 9.14 (the tracker block): its chart's width is the built views' ONE measure, whose hysteresis stops a
+  // ResizeObserver loop (rule H14), so the block writes no observer of its own.
+  'app/src/pages/journal-2-0/components/notebook/widgets/builtViews/svg': "useChartWidth and the scale helpers of the built widget views (inline-SVG layout math and one ResizeObserver); no network, no writes",
+  // Wave 10 Task 10.20 (the position size calculator): with wave 10 off it says "Not available right now."
+  'app/src/pages/journal-2-0/lib/notebookWidgetsFlags': 'widgetsWaveOn: the calculator makes no request, so it learns the wave from the latched flag',
 }
 
 /**
@@ -889,5 +927,31 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'PUT' })", ex)).toEqual([])
     expect(problemsIn(f, "fetch(`/api/j2/notes/${id}`, { method: 'PUT' })", ex)).toEqual([`WRITE ${f}: PUT /api/j2/notes/{}`])
     expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'DELETE' })", ex)).toHaveLength(1)
+  })
+  it("CONTROL — toolsApi.js's seven calls (Task 9.12's five, 9.13's two restores): the real toolsApi.js is clean as listed, and each entry removed fails BY NAME", () => {
+    const f = 'app/src/pages/journal-2-0/lib/blocks/toolsApi.js'
+    const src = readFileSync(join(REPO, f), 'utf8')
+    const listed = WRITE_EXCEPTIONS[f]
+    expect(listed.map((e) => `${e.method} ${e.url}`)).toEqual([
+      'POST /api/j2/routines/days', 'PUT /api/j2/routines/{}/days/{}/items/{}', 'PUT /api/j2/routines/{}/days/{}',
+      'POST /api/j2/trackers/days', 'PUT /api/j2/trackers/{}/days/{}',
+      'POST /api/j2/routines/{}/unarchive', 'POST /api/j2/trackers/{}/unarchive',
+    ])
+    expect(problemsIn(f, src)).toEqual([])
+    for (const gone of listed) {
+      const without = { [f]: listed.filter((e) => e !== gone) }
+      expect(problemsIn(f, src, without), `${gone.method} ${gone.url} removed`).toEqual([`WRITE ${f}: ${gone.method} ${gone.url}`])
+    }
+    // ...and with none listed, the file's writes are exactly those seven, so the list is neither short nor long.
+    expect([...new Set(problemsIn(f, src, {}))].sort()).toEqual(listed.map((e) => `WRITE ${f}: ${e.method} ${e.url}`).sort())
+    expect(listed.every((e) => exceptionProblems(e).length === 0)).toBe(true)
+  })
+  it("CONTROL — toolsApi.js's exceptions are per file: the same calls in another block file are refused", () => {
+    const g = 'app/src/pages/journal-2-0/lib/blocks/toolDays.js'
+    expect(problemsIn(g, "fetch(`/api/j2/routines/${r}/days/${d}`, { method: 'PUT' })"))
+      .toEqual([`WRITE ${g}: PUT /api/j2/routines/{}/days/{}`])
+    const f = 'app/src/pages/journal-2-0/lib/blocks/toolsApi.js'
+    expect(problemsIn(f, "fetch(`/api/j2/routines/${r}/days/${d}`, { method: 'DELETE' })")).toHaveLength(1)
+    expect(problemsIn(f, "fetch('/api/j2/routines/days', { method: 'PUT' })")).toHaveLength(1)
   })
 })

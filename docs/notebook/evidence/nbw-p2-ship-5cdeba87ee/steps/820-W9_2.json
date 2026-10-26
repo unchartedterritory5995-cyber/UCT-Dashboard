@@ -1,0 +1,94 @@
+{
+ "viewport": "820",
+ "step": "W9.2",
+ "title": "the same note in a second tab, tick a third item: both tabs show all three",
+ "checks": [
+  {
+   "what": "the second tab shows all three",
+   "ok": true,
+   "read": "[\"true\", \"true\", \"true\", \"false\", \"false\"]"
+  },
+  {
+   "what": "the first tab shows all three, without a reload",
+   "ok": true,
+   "read": "[\"true\", \"true\", \"true\", \"false\", \"false\"]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "first tab",
+   "text": "[\"true\", \"true\", \"true\", \"false\", \"false\"]"
+  },
+  {
+   "what": "second tab",
+   "text": "[\"true\", \"true\", \"true\", \"false\", \"false\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [],
+  "second-tab": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 77,
+   "small": [
+    {
+     "label": "Folder",
+     "tag": "SELECT",
+     "w": 88,
+     "h": 31
+    },
+    {
+     "label": "Note title",
+     "tag": "INPUT",
+     "w": 378,
+     "h": 34
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 3,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "820/W9_2-main.png",
+  "820/W9_2-second-tab.png"
+ ]
+}

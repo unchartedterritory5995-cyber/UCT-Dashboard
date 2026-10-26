@@ -1,0 +1,222 @@
+{
+ "viewport": "1200",
+ "step": "W9.7",
+ "title": "reminder on for the next 5-minute slot: one bell item, then none at the next slot",
+ "checks": [
+  {
+   "what": "the reminder was saved (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200 slot 17:40"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "reminder lines",
+   "text": "Remind me\nReminder time (ET)\n0:00\n0:05\n0:10\n0:15\n0:20\n0:25\n0:30\n0:35\n0:40\n0:45\n0:50\n0:55\n1:00\n1:05\n1:10\n1:15\n1:20\n1:25\n1:30\n1:35\n1:40\n1:45\n1:50\n1:55\n2:00\n2:05\n2:10\n2:15\n2:20\n2:25\n2:30\n2:35\n2:40\n2:45\n2:50\n2:55\n3:00\n3:05\n3:10\n3:15\n3:20\n3:25\n3:30\n3:35\n3:40\n3:45\n3:50\n3:55\n4:00\n4:05\n4:10\n4:15\n4:20\n4:25\n4:30\n4:35\n4:40\n4:45\n4:50\n4:55\n5:00\n5:05\n5:10\n5:15\n5:20\n5:25\n5:30\n5:35\n5:40\n5:45\n5:50\n5:55\n6:00\n6:05\n6:10\n6:15\n6:20\n6:25\n6:30\n6:35\n6:40\n6:45\n6:50\n6:55\n7:00\n7:05\n7:10\n7:15\n7:20\n7:25\n7:30\n7:35\n7:40\n7:45\n7:50\n7:55\n8:00\n8:05\n8:10\n8:15\n8:20\n8:25\n8:30\n8:35\n8:40\n8:45\n8:50\n8:55\n9:00\n9:05\n9:10\n9:15\n9:20\n9:25\n9:30\n9:35\n9:40\n9:45\n9:50\n9:55\n10:00\n10:05\n10:10\n10:15\n10:20\n10:25\n10:30\n10:35\n10:40\n10:45\n10:50\n10:55\n11:00\n11:05\n11:10\n11:15\n11:20\n11:25\n11:30\n11:35\n11:40\n11:45\n11:50\n11:55\n12:00\n12:05\n12:10\n12:15\n12:20\n12:25\n12:30\n12:35\n12:40\n12:45\n12:50\n12:55\n13:00\n13:05\n13:10\n13:15\n13:20\n13:25\n13:30\n13:35\n13:40\n13:45\n13:50\n13:55\n14:00\n14:05\n14:10\n14:15\n14:20\n14:25\n14:30\n14:35\n14:40\n14:45\n14:50\n14:55\n15:00\n15:05\n15:10\n15:15\n15:20\n15:25\n15:30\n15:35\n15:40\n15:45\n15:50\n15:55\n16:00\n16:05\n16:10\n16:15\n16:20\n16:25\n16:30\n16:35\n16:40\n16:45\n16:50\n16:55\n17:00\n17:05\n17:10\n17:15\n17:20\n17:25\n17:30\n17:35\n17:40\n17:45\n17:50\n17:55\n18:00\n18:05\n18:10\n18:15\n18:20\n18:25\n18:30\n18:35\n18:40\n18:45\n18:50\n18:55\n19:00\n19:05\n19:10\n19:15\n19:20\n19:25\n19:30\n19:35\n19:40\n19:45\n19:50\n19:55\n20:00\n20:05\n20:10\n20:15\n20:20\n20:25\n20:30\n20:35\n20:40\n20:45\n20:50\n20:55\n21:00\n21:05\n21:10\n21:15\n21:20\n21:25\n21:30\n21:35\n21:40\n21:45\n21:50\n21:55\n22:00\n2"
+  },
+  {
+   "what": "bell items now",
+   "text": "[]"
+  }
+ ],
+ "verdict": "INCONCLUSIVE",
+ "error": "INCONCLUSIVE: a reminder has no slot on a non-session day (routine_reminders.slot_for), and today (2026-10-25) is not a session: the bell item cannot fire here. The reminder was turned on for 17:40 ET and saved; one bell item, then none, needs a weekday run",
+ "events": {
+  "main": [],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 102,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Log Trade",
+     "tag": "BUTTON",
+     "w": 112,
+     "h": 32
+    },
+    {
+     "label": "Show keyboard shortcuts",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 32
+    }
+   ],
+   "smallCount": 74,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W9_7-main.png",
+  "1200/W9_7-second-tab.png"
+ ],
+ "page_text": {
+  "main": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nWidgets walk 1200\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nSwing book\n$24,800.00\n▾\nNotebook\nFolder navigation\nRECENTS\nRoutine walk 1200\nWidgets walk 1200 (second note)\nWidgets walk 1200\nAdd thesis starter views\nAll notes\n3\nUnfiled\n3\nArchived\n0\nTrash\n0\n+ New folder\nRoutine walk 1200\nEditor toolbar\nAsk this note\nFind\nShare\nUnfiled\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n• List\n1. List\n❝\n</>\n―\n⊞ Insert\nNot reviewed\nDetails\n\n\n\n\nRoutine\nRemove\n\nFor Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkip this day\nP&L on days you finished it\n\nPre-market, then the open.\n\nTracker\nRemove\n\nFor Sun Oct 25\n7h 30m\n\nAverage 7h 30m from 1 entry\n\nLatest 7h 30m (Sun Oct 25)\n\nShow as table\nCompare with P&L\n\n\n\n\nTracker\nRemove\n\nFor Sun Oct 25\n\nMood and focus come from your check-ins.\n\nCompare with P&L\n\n\n\n\n?\n◉\n⋮",
+  "second-tab": "Skip to main content\nSkip to note\nSkip to folder navigation\nSkip to editor toolbar\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nWidgets walk 1200\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nSwing book\n$24,800.00\n▾\nNotebook\nFolder navigation\nRECENTS\nRoutine walk 1200\nWidgets walk 1200 (second note)\nWidgets walk 1200\nAdd thesis starter views\nAll notes\n3\nUnfiled\n3\nArchived\n0\nTrash\n0\n+ New folder\nRoutine walk 1200\nEditor toolbar\nAsk this note\nFind\nShare\nUnfiled\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n• List\n1. List\n❝\n</>\n―\n⊞ Insert\nNot reviewed\nDetails\n\n\n\n\nRoutine\nRemove\n\nFor Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n3 of 5\n\nSkip this day\nP&L on days you finished it\n\nPre-market, then the open.\n\n?\n◉\n⋮"
+ }
+}

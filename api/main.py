@@ -228,6 +228,9 @@ from api.routers import fundamentals_pit as fundamentals_pit_router
 from api.routers import analyst as analyst_router
 from api.routers import portfolio_heat as portfolio_heat_router
 from api.routers import notebook_widgets as notebook_widgets_router
+from api.routers import notebook_widget_definitions as notebook_widget_definitions_router
+from api.routers import notebook_shelf_widgets as notebook_shelf_widgets_router
+from api.routers import notebook_routines as notebook_routines_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
 from api.routers import expected_move as expected_move_router
@@ -9384,6 +9387,14 @@ async def lifespan(app: FastAPI):
                 print("[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)")
         except Exception as e:
             print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
+        # Notebook widgets wave 9 (Task 9.9): optional routine reminders, one bell per routine per
+        # ET day. Wave 9's flag is read at every RUN, never here. In-app bell only.
+        try:
+            from api.services.journal_two import routine_reminders as _j2_routine_reminders
+            if _j2_routine_reminders.register_routine_reminder_job(_scheduler):
+                print("[startup] notebook routine reminders registered (every 5 min ET; inert unless wave 9 is on)")
+        except Exception as e:
+            print(f"[startup] notebook routine reminders registration failed (non-fatal): {e}")
         # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
         # 18:00 ET mon-fri and a one-shot boot catch-up; NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED (and the
         # journal styles switch) are read at every RUN, never here. In-app bell only.
@@ -10276,6 +10287,10 @@ app.include_router(marketcap_pit_router.router)  # Market Cap V1 PIT member API;
 app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
 app.include_router(notebook_widgets_router.router)  # GET /api/j2/notebook-widgets/{kind}, dark per wave
+app.include_router(notebook_widget_definitions_router.router)  # /api/j2/widget-definitions/*, dark until wave 8
+app.include_router(notebook_shelf_widgets_router.router)  # POST /api/j2/notebook-shelf-widgets/{kind}, dark until wave 10
+app.include_router(notebook_routines_router.routines_router)  # /api/j2/routines/*, dark until wave 9
+app.include_router(notebook_routines_router.trackers_router)  # /api/j2/trackers/*, dark until wave 9
 app.include_router(filings_router.router, dependencies=_OPEN_READS)
 app.include_router(research_router.router, dependencies=_OPEN_READS)
 # TERM-049: the per-ticker history join (Research > History), dark behind TICKER_HISTORY_ENABLED.

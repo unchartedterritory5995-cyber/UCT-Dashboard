@@ -1111,6 +1111,20 @@ def test_wave2_param_keys_are_the_ones_the_builders_emit():
     assert pnp.EMBED_PARAM_KEYS["myMistakes"] == ("asOf", "source", "rows", "empty", "share", "truncated", "tooLarge")
 
 
+def _optin_account_kinds() -> list[str]:
+    """Task 10.14: the account kinds a member's `share` switch can show, i.e. "member-optin". `ACCOUNT_KINDS` also
+    holds the seven ready-made dedicated kinds (`shelf_kind_names.KINDS`), which are "private": always the neutral
+    line, with no EMBED_PARAM_KEYS row at all. Derived from both tables, never restated, and checked here: every
+    account kind is exactly one of the two."""
+    from api.services.journal_two import notebook_widgets as nw, shelf_kind_names
+    dedicated = set(shelf_kind_names.KINDS)
+    optin = sorted(nw.ACCOUNT_KINDS - dedicated)
+    assert dedicated <= nw.ACCOUNT_KINDS and len(optin) == 8                    # non-vacuity on both halves
+    assert {pnp.MARKET_DATA_VENDORS[("widgetEmbed", k)] for k in optin} == {"member-optin"}
+    assert {pnp.MARKET_DATA_VENDORS[("widgetEmbed", k)] for k in dedicated} == {"private"}
+    return optin
+
+
 def _cap_honesty_keys(kind: str) -> set[str]:
     """The keys notebook_widgets.cap_payload ITSELF adds to a `kind` payload, read off its real output (fix
     F1b, review M-4): the too-large form, a trimmed list, and (for a kind that publishes `mistakes`) a
@@ -1120,8 +1134,10 @@ def _cap_honesty_keys(kind: str) -> set[str]:
     added: set[str] = set()
     big = nw.cap_payload({**base, "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
     added |= set(big) - set(base) - {"blob"}
-    key = nw.LIST_KEY[kind]
-    trimmed = nw.cap_payload({**base, key: [{"pad": "x" * 2000} for _ in range(20)]}, kind)
+    # the built kind names its list by view at the call (payload.TRIM_BY_VIEW); every phase 1 kind by LIST_KEY
+    key = "rows" if kind == nw.BUILT_KIND else nw.LIST_KEY[kind]
+    trimmed = nw.cap_payload({**base, key: [{"pad": "x" * 2000} for _ in range(20)]}, kind,
+                             list_key=key if kind == nw.BUILT_KIND else None)
     added |= set(trimmed) - set(base) - {key}
     if "mistakes" in pnp.EMBED_ROW_KEYS.get(kind, {}):
         clipped = nw.cap_payload({**base, "mistakes": [f"m{i}" for i in range(nw.MISTAKES_MAX + 3)]}, kind)
@@ -1130,8 +1146,7 @@ def _cap_honesty_keys(kind: str) -> set[str]:
 
 
 def test_m4_every_cap_honesty_key_reaches_a_shown_account_widget():
-    from api.services.journal_two import notebook_widgets as nw
-    for kind in sorted(nw.ACCOUNT_KINDS):
+    for kind in _optin_account_kinds():
         added = _cap_honesty_keys(kind)
         assert {"tooLarge", "empty", "truncated"} <= added, (kind, added)     # control: the fixtures hit the cap
         assert added <= set(pnp.EMBED_PARAM_KEYS[kind]), (kind, added - set(pnp.EMBED_PARAM_KEYS[kind]))
@@ -1142,9 +1157,9 @@ def test_m4_every_cap_honesty_key_reaches_a_shown_account_widget():
 def test_m4_the_too_large_sentence_reaches_a_public_reader(mode):
     """A shown account widget whose data hit the cap is published WITH its sentence, never as a blank frame."""
     from api.services.journal_two import notebook_widgets as nw
-    for kind in sorted(nw.ACCOUNT_KINDS):
+    for kind in _optin_account_kinds():
         node = _widget(kind)
-        payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+        payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual", "sourceKey": "closed_trades",
                                   "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
         node["attrs"]["params"] = dict(payload, share=True)
         params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
@@ -1346,9 +1361,10 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
     from a shown widget; the table must name every one the account builders write."""
     structured = {"myPnlStats": {"range", "equity"}, "myPositionsRisk": {"rows"}, "myRulesCheck": {"range", "rules"},
                   "myMistakes": {"rows"}, "tradeRecap": {"bars", "mistakes"},
-                  "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"}}
+                  "myPnlCalendar": {"days", "best", "worst"}, "mySetupEdge": {"rows"},
+                  "builtWidget": {"measures", "value", "compare", "rows", "series", "points", "cells"}}
     from api.services.journal_two import notebook_widgets as nw
-    assert set(structured) == set(nw.ACCOUNT_KINDS) == set(pnp.EMBED_ROW_KEYS)
+    assert set(structured) == set(_optin_account_kinds()) == set(pnp.EMBED_ROW_KEYS)
     for kind, keys in structured.items():
         assert set(pnp.EMBED_ROW_KEYS[kind]) == keys, kind
         assert keys <= set(pnp.EMBED_PARAM_KEYS[kind]), kind
@@ -1362,7 +1378,7 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
 _R64_STORED = {
     "empty": "SENTENCE-empty", "failed": True, "sourceDetail": "SECRET-sourceDetail", "priceBasis": "broker",
     "earningsUnknown": True, "timingUnknown": True, "nextDayNote": "SECRET-nextDayNote", "tooLarge": True,
-    "mistakesTruncated": 3,
+    "mistakesTruncated": 3, "sourceKey": "closed_trades",
     "list": "SECRET-list", "from": "1999-01-01", "to": "1999-12-31", "symbol": "ZZQQ", "month": "1999-07",
     "range": {"from": "1999-01-01", "to": "1999-12-31"}, "definitionId": "u_0123456789ab", "tradeId": "SECRET-trade",
     "accountId": "SECRET-acct", "positionId": "SECRET-pos", "listId": "SECRET-listid", "watchKey": "SECRET-watch",
@@ -1377,7 +1393,7 @@ _R64_NEVER = {"list", "from", "to", "definitionId", "tradeId", "accountId", "pos
 def test_r64_the_never_keys_are_in_no_account_allowlist():
     from api.services.journal_two import notebook_widgets as nw
     assert set(nw.SETTING_KEYS) - {"symbol", "month"} <= _R64_NEVER         # control: every request key is covered
-    for kind in sorted(nw.ACCOUNT_KINDS):
+    for kind in _optin_account_kinds():
         assert not set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER, (kind, set(pnp.EMBED_PARAM_KEYS[kind]) & _R64_NEVER)
 
 
@@ -1385,8 +1401,12 @@ def test_r64_the_never_keys_are_in_no_account_allowlist():
 def test_r64_stored_request_and_provenance_keys_reach_a_public_page_only_through_the_allowlist(mode):
     """Every account kind with EVERY stored key set: share off is the neutral line and nothing else; share on
     publishes only that kind's EMBED_PARAM_KEYS, so a request key or sourceDetail/priceBasis reaches a stranger
-    only where the member-optin table already names that exact key."""
-    from api.services.journal_two import notebook_widgets as nw
+    only where the member-optin table already names that exact key.
+
+    Task 10.14: the seven dedicated kinds are account kinds too, and "private": share ON is the neutral line as
+    well, so a stored key can never reach a stranger through one of them."""
+    from api.services.journal_two import notebook_widgets as nw, shelf_kind_names
+    assert set(shelf_kind_names.KINDS) <= nw.ACCOUNT_KINDS                       # the seven are walked here too
     for kind in sorted(nw.ACCOUNT_KINDS):
         for share in (None, False, True):
             node = _widget(kind)
@@ -1394,7 +1414,7 @@ def test_r64_stored_request_and_provenance_keys_reach_a_public_page_only_through
                                            **({} if share is None else {"share": share}))
             out = reduce(doc(node), mode)
             blob = json.dumps(out)
-            if share is not True:
+            if share is not True or kind in shelf_kind_names.KINDS:
                 assert texts_in(out) == [ACCOUNT_LINE] and "widgetEmbed" not in types_in(out), (kind, share)
                 assert "SECRET" not in blob and "1999" not in blob and "ZZQQ" not in blob, (kind, share)
                 continue
@@ -1458,3 +1478,417 @@ def test_r60_the_positions_row_allowlist_is_the_builders_row_less_its_id(monkeyp
     for row in rows:
         assert set(row) - {"positionId"} == allowed, (row["kind"], set(row) ^ (allowed | {"positionId"}))
         assert "positionId" in row and "positionId" not in allowed
+
+
+# ── Notebook widgets phase 2 (Task 8.12): a built widget on a public page ──
+
+_BUILT_CANARIES = ("CANARY-DEF-9f1", "CANARY-SUMMARY-9f1", "CANARY-FILTER-9f1", "CANARY-ACCOUNT-9f1",
+                   "CANARY-SCOPE-9f1", "CANARY-FOOT-9f1", "CANARY-DETAIL-9f1", "CANARY-DEFID-9f1")
+_BUILT_NEVER = ("def", "defRef", "defId", "defRev", "latestRev", "summary", "scopeLabel", "filter", "accountId",
+                "range", "coverage", "sample", "footnotes", "sourceDetail")
+_VALUES = {"v1": 12.5, "v2": None, "v3": None, "n1": 7, "n2": None, "n3": None, "s1": "", "s2": "", "s3": "", "n": 7}
+
+
+def _built(share: Any = True) -> dict:
+    node = _widget("builtWidget")
+    node["attrs"]["params"] = {
+        "asOf": "2026-10-20T14:00:00Z", "source": "broker", "sourceDetail": "CANARY-DETAIL-9f1",
+        "title": "Net P&L by setup", "view": "bar", "summary": "CANARY-SUMMARY-9f1",
+        "defId": "CANARY-DEFID-9f1", "defRev": 4, "latestRev": 5,
+        "def": {"plan_version": 1, "note": "CANARY-DEF-9f1", "filters": {"setup": "CANARY-FILTER-9f1"}},
+        "defRef": "CANARY-DEFID-9f1", "scopeLabel": "CANARY-SCOPE-9f1 CANARY-ACCOUNT-9f1",
+        "range": {"kind": "last_90d", "from": "2026-07-22"}, "accountId": "CANARY-ACCOUNT-9f1",
+        "filter": {"setup": "CANARY-FILTER-9f1"}, "coverage": {"evaluated": 7}, "sample": False,
+        "footnotes": ["CANARY-FOOT-9f1"],
+        "measures": [{"label": "Net P&L", "unit": "usd", "kind": "sum", "fmt": "money", "id": "CANARY-DEF-9f1"}],
+        "value": dict(_VALUES), "compare": dict(_VALUES), "compareLabel": "vs last 90 days",
+        "rows": [{"label": "Breakout", "label2": None, **_VALUES, "flagged": False, "tradeId": "CANARY-DEF-9f1"}],
+        "series": [{"label": "Mon", "label2": None, **_VALUES, "flagged": False}],
+        "points": [{"x": 1.0, "y": 2.0, "d": "2026-10-19", "r": 1.5, "tradeId": "CANARY-DEF-9f1"}],
+        "cells": [{"label": "Mon", "v1": 1.0, "n1": 3, "s1": "", "extra": "CANARY-DEF-9f1"}],
+        "count": 7, "rangeLabel": "Last 90 days", "capped": False, "notice": None, "truncated": 0,
+        "tooLarge": False, "empty": None, "share": share}
+    return node
+
+
+def test_built_vendor_row_and_allowlist_shape():
+    assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", "builtWidget")] == "member-optin"
+    assert pnp.market_data_verdict("widgetEmbed", "builtWidget") == pnp.NEUTRAL
+    assert pnp.EMBED_PARAM_KEYS["builtWidget"] == (
+        "asOf", "source", "title", "view", "measures", "value", "compare", "compareLabel", "rows", "series",
+        "points", "cells", "count", "rangeLabel", "capped", "notice", "truncated", "tooLarge", "empty", "share",
+        "labelKind", "label2Kind")      # the last two (ruling R-25) say which labels are account names
+    assert not set(pnp.EMBED_PARAM_KEYS["builtWidget"]) & set(_BUILT_NEVER)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_built_neutral_without_share(mode):
+    for share in (None, False):
+        node = _built(share)
+        if share is None:
+            node["attrs"]["params"].pop("share")
+        out = reduce(doc(node), mode)
+        blob = json.dumps(out)
+        assert "widgetEmbed" not in types_in(out), (mode, share)
+        assert not any(c in blob for c in _BUILT_CANARIES) and "Net P&L" not in blob, (mode, share)
+        if mode != "example":                      # an example note drops an account kind, as it does for private
+            assert texts_in(out) == [ACCOUNT_LINE], (mode, share, out)
+
+
+def test_built_shown_with_share_has_no_def_summary_or_filter_values():
+    for mode in ("share", "publish"):
+        out = reduce(doc(_built(True)), mode)
+        emb = find_embed(out)
+        params = emb["attrs"]["params"]
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _BUILT_CANARIES), (mode, [c for c in _BUILT_CANARIES if c in blob])
+        assert set(params) <= set(pnp.EMBED_PARAM_KEYS["builtWidget"])
+        assert not set(params) & set(_BUILT_NEVER)
+        # control: the result itself is there
+        assert params["share"] is True and params["title"] == "Net P&L by setup" and params["count"] == 7
+        assert params["value"] == _VALUES and params["compare"] == _VALUES
+        assert params["rows"] == [{"label": "Breakout", "label2": None, **_VALUES, "flagged": False}]
+        assert params["points"] == [{"x": 1.0, "y": 2.0, "d": "2026-10-19", "r": 1.5}]
+        assert params["cells"] == [{"label": "Mon", "v1": 1.0, "n1": 3, "s1": ""}]
+        assert params["measures"] == [{"label": "Net P&L", "unit": "usd", "kind": "sum", "fmt": "money"}]
+
+
+def test_built_heat_cells_publish_every_measure_slot_and_nothing_else():
+    # Task 8.14 fix 1: a heat map's cells carry every measure (the table alternative lists them all).
+    node = _built(True)
+    node["attrs"]["params"]["cells"] = [{"label": "2026-10-20", "v1": 1.0, "n1": 3, "s1": "", "v2": 0.5, "n2": 2,
+                                         "s2": "small", "v3": None, "n3": None, "s3": None, "tradeId": "CANARY-DEF-9f1"}]
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["cells"] == [{"label": "2026-10-20", "v1": 1.0, "n1": 3, "s1": "", "v2": 0.5, "n2": 2, "s2": "small",
+                                "v3": None, "n3": None, "s3": None}]
+
+
+def test_built_footnotes_and_source_detail_never_reach_public_output():
+    """Review obligation: the payload carries both keys; neither is in the allowlist, so neither is published."""
+    for mode in ("share", "publish"):
+        out = reduce(doc(_built(True)), mode)
+        params = find_embed(out)["attrs"]["params"]
+        assert "footnotes" not in params and "sourceDetail" not in params
+        blob = json.dumps(out)
+        assert "footnotes" not in blob and "sourceDetail" not in blob
+        assert "CANARY-FOOT-9f1" not in blob and "CANARY-DETAIL-9f1" not in blob
+
+
+def test_built_gallery_always_neutral():
+    for share in (None, False, True, "true"):
+        node = _built(share)
+        out = reduce(doc(node), "gallery")
+        assert "widgetEmbed" not in types_in(out), share
+        assert not any(c in json.dumps(out) for c in _BUILT_CANARIES), share
+        assert texts_in(out) == [ACCOUNT_LINE], (share, out)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+@pytest.mark.parametrize("bad", ["true", "True", 1, [True], {"v": True}])
+def test_share_string_true_is_neutral(mode, bad):
+    out = reduce(doc(_built(bad)), mode)
+    assert "widgetEmbed" not in types_in(out)
+    assert not any(c in json.dumps(out) for c in _BUILT_CANARIES)
+    if mode != "example":
+        assert texts_in(out) == [ACCOUNT_LINE]
+
+
+# ── fix round 1 (I-2 ruling R-25, M4, M5) ──
+
+def _split_built(**over: Any) -> dict:
+    node = _built(True)
+    params = node["attrs"]["params"]
+    params.update({"labelKind": "account", "label2Kind": "account",
+                   "rows": [{"label": "ACCT-CANARY-ALPHA", "label2": "ACCT-CANARY-BETA", **_VALUES, "flagged": False},
+                            {"label": "ACCT-CANARY-BETA", "label2": "ACCT-CANARY-ALPHA", **_VALUES,
+                             "flagged": False},
+                            {"label": "ACCT-CANARY-ALPHA", "label2": None, **_VALUES, "flagged": False}],
+                   "series": [{"label": "ACCT-CANARY-BETA", "label2": "ACCT-CANARY-GAMMA", **_VALUES,
+                               "flagged": False}],
+                   "cells": [{"label": "ACCT-CANARY-GAMMA", "v1": 1.0, "n1": 3, "s1": ""},
+                             {"label": "ACCT-CANARY-ALPHA", "v1": 2.0, "n1": 1, "s1": ""}]})
+    params.update(over)
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r25_account_labels_become_numbered_accounts_stable_across_lists(mode):
+    out = reduce(doc(_split_built()), mode)
+    blob = json.dumps(out)
+    assert "ACCT-CANARY" not in blob, blob
+    params = find_embed(out)["attrs"]["params"]
+    # label numbering: first appearance across rows, series, cells -> ALPHA=1, BETA=2, GAMMA=3
+    assert [r["label"] for r in params["rows"]] == ["Account 1", "Account 2", "Account 1"]
+    assert params["series"][0]["label"] == "Account 2"
+    assert [c["label"] for c in params["cells"]] == ["Account 3", "Account 1"]
+    # label2 has its own numbering by first appearance: BETA=1, ALPHA=2, GAMMA=3
+    assert [r["label2"] for r in params["rows"]] == ["Account 1", "Account 2", None]
+    assert params["series"][0]["label2"] == "Account 3"
+    assert params["labelKind"] == "account" and params["label2Kind"] == "account"
+
+
+def test_r25_only_the_marked_field_is_relabelled():
+    node = _split_built(label2Kind=None)
+    node["attrs"]["params"]["rows"][0]["label2"] = "Breakout"
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["rows"][0]["label"] == "Account 1" and params["rows"][0]["label2"] == "Breakout"
+    # no marker at all (a setup split): labels pass untouched
+    node = _split_built(labelKind=None, label2Kind=None)
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["rows"][0]["label"] == "ACCT-CANARY-ALPHA"
+
+
+def test_built_cap_honesty_and_too_large_flags_survive_for_a_shown_widget():
+    """The cap's own sentences reach a stranger as they reach the member: truncated, tooLarge, empty and the
+    notice are allowlisted."""
+    node = _built(True)
+    node["attrs"]["params"].update({"truncated": 12, "tooLarge": True, "empty": None,
+                                    "notice": "This result is too big to show here."})
+    params = find_embed(reduce(doc(node), "share"))["attrs"]["params"]
+    assert params["truncated"] == 12 and params["tooLarge"] is True
+    assert params["notice"] == "This result is too big to show here."
+    for key in ("truncated", "tooLarge", "notice", "empty"):
+        assert key in pnp.EMBED_PARAM_KEYS["builtWidget"], key
+
+
+def test_built_attrs_canary_pins_what_passes_today():
+    """M5: what a SHARED builtWidget's attrs let through today. EMBED_KEPT_ATTRS is shared by every kind; this
+    pins current behaviour and does not change it."""
+    node = _built(True)
+    attrs = node["attrs"]
+    attrs["frozen"] = {"def": "ATTR-CANARY-FROZEN", "rows": ["ATTR-CANARY-FROZEN-ROW"]}
+    attrs["caption"] = "ATTR-CANARY-CAPTION"
+    attrs["fallback"] = {"url": "/api/j2/notes/attachments/OTHER/N/inline/x.png", "w": 9, "h": 9}
+    attrs["searchText"] = "ATTR-CANARY-SEARCH"
+    attrs["tradeRef"] = "ATTR-CANARY-TRADEREF"
+    out = reduce(doc(node), "share")
+    kept = find_embed(out)["attrs"]
+    blob = json.dumps(out)
+    assert set(kept) <= set(pnp.EMBED_KEPT_ATTRS) | {"params"}
+    for dropped in ("ATTR-CANARY-SEARCH", "ATTR-CANARY-TRADEREF"):
+        assert dropped not in blob, dropped
+    assert kept["caption"] == "ATTR-CANARY-CAPTION"                 # control: kept attrs do pass
+    # The W10.7 walk fix: a built widget's archived image never travels at all (its own note's image included,
+    # test_walk_fix_built_widget_publishes_no_image); the public page draws it from the reduced params.
+    assert "fallback" not in kept
+    # Ruling R-26: a built widget's `frozen` reaches a public page only as a flag.
+    assert kept.get("frozen") is False and "ATTR-CANARY-FROZEN" not in blob
+    node["attrs"]["frozen"] = True
+    assert find_embed(reduce(doc(node), "share"))["attrs"]["frozen"] is True
+
+
+# ── Task 9.11: routine and tracker blocks show the private account line ──
+
+_ACCT_CANARIES = ("ROUTINE-NAME-CANARY-9911", "ROUTINE-ID-CANARY-9911", "DAYSTATE-CANARY-9911", "ATTR-CANARY-9911")
+
+
+def _acct_block(widget_id: str, share) -> dict:
+    node = _widget(widget_id)
+    a = node["attrs"]
+    a["params"] = {"routineId": "ROUTINE-ID-CANARY-9911", "trackerId": "ROUTINE-ID-CANARY-9911",
+                   "day": "2026-10-20", "bind": "today", "display": "DAYSTATE-CANARY-9911",
+                   "days": {"2026-10-20": "DAYSTATE-CANARY-9911"}}
+    if share is not None:
+        a["params"]["share"] = share
+    a["searchText"] = "ROUTINE-NAME-CANARY-9911"
+    a["caption"] = "ATTR-CANARY-9911"
+    a["tradeRef"] = "ATTR-CANARY-9911"
+    a["ta"] = {"v": 1, "setupTag": "ATTR-CANARY-9911"}
+    return node
+
+
+def test_account_line_blocks_set_and_vendor_rows():
+    assert pnp.ACCOUNT_LINE_BLOCKS == frozenset({"routine", "tracker", "sizeCalc"})     # sizeCalc: Task 10.12
+    assert "ACCOUNT_LINE_BLOCKS" in pnp.__all__
+    for wid in ("routine", "tracker"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", wid)] == "private"
+        assert pnp.market_data_verdict("widgetEmbed", wid) == pnp.NEUTRAL
+        assert not pnp._is_account_kind(wid)                      # the share switch can never open it
+        assert pnp._neutral_for_embed(wid) == pnp._neutral(ACCOUNT_LINE)
+    assert pnp._neutral_for_embed("tickerCard") == pnp._neutral(pnp.NEUTRAL_LINE)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+@pytest.mark.parametrize("widget_id", ["routine", "tracker"])
+def test_routine_and_tracker_account_line_in_share_publish_gallery(mode, widget_id):
+    for share in (None, False, "true", 1, True):
+        out = reduce(doc(_acct_block(widget_id, share)), mode)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, widget_id, share, out)
+        assert "widgetEmbed" not in types_in(out), (mode, widget_id, share)
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _ACCT_CANARIES), (mode, widget_id, share)
+
+
+@pytest.mark.parametrize("widget_id", ["routine", "tracker"])
+def test_routine_and_tracker_dropped_in_example_mode(widget_id):
+    for share in (None, False, True):
+        out = reduce(doc(_acct_block(widget_id, share)), "example")
+        assert "widgetEmbed" not in types_in(out), (widget_id, share)
+        assert ACCOUNT_LINE not in texts_in(out) and pnp.NEUTRAL_LINE not in texts_in(out)
+        assert not any(c in json.dumps(out) for c in _ACCT_CANARIES), (widget_id, share)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_no_routine_name_or_day_state_in_public_output(mode):
+    body = doc(_acct_block("routine", True), p(t("keep")), _acct_block("tracker", True))
+    blob = json.dumps(reduce(body, mode))
+    for canary in _ACCT_CANARIES:
+        assert canary not in blob, (mode, canary)
+    for key in ("routineId", "trackerId", "bind", "display", "days", "searchText"):
+        assert key not in blob, (mode, key)
+
+
+# ── Task 10.12: the seven dedicated kinds and the calculator are private; a notes list row is "Note <n>" ──
+
+_DEDICATED = ("myTiltCheck", "myRevengeClean", "myPlanVsActual", "myRiskLeftToday", "myPropFirm", "myGamePlan",
+              "myAlertsFired")
+_DED_CANARIES = ("DED-CANARY-ACCOUNT-1012", "DED-CANARY-LIMIT-1012", "DED-CANARY-LINE-1012", "ATTR-CANARY-1012")
+
+
+def _dedicated(widget_id: str, share) -> dict:
+    node = _widget(widget_id)
+    a = node["attrs"]
+    a["params"] = {"asOf": "2026-10-24T14:00:00Z", "source": "broker",
+                   "accountId": "DED-CANARY-ACCOUNT-1012", "dailyLoss": "DED-CANARY-LIMIT-1012",
+                   "lines": ["DED-CANARY-LINE-1012"], "rows": [{"label": "DED-CANARY-ACCOUNT-1012", "v1": 1.0}],
+                   "accountSize": 50000, "risk": 400}
+    if share is not None:
+        a["params"]["share"] = share
+    a["caption"] = "ATTR-CANARY-1012"
+    a["searchText"] = "ATTR-CANARY-1012"
+    return node
+
+
+def test_dedicated_kinds_are_derived_never_restated():
+    """Fix round 1 (M5): the list is read from the constants-only leaf; no dedicated kind is spelled here."""
+    import ast as _ast
+    from api.services.journal_two import shelf_kind_names
+    assert pnp.DEDICATED_KINDS == frozenset(shelf_kind_names.KINDS)
+    src = (ROOT / "api" / "services" / "journal_two" / "public_note_payload.py").read_text(encoding="utf-8")
+    spelled = {n.value for n in _ast.walk(_ast.parse(src)) if isinstance(n, _ast.Constant)
+               and isinstance(n.value, str) and n.value in shelf_kind_names.KINDS}
+    assert spelled == set(), spelled
+    assert "sizeCalc" in {n.value for n in _ast.walk(_ast.parse(src)) if isinstance(n, _ast.Constant)}  # control
+
+
+def test_dedicated_vendor_rows_and_the_set():
+    for wid in (*_DEDICATED, "sizeCalc"):
+        assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", wid)] == "private", wid
+        assert pnp.market_data_verdict("widgetEmbed", wid) == pnp.NEUTRAL
+        assert not pnp._is_account_kind(wid), wid                 # the share switch can never open them
+        assert pnp._neutral_for_embed(wid) == pnp._neutral(ACCOUNT_LINE), wid
+        assert wid not in pnp.EMBED_PARAM_KEYS and wid not in pnp.EMBED_ROW_KEYS
+    assert "DEDICATED_KINDS" in pnp.__all__
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+@pytest.mark.parametrize("widget_id", [*_DEDICATED, "sizeCalc"])
+def test_dedicated_kinds_and_size_calc_account_line_in_every_public_mode(mode, widget_id):
+    """Share false AND true (and every not-quite-true value): the account line in every public mode, example
+    included (ruling W10-R49: the global constraint's "neutral line on share, publish, gallery and example");
+    never a figure, an account, a limit or an attribute."""
+    for share in (None, False, True, "true", 1):
+        out = reduce(doc(_dedicated(widget_id, share)), mode)
+        assert "widgetEmbed" not in types_in(out), (mode, widget_id, share)
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _DED_CANARIES), (mode, widget_id, share)
+        assert texts_in(out) == [ACCOUNT_LINE], (mode, widget_id, share, out)
+
+
+_SIZE_CANARIES = ("SIZE-CANARY-SYM", "54321.75", "123.45", "117.65", "0.875", "ATTR-CANARY-1020")
+
+
+def _size_calc_block(share) -> dict:
+    """A position size calculator exactly as the block stores it (Task 10.20): only what the member typed."""
+    node = _widget("sizeCalc")
+    a = node["attrs"]
+    a["mode"] = "live"
+    a["params"] = {"symbol": "SIZE-CANARY-SYM", "entry": 123.45, "stop": 117.65, "riskPct": 0.875,
+                   "accountSize": 54321.75}
+    if share is not None:
+        a["params"]["share"] = share
+    a["searchText"] = "[position size calculator]"
+    a["caption"] = "ATTR-CANARY-1020"
+    a["tradeRef"] = "ATTR-CANARY-1020"
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery", "example"])
+def test_size_calc_account_line(mode):
+    """Task 10.20 (W10-R8), on Task 10.12's row: the calculator is the ACCOUNT line in every public mode, share or
+    not; never the symbol, the levels, the risk or the account size the member typed, and never the market line."""
+    for share in (None, False, True):
+        out = reduce(doc(p(t("before")), _size_calc_block(share), p(t("after"))), mode)
+        assert texts_in(out) == ["before", ACCOUNT_LINE, "after"], (mode, share, out)
+        assert pnp.NEUTRAL_LINE not in texts_in(out), (mode, share)
+        assert "widgetEmbed" not in types_in(out), (mode, share)
+        blob = json.dumps(out)
+        assert not any(c in blob for c in _SIZE_CANARIES), (mode, share, blob)
+        for key in ("riskPct", "accountSize", "symbol"):
+            assert key not in blob, (mode, share, key)
+
+
+def test_example_mode_reports_the_dedicated_line_and_still_drops_routines():
+    """W10-R49 is scoped to the seven and the calculator: a routine or tracker is still dropped in an example
+    (W9), and the example's change report says which line replaced the widget."""
+    report: list = []
+    out = pnp.reduce(copy.deepcopy(doc(_dedicated("myPropFirm", True), _acct_block("routine", True))),
+                     mode="example", owner_id=OWNER, note_id=NOTE, attachment_base=BASE, facts=FACTS,
+                     report=report)
+    assert texts_in(out) == [ACCOUNT_LINE]
+    assert {"kind": "account", "after": ACCOUNT_LINE} in [{k: e[k] for k in ("kind", "after")} for e in report]
+
+
+def _notes_list(**over: Any) -> dict:
+    node = _built(True)
+    node["attrs"]["params"].update({
+        "labelKind": "note", "label2Kind": None,
+        "rows": [{"label": "NOTE-CANARY-Earnings plan", "label2": "2026-10-01", **_VALUES, "flagged": False},
+                 {"label": "NOTE-CANARY-Monday", "label2": "2026-10-02", **_VALUES, "flagged": False},
+                 {"label": "NOTE-CANARY-Earnings plan", "label2": "2026-10-03", **_VALUES, "flagged": False},
+                 {"label": None, "label2": "2026-10-04", **_VALUES, "flagged": False}],
+        "series": [{"label": "NOTE-CANARY-Monday", "label2": None, **_VALUES, "flagged": False}],
+        "cells": [{"label": "NOTE-CANARY-Third", "v1": 1.0, "n1": 1, "s1": ""}]})
+    node["attrs"]["params"].update(over)
+    return node
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_notes_list_rows_relabelled_note_n(mode):
+    """W10-R7: a shared notes list never publishes a note's title. The R-25 path: each distinct label becomes
+    "Note <n>", numbered in order of first appearance across rows, series and cells."""
+    out = reduce(doc(_notes_list()), mode)
+    assert "NOTE-CANARY" not in json.dumps(out)
+    params = find_embed(out)["attrs"]["params"]
+    assert [r["label"] for r in params["rows"]] == ["Note 1", "Note 2", "Note 1", None]
+    assert [r["label2"] for r in params["rows"]] == ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]
+    assert params["series"][0]["label"] == "Note 2"
+    assert params["cells"][0]["label"] == "Note 3"
+    assert params["labelKind"] == "note"
+    # control: with no marker the titles pass (the relabel is what removed them, not something else)
+    plain = find_embed(reduce(doc(_notes_list(labelKind=None)), mode))["attrs"]["params"]
+    assert plain["rows"][0]["label"] == "NOTE-CANARY-Earnings plan"
+    # the two kinds keep separate numbering
+    both = find_embed(reduce(doc(_notes_list(label2Kind="account", rows=[
+        {"label": "NOTE-CANARY-A", "label2": "ACCT-CANARY-X", **_VALUES, "flagged": False}])), mode))
+    row = both["attrs"]["params"]["rows"][0]
+    assert (row["label"], row["label2"]) == ("Note 1", "Account 1")
+
+
+def test_no_db_read_on_public_render(monkeypatch):
+    """A public render of the seven, the calculator and a notes list reads no database, in any mode."""
+    import importlib
+    opened = []
+
+    def boom(*a, **k):
+        opened.append(a)
+        raise AssertionError("a public render opened the database")
+
+    for name in ("api.services.auth_db", "api.services.journal_two.db"):
+        mod = importlib.import_module(name)
+        if hasattr(mod, "get_connection"):
+            monkeypatch.setattr(mod, "get_connection", boom)
+    body = doc(*[_dedicated(w, True) for w in (*_DEDICATED, "sizeCalc")], _notes_list())
+    for mode in ("share", "publish", "gallery", "example"):
+        reduce(body, mode)
+    assert opened == []

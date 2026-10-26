@@ -1,0 +1,1637 @@
+{
+  "accents": [
+    "gold",
+    "green",
+    "red",
+    "blue",
+    "purple",
+    "teal",
+    "orange"
+  ],
+  "maxFilters": 8,
+  "maxMeasures": 3,
+  "measures": [
+    {
+      "key": "net_pnl",
+      "kind": "sum",
+      "label": "Net P&L",
+      "meaning": "Money made or lost after fees.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "results",
+      "unit": "trades"
+    },
+    {
+      "key": "gross_pnl",
+      "kind": "sum",
+      "label": "Gross P&L",
+      "meaning": "Money made or lost before fees.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "results",
+      "unit": "trades"
+    },
+    {
+      "key": "fees",
+      "kind": "sum",
+      "label": "Fees",
+      "meaning": "Commissions and fees paid.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "process",
+      "unit": "trades"
+    },
+    {
+      "key": "trades",
+      "kind": "count",
+      "label": "Trades",
+      "meaning": "How many closed trades.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "results",
+      "unit": "trades"
+    },
+    {
+      "key": "wins",
+      "kind": "count",
+      "label": "Wins",
+      "meaning": "How many trades closed as wins.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "losses",
+      "kind": "count",
+      "label": "Losses",
+      "meaning": "How many trades closed as losses.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "win_rate",
+      "kind": "rate",
+      "label": "Win rate",
+      "meaning": "Share of wins among wins and losses. Breakeven trades are left out.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "decisive"
+    },
+    {
+      "key": "avg_win",
+      "kind": "average",
+      "label": "Average win",
+      "meaning": "Average net P&L of a winning trade.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "avg_loss",
+      "kind": "average",
+      "label": "Average loss",
+      "meaning": "Average size of a losing trade, after fees.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "payoff",
+      "kind": "rate",
+      "label": "Payoff ratio",
+      "meaning": "Average win divided by average loss.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "decisive"
+    },
+    {
+      "key": "profit_factor",
+      "kind": "rate",
+      "label": "Profit factor",
+      "meaning": "Money won divided by money lost, after fees. Shown as 5+ at 5.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "expectancy",
+      "kind": "average",
+      "label": "Expectancy",
+      "meaning": "Average net P&L per trade, breakeven trades included.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "results",
+      "unit": "trades"
+    },
+    {
+      "key": "days_traded",
+      "kind": "count",
+      "label": "Days traded",
+      "meaning": "Days with at least one closed trade.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "time",
+      "unit": "days"
+    },
+    {
+      "key": "profitable_days",
+      "kind": "count",
+      "label": "Profitable days",
+      "meaning": "Days whose closed trades made money in total.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "time",
+      "unit": "days"
+    },
+    {
+      "key": "max_drawdown",
+      "kind": "extreme",
+      "label": "Max drawdown",
+      "meaning": "Deepest drop of your running P&L from its high, by day.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "risk",
+      "unit": "trades"
+    },
+    {
+      "key": "expectancy_r",
+      "kind": "average",
+      "label": "Expectancy (R)",
+      "meaning": "Average R per trade, over the trades whose R is known.",
+      "needs": [
+        "r"
+      ],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "risk",
+      "unit": "trades"
+    },
+    {
+      "key": "total_r",
+      "kind": "sum",
+      "label": "Total R",
+      "meaning": "R added up over the trades whose R is known.",
+      "needs": [
+        "r"
+      ],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "risk",
+      "unit": "trades"
+    },
+    {
+      "key": "best_trade",
+      "kind": "extreme",
+      "label": "Best trade",
+      "meaning": "The largest net P&L on one trade.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "results",
+      "unit": "trades"
+    },
+    {
+      "key": "worst_trade",
+      "kind": "extreme",
+      "label": "Worst trade",
+      "meaning": "The smallest net P&L on one trade.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "results",
+      "unit": "trades"
+    },
+    {
+      "key": "avg_hold_days",
+      "kind": "average",
+      "label": "Average hold (days)",
+      "meaning": "Average days a trade was held.",
+      "needs": [
+        "hold_days"
+      ],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "time",
+      "unit": "trades"
+    },
+    {
+      "key": "profitable_days_pct",
+      "kind": "rate",
+      "label": "Profitable days %",
+      "meaning": "Share of days with trades that made money in total.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "time",
+      "unit": "days"
+    },
+    {
+      "key": "max_win_streak",
+      "kind": "extreme",
+      "label": "Longest win streak",
+      "meaning": "Most wins in a row. A breakeven trade ends a run.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "max_loss_streak",
+      "kind": "extreme",
+      "label": "Longest loss streak",
+      "meaning": "Most losses in a row. A breakeven trade ends a run.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "current_streak",
+      "kind": "extreme",
+      "label": "Current streak",
+      "meaning": "Wins (+) or losses (-) in a row up to your latest trade.",
+      "needs": [],
+      "sources": [
+        "closed_trades"
+      ],
+      "theme": "winloss",
+      "unit": "trades"
+    },
+    {
+      "key": "avg_day_pnl",
+      "kind": "average",
+      "label": "Average day P&L",
+      "meaning": "Average net P&L of a day with trades.",
+      "needs": [],
+      "sources": [
+        "trading_days"
+      ],
+      "theme": "time",
+      "unit": "days"
+    },
+    {
+      "key": "green_day_pct",
+      "kind": "rate",
+      "label": "Green day %",
+      "meaning": "Share of days with trades that ended green.",
+      "needs": [],
+      "sources": [
+        "trading_days"
+      ],
+      "theme": "time",
+      "unit": "days"
+    },
+    {
+      "key": "open_positions",
+      "kind": "count",
+      "label": "Open positions",
+      "meaning": "How many positions are open.",
+      "needs": [],
+      "sources": [
+        "open_positions"
+      ],
+      "theme": "risk",
+      "unit": "positions"
+    },
+    {
+      "key": "unrealised_pnl",
+      "kind": "sum",
+      "label": "Unrealised P&L",
+      "meaning": "Open profit or loss at the broker's last mark. Positions with no mark are left out.",
+      "needs": [
+        "unrealised"
+      ],
+      "sources": [
+        "open_positions"
+      ],
+      "theme": "results",
+      "unit": "positions"
+    },
+    {
+      "key": "open_risk",
+      "kind": "sum",
+      "label": "Risk to stops",
+      "meaning": "Money lost if every stop is hit. Positions with no stop set are left out.",
+      "needs": [
+        "risk_dollars"
+      ],
+      "sources": [
+        "open_positions"
+      ],
+      "theme": "risk",
+      "unit": "positions"
+    },
+    {
+      "key": "avg_days_open",
+      "kind": "average",
+      "label": "Average days open",
+      "meaning": "Average days since entry. Positions with an estimated entry date are left out.",
+      "needs": [
+        "days_open"
+      ],
+      "sources": [
+        "open_positions"
+      ],
+      "theme": "time",
+      "unit": "positions"
+    }
+  ],
+  "ranges": [
+    {
+      "label": "today",
+      "token": "today"
+    },
+    {
+      "label": "this week",
+      "token": "this_week"
+    },
+    {
+      "label": "last week",
+      "token": "last_week"
+    },
+    {
+      "label": "last 7 days",
+      "token": "last_7d"
+    },
+    {
+      "label": "last 30 days",
+      "token": "last_30d"
+    },
+    {
+      "label": "last 90 days",
+      "token": "last_90d"
+    },
+    {
+      "label": "this month",
+      "token": "this_month"
+    },
+    {
+      "label": "last month",
+      "token": "last_month"
+    },
+    {
+      "label": "this quarter",
+      "token": "this_quarter"
+    },
+    {
+      "label": "last quarter",
+      "token": "last_quarter"
+    },
+    {
+      "label": "year to date",
+      "token": "ytd"
+    },
+    {
+      "label": "last 12 months",
+      "token": "last_12m"
+    },
+    {
+      "label": "all time",
+      "token": "all"
+    },
+    {
+      "label": "last 20 trades",
+      "token": "last_20_trades"
+    },
+    {
+      "label": "last 50 trades",
+      "token": "last_50_trades"
+    },
+    {
+      "label": "last 100 trades",
+      "token": "last_100_trades"
+    }
+  ],
+  "reasons": {
+    "low_above_high": "The low value is above the high value.",
+    "needs_value": "Pick at least one value for this filter.",
+    "no_earlier": "Comparing with the period before needs a date range, not all time or a number of trades.",
+    "no_measure": "Pick at least one measure.",
+    "one_overridable": "Only one filter can be changed from the note.",
+    "one_ref": "A widget can look at one routine and one tracker.",
+    "positions_no_compare": "Open positions are a snapshot of right now, so there is no earlier period to compare.",
+    "start_after_end": "The start date is after the end date.",
+    "target": "The target must be a number.",
+    "then_table_only": "A second split only works in a table.",
+    "too_many_filters": "Use up to 8 filters.",
+    "too_many_measures": "Pick up to 3 measures.",
+    "top_range": "Top N must be between 1 and 40.",
+    "unknown_range": "That date range isn't available.",
+    "view_bar": "A bar chart needs a split.",
+    "view_heat": "A calendar heat map needs a split by day.",
+    "view_line": "A line needs a split by day or month.",
+    "view_list": "A list shows each row. Remove the split to use it.",
+    "view_one_number": "This view shows one number. Remove the split to use it.",
+    "view_progress": "A progress bar needs a target.",
+    "view_scatter": "A scatter plot needs two measures and no split.",
+    "view_scatter_trades": "A scatter plot works for closed trades only."
+  },
+  "sources": [
+    {
+      "allAccountsOnly": false,
+      "description": "Every trade you have closed.",
+      "fields": [
+        {
+          "filter": true,
+          "key": "day",
+          "label": "Day",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "day"
+        },
+        {
+          "filter": true,
+          "key": "hour_et",
+          "label": "ET hour",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "weekday",
+          "label": "Weekday",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Monday",
+              "value": "Monday"
+            },
+            {
+              "label": "Tuesday",
+              "value": "Tuesday"
+            },
+            {
+              "label": "Wednesday",
+              "value": "Wednesday"
+            },
+            {
+              "label": "Thursday",
+              "value": "Thursday"
+            },
+            {
+              "label": "Friday",
+              "value": "Friday"
+            },
+            {
+              "label": "Saturday",
+              "value": "Saturday"
+            },
+            {
+              "label": "Sunday",
+              "value": "Sunday"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "input": "month",
+          "key": "month",
+          "label": "Month",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum"
+        },
+        {
+          "filter": true,
+          "key": "symbol",
+          "label": "Symbol",
+          "ops": [
+            "in",
+            "contains"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "text"
+        },
+        {
+          "filter": true,
+          "key": "side",
+          "label": "Side",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Long",
+              "value": "Long"
+            },
+            {
+              "label": "Short",
+              "value": "Short"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "setup",
+          "label": "Setup",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum"
+        },
+        {
+          "filter": true,
+          "key": "result",
+          "label": "Result",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Win",
+              "value": "Win"
+            },
+            {
+              "label": "Loss",
+              "value": "Loss"
+            },
+            {
+              "label": "Breakeven",
+              "value": "BE"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "net",
+          "label": "Net P&L",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "gross",
+          "label": "Gross P&L",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "fees",
+          "label": "Fees",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "r",
+          "label": "R",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "risk_dollars",
+          "label": "Risk $",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "pct_return",
+          "label": "% return",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "hold_days",
+          "label": "Hold days",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "hold_bucket",
+          "label": "Hold time",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Same day",
+              "value": "Same day"
+            },
+            {
+              "label": "1 day",
+              "value": "1 day"
+            },
+            {
+              "label": "2-5 days",
+              "value": "2-5 days"
+            },
+            {
+              "label": "6-20 days",
+              "value": "6-20 days"
+            },
+            {
+              "label": "21+ days",
+              "value": "21+ days"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "hold_minutes",
+          "label": "Hold minutes",
+          "needsTimes": true,
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "shares",
+          "label": "Shares",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "size_quartile",
+          "label": "Size quartile",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Q1 (smallest)",
+              "value": "Q1 (smallest)"
+            },
+            {
+              "label": "Q2",
+              "value": "Q2"
+            },
+            {
+              "label": "Q3",
+              "value": "Q3"
+            },
+            {
+              "label": "Q4 (largest)",
+              "value": "Q4 (largest)"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "regime",
+          "label": "Regime at entry",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Green",
+              "value": "green"
+            },
+            {
+              "label": "Yellow",
+              "value": "amber"
+            },
+            {
+              "label": "Orange",
+              "value": "orange"
+            },
+            {
+              "label": "Red",
+              "value": "red"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "mistake",
+          "label": "Mistake",
+          "ops": [
+            "has_any"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "tag"
+        },
+        {
+          "filter": true,
+          "key": "emotion",
+          "label": "Emotion",
+          "ops": [
+            "has_any"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "tag"
+        },
+        {
+          "filter": true,
+          "key": "origin",
+          "label": "How it was logged",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Manual",
+              "value": "manual"
+            },
+            {
+              "label": "CSV import",
+              "value": "csv"
+            },
+            {
+              "label": "Broker",
+              "value": "broker"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "account",
+          "label": "Account",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum"
+        },
+        {
+          "filter": true,
+          "key": "had_stop",
+          "label": "Had a stop",
+          "ops": [
+            "is"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "bool",
+          "values": [
+            {
+              "label": "Had a stop",
+              "value": true
+            },
+            {
+              "label": "No stop set",
+              "value": false
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "mfe_r",
+          "label": "MFE R",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "mae_r",
+          "label": "MAE R",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "exit_efficiency",
+          "label": "Exit efficiency",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "adherence_pct",
+          "label": "Followed my trading plan %",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "plan_linked",
+          "label": "Linked to a trading plan note",
+          "ops": [
+            "is"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "bool",
+          "values": [
+            {
+              "label": "Linked to a trading plan",
+              "value": true
+            },
+            {
+              "label": "No trading plan linked",
+              "value": false
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "r_bucket",
+          "label": "R bucket",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "-2R or worse",
+              "value": "-2R or worse"
+            },
+            {
+              "label": "-2R to -1R",
+              "value": "-2R to -1R"
+            },
+            {
+              "label": "-1R to 0R",
+              "value": "-1R to 0R"
+            },
+            {
+              "label": "0R to 1R",
+              "value": "0R to 1R"
+            },
+            {
+              "label": "1R to 2R",
+              "value": "1R to 2R"
+            },
+            {
+              "label": "2R to 3R",
+              "value": "2R to 3R"
+            },
+            {
+              "label": "Over 3R",
+              "value": "Over 3R"
+            }
+          ]
+        }
+      ],
+      "key": "closed_trades",
+      "label": "Closed trades",
+      "measures": [
+        "avg_hold_days",
+        "avg_loss",
+        "avg_win",
+        "best_trade",
+        "current_streak",
+        "days_traded",
+        "expectancy",
+        "expectancy_r",
+        "fees",
+        "gross_pnl",
+        "losses",
+        "max_drawdown",
+        "max_loss_streak",
+        "max_win_streak",
+        "net_pnl",
+        "payoff",
+        "profit_factor",
+        "profitable_days",
+        "profitable_days_pct",
+        "total_r",
+        "trades",
+        "win_rate",
+        "wins",
+        "worst_trade"
+      ],
+      "refusedRanges": [],
+      "rightNow": false,
+      "unit": "trades"
+    },
+    {
+      "allAccountsOnly": false,
+      "description": "What you hold right now.",
+      "fields": [
+        {
+          "filter": true,
+          "key": "symbol",
+          "label": "Symbol",
+          "ops": [
+            "in",
+            "contains"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "text"
+        },
+        {
+          "filter": true,
+          "key": "side",
+          "label": "Side",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Long",
+              "value": "Long"
+            },
+            {
+              "label": "Short",
+              "value": "Short"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "setup",
+          "label": "Setup",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum"
+        },
+        {
+          "filter": true,
+          "key": "days_open",
+          "label": "Days open",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "unrealised",
+          "label": "Unrealised P&L",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "risk_dollars",
+          "label": "Risk to stop $",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "risk_pct_account",
+          "label": "Risk to stop, % of account",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "pct_account",
+          "label": "% of account",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "account",
+          "label": "Account",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum"
+        },
+        {
+          "filter": true,
+          "key": "had_stop",
+          "label": "Has a stop",
+          "ops": [
+            "is"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "bool",
+          "values": [
+            {
+              "label": "Has a stop",
+              "value": true
+            },
+            {
+              "label": "No stop set",
+              "value": false
+            }
+          ]
+        }
+      ],
+      "key": "open_positions",
+      "label": "Open positions",
+      "measures": [
+        "avg_days_open",
+        "open_positions",
+        "open_risk",
+        "unrealised_pnl"
+      ],
+      "refusedRanges": [],
+      "rightNow": true,
+      "unit": "positions"
+    },
+    {
+      "allAccountsOnly": false,
+      "description": "One row per market session, with your day P&L (incl. options) and check-ins.",
+      "fields": [
+        {
+          "filter": true,
+          "key": "day",
+          "label": "Day",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "day"
+        },
+        {
+          "filter": true,
+          "key": "weekday",
+          "label": "Weekday",
+          "ops": [
+            "in",
+            "not_in"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "enum",
+          "values": [
+            {
+              "label": "Monday",
+              "value": "Monday"
+            },
+            {
+              "label": "Tuesday",
+              "value": "Tuesday"
+            },
+            {
+              "label": "Wednesday",
+              "value": "Wednesday"
+            },
+            {
+              "label": "Thursday",
+              "value": "Thursday"
+            },
+            {
+              "label": "Friday",
+              "value": "Friday"
+            },
+            {
+              "label": "Saturday",
+              "value": "Saturday"
+            },
+            {
+              "label": "Sunday",
+              "value": "Sunday"
+            }
+          ]
+        },
+        {
+          "filter": true,
+          "key": "day_net",
+          "label": "Day net P&L (incl. options)",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "trade_count",
+          "label": "Trades that day",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "day_win_rate",
+          "label": "Win rate that day",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "best_trade",
+          "label": "Best trade that day",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "worst_trade",
+          "label": "Worst trade that day",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": false,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "mood",
+          "label": "Check-in mood",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "focus",
+          "label": "Check-in focus",
+          "ops": [
+            "eq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "number"
+        },
+        {
+          "filter": true,
+          "key": "had_day_note",
+          "label": "Had a day note",
+          "ops": [
+            "is"
+          ],
+          "refKind": null,
+          "split": true,
+          "type": "bool",
+          "values": [
+            {
+              "label": "Had a day note",
+              "value": true
+            },
+            {
+              "label": "No day note",
+              "value": false
+            }
+          ]
+        }
+      ],
+      "key": "trading_days",
+      "label": "Trading days",
+      "measures": [
+        "avg_day_pnl",
+        "green_day_pct"
+      ],
+      "refusedRanges": [],
+      "rightNow": false,
+      "unit": "days"
+    }
+  ],
+  "timeFields": [
+    "day",
+    "month"
+  ],
+  "topMax": 40,
+  "viewRules": {
+    "auto": {
+      "compare": "compare",
+      "no_split": "number",
+      "split": "bar",
+      "then": "table",
+      "time": "line",
+      "time_fields": [
+        "day",
+        "month"
+      ],
+      "time_types": [
+        "day"
+      ]
+    },
+    "checks": [
+      {
+        "reason": "positions_no_compare",
+        "sources": [
+          "open_positions"
+        ],
+        "test": "not_right_now_compare",
+        "views": null
+      },
+      {
+        "reason": "view_one_number",
+        "test": "no_split",
+        "views": [
+          "number",
+          "compare",
+          "progress"
+        ]
+      },
+      {
+        "reason": "no_earlier",
+        "test": "has_earlier",
+        "tokens": [
+          "all",
+          "last_100_trades",
+          "last_20_trades",
+          "last_50_trades"
+        ],
+        "views": [
+          "compare"
+        ]
+      },
+      {
+        "reason": "view_progress",
+        "test": "has_target",
+        "views": [
+          "progress"
+        ]
+      },
+      {
+        "reason": "view_bar",
+        "test": "split",
+        "views": [
+          "bar"
+        ]
+      },
+      {
+        "fields": [
+          "day",
+          "month"
+        ],
+        "reason": "view_line",
+        "test": "split_in",
+        "types": [
+          "day"
+        ],
+        "views": [
+          "line"
+        ]
+      },
+      {
+        "fields": [
+          "day"
+        ],
+        "reason": "view_heat",
+        "test": "split_in",
+        "types": [
+          "day"
+        ],
+        "views": [
+          "heat"
+        ]
+      },
+      {
+        "reason": "view_scatter_trades",
+        "sources": [
+          "closed_trades"
+        ],
+        "test": "source_in",
+        "views": [
+          "scatter"
+        ]
+      },
+      {
+        "measures": 2,
+        "reason": "view_scatter",
+        "test": "no_split_measures",
+        "views": [
+          "scatter"
+        ]
+      },
+      {
+        "reason": "view_list",
+        "test": "no_split",
+        "views": [
+          "list"
+        ]
+      }
+    ],
+    "thenViews": [
+      "table"
+    ]
+  },
+  "views": [
+    "number",
+    "compare",
+    "table",
+    "bar",
+    "line",
+    "scatter",
+    "heat",
+    "list",
+    "progress"
+  ]
+}

@@ -16,6 +16,7 @@
  * `name` is the Slack/GitHub shortcode (what `:name:` types); `keywords` are
  * extra words the picker matches.
  */
+import { SHORTCODE_BODY, EMOJI_QUERY_RE } from './emojiShortcode'
 export const EMOJI = Object.freeze([
   // ── markets & money ──
   { char: '📈', name: 'chart_with_upwards_trend', keywords: ['up', 'gain', 'rally', 'bull', 'chart'] },
@@ -186,15 +187,8 @@ export function emojiByName(name) {
   return BY_NAME.get(String(name || '').toLowerCase()) || null
 }
 
-/**
- * What a shortcode is made of -- ONE authority. The picker's query test below
- * and the typed-whole `:name:` rule (EmojiMenu's SHORTCODE_FIND) are both
- * built from it, and both read it without regard to case (searchEmoji and
- * emojiByName lower-case), so `:Rocket` in the menu and `:Rocket:` typed whole
- * agree. Two hand-written copies had already diverged on exactly that.
- */
-export const SHORTCODE_BODY = '[a-z0-9_+-]{1,32}'
-export const EMOJI_QUERY_RE = new RegExp(`^${SHORTCODE_BODY}$`, 'i')
+// The shortcode shape lives in emojiShortcode.js (the eager menu reads it without this data).
+export { SHORTCODE_BODY, EMOJI_QUERY_RE }
 
 /**
  * The picker's matches for what was typed after `:`, best first, at most

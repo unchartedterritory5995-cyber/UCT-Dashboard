@@ -1,0 +1,164 @@
+{
+ "viewport": "820",
+ "step": "W8.6",
+ "title": "drill a bar into a trade drawer",
+ "checks": [
+  {
+   "what": "the drill lists the trade behind the bar",
+   "ok": true,
+   "read": "Behind 2026-10-19\n×\n\nLive data; the snapshot was taken on Oct 25\n\nAAPL Long\n2026-10-19\n+$300.00\n+1.5R"
+  },
+  {
+   "what": "the trade opens on its own page",
+   "ok": true,
+   "read": "http://127.0.0.1:8093/journal-2-0/trade/495b79f4-3577-4e59-b701-623ce7340b73"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "first bar's name",
+   "text": "2026-10-19: +$300.00"
+  },
+  {
+   "what": "drill rows",
+   "text": "Behind 2026-10-19\n×\n\nLive data; the snapshot was taken on Oct 25\n\nAAPL Long\n2026-10-19\n+$300.00\n+1.5R"
+  },
+  {
+   "what": "row link",
+   "text": "/journal-2-0/trade/495b79f4-3577-4e59-b701-623ce7340b73"
+  },
+  {
+   "what": "trade page",
+   "text": "Skip to main content\nUCT\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade\n← Trade Journal\nCustomize\n‹\n›\nAAPL\nLONG\nWin\n▶ Replay\nSave to Notebook\nSave image\nCopy image\nResearch\nMarket context at the fill\n\nNo market context was captured for this entry. It is frozen only on the day of the entry, and a past day is never reconstructed.\n\nPlan vs execution\n\nUNPLANNED\nNo plan for this trade was written before entry. Link a plan note, or write one with Entry, Stop, Target and Shares before your next trade.\n\nLink a plan"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 31,
+   "small": [
+    {
+     "label": "← Trade Journal",
+     "tag": "A",
+     "w": 97,
+     "h": 21
+    },
+    {
+     "label": "▶ Replay",
+     "tag": "BUTTON",
+     "w": 79,
+     "h": 30
+    },
+    {
+     "label": "Save to Notebook",
+     "tag": "BUTTON",
+     "w": 146,
+     "h": 28
+    },
+    {
+     "label": "Save image",
+     "tag": "BUTTON",
+     "w": 111,
+     "h": 28
+    },
+    {
+     "label": "Copy image",
+     "tag": "BUTTON",
+     "w": 113,
+     "h": 28
+    },
+    {
+     "label": "Research",
+     "tag": "BUTTON",
+     "w": 99,
+     "h": 28
+    },
+    {
+     "label": "5m",
+     "tag": "BUTTON",
+     "w": 36,
+     "h": 20
+    },
+    {
+     "label": "30m",
+     "tag": "BUTTON",
+     "w": 44,
+     "h": 20
+    },
+    {
+     "label": "1h",
+     "tag": "BUTTON",
+     "w": 30,
+     "h": 20
+    },
+    {
+     "label": "1D",
+     "tag": "BUTTON",
+     "w": 32,
+     "h": 20
+    },
+    {
+     "label": "1W",
+     "tag": "BUTTON",
+     "w": 35,
+     "h": 20
+    },
+    {
+     "label": "— No setup —",
+     "tag": "SELECT",
+     "w": 280,
+     "h": 35
+    },
+    {
+     "label": "Tell me about this trade",
+     "tag": "BUTTON",
+     "w": 772,
+     "h": 34
+    },
+    {
+     "label": "?",
+     "tag": "BUTTON",
+     "w": 40,
+     "h": 40
+    }
+   ],
+   "smallCount": 14,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "help": "Elements must meet minimum color contrast ratio thresholds",
+     "nodes": 1,
+     "targets": [
+      "._chartDayGainExt_167sq_1191"
+     ]
+    }
+   ]
+  }
+ },
+ "screenshots": [
+  "820/W8_6-main.png"
+ ]
+}

@@ -223,11 +223,37 @@ def fires_for_predicate(predicate_id: str, limit: int = 50, *, db_path: str | No
 # alert_fires.user_id column alone, even though that column is set correctly
 # at fire time -- the predicate's own owner is the authoritative source.
 
-def list_fires_for_feed(user_id: str, limit: int = 50, *, db_path: str | None = None) -> list[dict[str, Any]]:
-    """A caller's own fires across every S7 trigger type, newest first."""
+def list_fires_for_feed(user_id: str, limit: int = 50, *, db_path: str | None = None,
+                        include_price_alerts: bool = False) -> list[dict[str, Any]]:
+    """A caller's own fires across every S7 trigger type, newest first.
+
+    `include_price_alerts` (opt-in, ruling W10-R44; only the "Alerts that fired" widget passes it):
+    also the caller's watchlist price-alert fires. Those have NO `alert_predicates` row (CP3,
+    projection not mirror: `watchlist_price_alerts`' derived `watchlist:<id>` predicate id), so the
+    JOIN above cannot see them; their only owner record is the fire's own `user_id`, set from the
+    member's `watchlist_alerts` row. Same `limit`, one read. Off (every other caller), the read is
+    byte-identical to before."""
     conn = _db.connect(db_path)
     try:
         _db.init_db(conn)
+        if include_price_alerts:
+            from api.services.alert_taxonomy.watchlist_price_alerts import PREDICATE_PREFIX
+            # Two INDEXED reads under one LIMIT (fix 10.11 r3 N-1): an OR across both tables
+            # made SQLite scan every member's fires. The prefix range is DERIVED: every id that
+            # starts with the prefix sorts in [prefix, prefix with its last character bumped).
+            upper = PREDICATE_PREFIX[:-1] + chr(ord(PREDICATE_PREFIX[-1]) + 1)
+            rows = conn.execute(
+                "SELECT * FROM ("
+                " SELECT af.* FROM alert_fires af"
+                " JOIN alert_predicates ap ON af.predicate_id = ap.id WHERE ap.user_id = ?"
+                " UNION ALL"
+                " SELECT af.* FROM alert_fires af"
+                " WHERE af.user_id = ? AND af.predicate_id >= ? AND af.predicate_id < ?"
+                " AND NOT EXISTS (SELECT 1 FROM alert_predicates ap2 WHERE ap2.id = af.predicate_id)"
+                ") ORDER BY fired_at DESC LIMIT ?",
+                (user_id, user_id, PREDICATE_PREFIX, upper, limit),
+            ).fetchall()
+            return [_fire_row_to_dict(r) for r in rows]
         rows = conn.execute(
             "SELECT af.* FROM alert_fires af "
             "JOIN alert_predicates ap ON af.predicate_id = ap.id "

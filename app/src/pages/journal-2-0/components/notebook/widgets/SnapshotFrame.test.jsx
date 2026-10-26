@@ -1,8 +1,13 @@
 // The shared snapshot frame (Task 7): its header, See it now, and the share switch.
 // Asserted by RENDERED TEXT: what a member reads is the thing under test.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, act, renderHook } from '@testing-library/react'
-import SnapshotFrame, { useSnapshotFrame, NA } from './SnapshotFrame'
+import { render, screen, fireEvent, act, renderHook, cleanup } from '@testing-library/react'
+import { useState } from 'react'
+import { waitFor, within } from '@testing-library/react'
+import SnapshotFrame, { useSnapshotFrame, NA, changeKeysOf } from './SnapshotFrame'
+import { widgetEmbedNode } from '../../../lib/notebookWidgets'
+import { latchNotebookFlags, __resetNotebookFlags } from '../../../lib/offline/notebookFlags'
+import { __resetDedicatedQueue } from '../../../lib/dedicatedWidgets'
 
 const ASOF = '2026-10-20T13:14:00Z'
 
@@ -216,3 +221,224 @@ describe('useSnapshotFrame: two writes in one frame', () => {
   })
 })
 
+
+// Wave 10 (Task 10.14, W10-R4): a ready-made dedicated widget refreshes and changes through its own POST door,
+// with the member's settings in the body; a phase 1 kind keeps its GET. Asserted by the request the browser
+// sends and by the text a member reads. The embeds land in Task 10.15, so a minimal host draws the frame here.
+describe('dedicated kinds: See it now and Change through the POST door', () => {
+  const realFetch = global.fetch
+  afterEach(() => { global.fetch = realFetch; __resetNotebookFlags(); __resetDedicatedQueue() })
+
+  const PROP = {
+    asOf: '2026-10-20T14:00:00Z', source: 'broker', since: '2026-10-01', accountId: 'acc-1',
+    daily: { limit: 500, used: 100, left: 400 }, trailing: null, lines: ['$400 left today.'], share: true,
+  }
+  const ok = (body) => ({ ok: true, status: 200, json: async () => body })
+
+  function Embed({ kind, payload, writes, extra = {} }) {
+    const [attrs, setAttrs] = useState(() => {
+      const a = widgetEmbedNode(kind, payload).attrs
+      return { ...a, params: { ...a.params, ...extra } }
+    })
+    const onUpdateParams = (next) => { writes.push(next); setAttrs((a) => ({ ...a, params: next })); return true }
+    const f = useSnapshotFrame(kind, attrs, { editable: true, onUpdateParams })
+    return <SnapshotFrame {...f}><p>{(attrs.params.lines || []).join(' ')}</p></SnapshotFrame>
+  }
+
+  it('changeKeysOf: the prop-firm limits, and the phase 1 range keys for the tilt check', () => {
+    expect(changeKeysOf('myPropFirm')).toEqual(['dailyLoss', 'maxDrawdown', 'since', 'accountId'])
+    expect(changeKeysOf('myTiltCheck')).toEqual(['from', 'to'])
+    expect(changeKeysOf('myPlanVsActual')).toEqual([])                  // a trade is chosen from the / menu
+    expect(changeKeysOf('myGamePlan')).toEqual([])
+    expect(changeKeysOf('myPnlStats')).toEqual(['from', 'to'])          // phase 1 unchanged
+  })
+
+  it('prop_firm_change_fields_and_post_refresh', async () => {
+    latchNotebookFlags({ notebook_widgets_w5_enabled: true })           // presets on: still none for this kind
+    const calls = []
+    global.fetch = vi.fn(async (url, init = {}) => {
+      calls.push([String(url), init.method || 'GET', init.body ? JSON.parse(init.body) : null])
+      if (String(url) === '/api/j2/accounts') return ok({ accounts: [{ id: 'acc-1', name: 'Main' }, { id: 'acc-2', name: 'Funded' }] })
+      return ok({ ...PROP, asOf: '2026-10-21T14:00:00Z', daily: { limit: 750, used: 0, left: 750 }, lines: ['$750 left today.'] })
+    })
+    const writes = []
+    render(<Embed kind="myPropFirm" payload={PROP} writes={writes}
+      extra={{ settings: { dailyLoss: 500, since: '2026-10-01' } }} />)
+    expect(screen.queryByRole('button', { name: 'Save these settings as a preset' })).toBeNull()
+
+    // See it now: the member's settings, in the body of a POST to the kind's own door
+    fireEvent.click(screen.getByRole('button', { name: 'See it now' }))
+    await screen.findByText('$750 left today.')
+    expect(calls[0]).toEqual(['/api/j2/notebook-shelf-widgets/myPropFirm', 'POST',
+      { params: { dailyLoss: 500, since: '2026-10-01' } }])
+    expect(writes[0]).toMatchObject({ lines: ['$750 left today.'], settings: { dailyLoss: 500, since: '2026-10-01' }, share: true })
+
+    // Change: the four fields, labelled
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    expect(screen.getByLabelText('Daily loss limit ($)')).toHaveValue(500)
+    expect(screen.getByLabelText('Daily loss limit ($)')).toHaveAttribute('type', 'number')
+    expect(screen.getByLabelText('Max drawdown ($)')).toHaveValue(null)
+    expect(screen.getByLabelText('Challenge started')).toHaveValue('2026-10-01')
+    expect(screen.getByLabelText('Challenge started')).toHaveAttribute('type', 'date')
+    await screen.findByRole('option', { name: 'Funded' })               // Accounts reads the member's own accounts
+    fireEvent.change(screen.getByLabelText('Daily loss limit ($)'), { target: { value: '750' } })
+    fireEvent.change(screen.getByLabelText('Max drawdown ($)'), { target: { value: '2500' } })
+    fireEvent.change(screen.getByLabelText('Accounts'), { target: { value: 'acc-2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Show these' }))
+    await waitFor(() => expect(writes).toHaveLength(2))
+    const post = calls.filter((c) => c[1] === 'POST').at(-1)
+    expect(post).toEqual(['/api/j2/notebook-shelf-widgets/myPropFirm', 'POST',
+      { params: { dailyLoss: 750, maxDrawdown: 2500, since: '2026-10-01', accountId: 'acc-2' } }])
+    expect(writes[1].settings).toEqual({ dailyLoss: 750, maxDrawdown: 2500, since: '2026-10-01', accountId: 'acc-2' })
+    expect(writes[1].share).toBe(true)
+    // never the phase 1 GET, and never a limit in a URL
+    expect(calls.some(([u]) => u.includes('/api/j2/notebook-widgets/'))).toBe(false)
+    expect(calls.some(([u]) => /750|2500/.test(u))).toBe(false)
+  })
+
+  it('Change: an emptied limit is cleared (the server default applies), never re-asked with its old value', async () => {
+    const calls = []
+    global.fetch = vi.fn(async (url, init = {}) => {
+      calls.push([String(url), init.body ? JSON.parse(init.body) : null])
+      if (String(url) === '/api/j2/accounts') return ok({ accounts: [] })
+      return ok({ ...PROP, asOf: '2026-10-21T14:00:00Z' })
+    })
+    const writes = []
+    render(<Embed kind="myPropFirm" payload={PROP} writes={writes} extra={{ settings: { dailyLoss: 500, maxDrawdown: 2500 } }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    fireEvent.change(screen.getByLabelText('Daily loss limit ($)'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Show these' }))
+    await waitFor(() => expect(writes).toHaveLength(1))
+    expect(calls.at(-1)[1]).toEqual({ params: { maxDrawdown: 2500 } })
+    expect(writes[0].settings).toEqual({ maxDrawdown: 2500 })
+  })
+
+  it('a refused limit shows the server sentence and writes nothing', async () => {
+    global.fetch = vi.fn(async (url) => (String(url) === '/api/j2/accounts' ? ok({ accounts: [] })
+      : { ok: false, status: 400, json: async () => ({ detail: { code: 'invalid', message: 'Amounts are dollars, like 500.' } }) }))
+    const writes = []
+    render(<Embed kind="myPropFirm" payload={PROP} writes={writes} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    fireEvent.change(screen.getByLabelText('Daily loss limit ($)'), { target: { value: '-3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Show these' }))
+    expect(await screen.findByText('Amounts are dollars, like 500.')).toBeInTheDocument()
+    expect(writes).toEqual([])
+  })
+
+  it('with wave 10 dark the door answers 404 and the frame says "Not available right now."; the snapshot stays', async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({ detail: 'Not found' }) }))
+    const writes = []
+    render(<Embed kind="myGamePlan" payload={{ asOf: '2026-10-20T12:00:00Z', source: 'broker', lines: ['Breadth thrust'] }}
+      writes={writes} />)
+    fireEvent.click(screen.getByRole('button', { name: 'See it now' }))
+    expect(await screen.findByText('Not available right now.')).toBeInTheDocument()
+    expect(screen.getByText('Breadth thrust')).toBeInTheDocument()
+    expect(writes).toEqual([])
+  })
+
+  it('phase1_kind_still_refreshes_through_get', async () => {
+    const calls = []
+    global.fetch = vi.fn(async (url, init = {}) => {
+      calls.push([String(url), init.method || 'GET'])
+      return ok({ asOf: '2026-10-21T14:00:00Z', source: 'broker', range: { from: '2026-10-13', to: '2026-10-17' }, netPnl: 9,
+        lines: ['fresh'] })
+    })
+    const writes = []
+    render(<Embed kind="myPnlStats" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker',
+      range: { from: '2026-10-13', to: '2026-10-17' }, netPnl: 1 }} writes={writes} />)
+    fireEvent.click(screen.getByRole('button', { name: 'See it now' }))
+    await waitFor(() => expect(writes).toHaveLength(1))
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toMatch(/^\/api\/j2\/notebook-widgets\/myPnlStats/)
+    expect(calls[0][1]).toBe('GET')
+    expect(calls.some(([u]) => u.includes('notebook-shelf-widgets'))).toBe(false)
+  })
+
+  it('four dedicated widgets refreshed at once all land, and none says Busy (10.12 M7: MEMBER_MAX is 2)', async () => {
+    let inFlight = 0
+    global.fetch = vi.fn(async (url) => {
+      inFlight += 1
+      try {
+        if (inFlight > 2) return { ok: false, status: 503, json: async () => ({ detail: { code: 'busy', message: 'Busy right now. Try again in a moment.' } }) }
+        await new Promise((r) => setTimeout(r, 5))
+        return ok({ asOf: '2026-10-21T14:00:00Z', source: 'broker', lines: [`fresh ${String(url).split('/').pop()}`] })
+      } finally { inFlight -= 1 }
+    })
+    const kinds = ['myTiltCheck', 'myRevengeClean', 'myRiskLeftToday', 'myAlertsFired']
+    const writes = []
+    for (const kind of kinds) render(<Embed kind={kind} payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', lines: [`old ${kind}`] }} writes={writes} />)
+    for (const b of screen.getAllByRole('button', { name: 'See it now' })) fireEvent.click(b)
+    for (const kind of kinds) expect(await screen.findByText(`fresh ${kind}`)).toBeInTheDocument()
+    expect(screen.queryByText(/Busy right now/)).toBeNull()
+    expect(writes).toHaveLength(4)
+  })
+})
+
+// Fix round 1, W10-R56 (review I-1): a dedicated widget is private whatever `share` says, and the frame says so.
+// m-1: a queued refresh whose widget unmounted sends no POST.
+describe('dedicated kinds are private (W10-R56), and a gone widget sends nothing (fix round 1)', () => {
+  const realFetch = global.fetch
+  afterEach(() => { global.fetch = realFetch; __resetDedicatedQueue() })
+  const ok = (body) => ({ ok: true, status: 200, json: async () => body })
+
+  function Embed({ kind, payload, writes = [] }) {
+    const [attrs, setAttrs] = useState(() => widgetEmbedNode(kind, payload).attrs)
+    const onUpdateParams = (next) => { writes.push(next); setAttrs((a) => ({ ...a, params: next })); return true }
+    const f = useSnapshotFrame(kind, attrs, { editable: true, onUpdateParams })
+    return <SnapshotFrame {...f}><p>{(attrs.params.lines || []).join(' ')}</p></SnapshotFrame>
+  }
+
+  it('private_frame_with_share_on: "Only you", "Not shown on shared pages", and no share switch', () => {
+    render(<Embed kind="myPropFirm" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', share: true, lines: ['x'] }} />)
+    expect(screen.getByText('Only you')).toBeInTheDocument()
+    expect(screen.getByText('Not shown on shared pages')).toBeInTheDocument()
+    expect(screen.queryByText('Show on shared pages')).toBeNull()
+    expect(screen.queryByText('Snapshot')).toBeNull()
+  })
+
+  it('the frame itself: privateOnly wins over share (the chip and the switch read the one prop)', () => {
+    frame({ account: true, share: true, privateOnly: true })
+    expect(screen.getByText('Only you')).toBeInTheDocument()
+    expect(screen.getByText('Not shown on shared pages')).toBeInTheDocument()
+    expect(screen.queryByText('Show on shared pages')).toBeNull()
+    cleanup()
+    frame({ account: true, share: true })                                // control: a shared account kind
+    expect(screen.queryByText('Only you')).toBeNull()
+    expect(screen.getByText('Show on shared pages')).toBeInTheDocument()
+  })
+
+  it('every one of the seven is private, and the hook offers no share door', () => {
+    for (const kind of ['myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired']) {
+      const { result } = renderHook(() => useSnapshotFrame(kind, { params: { asOf: ASOF, share: true } },
+        { editable: true, onUpdateParams: vi.fn(() => true) }))
+      expect(result.current, kind).toMatchObject({ privateOnly: true, share: false, account: true })
+      expect(result.current.onShareChange, kind).toBeUndefined()
+    }
+  })
+
+  it('control: a phase 1 account kind shared still offers the switch and reads Snapshot', () => {
+    render(<Embed kind="myPnlStats" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', share: true,
+      range: { from: '2026-10-13', to: '2026-10-17' } }} />)
+    expect(screen.getByText('Show on shared pages')).toBeInTheDocument()
+    expect(screen.getByText('Snapshot')).toBeInTheDocument()
+    expect(screen.queryByText('Only you')).toBeNull()
+  })
+
+  it('unmounted_while_queued_sends_no_post: the queued widget is gone before its turn', async () => {
+    let release
+    const calls = []
+    global.fetch = vi.fn((url) => {
+      calls.push(String(url))
+      return new Promise((r) => { release = () => r(ok({ asOf: '2026-10-21T14:00:00Z', lines: ['fresh'] })) })
+    })
+    const first = render(<Embed kind="myTiltCheck" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', lines: ['a'] }} />)
+    const second = render(<Embed kind="myGamePlan" payload={{ asOf: '2026-10-20T14:00:00Z', source: 'broker', lines: ['b'] }} />)
+    fireEvent.click(within(first.container).getByRole('button', { name: 'See it now' }))
+    fireEvent.click(within(second.container).getByRole('button', { name: 'See it now' }))
+    await waitFor(() => expect(calls).toHaveLength(1))                 // the first is in flight, the second waits
+    second.unmount()
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 20)) })
+    expect(calls).toEqual(['/api/j2/notebook-shelf-widgets/myTiltCheck'])   // never a POST for the gone widget
+    expect(await within(first.container).findByText('fresh')).toBeInTheDocument()
+  })
+})

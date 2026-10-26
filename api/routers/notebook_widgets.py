@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import notebook_widgets as widgets
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import shelf_kinds
 
 router = APIRouter(
     prefix="/api/j2/notebook-widgets",
@@ -52,6 +53,11 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 @router.get("/{kind}")
 def get_widget(kind: str, request: Request, user: dict = Depends(require_paid)) -> Any:
+    # A built widget has no phase 1 builder: it runs through POST /api/j2/widget-definitions/run. It answers
+    # the unknown-kind 404 here, before the wave lookup, whatever its KIND_WAVE row and flag say. So does each
+    # ready-made dedicated kind, whose one door is POST /api/j2/notebook-shelf-widgets/{kind} (W10-R1, W10-R4).
+    if kind == widgets.BUILT_KIND or kind in shelf_kinds.KINDS:
+        raise public.not_found()
     wave = widgets.KIND_WAVE.get(kind)
     if wave is None or not widgets.notebook_widgets_wave_on(wave):
         raise public.not_found()

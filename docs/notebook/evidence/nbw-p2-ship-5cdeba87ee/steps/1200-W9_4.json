@@ -1,0 +1,76 @@
+{
+ "viewport": "1200",
+ "step": "W9.4",
+ "title": "go offline: controls disabled with the offline sentence",
+ "checks": [
+  {
+   "what": "every control is disabled offline",
+   "ok": true,
+   "read": "[\"true\", \"true\", \"true\", \"true\", \"true\"]"
+  },
+  {
+   "what": "the offline sentence is said",
+   "ok": true,
+   "read": "You're offline. Ticks save when you're back online."
+  },
+  {
+   "what": "a press while offline changes nothing",
+   "ok": true,
+   "read": "['true', 'true', 'true', 'false', 'false'] -> ['true', 'true', 'true', 'false', 'false']"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "offline sentence",
+   "text": "You're offline. Ticks save when you're back online."
+  },
+  {
+   "what": "controls",
+   "text": "{\"items\": [\"true\", \"true\", \"true\", \"true\", \"true\"], \"skip\": \"true\"}"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [],
+  "second-tab": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 8,
+   "small": [],
+   "smallCount": 0,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W9_4-main.png",
+  "1200/W9_4-second-tab.png"
+ ]
+}

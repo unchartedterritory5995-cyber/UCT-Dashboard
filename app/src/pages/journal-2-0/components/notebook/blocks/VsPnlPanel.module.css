@@ -1,0 +1,18 @@
+/* The "vs P&L" panel (wave 9, Task 9.15), shared by the routine and tracker blocks. Text is --text / --text-muted only
+   (a value's sign is in its words, "+$95" / "−$40"; no --gain or --loss, ruling D-A4). The Retry holds the 44px floor
+   (var(--tap-min)) at EVERY width. A block keeps the panel mounted, hidden, after its first flip: `display: grid`
+   would beat the user agent's [hidden] rule, so the panel says it itself. */
+.panel { display: grid; gap: 6px; min-width: 0; }
+.panel[hidden] { display: none; }
+.panel:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.line { margin: 0; font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.groups { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 0; font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+.badge {
+  flex: none; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 12px; line-height: 18px; color: var(--text-muted);
+}
+.caveat { margin: 0; font-size: 12px; color: var(--text-muted); }
+.tap { min-height: var(--tap-min); min-width: var(--tap-min); padding: 0 12px; }
+.tap:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }

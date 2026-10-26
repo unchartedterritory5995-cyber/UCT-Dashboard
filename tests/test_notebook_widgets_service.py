@@ -73,15 +73,22 @@ def test_kind_without_a_builder_yet_raises(monkeypatch):
 
 
 def test_every_kind_has_a_builder():
-    assert set(nw._BUILDERS) == set(nw.KIND_WAVE)
+    """Every phase 1 kind has a builder; the built kind (wave 8) has none on purpose: its payload is
+    `widget_engine.payload.build_payload`, reached only through /api/j2/widget-definitions."""
+    assert nw.BUILT_KIND in nw.KIND_WAVE and nw.BUILT_KIND not in nw._BUILDERS
+    assert set(nw._BUILDERS) == set(nw.KIND_WAVE) - {nw.BUILT_KIND}
 
 
 def test_kind_tables_are_complete():
-    assert len(nw.KIND_WAVE) == 15
+    """15 phase 1 kinds, the built kind (wave 8) and the seven ready-made dedicated kinds (wave 10, Task 10.14)."""
+    from api.services.journal_two import shelf_kind_names
+    assert len(nw.KIND_WAVE) == 23
     assert nw.KIND_WAVE["myRulesCheck"] == 2 and nw.KIND_WAVE["tradeRecap"] == 6
+    assert nw.KIND_WAVE[nw.BUILT_KIND] == 8 and nw.KIND_TITLE[nw.BUILT_KIND] == "Widget"
+    assert {k: nw.KIND_WAVE[k] for k in shelf_kind_names.KINDS} == {k: 10 for k in shelf_kind_names.KINDS}
     assert nw.ACCOUNT_KINDS == frozenset({
         "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
-        "tradeRecap", "myPnlCalendar", "mySetupEdge"})
+        "tradeRecap", "myPnlCalendar", "mySetupEdge", "builtWidget", *shelf_kind_names.KINDS})
     assert nw.ACCOUNT_KINDS <= set(nw.KIND_WAVE)
     assert nw.PAYLOAD_CAP_BYTES == 16384 and nw.ROW_CAP == 40
 
@@ -2076,6 +2083,54 @@ def test_bounded_pool_admits_up_to_its_workers_and_releases_on_done_and_on_cance
     assert c is not None and c.result(2) == 7                    # permits come back when the work is done
 
 
+def test_bounded_pool_reserve_holds_back_permits_for_inline_admission():
+    import threading
+    pool = nw.BoundedPool(4, "nb-widget-r", reserve=2)
+    gate = threading.Event()
+    a = pool.try_submit(gate.wait, 5)
+    b = pool.try_submit(gate.wait, 5)
+    assert a is not None and b is not None
+    assert pool.try_submit(lambda: 1) is None                    # phase 1 stops at workers - reserve
+    assert pool.admit_inline() and pool.admit_inline()           # the reserve is there for inline runs
+    assert not pool.admit_inline()                               # and the pool is now full
+    pool.release_inline()
+    gate.set()
+    a.result(2), b.result(2)
+    time.sleep(0.05)
+    c = pool.try_submit(lambda: 7)                               # both permits came back on done
+    assert c is not None and c.result(2) == 7
+    pool.release_inline()
+
+
+def test_bounded_pool_inline_admission_also_bounds_phase1():
+    pool = nw.BoundedPool(2, "nb-widget-i", reserve=0)
+    assert pool.admit_inline() and pool.admit_inline()
+    assert pool.try_submit(lambda: 1) is None                    # one ceiling over both kinds of work
+    pool.release_inline()
+    f = pool.try_submit(lambda: 3)
+    assert f is not None and f.result(2) == 3
+    pool.release_inline()
+
+
+def test_the_module_pool_reserves_two_and_styles_keep_none():
+    from api.services.journal_two import journal_styles
+    assert nw.WIDGET_POOL_RESERVE == 2
+    src = __import__("inspect").getsource(nw)
+    assert "BoundedPool(WIDGET_POOL_WORKERS, \"nb-widget\", reserve=WIDGET_POOL_RESERVE)" in src
+    assert journal_styles._slot_pool()._reserve == 0
+
+
+def test_built_too_large_keep_set_never_exceeds_the_cap():
+    big = {"asOf": "x", "source": "manual", "def": {"pad": "d" * 4000},
+           "defRef": {"pad": "r" * 4000}, "title": "t" * 4000, "scopeLabel": "s" * 4000,
+           "rangeLabel": "g" * 4000, "notice": "n" * 4000, "filter": ["f" * 4000],
+           "defId": "w1", "rows": [], "pad": "p" * 20000}
+    out = nw.cap_payload(big, nw.BUILT_KIND, list_key="rows")
+    assert out["tooLarge"] is True and out["empty"] == nw.TOO_LARGE_SENTENCE
+    assert nw._payload_size(out) <= nw.PAYLOAD_CAP_BYTES
+    assert out["defId"] == "w1" and out["asOf"] == "x"           # the small keys survive the guard
+
+
 def test_saturated_pool_names_reporting_answers_partial_at_once(monkeypatch):
     _saturate(monkeypatch)
     items = [{"symbol": s, "date": "2026-10-21", "daysAway": 1, "timing": "bmo", "sources": ["watchlist"]}
@@ -2315,7 +2370,14 @@ def _bytes(p):
 
 
 def test_i2_every_kind_but_the_card_names_its_trimmable_list():
-    assert set(nw.LIST_KEY) | {"tickerCard"} == set(nw.KIND_WAVE)
+    # the built kind names its list per VIEW at the call (widget_engine.payload.TRIM_BY_VIEW), not per kind.
+    # Task 10.14: the seven dedicated kinds name none either. Their builders hold each list to its own row cap and
+    # say what they dropped (`truncated`), so a payload still over the cap gets the too-large form, never a silent
+    # trim of rows the builder's own sentence counted.
+    from api.services.journal_two import shelf_kind_names
+    assert not set(nw.LIST_KEY) & set(shelf_kind_names.KINDS)
+    assert set(nw.LIST_KEY) | {"tickerCard", nw.BUILT_KIND, *shelf_kind_names.KINDS} == set(nw.KIND_WAVE)
+    assert nw.BUILT_KIND not in nw.LIST_KEY
 
 
 def test_i2_rules_check_with_long_labels_fits_and_labels_are_clipped(monkeypatch):
@@ -2636,9 +2698,12 @@ def test_m1_partial_follows_earnings_unknown_on_the_card_and_the_watchlist(monke
 def test_ux_i6_every_kind_has_a_plain_source_sentence():
     for kind in nw.KIND_WAVE:
         for src in ("broker", "manual", "mixed", "market"):
-            got = nw.source_detail(kind, {"source": src, "priceBasis": "live"})
-            assert isinstance(got, str) and got.endswith(".") and got.strip() == got, (kind, src)
-            assert "  " not in got and "\n" not in got, (kind, src)
+            # the built kind's sentence names what the widget looks at (its `sourceKey`), every source
+            keys = sorted(nw._BUILT_DETAIL) if kind == nw.BUILT_KIND else [None]
+            for sk in keys:
+                got = nw.source_detail(kind, {"source": src, "priceBasis": "live", "sourceKey": sk})
+                assert isinstance(got, str) and got.endswith(".") and got.strip() == got, (kind, src, sk)
+                assert "  " not in got and "\n" not in got, (kind, src, sk)
 
 
 def test_ux_i6_positions_source_names_the_broker_and_the_price_it_used(monkeypatch):

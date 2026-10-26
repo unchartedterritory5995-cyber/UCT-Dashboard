@@ -126,7 +126,7 @@ def check_bytes(budgets: dict, dist: Path) -> tuple[list[str], dict]:
                               "that is not a route, the graph walk found nothing")
         limit = int(spec["max"])
         detail[name] = {"bytes": total, "max": limit, "baseline": spec.get("baseline"),
-                        "chunks": len(rows), "largest": rows[:8]}
+                        "chunks": len(rows), "largest": rows[:8], "files": rows}
         if total > limit:
             over = total - limit
             breaches.append(f"bytes.{name}: {total:,} B > budget {limit:,} B (+{over:,} B over); "
@@ -393,6 +393,17 @@ def load_budgets(path: Path) -> dict:
         raise Unevaluable(f"cannot read budgets from {path}: {e!r}")
 
 
+def _print_chunks(args, out: dict) -> None:
+    """`--chunks`: one `<file> <bytes>` line per JS file in each budget's static closure."""
+    if not args.chunks:
+        return
+    for name, d in (out.get("bytes") or {}).items():
+        if len(out["bytes"]) > 1:
+            print(f"# {name}")
+        for f, b in d["files"]:
+            print(f"{f} {b}")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--budgets", default=str(DEFAULT_BUDGETS))
@@ -404,10 +415,16 @@ def main(argv: list[str] | None = None) -> int:
                     help="ratio budget key(s) to apply to --bench (ruling R-10; repeatable)")
     ap.add_argument("--curve", action="store_true",
                     help="apply the `curve` budget to --bench (clause 14d)")
+    ap.add_argument("--chunks", action="store_true",
+                    help="after the verdict, list every JS file of each byte closure as "
+                         "`<file> <bytes>`, largest first (wave 7: where the first-open bytes are)")
     ap.add_argument("--json", dest="json_path", default=None)
     args = ap.parse_args(argv)
     if not args.dist and not args.bench:
         print("nothing to check: pass --dist and/or --bench")
+        return 3
+    if args.chunks and not args.dist:
+        print("--chunks lists a built closure: pass --dist")
         return 3
     if (args.ratio or args.curve) and not args.bench:
         print("--ratio and --curve read a benchmark report: pass --bench")
@@ -474,8 +491,10 @@ def main(argv: list[str] | None = None) -> int:
         print("VERDICT: BUDGET BREACH")
         for b in out["breaches"]:
             print(f"  BREACH {b}")
+        _print_chunks(args, out)
         return 1
     print("VERDICT: PASS -- within every budget checked")
+    _print_chunks(args, out)
     return 0
 
 

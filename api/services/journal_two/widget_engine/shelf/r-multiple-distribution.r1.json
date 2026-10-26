@@ -1,0 +1,36 @@
+{
+  "id": "shelf:r-multiple-distribution",
+  "rev": 1,
+  "name": "R-multiple distribution",
+  "description": "How many trades landed in each R bucket.",
+  "keywords": [
+    "r distribution",
+    "histogram",
+    "r buckets",
+    "outcomes"
+  ],
+  "plan": {
+    "v": 1,
+    "source": "closed_trades",
+    "range": {
+      "token": "last_90d"
+    },
+    "measures": [
+      {
+        "key": "trades"
+      }
+    ],
+    "split": {
+      "by": "r_bucket"
+    },
+    "view": {
+      "type": "bar",
+      "auto": false
+    },
+    "display": {
+      "title": "R-multiple distribution",
+      "titleAuto": false,
+      "accent": "gold"
+    }
+  }
+}

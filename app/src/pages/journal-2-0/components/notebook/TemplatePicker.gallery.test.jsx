@@ -6,11 +6,16 @@
 // is checked against the template's own body by an INDEPENDENT walk (every text node
 // of `build({})`), so a preview typed by hand -- or taken from the wrong template --
 // cannot pass.
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
+import { loadTemplates } from '../../lib/templatesLoader'
+
+// Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
+// picker renders synchronously, as it does on the page once the catalog has arrived.
+beforeAll(() => loadTemplates())
 import {
   FAMILIES, TEMPLATES, getTemplate, PREVIEW_LINES, STRUCTURE_PROBE_CONTEXT,
 } from '../../lib/notebookTemplates'

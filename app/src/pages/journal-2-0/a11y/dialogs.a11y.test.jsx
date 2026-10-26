@@ -21,6 +21,7 @@ import CaptureDialog from '../components/notebook/CaptureDialog'
 import CapturedSourceSheet from '../components/notebook/CapturedSourceSheet'
 import ImportWizard from '../components/notebook/import/ImportWizard'
 import TemplatePicker from '../components/notebook/TemplatePicker'
+import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import MemberTemplates from '../components/notebook/MemberTemplates'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import UnsentTrashDialog from '../components/notebook/UnsentTrashDialog'
@@ -180,6 +181,12 @@ describe('notebook dialogs', () => {
     render(<Providers><TemplatePicker onPick={() => {}} onPickMember={() => {}} /></Providers>)
     await screen.findAllByText('Morning prep')
     await settle()
+  })
+
+  // Wave 7 Task 7.4: the picker's box while its chunk and the catalog load (it holds the tour's door anchor).
+  axeSurface('template-picker-skeleton', async () => {
+    render(<Providers><TemplatePickerSkeleton /></Providers>)
+    await screen.findByRole('status', { name: 'Loading templates' })
   })
 
   axeSurface('member-templates', async () => {

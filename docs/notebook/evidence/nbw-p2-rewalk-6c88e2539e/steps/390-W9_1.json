@@ -1,0 +1,107 @@
+{
+ "viewport": "390",
+ "step": "W9.1",
+ "title": "/routine: New routine from the Pre-market starter, tick two items, reload: no unsaved change, both ticks there",
+ "checks": [
+  {
+   "what": "the Pre-market starter fills the items",
+   "ok": true,
+   "read": "Read the morning wire | Check today's economic calendar | Review open positions and stops | Mark key levels on my watchlist | Set my max loss for today"
+  },
+  {
+   "what": "the routine was saved (HTTP 200/201)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "the ticks wrote nothing to the note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the note's saved time did not move",
+   "ok": true,
+   "read": "2026-10-26T00:43:46.223158+00:00 -> 2026-10-26T00:43:46.223158+00:00"
+  },
+  {
+   "what": "both ticks are there after a reload",
+   "ok": true,
+   "read": "[\"true\", \"true\", \"false\", \"false\", \"false\"]"
+  },
+  {
+   "what": "the note shows no unsaved change after the reload",
+   "ok": true,
+   "read": "none"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "picker",
+   "text": "Add a routine\n×\n\nYou don't have a routine yet. Make one, and it goes in this note.\n\nNew routine"
+  },
+  {
+   "what": "starter items",
+   "text": "Read the morning wire | Check today's economic calendar | Review open positions and stops | Mark key levels on my watchlist | Set my max loss for today"
+  },
+  {
+   "what": "block after two ticks",
+   "text": "For Sun Oct 25\nOff day\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\n2 of 5\n\nSkip this day\nP&L on days you finished it"
+  },
+  {
+   "what": "ticks after reload",
+   "text": "[\"true\", \"true\", \"false\", \"false\", \"false\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   },
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "inner": [
+    [
+     390,
+     390
+    ],
+    [
+     342,
+     342
+    ],
+    [
+     342,
+     342
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 8,
+   "small": [],
+   "smallCount": 0,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "390/W9_1-main.png"
+ ]
+}

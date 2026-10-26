@@ -9,7 +9,7 @@
  * created note afterward.
  */
 import { assembleTemplateContext } from './templateContext'
-import { getTemplate } from './notebookTemplates'
+import { getTemplateAsync } from './templatesLoader'
 import { settleNoteWrite } from './offline/settleNoteWrite'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
@@ -92,7 +92,7 @@ export async function createNoteViaApi({
  * every other template-creation entry point already uses. Throws if the
  * template key is unknown. */
 export async function createNoteFromTemplateViaApi(templateKey, { ticker } = {}) {
-  const tpl = getTemplate(templateKey)
+  const tpl = await getTemplateAsync(templateKey)
   if (!tpl) throw new Error(`Unknown template: ${templateKey}`)
   let ctx
   try {

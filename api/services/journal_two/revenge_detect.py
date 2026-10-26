@@ -31,6 +31,9 @@ def _timed_instant(iso: str | None):
     return dt
 
 
+timed_instant = _timed_instant
+
+
 def _net(row: dict) -> float:
     """Net-of-fees P&L for the loss test; fall back to gross when net absent."""
     v = row.get("pnlDollarNet")

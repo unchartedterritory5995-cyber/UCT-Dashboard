@@ -1,0 +1,237 @@
+{
+ "viewport": "1200",
+ "step": "W8.2",
+ "title": "log 5 trades and watch the preview switch to real data",
+ "checks": [
+  {
+   "what": "the sample-trades banner is gone once 5 trades are logged",
+   "ok": true,
+   "read": "banner count 0"
+  },
+  {
+   "what": "the preview no longer says sample data",
+   "ok": true,
+   "read": "Net P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades."
+  },
+  {
+   "what": "the preview counts the member's 5 trades",
+   "ok": true,
+   "read": "Net P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades."
+  }
+ ],
+ "rendered": [
+  {
+   "what": "preview summary (live region)",
+   "text": "Net P&L, split by day, for closed trades in the last 30 days, all accounts. 5 trades."
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  {
+   "what": "trades logged through POST /api/j2/trades (the Trades page's door)",
+   "value": [
+    "5ce66bdc-5b46-4fdc-829f-3faa3be58d17",
+    "f07c6608-07f1-4841-a152-91a133f66a3c",
+    "0a75e9c5-2efa-4ee0-884f-68ae88df4eeb",
+    "0b3f2126-2aa0-4bf0-a1ce-ddb3c148c887",
+    "5a071cac-efc2-4f8f-b62f-212b911191fa"
+   ]
+  }
+ ],
+ "events": {
+  "main": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   }
+  ]
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ],
+    [
+     1092,
+     1092
+    ],
+    [
+     826,
+     826
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 35,
+   "small": [
+    {
+     "label": "Back to examples",
+     "tag": "BUTTON",
+     "w": 140,
+     "h": 34
+    },
+    {
+     "label": "All my accounts Swing book Main book",
+     "tag": "SELECT",
+     "w": 615,
+     "h": 36
+    },
+    {
+     "label": "Date range: Last 30 days. Change",
+     "tag": "BUTTON",
+     "w": 109,
+     "h": 34
+    },
+    {
+     "label": "Filter",
+     "tag": "BUTTON",
+     "w": 76,
+     "h": 34
+    },
+    {
+     "label": "Net P&L. Change measures",
+     "tag": "BUTTON",
+     "w": 68,
+     "h": 34
+    },
+    {
+     "label": "Measure",
+     "tag": "BUTTON",
+     "w": 94,
+     "h": 34
+    },
+    {
+     "label": "Add your own field",
+     "tag": "BUTTON",
+     "w": 144,
+     "h": 34
+    },
+    {
+     "label": "Split by Day. Change",
+     "tag": "BUTTON",
+     "w": 46,
+     "h": 34
+    },
+    {
+     "label": "Remove split: Day",
+     "tag": "BUTTON",
+     "w": 34,
+     "h": 34
+    },
+    {
+     "label": "In their own order Net P&L, highest firs",
+     "tag": "SELECT",
+     "w": 303,
+     "h": 36
+    },
+    {
+     "label": "Table",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Bar",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Line, suggested",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Calendar heat map",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "INPUT",
+     "tag": "INPUT",
+     "w": 615,
+     "h": 36
+    },
+    {
+     "label": "Gold",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Green",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Red",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Blue",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Purple",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Teal",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "Orange",
+     "tag": "INPUT",
+     "w": 1,
+     "h": 1
+    },
+    {
+     "label": "on",
+     "tag": "INPUT",
+     "w": 18,
+     "h": 18
+    },
+    {
+     "label": "Daily P&L bars",
+     "tag": "INPUT",
+     "w": 615,
+     "h": 36
+    },
+    {
+     "label": "INPUT",
+     "tag": "INPUT",
+     "w": 615,
+     "h": 36
+    }
+   ],
+   "smallCount": 27,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W8_2-main.png"
+ ]
+}

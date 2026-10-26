@@ -1,7 +1,8 @@
 // Notebook widgets Task 20 (wave 6): the /recap and /screen rows (lib/notebookWidgetsFetch.js).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  loadPicks, pickRows, shortDay, screenName, BARE_ROWS, TRADES_URL, SCREENS_URL,
+  loadPicks, pickRows, shortDay, screenName, BARE_ROWS, TRADES_URL, SCREENS_URL, loadTrades, tradeLabel,
+  dedicatedSnapshotKind,
 } from './notebookWidgetsFetch'
 
 const trade = (i, extra = {}) => ({ id: `t${i}`, symbol: 'nvda', side: 'Long', exitDate: `2026-10-${String(10 + i).padStart(2, '0')}`, ...extra })
@@ -54,6 +55,30 @@ describe('pickRows', () => {
   it('two trades with the same words get distinct titles (a title is the menu row key)', () => {
     const doc = { trades: [trade(1, { id: 'a' }), trade(1, { id: 'b' })], screens: [] }
     expect(pickRows('recap', doc, insert).map((r) => r.title)).toEqual(['Recap — NVDA long, Oct 11', 'Recap — NVDA long, Oct 11 (2)'])
+  })
+})
+
+describe('Task 10.21: /actual, Plan vs actual over the same trades', () => {
+  it('only when asked for (wave 10), never on a bare /, each inserting the dedicated kind with that trade', () => {
+    expect(pickRows('actual', DOC, insert).some((r) => r.cmd === 'actual')).toBe(false)          // the gate
+    expect(pickRows('', DOC, insert, { actual: true }).some((r) => r.cmd === 'actual')).toBe(false)
+    const rows = pickRows('actual', DOC, insert, { actual: true })
+    expect(rows).toHaveLength(8)
+    expect(rows[0].title).toBe('Plan vs actual — NVDA long, Oct 10')
+    expect(rows[0].group).toBe('review')
+    expect(rows[0].command).toEqual({ kind: 'myPlanVsActual', params: { settings: { tradeId: 't0' } } })
+    expect(typeof insert.mock.calls.at(-1)[0].capture).toBe('function')                      // its POST door
+    expect(pickRows('actual amd', DOC, insert, { actual: true })).toEqual([])
+    expect(tradeLabel(trade(1))).toBe('NVDA long, Oct 11')
+    expect(dedicatedSnapshotKind('tradeRecap')).toBeNull()                                     // not a dedicated kind
+  })
+
+  it('loadTrades: the trades alone, a failed read rejects', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ trades: [trade(1), { id: '' }] }) })))
+    expect(await loadTrades()).toEqual([trade(1)])
+    expect(fetch).toHaveBeenCalledWith(TRADES_URL, { credentials: 'include' })
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({}) })))
+    await expect(loadTrades()).rejects.toThrow()
   })
 })
 

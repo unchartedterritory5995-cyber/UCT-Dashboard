@@ -690,6 +690,14 @@ const AWAITING_A_DECISION = {
     'COMMUNITY SURFACE — the pooled EventSource for the chat stream. Its only '
     + 'importers are the community files above, so it moves with them or not '
     + 'at all (same pairing rule as buildRail / DeskVideoRail).',
+  // (A "WIDGET FORMULA TWIN — BUILT AHEAD OF ITS BUILDER" block stood here from Task 10.3 (2026-10-24) until Task
+  // 10.16 (2026-10-25), parking `lib/widgetFormula/widgetFormula.js`. The builder's "Your own fields"
+  // (widgetBuilder/sections/FormulaSection.jsx, widgetBuilder/formulaFields.js) now imports it in the builder's lazy
+  // chunk, so it is reached from App.jsx; the block and its expiry went in that commit, as the block's own text said.)
+  // (A "THE TRACKER EDITOR — BUILT AHEAD OF ITS DOORS" block stood here from Task 9.16 (2026-10-24) until its fix
+  // round 1 the next day, parking `routines/openTrackerEditor.js` and `TrackerEditorSheet.jsx`. The tracker block's
+  // "Edit tracker" (ruling W9-R47) now imports the door lazily, so both are reached from App.jsx; the block and its
+  // expiry went in that commit, as the block's own text said.)
   // (PACKET-AA CP1's FlowExplainButton.jsx block stood here until 2026-09-25;
   // CP2 mounted it in OptionsFlow.jsx's Strike Flow Detail table and the block
   // and its expiry were deleted in that commit, as the block's own text said.)

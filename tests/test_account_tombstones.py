@@ -334,3 +334,73 @@ def test_the_weekly_schedule_line_is_one_schtasks_command_with_no_credentials():
     assert line == ('schtasks /Create /TN "UCT-AuthDB-Restore-Drill" /SC WEEKLY /D SUN /ST 09:00 /F '
                     r'/TR "C:\Users\Patrick\uct-q1-observe\restore_drill_weekly.cmd"')
     assert "DATA_SYNC" not in line and "SECRET" not in line.upper()
+
+
+# ── Notebook widgets (Task 8.8): the stored-widget tables replay too ─────────────
+
+def test_tombstone_replay_removes_both_tables(authdb, tmp_path):
+    """A restored snapshot still holding a deleted member's saved widgets and their
+    revisions loses both on replay; a control member's rows stay."""
+    c = authdb.get_connection()
+    try:
+        for uid in (GONE, KEPT):
+            c.execute(
+                "INSERT INTO j2_widget_definitions (id, user_id, name, plan_json, plan_version,"
+                " rev, placed_rev, created_at, updated_at) VALUES (?, ?, 'w', '{}', 1, 1, 1, 'x', 'x')",
+                (f"wd-{uid}", uid))
+            c.execute(
+                "INSERT INTO j2_widget_definition_revs (user_id, definition_id, rev, plan_json,"
+                " summary, saved_at) VALUES (?, ?, 1, '{}', 's', 'x')", (uid, f"wd-{uid}"))
+        c.commit()
+    finally:
+        c.close()
+    raw = tmp_path / "restored.db"
+    src = sqlite3.connect(authdb._DB_PATH)
+    dst = sqlite3.connect(str(raw))
+    src.backup(dst)
+    src.close()
+    try:
+        at.replay_on_db(dst, [GONE])
+        owners = lambda t: {r[0] for r in dst.execute(f"SELECT user_id FROM {t}")}  # noqa: E731
+        assert owners("j2_widget_definitions") == {KEPT}
+        assert owners("j2_widget_definition_revs") == {KEPT}
+    finally:
+        dst.close()
+
+
+# ── Notebook widgets wave 9 (Task 9.2): routines and trackers replay too ─────────
+
+def test_tombstone_replay_removes_every_routine_and_tracker_table(authdb, tmp_path):
+    """A restored snapshot still holding a deleted member's routines, trackers and every
+    row hanging off them loses all seven tables' rows on replay; a control member's stay."""
+    c = authdb.get_connection()
+    try:
+        for uid in (GONE, KEPT):
+            c.execute(
+                "INSERT INTO j2_routines (id, user_id, name, items_json, settings_json,"
+                " created_at, updated_at) VALUES (?, ?, 'r', '[]', '{}', 'x', 'x')",
+                (f"r-{uid}", uid))
+            c.execute("INSERT INTO j2_routine_schedules VALUES (?, ?, '2026-10-01', '{}')", (uid, f"r-{uid}"))
+            c.execute("INSERT INTO j2_routine_ticks VALUES (?, ?, '2026-10-23', 'i1', 1, 'x')", (uid, f"r-{uid}"))
+            c.execute("INSERT INTO j2_routine_days VALUES (?, ?, '2026-10-23', 1, 'x')", (uid, f"r-{uid}"))
+            c.execute("INSERT INTO j2_routine_reminder_claims VALUES (?, ?, '2026-10-23', 'x')", (uid, f"r-{uid}"))
+            c.execute(
+                "INSERT INTO j2_trackers (id, user_id, name, kind, settings_json, created_at,"
+                " updated_at) VALUES (?, ?, 't', 'number', '{}', 'x', 'x')", (f"t-{uid}", uid))
+            c.execute("INSERT INTO j2_tracker_values VALUES (?, ?, '2026-10-23', 2.5, 'x')", (uid, f"t-{uid}"))
+        c.commit()
+    finally:
+        c.close()
+    raw = tmp_path / "restored.db"
+    src = sqlite3.connect(authdb._DB_PATH)
+    dst = sqlite3.connect(str(raw))
+    src.backup(dst)
+    src.close()
+    try:
+        at.replay_on_db(dst, [GONE])
+        owners = lambda t: {r[0] for r in dst.execute(f"SELECT user_id FROM {t}")}  # noqa: E731
+        for t in ("j2_routines", "j2_routine_schedules", "j2_routine_ticks", "j2_routine_days",
+                  "j2_routine_reminder_claims", "j2_trackers", "j2_tracker_values"):
+            assert owners(t) == {KEPT}, t
+    finally:
+        dst.close()

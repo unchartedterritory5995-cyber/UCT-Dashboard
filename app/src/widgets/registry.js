@@ -339,6 +339,11 @@ function snapshotManifest(label, payloadSchema, plainText) {
   }
 }
 
+/** Wave 10: a dedicated kind's manifest, a snapshot kind with `settings` and `lines`; its search line is its name and
+ *  the day it was taken. */
+const _dedicated = (label, name, payloadSchema) => snapshotManifest(label, `settings:j lines:j ${payloadSchema}`,
+  (p) => `[${name}: ${_asOfDay(p).slice(3) || 'snapshot'}]`)
+
 /** A trader block's manifest (Notebook P2): one shape, so each entry costs its params and words only.
  *  ⛔ Rendered by blocks/BlockNodeView.jsx (BLOCK_COMPONENTS), never the embed host: not reconstructable,
  *  never live, so resolveEmbedRender's archive and live paths can never pick a block up. */
@@ -987,6 +992,32 @@ const PANEL_MANIFESTS = {
   myEarningsReactions: snapshotManifest('My earnings reactions',
     // rows: [{symbol, day, epsActual, epsEst, revActual, revEst, nextDayPct}]
     'rows:j! truncated:n', _countLine('name')),
+  // Wave 8 (Task 8.13): a widget the member BUILT (api/services/journal_two/widget_engine/payload.py). Its values ride
+  // fixed keys (value/rows/series/points/cells: {label, label2, v1..v3, n1..n3, s1..s3, n}); `def` is the frozen plan
+  // (or `defRef` when it is over 4 KB) and `range`/`accountId`/`filter` the viewer settings, all echoed by the server.
+  // `range` is a plan range object ({token} or {from, to}), so it is json. `labelKind`/`label2Kind` say a label is an
+  // account name (ruling R-25). ⛔ The search line names the kind, the title and a day, never a figure.
+  builtWidget: snapshotManifest('Widget',
+    'defId defRev:n latestRev:n def:j defRef:j title summary view sourceKey measures:j value:j compare:j compareLabel '
+    + 'rows:j series:j points:j cells:j coverage:j count:n scopeLabel rangeLabel range:j accountId filter:j capped:b '
+    + 'sample:b notice truncated:n footnotes:j labelKind label2Kind drawdown:j target:n targetLabel stop:j quadrants '
+    // W10-R73 / walk-fix review I-1: the public hide stamped from the plan the run read (kept, never published)
+    + 'publicHidden:b',
+    (p) => `[widget: ${p?.title || 'widget'}${_asOfDay(p)}]`),
+  // Wave 10 (Task 10.14): the seven ready-made dedicated kinds (api/services/journal_two/shelf_discipline.py,
+  // shelf_compose.py), refreshed through POST /api/j2/notebook-shelf-widgets/{kind} (lib/dedicatedWidgets.js).
+  // `settings` is the member's own request; the rest is the payload. ⛔ The search line is a name and a day only.
+  myTiltCheck: _dedicated('Tilt check', 'tilt check',
+    'windowMinutes:n after:j other:j datesOnly:n estimated:n noResult:n capped:b'),
+  myRevengeClean: _dedicated('Revenge trades', 'revenge trades',
+    'window:n clean:n checked:n notChecked:n notRead:n tooMany:n olderNotRead:n noTrades:n days:j flagged:j truncated:n'),
+  myPlanVsActual: _dedicated('Plan vs actual', 'plan vs actual', 'available:b tradeId symbol side rows:j followedPlan:b size:j'),
+  myRiskLeftToday: _dedicated('Risk left today', 'risk left today',
+    'day session accounts:j openRisk:n flaggedCounted:n truncated:n positionsCapped:b'),
+  myPropFirm: _dedicated('Prop-firm rules', 'prop firm rules',
+    'since countingFrom accountId daily:j trailing:j flaggedCounted:n notes:j notices:j'),
+  myGamePlan: _dedicated('Pre-market game plan', 'game plan', 'day wire:j reporting:j risk:j'),
+  myAlertsFired: _dedicated('Alerts that fired', 'alerts that fired', 'since rows:j truncated:n capped:b'),
   // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
   // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
   // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).
@@ -1008,6 +1039,12 @@ const PANEL_MANIFESTS = {
     { key: 'regimeId', type: 'enum', options: ['green', 'amber', 'orange', 'red'] },
     { key: 'regimeAsOf', type: 'string' },
   ], '[position sizing]'),
+  // Wave 10 (Task 10.20, W10-R8): the position size calculator, a live trader block (no catalog row). Params are only
+  // what the member typed; the account size is read live, and the line never names a number.
+  sizeCalc: blockManifest('Position size calculator', [
+    { key: 'symbol', type: 'string' }, { key: 'entry', type: 'number' }, { key: 'stop', type: 'number' },
+    { key: 'riskPct', type: 'number' }, { key: 'accountSize', type: 'number' },
+  ], '[position size calculator]'),
   // P2 Tier 1 (part b): capture-only blocks bound in BLOCK_COMPONENTS only (IR-B2, part b).
   myRules: blockManifest('My rules', [
     { key: 'which', type: 'enum', options: ['active', 'all'], default: 'active' },
@@ -1034,6 +1071,26 @@ const PANEL_MANIFESTS = {
     { key: 'focus', type: 'string', default: '' },
     { key: 'day', type: 'string', default: '' },
   ], '[mood and focus check-in]'),
+  // Notebook widgets phase 2, wave 9 (Task 9.13): the routine block. Its body is live (it reads and ticks the
+  // routine's day through lib/blocks/toolsApi), and its params hold only its own settings: which routine, which
+  // day (`bind`: note-day | next-trading-day | week | today) and the display. The fixed line below is the
+  // registry's own; the block writes the name-and-day search text explicitly (toolSearchText), at insert and on
+  // each settings change, because this module imports nothing from lib/blocks.
+  routine: blockManifest('Routine', [
+    { key: 'routineId', type: 'string', default: '' },
+    { key: 'day', type: 'string', default: '' },
+    { key: 'bind', type: 'string', default: 'note-day' },
+    { key: 'display', type: 'string', default: 'items' },
+  ], '[routine]'),
+  // Wave 9 (Task 9.14): the tracker block, the routine's twin. Live (it reads and logs the tracker's day through
+  // lib/blocks/toolsApi); its params are its own settings only: which tracker, which day, and `display` (`chart` or
+  // `pnl`). Its name-and-day search text is written by the block, as the routine's is.
+  tracker: blockManifest('Tracker', [
+    { key: 'trackerId', type: 'string', default: '' },
+    { key: 'day', type: 'string', default: '' },
+    { key: 'bind', type: 'string', default: 'note-day' },
+    { key: 'display', type: 'string', default: 'chart' },
+  ], '[tracker]'),
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(

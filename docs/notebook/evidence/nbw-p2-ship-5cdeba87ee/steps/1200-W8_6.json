@@ -1,0 +1,220 @@
+{
+ "viewport": "1200",
+ "step": "W8.6",
+ "title": "drill a bar into a trade drawer",
+ "checks": [
+  {
+   "what": "the drill lists the trade behind the bar",
+   "ok": true,
+   "read": "Behind 2026-10-19\nClose\n\nLive data; the snapshot was taken on Oct 25\n\nAAPL Long\n2026-10-19\n+$300.00\n+1.5R"
+  },
+  {
+   "what": "the trade opens on its own page",
+   "ok": true,
+   "read": "http://127.0.0.1:8093/journal-2-0/trade/bad09746-e66f-43d2-ae6b-324fe700bedb"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "first bar's name",
+   "text": "2026-10-19: +$300.00"
+  },
+  {
+   "what": "drill rows",
+   "text": "Behind 2026-10-19\nClose\n\nLive data; the snapshot was taken on Oct 25\n\nAAPL Long\n2026-10-19\n+$300.00\n+1.5R"
+  },
+  {
+   "what": "row link",
+   "text": "/journal-2-0/trade/bad09746-e66f-43d2-ae6b-324fe700bedb"
+  },
+  {
+   "what": "trade page",
+   "text": "Skip to main content\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nWidgets walk 1200\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade\n← Trade Journal\nCustomize\n‹\n›\nAAPL\nLONG\nWin\n▶ Replay\nSave to Notebook\nSave image\nCopy image\nResearch\nMarket context at the fill\n\nNo market context was captured for this entry. It i"
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "inner": [
+    [
+     1140,
+     1140
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "body",
+   "controls": 42,
+   "small": [
+    {
+     "label": "Skip to main content",
+     "tag": "A",
+     "w": 154,
+     "h": 37
+    },
+    {
+     "label": "Search — Ctrl+K",
+     "tag": "BUTTON",
+     "w": 43,
+     "h": 46
+    },
+    {
+     "label": "UCT Terminal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Charts",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Morning Wire",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Dashboard",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "AI Search",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "UCT 20",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Breadth",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Screener",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Options Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Flow Record",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Live Flow",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Catalysts History",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Model Book",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Formula Reference",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "The Desk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Journal",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Portfolio Risk",
+     "tag": "A",
+     "w": 43,
+     "h": 25
+    },
+    {
+     "label": "Account: Widgets walk 1200, Pro",
+     "tag": "A",
+     "w": 43,
+     "h": 51
+    },
+    {
+     "label": "Settings",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "Support",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "UCT Website",
+     "tag": "A",
+     "w": 43,
+     "h": 42
+    },
+    {
+     "label": "← Trade Journal",
+     "tag": "A",
+     "w": 97,
+     "h": 21
+    },
+    {
+     "label": "Customize",
+     "tag": "BUTTON",
+     "w": 107,
+     "h": 28
+    }
+   ],
+   "smallCount": 37,
+   "binds": false
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "body",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "1200/W8_6-main.png"
+ ]
+}

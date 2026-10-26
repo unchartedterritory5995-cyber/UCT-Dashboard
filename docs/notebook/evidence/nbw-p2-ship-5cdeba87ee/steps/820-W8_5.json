@@ -1,0 +1,94 @@
+{
+ "viewport": "820",
+ "step": "W8.5",
+ "title": "Change the range and account",
+ "checks": [
+  {
+   "what": "the changed widget re-ran (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200"
+  },
+  {
+   "what": "it now reads the Swing book account over the last 7 days",
+   "ok": true,
+   "read": "Daily P&L bars\nOnly you\nas of Oct 25, 2026, 5:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nSwing book · Last 7 days\n\n2026-10-22\n-$200.00\nShow as table\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "only the Swing book trade's day is drawn",
+   "ok": true,
+   "read": "Daily P&L bars\nOnly you\nas of Oct 25, 2026, 5:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nSwing book · Last 7 days\n\n2026-10-22\n-$200.00\nShow as table\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "back to the widget's own range and all accounts (HTTP 200)",
+   "ok": true,
+   "read": "HTTP 200"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "range choices",
+   "text": "The widget's own range | Today | This week | Last week | Last 7 days | Last 30 days | Last 90 days | This month | Last month | This quarter | Last quarter | Year to date | Last 12 months | All time | Last 20 trades | Last 50 trades | Last 100 trades | Fixed dates"
+  },
+  {
+   "what": "account choices",
+   "text": "All my accounts | Swing book | Main book"
+  },
+  {
+   "what": "placed widget after Change",
+   "text": "Daily P&L bars\nOnly you\nas of Oct 25, 2026, 5:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nSwing book · Last 7 days\n\n2026-10-22\n-$200.00\nShow as table\n\nYour closed trades in the Journal."
+  },
+  {
+   "what": "placed widget after Change back",
+   "text": "Daily P&L bars\nOnly you\nas of Oct 25, 2026, 5:42 PM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-10-19\n+$300.00\n2026-10-20\n-$200.00\n2026-10-21\n+$300.00\n2026-10-22\n-$200.00\n2026-10-23\n+$300.00\nShow as table\n\nYour closed trades in the Journal."
+  }
+ ],
+ "verdict": "PASS",
+ "events": {
+  "main": []
+ },
+ "metrics": {
+  "overflow": {
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "inner": [
+    [
+     820,
+     820
+    ],
+    [
+     772,
+     772
+    ],
+    [
+     506,
+     506
+    ]
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  "tap": {
+   "scope": "[data-nbw-scope]",
+   "controls": 10,
+   "small": [
+    {
+     "label": "BUTTON",
+     "tag": "BUTTON",
+     "w": 26,
+     "h": 14
+    }
+   ],
+   "smallCount": 1,
+   "binds": true
+  },
+  "axe": {
+   "version": "4.13.0",
+   "scope": "[data-nbw-scope]",
+   "violations": []
+  }
+ },
+ "screenshots": [
+  "820/W8_5-main.png"
+ ]
+}
