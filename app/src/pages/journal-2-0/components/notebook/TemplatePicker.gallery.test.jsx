@@ -7,7 +7,7 @@
 // of `build({})`), so a preview typed by hand -- or taken from the wrong template --
 // cannot pass.
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, within, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, within, cleanup, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
@@ -285,8 +285,11 @@ describe('Task 11.16 -- the Template library section (wave 11)', () => {
   const libraryCard = () => document.querySelector(`[data-library-card="${LIB_ID}"]`)
 
   it('picker_unchanged_when_w11_off', async () => {
+    // The section's chunk is loaded up front, so a section that rendered while wave 11 is off would have mounted and
+    // asked for the library well inside the wait below (the mutation that drops the gate goes red here).
+    await import('./library/TemplateLibrarySection')
     renderGallery()
-    await new Promise((r) => setTimeout(r, 20))
+    await act(async () => { await new Promise((r) => setTimeout(r, 150)) })
     const off = buttonNames(false)
     expect(document.querySelector('[data-template-library]')).toBeNull()
     expect(screen.queryByText('Template library')).toBeNull()
