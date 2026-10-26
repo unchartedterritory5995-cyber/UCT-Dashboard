@@ -51,6 +51,10 @@ import lazyChunk from '../../lib/lazyChunk'
 import TemplateGalleryReviewPanel from '../../../../components/admin/TemplateGalleryReviewPanel'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
+// Notebook widgets wave 11 (Task 11.16): a card's library facts, and a listed widget, routine or tracker's Use (the
+// adoption sheet, loaded on demand). Both only while wave 11 is on; off, every card is exactly as before.
+import { widgetsWaveOn, doorLostSentence } from '../../lib/notebookWidgetsFlags'
+import LibraryCardFacts, { ADOPT_KIND } from './library/LibraryCardFacts'
 
 const ALL = ''
 
@@ -118,6 +122,18 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
   // the Report button is still there, so focus goes back to it.
   const reportBtnRef = useRef(null)
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
+  // Wave 11 (Task 11.16): the facts block replaces the description and the "Used by" count (never a 0: "New"), and a
+  // tool type is made the member's through the adoption sheet (its own preview with their data), not copied.
+  const w11 = widgetsWaveOn(11)
+  const adoptKind = w11 ? ADOPT_KIND[item.itemType] : undefined
+  const openAdopt = async () => {
+    try {
+      const mod = await import('./library/openAdoptSheet')
+      mod.openAdoptSheet({ galleryId: item.id, kind: adoptKind })
+    } catch {
+      onMessage?.({ tone: 'error', text: doorLostSentence() })
+    }
+  }
   return (
     <li className={styles.card} data-gallery-card="" data-gallery-id={item.id}>
       <div className={styles.cardHead}>
@@ -125,20 +141,29 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
         <span className={styles.meta}>
           {item.firm ? <span className={styles.firmBadge}>UCT</span> : <>by {item.author}</>}
           {' · '}{categoryLabel(item.category)}
-          {item.usedBy > 0 && <> · Used by {item.usedBy}</>}
+          {!w11 && item.usedBy > 0 && <> · Used by {item.usedBy}</>}
         </span>
       </div>
-      {item.description && <p className={styles.cardDesc}>{item.description}</p>}
+      {w11 ? <LibraryCardFacts item={item} /> : item.description && <p className={styles.cardDesc}>{item.description}</p>}
       <PreviewLines lines={item.preview} />
       <div className={styles.actions} role="group" aria-labelledby={`${uid}-title`}>
-        <button type="button" className={styles.btn} onClick={() => onPreview(item)} disabled={busy}
-          aria-label={`Preview ${item.title}`}>
-          <UIcon name="eye" size={13} gold={false} /> Preview
-        </button>
-        <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => onUse(item)} disabled={busy}
-          aria-label={`Use template ${item.title}`}>
-          Use template
-        </button>
+        {adoptKind ? (
+          <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={openAdopt} disabled={busy}
+            aria-label={`Use ${item.title}`}>
+            Use
+          </button>
+        ) : (
+          <>
+            <button type="button" className={styles.btn} onClick={() => onPreview(item)} disabled={busy}
+              aria-label={`Preview ${item.title}`}>
+              <UIcon name="eye" size={13} gold={false} /> Preview
+            </button>
+            <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => onUse(item)} disabled={busy}
+              aria-label={`Use template ${item.title}`}>
+              Use template
+            </button>
+          </>
+        )}
         {!item.mine && (
           <button type="button" ref={reportBtnRef} className={styles.btn} onClick={() => setReporting((v) => !v)}
             aria-expanded={reporting} aria-label={`Report ${item.title}`}>

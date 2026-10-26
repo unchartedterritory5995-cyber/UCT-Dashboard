@@ -22,6 +22,7 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/note
 import { GALLERY_SORTS } from '../../lib/templateGallery'
 import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
 import { contract, contractBody } from '../../__fixtures__/contract'
+import { helpfulWords, usedByWords } from './library/LibraryCardFacts'
 
 // P5 Task 3: the list fixtures now also carry UCT's fifteen firm styles (the starter packs' rows),
 // and one of the swing three shares this member item's title ("Weekend prep"). These tests are
@@ -632,5 +633,37 @@ describe('fix round 1 (P5): admin controls on a style card', () => {
     await user.click(within(styleCard()).getByRole('button', { name: `Hide ${STYLE.title}` }))
     expect(await screen.findByText(`Hid “${STYLE.title}”. It is still in the Review queue.`)).toBeInTheDocument()
     expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'hide', note: '' }])
+  })
+})
+
+// Task 11.16: while wave 11 is on, a style card shows the library facts: "Adopted by N" becomes "Used by N traders"
+// ("New" at 0), the Helpful line shows from 1 up (never "0 found this helpful"), the description reads "For: ...".
+// The live Helpful count still drives the line. Off: exactly as before (every rail above).
+describe('Task 11.16 -- the style card under wave 11', () => {
+  const facts = () => styleCard().querySelector('[data-used-by]')
+  it('card_fields_and_new_instead_of_zero, with the live Helpful count', async () => {
+    server.library = true
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    const user = await openStyles()
+    const card = styleCard()
+    expect(within(card).getByText('Template')).toBeInTheDocument()
+    expect(within(card).getByText(`For: ${STYLE.description}`)).toBeInTheDocument()
+    expect(within(card).queryByText(/Adopted by/)).toBeNull()
+    const line = (n) => [usedByWords(STYLE.usedBy), 'Updated Oct 5', helpfulWords(n)].filter(Boolean).join(' · ')
+    expect(facts().textContent).toBe(line(STYLE.helpfulCount))
+    expect(card.textContent).not.toMatch(/\b0 found this helpful|Adopted by 0|Used by 0/)
+    await user.click(within(card).getByRole('button', { name: `Helpful: ${STYLE.title}` }))
+    const on = contractBody('template-gallery.helpful')
+    await waitFor(() => expect(facts().textContent).toBe(line(on.count)))
+    expect(on.count).toBeGreaterThan(0)
+    expect(facts().textContent).toContain(`${on.count} found this helpful`)
+  })
+
+  it('"New" for an item nobody has adopted', async () => {
+    server.library = true
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    render(wrap(<ul><StyleLibraryCard item={{ ...STYLE, usedBy: 0, helpfulCount: 0 }} /></ul>))
+    expect(screen.getByText('New · Updated Oct 5')).toBeInTheDocument()
+    expect(screen.queryByText(/found this helpful|Adopted by/)).toBeNull()
   })
 })

@@ -21,6 +21,9 @@ import { libraryError } from './styles/styleErrors'
 import GalleryAdminActions from './GalleryAdminActions'
 import { useHelpfulToggle, withStop } from './useHelpfulToggle'
 import styles from './TemplateGallery.module.css'
+// Notebook widgets wave 11 (Task 11.16): the library facts block, only while wave 11 is on.
+import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import LibraryCardFacts from './library/LibraryCardFacts'
 
 /** The server's own sentence for a refusal it explains (400 / 402 / 409 / 429); otherwise ours. A 404's
  *  "Not found" and a 5xx say nothing a member can act on. ⛔ ONE rule, `libraryError`'s (final review M-7):
@@ -42,6 +45,9 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   const adoptBtnRef = useRef(null)
   const reportBtnRef = useRef(null)
   const ts = tradingStyleLabel(item.tradingStyle)
+  // Wave 11 (Task 11.16): the facts block replaces "Adopted by N" (a 0 read "Adopted by 0"; now "New"), the helpful
+  // line (shown from 1 up) and the description. Wave 11 off: exactly as before.
+  const w11 = widgetsWaveOn(11)
 
   const closeConfirm = () => { setConfirming(false); setNotify(false); adoptBtnRef.current?.focus() }
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
@@ -80,12 +86,15 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
           ) : <>by {item.author}</>}
           {' · '}{ts || categoryLabel(item.category)}
         </span>
-        <span className={styles.meta}>
-          Adopted by {Number(item.usedBy) || 0}{' · '}
-          <span data-helpful-count="">{helpfulCount} found this helpful</span>
-        </span>
+        {!w11 && (
+          <span className={styles.meta}>
+            Adopted by {Number(item.usedBy) || 0}{' · '}
+            <span data-helpful-count="">{helpfulCount} found this helpful</span>
+          </span>
+        )}
       </div>
-      {item.description && <p className={styles.cardDesc}>{item.description}</p>}
+      {w11 ? <LibraryCardFacts item={item} helpfulCount={helpfulCount} />
+        : item.description && <p className={styles.cardDesc}>{item.description}</p>}
       <PreviewLines lines={item.preview} />
       <div className={styles.actions} role="group" aria-labelledby={`${uid}-title`}>
         <button type="button" className={styles.btn} onClick={() => onPreview?.(item)} disabled={busy}

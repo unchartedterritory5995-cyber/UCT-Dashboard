@@ -71,6 +71,11 @@
 //     The keyboard FUNCTION never lags -- Enter reads the live DOM at the
 //     moment it fires -- only the visual ring can be briefly stale.
 //
+// Notebook widgets wave 11 (Task 11.16): while `widgetsWaveOn(11)`, the Template library (UCT's official templates,
+// library/TemplateLibrarySection.jsx) sits between Blank and "Your templates", loaded on demand. It reads this
+// picker's search box and category chips; its cards are not picker cards, so every keyboard rail above holds.
+// Wave 11 off: the section's chunk is never asked for and the picker is exactly as before.
+//
 // Wave 7 Task 7.4 ("bytes first"): the catalog (lib/notebookTemplates.js, ~64 kB of
 // source) is no longer a static import. `FAMILIES`, `templatesByFamily` and
 // `templatePreview` come from `loadTemplates()` (lib/templatesLoader.js, one memoised,
@@ -85,6 +90,7 @@ import TemplatePickerSkeleton from './TemplatePickerSkeleton'
 import MemberTemplates from './MemberTemplates'
 import TemplatePreview from './TemplatePreview'
 import { templateGalleryEnabled } from '../../lib/templateGallery'
+import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import lazyChunk from '../../lib/lazyChunk'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplatePicker.module.css'
@@ -93,6 +99,8 @@ import styles from './TemplatePicker.module.css'
 // notebook_template_gallery_enabled and reached by one button, so it loads when that button
 // is pressed, never with the picker: it was ~25 kB of source in every member's first open.
 const TemplateGallery = lazyChunk(() => import('./TemplateGallery'))
+// Wave 11 (Task 11.16): the Template library section, asked for only while wave 11 is on.
+const TemplateLibrarySection = lazyChunk(() => import('./library/TemplateLibrarySection'))
 
 const CARD = '[data-template-card]'
 const MOVES = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
@@ -397,6 +405,12 @@ function TemplatePickerBody({ onPick, onPickMember, busy = false, autoFocusSearc
         <span className={styles.cardLabel}>Blank note</span>
         <span className={styles.cardDesc}>An empty page — structure it your way.</span>
       </button>
+
+      {widgetsWaveOn(11) && (
+        <Suspense fallback={null}>
+          <TemplateLibrarySection query={q} category={category} busy={busy} navigate={navigate} />
+        </Suspense>
+      )}
 
       {showMemberSection && (
         <MemberTemplates
