@@ -231,3 +231,16 @@ def test_archived_style_still_composes_update_layout(db):
     assert (plan["styleId"], plan["fromVersion"], plan["toVersion"]) == (s["id"], 1, 2)
     assert plan["add"] == [{"block": "chart", "label": None}]
     assert notes.get_note(MEMBER, n["id"])["styleId"] == s["id"]          # the stamp is kept
+
+
+def test_a_restored_archived_style_never_comes_back_as_the_default(db):
+    """Defensive: an archived row that somehow remembers a default (written before this rule) is restored into
+    Archived as a non-default, and the kind keeps its built-in default."""
+    s = _mine(db)
+    js.archive_style(MEMBER, s["id"], conn=db)
+    js.delete_style_typed(MEMBER, s["id"], "Mine", conn=db)
+    db.execute("UPDATE j2_journal_styles SET default_before_delete = 1 WHERE id = ?", (s["id"],))
+    db.commit()
+    back = js.restore_style(MEMBER, s["id"], db)
+    assert back["archivedAt"] and back["isDefault"] is False
+    assert js.default_style_for_kind(MEMBER, "thesis", db)["id"] == js.builtin_style_id("thesis")
