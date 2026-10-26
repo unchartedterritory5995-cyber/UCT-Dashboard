@@ -8,7 +8,9 @@ import {
   archiveTemplate, deleteTemplate, duplicateTemplate, getTemplate, listTemplates, renameTemplate, restoreTemplate,
   unarchiveTemplate,
 } from '../../../lib/templateLibrary'
-import { loadStyle } from '../styles/lazyStyles'
+// A STATIC import, as StylesManager does: this file is already in the lazy My tools chunk, so the editor joins that
+// chunk only, never StyleSurfaces (which every styled note opens) and never a second import() of a styles/ module.
+import StyleEditor from '../styles/StyleEditor'
 import UsedInList from './UsedInList'
 import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
@@ -27,7 +29,7 @@ import styles from './myTools.module.css'
  *  * Each row: the name, the kind of note it makes, "Used in N notes" (which lists those notes; "Not in any note" with
  *    none), when it was last edited, and for a copy from the library the server's credit line ("Based on Sam's
  *    Pre-market prep", or "Based on a former member's …").
- *  * Active: Open (the template editor, loaded through styles/lazyStyles), Rename, Duplicate, Share to library (the
+ *  * Active: Open (the template editor, StyleEditor in My tools' own chunk), Rename, Duplicate, Share to library (the
  *    member's own work only, while the library is on: never a copy), Archive ("It stays in your N notes. New notes
  *    can't use it until you restore it."). Archived: Restore, Delete permanently (the name typed, DeleteConfirm).
  *    Recently deleted: Restore, "Kept until <Mon D>" (TEMPLATE_DELETED_DAYS).
@@ -155,36 +157,30 @@ function ArchivePanel({ d, onBack, onArchive, busy, error }) {
   )
 }
 
-/** The template editor, in place: the style editor (loaded through styles/lazyStyles) over the whole template. */
+/** The template editor, in place: the style editor (in My tools' own chunk) over the whole template. */
 function EditorPanel({ d, kinds, onBack, onSaved, onGone, say }) {
   const [state, setState] = useState({ status: 'loading' })
   useEffect(() => {
     let alive = true
-    Promise.all([
-      // The one journal-styles door (styles/lazyStyles -> StyleSurfaces), never a second import() of a styles/ module.
-      loadStyle('StyleEditor').then((m) => m.default).catch(() => null),
-      getTemplate(d.id),
-    ]).then(([Editor, got]) => {
+    getTemplate(d.id).then((got) => {
       if (!alive) return
-      if (!Editor) { setState({ status: 'error', text: TEMPLATE_COPY.editorFailed }); return }
       if (!got.ok || !isRecord(got.data.style)) {
         if (got.code === 'unavailable') { onGone(TEMPLATE_COPY.gone); return }
         setState({ status: 'error', text: got.message || TEMPLATE_COPY.editorFailed })
         return
       }
-      setState({ status: 'ok', Editor, style: got.data.style })
+      setState({ status: 'ok', style: got.data.style })
     })
     return () => { alive = false }
   }, [d.id, onGone])
   useEffect(() => { if (state.status === 'error') say(state.text, 'error') }, [state, say])
-  const Editor = state.Editor
   return (
     <div className={styles.pushPanel} data-testid="my-tools-template-editor">
       <PanelHead title={`Edit “${d.name}”`} onBack={onBack} backLabel={BACK_LABEL} />
       {state.status === 'loading' && <p className={styles.hint}>Opening the template…</p>}
       {state.status === 'error' && <p className={styles.sentence}>{state.text}</p>}
       {state.status === 'ok' && (
-        <Editor style={state.style} kinds={kinds}
+        <StyleEditor style={state.style} kinds={kinds}
           onSaved={(saved) => onSaved(`Saved “${(isRecord(saved) && saved.name) || d.name}”.`)} onCancel={onBack} />
       )}
     </div>

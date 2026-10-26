@@ -7,7 +7,6 @@ import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-li
 import MyToolsSheet from './MyToolsSheet'
 import { BUILTIN_NOTE_KINDS } from '../../../lib/noteKinds'
 import { openSharePreview } from '../library/openSharePreview.js'
-import { loadStyle } from '../styles/lazyStyles'
 
 const bp = vi.hoisted(() => ({ phone: false, touch: false }))
 const flags = vi.hoisted(() => ({ eleven: true, library: true }))
@@ -18,14 +17,15 @@ vi.mock('../../../../../hooks/useBreakpoint', () => ({
 vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 11 && flags.eleven }))
 vi.mock('../../../lib/styleLibraryFlag', async (orig) => ({ ...(await orig()), styleLibraryEnabled: () => flags.library }))
 vi.mock('../library/openSharePreview.js', () => ({ openSharePreview: vi.fn(() => () => {}) }))
-// The template editor arrives through the existing lazy styles opener; a stand-in shows what it was handed.
-vi.mock('../styles/lazyStyles', async () => {
+// The template editor (a static import inside My tools' lazy chunk, fix round 4); a stand-in shows what it was handed.
+const editorMounts = vi.hoisted(() => ({ n: 0 }))
+vi.mock('../styles/StyleEditor', async () => {
   const { createElement } = await import('react')
-  const FakeEditor = ({ style, kinds, onSaved, onCancel }) => createElement('div', { 'data-testid': 'fake-style-editor' },
+  const FakeEditor = ({ style, kinds, onSaved, onCancel }) => (editorMounts.n += 1, createElement('div', { 'data-testid': 'fake-style-editor' },
     createElement('p', null, `Editing ${style.name} with ${kinds.length} kinds`),
     createElement('button', { type: 'button', onClick: () => onSaved({ ...style, name: 'Morning prep v2' }) }, 'Save style'),
-    createElement('button', { type: 'button', onClick: onCancel }, 'Cancel edit'))
-  return { loadStyle: vi.fn(async () => ({ default: FakeEditor })) }
+    createElement('button', { type: 'button', onClick: onCancel }, 'Cancel edit')))
+  return { default: FakeEditor }
 })
 
 const KINDS = [...BUILTIN_NOTE_KINDS.map((k) => ({ ...k, builtin: true })), { id: 'k-mine', name: 'Swing check', builtin: false }]
@@ -97,7 +97,7 @@ beforeEach(() => {
   flags.library = true
   net = installFetch()
   openSharePreview.mockClear()
-  loadStyle.mockClear()
+  editorMounts.n = 0
 })
 afterEach(() => {
   cleanup()
@@ -304,12 +304,11 @@ describe('My tools, Templates tab', () => {
     expect(sent('POST', 'journal-styles/s1/duplicate')).toHaveLength(1)
   })
 
-  it('Open loads the template editor through the lazy styles opener, over the whole template', async () => {
+  it('Open shows the template editor, over the whole template', async () => {
     await openTab()
     fireEvent.click(within(rowOf('Morning prep')).getByRole('button', { name: 'Open Morning prep' }))
     expect(await screen.findByTestId('fake-style-editor')).toHaveTextContent(`Editing Morning prep with ${KINDS.length} kinds`)
-    expect(loadStyle).toHaveBeenCalledTimes(1)
-    expect(loadStyle.mock.calls[0]).toEqual(['StyleEditor'])               // the one styles door, by name (round 3)
+    expect(editorMounts.n).toBeGreaterThan(0)
     expect(sent('GET', 'journal-styles/s1')).toHaveLength(1)                 // the whole template, outline too
     fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
     await saysLive('Saved “Morning prep v2”.')
