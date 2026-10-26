@@ -2356,7 +2356,8 @@ def _finish_tools(doc: dict, style: dict, ctx: dict, skipped: list) -> dict:
 STYLE_COMPOSE_TRIES = 2
 
 
-def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> tuple[dict, list]:
+def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | None = None, *,
+                       before_insert: Callable[[sqlite3.Connection], None] | None = None) -> tuple[dict, list]:
     """A note made from a style (`styleId`, which wins) or from a kind's default style (`kindId`),
     composed here and written in ONE insert: body, property values and the style stamp, so there is
     no follow-up write and no second revision. Returns `(note, skipped)`. Behind journal_two's
@@ -2364,7 +2365,11 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
     checked the switch and the plan.
 
     Raises StyleNotFound (no such live style for this member), StyleValidationError (a bad
-    styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...)."""
+    styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...).
+
+    `before_insert` (Task 11.8 fix round 5, ruling W11-R41) is called with the connection immediately before the
+    note's INSERT, after the slow compose, in the transaction that insert commits. It may raise to refuse the note:
+    the caller then rolls back and nothing is inserted."""
     from api.services.journal_two import notes as notes_service, plan_prefill
     owned = conn is None
     conn = conn or get_connection()
@@ -2449,6 +2454,8 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                 if ctx.get("chosen"):
                     # Only the answers verified as the member's own, for slots filled now (I2). No version moves.
                     _sf.remember_choices(user_id, current["id"], {}, ctx["chosen"], conn=conn)
+                if before_insert is not None:
+                    before_insert(conn)
                 note = notes_service.create_note(
                     user_id, base, conn, properties=composed["properties"], captured_properties="keep",
                     style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
@@ -2465,6 +2472,8 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
             if composed.get("toolsChosen") and not style.get("builtin"):
                 # A caller's own transaction (or no unanswered tool slot): remember in that same transaction.
                 _sf.remember_choices(user_id, style["id"], {}, composed["toolsChosen"], conn=conn)
+            if before_insert is not None:
+                before_insert(conn)
             note = notes_service.create_note(
                 user_id, base, conn, properties=composed["properties"], captured_properties="keep",
                 style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
