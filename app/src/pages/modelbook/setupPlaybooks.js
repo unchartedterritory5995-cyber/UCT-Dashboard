@@ -476,4 +476,223 @@ export const SETUP_PLAYBOOKS = {
       'Selling the entire position into the first day or two and missing the multi-week trend.',
     ],
   },
+
+  'Kicker Candle': {
+    intro:
+      'A two-day trap. The stock is already set up, in an uptrend or a clean base. The day ' +
+      'before closes red and weak near its low, a real body that looks like a failed breakdown; ' +
+      'the next day gaps up and follows through with a strong green candle that closes above ' +
+      'that red day\'s high. The sellers from the red day are trapped.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'Short-term positioning, not news: the kicker should rarely be an earnings day, and an ' +
+          'earnings-day gap is an earnings gapper by default. The stock must already be in an ' +
+          'uptrend or a base; a gap against an intermediate downtrend, a recovery into the ' +
+          '200-day, is a different setup.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'The red day before has a real body, about 1 to 5 percent of price, closes near its ' +
+          'low and at or under the recent lows of the base, like an almost-failed breakdown. A ' +
+          'baby red candle traps nobody and the next day is just a breakout. The kicker day ' +
+          'gaps up a decent amount, closes above the red day\'s high and near its own high, ' +
+          'usually on a volume surge, and the base before it is clean and orderly.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'The kicker day itself, once it is holding above the red day\'s high; the best ones ' +
+          'also clear the 20-day high out of a base that was already set up. Model: JBI ' +
+          '2023-12-14, AMD 2023-12-07.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body:
+          'The low of the kicker day. A kicker that holds its gap tends to resolve quickly, ' +
+          'which is why the stop can be tight; a close back under the red day\'s high says the ' +
+          'trap did not hold.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Expect a quick advance; the kept examples ran well over 10 percent. Trail under each ' +
+          'higher low or the 10-day average, and size so the low-of-day stop is a routine loss.',
+      },
+    ],
+    mistakes: [
+      'Calling an earnings-day gap a kicker; by default that is an earnings gapper.',
+      'Taking a gap up after a baby red candle; a doji before a gap traps nobody, it is just a breakout.',
+      'Buying a gap against an intermediate downtrend, a recovery into the 200-day, and calling it a kicker.',
+      'Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day.',
+    ],
+  },
+
+  'Oops Reversal': {
+    intro:
+      'A trap at the open. The stock opens below the prior day\'s close, trades under the prior ' +
+      'low so the breakdown sellers commit, then reverses and closes back above the prior close. ' +
+      'A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes ' +
+      'above the prior day\'s HIGH, engulfing the whole day.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'Location matters big time. The Oops comes at the end of an orderly drift lower, a ' +
+          'flag, a wedge down, a double bottom or the end of a downtrend, into a buyable spot; ' +
+          'the days before should steadily flag and drift with shrinking ranges, not one violent drop.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'The prior day is orderly: no news gap, which makes the next day a delayed reaction ' +
+          'rather than an Oops, and no outsized red bar; a random big red day a few days earlier ' +
+          'takes the stock off the radar. The Oops day itself looks technical, not news-sized. A ' +
+          'red day before it is preferred but not required. Prefer visually clear examples over ' +
+          'subtle ones.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'The reversal through the prior close on the Oops day, or the Super Oops close above ' +
+          'the prior high. Model: SHOP 2026-09-28, ORIC 2024-01-17, CCJ 2023-05-31.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body:
+          'The low of the Oops day, which is the precise point the trap was set and must never ' +
+          'break afterwards; a routine loss, never widened.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Quick follow-through is the tell; the best ones are up double digits inside two ' +
+          'weeks. An Oops on a Launchpad trigger day, as TEAM 2023-12-08, is great confluence.',
+      },
+    ],
+    mistakes: [
+      'Buying an Oops after a big news gap the day before; that is a delayed-reaction setup, not an Oops.',
+      'Buying an Oops a few days after a nasty outsized red day; the stock is off the radar.',
+      'Keeping a position after the Oops-day low breaks; the low must never break.',
+      'Taking a subtle, hidden Oops in a random spot; location comes first.',
+    ],
+  },
+
+  'Slingshot': {
+    intro:
+      'The first pause after a drive. An earnings gapper, or sometimes a strong rally, runs; ' +
+      'then a tight pullback of three to seven sessions puts the closes under the 4-EMA of the ' +
+      'highs; the trigger is the first close back above that average. It is mostly the way to ' +
+      'enter a power earnings gap after its first pause, not exclusively.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'Strength behind it: an earnings gapper, a strong stock, or a consolidation after a ' +
+          'nice uptrend. The 200-day is not required; a recovery off a long downtrend can qualify ' +
+          'when the drive and the pullback are right.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart. ' +
+          'The drive comes first, then three to seven closes under the line, about 5 to 12 percent ' +
+          'deep and orderly, no outsized red bar and no volume spike in the pullback. The gap day ' +
+          'or rally day itself is never the trigger.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'The first close back above the 4-EMA of the highs: a decisive day, roughly 3 to 6 ' +
+          'percent, closing near its high, on ordinary volume and without needing a gap. A 12 ' +
+          'percent day on three times volume reads as a news day. Model: SMCI 2023-05-16, VRT ' +
+          '2023-08-21, PLTR 2024-10-03, NVDA 2024-03-01.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body:
+          'The trigger session\'s low. The gallery examples never came within two percent of it; ' +
+          'a close back under the 4-EMA of the highs the next session weakens the setup.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Momentum resuming, not a bottom: expect new short-term highs within days, with volume ' +
+          'expanding on up days. A trigger that fades to flat by day 20 was not a Slingshot worth ' +
+          'keeping.',
+      },
+    ],
+    mistakes: [
+      'Buying the earnings gap day itself as the Slingshot; the gap day or rally day is never the trigger.',
+      'Buying a trigger day that gaps up 2 or 3 percent; the best triggers need no gap.',
+      'Mistaking a bear-market bounce under a falling 200-day for a Slingshot; it needs strength behind it.',
+      'Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade.',
+    ],
+  },
+
+  'High Volume Edge': {
+    intro:
+      'A volume day that dwarfs everything before it, ten times normal and above the prior ' +
+      'record, on an up close, often on a lesser-known name: the start of a new story. That ' +
+      'day\'s close is a level to mark on the chart, the price the biggest participants ' +
+      'committed at. It is not an HVC, any high-volume close, and not a PEG, an earnings gap on ' +
+      'big but ordinary volume.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'Usually a lesser-known stock where a new story arrives all at once; a mega-cap on a ' +
+          'three-times day is a high-volume close, not an edge. An earnings day counts when the ' +
+          'volume is truly massive.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'Volume ten times the 50-day average and well above the prior record, an up close, ' +
+          'and a close in the upper part of the day\'s range; a day that closes in the lower part ' +
+          'of a huge range is cut. OPEX (third Friday) and month-end sessions never count; their ' +
+          'volume is mechanical.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'The edge is a level, not a buy signal: mark the HVE close with a ray and run an AVWAP ' +
+          'from the edge day; trades are taken on the setups that form around that level later. ' +
+          'Model: NAVN 2026-03-26, FSLY 2026-02-12, MRNA 2026-08-19.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body:
+          'For a position taken on the edge day itself, the bar\'s low. The HVE close is not the ' +
+          'stop: price may trade below it later and the level still stands.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'The level outlives any single trade: it is where the new story was priced, and later ' +
+          'tests of it are where the next setups form. No must-work rule applies to the edge day.',
+      },
+    ],
+    mistakes: [
+      'Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.',
+      'Calling an earnings gap on big but ordinary volume an HVE; that is a PEG.',
+      'Marking an OPEX or month-end session as an HVE.',
+      'Erasing the level because price traded below the HVE close; it is a level to mark, not a line that must hold.',
+    ],
+  },
 }
+
