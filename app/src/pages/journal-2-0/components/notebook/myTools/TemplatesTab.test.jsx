@@ -223,6 +223,20 @@ describe('My tools, Templates tab', () => {
     expect(sent('POST', 'journal-styles/sx1/restore')).toHaveLength(1)
   })
 
+  it('no zeros and no blank date: an empty list names itself, a dateless deleted row says nothing (m-2, m-6)', async () => {
+    net.lists.archived = []
+    net.lists.live = []
+    net.lists.deleted = [{ ...STYLES.deleted[0], deletedAt: null }]
+    await openTab()
+    expect(screen.getByRole('heading', { name: 'Your templates' })).toBeInTheDocument()
+    showList('Archived')
+    expect(await screen.findByRole('heading', { name: 'Archived' })).toBeInTheDocument()
+    expect(screen.getByRole('tabpanel', { name: 'Templates' })).not.toHaveTextContent(/\b0\b/)
+    showList('Recently deleted')
+    await screen.findByRole('heading', { name: '1 recently deleted' })
+    expect(rowOf('Gone prep')).not.toHaveTextContent('Deleted')
+  })
+
   it('a restore past the 30 days shows the server’s sentence; Restore from Archived unarchives', async () => {
     const S_TOO_OLD = 'SERVER: This template was deleted more than 30 days ago.'
     net = installFetch([['POST', 'journal-styles/sx1/restore', () => json(400, { detail: S_TOO_OLD })]])

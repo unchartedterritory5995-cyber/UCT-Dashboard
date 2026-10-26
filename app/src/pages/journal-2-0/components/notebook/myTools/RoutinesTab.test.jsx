@@ -136,6 +136,19 @@ describe('My tools, Routines tab', () => {
     expect(menuLabels()).toContain('Duplicate')
   })
 
+  it('no Update for a copy the server cannot name the listing of (fix round 1, m-4)', async () => {
+    flags.eleven = true
+    flags.library = true
+    net = installToolsFetch([['GET', 'routines?filter=active', () => ({
+      routines: [{ ...net.data.routines.active[1], fromLibrary: true, updateAvailable: true, sourceGalleryId: null }],
+    })]])
+    await openTab()
+    await menuFor('Rules I keep')
+    expect(menuLabels()).not.toContain('Update from the library')
+    expect(menuLabels()).not.toContain('Share to library')                  // still a copy
+    expect(menuLabels()).toContain('Rename')
+  })
+
   it('update_from_library_calls_update_or_opens_sheet', async () => {
     flags.eleven = true
     flags.library = true

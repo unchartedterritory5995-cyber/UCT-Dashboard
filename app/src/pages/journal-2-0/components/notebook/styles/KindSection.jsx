@@ -34,8 +34,9 @@ const KNOWN_BLOCKS = new Set(BLOCK_KINDS.map((b) => b.id))
 // Wave 11 (Task 11.14): a template slot names its target. A filled built slot is a `builtWidget` embed (its
 // `title`), a routine or tracker slot a trader block (its `name` when the preview carries one); an unfilled slot keeps
 // its family id. Each reads `Widget: Equity curve`, or the family word alone when no name came with it.
-// Ruling W11-R21: an unfilled slot (and a placed routine or tracker with no name of its own) takes the display name the
-// served style or the preview answer carries for it (`names`, read by `slotNamesOf`), through `slotLabel`.
+// Ruling W11-R21: an unfilled slot takes the display name the served style or the preview answer carries for it
+// (`names`, keyed by block id as Task 11.5 serves `slotNames`, read by `slotNamesOf`), through `slotLabel`. A placed
+// node names itself (`title` / `name`); it is never looked up by a ref key the server does not send (fix round 1, m-3).
 const NODE_FAMILY = Object.freeze({ builtWidget: 'built', routine: 'routine', tracker: 'tracker' })
 const ownName = (v) => (typeof v === 'string' && v.trim() ? v : null)
 function blockLine(node, names = {}) {
@@ -47,11 +48,7 @@ function blockLine(node, names = {}) {
     const own = ownName(p.title) ?? ownName(p.name)
     return own ? familyLabel(slotFamily(id), own) : slotLabel({ block: id, settings: p }, names)
   }
-  if (Object.hasOwn(NODE_FAMILY, id)) {
-    const ref = p.routineId ? `routine:${p.routineId}` : p.trackerId ? `tracker:${p.trackerId}` : p.defId ? `def:${p.defId}` : null
-    const named = ref && Object.hasOwn(names, ref) ? names[ref] : null
-    return familyLabel(NODE_FAMILY[id], ownName(p.title) ?? ownName(p.name) ?? named)
-  }
+  if (Object.hasOwn(NODE_FAMILY, id)) return familyLabel(NODE_FAMILY[id], ownName(p.title) ?? ownName(p.name))
   return WIDGET_REGISTRY[id]?.labels?.header || blockLabel(id)
 }
 const labelled = (n, names = {}) => {

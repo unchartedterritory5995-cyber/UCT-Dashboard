@@ -55,7 +55,9 @@ export const TEMPLATE_COPY = Object.freeze({
   usedInEmpty: "This template isn't in any note yet.",
   editorFailed: "The template editor couldn't open. Try again.",
   gone: "That template isn't available.",
-  heading: (n) => `${n} template${n === 1 ? '' : 's'}`,
+  // No zeros (W9-R7, 11.19 fix round 1 m-2): an empty list's heading names the list, never "0 templates".
+  heading: (n) => (n > 0 ? `${n} template${n === 1 ? '' : 's'}` : 'Your templates'),
+  emptyHeading: { archived: 'Archived', deleted: 'Recently deleted' },
 })
 
 /** Spec 5.8 / W11-R10: archiving a template says what happens to its notes and to new notes. No zeros (W9-R7): a
@@ -69,6 +71,12 @@ export const templateArchiveSentence = (n) => (Number.isInteger(n) && n > 0
 export function isLibraryCopy(d) {
   if (!isRecord(d)) return false
   return d.fromLibrary === true || (typeof d.sourceGalleryId === 'string' && d.sourceGalleryId !== '')
+}
+
+/** "Update from the library" is offered only for a copy the server marks `updateAvailable` AND names the listing of
+ *  (`sourceGalleryId`): without the listing the update's "Make it yours" sheet would have nothing to preview (m-4). */
+export function canUpdateFromLibrary(d) {
+  return isRecord(d) && d.updateAvailable === true && typeof d.sourceGalleryId === 'string' && d.sourceGalleryId !== ''
 }
 
 /** The credit line the SERVER built for a copy (W11-R7, W11-R24: "Based on <label>'s <title>" or "Based on a former

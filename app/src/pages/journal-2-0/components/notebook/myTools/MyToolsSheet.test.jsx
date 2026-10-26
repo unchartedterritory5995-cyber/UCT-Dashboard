@@ -14,6 +14,7 @@ import { openWidgetBuilder } from '../widgetBuilder/openWidgetBuilder.js'
 import { openSetsDialog } from '../widgets/SetsDialog'
 import { openSharePreview } from '../library/openSharePreview.js'
 import { openAdoptSheet } from '../library/openAdoptSheet.js'
+import { LIBRARY_COPY } from '../../../lib/templateLibrary'
 import { FULLSCREEN_SHEET_ATTR } from '../../../../../components/mobile/fullscreenSheetAttr'
 
 const bp = vi.hoisted(() => ({ phone: false, touch: false }))
@@ -93,14 +94,14 @@ describe('My tools, Widgets tab', () => {
     expect(screen.queryByText(/Based on/)).toBeNull()
   })
 
-  it('adopted rows say "Based on X\'s Y", or a former member\'s', async () => {
+  it('adopted rows show the SERVER\'s credit; the client never builds one from `basedOn` (W11-R24)', async () => {
     net.lists.live = [
-      { ...net.lists.live[0], basedOn: { author: 'Sam', name: 'Morning edge' } },
-      { ...net.lists.live[1], basedOn: { author: null, name: 'Gap fill' } },
+      { ...net.lists.live[0], credit: "Based on Sam's Morning edge" },
+      { ...net.lists.live[1], basedOn: { author: 'Sam', name: 'Gap fill' } },
     ]
     await openSheet()
     expect(rowOf('Net P&L by setup')).toHaveTextContent("Based on Sam's Morning edge")
-    expect(rowOf('Win rate')).toHaveTextContent("Based on a former member's Gap fill")
+    expect(rowOf('Win rate')).not.toHaveTextContent('Based on')
   })
 
   it('tools_rows_show_credit_and_share (widgets, wave 11)', async () => {
@@ -137,6 +138,44 @@ describe('My tools, Widgets tab', () => {
     await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
     expect(openAdoptSheet.mock.calls[0][0]).toMatchObject({ galleryId: 'g7', kind: 'widget', mode: 'update', copyId: 'w2' })
     expect(openAdoptSheet.mock.calls[0][0]).not.toHaveProperty('title')    // the credit is the server's (W11-R24)
+  })
+
+  it('a failed widget update shows the library\'s own sentence, never a refresh failure (fix round 1, I-1)', async () => {
+    flags.on = true
+    const UPDATE = '/api/j2/template-gallery/tools/updates/widget/w2'
+    const S_CAP_LIB = 'SERVER: you have 100 widgets. Archive one to make room.'
+    const S_PLAIN = 'SERVER: this copy changed in another tab.'
+    let answer = null
+    net = installFetch([['POST', UPDATE, () => answer()]])
+    net.lists.live = [{ ...net.lists.live[1], credit: "Based on Sam's Win rate", sourceGalleryId: 'g7', fromLibrary: true, updateAvailable: true }]
+    await openSheet()
+    const press = async () => { await menuFor('Win rate'); fireEvent.click(menuItem('Update from the library')) }
+    const cases = [
+      [() => { throw new TypeError('Failed to fetch') }, LIBRARY_COPY.network],
+      [() => refuse(409, 'count_cap', S_CAP_LIB), S_CAP_LIB],
+      [() => ({ ok: false, status: 400, json: async () => ({ detail: S_PLAIN }) }), S_PLAIN],
+    ]
+    for (const [reply, sentence] of cases) {
+      answer = reply
+      await press()
+      await saysLive(sentence)
+      expect(live()).not.toHaveTextContent(/refresh/i)
+    }
+    // unresolved: the "Make it yours" sheet opens for the copy, and no error is said over it.
+    answer = () => refuse(400, 'unresolved', 'SERVER: answer each choice.')
+    await press()
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    expect(live()).not.toHaveTextContent('SERVER: answer each choice.')
+    // offline: the library's offline sentence, and no request.
+    const before = net.calls.filter((c) => c.path === UPDATE).length
+    Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true })
+    try {
+      await press()
+      await saysLive(LIBRARY_COPY.offline)
+    } finally {
+      Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
+    }
+    expect(net.calls.filter((c) => c.path === UPDATE)).toHaveLength(before)
   })
 
   it('used_in_opens_note_list', async () => {

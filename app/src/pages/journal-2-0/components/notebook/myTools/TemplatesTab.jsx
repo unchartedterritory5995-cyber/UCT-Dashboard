@@ -65,9 +65,13 @@ function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary
         <span className={styles.rowMeta}>
           {filter === 'deleted' ? (
             <>
-              <span>{`Deleted ${dayText(d.deletedAt)}`}</span>
-              <span aria-hidden="true">·</span>
-              <span>{keptUntilText(d.deletedAt, new Date(), TEMPLATE_DELETED_DAYS)}</span>
+              {dayText(d.deletedAt) && (
+                <>
+                  <span>{`Deleted ${dayText(d.deletedAt)}`}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{keptUntilText(d.deletedAt, new Date(), TEMPLATE_DELETED_DAYS)}</span>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -411,8 +415,10 @@ export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
   const kindsList = lists.live?.kinds || state?.kinds || []
   const kinds = new Map(kindsList.map((k) => [k.id, typeof k.name === 'string' ? k.name : '']))
   const shown = items.slice(0, LIST_RENDER_MAX)
-  const heading = filter === 'archived' ? `${items.length} archived`
-    : filter === 'deleted' ? `${items.length} recently deleted` : TEMPLATE_COPY.heading(items.length)
+  // No zeros (m-2): an empty list's heading names the list.
+  const heading = filter === 'live' ? TEMPLATE_COPY.heading(items.length)
+    : items.length === 0 ? TEMPLATE_COPY.emptyHeading[filter]
+      : filter === 'archived' ? `${items.length} archived` : `${items.length} recently deleted`
   const empty = { live: TEMPLATE_COPY.emptyActive, archived: TEMPLATE_COPY.emptyArchived, deleted: TEMPLATE_COPY.emptyDeleted }[filter]
 
   let panel = null

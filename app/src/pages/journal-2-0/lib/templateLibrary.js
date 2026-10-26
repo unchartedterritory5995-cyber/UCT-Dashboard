@@ -54,8 +54,9 @@ async function refusal(res) {
   const at = slot ? { slot } : {}
   if (code) return { ok: false, code, message: message || LIBRARY_COPY.network, ...at }
   if (message) return { ok: false, code: 'invalid', message, ...at }
-  // The journal-styles router (Task 11.19's Templates tab) refuses with a plain-sentence `detail`: the server's words.
-  if (typeof detail === 'string' && detail.trim()) return { ok: false, code: 'invalid', message: detail.trim() }
+  // The journal-styles router (Task 11.19's Templates tab) refuses with a plain-sentence `detail` at 400/409 (its `_bad`):
+  // the server's words. Any other status's string (a 401 "Not authenticated", a 422 developer string) is never shown.
+  if ((res.status === 400 || res.status === 409) && typeof detail === 'string' && detail.trim()) return { ok: false, code: 'invalid', message: detail.trim() }
   return fail('network')
 }
 

@@ -13,7 +13,7 @@ import { ArchivePanel, DeletePanel } from '../routines/ToolManage'
 import UsedInList from './UsedInList'
 import PanelHead from './PanelHead'
 import {
-  LIBRARY_ACTIONS, LIST_RENDER_MAX, TOOL_FILTERS, TOOL_LIST_COPY, creditText, dayText, fromTemplateText, isLibraryCopy,
+  LIBRARY_ACTIONS, LIST_RENDER_MAX, canUpdateFromLibrary, TOOL_FILTERS, TOOL_LIST_COPY, creditText, dayText, fromTemplateText, isLibraryCopy,
   keptUntilText,
 } from './myToolsLib'
 import { libraryOn, openShare, takeUpdate } from './libraryActions'
@@ -494,7 +494,7 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
     if (d.readOnly === true) return [open]                // a check-in tracker: read-only, Open only
     const copy = isLibraryCopy(d)
     const library = !libraryOn() ? []
-      : copy ? (d.updateAvailable === true ? [{ key: 'update', label: LIBRARY_ACTIONS.update, onClick: () => { setMenu(null); update(d) } }] : [])
+      : copy ? (canUpdateFromLibrary(d) ? [{ key: 'update', label: LIBRARY_ACTIONS.update, onClick: () => { setMenu(null); update(d) } }] : [])
         : [{ key: 'share', label: LIBRARY_ACTIONS.share, onClick: () => share(d) }]
     return [
       open,

@@ -11,7 +11,8 @@ import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
 import {
   FILTERS, LIST_RENDER_MAX, NO_RETRY, RECENTLY_DELETED_DAYS, COPY, usedInText, archiveSentence, editedText, dayText,
-  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName, LIBRARY_ACTIONS, creditText, isLibraryCopy,
+  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName, LIBRARY_ACTIONS, canUpdateFromLibrary,
+  creditText, isLibraryCopy,
 } from './myToolsLib'
 import { libraryOn, openShare, takeUpdate } from './libraryActions'
 import styles from './myTools.module.css'
@@ -21,7 +22,8 @@ import styles from './myTools.module.css'
  *
  *  * Each row: the name, a static drawing of its view, "Used in N notes" (which lists those notes, each opening its
  *    note), when it was last edited, and for an adopted widget the library's credit line: the server's own `credit`
- *    ("Based on Sam's Morning edge", W11-R7/R24), else the wave 8 `basedOn: {author, name}` read.
+ *    ("Based on Sam's Morning edge", W11-R7/R24). The client never assembles one: the wave 8 `basedOn` read is
+ *    retired (11.19 fix round 1, m-5); a row that still carries `basedOn` is a copy, with no credit line.
  *  * Active: Open (the builder), Rename, Duplicate, Version history, Archive. Archived: Restore, Delete permanently
  *    (the name typed). Recently deleted: Restore, for RECENTLY_DELETED_DAYS. While wave 11 and the library are on
  *    (Task 11.19): "Share to library" on the member's own widgets, "Update from the library" on a copy the server
@@ -42,14 +44,6 @@ const enc = (id) => encodeURIComponent(String(id))
 /** The row control for widget `id`, by attribute (ids are the server's; quoted, never trusted as a selector). */
 const actionsFor = (id) => `[data-actions-for="${String(id).replace(/["\\]/g, '\\$&')}"]`
 
-/** "Based on Sam's Morning edge", or "Based on a former member's …" (spec 5.8, 9). Wave 11 fills `basedOn`. */
-function basedOnText(d) {
-  const b = isRecord(d?.basedOn) ? d.basedOn : null
-  if (!b || typeof b.name !== 'string' || !b.name) return ''
-  const who = typeof b.author === 'string' && b.author ? `${b.author}'s` : "a former member's"
-  return `Based on ${who} ${b.name}`
-}
-
 const listHeading = (filter, n) => {
   if (filter === 'archived') return `${n} archived`
   if (filter === 'deleted') return `${n} recently deleted`
@@ -63,7 +57,7 @@ function Row({ d, filter, phone, touch, highlight, busy, menuOpen, onMenu, onPri
   const view = isRecord(d.plan?.view) ? d.plan.view.type : null
   const viewName = VIEW_NAME.get(view)
   const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
-  const based = creditText(d) || basedOnText(d)
+  const based = creditText(d)
   const primary = filter === 'live' ? 'Open' : 'Restore'
   const primaryOff = busy || (filter === 'live' && d.tooNew === true)
   return (
@@ -468,14 +462,24 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
     const got = await openShare({ kind: 'widget', id: d.id, onDone: (text) => { if (mounted.current) say(text) } })
     if (!got.ok && mounted.current) say(got.text, 'error')
   }
-  const update = (d) => act(d, async () => {
+  // ⛔ Not through `act`: its words are builtWidgets' table (a refresh failure). A library refusal is the library's own
+  // sentence (lib/templateLibrary: offline, network, the server's), and only a 404 is "gone" (11.19 fix round 1, I-1).
+  const update = async (d) => {
+    if (busyId) return
+    setBusyId(d.id)
+    setMessage(null)
     const got = await takeUpdate({ kind: 'widget', d, onSheetDone: () => { if (mounted.current) refresh('live') } })
-    return got.ok ? { ok: true, data: got } : { ok: false, code: got.code, message: got.text }
-  }, (out) => {
-    if (out?.opened) return
-    say(out?.text || LIBRARY_ACTIONS.updated(d.name))
-    refresh('live')
-  })
+    if (!mounted.current) return
+    setBusyId(null)
+    if (got.ok) {
+      if (got.opened) return
+      say(got.text || LIBRARY_ACTIONS.updated(d.name))
+      refresh('live')
+      return
+    }
+    if (got.code === 'unavailable') { gone(); return }
+    say(got.text, 'error')
+  }
 
   const primary = (d) => {
     if (filter === 'live') openBuilder({ defId: d.id })
@@ -497,9 +501,9 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
           hint: `Needs the name typed. Kept in Recently deleted for ${RECENTLY_DELETED_DAYS} days.` },
       ]
     }
-    const copy = isLibraryCopy(d) || !!basedOnText(d)
+    const copy = isLibraryCopy(d) || isRecord(d.basedOn)
     const library = !libraryOn() ? []
-      : copy ? (d.updateAvailable === true ? [{ key: 'update', label: LIBRARY_ACTIONS.update, onClick: () => { setMenu(null); update(d) } }] : [])
+      : copy ? (canUpdateFromLibrary(d) ? [{ key: 'update', label: LIBRARY_ACTIONS.update, onClick: () => { setMenu(null); update(d) } }] : [])
         : [{ key: 'share', label: LIBRARY_ACTIONS.share, disabled: tooNew, onClick: () => share(d) }]
     return [
       { key: 'open', label: 'Open', disabled: tooNew, onClick: () => openBuilder({ defId: d.id }) },

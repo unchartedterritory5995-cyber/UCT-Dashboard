@@ -136,6 +136,13 @@ describe('templateLibrary: the Templates tab calls (Task 11.19)', () => {
     expect(await deleteTemplate('s1', 'x')).toEqual({ ok: false, code: 'invalid', message })
     fetchMock.mockResolvedValueOnce(json(404, { detail: 'Not found' }))
     expect(await restoreTemplate('s1')).toEqual({ ok: false, code: 'unavailable', message: LIBRARY_COPY.unavailable })
+    fetchMock.mockResolvedValueOnce(json(409, { detail: 'SERVER: that kind is still in use.' }))
+    expect((await archiveTemplate('s1')).message).toBe('SERVER: that kind is still in use.')
+    // Only the router's 400/409 sentences: a 401 or 422 string is never shown to a member (m-1).
+    for (const status of [401, 422, 500]) {
+      fetchMock.mockResolvedValueOnce(json(status, { detail: 'Not authenticated' }))
+      expect(await archiveTemplate('s1'), String(status)).toEqual({ ok: false, code: 'network', message: LIBRARY_COPY.network })
+    }
     fetchMock.mockResolvedValueOnce(json(400, { detail: '   ' }))      // a blank sentence is no sentence
     expect(await archiveTemplate('s1')).toEqual({ ok: false, code: 'network', message: LIBRARY_COPY.network })
   })
