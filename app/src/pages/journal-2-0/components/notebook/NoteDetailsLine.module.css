@@ -61,7 +61,9 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
-.toggleQuiet { opacity: 0.85; }
+/* F-DEF-1 r1 (review m-3): 0.85 took the --text-muted label to 4.21:1 on --bg-surface in light. 0.9 is the
+   lowest that holds 4.5:1 on every surface in every theme. Rail: a11y/notebookContrast.test.js. */
+.toggleQuiet { opacity: 0.9; }
 .chevron {
   flex: 0 0 auto;
   transform: rotate(-90deg);
