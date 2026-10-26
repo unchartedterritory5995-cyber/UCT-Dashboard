@@ -244,13 +244,23 @@ describe('templateLibrary: the Idempotency-Key on Use and Adopt (W11-R34)', () =
     expect(keyOf(4)).not.toBe(keyOf(3))
   })
 
-  it('a press for other answers, another item or another door is its own key', async () => {
+  it('W11-R44: while no clear answer has come, the press keeps its key even when the body changes', async () => {
+    // A reopened sheet re-asks the preview, and its answers or reuse choices can differ ("Use your Morning routine"
+    // now that the lost Use made it). A new key there would let the server make a SECOND note: the key is held per
+    // door and item, never per body. Another item or another door is its own press.
     fetchMock.mockImplementation(async () => { throw new TypeError('Failed to fetch') })   // nothing ever settles
-    await useTemplate('gk-4', { answers: { p1: 'A' } })
-    await useTemplate('gk-4', { answers: { p1: 'B' } })
+    await useTemplate('gk-4', { answers: { p1: 'A' }, choices: { routine_a: { create: true } } })
+    await useTemplate('gk-4', { answers: { p1: 'B' }, choices: { routine_a: { use: 'r1' } } })
     await useTemplate('gk-5', { answers: { p1: 'B' } })
     await adoptTemplate('gk-5', { answers: { p1: 'B' } })
-    expect(new Set([keyOf(0), keyOf(1), keyOf(2), keyOf(3)]).size).toBe(4)
+    await adoptTool('gk-5', { answers: { p1: 'B' } })
+    expect(keyOf(1)).toBe(keyOf(0))
+    expect(new Set([keyOf(0), keyOf(2), keyOf(3), keyOf(4)]).size).toBe(4)
+    fetchMock.mockImplementation(async () => json(200, { note: { id: 'n1' } }))
+    await useTemplate('gk-4', { answers: { p1: 'C' } })         // the held key once more: the server replays N1
+    expect(keyOf(5)).toBe(keyOf(0))
+    await useTemplate('gk-4', { answers: { p1: 'C' } })         // that answer was clear: a deliberate new press
+    expect(keyOf(6)).not.toBe(keyOf(0))
   })
 
   it('offline sends nothing, and the press is still open when the member is back', async () => {

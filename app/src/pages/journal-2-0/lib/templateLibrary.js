@@ -18,8 +18,9 @@
 // ⛔ Use and Adopt are KEYED (ruling W11-R34, F-FE-1 F2): `useTemplate`, `adoptTemplate` and `adoptTool` send an
 //    `Idempotency-Key` from lib/idempotencyKeys (the Notebook's one generator and per-intent rule, never a second).
 //    One key per deliberate press: a press whose earlier request has no settled answer (`answerSettled`: a lost
-//    answer, offline, the server's 409 "already on its way", a 5xx) is sent again under the SAME key, so the server
-//    answers what the first one made instead of making a second note or copy; a settled answer ends the press.
+//    answer, offline, the server's 409 "already on its way", its own failure) is sent again under the SAME key, so the
+//    server answers what the first one made instead of making a second note or copy; a settled answer ends the press.
+//    The key is held per door and item for the page session, whatever the body (W11-R44, see `keyedPost`).
 import { isOffline } from './blocks/toolsApi'
 import { keyedSender } from './idempotencyKeys'
 
@@ -101,19 +102,29 @@ function post(url, raw, extraHeaders = null) {
  * it for good. Unsettled, so the next press resends the SAME key: nothing came back (`network`, which is also a bare
  * 5xx), nothing was sent (`offline`), the server's own failure (`server`, `busy`), or `conflict`, which is how the
  * server answers a twin request still in flight ("That is already on its way. Try again in a moment.",
- * `template_gallery.S_KEY_IN_FLIGHT`, railed by templateLibrary.server.test.js). A key on another item or door (the
- * server's other `conflict`) cannot come from here: each intent below names its door and item.
+ * `template_gallery.S_KEY_IN_FLIGHT`). Every other code settles, `too_long` included (the run was refused before it
+ * wrote). The server's KeyReused (the key sent for another item or door) is a definite refusal and would settle, but
+ * today it shares the in-flight `conflict` code, so the safe reading wins; it cannot come from here, because a key is
+ * held per door and item, the pair the server compares. All of this is railed against the server's source
+ * (templateLibrary.server.test.js).
  */
 const UNSETTLED = new Set(['network', 'offline', 'server', 'busy', 'conflict'])
 export const answerSettled = (got) => !!got && (got.ok === true || !UNSETTLED.has(got.code))
 
 const sendKeyed = keyedSender({ confirmed: answerSettled })
 
-/** A keyed POST: the press is `<door>:<item>` with this exact body (a different body is a different press). */
+/**
+ * A keyed POST. Ruling W11-R44: the press is `<door>:<item>` ALONE, held in this module for the page session (never
+ * browser storage), so it survives closing and reopening the sheet. While no clear answer has come its key is resent
+ * even when the body changed: a reopened sheet re-asks the preview, and after a lost Use its reuse question can now
+ * read "Use your <routine>", a new body that must not mint a new key and let the server make a second note (the
+ * server replays the first answer for a known key, whatever the body). A clear answer ends the press.
+ * The member: the server scopes every key to the session's member (`_key_lookup ... WHERE user_id = ?`), so a key
+ * still held when another member signs in on this page is, for them, an unused key and a plain first request.
+ */
 function keyedPost(door, galleryId, raw) {
-  const body = bodyOf(raw)
-  if (body === null) return Promise.resolve(fail('network'))
-  return sendKeyed(`${door}:${String(galleryId)}`, body,
+  if (bodyOf(raw) === null) return Promise.resolve(fail('network'))
+  return sendKeyed(`${door}:${String(galleryId)}`, null,
     (key) => post(`${GALLERY}/${enc(galleryId)}/${door}`, raw, { 'Idempotency-Key': key }))
 }
 

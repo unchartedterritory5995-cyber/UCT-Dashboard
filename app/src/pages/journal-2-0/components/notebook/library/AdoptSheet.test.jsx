@@ -591,6 +591,50 @@ describe('server sentences and the credit line', () => {
     expect(keys[1]).not.toBe(keys[0])
   })
 
+  it('W11-R44: after a LOST Use, closing and reopening the sheet sends the SAME key; after a success, a NEW one', async () => {
+    // The lost Use made the note AND the routine, so the reopened sheet's reuse question now reads "Use your
+    // Pre-market routine": a different body, which must not mint a new key (the server would make a second note).
+    const G = 'g-r44-reopen'
+    const uses = []
+    let made = false
+    let lose = true
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (url === `/api/j2/template-gallery/${G}/preview-mine`) {
+        return json(200, { slots: [{ ...SETUP, suggested: { value: 'Breakout', label: 'Breakout' }, value: 'Breakout' }], cards: [], tools: [],
+          questions: [{ slot: 'routine_a', kind: 'routine', createName: 'Pre-market routine', use: made ? { id: 'r-made', name: 'Pre-market routine' } : null }] })
+      }
+      if (url === `/api/j2/template-gallery/${G}/use-template`) {
+        uses.push({ key: init.headers?.['Idempotency-Key'], body: JSON.parse(init.body) })
+        made = true
+        if (lose) throw new TypeError('Failed to fetch')                    // it landed; the answer was lost
+        return json(200, { note: { id: 'n-1' }, skipped: [], style: { id: 's1' }, credit: null, created: {} })
+      }
+      return json(404, {})
+    })
+    const first = mount({ galleryId: G })
+    await ready()
+    fireEvent.click(useButton())
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(first.onClose).toHaveBeenCalled()
+    cleanup()
+    lose = false
+    const again = mount({ galleryId: G })
+    await ready()
+    await waitFor(() => expect(screen.getByRole('radio', { name: useYourWords('Pre-market routine') }).checked).toBe(true))
+    fireEvent.click(useButton())
+    await waitFor(() => expect(again.navigate).toHaveBeenCalledTimes(1))
+    expect(uses).toHaveLength(2)
+    expect(uses[1].body.choices).not.toEqual(uses[0].body.choices)       // the body changed...
+    expect(uses[1].key).toBe(uses[0].key)                                // ...the key did not
+    cleanup()
+    mount({ galleryId: G })
+    await ready()
+    fireEvent.click(useButton())
+    await waitFor(() => expect(uses).toHaveLength(3))
+    expect(uses[2].key).not.toBe(uses[0].key)                            // a clear answer ended that press
+  })
+
   it("F-FE-1 F2: a tool's Use (adopt-tool) carries the key too", async () => {
     const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
     mount({ kind: 'widget' })

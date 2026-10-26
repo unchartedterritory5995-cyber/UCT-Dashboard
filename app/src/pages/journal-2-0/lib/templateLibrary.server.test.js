@@ -75,6 +75,26 @@ describe("the Use and Adopt key is the server's", () => {
     }
   })
 
+  it('m-2: each server refusal settles a press, or not, by the code the router gives it', () => {
+    // Read the codes from the router and the service, never retyped: a 503 that means "nothing was done" settles
+    // (too_long: the plan ran past its time, refused before any write), the engine's own load and failure do not.
+    const code = (re) => re.exec(router)?.[1]
+    const tooLong = code(/except wrun\.EngineTooLong as e:\s*\r?\n\s*raise _err\(503, "(\w+)"/)
+    const busy = code(/except wrun\.EngineBusy as e:\s*\r?\n\s*raise _err\(503, "(\w+)"/)
+    const server = code(/except gallery\.GalleryServerError as e:\s*\r?\n\s*raise _err\(500, "(\w+)"/)
+    const inFlight = code(/except gallery\.GalleryConflict as e:\s*\r?\n\s*raise _err\(409, getattr\(e, "code", None\) or "(\w+)"/)
+    const keyReused = /^class KeyReused\(ToolError\):[\s\S]*?^\s+code = "(\w+)"/m.exec(gallery)?.[1]
+    for (const c of [tooLong, busy, server, inFlight, keyReused]) expect(c).toMatch(/^\w+$/)
+    expect(answerSettled({ ok: false, code: tooLong })).toBe(true)
+    expect(answerSettled({ ok: false, code: busy })).toBe(false)
+    expect(answerSettled({ ok: false, code: server })).toBe(false)
+    expect(answerSettled({ ok: false, code: inFlight })).toBe(false)
+    // KeyReused is a definite refusal (W11-R44) and settles, but only a code of its own can say so: while it shares
+    // the in-flight twin's code the safe reading (keep the key) wins. Unreachable from this client either way: a key
+    // is held per door and item, the very pair the server compares. Goes green the other way once be gives it a code.
+    expect(answerSettled({ ok: false, code: keyReused })).toBe(keyReused !== inFlight)
+  })
+
   it("the in-flight refusal is a codeless GalleryConflict, answered 409 'conflict': the client treats it as unsettled", () => {
     expect(gallery).toMatch(/raise GalleryConflict\(S_KEY_IN_FLIGHT\)/)
     expect(router).toMatch(/except gallery\.GalleryConflict as e:\s*\r?\n\s*raise _err\(409, getattr\(e, "code", None\) or "conflict", str\(e\)\)/)
