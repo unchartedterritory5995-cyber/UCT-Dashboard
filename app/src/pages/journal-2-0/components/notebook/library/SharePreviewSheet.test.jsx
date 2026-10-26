@@ -7,7 +7,9 @@ import { render, screen, fireEvent, waitFor, within, act, cleanup } from '@testi
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import SharePreviewSheet, { SENT_SENTENCE, DEBOUNCE_MS, pickLine } from './SharePreviewSheet'
+import SharePreviewSheet, {
+  SENT_SENTENCE, DEBOUNCE_MS, pickLine, fieldsFromPrefill, sharedNumbers, FIELD_NAME_HINT, CATEGORY_HINT,
+} from './SharePreviewSheet'
 import { openSharePreview } from './openSharePreview'
 
 const waves = vi.hoisted(() => ({ eleven: true }))
@@ -27,7 +29,8 @@ const S_NOT_SHARED = 'Your setups are left out; people pick their own.'
 // ── the fake server ────────────────────────────────────────────────────────────────────────────────
 
 const WIDGET_PREFILL = {
-  name: 'My R curve', description: 'R by setup', formulas: { f1: 'Risk multiple' },
+  // Ruling W11-R22's shape exactly: formulas [{id, name}], items [{text}], numbers [{path, value, label?}].
+  name: 'My R curve', description: 'R by setup', formulas: [{ id: 'f1', name: 'Risk multiple' }],
   numbers: [{ path: 'filters/0/values/0', value: 2.5, label: 'Hold days' }],
 }
 /** What share_plan answers for these edits (its keys exactly), unless `over` says otherwise. */
@@ -36,7 +39,7 @@ function widgetAnswer(body, over = {}) {
   return {
     travels: {
       name: e.name?.trim() || 'Win rate by setup', description: e.description?.trim() || 'Win rate split by setup',
-      plan: { v: 3, source: 'trades', formulas: [{ id: 'f1', name: e.formulas?.f1?.trim() || 'Field 1', expr: '[#p2] * 2', format: 'number' }] },
+      plan: { v: 3, source: 'trades', view: { type: 'bar', auto: false }, formulas: [{ id: 'f1', name: e.formulas?.f1?.trim() || 'Field 1', expr: '[#p2] * 2', format: 'number' }] },
       slots: [{ id: 'p1', type: 'setup', label: 'Setup', any: true }, { id: 'p2', type: 'number', label: 'Field 1', any: false }],
     },
     slots: [{ id: 'p1', type: 'setup', label: 'Setup', any: true }, { id: 'p2', type: 'number', label: 'Field 1', any: false },
@@ -47,7 +50,8 @@ function widgetAnswer(body, over = {}) {
     ...over,
   }
 }
-const ROUTINE_PREFILL = { name: 'Morning prep', items: ['Check news', 'Mark levels', 'Size the plan'] }
+const ROUTINE_ITEMS = ['Check news', 'Mark levels', 'Size the plan']
+const ROUTINE_PREFILL = { name: 'Morning prep', items: ROUTINE_ITEMS.map((text) => ({ text })) }
 function routineAnswer(body) {
   const e = body.edits || {}
   const items = (e.items || []).filter((t) => typeof t === 'string' && t.trim()).map((t) => ({ text: t.trim(), negative: false }))
@@ -250,6 +254,116 @@ describe('the share preview of a widget', () => {
   })
 })
 
+describe('fix round 1', () => {
+  it("I-1: the author's own field names are prefilled from R22's formulas [{id, name}] (the object form still reads)", () => {
+    const travels = { plan: { formulas: [{ id: 'f2' }, { id: 'f1' }] } }
+    const r22 = fieldsFromPrefill('widget', { name: 'N', formulas: [{ id: 'f1', name: 'Risk' }, { id: 'f2', name: 'Hold' }] }, travels)
+    expect(r22.formulas).toEqual([{ id: 'f2', text: 'Hold' }, { id: 'f1', text: 'Risk' }])
+    expect(fieldsFromPrefill('widget', { formulas: { f1: 'Risk' } }, null).formulas).toEqual([{ id: 'f1', text: 'Risk' }])
+    expect(fieldsFromPrefill('routine', { items: [{ text: 'A' }, 'B'] }, null).items.map((i) => i.text)).toEqual(['A', 'B'])
+  })
+
+  it("I-2: a field name is capped at the server's 60 with its sentence beside it", async () => {
+    installServer(widgetAnswer)
+    mount({ kind: 'widget', id: 'w1' })
+    const field = await screen.findByRole('textbox', { name: 'Name of field 1' })
+    expect(field.getAttribute('maxlength')).toBe('60')
+    const hint = document.getElementById(field.getAttribute('aria-describedby'))
+    expect(hint.textContent).toBe(FIELD_NAME_HINT)
+    expect(FIELD_NAME_HINT).toBe('A field name can be at most 60 characters.')
+  })
+
+  it("I-3: turning a number on re-asks the server, and the panel shows the SERVER's value", async () => {
+    // The server answers with its own value for the kept number (9), not the switch's 2.5.
+    const net = installServer((b) => widgetAnswer(b, {
+      prefill: { ...WIDGET_PREFILL, numbers: [{ path: 'filters/0/values/0', value: (b.keep || []).length ? 9 : 2.5, label: 'Hold days' }] },
+    }))
+    mount({ kind: 'widget', id: 'w1' })
+    const sw = await screen.findByRole('switch', { name: 'Hold days: Share this number (2.5)' })
+    await primed(net)
+    expect(travels().textContent).not.toMatch(/Shared numbers/)
+    expect(within(travels()).getByText('Bar')).toBeTruthy()                          // "Shown as: Bar", from the plan
+    fireEvent.click(sw)
+    await waitFor(() => expect(net.previews().length).toBe(3))
+    expect(net.previews()[2].body.keep).toEqual(['filters/0/values/0'])
+    await waitFor(() => expect(within(travels()).getByText('Hold days 9')).toBeTruthy())
+    expect(travels().textContent).not.toMatch(/2\.5/)
+  })
+
+  it('I-3 CONTROL: a switch the server did not keep shows nothing in the panel', async () => {
+    const net = installServer((b) => widgetAnswer(b, { kept: [] }))
+    mount({ kind: 'widget', id: 'w1' })
+    const sw = await screen.findByRole('switch', { name: /Share this number/ })
+    await primed(net)
+    fireEvent.click(sw)
+    await waitFor(() => expect(net.previews().length).toBe(3))
+    await waitFor(() => expect(sendButton().disabled).toBe(false))
+    expect(travels().textContent).not.toMatch(/Shared numbers|Hold days/)
+    expect(sharedNumbers({ kept: ['x/y'], prefill: { blocks: { built_a: { numbers: [{ path: 'y', value: 1 }] } } } })).toEqual([])
+    expect(sharedNumbers({ kept: ['built_a/y'], prefill: { blocks: { built_a: { numbers: [{ path: 'y', value: 0, label: 'T' }] } } } })).toEqual(['T 0'])
+  })
+
+  it('M-3: focus moves to Done after a send, and to the refusal after a send refused for good', async () => {
+    const net = installServer(widgetAnswer)
+    mount({ kind: 'widget', id: 'w1' })
+    await screen.findByRole('textbox', { name: 'Name' })
+    await primed(net)
+    fireEvent.click(sendButton())
+    const done = await screen.findByRole('button', { name: 'Done' })
+    await waitFor(() => expect(document.activeElement).toBe(done))
+    cleanup()
+    globalThis.fetch = vi.fn(async (url, init = {}) => (url === PREVIEW ? json(200, widgetAnswer(JSON.parse(init.body)))
+      : json(400, { detail: { code: 'adopted', message: S_ADOPTED } })))
+    mount({ kind: 'widget', id: 'w1' })
+    await screen.findByRole('textbox', { name: 'Name' })
+    await waitFor(() => expect(sendButton().disabled).toBe(false))
+    fireEvent.click(sendButton())
+    const alert = await screen.findByRole('alert')
+    await waitFor(() => expect(document.activeElement).toBe(alert))
+  })
+
+  it('M-5: not_yours cannot be fixed here, so it blocks with no Try again', async () => {
+    installServer(refuse('not_yours', 'This routine is not in your account.'))
+    mount({ kind: 'template', id: 's1' })
+    expect((await screen.findByRole('alert')).textContent).toBe('This routine is not in your account.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(sendButton().disabled).toBe(true)
+  })
+
+  it('M-7: the fields are not a form Enter half-submits, and a missing category says so', async () => {
+    const net = installServer(() => ({
+      travels: { name: 'T', blocks: [] }, slots: [], kept: [], notShared: [], prefill: { name: 'T', blocks: {} },
+    }))
+    mount({ kind: 'template', id: 's1' })
+    const select = await screen.findByRole('combobox', { name: 'Category (required)' })
+    expect(document.querySelector('[data-share-preview] form')).toBeNull()
+    expect(document.getElementById(select.getAttribute('aria-describedby')).textContent).toBe(CATEGORY_HINT)
+    await waitFor(() => expect(net.previews().length).toBe(2))
+    fireEvent.change(select, { target: { value: 'journal' } })
+    expect(screen.queryByText(CATEGORY_HINT)).toBeNull()
+  })
+
+  it('M-8: a routine held by two blocks gets controls once; the second block says where to change it', async () => {
+    const net = installServer(() => ({
+      travels: {
+        format: 2, name: 'T', description: '',
+        blocks: [{ block: 'routine_a', settings: { inline: 'r1' } }, { block: 'routine_b', settings: { inline: 'r1' } }],
+        definitions: [], routines: [{ key: 'r1', name: 'Morning prep', items: [{ text: 'A' }] }], trackers: [], slots: [],
+      },
+      slots: [], kept: [], notShared: [],
+      prefill: {
+        name: 'T', description: '',
+        blocks: { routine_a: { name: 'Morning prep', items: [{ text: 'A' }] }, routine_b: { name: 'Morning prep', items: [{ text: 'A' }] } },
+      },
+    }))
+    mount({ kind: 'template', id: 's1' })
+    expect(await screen.findByText('This is the same as Routine: Morning prep above. Change it there.')).toBeTruthy()
+    expect(screen.getAllByRole('textbox', { name: 'Item 1' })).toHaveLength(1)
+    await waitFor(() => expect(net.previews().length).toBe(2))
+    expect(Object.keys(net.previews()[1].body.edits.blocks)).toEqual(['routine_a'])
+  })
+})
+
 describe('server refusals', () => {
   it('adopted_refusal_disables_send', async () => {
     const net = installServer(refuse('adopted', S_ADOPTED))
@@ -297,7 +411,7 @@ describe('the share preview of a routine and a tracker', () => {
     mount({ kind: 'routine', id: 'r1' })
     const boxes = await screen.findAllByRole('checkbox', { name: /^Share item \d$/ })
     expect(boxes.map((b) => b.checked)).toEqual([true, true, true])
-    expect(screen.getAllByRole('textbox', { name: /^Item \d$/ }).map((i) => i.value)).toEqual(ROUTINE_PREFILL.items)
+    expect(screen.getAllByRole('textbox', { name: /^Item \d$/ }).map((i) => i.value)).toEqual(ROUTINE_ITEMS)
     expect(screen.queryByRole('textbox', { name: 'Description' })).toBeNull()
     await primed(net)
     expect(within(travels()).getByText('Mark levels')).toBeTruthy()
@@ -333,8 +447,8 @@ describe('the share preview of a template', () => {
   const STYLE_PREFILL = {
     name: 'My prep', description: 'Before the open',
     blocks: {
-      built_a: { name: 'R curve', description: 'R by setup', formulas: { f1: 'Risk' }, numbers: [{ path: 'display/target', value: 3, label: 'Target' }] },
-      routine_a: { name: 'Morning prep', items: ['Check news', 'Mark levels'] },
+      built_a: { name: 'R curve', description: 'R by setup', formulas: [{ id: 'f1', name: 'Risk' }], numbers: [{ path: 'display/target', value: 3, label: 'Target' }] },
+      routine_a: { name: 'Morning prep', items: [{ text: 'Check news' }, { text: 'Mark levels' }] },
       tracker_a: { name: 'Sleep', unit: 'hrs' },
     },
   }
@@ -353,7 +467,7 @@ describe('the share preview of a template', () => {
       slots: [{ id: 'p1', type: 'setup', label: 'Setup', any: true }],
     },
     slots: [{ id: 'p1', type: 'setup', label: 'Setup', any: true }],
-    kept: [], notShared: [], prefill: STYLE_PREFILL,
+    kept: [...(b.keep || [])], notShared: [], prefill: STYLE_PREFILL,
   })
 
   it('lists each held widget, routine and tracker with the same controls, and sends per-block edits', async () => {
@@ -383,7 +497,7 @@ describe('the share preview of a template', () => {
     // A template needs its category before it can be sent (the style share's own field).
     await waitFor(() => expect(net.previews().length).toBe(3))
     expect(sendButton().disabled).toBe(true)
-    fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), { target: { value: 'journal' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Category (required)' }), { target: { value: 'journal' } })
     await waitFor(() => expect(sendButton().disabled).toBe(false))
     fireEvent.click(sendButton())
     expect((await screen.findByRole('status')).textContent).toBe(SENT_SENTENCE)

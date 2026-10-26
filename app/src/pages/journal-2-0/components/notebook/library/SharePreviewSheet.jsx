@@ -25,6 +25,7 @@ import { TYPE_LABELS, bindWords, familyLabel, slotFamily, slotLabel } from '../.
 import { GALLERY_CATEGORIES } from '../../../lib/templateGallery'
 import { TRADING_STYLES } from '../../../lib/styleLibrary'
 import { SCHEDULES, TRACKER_DAYS, WEEKDAYS, kindWords } from '../routines/toolEditorLib'
+import { VIEW_LABELS } from '../widgetBuilder/builderCatalog'
 import styles from './library.module.css'
 
 export const TITLE = 'Share to library'
@@ -34,18 +35,28 @@ export const NOT_SHARED_LABEL = 'Not shared'
 export const SEND_LABEL = 'Send for review'
 export const SENT_SENTENCE = "Sent. UCT reviews every item before it's listed."
 export const LOADING_SENTENCE = 'Checking what will be shared…'
-// The server's own limits and sentences (widget_engine/share.S_NAME_LONG and friends), shown beside each field.
+// The server's own limits and sentences, shown beside each field. Each is pinned to the server's source text by
+// SharePreviewSheet.server.test.js: share.NAME_MAX / S_NAME_LONG, DESCRIPTION_MAX / S_DESCRIPTION_LONG,
+// ITEM_TEXT_MAX / S_ITEM_LONG, UNIT_MAX / S_UNIT_LONG, and a widget's field names widget_formula.NAME_MAX /
+// plan.S_FORMULA_NAME_LONG (the cap share_plan applies to a formula's name).
 export const NAME_MAX = 80
 export const DESCRIPTION_MAX = 280
 export const ITEM_MAX = 200
 export const UNIT_MAX = 16
+export const FIELD_NAME_MAX = 60
 export const NAME_HINT = 'A name can be at most 80 characters.'
 export const DESCRIPTION_HINT = 'A description can be at most 280 characters.'
 export const ITEM_HINT = 'An item can be at most 200 characters.'
 export const UNIT_HINT = 'A unit can be at most 16 characters.'
+export const FIELD_NAME_HINT = 'A field name can be at most 60 characters.'
 export const DEBOUNCE_MS = 600
-/** Refusals the author cannot fix in this sheet: their sentence stands at the top and Send stays off. */
-export const BLOCKING_CODES = Object.freeze(['own_words', 'adopted'])
+/** Refusals the author cannot fix in this sheet: their sentence stands at the top, Send stays off and there is no
+ *  Try again (asking again would only repeat it). */
+export const BLOCKING_CODES = Object.freeze(['own_words', 'adopted', 'not_yours'])
+export const CATEGORY_LABEL = 'Category (required)'
+export const CATEGORY_HINT = 'Pick a category to send it.'
+export const SHARED_NUMBERS_LABEL = 'Shared numbers'
+export const sameAsSentence = (label) => `This is the same as ${label} above. Change it there.`
 
 export const pickLine = (labels) => `People who use it pick their own: ${labels.join(', ')}`
 export const numberSwitchLabel = (value) => `Share this number (${value})`
@@ -72,7 +83,10 @@ function numbersOf(raw, prefix = '') {
 function fieldsOf(kind, pre, travels) {
   const p = isRecord(pre) ? pre : {}
   if (kind === 'widget') {
-    const names = isRecord(p.formulas) ? p.formulas : {}
+    // Ruling W11-R22: `formulas: [{id, name}]`. The object form `{id: name}` is read too (an older answer).
+    const names = Array.isArray(p.formulas)
+      ? Object.fromEntries(p.formulas.filter((x) => isRecord(x) && typeof x.id === 'string').map((x) => [x.id, text(x.name)]))
+      : isRecord(p.formulas) ? p.formulas : {}
     const order = listOf(travels?.plan?.formulas).map((f) => f?.id).filter((fid) => typeof fid === 'string')
     const ids = [...order, ...Object.keys(names).filter((fid) => !order.includes(fid))]
     return {
@@ -94,18 +108,24 @@ export function fieldsFromPrefill(kind, prefill, travels) {
   const blocks = isRecord(prefill?.blocks) ? prefill.blocks : {}
   const defs = new Map(listOf(travels?.definitions).map((d) => [d?.key, d]))
   const travelBlocks = new Map(listOf(travels?.blocks).map((b) => [b?.block, b]))
+  // One widget, routine or tracker held by two blocks is reduced ONCE, with the first block's edits (share_template's
+  // `if ref not in inline`), so a later block holding it gets no controls of its own: it says where to change it.
+  const firstOf = new Map()
   return {
     ...base,
     numbers: [],
     blocks: Object.keys(blocks).filter((bid) => slotFamily(bid)).map((bid) => {
       const family = slotFamily(bid)
       const sub = FAMILY_KIND[family]
-      const ref = travelBlocks.get(bid)?.settings?.ref
-      const def = typeof ref === 'string' && ref.startsWith('inline:') ? defs.get(ref.slice(7)) : null
+      const st = travelBlocks.get(bid)?.settings
+      const ref = typeof st?.ref === 'string' ? st.ref : typeof st?.inline === 'string' ? `inline:${st.inline}` : null
+      const def = ref && ref.startsWith('inline:') ? defs.get(ref.slice(7)) : null
+      const fields = fieldsOf(sub, blocks[bid], def ? { plan: def.plan } : null)
+      const first = ref ? firstOf.get(ref) : null
+      if (ref && !first) firstOf.set(ref, familyLabel(family, fields.name))
       return {
-        bid, family, kind: sub,
-        fields: fieldsOf(sub, blocks[bid], def ? { plan: def.plan } : null),
-        numbers: numbersOf(blocks[bid]?.numbers, `${bid}/`),
+        bid, family, kind: sub, fields, sameAs: first || null,
+        numbers: first ? [] : numbersOf(blocks[bid]?.numbers, `${bid}/`),
       }
     }),
   }
@@ -125,7 +145,9 @@ function editsOne(kind, f) {
 /** The `edits` the fields ask for: exactly their values, nothing else. */
 export function editsOf(kind, fields) {
   const out = editsOne(kind, fields)
-  if (kind === 'template') out.blocks = Object.fromEntries(fields.blocks.map((b) => [b.bid, editsOne(b.kind, b.fields)]))
+  if (kind === 'template') {
+    out.blocks = Object.fromEntries(fields.blocks.filter((b) => !b.sameAs).map((b) => [b.bid, editsOne(b.kind, b.fields)]))
+  }
   return out
 }
 
@@ -148,13 +170,37 @@ function scheduleWords(s) {
 
 function WidgetTravels({ t }) {
   const fields = listOf(t?.plan?.formulas).map((f) => text(f?.name)).filter(Boolean)
+  const view = (VIEW_LABELS.find(([k]) => k === t?.plan?.view?.type) || [])[1]
   return (
     <>
       {text(t?.name) && <Row label="Name">{t.name}</Row>}
       {text(t?.description) && <Row label="Description">{t.description}</Row>}
+      {view && <Row label="Shown as">{view}</Row>}
       {fields.length > 0 && <Row label="Your own fields">{fields.join(', ')}</Row>}
     </>
   )
+}
+
+/** The numbers the SERVER says travel: each path in `answer.kept`, named and valued by the same answer's prefill
+ *  (`numbers`, or a template block's `numbers` under its `<block id>/` prefix). Nothing here reads the switches, so
+ *  a switch the server did not keep shows nothing. */
+export function sharedNumbers(answer) {
+  const kept = listOf(answer?.kept).filter((k) => typeof k === 'string')
+  if (!kept.length) return []
+  const pre = isRecord(answer?.prefill) ? answer.prefill : {}
+  const known = new Map(numbersOf(pre.numbers).map((n) => [n.path, n]))
+  for (const [bid, b] of Object.entries(isRecord(pre.blocks) ? pre.blocks : {})) {
+    for (const n of numbersOf(b?.numbers, `${bid}/`)) known.set(n.path, n)
+  }
+  return kept.filter((k) => known.has(k)).map((k) => {
+    const n = known.get(k)
+    return n.label ? `${n.label} ${numberWords(n.value)}` : numberWords(n.value)
+  })
+}
+
+function SharedNumbers({ answer }) {
+  const words = sharedNumbers(answer)
+  return words.length > 0 ? <Row label={SHARED_NUMBERS_LABEL}>{words.join(', ')}</Row> : null
 }
 
 function RoutineTravels({ t }) {
@@ -226,12 +272,14 @@ function TemplateTravels({ t }) {
   )
 }
 
-function Travels({ kind, travels }) {
+function Travels({ kind, answer }) {
+  const travels = answer?.travels
   if (!isRecord(travels)) return null
-  if (kind === 'widget') return <WidgetTravels t={travels} />
-  if (kind === 'routine') return <RoutineTravels t={travels} />
-  if (kind === 'tracker') return <TrackerTravels t={travels} />
-  return <TemplateTravels t={travels} />
+  const body = kind === 'widget' ? <WidgetTravels t={travels} />
+    : kind === 'routine' ? <RoutineTravels t={travels} />
+      : kind === 'tracker' ? <TrackerTravels t={travels} />
+        : <TemplateTravels t={travels} />
+  return <>{body}<SharedNumbers answer={answer} /></>
 }
 
 // ── the author's fields ────────────────────────────────────────────────────────────────────────────
@@ -285,7 +333,7 @@ function ToolFields({ uid, kind, f, set, numbers, keep, onToggle, named = true }
       )}
       {kind === 'widget' && f.formulas.map((x, i) => (
         <TextField key={x.id} id={`${uid}-f-${i}`} label={`Name of field ${i + 1}`} value={x.text}
-          placeholder={`Field ${i + 1}`} max={NAME_MAX}
+          placeholder={`Field ${i + 1}`} max={FIELD_NAME_MAX} hint={FIELD_NAME_HINT}
           onChange={(v) => set({ ...f, formulas: f.formulas.map((y) => (y.id === x.id ? { ...y, text: v } : y)) })} />
       ))}
       {kind === 'routine' && f.items.length > 0 && (
@@ -344,6 +392,16 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
   const timer = useRef(null)
   const alive = useRef(true)
   const primed = useRef(false)
+  const doneRef = useRef(null)
+  const alertRef = useRef(null)
+  const focusAlert = useRef(false)
+
+  // Focus follows the member when the form leaves the screen: to Done after a send, to the refusal after a send the
+  // server refused for good (the Sheet moves focus in only once per open).
+  useEffect(() => { if (sent) doneRef.current?.focus() }, [sent])
+  useEffect(() => {
+    if (problem && focusAlert.current) { focusAlert.current = false; alertRef.current?.focus() }
+  }, [problem])
 
   const ask = useCallback(async () => {
     if (inFlight.current) { again.current = true; return }
@@ -429,6 +487,7 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
       setSent(true)
       onDone?.(SENT_SENTENCE)
     } else if (BLOCKING_CODES.includes(out.code)) {
+      focusAlert.current = true
       setProblem({ code: out.code, message: out.message })
     } else {
       setSendProblem(out.message)
@@ -438,12 +497,14 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
   return (
     <Sheet open onClose={onClose} title={TITLE} labelledByTitle variant="auto" maxWidth={600}>
       <div className={styles.sheet} data-share-preview={kind}>
-        {problem && <p className={styles.notice} role="alert" data-refusal={problem.code}>{problem.message}</p>}
+        {problem && (
+          <p className={styles.notice} role="alert" data-refusal={problem.code} ref={alertRef} tabIndex={-1}>{problem.message}</p>
+        )}
         {sent ? (
           <>
             <p className={styles.sent} role="status">{SENT_SENTENCE}</p>
             <div className={styles.actions}>
-              <button type="button" className={styles.btnPrimary} onClick={onClose}>Done</button>
+              <button type="button" className={styles.btnPrimary} ref={doneRef} onClick={onClose}>Done</button>
             </div>
           </>
         ) : (
@@ -451,7 +512,7 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
             <h2 className={styles.heading}>{HEADING}</h2>
             {!fields && !problem && <p className={styles.hint} role="status">{LOADING_SENTENCE}</p>}
             {fields && !blocked && (
-              <form className={styles.section} aria-label={HEADING} onSubmit={(e) => { e.preventDefault(); send() }}>
+              <div className={styles.section} role="group" aria-label={HEADING}>
                 {kind === 'template' ? (
                   <>
                     <TextField id={`${uid}-name`} label="Name" value={fields.name} max={NAME_MAX} hint={NAME_HINT}
@@ -461,18 +522,22 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
                     {fields.blocks.map((b, i) => (
                       <section key={b.bid} className={styles.group} aria-labelledby={`${uid}-b${i}`}>
                         <h3 className={styles.subheading} id={`${uid}-b${i}`}>{familyLabel(b.family, b.fields.name)}</h3>
-                        <ToolFields uid={`${uid}-b${i}`} kind={b.kind} f={b.fields} numbers={b.numbers} keep={keep}
-                          onToggle={toggleKeep}
-                          set={(next) => edit({ ...fields, blocks: fields.blocks.map((x) => (x.bid === b.bid ? { ...x, fields: next } : x)) })} />
+                        {b.sameAs ? <p className={styles.hint}>{sameAsSentence(b.sameAs)}</p> : (
+                          <ToolFields uid={`${uid}-b${i}`} kind={b.kind} f={b.fields} numbers={b.numbers} keep={keep}
+                            onToggle={toggleKeep}
+                            set={(next) => edit({ ...fields, blocks: fields.blocks.map((x) => (x.bid === b.bid ? { ...x, fields: next } : x)) })} />
+                        )}
                       </section>
                     ))}
                     <div className={styles.field}>
-                      <label className={styles.label} htmlFor={`${uid}-cat`}>Category</label>
+                      <label className={styles.label} htmlFor={`${uid}-cat`}>{CATEGORY_LABEL}</label>
                       <select id={`${uid}-cat`} className={styles.select} value={category} required
+                        aria-describedby={category ? undefined : `${uid}-cat-hint`}
                         onChange={(e) => setCategory(e.target.value)}>
                         <option value="">Choose a category</option>
                         {GALLERY_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                       </select>
+                      {!category && <p className={styles.hint} id={`${uid}-cat-hint`}>{CATEGORY_HINT}</p>}
                     </div>
                     <div className={styles.field}>
                       <label className={styles.label} htmlFor={`${uid}-ts`}>Trading style (optional)</label>
@@ -487,7 +552,7 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
                   <ToolFields uid={uid} kind={kind} f={fields} numbers={fields.numbers} keep={keep}
                     onToggle={toggleKeep} set={(next) => edit(next)} />
                 )}
-              </form>
+              </div>
             )}
             {labels.length > 0 && <p className={styles.travelRow} data-pick-line="">{pickLine(labels)}</p>}
             {notShared.length > 0 && (
@@ -502,7 +567,7 @@ export default function SharePreviewSheet({ kind, id, onClose, onDone }) {
               <section className={styles.section} aria-labelledby={`${uid}-travels`}>
                 <h3 className={styles.subheading} id={`${uid}-travels`}>{TRAVELS_LABEL}</h3>
                 <div className={styles.travels} data-travels="">
-                  <Travels kind={kind} travels={answer.travels} />
+                  <Travels kind={kind} answer={answer} />
                 </div>
               </section>
             )}

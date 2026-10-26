@@ -180,3 +180,31 @@ import '../lib/idempotencyKeys.js'
     expect(staticClosure(STARTS, new Map([[NOTEBOOK_SURFACE, planted]])).has(IDEM)).toBe(true)
   })
 })
+
+// Wave 11 (Task 11.15 review M-2): the template library is lazy. `lib/templateLibrary.js` and every file under
+// `components/notebook/library/` (the share preview, and the sheets Tasks 11.16, 11.17 and 11.19 add there) are reached
+// only through dynamic imports, so none is in the first-open closure. The allowance above lets the library import the
+// routine editor's words; this keeps the library itself off the first open.
+const TEMPLATE_LIB = path.join(SRC, 'pages', 'journal-2-0', 'lib', 'templateLibrary.js')
+const LIBRARY_DIR = path.join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'library') + path.sep
+const isLibrary = (f) => f === TEMPLATE_LIB || f.startsWith(LIBRARY_DIR)
+
+describe('the template library stays out of the first-open closure', () => {
+  it('NON-VACUITY: the library files exist', () => {
+    expect(fs.existsSync(TEMPLATE_LIB)).toBe(true)
+    expect(fs.existsSync(path.join(LIBRARY_DIR, 'SharePreviewSheet.jsx'))).toBe(true)
+  })
+
+  it('no first-open file reaches lib/templateLibrary.js or components/notebook/library/ statically', () => {
+    expect([...CLOSURE.keys()].filter(isLibrary).map((f) => chainTo(CLOSURE, f))).toEqual([])
+  })
+
+  it('CONTROL: a planted static import of the share preview in a first-open root is caught', () => {
+    const planted = `${fs.readFileSync(NOTEBOOK_SURFACE, 'utf8')}
+import '../components/notebook/library/openSharePreview.js'
+`
+    const found = [...staticClosure(STARTS, new Map([[NOTEBOOK_SURFACE, planted]])).keys()].filter(isLibrary).map(rel)
+    expect(found).toContain('pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx')
+    expect(found).toContain('pages/journal-2-0/lib/templateLibrary.js')
+  })
+})
