@@ -476,3 +476,23 @@ def test_from_library_many_and_copy_credit_are_the_one_authority(db):
                                                                                             conn=db)
     gallery.copy_credit(db, "no-such", "dup-2", user_id=MEMBER)
     assert gallery.credit_for(MEMBER, "template", "dup-2", conn=db) is None
+
+
+
+def test_a_use_whose_note_finds_an_existing_template_tool_reports_it_reused(db):
+    """M-3 on the Use door's note path: a `template` routine slot gets its tool when the note is made
+    (`slot_fill._create_from_template`). A second Use whose only copy is archived meets the routine the first Use
+    made, under the same key: it is `reused`, never `created`, and the member still has one routine."""
+    w = widget(db)
+    slot = {"block": "routine_a", "enabled": True,
+            "settings": {"template": "premarket_routine", "bind": "note-day", "display": "items"}}
+    gid = list_template(db, style(db, blocks=[built("a", w["id"]), slot])["id"])
+    pick = {"routine_a": {"create": True}}
+    u1 = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=pick, payload={}, conn=db)
+    assert len(u1["created"]["routines"]) == 1 and u1["reused"]["routines"] == []
+    rid = u1["created"]["routines"][0]["id"]
+    js.archive_style(MEMBER, u1["style"]["id"], conn=db)
+    u2 = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=pick, payload={}, conn=db)
+    assert u2["style"]["id"] != u1["style"]["id"]
+    assert u2["created"]["routines"] == [] and [x["id"] for x in u2["reused"]["routines"]] == [rid]
+    assert db.execute("SELECT COUNT(*) FROM j2_routines WHERE user_id = ?", (MEMBER,)).fetchone()[0] == 1

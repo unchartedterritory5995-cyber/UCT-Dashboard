@@ -3964,8 +3964,10 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
         reserved = k is not None
         created: dict[str, list] = {"widgets": [], "routines": [], "trackers": []}
         reused: dict[str, list] = {"routines": [], "trackers": []}
+        # Every routine and tracker the member already has (a `template` slot's key is shared with the built-in
+        # templates, so a tool the note finds may have come from anywhere): one read per table, bounded by the caps.
         had_tools = {r[0] for fam in ("routine", "tracker") for r in conn.execute(
-            f"SELECT id FROM {_COPY_TABLE[fam]} WHERE user_id = ? AND source_gallery_id = ?", (user_id, row["id"]))}
+            f"SELECT id FROM {_COPY_TABLE[fam]} WHERE user_id = ?", (user_id,))}
         copy_id = _newest_copy(conn, user_id, row["id"])
         if copy_id is None:
             adopted = _adopt_listed_row(conn, user_id, row, notify=False, commit=True, answers=answers,
