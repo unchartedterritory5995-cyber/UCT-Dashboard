@@ -459,24 +459,74 @@ def reads_day_state(plan: Any) -> bool:
 
 
 def _sources_with_day_state() -> frozenset[str]:
-    """Every source whose plans CAN read day state (a tool source, or one with a day-state field): an older snapshot
-    with no frozen plan and no stamp from these is hidden publicly (it fails closed)."""
+    """Every source whose plans CAN read day state (a tool source, or one with a day-state field)."""
     return frozenset(k for k, src in wsources.SOURCES.items()
                      if k in wplan.TOOL_SOURCES or _day_state_keys(src))
 
 
-def hidden_publicly(plan: Any, source_key: Any = None, stamp: Any = None) -> bool:
+def _sources_without_day_state() -> frozenset[str]:
+    """Ruling W10-R77's ALLOW list: the sources whose plans can NEVER read day state, derived from the served
+    source and field definitions (no tool source, no day-state field). A node with no judgeable plan is shown
+    publicly only from one of these; anything else, a missing or an unknown `sourceKey` included, is hidden."""
+    return frozenset(wsources.SOURCES) - _sources_with_day_state()
+
+
+def _day_state_kinds() -> frozenset[str]:
+    """The `labelKind` values that name routine or tracker data, read from the definitions: what a tool source's
+    fields or its list rows are marked with, and any day-state field's own mark."""
+    kinds: set[Any] = set()
+    for k, src in wsources.SOURCES.items():
+        tool = k in wplan.TOOL_SOURCES
+        day_keys = _day_state_keys(src)
+        if tool:
+            kinds.add(src.list_public_kind)
+        kinds.update(f.public_kind for fk, f in src.fields.items() if tool or fk in day_keys)
+    return frozenset(x for x in kinds if isinstance(x, str))
+
+
+#: the stored result lists and objects a built widget's snapshot carries (`build_payload`)
+_STORED_ITEMS = ("rows", "series", "points", "cells", "value", "compare", "measures")
+
+
+def stored_day_state(stored: Any) -> bool:
+    """Ruling W10-R77: does a stored snapshot itself carry day state? A label marked as a routine, a routine item
+    or a tracker (`_day_state_kinds`), or any stored row, column or snapshot field named for a day-state field
+    (`_day_state_keys` of every source: a check-in's mood or focus, a routine's or a tracker's day). Never raises."""
+    if not isinstance(stored, dict):
+        return False
+    kinds = _day_state_kinds()
+    if any(stored.get(k) in kinds for k in ("labelKind", "label2Kind")):
+        return True
+    keys = frozenset().union(*(_day_state_keys(src) for src in wsources.SOURCES.values()))
+    if any(k in stored for k in keys):
+        return True
+    for name in _STORED_ITEMS:
+        v = stored.get(name)
+        for item in (v if isinstance(v, list) else [v]):
+            if isinstance(item, dict) and (any(k in item for k in keys) or item.get("key") in keys):
+                return True
+    return False
+
+
+def hidden_publicly(plan: Any, source_key: Any = None, stamp: Any = None, stored: Any = None) -> bool:
     """Ruling W10-R73 and the review's I-1 / I-2 (spec section 2: routine and tracker day state never reaches a public
     page): a built widget that reads day state (`reads_day_state`) serves NO data publicly, only
-    `public_note_payload.HIDDEN_WIDGET_LINE`. The RESOLVED plan is judged: the frozen plan when the note carries it;
-    else `publicHidden`, the stamp `build_payload` wrote from the plan it ran (a plan over `DEF_MAX_BYTES` is stored
-    by reference, and the public reducer reads no database); else (an older snapshot with neither) it fails closed for
-    any source that can read day state. Never raises."""
+    `public_note_payload.HIDDEN_WIDGET_LINE`.
+
+    Ruling W10-R77, the one rule: hidden = the server's judgement OR the stored `publicHidden` is True. The stamp
+    `build_payload` wrote from the plan it ran can only ADD a hide; a stored `false`, or no stamp, never un-hides.
+    The judgement reads the frozen plan when the note carries one (a dict `def`). With
+    none (no `def`, a `def` that is not a dict, or a `defRef` the reducer cannot resolve without a database read) it
+    fails closed: hidden unless `source_key` is on the allow list (`_sources_without_day_state`). Either way, a
+    stored snapshot that itself carries day state (`stored_day_state`) is hidden: a genuine payload never does
+    unless its plan reads day state, so this only ever hides more. Never raises."""
+    # Ruling W10-R76: the threat model is ACCIDENTAL exposure, so the body is judged as written (no signed stamp,
+    # no defId lookup).
     if isinstance(plan, dict):
-        return reads_day_state(plan)
-    if isinstance(stamp, bool):
-        return stamp
-    return isinstance(source_key, str) and source_key in _sources_with_day_state()
+        judged = reads_day_state(plan)
+    else:
+        judged = not (isinstance(source_key, str) and source_key in _sources_without_day_state())
+    return judged or stored_day_state(stored) or stamp is True
 
 
 _MARK = "\x00"

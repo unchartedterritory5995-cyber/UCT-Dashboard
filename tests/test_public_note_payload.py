@@ -1159,7 +1159,7 @@ def test_m4_the_too_large_sentence_reaches_a_public_reader(mode):
     from api.services.journal_two import notebook_widgets as nw
     for kind in _optin_account_kinds():
         node = _widget(kind)
-        payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual",
+        payload = nw.cap_payload({"asOf": "2026-10-20T14:00:00Z", "source": "manual", "sourceKey": "closed_trades",
                                   "blob": "x" * (nw.PAYLOAD_CAP_BYTES + 10)}, kind)
         node["attrs"]["params"] = dict(payload, share=True)
         params = find_embed(reduce(doc(node), mode))["attrs"]["params"]
@@ -1378,7 +1378,7 @@ def test_r60_every_structured_param_a_builder_emits_has_a_row_allowlist():
 _R64_STORED = {
     "empty": "SENTENCE-empty", "failed": True, "sourceDetail": "SECRET-sourceDetail", "priceBasis": "broker",
     "earningsUnknown": True, "timingUnknown": True, "nextDayNote": "SECRET-nextDayNote", "tooLarge": True,
-    "mistakesTruncated": 3,
+    "mistakesTruncated": 3, "sourceKey": "closed_trades",
     "list": "SECRET-list", "from": "1999-01-01", "to": "1999-12-31", "symbol": "ZZQQ", "month": "1999-07",
     "range": {"from": "1999-01-01", "to": "1999-12-31"}, "definitionId": "u_0123456789ab", "tradeId": "SECRET-trade",
     "accountId": "SECRET-acct", "positionId": "SECRET-pos", "listId": "SECRET-listid", "watchKey": "SECRET-watch",

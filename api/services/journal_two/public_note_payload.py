@@ -639,10 +639,11 @@ HIDDEN_WIDGET_LINE = "This widget isn't shown on public pages."
 
 def _built_hidden(params: Mapping[str, Any]) -> bool:
     """W10-R73: is this built widget one a public page shows no data of? The one rule,
-    `widget_engine.payload.hidden_publicly`, asked of the frozen plan (or the stored `sourceKey`)."""
+    `widget_engine.payload.hidden_publicly`, asked of the frozen plan, else (ruling W10-R77) of the stored
+    `sourceKey` and the stored snapshot itself; a stored `publicHidden` can only add a hide."""
     from api.services.journal_two.widget_engine import payload as wpayload
     plan = params.get("def") if isinstance(params.get("def"), dict) else None
-    return wpayload.hidden_publicly(plan, params.get("sourceKey"), params.get("publicHidden"))
+    return wpayload.hidden_publicly(plan, params.get("sourceKey"), params.get("publicHidden"), params)
 
 
 def _relabel_accounts(widget_id: Any, out: dict[str, Any]) -> None:

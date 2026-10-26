@@ -113,7 +113,8 @@ def test_walk_fix_built_widget_publishes_no_image():
     """Even a built widget with no private label: its image is a picture of the member's editor (their controls,
     W8.7), so it never travels; a phase 1 account kind's image is unchanged (control: the rule is the built
     widget's, and the reducer still keeps an image where it did)."""
-    node = placed({"title": "Win rate", "view": "number", "value": {"v1": 0.5}, "measures": []})
+    node = placed({"title": "Win rate", "view": "number", "sourceKey": "closed_trades", "value": {"v1": 0.5},
+                   "measures": []})
     for mode in ("share", "publish"):
         assert "fallback" not in embed_of(reduce(node, mode))["attrs"], mode
     phase1 = copy.deepcopy(node)
@@ -309,12 +310,14 @@ def test_r73_covers_older_snapshots_and_routine_fields(payload):
 
 
 def test_r73_control_a_non_routine_built_widget_still_renders():
-    p = {**_tool_payload("closed_trades"), "def": {"v": 1, "source": "closed_trades", "measures": [{"key": "net_pnl"}],
-                                                   "range": {"token": "last_90d"}, "view": {"type": "number"}}}
+    p = {**_tool_payload("closed_trades"), "labelKind": None,     # a closed-trades plan marks no routine label
+         "def": {"v": 1, "source": "closed_trades", "measures": [{"key": "net_pnl"}],
+                 "range": {"token": "last_90d"}, "view": {"type": "number"}}}
     node = embed_of(reduce(placed(p), "share"))
     assert node is not None and node["attrs"]["params"]["value"]["v1"] == 7777.0
     assert wpayload.hidden_publicly(p["def"]) is False
-    assert wpayload.hidden_publicly(None, "routine_history") and not wpayload.hidden_publicly(None, None)
+    assert wpayload.hidden_publicly(None, "routine_history") and not wpayload.hidden_publicly(None, "closed_trades")
+    assert wpayload.hidden_publicly(None, None)                       # W10-R77: a missing sourceKey hides
 
 
 PROP_CANARY = "PROPNAME-CANARY-Conviction"
@@ -418,7 +421,8 @@ def test_i2_a_check_in_plan_is_hidden_publicly(plan):
 def test_i2_control_a_plain_trading_days_pnl_widget_still_shows():
     plan = _days_plan(split={"by": "weekday"}, view={"type": "bar"})
     assert not wpayload.reads_day_state(plan)
-    node = embed_of(reduce(placed({**_tool_payload("trading_days"), "def": plan, "publicHidden": False}), "share"))
+    stored = {**_tool_payload("trading_days"), "labelKind": None}   # a weekday split marks no routine label
+    node = embed_of(reduce(placed({**stored, "def": plan, "publicHidden": False}), "share"))
     assert node is not None and node["attrs"]["params"]["value"]["v1"] == 7777.0
 
 
@@ -442,12 +446,15 @@ def test_i1_a_defref_stored_routine_split_trading_days_plan_is_hidden(conn):
 
 def test_i1_the_stamp_and_the_fail_closed_fallback():
     base = _tool_payload("trading_days", with_def=False)
-    shown = embed_of(reduce(placed({**base, "publicHidden": False}), "share"))
-    assert shown is not None                                              # a stamped plain plan shows
+    # W10-R77 (re-review I-A): a stored `false` never un-hides. A defRef trading-days node over routine rows is HIDDEN
+    lied = reduce(placed({**base, "defRef": {"id": "d1", "rev": 3}, "publicHidden": False}), "share")
+    assert embed_of(lied) is None and pnp.HIDDEN_WIDGET_LINE in json.dumps(lied)
+    assert "DAYSTATE-CANARY" not in json.dumps(lied) and "7777" not in json.dumps(lied)
     # an older snapshot: no plan, no stamp -> a source that CAN read day state is hidden (fails closed)
     assert pnp.HIDDEN_WIDGET_LINE in json.dumps(reduce(placed(base), "share"))
-    closed = {**_tool_payload("closed_trades", with_def=False)}
-    assert embed_of(reduce(placed(closed), "share")) is not None           # ...and one that cannot, shows
+    closed = {**_clean_closed(), "publicHidden": False}
+    shown = embed_of(reduce(placed(closed), "share"))
+    assert shown is not None                                              # ...and one that cannot, shows
     # the stamp itself never travels
     assert "publicHidden" not in shown["attrs"]["params"]
 
@@ -476,3 +483,75 @@ def test_m7_the_numbering_words_live_in_one_module():
     src = Path(wpayload.__file__).read_text(encoding="utf-8") + Path(pnp.__file__).read_text(encoding="utf-8")
     for word in public_words.RELABEL_WORDS.values():
         assert f'"{word}"' not in src, word                                # never restated beside the table
+
+
+# ── fix round 4 (rereview-walk-fix-r3.md, ruling W10-R77) ───────────────────────────────────────────
+
+def _clean_closed() -> dict:
+    """A closed-trades snapshot with no plan and nothing private in it: the allow-listed control."""
+    return {**_tool_payload("closed_trades", with_def=False), "labelKind": None, "title": "Net P&L by setup",
+            "rows": [{"label": "Breakout", "label2": None, "v1": 120.0, "n1": 3, "s1": "", "n": 3}],
+            "value": {"v1": 120.0, "n1": 3, "n": 3}, "count": 3,
+            "measures": [{"label": "Net P&L", "unit": "trades", "kind": "sum", "fmt": "money"}]}
+
+
+def _mood_row_closed() -> dict:
+    c = _clean_closed()
+    c["rows"] = [{**c["rows"][0], "mood": 4}]
+    return c
+
+
+@pytest.mark.parametrize("payload", [
+    pytest.param({**_tool_payload("trading_days", with_def=False), "def": "x", "publicHidden": False},
+                 id="non-dict-def-stamp-false-routine-rows"),
+    pytest.param({**_tool_payload("trading_days", with_def=False), "def": _days_plan(split={"by": "weekday"}),
+                  "publicHidden": True}, id="stamp-true-harmless-dict-def"),
+    pytest.param({k: v for k, v in _tool_payload("trading_days", with_def=False).items() if k != "sourceKey"},
+                 id="missing-sourceKey-routine-rows"),
+    pytest.param({**_clean_closed(), "sourceKey": "future_src"}, id="unknown-sourceKey"),
+    pytest.param(_mood_row_closed(), id="allow-listed-source-row-carries-mood"),
+    pytest.param({**_clean_closed(), "labelKind": "routine"}, id="allow-listed-source-label-marked-routine"),
+    pytest.param({**_clean_closed(), "defRef": {"id": "d1", "rev": 3}, "publicHidden": True}, id="defRef-stamp-true"),
+    pytest.param({**_tool_payload("trading_days", with_def=False), "sourceKey": "closed_trades",
+                  "def": {**_days_plan(split={"by": "weekday"}), "source": "closed_trades",
+                          "measures": [{"key": "net_pnl"}]}}, id="dict-def-claims-closed-rows-marked-routine"),
+])
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r77_these_are_hidden(payload, mode):
+    out = reduce(placed(payload), mode)
+    blob = json.dumps(out)
+    assert embed_of(out) is None and pnp.HIDDEN_WIDGET_LINE in blob
+    for canary in ("DAYSTATE-CANARY", "7777", "4321", "Breakout"):
+        assert canary not in blob, canary
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_r77_control_an_allow_listed_source_with_no_plan_and_clean_rows_renders(mode):
+    for extra in ({}, {"defRef": {"id": "d1", "rev": 3}}, {"defRef": {"id": "d1", "rev": 3}, "publicHidden": False}):
+        node = embed_of(reduce(placed({**_clean_closed(), **extra}), mode))
+        assert node is not None and node["attrs"]["params"]["rows"][0]["v1"] == 120.0, extra
+
+
+def test_r77_the_allow_list_and_the_day_state_marks_are_derived_from_the_definitions():
+    """The allow list is every served source minus the ones that can read day state, never typed beside them."""
+    allow = wpayload._sources_without_day_state()
+    assert allow == frozenset(sources.SOURCES) - wpayload._sources_with_day_state()
+    assert allow == {"closed_trades", "open_positions", "options_strategies", "notes"}
+    assert not allow & wplan.TOOL_SOURCES and "trading_days" not in allow
+    for k in allow:
+        assert not wpayload._day_state_keys(sources.SOURCES[k]), k
+    kinds = wpayload._day_state_kinds()
+    assert kinds == {"routine", "item", "tracker"}
+    for k in wplan.TOOL_SOURCES:
+        assert sources.SOURCES[k].list_public_kind in kinds
+    assert not {"account", "note", "folder", "tag", "kind"} & kinds      # a member name that is not day state
+
+
+def test_r77_a_stamp_can_only_add_a_hide():
+    plain, routine = _days_plan(split={"by": "weekday"}), _days_plan(split={"by": "routine_done", "ref": "r-1"})
+    for plan in (plain, routine):
+        assert wpayload.hidden_publicly(plan, "trading_days", True)       # True always hides
+        assert wpayload.hidden_publicly(plan, "trading_days", False) == wpayload.reads_day_state(plan)
+    for stamp in (False, None, "false", 0):
+        assert wpayload.hidden_publicly(None, "trading_days", stamp)      # never un-hides
+        assert not wpayload.hidden_publicly(None, "closed_trades", stamp, _clean_closed())
