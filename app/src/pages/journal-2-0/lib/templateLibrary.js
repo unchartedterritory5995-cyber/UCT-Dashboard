@@ -91,7 +91,8 @@ const keepList = (keep) => (Array.isArray(keep) ? keep.filter((k) => typeof k ==
  * `template_gallery.share_preview`). Nothing is written. `edits` are only what the author typed in the share preview;
  * `keep` the paths of the numbers they chose to share (W11-R6).
  */
-export function sharePreview(kind, id, { edits, keep } = {}) {
+export function sharePreview(kind, id, opts) {
+  const { edits, keep } = isRecord(opts) ? opts : {}
   if (!SHARE_KINDS.includes(kind) || !isId(id)) return Promise.resolve(fail('unavailable'))
   const body = { kind, id }
   if (isRecord(edits)) body.edits = edits

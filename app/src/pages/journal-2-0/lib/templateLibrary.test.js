@@ -134,6 +134,15 @@ describe('templateLibrary_never_throws', () => {
     }
   })
 
+  it('hostile ARGUMENTS never throw either (a null or junk options object)', async () => {
+    for (const opts of [null, 7, 'x', []]) {
+      const out = await Promise.resolve().then(() => sharePreview('widget', 'w1', opts)).catch((e) => ({ threw: e }))
+      expect(out).not.toHaveProperty('threw')
+      expect(out.ok).toBe(true)
+    }
+    expect(sent().body).toEqual({ kind: 'widget', id: 'w1', keep: [] })
+  })
+
   it('a body that cannot be serialised is a refusal, not a throw', async () => {
     const loop = {}
     loop.self = loop
