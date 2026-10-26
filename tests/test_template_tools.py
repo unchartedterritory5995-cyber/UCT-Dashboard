@@ -155,6 +155,11 @@ def test_best_match_name_and_items_and_ties(db):
     got = tt.best_match(A, "routine", {"name": "Market routine", "items": []})
     assert got["id"] in (newer["id"], morning["id"], older["id"])
     assert got["id"] == newer["id"]                                      # 1 each; newest updatedAt wins
+    # the tie rule is the score's, not the read's order: an oldest-first pool still answers the newest
+    pool = [{"id": "old", "name": "Market one", "updatedAt": "2026-10-01T00:00:00+00:00"},
+            {"id": "new", "name": "Market two", "updatedAt": "2026-10-02T00:00:00+00:00"},
+            {"id": "mid", "name": "Market six", "updatedAt": "2026-10-01T12:00:00+00:00"}]
+    assert tt.best_match(A, "routine", {"name": "Market", "items": []}, pool=pool)["id"] == "new"
     # score 0 is no match
     assert tt.best_match(A, "routine", {"name": "Zebra", "items": [{"text": "Unrelated"}]}) is None
     # an archived routine is never suggested

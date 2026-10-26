@@ -390,6 +390,26 @@ def test_from_template_setting_written(db):
     assert why == "slot-unreadable:routine_c"
 
 
+
+def test_a_failed_note_insert_remembers_nothing(db):
+    """The choice and the note are ONE transaction: a note refused after the choice was remembered leaves the
+    style as it was, even on a caller's connection that commits later."""
+    from api.services.journal_two import notes
+    js = _js()
+    style = _stored(("routine_a", TPL))
+    conn = _conn()
+    try:
+        with pytest.raises(notes.NoteValidationError):
+            js.create_styled_note(A, {"styleId": style["id"], "title": "x" * 10_000,
+                                      "choices": {"routine_a": {"create": True}}}, conn)
+        assert not conn.in_transaction
+        conn.commit()
+    finally:
+        conn.close()
+    after = js.get_style(A, style["id"])
+    assert after["version"] == style["version"] and after["blocks"][0]["settings"]["template"] == "premarket_routine"
+    assert _count("j2_notes") == 0
+
 # ── the node, the binding, the refs ─────────────────────────────────────────────────────────────
 
 def _client_attr_keys() -> set[str]:
