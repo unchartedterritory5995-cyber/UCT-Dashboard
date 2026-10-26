@@ -614,7 +614,7 @@ describe('focus', () => {
     await user.keyboard('{Escape}')
     expect(document.querySelector('[data-slot-picker]')).toBeNull()
     expect(onClose).not.toHaveBeenCalled()
-    expect(document.activeElement).toBe(change)
+    await waitFor(() => expect(document.activeElement).toBe(change))
     // Enter in the number field
     const hold = screen.getByRole('button', { name: 'Change hold days' })
     hold.focus()
@@ -623,7 +623,7 @@ describe('focus', () => {
     box.focus()
     await user.keyboard('5{Enter}')
     expect(rowText('p4')).toBe('Hold days: 5')
-    expect(document.activeElement).toBe(hold)
+    await waitFor(() => expect(document.activeElement).toBe(hold))
   })
 
   it('after a tool\'s Use, focus is on the Done button', async () => {
@@ -632,7 +632,8 @@ describe('focus', () => {
     await ready()
     fireEvent.click(useButton())
     await screen.findByText(ADDED_SENTENCE)
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Done' }))
+    // Focus moves after the success view renders; wait for it rather than racing the effect under load.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Done' })))
   })
 })
 
