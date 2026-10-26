@@ -35,11 +35,14 @@ const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 /** "Any setup": the words for the Any answer of a choice. */
 export const anyWords = (label) => `Any ${String(label || 'value').toLowerCase()}`
 
+const DECIMAL_RE = /^-?\d+(\.\d+)?$/
+
 /** A number the member typed, or null (empty, NaN and Infinity are not numbers). */
 export function numberOf(text) {
   if (typeof text === 'number') return Number.isFinite(text) ? text : null
   const t = typeof text === 'string' ? text.trim() : ''
-  if (!t) return null
+  // A plain decimal only: Number() would also read "0x10", "0b11" and "1e3".
+  if (!DECIMAL_RE.test(t)) return null
   const n = Number(t)
   return Number.isFinite(n) ? n : null
 }

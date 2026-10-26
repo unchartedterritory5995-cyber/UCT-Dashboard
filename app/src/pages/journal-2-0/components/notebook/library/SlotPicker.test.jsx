@@ -41,7 +41,11 @@ describe('the helpers', () => {
     expect(anyWords('Kind of note')).toBe('Any kind of note')
     expect(numberOf('2.5')).toBe(2.5)
     expect(numberOf(' 0 ')).toBe(0)
-    for (const bad of ['', '  ', 'two', 'NaN', 'Infinity', '-Infinity', null, undefined, Number.NaN]) expect(numberOf(bad)).toBe(null)
+    expect(numberOf('-12')).toBe(-12)
+    // A plain decimal only (Number() alone would read these as 16, 3, 1000 and 0.5).
+    for (const bad of ['', '  ', 'two', 'NaN', 'Infinity', '-Infinity', '0x10', '0b11', '1e3', '.5', '5.', '+3', null, undefined, Number.NaN]) {
+      expect(numberOf(bad), String(bad)).toBe(null)
+    }
   })
 
   it('a text value is its own words; {id, name} is the id worded by its name; repeats and junk are dropped', () => {
@@ -120,6 +124,8 @@ describe('a number', () => {
     const box = screen.getByRole('textbox', { name: 'Field 1' })
     expect(done().disabled).toBe(true)
     fireEvent.change(box, { target: { value: '1e400' } })
+    expect(done().disabled).toBe(true)
+    fireEvent.change(box, { target: { value: '0x10' } })
     expect(done().disabled).toBe(true)
     fireEvent.change(box, { target: { value: '-1.5' } })
     fireEvent.click(done())

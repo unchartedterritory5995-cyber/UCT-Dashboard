@@ -1,14 +1,13 @@
 // Notebook widgets phase 2, wave 11 (Task 11.17): the adoption sheet's door.
 //
-// `openAdoptSheet({galleryId, kind, editor?, onDone, title?, author?, navigate?}) -> close()` mounts "Make it yours"
+// `openAdoptSheet({galleryId, kind, editor?, onDone, navigate?}) -> close()` mounts "Make it yours"
 // on its OWN root, one at a time (the openSharePreview pattern): a call while one is open returns the open one's close
 // and opens nothing new, so a double press cannot stack two sheets, send two previews or make two notes.
 //   * `galleryId`: the listed item; `kind`: 'template' | 'widget' | 'routine' | 'tracker'.
 //   * `editor`: the editor the door was opened from, handed back to `onDone` as it came.
 //   * `onDone(answer)`: once the item is the member's (`{kind, editor, ...the server's answer}`). A template's Use has
 //     made the note and the sheet opens it (through `navigate` when given, else in place through history).
-//   * `title`, `author`: the listing's title and author label, for the credit line ("Based on <label>'s <title>";
-//     `author: null` reads "a former member's"). The server's own `credit`, when it sends one, wins.
+//   * The credit line is the server's own `credit` from the preview answer (W11-R24); nothing here builds one.
 //
 // ⛔ LAZY. Only dynamic imports reach this file (the template detail's "Use this template", Task 11.16). A static
 // import from anything on the Notebook's first open would put the adoption sheet on that first open (the bytes gate).
@@ -18,7 +17,7 @@ import AdoptSheet from './AdoptSheet'
 
 let _open = null
 
-export function openAdoptSheet({ galleryId, kind, editor = null, onDone, title, author, navigate } = {}) {
+export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigate } = {}) {
   if (_open) return _open.close
   const host = document.createElement('div')
   host.setAttribute('data-adopt-sheet-root', '')
@@ -32,7 +31,7 @@ export function openAdoptSheet({ galleryId, kind, editor = null, onDone, title, 
   }
   _open = { close }
   root.render(createElement(AdoptSheet, {
-    galleryId, kind, editor, title, author,
+    galleryId, kind, editor,
     navigate: typeof navigate === 'function' ? navigate : null,
     onClose: close, onDone: typeof onDone === 'function' ? onDone : undefined,
   }))

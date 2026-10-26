@@ -51,7 +51,7 @@ const VOCAB_VALUES = { setup: ['Breakout', 'Pullback', 'Flag'], account: [{ id: 
 const QUESTIONS = [{ slot: 'routine_a', kind: 'routine', createName: 'Pre-market routine', use: { id: 'r-mine', name: 'Morning routine' } }]
 
 /** What preview_mine answers for these answers (each slot at its answer, else its suggestion, else Any). */
-function previewAnswer(slots, { questions = [], tools = [], sample = false } = {}) {
+function previewAnswer(slots, { questions = [], tools = [], sample = false, credit } = {}) {
   return (body) => {
     const a = body?.answers || {}
     const used = slots.map((s) => ({
@@ -62,7 +62,7 @@ function previewAnswer(slots, { questions = [], tools = [], sample = false } = {
     const card = unresolved
       ? { slot: 'built_a', title: 'Win rate by setup', sentence: `Pick a ${unresolved.label.toLowerCase()} to see this widget.`, sample: false }
       : { slot: 'built_a', title: 'Win rate by setup', payload: { view: 'bar', rows: [{ v1: 3 }, { v1: 2 }] }, sample }
-    return { slots: used, cards: [card], tools, questions }
+    return { slots: used, cards: [card], tools, questions, ...(credit ? { credit } : {}) }
   }
 }
 const TOOLS = [{ slot: 'routine_a', kind: 'routine', name: 'Pre-market routine', items: [{ text: 'Check news' }, { text: 'Mark levels' }], bind: 'note-day', forDayLabel: 'For the day of the note' }]
@@ -247,6 +247,36 @@ describe('Use', () => {
     expect(screen.queryByRole('button', { name: 'Use' })).toBeNull()
   })
 
+  it('while Use is in flight the sheet cannot be closed, so its answer always lands', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => { if (url === USE) await gate; return realFetch(url, init) })
+    const user = userEvent.setup()
+    const { onClose, navigate } = mount()
+    await ready()
+    fireEvent.click(useButton())
+    expect(screen.getByRole('button', { name: 'Cancel' }).disabled).toBe(true)
+    await user.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()
+    await act(async () => { release() })
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/journal/notebook?note=n-new'))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('a throwing onDone never strands the member: the sheet closes and the note opens', async () => {
+    installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const onClose = vi.fn()
+    const navigate = vi.fn()
+    render(<AdoptSheet galleryId={GID} kind="template" onClose={onClose} navigate={navigate}
+      onDone={() => { throw new Error('caller broke') }} />)
+    await ready()
+    fireEvent.click(useButton())
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/journal/notebook?note=n-new'))
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('no_write_before_use', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const net = installServer({
@@ -350,6 +380,29 @@ describe('the choices', () => {
     await act(async () => net.release())
     await settle(DEBOUNCE_MS + 50)
     expect(net.previews()).toHaveLength(3)
+    expect(screen.queryByText('Updating the preview…')).toBeNull()
+  })
+
+  it('an older answer that lands while a newer change waits is still marked as updating', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS), hold: true })
+    mount()
+    await waitFor(() => expect(net.waiting()).toBe(1))
+    await act(async () => net.release())
+    await ready()
+    const choose = async (name) => {
+      fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
+      fireEvent.click(await screen.findByRole('radio', { name }))
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    }
+    await choose('Flag')
+    await settle(DEBOUNCE_MS + 10)
+    expect(net.waiting()).toBe(1)                                // the ask for Flag is out
+    await choose('Pullback')                                     // a newer change, waiting its 600 ms
+    await act(async () => net.release())                         // Flag's answer lands
+    await settle(10)
+    expect(screen.getByText('Updating the preview…')).toBeTruthy()
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull()
   })
 
   it('routine_question_preselects_best_match', async () => {
@@ -411,31 +464,110 @@ describe('server sentences and the credit line', () => {
     expect(useButton().disabled).toBe(true)
   })
 
+  it('a refusal at Use can be tried again: the lock is released and a retry sends exactly ONE more', async () => {
+    let n = 0
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS), use: () => (++n === 1 ? { __status: 400, body: { detail: { code: 'not_yours', message: S_NOT_YOURS } } } : { note: { id: 'n-new' }, skipped: [], style: { id: 's1' }, credit: null, created: {} }) })
+    const { navigate } = mount()
+    await ready()
+    fireEvent.click(useButton())
+    expect((await screen.findByRole('alert')).textContent).toBe(S_NOT_YOURS)
+    const btn = useButton()
+    act(() => { btn.click(); btn.click() })
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
+    expect(net.calls.filter((c) => c.url === USE)).toHaveLength(2)
+  })
+
   it('credit_line_exact_and_former_member', async () => {
-    expect(creditLine({ title: 'Morning edge', author: 'Sam' })).toBe("Based on Sam's Morning edge")
-    expect(creditLine({ title: 'Morning edge', author: { handle: 'h1', label: 'Sam' } })).toBe("Based on Sam's Morning edge")
-    expect(creditLine({ title: 'Pre-market prep', author: 'UCT' })).toBe("Based on UCT's Pre-market prep")
-    expect(creditLine({ title: 'Gap fill', author: null })).toBe("Based on a former member's Gap fill")
-    expect(creditLine({ title: 'Gap fill' })).toBe('')               // not known here: no guess
-    expect(creditLine({ credit: "Based on Kim's Gap fill", title: 'x', author: 'y' })).toBe("Based on Kim's Gap fill")
-    installServer({ preview: previewAnswer(RICH_SLOTS) })
-    mount({ title: 'Setup study', author: null })
-    expect((await waitFor(() => {
+    // ONLY the server's own `credit` (W11-R24), as it came; no answer or no credit is no line.
+    expect(creditLine({ credit: "Based on UCT's Pre-market prep" })).toBe("Based on UCT's Pre-market prep")
+    expect(creditLine({ credit: "Based on a former member's Gap fill" })).toBe("Based on a former member's Gap fill")
+    expect(creditLine({ credit: '  ' })).toBe('')
+    expect(creditLine({ title: 'Gap fill', author: null })).toBe('')
+    expect(creditLine(null)).toBe('')
+    // An official template's answer: rendered verbatim, first line under the heading.
+    installServer({ preview: previewAnswer(RICH_SLOTS, { credit: "Based on UCT's Pre-market prep" }) })
+    mount()
+    const line = await waitFor(() => {
       const el = document.querySelector('[data-credit]')
       expect(el).not.toBeNull()
       return el
-    })).textContent).toBe("Based on a former member's Setup study")
-    // It sits under the heading: the dialog's name is the heading, the credit is the first line of the body.
-    const dialog = screen.getByRole('dialog', { name: TITLE })
-    expect(within(dialog).getByText(TITLE)).toBeTruthy()
+    })
+    expect(line.textContent).toBe("Based on UCT's Pre-market prep")
+    expect(within(screen.getByRole('dialog', { name: TITLE })).getByText(TITLE)).toBeTruthy()
     expect(document.querySelector('[data-adopt-sheet]').firstElementChild.getAttribute('data-credit')).toBe('')
+    cleanup()
+    // CONTROL: a caller's title and author never make a line when the server sent none.
+    installServer({ preview: previewAnswer(RICH_SLOTS) })
+    mount({ title: 'Setup study', author: null })
+    await ready()
+    expect(document.querySelector('[data-credit]')).toBeNull()
+    expect(document.body.textContent).not.toMatch(/Based on/)
+  })
+
+  it('no client path builds a credit: the sheet\'s code holds no "Based on" or "former member" words', () => {
+    for (const f of ['AdoptSheet.jsx', 'openAdoptSheet.js', 'SlotPicker.jsx']) {
+      const code = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/library', f), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+      expect(code.length, f).toBeGreaterThan(500)                                    // non-vacuity: real code read
+      expect(code, f).not.toMatch(/Based on|former member/)
+    }
+  })
+})
+
+// ── focus ─────────────────────────────────────────────────────────────────────────────────────────
+
+describe('focus', () => {
+  it('returns to the Change control after Done, Cancel, Enter in a number field and Escape', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    installServer({ preview: previewAnswer([...RICH_SLOTS, { ...HOLD, suggested: null }]) })
+    mount({ onClose })
+    await ready()
+    const change = screen.getByRole('button', { name: 'Change setup' })
+    // Done
+    change.focus()
+    await user.keyboard('{Enter}')
+    fireEvent.click(await screen.findByRole('radio', { name: 'Pullback' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(document.activeElement).toBe(change)
+    // Cancel
+    await user.keyboard('{Enter}')
+    await screen.findByRole('radio', { name: 'Pullback' })
+    fireEvent.click(pickerCancel())
+    expect(document.activeElement).toBe(change)
+    // Escape closes the picker only (never the sheet and its picks), and focus comes back
+    await user.keyboard('{Enter}')
+    await screen.findByRole('radio', { name: 'Pullback' })
+    screen.getByRole('radio', { name: 'Pullback' }).focus()
+    await user.keyboard('{Escape}')
+    expect(document.querySelector('[data-slot-picker]')).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(change)
+    // Enter in the number field
+    const hold = screen.getByRole('button', { name: 'Change hold days' })
+    hold.focus()
+    await user.keyboard('{Enter}')
+    const box = screen.getByRole('textbox', { name: 'Hold days' })
+    box.focus()
+    await user.keyboard('5{Enter}')
+    expect(rowText('p4')).toBe('Hold days: 5')
+    expect(document.activeElement).toBe(hold)
+  })
+
+  it('after a tool\'s Use, focus is on the Done button', async () => {
+    installServer({ preview: previewAnswer(RICH_SLOTS) })
+    mount({ kind: 'widget' })
+    await ready()
+    fireEvent.click(useButton())
+    await screen.findByText(ADDED_SENTENCE)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Done' }))
   })
 })
 
 // ── keyboard and touch ──────────────────────────────────────────────────────────────────────────────
 
 describe('keyboard_only_390_and_44px', () => {
-  it('the whole flow runs from the keyboard at 390 px', async () => {
+  it('the whole flow runs from the keyboard at 390 px, focus asserted at every step', async () => {
     window.innerWidth = 390
     window.dispatchEvent(new Event('resize'))
     const user = userEvent.setup()
@@ -444,24 +576,39 @@ describe('keyboard_only_390_and_44px', () => {
     })
     const { navigate } = mount()
     await ready()
+    const active = () => document.activeElement
+    // The KNOWN start: the first slot's Change control.
     const change = screen.getByRole('button', { name: 'Change setup' })
-    while (document.activeElement !== change) await user.tab()
+    change.focus()
+    expect(active()).toBe(change)
     await user.keyboard('{Enter}')
-    const first = await screen.findByRole('radio', { name: 'Breakout' })
-    while (document.activeElement !== first) await user.tab()
+    await screen.findByRole('radio', { name: 'Breakout' })
+    await user.tab()
+    expect(active()).toBe(screen.getByRole('radio', { name: 'Breakout' }))
     await user.keyboard(' ')
     await user.keyboard('{ArrowDown}')
+    expect(active()).toBe(screen.getByRole('radio', { name: 'Pullback' }))
     expect(screen.getByRole('radio', { name: 'Pullback' }).checked).toBe(true)
-    const done = screen.getByRole('button', { name: 'Done' })
-    while (document.activeElement !== done) await user.tab()
+    await user.tab()
+    expect(active()).toBe(pickerCancel())
+    await user.tab()
+    expect(active()).toBe(screen.getByRole('button', { name: 'Done' }))
     await user.keyboard('{Enter}')
     expect(rowText('p1')).toBe('Setup: Pullback')
-    const make = screen.getByRole('radio', { name: createWords('Pre-market routine') })
+    expect(active()).toBe(change)                                   // back where the member was
+    await user.tab()
+    expect(active()).toBe(screen.getByRole('button', { name: 'Change account' }))
+    await user.tab()
     const mine = screen.getByRole('radio', { name: useYourWords('Morning routine') })
-    while (document.activeElement !== mine) await user.tab()
+    const make = screen.getByRole('radio', { name: createWords('Pre-market routine') })
+    expect(active()).toBe(mine)                                     // the pre-selected answer
     await user.keyboard('{ArrowDown}')
+    expect(active()).toBe(make)
     expect(make.checked).toBe(true)
-    while (document.activeElement !== useButton()) await user.tab()
+    await user.tab()
+    expect(active()).toBe(screen.getByRole('button', { name: 'Cancel' }))
+    await user.tab()
+    expect(active()).toBe(useButton())
     await user.keyboard('{Enter}')
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/journal/notebook?note=n-new'))
     const body = net.calls.find((c) => c.url === USE).body

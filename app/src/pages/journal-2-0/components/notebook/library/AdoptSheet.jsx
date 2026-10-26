@@ -45,18 +45,17 @@ export const useYourWords = (name) => `Use your ${name}`
 export const createWords = (name) => `Create ${name} from the template`
 
 /**
- * The credit line (ruling W11-R7): "Based on <label>'s <title>", or "Based on a former member's <title>" once the
- * author's account is gone (`author` null). The server's own sentence wins when it sent one (`credit`).
- * `author` is the gallery's author label (a string, or the summary's `{label}`); `undefined` means "not known here",
- * which shows no line rather than guessing.
+ * The credit line (rulings W11-R7, W11-R24): ONLY the server's `credit` from the preview answer ("Based on UCT's ...",
+ * "Based on a former member's ..."), shown as it came. The client never assembles it: no answer, or no `credit` in
+ * it, is no line.
  */
-export function creditLine({ credit, title, author } = {}) {
-  if (typeof credit === 'string' && credit.trim()) return credit.trim()
-  const t = typeof title === 'string' ? title.trim() : ''
-  if (!t || author === undefined) return ''
-  const label = typeof author === 'string' ? author.trim() : (isRecord(author) && typeof author.label === 'string' ? author.label.trim() : '')
-  return label ? `Based on ${label}'s ${t}` : `Based on a former member's ${t}`
+export function creditLine(previewAnswer) {
+  const c = isRecord(previewAnswer) ? previewAnswer.credit : null
+  return typeof c === 'string' && c.trim() ? c.trim() : ''
 }
+
+/** A refusal as the sheet keeps it: `{code, message, slot}` (`slot` only when the server named one, W11-R24). */
+const refusalOf = (out) => ({ code: out.code, message: out.message, slot: typeof out.slot === 'string' && out.slot ? out.slot : null })
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const listOf = (v) => (Array.isArray(v) ? v : [])
@@ -106,6 +105,11 @@ function valueWords(slot, a, labels) {
 const slotsOf = (data) => listOf(data?.slots).filter((s) => isRecord(s) && typeof s.id === 'string' && s.id)
 const questionsOf = (data) => listOf(data?.questions).filter((q) => isRecord(q) && typeof q.slot === 'string' && q.slot)
 
+/** A refusal, in the server's own words. */
+function Refusal({ p }) {
+  return <p className={styles.notice} role="alert" data-refusal={p.code} data-refusal-slot={p.slot || undefined}>{p.message}</p>
+}
+
 // ── the preview (read-only; the server's words and numbers only) ────────────────────────────────────
 
 function PreviewCard({ card }) {
@@ -144,14 +148,12 @@ function PreviewTool({ tool }) {
 /**
  * @param galleryId the listed item
  * @param kind      'template' | 'widget' | 'routine' | 'tracker'
- * @param title     the listing's title (for the credit line), optional
- * @param author    the listing's author label, `null` for a former member, optional
  * @param navigate  the app router's navigate, when the door has one; else the note opens through history in place
  * @param onClose   Cancel, Done, Escape or the Sheet's own close
  * @param editor    the editor the door was opened from, handed back to `onDone` as it came (the sheet never writes it)
  * @param onDone    `(answer) => void` once the item is the member's: `{kind, editor, ...server answer}`
  */
-export default function AdoptSheet({ galleryId, kind, title, author, navigate = null, editor = null, onClose, onDone }) {
+export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone }) {
   const uid = useId()
   const isTemplate = kind === 'template'
   const [answer, setAnswer] = useState(null)             // the latest preview: {slots, cards, tools, questions, credit?}
@@ -162,6 +164,7 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
   const [choices, setChoices] = useState({})
   const [problem, setProblem] = useState(null)           // {code, message} of the last refused preview
   const [asking, setAsking] = useState(true)
+  const [waiting, setWaiting] = useState(false)          // a change is waiting out the 600 ms before its ask
   const [picking, setPicking] = useState(null)           // the slot id whose picker is open
   const [using, setUsing] = useState(false)
   const [useProblem, setUseProblem] = useState(null)
@@ -174,6 +177,9 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
   const alive = useRef(true)
   const primed = useRef(false)
   const useLock = useRef(false)
+  const changeRefs = useRef({})                           // each slot's Change button, where focus returns
+  const refocus = useRef(null)                            // the slot whose Change takes focus once its picker is gone
+  const doneRef = useRef(null)
 
   const ask = useCallback(async () => {
     if (inFlight.current) { again.current = true; return }
@@ -199,7 +205,7 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
         latest.current = first.answers
       }
     } else {
-      setProblem({ code: out.code, message: out.message })
+      setProblem(refusalOf(out))
     }
     if (again.current) {
       again.current = false
@@ -215,16 +221,31 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
     return () => { alive.current = false; clearTimeout(timer.current) }
   }, [ask])
 
+  // Focus returns to the Change control that opened a picker once the picker has closed (Done, Cancel, Enter, Escape).
+  useEffect(() => {
+    if (picking !== null || !refocus.current) return
+    changeRefs.current[refocus.current]?.focus()
+    refocus.current = null
+  }, [picking])
+  // After a tool's Use, focus moves to the Done button that replaced the Use button.
+  useEffect(() => { if (added) doneRef.current?.focus() }, [added])
+
+  const closePicker = (id) => {
+    refocus.current = id
+    setPicking(null)
+  }
+
   /** A changed choice: the row moves at once; the preview is asked again 600 ms after the last change. */
   const pick = (slot, value, words) => {
     const next = { ...answers, [slot.id]: value }
     setAnswers(next)
     setLabels({ ...labels, [slot.id]: words })
-    setPicking(null)
+    closePicker(slot.id)
     setUseProblem(null)
     latest.current = next
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => { timer.current = null; ask() }, DEBOUNCE_MS)
+    setWaiting(true)
+    timer.current = setTimeout(() => { timer.current = null; setWaiting(false); ask() }, DEBOUNCE_MS)
   }
 
   const missing = useMemo(() => listOf(slots).filter((s) => !answered(s, answers[s.id])), [slots, answers])
@@ -243,13 +264,14 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
     if (!out.ok) {
       useLock.current = false
       setUsing(false)
-      setUseProblem({ code: out.code, message: out.message })
+      setUseProblem(refusalOf(out))
       return
     }
-    // ⛔ The lock stays held: this sheet has made its one item.
+    // ⛔ The lock stays held: this sheet has made its one item. A throwing `onDone` never strands the member: the
+    //    close and the move to the note (or the "Added" line) run whatever it does.
     if (isTemplate) {
       const noteId = isRecord(out.data.note) ? out.data.note.id : null
-      onDone?.({ kind, editor, ...out.data })
+      try { onDone?.({ kind, editor, ...out.data }) } catch { /* the note is made: the close and the move still run */ }
       onClose?.()
       if (noteId != null && noteId !== '') {
         if (typeof navigate === 'function') navigate(noteHref(noteId))
@@ -259,24 +281,35 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
     }
     setUsing(false)
     setAdded(true)
-    onDone?.({ kind, editor, ...out.data })
+    try { onDone?.({ kind, editor, ...out.data }) } catch { /* the copy is made, and the sheet says so */ }
   }
 
-  const credit = creditLine({ credit: answer?.credit, title, author })
+  /** The Sheet's own close (Escape, the backdrop, a drag): ignored while Use is in flight (its answer must land);
+   *  with a picker open it closes the picker, never the whole sheet and every pick with it. */
+  const dismiss = () => {
+    if (useLock.current && !added) return
+    if (picking !== null) { closePicker(picking); return }
+    onClose?.()
+  }
+
+  const credit = creditLine(answer)
+  const busy = asking || waiting
+  const ids = new Set(listOf(slots).map((s) => s.id))
+  const atSlot = (p) => (p && p.slot && ids.has(p.slot) ? p.slot : null)
   const cards = listOf(answer?.cards).filter(isRecord)
   const tools = listOf(answer?.tools).filter(isRecord)
 
   return (
-    <Sheet open onClose={onClose} title={TITLE} labelledByTitle variant="auto" maxWidth={600}>
+    <Sheet open onClose={dismiss} title={TITLE} labelledByTitle variant="auto" maxWidth={600}>
       <div className={styles.sheet} data-adopt-sheet={kind}>
         {credit && <p className={styles.credit} data-credit="">{credit}</p>}
-        {problem && <p className={styles.notice} role="alert" data-refusal={problem.code}>{problem.message}</p>}
-        {useProblem && <p className={styles.notice} role="alert" data-refusal={useProblem.code}>{useProblem.message}</p>}
+        {problem && !atSlot(problem) && <Refusal p={problem} />}
+        {useProblem && !atSlot(useProblem) && <Refusal p={useProblem} />}
         {added ? (
           <>
             <p className={styles.sent} role="status">{ADDED_SENTENCE}</p>
             <div className={styles.actions}>
-              <button type="button" className={styles.btnPrimary} onClick={onClose}>Done</button>
+              <button type="button" className={styles.btnPrimary} ref={doneRef} onClick={onClose}>Done</button>
             </div>
           </>
         ) : (
@@ -294,11 +327,14 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
                         <div className={styles.slotRow}>
                           <span className={styles.slotText}>{`${label}: ${valueWords(s, answers[s.id], labels)}`}</span>
                           <button type="button" className={styles.btn} aria-expanded={open}
+                            ref={(el) => { if (el) changeRefs.current[s.id] = el; else delete changeRefs.current[s.id] }}
                             aria-label={`${CHANGE_LABEL} ${label.toLowerCase()}`}
                             onClick={() => setPicking(open ? null : s.id)}>{CHANGE_LABEL}</button>
                         </div>
+                        {atSlot(problem) === s.id && <Refusal p={problem} />}
+                        {atSlot(useProblem) === s.id && <Refusal p={useProblem} />}
                         {open && (
-                          <SlotPicker slot={s} answer={answers[s.id]} onCancel={() => setPicking(null)}
+                          <SlotPicker slot={s} answer={answers[s.id]} onCancel={() => closePicker(s.id)}
                             onPick={(value, words) => pick(s, value, words)} />
                         )}
                       </li>
@@ -330,9 +366,9 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
               )
             })}
             {answer && (cards.length > 0 || tools.length > 0) && (
-              <section className={styles.section} aria-labelledby={`${uid}-preview`} aria-busy={asking || undefined}>
+              <section className={styles.section} aria-labelledby={`${uid}-preview`} aria-busy={busy || undefined}>
                 <h3 className={styles.subheading} id={`${uid}-preview`}>{PREVIEW_HEADING}</h3>
-                {asking && <p className={styles.hint} role="status">{UPDATING_SENTENCE}</p>}
+                {busy && <p className={styles.hint} role="status">{UPDATING_SENTENCE}</p>}
                 <ul className={styles.previewList}>
                   {cards.map((c, i) => <PreviewCard key={`c${i}`} card={c} />)}
                   {tools.map((t, i) => <PreviewTool key={`t${i}`} tool={t} />)}
@@ -341,7 +377,7 @@ export default function AdoptSheet({ galleryId, kind, title, author, navigate = 
             )}
             <div className={styles.actions}>
               {ready && missing.length > 0 && <p className={styles.hint} id={`${uid}-missing`} data-missing="">{MISSING_HINT}</p>}
-              <button type="button" className={styles.btn} onClick={onClose}>Cancel</button>
+              <button type="button" className={styles.btn} onClick={onClose} disabled={using}>Cancel</button>
               {problem && !ready && (
                 <button type="button" className={styles.btn} onClick={() => ask()}>Try again</button>
               )}
