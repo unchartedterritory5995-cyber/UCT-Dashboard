@@ -194,9 +194,24 @@ const ScreenshotTagOffer = lazyChunk(() => import('./ScreenshotTagOffer'))
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
 const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
 // Notebook widgets wave 11 (Task 11.18, W11-R9): the 3rd-day "Was <title> helpful?" line. LAZY, its ONE dynamic
-// import, and mounted only for a styled note while wave 11 is on (the server decides whether it shows). It is handed
-// the note id alone: answering it is never an editor transaction or a note write.
-const HelpfulPromptLine = lazyChunk(() => import('./library/HelpfulPromptLine'))
+// import, and mounted only for a styled, non-canvas note while wave 11 is on (the server decides whether it shows).
+// It is handed the note id and a focus callback alone: answering it is never an editor transaction or a note write.
+// ⛔ Fix round 1 (I-1, ruling D-I2): NEVER `lazyChunk`. A courtesy line must not reload the page or blank the route
+// when its chunk cannot load (offline, or a deploy removed the hash): one in-place retry, then it renders nothing.
+// A property so a rail can fail the fetch (jsdom cannot fetch a chunk), like `refusedCopyDoorLoaders`.
+export const helpfulPromptDoorLoaders = {
+  line: () => import('./library/HelpfulPromptLine'),
+}
+function HelpfulPromptDoor({ noteId, onDone }) {
+  const [Line, setLine] = useState(null)
+  useEffect(() => {
+    let live = true
+    importWithOneRetry(() => helpfulPromptDoorLoaders.line(), RETRY_WAIT_MS)
+      .then((mod) => { if (live && typeof mod?.default === 'function') setLine(() => mod.default) }, () => {})
+    return () => { live = false }
+  }, [])
+  return Line ? <Line noteId={noteId} onDone={onDone} /> : null
+}
 // Notebook widgets F3 (ruling R45's fallback lever): the widget palette is its own chunk, off the first open.
 // The editor warms it once idle (`warmWidgetPalette` below), so the toolbar's palette opens without a wait and
 // still opens offline once that warm has landed. A failed warm costs nothing: the open asks again (lazyChunk).
@@ -3232,6 +3247,12 @@ export default function NoteEditorPage({
     }
   }, [openFocus, editor, onOpenFocused])
   const unreadable = useUnreadableNote(editor)
+  // Task 11.18 fix round 1 (I-2): the 3rd-day line answers itself away, so focus lands on the note body (the editor's
+  // focusable surface; a selection change, never `docChanged`), or the title when the body cannot take it. Never <body>.
+  const focusNoteAfterPrompt = () => {
+    if (editor && !editor.isDestroyed && editor.isEditable) { editor.view.focus(); return }
+    titleInputRef.current?.focus()
+  }
   // Wave 11 lane 11D: how many blocks a canvas note holds besides its board.
   useEffect(() => {
     if (!editor || !isCanvas) { setCanvasExtra(0); return undefined }
@@ -5840,8 +5861,8 @@ export default function NoteEditorPage({
           </Suspense>
         )}
 
-        {note?.styleId && widgetsWaveOn(11) && (
-          <Suspense fallback={null}><HelpfulPromptLine key={noteId} noteId={noteId} /></Suspense>
+        {note?.styleId && widgetsWaveOn(11) && !isCanvas && (
+          <HelpfulPromptDoor key={noteId} noteId={noteId} onDone={focusNoteAfterPrompt} />
         )}
 
         {/* ⛔ A canvas note keeps its editor MOUNTED (it is the board's store);

@@ -58,3 +58,16 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
+
+/* The answer's live region: in the accessibility tree, out of the layout. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

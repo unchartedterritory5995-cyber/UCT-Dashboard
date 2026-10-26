@@ -24,9 +24,12 @@ vi.mock('../../hooks/useJ2Notes', () => ({
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+vi.mock('./ChartEmbed', () => ({ default: () => <div data-testid="fake-chart" /> }))
 
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { GALLERY } from '../../lib/templateLibrary'
+import { chunkRetry } from '../../lib/lazyChunk'
+import { buildCanvasDoc, emptyBoard, addItems, makeTextCard } from '../../lib/tradeCanvas'
 
 const PROMPT_GET = `${GALLERY}/notes/n1/helpful-prompt`
 const PROMPT_POST = `${GALLERY}/g1/helpful-prompt`
@@ -46,9 +49,14 @@ function serve() {
   })
 }
 
-async function open({ styleId, w11 }) {
-  loaded.note = { ...BASE, styleId, styleVersion: styleId ? 1 : null }
-  latchNotebookFlags({ notebook_widgets_w11_enabled: w11 })
+// The line's own words, typed here on purpose: a static import of the line's module would load it in this file and
+// void the not-requested case's "never fetched" count. Its own test pins the constant.
+const ANSWERED_WORDS = 'Thanks for your answer.'
+const CANVAS = buildCanvasDoc(addItems(emptyBoard(), [makeTextCard({ x: 0, y: 0, text: 'first' })]).board)
+
+async function open({ styleId, w11, canvas = false }) {
+  loaded.note = { ...BASE, styleId, styleVersion: styleId ? 1 : null, ...(canvas ? { bodyJson: CANVAS } : {}) }
+  latchNotebookFlags({ notebook_widgets_w11_enabled: w11, ...(canvas ? { notebook_trade_canvas_enabled: true } : {}) })
   serve()
   const NoteEditorPage = (await import('./NoteEditorPage')).default
   render(
@@ -73,8 +81,9 @@ afterEach(() => { __resetNotebookFlags(); update.mockClear() })
 
 describe('the 3rd-day Helpful line on the note page', () => {
   it('not_requested_without_style_or_w11_off', async () => {
-    for (const [styleId, w11] of [[null, true], ['s1', false]]) {
-      await open({ styleId, w11 })
+    // Fix round 1 (M-5): a canvas note has no body to sit above, so it never asks either.
+    for (const [styleId, w11, canvas] of [[null, true, false], ['s1', false, false], ['s1', true, true]]) {
+      await open({ styleId, w11, canvas })
       await act(async () => { await vi.dynamicImportSettled() })
       expect(calls.filter((c) => c.url.includes('/helpful-prompt'))).toEqual([])
       expect(loaded.line).toBe(0)
@@ -94,8 +103,17 @@ describe('the 3rd-day Helpful line on the note page', () => {
       // It sits above the note's body.
       const body = document.querySelector('[data-tour="note-body"]')
       expect(line.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      await user.click(screen.getByRole('button', { name: label }))
+      const status = document.querySelector('[data-helpful-prompt-status]')
+      expect(status).toHaveTextContent(/^$/)                                   // the live region exists before its text
+      // A keyboard member: focus on the answer, Enter. Focus must land on the note body, never <body>.
+      const btn = screen.getByRole('button', { name: label })
+      act(() => { btn.focus() })
+      expect(document.activeElement).toBe(btn)
+      await user.keyboard('{Enter}')
       expect(screen.queryByText('Was Pre-market prep helpful?')).toBeNull()
+      expect(document.activeElement).toBe(editor.view.dom)
+      expect(document.querySelector('[data-helpful-prompt-status]')).toBe(status)  // the same element, now speaking
+      expect(status).toHaveTextContent(ANSWERED_WORDS)
       await waitFor(() => expect(calls.filter((c) => c.url === PROMPT_POST)).toHaveLength(1))
       await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
       expect(calls.filter((c) => c.url === PROMPT_GET)).toHaveLength(1)
@@ -109,4 +127,32 @@ describe('the 3rd-day Helpful line on the note page', () => {
       expect(docChanges).toHaveLength(1)
     })
   }
+
+  // Fix round 1 (I-1, ruling D-I2): the courtesy line's chunk failing (offline, or a deploy removed its hash) renders
+  // nothing. No page reload, no route boundary, and the editor stays mounted.
+  it('a chunk that cannot load renders no line, never reloads, and keeps the editor', async () => {
+    const mod = await import('./NoteEditorPage')
+    const real = mod.helpfulPromptDoorLoaders.line
+    const realLocation = window.location
+    const reload = vi.fn()
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...realLocation, origin: realLocation.origin, reload, href: String(realLocation.href) } })
+    try { sessionStorage.clear() } catch { /* ignore */ }
+    const gone = () => Promise.reject(new TypeError(`Failed to fetch dynamically imported module: ${realLocation.origin}/assets/HelpfulPromptLine-abc123.js`))
+    mod.helpfulPromptDoorLoaders.line = vi.fn(gone)
+    const retry = vi.spyOn(chunkRetry, 'importUrl').mockImplementation(gone)
+    try {
+      await open({ styleId: 's1', w11: true })
+      await waitFor(() => expect(retry).toHaveBeenCalled(), { timeout: 5000 })   // the one in-place retry happened
+      await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
+      expect(mod.helpfulPromptDoorLoaders.line).toHaveBeenCalled()
+      expect(reload).not.toHaveBeenCalled()
+      expect(screen.queryByText(/helpful\?/)).toBeNull()
+      expect(document.querySelector('.ProseMirror')?.editor?.isDestroyed).toBe(false)
+      expect(screen.getByPlaceholderText('Title')).toBeInTheDocument()
+    } finally {
+      mod.helpfulPromptDoorLoaders.line = real
+      retry.mockRestore()
+      Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    }
+  })
 })

@@ -39,10 +39,9 @@ export function useHelpfulToggle(item, onMessage) {
       setHelpfulCount(Number(out?.count) || 0)
       setDaysNote('')
     } catch (err) {
-      // The code decides (W9-R14); the sentence is the server's when it sent one.
+      // The code decides (W9-R14); the sentence is the server's when it sent one, through libraryError's ONE rule.
       if (err?.status === 409 && err?.code === HELPFUL_DAYS_CODE) {
-        const said = String(err?.message || '').trim()
-        setDaysNote(said && !/^request failed \(\d+\)$/.test(said) ? said : HELPFUL_DAYS_SENTENCE)
+        setDaysNote(libraryError(err, HELPFUL_DAYS_SENTENCE))
       } else {
         onMessage?.({ tone: 'error', text: libraryError(err, `Couldn't record that for "${item.title}". Nothing was changed.`) })
       }

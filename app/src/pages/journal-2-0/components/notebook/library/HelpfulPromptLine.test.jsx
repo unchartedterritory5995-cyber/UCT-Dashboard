@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import HelpfulPromptLine, { promptOf } from './HelpfulPromptLine'
+import HelpfulPromptLine, { promptOf, ANSWERED_WORDS } from './HelpfulPromptLine'
 import { GALLERY } from '../../../lib/templateLibrary'
 
 const SHOW = { show: true, itemId: 'g1', title: 'Pre-market prep', line: 'Was Pre-market prep helpful?' }
@@ -25,6 +25,9 @@ beforeEach(() => {
   })
 })
 
+// After an answer the line is gone; only the live region remains, saying the answer was taken.
+const lineGone = () => expect(document.querySelector('[data-helpful-prompt]')).toBeNull()
+const status = () => document.querySelector('[data-helpful-prompt-status]')
 const posts = () => calls.filter((c) => c.method === 'POST')
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)) })
 
@@ -62,35 +65,62 @@ describe('HelpfulPromptLine', () => {
     for (const [label, answer] of [['Yes', 'yes'], ['Not really', 'not_really']]) {
       calls = []
       const user = userEvent.setup()
-      const { container, unmount } = render(<HelpfulPromptLine noteId="n1" />)
+      const onDone = vi.fn()
+      const { unmount } = render(<HelpfulPromptLine noteId="n1" onDone={onDone} />)
       await user.click(await screen.findByRole('button', { name: label }))
+      expect(onDone).toHaveBeenCalledTimes(1)
       // Hidden at once (optimistic), before the post has answered.
-      expect(container.textContent).toBe('')
+      lineGone()
+      expect(status()).toHaveTextContent(ANSWERED_WORDS)
       await waitFor(() => expect(posts()).toHaveLength(1))
       expect(posts()[0]).toEqual({ url: `${GALLERY}/g1/helpful-prompt`, method: 'POST', body: { answer } })
       await settle()
-      expect(container.textContent).toBe('')
+      lineGone()
+      expect(status()).toHaveTextContent(ANSWERED_WORDS)
       unmount()
     }
   })
 
   it('dismiss_posts_dismissed', async () => {
     const user = userEvent.setup()
-    const { container } = render(<HelpfulPromptLine noteId="n1" />)
+    const onDone = vi.fn()
+    render(<HelpfulPromptLine noteId="n1" onDone={onDone} />)
     await user.click(await screen.findByRole('button', { name: 'Dismiss' }))
-    expect(container.textContent).toBe('')
+    expect(onDone).toHaveBeenCalledTimes(1)
+    lineGone()
+    expect(status()).toHaveTextContent(ANSWERED_WORDS)
     await waitFor(() => expect(posts()).toHaveLength(1))
     expect(posts()[0].body).toEqual({ answer: 'dismissed' })
   })
 
-  it('a failed post shows nothing: the line stays hidden and no sentence appears', async () => {
+  it('a failed post shows nothing: the line stays hidden and no failure is said', async () => {
     postAnswer = json({ detail: { code: 'not_found', message: 'Gone.' } }, 500)
     const user = userEvent.setup()
-    const { container } = render(<HelpfulPromptLine noteId="n1" />)
+    render(<HelpfulPromptLine noteId="n1" />)
     await user.click(await screen.findByRole('button', { name: 'Yes' }))
     await waitFor(() => expect(posts()).toHaveLength(1))
     await settle()
-    expect(container.textContent).toBe('')
+    lineGone()
+    expect(status()).toHaveTextContent(ANSWERED_WORDS)
+    expect(screen.queryByText('Gone.')).toBeNull()
     expect(calls.filter((c) => c.method === 'GET')).toHaveLength(1)   // never asked again
+  })
+
+  it('the group is named once, by its question (aria-labelledby, not a second copy of the words)', async () => {
+    render(<HelpfulPromptLine noteId="n1" />)
+    const group = await screen.findByRole('group', { name: 'Was Pre-market prep helpful?' })
+    expect(group).not.toHaveAttribute('aria-label')
+    expect(document.getElementById(group.getAttribute('aria-labelledby'))).toHaveTextContent('Was Pre-market prep helpful?')
+  })
+
+  it('the live region exists from mount, empty, and is the same element that speaks after the answer', async () => {
+    const user = userEvent.setup()
+    render(<HelpfulPromptLine noteId="n1" />)
+    const region = status()
+    expect(region).toHaveAttribute('role', 'status')
+    expect(region).toHaveTextContent(/^$/)
+    await user.click(await screen.findByRole('button', { name: 'Not really' }))
+    expect(status()).toBe(region)
+    expect(region).toHaveTextContent(ANSWERED_WORDS)
   })
 })

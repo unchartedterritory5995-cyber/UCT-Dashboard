@@ -159,7 +159,8 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         )}
         {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
-      {daysNote && <p className={styles.note} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>}
+      {/* The 3-day sentence's live region exists before its text (fix round 1, M-3), so the change is announced. */}
+      <p className={daysNote ? styles.note : styles.liveIdle} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>
       {confirming && (
         <div className={styles.confirm} role="group" aria-label={`Adopt ${item.title}?`}>
           <label className={styles.check} htmlFor={`${uid}-notify`}>

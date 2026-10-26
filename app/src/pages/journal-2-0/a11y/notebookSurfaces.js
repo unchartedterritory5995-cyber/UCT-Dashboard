@@ -262,6 +262,18 @@ export const SURFACES = Object.freeze({
   'components/notebook/myTools/TrackersTab.jsx': { recipe: 'my-tools-trackers' },
   'components/notebook/myTools/UsedInList.jsx': { coveredBy: 'my-tools-tool-used-in' },
   'components/notebook/myTools/PanelHead.jsx': { coveredBy: 'my-tools-tool-used-in' },
+  // Wave 11 (Task 11.18 fix round 1, c4): My tools > Templates and the template library's surfaces, now in the derived
+  // population (rail a11y/templateLibrary.a11y.test.jsx: the Templates tab; the Template library section; a
+  // template's detail; the adoption sheet; one choice's picker; the share preview; the 3rd-day Helpful line).
+  'components/notebook/myTools/TemplatesTab.jsx': { recipe: 'my-tools-templates' },
+  'components/notebook/library/TemplateLibrarySection.jsx': { recipe: 'template-library-section' },
+  'components/notebook/library/LibraryCardFacts.jsx': { coveredBy: 'template-library-section' },
+  'components/notebook/library/TemplateDetailSheet.jsx': { recipe: 'template-detail-sheet' },
+  'components/notebook/library/PreviewParts.jsx': { coveredBy: 'template-detail-sheet' },
+  'components/notebook/library/AdoptSheet.jsx': { recipe: 'template-adopt-sheet' },
+  'components/notebook/library/SlotPicker.jsx': { recipe: 'template-slot-picker' },
+  'components/notebook/library/SharePreviewSheet.jsx': { recipe: 'template-share-preview' },
+  'components/notebook/library/HelpfulPromptLine.jsx': { recipe: 'helpful-prompt-line' },
   // Wave 9 Task 9.19: the tool picker /routine and /track open (rail a11y/toolPicker.a11y.test.jsx: a list with New
   // routine; none yet; a list that cannot be read, with Try again).
   'components/notebook/routines/ToolPicker.jsx': { recipe: 'tool-picker' },

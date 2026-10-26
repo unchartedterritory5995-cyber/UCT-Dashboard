@@ -184,7 +184,9 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
         )}
         {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
-      {daysNote && <p className={styles.note} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>}
+      {helpfulOffered && (
+        <p className={daysNote ? styles.note : styles.liveIdle} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>
+      )}
       {reporting && (
         <ReportForm
           item={item}

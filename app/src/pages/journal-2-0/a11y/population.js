@@ -27,6 +27,9 @@ export function derivePopulation() {
     ...jsxIn('components/notebook/blocks'),
     ...jsxIn('components/notebook/routines'),
     ...jsxIn('components/notebook/myTools'),
+    // Wave 11 (Task 11.18 fix round 1, c4): the template library (the share preview, the adoption sheet, its choice
+    // picker, a template's detail, the Template library section and its card facts, the 3rd-day Helpful line).
+    ...jsxIn('components/notebook/library'),
     // Wave 9 Task 9.17 fix 1 (ruling W9-R50): the widget builder and its sections, so a new builder file cannot ship
     // unrailed (until then no axe rail had covered any builder level).
     ...jsxIn('components/notebook/widgetBuilder'),

@@ -6,11 +6,13 @@
 //
 // Any answer hides the line at once (optimistic) and posts it (`POST /{item id}/helpful-prompt`); "Yes" also marks
 // Helpful on the server. A failed post shows nothing: the line stays hidden. It is a courtesy, never a task.
+// Fix round 1: the answer is said in a polite live region that exists from mount (before any text is set), and focus
+// goes where the host says (`onDone`: the note body), never to <body> with the button that had it.
 //
 // ⛔ Live state never enters a note: no editor transaction, no note PUT, no outbox entry. This component is handed a
 //    note id and nothing else; it cannot reach the editor or the note's save path.
 // ⛔ LAZY. NoteEditorPage loads it through ONE guarded dynamic import (a styled note while wave 11 is on).
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { answerHelpfulPrompt, helpfulPrompt } from '../../../lib/templateLibrary'
 import UIcon from '../../../../../components/ui/UIcon'
 import styles from './HelpfulPromptLine.module.css'
@@ -27,30 +29,42 @@ export function promptOf(out) {
   return line ? { itemId: d.itemId, line } : null
 }
 
-export default function HelpfulPromptLine({ noteId }) {
+/** What the live region says once the member answers (the post is optimistic, so it promises nothing more). */
+export const ANSWERED_WORDS = 'Thanks for your answer.'
+
+export default function HelpfulPromptLine({ noteId, onDone }) {
+  const uid = useId()
   const [prompt, setPrompt] = useState(null)
   const [answered, setAnswered] = useState(false)
+  const [said, setSaid] = useState('')
 
   useEffect(() => {
     let live = true
     setPrompt(null)
     setAnswered(false)
+    setSaid('')
     if (!isId(noteId)) return undefined
     helpfulPrompt(noteId).then((out) => { if (live) setPrompt(promptOf(out)) }, () => {})
     return () => { live = false }
   }, [noteId])
 
-  if (!prompt || answered) return null
-
   const answer = (choice) => {
+    // Focus first, while the pressed button still exists, so it never falls to <body> when the line goes.
+    onDone?.()
     setAnswered(true)
+    setSaid(ANSWERED_WORDS)
     // Fire and forget: the line is already gone, and a refusal or an outage changes nothing the member can see.
     answerHelpfulPrompt(prompt.itemId, choice).catch(() => {})
   }
 
+  // ⛔ ONE live region, present from mount and always FIRST in the same fragment, so React keeps the same element
+  // across every state and its text arrives as a change the reader hears (never a region born with its words).
   return (
-    <div className={styles.line} role="group" aria-label={prompt.line} data-helpful-prompt="" data-export-exclude>
-      <p className={styles.question}>{prompt.line}</p>
+    <>
+    <p className={styles.srOnly} role="status" data-helpful-prompt-status="">{said}</p>
+    {prompt && !answered && (
+    <div className={styles.line} role="group" aria-labelledby={`${uid}-q`} data-helpful-prompt="" data-export-exclude>
+      <p className={styles.question} id={`${uid}-q`}>{prompt.line}</p>
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={() => answer('yes')}>Yes</button>
         <button type="button" className={styles.btn} onClick={() => answer('not_really')}>Not really</button>
@@ -59,5 +73,7 @@ export default function HelpfulPromptLine({ noteId }) {
         </button>
       </div>
     </div>
+    )}
+    </>
   )
 }

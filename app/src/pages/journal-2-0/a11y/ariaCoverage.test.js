@@ -46,6 +46,10 @@ export const EXEMPT = Object.freeze({
     'renders ToolsTab with kind tracker (the list with its named filters, rows, menu and live region); no markup of its own',
   'components/notebook/myTools/UsedInList.jsx':
     'a push panel of plain links named by their note titles, under PanelHead (a named Back button and heading); no control that needs aria',
+  'components/notebook/library/LibraryCardFacts.jsx':
+    'plain lines of text on a library card (type chip, "For:", Used by / Updated / Helpful, the credit) inside the card, whose own heading and named controls carry the meaning; no control of its own',
+  'components/notebook/library/PreviewParts.jsx':
+    'a preview card (its title as a heading, a built view or one sentence) and a tool preview (name and item list) read as text inside the named detail or adoption sheet; no control of its own',
   'components/notebook/FollowupOfferSlot.jsx':
     'the eager gate: renders the lazy FollowupOffer (a named region "Earnings follow-up" with its heading and two named buttons) or null; no markup or control of its own',
 })
