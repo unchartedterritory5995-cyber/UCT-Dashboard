@@ -8,6 +8,8 @@
 //   * `onDone(answer)`: once the item is the member's (`{kind, editor, ...the server's answer}`). A template's Use has
 //     made the note and the sheet opens it (through `navigate` when given, else in place through history).
 //   * The credit line is the server's own `credit` from the preview answer (W11-R24); nothing here builds one.
+//   * `mode: 'adopt'` (ruling W11-R25b, the style card's Adopt): a template's Use takes a COPY into the member's
+//     templates (`adoptTemplate`), makes no note and goes nowhere. The default, 'use', is the picker's Use.
 //   * `mode: 'update'` + `copyId` (Task 11.19, My tools' "Update from the library" when the new version asks a
 //     question): Use takes the listed version into the member's copy `copyId` (`updateTool`), never a new copy.
 //
@@ -19,7 +21,7 @@ import AdoptSheet from './AdoptSheet'
 
 let _open = null
 
-export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigate, mode = 'adopt', copyId = null } = {}) {
+export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigate, mode = 'use', copyId = null } = {}) {
   if (_open) return _open.close
   const host = document.createElement('div')
   host.setAttribute('data-adopt-sheet-root', '')

@@ -19,7 +19,7 @@
 // ⛔ LAZY. Reached only through `openAdoptSheet` (its own root).
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
-import { adoptTool, previewMine, updateTool, useTemplate } from '../../../lib/templateLibrary'
+import { adoptTemplate, adoptTool, previewMine, updateTool, useTemplate } from '../../../lib/templateLibrary'
 import { openNoteInPlace, noteHref } from '../../../lib/noteHref'
 import { PreviewCard, PreviewTool } from './PreviewParts'
 import SlotPicker, { anyWords, numberOf } from './SlotPicker'
@@ -32,6 +32,9 @@ export const MISSING_HINT = 'Pick a value for each choice, or Any.'
 export const ADDED_SENTENCE = 'Added to My tools.'
 /** Task 11.19: an update of the member's copy (My tools' "Update from the library", when the new version asks). */
 export const UPDATED_SENTENCE = 'Updated from the library.'
+/** Ruling W11-R25b (Task 11.16 fix round 2): adopting a listed style takes a copy into the member's templates; it
+ *  makes no note and goes nowhere. Neither brief names this sentence, so it is the coordinator's. */
+export const ADDED_TEMPLATE_SENTENCE = 'Added to your templates.'
 /** The kinds a copy can be updated (Task 11.8's `update_tool`): never a template, which updates in the styles manager. */
 const UPDATABLE = new Set(['widget', 'routine', 'tracker'])
 export const LOADING_SENTENCE = 'Getting your preview ready…'
@@ -120,15 +123,19 @@ function Refusal({ p }) {
  * @param onClose   Cancel, Done, Escape or the Sheet's own close
  * @param editor    the editor the door was opened from, handed back to `onDone` as it came (the sheet never writes it)
  * @param onDone    `(answer) => void` once the item is the member's: `{kind, editor, ...server answer}`
- * @param mode      'adopt' (the default: Use makes a new copy) or 'update' (Task 11.19: Use takes the listed version
- *                  into the member's copy `copyId` through `updateTool`, never a new copy; a widget, routine or
- *                  tracker only, anything else stays an adoption)
+ * @param mode      'use' (the default: a template's Use makes a note through `useTemplate`; a tool's adopts it), or
+ *                  'adopt' (ruling W11-R25b: a template's Use takes a COPY into the member's templates through
+ *                  `adoptTemplate`, says "Added to your templates." and navigates nowhere; a tool adopts as ever), or
+ *                  'update' (Task 11.19: Use takes the listed version into the member's copy `copyId` through
+ *                  `updateTool`, never a new copy; a widget, routine or tracker only, anything else stays a use)
  * @param copyId    the member's copy, for mode 'update'
  */
-export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone, mode = 'adopt', copyId = null }) {
+export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone, mode = 'use', copyId = null }) {
   const uid = useId()
   const isUpdate = mode === 'update' && UPDATABLE.has(kind) && (typeof copyId === 'string' ? copyId !== '' : Number.isFinite(copyId))
   const isTemplate = kind === 'template' && !isUpdate
+  // W11-R25b: a template adopted as a copy (the style card's Adopt), never a note.
+  const isTemplateCopy = isTemplate && mode === 'adopt'
   const [answer, setAnswer] = useState(null)             // the latest preview: {slots, cards, tools, questions, credit?}
   const [slots, setSlots] = useState(null)               // the choices, from the first answer
   const [questions, setQuestions] = useState([])
@@ -233,7 +240,8 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
     const body = { answers: { ...answers } }
     if (isTemplate) body.choices = { ...choices }
     const out = isUpdate ? await updateTool(kind, copyId, body)
-      : isTemplate ? await useTemplate(galleryId, body) : await adoptTool(galleryId, body)
+      : isTemplateCopy ? await adoptTemplate(galleryId, body)
+        : isTemplate ? await useTemplate(galleryId, body) : await adoptTool(galleryId, body)
     if (!alive.current) return
     if (!out.ok) {
       useLock.current = false
@@ -243,7 +251,7 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
     }
     // ⛔ The lock stays held: this sheet has made its one item. A throwing `onDone` never strands the member: the
     //    close and the move to the note (or the "Added" line) run whatever it does.
-    if (isTemplate) {
+    if (isTemplate && !isTemplateCopy) {
       const noteId = isRecord(out.data.note) ? out.data.note.id : null
       try { onDone?.({ kind, editor, ...out.data }) } catch { /* the note is made: the close and the move still run */ }
       onClose?.()
@@ -281,7 +289,7 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
         {useProblem && !atSlot(useProblem) && <Refusal p={useProblem} />}
         {added ? (
           <>
-            <p className={styles.sent} role="status">{isUpdate ? UPDATED_SENTENCE : ADDED_SENTENCE}</p>
+            <p className={styles.sent} role="status">{isUpdate ? UPDATED_SENTENCE : isTemplateCopy ? ADDED_TEMPLATE_SENTENCE : ADDED_SENTENCE}</p>
             <div className={styles.actions}>
               <button type="button" className={styles.btnPrimary} ref={doneRef} onClick={onClose}>Done</button>
             </div>

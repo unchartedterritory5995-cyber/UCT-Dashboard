@@ -78,7 +78,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
     if (!holdsFamilySlot(listing)) { setConfirming(true); return }
     try {
       const mod = await import('./library/openAdoptSheet')
-      mod.openAdoptSheet({ galleryId: item.id, kind: 'template' })
+      mod.openAdoptSheet({ galleryId: item.id, kind: 'template', mode: 'adopt' })
     } catch {
       onMessage?.({ tone: 'error', text: doorLostSentence() })
     }

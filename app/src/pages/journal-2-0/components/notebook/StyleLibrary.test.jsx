@@ -717,7 +717,7 @@ describe('W11-R25 -- Adopt on a style with family slots', () => {
     })
     await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
     await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
-    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: STYLE.id, kind: 'template' })
+    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: STYLE.id, kind: 'template', mode: 'adopt' })
     expect(screen.queryByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeNull()
     expect(adopts()).toEqual([])
   })

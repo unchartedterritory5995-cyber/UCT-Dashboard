@@ -11,7 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import AdoptSheet, {
-  ADDED_SENTENCE, DEBOUNCE_MS, MISSING_HINT, TITLE, UPDATED_SENTENCE, creditLine, createWords, useYourWords,
+  ADDED_SENTENCE, ADDED_TEMPLATE_SENTENCE, DEBOUNCE_MS, MISSING_HINT, TITLE, UPDATED_SENTENCE, creditLine, createWords, useYourWords,
 } from './AdoptSheet'
 import { openAdoptSheet } from './openAdoptSheet'
 
@@ -267,6 +267,43 @@ describe('Use', () => {
     expect(net.previews().length).toBeGreaterThanOrEqual(1)                 // the listed item still previews
     expect(onDone.mock.calls[0][0]).toMatchObject({ kind: 'routine', id: 'r-copy' })
     expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('mode adopt (W11-R25b): a template Use sends exactly ONE adoptTemplate, no useTemplate, makes no note, goes nowhere', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: QUESTIONS, tools: TOOLS }) })
+    const ADOPT = `${BASE}/adopt`
+    const orig = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => (url === ADOPT
+      ? (net.calls.push({ url, method: init.method, body: JSON.parse(init.body) }), json(200, { style: { id: 's-copy' }, credit: null }))
+      : orig(url, init)))
+    const { onDone, onClose, navigate } = mount({ mode: 'adopt' })
+    await ready()
+    const btn = useButton()
+    act(() => { btn.click(); btn.click() })                                 // a double press: still one copy
+    expect((await screen.findByRole('status')).textContent).toBe(ADDED_TEMPLATE_SENTENCE)
+    const adopts = net.calls.filter((c) => c.url === ADOPT)
+    expect(adopts).toHaveLength(1)
+    expect(adopts[0].method).toBe('POST')
+    expect(Object.keys(adopts[0].body).sort()).toEqual(['answers', 'choices'])
+    expect(net.calls.some((c) => c.url === USE || c.url === ADOPT_TOOL)).toBe(false)
+    expect(navigate).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onDone.mock.calls[0][0]).toMatchObject({ kind: 'template', style: { id: 's-copy' } })
+  })
+
+  it('the Use path is unchanged (no mode, or mode use): ONE useTemplate makes the note and opens it, no adoptTemplate', async () => {
+    for (const props of [{}, { mode: 'use' }]) {
+      const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: QUESTIONS, tools: TOOLS }) })
+      const { navigate } = mount(props)
+      await ready()
+      const btn = useButton()
+      act(() => { btn.click(); btn.click() })
+      await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
+      expect(net.calls.filter((c) => c.url === USE)).toHaveLength(1)
+      expect(net.calls.some((c) => c.url === `${BASE}/adopt`)).toBe(false)
+      expect(screen.queryByText(ADDED_TEMPLATE_SENTENCE)).toBeNull()
+      cleanup()
+    }
   })
 
   it('a fresh adoption is unchanged: no mode (or update without a copy) adopts and never updates', async () => {
