@@ -1,0 +1,267 @@
+/* Notebook widgets phase 2, wave 11: the template library's sheets (the share preview first; Tasks 11.16, 11.17
+   and 11.19 add to this file, ruling W11-R16). Every control is floored at 44 px at EVERY width, in its base rule
+   (styles/tapFloor.test.js), and every text field at 16 px type or larger so a phone does not zoom into it. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 16px);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg, 18px);
+  font-weight: 600;
+  color: var(--text-primary, var(--text));
+}
+
+.subheading {
+  margin: 0;
+  font-size: var(--text-md, 15px);
+  font-weight: 600;
+  color: var(--text-primary, var(--text));
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+  padding: var(--space-sm, 8px) 0;
+  border-top: 1px solid var(--border);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: var(--text-sm, 13px);
+  color: var(--text-secondary, var(--text-muted));
+}
+
+.input,
+.select {
+  min-height: var(--tap-min);
+  min-width: 0;
+  padding: 0 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--field-edge, var(--border));
+  background: var(--bg-base);
+  color: var(--text-primary, var(--text));
+  font: inherit;
+  font-size: max(16px, var(--text-md));
+}
+
+.textarea {
+  min-height: var(--tap-min);
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--field-edge, var(--border));
+  background: var(--bg-base);
+  color: var(--text-primary, var(--text));
+  font: inherit;
+  font-size: max(16px, var(--text-md));
+  resize: vertical;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  color: var(--text-muted);
+}
+
+.notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--danger-ink, var(--color-danger));
+  color: var(--text-primary, var(--text));
+}
+
+.sent {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--ut-gold);
+  color: var(--text-primary, var(--text));
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+}
+
+.itemRow .input {
+  flex: 1 1 auto;
+}
+
+/* The whole row is the target: the box and its words. */
+.check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+}
+
+.switchLabel {
+  font-size: var(--text-md, 15px);
+  color: var(--text-primary, var(--text));
+}
+
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 50%;
+  height: 24px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid var(--field-edge, var(--border));
+  background: var(--bg-base);
+}
+
+.switchOn::before {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+
+.knob {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transform: translateY(-50%);
+  transition: left 0.15s ease;
+}
+
+.switchOn .knob {
+  left: 28px;
+  background: var(--bg-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knob {
+    transition: none;
+  }
+}
+
+/* "Exactly what travels": read-only, plain words. */
+.travels {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.travelRow {
+  margin: 0;
+  font-size: var(--text-md, 15px);
+  color: var(--text-primary, var(--text));
+}
+
+.travelKey {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm, 8px);
+}
+
+.btn,
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 16px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary, var(--text));
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.btnPrimary {
+  border-color: var(--ut-gold);
+}
+
+.btn:disabled,
+.btnPrimary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible,
+.btnPrimary:focus-visible,
+.switch:focus-visible,
+.check input:focus-visible,
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}

@@ -401,3 +401,31 @@ describe('the dedicated widget embeds floor every control at 44px at every width
     expect(/\.bar\s*\{[^}]*height:\s*44px/.test(withoutMedia(css))).toBe(true)
   })
 })
+
+// Wave 11 (Task 11.15): the template library's sheets (the share preview first; Tasks 11.16, 11.17 and 11.19 add to the
+// same stylesheet, ruling W11-R16). The My tools bar: every clickable class (derived from the stylesheet, as above) is
+// floored at 390, 820 AND 1200 px, and every text field and select is floored too, at 16 px type or larger.
+const LIBRARY_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'library', 'library.module.css')
+
+describe('the template library floors every control at 44px at every width', () => {
+  it('the library has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(LIBRARY_CSS, 'utf8')))
+    for (const c of ['.btn', '.btnPrimary', '.switch', '.check']) expect(classes).toContain(c)
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(LIBRARY_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('text fields and selects are floored too, at 16px type or larger', () => {
+    const css = readFileSync(LIBRARY_CSS, 'utf8')
+    const floored = tapTargetClasses(withoutMedia(stripComments(css)))
+    for (const c of ['.input', '.select', '.textarea']) {
+      expect(floored, `${c} has no 44px floor`).toContain(c)
+      expect(baseFontSize(css, c)).toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+    }
+  })
+})

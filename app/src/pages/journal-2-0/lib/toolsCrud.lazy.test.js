@@ -104,9 +104,11 @@ const CRUD = path.join(SRC, 'pages', 'journal-2-0', 'lib', 'toolsCrud.js')
 const ROUTINES_DIR = path.join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'routines') + path.sep
 const isLazyOnly = (f) => f === CRUD || f.startsWith(ROUTINES_DIR)
 const hits = (closure) => [...closure.keys()].filter(isLazyOnly)
-/** Who may import the lazy files: the editors themselves, My tools (Task 9.18) and the tool picker (Task 9.19, in
- *  the routines directory). Every one of them is itself lazy. */
-const ALLOWED_IMPORTERS = ['pages/journal-2-0/components/notebook/routines/', 'pages/journal-2-0/components/notebook/myTools/']
+/** Who may import the lazy files: the editors themselves, My tools (Task 9.18), the tool picker (Task 9.19, in
+ *  the routines directory) and the template library's sheets (wave 11, Task 11.15: the share preview reads the routine
+ *  and tracker words from routines/toolEditorLib). Every one of them is itself lazy. */
+const ALLOWED_IMPORTERS = ['pages/journal-2-0/components/notebook/routines/', 'pages/journal-2-0/components/notebook/myTools/',
+  'pages/journal-2-0/components/notebook/library/']
 
 const { main, roots } = entries()
 const STARTS = [main, ...roots]
