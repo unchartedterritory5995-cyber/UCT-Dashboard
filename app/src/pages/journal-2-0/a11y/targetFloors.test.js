@@ -682,7 +682,7 @@ describe('D-W11-001: the note details toggle reaches 24 px on the desktop (NoteD
 describe('D-W11-002/003: the header Folder select and the note title are finger targets on the touch tier', () => {
   const rules = rulesWithMedia(read(join(NB, 'NoteEditorPage.module.css')))
 
-  const FLOORED = ['.headerSelect']
+  const FLOORED = ['.headerSelect', '.titleInput']
 
   it.each(FLOORED)('%s floors to --tap-min inside the touch query', (sel) => {
     expect(lastDecl(rules, sel, 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')

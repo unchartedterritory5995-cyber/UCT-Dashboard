@@ -1019,6 +1019,12 @@
   .headerSelect {
     min-height: var(--tap-min, 44px);
   }
+  /* D-W11-003: the note title input measured 378x34 at 820 and 390 (wave 11 campaign dry run).
+     A floor, not a restyle: a title that already draws taller keeps its size. It sits in the
+     note column, not the header, so the header row is untouched. */
+  .titleInput {
+    min-height: var(--tap-min, 44px);
+  }
   /* Wave B: the new Favorites star reuses .chromeBtn (Share / Ask this
      note already render here too, un-sized for touch before this pass --
      fixed for all three since they share one class, not just the new one). */
