@@ -14,6 +14,7 @@ reaches `C:\\data`.
 """
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timezone
 
 import pytest
@@ -141,6 +142,21 @@ def test_the_sample_book_sorts_the_same_way():
     assert keys == sorted(keys, reverse=True)
     days = [k[0] for k in keys]
     assert any(days.count(d) > 1 for d in set(days))         # non-vacuous: the book has shared days
+
+
+def test_the_sample_book_breaks_a_day_by_close_time_not_by_id():
+    # The book's own ids happen to run in time order, so an id tie-break would read it the same:
+    # give one shared day's trades ids that run AGAINST time and the order must not move.
+    book = copy.deepcopy(wrun._book()["data"])
+    by_day: dict = {}
+    for t in book["closed_trades"]:
+        by_day.setdefault(t["day"], []).append(t)
+    day, trades = next((d, ts) for d, ts in sorted(by_day.items()) if len(ts) >= 3)
+    trades.sort(key=lambda t: t["exit_at"])
+    for i, t in enumerate(trades):                           # oldest close, largest id
+        t["id"] = f"zz-{len(trades) - i:03d}"
+    got = [r["_tid"] for r in wrun._sample_closed(book) if r["day"] == day]
+    assert got == [t["id"] for t in reversed(trades)]
 
 
 def test_the_scan_adds_no_sort_of_its_own(seeded):
