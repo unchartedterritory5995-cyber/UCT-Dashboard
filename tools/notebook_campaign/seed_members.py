@@ -463,6 +463,55 @@ def boot_schema(app_root: Path, data_dir: Path, port: int, out_dir: Path) -> str
     return how
 
 
+def boot_schema_clock(app_root: Path, data_dir: Path, port: int, out_dir: Path) -> str:
+    """The schema boot through sandbox_clock.py at the real now (no shift that matters: the tables are the
+    app's own either way). For a caller that must not open C:\\data at all: the hub launcher hashes the
+    shared data root read-only; this launcher hashes nothing (its guard is the census tripwire, which
+    raises on any write there and reports it). The clock launcher's output is kept in `out_dir`."""
+    import signal
+    import subprocess
+    import urllib.request
+    sys.path.insert(0, str(app_root / "tools"))
+    import notebook_perf_harness as h  # noqa: E402
+    if h.port_busy(port):
+        raise SystemExit(f"REFUSED: port {port} already has a listener (never killed); pass --schema-port")
+    log = out_dir / "seed-schema-boot.log"
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    cmd = [sys.executable, "-u", "-c", h._SHIM, str(HERE / "sandbox_clock.py"), "--clock", now,
+           "--data-dir", str(data_dir), "--port", str(port), "--app-root", str(app_root), "--no-remint"]
+    kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True})
+    with open(log, "w", encoding="utf-8") as fh:
+        proc = subprocess.Popen(cmd, cwd=str(app_root), stdout=fh, stderr=subprocess.STDOUT, **kw)
+    try:
+        end, ok = time.time() + 400, False
+        while time.time() < end and proc.poll() is None and not ok:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=3) as r:
+                    ok = r.status == 200
+            except Exception:  # noqa: BLE001 -- not up yet
+                time.sleep(0.5)
+        if not ok:
+            raise SystemExit(f"REFUSED: the schema boot never answered /api/health (log {log})")
+        time.sleep(15)                      # the boot's own background table work, as the +15 s checkpoint
+    finally:
+        how = "exited on its own"
+        if proc.poll() is None:
+            try:
+                proc.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+                proc.wait(timeout=60)
+                how = f"graceful (rc {proc.returncode})"
+            except Exception:  # noqa: BLE001
+                proc.kill()
+                proc.wait()
+                how = f"killed by PID {proc.pid}"
+    text = log.read_text(encoding="utf-8", errors="replace")
+    blocked = [ln for ln in text.splitlines() if "SHARED-ROOT WRITE BLOCKED" in ln]
+    print(f"schema boot (clock launcher, pid {proc.pid}): {how}; shared-root writes blocked: {len(blocked)}", flush=True)
+    if blocked:
+        raise SystemExit("REFUSED: the schema boot tried to write the shared data root; nothing was seeded")
+    return how
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data-dir", required=True)
@@ -472,6 +521,9 @@ def main(argv=None) -> int:
     ap.add_argument("--only", default="", help="comma-separated persona ids (default: all 50)")
     ap.add_argument("--schema-port", type=int, default=SCHEMA_PORT)
     ap.add_argument("--no-heavy-lock", action="store_true")
+    ap.add_argument("--schema-via-clock-launcher", action="store_true",
+                    help="boot the schema through sandbox_clock.py (hashes nothing under C:\\data) instead of "
+                         "the hub launcher (which hashes it read-only)")
     args = ap.parse_args(argv)
 
     why = refuse_shared_root(args.data_dir)
@@ -492,7 +544,7 @@ def main(argv=None) -> int:
     only = {x.strip() for x in args.only.split(",") if x.strip()}
     people = [p for p in spec["personas"] if not only or p["id"] in only]
 
-    boot_schema(app_root, data_dir, args.schema_port, data_dir)
+    (boot_schema_clock if args.schema_via_clock_launcher else boot_schema)(app_root, data_dir, args.schema_port, data_dir)
 
     sys.path.insert(0, str(app_root))
     sys.path.insert(0, str(app_root / "scripts"))

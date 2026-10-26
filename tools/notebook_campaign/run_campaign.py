@@ -29,7 +29,12 @@ a visible control Tab cannot reach is a FAIL.
 
 `needs` (personas.json): `w11` steps run only when the server has the wave 11 routes (probed once:
 GET /api/j2/template-gallery/library answers 200), else INCONCLUSIVE; `restart` steps need --own-sandbox;
-`clock` steps are always INCONCLUSIVE (the server has no clock seam). INCONCLUSIVE is never a pass.
+`clock` steps need --clock-launcher (tools/notebook_campaign/sandbox_clock.py, ruling W11-R49): a persona
+whose scripts need `clock` runs against a server booted by that launcher at the persona's `clock` instant
+(personas sharing an instant share one boot), with the browser's clock (Playwright context.clock) set to
+the same shifted now, so client and server agree; without the launcher those steps stay INCONCLUSIVE.
+`sql_clock` steps (a verdict that rests on a SQLite CURRENT_TIMESTAMP / 'now' default) are always
+INCONCLUSIVE: the launcher cannot shift the database's own clock. INCONCLUSIVE is never a pass.
 
 Evidence (R-RAW, written as it happens): <out>/run.json, <out>/results.jsonl (one row per persona x
 viewport x mode), <out>/<persona>/<viewport>-<mode>/steps/*.json and shots/*.png, and <out>/defects.jsonl
@@ -244,6 +249,22 @@ def load_walk_libs(app_root: Path):
 
 # ── the sandbox this runner may own ───────────────────────────────────────────────────────
 
+def campaign_env(fs: dict, overrides: dict | None = None) -> list[str]:
+    """The flags a campaign server boots with (production's armed set + W8..W11 = 1, then `overrides`),
+    written into this process's environment for the launcher child to inherit. Shared by the owned
+    sandbox and the clock sandbox, so the two serve the same product."""
+    overrides = overrides or {}
+    for name in fs["all_names"]:
+        os.environ.pop(name, None)
+    for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
+        os.environ.pop(k, None)
+    on = sorted(set(fs["c1"]) | {W8, W9, W10, W11})
+    os.environ.update({n: "1" for n in on})
+    os.environ.update(overrides)
+    os.environ.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
+    return on + [f"{k}={v}" for k, v in overrides.items()]
+
+
 class OwnedSandbox:
     """The app's launcher on the seeded data dir, started with the flags production has armed plus
     W8..W11 = 1, and restarted with overrides for a flag-flip step. Stopped gracefully; each boot's
@@ -261,15 +282,7 @@ class OwnedSandbox:
         return f"http://127.0.0.1:{self.port}"
 
     def env(self) -> list[str]:
-        for name in self.fs["all_names"]:
-            os.environ.pop(name, None)
-        for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
-            os.environ.pop(k, None)
-        on = sorted(set(self.fs["c1"]) | {W8, W9, W10, W11})
-        os.environ.update({n: "1" for n in on})
-        os.environ.update(self.overrides)
-        os.environ.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
-        return on + [f"{k}={v}" for k, v in self.overrides.items()]
+        return campaign_env(self.fs, self.overrides)
 
     def start(self) -> None:
         if self.h.port_busy(self.port):
@@ -308,6 +321,110 @@ class OwnedSandbox:
         self.start()
 
 
+# ── the clock-shifted sandbox (ruling W11-R49) ───────────────────────────────────────────
+
+def persona_needs_clock(p: dict) -> bool:
+    """True when any of the persona's scripts or steps declares `needs: clock`."""
+    for sc in p.get("scripts") or []:
+        if "clock" in (sc.get("needs") or []) or any("clock" in (s.get("needs") or []) for s in sc.get("steps") or []):
+            return True
+    return False
+
+
+def clock_groups(people: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Clock personas grouped by instant (one launcher boot per instant), in time order. A persona that
+    needs the clock but declares none is its own refusal: `(None, [p])` is never returned, it raises."""
+    groups: dict[float, tuple[str, list[dict]]] = {}
+    for p in people:
+        if not persona_needs_clock(p):
+            continue
+        if not p.get("clock"):
+            raise ValueError(f"{p['id']} needs the clock but declares no `clock` instant in personas.json")
+        at = datetime.fromisoformat(p["clock"])
+        if at.tzinfo is None:
+            raise ValueError(f"{p['id']}'s clock {p['clock']!r} has no UTC offset")
+        groups.setdefault(at.timestamp(), (at.isoformat(), []))[1].append(p)     # one instant, any spelling
+    return [groups[k] for k in sorted(groups)]
+
+
+class ClockSandbox:
+    """`sandbox_clock.py` on the seeded data dir at one instant, in its own process group, on loopback.
+    Stopped by the signal uvicorn handles, then by PID if it does not exit. The launcher hashes nothing
+    under the shared data root (its shared-root guard is the census tripwire, and it says so at boot)."""
+
+    def __init__(self, h, fw, launcher: Path, app_root: Path, data_dir: Path, port: int, out: Path):
+        self.h, self.launcher, self.app_root, self.data_dir, self.port, self.out = h, launcher, app_root, data_dir, port, out
+        self.fs = fw.flag_sets()
+        self.proc = None
+        self.boots: list[dict] = []
+
+    @property
+    def base(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    def start(self, instant: str) -> dict:
+        if self.h.port_busy(self.port):
+            raise SystemExit(f"REFUSED: port {self.port} already has a listener (never killed); pass --clock-port")
+        flags = campaign_env(self.fs)
+        n = len(self.boots) + 1
+        log = self.out / f"clock-boot{n}.log"
+        cmd = [sys.executable, "-u", "-c", self.h._SHIM, str(self.launcher), "--clock", instant,
+               "--data-dir", str(self.data_dir), "--port", str(self.port), "--host", "127.0.0.1",
+               "--app-root", str(self.app_root)]
+        kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True})
+        with open(log, "w", encoding="utf-8") as fh:
+            self.proc = subprocess.Popen(cmd, cwd=str(self.app_root), stdout=fh, stderr=subprocess.STDOUT, **kw)
+        rec = {"boot": n, "clock": instant, "pid": self.proc.pid, "log": str(log), "flags_on": flags,
+               "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        self.boots.append(rec)
+        import urllib.request
+        end = time.time() + 400
+        while time.time() < end and self.proc.poll() is None:
+            try:
+                with urllib.request.urlopen(self.base + "/api/health", timeout=3) as r:
+                    if r.status == 200:
+                        return rec
+            except Exception:  # noqa: BLE001 -- not up yet
+                pass
+            time.sleep(0.5)
+        self.stop()
+        raise SystemExit(f"REFUSED: the clock sandbox never answered /api/health (boot {n}; log {log})")
+
+    def stop(self) -> None:
+        if self.proc is None:
+            return
+        rec = self.boots[-1]
+        how = "exited on its own"
+        if self.proc.poll() is None:
+            import signal
+            try:
+                self.proc.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+                self.proc.wait(timeout=60)
+                how = f"graceful (rc {self.proc.returncode})"
+            except Exception:  # noqa: BLE001 -- no console, or it did not exit: by PID
+                self.proc.kill()
+                self.proc.wait()
+                how = f"killed by PID {self.proc.pid}"
+        rec["stop"] = how
+        print(f"clock sandbox boot {rec['boot']} ({rec['clock']}) stopped: {how}", flush=True)
+        self.proc = None
+
+
+def verify_clock_server(ident: dict | None, instant: str) -> str | None:
+    """Why the served identity does not prove a clock shift to `instant`, or None."""
+    shift = (ident or {}).get("clock_shift") or {}
+    if not shift:
+        return "the server's identity carries no clock_shift (not sandbox_clock.py)"
+    try:
+        want = datetime.fromisoformat(instant)
+        got = datetime.fromisoformat(shift["instant"])
+    except (KeyError, ValueError) as e:
+        return f"the server's clock_shift is unreadable ({e})"
+    if got != want:
+        return f"the server was shifted to {shift.get('instant')}, not {instant}"
+    return None
+
+
 # ── one run: a persona at a viewport in a mode ────────────────────────────────────────────
 
 class Run:
@@ -330,9 +447,13 @@ class Run:
         ctx = self.g.browser.new_context(viewport={"width": self.size[0], "height": self.size[1]},
                                          screen={"width": self.size[0], "height": self.size[1]},
                                          has_touch=self.touch, is_mobile=self.touch, reduced_motion="reduce")
-        if self.member.get("session"):
+        if self.g.clock_server is not None:
+            # The browser's clock agrees with the server's: the same shifted now, ticking.
+            ctx.clock.install(time=shifted_now())
+        session = (self.g.session_override or {}).get(self.p["id"]) or self.member.get("session")
+        if session:
             host = urlparse(self.g.base).hostname
-            ctx.add_cookies([{"name": "uct_session", "value": self.member["session"], "domain": host, "path": "/",
+            ctx.add_cookies([{"name": "uct_session", "value": session, "domain": host, "path": "/",
                               "httpOnly": True, "secure": False, "sameSite": "Lax"}])
         self.contexts[name] = ctx
         return ctx
@@ -416,9 +537,17 @@ class Run:
         return re.sub(r"@([A-Za-z][\w\- ]*(?::[\w\- ]+)*(?::\d+)?)", sub, s)
 
 
+# Seconds the server under test is ahead of the wall clock (sandbox_clock's offset); 0 for a real-time server.
+CLOCK_OFFSET_S = 0.0
+
+
+def shifted_now() -> datetime:
+    return datetime.fromtimestamp(time.time() + CLOCK_OFFSET_S, timezone.utc)
+
+
 def today_et() -> date:
     from zoneinfo import ZoneInfo
-    return datetime.now(ZoneInfo("America/New_York")).date()
+    return shifted_now().astimezone(ZoneInfo("America/New_York")).date()
 
 
 def weekdays_back(d: date, n: int) -> date:
@@ -1285,7 +1414,9 @@ class Campaign:
         self.benign = tuple(self.fw.BENIGN) + EXTRA_BENIGN
         self.sentences = {}
         self.axe_src = None
-        self.caps = {"w11": False, "restart": False, "clock": False}
+        self.caps = {"w11": False, "restart": False, "clock": False, "sql_clock": False}
+        self.clock_server = None          # the ClockSandbox serving this group, if any
+        self.session_override: dict = {}  # persona id -> a session the clock launcher re-minted
 
     def sentence(self, key: str) -> str:
         v = self.sentences.get(key)
@@ -1307,7 +1438,15 @@ class Campaign:
     def run_one(self, persona: dict, vp: str, mode: str) -> dict:
         R = Run(self, persona, vp, mode)
         R.dir.mkdir(parents=True, exist_ok=True)
-        R.new_page("main")
+        pg0 = R.new_page("main")
+        clock_read = None
+        if self.clock_server is not None:
+            # Evidence that the browser and the server agree: the page's own Date against the shifted now.
+            with contextlib.suppress(Exception):
+                ms = pg0.evaluate("() => Date.now()")
+                clock_read = {"browser_now": datetime.fromtimestamp(ms / 1000, timezone.utc).isoformat(timespec="seconds"),
+                              "server_now": shifted_now().isoformat(timespec="seconds"),
+                              "skew_s": round(ms / 1000 - shifted_now().timestamp(), 1)}
         started = datetime.now(timezone.utc).isoformat(timespec="seconds")
         try:
             for sc in persona["scripts"]:
@@ -1326,6 +1465,8 @@ class Campaign:
                "counts": counts, "findings": sum(len(s.get("findings") or []) for s in R.steps),
                "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                "evidence": str(R.dir.relative_to(self.out)).replace("\\", "/")}
+        if clock_read:
+            res["clock"] = clock_read
         append_jsonl(self.out / "results.jsonl", res)
         self.file_defects(R)
         print(f"[{persona['id']} {vp} {mode}] {verdict} {counts} findings={res['findings']}", flush=True)
@@ -1434,7 +1575,10 @@ BLOCKING = {"seed_note", "open_note", "open_builder", "builder_blank", "builder_
             "new_context", "open"}
 NEED_WHY = {"w11": "the server at --base has no wave 11 routes (GET /api/j2/template-gallery/library is not 200)",
             "restart": "a flag flip restarts the server; only --own-sandbox can",
-            "clock": "the server has no clock seam, so a calendar-edge script cannot be driven"}
+            "clock": ("the server runs on the real clock: pass --clock-launcher tools/notebook_campaign/sandbox_clock.py "
+                      "(ruling W11-R49) to boot it at the persona's instant"),
+            "sql_clock": ("the verdict rests on SQLite's own clock (a CURRENT_TIMESTAMP / 'now' default), which the "
+                          "launcher-only clock shift cannot move (sandbox_clock lists the tables at boot)")}
 
 
 def main(argv=None) -> int:
@@ -1454,6 +1598,9 @@ def main(argv=None) -> int:
     ap.add_argument("--axe", default=None, help="axe.min.js (default: <app-root>/app/node_modules/axe-core/axe.min.js)")
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("--no-heavy-lock", action="store_true")
+    ap.add_argument("--clock-launcher", default=None,
+                    help="tools/notebook_campaign/sandbox_clock.py: boots the server at each clock persona's instant")
+    ap.add_argument("--clock-port", type=int, default=8141, help="the clock sandbox's port (loopback)")
     args = ap.parse_args(argv)
 
     if args.base:
@@ -1461,8 +1608,8 @@ def main(argv=None) -> int:
         if why:
             print(f"REFUSED: {why}")
             return 3
-    elif not args.own_sandbox:
-        print("REFUSED: pass --base <local sandbox> or --own-sandbox")
+    elif not args.own_sandbox and not args.clock_launcher:
+        print("REFUSED: pass --base <local sandbox>, --own-sandbox, or --clock-launcher (clock personas only)")
         return 3
     why = seedmod.refuse_shared_root(args.data_dir)
     if why:
@@ -1504,45 +1651,121 @@ def main(argv=None) -> int:
     if drifted:
         print(f"NOTE: {len(drifted)} sentences did not verify against their sources (their steps read INCONCLUSIVE): {drifted}")
 
+    clocked = [p for p in people if persona_needs_clock(p)]
+    plain = [p for p in people if not persona_needs_clock(p)]
+    groups: list = []
+    launcher = Path(args.clock_launcher).resolve() if args.clock_launcher else None
+    if launcher:
+        if not launcher.is_file():
+            print(f"REFUSED: --clock-launcher {launcher} does not exist")
+            return 3
+        if args.base and clocked:
+            print("REFUSED: --clock-launcher boots its own server on the data dir; stop the --base server and use "
+                  "--own-sandbox (or neither, to run only the clock personas)")
+            return 3
+        try:
+            groups = clock_groups(clocked)
+        except ValueError as e:
+            print(f"REFUSED: {e}")
+            return 3
+        meta["clock_groups"] = [{"clock": at, "personas": [p["id"] for p in ps]} for at, ps in groups]
+    else:
+        plain = people                       # clock steps read INCONCLUSIVE (NEED_WHY["clock"])
+    if not (args.base or args.own_sandbox) and plain:
+        print(f"NOTE: no --base / --own-sandbox: {[p['id'] for p in plain]} are not run (only clock personas are)")
+        plain = []
+
+    def verify_identity(label: str) -> dict | None:
+        ident, why = g.sid.fetch_identity(g.base)
+        served = os.path.normcase(os.path.abspath(str((ident or {}).get("data_dir") or "")))
+        meta.setdefault("identity", {})[label] = {"served": ident, "why": why}
+        if not ident or served != os.path.normcase(str(data_dir)):
+            print(f"REFUSED: {g.base} did not prove it is the sandbox on {data_dir} (it answered "
+                  f"{(ident or {}).get('data_dir')!r}; {why}). Nothing was driven.")
+            return None
+        return ident
+
+    def run_people(ps: list[dict], results: list) -> None:
+        for p in ps:
+            vps = args.viewport or p.get("viewports") or spec["defaults"]["viewports"]
+            pmodes = [m for m in modes if m in p.get("modes", modes)]
+            for vp in vps:
+                for mode in pmodes:
+                    try:
+                        results.append(g.run_one(p, vp, mode))
+                    except Exception as e:  # noqa: BLE001 -- one run's crash never hides the next
+                        print(f"[{p['id']} {vp} {mode}] TOOL ERROR {type(e).__name__}: {e}", flush=True)
+                        append_jsonl(out / "results.jsonl", {"run_id": args.run_id, "persona": p["id"], "viewport": vp,
+                                                             "mode": mode, "verdict": "INCONCLUSIVE",
+                                                             "tool_error": f"{type(e).__name__}: {str(e)[:400]}"})
+                    if g.sandbox and g.sandbox.overrides:
+                        g.sandbox.restart({})           # a flag persona never leaves the next one flipped
+
+    global CLOCK_OFFSET_S
     lock = seedmod.heavy_lock(f"notebook-campaign {args.run_id}", enabled=not args.no_heavy_lock)
     from playwright.sync_api import sync_playwright
+    clock_sb = None
     with lock, sync_playwright() as pw:
         try:
-            if args.own_sandbox:
-                g.sandbox = OwnedSandbox(g.h, g.fw, data_dir, args.port, out)
-                g.sandbox.start()
-                g.base = g.sandbox.base
-                g.caps["restart"] = True
-            else:
-                g.base = args.base.rstrip("/")
-            ident, why = g.sid.fetch_identity(g.base)
-            served = os.path.normcase(os.path.abspath(str((ident or {}).get("data_dir") or "")))
-            meta["identity"] = {"served": ident, "why": why}
-            if not ident or served != os.path.normcase(str(data_dir)):
-                print(f"REFUSED: {g.base} did not prove it is the sandbox on {data_dir} (it answered "
-                      f"{(ident or {}).get('data_dir')!r}; {why}). Nothing was driven.")
-                return 3
-            meta["w11_probe"] = g.probe_w11()
-            g.caps["w11"] = bool(meta["w11_probe"]["available"])
-            write_json(out / "run.json", meta)
-            print(f"sandbox {g.base} on {data_dir}; wave 11 routes: {'present' if g.caps['w11'] else 'ABSENT (w11 steps INCONCLUSIVE)'}",
-                  flush=True)
-            g.browser = pw.chromium.launch(headless=not args.headed)
-            results = []
-            for p in people:
-                vps = args.viewport or p.get("viewports") or spec["defaults"]["viewports"]
-                pmodes = [m for m in modes if m in p.get("modes", modes)]
-                for vp in vps:
-                    for mode in pmodes:
-                        try:
-                            results.append(g.run_one(p, vp, mode))
-                        except Exception as e:  # noqa: BLE001 -- one run's crash never hides the next
-                            print(f"[{p['id']} {vp} {mode}] TOOL ERROR {type(e).__name__}: {e}", flush=True)
-                            append_jsonl(out / "results.jsonl", {"run_id": args.run_id, "persona": p["id"], "viewport": vp,
-                                                                 "mode": mode, "verdict": "INCONCLUSIVE",
-                                                                 "tool_error": f"{type(e).__name__}: {str(e)[:400]}"})
-                        if g.sandbox and g.sandbox.overrides:
-                            g.sandbox.restart({})           # a flag persona never leaves the next one flipped
+            results: list = []
+            if plain:
+                if args.own_sandbox:
+                    g.sandbox = OwnedSandbox(g.h, g.fw, data_dir, args.port, out)
+                    g.sandbox.start()
+                    g.base = g.sandbox.base
+                    g.caps["restart"] = True
+                else:
+                    g.base = args.base.rstrip("/")
+                if not verify_identity("main"):
+                    return 3
+                meta["w11_probe"] = g.probe_w11()
+                g.caps["w11"] = bool(meta["w11_probe"]["available"])
+                write_json(out / "run.json", meta)
+                print(f"sandbox {g.base} on {data_dir}; wave 11 routes: "
+                      f"{'present' if g.caps['w11'] else 'ABSENT (w11 steps INCONCLUSIVE)'}", flush=True)
+                g.browser = g.browser or pw.chromium.launch(headless=not args.headed)
+                run_people(plain, results)
+                if g.sandbox:
+                    g.sandbox.stop()           # the clock groups boot their own server on this data dir
+                    meta["boots"] = g.sandbox.boots
+                    g.sandbox = None
+                    g.caps["restart"] = False
+            if groups:
+                clock_sb = ClockSandbox(g.h, g.fw, launcher, app_root, data_dir, args.clock_port, out)
+            for at, ps in groups:
+                clock_sb.start(at)
+                try:
+                    g.base = clock_sb.base
+                    ident = verify_identity(f"clock {at}")
+                    if not ident:
+                        return 3
+                    why = verify_clock_server(ident, at)
+                    if why:
+                        print(f"REFUSED: {why}. Nothing was driven.")
+                        return 3
+                    CLOCK_OFFSET_S = float(ident["clock_shift"]["offset_s"])
+                    g.clock_server = clock_sb
+                    g.caps["clock"] = True
+                    sess = data_dir / "clock-sessions.json"
+                    g.session_override = {}
+                    if sess.is_file():
+                        body = json.loads(sess.read_text(encoding="utf-8"))
+                        if body.get("clock") and datetime.fromisoformat(body["clock"]) == datetime.fromisoformat(at):
+                            g.session_override = body.get("members") or {}
+                    meta["w11_probe"] = g.probe_w11()
+                    g.caps["w11"] = bool(meta["w11_probe"]["available"])
+                    meta.setdefault("clock_servers", []).append({"clock": at, "clock_shift": ident["clock_shift"],
+                                                                 "sessions_from_launcher": len(g.session_override)})
+                    write_json(out / "run.json", meta)
+                    print(f"clock sandbox {g.base} on {data_dir} at {at} (server now "
+                          f"{ident['clock_shift'].get('now_et_words')}); wave 11 routes: "
+                          f"{'present' if g.caps['w11'] else 'ABSENT (w11 steps INCONCLUSIVE)'}", flush=True)
+                    g.browser = g.browser or pw.chromium.launch(headless=not args.headed)
+                    run_people(ps, results)
+                finally:
+                    clock_sb.stop()
+                    g.clock_server, g.caps["clock"], g.session_override = None, False, {}
+                    CLOCK_OFFSET_S = 0.0
         finally:
             if g.browser:
                 with contextlib.suppress(Exception):
@@ -1550,6 +1773,9 @@ def main(argv=None) -> int:
             if g.sandbox:
                 g.sandbox.stop()
                 meta["boots"] = g.sandbox.boots
+            if clock_sb:
+                clock_sb.stop()
+                meta["clock_boots"] = clock_sb.boots
             meta["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
             write_json(out / "run.json", meta)
     rows = read_jsonl(out / "results.jsonl")

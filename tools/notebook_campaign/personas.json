@@ -1126,7 +1126,7 @@
   },
   {
    "id": "P13",
-   "title": "Daily pre-market routine across Thanksgiving week (2025)",
+   "title": "Daily pre-market routine across Thanksgiving week (2026)",
    "exercises": "holiday off day, half day session, consistency words",
    "email": "campaign-p13@local.dev",
    "viewports": [
@@ -1150,13 +1150,13 @@
       "schedule": {
        "kind": "every"
       },
-      "created": "2025-11-10T08:00:00-05:00",
+      "created": "2026-11-09T08:00:00-05:00",
       "ticks": {
-       "2025-11-24": "all",
-       "2025-11-25": "all",
-       "2025-11-26": "half",
-       "2025-11-28": "all",
-       "2025-12-01": "all"
+       "2026-11-23": "all",
+       "2026-11-24": "all",
+       "2026-11-25": "half",
+       "2026-11-27": "all",
+       "2026-11-30": "all"
       }
      }
     ]
@@ -1175,10 +1175,10 @@
          "@routine:Daily pre-market"
         ],
         "days": [
-         "2025-11-26",
-         "2025-11-27",
-         "2025-11-28",
-         "2025-12-01"
+         "2026-11-25",
+         "2026-11-26",
+         "2026-11-27",
+         "2026-11-30"
         ]
        },
        "expect_status": [
@@ -1187,19 +1187,19 @@
        "save_as": "days",
        "checks": [
         {
-         "path": "routines.@routine:Daily pre-market.days.2025-11-27.state",
+         "path": "routines.@routine:Daily pre-market.days.2026-11-26.state",
          "equals": "off"
         },
         {
-         "path": "routines.@routine:Daily pre-market.days.2025-11-27.label",
+         "path": "routines.@routine:Daily pre-market.days.2026-11-26.label",
          "sentence": "off_day"
         },
         {
-         "path": "routines.@routine:Daily pre-market.days.2025-11-28.state",
+         "path": "routines.@routine:Daily pre-market.days.2026-11-27.state",
          "equals": "done"
         },
         {
-         "path": "routines.@routine:Daily pre-market.days.2025-11-26.state",
+         "path": "routines.@routine:Daily pre-market.days.2026-11-25.state",
          "in": [
           "not_done",
           "done"
@@ -1238,12 +1238,15 @@
         "\\b0 of\\b"
        ]
       }
+     ],
+     "needs": [
+      "clock"
      ]
     }
    ],
    "validated": true,
-   "clock": "2025-12-01T20:00:00-05:00",
-   "notes": "Thanksgiving 2025 (Thu 11-27, half day Fri 11-28) is used because it is in the past for the server's real clock: the server has no clock seam, so a 2026 Thanksgiving could not be read as history."
+   "clock": "2026-11-30T20:00:00-05:00",
+   "notes": "Thanksgiving 2026 (Thu 11-26 closed, Fri 11-27 half day), read on the Monday after. Its days are in the future for the real clock, so the script needs the clock launcher (ruling W11-R49, tools/notebook_campaign/sandbox_clock.py): server and browser both run from the persona's clock. Without --clock-launcher every step reads INCONCLUSIVE."
   },
   {
    "id": "P14",
@@ -1940,7 +1943,8 @@
     }
    ],
    "validated": false,
-   "clock": "2025-11-28T12:00:00-05:00"
+   "clock": "2026-11-27T12:00:00-05:00",
+   "clock_note": "the half day after Thanksgiving 2026, before the 13:00 ET close"
   },
   {
    "id": "P21",
@@ -2932,7 +2936,9 @@
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "clock": "2026-11-22T21:00:00-05:00",
+   "clock_note": "Sunday night before Thanksgiving week 2026 (the eve-of-Thanksgiving 23:30 ET instant, Wed 11-25, needs a second boot: not scripted yet)"
   },
   {
    "id": "P38",
@@ -2968,7 +2974,9 @@
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "clock": "2026-11-28T11:00:00-05:00",
+   "clock_note": "the Saturday after Thanksgiving 2026 (holiday-shortened week)"
   },
   {
    "id": "P39",
@@ -3100,7 +3108,9 @@
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "clock": "2026-11-10T19:30:00-05:00",
+   "clock_note": "an ET evening that is already the next day in UTC (00:30Z)"
   },
   {
    "id": "P42",
