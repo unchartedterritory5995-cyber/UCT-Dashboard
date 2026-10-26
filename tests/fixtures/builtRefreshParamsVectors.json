@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "about": "builtRefreshParams(old, payload): the params a built widget's node keeps. Read by tests/test_slot_fill_built.py (slot_fill.refresh_params, the template fill) and app/src/pages/journal-2-0/lib/builtWidgets.vectors.test.js (the client). Expected values are typed by hand.",
+  "cases": [
+    {
+      "name": "a fill starts from nothing: the payload, share off",
+      "old": {},
+      "payload": {"asOf": "2026-10-24T15:30:00Z", "defId": "shelf:equity-curve", "defRev": 1, "count": 3},
+      "expected": {"asOf": "2026-10-24T15:30:00Z", "defId": "shelf:equity-curve", "defRev": 1, "count": 3, "share": false}
+    },
+    {
+      "name": "the member's current share switch is kept",
+      "old": {"share": true, "asOf": "2026-10-01T00:00:00Z"},
+      "payload": {"asOf": "2026-10-24T15:30:00Z"},
+      "expected": {"asOf": "2026-10-24T15:30:00Z", "share": true}
+    },
+    {
+      "name": "nothing else is copied from the old params",
+      "old": {"share": false, "stale": "gone", "count": 9},
+      "payload": {"asOf": "x", "count": 2},
+      "expected": {"asOf": "x", "count": 2, "share": false}
+    },
+    {
+      "name": "a payload never turns sharing on",
+      "old": {"share": false},
+      "payload": {"asOf": "x", "share": true},
+      "expected": {"asOf": "x", "share": false}
+    },
+    {
+      "name": "a truthy share that is not true is off",
+      "old": {"share": "yes"},
+      "payload": {"asOf": "x"},
+      "expected": {"asOf": "x", "share": false}
+    },
+    {
+      "name": "a payload that is not an object keeps only the switch",
+      "old": {},
+      "payload": null,
+      "expected": {"share": false}
+    },
+    {
+      "name": "old params that are not an object read as none",
+      "old": null,
+      "payload": {"asOf": "x", "defRef": {"id": "a", "rev": 2}},
+      "expected": {"asOf": "x", "defRef": {"id": "a", "rev": 2}, "share": false}
+    }
+  ]
+}
