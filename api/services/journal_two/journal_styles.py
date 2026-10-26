@@ -19,6 +19,7 @@ import json
 import logging
 import re
 import sqlite3
+import threading
 import time
 import uuid
 from concurrent.futures import TimeoutError as _FutTimeout
@@ -1296,6 +1297,8 @@ def _build_widget_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]
 #: at call time; a saturated pool answers each slot's sentence at once instead of queueing.
 SLOT_POOL_WORKERS = 8
 _SLOT_POOL = None
+#: How often a fill whose member's share is held by their other fills looks again.
+_MEMBER_POLL_S = 0.02
 
 
 def _slot_pool():
@@ -1306,10 +1309,44 @@ def _slot_pool():
 
 
 def _family_in_flight() -> int:
-    """How many of ONE fill's family slots may hold a pool permit at once: the engine's per-member gate
-    (`run.MEMBER_MAX`), read at call time. More would only wait on that gate while holding shared permits."""
+    """How many of ONE MEMBER's family slots may hold a pool permit at once, across every fill they have running:
+    the engine's per-member gate (`run.MEMBER_MAX`), read at call time. More would only bounce off that gate."""
     from api.services.journal_two.widget_engine import run
     return max(1, int(run.MEMBER_MAX))
+
+
+#: Fix round 2 (re-review m-1): the per-MEMBER count of family slot tasks holding a slot pool permit, process-wide
+#: (⚠️ per-process state, like the pool itself). Taken by the dispatcher before a task is submitted; given back in
+#: the task's own `finally`, or by the dispatcher when the task never ran (refused or cancelled).
+_MEMBER_LOCK = threading.Lock()
+_MEMBER_IN_FLIGHT: dict[Any, int] = {}
+
+
+def _member_take(user_id: Any) -> bool:
+    with _MEMBER_LOCK:
+        n = _MEMBER_IN_FLIGHT.get(user_id, 0)
+        if n >= _family_in_flight():
+            return False
+        _MEMBER_IN_FLIGHT[user_id] = n + 1
+        return True
+
+
+def _member_give(user_id: Any) -> None:
+    with _MEMBER_LOCK:
+        n = _MEMBER_IN_FLIGHT.get(user_id, 1) - 1
+        if n > 0:
+            _MEMBER_IN_FLIGHT[user_id] = n
+        else:
+            _MEMBER_IN_FLIGHT.pop(user_id, None)
+
+
+def _member_task(fn: Callable, user_id: Any) -> Callable:
+    def task(block: dict, ctx: dict):
+        try:
+            return fn(block, ctx)
+        finally:
+            _member_give(user_id)
+    return task
 
 
 def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | None, str | None]]:
@@ -1319,9 +1356,9 @@ def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | Non
     straggler is never waited for. Final review I-4: the slots share this module's bounded pool, and a slot
     that finds it saturated answers its sentence at once.
 
-    Task 11.5 fix round 1 (I-1): a family slot is dispatched from THIS (the request) thread with at most
-    `_family_in_flight()` of this fill's family slots holding a pool permit; the rest queue here, never in the
-    pool. A task that finds the engine busy answers `engine-busy` at once (no task ever sleeps holding a
+    Task 11.5 fix round 1 (I-1) and round 2: a family slot is dispatched from THIS (the request) thread with at
+    most `_family_in_flight()` of the MEMBER's family slots (every fill of theirs, `_member_take`) holding a pool
+    permit; the rest queue here, never in the pool. A task that finds the engine busy answers `engine-busy` at once (no task ever sleeps holding a
     permit) and is re-dispatched after `slot_fill.BUSY_RETRY_S`, inside the same budget."""
     from collections import deque
     from concurrent.futures import FIRST_COMPLETED, wait
@@ -1332,8 +1369,7 @@ def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | Non
     futs: dict = {}                                   # future -> block index
     queue: deque = deque()                            # family block indexes waiting to be dispatched
     ready_at: dict[int, float] = {}
-    limit = _family_in_flight()
-    family_out = 0
+    uid = ctx.get("user_id")
 
     def failed(i: int, why: str) -> None:
         _log.warning("widget slot %s not built: %s", blocks[i]["block"], why)
@@ -1351,31 +1387,32 @@ def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | Non
     try:
         while True:
             now = time.monotonic()
-            while queue and family_out < limit and ready_at.get(queue[0], 0.0) <= now:
+            blocked = False
+            while queue and ready_at.get(queue[0], 0.0) <= now:
+                if not _member_take(uid):
+                    blocked = True                    # the member's other slots hold the share: wait here
+                    break
                 i = queue.popleft()
-                fut = pool.try_submit(BLOCK_BUILDERS.get(blocks[i]["block"]), blocks[i], task_ctx)
+                fut = pool.try_submit(_member_task(BLOCK_BUILDERS.get(blocks[i]["block"]), uid), blocks[i], task_ctx)
                 if fut is None:
+                    _member_give(uid)
                     failed(i, "the slot pool is saturated")
                     continue
                 futs[fut] = i
-                family_out += 1
             if not futs and not queue:
                 break
             left = deadline - now
             if left <= 0:
                 break
-            if not futs:                              # only busy slots waiting for their retry time
-                time.sleep(max(0.0, min(left, ready_at.get(queue[0], now) - now)))
+            nap = _MEMBER_POLL_S if blocked else max(0.0, ready_at.get(queue[0], now) - now) if queue else left
+            if not futs:                              # only queued slots: busy, or the member's share is taken
+                time.sleep(max(0.0, min(left, nap)))
                 continue
-            wait_s = left
-            if queue and family_out < limit:
-                wait_s = min(wait_s, max(0.0, ready_at.get(queue[0], now) - now))
+            wait_s = min(left, nap) if queue else left
             done, _ = wait(list(futs), timeout=wait_s, return_when=FIRST_COMPLETED)
             for fut in done:
                 i = futs.pop(fut)
                 family = blocks[i]["block"] not in SNAPSHOT_SLOT_KINDS
-                if family:
-                    family_out -= 1
                 try:
                     got = fut.result()
                 except Exception as e:  # noqa: BLE001 -- the builders catch their own; belt for the pool
@@ -1388,8 +1425,9 @@ def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | Non
                 else:
                     results[i] = got
     finally:
-        for fut in futs:
-            fut.cancel()
+        for fut, i in futs.items():
+            if fut.cancel() and blocks[i]["block"] not in SNAPSHOT_SLOT_KINDS:
+                _member_give(uid)                     # never ran, so its own finally never gives it back
     for i, r in enumerate(results):
         if r is None:
             failed(i, f"over the {SLOT_BUDGET_S:.1f}s slot budget")

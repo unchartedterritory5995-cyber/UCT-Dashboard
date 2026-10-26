@@ -39,6 +39,7 @@ def db(monkeypatch):
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-widget-test",
                                                     reserve=nw.WIDGET_POOL_RESERVE))
     run._reset_state()
+    monkeypatch.setattr(js, "_MEMBER_IN_FLIGHT", {})
     _waves(monkeypatch, *ALL_ON)
     yield tmp.name
     run._reset_state()
@@ -744,3 +745,106 @@ def test_the_draft_preview_reads_the_members_styles_only_when_a_block_needs_the_
         js.preview(A, {"style": {"name": "D", "kindId": "trade_plan",
                                  "blocks": [{"block": "built_a", "settings": {"whatever": "x"}}]}})
     assert asked == [1]
+
+
+# ── Fix round 2 ─────────────────────────────────────────────────────────────────────────────────
+
+def test_concurrent_fills_by_one_member_share_one_in_flight_cap(db, monkeypatch):
+    """Re-review m-1: four notes made at once by member A hold at most run.MEMBER_MAX slot tasks in the pool
+    between them (the cap is per member, not per note); every slot still fills, and member B is unaffected."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two.widget_engine import run
+    lock, tasks, peak = threading.Lock(), {A: 0, B: 0}, {A: 0, B: 0}
+
+    def gated(user_id, plan, settings, *, lane, def_id=None, def_rev=None, latest_rev=None, now=None, sample=False):
+        with lock:
+            tasks[user_id] += 1
+            peak[user_id] = max(peak[user_id], tasks[user_id])
+        try:
+            with run.admit(user_id, lane):
+                time.sleep(0.1)
+        finally:
+            with lock:
+                tasks[user_id] -= 1
+        return _fake_payload(def_id, def_rev, plan)
+    monkeypatch.setattr(run, "run_plan", gated)
+    three = _style(*[(f"built_{js.slot_key(i)}", {"ref": SHELF, "defRev": 1}) for i in range(3)])
+    outs = []
+
+    def go(uid, style):
+        outs.append((uid, js.compose(uid, style, ticker=None, conn=None, now=NOW)))
+    threads = [threading.Thread(target=go, args=(A, three)) for _ in range(4)]
+    for t in threads:
+        t.start()
+    time.sleep(0.03)
+    go(B, _style(("built_a", {"ref": SHELF, "defRev": 1})))
+    for t in threads:
+        t.join(10)
+    assert len(outs) == 5
+    for uid, out in outs:
+        assert len(_built_nodes(out["bodyJson"])) == (3 if uid == A else 1), uid
+        assert not [x for x in _lines(out["bodyJson"]) if "couldn't load" in x], uid
+    assert peak[A] <= run.MEMBER_MAX, peak
+    assert js._MEMBER_IN_FLIGHT == {}                                                 # every share given back
+
+
+def test_a_failing_batched_read_is_the_slot_word_never_an_error(db, monkeypatch):
+    """Re-review m-2: the batched read raising reads as the slot word ("Widget"), never an error and never
+    "not in your account"."""
+    from api.services.journal_two import journal_styles as js, widget_definitions as wd
+    d = _def(name="Setups this month")
+    s = js.create_style(A, {"name": "T", "kindId": "trade_plan", "blocks": [
+        {"block": "built_a", "settings": {"ref": f"def:{d['id']}", "defRev": 1}}]})
+
+    def broken(*a, **k):
+        raise RuntimeError("database is locked")
+    monkeypatch.setattr(wd, "resolve_many", broken)
+    served = js.served_style(js.get_style(A, s["id"]), A)
+    assert served["slotNames"] == {"built_a": "Widget"}
+    out = js.compose(A, js.get_style(A, s["id"]), ticker=None, conn=None, now=NOW)
+    assert out["slotNames"] == {"built_a": "Widget"}
+    lines = _lines(out["bodyJson"])
+    assert "Widget couldn't load. Type / to add it again." in lines
+    assert not [x for x in lines if "not in your account" in x]
+
+
+class _RowCounter:
+    """A connection stand-in that counts the rows each statement returns."""
+    def __init__(self, conn):
+        self.conn, self.rows = conn, []
+
+    def execute(self, *a):
+        cur = self.conn.execute(*a)
+        counter = self
+
+        class _Cur:
+            def fetchall(self_inner):
+                got = cur.fetchall()
+                counter.rows.append(len(got))
+                return got
+        return _Cur()
+
+
+def test_resolve_many_reads_one_row_and_one_plan_per_ref(db):
+    """Re-review m-3: the revision is chosen in SQL, so a widget with many kept revisions costs one row (one plan),
+    never one per kept revision; and the twin still agrees with resolve_for_run."""
+    from api.services.journal_two import widget_definitions as wd
+    from api.services.auth_db import get_connection
+    d = _def(plan=_base_plan("last_7d"))
+    for i, token in enumerate(("last_30d", "last_90d", "ytd", "all", "this_week", "last_week"), start=1):
+        d = wd.update(A, d["id"], if_match=d["etag"], plan=_base_plan(token), apply="only",
+                      now=NOW + timedelta(minutes=5 * i))
+    e = _def(plan=_base_plan("last_7d"))
+    refs = [(d["id"], 3), (d["id"], 6), (e["id"], 1), ("not-mine", 1)]
+    conn = get_connection()
+    try:
+        counted = _RowCounter(conn)
+        many = wd.resolve_many(A, refs, conn=counted)
+    finally:
+        conn.close()
+    assert counted.rows == [3]                                    # three refs that resolve, three rows
+    for ref in refs:
+        plan, rev, latest = wd.resolve_for_run(A, *ref)
+        got = many[ref]
+        assert (got and (got["plan"], got["rev"], got["latest_rev"])) == (got and (plan, rev, latest)), ref
+    assert many[("not-mine", 1)] is None and many[(d["id"], 3)]["rev"] == 3

@@ -851,56 +851,49 @@ def resolve_for_run(user_id: str, def_id: str, def_rev: int | None, *,
 
 
 #: How many definitions one `resolve_many` call reads at most (one SQL statement; under SQLite's variable cap).
-RESOLVE_MANY_MAX = 400
-
-
-def _pick_rev(asked: Any, cur: int, placed: int, kept: dict, current_json: str) -> tuple[Any, int]:
-    """`resolve_for_run`'s revision rule over rows already read: run `max(asked, placed_rev)` capped at the
-    current revision, falling back to the newest kept revision at or below it, else the current plan."""
-    a = asked if isinstance(asked, int) and not isinstance(asked, bool) else 0
-    want = min(max(a, placed), cur)
-    below = [r for r in kept if r <= want]
-    if not below:
-        plan, _ = _read_plan(current_json)
-        return plan, cur
-    rev = max(below)
-    plan, _ = _read_plan(kept[rev])
-    return plan, rev
+RESOLVE_MANY_MAX = 300
 
 
 def resolve_many(user_id: str, refs: Any, *, conn: sqlite3.Connection | None = None) -> dict:
     """Many `resolve_for_run`s in ONE statement (Task 11.5 fix round 1, I-3): `{(def_id, def_rev): entry}`,
     entry `{"plan", "rev", "latest_rev", "name"}`, or None for an id that is not this member's live widget
-    (foreign, unknown or deleted). The same revision rule as `resolve_for_run` (railed as its twin). At most
-    `RESOLVE_MANY_MAX` distinct ids are read; refs past that are left out of the answer (the caller's fallback)."""
+    (foreign, unknown or deleted). The same revision rule as `resolve_for_run` (railed as its twin): it runs
+    `max(def_rev, placed_rev)` capped at the current revision, else the newest kept revision at or below it,
+    else the current plan. Fix round 2 (m-3): ONE row and ONE plan per ref; the revision is chosen in SQL, so
+    no other kept revision's plan is read. At most `RESOLVE_MANY_MAX` distinct ids (and as many refs) are read;
+    refs past that are left out of the answer (the caller's fallback)."""
     wanted = [(d, r) for d, r in refs if isinstance(d, str) and d]
-    ids = list(dict.fromkeys(d for d, _ in wanted))[:RESOLVE_MANY_MAX]
-    if not ids or not user_id:
+    ids = set(list(dict.fromkeys(d for d, _ in wanted))[:RESOLVE_MANY_MAX])
+    pairs = list(dict.fromkeys((d, r) for d, r in wanted if d in ids))[:RESOLVE_MANY_MAX]
+    if not pairs or not user_id:
         return {}
-    marks = ", ".join("?" for _ in ids)
+
+    def asked_of(r: Any) -> int:
+        return r if isinstance(r, int) and not isinstance(r, bool) else 0
+    values = ", ".join("(?, ?, ?)" for _ in pairs)
+    args: list = []
+    for i, (d, r) in enumerate(pairs):
+        args += [i, d, asked_of(r)]
     with _read(conn) as c:
         rows = c.execute(
-            f"SELECT d.id AS id, d.name AS name, d.rev AS cur, d.placed_rev AS placed, d.plan_json AS dplan,"
-            f" r.rev AS rrev, r.plan_json AS rplan FROM {_DEFS} d LEFT JOIN {_REVS} r"
-            f" ON r.definition_id = d.id AND r.user_id = d.user_id"
-            f" WHERE d.user_id = ? AND d.deleted_at IS NULL AND d.id IN ({marks})",
-            (user_id, *ids),
+            f"WITH w(i, id, asked) AS (VALUES {values})"
+            f" SELECT x.i AS i, x.name AS name, x.cur AS cur, x.rrev AS rrev,"
+            f" COALESCE((SELECT r.plan_json FROM {_REVS} r WHERE r.definition_id = x.id AND r.user_id = x.uid"
+            f" AND r.rev = x.rrev), (SELECT d2.plan_json FROM {_DEFS} d2 WHERE d2.id = x.id AND d2.user_id = x.uid))"
+            f" AS plan_json FROM (SELECT w.i AS i, d.id AS id, d.user_id AS uid, d.name AS name, d.rev AS cur,"
+            f" (SELECT r.rev FROM {_REVS} r WHERE r.definition_id = d.id AND r.user_id = d.user_id"
+            f" AND r.rev <= MIN(MAX(w.asked, d.placed_rev), d.rev) ORDER BY r.rev DESC LIMIT 1) AS rrev"
+            f" FROM w JOIN {_DEFS} d ON d.id = w.id AND d.user_id = ? AND d.deleted_at IS NULL) x",
+            (*args, user_id),
         ).fetchall()
-    found: dict[str, dict] = {}
-    for row in rows:
-        f = found.setdefault(row["id"], {"name": row["name"], "cur": row["cur"], "placed": row["placed"],
-                                         "dplan": row["dplan"], "kept": {}})
-        if row["rrev"] is not None:
-            f["kept"][row["rrev"]] = row["rplan"]
-    keep = set(ids)
+    by_i = {row["i"]: row for row in rows}
     out: dict = {}
-    for d, asked in wanted:
-        if d not in keep:
+    for i, ref in enumerate(pairs):
+        row = by_i.get(i)
+        if row is None:
+            out[ref] = None
             continue
-        f = found.get(d)
-        if f is None:
-            out[(d, asked)] = None
-            continue
-        plan, rev = _pick_rev(asked, f["cur"], f["placed"], f["kept"], f["dplan"])
-        out[(d, asked)] = {"plan": plan, "rev": rev, "latest_rev": f["cur"], "name": f["name"]}
+        plan, _ = _read_plan(row["plan_json"])
+        rev = row["rrev"] if row["rrev"] is not None else row["cur"]
+        out[ref] = {"plan": plan, "rev": rev, "latest_rev": row["cur"], "name": row["name"]}
     return out
