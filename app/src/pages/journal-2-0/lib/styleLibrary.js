@@ -27,6 +27,11 @@ export const ITEM_TYPES = Object.freeze([
   // server's ITEM_TYPES and this one stay one fact; the library's type chips read LISTED_ITEM_TYPES below.
   { key: 'example_note', label: 'Example notes' },
   { key: 'page_layout', label: 'Page layouts' },
+  // Notebook widgets wave 11 (Task 11.7): a member's shared widget, routine and tracker. The server keeps them
+  // absent from every gallery read while the library switch or wave 11 is off.
+  { key: 'widget_definition', label: 'Widgets' },
+  { key: 'routine', label: 'Routines' },
+  { key: 'tracker', label: 'Trackers' },
 ])
 
 /** P3b: the server's EXAMPLE_ITEM (tests/test_example_notes.py reads this line and holds the two equal). */

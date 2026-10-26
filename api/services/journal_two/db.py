@@ -2305,6 +2305,38 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_j2_tool_create_keys_created"
     " ON j2_tool_create_keys(created_at)",
+    # Notebook widgets phase 2, Task 11.7 (rulings W11-R7, R8, R9, R11): the template library's three
+    # member tables. Each is user-scoped and purged with the account (account_purge._DIRECT_USER_TABLES).
+    # The ET days a member used an adopted widget, routine or tracker (W11-R11), one row per day: the
+    # helpful 3-day rule reads it (W11-R8). `item_id` is the gallery item the copy came from.
+    """CREATE TABLE IF NOT EXISTS j2_gallery_use_days (
+        user_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        day     TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id, day)
+    )""",
+    # The credit snapshot of every copy at adoption (W11-R7): the author's opaque handle and the item
+    # title, so the "Based on ..." line survives a withdrawn listing. `tool_kind` is one of widget,
+    # routine, tracker, template; `tool_id` the member's own copy.
+    """CREATE TABLE IF NOT EXISTS j2_gallery_credits (
+        user_id       TEXT NOT NULL,
+        tool_kind     TEXT NOT NULL,
+        tool_id       TEXT NOT NULL,
+        gallery_id    TEXT NOT NULL,
+        author_handle TEXT,
+        title         TEXT NOT NULL,
+        created_at    TEXT NOT NULL,
+        PRIMARY KEY (user_id, tool_kind, tool_id)
+    )""",
+    # The member's answer to the 3rd-day Helpful line (W11-R9): yes, not_really or dismissed, once per
+    # (member, item).
+    """CREATE TABLE IF NOT EXISTS j2_gallery_helpful_prompts (
+        user_id     TEXT NOT NULL,
+        item_id     TEXT NOT NULL,
+        answer      TEXT NOT NULL,
+        answered_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id)
+    )""",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

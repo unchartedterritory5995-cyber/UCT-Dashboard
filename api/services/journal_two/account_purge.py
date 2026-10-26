@@ -226,6 +226,13 @@ _DIRECT_USER_TABLES = (
     # Notebook widgets phase 2 (Task 9.6b) -- the routine and tracker Duplicate's Idempotency-Key
     # rows (ids and a timestamp only). Created by db.ensure_schema (_PHASE_2_ALTERS).
     "j2_tool_create_keys",
+    # Notebook widgets phase 2 (Task 11.7) -- the template library's member tables: the ET days the
+    # member used an adopted tool, the credit snapshot of each copy they adopted, and their answers to
+    # the 3rd-day Helpful line. Created by db.ensure_schema (_PHASE_2_ALTERS). The member's shared
+    # widget, routine and tracker listings are j2_template_gallery rows, purged above.
+    "j2_gallery_use_days",
+    "j2_gallery_credits",
+    "j2_gallery_helpful_prompts",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

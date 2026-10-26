@@ -1,7 +1,9 @@
 """P5-FIN-R1 (final review C1): every gallery row that reaches the one visibility rule carries `kind`.
 
-Since P5, `_library_hides` reads `row["kind"]` whenever `_hidden_styles() == "firm"`: the library switch on and
-the starter-packs switch off, which is production's state the day P5 merges. P3b's example reads build their own
+Since P5, `_library_hides` reads `row["kind"]` whenever `_hidden_styles()` hides a kind: the library switch on and
+the starter-packs switch off, which is production's state the day P5 merges. Since wave 11 (Task 11.7) that answer is
+`"firm+official"` while wave 11 is off too (production's state the day it merges): the rule then reads `kind` for the
+official rows as well. P3b's example reads build their own
 narrow SELECTs of the style an example shows (`_example_style_shown`, `_linked_style`) and of the example itself
 (the image route), and pass those rows to `_can_see`. A SELECT that leaves `kind` out answers IndexError, so every
 example read and every example image route answers 500 once NOTEBOOK_EXAMPLE_NOTES_ENABLED is armed. git merged
@@ -48,11 +50,12 @@ _SELECT = re.compile(r"SELECT\s+(?P<cols>(?:(?!\bFROM\b).)+?)\s+FROM\s+(?:j2_tem
 @pytest.fixture
 def starter_off(monkeypatch):
     monkeypatch.delenv("NOTEBOOK_STARTER_PACKS_ENABLED", raising=False)
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED", raising=False)     # wave 11 off: production's state
 
 
 def test_the_state_under_test_is_the_firm_state(ex_on, starter_off):
     """Control: the switches below are exactly the state in which `_library_hides` reads `kind`."""
-    assert gallery._hidden_styles() == "firm"
+    assert gallery._hidden_styles() == "firm+official"
     assert gallery.example_enabled()
 
 
@@ -62,7 +65,7 @@ def test_a_stranger_reads_an_example_its_style_and_its_image_with_starter_off(ap
     nid = _note_with_files(conn, att, files=(("a.png", b"listed-bytes"),))
     gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
     _approve(conn, gid)
-    assert gallery._hidden_styles() == "firm"                       # library on, starter off: prod's state
+    assert gallery._hidden_styles() == "firm+official"              # library on, starter + wave 11 off: prod
     _as(api, "stranger")
     example = api.get(f"{URL}/{gid}")                                 # _can_see -> _example_style_shown
     assert example.status_code == 200, example.text
@@ -158,7 +161,7 @@ def test_every_layout_door_answers_in_the_firm_state(conn, ex_on, starter_off, s
     """P4b final C1, behaviour: library on, starter packs off (`_library_hides` reads `kind`), examples on and layout
     sharing on. Each layout door a member, its author or an admin walks reads a row that reaches the rule; a narrow
     SELECT on any of them is an IndexError here."""
-    assert gallery._hidden_styles() == "firm" and gallery.layout_sharing_enabled()   # the state under test
+    assert gallery._hidden_styles() == "firm+official" and gallery.layout_sharing_enabled()   # the state under test
     gid = _listed_layout(conn)
     assert gallery.get_item("stranger", gid, conn=conn)["itemType"] == "page_layout"
     assert gallery.adopt_layout("stranger", gid, version=1, conn=conn)["version"] == 1

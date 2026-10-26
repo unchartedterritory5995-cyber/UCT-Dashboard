@@ -69,6 +69,7 @@ from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import page_layout_share as pls
 from api.services.journal_two import sample_marker
 from api.services.journal_two import starter_packs
+from api.services.journal_two.notebook_widgets import notebook_widgets_wave_on
 from api.services.journal_two.page_layout_share import LAYOUT_ITEM, LAYOUT_PAGES
 from api.services.notebook_flags import TRUTHY, flag_on
 
@@ -89,7 +90,11 @@ EXAMPLE_FLAG = "NOTEBOOK_EXAMPLE_NOTES_ENABLED"
 EXAMPLE_ITEM = "example_note"
 #: ⛔ ONE FACT IN TWO FILES with ITEM_TYPES / TRADING_STYLES / LIBRARY_SORTS in
 #: app/src/pages/journal-2-0/lib/styleLibrary.js; tests/test_style_library.py PARSES that file.
-ITEM_TYPES = ("outline", "style", EXAMPLE_ITEM, LAYOUT_ITEM)
+ITEM_TYPES = ("outline", "style", EXAMPLE_ITEM, LAYOUT_ITEM, "widget_definition", "routine", "tracker")
+#: Wave 11 (Task 11.7, spec §9): the three tool item types -- a member's shared widget, routine or tracker. Each is
+#: category `"review"`, `body_json` `{}` and `payload_json` the share reducer's payload. Absent from every gallery
+#: read while the library switch or wave 11 is off (`_hidden_item_types`, the one type rule).
+TOOL_ITEM_TYPES = ("widget_definition", "routine", "tracker")
 #: The item types a member can list or filter by: every type but the example note (R-P3b-2). It includes
 #: `page_layout` (P4b); whether a layout row is SHOWN is the switch's business (`_hidden_item_types`).
 LISTED_ITEM_TYPES = tuple(t for t in ITEM_TYPES if t != EXAMPLE_ITEM)
@@ -138,6 +143,9 @@ LAYOUT_APPROVE_STALE_SENTENCE = ("This layout changed after you opened it. Nothi
 REJECT_STALE_SENTENCE = "This item changed since you opened it. Reload the review queue to see the current version."
 
 FIRM_AUTHOR = "UCT"
+#: The row kinds whose author label is `FIRM_AUTHOR`: the starter packs' firm rows and wave 11's official
+#: templates (W11-R4, W11-R7). Neither has an author (`user_id` is NULL).
+UCT_KINDS = ("firm", "official")
 ANONYMOUS_AUTHOR = "A UCT member"
 
 SEED_FILE = Path(__file__).with_name("template_gallery_seed.json")
@@ -273,6 +281,8 @@ _DDL = (
     # P3a Task 5: "tell me when the author updates this" -- one row per (item, member), the copy it watches
     # and the version they were last told about. A member who adopts WITHOUT notify has no row; their
     # copy still shows in `list_updates`, because that reads the copy's own `source_version`.
+    # Wave 11 (Task 11.7): `style_id` is, for a widget, routine or tracker item, the adopter's copy id (spec §9):
+    # the member's own definition, routine or tracker row. The column keeps its name.
     """CREATE TABLE IF NOT EXISTS j2_gallery_watches (
         gallery_id        TEXT NOT NULL,
         user_id           TEXT NOT NULL,
@@ -330,6 +340,10 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
         # P3b: the author's own note an example note was reduced from (a snapshot: the row never reads it again).
         ("source_note_id", "TEXT"),
         ("source_page", "TEXT"),
+        # Wave 11 (Task 11.7): the author's own widget definition, routine or tracker a tool item was shared from
+        # (one live listing per author, type and tool: the index below), and an official template's group (W11-R4).
+        ("source_tool_id", "TEXT"),
+        ("template_group", "TEXT"),
     ):
         if name not in columns:
             conn.execute(f"ALTER TABLE j2_template_gallery ADD COLUMN {name} {ddl}")
@@ -342,6 +356,11 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_layout_source"
                  " ON j2_template_gallery(user_id, source_page)"
                  " WHERE user_id IS NOT NULL AND source_page IS NOT NULL")
+    # Wave 11: one live gallery copy per (author, tool type, tool) -- sharing a widget, routine or tracker again
+    # UPDATES it (`_write_held_or_replaced` keyed on `source_tool_id`).
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_tool_source"
+                 " ON j2_template_gallery(user_id, item_type, source_tool_id)"
+                 " WHERE user_id IS NOT NULL AND source_tool_id IS NOT NULL")
     conn.commit()
     # P5 final-review row 27: each seed has its own `try`, so a failed outline seed never skips the starter-pack
     # styles, and the log line names the seed that failed.
@@ -550,7 +569,7 @@ def _clean_category(raw: Any) -> str:
 # ── reading ─────────────────────────────────────────────────────────────────────────────
 
 def _author_label(row: sqlite3.Row) -> str:
-    if row["kind"] == "firm":
+    if row["kind"] in UCT_KINDS:
         return FIRM_AUTHOR
     name = (row["author_display"] or "").strip() if "author_display" in row.keys() else ""
     if not name or "@" in name:
@@ -873,6 +892,8 @@ def _hidden_item_types(library_on: bool | None = None) -> tuple[str, ...]:
     while its switch is off, a page layout while layout sharing is off. Style rows are NOT this function's:
     `_hidden_styles` owns them (P5-AUD-1), so there is one decision over style visibility, not two.
 
+    Wave 11 (Task 11.7): the three tool types (`TOOL_ITEM_TYPES`) while the library switch or wave 11 is off.
+
     A caller that already read `library_enabled` for this request passes it as `library_on`, so a list reads the
     library switch once (P5-T5b-R1); every other caller lets this read it."""
     if library_on is None:
@@ -882,6 +903,8 @@ def _hidden_item_types(library_on: bool | None = None) -> tuple[str, ...]:
         hidden.append(EXAMPLE_ITEM)
     if not (library_on and _layout_switches_on()):
         hidden.append(LAYOUT_ITEM)
+    if not (library_on and notebook_widgets_wave_on(11)):
+        hidden.extend(TOOL_ITEM_TYPES)       # wave 11 (Task 11.7): stored, never deleted; back on re-arm
     return tuple(hidden)
 
 
@@ -906,12 +929,23 @@ def _hidden_styles() -> str:
                starter packs' fifteen seeded picks) read as absent (P5-AUD-1). So a firm style row is listed, in
                every read and in UCT picks, ONLY while BOTH switches are on, and NOTEBOOK_STARTER_PACKS_ENABLED=0
                hides them again. The pack install does not go through this: it reads its rows directly
-               (`starter_packs.install`, behind its own switches)."""
+               (`starter_packs.install`, behind its own switches).
+    `"official"` -- the library is on and wave 11 is off: the official template rows (`kind = 'official'`,
+               W11-R4) read as absent. They are listed only while the library AND wave 11 are on, whatever the
+               starter-packs switch says.
+    `"firm+official"` -- the library is on and both are off: both kinds read as absent.
+    `""` -- nothing is hidden."""
     if not library_enabled():
         return "all"
-    if not starter_packs.enabled():
-        return "firm"
-    return ""
+    hidden = [k for k, on in (("firm", starter_packs.enabled()), ("official", notebook_widgets_wave_on(11)))
+              if not on]
+    return "+".join(hidden)
+
+
+def _hidden_style_kinds(hidden: str) -> tuple[str, ...]:
+    """The style-row kinds one `_hidden_styles()` answer hides while the library is on (`"firm+official"` is
+    both). `"all"` is not a kind answer: both renderings branch on it first."""
+    return tuple(k for k in hidden.split("+") if k)
 
 
 def _library_hides(row: sqlite3.Row) -> bool:
@@ -935,10 +969,12 @@ def _library_hides(row: sqlite3.Row) -> bool:
         return EXAMPLE_ITEM in _hidden_item_types()
     if item_type == LAYOUT_ITEM:
         return LAYOUT_ITEM in _hidden_item_types()
+    if item_type in TOOL_ITEM_TYPES:
+        return item_type in _hidden_item_types()
     if item_type != "style":
         return False
     hidden = _hidden_styles()
-    return hidden == "all" or (hidden == "firm" and kind == "firm")
+    return hidden == "all" or kind in _hidden_style_kinds(hidden)
 
 
 def _hidden_styles_sql(hidden: str | None = None) -> str:
@@ -948,8 +984,9 @@ def _hidden_styles_sql(hidden: str | None = None) -> str:
         hidden = _hidden_styles()
     if hidden == "all":
         return "g.item_type = 'outline'"
-    if hidden == "firm":
-        return "NOT (g.item_type = 'style' AND g.kind = 'firm')"
+    kinds = _hidden_style_kinds(hidden)
+    if kinds:
+        return "NOT (g.item_type = 'style' AND g.kind IN (" + ", ".join(f"'{k}'" for k in kinds) + "))"
     return "1 = 1"
 
 
@@ -1246,7 +1283,7 @@ def _clean_trading_style(raw: Any) -> str | None:
     return raw
 
 
-_HELD_KEY_COLUMNS = ("source_style_id", "source_page")
+_HELD_KEY_COLUMNS = ("source_style_id", "source_page", "source_tool_id")
 
 
 def _write_held_or_replaced(conn: sqlite3.Connection, *, user_id: str, key_column: str, key: Any,

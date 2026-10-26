@@ -166,9 +166,11 @@ def test_one_rule_decides_type_visibility(monkeypatch):
     # `_hidden_styles`'s. With the library off both of those are hidden; with every switch on, neither is.
     monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
     _set(monkeypatch, {"NOTEBOOK_STYLE_LIBRARY_ENABLED": False})
-    assert set(gallery._hidden_item_types()) == {"example_note", "page_layout"}
+    # Wave 11 (Task 11.7): the three tool types are the rule's too, hidden while the library or wave 11 is off.
+    assert set(gallery._hidden_item_types()) == {"example_note", "page_layout", *gallery.TOOL_ITEM_TYPES}
     assert "style" not in gallery._hidden_item_types()
     _set(monkeypatch, {n: True for n in SWITCHES})
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
     assert gallery._hidden_item_types() == ()
     assert gallery._type_visible_clause() == "1 = 1"
 
