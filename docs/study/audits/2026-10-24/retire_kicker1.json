@@ -1,0 +1,18 @@
+{
+ "why": "Kicker examples pass 1 (spot.setups, imported 2026-10-24). Owner looked at all ten on the review screen as images and said 'we can find a ton of better examples honestly these are all average'; ETON was 'the best because it is technically already giving a good setup'. Pass 2 (docs/study/setups/setup_examples.json kicker_pass2, scripts/study/find_kicker_examples.py) scores the setup behind the candle and replaces them. ETON si_0339c1116ba6 is kept for the owner to keep or cut beside the new batch.",
+ "ids": {
+  "spot.setups": [
+   "si_982ad9603a5f",
+   "si_2a4978a0b4e0",
+   "si_f7b87bf020f8",
+   "si_853d4a93013b",
+   "si_36d936f080a8",
+   "si_69859fc3eb69",
+   "si_d881b37fcda9",
+   "si_2b880b567174",
+   "si_7264d26f92d7"
+  ]
+ },
+ "kept": {"ETON 2024-01-08": "si_0339c1116ba6"},
+ "retired_syms": ["SHOP 2021-11-12", "AFRM 2022-01-28", "AVAV 2022-02-28", "FUTU 2022-04-04", "COIN 2023-01-04", "INTA 2023-02-07", "MSTR 2023-03-13", "SMCI 2024-02-22", "PINS 2024-05-01"]
+}

@@ -125,9 +125,11 @@ def test_bible_numbers_are_only_the_ones_the_rule_states():
         assert key.lower() in rules[n].lower(), (n, key)
 
 
-def test_playbook_parse_finds_nine_playbooks_with_mistakes_and_stops():
+def test_playbook_parse_finds_thirteen_playbooks_with_mistakes_and_stops():
+    # 9 from the playbook page, plus Kicker Candle / Oops Reversal / Slingshot / High Volume Edge
+    # written from the owner's rulings of 2026-10-23..25
     pb = gen_recall.read_playbooks()
-    assert len(pb) == 9 and all(p["mistakes"] for p in pb) and all(p["stop"] for p in pb)
+    assert len(pb) == 13 and all(p["mistakes"] for p in pb) and all(p["stop"] for p in pb)
     assert pb[0]["name"] == "Bull Flag" and pb[0]["mistakes"][0].startswith("Buying the flagpole")
 
 

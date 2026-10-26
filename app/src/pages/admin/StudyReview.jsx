@@ -37,7 +37,7 @@ import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
-import { hveAnnotations, isHveItem } from '../study/hveOverlay'
+import { studyAnnotations } from '../study/studyOverlays'
 import { slingshotInstances } from '../study/slingshotOverlay'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -558,8 +558,8 @@ export default function StudyReview() {
   // 2026-10-25), drawn from the same stored bars the chart shows, so the
   // reviewer grades the picture the member gets. Other skills: no layer.
   const annotations = useMemo(() => {
-    if (!sel || !isHveItem(sel) || !chartBars) return null
-    return hveAnnotations(sel, chartBars)
+    if (!sel || !chartBars) return null
+    return studyAnnotations(sel, chartBars)
   }, [sel, chartBars])
 
   if (error) return <div className={styles.empty}>Could not load the review queue ({error.message}).</div>

@@ -182,6 +182,17 @@ describe('StudyReview card', () => {
     expect(chart).toHaveTextContent('annotationsVisible:0')
   })
 
+  it('draws the gap top and gap-day low rays from the gap day for a Gap Support item', () => {
+    // the stored bars are 2025-05-29, 05-30, 06-02 (cutoff) + forward; the gap day is the 05-30 bar
+    // (low 100), the gap top is stored at 98.5; both rays start on the gap bar
+    DRAFTS = [{ ...SPOT_A, id: 'si_gap', sym: 'TTD', skill_id: 'setup.family3.gap_support',
+                reveal_json: { ...SPOT_A.reveal_json, facts: { ...SPOT_A.reveal_json.facts, gap_asof: '2025-05-30', gap_top: 98.5 } } }, SPOT_C, RECALL_B]
+    renderWithProviders(<StudyReview />)
+    const chart = screen.getByTestId('stock-chart')
+    expect(chart).toHaveTextContent('annotations:hray@2025-05-30=98.5|hray@2025-05-30=100')
+    expect(chart).toHaveTextContent('annotationsVisible:1')
+  })
+
   it('carries the E4H (4-EMA of highs) as an engine instance for a Slingshot item only (owner ruling 2026-10-25)', () => {
     DRAFTS = [{ ...SPOT_A, id: 'si_sling', sym: 'VRT', skill_id: 'setup.family4.slingshot' }, SPOT_C, RECALL_B]
     renderWithProviders(<StudyReview />)

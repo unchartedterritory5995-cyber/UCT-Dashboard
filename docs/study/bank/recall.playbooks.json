@@ -133,10 +133,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
-    "Below the lower wick / low of the candle that held the 20-EMA.",
+    "Above the wedge / consolidation high.",
+    "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
     "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
-    "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry."
+    "Below the wedge / consolidation low."
    ],
    "q": "In the firm's Bull Flag playbook, where does the stop go?",
    "subject": "Bull Flag stop"
@@ -620,10 +620,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average.",
+    "The low of the kicker day. A kicker that holds its gap tends to resolve quickly, which is why the stop can be tight; a close back under the red day's high says the trap did not hold.",
     "Below the lower wick / low of the candle that held the 20-EMA.",
-    "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry.",
-    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version)."
+    "Above the wedge / consolidation high.",
+    "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level."
    ],
    "q": "In the firm's 20 EMA Pullback playbook, where does the stop go?",
    "subject": "20 EMA Pullback stop"
@@ -731,9 +731,9 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Above the wedge / consolidation high.",
-    "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
-    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+    "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry.",
+    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
+    "Below the lower wick / low of the candle that held the 20-EMA.",
     "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average."
    ],
    "q": "In the firm's EMA Crossback playbook, where does the stop go?",
@@ -951,8 +951,8 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
-    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
+    "The low of the kicker day. A kicker that holds its gap tends to resolve quickly, which is why the stop can be tight; a close back under the red day's high says the trap did not hold.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
     "Above the wedge / consolidation high.",
     "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level."
    ],
@@ -1062,9 +1062,9 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Above the wedge / consolidation high.",
-    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
-    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
+    "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
+    "Below the lower wick / low of the candle that held the 20-EMA.",
+    "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average.",
     "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level."
    ],
    "q": "In the firm's Episodic Pivot playbook, where does the stop go?",
@@ -1079,6 +1079,770 @@
   "skill_id": "setup.family3.episodic_pivot",
   "source_kind": "playbook",
   "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Episodic Pivot#stop",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Calling an earnings-day gap a kicker; by default that is an earnings gapper."
+  },
+  "difficulty": 2,
+  "id": "si_0e3bb1c28dd9",
+  "lesson_origin": "source",
+  "lesson_text": "Calling an earnings-day gap a kicker; by default that is an earnings gapper.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up.",
+    "The low of the kicker day.",
+    "Calling an earnings-day gap a kicker; by default that is an earnings gapper.",
+    "The red day before has a real body, about 1 to 5 percent of price, closes near its low and at or under the recent lows of the base, like an almost-failed breakdown."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Kicker Candle playbook. Which one is the named mistake?",
+   "subject": "Kicker Candle mistake: Calling an earnings-day gap a kicker; by"
+  },
+  "reveal_json": {
+   "quote": "Calling an earnings-day gap a kicker; by default that is an earnings gapper.",
+   "rules": [
+    "A two-day trap.",
+    "Short-term positioning, not news: the kicker should rarely be an earnings day, and an earnings-day gap is an earnings gapper by default.",
+    "The red day before has a real body, about 1 to 5 percent of price, closes near its low and at or under the recent lows of the base, like an almost-failed breakdown.",
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up.",
+    "The low of the kicker day.",
+    "Expect a quick advance; the kept examples ran well over 10 percent."
+   ],
+   "setup": "Kicker Candle",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake#Calling an earnings-day gap a kicker; by",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Taking a gap up after a baby red candle; a doji before a gap traps nobody, it is just a breakout."
+  },
+  "difficulty": 2,
+  "id": "si_4b584ff02bf8",
+  "lesson_origin": "source",
+  "lesson_text": "Taking a gap up after a baby red candle; a doji before a gap traps nobody, it is just a breakout.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The low of the kicker day.",
+    "Expect a quick advance; the kept examples ran well over 10 percent.",
+    "Taking a gap up after a baby red candle; a doji before a gap traps nobody, it is just a breakout.",
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Kicker Candle playbook. Which one is the named mistake?",
+   "subject": "Kicker Candle mistake: Taking a gap up after a baby red candle;"
+  },
+  "reveal_json": {
+   "quote": "Taking a gap up after a baby red candle; a doji before a gap traps nobody, it is just a breakout.",
+   "rules": [
+    "A two-day trap.",
+    "Short-term positioning, not news: the kicker should rarely be an earnings day, and an earnings-day gap is an earnings gapper by default.",
+    "The red day before has a real body, about 1 to 5 percent of price, closes near its low and at or under the recent lows of the base, like an almost-failed breakdown.",
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up.",
+    "The low of the kicker day.",
+    "Expect a quick advance; the kept examples ran well over 10 percent."
+   ],
+   "setup": "Kicker Candle",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake#Taking a gap up after a baby red candle;",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Buying a gap against an intermediate downtrend, a recovery into the 200-day, and calling it a kicker."
+  },
+  "difficulty": 2,
+  "id": "si_aa8fddc11311",
+  "lesson_origin": "source",
+  "lesson_text": "Buying a gap against an intermediate downtrend, a recovery into the 200-day, and calling it a kicker.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up.",
+    "Buying a gap against an intermediate downtrend, a recovery into the 200-day, and calling it a kicker.",
+    "Short-term positioning, not news: the kicker should rarely be an earnings day, and an earnings-day gap is an earnings gapper by default.",
+    "The red day before has a real body, about 1 to 5 percent of price, closes near its low and at or under the recent lows of the base, like an almost-failed breakdown."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Kicker Candle playbook. Which one is the named mistake?",
+   "subject": "Kicker Candle mistake: Buying a gap against an intermediate dow"
+  },
+  "reveal_json": {
+   "quote": "Buying a gap against an intermediate downtrend, a recovery into the 200-day, and calling it a kicker.",
+   "rules": [
+    "A two-day trap.",
+    "Short-term positioning, not news: the kicker should rarely be an earnings day, and an earnings-day gap is an earnings gapper by default.",
+    "The red day before has a real body, about 1 to 5 percent of price, closes near its low and at or under the recent lows of the base, like an almost-failed breakdown.",
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up.",
+    "The low of the kicker day.",
+    "Expect a quick advance; the kept examples ran well over 10 percent."
+   ],
+   "setup": "Kicker Candle",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake#Buying a gap against an intermediate dow",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day."
+  },
+  "difficulty": 2,
+  "id": "si_c5b4ecdf22b6",
+  "lesson_origin": "source",
+  "lesson_text": "Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day.",
+    "Short-term positioning, not news: the kicker should rarely be an earnings day, and an earnings-day gap is an earnings gapper by default.",
+    "The red day before has a real body, about 1 to 5 percent of price, closes near its low and at or under the recent lows of the base, like an almost-failed breakdown.",
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Kicker Candle playbook. Which one is the named mistake?",
+   "subject": "Kicker Candle mistake: Accepting a crash of a red day before th"
+  },
+  "reveal_json": {
+   "quote": "Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day.",
+   "rules": [
+    "A two-day trap.",
+    "Short-term positioning, not news: the kicker should rarely be an earnings day, and an earnings-day gap is an earnings gapper by default.",
+    "The red day before has a real body, about 1 to 5 percent of price, closes near its low and at or under the recent lows of the base, like an almost-failed breakdown.",
+    "The kicker day itself, once it is holding above the red day's high; the best ones also clear the 20-day high out of a base that was already set up.",
+    "The low of the kicker day.",
+    "Expect a quick advance; the kept examples ran well over 10 percent."
+   ],
+   "setup": "Kicker Candle",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#mistake#Accepting a crash of a red day before th",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The low of the kicker day. A kicker that holds its gap tends to resolve quickly, which is why the stop can be tight; a close back under the red day's high says the trap did not hold."
+  },
+  "difficulty": 3,
+  "id": "si_ce8fdee0503c",
+  "lesson_origin": "source",
+  "lesson_text": "The low of the kicker day. A kicker that holds its gap tends to resolve quickly, which is why the stop can be tight; a close back under the red day's high says the trap did not hold.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "The trigger session's low. The gallery examples never came within two percent of it; a close back under the 4-EMA of the highs the next session weakens the setup.",
+    "The low of the kicker day. A kicker that holds its gap tends to resolve quickly, which is why the stop can be tight; a close back under the red day's high says the trap did not hold."
+   ],
+   "q": "In the firm's Kicker Candle playbook, where does the stop go?",
+   "subject": "Kicker Candle stop"
+  },
+  "reveal_json": {
+   "quote": "The low of the kicker day. A kicker that holds its gap tends to resolve quickly, which is why the stop can be tight; a close back under the red day's high says the trap did not hold.",
+   "setup": "Kicker Candle",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#stop"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Kicker Candle#stop",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Buying an Oops after a big news gap the day before; that is a delayed-reaction setup, not an Oops."
+  },
+  "difficulty": 2,
+  "id": "si_a2d8721c5582",
+  "lesson_origin": "source",
+  "lesson_text": "Buying an Oops after a big news gap the day before; that is a delayed-reaction setup, not an Oops.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Location matters big time.",
+    "The prior day is orderly: no news gap, which makes the next day a delayed reaction rather than an Oops, and no outsized red bar; a random big red day a few days earlier takes the stock off the radar.",
+    "Buying an Oops after a big news gap the day before; that is a delayed-reaction setup, not an Oops.",
+    "A trap at the open."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Oops Reversal playbook. Which one is the named mistake?",
+   "subject": "Oops Reversal mistake: Buying an Oops after a big news gap the "
+  },
+  "reveal_json": {
+   "quote": "Buying an Oops after a big news gap the day before; that is a delayed-reaction setup, not an Oops.",
+   "rules": [
+    "A trap at the open.",
+    "Location matters big time.",
+    "The prior day is orderly: no news gap, which makes the next day a delayed reaction rather than an Oops, and no outsized red bar; a random big red day a few days earlier takes the stock off the radar.",
+    "The reversal through the prior close on the Oops day, or the Super Oops close above the prior high.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "Quick follow-through is the tell; the best ones are up double digits inside two weeks."
+   ],
+   "setup": "Oops Reversal",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake#Buying an Oops after a big news gap the ",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Buying an Oops a few days after a nasty outsized red day; the stock is off the radar."
+  },
+  "difficulty": 2,
+  "id": "si_fa49bea45866",
+  "lesson_origin": "source",
+  "lesson_text": "Buying an Oops a few days after a nasty outsized red day; the stock is off the radar.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Buying an Oops a few days after a nasty outsized red day; the stock is off the radar.",
+    "The prior day is orderly: no news gap, which makes the next day a delayed reaction rather than an Oops, and no outsized red bar; a random big red day a few days earlier takes the stock off the radar.",
+    "The reversal through the prior close on the Oops day, or the Super Oops close above the prior high.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Oops Reversal playbook. Which one is the named mistake?",
+   "subject": "Oops Reversal mistake: Buying an Oops a few days after a nasty "
+  },
+  "reveal_json": {
+   "quote": "Buying an Oops a few days after a nasty outsized red day; the stock is off the radar.",
+   "rules": [
+    "A trap at the open.",
+    "Location matters big time.",
+    "The prior day is orderly: no news gap, which makes the next day a delayed reaction rather than an Oops, and no outsized red bar; a random big red day a few days earlier takes the stock off the radar.",
+    "The reversal through the prior close on the Oops day, or the Super Oops close above the prior high.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "Quick follow-through is the tell; the best ones are up double digits inside two weeks."
+   ],
+   "setup": "Oops Reversal",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake#Buying an Oops a few days after a nasty ",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Keeping a position after the Oops-day low breaks; the low must never break."
+  },
+  "difficulty": 2,
+  "id": "si_889db4bb2375",
+  "lesson_origin": "source",
+  "lesson_text": "Keeping a position after the Oops-day low breaks; the low must never break.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Location matters big time.",
+    "Keeping a position after the Oops-day low breaks; the low must never break.",
+    "Quick follow-through is the tell; the best ones are up double digits inside two weeks.",
+    "A trap at the open."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Oops Reversal playbook. Which one is the named mistake?",
+   "subject": "Oops Reversal mistake: Keeping a position after the Oops-day lo"
+  },
+  "reveal_json": {
+   "quote": "Keeping a position after the Oops-day low breaks; the low must never break.",
+   "rules": [
+    "A trap at the open.",
+    "Location matters big time.",
+    "The prior day is orderly: no news gap, which makes the next day a delayed reaction rather than an Oops, and no outsized red bar; a random big red day a few days earlier takes the stock off the radar.",
+    "The reversal through the prior close on the Oops day, or the Super Oops close above the prior high.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "Quick follow-through is the tell; the best ones are up double digits inside two weeks."
+   ],
+   "setup": "Oops Reversal",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake#Keeping a position after the Oops-day lo",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Taking a subtle, hidden Oops in a random spot; location comes first."
+  },
+  "difficulty": 2,
+  "id": "si_b7784f491812",
+  "lesson_origin": "source",
+  "lesson_text": "Taking a subtle, hidden Oops in a random spot; location comes first.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The prior day is orderly: no news gap, which makes the next day a delayed reaction rather than an Oops, and no outsized red bar; a random big red day a few days earlier takes the stock off the radar.",
+    "The reversal through the prior close on the Oops day, or the Super Oops close above the prior high.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "Taking a subtle, hidden Oops in a random spot; location comes first."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Oops Reversal playbook. Which one is the named mistake?",
+   "subject": "Oops Reversal mistake: Taking a subtle, hidden Oops in a random"
+  },
+  "reveal_json": {
+   "quote": "Taking a subtle, hidden Oops in a random spot; location comes first.",
+   "rules": [
+    "A trap at the open.",
+    "Location matters big time.",
+    "The prior day is orderly: no news gap, which makes the next day a delayed reaction rather than an Oops, and no outsized red bar; a random big red day a few days earlier takes the stock off the radar.",
+    "The reversal through the prior close on the Oops day, or the Super Oops close above the prior high.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "Quick follow-through is the tell; the best ones are up double digits inside two weeks."
+   ],
+   "setup": "Oops Reversal",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#mistake#Taking a subtle, hidden Oops in a random",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened."
+  },
+  "difficulty": 3,
+  "id": "si_753141a0f6dc",
+  "lesson_origin": "source",
+  "lesson_text": "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Below the wedge / consolidation low.",
+    "Above the wedge / consolidation high.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average."
+   ],
+   "q": "In the firm's Oops Reversal playbook, where does the stop go?",
+   "subject": "Oops Reversal stop"
+  },
+  "reveal_json": {
+   "quote": "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+   "setup": "Oops Reversal",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#stop"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Oops Reversal#stop",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Buying the earnings gap day itself as the Slingshot; the gap day or rally day is never the trigger."
+  },
+  "difficulty": 2,
+  "id": "si_dd4c09b6547b",
+  "lesson_origin": "source",
+  "lesson_text": "Buying the earnings gap day itself as the Slingshot; the gap day or rally day is never the trigger.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The trigger session's low.",
+    "Buying the earnings gap day itself as the Slingshot; the gap day or rally day is never the trigger.",
+    "The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart.",
+    "The first close back above the 4-EMA of the highs: a decisive day, roughly 3 to 6 percent, closing near its high, on ordinary volume and without needing a gap."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Slingshot playbook. Which one is the named mistake?",
+   "subject": "Slingshot mistake: Buying the earnings gap day itself as th"
+  },
+  "reveal_json": {
+   "quote": "Buying the earnings gap day itself as the Slingshot; the gap day or rally day is never the trigger.",
+   "rules": [
+    "The first pause after a drive.",
+    "Strength behind it: an earnings gapper, a strong stock, or a consolidation after a nice uptrend.",
+    "The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart.",
+    "The first close back above the 4-EMA of the highs: a decisive day, roughly 3 to 6 percent, closing near its high, on ordinary volume and without needing a gap.",
+    "The trigger session's low.",
+    "Momentum resuming, not a bottom: expect new short-term highs within days, with volume expanding on up days."
+   ],
+   "setup": "Slingshot",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake#Buying the earnings gap day itself as th",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Buying a trigger day that gaps up 2 or 3 percent; the best triggers need no gap."
+  },
+  "difficulty": 2,
+  "id": "si_4fb77b1adf60",
+  "lesson_origin": "source",
+  "lesson_text": "Buying a trigger day that gaps up 2 or 3 percent; the best triggers need no gap.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Strength behind it: an earnings gapper, a strong stock, or a consolidation after a nice uptrend.",
+    "The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart.",
+    "Buying a trigger day that gaps up 2 or 3 percent; the best triggers need no gap.",
+    "The first pause after a drive."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Slingshot playbook. Which one is the named mistake?",
+   "subject": "Slingshot mistake: Buying a trigger day that gaps up 2 or 3"
+  },
+  "reveal_json": {
+   "quote": "Buying a trigger day that gaps up 2 or 3 percent; the best triggers need no gap.",
+   "rules": [
+    "The first pause after a drive.",
+    "Strength behind it: an earnings gapper, a strong stock, or a consolidation after a nice uptrend.",
+    "The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart.",
+    "The first close back above the 4-EMA of the highs: a decisive day, roughly 3 to 6 percent, closing near its high, on ordinary volume and without needing a gap.",
+    "The trigger session's low.",
+    "Momentum resuming, not a bottom: expect new short-term highs within days, with volume expanding on up days."
+   ],
+   "setup": "Slingshot",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake#Buying a trigger day that gaps up 2 or 3",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Mistaking a bear-market bounce under a falling 200-day for a Slingshot; it needs strength behind it."
+  },
+  "difficulty": 2,
+  "id": "si_bb86fe5f4b67",
+  "lesson_origin": "source",
+  "lesson_text": "Mistaking a bear-market bounce under a falling 200-day for a Slingshot; it needs strength behind it.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart.",
+    "The first close back above the 4-EMA of the highs: a decisive day, roughly 3 to 6 percent, closing near its high, on ordinary volume and without needing a gap.",
+    "The trigger session's low.",
+    "Mistaking a bear-market bounce under a falling 200-day for a Slingshot; it needs strength behind it."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Slingshot playbook. Which one is the named mistake?",
+   "subject": "Slingshot mistake: Mistaking a bear-market bounce under a f"
+  },
+  "reveal_json": {
+   "quote": "Mistaking a bear-market bounce under a falling 200-day for a Slingshot; it needs strength behind it.",
+   "rules": [
+    "The first pause after a drive.",
+    "Strength behind it: an earnings gapper, a strong stock, or a consolidation after a nice uptrend.",
+    "The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart.",
+    "The first close back above the 4-EMA of the highs: a decisive day, roughly 3 to 6 percent, closing near its high, on ordinary volume and without needing a gap.",
+    "The trigger session's low.",
+    "Momentum resuming, not a bottom: expect new short-term highs within days, with volume expanding on up days."
+   ],
+   "setup": "Slingshot",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake#Mistaking a bear-market bounce under a f",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade."
+  },
+  "difficulty": 2,
+  "id": "si_7b738d13ba6c",
+  "lesson_origin": "source",
+  "lesson_text": "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Momentum resuming, not a bottom: expect new short-term highs within days, with volume expanding on up days.",
+    "The first pause after a drive.",
+    "Strength behind it: an earnings gapper, a strong stock, or a consolidation after a nice uptrend.",
+    "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's Slingshot playbook. Which one is the named mistake?",
+   "subject": "Slingshot mistake: Taking it on a thin or sub-10-dollar sto"
+  },
+  "reveal_json": {
+   "quote": "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade.",
+   "rules": [
+    "The first pause after a drive.",
+    "Strength behind it: an earnings gapper, a strong stock, or a consolidation after a nice uptrend.",
+    "The 4-period EMA of the daily highs is the line; it is drawn on every Slingshot chart.",
+    "The first close back above the 4-EMA of the highs: a decisive day, roughly 3 to 6 percent, closing near its high, on ordinary volume and without needing a gap.",
+    "The trigger session's low.",
+    "Momentum resuming, not a bottom: expect new short-term highs within days, with volume expanding on up days."
+   ],
+   "setup": "Slingshot",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#mistake#Taking it on a thin or sub-10-dollar sto",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The trigger session's low. The gallery examples never came within two percent of it; a close back under the 4-EMA of the highs the next session weakens the setup."
+  },
+  "difficulty": 3,
+  "id": "si_91107a651e6b",
+  "lesson_origin": "source",
+  "lesson_text": "The trigger session's low. The gallery examples never came within two percent of it; a close back under the 4-EMA of the highs the next session weakens the setup.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
+    "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry.",
+    "The trigger session's low. The gallery examples never came within two percent of it; a close back under the 4-EMA of the highs the next session weakens the setup."
+   ],
+   "q": "In the firm's Slingshot playbook, where does the stop go?",
+   "subject": "Slingshot stop"
+  },
+  "reveal_json": {
+   "quote": "The trigger session's low. The gallery examples never came within two percent of it; a close back under the 4-EMA of the highs the next session weakens the setup.",
+   "setup": "Slingshot",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#stop"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#Slingshot#stop",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC."
+  },
+  "difficulty": 2,
+  "id": "si_4e7da93b9767",
+  "lesson_origin": "source",
+  "lesson_text": "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The level outlives any single trade: it is where the new story was priced, and later tests of it are where the next setups form.",
+    "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
+    "The edge is a level, not a buy signal: mark the HVE close with a ray and run an AVWAP from the edge day; trades are taken on the setups that form around that level later.",
+    "For a position taken on the edge day itself, the bar's low."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's High Volume Edge playbook. Which one is the named mistake?",
+   "subject": "High Volume Edge mistake: Calling the highest volume of the year a"
+  },
+  "reveal_json": {
+   "quote": "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
+   "rules": [
+    "A volume day that dwarfs everything before it, ten times normal and above the prior record, on an up close, often on a lesser-known name: the start of a new story.",
+    "Usually a lesser-known stock where a new story arrives all at once; a mega-cap on a three-times day is a high-volume close, not an edge.",
+    "Volume ten times the 50-day average and well above the prior record, an up close, and a close in the upper part of the day's range; a day that closes in the lower part of a huge range is cut.",
+    "The edge is a level, not a buy signal: mark the HVE close with a ray and run an AVWAP from the edge day; trades are taken on the setups that form around that level later.",
+    "For a position taken on the edge day itself, the bar's low.",
+    "The level outlives any single trade: it is where the new story was priced, and later tests of it are where the next setups form."
+   ],
+   "setup": "High Volume Edge",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake#Calling the highest volume of the year a",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG."
+  },
+  "difficulty": 2,
+  "id": "si_8e6d7b12a42b",
+  "lesson_origin": "source",
+  "lesson_text": "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG.",
+    "Volume ten times the 50-day average and well above the prior record, an up close, and a close in the upper part of the day's range; a day that closes in the lower part of a huge range is cut.",
+    "The edge is a level, not a buy signal: mark the HVE close with a ray and run an AVWAP from the edge day; trades are taken on the setups that form around that level later.",
+    "For a position taken on the edge day itself, the bar's low."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's High Volume Edge playbook. Which one is the named mistake?",
+   "subject": "High Volume Edge mistake: Calling an earnings gap on big but ordin"
+  },
+  "reveal_json": {
+   "quote": "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG.",
+   "rules": [
+    "A volume day that dwarfs everything before it, ten times normal and above the prior record, on an up close, often on a lesser-known name: the start of a new story.",
+    "Usually a lesser-known stock where a new story arrives all at once; a mega-cap on a three-times day is a high-volume close, not an edge.",
+    "Volume ten times the 50-day average and well above the prior record, an up close, and a close in the upper part of the day's range; a day that closes in the lower part of a huge range is cut.",
+    "The edge is a level, not a buy signal: mark the HVE close with a ray and run an AVWAP from the edge day; trades are taken on the setups that form around that level later.",
+    "For a position taken on the edge day itself, the bar's low.",
+    "The level outlives any single trade: it is where the new story was priced, and later tests of it are where the next setups form."
+   ],
+   "setup": "High Volume Edge",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake#Calling an earnings gap on big but ordin",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Marking an OPEX or month-end session as an HVE."
+  },
+  "difficulty": 2,
+  "id": "si_3bd2321a8092",
+  "lesson_origin": "source",
+  "lesson_text": "Marking an OPEX or month-end session as an HVE.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Marking an OPEX or month-end session as an HVE.",
+    "For a position taken on the edge day itself, the bar's low.",
+    "The level outlives any single trade: it is where the new story was priced, and later tests of it are where the next setups form.",
+    "A volume day that dwarfs everything before it, ten times normal and above the prior record, on an up close, often on a lesser-known name: the start of a new story."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's High Volume Edge playbook. Which one is the named mistake?",
+   "subject": "High Volume Edge mistake: Marking an OPEX or month-end session as "
+  },
+  "reveal_json": {
+   "quote": "Marking an OPEX or month-end session as an HVE.",
+   "rules": [
+    "A volume day that dwarfs everything before it, ten times normal and above the prior record, on an up close, often on a lesser-known name: the start of a new story.",
+    "Usually a lesser-known stock where a new story arrives all at once; a mega-cap on a three-times day is a high-volume close, not an edge.",
+    "Volume ten times the 50-day average and well above the prior record, an up close, and a close in the upper part of the day's range; a day that closes in the lower part of a huge range is cut.",
+    "The edge is a level, not a buy signal: mark the HVE close with a ray and run an AVWAP from the edge day; trades are taken on the setups that form around that level later.",
+    "For a position taken on the edge day itself, the bar's low.",
+    "The level outlives any single trade: it is where the new story was priced, and later tests of it are where the next setups form."
+   ],
+   "setup": "High Volume Edge",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake#Marking an OPEX or month-end session as ",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Erasing the level because price traded below the HVE close; it is a level to mark, not a line that must hold."
+  },
+  "difficulty": 2,
+  "id": "si_28d3efd86674",
+  "lesson_origin": "source",
+  "lesson_text": "Erasing the level because price traded below the HVE close; it is a level to mark, not a line that must hold.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A volume day that dwarfs everything before it, ten times normal and above the prior record, on an up close, often on a lesser-known name: the start of a new story.",
+    "Usually a lesser-known stock where a new story arrives all at once; a mega-cap on a three-times day is a high-volume close, not an edge.",
+    "Erasing the level because price traded below the HVE close; it is a level to mark, not a line that must hold.",
+    "The level outlives any single trade: it is where the new story was priced, and later tests of it are where the next setups form."
+   ],
+   "note": "The other three are the playbook's own rules.",
+   "q": "Three of these are rules from the firm's High Volume Edge playbook. Which one is the named mistake?",
+   "subject": "High Volume Edge mistake: Erasing the level because price traded b"
+  },
+  "reveal_json": {
+   "quote": "Erasing the level because price traded below the HVE close; it is a level to mark, not a line that must hold.",
+   "rules": [
+    "A volume day that dwarfs everything before it, ten times normal and above the prior record, on an up close, often on a lesser-known name: the start of a new story.",
+    "Usually a lesser-known stock where a new story arrives all at once; a mega-cap on a three-times day is a high-volume close, not an edge.",
+    "Volume ten times the 50-day average and well above the prior record, an up close, and a close in the upper part of the day's range; a day that closes in the lower part of a huge range is cut.",
+    "The edge is a level, not a buy signal: mark the HVE close with a ray and run an AVWAP from the edge day; trades are taken on the setups that form around that level later.",
+    "For a position taken on the edge day itself, the bar's low.",
+    "The level outlives any single trade: it is where the new story was priced, and later tests of it are where the next setups form."
+   ],
+   "setup": "High Volume Edge",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#mistake#Erasing the level because price traded b",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "For a position taken on the edge day itself, the bar's low. The HVE close is not the stop: price may trade below it later and the level still stands."
+  },
+  "difficulty": 3,
+  "id": "si_ffadff22cf61",
+  "lesson_origin": "source",
+  "lesson_text": "For a position taken on the edge day itself, the bar's low. The HVE close is not the stop: price may trade below it later and the level still stands.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "For a position taken on the edge day itself, the bar's low. The HVE close is not the stop: price may trade below it later and the level still stands.",
+    "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
+    "The low of the kicker day. A kicker that holds its gap tends to resolve quickly, which is why the stop can be tight; a close back under the red day's high says the trap did not hold.",
+    "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened."
+   ],
+   "q": "In the firm's High Volume Edge playbook, where does the stop go?",
+   "subject": "High Volume Edge stop"
+  },
+  "reveal_json": {
+   "quote": "For a position taken on the edge day itself, the bar's low. The HVE close is not the stop: price may trade below it later and the level still stands.",
+   "setup": "High Volume Edge",
+   "source": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#stop"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "playbook",
+  "source_ref": "app/src/pages/modelbook/setupPlaybooks.js#High Volume Edge#stop",
   "type": "recall",
   "version": 1
  }

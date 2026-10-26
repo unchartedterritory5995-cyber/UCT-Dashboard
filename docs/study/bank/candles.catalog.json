@@ -3332,7 +3332,7 @@
     "Kicking (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Steady, orderly distribution, the one pattern that measures strong on reliability, performance and sample size at once.",
+   "quote": "Steady, orderly selling after an advance.",
    "subject": "Three Black Crows"
   },
   "reveal_json": {
@@ -3349,7 +3349,7 @@
     "story": "Steady, orderly distribution. No panic, no gap, just three sessions in a row where sellers finished the day in control. Each bar opens a little higher than the last close, offers a brief hope, and then sells off into the close.",
     "where": "Only after an advance, especially a mature one. Three red bars at the start of a decline mean something. Three red bars three weeks into a decline are just the trend."
    },
-   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution — the one pattern that measures strong on reliability, performance and sample size at once.",
+   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly selling after an advance.",
    "source": "api/services/screener/candle_catalog.py#three-black-crows",
    "system": "the firm's candle catalog"
   },
@@ -3394,7 +3394,7 @@
     "story": "Steady, orderly distribution. No panic, no gap, just three sessions in a row where sellers finished the day in control. Each bar opens a little higher than the last close, offers a brief hope, and then sells off into the close.",
     "where": "Only after an advance, especially a mature one. Three red bars at the start of a decline mean something. Three red bars three weeks into a decline are just the trend."
    },
-   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution — the one pattern that measures strong on reliability, performance and sample size at once.",
+   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly selling after an advance.",
    "source": "api/services/screener/candle_catalog.py#three-black-crows",
    "system": "the firm's candle catalog"
   },
@@ -3437,7 +3437,7 @@
     "story": "Steady, orderly distribution. No panic, no gap, just three sessions in a row where sellers finished the day in control. Each bar opens a little higher than the last close, offers a brief hope, and then sells off into the close.",
     "where": "Only after an advance, especially a mature one. Three red bars at the start of a decline mean something. Three red bars three weeks into a decline are just the trend."
    },
-   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution — the one pattern that measures strong on reliability, performance and sample size at once.",
+   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly selling after an advance.",
    "source": "api/services/screener/candle_catalog.py#three-black-crows",
    "system": "the firm's candle catalog",
    "trend": "up"
@@ -4270,7 +4270,7 @@
     "Separating Lines"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction, unusual enough to be worth a look.",
+   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction.",
    "subject": "Tri-Star"
   },
   "reveal_json": {
@@ -4287,7 +4287,7 @@
     "story": "Three consecutive sessions that could not settle on a direction. Unusual enough to be worth a look, because markets rarely stay undecided that long without something happening next.",
     "where": "It needs a trend before it, in either direction. At the end of a long move it is the clearest pause we name. Without a trend, three dojis are just three quiet days, and the name is not given."
    },
-   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction — unusual enough to be worth a look.",
+   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction.",
    "source": "api/services/screener/candle_catalog.py#tri-star",
    "system": "the firm's candle catalog"
   },
@@ -4332,7 +4332,7 @@
     "story": "Three consecutive sessions that could not settle on a direction. Unusual enough to be worth a look, because markets rarely stay undecided that long without something happening next.",
     "where": "It needs a trend before it, in either direction. At the end of a long move it is the clearest pause we name. Without a trend, three dojis are just three quiet days, and the name is not given."
    },
-   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction — unusual enough to be worth a look.",
+   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction.",
    "source": "api/services/screener/candle_catalog.py#tri-star",
    "system": "the firm's candle catalog"
   },
@@ -5164,7 +5164,7 @@
     "Deliberation"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH.",
+   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung.",
    "subject": "Hikkake Confirmed (Bull)"
   },
   "reveal_json": {
@@ -5181,7 +5181,7 @@
     "story": "The trap has sprung. The downside break pulled in sellers and shook out weak holders, and the close above the inside bar's high says they were all wrong. This is the state a hikkake trader acts on.",
     "where": "No prior trend is required, which makes it one of the few patterns that works in any context. The best ones form in a leader's tight pullback, where the inside bar is the coil and the false break is the shakeout."
    },
-   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung — this is the state a hikkake trader acts on.",
+   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung.",
    "source": "api/services/screener/candle_catalog.py#hikkake-bull-confirmed",
    "system": "the firm's candle catalog"
   },
@@ -5226,7 +5226,7 @@
     "story": "The trap has sprung. The downside break pulled in sellers and shook out weak holders, and the close above the inside bar's high says they were all wrong. This is the state a hikkake trader acts on.",
     "where": "No prior trend is required, which makes it one of the few patterns that works in any context. The best ones form in a leader's tight pullback, where the inside bar is the coil and the false break is the shakeout."
    },
-   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung — this is the state a hikkake trader acts on.",
+   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung.",
    "source": "api/services/screener/candle_catalog.py#hikkake-bull-confirmed",
    "system": "the firm's candle catalog"
   },
@@ -7472,6 +7472,50 @@
   "skill_id": "vocab.candle",
   "source_kind": "candles",
   "source_ref": "api/services/screener/candle_catalog.py#matching-low#bars",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "a decline"
+  },
+  "difficulty": 2,
+  "id": "si_53e8205faaa3",
+  "lesson_origin": "source",
+  "lesson_text": "Two red bars that close at effectively the same price. A floor that has now been tested twice on a closing basis. Two sessions of selling ended at the same number, which means someone is buying there at the close. Only after a decline, where a floor is the thing you are looking for: a prior low, the bottom of a base, a rising average on a bigger timeframe. A next bar that closes above the second bar's high. A close below the matching closes cancels it. Matching closes draw a level the desk can use. Mark it. The reclaim of the second bar's high is the first sign the floor is turning into a bottom.",
+  "module": "F3",
+  "prompt_json": {
+   "choices": [
+    "a decline",
+    "an advance",
+    "either"
+   ],
+   "q": "The catalog names a Matching Low only after which kind of move?",
+   "subject": "Matching Low"
+  },
+  "reveal_json": {
+   "axis": "relation",
+   "bars": 2,
+   "direction_is_not_a_fact": "C18: the catalog names a shape; it does not forecast",
+   "key": "matching-low",
+   "label": "Matching Low",
+   "lesson_parts": {
+    "cancel": "A close below the matching closes cancels it.",
+    "confirm": "A next bar that closes above the second bar's high.",
+    "desk": "Matching closes draw a level the desk can use. Mark it. The reclaim of the second bar's high is the first sign the floor is turning into a bottom.",
+    "shape": "Two red bars that close at effectively the same price.",
+    "story": "A floor that has now been tested twice on a closing basis. Two sessions of selling ended at the same number, which means someone is buying there at the close.",
+    "where": "Only after a decline, where a floor is the thing you are looking for: a prior low, the bottom of a base, a rising average on a bigger timeframe."
+   },
+   "quote": "Two down bars closing at effectively the same price. A floor that has now been tested twice on a closing basis.",
+   "source": "api/services/screener/candle_catalog.py#matching-low",
+   "system": "the firm's candle catalog",
+   "trend": "down"
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.candle",
+  "source_kind": "candles",
+  "source_ref": "api/services/screener/candle_catalog.py#matching-low#trend",
   "type": "recall",
   "version": 1
  },
