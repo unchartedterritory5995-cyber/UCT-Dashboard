@@ -397,7 +397,7 @@ def _symbol_template():
         "routines": [], "trackers": [], "slots": [dict(s) for s in shared.slots]}
 
 
-def test_refused_answers_raise_naming_the_choice(conn):
+def test_refused_answers_raise_naming_the_choice(conn, monkeypatch):
     """Review I-2: an answer the reducer or the plan refuses is a ShareError with `.slot`, in their own words,
     never a card sentence and never the builder's save wording."""
     add_user(conn, B)
@@ -410,13 +410,19 @@ def test_refused_answers_raise_naming_the_choice(conn):
         "trackers": [], "blocks": [{"block": "built_a", "enabled": True, "settings": {"ref": "inline:d1"}}],
         "slots": [dict(s) for s in shared.slots]})
     sid = shared.slots[0]["id"]
+    resolves = []
+    real_resolve = share.resolve_plan
+    monkeypatch.setattr(share, "resolve_plan", lambda *a, **k: resolves.append(1) or real_resolve(*a, **k))
     with pytest.raises(share.ShareError) as e:
         _go(conn, acc_gid, answers={sid: [mine]})                         # one account, never a list
     assert e.value.slot == sid and e.value.sentence == share.S_NEED_VALUE.format(label="Account")
+    assert resolves == []                                                 # refused BEFORE resolving
     gid = _row(conn, _template(1))
-    with pytest.raises(share.ShareError) as e:
-        _go(conn, gid, answers={"p1": "x" * 100_000})                     # oversized: refused before resolving
-    assert e.value.slot == "p1" and e.value.sentence == "Text can be at most 200 characters."
+    for big in ("x" * 100_000, "x" * 201):
+        with pytest.raises(share.ShareError) as e:
+            _go(conn, gid, answers={"p1": big})                           # oversized: refused before resolving
+        assert e.value.slot == "p1" and e.value.sentence == "Text can be at most 200 characters."
+    assert resolves == []
     with pytest.raises(share.ShareError) as e:
         _go(conn, gid, answers={"p1": ["Flag"] * 51})
     assert e.value.slot == "p1" and e.value.sentence == "A filter can hold up to 50 values."
