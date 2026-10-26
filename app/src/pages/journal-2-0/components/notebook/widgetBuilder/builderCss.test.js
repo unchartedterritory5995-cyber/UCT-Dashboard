@@ -171,6 +171,43 @@ describe('the builder stylesheet against its markup', () => {
     }
   })
 
+  // Wave 11 campaign dry run, D-W11-007 (axe color-contrast, serious): the rule above checked only
+  // --text-bright, and the dimmed preview draws far more than that. A positive figure in the number
+  // view (--success-ink via SnapshotFrame's `.up`) measured #23834e on #000 = 4.42:1 at opacity 0.75.
+  // No ink token survives 0.75 in every theme (the worst full-strength one is ~5.6:1), so the inks are
+  // DERIVED from the stylesheets the preview's views draw with, and each must reach 4.5:1 at the
+  // declared opacity. Retest: the campaign's P25 a.05 (a formula broken then fixed) at 1200 and 820.
+  it('D-W11-007: every ink the dimmed preview draws reaches 4.5:1 at the dimmed opacity, in every theme', () => {
+    const alpha = Number(declOf('.dimmed', 'opacity').value)
+    const WIDGETS = join(DIR, '..', 'widgets')
+    const sheets = [join(WIDGETS, 'SnapshotFrame.module.css'), join(WIDGETS, 'builtViews', 'builtViews.module.css')]
+    const inks = new Set()
+    for (const f of sheets) {
+      for (const r of parseRules(readFileSync(f, 'utf8'))) {
+        for (const d of declarations(r)) if (d.prop === 'color' && /^var\(--/.test(d.value)) inks.add(d.value)
+      }
+    }
+    expect([...inks]).toEqual(expect.arrayContaining(['var(--success-ink)', 'var(--danger-ink)', 'var(--text-dim)'])) // non-vacuity
+    const fails = []
+    for (const ink of inks) {
+      for (const theme of THEMES) {
+        for (const s of ['--bg-base', '--bg-surface']) {
+          const surface = opaque(colour(`var(${s})`, theme), parseColor(resolveVars('var(--bg)', VARS[theme])).rgb)
+          const fg = colour(ink, theme)
+          const ratio = contrast(opaque({ rgb: fg.rgb, alpha: alpha * fg.alpha }, surface), surface)
+          if (ratio < 4.5) fails.push(`${theme} ${ink} on ${s}: ${ratio.toFixed(2)}`)
+        }
+      }
+    }
+    expect(fails, `at opacity ${alpha}`).toEqual([])
+  })
+
+  it('D-W11-007 CONTROL: the measured case (--success-ink at 0.75, oled) is under 4.5:1', () => {
+    const surface = opaque(colour('var(--bg-base)', 'oled'), parseColor(resolveVars('var(--bg)', VARS.oled)).rgb)
+    const fg = colour('var(--success-ink)', 'oled')
+    expect(contrast(opaque({ rgb: fg.rgb, alpha: 0.75 * fg.alpha }, surface), surface)).toBeLessThan(4.5)
+  })
+
   it('Task 8.16: the start screen stylesheet guards every class it renders with `hidden`', () => {
     // The gallery's files import ExamplesGallery.module.css, so they are checked against THAT sheet.
     const gallery = ['ExamplesGallery.jsx', 'ExampleCard.jsx', 'miniPreview.jsx'].map((f) => readFileSync(join(DIR, f), 'utf8'))
