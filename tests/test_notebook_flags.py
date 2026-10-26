@@ -96,7 +96,7 @@ NOTEBOOK_KEYS = [
     # P5: the How do you trade? offer, the starter-pack install and the firm style rows — an
     # enablement gate (needs NOTEBOOK_JOURNAL_STYLES_ENABLED also on).
     "notebook_starter_packs_enabled",
-    # Notebook widgets, waves 1-6 and 8: one enablement gate per wave (wave 7 has no flag).
+    # Notebook widgets, waves 1-6 and 8-11: one enablement gate per wave (wave 7 has no flag).
     "notebook_widgets_w1_enabled",
     "notebook_widgets_w2_enabled",
     "notebook_widgets_w3_enabled",
