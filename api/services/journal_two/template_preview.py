@@ -321,7 +321,9 @@ def _tool(bid: str, family: str, st: dict, *, author: bool, user_id: str, conn: 
         if isinstance(got, Mapping):
             name, items, kind = got.get("name"), _items(got.get("items")), got.get("kind")
     if not isinstance(name, str) or not name.strip():
-        name = js.SLOT_MISSING_SENTENCES[family]
+        # a member's own ref that is not the viewer's reads as the slot's sentence; a template or inline target
+        # this server cannot name (template_tools not landed, a malformed payload) is just its family's word
+        name = js.SLOT_MISSING_SENTENCES[family] if "ref" in st else share.TYPE_LABELS[family]
     day = tool_binding.bind_day(note_day, st["bind"])
     out: dict = {"slot": bid, "kind": family, "name": name, "bind": st["bind"],
                  "forDayLabel": tool_binding.for_day_label(day, st["bind"])}

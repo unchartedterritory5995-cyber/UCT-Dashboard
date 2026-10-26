@@ -228,6 +228,20 @@ def test_routine_slots_preview_items_without_day_state(conn, monkeypatch):
         {"slot": "tracker_b", "kind": "tracker", "name": "Check-in mood", "trackerKind": "scale",
          "bind": "note-day", "forDayLabel": "For Sat Oct 24"},
     ]
+    # a member's own routine ref is read only for the author; anyone else gets the slot's sentence
+    own = {"format": 2, "name": "T", "definitions": [], "routines": [], "trackers": [], "slots": [], "blocks": [
+        {"block": "routine_a", "enabled": True, "settings": {"ref": f"routine:{rid}"}}]}
+    tp._CACHE.clear()
+    mine = _row(conn, own, user_id=UID, handle="hdl-a")
+    seen.clear()
+    conn.set_trace_callback(seen.append)
+    try:
+        assert _go(conn, mine)["tools"][0]["name"] == "Mine"
+    finally:
+        conn.set_trace_callback(None)
+    assert any("j2_routines" in q for q in seen)                                 # the owned read happened ...
+    assert not any(t in q for q in seen for t in ("j2_routine_ticks", "j2_routine_days"))   # ... and no day state
+    assert tp.preview_mine(B, mine, conn=conn, now=NOW)["tools"][0]["name"] == "This routine is not in your account."
     # routine and tracker slots are hidden with wave 9 (one rule: journal_styles._slot_wave_off)
     monkeypatch.delenv("NOTEBOOK_WIDGETS_W9_ENABLED")
     tp._CACHE.clear()
