@@ -3449,6 +3449,7 @@ def create_note(
     properties: dict[str, Any] | None = None,
     style_stamp: tuple[str | None, int | None, str] | None = None,
     captured_properties: str = "drop",
+    commit: bool = True,
 ) -> dict[str, Any]:
     """`daily_date` and `properties` are INTERNAL (never read from `payload`,
     so `POST /notes` cannot set them): the daily note is made in ONE insert,
@@ -3461,7 +3462,13 @@ def create_note(
     written in the same insert.
     `isCopy` (exactly `true`, from `payload`) says the body is ANOTHER note's (Duplicate note): every
     check-in in it starts unpicked, through `trader_blocks.unpick_checkins` (P2 Tier 3 final fix I1). A
-    conflicted copy never sends it: it holds the member's own unsent version of the same note."""
+    conflicted copy never sends it: it holds the member's own unsent version of the same note.
+    `commit` is INTERNAL (F-NOTE-1, ruling W11-R42): `False` inserts the note on the CALLER'S connection and leaves the
+    transaction open, so the caller can write the returned note's id elsewhere (a create key) and commit both at once.
+    The caller then owns the commit, the rollback and the created events (none is logged before a commit); it needs a
+    connection of its own (`conn`), never one this opens. The default commits and logs exactly as before."""
+    if not commit and conn is None:
+        raise ValueError("create_note(commit=False) needs the caller's connection")
     payload = payload or {}
     title = (payload.get("title") or "").strip()
     if len(title) > MAX_TITLE_CHARS:
@@ -3528,6 +3535,8 @@ def create_note(
         )
         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
         row = _read_own_write(conn, new_id)  # before the commit -- see update_note
+        if not commit:
+            return _row_to_note(row)
         conn.commit()
         _log_notebook_event(user_id, "notebook_note_created")
         if "thesis" in tags:

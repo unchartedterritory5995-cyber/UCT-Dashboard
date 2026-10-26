@@ -304,15 +304,13 @@ def _race(db, monkeypatch, gid, k, *, point="create", together=False, a_raises=F
     return out
 
 
-def _temp_triggers(c) -> list:
-    return [r[0] for r in c.execute("SELECT name FROM sqlite_temp_master WHERE type = 'trigger'")]
-
-
 def test_fifty_races_at_the_edge_never_make_a_second_note(db, monkeypatch):
     """W11-R41, the rail: 50 real-thread races at the 60 s edge across five interleavings (A stalled before its key
     check, before its compose, or after it, with B finishing first or running at once). Every race inserts
     exactly ONE note in all (the trash counts), leaves nothing in the trash -- so restoring cannot produce two live
-    notes --, records that note in the key, and both requests answer it. No TEMP trigger outlives a request."""
+    notes --, records that note in the key, and both requests answer it. (F-NOTE-1, r5 m-4: the old "no TEMP trigger
+    outlives a request" check here could not fail and is gone; no keyed Use creates a temp object at all, railed in
+    `test_gallery_w11_fnote1.py::test_a_keyed_use_never_creates_a_temp_object`.)"""
     gid = _template(db)
     gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, conn=db)
     gid_tools = _tools_template(db)
@@ -343,12 +341,6 @@ def test_fifty_races_at_the_edge_never_make_a_second_note(db, monkeypatch):
         assert sum(bool(out[n].get("replayed")) for n in "AB") == 1, (i, mode)
     assert trash1 == 0                         # nothing to restore: Recently Deleted cannot make a second note
     assert len(tools_paths) >= 25, len(tools_paths)                # both of create_styled_note's paths raced
-    c = auth_db.get_connection()
-    try:
-        assert _temp_triggers(c) == []
-    finally:
-        c.close()
-    assert _temp_triggers(db) == []
 
 
 def test_the_loser_inserts_nothing_and_answers_the_winner(db, monkeypatch):

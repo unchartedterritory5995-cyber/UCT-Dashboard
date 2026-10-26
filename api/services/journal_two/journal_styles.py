@@ -2364,7 +2364,8 @@ STYLE_COMPOSE_TRIES = 2
 
 
 def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | None = None, *,
-                       before_insert: Callable[[sqlite3.Connection], None] | None = None) -> tuple[dict, list]:
+                       before_insert: Callable[[sqlite3.Connection], None] | None = None,
+                       after_insert: Callable[[sqlite3.Connection, dict], None] | None = None) -> tuple[dict, list]:
     """A note made from a style (`styleId`, which wins) or from a kind's default style (`kindId`),
     composed here and written in ONE insert: body, property values and the style stamp, so there is
     no follow-up write and no second revision. Returns `(note, skipped)`. Behind journal_two's
@@ -2374,12 +2375,39 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
     Raises StyleNotFound (no such live style for this member), StyleValidationError (a bad
     styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...).
 
-    `before_insert` (Task 11.8 fix round 5, ruling W11-R41) is called with the connection immediately before the
-    note's INSERT, after the slow compose, in the transaction that insert commits. It may raise to refuse the note:
-    the caller then rolls back and nothing is inserted."""
+    `before_insert` and `after_insert` (Task 11.8 fix round 5, ruling W11-R41; F-NOTE-1, ruling W11-R42) make a
+    GUARDED create: after the slow compose, ONE short write-locked transaction that THIS function begins, on either
+    insert path, runs `before_insert(conn)` (it may raise to refuse the note), inserts the note without committing
+    (`notes.create_note(commit=False)`), runs `after_insert(conn, note)` with the note's own id, and commits once.
+    Any exception, a BaseException included, rolls that transaction back: nothing is inserted and the connection is
+    left with no transaction open. A guarded create needs a connection with no transaction open; without either hook
+    nothing here changes."""
     from api.services.journal_two import notes as notes_service, plan_prefill
+    guarded = before_insert is not None or after_insert is not None
+    if guarded and conn is not None and conn.in_transaction:
+        raise ValueError("a guarded create_styled_note begins its own transaction: call it outside one")
     owned = conn is None
     conn = conn or get_connection()
+
+    def insert(base: dict, composed: dict) -> dict:
+        """The note's INSERT: as before without a hook; guarded, inside this create's own locked transaction."""
+        stamp = (composed["styleId"], composed["styleVersion"], composed["kindId"])
+        if not guarded:
+            return notes_service.create_note(user_id, base, conn, properties=composed["properties"],
+                                             captured_properties="keep", style_stamp=stamp)
+        if before_insert is not None:
+            before_insert(conn)
+        made = notes_service.create_note(user_id, base, conn, properties=composed["properties"],
+                                         captured_properties="keep", style_stamp=stamp, commit=False)
+        if after_insert is not None:
+            after_insert(conn, made)
+        conn.commit()
+        # create_note(commit=False) logs nothing before a commit: its two created events, after this one.
+        notes_service._log_notebook_event(user_id, "notebook_note_created")
+        if "thesis" in (made.get("tags") or []):
+            notes_service._log_notebook_event(user_id, "notebook_thesis_note_created")
+        return made
+
     try:
         style_id, kind_id = payload.get("styleId"), payload.get("kindId")
         if style_id is not None:
@@ -2461,29 +2489,26 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                 if ctx.get("chosen"):
                     # Only the answers verified as the member's own, for slots filled now (I2). No version moves.
                     _sf.remember_choices(user_id, current["id"], {}, ctx["chosen"], conn=conn)
-                if before_insert is not None:
-                    before_insert(conn)
-                note = notes_service.create_note(
-                    user_id, base, conn, properties=composed["properties"], captured_properties="keep",
-                    style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
+                note = insert(base, composed)
             except BaseException:
                 if conn.in_transaction:
                     conn.rollback()
                 raise
             return note, composed["skipped"]
         try:
+            # A guarded create entered with no transaction open (checked above): whatever is open from here is its own.
+            began = began or guarded
             composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create", after_build=prefill,
                                now=now, note_day=note_day, answers=answers, choices=choices)
             base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
             base["bodyJson"] = composed["bodyJson"]
+            if guarded and not conn.in_transaction:
+                # F-NOTE-1 (W11-R42, W11-R31): the short locked transaction starts only now, after the slow compose.
+                _lock_for_style(conn)
             if composed.get("toolsChosen") and not style.get("builtin"):
                 # A caller's own transaction (or no unanswered tool slot): remember in that same transaction.
                 _sf.remember_choices(user_id, style["id"], {}, composed["toolsChosen"], conn=conn)
-            if before_insert is not None:
-                before_insert(conn)
-            note = notes_service.create_note(
-                user_id, base, conn, properties=composed["properties"], captured_properties="keep",
-                style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
+            note = insert(base, composed)
         except BaseException:
             if began and conn.in_transaction:
                 conn.rollback()
