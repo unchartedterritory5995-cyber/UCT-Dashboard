@@ -161,6 +161,7 @@ KNOWN_BLOCKS = _KnownBlocks(frozenset(k["id"] for k in BLOCK_KINDS) | frozenset(
 #: a slot not finished inside this budget becomes its "couldn't load" sentence.
 SLOT_BUDGET_S = 4.0
 _SLOT_MARK = "__uctSlot"            # a deferred slot's in-body marker key, never stored
+_TOOL_MARK = "__uctTool"            # fix round 2: a routine / tracker slot left for the locked step, never stored
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
 
 
@@ -1733,7 +1734,7 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
             definitions: dict | None = None, note_day: str | None = None, answers: dict | None = None,
             choices: dict | None = None, inline_routines: dict | None = None,
             inline_trackers: dict | None = None, gallery_id: str | None = None,
-            template_title: str | None = None, tool_answers: bool = True) -> dict:
+            template_title: str | None = None, tool_answers: bool = True, tools_later: bool = False) -> dict:
     """`after_build(doc, ctx) -> doc` is called in create mode only, once every block is placed (Tier 2
     part A, /plan: one more step on the SAME body, inside the same read budget).
     `fill_widgets=False` (the preview, Task 15): a snapshot slot reads nobody's account and is named.
@@ -1747,7 +1748,9 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
     listed as `toolsCreated` (`{block id: tool id}`), and every template slot this compose answered (created or a
     VERIFIED `{"use"}`) as `toolsChosen` (`{block id: tool id}`, what `slot_fill.remember_choices` may remember).
     `tool_answers=False` (fix round 1, I3 / ruling W11-R30): there is no surface to answer on (switching a note to a
-    style), so an unanswered template slot is skipped with its line, exactly as the update dry run plans it."""
+    style), so an unanswered template slot is skipped with its line, exactly as the update dry run plans it.
+    `tools_later=True` (fix round 2, W11-R31): routine and tracker slots are left as in-place markers for
+    `_finish_tools`, so the slow part of a create (the built slots) runs before the style's write lock is taken."""
     if mode not in BUILD_MODES:
         raise ValueError(f"unknown build mode {mode!r}")
     owned = conn is None
@@ -1794,6 +1797,10 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
                 marker = {"type": "paragraph", _SLOT_MARK: len(deferred)}
                 deferred.append((marker, b))
                 return [marker]
+            if tools_later and slot_family(b["block"]) in _sf.TOOL_ID_KEYS:
+                # Fix round 2 (W11-R31): the slot keeps its PLACE and is filled in the short locked step
+                # (`_finish_tools`), from the style as it stands under the lock.
+                return [{"type": "paragraph", _TOOL_MARK: b["block"]}]
             builder = BLOCK_BUILDERS.get(b["block"])
             if builder is None:
                 note_skip(b["block"], "unknown-block")
@@ -1940,6 +1947,42 @@ def _lock_for_style(conn: sqlite3.Connection) -> None:
             time.sleep(0.05)
 
 
+def _finish_tools(doc: dict, style: dict, ctx: dict, skipped: list) -> dict:
+    """Fix round 2 (W11-R31): fill the routine and tracker markers `compose(tools_later=True)` left, from the style AS
+    IT STANDS NOW (read under the lock): a slot another create already remembered is a ref, and this note adopts it
+    (I1). A marker whose block is gone, disabled or hidden now is dropped with no line. Runs inside the caller's short
+    write transaction; creating a tool joins it."""
+    current = {b["block"]: b for b in style.get("blocks") or []
+               if isinstance(b, dict) and isinstance(b.get("block"), str) and b.get("enabled")}
+
+    def fill(content: list) -> list:
+        out = []
+        for n in content:
+            if isinstance(n, dict) and _TOOL_MARK in n:
+                b = current.get(n[_TOOL_MARK])
+                if b is None or _slot_wave_off(b["block"], b.get("settings"), ctx):
+                    continue
+                node, reason = _sf.build_tool_slot(b, ctx)
+                if node is not None:
+                    out.append(node)
+                elif reason is not None:
+                    if {"block": b["block"], "reason": reason} not in skipped:
+                        skipped.append({"block": b["block"], "reason": reason})
+                    line = slot_skip_sentence(b, reason, ctx)
+                    if line:
+                        out.append(_p(line))
+                continue
+            if isinstance(n, dict) and isinstance(n.get("content"), list):
+                n = {**n, "content": fill(n["content"])}
+            out.append(n)
+        return out
+    return {**doc, "content": fill(doc.get("content") or []) or [{"type": "paragraph"}]}
+
+
+#: Fix round 2 (W11-R31): how many unlocked composes a styled create tries before it settles for the last one.
+STYLE_COMPOSE_TRIES = 2
+
+
 def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> tuple[dict, list]:
     """A note made from a style (`styleId`, which wins) or from a kind's default style (`kindId`),
     composed here and written in ONE insert: body, property values and the style stamp, so there is
@@ -1994,32 +2037,57 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
         now = datetime.now(timezone.utc)
         note_day = tool_binding.note_day(daily_date=None, created_at=now.isoformat(), now=now)
         began = False
-        if _asks_tools(style):
-            # Fix round 1 (I1, Review Focus 2's third case): the style's write lock is taken BEFORE the style is read
-            # for composing, and the style is read again under it. A create that waited for another one therefore
-            # composes from the style as that one left it: a slot it remembered is a ref now, and this note names the
-            # same routine (its own answer for that slot is not asked). Creating, remembering and inserting the note
-            # are ONE transaction (the stores' writes join it; create_note commits it).
-            if not conn.in_transaction:
+        if _asks_tools(style) and not conn.in_transaction:
+            # Fix round 1 (I1) and round 2 (ruling W11-R31): the slow part (the built slots, the prep pack) is
+            # composed WITHOUT any lock, routine and tracker slots left as markers. Then ONE short IMMEDIATE
+            # transaction: re-read the style, fill the tool slots from it (validated as the member's own, a slot
+            # another create already remembered adopted as its ref), create or restore the tool, remember, insert.
+            # A style whose version moved while composing is composed again, once; past that the last body is used
+            # and only its tool slots, cheap, are taken from the style under the lock. The lock is never held
+            # across a built-slot run or any engine call (the 2026-07-01 auth.db outage class).
+            composed_from = style
+            current = style
+            for attempt in range(STYLE_COMPOSE_TRIES):
+                composed = compose(user_id, composed_from, ticker=ticker, conn=conn, mode="create",
+                                   after_build=prefill, now=now, note_day=note_day, answers=answers,
+                                   choices=choices, tools_later=True)
                 _lock_for_style(conn)
                 began = True
-            style = get_style(user_id, style["id"], conn)
-            if style is None:
-                if began and conn.in_transaction:
+                current = get_style(user_id, style["id"], conn)
+                if current is None:
                     conn.rollback()
-                raise StyleNotFound(style_id)
+                    raise StyleNotFound(style_id)
+                if current["version"] == composed_from["version"] or attempt == STYLE_COMPOSE_TRIES - 1:
+                    break
+                conn.rollback()                              # never compose while holding the lock
+                began = False
+                composed_from = current
+            try:
+                ctx = {"user_id": user_id, "conn": conn, "now": now, "note_day": note_day, "fill_widgets": True,
+                       "choices": dict(choices or {}), "answers": dict(answers or {}), "tool_answers": True,
+                       "inline_routines": {}, "inline_trackers": {}, "definitions": {}, "defs": {}, "tools": {},
+                       "gallery_id": current.get("sourceGalleryId"), "template_title": current.get("name")}
+                body = _finish_tools(composed["bodyJson"], current, ctx, composed["skipped"])
+                base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
+                base["bodyJson"] = body
+                if ctx.get("chosen"):
+                    # Only the answers verified as the member's own, for slots filled now (I2). No version moves.
+                    _sf.remember_choices(user_id, current["id"], {}, ctx["chosen"], conn=conn)
+                note = notes_service.create_note(
+                    user_id, base, conn, properties=composed["properties"], captured_properties="keep",
+                    style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
+            except BaseException:
+                if conn.in_transaction:
+                    conn.rollback()
+                raise
+            return note, composed["skipped"]
         try:
             composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create", after_build=prefill,
                                now=now, note_day=note_day, answers=answers, choices=choices)
             base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
             base["bodyJson"] = composed["bodyJson"]
             if composed.get("toolsChosen") and not style.get("builtin"):
-                # "The choice is remembered for that template": only the answers compose VERIFIED as the member's own
-                # (I2), for the slots it filled, in this same transaction. Remembering moves no version, so the note
-                # is stamped with the version it was composed from, which is still the style's current one.
-                if not conn.in_transaction:
-                    _lock_for_style(conn)
-                    began = True
+                # A caller's own transaction (or no unanswered tool slot): remember in that same transaction.
                 _sf.remember_choices(user_id, style["id"], {}, composed["toolsChosen"], conn=conn)
             note = notes_service.create_note(
                 user_id, base, conn, properties=composed["properties"], captured_properties="keep",

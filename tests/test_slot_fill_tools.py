@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import re
 import threading
 import uuid
@@ -887,3 +888,86 @@ def test_an_empty_daily_note_switched_to_a_style_binds_its_daily_date(db):
                              daily_date="2026-11-25")
     updated, _plan = js.apply_style_update(A, note["id"], style_id=style["id"])
     assert _tool_nodes(updated["bodyJson"])[0]["attrs"]["params"]["day"] == "2026-11-27"   # skips Thanksgiving
+
+
+# -- Fix round 2 (ruling W11-R31: a short lock, never across a built-slot run) ------------------------
+
+def test_the_write_lock_is_short_and_an_auth_write_succeeds_during_a_slow_create(db, monkeypatch):
+    """A styled create whose built slot runs ~3 s (an injected slow engine) holds the auth.db write lock only for its
+    short final step, and a concurrent auth.db write with a 3 s busy timeout (the sign-in last-login write) SUCCEEDS
+    while the create is running."""
+    import sqlite3
+    import time
+    from api.services.journal_two import journal_styles as js, notes
+    from api.services.journal_two.widget_engine import run
+
+    def slow_run_plan(user_id, plan, settings, *, lane, def_id=None, def_rev=None, latest_rev=None, now=None,
+                      sample=False):
+        time.sleep(3.0)
+        return {"asOf": "2026-10-26T15:30:00Z", "source": None, "sourceKey": "closed_trades", "view": "line",
+                "title": "x", "defId": def_id, "defRev": def_rev, "latestRev": None, "def": plan, "count": 1}
+    monkeypatch.setattr(run, "run_plan", slow_run_plan)
+    style = _stored(("built_a", {"ref": "shelf:equity-curve", "defRev": 1}), ("routine_a", TPL))
+    held: dict = {}
+    real_lock, real_create = js._lock_for_style, notes.create_note
+
+    def lock(conn):
+        real_lock(conn)
+        held["start"] = time.monotonic()
+
+    def create(*a, **k):
+        try:
+            return real_create(*a, **k)
+        finally:
+            held["end"] = time.monotonic()
+    monkeypatch.setattr(js, "_lock_for_style", lock)
+    monkeypatch.setattr(notes, "create_note", create)
+    out: dict = {}
+
+    def go():
+        out["note"] = js.create_styled_note(A, {"styleId": style["id"], "title": "Slow",
+                                                "choices": {"routine_a": {"create": True}}})[0]
+    t = threading.Thread(target=go)
+    t.start()
+    time.sleep(1.0)                                                    # inside the slow built-slot run
+    path = os.environ["AUTH_DB_PATH"]
+    other = sqlite3.connect(path, timeout=3)
+    try:
+        t0 = time.monotonic()
+        other.execute("BEGIN IMMEDIATE")
+        other.execute("CREATE TABLE IF NOT EXISTS t116_probe (x INTEGER)")
+        other.execute("INSERT INTO t116_probe VALUES (1)")
+        other.commit()
+        waited = time.monotonic() - t0
+    finally:
+        other.close()
+    t.join(30)
+    assert "note" in out
+    assert waited < 1.0, waited                                        # the create held no lock during its run
+    assert held["end"] - held["start"] < 0.5, held["end"] - held["start"]
+    nodes = [n for n in out["note"]["bodyJson"]["content"] if n.get("type") == "widgetEmbed"]
+    assert {n["attrs"]["widgetId"] for n in nodes} == {"builtWidget", "routine"}
+
+
+def test_a_style_changed_while_composing_is_composed_again(db, monkeypatch):
+    """W11-R31: the version is checked under the lock; a style edited during the unlocked compose is composed again
+    (once), so the note's body and its stamp agree."""
+    js = _js()
+    style = _stored(("routine_a", TPL))
+    real = js.compose
+    calls = []
+
+    def compose(*a, **k):
+        calls.append(1)
+        out = real(*a, **k)
+        if len(calls) == 1:                                            # an edit lands between compose and lock
+            js.update_style(A, style["id"], {"outlineBodyJson": {"type": "doc", "content": [_heading("Edited")]}})
+        return out
+    monkeypatch.setattr(js, "compose", compose)
+    note, _ = js.create_styled_note(A, {"styleId": style["id"], "title": "P",
+                                        "choices": {"routine_a": {"create": True}}})
+    after = js.get_style(A, style["id"])
+    assert after["version"] == style["version"] + 1                    # a content edit moved the version
+    assert len(calls) == 2 and note["styleVersion"] == after["version"]
+    assert note["bodyJson"]["content"][0]["content"][0]["text"] == "Edited"   # the body is the edited style's
+    assert _routine_ids(note) and after["blocks"][0]["settings"]["ref"] == "routine:" + _routine_ids(note)[0]
