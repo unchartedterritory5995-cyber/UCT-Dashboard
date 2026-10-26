@@ -370,8 +370,11 @@ export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
     if (!got.ok && got.code === 'invalid' && mounted.current) setRefused((r) => ({ ...r, [d.id]: got.message }))
     return got
   }, (data) => {
+    // m-6: an answer that does not say (no `archivedAt` key: restore_style's early return when another tab restored it
+    // first answers get_style) is worded from the row's own archived state, the best this tab knows.
     const t = isRecord(data?.style) ? data.style : null
-    const archived = typeof t?.archivedAt === 'string' && t.archivedAt !== ''
+    const from = t && Object.hasOwn(t, 'archivedAt') ? t : d
+    const archived = typeof from?.archivedAt === 'string' && from.archivedAt !== ''
     setRefused((r) => { const next = { ...r }; delete next[d.id]; return next })
     focusPast('deleted', d.id)
     say(archived ? `Restored “${d.name}”. It's in Archived.` : `Restored “${d.name}” to your templates.`)

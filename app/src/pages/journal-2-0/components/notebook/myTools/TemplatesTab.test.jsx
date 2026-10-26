@@ -284,6 +284,41 @@ describe('My tools, Templates tab', () => {
     expect(sent('POST', 'journal-styles/sx1/restore')).toHaveLength(1)
   })
 
+  it('fix round 1 m-1: a pinned refusal is cleared by a later successful restore, so a re-deleted row starts clean', async () => {
+    const S_CAP = 'SERVER: You can keep up to 20 styles. Delete one first.'
+    let n = 0
+    // The fake list keeps Gone prep in Recently deleted after the restore: the row as it reads once deleted again.
+    net = installFetch([['POST', 'journal-styles/sx1/restore', () => (++n === 1 ? json(400, { detail: S_CAP })
+      : { style: { ...STYLES.deleted[0], deletedAt: null } })]])
+    await openTab()
+    showList('Recently deleted')
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Gone prep' }))
+    await waitFor(() => expect(rowOf('Gone prep').querySelector('[data-restore-refused]')).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Gone prep' }))
+    await saysLive("Restored “Gone prep”. It's in Archived.")
+    await waitFor(() => expect(sent('GET', 'journal-styles?view=deleted').length).toBeGreaterThanOrEqual(2))
+    await waitFor(() => expect(rowOf('Gone prep')).toBeTruthy())
+    expect(rowOf('Gone prep').querySelector('[data-restore-refused]')).toBeNull()
+    expect(screen.queryByText(S_CAP)).toBeNull()
+  })
+
+  it('fix round 1 m-6: an answer with no archivedAt at all is worded from the row it restored', async () => {
+    // restore_style's early return (restored meanwhile in another tab) answers get_style, which has no archivedAt.
+    const bare = () => { const style = { ...STYLES.deleted[0], deletedAt: null }; delete style.archivedAt; return { style } }
+    net = installFetch([['POST', 'journal-styles/sx1/restore', bare]])
+    await openTab()
+    showList('Recently deleted')
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Gone prep' }))
+    await saysLive("Restored “Gone prep”. It's in Archived.")              // the row was archived when it was deleted
+    cleanup()
+    net = installFetch([['POST', 'journal-styles/sx1/restore', bare]])
+    net.lists.deleted = [{ ...STYLES.deleted[0], archivedAt: null }]
+    await openTab()
+    showList('Recently deleted')
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Gone prep' }))
+    await saysLive('Restored “Gone prep” to your templates.')
+  })
+
   it('F-FE-1 F5 CONTROL: a restore that could not be SENT (offline, a lost answer) is not pinned to the row', async () => {
     net = installFetch([['POST', 'journal-styles/sx1/restore', () => { throw new TypeError('Failed to fetch') }]])
     await openTab()
