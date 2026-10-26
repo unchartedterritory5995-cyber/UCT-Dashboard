@@ -504,10 +504,11 @@ def _mood_row_closed() -> dict:
 @pytest.mark.parametrize("payload", [
     pytest.param({**_tool_payload("trading_days", with_def=False), "def": "x", "publicHidden": False},
                  id="non-dict-def-stamp-false-routine-rows"),
-    pytest.param({**_tool_payload("trading_days", with_def=False), "def": _days_plan(split={"by": "weekday"}),
-                  "publicHidden": True}, id="stamp-true-harmless-dict-def"),
-    pytest.param({k: v for k, v in _tool_payload("trading_days", with_def=False).items() if k != "sourceKey"},
-                 id="missing-sourceKey-routine-rows"),
+    # the two below carry no routine MARK (labelKind), so only the stamp, or only the missing sourceKey, can hide them
+    pytest.param({**_tool_payload("trading_days", with_def=False), "labelKind": None,
+                  "def": _days_plan(split={"by": "weekday"}), "publicHidden": True}, id="stamp-true-harmless-dict-def"),
+    pytest.param({k: v for k, v in _tool_payload("trading_days", with_def=False).items()
+                  if k not in ("sourceKey", "labelKind")}, id="missing-sourceKey-routine-rows"),
     pytest.param({**_clean_closed(), "sourceKey": "future_src"}, id="unknown-sourceKey"),
     pytest.param(_mood_row_closed(), id="allow-listed-source-row-carries-mood"),
     pytest.param({**_clean_closed(), "labelKind": "routine"}, id="allow-listed-source-label-marked-routine"),
