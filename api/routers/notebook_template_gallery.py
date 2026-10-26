@@ -181,7 +181,10 @@ async def _read_json(request: Request) -> dict[str, Any]:
     if not raw.strip():
         return {}
     try:
-        data = json.loads(raw)
+        data = wbody.loads_json(raw)
+    except wbody.BodyTooDeep:
+        # F-ALIAS-1R A5: nested past what the parser can recurse through; it was a 500 on every door this reader serves.
+        raise HTTPException(status_code=400, detail=wbody.S_UNREADABLE_BODY, headers=dict(NO_STORE))
     except ValueError:
         raise HTTPException(status_code=422, detail="Send a JSON object")
     if not isinstance(data, dict):

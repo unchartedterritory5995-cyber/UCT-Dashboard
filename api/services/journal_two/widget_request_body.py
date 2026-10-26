@@ -20,14 +20,32 @@ from typing import Any, Awaitable, Callable
 from fastapi import HTTPException
 
 from api.services.journal_two.json_depth import _json_depth_exceeds
+# At module level: there is no import cycle (only routers import this module, and nothing `share` imports reaches
+# it), railed in both import orders by tests/test_old_body_readers_deep_json.py (F-ALIAS-1R A6).
+from api.services.journal_two.widget_engine.share import S_BAD_CHARACTER
 
 S_BODY_TOO_LARGE = "That is too much to send at once."
 S_UNREADABLE_BODY = "That request couldn't be read."
 
 
+class BodyTooDeep(Exception):
+    """A JSON body nested past what the parser can recurse through (`loads_json`). NOT a `ValueError`, so a reader
+    that answers a malformed body with its own 422 still tells the two apart."""
+
+
+def loads_json(raw: bytes | str) -> Any:
+    """THE decode of a JSON request body, shared by `read_json_object` and the older plain-shape readers
+    (`notebook_template_gallery._read_json`, `notebook_journal_styles.paid_body`; F-ALIAS-1R A5). `json.loads`, with
+    the parser's `RecursionError` (a body nested ~60,000 deep fits in 120 KB, under every size cap) raised as
+    `BodyTooDeep` so no reader answers it with a 500. A malformed body is still the parser's `ValueError`."""
+    try:
+        return json.loads(raw)
+    except RecursionError:
+        raise BodyTooDeep() from None
+
+
 def bad_character_sentence() -> str:
     """The ONE sentence for text that cannot be saved (`share.S_BAD_CHARACTER`, the reducer's own), never retyped."""
-    from api.services.journal_two.widget_engine.share import S_BAD_CHARACTER
     return S_BAD_CHARACTER
 
 
@@ -66,8 +84,8 @@ async def read_json_object(read_raw: Callable[[], Awaitable[bytes]], max_depth: 
     if not raw.strip():
         return {}
     try:
-        body: Any = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError, RecursionError):
+        body: Any = loads_json(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, BodyTooDeep):
         raise err(400, "invalid", S_UNREADABLE_BODY) from None
     if not isinstance(body, dict) or _json_depth_exceeds(body, max_depth):
         raise err(400, "invalid", S_UNREADABLE_BODY)
