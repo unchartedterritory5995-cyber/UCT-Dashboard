@@ -813,6 +813,19 @@ def test_1600_links_reduce_in_under_half_a_second(db, sep):
     assert _timed(_many_links(1600, sep)) < 0.5
 
 
+def test_1600_word_links_that_travel_reduce_in_under_half_a_second(db):
+    """The judgement that runs for EVERY part is the one for a part that is not an address (nothing short-circuits it):
+    1,600 adjacent links of words, each its own href, are judged in linear time and every word travels."""
+    content = []
+    for i in range(1600):
+        content += [_lk(f"my note number {i}", f"https://site{i}.example.com/n/{i}"), {"type": "text", "text": " "}]
+    doc = {"type": "doc", "content": [{"type": "paragraph", "content": content}]}
+    t0 = time.perf_counter()
+    out = json.dumps(gallery._shared_outline(doc, AUTHOR))
+    assert time.perf_counter() - t0 < 0.5
+    assert "my note number 1599" in out and "site1599" not in out
+
+
 @pytest.mark.parametrize("shape", ["tiny links, each its own host", "one host, 1 MB"])
 def test_the_one_mb_worst_case_reduces_in_under_half_a_second(db, shape):
     """The outline cap's worst case: 1 MB of adjacent links in one run -- tiny ones with a host each (the most hrefs),
