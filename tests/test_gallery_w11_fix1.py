@@ -303,3 +303,48 @@ def test_a_list_row_carries_its_template_group(db):
     db.execute("UPDATE j2_template_gallery SET template_group = NULL WHERE id = ?", (gid,))
     db.commit()
     assert {r["id"]: r for r in gallery.list_gallery(MEMBER, conn=db)}[gid]["group"] is None
+
+
+# ── fix round 2 ────────────────────────────────────────────────────────────────────────────────────
+
+def test_use_never_reuses_an_archived_copy(db):
+    """W11-R10: an archived copy is not live. A Use makes a fresh live copy and the archived one stays archived."""
+    gid, _s, _w = _template(db)
+    first = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, conn=db)
+    old = first["style"]["id"]
+    assert js.archive_style(MEMBER, old, conn=db) is not None
+    again = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, conn=db)
+    assert again["style"]["id"] != old
+    rows = dict(db.execute("SELECT id, archived_at FROM j2_journal_styles WHERE user_id = ? AND source_gallery_id = ?"
+                           " AND deleted_at IS NULL", (MEMBER, gid)).fetchall())
+    assert rows[old] is not None and rows[again["style"]["id"]] is None
+    # a third Use reuses the LIVE copy, never the archived one
+    third = gallery.use_library_template(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, payload={}, conn=db)
+    assert third["style"]["id"] == again["style"]["id"]
+
+
+def _statements(db, fn):
+    seen = []
+    db.set_trace_callback(seen.append)
+    try:
+        fn()
+    finally:
+        db.set_trace_callback(None)
+    return len(seen)
+
+
+def test_library_facts_is_a_constant_number_of_statements(db):
+    """11.13's Templates tab asks for every copy at once: N ids cost the same statements as one."""
+    w = widget(db)
+    gid = list_tool(db, "widget", w["id"])
+    ids = [gallery.adopt_tool(MEMBER, gid, answers={"p1": "Flag"}, conn=db)["id"] for _ in range(8)]
+    one = _statements(db, lambda: gallery.library_facts(MEMBER, "widget", ids[:1], conn=db))
+    many = _statements(db, lambda: gallery.library_facts(MEMBER, "widget", ids, conn=db))
+    assert one == many and many <= 6, (one, many)
+    facts = gallery.library_facts(MEMBER, "widget", ids, conn=db)
+    assert set(facts) == set(ids) and all(f["sourceGalleryId"] == gid and f["credit"] for f in facts.values())
+    tg, _s, _w = _template(db)
+    tids = [gallery.adopt_style(MEMBER, tg, answers={"p1": "Flag"}, choices=CHOICES, conn=db)["style"]["id"]
+            for _ in range(5)]
+    assert (_statements(db, lambda: gallery.library_facts(MEMBER, "template", tids[:1], conn=db))
+            == _statements(db, lambda: gallery.library_facts(MEMBER, "template", tids, conn=db)))

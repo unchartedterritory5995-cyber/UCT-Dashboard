@@ -3749,9 +3749,11 @@ _NOTE_FIELDS = ("title", "subtitle", "tags", "ticker", "folderId")
 
 
 def _newest_copy(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> str | None:
-    """W11-R4: the member's newest LIVE copy of a listed template (`source_gallery_id`), or None."""
+    """W11-R4: the member's newest LIVE copy of a listed template (`source_gallery_id`), or None. Fix round 2
+    (W11-R10): an ARCHIVED copy is not live and is never reused; a Use with only an archived copy makes a fresh
+    live one and leaves the archived copy archived."""
     r = conn.execute("SELECT id FROM j2_journal_styles WHERE user_id = ? AND source_gallery_id = ?"
-                     " AND deleted_at IS NULL ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                     " AND deleted_at IS NULL AND archived_at IS NULL ORDER BY created_at DESC, rowid DESC LIMIT 1",
                      (user_id, gallery_id)).fetchone()
     return r["id"] if r else None
 
@@ -3916,15 +3918,31 @@ def credit_for(user_id: str, tool_kind: str, tool_id: Any, *, conn: sqlite3.Conn
                      " AND tool_id = ?", (user_id, tool_kind, tool_id)).fetchone()
     if r is None:
         return None
+    authors = _authors_by_handle(conn, [r["author_handle"]])
+    return _credit_from(user_id, r, authors)
+
+
+def _authors_by_handle(conn: sqlite3.Connection, handles: list) -> dict:
+    """{handle: (user_id, display_name)} for the member handles given, in ONE statement (none for no handle)."""
+    wanted = list(dict.fromkeys(h for h in handles if isinstance(h, str) and h))
+    if not wanted:
+        return {}
+    marks = ", ".join("?" for _ in wanted)
+    return {r[0]: (r[1], r[2]) for r in conn.execute(
+        "SELECT a.handle, a.user_id, u.display_name FROM j2_gallery_authors a LEFT JOIN users u"
+        f" ON u.id = a.user_id WHERE a.handle IN ({marks})", wanted)}
+
+
+def _credit_from(user_id: str, r: Any, authors: dict) -> str | None:
+    """W11-R7's wording for one snapshot row (`author_handle`, `title`); `authors` from `_authors_by_handle`."""
     if r["author_handle"] is None:
         return credit_text(r["title"], label=FIRM_AUTHOR)         # an official or firm item has no author
     if r["author_handle"] == "":
         return credit_text(r["title"], label=ANONYMOUS_AUTHOR)    # a member's item, author unknown at adoption
-    a = conn.execute("SELECT a.user_id, u.display_name FROM j2_gallery_authors a LEFT JOIN users u"
-                     " ON u.id = a.user_id WHERE a.handle = ?", (r["author_handle"],)).fetchone()
-    if a is not None and a["user_id"] == user_id:
+    a = authors.get(r["author_handle"])
+    if a is not None and a[0] == user_id:
         return None
-    return credit_text(r["title"], label=_display_label(a["display_name"]) if a else None, former=a is None)
+    return credit_text(r["title"], label=_display_label(a[1]) if a else None, former=a is None)
 
 
 def _part_hash(part: Any) -> str | None:
@@ -3958,7 +3976,15 @@ def _lineage(conn: sqlite3.Connection, user_id: str, kind: str, tool_id: str) ->
                         (user_id, kind, tool_id)).fetchone()
 
 
-def _listed_part(conn: sqlite3.Connection, kind: str, lineage: Any, gallery_id: str):
+def _listed_from(row: Any, item_type: str) -> Any:
+    """`_listed_row`'s rule over a row already read (`library_facts` reads all its rows in one statement)."""
+    if (row is None or _library_hides(row) or row["item_type"] != item_type
+            or row["status"] != "approved" or row["hidden"]):
+        return None
+    return row
+
+
+def _listed_part(conn: sqlite3.Connection, kind: str, lineage: Any, gallery_id: str, *, rows: dict | None = None):
     """(listed row, the tool's listed part, its hash) for a copy's lineage, or None when nothing listed can update it.
     A copy adopted from a TOOL listing reads that listing (its own item type); a copy a TEMPLATE made reads its part
     of the template's listed payload (`source_key`), never another type's row (I-1). Always the LISTED payload."""
@@ -3966,7 +3992,12 @@ def _listed_part(conn: sqlite3.Connection, kind: str, lineage: Any, gallery_id: 
     item_type = "style" if key else TOOL_ITEM_TYPE.get(kind)
     if kind == "template":
         item_type = "style"
-    row = _listed_row(conn, gallery_id, item_type) if item_type else None
+    if not item_type:
+        row = None
+    elif rows is not None:
+        row = _listed_from(rows.get(gallery_id), item_type)
+    else:
+        row = _listed_row(conn, gallery_id, item_type)
     if row is None:
         return None
     raw = _listed_payload(row)
@@ -4004,22 +4035,35 @@ def library_facts(user_id: str, kind: str, ids: Any, *, conn: sqlite3.Connection
         copies = {r[0]: (r[1], r[2]) for r in conn.execute(
             f"SELECT {cols} FROM {_COPY_TABLE[kind]} WHERE user_id = ? AND id IN ({marks})", (user_id, *wanted))
             if r[1]}
+        if not copies:
+            return {}
+        # Fix round 2: a constant number of statements for N ids -- one per table (copies, credits, gallery rows,
+        # authors), never one per copy. The Templates tab asks for every copy at once.
+        cmarks = ", ".join("?" for _ in copies)
+        lineages = {r["tool_id"]: r for r in conn.execute(
+            "SELECT tool_id, gallery_id, source_version, source_item_type, source_key, source_hash, author_handle,"
+            f" title FROM j2_gallery_credits WHERE user_id = ? AND tool_kind = ? AND tool_id IN ({cmarks})",
+            (user_id, kind, *copies))}
+        gids = list(dict.fromkeys(g for g, _v in copies.values()))
+        rows = {r["id"]: r for r in _read(conn, None, f"g.id IN ({', '.join('?' for _ in gids)})", gids)}
+        authors = _authors_by_handle(conn, [r["author_handle"] for r in lineages.values()])
         out: dict = {}
         for cid, (gid, own_version) in copies.items():
-            lineage = _lineage(conn, user_id, kind, cid)
+            lineage = lineages.get(cid)
             if kind == "template":
                 on = own_version or 0                  # the copy's own version: `apply_update` moves it (I-2)
             else:
                 on = (lineage["source_version"] if lineage is not None and lineage["source_version"] is not None
                       else own_version) or 0
-            found = _listed_part(conn, kind, lineage, gid)
+            found = _listed_part(conn, kind, lineage, gid, rows=rows)
             avail = False
             if found is not None:
                 row, _part, digest = found
                 avail = int(row["version"] or 1) > int(on)
                 if avail and lineage is not None and lineage["source_key"]:
                     avail = digest is not None and digest != lineage["source_hash"]
-            out[cid] = {"sourceGalleryId": gid, "credit": credit_for(user_id, kind, cid, conn=conn),
+            out[cid] = {"sourceGalleryId": gid,
+                        "credit": _credit_from(user_id, lineage, authors) if lineage is not None else None,
                         "updateAvailable": avail}
         return out
     finally:
