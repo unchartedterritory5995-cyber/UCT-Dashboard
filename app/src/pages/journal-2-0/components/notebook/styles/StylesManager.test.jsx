@@ -284,6 +284,34 @@ describe('the Styles manager', () => {
     expect(put().blocks[2].enabled).toBe(true)
   })
 
+  it('repeated widget, routine and tracker blocks each have their own name, and keep it through a move', async () => {
+    // Task 11.14 fix round 1 (M3): three "Use Widget" checkboxes cannot be told apart by a screen reader.
+    const REPEATED = [
+      { block: 'built_a', enabled: true, settings: { ref: 'shelf:equity-curve', defRev: 1 } },
+      { block: 'built_b', enabled: true, settings: { ref: 'shelf:win-rate', defRev: 1 } },
+      { block: 'routine_1', enabled: true, settings: { template: 'pm', bind: 'note-day' } },
+      { block: 'routine_2', enabled: true, settings: { template: 'nb', bind: 'next-trading-day' } },
+      { block: 'tracker_b', enabled: true, settings: { ref: 'checkin:mood' } },
+      { block: 'chart', enabled: true, settings: { tf: 'D' } },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: REPEATED })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const names = (role) => within(list).getAllByRole(role).map((el) => el.getAttribute('aria-label'))
+    const boxes = names('checkbox')
+    expect(boxes).toEqual(['Use Widget 1', 'Use Widget 2', 'Use Routine 1', 'Use Routine 2', 'Use Tracker',
+      'Use Chart of the note’s ticker'])
+    expect(new Set(boxes).size).toBe(boxes.length)
+    const buttons = names('button')
+    expect(buttons.length).toBeGreaterThanOrEqual(12)                          // non-vacuity: two moves per row
+    expect(new Set(buttons).size).toBe(buttons.length)
+    fireEvent.click(screen.getByRole('button', { name: 'Move Widget 1 down' }))
+    expect(screen.getByText('Widget 1 moved to position 2 of 6.')).toBeTruthy()
+    expect(names('checkbox').slice(0, 2)).toEqual(['Use Widget 2', 'Use Widget 1'])   // the number follows its slot
+  })
+
   it('reorders blocks with Move up/Move down and keeps an unknown block', async () => {
     routes.unshift(['GET', MEMBER_URL, UNKNOWN_BLOCK])
     installFetch()

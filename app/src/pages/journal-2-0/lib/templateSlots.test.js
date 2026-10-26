@@ -20,6 +20,14 @@ function serverSource(rel, marker) {
   return execFileSync('git', ['-C', REPO, 'show', `${BE_BRANCH}:${rel}`], { env, encoding: 'utf8' })
 }
 
+// The readers below tolerate CRLF (`\r?` before each line end): a fresh Windows checkout writes these files CRLF.
+const serverSlotRe = (src) => /^SLOT_ID_RE = re\.compile\(r"([^"]+)"\)\r?$/m.exec(src)?.[1] ?? null
+const eagerSlotRe = (src) => /^const SLOT_FAMILY_RE = \/(.+)\/\r?$/m.exec(src)?.[1] ?? null
+function serverTypeLabels(src) {
+  const block = /^TYPE_LABELS = \{([\s\S]*?)\}\r?$/m.exec(src)
+  return block ? Object.fromEntries([...block[1].matchAll(/"(\w+)": "([^"]+)"/g)].map((x) => [x[1], x[2]])) : null
+}
+
 describe('templateSlots', () => {
   it('slot_label_with_and_without_names', () => {
     const built = { block: 'built_a', settings: { ref: 'def:7d1e3f0a-1111-4222-8333-444455556666', defRev: 3 } }
@@ -60,22 +68,42 @@ describe('templateSlots', () => {
 
   it('regex_twin_of_server', () => {
     const src = serverSource('api/services/journal_two/journal_styles.py', /^SLOT_ID_RE = /m)
-    const m = /^SLOT_ID_RE = re\.compile\(r"([^"]+)"\)$/m.exec(src)
-    expect(m, 'journal_styles.SLOT_ID_RE not found').toBeTruthy()
-    expect(SLOT_ID_RE.source).toBe(m[1])
+    const server = serverSlotRe(src)
+    expect(server, 'journal_styles.SLOT_ID_RE not found').toBeTruthy()
+    expect(SLOT_ID_RE.source).toBe(server)
     expect(SLOT_ID_RE.flags).toBe('')
     // The eager journalBlocks.js keeps its own literal (it imports nothing): the same source.
-    const eager = /const SLOT_FAMILY_RE = \/(.+)\/\n/.exec(read('app/src/pages/journal-2-0/lib/journalBlocks.js'))
+    const eager = eagerSlotRe(read('app/src/pages/journal-2-0/lib/journalBlocks.js'))
     expect(eager, 'journalBlocks SLOT_FAMILY_RE not found').toBeTruthy()
-    expect(eager[1]).toBe(m[1])
+    expect(eager).toBe(server)
   })
 
   it('type_labels_are_the_servers_ten', () => {
     const src = serverSource('api/services/journal_two/widget_engine/share.py', /^TYPE_LABELS = /m)
-    const block = /^TYPE_LABELS = \{([\s\S]*?)\}$/m.exec(src)
-    expect(block, 'share.TYPE_LABELS not found').toBeTruthy()
-    const server = Object.fromEntries([...block[1].matchAll(/"(\w+)": "([^"]+)"/g)].map((x) => [x[1], x[2]]))
+    const server = serverTypeLabels(src)
+    expect(server, 'share.TYPE_LABELS not found').toBeTruthy()
     expect(Object.keys(server)).toHaveLength(10)
     expect(TYPE_LABELS).toEqual(server)
+  })
+
+  it('the source readers see CRLF and LF alike, and still see a tampered source', () => {
+    // A fresh Windows checkout (core.autocrlf=true, no attribute for these files) writes CRLF. Built in memory so
+    // this case runs whatever endings this worktree happens to hold.
+    const crlf = (t) => t.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n')
+    const lf = (t) => t.replace(/\r\n/g, '\n')
+    const styles = serverSource('api/services/journal_two/journal_styles.py', /^SLOT_ID_RE = /m)
+    const eagerSrc = read('app/src/pages/journal-2-0/lib/journalBlocks.js')
+    const share = serverSource('api/services/journal_two/widget_engine/share.py', /^TYPE_LABELS = /m)
+    for (const form of [lf, crlf]) {
+      expect(serverSlotRe(form(styles))).toBe(SLOT_ID_RE.source)
+      expect(eagerSlotRe(form(eagerSrc))).toBe(SLOT_ID_RE.source)
+      expect(serverTypeLabels(form(share))).toEqual(TYPE_LABELS)
+      // Control: a tampered regex or word is still read, and so still disagrees.
+      const tamper = (t) => t.replace('[a-z0-9]{1,2}$', '[a-z0-9]{1,3}$')
+      expect(serverSlotRe(tamper(form(styles)))).not.toBe(SLOT_ID_RE.source)
+      expect(eagerSlotRe(tamper(form(eagerSrc)))).not.toBe(SLOT_ID_RE.source)
+      expect(serverTypeLabels(form(share).replace('"Kind of note"', '"Note kind"'))).not.toEqual(TYPE_LABELS)
+    }
+    expect(crlf(eagerSrc).includes('\r\n')).toBe(true)                    // non-vacuity: the CRLF form is CRLF
   })
 })

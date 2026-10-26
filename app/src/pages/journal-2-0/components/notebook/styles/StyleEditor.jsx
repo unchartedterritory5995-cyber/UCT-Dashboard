@@ -53,6 +53,23 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
   const [templateId, setTemplateId] = useState(style?.outlineTemplateId || '')
   const [outlineText, setOutlineText] = useState(() => (readOnlyOutline ? '' : docToOutlineText(style?.outlineBodyJson)))
   const [blocks, setBlocks] = useState(() => (style?.blocks || []).map((b) => ({ ...b, settings: { ...(b.settings || {}) } })))
+  // Wave 11 (Task 11.14 fix round 1, M3): when a family repeats (a template with three widgets), each slot is numbered
+  // in the style's own order ("Widget 1", "Widget 2"), so every checkbox, move button and announcement names ONE row.
+  // Keyed by block id and fixed at open, so a number follows its slot through a reorder. Superseded by the slot's
+  // display name once the server sends it (ruling W11-R21).
+  const [slotOrdinal] = useState(() => {
+    const ids = (style?.blocks || []).map((b) => b.block)
+    const out = {}
+    for (const fam of ['built', 'routine', 'tracker']) {
+      const own = ids.filter((id) => slotFamily(id) === fam)
+      if (own.length > 1) own.forEach((id, n) => { out[id] = n + 1 })
+    }
+    return out
+  })
+  const slotRowLabel = (b) => {
+    const base = slotLabel(b)
+    return base && Object.hasOwn(slotOrdinal, b.block) ? `${base} ${slotOrdinal[b.block]}` : base
+  }
   const [properties, setProperties] = useState(() => ({ ...(style?.properties || {}) }))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -140,7 +157,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
     const [item] = next.splice(from, 1)
     next.splice(to, 0, item)
     setBlocks(next)
-    setMoved(`${slotLabel(item) || blockLabel(item.block)} moved to position ${to + 1} of ${next.length}.`)
+    setMoved(`${slotRowLabel(item) || blockLabel(item.block)} moved to position ${to + 1} of ${next.length}.`)
     pendingFocus.current = dir ? { id: item.block, dir } : null
   }
   const toggle = (i, on) => setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, enabled: on } : b)))
@@ -251,7 +268,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
             // server's and are kept verbatim on save.
             const fam = slotFamily(b.block)
             const known = KNOWN.has(b.block) || Object.hasOwn(SNAPSHOT_BLOCK_LABELS, b.block) || fam !== null
-            const label = fam ? slotLabel(b) : known ? blockLabel(b.block) : 'A block from a newer version'
+            const label = fam ? slotRowLabel(b) : known ? blockLabel(b.block) : 'A block from a newer version'
             const binds = fam === 'routine' || fam === 'tracker' ? bindWords(b.settings?.bind) : ''
             const kind = kindOf(b.block)
             return (
