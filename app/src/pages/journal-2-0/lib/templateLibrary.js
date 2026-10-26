@@ -48,8 +48,12 @@ async function refusal(res) {
   const code = isRecord(detail) && typeof detail.code === 'string' && detail.code ? detail.code : null
   const message = isRecord(detail) && typeof detail.message === 'string' && detail.message.trim() ? detail.message.trim() : ''
   if (res.status === 429) return { ok: false, code: 'rate', message: message || LIBRARY_COPY.rate }
-  if (code) return { ok: false, code, message: message || LIBRARY_COPY.network }
-  if (message) return { ok: false, code: 'invalid', message }
+  // Ruling W11-R24 (Task 11.16): a refusal may name the choice it is about (`slot`); the adoption sheet shows it at
+  // that choice's row. Kept only as a non-empty string; anything else is no slot (the sentence stands at the top).
+  const slot = isRecord(detail) && typeof detail.slot === 'string' && detail.slot.trim() ? detail.slot.trim() : null
+  const at = slot ? { slot } : {}
+  if (code) return { ok: false, code, message: message || LIBRARY_COPY.network, ...at }
+  if (message) return { ok: false, code: 'invalid', message, ...at }
   return fail('network')
 }
 
@@ -122,6 +126,23 @@ export function libraryList(group) {
   const q = typeof group === 'string' && group ? `?group=${enc(group)}` : ''
   return call(() => fetch(`${GALLERY}/library${q}`, { method: 'GET', credentials: 'include' }))
 }
+
+/**
+ * The official templates' groups, in the server's order and words (`template_library.GROUPS`, Task 11.10). The
+ * Template library section draws one row per group in THIS order (Task 11.16); a listed row names its group by key.
+ * ⚠️ One fact in two files until a rail parses the server's tuple (a merge-step carry, recorded in 11.16's report).
+ */
+export const LIBRARY_GROUPS = Object.freeze([
+  Object.freeze({ key: 'night_before', label: 'The night before' }),
+  Object.freeze({ key: 'before_open', label: 'Before the open' }),
+  Object.freeze({ key: 'during_day', label: 'During the day' }),
+  Object.freeze({ key: 'after_close', label: 'After the close' }),
+  Object.freeze({ key: 'weekly_monthly', label: 'Weekly / monthly' }),
+  Object.freeze({ key: 'playbook', label: 'Playbook' }),
+  Object.freeze({ key: 'mindset', label: 'Mindset' }),
+  Object.freeze({ key: 'challenges', label: 'Challenges' }),
+  Object.freeze({ key: 'habits', label: 'Habits' }),
+])
 
 /** Preview with my data (W11-R12): each choice at its answer, its suggested value or Any. */
 export function previewMine(galleryId, answers) {
