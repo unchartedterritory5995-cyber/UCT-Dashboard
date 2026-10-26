@@ -23,11 +23,12 @@ import styles from './WidgetBuilderSheet.module.css'
  * last answer on screen, dimmed, with the failure's own sentence (lib/builtWidgets failureText) — never a blank.
  * `stale` (Task 10.16 fix 1, m-6): no preview could be asked for (one of the member's own fields is refused, and says
  * why beside it): the last answer is dimmed the same way.
- * ⛔ OPACITY IS NEVER THE ONLY CUE (F-DEF-1 r1, ruling W11-R50, WCAG 1.4.1): whenever a last result is kept under a
- * failure or while stale, LAST_RESULT_SENTENCE is shown beside the preview (not inside the dimmed part) and leads the
- * phone summary bar.
- * ⛔ The live region announces ONLY the summary sentence (led by LAST_RESULT_SENTENCE while the last result is
- * kept), a second after it settles (spec 5.11), never a table, a failure's own sentence or "Updating".
+ * ⛔ OPACITY IS NEVER THE ONLY CUE (F-DEF-1, rulings W11-R50/R50b, WCAG 1.4.1): whenever `showingLast` holds (a
+ * kept result under a failure, while stale, or while that kept result is being retried), LAST_RESULT_SENTENCE is
+ * shown beside the preview (not inside the dimmed part) and leads the phone summary bar. ONE predicate drives the
+ * line, the phone text and the dimming. The sentence is VISIBLE only: it never enters the live region.
+ * ⛔ The live region announces ONLY the summary sentence, a second after it settles (spec 5.11), never a table, a
+ * failure or "Updating".
  *
  * Phone (<= 640 px): a one-line sticky summary ("<name> · 47 trades · +$2,140.00") that opens the full preview on
  * tap and is not drawn while the keyboard is open, so a field being typed in keeps the screen.
@@ -52,8 +53,10 @@ export function summaryLine(name, payload, unit) {
   return parts.join(' · ')
 }
 
-/** True when a last good result is on screen but is not the answer to what the member asked now. */
-export const showingLast = (payload, status, error, stale) => !!payload && ((status === 'error' && !!error) || !!stale)
+/** True when a last good result is on screen but is not the answer to what the member asked now: it is kept under a
+ *  failure, while stale, or while that kept result is being retried (runPreview sets `loading` and keeps the error). */
+export const showingLast = (payload, status, error, stale) => !!payload
+  && (!!stale || (!!error && (status === 'error' || status === 'loading')))
 
 /** The summary sentence, announced politely a second after it last changed. One region, one sentence. */
 function useAnnounced(summary) {
@@ -69,6 +72,7 @@ function useAnnounced(summary) {
 function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSuggestRange, suggestOff, stale }) {
   const [asTable, setAsTable] = useState(false)
   const failed = status === 'error' && error
+  const last = showingLast(payload, status, error, stale)
   const text = failed ? failureText(error.code, error.message) : ''
   if (!payload) {
     return (
@@ -97,8 +101,8 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
             canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
         </div>
       )}
-      {(failed || stale) && <p className={styles.previewLast} data-testid="builder-preview-last">{LAST_RESULT_SENTENCE}</p>}
-      <div className={`${styles.previewView} ${failed || stale ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
+      {last && <p className={styles.previewLast} data-testid="builder-preview-last">{LAST_RESULT_SENTENCE}</p>}
+      <div className={`${styles.previewView} ${last ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
         data-stale={stale ? '' : undefined}
         data-testid="builder-preview-view">
         {payload.title && <p className={styles.previewTitle}>{payload.title}</p>}
@@ -148,7 +152,7 @@ export default function PreviewPane({
   const bodyId = useId()
   const last = showingLast(payload, status, error, stale)
   const said = useAnnounced(typeof payload?.summary === 'string' && payload.summary
-    ? `${last ? `${LAST_RESULT_SENTENCE} ` : ''}${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${payload.summary}` : '')
+    ? `${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${payload.summary}` : '')
   const summary = typeof payload?.summary === 'string' ? payload.summary : ''
   const body = (
     <PreviewBody payload={payload} status={status} error={error} onRetry={onRetry}
@@ -168,7 +172,7 @@ export default function PreviewPane({
           <>
             <button type="button" className={styles.summaryBar} aria-expanded={open} aria-controls={bodyId}
               onClick={() => setOpen((v) => !v)} data-testid="builder-summary-bar">
-              <span className={`${styles.summaryText} ${status === 'error' || stale ? styles.dimmed : ''}`}>
+              <span className={`${styles.summaryText} ${last ? styles.dimmed : ''}`}>
                 {last ? `${LAST_RESULT_SENTENCE} ` : ''}{summaryLine(name, payload, unit)}
               </span>
               <UIcon name={open ? 'chevronUp' : 'chevronDown'} size={16} gold={false} aria-hidden="true" />
