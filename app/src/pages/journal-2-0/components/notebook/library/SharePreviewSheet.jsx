@@ -26,6 +26,8 @@ import { GALLERY_CATEGORIES } from '../../../lib/templateGallery'
 import { TRADING_STYLES } from '../../../lib/styleLibrary'
 import { SCHEDULES, TRACKER_DAYS, WEEKDAYS, kindWords } from '../routines/toolEditorLib'
 import { VIEW_LABELS } from '../widgetBuilder/builderCatalog'
+// The template picker's read-only outline renderer (TemplateDetailSheet draws listed outlines with it too).
+import { DocBody } from '../TemplatePreview'
 import styles from './library.module.css'
 
 export const TITLE = 'Share to library'
@@ -272,13 +274,31 @@ function TemplateTravels({ t }) {
   )
 }
 
+/**
+ * F-FE-1 F1 (11.15 M-4): a template's outline, exactly as the server will share it (`answer.outline`: sanitized, its
+ * links dropped by W11-R33/R40). Drawn only when the answer carries one with content. An outline that is gone
+ * (`outlineGone`: the server sends `outline: null`) is already said once, in the server's own sentence, under Not
+ * shared (`notShared`), so nothing more is drawn here and no client copy restates it.
+ */
+export const OUTLINE_LABEL = 'Outline'
+function OutlineTravels({ answer }) {
+  const o = answer?.outline
+  if (!isRecord(o) || !Array.isArray(o.content) || o.content.length === 0) return null
+  return (
+    <div className={styles.group} data-outline-travels="">
+      <h4 className={styles.subheading}>{OUTLINE_LABEL}</h4>
+      <DocBody body={o} />
+    </div>
+  )
+}
+
 function Travels({ kind, answer }) {
   const travels = answer?.travels
   if (!isRecord(travels)) return null
   const body = kind === 'widget' ? <WidgetTravels t={travels} />
     : kind === 'routine' ? <RoutineTravels t={travels} />
       : kind === 'tracker' ? <TrackerTravels t={travels} />
-        : <TemplateTravels t={travels} />
+        : <><TemplateTravels t={travels} /><OutlineTravels answer={answer} /></>
   return <>{body}<SharedNumbers answer={answer} /></>
 }
 

@@ -470,6 +470,39 @@ describe('the share preview of a template', () => {
     kept: [...(b.keep || [])], notShared: [], prefill: STYLE_PREFILL,
   })
 
+  it("F-FE-1 F1: the template's outline travels in the server's words, inside Exactly what travels", async () => {
+    // template_gallery.share_preview's `outline` (11.15 M-4, W11-R33): sanitized, every link mark already dropped.
+    const OUTLINE = { type: 'doc', content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Before the bell' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'What would change the plan?' }] },
+    ] }
+    installServer((b) => ({ ...templateAnswer(b), outline: OUTLINE, outlineGone: false }))
+    mount({ kind: 'template', id: 's1' })
+    await waitFor(() => expect(travels()?.querySelector('[data-outline-travels]')).toBeTruthy())
+    const box = travels().querySelector('[data-outline-travels]')
+    expect(within(box).getByRole('heading', { name: 'Outline' })).toBeTruthy()
+    expect(within(box).getByText('Before the bell')).toBeTruthy()
+    expect(within(box).getByText('What would change the plan?')).toBeTruthy()
+    expect(box.querySelector('a')).toBeNull()
+  })
+
+  it("F-FE-1 F1: an outline that is gone draws no outline and says so ONCE, in the server's own sentence", async () => {
+    const S_GONE = 'SERVER: the outline came from a template you deleted.'
+    installServer((b) => ({ ...templateAnswer(b), outline: null, outlineGone: true, notShared: [S_GONE] }))
+    mount({ kind: 'template', id: 's1' })
+    await waitFor(() => expect(travels()).not.toBeNull())
+    expect(screen.getAllByText(S_GONE)).toHaveLength(1)
+    expect(document.querySelector('[data-outline-travels]')).toBeNull()
+  })
+
+  it('F-FE-1 F1 CONTROL: no outline in the answer (a widget, or none sent) draws no outline section', async () => {
+    installServer((b) => ({ ...templateAnswer(b) }))
+    mount({ kind: 'template', id: 's1' })
+    await waitFor(() => expect(travels()).not.toBeNull())
+    expect(document.querySelector('[data-outline-travels]')).toBeNull()
+    expect(screen.queryByText('This template makes an empty page.')).toBeNull()
+  })
+
   it('lists each held widget, routine and tracker with the same controls, and sends per-block edits', async () => {
     const net = installServer(templateAnswer)
     const { onDone } = mount({ kind: 'template', id: 's1' })
