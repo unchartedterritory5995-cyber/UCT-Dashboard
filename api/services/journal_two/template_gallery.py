@@ -157,7 +157,12 @@ class GalleryError(ValueError):
 
 
 class GalleryConflict(GalleryError):
-    """A request that conflicts with the current state -- answered 409."""
+    """A request that conflicts with the current state -- answered 409. `code` (Task 11.11) is an optional machine
+    code the route can answer beside the sentence (`helpful_days`); `str(e)` stays the sentence alone."""
+
+    def __init__(self, message: str = "", *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class GalleryServerError(Exception):
@@ -4271,30 +4276,188 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
 _NEWEST_FIRST = " ORDER BY COALESCE(g.listed_at, g.created_at) DESC, g.rowid DESC LIMIT " + str(LIST_LIMIT)
 
 
+#: Task 11.11 (W11-R8): while wave 11 is on, Helpful on these item types needs use on HELPFUL_DAYS different ET days.
+#: Outline and page_layout items are unchanged.
+HELPFUL_DAYS = 3
+S_HELPFUL_DAYS = "You can mark this helpful after using it on 3 different days."
+HELPFUL_RULE_TYPES = ("style", "widget_definition", "routine", "tracker")
+#: W11-R9: the 3rd-day line's answers. "yes" also marks Helpful.
+HELPFUL_ANSWERS = ("yes", "not_really", "dismissed")
+S_HELPFUL_ANSWER = "Choose yes, not really or dismiss."
+#: The bounded read of the member's own notes a template's use days come from (newest first).
+USE_DAY_NOTES_LIMIT = 400
+
+
+def _style_use_days(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> list[str]:
+    """The distinct ET days, oldest first, of the member's live notes whose `style_id` is one of THEIR copies of
+    gallery style `gallery_id` (W11-R8). Archived notes count (a use is a use); trashed ones do not. ⛔ The day is
+    `trading_days.et_day_of(created_at)`, never `substr(created_at, 1, 10)` (a UTC day). Both reads are scoped to
+    `user_id`: no other member's copy or note is ever read. Bounded to the newest USE_DAY_NOTES_LIMIT notes."""
+    from api.services.journal_two import trading_days
+    copies = [r[0] for r in conn.execute(
+        "SELECT id FROM j2_journal_styles WHERE user_id = ? AND source_gallery_id = ?", (user_id, gallery_id))]
+    if not copies:
+        return []
+    marks = ",".join("?" * len(copies))
+    rows = conn.execute(
+        f"SELECT created_at FROM j2_notes WHERE user_id = ? AND style_id IN ({marks}) AND deleted_at IS NULL"
+        f" ORDER BY created_at DESC LIMIT {USE_DAY_NOTES_LIMIT}", (user_id, *copies)).fetchall()
+    return sorted({d for d in (trading_days.et_day_of(r[0]) for r in rows) if d})
+
+
+def use_days(user_id: str, row: Mapping[str, Any], *, conn: sqlite3.Connection) -> int:
+    """How many different ET days the member has used gallery item `row` (W11-R8). A `style` counts the distinct ET
+    days of their live notes made from their copies of it; a widget, routine or tracker counts its
+    `j2_gallery_use_days` rows (written by Task 11.8's hooks: a run, a tick or skip, a log, a compose-time fill).
+    Any other type answers 0 (the rule does not apply to it)."""
+    item_type = row["item_type"]
+    if item_type == "style":
+        return len(_style_use_days(conn, user_id, row["id"]))
+    if item_type in TOOL_ITEM_TYPES:
+        return int(conn.execute("SELECT COUNT(*) FROM j2_gallery_use_days WHERE user_id = ? AND item_id = ?",
+                                (user_id, row["id"])).fetchone()[0])
+    return 0
+
+
+def _votable_row(conn: sqlite3.Connection, user_id: str, gallery_id: Any) -> sqlite3.Row | None:
+    """The gallery row the member may vote on (or answer the 3rd-day line about), else None: visible to them,
+    approved, not hidden, and not their own."""
+    if not isinstance(gallery_id, str) or not gallery_id:
+        return None
+    row = _row(conn, gallery_id, user_id)
+    if (not _can_see(row, user_id, False, conn) or row["status"] != "approved" or row["hidden"]
+            or row["user_id"] == user_id):
+        return None
+    return row
+
+
+def _write_helpful(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, on: bool) -> None:
+    """The Helpful write inside the caller's transaction (no commit). ⛔ W11-R8: while wave 11 is on, marking an item
+    of a HELPFUL_RULE_TYPES type with fewer than HELPFUL_DAYS use days raises `GalleryConflict(code="helpful_days")`
+    and writes nothing; unmarking is always allowed. Wave 11 off: the wave 10 behaviour exactly."""
+    if on:
+        if (_wave11_library_on() and row["item_type"] in HELPFUL_RULE_TYPES
+                and use_days(user_id, row, conn=conn) < HELPFUL_DAYS):
+            raise GalleryConflict(S_HELPFUL_DAYS, code="helpful_days")
+        conn.execute("INSERT OR IGNORE INTO j2_gallery_helpful (item_id, user_id, created_at) VALUES (?, ?, ?)",
+                     (row["id"], user_id, _now()))
+    else:
+        conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ? AND user_id = ?", (row["id"], user_id))
+
+
+def _helpful_state(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> tuple[bool, int]:
+    mine = conn.execute("SELECT 1 FROM j2_gallery_helpful WHERE item_id = ? AND user_id = ?",
+                        (gallery_id, user_id)).fetchone() is not None
+    count = conn.execute("SELECT COUNT(*) FROM j2_gallery_helpful WHERE item_id = ?", (gallery_id,)).fetchone()[0]
+    return mine, int(count)
+
+
 def set_helpful(user_id: str, gallery_id: Any, on: bool,
                 conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """Mark a listed item helpful, or take the mark back. `{"helpful": bool, "count": int}`.
 
     None when the library is off, or the member may not vote on it: the item is not theirs to see, is not
     listed (pending, rejected, hidden), or is their OWN. One vote per member per item (the primary key), so
-    marking it twice is the same as once, and unmarking what was never marked changes nothing."""
+    marking it twice is the same as once, and unmarking what was never marked changes nothing.
+
+    Task 11.11 (W11-R8): while wave 11 is on, marking a style, widget, routine or tracker item needs use on
+    HELPFUL_DAYS different ET days (`use_days`), else `GalleryConflict` with `code == "helpful_days"` and
+    S_HELPFUL_DAYS (the route answers 409 `{detail: {code, message}}`). Unmarking is always allowed."""
     if not library_enabled() or not isinstance(gallery_id, str) or not gallery_id:
         return None
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = _row(conn, gallery_id, user_id)
-        if (not _can_see(row, user_id, False, conn) or row["status"] != "approved" or row["hidden"]
-                or row["user_id"] == user_id):
+        row = _votable_row(conn, user_id, gallery_id)
+        if row is None:
             return None
-        if on:
-            conn.execute("INSERT OR IGNORE INTO j2_gallery_helpful (item_id, user_id, created_at) VALUES (?, ?, ?)",
-                         (gallery_id, user_id, _now()))
-        else:
-            conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ? AND user_id = ?", (gallery_id, user_id))
-        conn.commit()
-        count = conn.execute("SELECT COUNT(*) FROM j2_gallery_helpful WHERE item_id = ?", (gallery_id,)).fetchone()[0]
-        return {"helpful": bool(on), "count": int(count)}
+        try:
+            _write_helpful(conn, user_id, row, bool(on))
+            conn.commit()
+        except Exception:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
+        _mine, count = _helpful_state(conn, user_id, gallery_id)
+        return {"helpful": bool(on), "count": count}
+    finally:
+        if owned:
+            conn.close()
+
+
+def helpful_prompt(user_id: str, note_id: Any, *, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """W11-R9: whether the 3rd-day line shows above note `note_id`. `{"show": False}` unless ALL hold: wave 11 and
+    the library are on; the note is the member's own and live, with a `style_id` naming one of their styles whose
+    `source_gallery_id` is a visible, approved, unhidden `style` item NOT authored by them; they have not marked it
+    Helpful and have no `j2_gallery_helpful_prompts` row for it; it has at least HELPFUL_DAYS use days; and this
+    note's ET day is the member's 3rd use day or later. Then `{"show": True, "itemId", "title", "line"}`.
+
+    ⛔ Read-only: the note row is read for its style and creation time and never written; nothing is recorded by
+    asking (the line is shown once because ANSWERING records the row, `answer_helpful_prompt`)."""
+    from api.services.journal_two import trading_days
+    hidden = {"show": False}
+    if not _wave11_library_on() or not isinstance(note_id, str) or not note_id or not user_id:
+        return hidden
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note = conn.execute("SELECT style_id, created_at FROM j2_notes WHERE id = ? AND user_id = ?"
+                            " AND deleted_at IS NULL", (note_id, user_id)).fetchone()
+        if note is None or not note["style_id"]:
+            return hidden
+        style = conn.execute("SELECT source_gallery_id FROM j2_journal_styles WHERE id = ? AND user_id = ?",
+                             (note["style_id"], user_id)).fetchone()
+        gid = style["source_gallery_id"] if style is not None else None
+        row = _votable_row(conn, user_id, gid)
+        if row is None or row["item_type"] != "style":
+            return hidden
+        mine, _count = _helpful_state(conn, user_id, gid)
+        if mine or conn.execute("SELECT 1 FROM j2_gallery_helpful_prompts WHERE user_id = ? AND item_id = ?",
+                                (user_id, gid)).fetchone() is not None:
+            return hidden
+        days = _style_use_days(conn, user_id, gid)
+        note_day = trading_days.et_day_of(note["created_at"])
+        if len(days) < HELPFUL_DAYS or note_day is None or note_day < days[HELPFUL_DAYS - 1]:
+            return hidden
+        title = row["title"]
+        return {"show": True, "itemId": gid, "title": title, "line": f"Was {title} helpful?"}
+    finally:
+        if owned:
+            conn.close()
+
+
+def answer_helpful_prompt(user_id: str, gallery_id: Any, answer: Any, *,
+                          conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """W11-R9: the member's answer to the 3rd-day line, stored once per (member, item) in
+    `j2_gallery_helpful_prompts` (`INSERT OR IGNORE`: a second answer changes nothing and reports the first).
+    "yes" also marks Helpful through the same rule as `set_helpful` (`_write_helpful`), in the SAME transaction: a
+    refusal (`GalleryConflict` code `helpful_days`) rolls the prompt row back too. `{"answer", "helpful", "count"}`,
+    with `answer` the STORED answer. `GalleryError(S_HELPFUL_ANSWER)` for an answer outside HELPFUL_ANSWERS; None
+    when wave 11 or the library is off or the member may not vote on the item (unseen, unlisted, their own)."""
+    if answer not in HELPFUL_ANSWERS:
+        raise GalleryError(S_HELPFUL_ANSWER)
+    if not _wave11_library_on() or not user_id:
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _votable_row(conn, user_id, gallery_id)
+        if row is None:
+            return None
+        try:
+            cur = conn.execute("INSERT OR IGNORE INTO j2_gallery_helpful_prompts (user_id, item_id, answer,"
+                               " answered_at) VALUES (?, ?, ?, ?)", (user_id, gallery_id, answer, _now()))
+            if cur.rowcount == 1 and answer == "yes":
+                _write_helpful(conn, user_id, row, True)
+            conn.commit()
+        except Exception:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
+        stored = conn.execute("SELECT answer FROM j2_gallery_helpful_prompts WHERE user_id = ? AND item_id = ?",
+                              (user_id, gallery_id)).fetchone()[0]
+        mine, count = _helpful_state(conn, user_id, gallery_id)
+        return {"answer": stored, "helpful": mine, "count": count}
     finally:
         if owned:
             conn.close()

@@ -47,6 +47,12 @@ def _reads(conn, gid: str, item_type: str, handle: str, report_id: str, title: s
         except gallery.GalleryError as e:
             assert str(e) == "Unknown item type."
             return False
+    def _helpful() -> bool:
+        try:
+            return gallery.set_helpful("viewer", gid, True, conn=conn) is not None
+        except gallery.GalleryConflict as e:
+            assert e.code == "helpful_days"      # Task 11.11 (W11-R8): the door was reached; the 3-day rule answered
+            return True
     page = gallery.author_page("viewer", handle, conn=conn)
     queue = gallery.admin_queue(conn=conn)
     return {
@@ -58,7 +64,7 @@ def _reads(conn, gid: str, item_type: str, handle: str, report_id: str, title: s
         "get": gallery.get_item("viewer", gid, conn=conn) is not None,
         "get_author": gallery.get_item("author", gid, conn=conn) is not None,
         "get_admin": gallery.get_item("admin", gid, is_admin=True, conn=conn) is not None,
-        "helpful": gallery.set_helpful("viewer", gid, True, conn=conn) is not None,
+        "helpful": _helpful(),
         "report": gallery.report("viewer", gid, reason="broken", conn=conn) is not None,
         "author_page": page is not None and gid in {x["id"] for x in page["items"]},
         "author_page_count": page is not None and page["author"]["itemCount"] == 1,
