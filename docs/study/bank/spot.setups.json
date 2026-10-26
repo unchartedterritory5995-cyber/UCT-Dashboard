@@ -4603,7 +4603,7 @@
   "difficulty": 3,
   "id": "si_645115b2fe4c",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.09% 6 sessions earlier and price tested top, glow, gopen, mid and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.09% 6 sessions earlier; the test touched the gap top (the prior day's high), the gap day's low, the gap day's open, the middle of the gap and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -4664,7 +4664,7 @@
   "difficulty": 3,
   "id": "si_cfdff8a667cb",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 22.98% 39 sessions earlier and price tested glow, gopen and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 22.98% 39 sessions earlier; the test touched the gap day's low, the gap day's open and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -4723,7 +4723,7 @@
   "difficulty": 3,
   "id": "si_3a2ecf317c4e",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.58% 5 sessions earlier and price tested top, glow, gopen, mid and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.58% 5 sessions earlier; the test touched the gap top (the prior day's high), the gap day's low, the gap day's open, the middle of the gap and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -4784,7 +4784,7 @@
   "difficulty": 3,
   "id": "si_d3c73e1a77ed",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 5.88% 14 sessions earlier and price tested top and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 5.88% 14 sessions earlier; the test touched the gap top (the prior day's high) and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -4842,7 +4842,7 @@
   "difficulty": 3,
   "id": "si_b8b6df7ef791",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.49% 7 sessions earlier and price tested top, mid and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 4.49% 7 sessions earlier; the test touched the gap top (the prior day's high), the middle of the gap and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -4901,7 +4901,7 @@
   "difficulty": 3,
   "id": "si_34da7ed38547",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 7.01% 29 sessions earlier and price tested glow and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 7.01% 29 sessions earlier; the test touched the gap day's low and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -4959,7 +4959,7 @@
   "difficulty": 3,
   "id": "si_c2a4cc4dd3d3",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 10.72% 16 sessions earlier and price tested mid and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 10.72% 16 sessions earlier; the test touched the middle of the gap and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5017,7 +5017,7 @@
   "difficulty": 3,
   "id": "si_392fa99527a1",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 8.02% 6 sessions earlier and price tested top and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 8.02% 6 sessions earlier; the test touched the gap top (the prior day's high) and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5075,7 +5075,7 @@
   "difficulty": 3,
   "id": "si_5300cd8fafc6",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 6.67% 10 sessions earlier and price tested top, glow, gopen, mid and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 6.67% 10 sessions earlier; the test touched the gap top (the prior day's high), the gap day's low, the gap day's open, the middle of the gap and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5136,7 +5136,7 @@
   "difficulty": 3,
   "id": "si_e86fa18ab8f5",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 9.53% 7 sessions earlier and price tested mid and held.",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 9.53% 7 sessions earlier; the test touched the middle of the gap and closed None% above the gap top, the first test of the gap.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5194,7 +5194,7 @@
   "difficulty": 3,
   "id": "si_c1ca6625e8c2",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9, ema20, sma50 and the close finished at 98% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the prior day's low, the 9-day average, the 20-day average, the 50-day average, and closed at 98% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5255,7 +5255,7 @@
   "difficulty": 3,
   "id": "si_4c8b6554a5f7",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept sma50 and the close finished at 97% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the 50-day average, and closed at 97% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5313,7 +5313,7 @@
   "difficulty": 3,
   "id": "si_a545b48595e0",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9 and the close finished at 94% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the prior day's low, the 9-day average, and closed at 94% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5372,7 +5372,7 @@
   "difficulty": 3,
   "id": "si_dcdde6e5e549",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept ema9, sma50 and the close finished at 92% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the 9-day average, the 50-day average, and closed at 92% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5431,7 +5431,7 @@
   "difficulty": 3,
   "id": "si_a43e4e7585ab",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9, ema20 and the close finished at 99% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the prior day's low, the 9-day average, the 20-day average, and closed at 99% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5491,7 +5491,7 @@
   "difficulty": 3,
   "id": "si_febb1257bfc6",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low and the close finished at 100% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the prior day's low, and closed at 100% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5549,7 +5549,7 @@
   "difficulty": 3,
   "id": "si_4cc6eeb30566",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept ema20 and the close finished at 98% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the 20-day average, and closed at 98% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5607,7 +5607,7 @@
   "difficulty": 3,
   "id": "si_0848ac23a804",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept ema9, ema20 and the close finished at 90% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the 9-day average, the 20-day average, and closed at 90% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5666,7 +5666,7 @@
   "difficulty": 3,
   "id": "si_d1a732b75fa6",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, ema9, sma50 and the close finished at 98% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the prior day's low, the 9-day average, the 50-day average, and closed at 98% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5726,7 +5726,7 @@
   "difficulty": 3,
   "id": "si_62d7e4410762",
   "lesson_origin": "session",
-  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the open swept prior_low, 5bar_low, ema9, ema20, sma50 and the close finished at 97% of the range.",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened None% against the prior close, swept the prior day's low, the five-day low, the 9-day average, the 20-day average, the 50-day average, and closed at 97% of the range. The daily bar is the footprint; the real trigger is intraday.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -18143,6 +18143,2750 @@
   "source_kind": "setups",
   "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#WVE#2024-10-16",
   "sym": "WVE",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-11-21",
+  "bars": {
+   "asof": "2025-11-21",
+   "forward": 20,
+   "sym": "TWLO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2d52398a8294",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 12.4% 15 sessions earlier; the test touched the gap top (the prior day's high), the middle of the gap and closed 5.1% above the gap top, the first test of the gap; the day closed at 95% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2025-11-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TWLO"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 335.8,
+    "bars_since_gap": 15,
+    "close_vs_gap_top_pct": 5.1,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 1.42,
+    "dcr": 0.95,
+    "dcr_pct": 95,
+    "first_test": true,
+    "fwd_10d_pct": 7.9,
+    "fwd_20d_pct": 17.7,
+    "fwd_5d_pct": 5.8,
+    "fwd_max_gain_pct": 19.4,
+    "fwd_min_low_vs_trigger_low_pct": 5.1,
+    "gap_asof": "2025-10-31",
+    "gap_day_dcr": 0.77,
+    "gap_day_pct": 19.51,
+    "gap_pct": 12.4,
+    "gap_rvol": 4.05,
+    "gap_top": 114.73,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 2.5,
+    "pullback_from_high_pct": -17.0,
+    "range_atr": 1.15,
+    "rvol": 0.76,
+    "s50_slope10_pct": 3.4,
+    "setup_score": 20,
+    "test_depth_atr": 4.37,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#TWLO#2025-11-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#TWLO#2025-11-21",
+  "sym": "TWLO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-03-13",
+  "bars": {
+   "asof": "2023-03-13",
+   "forward": 20,
+   "sym": "TTD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1ac78c2bafb7",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 16.39% 17 sessions earlier; the test touched the gap top (the prior day's high), the middle of the gap and closed 7.0% above the gap top, the first test of the gap; the day closed at 83% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-03-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TTD"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 271.6,
+    "bars_since_gap": 17,
+    "close_vs_gap_top_pct": 7.0,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 1.69,
+    "dcr": 0.83,
+    "dcr_pct": 83,
+    "first_test": true,
+    "fwd_10d_pct": 10.4,
+    "fwd_20d_pct": 13.4,
+    "fwd_5d_pct": 4.8,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_min_low_vs_trigger_low_pct": 8.5,
+    "gap_asof": "2023-02-15",
+    "gap_day_dcr": 0.99,
+    "gap_day_pct": 32.81,
+    "gap_pct": 16.39,
+    "gap_rvol": 8.26,
+    "gap_top": 50.71,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 0.1,
+    "pullback_from_high_pct": -24.2,
+    "range_atr": 1.99,
+    "rvol": 0.71,
+    "s50_slope10_pct": 3.9,
+    "setup_score": 20,
+    "test_depth_atr": 6.73,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#TTD#2023-03-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#TTD#2023-03-13",
+  "sym": "TTD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-08-20",
+  "bars": {
+   "asof": "2025-08-20",
+   "forward": 20,
+   "sym": "CLS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2fba5f9ca97c",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 7.57% 16 sessions earlier; the test touched the gap top (the prior day's high), the middle of the gap and closed 5.3% above the gap top, the first test of the gap; the day closed at 98% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2025-08-20",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CLS"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 503.3,
+    "bars_since_gap": 16,
+    "close_vs_gap_top_pct": 5.3,
+    "confluence": [],
+    "day_pct": -0.99,
+    "dcr": 0.98,
+    "dcr_pct": 98,
+    "first_test": true,
+    "fwd_10d_pct": 21.0,
+    "fwd_20d_pct": 37.8,
+    "fwd_5d_pct": 10.5,
+    "fwd_max_gain_pct": 41.1,
+    "fwd_min_low_vs_trigger_low_pct": 3.3,
+    "gap_asof": "2025-07-29",
+    "gap_day_dcr": 0.74,
+    "gap_day_pct": 16.51,
+    "gap_pct": 7.57,
+    "gap_rvol": 4.3,
+    "gap_top": 173.71,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 8.3,
+    "pullback_from_high_pct": -20.8,
+    "range_atr": 0.97,
+    "rvol": 1.03,
+    "s50_slope10_pct": 10.9,
+    "setup_score": 20,
+    "test_depth_atr": 4.47,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#CLS#2025-08-20",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#CLS#2025-08-20",
+  "sym": "CLS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-04-29",
+  "bars": {
+   "asof": "2026-04-29",
+   "forward": 20,
+   "sym": "QBTS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ea63fba184ae",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 9.16% 10 sessions earlier; the test touched the gap top (the prior day's high), the gap day's low, the middle of the gap and closed 6.9% above the gap top, the first test of the gap; the day closed at 89% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-04-29",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "QBTS"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 722.7,
+    "bars_since_gap": 10,
+    "close_vs_gap_top_pct": 6.9,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 0.88,
+    "dcr": 0.89,
+    "dcr_pct": 89,
+    "first_test": true,
+    "fwd_10d_pct": 17.4,
+    "fwd_20d_pct": 61.4,
+    "fwd_5d_pct": 30.4,
+    "fwd_max_gain_pct": 72.7,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "gap_asof": "2026-04-15",
+    "gap_day_dcr": 0.93,
+    "gap_day_pct": 22.63,
+    "gap_pct": 9.16,
+    "gap_rvol": 4.19,
+    "gap_top": 17.09,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "glow",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 8.1,
+    "pullback_from_high_pct": -23.9,
+    "range_atr": 0.78,
+    "rvol": 0.72,
+    "s50_slope10_pct": 0.2,
+    "setup_score": 20,
+    "test_depth_atr": 3.23,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#QBTS#2026-04-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#QBTS#2026-04-29",
+  "sym": "QBTS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-19",
+  "bars": {
+   "asof": "2026-05-19",
+   "forward": 20,
+   "sym": "FTAI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_51599e9ff0a5",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 9.26% 13 sessions earlier; the test touched the gap top (the prior day's high), the middle of the gap and closed 2.9% above the gap top, the first test of the gap; the day closed at 76% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-05-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FTAI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 381.8,
+    "bars_since_gap": 13,
+    "close_vs_gap_top_pct": 2.9,
+    "confluence": [
+     "sma200"
+    ],
+    "day_pct": -3.08,
+    "dcr": 0.76,
+    "dcr_pct": 76,
+    "first_test": true,
+    "fwd_10d_pct": 10.5,
+    "fwd_20d_pct": 24.1,
+    "fwd_5d_pct": 12.0,
+    "fwd_max_gain_pct": 27.7,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "gap_asof": "2026-04-30",
+    "gap_day_dcr": 0.82,
+    "gap_day_pct": 17.16,
+    "gap_pct": 9.26,
+    "gap_rvol": 2.06,
+    "gap_top": 217.12,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 15.6,
+    "pullback_from_high_pct": -25.7,
+    "range_atr": 0.6,
+    "rvol": 1.25,
+    "s50_slope10_pct": -2.3,
+    "setup_score": 20,
+    "test_depth_atr": 3.75,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#FTAI#2026-05-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#FTAI#2026-05-19",
+  "sym": "FTAI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-03-27",
+  "bars": {
+   "asof": "2026-03-27",
+   "forward": 20,
+   "sym": "CAVA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b9fd6781ef1b",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 15.86% 22 sessions earlier; the test touched the middle of the gap and closed 8.5% above the gap top, the first test of the gap; the day closed at 52% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-03-27",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CAVA"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 247.7,
+    "bars_since_gap": 22,
+    "close_vs_gap_top_pct": 8.5,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": -4.41,
+    "dcr": 0.52,
+    "dcr_pct": 52,
+    "first_test": true,
+    "fwd_10d_pct": 11.7,
+    "fwd_20d_pct": 24.9,
+    "fwd_5d_pct": 8.9,
+    "fwd_max_gain_pct": 31.0,
+    "fwd_min_low_vs_trigger_low_pct": 3.3,
+    "gap_asof": "2026-02-25",
+    "gap_day_dcr": 0.91,
+    "gap_day_pct": 26.36,
+    "gap_pct": 15.86,
+    "gap_rvol": 5.1,
+    "gap_top": 69.5,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 7.2,
+    "pullback_from_high_pct": -20.9,
+    "range_atr": 1.21,
+    "rvol": 1.05,
+    "s50_slope10_pct": 5.6,
+    "setup_score": 19,
+    "test_depth_atr": 4.32,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#CAVA#2026-03-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#CAVA#2026-03-27",
+  "sym": "CAVA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-19",
+  "bars": {
+   "asof": "2026-05-19",
+   "forward": 20,
+   "sym": "VECO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7a1ca1d6b10e",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 25.66% 9 sessions earlier; the test touched the gap top (the prior day's high), the middle of the gap and closed 4.8% above the gap top, the first test of the gap; the day closed at 87% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-05-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VECO"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 41.6,
+    "bars_since_gap": 9,
+    "close_vs_gap_top_pct": 4.8,
+    "confluence": [
+     "ema20"
+    ],
+    "day_pct": -1.73,
+    "dcr": 0.87,
+    "dcr_pct": 87,
+    "first_test": true,
+    "fwd_10d_pct": 10.6,
+    "fwd_20d_pct": 38.6,
+    "fwd_5d_pct": 10.2,
+    "fwd_max_gain_pct": 58.4,
+    "fwd_min_low_vs_trigger_low_pct": 5.4,
+    "gap_asof": "2026-05-06",
+    "gap_day_dcr": 0.6,
+    "gap_day_pct": 25.17,
+    "gap_pct": 25.66,
+    "gap_rvol": 4.46,
+    "gap_top": 52.16,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 5.5,
+    "pullback_from_high_pct": -20.6,
+    "range_atr": 0.8,
+    "rvol": 1.04,
+    "s50_slope10_pct": 14.9,
+    "setup_score": 20,
+    "test_depth_atr": 3.39,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#VECO#2026-05-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#VECO#2026-05-19",
+  "sym": "VECO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-09-10",
+  "bars": {
+   "asof": "2024-09-10",
+   "forward": 20,
+   "sym": "AFRM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4b6e48474eda",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 23.84% 7 sessions earlier; the test touched the middle of the gap and closed 14.6% above the gap top, the first test of the gap; the day closed at 58% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-09-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AFRM"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 243.4,
+    "bars_since_gap": 7,
+    "close_vs_gap_top_pct": 14.6,
+    "confluence": [
+     "ema20",
+     "sma200"
+    ],
+    "day_pct": -2.36,
+    "dcr": 0.58,
+    "dcr_pct": 58,
+    "first_test": true,
+    "fwd_10d_pct": 19.7,
+    "fwd_20d_pct": 10.4,
+    "fwd_5d_pct": 18.1,
+    "fwd_max_gain_pct": 28.7,
+    "fwd_min_low_vs_trigger_low_pct": 4.0,
+    "gap_asof": "2024-08-29",
+    "gap_day_dcr": 0.77,
+    "gap_day_pct": 31.92,
+    "gap_pct": 23.84,
+    "gap_rvol": 8.17,
+    "gap_top": 32.51,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 8.0,
+    "pullback_from_high_pct": -20.6,
+    "range_atr": 0.87,
+    "rvol": 1.18,
+    "s50_slope10_pct": 4.5,
+    "setup_score": 19,
+    "test_depth_atr": 3.01,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#AFRM#2024-09-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#AFRM#2024-09-10",
+  "sym": "AFRM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-08-05",
+  "bars": {
+   "asof": "2024-08-05",
+   "forward": 20,
+   "sym": "KKR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_16d3d6d6d30e",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 7.26% 38 sessions earlier; the test touched the gap top (the prior day's high), the gap day's low, the gap day's open, the middle of the gap and closed 6.2% above the gap top, the first test of the gap; the day closed at 78% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-08-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "KKR"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 561.8,
+    "bars_since_gap": 38,
+    "close_vs_gap_top_pct": 6.2,
+    "confluence": [],
+    "day_pct": -2.2,
+    "dcr": 0.78,
+    "dcr_pct": 78,
+    "first_test": true,
+    "fwd_10d_pct": 13.1,
+    "fwd_20d_pct": 11.3,
+    "fwd_5d_pct": 6.1,
+    "fwd_max_gain_pct": 16.9,
+    "fwd_min_low_vs_trigger_low_pct": 9.1,
+    "gap_asof": "2024-06-10",
+    "gap_day_dcr": 0.74,
+    "gap_day_pct": 11.18,
+    "gap_pct": 7.26,
+    "gap_rvol": 5.63,
+    "gap_top": 99.99,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 18.2,
+    "pullback_from_high_pct": -23.7,
+    "range_atr": 2.33,
+    "rvol": 1.07,
+    "s50_slope10_pct": 2.7,
+    "setup_score": 20,
+    "test_depth_atr": 6.9,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#KKR#2024-08-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#KKR#2024-08-05",
+  "sym": "KKR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-19",
+  "bars": {
+   "asof": "2024-11-19",
+   "forward": 20,
+   "sym": "ARGX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0e8969ad6e26",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 6.87% 13 sessions earlier; the test touched the gap top (the prior day's high), the gap day's low, the middle of the gap and closed 3.4% above the gap top, the first test of the gap; the day closed at 94% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-11-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ARGX"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 154.1,
+    "bars_since_gap": 13,
+    "close_vs_gap_top_pct": 3.4,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 1.17,
+    "dcr": 0.94,
+    "dcr_pct": 94,
+    "first_test": true,
+    "fwd_10d_pct": 8.8,
+    "fwd_20d_pct": 8.6,
+    "fwd_5d_pct": 5.7,
+    "fwd_max_gain_pct": 12.3,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "gap_asof": "2024-10-31",
+    "gap_day_dcr": 0.86,
+    "gap_day_pct": 6.27,
+    "gap_pct": 6.87,
+    "gap_rvol": 3.38,
+    "gap_top": 555.91,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "glow",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 4.3,
+    "pullback_from_high_pct": -8.7,
+    "range_atr": 1.06,
+    "rvol": 1.54,
+    "s50_slope10_pct": 2.3,
+    "setup_score": 20,
+    "test_depth_atr": 3.22,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#ARGX#2024-11-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#ARGX#2024-11-19",
+  "sym": "ARGX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-11-21",
+  "bars": {
+   "asof": "2025-11-21",
+   "forward": 20,
+   "sym": "TER",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_50e0092a7d9f",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 17.75% 17 sessions earlier; the test touched the middle of the gap and closed 7.6% above the gap top, not the first test of the gap; the day closed at 81% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2025-11-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TER"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 467.7,
+    "bars_since_gap": 17,
+    "close_vs_gap_top_pct": 7.6,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 1.93,
+    "dcr": 0.81,
+    "dcr_pct": 81,
+    "first_test": false,
+    "fwd_10d_pct": 27.7,
+    "fwd_20d_pct": 24.1,
+    "fwd_5d_pct": 13.0,
+    "fwd_max_gain_pct": 29.0,
+    "fwd_min_low_vs_trigger_low_pct": 5.3,
+    "gap_asof": "2025-10-29",
+    "gap_day_dcr": 0.78,
+    "gap_day_pct": 20.47,
+    "gap_pct": 17.75,
+    "gap_rvol": 3.42,
+    "gap_top": 147.62,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 10.1,
+    "pullback_from_high_pct": -20.9,
+    "range_atr": 1.0,
+    "rvol": 1.04,
+    "s50_slope10_pct": 7.7,
+    "setup_score": 19,
+    "test_depth_atr": 4.4,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#TER#2025-11-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#TER#2025-11-21",
+  "sym": "TER",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-10-11",
+  "bars": {
+   "asof": "2022-10-11",
+   "forward": 20,
+   "sym": "UBER",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_dfc2a7f81656",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 15.81% 49 sessions earlier; the test touched the gap top (the prior day's high) and closed 0.2% above the gap top, the first test of the gap; the day closed at 55% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2022-10-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "UBER"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 842.5,
+    "bars_since_gap": 49,
+    "close_vs_gap_top_pct": 0.2,
+    "confluence": [],
+    "day_pct": -10.42,
+    "dcr": 0.55,
+    "dcr_pct": 55,
+    "first_test": true,
+    "fwd_10d_pct": 15.0,
+    "fwd_20d_pct": 11.3,
+    "fwd_5d_pct": 12.0,
+    "fwd_max_gain_pct": 25.7,
+    "fwd_min_low_vs_trigger_low_pct": 5.4,
+    "gap_asof": "2022-08-02",
+    "gap_day_dcr": 0.92,
+    "gap_day_pct": 18.9,
+    "gap_pct": 15.81,
+    "gap_rvol": 3.63,
+    "gap_top": 24.62,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 17.4,
+    "pullback_from_high_pct": -33.2,
+    "range_atr": 2.1,
+    "rvol": 3.2,
+    "s50_slope10_pct": 3.2,
+    "setup_score": 18,
+    "test_depth_atr": 7.7,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#UBER#2022-10-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#UBER#2022-10-11",
+  "sym": "UBER",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-01-06",
+  "bars": {
+   "asof": "2023-01-06",
+   "forward": 20,
+   "sym": "DOCS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_cb5438c88229",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 17.03% 37 sessions earlier; the test touched the gap day's low, the middle of the gap and closed 12.8% above the gap top, the first test of the gap; the day closed at 80% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-01-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DOCS"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 64.5,
+    "bars_since_gap": 37,
+    "close_vs_gap_top_pct": 12.8,
+    "confluence": [],
+    "day_pct": -4.72,
+    "dcr": 0.8,
+    "dcr_pct": 80,
+    "first_test": true,
+    "fwd_10d_pct": 10.3,
+    "fwd_20d_pct": 22.6,
+    "fwd_5d_pct": 7.2,
+    "fwd_max_gain_pct": 31.5,
+    "fwd_min_low_vs_trigger_low_pct": 6.9,
+    "gap_asof": "2022-11-11",
+    "gap_day_dcr": 0.93,
+    "gap_day_pct": 32.7,
+    "gap_pct": 17.03,
+    "gap_rvol": 9.3,
+    "gap_top": 27.05,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 8.7,
+    "pullback_from_high_pct": -25.8,
+    "range_atr": 1.87,
+    "rvol": 1.19,
+    "s50_slope10_pct": 5.2,
+    "setup_score": 19,
+    "test_depth_atr": 6.34,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#DOCS#2023-01-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#DOCS#2023-01-06",
+  "sym": "DOCS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-01-20",
+  "bars": {
+   "asof": "2026-01-20",
+   "forward": 20,
+   "sym": "KYMR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9195a239a5c8",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top. Here the gap was 33.85% 28 sessions earlier; the test touched the gap top (the prior day's high) and closed 1.7% above the gap top, the first test of the gap; the day closed at 78% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-01-20",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "KYMR"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 55.2,
+    "bars_since_gap": 28,
+    "close_vs_gap_top_pct": 1.7,
+    "confluence": [],
+    "day_pct": -2.01,
+    "dcr": 0.78,
+    "dcr_pct": 78,
+    "first_test": true,
+    "fwd_10d_pct": 13.3,
+    "fwd_20d_pct": 24.9,
+    "fwd_5d_pct": 5.9,
+    "fwd_max_gain_pct": 29.7,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "gap_asof": "2025-12-08",
+    "gap_day_dcr": 0.47,
+    "gap_day_pct": 41.55,
+    "gap_pct": 33.85,
+    "gap_rvol": 10.6,
+    "gap_top": 67.0,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "post_gap_run_pct": 9.2,
+    "pullback_from_high_pct": -35.7,
+    "range_atr": 0.67,
+    "rvol": 1.0,
+    "s50_slope10_pct": 3.9,
+    "setup_score": 19,
+    "test_depth_atr": 9.84,
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above the gap top.",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#KYMR#2026-01-20",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#KYMR#2026-01-20",
+  "sym": "KYMR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-31",
+  "bars": {
+   "asof": "2023-05-31",
+   "forward": 20,
+   "sym": "TSLA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_fefedecde9b7",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.69% against the prior close, swept the prior day's low, and closed at 100% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2023-05-31",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TSLA"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 26313.4,
+    "day_pct": 1.38,
+    "dcr": 0.998,
+    "dcr_pct": 100,
+    "e20_slope5_pct": 3.97,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 25.9,
+    "fwd_20d_pct": 26.3,
+    "fwd_5d_pct": 10.1,
+    "fwd_max_gain_pct": 35.8,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": false,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -1.22,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.69,
+    "pullback_from_20d_high_pct": -4.6,
+    "range_atr": 1.13,
+    "red_to_green": true,
+    "run20_pct": 28.7,
+    "rvol": 1.18,
+    "s50_slope10_pct": 0.2,
+    "setup_score": 17,
+    "swept": [
+     "prior_low"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.528
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#TSLA#2023-05-31",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#TSLA#2023-05-31",
+  "sym": "TSLA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-06-01",
+  "bars": {
+   "asof": "2023-06-01",
+   "forward": 20,
+   "sym": "MDB",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b5cd25d57c97",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -2.74% against the prior close, swept the prior day's low, the 9-day average, and closed at 95% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2023-06-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MDB"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 384.2,
+    "day_pct": 0.06,
+    "dcr": 0.947,
+    "dcr_pct": 95,
+    "e20_slope5_pct": 4.18,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 31.1,
+    "fwd_20d_pct": 39.8,
+    "fwd_5d_pct": 27.5,
+    "fwd_max_gain_pct": 42.4,
+    "fwd_min_low_vs_trigger_low_pct": 32.4,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": true,
+    "loc_event": true,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -4.68,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -2.74,
+    "pullback_from_20d_high_pct": -7.6,
+    "range_atr": 1.64,
+    "red_to_green": true,
+    "run20_pct": 38.4,
+    "rvol": 2.64,
+    "s50_slope10_pct": 6.2,
+    "setup_score": 16,
+    "swept": [
+     "prior_low",
+     "ema9"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.519
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#MDB#2023-06-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#MDB#2023-06-01",
+  "sym": "MDB",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-15",
+  "bars": {
+   "asof": "2024-11-15",
+   "forward": 20,
+   "sym": "HOOD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2e3480d7a2bd",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.65% against the prior close, swept the prior day's low, and closed at 97% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2024-11-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HOOD"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 375.5,
+    "day_pct": 0.31,
+    "dcr": 0.968,
+    "dcr_pct": 97,
+    "e20_slope5_pct": 8.68,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 16.4,
+    "fwd_20d_pct": 33.7,
+    "fwd_5d_pct": 13.4,
+    "fwd_max_gain_pct": 35.6,
+    "fwd_min_low_vs_trigger_low_pct": 5.2,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": true,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -1.05,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.65,
+    "pullback_from_20d_high_pct": -8.9,
+    "range_atr": 0.53,
+    "red_to_green": true,
+    "run20_pct": 49.2,
+    "rvol": 1.07,
+    "s50_slope10_pct": 7.8,
+    "setup_score": 16,
+    "swept": [
+     "prior_low"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.685
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#HOOD#2024-11-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#HOOD#2024-11-15",
+  "sym": "HOOD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-05",
+  "bars": {
+   "asof": "2024-11-05",
+   "forward": 20,
+   "sym": "TEAM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2cc166bce9d9",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.29% against the prior close, swept the prior day's low, and closed at 89% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2024-11-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TEAM"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 328.6,
+    "day_pct": 1.2,
+    "dcr": 0.891,
+    "dcr_pct": 89,
+    "e20_slope5_pct": 4.64,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 11.8,
+    "fwd_20d_pct": 29.7,
+    "fwd_5d_pct": 10.7,
+    "fwd_max_gain_pct": 30.0,
+    "fwd_min_low_vs_trigger_low_pct": 3.1,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": true,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -0.05,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.29,
+    "pullback_from_20d_high_pct": -6.2,
+    "range_atr": 0.95,
+    "red_to_green": true,
+    "run20_pct": 38.1,
+    "rvol": 1.48,
+    "s50_slope10_pct": 5.4,
+    "setup_score": 16,
+    "swept": [
+     "prior_low"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.458
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#TEAM#2024-11-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#TEAM#2024-11-05",
+  "sym": "TEAM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-11-16",
+  "bars": {
+   "asof": "2023-11-16",
+   "forward": 20,
+   "sym": "DUOL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_328f4587c9c1",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.4% against the prior close, swept the prior day's low, and closed at 88% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2023-11-16",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DUOL"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 97.8,
+    "day_pct": 1.4,
+    "dcr": 0.877,
+    "dcr_pct": 88,
+    "e20_slope5_pct": 13.45,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 2.6,
+    "fwd_20d_pct": 11.3,
+    "fwd_5d_pct": 6.5,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": true,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -2.46,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.4,
+    "pullback_from_20d_high_pct": -10.7,
+    "range_atr": 0.88,
+    "red_to_green": true,
+    "run20_pct": 59.1,
+    "rvol": 1.1,
+    "s50_slope10_pct": 5.4,
+    "setup_score": 17,
+    "swept": [
+     "prior_low"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.512
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#DUOL#2023-11-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#DUOL#2023-11-16",
+  "sym": "DUOL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-03-19",
+  "bars": {
+   "asof": "2024-03-19",
+   "forward": 20,
+   "sym": "MU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_68dce179f6bd",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -1.28% against the prior close, swept the prior day's low, the 20-day average, and closed at 95% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2024-03-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MU"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 1194.0,
+    "day_pct": 0.23,
+    "dcr": 0.949,
+    "dcr_pct": 95,
+    "e20_slope5_pct": 1.17,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 36.2,
+    "fwd_20d_pct": 23.8,
+    "fwd_5d_pct": 26.4,
+    "fwd_max_gain_pct": 38.9,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": false,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -2.87,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -1.28,
+    "pullback_from_20d_high_pct": -10.7,
+    "range_atr": 0.9,
+    "red_to_green": true,
+    "run20_pct": 28.7,
+    "rvol": 1.35,
+    "s50_slope10_pct": 2.5,
+    "setup_score": 16,
+    "swept": [
+     "prior_low",
+     "ema20"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.5
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#MU#2024-03-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#MU#2024-03-19",
+  "sym": "MU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-01-05",
+  "bars": {
+   "asof": "2026-01-05",
+   "forward": 20,
+   "sym": "RKLB",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9c5199c87fd0",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -1.8% against the prior close, swept the 9-day average, and closed at 98% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2026-01-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RKLB"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 1230.5,
+    "day_pct": 2.83,
+    "dcr": 0.984,
+    "dcr_pct": 98,
+    "e20_slope5_pct": 7.28,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 14.1,
+    "fwd_20d_pct": 4.0,
+    "fwd_5d_pct": 12.5,
+    "fwd_max_gain_pct": 27.4,
+    "fwd_min_low_vs_trigger_low_pct": 3.6,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": false,
+    "loc_run": true,
+    "low_vs_prior_low_pct": 6.67,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": false,
+    "open_vs_prior_close_pct": -1.8,
+    "pullback_from_20d_high_pct": -10.7,
+    "range_atr": 1.12,
+    "red_to_green": true,
+    "run20_pct": 78.1,
+    "rvol": 1.53,
+    "s50_slope10_pct": 2.0,
+    "setup_score": 16,
+    "swept": [
+     "ema9"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.477
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#RKLB#2026-01-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#RKLB#2026-01-05",
+  "sym": "RKLB",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-06-23",
+  "bars": {
+   "asof": "2025-06-23",
+   "forward": 20,
+   "sym": "SOFI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c283733e326c",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -1.18% against the prior close, swept the prior day's low, the 9-day average, and closed at 89% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2025-06-23",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SOFI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 746.6,
+    "day_pct": 1.05,
+    "dcr": 0.889,
+    "dcr_pct": 89,
+    "e20_slope5_pct": 2.96,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 29.9,
+    "fwd_20d_pct": 36.6,
+    "fwd_5d_pct": 18.6,
+    "fwd_max_gain_pct": 48.0,
+    "fwd_min_low_vs_trigger_low_pct": 5.9,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": true,
+    "loc_event": false,
+    "loc_run": false,
+    "low_vs_prior_low_pct": -2.4,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -1.18,
+    "pullback_from_20d_high_pct": -6.4,
+    "range_atr": 1.19,
+    "red_to_green": true,
+    "run20_pct": 22.7,
+    "rvol": 0.97,
+    "s50_slope10_pct": 5.5,
+    "setup_score": 15,
+    "swept": [
+     "prior_low",
+     "ema9"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.469
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#SOFI#2025-06-23",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#SOFI#2025-06-23",
+  "sym": "SOFI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-11-21",
+  "bars": {
+   "asof": "2025-11-21",
+   "forward": 20,
+   "sym": "HL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b044a2481ac5",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.3% against the prior close, swept the prior day's low, the five-day low, the 50-day average, and closed at 97% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2025-11-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HL"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 215.1,
+    "day_pct": 1.29,
+    "dcr": 0.967,
+    "dcr_pct": 97,
+    "e20_slope5_pct": 1.07,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 18.5,
+    "fwd_20d_pct": 53.6,
+    "fwd_5d_pct": 27.8,
+    "fwd_max_gain_pct": 56.6,
+    "fwd_min_low_vs_trigger_low_pct": 4.5,
+    "known_name": false,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": false,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -2.36,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.3,
+    "pullback_from_20d_high_pct": -20.5,
+    "range_atr": 0.52,
+    "red_to_green": true,
+    "run20_pct": 36.3,
+    "rvol": 1.04,
+    "s50_slope10_pct": 8.3,
+    "setup_score": 16,
+    "swept": [
+     "prior_low",
+     "5bar_low",
+     "sma50"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.617
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#HL#2025-11-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#HL#2025-11-21",
+  "sym": "HL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-04-27",
+  "bars": {
+   "asof": "2026-04-27",
+   "forward": 20,
+   "sym": "DOCN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_11118bd68c3e",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.23% against the prior close, swept the prior day's low, the 9-day average, and closed at 98% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2026-04-27",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DOCN"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 224.3,
+    "day_pct": 3.93,
+    "dcr": 0.983,
+    "dcr_pct": 98,
+    "e20_slope5_pct": 6.39,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 64.4,
+    "fwd_20d_pct": 62.4,
+    "fwd_5d_pct": 10.0,
+    "fwd_max_gain_pct": 67.8,
+    "fwd_min_low_vs_trigger_low_pct": 2.1,
+    "known_name": false,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": true,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -3.66,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.23,
+    "pullback_from_20d_high_pct": -9.2,
+    "range_atr": 1.14,
+    "red_to_green": true,
+    "run20_pct": 37.5,
+    "rvol": 0.5,
+    "s50_slope10_pct": 8.0,
+    "setup_score": 16,
+    "swept": [
+     "prior_low",
+     "ema9"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.543
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#DOCN#2026-04-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#DOCN#2026-04-27",
+  "sym": "DOCN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-04-15",
+  "bars": {
+   "asof": "2026-04-15",
+   "forward": 20,
+   "sym": "SMH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_81f50874a2cd",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.29% against the prior close, swept the prior day's low, and closed at 98% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2026-04-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SMH"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 3114.6,
+    "day_pct": 0.22,
+    "dcr": 0.982,
+    "dcr_pct": 98,
+    "e20_slope5_pct": 4.76,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 10.3,
+    "fwd_20d_pct": 26.4,
+    "fwd_5d_pct": 5.3,
+    "fwd_max_gain_pct": 27.6,
+    "fwd_min_low_vs_trigger_low_pct": 2.9,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": false,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -2.05,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.29,
+    "pullback_from_20d_high_pct": -3.7,
+    "range_atr": 1.39,
+    "red_to_green": true,
+    "run20_pct": 25.6,
+    "rvol": 0.96,
+    "s50_slope10_pct": 0.5,
+    "setup_score": 15,
+    "swept": [
+     "prior_low"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.855
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#SMH#2026-04-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#SMH#2026-04-15",
+  "sym": "SMH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-04",
+  "bars": {
+   "asof": "2024-11-04",
+   "forward": 20,
+   "sym": "DASH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7f6663801b66",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.42% against the prior close, swept the 9-day average, and closed at 98% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2024-11-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DASH"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 460.4,
+    "day_pct": 1.02,
+    "dcr": 0.977,
+    "dcr_pct": 98,
+    "e20_slope5_pct": 2.02,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 9.9,
+    "fwd_20d_pct": 12.0,
+    "fwd_5d_pct": 11.3,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_min_low_vs_trigger_low_pct": 2.7,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": true,
+    "loc_run": false,
+    "low_vs_prior_low_pct": 0.2,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": false,
+    "open_vs_prior_close_pct": -0.42,
+    "pullback_from_20d_high_pct": -7.6,
+    "range_atr": 1.3,
+    "red_to_green": true,
+    "run20_pct": 16.9,
+    "rvol": 0.77,
+    "s50_slope10_pct": 3.9,
+    "setup_score": 15,
+    "swept": [
+     "ema9"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.508
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#DASH#2024-11-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#DASH#2024-11-04",
+  "sym": "DASH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-11-30",
+  "bars": {
+   "asof": "2023-11-30",
+   "forward": 20,
+   "sym": "PHM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b4f9abbe034a",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.39% against the prior close, swept the prior day's low, the five-day low, the 9-day average, and closed at 94% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2023-11-30",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PHM"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 189.4,
+    "day_pct": 0.47,
+    "dcr": 0.943,
+    "dcr_pct": 94,
+    "e20_slope5_pct": 2.69,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 18.6,
+    "fwd_20d_pct": 16.7,
+    "fwd_5d_pct": 6.8,
+    "fwd_max_gain_pct": 18.9,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "known_name": false,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": true,
+    "loc_event": false,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -1.48,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.39,
+    "pullback_from_20d_high_pct": -2.9,
+    "range_atr": 1.08,
+    "red_to_green": true,
+    "run20_pct": 22.0,
+    "rvol": 1.26,
+    "s50_slope10_pct": 2.4,
+    "setup_score": 16,
+    "swept": [
+     "prior_low",
+     "5bar_low",
+     "ema9"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.557
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#PHM#2023-11-30",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#PHM#2023-11-30",
+  "sym": "PHM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-09-11",
+  "bars": {
+   "asof": "2024-09-11",
+   "forward": 20,
+   "sym": "ONON",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b05ca18c2960",
+  "lesson_origin": "session",
+  "lesson_text": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday. Here the session opened -0.57% against the prior close, swept the prior day's low, the 9-day average, the 20-day average, and closed at 92% of the range and back above the prior close (red to green). The daily bar is the footprint; the real trigger is intraday.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Go Signal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_go_signal",
+   "example": {
+    "asof": "2024-09-11",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ONON"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 192.0,
+    "day_pct": 2.56,
+    "dcr": 0.924,
+    "dcr_pct": 92,
+    "e20_slope5_pct": 1.07,
+    "fired_variants": [
+     "red_to_green",
+     "daily_proxy"
+    ],
+    "fwd_10d_pct": 8.1,
+    "fwd_20d_pct": 9.8,
+    "fwd_5d_pct": 9.7,
+    "fwd_max_gain_pct": 13.7,
+    "fwd_min_low_vs_trigger_low_pct": 8.3,
+    "known_name": true,
+    "labels": [
+     "no_location"
+    ],
+    "loc_base": false,
+    "loc_event": true,
+    "loc_run": true,
+    "low_vs_prior_low_pct": -1.7,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "oops_overlap": true,
+    "open_vs_prior_close_pct": -0.57,
+    "pullback_from_20d_high_pct": -9.8,
+    "range_atr": 1.66,
+    "red_to_green": true,
+    "run20_pct": 25.5,
+    "rvol": 0.87,
+    "s50_slope10_pct": 2.9,
+    "setup_score": 15,
+    "swept": [
+     "prior_low",
+     "ema9",
+     "ema20"
+    ],
+    "variant": "red_to_green",
+    "wick_frac": 0.492
+   },
+   "fires": true,
+   "quote": "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real trigger is intraday.",
+   "setup": "Go Signal",
+   "source": "docs/study/setups/setup_examples.json#Go Signal#ONON#2024-09-11",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.intraday.go_signal",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Go Signal#ONON#2024-09-11",
+  "sym": "ONON",
   "type": "spot",
   "version": 1
  }

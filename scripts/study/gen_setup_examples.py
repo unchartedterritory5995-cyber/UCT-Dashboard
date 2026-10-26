@@ -117,10 +117,23 @@ def fact_line(setup: str, ex: dict) -> str:
                     f"{f.get('day_pct')}% at {f.get('close_pos_pct')}% of its range, gapping {f.get('trigger_gap_pct')}%.")
         return f"Here the drive was {drive}; the trigger day gapped only {f.get('trigger_gap_pct')}%."
     if setup == "Gap Support":
-        return (f"Here the gap was {f.get('gap_pct')}% {f.get('bars_since_gap')} sessions earlier and price tested "
-                f"{', '.join(f.get('levels_touched') or [])} and held.")
+        words = {"top": "the gap top (the prior day's high)", "glow": "the gap day's low", "mid": "the middle of the gap",
+                 "gopen": "the gap day's open"}
+        levels = [words.get(x, x) for x in (f.get("levels_touched") or [])]
+        line = (f"Here the gap was {f.get('gap_pct')}% {f.get('bars_since_gap')} sessions earlier; the test touched "
+                f"{', '.join(levels) or 'a gap level'} and closed {f.get('close_vs_gap_top_pct')}% above the gap top")
+        if f.get("first_test") is not None:
+            line += ", the first test of the gap" if f.get("first_test") else ", not the first test of the gap"
+        line += f"; the day closed at {f.get('dcr_pct')}% of its range." if f.get("dcr_pct") is not None else "."
+        return line
     if setup == "Go Signal":
-        return f"Here the open swept {', '.join(f.get('swept') or [])} and the close finished at {f.get('dcr_pct')}% of the range."
+        words = {"prior_low": "the prior day's low", "5bar_low": "the five-day low", "ema9": "the 9-day average",
+                 "ema20": "the 20-day average", "sma50": "the 50-day average"}
+        swept = [words.get(x, x) for x in (f.get("swept") or [])]
+        line = (f"Here the session opened {f.get('open_vs_prior_close_pct')}% against the prior close, swept "
+                f"{', '.join(swept) or 'a nearby support'}, and closed at {f.get('dcr_pct')}% of the range")
+        line += " and back above the prior close (red to green)." if f.get("red_to_green") else "."
+        return line + " The daily bar is the footprint; the real trigger is intraday."
     return ""
 
 
