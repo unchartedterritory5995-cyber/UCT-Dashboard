@@ -613,16 +613,15 @@ def seed_doc(n: int, tag: str, with_blocks: bool = False) -> tuple[dict, str]:
 
 
 def refuse_shared_root(data_dir: str) -> str | None:
-    """Why `data_dir` is refused, or None. Resolves it first: a relative or drive-relative
-    spelling must not slip past a string compare."""
+    """Why `data_dir` is refused, or None: THE refusal authority, `scripts/shared_root_guard.py`
+    (ruling W11-R51), against this module's `SHARED_ROOTS` (a rail swaps them for a fake root)."""
     if not data_dir:
         return "no --data-dir"
-    resolved = os.path.normcase(os.path.abspath(data_dir))
-    for root in SHARED_ROOTS:
-        r = os.path.normcase(os.path.abspath(root))
-        if resolved == r or resolved.startswith(r.rstrip("\\/") + os.sep):
-            return f"{data_dir!r} resolves to {resolved!r}, inside the shared data root {root!r}"
-    return None
+    scripts = str(REPO / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import shared_root_guard
+    return shared_root_guard.refuse(data_dir, roots=SHARED_ROOTS)
 
 
 def port_busy(port: int) -> bool:
