@@ -692,7 +692,8 @@ def _nth_newest_trade_day(conn: sqlite3.Connection, user_id: str, acc: str | Non
     if acc:
         sql += " AND t.account_id = ?"
         params.append(acc)
-    sql += f" ORDER BY {_DAY} DESC, t.id DESC LIMIT {max(1, min(int(n), wcompile.LAST_N_MAX))}"
+    sql += (f" ORDER BY {wcompile.CLOSED_ORDER}"
+            f" LIMIT {max(1, min(int(n), wcompile.LAST_N_MAX))}")
     days = [r[0] for r in conn.execute(sql, params).fetchall() if r[0]]
     if not days:
         return None
@@ -1385,7 +1386,9 @@ def scan_options(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         if d is None or d > rng.to_day or (rng.from_day is not None and d < rng.from_day):
             continue
         kept.append((d, r))
-    kept.sort(key=lambda p: (p[0], str(p[1].get("id") or "")), reverse=True)
+    # the ET day, then the row's own instant, then the id: `compile.OPTION_ORDER` (F-SORT-1)
+    kept.sort(key=lambda p: (p[0], str(p[1].get("closed_at") or p[1].get("entry_date") or ""),
+                             str(p[1].get("id") or "")), reverse=True)
     capped = False
     if over:
         # Rows past the LIMIT have a SQL day no later than the last row read, and an ET day the
