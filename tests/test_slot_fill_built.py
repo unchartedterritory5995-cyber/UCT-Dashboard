@@ -517,9 +517,20 @@ def test_a_big_template_never_starves_another_members_slot(db, monkeypatch):
     from api.services.journal_two import journal_styles as js
     from api.services.journal_two.widget_engine import run
     lock, live, peak = threading.Lock(), {A: 0, B: 0}, {A: 0, B: 0}
+    tasks, tasks_peak = {A: 0, B: 0}, {A: 0, B: 0}         # slot tasks holding a pool permit, per member
 
     def through_the_real_gate(user_id, plan, settings, *, lane, def_id=None, def_rev=None, latest_rev=None,
                               now=None, sample=False):
+        with lock:
+            tasks[user_id] += 1
+            tasks_peak[user_id] = max(tasks_peak[user_id], tasks[user_id])
+        try:
+            return _gated(user_id, plan, lane, def_id, def_rev)
+        finally:
+            with lock:
+                tasks[user_id] -= 1
+
+    def _gated(user_id, plan, lane, def_id, def_rev):
         with run.admit(user_id, lane):                     # the engine's own gates: MEMBER_MAX, BUILDER_MAX
             with lock:
                 live[user_id] += 1
@@ -545,6 +556,7 @@ def test_a_big_template_never_starves_another_members_slot(db, monkeypatch):
         assert len(_built_nodes(body)) == n, uid
         assert not [x for x in _lines(body) if "couldn't load" in x], uid
     assert peak[A] <= run.MEMBER_MAX
+    assert tasks_peak[A] <= run.MEMBER_MAX                 # the queue is on the request thread, not in the pool
 
 
 def test_an_engine_busy_for_the_whole_budget_is_the_sentence_inside_the_budget(db, monkeypatch):
@@ -595,11 +607,14 @@ def test_one_decider_hides_a_dark_member_plan_on_every_path(db, monkeypatch):
     assert served["slotNames"] == {"built_c": "Equity curve"}                           # names only what is shown
     listed = js.served_styles([js.get_style(A, s["id"])], A)[0]
     assert [b["block"] for b in listed["blocks"]] == ["chart", "built_c"]
-    lines = _lines(js.preview(A, {"styleId": s["id"]})["bodyJson"])
+    previewed = js.preview(A, {"styleId": s["id"]})
+    assert previewed["slotNames"] == {"built_c": "Equity curve"}
+    lines = _lines(previewed["bodyJson"])
     assert [x for x in lines if "fills in" in x] == ["Equity curve fills in with your own data when you make a note."]
     out = js.compose(A, js.get_style(A, s["id"]), ticker="NVDA", conn=None, now=NOW)
     assert [c["def_id"] for c in spy.calls] == [SHELF] and len(_built_nodes(out["bodyJson"])) == 1
     assert not [k for k in out["skipped"] if k["block"] in ("built_a", "built_b")]
+    assert out["slotNames"] == {"built_c": "Equity curve"}
     got = js.update_style(A, s["id"], {"blocks": served["blocks"]})                     # the editor's save
     assert [b["block"] for b in got["blocks"]] == ["chart", "built_a", "built_b", "built_c"]
     _waves(monkeypatch, *ALL_ON)                                                         # control: all shown
