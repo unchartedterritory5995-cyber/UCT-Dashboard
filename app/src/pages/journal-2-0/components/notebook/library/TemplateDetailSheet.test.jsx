@@ -129,6 +129,30 @@ describe('the template detail', () => {
     expect(calls.filter((c) => c.method === 'POST' && !c.path.endsWith('/preview-mine'))).toEqual([])
   })
 
+  it("a tool's bound day is the server's forDayLabel when it sent one (the adoption sheet's own renderer)", async () => {
+    const weekly = { ...PREVIEW, tools: [{ slot: 'routine_w', kind: 'routine', name: 'Weekly review', bind: 'week',
+      forDayLabel: 'For the week of Oct 19', items: [] }] }
+    installServer({ preview: weekly })
+    render(<TemplateDetailSheet item={ITEM} onClose={() => {}} />)
+    const tool = await waitFor(() => {
+      const el = document.querySelector('[data-preview-tool="routine_w"]')
+      expect(el).not.toBeNull()
+      return el
+    })
+    expect(within(tool).getByText('For the week of Oct 19')).toBeInTheDocument()
+    expect(within(tool).queryByText(bindWords('week'))).toBeNull()
+  })
+
+  it('"Use this template" waits while the picker is making a note (busy)', async () => {
+    render(<TemplateDetailSheet item={ITEM} onClose={() => {}} busy />)
+    await screen.findByText('Win rate by setup')
+    const use = screen.getByRole('button', { name: USE_TEMPLATE_LABEL })
+    expect(use).toBeDisabled()
+    await userEvent.setup().click(use)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(openAdoptSheet).not.toHaveBeenCalled()
+  })
+
   it('a rate refusal is the server\'s own sentence', async () => {
     const RATE = 'Too many previews in an hour. Try again later.'
     installServer({ previewStatus: 429, preview: { detail: { code: 'rate', message: RATE } } })

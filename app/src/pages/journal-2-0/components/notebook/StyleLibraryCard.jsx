@@ -13,7 +13,7 @@
 // missing item or an outage a fixed sentence of our own. Nothing fails silently.
 import { useId, useRef, useState } from 'react'
 import { adoptStyle, tradingStyleLabel } from '../../lib/styleLibrary'
-import { categoryLabel } from '../../lib/templateGallery'
+import { categoryLabel, getGalleryTemplate } from '../../lib/templateGallery'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { ReportForm, PreviewLines } from './TemplateGallery'
 import UIcon from '../../../../components/ui/UIcon'
@@ -22,8 +22,21 @@ import GalleryAdminActions from './GalleryAdminActions'
 import { useHelpfulToggle, withStop } from './useHelpfulToggle'
 import styles from './TemplateGallery.module.css'
 // Notebook widgets wave 11 (Task 11.16): the library facts block, only while wave 11 is on.
-import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import { doorLostSentence, widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import { slotFamily } from '../../lib/templateSlots'
 import LibraryCardFacts from './library/LibraryCardFacts'
+
+const listedBlocks = (listing) => {
+  const blocks = listing?.payload?.blocks ?? listing?.blocks
+  return Array.isArray(blocks) ? blocks : null
+}
+
+/** Ruling W11-R25: does a listed style hold a widget, routine or tracker slot? The listing's own blocks decide
+ *  (`templateSlots.slotFamily`, the one family test); a listing whose blocks are unknown holds none. */
+export function holdsFamilySlot(listing) {
+  const blocks = listedBlocks(listing)
+  return Boolean(blocks) && blocks.some((b) => slotFamily(b !== null && typeof b === 'object' ? b.block : b) !== null)
+}
 
 /** The server's own sentence for a refusal it explains (400 / 402 / 409 / 429); otherwise ours. A 404's
  *  "Not found" and a 5xx say nothing a member can act on. ⛔ ONE rule, `libraryError`'s (final review M-7):
@@ -48,6 +61,28 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   // Wave 11 (Task 11.16): the facts block replaces "Adopted by N" (a 0 read "Adopted by 0"; now "New"), the helpful
   // line (shown from 1 up) and the description. Wave 11 off: exactly as before.
   const w11 = widgetsWaveOn(11)
+  // Ruling W11-R25: under wave 11, Adopt on a style that holds a family slot opens the adoption sheet (its choices and
+  // its preview with the member's data); a style without one keeps today's confirm and `adoptStyle`. The summary
+  // carries no blocks, so the listing is read once (`GET /{id}`, the same read the Preview makes).
+  const [checking, setChecking] = useState(false)
+  const startAdopt = async () => {
+    if (confirming) { closeConfirm(); return }
+    if (!w11) { setConfirming(true); return }
+    if (checking) return
+    setChecking(true)
+    let listing = listedBlocks(item) ? item : null
+    if (!listing) {
+      try { listing = await getGalleryTemplate(item.id) } catch { listing = null }
+    }
+    setChecking(false)
+    if (!holdsFamilySlot(listing)) { setConfirming(true); return }
+    try {
+      const mod = await import('./library/openAdoptSheet')
+      mod.openAdoptSheet({ galleryId: item.id, kind: 'template' })
+    } catch {
+      onMessage?.({ tone: 'error', text: doorLostSentence() })
+    }
+  }
 
   const closeConfirm = () => { setConfirming(false); setNotify(false); adoptBtnRef.current?.focus() }
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
@@ -103,7 +138,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         </button>
         {!item.mine && (
           <button type="button" ref={adoptBtnRef} className={`${styles.btn} ${styles.primary}`}
-            onClick={() => (confirming ? closeConfirm() : setConfirming(true))} disabled={busy}
+            onClick={startAdopt} disabled={busy || checking}
             aria-expanded={confirming} aria-label={`Adopt ${item.title}`} data-tour="library-adopt">
             Adopt
           </button>

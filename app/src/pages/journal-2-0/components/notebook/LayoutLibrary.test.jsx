@@ -723,3 +723,29 @@ describe('I-M1: an admin features or hides a shared layout from its card; a memb
     expect(adminPatches().map((c) => c.body.action)).toEqual(['feature'])
   })
 })
+
+// Task 11.16 fix round 1 (m-2): under wave 11 a layout card shows no zero either: "New" for an unused layout, the
+// Helpful count from 1 up, through the same words as every other library card. Off: "Used by N" as before (above).
+describe('Task 11.16 -- the layout card under wave 11', () => {
+  const w11 = () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+  }
+  it('an unused layout with no Helpful reads "New", never "Used by 0 · 0 found this helpful"', async () => {
+    w11()
+    server.rows = [{ ...ROW, usedBy: 0, helpfulCount: 0 }]
+    await openLayouts()
+    const card = layoutCard()
+    expect(within(card).getByText('New', { exact: false })).toBeInTheDocument()
+    expect(card.textContent).not.toMatch(/Used by 0|\b0 found this helpful/)
+    expect(card.querySelector('[data-helpful-count]')).toBeNull()
+  })
+  it('a used, helpful layout reads "Used by 3 traders · 2 found this helpful"', async () => {
+    w11()
+    server.rows = [{ ...ROW, usedBy: 3, helpfulCount: 2 }]
+    await openLayouts()
+    const card = layoutCard()
+    expect(within(card).getByText('Used by 3 traders', { exact: false })).toBeInTheDocument()
+    expect(card.querySelector('[data-helpful-count]').textContent).toBe('2 found this helpful')
+  })
+})

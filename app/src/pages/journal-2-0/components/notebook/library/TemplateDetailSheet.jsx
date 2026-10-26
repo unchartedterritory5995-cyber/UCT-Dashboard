@@ -7,7 +7,8 @@
 //     placed widget's own read-only body (`BuiltWidgetEmbed`, loaded on demand), labelled "Sample data" when the
 //     server says `sample` (fewer than 5 trades); a card the server could not run is ITS sentence, as given
 //     ("Pick a setup to see this widget."); each routine and tracker is its name, its items and the day it binds to
-//     (`bindWords`), never a tick or a value (no day state, W11-R12);
+//     (the server's `forDayLabel`, else `bindWords`), never a tick or a value (no day state, W11-R12). Cards and tools
+//     are drawn by the ONE renderer the adoption sheet uses too (PreviewParts.jsx, fix round 1 m-1);
 //   * the credit line, exactly as the server wrote it (`credit`, W11-R24; nothing here builds one);
 //   * one "Use this template" button, which opens the adoption sheet (`openAdoptSheet({galleryId, kind: 'template'})`)
 //     where the member makes it theirs.
@@ -19,13 +20,11 @@ import { Suspense, useEffect, useId, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { previewMine } from '../../../lib/templateLibrary'
 import { getGalleryTemplate } from '../../../lib/templateGallery'
-import { bindWords } from '../../../lib/templateSlots'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import { doorLostSentence } from '../../../lib/notebookWidgetsFlags'
 import lazyChunk from '../../../lib/lazyChunk'
 import { DocBody } from '../TemplatePreview'
-import { SAMPLE_RIBBON } from '../widgetBuilder/ExampleCard'
-import { kindWords } from '../routines/toolEditorLib'
+import { PreviewCard, PreviewTool } from './PreviewParts'
 import styles from './library.module.css'
 
 const BuiltWidgetEmbed = lazyChunk(() => import('../widgets/BuiltWidgetEmbed'))
@@ -40,50 +39,20 @@ const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const listOf = (v) => (Array.isArray(v) ? v : [])
 const text = (v) => (typeof v === 'string' ? v : '')
 
-function DataCard({ card }) {
-  const title = text(card.title)
-  const sentence = text(card.sentence).trim()
-  const payload = isRecord(card.payload) ? card.payload : null
-  return (
-    <li className={styles.previewCard} data-preview-card={text(card.slot)}>
-      {title && <p className={styles.previewTitle}>{title}</p>}
-      {sentence ? (
-        <p className={styles.hint}>{sentence}</p>
-      ) : payload && (
-        <Suspense fallback={<p className={styles.hint}>{LOADING_SENTENCE}</p>}>
-          <BuiltWidgetEmbed attrs={widgetEmbedNode('builtWidget', payload).attrs} height={180} shareView />
-        </Suspense>
-      )}
-      {card.sample === true && !sentence && <p className={styles.sampleTag} data-sample="">{SAMPLE_RIBBON}</p>}
-    </li>
-  )
-}
-
-/** A routine or tracker slot: its name, items and bound day. Only these fields are read, so a tick, a value or a
- *  day state the answer might carry can never be drawn here. */
-function DataTool({ tool }) {
-  const items = listOf(tool.items).map((it) => text(isRecord(it) ? it.text : it)).filter((t) => t.trim())
-  const day = bindWords(tool.bind)
-  return (
-    <li className={styles.previewCard} data-preview-tool={text(tool.slot)}>
-      <p className={styles.previewTitle}>{text(tool.name)}</p>
-      {tool.kind === 'tracker' && typeof tool.trackerKind === 'string' && tool.trackerKind && (
-        <p className={styles.hint}>{kindWords(tool.trackerKind)}</p>
-      )}
-      {items.length > 0 && (
-        <ul className={styles.list}>{items.map((t, i) => <li key={i} className={styles.travelRow}>{t}</li>)}</ul>
-      )}
-      {day && <p className={styles.hint}>{day}</p>}
-    </li>
-  )
-}
+/** A card's payload in the placed widget's own read-only body (loaded on demand). */
+const drawBuilt = (payload) => (
+  <Suspense fallback={<p className={styles.hint}>{LOADING_SENTENCE}</p>}>
+    <BuiltWidgetEmbed attrs={widgetEmbedNode('builtWidget', payload).attrs} height={180} shareView />
+  </Suspense>
+)
 
 /**
  * @param item     the listed template (a Template library row)
  * @param onClose  Close, Escape, or the hand-over to the adoption sheet
  * @param navigate the app router's navigate, handed to the adoption sheet (a template's Use opens the new note)
+ * @param busy     the picker is making a note: "Use this template" waits (fix round 1 m-4)
  */
-export default function TemplateDetailSheet({ item, onClose, navigate = null }) {
+export default function TemplateDetailSheet({ item, onClose, navigate = null, busy = false }) {
   const uid = useId()
   const id = item?.id
   const [outline, setOutline] = useState({ status: 'loading', body: null })
@@ -103,6 +72,7 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null }) 
   }, [id])
 
   const use = async () => {
+    if (busy) return
     setDoorProblem('')
     try {
       const mod = await import('./openAdoptSheet')
@@ -131,13 +101,13 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null }) 
           <h3 className={styles.subheading} id={`${uid}-data`}>{DATA_HEADING}</h3>
           {data === null && <p className={styles.hint} role="status">{LOADING_SENTENCE}</p>}
           {data && !data.ok && <p className={styles.notice} role="alert" data-refusal={data.code}>{data.message}</p>}
-          {cards.length > 0 && <ul className={styles.previewList}>{cards.map((c, i) => <DataCard key={text(c.slot) || i} card={c} />)}</ul>}
-          {tools.length > 0 && <ul className={styles.previewList}>{tools.map((t, i) => <DataTool key={text(t.slot) || i} tool={t} />)}</ul>}
+          {cards.length > 0 && <ul className={styles.previewList}>{cards.map((c, i) => <PreviewCard key={text(c.slot) || i} card={c} drawPayload={drawBuilt} />)}</ul>}
+          {tools.length > 0 && <ul className={styles.previewList}>{tools.map((t, i) => <PreviewTool key={text(t.slot) || i} tool={t} />)}</ul>}
         </section>
         {doorProblem && <p className={styles.notice} role="alert">{doorProblem}</p>}
         <div className={styles.actions}>
           <button type="button" className={styles.btn} onClick={onClose}>Close</button>
-          <button type="button" className={styles.btnPrimary} onClick={use}>{USE_TEMPLATE_LABEL}</button>
+          <button type="button" className={styles.btnPrimary} onClick={use} disabled={busy}>{USE_TEMPLATE_LABEL}</button>
         </div>
       </div>
     </Sheet>

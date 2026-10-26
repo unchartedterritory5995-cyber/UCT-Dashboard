@@ -75,6 +75,9 @@
 // library/TemplateLibrarySection.jsx) sits between Blank and "Your templates", loaded on demand. It reads this
 // picker's search box and category chips; its cards are not picker cards, so every keyboard rail above holds.
 // Wave 11 off: the section's chunk is never asked for and the picker is exactly as before.
+// Fix round 1 (review I-2): the section reports how many templates it shows (`onMatches`). While it shows any, the
+// "No templates match" line is not drawn, and the search box's live line names the library's count instead of
+// "No template matches"; Enter still does nothing there (library cards are not picker cards).
 //
 // Wave 7 Task 7.4 ("bytes first"): the catalog (lib/notebookTemplates.js, ~64 kB of
 // source) is no longer a static import. `FAMILIES`, `templatesByFamily` and
@@ -116,6 +119,11 @@ const cardName = (el) => (
 ).trim()
 const ALL = 'all'
 const MEMBER = 'member'
+
+/** The live line when only the Template library matches the search (n >= 1). */
+export const libraryMatchWords = (n) => (n === 1
+  ? '1 template in the Template library matches. Enter does nothing.'
+  : `${n} templates in the Template library match. Enter does nothing.`)
 
 /** Case-insensitive substring match over a template's searchable text. */
 function templateMatches(tpl, q) {
@@ -225,7 +233,11 @@ function TemplatePickerBody({ onPick, onPickMember, busy = false, autoFocusSearc
     [q, category, catalog],
   )
   const showMemberSection = Boolean(onPickMember) && (category === ALL || category === MEMBER)
-  const noBuiltInMatches = !catalogFailed && visibleFamilies.length === 0 && category !== MEMBER
+  // Wave 11 (Task 11.16 fix round 1, I-2): what the Template library section shows right now (0 while it is off).
+  const libraryOn = widgetsWaveOn(11)
+  const [libraryShown, setLibraryShown] = useState(0)
+  const libraryCount = libraryOn ? libraryShown : 0
+  const noBuiltInMatches = !catalogFailed && visibleFamilies.length === 0 && category !== MEMBER && libraryCount === 0
 
   // 13Q-5: a query or a category change re-aims the search box's "Enter picks
   // this" target. Never at Blank/Playbook (`data-template-anchor`, always
@@ -335,7 +347,7 @@ function TemplatePickerBody({ onPick, onPickMember, busy = false, autoFocusSearc
           <span className="sr-only" aria-live="polite" data-template-search-status="">
             {targetName
               ? `Enter opens ${targetName}.`
-              : (q ? 'No template matches. Enter does nothing.' : '')}
+              : (q ? (libraryCount > 0 ? libraryMatchWords(libraryCount) : 'No template matches. Enter does nothing.') : '')}
           </span>
           {query && (
             <button
@@ -406,9 +418,10 @@ function TemplatePickerBody({ onPick, onPickMember, busy = false, autoFocusSearc
         <span className={styles.cardDesc}>An empty page — structure it your way.</span>
       </button>
 
-      {widgetsWaveOn(11) && (
+      {libraryOn && (
         <Suspense fallback={null}>
-          <TemplateLibrarySection query={q} category={category} busy={busy} navigate={navigate} />
+          <TemplateLibrarySection query={q} category={category} busy={busy} navigate={navigate}
+            onMatches={setLibraryShown} />
         </Suspense>
       )}
 

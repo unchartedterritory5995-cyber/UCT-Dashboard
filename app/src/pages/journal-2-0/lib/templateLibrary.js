@@ -147,6 +147,26 @@ export const LIBRARY_GROUPS = Object.freeze([
   Object.freeze({ key: 'habits', label: 'Habits' }),
 ])
 
+/**
+ * Task 11.16 fix round 1 (review I-1): the template picker's category chips are its FAMILIES keys
+ * (lib/notebookTemplates.js), and a listed template carries one of the gallery's CATEGORIES
+ * (`template_gallery.CATEGORIES`, lib/templateGallery.js GALLERY_CATEGORIES). No existing module relates the two, so
+ * this is the ONE mapping: a family chip keeps the Template library rows whose category is in its list.
+ *   * rituals ("Daily & weekly rituals") -> journal, review: the daily journal and the weekly review;
+ *   * research ("Thesis & research") -> research;
+ *   * trades ("Around a trade") -> trade_plan;
+ *   * mind ("Mindset") -> journal: a mindset template is written as a journal entry.
+ * ⛔ Railed by TemplateLibrarySection.test.jsx: its keys are exactly FAMILIES' keys, every category it names is in
+ *    the server's CATEGORIES tuple (parsed from template_gallery.py, never retyped), and every server category is
+ *    reached by some chip, so no listed template is unreachable from the chips.
+ */
+export const FAMILY_CATEGORIES = Object.freeze({
+  rituals: Object.freeze(['journal', 'review']),
+  research: Object.freeze(['research']),
+  trades: Object.freeze(['trade_plan']),
+  mind: Object.freeze(['journal']),
+})
+
 /** Preview with my data (W11-R12): each choice at its answer, its suggested value or Any. */
 export function previewMine(galleryId, answers) {
   if (!isId(galleryId)) return Promise.resolve(fail('unavailable'))

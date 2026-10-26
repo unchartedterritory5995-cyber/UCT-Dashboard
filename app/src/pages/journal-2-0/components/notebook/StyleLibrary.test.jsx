@@ -23,6 +23,11 @@ import { GALLERY_SORTS } from '../../lib/templateGallery'
 import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
 import { contract, contractBody } from '../../__fixtures__/contract'
 import { helpfulWords, usedByWords } from './library/LibraryCardFacts'
+import { openAdoptSheet } from './library/openAdoptSheet'
+import { holdsFamilySlot } from './StyleLibraryCard'
+
+// Task 11.16 fix round 1 (ruling W11-R25): a style holding a family slot opens the adoption sheet; stood in for here.
+vi.mock('./library/openAdoptSheet', () => ({ openAdoptSheet: vi.fn(() => () => {}) }))
 
 // P5 Task 3: the list fixtures now also carry UCT's fifteen firm styles (the starter packs' rows),
 // and one of the swing three shares this member item's title ("Weekend prep"). These tests are
@@ -665,5 +670,64 @@ describe('Task 11.16 -- the style card under wave 11', () => {
     render(wrap(<ul><StyleLibraryCard item={{ ...STYLE, usedBy: 0, helpfulCount: 0 }} /></ul>))
     expect(screen.getByText('New · Updated Oct 5')).toBeInTheDocument()
     expect(screen.queryByText(/found this helpful|Adopted by/)).toBeNull()
+  })
+})
+
+// Ruling W11-R25: under wave 11, Adopt on a listed style that holds a widget, routine or tracker slot opens the
+// adoption sheet (kind 'template'); a style without one keeps today's confirm and adoptStyle. The listing's blocks
+// decide (templateSlots.slotFamily), read once through GET /{id}. Wave 11 off: no read, today's confirm.
+describe('W11-R25 -- Adopt on a style with family slots', () => {
+  const W11 = { notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true }
+  const itemReads = () => calls.filter((c) => c.path === `/api/j2/template-gallery/${STYLE.id}` && c.method === 'GET')
+  const adopts = () => calls.filter((c) => c.path === `/api/j2/template-gallery/${STYLE.id}/adopt`)
+  beforeEach(() => { openAdoptSheet.mockClear() })
+
+  it('holdsFamilySlot reads the listing blocks with the one family test', () => {
+    expect(holdsFamilySlot({ payload: { blocks: [{ block: 'myRules' }] } })).toBe(false)
+    expect(holdsFamilySlot({ payload: { blocks: [{ block: 'myRules' }, { block: 'routine_a' }] } })).toBe(true)
+    expect(holdsFamilySlot({ payload: { blocks: [{ block: 'built_b1' }] } })).toBe(true)
+    expect(holdsFamilySlot({ blocks: [{ block: 'tracker_x' }] })).toBe(true)
+    for (const junk of [null, {}, { payload: {} }, { payload: { blocks: 'routine_a' } }]) expect(holdsFamilySlot(junk)).toBe(false)
+  })
+
+  it('a style WITHOUT family slots keeps the confirm and adoptStyle (the recorded listing)', async () => {
+    server.library = true
+    latchNotebookFlags(W11)
+    const user = await openStyles()
+    expect(holdsFamilySlot(STYLE_ITEM)).toBe(false)                            // non-vacuity: the recorded row has none
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    expect(await screen.findByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeInTheDocument()
+    expect(itemReads()).toHaveLength(1)
+    expect(openAdoptSheet).not.toHaveBeenCalled()
+  })
+
+  it('a style WITH a family slot opens the adoption sheet, and makes no copy itself', async () => {
+    server.library = true
+    latchNotebookFlags(W11)
+    const user = await openStyles()
+    const real = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = new URL(String(url), 'http://x')
+      if (u.pathname === `/api/j2/template-gallery/${STYLE.id}` && (init.method || 'GET') === 'GET') {
+        calls.push({ path: u.pathname, method: 'GET', body: null })
+        const blocks = [...STYLE_ITEM.payload.blocks, { block: 'routine_a', enabled: true, settings: { template: 'k1', bind: 'note-day' } }]
+        return json({ template: { ...STYLE_ITEM, payload: { ...STYLE_ITEM.payload, blocks } } })
+      }
+      return real(url, init)
+    })
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: STYLE.id, kind: 'template' })
+    expect(screen.queryByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeNull()
+    expect(adopts()).toEqual([])
+  })
+
+  it('CONTROL: wave 11 off, Adopt opens the confirm at once and reads nothing', async () => {
+    flags()
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    expect(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeInTheDocument()
+    expect(itemReads()).toEqual([])
+    expect(openAdoptSheet).not.toHaveBeenCalled()
   })
 })

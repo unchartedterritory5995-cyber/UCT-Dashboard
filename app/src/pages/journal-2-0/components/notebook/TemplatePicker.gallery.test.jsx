@@ -10,7 +10,15 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vite
 import { render, screen, fireEvent, within, cleanup, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import TemplatePicker from './TemplatePicker'
+import TemplatePicker, { libraryMatchWords } from './TemplatePicker'
+
+// Task 11.16 fix round 1 (m-5): counts how many times the Template library section's module is LOADED, so the
+// wave-11-off rail asserts the chunk is never asked for (with `vi.dynamicImportSettled`), not that a wait was long.
+const sectionLoads = vi.hoisted(() => ({ n: 0 }))
+vi.mock('./library/TemplateLibrarySection', async (importOriginal) => {
+  sectionLoads.n += 1
+  return importOriginal()
+})
 import { loadTemplates } from '../../lib/templatesLoader'
 
 // Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
@@ -265,11 +273,12 @@ describe('D-4 -- keyboard selection', () => {
 // picker cards), and the search box's Enter still picks a built-in template.
 describe('Task 11.16 -- the Template library section (wave 11)', () => {
   const LIB_ID = 'g-lib-1'
+  const LIB_ONLY = 'Qzx gap phrase'          // in the library row's `contains` only, never in a built-in
   let fetched
   beforeEach(() => {
     fetched = []
     const row = { id: LIB_ID, title: `${TEMPLATES[0].label} from the library`, description: 'From the library',
-      group: 'before_open', category: 'journal', itemType: 'style', usedBy: 0, contains: [], inYourTemplates: false }
+      group: 'before_open', category: 'journal', itemType: 'style', usedBy: 0, contains: [LIB_ONLY], inYourTemplates: false }
     globalThis.fetch = vi.fn(async (url) => {
       fetched.push(String(url))
       if (String(url).endsWith('/template-gallery/library')) return { ok: true, status: 200, json: async () => ({ templates: [row] }) }
@@ -284,25 +293,52 @@ describe('Task 11.16 -- the Template library section (wave 11)', () => {
     .map((b) => b.getAttribute('aria-label') || b.textContent)
   const libraryCard = () => document.querySelector(`[data-library-card="${LIB_ID}"]`)
 
+  /** The DOM as markup, with the per-render ids (useId) blanked, so two renders of one picker compare equal. */
+  const markup = (root) => root.innerHTML
+    .replace(/(id|for|aria-labelledby|aria-describedby|aria-controls|aria-activedescendant)="[^"]*"/g, '$1="X"')
+
   it('picker_unchanged_when_w11_off', async () => {
-    // The section's chunk is loaded up front, so a section that rendered while wave 11 is off would have mounted and
-    // asked for the library well inside the wait below (the mutation that drops the gate goes red here).
-    await import('./library/TemplateLibrarySection')
     renderGallery()
-    await act(async () => { await new Promise((r) => setTimeout(r, 150)) })
-    const off = buttonNames(false)
+    // Every dynamic import the render started has settled: an ungated section would have been loaded by now.
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(sectionLoads.n).toBe(0)
     expect(document.querySelector('[data-template-library]')).toBeNull()
     expect(screen.queryByText('Template library')).toBeNull()
     expect(fetched).toEqual([])
+    const off = markup(document.body)
     cleanup()
 
-    // CONTROL: the same picker with wave 11 on DOES draw the section, and outside it every button is the same, in order.
+    // CONTROL: wave 11 on DOES load and draw the section; the rest of the picker's DOM is identical to the off render.
     latchNotebookFlags({ notebook_widgets_w11_enabled: true })
     renderGallery()
     await waitForLibrary()
+    expect(sectionLoads.n).toBe(1)
     expect(fetched.filter((u) => u.endsWith('/template-gallery/library'))).toHaveLength(1)
-    expect(buttonNames(true)).toEqual(off)
-    expect(buttonNames(false).length).toBeGreaterThan(off.length)
+    const on = document.body.cloneNode(true)
+    on.querySelector('[data-template-library]').remove()
+    expect(markup(on)).toBe(off)
+    expect(markup(document.body)).not.toBe(off)
+  })
+
+  it('a search matching only a library template (through contains) says no "No templates match" and announces it', async () => {
+    latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+    const user = userEvent.setup()
+    const { onPick } = renderGallery()
+    await waitForLibrary()
+    const box = screen.getByRole('searchbox', { name: 'Search templates' })
+    const live = () => document.querySelector('[data-template-search-status]').textContent
+    await user.type(box, LIB_ONLY.toLowerCase())
+    await vi.waitFor(() => expect(live()).toBe(libraryMatchWords(1)))
+    expect(libraryCard()).not.toBeNull()
+    expect(screen.queryByText(/No templates match/)).toBeNull()
+    expect(cards().filter((c) => !c.hasAttribute('data-template-anchor'))).toHaveLength(0)
+    await user.keyboard('{Enter}')
+    expect(onPick).not.toHaveBeenCalled()                                  // Enter still does nothing there
+    // CONTROL: a search that matches nothing anywhere still says so, in both places.
+    await user.clear(box)
+    await user.type(box, 'zzzz no such template')
+    await vi.waitFor(() => expect(live()).toBe('No template matches. Enter does nothing.'))
+    expect(screen.getByText(/No templates match/)).toBeInTheDocument()
   })
 
   async function waitForLibrary() {

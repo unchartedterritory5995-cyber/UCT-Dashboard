@@ -24,6 +24,11 @@ import LayoutPreviewSheet from './LayoutPreviewSheet'
 import AdoptLayoutSheet from './AdoptLayoutSheet'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
+// Notebook widgets wave 11 (Task 11.16 fix round 1, m-2): no zero on a layout card either. While wave 11 is on, its
+// count line reads through the same words as every other library card ("New", "Used by N traders", the Helpful count
+// from 1 up); off, it is exactly as before.
+import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
+import { helpfulWords, usedByWords } from './library/LibraryCardFacts'
 
 export const PAGE_BADGES = Object.freeze({ today: 'Today', trade: 'Trade page' })
 
@@ -75,8 +80,18 @@ export default function LayoutLibraryCard({ item, onMessage, onOpenAuthor, onCha
         </span>
         <span className={styles.meta}>
           {badge && <span className={styles.pageBadge} data-layout-page={item.layoutPage}>{badge}</span>}
-          {badge && ' · '}Used by {Number(item.usedBy) || 0}{' · '}
-          <span data-helpful-count="">{helpfulCount} found this helpful</span>
+          {badge && ' · '}
+          {widgetsWaveOn(11) ? (
+            <>
+              {usedByWords(item.usedBy)}
+              {helpfulWords(helpfulCount) && <>{' · '}<span data-helpful-count="">{helpfulWords(helpfulCount)}</span></>}
+            </>
+          ) : (
+            <>
+              Used by {Number(item.usedBy) || 0}{' · '}
+              <span data-helpful-count="">{helpfulCount} found this helpful</span>
+            </>
+          )}
         </span>
       </div>
       {item.description && <p className={styles.cardDesc}>{item.description}</p>}

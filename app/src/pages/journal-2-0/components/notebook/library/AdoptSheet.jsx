@@ -20,11 +20,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { adoptTool, previewMine, updateTool, useTemplate } from '../../../lib/templateLibrary'
-import { bindWords } from '../../../lib/templateSlots'
 import { openNoteInPlace, noteHref } from '../../../lib/noteHref'
-import MiniPreview from '../widgetBuilder/miniPreview'
-import { SAMPLE_RIBBON } from '../widgetBuilder/ExampleCard'
-import { kindWords } from '../routines/toolEditorLib'
+import { PreviewCard, PreviewTool } from './PreviewParts'
 import SlotPicker, { anyWords, numberOf } from './SlotPicker'
 import styles from './library.module.css'
 
@@ -114,40 +111,7 @@ function Refusal({ p }) {
   return <p className={styles.notice} role="alert" data-refusal={p.code} data-refusal-slot={p.slot || undefined}>{p.message}</p>
 }
 
-// ── the preview (read-only; the server's words and numbers only) ────────────────────────────────────
-
-function PreviewCard({ card }) {
-  const title = text(card.title)
-  const sentence = text(card.sentence).trim()
-  return (
-    <li className={styles.previewCard} data-preview-card={text(card.slot)}>
-      {title && <p className={styles.previewTitle}>{title}</p>}
-      {sentence ? (
-        <p className={styles.hint}>{sentence}</p>
-      ) : (
-        isRecord(card.payload) && <MiniPreview payload={card.payload} />
-      )}
-      {card.sample === true && !sentence && <p className={styles.sampleTag}>{SAMPLE_RIBBON}</p>}
-    </li>
-  )
-}
-
-function PreviewTool({ tool }) {
-  const items = listOf(tool.items).map((it) => text(isRecord(it) ? it.text : it)).filter((t) => t.trim())
-  const day = text(tool.forDayLabel) || bindWords(tool.bind)
-  return (
-    <li className={styles.previewCard} data-preview-tool={text(tool.slot)}>
-      <p className={styles.previewTitle}>{text(tool.name)}</p>
-      {tool.kind === 'tracker' && typeof tool.trackerKind === 'string' && tool.trackerKind && (
-        <p className={styles.hint}>{kindWords(tool.trackerKind)}</p>
-      )}
-      {items.length > 0 && (
-        <ul className={styles.list}>{items.map((t, i) => <li key={i} className={styles.travelRow}>{t}</li>)}</ul>
-      )}
-      {day && <p className={styles.hint}>{day}</p>}
-    </li>
-  )
-}
+// ── the preview: the server's words and numbers only, drawn by the ONE renderer (PreviewParts.jsx) ──
 
 /**
  * @param galleryId the listed item

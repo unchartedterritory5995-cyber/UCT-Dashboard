@@ -9,7 +9,17 @@ import { render, screen, within, cleanup, waitFor } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import TemplateLibrarySection, { IN_YOURS, SECTION_TITLE } from './TemplateLibrarySection'
 import LibraryCardFacts, { FILLS_SENTENCE, containsWords, updatedWords, usedByWords } from './LibraryCardFacts'
-import { LIBRARY_GROUPS } from '../../../lib/templateLibrary'
+import { FAMILY_CATEGORIES, LIBRARY_GROUPS } from '../../../lib/templateLibrary'
+import { FAMILIES } from '../../../lib/notebookTemplates'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+/** The server's gallery categories, parsed from template_gallery.py (never retyped here). */
+function serverCategories() {
+  const src = readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'template_gallery.py'), 'utf8')
+  const m = /^CATEGORIES\s*=\s*\(([^)]*)\)/m.exec(src)
+  return m ? [...m[1].matchAll(/"([a-z_]+)"/g)].map((x) => x[1]) : []
+}
 
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
   useIsPhone: () => false, useIsTouch: () => false, useIsTablet: () => false, useIsDesktop: () => true,
@@ -64,7 +74,9 @@ describe('the library card facts', () => {
   it('card_fields_and_new_instead_of_zero', async () => {
     await mount()
     const recap = card('g-recap')
-    expect(within(recap).getByText('Daily recap')).toBeInTheDocument()
+    // A card's title is a heading under its group's h4 (fix round 1 m-3), so heading navigation reaches every template.
+    expect(within(recap).getByRole('heading', { level: 5, name: 'Daily recap' })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 5 })).toHaveLength(LIB.length)
     expect(within(recap).getByText('Template')).toBeInTheDocument()
     expect(within(recap).getByText('UCT')).toBeInTheDocument()
     expect(within(recap).getByText('For: closing the trading day')).toBeInTheDocument()
@@ -137,14 +149,42 @@ describe('the Template library section', () => {
     expect([...document.querySelectorAll('[data-library-card]')].map((c) => c.getAttribute('data-library-card'))).toEqual(['g-mind'])
   })
 
-  it('the category chips: a category keeps its templates, "Your templates" hides the library', async () => {
-    await mount({ category: 'trade_plan' })
-    expect([...document.querySelectorAll('[data-library-card]')].map((c) => c.getAttribute('data-library-card'))).toEqual(['g-open'])
-    cleanup()
+  it("FAMILY_CATEGORIES is one mapping over the real chips and the server's real categories", () => {
+    const cats = serverCategories()
+    expect(cats.length).toBeGreaterThan(3)                                   // non-vacuity: the tuple was read
+    expect(Object.keys(FAMILY_CATEGORIES).sort()).toEqual(FAMILIES.map((f) => f.key).sort())
+    for (const list of Object.values(FAMILY_CATEGORIES)) for (const c of list) expect(cats).toContain(c)
+    // Every category the server can send is reached by some chip: no listed template is unreachable.
+    for (const c of cats) expect(Object.values(FAMILY_CATEGORIES).some((l) => l.includes(c)), c).toBe(true)
+  })
+
+  it('every picker chip shows the library rows of its mapped categories (the categories the server sends)', async () => {
+    const cats = serverCategories()
+    const rows = cats.map((c, i) => row({ id: `g-${c}`, title: `Template ${i}`, group: LIBRARY_GROUPS[i % LIBRARY_GROUPS.length].key, category: c }))
+    for (const fam of FAMILIES) {
+      installServer({ library: rows })
+      await mount({ category: fam.key })
+      const shown = [...document.querySelectorAll('[data-library-card]')].map((c) => c.getAttribute('data-library-card')).sort()
+      const want = rows.filter((r) => FAMILY_CATEGORIES[fam.key].includes(r.category)).map((r) => r.id).sort()
+      expect(want.length, fam.key).toBeGreaterThan(0)                        // each chip keeps something
+      expect(shown, fam.key).toEqual(want)
+      cleanup()
+    }
     installServer()
     render(<TemplateLibrarySection category="member" />)
     await waitFor(() => expect(calls.length).toBe(1))
     expect(screen.queryByRole('heading', { name: SECTION_TITLE })).toBeNull()
+  })
+
+  it('onMatches reports how many templates the section shows (0 with none, 0 on the "Your templates" chip)', async () => {
+    const seen = []
+    const onMatches = (n) => seen.push(n)
+    const { rerender } = render(<TemplateLibrarySection onMatches={onMatches} query="gap scan" />)
+    await waitFor(() => expect(seen.at(-1)).toBe(1))
+    rerender(<TemplateLibrarySection onMatches={onMatches} query="" />)
+    await waitFor(() => expect(seen.at(-1)).toBe(LIB.length))
+    rerender(<TemplateLibrarySection onMatches={onMatches} query="" category="member" />)
+    await waitFor(() => expect(seen.at(-1)).toBe(0))
   })
 
   it('a search that matches nothing shows no section (the picker says "no match"); a dark route shows none', async () => {

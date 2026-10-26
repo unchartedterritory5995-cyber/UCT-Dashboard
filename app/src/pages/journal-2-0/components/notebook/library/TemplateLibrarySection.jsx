@@ -3,8 +3,10 @@
 // UCT's official templates (ruling W11-R4), one row of cards per group, in the server's group order
 // (`LIBRARY_GROUPS`). TemplatePicker.jsx draws this ABOVE "Your templates" while wave 11 is on, loading it on demand.
 //   * It reuses the picker's search box and category chips: a search matches a template's title, description and
-//     what it contains; a category chip keeps the templates of that category (the "Your templates" chip hides the
-//     library; a chip no library template carries shows none).
+//     what it contains; a family chip keeps the templates whose gallery category that family maps to
+//     (`FAMILY_CATEGORIES`, lib/templateLibrary.js, the ONE mapping; fix round 1 I-1); "Your templates" hides it.
+//   * It tells the picker how many templates it is showing (`onMatches`), so the picker's "No templates match" line
+//     and its screen-reader line never contradict a library match on the same screen (fix round 1 I-2).
 //   * Each card shows the library facts (LibraryCardFacts: type chip, author, "For:", "Contains:", "Used by" or "New",
 //     "Updated", the Helpful count) and an "In your templates" badge when the member already holds a live copy.
 //   * A card's "Preview" opens TemplateDetailSheet (the outline, then the member's own data, then "Use this
@@ -13,7 +15,7 @@
 //    search box's Enter target stay exactly as they were (TemplatePicker.gallery.test.jsx's rails).
 // ⛔ LAZY. Reached only through TemplatePicker.jsx's dynamic import while `widgetsWaveOn(11)`.
 import { useEffect, useId, useMemo, useState } from 'react'
-import { LIBRARY_GROUPS, libraryList } from '../../../lib/templateLibrary'
+import { FAMILY_CATEGORIES, LIBRARY_GROUPS, libraryList } from '../../../lib/templateLibrary'
 import LibraryCardFacts from './LibraryCardFacts'
 import TemplateDetailSheet from './TemplateDetailSheet'
 import UIcon from '../../../../../components/ui/UIcon'
@@ -42,18 +44,19 @@ export function libraryMatches(row, q) {
   return [text(row.title), text(row.description), ...names].join(' ').toLowerCase().includes(q)
 }
 
-/** Does a library row pass the picker's category chip? */
+/** Does a library row pass the picker's category chip (a FAMILIES key, 'all' or 'member')? */
 export function libraryInCategory(row, category) {
   if (!category || category === ALL) return true
   if (category === MEMBER) return false
-  return row.category === category
+  const cats = Object.hasOwn(FAMILY_CATEGORIES, category) ? FAMILY_CATEGORIES[category] : []
+  return cats.includes(row.category)
 }
 
 function LibraryCard({ item, busy, onPreview }) {
   const uid = useId()
   return (
     <li className={styles.libraryCard} data-library-card={item.id}>
-      <p className={styles.previewTitle} id={`${uid}-title`}>{text(item.title)}</p>
+      <h5 className={styles.previewTitle} id={`${uid}-title`}>{text(item.title)}</h5>
       {item.inYourTemplates === true && <span className={styles.badge} data-in-yours="">{IN_YOURS}</span>}
       <LibraryCardFacts item={item} showAuthor />
       <div className={styles.actions} role="group" aria-labelledby={`${uid}-title`}>
@@ -71,8 +74,9 @@ function LibraryCard({ item, busy, onPreview }) {
  * @param category the picker's category chip ('all', a family key, or 'member')
  * @param busy     the picker is making a note
  * @param navigate the app router's navigate, for the adoption sheet a detail opens
+ * @param onMatches `(n) => void`: how many templates the section shows right now (0 when it shows none)
  */
-export default function TemplateLibrarySection({ query = '', category = ALL, busy = false, navigate = null }) {
+export default function TemplateLibrarySection({ query = '', category = ALL, busy = false, navigate = null, onMatches }) {
   const uid = useId()
   const [answer, setAnswer] = useState(null)      // null while asking, then {ok, data | code, message}
   const [open, setOpen] = useState(null)          // the row whose detail is open
@@ -90,6 +94,10 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
       .map((g) => ({ ...g, items: shown.filter((r) => r.group === g.key) }))
       .filter((g) => g.items.length > 0)
   }, [rows, query, category])
+
+  const shownCount = answer?.ok && category !== MEMBER ? groups.reduce((n, g) => n + g.items.length, 0) : 0
+  useEffect(() => { onMatches?.(shownCount) }, [shownCount, onMatches])
+  useEffect(() => () => { onMatches?.(0) }, [onMatches])
 
   if (category === MEMBER) return null
   // Dark (wave 11 or the library switch off at the server): the route is the gallery's 404, and the picker shows
@@ -110,7 +118,7 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
           </ul>
         </div>
       ))}
-      {open && <TemplateDetailSheet item={open} onClose={() => setOpen(null)} navigate={navigate} />}
+      {open && <TemplateDetailSheet item={open} onClose={() => setOpen(null)} navigate={navigate} busy={busy} />}
     </section>
   )
 }
