@@ -3,7 +3,8 @@
 A share never copies a stored row. Each reducer here builds a NEW payload from an allowlist: the
 structure of a widget, a routine, a tracker or a template travels; every member value becomes a
 typed "pick yours" choice; and the only member text that travels is what the author typed in the
-share preview (`edits`), with numbers only where the author listed them in `keep`.
+share preview (`edits`), with numbers only where the author listed them in `keep`. Anything this
+module does not name is dropped: an unknown key, block or display option fails CLOSED.
 
   * `share_plan`      a widget's plan -> {name, description, plan, slots}
   * `share_routine`   a routine       -> {name, items, schedule, settings}
@@ -12,21 +13,28 @@ share preview (`edits`), with numbers only where the author listed them in `keep
                       trackers. The outline is NOT reduced here: the caller runs `sanitize_body`.
   * `resolve_plan`    a shared plan plus the adopter's answers -> a plan `validate_plan` accepts.
 
+Every shared plan is proved adoptable before it is returned: it is resolved with the author's own
+values in place of each choice and validated (`_self_check`), so a listing nobody can use is refused
+at share time with a member sentence instead of being published.
+
 Which fields hold the member's own names is the catalog's `Field.public_kind` (W10.7), the same
 classification `payload` and `public_note_payload` number public labels with; a field that names a
 routine or tracker is its `ref_kind`. This module adds no second table of member-named fields.
+Which template blocks exist, and what a slot's settings may say, is `journal_styles`
+(`KNOWN_BLOCKS`, `slot_family`, `slot_settings_of`), read when a template is shared.
 
-Pure: no I/O, no clock, no database. Callers pass the rows (already checked as the member's own).
+Pure: no I/O, no clock, no database read. Callers pass the rows (already checked as the member's own).
 `tests/test_widget_share.py::test_share_module_reads_no_database` walks this file's AST.
 """
 from __future__ import annotations
 
 import copy
+import importlib
 import math
 import re
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from api.services.journal_two import widget_formula as wf
 from api.services.journal_two.tool_errors import ToolError
@@ -41,13 +49,24 @@ TYPE_LABELS = {"setup": "Setup", "tag": "Tag", "symbol": "Symbol", "account": "A
                "routine": "Routine", "tracker": "Tracker", "number": "Number"}
 MAX_SLOTS = 20
 PICK_TOKEN_RE = re.compile(r"\[#p(\d{1,2})\]")
-#: The plan keys whose values are STRUCTURE and are copied as they are (each value is also checked
-#: against its closed vocabulary by `validate_plan` first). Everything else in a shared plan is a
-#: typed value this module writes itself: a pick, a kept number, a closed enum value, a bool.
+#: THE paths of a shared plan whose values are STRUCTURE and are copied as they are, after
+#: `validate_plan` has checked each against its closed vocabulary. Every verbatim copy goes through
+#: `_safe`, which refuses a path not listed here, and `test_canary_safe_keys_are_exactly_the_copied_
+#: paths` proves every entry is used. Everything else in a shared plan is a value this module writes
+#: itself: a pick, a kept number, a closed enum value, a bool, a generated name.
 CANARY_SAFE_KEYS = frozenset({
-    "v", "source", "view", "display", "sort", "compare", "split.by", "split.then",
-    "measures[].key", "measures[].agg", "filters[].field", "filters[].op", "range.token",
+    "v", "source", "range.token",
+    "filters[].field", "filters[].op", "filters[].overridable",
+    "measures[].key", "measures[].agg", "measures[].formula",
+    "split.by", "split.then",
+    "view.type", "view.auto", "sort.measure", "sort.dir", "sort.top", "compare.mode",
+    "display.accent", "display.showN", "display.cumulative", "display.targetGoal", "display.quadrants",
+    "formulas[].id", "formulas[].format",
 })
+#: The wave 10 display options this module knows (`plan.WAVE10_DISPLAY`). `stopAfter` is a number the
+#: member typed, so it travels only when kept (`"display/stopAfter"`); the other three are closed values.
+#: `test_display_options_are_all_named` goes red when the validator grows an option this list lacks.
+SHARED_DISPLAY_OPTIONS = ("cumulative", "targetGoal", "stopAfter", "quadrants")
 
 #: Restated closed sets (their authorities import the database); `test_constants_mirror_their_
 #: authorities` pins each to its source, so a change there goes red here instead of drifting.
@@ -66,14 +85,15 @@ UNIT_MAX = 16                                                        # tracker_d
 
 NAME_MAX = 80
 DESCRIPTION_MAX = 280
-#: W11-R2: what a template's slot settings may say.
-BINDS = ("note-day", "next-trading-day", "week")
-ROUTINE_DISPLAYS = ("items", "pnl")
-TRACKER_DISPLAYS = ("chart", "pnl")
 FORMAT = 2
+#: Where a routine or tracker template key is listed (Task 11.6). Until that module exists no
+#: template key can be proved real, so none travels (fail closed).
+TEMPLATE_TOOLS_MODULE = "api.services.journal_two.template_tools"
 
 # -- member sentences ------------------------------------------------------------------------------
 S_OWN_WORDS = "Field {n} uses your own words. Change that part before sharing."
+S_FIELD = "Field {n}: {sentence}"
+S_NAME_TOKEN = "that name can't contain \"[#p\". Pick another name."
 S_UNRESOLVED = "Pick a value for each choice, or Any."
 S_NEED_NUMBER = "Type a number for {label}."
 S_NEED_VALUE = "Pick a value for {label}."
@@ -86,6 +106,7 @@ S_ITEM_LONG = "An item can be at most 200 characters."
 S_UNIT_LONG = "A unit can be at most 16 characters."
 S_TOO_MANY_CHOICES = ("This has more than 20 choices to make. Keep some of its numbers as they are, "
                       "then share again.")
+S_KEEP_TARGET = "A progress bar needs its target. Keep the target to share this widget."
 S_BAD_TEXT = "That text couldn't be read."
 S_BAD_CHARACTER = "That text has a character that can't be saved. Remove it and try again."
 S_UNREADABLE = "This couldn't be read for sharing."
@@ -117,9 +138,13 @@ N_WORDS_FILTER = "A filter on your own words is left out."
 N_VALUES_FILTER = "A filter on your own values is left out."
 N_COMPARE = "The comparison with your own dates is left out."
 N_TARGET = "Your target is left out."
+N_STOP_AFTER = "Your stop-after number is left out."
 N_TITLE = "Your own title and subtitle are left out."
 N_FIELD_NAMES = "Your field names are left out."
 N_UNREADABLE_WIDGET = "A widget that couldn't be read is left out."
+N_UNKNOWN_BLOCK = "A block this app can't place is left out."
+N_SECOND_SPOT = ("A widget, routine or tracker used in two spots is shared once; what you typed for "
+                 "its second spot is left out.")
 N_ROUTINE_HISTORY = "Your ticks, history and reminders are left out."
 N_UNPICKED_ITEMS = "Items you didn't pick are left out."
 N_TRACKER_VALUES = "Your logged values are left out."
@@ -146,6 +171,13 @@ class Shared:
 
 
 # -- small helpers ---------------------------------------------------------------------------------
+
+def _safe(path: str, value: Any) -> Any:
+    """THE verbatim copy: only a `CANARY_SAFE_KEYS` path may be copied as it is."""
+    if path not in CANARY_SAFE_KEYS:
+        raise AssertionError(f"share: {path} is not a structure path")
+    return value
+
 
 def _is_number(x: Any) -> bool:
     return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
@@ -211,17 +243,20 @@ def _say(sentences: list[str], sentence: str) -> None:
 class _Slots:
     """Numbers the "pick yours" choices of one share (a template threads ONE of these through all
     its widgets, so one answer can fill several). A value seen twice (the same setup in two
-    widgets, the routine a filter and a split both name) is one choice; numbers never merge."""
+    widgets, the routine a filter and a split both name) is one choice; numbers never merge.
+    `originals` holds the author's own value for each choice, used ONLY by `_self_check` and never
+    written to a payload."""
 
     def __init__(self, start: int = 1):
         if isinstance(start, bool) or not isinstance(start, int) or start < 1:
             raise ShareError("invalid", S_UNREADABLE)
         self.next = start
         self.all: list[dict] = []
+        self.originals: dict[str, Any] = {}
         self._by_key: dict = {}
 
     def take(self, stype: str, *, any_ok: bool, label: str, source: str, field: str | None,
-             key: Any = None, used: list[dict] | None = None) -> str:
+             original: Any, key: Any = None, used: list[dict] | None = None) -> str:
         if key is not None and key in self._by_key:
             slot = self._by_key[key]
             slot["any"] = slot["any"] and any_ok
@@ -232,6 +267,7 @@ class _Slots:
                     "source": source, "field": field}
             self.next += 1
             self.all.append(slot)
+            self.originals[slot["id"]] = original
             if key is not None:
                 self._by_key[key] = slot
         if used is not None and slot not in used:
@@ -296,11 +332,14 @@ def _text_allowed(value: str, other: tuple, fields: Mapping[str, Any]) -> bool:
     return allowed is not None and value in allowed
 
 
-def _formula_parts(tree: tuple, fields: Mapping[str, Any]) -> tuple[list[tuple[int, int]], list, set]:
-    """(number spans, text nodes, positions of allowed text) of a parsed formula. A number span
-    takes in the unary minus signs before it, so `-2` is one value (an answer of -3 then reads
-    `-3`, never `--3`)."""
-    nums: list[tuple[int, int]] = []
+def _formula_parts(tree: tuple, expr: str,
+                   fields: Mapping[str, Any]) -> tuple[list[tuple[int, int, float]], list, set]:
+    """(number spans with their values, text nodes, positions of allowed text) of a parsed formula.
+    A number span takes in the unary minus signs before it ONLY when nothing but minus signs and
+    whitespace lies between them (`-2`, `- -2`), so the span is one value and an answer of -3 reads
+    `-3`, never `--3`. A minus outside parentheses (`-(2)`) stays where it is and the number alone
+    is the value, so the parentheses always stay balanced (fix round 1, I2)."""
+    nums: list[tuple[int, int, float]] = []
     texts: list[tuple] = []
     allowed: set[int] = set()
     stack = [tree]
@@ -308,11 +347,12 @@ def _formula_parts(tree: tuple, fields: Mapping[str, Any]) -> tuple[list[tuple[i
         node = stack.pop()
         kind = node[0]
         if kind == "num":
-            nums.append((node[1], node[1] + len(node[3])))
+            nums.append((node[1], node[1] + len(node[3]), float(node[2])))
         elif kind == "neg":
-            inner = node[3]
-            if inner[0] == "num":
-                nums.append((node[1], inner[1] + len(inner[3])))
+            inner, start, count = node[3], node[1], node[2]
+            if inner[0] == "num" and set(expr[start:inner[1]]) <= {"-", " ", "\t", "\n"}:
+                sign = -1.0 if count % 2 else 1.0
+                nums.append((start, inner[1] + len(inner[3]), sign * float(inner[2])))
             else:
                 stack.append(inner)
         elif kind == "text":
@@ -338,24 +378,26 @@ def _share_formula(f: dict, n: int, name: str, fields: Mapping[str, Any], keep: 
     text that is not a closed value refused. Returns (entry, result type)."""
     fid, expr = f["id"], f["expr"]
     compiled = wf.compile_formula(expr, wplan.formula_field_infos(fields))
-    nums, texts, allowed = _formula_parts(compiled.ast.tree, fields)
+    nums, texts, allowed = _formula_parts(compiled.ast.tree, expr, fields)
     if any(t[1] not in allowed for t in texts):
         raise ShareError("own_words", S_OWN_WORDS.format(n=n))
     out: list[str] = []
     last = 0
-    for start, end in nums:
+    for start, end, value in nums:
         path = f"formulas/{fid}/{start}"
         if path in keep:
             kept.append(path)
             continue
         sid = slots.take("number", any_ok=False, label=name, source=source,
-                         field=wplan.FORMULA_PREFIX + fid, used=used)
+                         field=wplan.FORMULA_PREFIX + fid, original=value, used=used)
         out.append(expr[last:start])
         out.append(f"[#{sid}]")
         last = end
         _say(sentences, N_PICK["number"])
     out.append(expr[last:])
-    return {"id": fid, "name": name, "expr": "".join(out), "format": f["format"]}, compiled.type
+    entry = {"id": _safe("formulas[].id", fid), "name": name, "expr": "".join(out),
+             "format": _safe("formulas[].format", f["format"])}
+    return entry, compiled.type
 
 
 # -- share_plan ------------------------------------------------------------------------------------
@@ -371,16 +413,49 @@ def _validated(plan: Any, catalog: Any) -> dict:
         raise ShareError("invalid", S_UNREADABLE) from None
 
 
+def _display(d: dict, keep: frozenset[str], kept: list[str], sentences: list[str]) -> dict:
+    """The shared display: an ALLOW list (fix round 1, I1). Title and subtitle never travel; the
+    target and stop-after numbers only when kept; the closed options by name, each checked; any
+    other key the validator writes is dropped."""
+    display = {"title": "", "titleAuto": True, "subtitle": "",
+               "accent": _safe("display.accent", d["accent"]),
+               "showN": _safe("display.showN", d["showN"]), "target": None}
+    if d["title"] or d["subtitle"] or d["titleAuto"] is False:
+        _say(sentences, N_TITLE)
+    if d["target"] is not None:
+        if "display/target" in keep and _is_number(d["target"]):
+            display["target"] = d["target"]
+            kept.append("display/target")
+        else:
+            _say(sentences, N_TARGET)
+    if d.get("cumulative") is True:
+        display["cumulative"] = _safe("display.cumulative", True)
+    if d.get("targetGoal") is True:
+        display["targetGoal"] = _safe("display.targetGoal", True)
+    if isinstance(d.get("quadrants"), str) and d["quadrants"] in wplan.QUADRANTS:
+        display["quadrants"] = _safe("display.quadrants", d["quadrants"])
+    n = d.get("stopAfter")
+    if n is not None:
+        if ("display/stopAfter" in keep and isinstance(n, int) and not isinstance(n, bool)
+                and 1 <= n <= wplan.STOP_AFTER_MAX):
+            display["stopAfter"] = n
+            kept.append("display/stopAfter")
+        else:
+            _say(sentences, N_STOP_AFTER)
+    return display
+
+
 def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Iterable[str] = (),
                slot_start: int = 1, _slots: _Slots | None = None) -> Shared:
     """A widget's plan as a shareable structure (`{name, description, plan, slots}`).
 
     The plan is validated first (a stored plan this server cannot read is refused). The shared plan
-    is a NEW dict: structure is copied key by key (`CANARY_SAFE_KEYS`), every member value becomes a
-    `{"pick": "p<n>"}` choice or a `[#p<n>]` formula token (or leaves with its filter), and only the
+    is a NEW dict: structure is copied path by path (`CANARY_SAFE_KEYS`), every member value becomes
+    a `{"pick": "p<n>"}` choice or a `[#p<n>]` formula token (or leaves with its filter), and only the
     author's `edits` (`name`, `description`, `formulas: {id: name}`) and `keep` paths
-    (`"filters/<i>/values/<j>"`, `"formulas/<id>/<offset>"`, `"display/target"`) travel.
-    `_slots` is the template's shared numbering (internal)."""
+    (`"filters/<i>/values/<j>"`, `"formulas/<id>/<offset>"`, `"display/target"`,
+    `"display/stopAfter"`) travel. The result is proved adoptable (`_self_check`) before it is
+    returned. `_slots` is the template's shared numbering (internal)."""
     edits = _edits(edits)
     keep = _keep(keep)
     slots = _slots if _slots is not None else _Slots(slot_start)
@@ -391,21 +466,21 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
     source = p["source"]
     fields = getattr(catalog.sources[source], "fields", {}) or {}
     unit = getattr(catalog.sources[source], "unit", "") or ""
-    out: dict = {"v": p["v"], "source": source}
+    out: dict = {"v": _safe("v", p["v"]), "source": _safe("source", source)}
 
     # accounts: all, or one account -> a choice ("Any" is all of the adopter's accounts)
     if p["accounts"] == "all":
         out["accounts"] = "all"
     else:
+        acc_id = p["accounts"]["id"]
         out["accounts"] = _pick(slots.take("account", any_ok=True, label=TYPE_LABELS["account"],
-                                           source=source, field="account",
-                                           key=("account", "account", p["accounts"]["id"]),
-                                           used=used))
+                                           source=source, field="account", original=acc_id,
+                                           key=("account", "account", acc_id), used=used))
         _say(sentences, N_PICK["account"])
 
     # range: a token stays; fixed dates become the default token
     if "token" in p["range"]:
-        out["range"] = {"token": p["range"]["token"]}
+        out["range"] = {"token": _safe("range.token", p["range"]["token"])}
     else:
         out["range"] = {"token": wplan.DEFAULT_RANGE_TOKEN}
         _say(sentences, N_DATES)
@@ -417,11 +492,16 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
     formulas: list[dict] = []
     ftypes: dict[str, str] = {}
     fnames: dict[str, str] = {}
+    edited: list[int] = []                           # 1-based numbers of the formulas the author named
     for n, f in enumerate(p.get("formulas") or [], start=1):
         name = _edit_text(formula_edits.get(f["id"]), wf.NAME_MAX, wplan.S_FORMULA_NAME_LONG)
         if name is None:
             name = f"Field {n}"
             _say(sentences, N_FIELD_NAMES)
+        else:
+            if "[#p" in name:
+                raise ShareError("invalid", S_FIELD.format(n=n, sentence=S_NAME_TOKEN))
+            edited.append(n)
         entry, ftype = _share_formula(f, n, name, fields, keep, slots, used, kept, sentences, source)
         formulas.append(entry)
         ftypes[f["id"]], fnames[f["id"]] = ftype, name
@@ -446,7 +526,8 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
         if how == "closed" and not all(v in _closed_values(fld) for v in values):
             _say(sentences, N_VALUES_FILTER)
             continue
-        new: dict = {"field": name, "op": op, "overridable": f["overridable"]}
+        new: dict = {"field": _safe("filters[].field", name), "op": _safe("filters[].op", op),
+                     "overridable": _safe("filters[].overridable", f["overridable"])}
         if "ref" in f:
             ref = f["ref"]
             if ref in wplan.BUILTIN_TRACKER_REFS:
@@ -454,17 +535,17 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
             else:
                 kind = getattr(fld, "ref_kind", None)
                 new["ref"] = _pick(slots.take(kind, any_ok=False, label=TYPE_LABELS[kind],
-                                              source=source, field=name, key=(kind, "ref", ref),
-                                              used=used))
+                                              source=source, field=name, original=ref,
+                                              key=(kind, "ref", ref), used=used))
                 _say(sentences, N_PICK[kind])
         if "prop" in f:
             new["prop"] = _pick(slots.take("property", any_ok=True, label=TYPE_LABELS["property"],
-                                           source=source, field=name,
+                                           source=source, field=name, original=f["prop"],
                                            key=("property", "prop", f["prop"]), used=used))
             _say(sentences, N_PICK["property"])
         if how == "pick":
             new["values"] = [_pick(slots.take(why, any_ok=True, label=TYPE_LABELS[why],
-                                              source=source, field=name,
+                                              source=source, field=name, original=list(values),
                                               key=(why, name, tuple(values)), used=used))]
             _say(sentences, N_PICK[why])
         elif how in ("closed", "keep"):
@@ -480,7 +561,8 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
                     new["values"].append(v)
                 else:
                     new["values"].append(_pick(slots.take("number", any_ok=True, label=label,
-                                                          source=source, field=name, used=used)))
+                                                          source=source, field=name, original=v,
+                                                          used=used)))
                     _say(sentences, N_PICK["number"])
         shared_filters.append(new)
     out["filters"] = shared_filters
@@ -489,14 +571,18 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
     measures: list[dict] = []
     for m in p["measures"]:
         if "formula" in m:
-            measures.append({k: m[k] for k in ("formula", "agg") if k in m})
+            mm = {"formula": _safe("measures[].formula", m["formula"])}
+            if "agg" in m:
+                mm["agg"] = _safe("measures[].agg", m["agg"])
+            measures.append(mm)
         elif "prop" in m:
-            measures.append({"key": m["key"], "prop": _pick(slots.take(
+            measures.append({"key": _safe("measures[].key", m["key"]), "prop": _pick(slots.take(
                 "property", any_ok=False, label=TYPE_LABELS["property"], source=source,
-                field="property", key=("property", "prop", m["prop"]), used=used))})
+                field="property", original=m["prop"], key=("property", "prop", m["prop"]),
+                used=used))})
             _say(sentences, N_PICK["property"])
         else:
-            measures.append({"key": m["key"]})
+            measures.append({"key": _safe("measures[].key", m["key"])})
     out["measures"] = measures
 
     # split
@@ -504,7 +590,7 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
     if split is None:
         out["split"] = None
     else:
-        s: dict = {"by": split["by"], "then": split["then"]}
+        s: dict = {"by": _safe("split.by", split["by"]), "then": _safe("split.then", split["then"])}
         for ref_key, field_key in (("ref", "by"), ("ref2", "then")):
             if ref_key not in split:
                 continue
@@ -514,36 +600,31 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
                 continue
             kind = getattr(fields.get(split[field_key]), "ref_kind", None)
             s[ref_key] = _pick(slots.take(kind, any_ok=False, label=TYPE_LABELS[kind], source=source,
-                                          field=split[field_key], key=(kind, "ref", ref), used=used))
+                                          field=split[field_key], original=ref,
+                                          key=(kind, "ref", ref), used=used))
             _say(sentences, N_PICK[kind])
         out["split"] = s
 
-    out["view"] = {"type": p["view"]["type"], "auto": p["view"]["auto"]}
-    out["sort"] = None if p["sort"] is None else {k: p["sort"][k] for k in ("measure", "dir", "top")}
+    out["view"] = {"type": _safe("view.type", p["view"]["type"]),
+                   "auto": _safe("view.auto", p["view"]["auto"])}
+    srt = p["sort"]
+    out["sort"] = None if srt is None else {"measure": _safe("sort.measure", srt["measure"]),
+                                            "dir": _safe("sort.dir", srt["dir"]),
+                                            "top": _safe("sort.top", srt["top"])}
     cmp = p["compare"]
     if cmp is not None and cmp["mode"] == "range":
         out["compare"] = None
         _say(sentences, N_COMPARE)
     else:
-        out["compare"] = None if cmp is None else {"mode": cmp["mode"]}
-
-    d = p["display"]
-    display = {"title": "", "titleAuto": True, "subtitle": "", "accent": d["accent"],
-               "showN": d["showN"], "target": None}
-    if d["title"] or d["subtitle"] or d["titleAuto"] is False:
-        _say(sentences, N_TITLE)
-    if d["target"] is not None:
-        if "display/target" in keep:
-            display["target"] = d["target"]
-            kept.append("display/target")
-        else:
-            _say(sentences, N_TARGET)
-    for k in wplan.WAVE10_DISPLAY:
-        if k in d:
-            display[k] = d[k]
-    out["display"] = display
+        out["compare"] = None if cmp is None else {"mode": _safe("compare.mode", cmp["mode"])}
+    out["display"] = _display(p["display"], keep, kept, sentences)
+    if (out["view"]["type"] == "progress" and out["display"]["target"] is None
+            and not out["display"].get("targetGoal")):
+        raise ShareError("invalid", S_KEEP_TARGET)
     if formulas:
         out["formulas"] = formulas
+
+    _self_check(out, slots, catalog, edited)
 
     name = _edit_text(edits.get("name"), NAME_MAX, S_NAME_LONG)
     if name is None:
@@ -554,6 +635,37 @@ def share_plan(plan: dict, *, catalog: Any, edits: dict | None = None, keep: Ite
     used_slots = tuple(dict(s) for s in used)
     payload = {"name": name, "description": description, "plan": out, "slots": list(used_slots)}
     return Shared(payload, used_slots, tuple(dict.fromkeys(kept)), tuple(sentences))
+
+
+def _self_check(shared: dict, slots: _Slots, catalog: Any, edited: list[int]) -> None:
+    """Prove a shared plan adoptable: resolve it with the author's own value for every choice and
+    validate it. Refuse the share otherwise, with the sentence an adopter would have met (fix
+    round 1, I2 and I3). A refusal caused by a formula name the author typed names its field."""
+    def own(sid: str) -> tuple[Any, bool]:
+        if sid not in slots.originals:
+            raise ShareError("unresolved", S_UNRESOLVED)
+        return slots.originals[sid], False
+
+    def attempt(plan: dict) -> ShareError | None:
+        try:
+            _fill_and_validate(plan, own, catalog)
+        except ShareError as e:
+            return e
+        return None
+
+    err = attempt(shared)
+    if err is None:
+        return
+    formulas = shared.get("formulas") or []
+    for n in edited:                                 # which typed name is the first one that fails?
+        # the typed names of fields 1..n, the generated name for every later typed one
+        trial = dict(shared, formulas=[
+            f if (i + 1) <= n or (i + 1) not in edited else dict(f, name=f"Field {i + 1}")
+            for i, f in enumerate(formulas)])
+        named_err = attempt(trial)
+        if named_err is not None:
+            raise ShareError("invalid", S_FIELD.format(n=n, sentence=named_err.sentence))
+    raise ShareError(err.code, err.sentence)
 
 
 # -- routines and trackers -------------------------------------------------------------------------
@@ -568,7 +680,7 @@ def _adopted(row: Mapping) -> bool:
 def _schedule(raw: Any) -> dict:
     """The schedule KIND only (and a weekday schedule's days, Monday 0 to Friday 4)."""
     kind = raw.get("kind") if isinstance(raw, Mapping) else None
-    if kind not in SCHEDULE_KINDS:
+    if not isinstance(kind, str) or kind not in SCHEDULE_KINDS:
         return {"kind": "every"}
     if kind != "weekdays":
         return {"kind": kind}
@@ -604,8 +716,9 @@ def share_routine(routine: dict, *, edits: dict | None = None, keep: Iterable[st
         item: dict = {"text": text,
                       "negative": neg if isinstance(neg, bool) else bool(src.get("negative") is True)}
         sug = src.get("suggest")
-        if isinstance(sug, Mapping) and sug.get("rule") in SUGGEST_RULES:
-            item["suggest"] = {"rule": sug["rule"]}
+        rule = sug.get("rule") if isinstance(sug, Mapping) else None
+        if isinstance(rule, str) and rule in SUGGEST_RULES:
+            item["suggest"] = {"rule": rule}
             n = sug.get("n")
             if isinstance(n, int) and not isinstance(n, bool) and 0 < n <= SUGGEST_N_MAX:
                 path = f"items/{i}/suggest"
@@ -635,24 +748,21 @@ def share_routine(routine: dict, *, edits: dict | None = None, keep: Iterable[st
 
 def share_tracker(tracker: dict, *, edits: dict | None = None) -> Shared:
     """A tracker as `{name, kind, unit, days}`: the author's typed name and unit, never a value."""
-    if not isinstance(tracker, Mapping) or tracker.get("kind") not in TRACKER_KINDS:
+    kind = tracker.get("kind") if isinstance(tracker, Mapping) else None
+    if not isinstance(kind, str) or kind not in TRACKER_KINDS:
         raise ShareError("invalid", S_TRACKER_UNREADABLE)
     edits = _edits(edits)
-    kind = tracker["kind"]
     name = _edit_text(edits.get("name"), NAME_MAX, S_NAME_LONG) or f"{TRACKER_KIND_LABELS[kind]} tracker"
     unit = _edit_text(edits.get("unit"), UNIT_MAX, S_UNIT_LONG)
     settings = tracker.get("settings") if isinstance(tracker.get("settings"), Mapping) else {}
-    days = settings.get("days") if settings.get("days") in TRACKER_DAYS else TRACKER_DAYS[0]
+    days = settings.get("days")
+    days = days if isinstance(days, str) and days in TRACKER_DAYS else TRACKER_DAYS[0]
     return Shared({"name": name, "kind": kind, "unit": unit, "days": days}, (), (),
                   (N_TRACKER_VALUES,))
 
 
 # -- templates -------------------------------------------------------------------------------------
 
-_FAMILY_RE = re.compile(r"(built|routine|tracker)_[a-z0-9]{1,2}")
-_BLOCK_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
-_SHELF_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
-_TEMPLATE_KEY_RE = re.compile(r"[a-z0-9_]{1,40}")
 _UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
@@ -669,14 +779,20 @@ def _row(rows: Mapping[str, Any], ref: str, prefix: str, what: str) -> Mapping:
     return row
 
 
-def _range_token(raw: Any) -> dict | None:
-    if isinstance(raw, Mapping) and set(raw) == {"token"} and raw["token"] in wplan.RANGE_TOKENS:
-        return {"token": raw["token"]}
-    return None
-
-
-def _choice(raw: Any, allowed: tuple[str, ...]) -> str:
-    return raw if raw in allowed else allowed[0]
+def _template_known(family: str, key: str) -> bool:
+    """Is `key` one of Task 11.6's routine or tracker templates? False while that module does not
+    exist: a key that cannot be proved real does not travel (fix round 1, M3)."""
+    try:
+        tools = importlib.import_module(TEMPLATE_TOOLS_MODULE)
+    except ModuleNotFoundError as e:
+        if e.name != TEMPLATE_TOOLS_MODULE:
+            raise
+        return False
+    table = getattr(tools, "ROUTINE_TEMPLATES" if family == "routine" else "TRACKER_TEMPLATES", None)
+    try:
+        return table is not None and key in table
+    except TypeError:
+        return False
 
 
 def _block_keep(keep: frozenset[str], bid: str) -> frozenset[str]:
@@ -684,22 +800,34 @@ def _block_keep(keep: frozenset[str], bid: str) -> frozenset[str]:
     return frozenset(k[len(pre):] for k in keep if k.startswith(pre))
 
 
+def _journal_styles():
+    """The template grammar's ONE authority (`KNOWN_BLOCKS`, `slot_family`, `slot_settings_of`),
+    imported when a template is shared, never at module load."""
+    from api.services.journal_two import journal_styles
+    return journal_styles
+
+
 def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Mapping[str, dict],
                    trackers: Mapping[str, dict], edits: dict | None = None, keep: Iterable[str] = (),
                    catalog: Any = None) -> Shared:
     """A template (one of the member's journal styles) as format 2.
 
+    Only blocks this server can place travel (`journal_styles.KNOWN_BLOCKS`, the rule P3a's
+    `style_payload` uses); any other id is dropped, never copied (fix round 1, C1). A slot's settings
+    are first reduced by `journal_styles.slot_settings_of`; a slot that fails it is dropped.
     Each `def:` widget slot becomes `inline:d<n>` with its plan reduced by `share_plan` into
     `payload["definitions"]`; `shelf:` slots keep their `defRev`; `routine:` / `tracker:` slots
-    become `{"inline": "r<n>" | "t<n>"}` reduced by `share_routine` / `share_tracker`; `template`
-    and `checkin:*` refs stay; `bind` and `display` stay; `range` stays as a token. One numbering
-    of choices runs across every widget, so one answer fills them all. Edits and keep for a slot are
-    `edits["blocks"][<block id>]` and `"<block id>/<path>"`. Any other block travels with empty
-    settings (the adopter's defaults fill it). The outline is the caller's (`sanitize_body`)."""
+    become `{"inline": "r<n>" | "t<n>"}` reduced by `share_routine` / `share_tracker`; a `template`
+    ref stays when `template_tools` lists it; `checkin:*` refs stay; `bind` and `display` stay;
+    `range` stays as a token. One numbering of choices runs across every widget, so one answer fills
+    them all. Edits and keep for a slot are `edits["blocks"][<block id>]` and `"<block id>/<path>"`.
+    A non-slot block travels with empty settings (the adopter's defaults fill it). The outline is the
+    caller's (`sanitize_body`)."""
     if not isinstance(style, Mapping):
         raise ShareError("invalid", S_UNREADABLE)
     if catalog is None:
         from api.services.journal_two.widget_engine.sources import CATALOG as catalog
+    js = _journal_styles()
     edits = _edits(edits)
     block_edits = edits.get("blocks") or {}
     if not isinstance(block_edits, Mapping):
@@ -720,29 +848,37 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
         for s in found.not_shared:
             _say(sentences, s)
 
+    def second_spot(bid: str) -> None:
+        if block_edits.get(bid) or _block_keep(keep, bid):
+            _say(sentences, N_SECOND_SPOT)
+
     for b in raw_blocks:
         if not isinstance(b, Mapping) or not isinstance(b.get("block"), str):
             continue
         bid = b["block"]
         enabled = b.get("enabled", True) is not False
-        st = b.get("settings") if isinstance(b.get("settings"), Mapping) else {}
-        fam = _FAMILY_RE.fullmatch(bid)
-        if fam is None:
-            if _BLOCK_RE.fullmatch(bid):
+        family = js.slot_family(bid)
+        if family is None:
+            if bid in js.KNOWN_BLOCKS:
                 blocks.append({"block": bid, "enabled": enabled, "settings": {}})
+            else:
+                _say(sentences, N_UNKNOWN_BLOCK)
             continue
-        family, mine = fam.group(1), block_edits.get(bid)
+        try:
+            st = js.slot_settings_of(family, b.get("settings"))
+        except js.StyleValidationError:
+            _say(sentences, N_UNREADABLE_WIDGET)
+            continue
+        mine = block_edits.get(bid)
         if family == "built":
-            ref, rng = st.get("ref"), _range_token(st.get("range"))
-            if isinstance(ref, str) and ref.startswith("shelf:") and _SHELF_RE.fullmatch(ref[6:]):
-                rev = st.get("defRev")
-                if isinstance(rev, bool) or not isinstance(rev, int) or rev < 1:
-                    _say(sentences, N_UNREADABLE_WIDGET)
-                    continue
-                out = {"ref": ref, "defRev": rev}
-            elif isinstance(ref, str) and ref.startswith("def:"):
-                row = _row(definitions, ref, "def", "widget")
-                if ref not in inline:
+            ref = st["ref"]
+            if ref.startswith("shelf:"):
+                out: dict = {"ref": ref, "defRev": st["defRev"]}
+            elif ref.startswith("def:"):
+                if ref in inline:
+                    second_spot(bid)
+                else:
+                    row = _row(definitions, ref, "def", "widget")
                     found = share_plan(row.get("plan"), catalog=catalog, edits=mine,
                                        keep=_block_keep(keep, bid), _slots=slots)
                     sub(bid, found)
@@ -751,16 +887,17 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
                                  "name": found.payload["name"],
                                  "description": found.payload["description"]})
                 out = {"ref": f"inline:{inline[ref]}"}
-            else:
+            else:                                    # an inline ref belongs to a shared payload only
                 _say(sentences, N_UNREADABLE_WIDGET)
                 continue
-            if rng is not None:
-                out["range"] = rng
+            if "range" in st:
+                out["range"] = {"token": st["range"]["token"]}
         else:
-            displays = ROUTINE_DISPLAYS if family == "routine" else TRACKER_DISPLAYS
-            ref, tpl = st.get("ref"), st.get("template")
-            if isinstance(ref, str) and ref.startswith(family + ":"):
-                if ref not in inline:
+            if "ref" in st and st["ref"].startswith(family + ":"):
+                ref = st["ref"]
+                if ref in inline:
+                    second_spot(bid)
+                else:
                     row = _row(routines if family == "routine" else trackers, ref, family, family)
                     if family == "routine":
                         found = share_routine(row, edits=mine, keep=_block_keep(keep, bid))
@@ -772,15 +909,15 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
                     inline[ref] = f"{family[0]}{len(target) + 1}"
                     target.append({"key": inline[ref], **found.payload})
                 out = {"inline": inline[ref]}
-            elif family == "tracker" and ref in wplan.BUILTIN_TRACKER_REFS:
-                out = {"ref": ref}
-            elif isinstance(tpl, str) and _TEMPLATE_KEY_RE.fullmatch(tpl):
-                out = {"template": tpl}
+            elif "ref" in st and family == "tracker" and st["ref"] in wplan.BUILTIN_TRACKER_REFS:
+                out = {"ref": st["ref"]}
+            elif "template" in st and _template_known(family, st["template"]):
+                out = {"template": st["template"]}
             else:
                 _say(sentences, N_UNREADABLE_WIDGET)
                 continue
-            out["bind"] = _choice(st.get("bind"), BINDS)
-            out["display"] = _choice(st.get("display"), displays)
+            out["bind"] = st["bind"]
+            out["display"] = st["display"]
         blocks.append({"block": bid, "enabled": enabled, "settings": out})
 
     payload = {
@@ -828,51 +965,23 @@ def has_unresolved(obj: Any) -> bool:
     return False
 
 
-def resolve_plan(plan: dict, slots: Sequence[dict], answers: Mapping[str, Any], *,
-                 catalog: Any) -> dict:
-    """A shared plan with the adopter's answers in place of every choice, validated.
+Answer = Callable[[str], "tuple[Any, bool]"]
 
-    An answer is `{"any": true}` (drop that filter, or all accounts; only where the choice allows
-    Any), a number (a number choice; its plain decimal text in a formula), or the value itself (a
-    text, or a list of texts for a filter that takes several). Whether an answered id is the
-    adopter's own is the CALLER's check (Task 11.8)."""
-    if not isinstance(plan, Mapping):
-        raise ShareError("invalid", S_UNREADABLE)
-    if not isinstance(answers, Mapping):
-        raise ShareError("unresolved", S_UNRESOLVED)
-    by_id = {s["id"]: s for s in (slots or ()) if isinstance(s, Mapping) and isinstance(s.get("id"), str)}
+
+def _fill_and_validate(plan: Mapping, answer: Answer, catalog: Any) -> dict:
+    """Every choice of a shared plan replaced by `answer(slot id)` -> (value, is Any), then
+    validated, then railed: no marker ever leaves. `answer` refuses what it must refuse."""
     out = copy.deepcopy(dict(plan))
 
-    def answer(sid: str) -> tuple[Mapping, Any, bool]:
-        """(slot, answer, is Any) for one choice; refuses an unanswered one and a forbidden Any."""
-        if sid not in answers or sid not in by_id:
-            raise ShareError("unresolved", S_UNRESOLVED)
-        slot, a = by_id[sid], answers[sid]
-        label = slot.get("label") or TYPE_LABELS.get(slot.get("type"), "this choice")
-        if isinstance(a, Mapping) and a.get("any") is True:
-            if slot.get("any") is not True:
-                raise ShareError("invalid", S_NO_ANY.format(label=label))
-            return slot, None, True
-        if slot.get("type") == "number":
-            if not _is_number(a):
-                raise ShareError("invalid", S_NEED_NUMBER.format(label=label))
-            return slot, a, False
-        if isinstance(a, str) and a.strip():
-            return slot, a, False
-        if isinstance(a, list) and a and all(isinstance(x, str) and x.strip() for x in a):
-            return slot, list(a), False
-        raise ShareError("invalid", S_NEED_VALUE.format(label=label))
-
-    def one_text(sid: str) -> str:
-        slot, a, _any = answer(sid)
-        if not isinstance(a, str):
-            label = slot.get("label") or TYPE_LABELS.get(slot.get("type"), "this choice")
+    def text(sid: str, label: str) -> str:
+        a, is_any = answer(sid)
+        if is_any or not isinstance(a, str):
             raise ShareError("invalid", S_NEED_VALUE.format(label=label))
         return a
 
     acc = out.get("accounts")
     if _is_pick(acc):
-        _slot, a, is_any = answer(acc["pick"])
+        a, is_any = answer(acc["pick"])
         if not is_any and not isinstance(a, str):
             raise ShareError("invalid", S_NEED_VALUE.format(label=TYPE_LABELS["account"]))
         out["accounts"] = "all" if is_any else {"id": a}
@@ -882,22 +991,22 @@ def resolve_plan(plan: dict, slots: Sequence[dict], answers: Mapping[str, Any], 
         if not isinstance(f, dict):
             filters.append(f)
             continue
-        dropped = False
         if _is_pick(f.get("ref")):
-            f["ref"] = one_text(f["ref"]["pick"])
+            f["ref"] = text(f["ref"]["pick"], TYPE_LABELS["routine"])
         if _is_pick(f.get("prop")):
-            _slot, a, is_any = answer(f["prop"]["pick"])
+            a, is_any = answer(f["prop"]["pick"])
             if is_any:
                 continue
             if not isinstance(a, str):
                 raise ShareError("invalid", S_NEED_VALUE.format(label=TYPE_LABELS["property"]))
             f["prop"] = a
         values: list = []
+        dropped = False
         for v in f.get("values") or []:
             if not _is_pick(v):
                 values.append(v)
                 continue
-            _slot, a, is_any = answer(v["pick"])
+            a, is_any = answer(v["pick"])
             if is_any:
                 dropped = True
                 break
@@ -911,15 +1020,17 @@ def resolve_plan(plan: dict, slots: Sequence[dict], answers: Mapping[str, Any], 
 
     for m in out.get("measures") or []:
         if isinstance(m, dict) and _is_pick(m.get("prop")):
-            m["prop"] = one_text(m["prop"]["pick"])
+            m["prop"] = text(m["prop"]["pick"], TYPE_LABELS["property"])
     split = out.get("split")
     if isinstance(split, dict):
         for k in ("ref", "ref2"):
             if _is_pick(split.get(k)):
-                split[k] = one_text(split[k]["pick"])
+                split[k] = text(split[k]["pick"], TYPE_LABELS["routine"])
 
     def token(m: re.Match) -> str:
-        _slot, a, _any = answer("p" + m.group(1))
+        a, is_any = answer("p" + m.group(1))
+        if is_any or not _is_number(a):
+            raise ShareError("invalid", S_UNRESOLVED)
         return _plain(a)
 
     for f in out.get("formulas") or []:
@@ -937,3 +1048,40 @@ def resolve_plan(plan: dict, slots: Sequence[dict], answers: Mapping[str, Any], 
     if has_unresolved(resolved):
         raise ShareError("unresolved", S_UNRESOLVED)
     return resolved
+
+
+def resolve_plan(plan: dict, slots: Sequence[dict], answers: Mapping[str, Any], *,
+                 catalog: Any) -> dict:
+    """A shared plan with the adopter's answers in place of every choice, validated.
+
+    An answer is `{"any": true}` (drop that filter, or all accounts; only where the choice allows
+    Any), a number (a number choice; its plain decimal text in a formula), or the value itself (a
+    text, or a list of texts for a filter that takes several). Whether an answered id is the
+    adopter's own is the CALLER's check (Task 11.8)."""
+    if not isinstance(plan, Mapping):
+        raise ShareError("invalid", S_UNREADABLE)
+    if not isinstance(answers, Mapping):
+        raise ShareError("unresolved", S_UNRESOLVED)
+    by_id = {s["id"]: s for s in (slots or ()) if isinstance(s, Mapping) and isinstance(s.get("id"), str)}
+
+    def answer(sid: str) -> tuple[Any, bool]:
+        """(answer, is Any) for one choice; refuses an unanswered one and a forbidden Any."""
+        if sid not in answers or sid not in by_id:
+            raise ShareError("unresolved", S_UNRESOLVED)
+        slot, a = by_id[sid], answers[sid]
+        label = slot.get("label") or TYPE_LABELS.get(slot.get("type"), "this choice")
+        if isinstance(a, Mapping) and a.get("any") is True:
+            if slot.get("any") is not True:
+                raise ShareError("invalid", S_NO_ANY.format(label=label))
+            return None, True
+        if slot.get("type") == "number":
+            if not _is_number(a):
+                raise ShareError("invalid", S_NEED_NUMBER.format(label=label))
+            return a, False
+        if isinstance(a, str) and a.strip():
+            return a, False
+        if isinstance(a, list) and a and all(isinstance(x, str) and x.strip() for x in a):
+            return list(a), False
+        raise ShareError("invalid", S_NEED_VALUE.format(label=label))
+
+    return _fill_and_validate(plan, answer, catalog)

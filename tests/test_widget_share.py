@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import pathlib
 
 import pytest
@@ -209,12 +210,24 @@ def test_template_def_refs_become_inline_and_slot_ids_are_shared():
     assert e.value.code == "adopted"
 
 
-def test_shelf_and_template_refs_stay():
+@pytest.fixture
+def template_tools(monkeypatch):
+    """Task 11.6's template tables (not landed in this checkout): a stand-in module."""
+    import sys
+    import types
+    mod = types.ModuleType(share.TEMPLATE_TOOLS_MODULE)
+    mod.ROUTINE_TEMPLATES = {"premarket": {}}
+    mod.TRACKER_TEMPLATES = {"sleep": {}}
+    monkeypatch.setitem(sys.modules, share.TEMPLATE_TOOLS_MODULE, mod)
+    return mod
+
+
+def test_shelf_and_template_refs_stay(template_tools):
     routine = {"id": UUID_A, "name": "AM", "items": [{"id": "i1", "text": "Read", "negative": False}],
                "schedule": {"kind": "every"}, "settings": {"done_share": 1.0}}
     style = _template(
         {"block": "built_a", "enabled": True,
-         "settings": {"ref": "shelf:win-rate-by-setup", "defRev": 2, "range": {"token": "last_30d"}}},
+         "settings": {"ref": "shelf:win-rate", "defRev": 1, "range": {"token": "last_30d"}}},
         {"block": "routine_1", "enabled": True,
          "settings": {"template": "premarket", "bind": "next-trading-day", "display": "items"}},
         {"block": "routine_2", "enabled": True,
@@ -228,7 +241,7 @@ def test_shelf_and_template_refs_stay():
                                catalog=CAT, edits={"blocks": {"routine_2": {"items": ["Read the wire"]}}})
     p = out.payload
     assert [b["settings"] for b in p["blocks"]] == [
-        {"ref": "shelf:win-rate-by-setup", "defRev": 2, "range": {"token": "last_30d"}},
+        {"ref": "shelf:win-rate", "defRev": 1, "range": {"token": "last_30d"}},
         {"template": "premarket", "bind": "next-trading-day", "display": "items"},
         {"inline": "r1", "bind": "week", "display": "pnl"},
         {"ref": "checkin:focus", "bind": "note-day", "display": "chart"},
@@ -304,8 +317,12 @@ def test_name_defaults_to_generated():
 
 def test_target_dropped_unless_kept_and_slots_capped():
     p = _plan(view={"type": "progress"}, display={"target": 5000})
-    assert _share(p).payload["plan"]["display"]["target"] is None
+    with pytest.raises(share.ShareError) as e:     # a progress bar cannot be shared without its target
+        _share(p)
+    assert e.value.sentence == share.S_KEEP_TARGET
     assert _share(p, keep=["display/target"]).payload["plan"]["display"]["target"] == 5000
+    bar = _plan(display={"target": 5000})           # a number view: the target is simply left out
+    assert _share(bar).payload["plan"]["display"]["target"] is None
     many = _formula_plan(" + ".join(["[r]"] + [str(i) for i in range(1, 22)]))
     with pytest.raises(share.ShareError) as e:
         _share(many)
@@ -370,3 +387,109 @@ def test_share_module_reads_no_database():
     planted = ("import sqlite3\nfrom api.services.auth_db import get_connection\n"
                "from api.services import db\ndef f(user_id):\n    return row['user_id']\n")
     assert len(_db_reads(planted)) == 5
+
+
+# -- fix round 1 ----------------------------------------------------------------------------------
+
+CANARY_IDS = ("zzq_canary_7f3a", "ZZQ_CANARY_7F3A", "Zzq_Canary_7f3a", "zzqcanary7f3a")
+
+
+def test_unknown_block_ids_never_travel_in_any_case_form():
+    """C1: only a block this server can place travels (journal_styles.KNOWN_BLOCKS, P3a's rule).
+    The store keeps an unknown id verbatim, so a member can hold one shaped like a real id."""
+    blocks = [{"block": b, "enabled": True, "settings": {"x": "y"}} for b in CANARY_IDS]
+    blocks.append({"block": "chart", "enabled": True, "settings": {"tf": "W"}})
+    out = share.share_template(_template(*blocks), definitions={}, routines={}, trackers={},
+                               catalog=CAT)
+    assert out.payload["blocks"] == [{"block": "chart", "enabled": True, "settings": {}}]
+    assert share.N_UNKNOWN_BLOCK in out.not_shared
+    blob = json.dumps(out.payload).lower()
+    assert "zzq" not in blob and "canary" not in blob
+
+
+def test_the_template_grammar_is_journal_styles():
+    """share_template reads the block and slot grammar from journal_styles itself, never a copy."""
+    from api.services.journal_two import journal_styles
+    assert share._journal_styles() is journal_styles
+
+
+def test_unvalidated_refs_do_not_travel():
+    """M3: a shelf id or template key that is not real does not travel, whoever passed the style."""
+    style = _template(
+        {"block": "built_a", "settings": {"ref": "shelf:zzq-canary-7f3a", "defRev": 1}},
+        {"block": "routine_a", "settings": {"template": "zzq_canary_7f3a"}},
+        {"block": "tracker_a", "settings": {"template": "premarket"}})
+    out = share.share_template(style, definitions={}, routines={}, trackers={}, catalog=CAT)
+    assert out.payload["blocks"] == []           # template_tools not landed: no key can be proved real
+
+
+def test_second_spot_edits_are_said():
+    """M5: a widget placed twice is shared once; edits typed for its second spot are named as left out."""
+    d = {"id": UUID_A, "plan": _plan()}
+    style = _template(
+        {"block": "built_a", "settings": {"ref": "def:" + UUID_A, "defRev": 1}},
+        {"block": "built_b", "settings": {"ref": "def:" + UUID_A, "defRev": 1}})
+    quiet = share.share_template(style, definitions={UUID_A: d}, routines={}, trackers={}, catalog=CAT)
+    assert share.N_SECOND_SPOT not in quiet.not_shared
+    said = share.share_template(style, definitions={UUID_A: d}, routines={}, trackers={}, catalog=CAT,
+                                edits={"blocks": {"built_b": {"name": "Other"}}})
+    assert share.N_SECOND_SPOT in said.not_shared
+    assert [x["name"] for x in said.payload["definitions"]] == [wplan.default_name(
+        said.payload["definitions"][0]["plan"], CAT)]
+
+
+def test_display_options_are_all_named():
+    """I1: the display is an allow list. A wave 10 option the validator grows must be named here
+    (and in share._display) before it can travel; until then this goes red."""
+    assert set(share.SHARED_DISPLAY_OPTIONS) == set(wplan.WAVE10_DISPLAY)
+
+
+def test_display_keeps_only_closed_options():
+    line = _plan(split={"by": "day"}, view={"type": "line"},
+                 display={"cumulative": True, "title": "zzq-canary-7f3a", "subtitle": "zzq-canary-7f3a",
+                          "titleAuto": False})
+    d = _share(line).payload["plan"]["display"]
+    assert d == {"title": "", "titleAuto": True, "subtitle": "", "accent": "gold", "showN": True,
+                 "target": None, "cumulative": True}
+    streak = _plan(measures=[{"key": "current_streak"}], display={"stopAfter": 4})
+    assert "stopAfter" not in _share(streak).payload["plan"]["display"]
+    kept = _share(streak, keep=["display/stopAfter"])
+    assert kept.payload["plan"]["display"]["stopAfter"] == 4 and kept.kept == ("display/stopAfter",)
+
+
+def test_canary_safe_keys_are_exactly_the_copied_paths(monkeypatch):
+    """M1: CANARY_SAFE_KEYS drives the copy. Every verbatim copy goes through `_safe`, which refuses
+    any other path, and over a maximal set of plans every listed path is used (no dead entry)."""
+    from tests.test_widget_share_sweep import maximal_plans
+    seen: set[str] = set()
+    real = share._safe
+
+    def spy(path, value):
+        seen.add(path)
+        return real(path, value)
+    monkeypatch.setattr(share, "_safe", spy)
+    for p in maximal_plans():
+        _share(p, keep=["display/target"])
+    assert seen == share.CANARY_SAFE_KEYS
+    with pytest.raises(AssertionError):
+        real("display.title", "x")
+
+
+@pytest.mark.parametrize("names,sentence", [
+    ({"f1": "Net P&L"}, "Field 1: " + wplan.S_FORMULA_NAME_TAKEN),
+    ({"f1": "Same", "f2": "same"}, "Field 2: " + wplan.S_FORMULA_NAME_TAKEN),
+    ({"f2": "Field 1"}, "Field 2: " + wplan.S_FORMULA_NAME_TAKEN),
+    ({"f1": "Edge​"}, "Field 1: " + wplan.S_BAD_CHARACTER),
+    ({"f1": "Edge [#p1]"}, "Field 1: " + share.S_NAME_TOKEN),
+])
+def test_edited_formula_names_follow_the_validator(names, sentence):
+    """I3: an edited formula name the validator would refuse for every adopter is refused at share
+    time, with the field's number and the validator's own sentence."""
+    p = _plan(v=3, formulas=[{"id": "f1", "name": "A", "expr": "[r] * 2", "format": "r"},
+                             {"id": "f2", "name": "B", "expr": "[shares]", "format": "number"}],
+              measures=[{"formula": "f1", "agg": "avg"}, {"formula": "f2", "agg": "sum"}])
+    with pytest.raises(share.ShareError) as e:
+        _share(p, edits={"formulas": names})
+    assert e.value.code == "invalid" and e.value.sentence == sentence
+    ok = _share(p, edits={"formulas": {"f1": "Edge", "f2": "Size"}})
+    assert [f["name"] for f in ok.payload["plan"]["formulas"]] == ["Edge", "Size"]

@@ -1,8 +1,8 @@
 """Task 11.4: the canary rail for the ONE sharing reducer (ruling W11-R1, W11-R6, Review Focus 1).
 
 Every stored field of a widget, a routine, a tracker and a template carries the canary
-`zzq-canary-7f3a` (also upper-cased, case-shifted and written with a `\\u` escape) and the number
-`987654.321`. With empty `edits` and `keep`, neither `json.dumps(payload)` nor
+`zzq-canary-7f3a` (also upper-cased, case-shifted, underscore-shaped as a stored block id can be,
+and with a non-ASCII tail that `ensure_ascii` escapes) and the number `987654.321`. With empty `edits` and `keep`, neither `json.dumps(payload)` nor
 `json.dumps(payload, ensure_ascii=False)` may contain the canary in any case, the number in any of
 its three formats, or any planted id. `test_canary_rail_has_teeth` proves the helper goes red on a
 reducer that copies stored values.
@@ -21,7 +21,8 @@ CAT = S.CATALOG
 
 CANARY = "zzq-canary-7f3a"
 CANARY_UP = CANARY.upper()
-CANARY_ESC = "zZQ-CANARY-7F3A"          # an escaped first letter, case-shifted
+CANARY_ESC = "zZQ-CANARY-7F3A"          # case-shifted (plain ASCII text at run time)
+CANARY_NA = CANARY + "é中"     # a non-ASCII tail: ensure_ascii escapes only the tail
 NUMBER = 987654.321
 #: What must never appear, lower-cased. "canary-7f3a" also catches a copy whose first letters were
 #: escaped or re-cased; the number is checked in its three formats (and its leading digits).
@@ -65,7 +66,7 @@ def widget_plans() -> list[dict]:
             {"field": "net", "op": "gt", "values": [NUMBER]},
             {"field": "day", "op": "between", "values": ["2026-01-02", "2026-02-03"]},
             {"field": "formula:f1", "op": "gte", "values": [NUMBER]},
-            {"field": "emotion", "op": "has_any", "values": [CANARY_ESC]},
+            {"field": "emotion", "op": "has_any", "values": [CANARY_ESC, CANARY_NA]},
         ],
         "measures": [{"formula": "f1", "agg": "avg"}, {"key": "net_pnl"}],
         "formulas": [{"id": "f1", "name": CANARY, "expr": "[r] * 987654.321 - -987654.321",
@@ -158,6 +159,10 @@ def template_style() -> dict:
             {"block": "tracker_2", "enabled": True, "settings": {"ref": "checkin:mood"}},
             {"block": "chart", "enabled": True, "settings": {"tf": CANARY, "ticker": CANARY}},
             {"block": CANARY, "enabled": True, "settings": {}},
+            # C1 (fix round 1): `_BLOCK_RE`-shaped ids, as the style store keeps an unknown id verbatim
+            {"block": "zzq_canary_7f3a", "enabled": True, "settings": {"x": CANARY}},
+            {"block": "ZZQ_CANARY_7F3A", "enabled": True, "settings": {}},
+            {"block": "Zzqcanary7f3a", "enabled": True, "settings": {}},
         ],
     }
 
@@ -230,44 +235,90 @@ def test_only_edited_text_and_kept_numbers_travel():
     assert_clean(stripped)
 
 
-def _leaky_plan_reducer(real):
+def _leaky_plan(real, part):
+    """A `share_plan` that copies one stored part of the plan into the shared plan."""
     def leaky(plan, *, catalog, edits=None, keep=(), slot_start=1, **kw):
         got = real(plan, catalog=catalog, edits=edits, keep=keep, slot_start=slot_start, **kw)
-        payload = dict(got.payload)
-        payload["plan"] = {**payload["plan"], "filters": plan.get("filters", [])}
-        return dataclasses.replace(got, payload=payload)
+        shared = dict(got.payload["plan"])
+        if part in plan:
+            shared[part] = plan[part]
+        return dataclasses.replace(got, payload={**got.payload, "plan": shared})
     return leaky
 
 
-def _leaky_routine(real):
-    def leaky(routine, *, edits=None, **kw):
-        got = real(routine, edits=edits, **kw)
-        return dataclasses.replace(got, payload={**got.payload, "items": routine["items"]})
+def _leaky_payload(real, key, stored_key):
+    """A routine or tracker reducer that copies one stored field into its payload."""
+    def leaky(row, *, edits=None, **kw):
+        got = real(row, edits=edits, **kw)
+        return dataclasses.replace(got, payload={**got.payload, key: row[stored_key]})
     return leaky
 
 
-def _leaky_tracker(real):
-    def leaky(tracker, *, edits=None, **kw):
-        got = real(tracker, edits=edits, **kw)
-        return dataclasses.replace(got, payload={**got.payload, "name": tracker["name"]})
-    return leaky
+class _Everything:
+    def __contains__(self, x):
+        return True
 
 
-@pytest.mark.parametrize("case", ["widget", "routine", "tracker", "template"])
-def test_canary_rail_has_teeth(monkeypatch, case):
-    """A planted reducer that copies stored values makes each of the four rails red, through the
-    SAME helper. The widget and template cases plant a `share_plan` that copies `plan["filters"]`
-    verbatim (the template reaches it through `share_template`); the routine and tracker cases
-    plant the same defect in their own reducer (copying the stored items, the stored name)."""
-    if case in ("widget", "template"):
-        monkeypatch.setattr(share, "share_plan", _leaky_plan_reducer(share.share_plan))
-        payloads = share_widget_payloads() if case == "widget" else [share_template_payload()]
-    elif case == "routine":
-        monkeypatch.setattr(share, "share_routine", _leaky_routine(share.share_routine))
-        payloads = [share_routine_payload()]
+class _EveryBlock:
+    """The template grammar with C1 re-planted: KNOWN_BLOCKS accepts any id."""
+
+    def __init__(self, real):
+        self.slot_family = real.slot_family
+        self.slot_settings_of = real.slot_settings_of
+        self.StyleValidationError = real.StyleValidationError
+        self.KNOWN_BLOCKS = _Everything()
+
+
+def _plant(monkeypatch, defect):
+    if defect in ("filters", "formulas", "display", "accounts"):
+        monkeypatch.setattr(share, "share_plan", _leaky_plan(share.share_plan, defect))
+    elif defect == "routine_items":
+        monkeypatch.setattr(share, "share_routine", _leaky_payload(share.share_routine, "items", "items"))
+    elif defect == "routine_name":
+        monkeypatch.setattr(share, "share_routine", _leaky_payload(share.share_routine, "name", "name"))
+    elif defect == "tracker_name":
+        monkeypatch.setattr(share, "share_tracker", _leaky_payload(share.share_tracker, "name", "name"))
+    elif defect == "tracker_unit":
+        monkeypatch.setattr(share, "share_tracker", _leaky_payload(share.share_tracker, "unit", "unit"))
+    elif defect == "block_ids":
+        real = share._journal_styles()
+        monkeypatch.setattr(share, "_journal_styles", lambda: _EveryBlock(real))
     else:
-        monkeypatch.setattr(share, "share_tracker", _leaky_tracker(share.share_tracker))
-        payloads = [share_tracker_payload()]
-    with pytest.raises(AssertionError):
-        for p in payloads:
+        raise AssertionError(defect)
+
+
+def _payloads(kind):
+    if kind == "widget":
+        return [(f"plan {i}", p) for i, p in enumerate(share_widget_payloads())]
+    if kind == "routine":
+        return [("routine", share_routine_payload())]
+    if kind == "tracker":
+        return [("tracker", share_tracker_payload())]
+    return [("template", share_template_payload())]
+
+
+#: (kind, planted defect, the payloads that must go red; None = every payload of that kind)
+TEETH = [
+    ("widget", "filters", (0, 1, 2, 3, 4)),
+    ("widget", "formulas", (0,)),
+    ("widget", "display", (0, 1)),
+    ("widget", "accounts", (0, 2)),
+    ("template", "filters", None), ("template", "formulas", None), ("template", "display", None),
+    ("template", "routine_items", None), ("template", "tracker_name", None),
+    ("template", "block_ids", None),
+    ("routine", "routine_items", None), ("routine", "routine_name", None),
+    ("tracker", "tracker_name", None), ("tracker", "tracker_unit", None),
+]
+
+
+@pytest.mark.parametrize("kind,defect,which", TEETH, ids=[f"{k}-{d}" for k, d, _ in TEETH])
+def test_canary_rail_has_teeth(monkeypatch, kind, defect, which):
+    """Each planted defect (a reducer copying one stored part) makes the SAME helper red, on EACH
+    payload named, one at a time (fix round 1, M4): a rail that catches a defect on one payload out
+    of five proves nothing about the other four."""
+    _plant(monkeypatch, defect)
+    payloads = _payloads(kind)
+    chosen = payloads if which is None else [payloads[i] for i in which]
+    for _label, p in chosen:
+        with pytest.raises(AssertionError):
             assert_clean(p)

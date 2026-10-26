@@ -155,3 +155,46 @@ def test_resolve_round_trip_preserves_needed_version():
     assert plan["v"] == 1                       # the version is what the plan needs (W9-R3)
     got = _resolve(plan, slots, {"p1": "Base"})
     assert got["v"] == 1 == wplan.needed_version(got)
+
+
+# -- fix round 1 ----------------------------------------------------------------------------------
+
+#: Every place a number literal can stand in the dialect, and every way a minus can reach it.
+LITERAL_SHAPES = [
+    "[r] * 2", "[r] * -2", "[r] - -2", "[r] * - 2", "[r] * --2", "[r] - - -2",
+    "[r] * (2)", "[r] * -(2)", "[r] * -((2))", "[r] - -(2) + 1", "-(2) * [r]", "-2 * [r]",
+    "[r] * (-2)", "([r] - 2) * 3", "-([r] - 2)", "2 - [r]", "02.50 * [r]", "[r] / 0.25",
+    "Abs(-2) + [r]", "Min([r], -1)", "Max([r], 2, 3)", "If([r] > 1, 2, -3)",
+    "If([r] > -1, [r], -(4))", "Round([r] * 1.5, 2)", "Round([r], 0)",
+    "Bucket([r], -1, 0, 1)", "Bucket([r], 1, 2)", "SumIf([r], [r] > 0)",
+    "CountIf([r] > 1)", "AvgIf([r], [shares] > 100)", "Share([r] >= 0.5)",
+    "If(Hour([day]) >= 10, [r], 0)",
+]
+
+
+def _plan_for(expr):
+    """A valid plan using the formula: a measure (row formulas averaged), or a split for Bucket."""
+    base = {"v": 3, "source": "closed_trades",
+            "formulas": [{"id": "f1", "name": "Edge", "expr": expr, "format": "number"}]}
+    if expr.startswith("Bucket"):
+        return {**base, "measures": [{"key": "net_pnl"}], "split": {"by": "formula:f1"},
+                "view": {"type": "bar"}}
+    if expr.startswith(("SumIf", "CountIf", "AvgIf", "Share")):
+        return {**base, "measures": [{"formula": "f1"}]}
+    return {**base, "measures": [{"formula": "f1", "agg": "avg"}]}
+
+
+@pytest.mark.parametrize("expr", LITERAL_SHAPES)
+def test_every_shared_formula_round_trips(expr):
+    """I2: a shared formula re-validates through `plan.validate_plan` for any answer an adopter can
+    give: the author's own numbers (the share's own self-check), rising positive answers, and rising
+    negative ones where the shape takes a sign."""
+    plan, slots = _shared(_plan_for(expr))
+    shared = plan["formulas"][0]["expr"]
+    assert shared.count("(") == shared.count(")")
+    assert not any(ch.isdigit() for ch in share.PICK_TOKEN_RE.sub("", shared))
+    ids = [s["id"] for s in slots]
+    wplan.validate_plan(_resolve(plan, slots, {sid: i + 1 for i, sid in enumerate(ids)}), CAT)
+    if not expr.startswith(("Round", "Bucket")):
+        got = _resolve(plan, slots, {sid: -(len(ids) - i) - 0.5 for i, sid in enumerate(ids)})
+        assert got["formulas"][0]["expr"].count("(") == got["formulas"][0]["expr"].count(")")
