@@ -250,6 +250,49 @@ describe('My tools, Templates tab', () => {
     expect(sent('POST', 'journal-styles/sa1/unarchive')).toHaveLength(1)
   })
 
+  it('F-FE-1 F4: the restore line is worded from the returned archivedAt (W11-R36)', async () => {
+    // A template deleted from Archived keeps archived_at and lands back in Archived; one deleted from the styles manager
+    // (never archived) lands back in the live list. The SERVER's answer says which, never an assumption.
+    net = installFetch([['POST', 'journal-styles/sx1/restore', ({ path }) => ({ style: { ...STYLES.deleted[0], archivedAt: null, deletedAt: null } })]])
+    await openTab()
+    showList('Recently deleted')
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Gone prep' }))
+    await saysLive('Restored “Gone prep” to your templates.')
+    expect(live()).not.toHaveTextContent('Archived')
+    cleanup()
+    net = installFetch([['POST', 'journal-styles/sx1/restore', () => ({ style: { ...STYLES.deleted[0], deletedAt: null } })]])
+    await openTab()
+    showList('Recently deleted')
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Gone prep' }))
+    await saysLive("Restored “Gone prep”. It's in Archived.")
+  })
+
+  it('F-FE-1 F5: a restore the server refuses for good (its kind of note was deleted) says so on the row, focus kept', async () => {
+    const S_KIND_GONE = "SERVER: This template's kind of note was deleted, so it can't be restored."
+    net = installFetch([['POST', 'journal-styles/sx1/restore', () => json(400, { detail: S_KIND_GONE })]])
+    await openTab()
+    showList('Recently deleted')
+    const restore = await screen.findByRole('button', { name: 'Restore Gone prep' })
+    restore.focus()
+    fireEvent.click(restore)
+    await saysLive(S_KIND_GONE)
+    // The refusal stays on the row it is about, after the live line moves on, in the server's words.
+    const row = rowOf('Gone prep')
+    await waitFor(() => expect(within(row).getByText(S_KIND_GONE)).toBeTruthy())
+    expect(row.querySelector('[data-restore-refused]')).not.toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Restore Gone prep' }))
+    expect(sent('POST', 'journal-styles/sx1/restore')).toHaveLength(1)
+  })
+
+  it('F-FE-1 F5 CONTROL: a restore that could not be SENT (offline, a lost answer) is not pinned to the row', async () => {
+    net = installFetch([['POST', 'journal-styles/sx1/restore', () => { throw new TypeError('Failed to fetch') }]])
+    await openTab()
+    showList('Recently deleted')
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Gone prep' }))
+    await saysLive("That didn't go through. Try again.")
+    expect(rowOf('Gone prep').querySelector('[data-restore-refused]')).toBeNull()
+  })
+
   it('share_action_opens_preview_and_absent_for_copies', async () => {
     await openTab()
     await menuFor('Morning prep')

@@ -52,7 +52,7 @@ const BUILTIN_KIND_NAME = new Map(BUILTIN_NOTE_KINDS.map((k) => [k.id, k.name]))
 /** The kind of note a template makes, by name: the list's own kinds (the member's too), else the built-in names. */
 const kindName = (kinds, id) => kinds.get(id) || BUILTIN_KIND_NAME.get(id) || ''
 
-function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary, onUsedIn }) {
+function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary, onUsedIn, refused = '' }) {
   const used = usedOf(d)
   const credit = creditText(d)
   const kind = kindName(kinds, d.kindId)
@@ -87,6 +87,7 @@ function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary
           )}
           {credit && <><span aria-hidden="true">·</span><span data-credit="">{credit}</span></>}
         </span>
+        {refused && <span className={styles.inlineError} data-restore-refused="">{refused}</span>}
       </div>
       {!phone && (
         <button type="button" className={styles.btn} aria-disabled={busy || undefined} aria-busy={busy || undefined}
@@ -196,6 +197,9 @@ export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
   const [message, setMessage] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [panelError, setPanelError] = useState(null)
+  // F-FE-1 F5: a restore the server refused for good (its sentence: the kind of note was deleted, the 30 days are
+  // over, the template cap), kept on the row it is about after the live line moves on. id -> the server's sentence.
+  const [refused, setRefused] = useState({})
   const rootRef = useRef(null)
   const returnTo = useRef(null)
   const focusAfter = useRef(null)
@@ -357,9 +361,20 @@ export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
     say(`Restored “${d.name}” to your templates.`)
     refresh('archived')
   })
-  const undelete = (d) => act(d, () => restoreTemplate(d.id), () => {
+  // F-FE-1 F4 (W11-R36): where a restored template lands is the SERVER's answer, its `archivedAt`: one deleted from
+  // Archived keeps it and is back in Archived; one deleted from the styles manager was never archived and is back in
+  // the live list. F5: a refusal for good (`invalid`, the router's own sentence) stays on the row; one that could not
+  // be sent or read (offline, network) is only said.
+  const undelete = (d) => act(d, async () => {
+    const got = await restoreTemplate(d.id)
+    if (!got.ok && got.code === 'invalid' && mounted.current) setRefused((r) => ({ ...r, [d.id]: got.message }))
+    return got
+  }, (data) => {
+    const t = isRecord(data?.style) ? data.style : null
+    const archived = typeof t?.archivedAt === 'string' && t.archivedAt !== ''
+    setRefused((r) => { const next = { ...r }; delete next[d.id]; return next })
     focusPast('deleted', d.id)
-    say(`Restored “${d.name}”. It's in Archived.`)
+    say(archived ? `Restored “${d.name}”. It's in Archived.` : `Restored “${d.name}” to your templates.`)
     refresh('deleted')
   })
   const share = async (d) => {
@@ -483,7 +498,8 @@ export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
                 {shown.map((d) => (
                   <Row key={d.id} d={d} kinds={kinds} filter={filter} phone={phone} touch={touch}
                     busy={busyId === d.id} menuOpen={menu?.d.id === d.id}
-                    onMenu={openMenu} onPrimary={primary} onUsedIn={(x) => push('usedIn', x)} />
+                    onMenu={openMenu} onPrimary={primary} onUsedIn={(x) => push('usedIn', x)}
+                    refused={filter === 'deleted' ? refused[d.id] || '' : ''} />
                 ))}
               </ul>
             )}

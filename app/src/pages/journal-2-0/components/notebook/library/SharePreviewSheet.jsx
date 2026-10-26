@@ -280,7 +280,7 @@ function TemplateTravels({ t }) {
  * (`outlineGone`: the server sends `outline: null`) is already said once, in the server's own sentence, under Not
  * shared (`notShared`), so nothing more is drawn here and no client copy restates it.
  */
-export const OUTLINE_LABEL = 'Outline'
+const OUTLINE_LABEL = 'Outline'
 function OutlineTravels({ answer }) {
   const o = answer?.outline
   if (!isRecord(o) || !Array.isArray(o.content) || o.content.length === 0) return null
