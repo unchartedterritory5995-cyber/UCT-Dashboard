@@ -613,3 +613,34 @@ def test_official_rows_one_rule_two_renderings(conn, monkeypatch, library, start
     assert {i for i in ours if gallery.get_item(ADMIN, i, is_admin=True, conn=conn) is not None} == shown
     listed = {x["id"] for x in gallery.list_gallery(MEMBER, conn=conn)} & ours
     assert listed == shown - {ids["example"]}
+
+
+# ── Task 11.10: the official templates have their own `try` beside the firm styles (P5 row 27) ─────────────────
+
+def _kind_count(c, kind):
+    return c.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = ? AND item_type = 'style'",
+                     (kind,)).fetchone()[0]
+
+
+def test_a_boot_seeds_the_official_templates_beside_the_firm_styles(booted):
+    from api.services.journal_two import template_library as tl
+    assert _kind_count(booted, "firm") == 15
+    assert _kind_count(booted, "official") == len(tl.LIBRARY) - len(tl.RETIRED) == 27
+
+
+@pytest.mark.parametrize("broken", ["seed_firm_styles", "seed_template_library"])
+def test_a_failed_seed_never_skips_the_other(booted, monkeypatch, capsys, broken):
+    """Each seed has its own `try` in `ensure_gallery_schema`, so one that raises (a firm style here, the official
+    templates there) never takes the other, or the boot, down; the log line names the one that failed."""
+    from api.services.journal_two import template_library as tl
+    booted.execute("DELETE FROM j2_template_gallery")
+    booted.commit()
+
+    def boom(conn):
+        raise RuntimeError("seed broke")
+    monkeypatch.setattr(gallery if broken == "seed_firm_styles" else tl, broken, boom)
+    gallery.ensure_gallery_schema(booted)                                       # never raises
+    assert _kind_count(booted, "firm") == (0 if broken == "seed_firm_styles" else 15)
+    assert _kind_count(booted, "official") == (27 if broken == "seed_firm_styles" else 0)
+    out = capsys.readouterr().out
+    assert ("firm styles" if broken == "seed_firm_styles" else "official templates") in out

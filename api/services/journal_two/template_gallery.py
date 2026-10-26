@@ -374,6 +374,11 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
         print(f"[template-gallery] firm seed skipped (firm styles): {type(e).__name__}: {e}")
     try:
+        from api.services.journal_two import template_library   # Task 11.10: the official templates (W11-R4)
+        template_library.seed_template_library(conn)
+    except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
+        print(f"[template-gallery] official seed skipped (official templates): {type(e).__name__}: {e}")
+    try:
         fill_missing_previews(conn)
     except Exception as e:  # noqa: BLE001 -- a preview is a courtesy, never a failed boot
         print(f"[template-gallery] preview fill skipped: {type(e).__name__}: {e}")
@@ -846,7 +851,7 @@ def _like(q: str) -> str:
 def list_gallery(
     viewer_id: str, *, q: Any = "", category: Any = None, sort: Any = "newest",
     section: Any = "all", item_type: Any = None, trading_style: Any = None,
-    is_admin: bool = False, conn: sqlite3.Connection | None = None,
+    is_admin: bool = False, conn: sqlite3.Connection | None = None, group: Any = None,
 ) -> list[dict[str, Any]]:
     """The gallery as one member sees it.
 
@@ -905,6 +910,13 @@ def list_gallery(
     if trading_style:
         where.append("g.trading_style = ?")
         args.append(trading_style)
+    if group:
+        # Task 11.10: an official template's group (`template_library.GROUPS`, W11-R4); only those rows carry one.
+        from api.services.journal_two.template_library import GROUP_KEYS
+        if group not in GROUP_KEYS:
+            raise GalleryError("Unknown group.")
+        where.append("g.template_group = ?")
+        args.append(group)
     if query:
         where.append("(g.title LIKE ? ESCAPE '\\' OR g.description LIKE ? ESCAPE '\\')")
         args.extend([_like(query), _like(query)])
