@@ -1,0 +1,3938 @@
+{
+ "_about": "Task 11.21 Step 4: the 50 campaign personas (plan docs/superpowers/plans/2026-10-24-notebook-widgets-p2-w11.md). `data` is read by seed_members.py; `scripts` by run_campaign.py. Every expected sentence names the file:line it is read from and the exact `fragment` that must still be in that file; run_campaign.py checks each one against the source before a run and refuses a drifted sentence (a sentence is quoted, never a second authority). `needs`: w11 = a wave 11 backend route (reported INCONCLUSIVE when the server lacks it), restart = a flag flip (needs a sandbox the runner owns), clock = a server clock seam (none exists: always INCONCLUSIVE). `validated`: the script was driven end to end in the tooling dry run.",
+ "defaults": {
+  "clock": "2026-10-23T16:30:00-04:00",
+  "admin_email": "hubtest@local.dev",
+  "viewports": [
+   "1200",
+   "820",
+   "390"
+  ]
+ },
+ "viewport_sizes": {
+  "1200": [
+   1200,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "sentences": {
+  "sample_banner": {
+   "text": "These use sample trades. Link a broker or log a trade to see yours.",
+   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/ExamplesGallery.jsx:57"
+  },
+  "sample_label": {
+   "text": "Sample data",
+   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx:36",
+   "fragment": "SAMPLE_LABEL = 'Sample data'"
+  },
+  "empty_widgets": {
+   "text": "No widgets yet. Build one here, or type /build in a note.",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:143"
+  },
+  "empty_routines": {
+   "text": "No routines yet. Make one here.",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:126",
+   "fragment": "emptyActive: `No ${many} yet. Make one here.`",
+   "note": "toolCopy('routine', 'routines') at myToolsLib.js:133"
+  },
+  "empty_trackers": {
+   "text": "No trackers yet. Make one here.",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:126",
+   "fragment": "emptyActive: `No ${many} yet. Make one here.`",
+   "note": "toolCopy('tracker', 'trackers') at myToolsLib.js:133"
+  },
+  "empty_templates": {
+   "text": "No templates yet. Save a note’s setup as a template, or use one from the Template library.",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:64"
+  },
+  "templates_soon": {
+   "text": "Templates are coming soon.",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:52"
+  },
+  "unavailable": {
+   "text": "Not available right now.",
+   "source": "app/src/pages/journal-2-0/components/notebook/widgets/BuiltWidgetEmbed.jsx:54",
+   "fragment": "UNAVAILABLE_SENTENCE = 'Not available right now.'"
+  },
+  "tool_unavailable": {
+   "text": "Not available right now.",
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:36",
+   "fragment": "flagOff: 'Not available right now.'"
+  },
+  "tool_window": {
+   "text": "Ticks can be added up to 7 trading days back.",
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:41"
+  },
+  "tool_offline": {
+   "text": "You're offline. Ticks save when you're back online.",
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:35"
+  },
+  "tick_failed": {
+   "text": "Didn't save. Retry?",
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:40"
+  },
+  "off_day": {
+   "text": "Off day",
+   "source": "api/services/journal_two/routine_days.py:47",
+   "fragment": "\"off\": \"Off day\""
+  },
+  "busy": {
+   "text": "Busy right now. Try again in a moment.",
+   "source": "app/src/pages/journal-2-0/lib/builtWidgets.js:25"
+  },
+  "too_long": {
+   "text": "This is a lot of data to add up. Try a shorter range or fewer splits.",
+   "source": "app/src/pages/journal-2-0/lib/builtWidgets.js:26"
+  },
+  "rate": {
+   "text": "Too many refreshes in a minute. Try again shortly.",
+   "source": "app/src/pages/journal-2-0/lib/builtWidgets.js:27"
+  },
+  "count_cap": {
+   "text": "You have 100 widgets. Archive one in My tools to make room.",
+   "source": "app/src/pages/journal-2-0/lib/builtWidgets.js:30"
+  },
+  "preview_offline": {
+   "text": "Offline. The preview updates when you're back.",
+   "source": "app/src/pages/journal-2-0/lib/builtWidgets.js:33"
+  },
+  "paid_widgets": {
+   "text": "Widgets need a paid plan.",
+   "source": "app/src/pages/journal-2-0/lib/builtWidgets.js:37"
+  },
+  "routine_rate": {
+   "text": "Too many changes in a minute. Try again shortly.",
+   "source": "api/routers/notebook_routines.py:204"
+  },
+  "account_public": {
+   "text": "Account 1",
+   "source": "api/services/journal_two/widget_engine/public_words.py:13",
+   "fragment": "\"account\": \"Account\"",
+   "note": "public_words.relabel: the n-th distinct account is 'Account <n>' (R-25)"
+  },
+  "library_title": {
+   "text": "Template library",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:24"
+  },
+  "adopt_title": {
+   "text": "Make it yours",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.jsx:28"
+  },
+  "share_title": {
+   "text": "Share to library",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:31"
+  },
+  "share_sent": {
+   "text": "Sent. UCT reviews every item before it's listed.",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:36"
+  },
+  "new_words": {
+   "text": "New",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/LibraryCardFacts.jsx:17",
+   "fragment": "NEW_WORDS = 'New'"
+  },
+  "helpful_answered": {
+   "text": "Thanks for your answer.",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/HelpfulPromptLine.jsx:33"
+  },
+  "pick_setup": {
+   "text": "Pick a setup to see this widget.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_preview.py:57",
+   "fragment": "S_PICK = \"Pick a {label} to see this widget.\""
+  },
+  "not_yours": {
+   "text": "That choice isn't in your account.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/slot_fill.py:457"
+  },
+  "routine_not_yours": {
+   "text": "This routine is not in your account.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/journal_styles.py:1942"
+  },
+  "former_member": {
+   "text": "Based on a former member's",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:601",
+   "fragment": "CREDIT_FORMER_SENTENCE = \"Based on a former member's {title}\""
+  },
+  "anonymous_author": {
+   "text": "A UCT member",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:151"
+  },
+  "week_of": {
+   "text": "For the week of",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/tool_binding.py:93",
+   "fragment": "For the week of {"
+  }
+ },
+ "personas": [
+  {
+   "id": "P01",
+   "title": "Brand-new, no trades",
+   "exercises": "builder examples on Sample data, every empty sentence, no zeros anywhere",
+   "email": "campaign-p01@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "accounts": 1
+   },
+   "scripts": [
+    {
+     "id": "P01.a",
+     "title": "The builder's examples: sample data or the member's own",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P01 first note",
+       "paras": [
+        "My week in numbers."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open",
+       "expect": [
+        "sample_banner"
+       ]
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "timing": "preview",
+       "live_startswith": "sample_label",
+       "forbid": [
+        "zeros",
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P01.b",
+     "title": "My tools: every empty sentence, no zeros",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all",
+       "timing": "page_first_paint"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Widgets",
+       "timing": "sheet_open",
+       "expect": [
+        "empty_widgets"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "my_tools_tab",
+       "tab": "Routines",
+       "expect": [
+        "empty_routines"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "my_tools_tab",
+       "tab": "Trackers",
+       "expect_re": [
+        "Check-in mood",
+        "Check-in focus"
+       ],
+       "expect_absent": [
+        "empty_trackers"
+       ],
+       "forbid": [
+        "zeros"
+       ],
+       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty"
+      },
+      {
+       "do": "my_tools_tab",
+       "tab": "Templates",
+       "expect": [
+        "empty_templates"
+       ],
+       "forbid": [
+        "zeros"
+       ],
+       "needs": [
+        "w11"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": true
+  },
+  {
+   "id": "P02",
+   "title": "4 trades",
+   "exercises": "the under-5 Sample data rule in builder, gallery and template previews",
+   "email": "campaign-p02@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 4,
+     "sessions": 4
+    }
+   },
+   "scripts": [
+    {
+     "id": "P02.a",
+     "title": "The builder's examples: sample data or the member's own",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P02 note",
+       "paras": [
+        "My week in numbers."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open",
+       "expect": [
+        "sample_banner"
+       ]
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "timing": "preview",
+       "live_startswith": "sample_label",
+       "forbid": [
+        "zeros",
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P02.b",
+     "title": "Template preview with under 5 trades shows Sample data",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook#templates",
+       "timing": "sheet_open",
+       "expect": [
+        "library_title"
+       ]
+      },
+      {
+       "do": "library_preview",
+       "template": "Setup study",
+       "timing": "preview",
+       "expect": [
+        "sample_label"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P03",
+   "title": "12 trades, one account",
+   "exercises": "small-sample badges (under 20), coverage lines",
+   "email": "campaign-p03@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 12,
+     "sessions": 12
+    }
+   },
+   "scripts": [
+    {
+     "id": "P03.a",
+     "title": "The builder's examples: sample data or the member's own",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P03 note",
+       "paras": [
+        "My week in numbers."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open",
+       "expect_absent": [
+        "sample_banner"
+       ]
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "timing": "preview",
+       "live_not_startswith": "sample_label",
+       "forbid": [
+        "zeros",
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P03.b",
+     "title": "Small-sample badge and coverage line",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P03 stats",
+       "paras": [
+        "Stats."
+       ],
+       "save_as": "n2"
+      },
+      {
+       "do": "open_note",
+       "note": "n2"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:win-rate",
+       "timing": "preview",
+       "expect_re": [
+        "12 trades"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P04",
+   "title": "300 trades, 3 accounts",
+   "exercises": "accounts split, R-25 \"Account N\" on a shared note",
+   "email": "campaign-p04@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "accounts": 3,
+    "trades": {
+     "n": 300,
+     "sessions": 90,
+     "split_accounts": true
+    }
+   },
+   "scripts": [
+    {
+     "id": "P04.a",
+     "title": "Split by account, shared: the public page names Account 1, never an account name",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P04 accounts",
+       "paras": [
+        "Three books."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades",
+       "timing": "preview"
+      },
+      {
+       "do": "builder_split",
+       "by": "Account",
+       "live_re": "(?i)split by|by account",
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "builder_name",
+       "value": "Accounts split (P04)"
+      },
+      {
+       "do": "builder_save",
+       "expect_frame": "Accounts split (P04)"
+      },
+      {
+       "do": "widget_share_on",
+       "frame": "Accounts split (P04)"
+      },
+      {
+       "do": "share_public",
+       "note": "n1",
+       "expect_public": [
+        "account_public"
+       ],
+       "forbid_public": [
+        "Main book",
+        "Swing book",
+        "Retirement"
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": true
+  },
+  {
+   "id": "P05",
+   "title": "5,600 trades",
+   "exercises": "\"Based on your newest 5,000 trades\", the too-long sentence, busy",
+   "email": "campaign-p05@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 5600,
+     "sessions": 250
+    }
+   },
+   "scripts": [
+    {
+     "id": "P05.a",
+     "title": "Newest 5,000 trades, the too-long sentence, busy",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P05",
+       "paras": [
+        "Big book."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:equity-curve",
+       "timing": "preview",
+       "expect_re": [
+        "[Nn]ewest 5,000 trades"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P06",
+   "title": "Date-only broker imports",
+   "exercises": "hour and hold-time fields \"need times\", tilt \"needs times\"",
+   "email": "campaign-p06@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 80,
+     "timed": false,
+     "sessions": 40
+    }
+   },
+   "scripts": [
+    {
+     "id": "P06.a",
+     "title": "Hour and hold time need times",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P06",
+       "paras": [
+        "Dates only."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades"
+      },
+      {
+       "do": "builder_split",
+       "by": "Hour",
+       "live_re": "(?i)need(s)? times"
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P07",
+   "title": "No stops on any trade",
+   "exercises": "R coverage \"R known on N of M\", placeholder stops never 0%",
+   "email": "campaign-p07@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 60,
+     "stops": "none",
+     "sessions": 30
+    }
+   },
+   "scripts": [
+    {
+     "id": "P07.a",
+     "title": "R coverage reads R known on N of M, never 0%",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P07",
+       "paras": [
+        "No stops."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:r-multiple-distribution",
+       "timing": "preview",
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P08",
+   "title": "Flagged trades mixed in",
+   "exercises": "flag, never hide: lists label them, aggregates exclude them",
+   "email": "campaign-p08@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 120,
+     "flagged_every": 6,
+     "sessions": 60
+    }
+   },
+   "scripts": [
+    {
+     "id": "P08.a",
+     "title": "Flag, never hide: list views label them, aggregates exclude them",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P08",
+       "paras": [
+        "Flags."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:best-trades",
+       "timing": "preview",
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P09",
+   "title": "Keyboard-only builder at 390 with the keyboard open",
+   "exercises": "every builder step, sticky summary, focus return",
+   "email": "campaign-p09@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 40,
+     "sessions": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P09.a",
+     "title": "Every builder step by keyboard; sticky summary; focus returns to the note",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P09",
+       "paras": [
+        "Builder by keys."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open"
+      },
+      {
+       "do": "resize",
+       "height": 480,
+       "why": "the on-screen keyboard takes ~45% of a 844 px phone; Chromium cannot open one"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades",
+       "timing": "preview"
+      },
+      {
+       "do": "builder_name",
+       "value": "Keyboard widget (P09)"
+      },
+      {
+       "do": "builder_summary_visible",
+       "keyboard_open": true,
+       "why": "the Name field is focused and the viewport is short: on a phone that is the keyboard open"
+      },
+      {
+       "do": "resize",
+       "height": null
+      },
+      {
+       "do": "builder_summary_visible"
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      },
+      {
+       "do": "focus_returned"
+      }
+     ]
+    }
+   ],
+   "validated": true
+  },
+  {
+   "id": "P10",
+   "title": "Screen-reader proxy",
+   "exercises": "axe on every sheet, table alternatives for every view",
+   "email": "campaign-p10@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 30,
+     "sessions": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P10.a",
+     "title": "axe on every sheet; a table alternative for every view",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P10",
+       "paras": [
+        "Readable."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder",
+       "axe_strict": true
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "axe_strict": true
+      },
+      {
+       "do": "check_text",
+       "within": "dialog",
+       "expect_re": [
+        "(?i)table|as a table|show the numbers"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      },
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Widgets",
+       "axe_strict": true
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P11",
+   "title": "One widget in 20 notes",
+   "exercises": "Update all vs Save as new, version history, restore",
+   "email": "campaign-p11@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 50
+    },
+    "widgets": {
+     "n": 1,
+     "name": "Shared widget (P11)"
+    },
+    "notes": {
+     "n": 20,
+     "title": "P11 note"
+    }
+   },
+   "scripts": [
+    {
+     "id": "P11.a",
+     "title": "Update all vs Save as new, version history, restore",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Widgets",
+       "expect_re": [
+        "Shared widget \\(P11\\) 1"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P12",
+   "title": "Hostile text (the fuzz corpus in names, tags, setups)",
+   "exercises": "builder, share, nothing raises, nothing renders raw",
+   "email": "campaign-p12@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "hostile_names": true,
+    "trades": {
+     "n": 40,
+     "hostile": true
+    },
+    "notes": {
+     "n": 17,
+     "hostile": true
+    }
+   },
+   "scripts": [
+    {
+     "id": "P12.a",
+     "title": "The builder's examples: sample data or the member's own",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P12 <img src=x onerror=alert(1)>",
+       "paras": [
+        "My week in numbers."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open",
+       "expect_absent": [
+        "sample_banner"
+       ]
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "timing": "preview",
+       "live_not_startswith": "sample_label",
+       "forbid": [
+        "zeros",
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P12.b",
+     "title": "Split by setup over hostile setups: nothing raises, nothing renders raw",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P12 split",
+       "paras": [
+        "x' OR '1'='1"
+       ],
+       "save_as": "n2"
+      },
+      {
+       "do": "open_note",
+       "note": "n2",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades"
+      },
+      {
+       "do": "builder_split",
+       "by": "Setup",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P13",
+   "title": "Daily pre-market routine across Thanksgiving week (2025)",
+   "exercises": "holiday off day, half day session, consistency words",
+   "email": "campaign-p13@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Daily pre-market",
+      "items": [
+       "Check the futures",
+       "Mark key levels",
+       "Write the trading plan"
+      ],
+      "schedule": {
+       "kind": "every"
+      },
+      "created": "2025-11-10T08:00:00-05:00",
+      "ticks": {
+       "2025-11-24": "all",
+       "2025-11-25": "all",
+       "2025-11-26": "half",
+       "2025-11-28": "all",
+       "2025-12-01": "all"
+      }
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P13.a",
+     "title": "Holiday off day, half day session, consistency words (read from the routine's days)",
+     "steps": [
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/routines/days",
+       "body": {
+        "ids": [
+         "@routine:Daily pre-market"
+        ],
+        "days": [
+         "2025-11-26",
+         "2025-11-27",
+         "2025-11-28",
+         "2025-12-01"
+        ]
+       },
+       "expect_status": [
+        200
+       ],
+       "save_as": "days",
+       "checks": [
+        {
+         "path": "routines.@routine:Daily pre-market.days.2025-11-27.state",
+         "equals": "off"
+        },
+        {
+         "path": "routines.@routine:Daily pre-market.days.2025-11-27.label",
+         "sentence": "off_day"
+        },
+        {
+         "path": "routines.@routine:Daily pre-market.days.2025-11-28.state",
+         "equals": "done"
+        },
+        {
+         "path": "routines.@routine:Daily pre-market.days.2025-11-26.state",
+         "in": [
+          "not_done",
+          "done"
+         ]
+        },
+        {
+         "any_text_forbid": "\\b0 of\\b"
+        }
+       ]
+      },
+      {
+       "do": "seed_note",
+       "title": "Campaign P13 routine",
+       "paras": [
+        "Pre-market."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "insert_routine",
+       "existing": "Daily pre-market",
+       "timing": "sheet_open",
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "check_text",
+       "within": "[data-routine-block]",
+       "forbid_re": [
+        "\\b0 of\\b"
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": true,
+   "clock": "2025-12-01T20:00:00-05:00",
+   "notes": "Thanksgiving 2025 (Thu 11-27, half day Fri 11-28) is used because it is in the past for the server's real clock: the server has no clock seam, so a 2026 Thanksgiving could not be read as history."
+  },
+  {
+   "id": "P14",
+   "title": "Two devices on one routine day plus a third tab",
+   "exercises": "concurrent ticks all survive, no note write or fork",
+   "email": "campaign-p14@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 10
+    }
+   },
+   "scripts": [
+    {
+     "id": "P14.a",
+     "title": "Concurrent ticks from two contexts and a third tab all survive; no note write, no fork",
+     "steps": [
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/routines",
+       "body": {
+        "name": "P14 routine {run}",
+        "items": [
+         {
+          "text": "Item one"
+         },
+         {
+          "text": "Item two"
+         },
+         {
+          "text": "Item three"
+         }
+        ],
+        "schedule": {
+         "kind": "every"
+        }
+       },
+       "expect_status": [
+        200,
+        201
+       ],
+       "save_as": "routine"
+      },
+      {
+       "do": "seed_note",
+       "title": "Campaign P14 {run}",
+       "paras": [
+        "Two devices."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "insert_routine",
+       "existing": "P14 routine {run}",
+       "timing": "sheet_open"
+      },
+      {
+       "do": "remember_note",
+       "note": "n1"
+      },
+      {
+       "do": "new_context",
+       "name": "device2",
+       "open_note": "n1"
+      },
+      {
+       "do": "new_page",
+       "name": "tab3",
+       "context": "main",
+       "open_note": "n1"
+      },
+      {
+       "do": "concurrent_ticks",
+       "ticks": [
+        [
+         "main",
+         0
+        ],
+        [
+         "device2",
+         1
+        ],
+        [
+         "tab3",
+         2
+        ]
+       ]
+      },
+      {
+       "do": "reload_all",
+       "expect_checked": [
+        0,
+        1,
+        2
+       ]
+      },
+      {
+       "do": "note_unchanged",
+       "note": "n1"
+      }
+     ]
+    }
+   ],
+   "validated": true
+  },
+  {
+   "id": "P15",
+   "title": "Goes offline mid-tick",
+   "exercises": "rollback, offline sentence, Retry",
+   "email": "campaign-p15@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Offline routine",
+      "items": [
+       "One",
+       "Two"
+      ]
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P15.a",
+     "title": "Offline tick: rollback, the offline sentence, Retry",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P15 {run}",
+       "paras": [
+        "Offline."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "insert_routine",
+       "existing": "Offline routine"
+      },
+      {
+       "do": "offline",
+       "on": true
+      },
+      {
+       "do": "tick",
+       "index": 0,
+       "expect": [
+        "tool_offline"
+       ]
+      },
+      {
+       "do": "offline",
+       "on": false
+      },
+      {
+       "do": "wait",
+       "ms": 1500
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P16",
+   "title": "Strict mode with skipped days",
+   "exercises": "consistency with skips, never \"0 of\"",
+   "email": "campaign-p16@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Strict routine",
+      "items": [
+       "A",
+       "B"
+      ],
+      "settings": {
+       "strict": true
+      },
+      "ticks": {
+       "2026-10-19": "all",
+       "2026-10-20": "skip",
+       "2026-10-21": "all",
+       "2026-10-22": "skip"
+      }
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P16.a",
+     "title": "Consistency with skips, never \"0 of\"",
+     "steps": [
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/routines/days",
+       "body": {
+        "ids": [
+         "@routine:Strict routine"
+        ],
+        "days": [
+         "2026-10-19",
+         "2026-10-20",
+         "2026-10-22"
+        ]
+       },
+       "expect_status": [
+        200
+       ],
+       "checks": [
+        {
+         "any_text_forbid": "\\b0 of\\b"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P17",
+   "title": "Renames and removes items, changes the schedule",
+   "exercises": "past days unchanged, history kept",
+   "email": "campaign-p17@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Changing routine",
+      "items": [
+       "Keep",
+       "Rename me",
+       "Remove me"
+      ],
+      "ticks": {
+       "2026-10-20": "all",
+       "2026-10-21": "all"
+      }
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P17.a",
+     "title": "Past days unchanged, history kept",
+     "steps": [
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/routines/days",
+       "body": {
+        "ids": [
+         "@routine:Changing routine"
+        ],
+        "days": [
+         "2026-10-20"
+        ]
+       },
+       "expect_status": [
+        200
+       ],
+       "checks": [
+        {
+         "path": "routines.@routine:Changing routine.days.2026-10-20.state",
+         "equals": "done"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P18",
+   "title": "30 trackers, every kind, edge values",
+   "exercises": "refusals with sentences, no stored bad value",
+   "email": "campaign-p18@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trackers": [
+     {
+      "name": "Tracker 1",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 2",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     },
+     {
+      "name": "Tracker 3",
+      "kind": "scale",
+      "values": {
+       "2026-10-22": 6,
+       "2026-10-21": 3
+      }
+     },
+     {
+      "name": "Tracker 4",
+      "kind": "duration",
+      "values": {
+       "2026-10-22": -5,
+       "2026-10-21": 90
+      }
+     },
+     {
+      "name": "Tracker 5",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 6",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     },
+     {
+      "name": "Tracker 7",
+      "kind": "scale",
+      "values": {
+       "2026-10-22": 6,
+       "2026-10-21": 3
+      }
+     },
+     {
+      "name": "Tracker 8",
+      "kind": "duration",
+      "values": {
+       "2026-10-22": -5,
+       "2026-10-21": 90
+      }
+     },
+     {
+      "name": "Tracker 9",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 10",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     },
+     {
+      "name": "Tracker 11",
+      "kind": "scale",
+      "values": {
+       "2026-10-22": 6,
+       "2026-10-21": 3
+      }
+     },
+     {
+      "name": "Tracker 12",
+      "kind": "duration",
+      "values": {
+       "2026-10-22": -5,
+       "2026-10-21": 90
+      }
+     },
+     {
+      "name": "Tracker 13",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 14",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     },
+     {
+      "name": "Tracker 15",
+      "kind": "scale",
+      "values": {
+       "2026-10-22": 6,
+       "2026-10-21": 3
+      }
+     },
+     {
+      "name": "Tracker 16",
+      "kind": "duration",
+      "values": {
+       "2026-10-22": -5,
+       "2026-10-21": 90
+      }
+     },
+     {
+      "name": "Tracker 17",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 18",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     },
+     {
+      "name": "Tracker 19",
+      "kind": "scale",
+      "values": {
+       "2026-10-22": 6,
+       "2026-10-21": 3
+      }
+     },
+     {
+      "name": "Tracker 20",
+      "kind": "duration",
+      "values": {
+       "2026-10-22": -5,
+       "2026-10-21": 90
+      }
+     },
+     {
+      "name": "Tracker 21",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 22",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     },
+     {
+      "name": "Tracker 23",
+      "kind": "scale",
+      "values": {
+       "2026-10-22": 6,
+       "2026-10-21": 3
+      }
+     },
+     {
+      "name": "Tracker 24",
+      "kind": "duration",
+      "values": {
+       "2026-10-22": -5,
+       "2026-10-21": 90
+      }
+     },
+     {
+      "name": "Tracker 25",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 26",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     },
+     {
+      "name": "Tracker 27",
+      "kind": "scale",
+      "values": {
+       "2026-10-22": 6,
+       "2026-10-21": 3
+      }
+     },
+     {
+      "name": "Tracker 28",
+      "kind": "duration",
+      "values": {
+       "2026-10-22": -5,
+       "2026-10-21": 90
+      }
+     },
+     {
+      "name": "Tracker 29",
+      "kind": "yesno",
+      "values": {
+       "2026-10-22": true,
+       "2026-10-21": false
+      }
+     },
+     {
+      "name": "Tracker 30",
+      "kind": "number",
+      "values": {
+       "2026-10-22": -1000000000000.0,
+       "2026-10-21": 12.5
+      }
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P18.a",
+     "title": "Refusals with sentences, no stored bad value",
+     "steps": [
+      {
+       "do": "api",
+       "method": "PUT",
+       "path": "/api/j2/trackers/@tracker:Tracker 3/days/2026-10-23",
+       "body": {
+        "value": 9
+       },
+       "expect_status": [
+        400
+       ],
+       "checks": [
+        {
+         "path": "detail.message",
+         "nonempty": true
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P19",
+   "title": "Check-ins only",
+   "exercises": "mood and focus trackers read-only",
+   "email": "campaign-p19@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 5
+    }
+   },
+   "scripts": [
+    {
+     "id": "P19.a",
+     "title": "Mood and focus trackers are read-only",
+     "steps": [
+      {
+       "do": "api",
+       "method": "PUT",
+       "path": "/api/j2/trackers/checkin:mood/days/2026-10-23",
+       "body": {
+        "value": 3
+       },
+       "expect_status": [
+        400,
+        403,
+        409
+       ],
+       "checks": [
+        {
+         "path": "detail.code",
+         "nonempty": true
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P20",
+   "title": "Reminder at 15:45 ET on the half day",
+   "exercises": "one bell item at 12:45 ET, none late",
+   "email": "campaign-p20@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Close reminder",
+      "items": [
+       "Review the close"
+      ],
+      "settings": {
+       "reminder": {
+        "on": true,
+        "time_et": "15:45"
+       }
+      }
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P20.a",
+     "title": "One bell item at 12:45 ET on the half day, none late",
+     "steps": [
+      {
+       "do": "noop"
+      }
+     ],
+     "needs": [
+      "clock"
+     ]
+    }
+   ],
+   "validated": false,
+   "clock": "2025-11-28T12:00:00-05:00"
+  },
+  {
+   "id": "P21",
+   "title": "Ticks at 23:30 ET and 8 sessions back",
+   "exercises": "the window sentence, ET day not UTC",
+   "email": "campaign-p21@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Late routine",
+      "items": [
+       "One"
+      ]
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P21.a",
+     "title": "The window sentence; the ET day, not UTC",
+     "steps": [
+      {
+       "do": "api",
+       "method": "PUT",
+       "path": "/api/j2/routines/@routine:Late routine/days/@session-8/items/@item:Late routine:0",
+       "body": {
+        "ticked": true
+       },
+       "expect_status": [
+        400,
+        409
+       ],
+       "checks": [
+        {
+         "path": "detail.message",
+         "sentence": "tool_window"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P22",
+   "title": "Archived and deleted routines, trackers and widgets",
+   "exercises": "read-only blocks, Restore, Recently deleted",
+   "email": "campaign-p22@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Archived routine",
+      "items": [
+       "A"
+      ],
+      "state": "archived"
+     },
+     {
+      "name": "Deleted routine",
+      "items": [
+       "A"
+      ],
+      "state": "deleted"
+     }
+    ],
+    "trackers": [
+     {
+      "name": "Archived tracker",
+      "kind": "yesno",
+      "state": "archived"
+     }
+    ],
+    "widgets": {
+     "n": 2,
+     "states": [
+      "archived"
+     ]
+    }
+   },
+   "scripts": [
+    {
+     "id": "P22.a",
+     "title": "Read-only blocks, Restore, Recently deleted",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Routines"
+      },
+      {
+       "do": "my_tools_filter",
+       "label": "Recently deleted",
+       "expect_re": [
+        "Deleted routine"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P23",
+   "title": "Builder over routine history and trading days",
+   "exercises": "\"routine done\" split, footnotes",
+   "email": "campaign-p23@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 40
+    },
+    "routines": [
+     {
+      "name": "History routine",
+      "items": [
+       "A",
+       "B"
+      ],
+      "ticks": {
+       "2026-10-19": "all",
+       "2026-10-20": "half",
+       "2026-10-21": "all"
+      }
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P23.a",
+     "title": "\"routine done\" split, footnotes",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P23",
+       "paras": [
+        "History."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades"
+      },
+      {
+       "do": "builder_split",
+       "by": "Routine",
+       "live_re": "(?i)routine"
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P24",
+   "title": "150 ticks in a minute",
+   "exercises": "the 429 sentence, nothing lost",
+   "email": "campaign-p24@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Rapid routine",
+      "items": [
+       "One",
+       "Two"
+      ]
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P24.a",
+     "title": "The 429 sentence, nothing lost",
+     "steps": [
+      {
+       "do": "api_burst",
+       "method": "PUT",
+       "path": "/api/j2/routines/@routine:Rapid routine/days/@today/items/@item:Rapid routine:0",
+       "bodies": [
+        {
+         "ticked": true
+        },
+        {
+         "ticked": false
+        }
+       ],
+       "count": 150,
+       "expect_any_status": 429,
+       "expect_message_sentence": "routine_rate"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P25",
+   "title": "Formula power user (5 fields, every function)",
+   "exercises": "broken then fixed, keyboard only",
+   "email": "campaign-p25@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 60,
+     "sessions": 30
+    }
+   },
+   "scripts": [
+    {
+     "id": "P25.a",
+     "title": "A formula broken then fixed, by keyboard",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P25",
+       "paras": [
+        "Formulas."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades"
+      },
+      {
+       "do": "builder_formula",
+       "name": "Winner",
+       "formula": "If([net] > 0, 1",
+       "expect_error": true
+      },
+      {
+       "do": "builder_formula_append",
+       "text": ", 0)",
+       "expect_valid": true,
+       "expect_value": "If([net] > 0, 1, 0)"
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": true
+  },
+  {
+   "id": "P26",
+   "title": "Options-heavy, 500 strategies, no equity trades",
+   "exercises": "options source, day P&L incl. options",
+   "email": "campaign-p26@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "options": {
+     "n": 500
+    }
+   },
+   "scripts": [
+    {
+     "id": "P26.a",
+     "title": "The options source; day P&L includes options",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P26",
+       "paras": [
+        "Options."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Options strategies",
+       "timing": "preview",
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P27",
+   "title": "Notes-heavy, 5,000 notes, 20 properties",
+   "exercises": "notes source, property filters and sums",
+   "email": "campaign-p27@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "notes": {
+     "n": 5000,
+     "properties": 20,
+     "title": "Idea"
+    }
+   },
+   "scripts": [
+    {
+     "id": "P27.a",
+     "title": "The notes source, property filters and sums",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P27",
+       "paras": [
+        "Notes."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Notes",
+       "timing": "preview",
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P28",
+   "title": "Prop-firm challenger with a breach day",
+   "exercises": "prop-firm rules, risk left today",
+   "email": "campaign-p28@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 50,
+     "breach_day": true
+    }
+   },
+   "scripts": [
+    {
+     "id": "P28.a",
+     "title": "Prop-firm rules, risk left today",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P28",
+       "paras": [
+        "Prop."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "slash",
+       "text": "/prop",
+       "pick": "(?i)prop-firm rules",
+       "forbid": [
+        "zeros"
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P29",
+   "title": "Tilt-prone day trader",
+   "exercises": "tilt check, revenge clean days",
+   "email": "campaign-p29@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 80,
+     "tilt_day": true
+    }
+   },
+   "scripts": [
+    {
+     "id": "P29.a",
+     "title": "Tilt check, revenge clean days",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P29",
+       "paras": [
+        "Tilt."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "slash",
+       "text": "/tilt",
+       "pick": "(?i)tilt check",
+       "forbid": [
+        "zeros"
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P30",
+   "title": "Swing trader, dates only",
+   "exercises": "hold-minutes sentence",
+   "email": "campaign-p30@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 60,
+     "timed": false,
+     "hold": "swing"
+    }
+   },
+   "scripts": [
+    {
+     "id": "P30.a",
+     "title": "The hold-minutes sentence",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P30",
+       "paras": [
+        "Swing."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades"
+      },
+      {
+       "do": "builder_split",
+       "by": "Hold time",
+       "live_re": "(?i)need(s)? times"
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P31",
+   "title": "No account size, no limits",
+   "exercises": "calculator and risk-left sentences",
+   "email": "campaign-p31@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "account_size": false,
+    "trades": {
+     "n": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P31.a",
+     "title": "Calculator and risk-left sentences",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P31",
+       "paras": [
+        "Sizing."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "slash",
+       "text": "/size",
+       "pick": "(?i)shares for your entry",
+       "forbid": [
+        "zeros"
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P32",
+   "title": "Hostile formula text",
+   "exercises": "formula refusals, nothing reaches SQL",
+   "email": "campaign-p32@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P32.a",
+     "title": "Formula refusals; nothing reaches SQL",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P32",
+       "paras": [
+        "Hostile formulas."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades"
+      },
+      {
+       "do": "builder_formula",
+       "name": "Evil",
+       "formula": "[net]; DROP TABLE j2_trades",
+       "expect_error": true,
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P33",
+   "title": "Every shelf placement at revision 1",
+   "exercises": "\"Updated version available\", applied only on click",
+   "email": "campaign-p33@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 30
+    }
+   },
+   "scripts": [
+    {
+     "id": "P33.a",
+     "title": "\"Updated version available\", applied only on click",
+     "steps": [
+      {
+       "do": "noop"
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P34",
+   "title": "Template author with canary values everywhere",
+   "exercises": "save as template, share preview, nothing private on the listing",
+   "email": "campaign-p34@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "hostile_names": false,
+    "trades": {
+     "n": 30,
+     "setups": [
+      "zzq-canary-7f3a"
+     ]
+    },
+    "styles": [
+     {
+      "name": "zzq-canary-7f3a template"
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P34.a",
+     "title": "Save as template, share preview, nothing private on the listing",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Templates",
+       "needs": [
+        "w11"
+       ]
+      },
+      {
+       "do": "share_preview_template",
+       "name": "zzq-canary-7f3a template",
+       "forbid_text": [
+        "zzq-canary-7f3a"
+       ],
+       "needs": [
+        "w11"
+       ]
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P35",
+   "title": "Adopter with rich data",
+   "exercises": "suggested values, pick yours, Use, credit",
+   "email": "campaign-p35@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "accounts": 2,
+    "trades": {
+     "n": 300,
+     "sessions": 90
+    },
+    "routines": [
+     {
+      "name": "Morning routine",
+      "items": [
+       "Futures",
+       "Levels",
+       "Plan"
+      ]
+     }
+    ],
+    "trackers": [
+     {
+      "name": "Sleep",
+      "kind": "number",
+      "unit": "h"
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P35.a",
+     "title": "The builder's examples: sample data or the member's own",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P35 note",
+       "paras": [
+        "My week in numbers."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open",
+       "expect_absent": [
+        "sample_banner"
+       ]
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "timing": "preview",
+       "live_not_startswith": "sample_label",
+       "forbid": [
+        "zeros",
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P35.b",
+     "title": "Template library: suggested values, pick yours, Use, credit",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook#templates",
+       "timing": "sheet_open",
+       "expect": [
+        "library_title"
+       ]
+      },
+      {
+       "do": "library_use",
+       "template": "Pre-market prep",
+       "timing": "sheet_open",
+       "expect": [
+        "adopt_title"
+       ]
+      },
+      {
+       "do": "adopt_use",
+       "expect_re": [
+        "Based on UCT's"
+       ]
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": true
+  },
+  {
+   "id": "P36",
+   "title": "Adopter with no data",
+   "exercises": "Any defaults, \"Pick a setup to see this widget.\", Sample data, no zeros",
+   "email": "campaign-p36@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {},
+   "scripts": [
+    {
+     "id": "P36.a",
+     "title": "Any defaults, \"Pick a setup to see this widget.\", Sample data, no zeros",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook#templates",
+       "expect": [
+        "library_title"
+       ]
+      },
+      {
+       "do": "library_preview",
+       "template": "Setup study",
+       "expect": [
+        "pick_setup"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P37",
+   "title": "Night-before preparer",
+   "exercises": "Sunday night, the eve of Thanksgiving, 23:30 ET binding",
+   "email": "campaign-p37@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P37.a",
+     "title": "Sunday night, the eve of Thanksgiving, 23:30 ET binding",
+     "steps": [
+      {
+       "do": "noop"
+      }
+     ],
+     "needs": [
+      "w11",
+      "clock"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P38",
+   "title": "Weekend reviewer",
+   "exercises": "Saturday and holiday-Friday week binding, \"For the week of\"",
+   "email": "campaign-p38@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P38.a",
+     "title": "Saturday and holiday-Friday week binding, \"For the week of\"",
+     "steps": [
+      {
+       "do": "noop"
+      }
+     ],
+     "needs": [
+      "w11",
+      "clock"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P39",
+   "title": "Two tabs press Use at once, then a double-click",
+   "exercises": "one copy, one routine, two notes",
+   "email": "campaign-p39@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P39.a",
+     "title": "One copy, one routine, two notes",
+     "steps": [
+      {
+       "do": "api_concurrent",
+       "method": "POST",
+       "path": "/api/j2/template-gallery/@official:pre-market-prep/use-template",
+       "body": {},
+       "contexts": 2,
+       "expect_status": [
+        200,
+        201,
+        409
+       ]
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P40",
+   "title": "Has a matching Morning routine",
+   "exercises": "\"Use your Morning routine\" pre-selected, remembered",
+   "email": "campaign-p40@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "routines": [
+     {
+      "name": "Morning routine",
+      "items": [
+       "Futures",
+       "Levels"
+      ]
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P40.a",
+     "title": "\"Use your Morning routine\" pre-selected, remembered",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook#templates",
+       "expect": [
+        "library_title"
+       ]
+      },
+      {
+       "do": "library_use",
+       "template": "Pre-market prep",
+       "expect_re": [
+        "Use your Morning routine"
+       ]
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P41",
+   "title": "Uses a template on 3 ET days across UTC midnight",
+   "exercises": "Helpful refused then allowed, the 3rd-day line once",
+   "email": "campaign-p41@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P41.a",
+     "title": "Helpful refused then allowed, the 3rd-day line once",
+     "steps": [
+      {
+       "do": "noop"
+      }
+     ],
+     "needs": [
+      "w11",
+      "clock"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P42",
+   "title": "Adopted from an author who then deletes their account",
+   "exercises": "\"Based on a former member's …\"",
+   "email": "campaign-p42@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 20
+    }
+   },
+   "scripts": [
+    {
+     "id": "P42.a",
+     "title": "\"Based on a former member's ...\"",
+     "steps": [
+      {
+       "do": "noop"
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P43",
+   "title": "Withdrawn listing mid-adopt; hand-made foreign ids; a widget deleted 31 days ago",
+   "exercises": "404, slot sentences, no foreign read",
+   "email": "campaign-p43@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 20
+    },
+    "widgets": {
+     "n": 1
+    }
+   },
+   "scripts": [
+    {
+     "id": "P43.a",
+     "title": "404, slot sentences, no foreign read",
+     "steps": [
+      {
+       "do": "api",
+       "method": "GET",
+       "path": "/api/j2/widget-definitions/00000000-0000-4000-8000-000000000000",
+       "expect_status": [
+        404
+       ]
+      },
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/template-gallery/no-such-listing/adopt-tool",
+       "body": {},
+       "expect_status": [
+        404
+       ],
+       "needs": [
+        "w11"
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P44",
+   "title": "Templates tab manager",
+   "exercises": "rename, duplicate, archive the default, restore, delete permanently, Recently deleted",
+   "email": "campaign-p44@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "styles": [
+     {
+      "name": "Daily review",
+      "state": "default"
+     },
+     {
+      "name": "Swing plan"
+     },
+     {
+      "name": "Old idea",
+      "state": "deleted"
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P44.a",
+     "title": "Rename, duplicate, archive the default, restore, delete permanently, Recently deleted",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Templates",
+       "expect_re": [
+        "Daily review"
+       ]
+      },
+      {
+       "do": "my_tools_filter",
+       "label": "Recently deleted",
+       "expect_re": [
+        "Old idea"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ],
+     "needs": [
+      "w11"
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P45",
+   "title": "Admin reviewer",
+   "exercises": "approves widget, routine, tracker and template items; a held revision; watchers told once",
+   "email": "hubtest@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "role": "admin"
+   },
+   "scripts": [
+    {
+     "id": "P45.a",
+     "title": "Approves widget, routine, tracker and template items; a held revision; watchers told once",
+     "steps": [
+      {
+       "do": "admin_login"
+      },
+      {
+       "do": "api",
+       "method": "GET",
+       "path": "/api/j2/template-gallery/admin/queue",
+       "expect_status": [
+        200
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P46",
+   "title": "Flag flipper",
+   "exercises": "W11, W10, W9, W8 off one at a time with reloads: snapshots kept, \"Not available right now.\", nothing lost, all back on re-arm",
+   "email": "campaign-p46@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 12,
+     "sessions": 6
+    },
+    "routines": [
+     {
+      "name": "Flag routine",
+      "items": [
+       "One",
+       "Two"
+      ]
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P46.a",
+     "title": "W11, W10, W9, W8 off one at a time with reloads; all back on re-arm",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P46 {run}",
+       "paras": [
+        "Flags."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars"
+      },
+      {
+       "do": "builder_save",
+       "expect_frame": "Daily P&L bars"
+      },
+      {
+       "do": "insert_routine",
+       "existing": "Flag routine"
+      },
+      {
+       "do": "remember_note",
+       "note": "n1"
+      },
+      {
+       "do": "flag_restart",
+       "set": {
+        "NOTEBOOK_WIDGETS_W11_ENABLED": "0"
+       }
+      },
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Templates",
+       "expect": [
+        "templates_soon"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "expect_frames": 1,
+       "expect_routine_boxes": true,
+       "expect_status": [
+        404
+       ]
+      },
+      {
+       "do": "flag_restart",
+       "set": {
+        "NOTEBOOK_WIDGETS_W10_ENABLED": "0"
+       }
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "expect_frames": 1,
+       "expect_routine_boxes": true,
+       "expect_status": [
+        404
+       ]
+      },
+      {
+       "do": "flag_restart",
+       "set": {
+        "NOTEBOOK_WIDGETS_W9_ENABLED": "0"
+       }
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "expect": [
+        "tool_unavailable"
+       ],
+       "expect_frames": 1,
+       "expect_routine_boxes": false,
+       "expect_status": [
+        404
+       ],
+       "why": "a dark wave answers its routes 404 (public.not_found); the 404 IS the product saying off"
+      },
+      {
+       "do": "flag_restart",
+       "set": {
+        "NOTEBOOK_WIDGETS_W8_ENABLED": "0"
+       }
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "expect": [
+        "unavailable"
+       ],
+       "expect_status": [
+        404
+       ]
+      },
+      {
+       "do": "flag_restart",
+       "set": {},
+       "rearm": true
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "expect_frames": 1,
+       "expect_routine_boxes": true
+      },
+      {
+       "do": "note_unchanged",
+       "note": "n1"
+      }
+     ],
+     "needs": [
+      "restart"
+     ]
+    }
+   ],
+   "validated": true
+  },
+  {
+   "id": "P47",
+   "title": "Unpaid member",
+   "exercises": "the 402 sentence on every paid route",
+   "email": "campaign-p47@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "paid": false
+   },
+   "scripts": [
+    {
+     "id": "P47.a",
+     "title": "The 402 sentence on every paid route",
+     "steps": [
+      {
+       "do": "api",
+       "method": "GET",
+       "path": "/api/j2/routines",
+       "expect_status": [
+        402,
+        403
+       ]
+      },
+      {
+       "do": "api",
+       "method": "GET",
+       "path": "/api/j2/trackers",
+       "expect_status": [
+        402,
+        403
+       ]
+      },
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/widget-definitions/run",
+       "body": {
+        "defId": "shelf:equity-curve",
+        "defRev": 1
+       },
+       "expect_status": [
+        402,
+        403
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P48",
+   "title": "Logged-out viewer",
+   "exercises": "shared, published, gallery and example pages of template-made notes: account and neutral lines only, no values",
+   "email": "campaign-p48@local.dev",
+   "viewports": [
+    "1200",
+    "820",
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "session": false
+   },
+   "scripts": [
+    {
+     "id": "P48.a",
+     "title": "Shared, published, gallery and example pages: account and neutral lines only",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all",
+       "expect_re": [
+        "(?i)sign in|log in"
+       ]
+      },
+      {
+       "do": "api",
+       "method": "GET",
+       "path": "/api/j2/template-gallery",
+       "expect_status": [
+        401,
+        403
+       ]
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P49",
+   "title": "Phone-only member at 390",
+   "exercises": "every sheet, tap floor, segmented tabs",
+   "email": "campaign-p49@local.dev",
+   "viewports": [
+    "390"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 30
+    }
+   },
+   "scripts": [
+    {
+     "id": "P49.a",
+     "title": "The builder's examples: sample data or the member's own",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P49",
+       "paras": [
+        "My week in numbers."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ]
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open",
+       "expect_absent": [
+        "sample_banner"
+       ]
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "timing": "preview",
+       "live_not_startswith": "sample_label",
+       "forbid": [
+        "zeros",
+        "raw"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P49.b",
+     "title": "My tools: every empty sentence, no zeros",
+     "steps": [
+      {
+       "do": "open",
+       "path": "/journal/notebook?view=all",
+       "timing": "page_first_paint"
+      },
+      {
+       "do": "my_tools",
+       "tab": "Widgets",
+       "timing": "sheet_open",
+       "expect": [
+        "empty_widgets"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "my_tools_tab",
+       "tab": "Routines",
+       "expect": [
+        "empty_routines"
+       ],
+       "forbid": [
+        "zeros"
+       ]
+      },
+      {
+       "do": "my_tools_tab",
+       "tab": "Trackers",
+       "expect_re": [
+        "Check-in mood",
+        "Check-in focus"
+       ],
+       "expect_absent": [
+        "empty_trackers"
+       ],
+       "forbid": [
+        "zeros"
+       ],
+       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty"
+      },
+      {
+       "do": "my_tools_tab",
+       "tab": "Templates",
+       "expect": [
+        "empty_templates"
+       ],
+       "forbid": [
+        "zeros"
+       ],
+       "needs": [
+        "w11"
+       ]
+      },
+      {
+       "do": "close_dialog"
+      }
+     ]
+    }
+   ],
+   "validated": false
+  },
+  {
+   "id": "P50",
+   "title": "Tablet at 820 on a throttled network with a saturated pool and full caps (100 widgets, 30 routines)",
+   "exercises": "busy and cap sentences, timings",
+   "email": "campaign-p50@local.dev",
+   "viewports": [
+    "820"
+   ],
+   "modes": [
+    "pointer",
+    "keyboard"
+   ],
+   "data": {
+    "trades": {
+     "n": 200
+    },
+    "widgets": {
+     "n": 100
+    },
+    "routines": [
+     {
+      "name": "Cap routine 1",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 2",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 3",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 4",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 5",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 6",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 7",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 8",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 9",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 10",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 11",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 12",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 13",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 14",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 15",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 16",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 17",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 18",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 19",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 20",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 21",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 22",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 23",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 24",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 25",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 26",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 27",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 28",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 29",
+      "items": [
+       "One"
+      ]
+     },
+     {
+      "name": "Cap routine 30",
+      "items": [
+       "One"
+      ]
+     }
+    ]
+   },
+   "scripts": [
+    {
+     "id": "P50.a",
+     "title": "Busy and cap sentences, timings",
+     "steps": [
+      {
+       "do": "throttle",
+       "latency_ms": 300,
+       "kbps": 400
+      },
+      {
+       "do": "seed_note",
+       "title": "Campaign P50",
+       "paras": [
+        "Caps."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1",
+       "timing": "note_first_paint"
+      },
+      {
+       "do": "open_builder",
+       "timing": "sheet_open"
+      },
+      {
+       "do": "builder_example",
+       "card": "shelf:daily-pnl-bars",
+       "timing": "preview"
+      },
+      {
+       "do": "builder_save_expect_refusal",
+       "expect": [
+        "count_cap"
+       ]
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    }
+   ],
+   "validated": false
+  }
+ ]
+}
