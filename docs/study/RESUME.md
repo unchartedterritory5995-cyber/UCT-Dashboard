@@ -493,6 +493,26 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   1-16 detector fixtures, 17-26 pass-1 (QCOM, BBWI, CBZ, RTX, XOM, PANW, TEAM, HAS, FIGS, INTA), 27-42 pass-2
   sorted by item id: VRT, APP, TXN, DUOL, PAAS, TCOM, then the other ten. VRT graded; 15 pass-2 + 10 pass-1 remain.
 
+- **2026-10-25 Slingshot review DONE (branch feat/study-resume-1023; pod verdicts applied by me via scratchpad
+  apply_verdicts_sling2_run.ps1 and apply_verdicts_sling1_run.ps1 = docs/study/audits/2026-10-24/apply_verdicts_sling{2,1}_pod.py,
+  both idempotent, both ran exit 0):** the owner graded all 16 pass-2 and all 10 pass-1 drafts one at a time in
+  question form, every chart sent as a render first, with the E4H (4-EMA of highs) on every chart (PR #462 merged
+  3891770a19; the first web build FAILED on a Railway "failed to fetch snapshot" builder error, healed by the next
+  master merge #464 which carried it; PR #466 merged 7e4a5f3308 made the line translucent gold at 60% alpha, one pixel,
+  on the owner's "make the 4EMA a little more opaque vs so solid and dominate the chart"; web deploy SUCCESS).
+  GALLERY: great VRT 2023-08-21 ("Perfect"), NFLX 2023-05-26, NVDA 2024-03-01 ("very good"), SOFI 2024-11-05,
+  PLTR 2024-10-03 ("Beautiful"), SMCI 2023-05-16 ("A+, perfect example"), QCOM 2021-11-15; good APP 2024-09-11,
+  TXN 2026-04-30, HAE 2026-06-04 (under the 200, "I like this one"), SLB 2022-10-13, DECK 2024-11-21; okay PAAS
+  2025-12-09, BLDR 2021-11-16, XOM 2022-01-25 ("they can look prettier"), PANW 2024-02-02 ("B-"); CUT DUOL (weak
+  follow-through), TCOM ("bad example"), COIN ("meant to be used to enter PEGs mostly but not exclusively ... I don't
+  want to keep this"), BBWI, CBZ, RTX ("I want them to look like the ones I labeled perfect or beautiful"), TEAM, HAS,
+  FIGS ($7 stock), INTA ("Eh"). RULES (source_ruling #23 in docs/study/corrections/spot.fixtures.jsonl): the
+  Slingshot is MOSTLY the way into a PEG after its first pause; the best ones are an earnings-gap drive, a tight 3-7
+  session pullback of 5-9%, a decisive close back over the average of highs (no gap needed); no 200-day requirement;
+  must-work still applies; thin/cheap names out. Verdict log docs/study/audits/2026-10-24/owner_verdicts.jsonl (181 lines).
+  NEXT: Gap Support + Go Signal rulings, base/gap setup families without finders, setupCatalog.js card rewords (pending
+  owner OK), the two bad SPY bars, the PR for feat/study-resume-1023 when the owner says so.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
