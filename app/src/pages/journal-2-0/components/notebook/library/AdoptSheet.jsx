@@ -1,0 +1,358 @@
+// Notebook widgets phase 2, wave 11 (Task 11.17): the adoption sheet, "Make it yours".
+//
+// A shared template, widget, routine or tracker carries no member value: each one arrived as a typed "pick yours"
+// choice (ruling W11-R5). This sheet shows a WORKING preview at once, with every choice at the member's suggested
+// value (their most-used value of that type) or "Any", lets them change a choice, and makes it theirs with ONE tap of
+// "Use" (spec §9, §16.7 item 7).
+//
+// ⛔ The SERVER builds the preview (`POST /{galleryId}/preview-mine`, Task 11.9/11.12, ruling W11-R12): ONE call on
+//    open, with no answers (the server picks the suggestions), then one per change of a choice, 600 ms after the last
+//    change, with at most one request in flight (a newer change waits for the answer, then asks once with the latest
+//    answers). The cards, their sentences ("Pick a setup to see this widget.") and the "Sample data" label are the
+//    server's; this sheet never computes a number, so it can never show a zero the server did not send.
+// ⛔ Opening the sheet and changing choices WRITE NOTHING: the only POST before Use is `preview-mine`.
+// ⛔ Use is ONE write per sheet (Review Focus 2): a ref is set before the request, so a double-click sends one
+//    `use-template` (or `adopt-tool`), and the button stays off until the answer. A template's Use makes the note and
+//    opens it; a tool's Use adopts it and says "Added to My tools."
+// ⛔ Use is off while any choice that does not allow Any has no value, with "Pick a value for each choice, or Any."
+//    beside it. A refusal (`unresolved`, `not_yours`, `count_cap`, ...) is shown in the server's own words.
+// ⛔ LAZY. Reached only through `openAdoptSheet` (its own root).
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import Sheet from '../../../../../components/mobile/Sheet'
+import { adoptTool, previewMine, useTemplate } from '../../../lib/templateLibrary'
+import { bindWords } from '../../../lib/templateSlots'
+import { openNoteInPlace, noteHref } from '../../../lib/noteHref'
+import MiniPreview from '../widgetBuilder/miniPreview'
+import { SAMPLE_RIBBON } from '../widgetBuilder/ExampleCard'
+import { kindWords } from '../routines/toolEditorLib'
+import SlotPicker, { anyWords, numberOf } from './SlotPicker'
+import styles from './library.module.css'
+
+export const TITLE = 'Make it yours'
+export const USE_LABEL = 'Use'
+export const CHANGE_LABEL = 'Change'
+export const MISSING_HINT = 'Pick a value for each choice, or Any.'
+export const ADDED_SENTENCE = 'Added to My tools.'
+export const LOADING_SENTENCE = 'Getting your preview ready…'
+export const UPDATING_SENTENCE = 'Updating the preview…'
+export const UNPICKED = 'Not picked yet'
+export const CHOICES_HEADING = 'Your choices'
+export const PREVIEW_HEADING = 'Preview with your data'
+export const DEBOUNCE_MS = 600
+
+/** "Use your Morning routine" / "Create Pre-market routine from the template": the two answers to a reuse question. */
+export const useYourWords = (name) => `Use your ${name}`
+export const createWords = (name) => `Create ${name} from the template`
+
+/**
+ * The credit line (ruling W11-R7): "Based on <label>'s <title>", or "Based on a former member's <title>" once the
+ * author's account is gone (`author` null). The server's own sentence wins when it sent one (`credit`).
+ * `author` is the gallery's author label (a string, or the summary's `{label}`); `undefined` means "not known here",
+ * which shows no line rather than guessing.
+ */
+export function creditLine({ credit, title, author } = {}) {
+  if (typeof credit === 'string' && credit.trim()) return credit.trim()
+  const t = typeof title === 'string' ? title.trim() : ''
+  if (!t || author === undefined) return ''
+  const label = typeof author === 'string' ? author.trim() : (isRecord(author) && typeof author.label === 'string' ? author.label.trim() : '')
+  return label ? `Based on ${label}'s ${t}` : `Based on a former member's ${t}`
+}
+
+const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+const listOf = (v) => (Array.isArray(v) ? v : [])
+const text = (v) => (typeof v === 'string' ? v : '')
+const isAnyAnswer = (a) => isRecord(a) && a.any === true
+
+/** Whether a choice has an answer the server can take: Any (where allowed), a number for a number, else a value. */
+export function answered(slot, a) {
+  if (a === undefined || a === null) return false
+  if (isAnyAnswer(a)) return slot?.any === true
+  if (slot?.type === 'number') return numberOf(a) !== null
+  if (typeof a === 'string') return a.trim() !== ''
+  return Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x.trim())
+}
+
+/** The first answer of each choice: its suggestion, else Any where allowed, else nothing (the member must pick). */
+function firstAnswers(slots) {
+  const answers = {}
+  const labels = {}
+  for (const s of slots) {
+    const sug = isRecord(s.suggested) ? s.suggested : null
+    if (sug && sug.value !== undefined && sug.value !== null && answered(s, sug.value)) {
+      answers[s.id] = sug.value
+      labels[s.id] = text(sug.label) || String(sug.value)
+    } else if (s.any === true) {
+      answers[s.id] = { any: true }
+    }
+  }
+  return { answers, labels }
+}
+
+/** The reuse questions' first answers: "Use your <name>" when the server found one, else "Create … from the template". */
+function firstChoices(questions) {
+  const out = {}
+  for (const q of questions) out[q.slot] = isRecord(q.use) && q.use.id != null ? { use: String(q.use.id) } : { create: true }
+  return out
+}
+
+function valueWords(slot, a, labels) {
+  if (!answered(slot, a)) return UNPICKED
+  if (isAnyAnswer(a)) return anyWords(slot.label)
+  if (slot.type === 'number') return String(numberOf(a))
+  if (Array.isArray(a)) return a.join(', ')
+  return labels[slot.id] || String(a)
+}
+
+const slotsOf = (data) => listOf(data?.slots).filter((s) => isRecord(s) && typeof s.id === 'string' && s.id)
+const questionsOf = (data) => listOf(data?.questions).filter((q) => isRecord(q) && typeof q.slot === 'string' && q.slot)
+
+// ── the preview (read-only; the server's words and numbers only) ────────────────────────────────────
+
+function PreviewCard({ card }) {
+  const title = text(card.title)
+  const sentence = text(card.sentence).trim()
+  return (
+    <li className={styles.previewCard} data-preview-card={text(card.slot)}>
+      {title && <p className={styles.previewTitle}>{title}</p>}
+      {sentence ? (
+        <p className={styles.hint}>{sentence}</p>
+      ) : (
+        isRecord(card.payload) && <MiniPreview payload={card.payload} />
+      )}
+      {card.sample === true && !sentence && <p className={styles.sampleTag}>{SAMPLE_RIBBON}</p>}
+    </li>
+  )
+}
+
+function PreviewTool({ tool }) {
+  const items = listOf(tool.items).map((it) => text(isRecord(it) ? it.text : it)).filter((t) => t.trim())
+  const day = text(tool.forDayLabel) || bindWords(tool.bind)
+  return (
+    <li className={styles.previewCard} data-preview-tool={text(tool.slot)}>
+      <p className={styles.previewTitle}>{text(tool.name)}</p>
+      {tool.kind === 'tracker' && typeof tool.trackerKind === 'string' && tool.trackerKind && (
+        <p className={styles.hint}>{kindWords(tool.trackerKind)}</p>
+      )}
+      {items.length > 0 && (
+        <ul className={styles.list}>{items.map((t, i) => <li key={i} className={styles.travelRow}>{t}</li>)}</ul>
+      )}
+      {day && <p className={styles.hint}>{day}</p>}
+    </li>
+  )
+}
+
+/**
+ * @param galleryId the listed item
+ * @param kind      'template' | 'widget' | 'routine' | 'tracker'
+ * @param title     the listing's title (for the credit line), optional
+ * @param author    the listing's author label, `null` for a former member, optional
+ * @param navigate  the app router's navigate, when the door has one; else the note opens through history in place
+ * @param onClose   Cancel, Done, Escape or the Sheet's own close
+ * @param editor    the editor the door was opened from, handed back to `onDone` as it came (the sheet never writes it)
+ * @param onDone    `(answer) => void` once the item is the member's: `{kind, editor, ...server answer}`
+ */
+export default function AdoptSheet({ galleryId, kind, title, author, navigate = null, editor = null, onClose, onDone }) {
+  const uid = useId()
+  const isTemplate = kind === 'template'
+  const [answer, setAnswer] = useState(null)             // the latest preview: {slots, cards, tools, questions, credit?}
+  const [slots, setSlots] = useState(null)               // the choices, from the first answer
+  const [questions, setQuestions] = useState([])
+  const [answers, setAnswers] = useState({})
+  const [labels, setLabels] = useState({})
+  const [choices, setChoices] = useState({})
+  const [problem, setProblem] = useState(null)           // {code, message} of the last refused preview
+  const [asking, setAsking] = useState(true)
+  const [picking, setPicking] = useState(null)           // the slot id whose picker is open
+  const [using, setUsing] = useState(false)
+  const [useProblem, setUseProblem] = useState(null)
+  const [added, setAdded] = useState(false)
+
+  const latest = useRef(undefined)                        // the answers the next ask sends (undefined: the first)
+  const inFlight = useRef(false)
+  const again = useRef(false)
+  const timer = useRef(null)
+  const alive = useRef(true)
+  const primed = useRef(false)
+  const useLock = useRef(false)
+
+  const ask = useCallback(async () => {
+    if (inFlight.current) { again.current = true; return }
+    inFlight.current = true
+    setAsking(true)
+    const out = await previewMine(galleryId, latest.current)
+    inFlight.current = false
+    if (!alive.current) return
+    if (out.ok) {
+      setAnswer(out.data)
+      setProblem(null)
+      if (!primed.current) {
+        primed.current = true
+        const s = slotsOf(out.data)
+        const q = questionsOf(out.data)
+        const first = firstAnswers(s)
+        setSlots(s)
+        setQuestions(q)
+        setAnswers(first.answers)
+        setLabels(first.labels)
+        setChoices(firstChoices(q))
+        // The server already previewed the suggestions: the next ask is only for a change.
+        latest.current = first.answers
+      }
+    } else {
+      setProblem({ code: out.code, message: out.message })
+    }
+    if (again.current) {
+      again.current = false
+      ask()
+      return
+    }
+    setAsking(false)
+  }, [galleryId])
+
+  useEffect(() => {
+    alive.current = true
+    ask()
+    return () => { alive.current = false; clearTimeout(timer.current) }
+  }, [ask])
+
+  /** A changed choice: the row moves at once; the preview is asked again 600 ms after the last change. */
+  const pick = (slot, value, words) => {
+    const next = { ...answers, [slot.id]: value }
+    setAnswers(next)
+    setLabels({ ...labels, [slot.id]: words })
+    setPicking(null)
+    setUseProblem(null)
+    latest.current = next
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => { timer.current = null; ask() }, DEBOUNCE_MS)
+  }
+
+  const missing = useMemo(() => listOf(slots).filter((s) => !answered(s, answers[s.id])), [slots, answers])
+  const ready = slots !== null
+  const canUse = ready && missing.length === 0 && !using && !added
+
+  const use = async () => {
+    if (useLock.current || !canUse) return
+    useLock.current = true
+    setUsing(true)
+    setUseProblem(null)
+    const body = { answers: { ...answers } }
+    if (isTemplate) body.choices = { ...choices }
+    const out = isTemplate ? await useTemplate(galleryId, body) : await adoptTool(galleryId, body)
+    if (!alive.current) return
+    if (!out.ok) {
+      useLock.current = false
+      setUsing(false)
+      setUseProblem({ code: out.code, message: out.message })
+      return
+    }
+    // ⛔ The lock stays held: this sheet has made its one item.
+    if (isTemplate) {
+      const noteId = isRecord(out.data.note) ? out.data.note.id : null
+      onDone?.({ kind, editor, ...out.data })
+      onClose?.()
+      if (noteId != null && noteId !== '') {
+        if (typeof navigate === 'function') navigate(noteHref(noteId))
+        else openNoteInPlace({ button: 0, preventDefault() {} }, noteId)
+      }
+      return
+    }
+    setUsing(false)
+    setAdded(true)
+    onDone?.({ kind, editor, ...out.data })
+  }
+
+  const credit = creditLine({ credit: answer?.credit, title, author })
+  const cards = listOf(answer?.cards).filter(isRecord)
+  const tools = listOf(answer?.tools).filter(isRecord)
+
+  return (
+    <Sheet open onClose={onClose} title={TITLE} labelledByTitle variant="auto" maxWidth={600}>
+      <div className={styles.sheet} data-adopt-sheet={kind}>
+        {credit && <p className={styles.credit} data-credit="">{credit}</p>}
+        {problem && <p className={styles.notice} role="alert" data-refusal={problem.code}>{problem.message}</p>}
+        {useProblem && <p className={styles.notice} role="alert" data-refusal={useProblem.code}>{useProblem.message}</p>}
+        {added ? (
+          <>
+            <p className={styles.sent} role="status">{ADDED_SENTENCE}</p>
+            <div className={styles.actions}>
+              <button type="button" className={styles.btnPrimary} onClick={onClose}>Done</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {!ready && !problem && <p className={styles.hint} role="status">{LOADING_SENTENCE}</p>}
+            {ready && slots.length > 0 && (
+              <section className={styles.section} aria-labelledby={`${uid}-choices`}>
+                <h3 className={styles.subheading} id={`${uid}-choices`}>{CHOICES_HEADING}</h3>
+                <ul className={styles.list}>
+                  {slots.map((s) => {
+                    const label = text(s.label) || 'Choice'
+                    const open = picking === s.id
+                    return (
+                      <li key={s.id} className={styles.slotItem} data-slot={s.id}>
+                        <div className={styles.slotRow}>
+                          <span className={styles.slotText}>{`${label}: ${valueWords(s, answers[s.id], labels)}`}</span>
+                          <button type="button" className={styles.btn} aria-expanded={open}
+                            aria-label={`${CHANGE_LABEL} ${label.toLowerCase()}`}
+                            onClick={() => setPicking(open ? null : s.id)}>{CHANGE_LABEL}</button>
+                        </div>
+                        {open && (
+                          <SlotPicker slot={s} answer={answers[s.id]} onCancel={() => setPicking(null)}
+                            onPick={(value, words) => pick(s, value, words)} />
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+            {ready && questions.map((q) => {
+              const name = text(q.createName) || (q.kind === 'tracker' ? 'Tracker' : 'Routine')
+              const c = choices[q.slot] || {}
+              const has = isRecord(q.use) && q.use.id != null
+              return (
+                <fieldset key={q.slot} className={styles.section} data-question={q.slot}>
+                  <legend className={styles.subheading}>{name}</legend>
+                  {has && (
+                    <label className={styles.choice}>
+                      <input type="radio" name={`${uid}-${q.slot}`} checked={c.use === String(q.use.id)}
+                        onChange={() => setChoices({ ...choices, [q.slot]: { use: String(q.use.id) } })} />
+                      <span>{useYourWords(text(q.use.name) || name)}</span>
+                    </label>
+                  )}
+                  <label className={styles.choice}>
+                    <input type="radio" name={`${uid}-${q.slot}`} checked={c.create === true}
+                      onChange={() => setChoices({ ...choices, [q.slot]: { create: true } })} />
+                    <span>{createWords(name)}</span>
+                  </label>
+                </fieldset>
+              )
+            })}
+            {answer && (cards.length > 0 || tools.length > 0) && (
+              <section className={styles.section} aria-labelledby={`${uid}-preview`} aria-busy={asking || undefined}>
+                <h3 className={styles.subheading} id={`${uid}-preview`}>{PREVIEW_HEADING}</h3>
+                {asking && <p className={styles.hint} role="status">{UPDATING_SENTENCE}</p>}
+                <ul className={styles.previewList}>
+                  {cards.map((c, i) => <PreviewCard key={`c${i}`} card={c} />)}
+                  {tools.map((t, i) => <PreviewTool key={`t${i}`} tool={t} />)}
+                </ul>
+              </section>
+            )}
+            <div className={styles.actions}>
+              {ready && missing.length > 0 && <p className={styles.hint} id={`${uid}-missing`} data-missing="">{MISSING_HINT}</p>}
+              <button type="button" className={styles.btn} onClick={onClose}>Cancel</button>
+              {problem && !ready && (
+                <button type="button" className={styles.btn} onClick={() => ask()}>Try again</button>
+              )}
+              <button type="button" className={styles.btnPrimary} disabled={!canUse} onClick={use}
+                aria-describedby={ready && missing.length > 0 ? `${uid}-missing` : undefined}>
+                {using ? 'Working…' : USE_LABEL}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </Sheet>
+  )
+}

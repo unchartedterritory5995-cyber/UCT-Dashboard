@@ -411,6 +411,8 @@ describe('the template library floors every control at 44px at every width', () 
   it('the library has clickable controls at all (non-vacuity)', () => {
     const classes = clickableClasses(stripComments(readFileSync(LIBRARY_CSS, 'utf8')))
     for (const c of ['.btn', '.btnPrimary', '.switch', '.check']) expect(classes).toContain(c)
+    // Task 11.17: the adoption sheet's radio and checkbox answers ("Use your …", "Any setup") are whole-row targets.
+    expect(classes).toContain('.choice')
   })
 
   it('every clickable class is floored at phone, tablet AND desktop width', () => {

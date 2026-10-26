@@ -1,0 +1,534 @@
+// Wave 11 Task 11.17: the adoption sheet, "Make it yours". Every assertion reads what the member SEES (text, roles,
+// names, values) or what the server is SENT (path, method, body), never component state. `fetch` is a fake gallery
+// server whose answers have the shapes of Task 11.12's routes (built by 11.8/11.9, not yet merged here):
+//   POST /{gid}/preview-mine  -> {slots: [{id, type, label, any, suggested, value}], cards, tools, questions}
+//   POST /{gid}/use-template  -> {note, skipped, style, credit, created}
+//   POST /{gid}/adopt-tool    -> {kind, id, credit}
+// with the slot types and the `any` flag of widget_engine/share.py's `_Slots.take`, refusals {detail: {code, message}}.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import AdoptSheet, {
+  ADDED_SENTENCE, DEBOUNCE_MS, MISSING_HINT, TITLE, creditLine, createWords, useYourWords,
+} from './AdoptSheet'
+import { openAdoptSheet } from './openAdoptSheet'
+
+vi.mock('../../../../../hooks/useBreakpoint', () => ({
+  useIsPhone: () => true, useIsTouch: () => true, useIsTablet: () => false, useIsDesktop: () => false,
+  useHasCoarsePointer: () => true, useHasNoHover: () => true,
+}))
+
+const GID = 'g-setup-study'
+const BASE = `/api/j2/template-gallery/${GID}`
+const PREVIEW = `${BASE}/preview-mine`
+const USE = `${BASE}/use-template`
+const ADOPT_TOOL = `${BASE}/adopt-tool`
+const VOCAB = '/api/j2/widget-definitions/vocabulary?field='
+const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
+const setOnline = (v) => Object.defineProperty(globalThis.navigator, 'onLine', { value: v, configurable: true })
+const S_PICK_SETUP = 'Pick a setup to see this widget.'
+const S_NOT_YOURS = "That choice isn't in your account."
+const S_UNRESOLVED = 'Every choice needs an answer before this can be used.'
+const S_CAP = 'You have 100 widgets. Archive one in My tools to make room.'
+
+// ── the fake server ────────────────────────────────────────────────────────────────────────────────
+
+const SETUP = { id: 'p1', type: 'setup', label: 'Setup', any: false }
+const ACCOUNT = { id: 'p2', type: 'account', label: 'Account', any: true }
+const TAG = { id: 'p3', type: 'tag', label: 'Tag', any: true }
+const HOLD = { id: 'p4', type: 'number', label: 'Hold days', any: false }
+
+/** A member with data: the setup and the tag have suggestions; the account has none, so it starts at Any. */
+const RICH_SLOTS = [
+  { ...SETUP, suggested: { value: 'Breakout', label: 'Breakout' } },
+  { ...ACCOUNT, suggested: null },
+  { ...TAG, suggested: { value: 'a-plus', label: 'A+' } },
+]
+// lib/builtWidgets caches each field's values per tab (per test file here): every test reads the same lists.
+const VOCAB_VALUES = { setup: ['Breakout', 'Pullback', 'Flag'], account: [{ id: 'acc-1', name: 'Main' }], tag: [] }
+const QUESTIONS = [{ slot: 'routine_a', kind: 'routine', createName: 'Pre-market routine', use: { id: 'r-mine', name: 'Morning routine' } }]
+
+/** What preview_mine answers for these answers (each slot at its answer, else its suggestion, else Any). */
+function previewAnswer(slots, { questions = [], tools = [], sample = false } = {}) {
+  return (body) => {
+    const a = body?.answers || {}
+    const used = slots.map((s) => ({
+      ...s,
+      value: Object.hasOwn(a, s.id) ? a[s.id] : (s.suggested ? s.suggested.value : (s.any ? { any: true } : null)),
+    }))
+    const unresolved = used.find((s) => s.value === null && !s.any)
+    const card = unresolved
+      ? { slot: 'built_a', title: 'Win rate by setup', sentence: `Pick a ${unresolved.label.toLowerCase()} to see this widget.`, sample: false }
+      : { slot: 'built_a', title: 'Win rate by setup', payload: { view: 'bar', rows: [{ v1: 3 }, { v1: 2 }] }, sample }
+    return { slots: used, cards: [card], tools, questions }
+  }
+}
+const TOOLS = [{ slot: 'routine_a', kind: 'routine', name: 'Pre-market routine', items: [{ text: 'Check news' }, { text: 'Mark levels' }], bind: 'note-day', forDayLabel: 'For the day of the note' }]
+
+/** A gallery server. `preview(body)` answers preview-mine; `use(body)` / `adopt(body)` the two writes (a body for
+ *  200, or {__status, body}). Every request is recorded; `hold` makes each preview wait until released. */
+function installServer({ preview, use, adopt, hold = false, vocab = VOCAB_VALUES, routines = [] } = {}) {
+  const calls = []
+  const pending = []
+  const reply = (fn, body, fallback) => {
+    const out = fn ? fn(body) : fallback
+    return out && out.__status ? json(out.__status, out.body) : json(200, out)
+  }
+  globalThis.fetch = vi.fn(async (url, init = {}) => {
+    const body = init.body ? JSON.parse(init.body) : undefined
+    calls.push({ url, method: init.method || 'GET', body })
+    const answer = () => {
+      if (url === PREVIEW) return reply(preview, body)
+      if (url === USE) return reply(use, body, { note: { id: 'n-new', title: 'Setup study' }, skipped: [], style: { id: 's1' }, credit: null, created: { routines: [], trackers: [], widgets: [] } })
+      if (url === ADOPT_TOOL) return reply(adopt, body, { kind: 'widget', id: 'd-new', credit: "Based on Sam's Win rate" })
+      if (url.startsWith(VOCAB)) return json(200, { field: url.slice(VOCAB.length), values: vocab[url.slice(VOCAB.length)] || [] })
+      if (url.startsWith('/api/j2/routines?')) return json(200, { routines })
+      return json(404, {})
+    }
+    if (hold && url === PREVIEW) return new Promise((resolve) => pending.push(() => resolve(answer())))
+    return answer()
+  })
+  return {
+    calls,
+    previews: () => calls.filter((c) => c.url === PREVIEW),
+    posts: () => calls.filter((c) => c.method === 'POST'),
+    release: () => { const r = pending.shift(); r?.() },
+    waiting: () => pending.length,
+  }
+}
+const refuse = (code, message, status = 400) => () => ({ __status: status, body: { detail: { code, message } } })
+
+function mount(props = {}) {
+  const onClose = vi.fn()
+  const onDone = vi.fn()
+  const navigate = vi.fn()
+  render(<AdoptSheet galleryId={GID} kind="template" onClose={onClose} onDone={onDone} navigate={navigate} {...props} />)
+  return { onClose, onDone, navigate }
+}
+const useButton = () => screen.getByRole('button', { name: 'Use' })
+const pickerCancel = () => within(document.querySelector('[data-slot-picker]')).getByRole('button', { name: 'Cancel' })
+const rowText = (id) => document.querySelector(`[data-slot="${id}"] span`).textContent
+const settle = (ms = 0) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+const ready = () => waitFor(() => expect(document.querySelector('[data-slot]')).not.toBeNull())
+
+beforeEach(() => { setOnline(true) })
+afterEach(() => { cleanup(); setOnline(true); vi.useRealTimers() })
+
+// ── opening ──────────────────────────────────────────────────────────────────────────────────────────
+
+describe('opening the sheet', () => {
+  it('opens_with_one_preview_and_suggested_values', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: QUESTIONS, tools: TOOLS }) })
+    mount()
+    expect(await screen.findByRole('dialog', { name: TITLE })).toBeTruthy()
+    await ready()
+    expect(rowText('p1')).toBe('Setup: Breakout')
+    expect(rowText('p2')).toBe('Account: Any account')
+    expect(rowText('p3')).toBe('Tag: A+')
+    // The preview is on screen at once: the server's card and the routine's items with its day, never day state.
+    expect(await screen.findByText('Win rate by setup')).toBeTruthy()
+    const tool = document.querySelector('[data-preview-tool="routine_a"]')
+    expect(tool.textContent).toContain('Check news')
+    expect(tool.textContent).toContain('For the day of the note')
+    // ONE preview, asked with no answers: the server picks the suggestions.
+    await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 100))
+    expect(net.previews()).toHaveLength(1)
+    expect(net.previews()[0].body).toEqual({})
+    expect(net.calls.filter((c) => c.method === 'POST')).toHaveLength(1)
+  })
+
+  it('a thin account: no suggestion and no Any reads the server sentence, never a zero, and Use waits for a pick', async () => {
+    installServer({ preview: previewAnswer([{ ...SETUP, suggested: null }]) })
+    mount()
+    await ready()
+    expect(rowText('p1')).toBe('Setup: Not picked yet')
+    expect(await screen.findByText(S_PICK_SETUP)).toBeTruthy()
+    expect(useButton().disabled).toBe(true)
+    expect(screen.getByText(MISSING_HINT)).toBeTruthy()
+    expect(useButton().getAttribute('aria-describedby')).toBe(document.querySelector('[data-missing]').id)
+    // Nothing the sheet itself wrote is a zero.
+    const sheet = document.querySelector('[data-adopt-sheet]')
+    expect(sheet.textContent).not.toMatch(/(^|[^\d.])0([^\d.]|$)/)
+    expect(sheet.textContent).not.toMatch(/\$0|0%|\(0\)/)
+  })
+
+  it('fewer than 5 trades: the cards say Sample data', async () => {
+    installServer({ preview: previewAnswer(RICH_SLOTS, { sample: true }) })
+    mount()
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-preview-card="built_a"]')
+      expect(el).not.toBeNull()
+      return el
+    })
+    expect(within(card).getByText('Sample data')).toBeTruthy()
+  })
+
+  it('a card with its own data carries no Sample data label', async () => {
+    installServer({ preview: previewAnswer(RICH_SLOTS, { sample: false }) })
+    mount()
+    await screen.findByText('Win rate by setup')
+    expect(screen.queryByText('Sample data')).toBeNull()
+  })
+})
+
+// ── Use ───────────────────────────────────────────────────────────────────────────────────────────────
+
+describe('Use', () => {
+  it('one_tap_use_sends_suggestions', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: QUESTIONS }) })
+    mount()
+    await ready()
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    const body = net.calls.find((c) => c.url === USE).body
+    expect(body.answers).toEqual({ p1: 'Breakout', p2: { any: true }, p3: 'a-plus' })
+    expect(body.choices).toEqual({ routine_a: { use: 'r-mine' } })
+  })
+
+  it('a double-click on Use sends ONE use-template (one note)', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (url === USE) await gate
+      return realFetch(url, init)
+    })
+    const { navigate } = mount()
+    await ready()
+    const btn = useButton()
+    // Two presses inside ONE render (no re-render between them, so the button is still on for the second), then more.
+    act(() => { btn.click(); btn.click() })
+    fireEvent.click(btn)
+    fireEvent.doubleClick(btn)
+    expect(btn.disabled).toBe(true)
+    await act(async () => { release() })
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
+    expect(net.calls.filter((c) => c.url === USE)).toHaveLength(1)
+  })
+
+  it('template_use_navigates_to_new_note', async () => {
+    installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const { navigate, onClose, onDone } = mount()
+    await ready()
+    fireEvent.click(useButton())
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/journal/notebook?note=n-new'))
+    expect(onClose).toHaveBeenCalled()
+    expect(onDone.mock.calls[0][0]).toMatchObject({ kind: 'template', note: { id: 'n-new' } })
+  })
+
+  it('without a router navigate, the new note opens in place through history', async () => {
+    installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const pops = vi.fn()
+    window.addEventListener('popstate', pops)
+    mount({ navigate: null })
+    await ready()
+    fireEvent.click(useButton())
+    await waitFor(() => expect(window.location.search).toBe('?note=n-new'))
+    expect(pops).toHaveBeenCalled()
+    window.removeEventListener('popstate', pops)
+    window.history.pushState(null, '', '/')
+  })
+
+  it('a widget\'s Use adopts it and says "Added to My tools."', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const { navigate, onDone } = mount({ kind: 'widget' })
+    await ready()
+    fireEvent.click(useButton())
+    expect((await screen.findByRole('status')).textContent).toBe(ADDED_SENTENCE)
+    const body = net.calls.find((c) => c.url === ADOPT_TOOL).body
+    expect(body).toEqual({ answers: { p1: 'Breakout', p2: { any: true }, p3: 'a-plus' } })
+    expect(net.calls.some((c) => c.url === USE)).toBe(false)
+    expect(navigate).not.toHaveBeenCalled()
+    expect(onDone.mock.calls[0][0]).toMatchObject({ kind: 'widget', id: 'd-new' })
+    // The sheet has made its one copy: no second Use.
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull()
+  })
+
+  it('no_write_before_use', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const net = installServer({
+      preview: previewAnswer(RICH_SLOTS, { questions: QUESTIONS })
+    })
+    mount()
+    await ready()
+    // Change a choice, change the reuse answer, open and close a picker: only preview-mine is ever POSTed.
+    fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Pullback' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('radio', { name: createWords('Pre-market routine') }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change tag' }))
+    fireEvent.click(pickerCancel())
+    await settle(DEBOUNCE_MS + 50)
+    await waitFor(() => expect(net.previews()).toHaveLength(2))
+    expect(net.posts().every((c) => c.url === PREVIEW)).toBe(true)
+    expect(net.calls.filter((c) => c.method !== 'GET' && c.method !== 'POST')).toEqual([])
+    // Use is the first and only write.
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    expect(net.posts().filter((c) => c.url !== PREVIEW).map((c) => c.url)).toEqual([USE])
+  })
+})
+
+// ── the choices ─────────────────────────────────────────────────────────────────────────────────────
+
+describe('the choices', () => {
+  it('any_only_where_allowed', async () => {
+    installServer({
+      preview: previewAnswer(RICH_SLOTS)
+    })
+    mount()
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
+    await screen.findByRole('radio', { name: 'Pullback' })
+    expect(screen.queryByRole('radio', { name: 'Any setup' })).toBeNull()
+    fireEvent.click(pickerCancel())
+    fireEvent.click(screen.getByRole('button', { name: 'Change account' }))
+    expect(await screen.findByRole('radio', { name: 'Any account' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('radio', { name: 'Main' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(rowText('p2')).toBe('Account: Main')
+  })
+
+  it('number_slot_needs_number', async () => {
+    const net = installServer({ preview: previewAnswer([...RICH_SLOTS, { ...HOLD, suggested: null }]) })
+    mount()
+    await ready()
+    expect(rowText('p4')).toBe('Hold days: Not picked yet')
+    expect(useButton().disabled).toBe(true)                      // a number is never suggested (W11-R12)
+    fireEvent.click(screen.getByRole('button', { name: 'Change hold days' }))
+    const box = screen.getByRole('textbox', { name: 'Hold days' })
+    const done = screen.getByRole('button', { name: 'Done' })
+    fireEvent.change(box, { target: { value: 'three' } })
+    expect(done.disabled).toBe(true)
+    fireEvent.change(box, { target: { value: 'Infinity' } })
+    expect(done.disabled).toBe(true)
+    expect(screen.queryByRole('checkbox', { name: 'Any hold days' })).toBeNull()
+    fireEvent.change(box, { target: { value: '3' } })
+    fireEvent.click(done)
+    expect(rowText('p4')).toBe('Hold days: 3')
+    expect(useButton().disabled).toBe(false)
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    expect(net.calls.find((c) => c.url === USE).body.answers.p4).toBe(3)
+  })
+
+  it('change_reruns_preview_debounced', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const net = installServer({
+      preview: previewAnswer(RICH_SLOTS), hold: true
+    })
+    mount()
+    await waitFor(() => expect(net.waiting()).toBe(1))
+    await act(async () => net.release())
+    await ready()
+    const choose = async (name) => {
+      fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
+      fireEvent.click(await screen.findByRole('radio', { name }))
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    }
+    // Two quick changes: nothing until 600 ms after the last, then ONE ask with the last answer.
+    await choose('Pullback')
+    await settle(200)
+    await choose('Flag')
+    expect(rowText('p1')).toBe('Setup: Flag')                    // the row moves at once
+    await settle(DEBOUNCE_MS - 100)
+    expect(net.previews()).toHaveLength(1)
+    await settle(200)
+    expect(net.previews()).toHaveLength(2)
+    expect(net.previews()[1].body.answers.p1).toBe('Flag')
+    // While that ask is in flight, more changes wait for it: no second request in flight.
+    await choose('Breakout')
+    await settle(DEBOUNCE_MS + 50)
+    expect(net.previews()).toHaveLength(2)
+    expect(net.waiting()).toBe(1)
+    await act(async () => net.release())
+    await waitFor(() => expect(net.previews()).toHaveLength(3))  // then once, with the latest answers
+    expect(net.previews()[2].body.answers).toEqual({ p1: 'Breakout', p2: { any: true }, p3: 'a-plus' })
+    await act(async () => net.release())
+    await settle(DEBOUNCE_MS + 50)
+    expect(net.previews()).toHaveLength(3)
+  })
+
+  it('routine_question_preselects_best_match', async () => {
+    installServer({ preview: previewAnswer(RICH_SLOTS, { questions: QUESTIONS }) })
+    mount()
+    await ready()
+    const mine = screen.getByRole('radio', { name: useYourWords('Morning routine') })
+    const make = screen.getByRole('radio', { name: createWords('Pre-market routine') })
+    expect(mine.checked).toBe(true)
+    expect(make.checked).toBe(false)
+  })
+
+  it('with no routine of the member\'s to reuse, the template\'s is created', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: [{ ...QUESTIONS[0], use: null }] }) })
+    mount()
+    await ready()
+    expect(screen.queryByRole('radio', { name: /^Use your/ })).toBeNull()
+    expect(screen.getByRole('radio', { name: createWords('Pre-market routine') }).checked).toBe(true)
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    expect(net.calls.find((c) => c.url === USE).body.choices).toEqual({ routine_a: { create: true } })
+  })
+
+  it('create_choice_sent', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: QUESTIONS }) })
+    mount()
+    await ready()
+    fireEvent.click(screen.getByRole('radio', { name: createWords('Pre-market routine') }))
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    expect(net.calls.find((c) => c.url === USE).body.choices).toEqual({ routine_a: { create: true } })
+  })
+})
+
+// ── refusals and the credit ─────────────────────────────────────────────────────────────────────────
+
+describe('server sentences and the credit line', () => {
+  it('server_sentences_shown_verbatim', async () => {
+    for (const [code, message, status] of [['not_yours', S_NOT_YOURS, 400], ['unresolved', S_UNRESOLVED, 400], ['count_cap', S_CAP, 409]]) {
+      const net = installServer({ preview: previewAnswer(RICH_SLOTS), use: refuse(code, message, status) })
+      mount()
+      await ready()
+      fireEvent.click(useButton())
+      const alert = await screen.findByRole('alert')
+      expect(alert.textContent).toBe(message)
+      expect(alert.getAttribute('data-refusal')).toBe(code)
+      // The sheet stays open and Use can be tried again (still one request per press).
+      expect(useButton().disabled).toBe(false)
+      expect(net.calls.filter((c) => c.url === USE)).toHaveLength(1)
+      cleanup()
+    }
+  })
+
+  it('a refused preview stands at the top in the server\'s words, with Try again', async () => {
+    installServer({ preview: refuse('rate', 'Too many previews in an hour. Try again later.', 429) })
+    mount()
+    expect((await screen.findByRole('alert')).textContent).toBe('Too many previews in an hour. Try again later.')
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+    expect(useButton().disabled).toBe(true)
+  })
+
+  it('credit_line_exact_and_former_member', async () => {
+    expect(creditLine({ title: 'Morning edge', author: 'Sam' })).toBe("Based on Sam's Morning edge")
+    expect(creditLine({ title: 'Morning edge', author: { handle: 'h1', label: 'Sam' } })).toBe("Based on Sam's Morning edge")
+    expect(creditLine({ title: 'Pre-market prep', author: 'UCT' })).toBe("Based on UCT's Pre-market prep")
+    expect(creditLine({ title: 'Gap fill', author: null })).toBe("Based on a former member's Gap fill")
+    expect(creditLine({ title: 'Gap fill' })).toBe('')               // not known here: no guess
+    expect(creditLine({ credit: "Based on Kim's Gap fill", title: 'x', author: 'y' })).toBe("Based on Kim's Gap fill")
+    installServer({ preview: previewAnswer(RICH_SLOTS) })
+    mount({ title: 'Setup study', author: null })
+    expect((await waitFor(() => {
+      const el = document.querySelector('[data-credit]')
+      expect(el).not.toBeNull()
+      return el
+    })).textContent).toBe("Based on a former member's Setup study")
+    // It sits under the heading: the dialog's name is the heading, the credit is the first line of the body.
+    const dialog = screen.getByRole('dialog', { name: TITLE })
+    expect(within(dialog).getByText(TITLE)).toBeTruthy()
+    expect(document.querySelector('[data-adopt-sheet]').firstElementChild.getAttribute('data-credit')).toBe('')
+  })
+})
+
+// ── keyboard and touch ──────────────────────────────────────────────────────────────────────────────
+
+describe('keyboard_only_390_and_44px', () => {
+  it('the whole flow runs from the keyboard at 390 px', async () => {
+    window.innerWidth = 390
+    window.dispatchEvent(new Event('resize'))
+    const user = userEvent.setup()
+    const net = installServer({
+      preview: previewAnswer([{ ...SETUP, suggested: null }, ACCOUNT], { questions: QUESTIONS })
+    })
+    const { navigate } = mount()
+    await ready()
+    const change = screen.getByRole('button', { name: 'Change setup' })
+    while (document.activeElement !== change) await user.tab()
+    await user.keyboard('{Enter}')
+    const first = await screen.findByRole('radio', { name: 'Breakout' })
+    while (document.activeElement !== first) await user.tab()
+    await user.keyboard(' ')
+    await user.keyboard('{ArrowDown}')
+    expect(screen.getByRole('radio', { name: 'Pullback' }).checked).toBe(true)
+    const done = screen.getByRole('button', { name: 'Done' })
+    while (document.activeElement !== done) await user.tab()
+    await user.keyboard('{Enter}')
+    expect(rowText('p1')).toBe('Setup: Pullback')
+    const make = screen.getByRole('radio', { name: createWords('Pre-market routine') })
+    const mine = screen.getByRole('radio', { name: useYourWords('Morning routine') })
+    while (document.activeElement !== mine) await user.tab()
+    await user.keyboard('{ArrowDown}')
+    expect(make.checked).toBe(true)
+    while (document.activeElement !== useButton()) await user.tab()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/journal/notebook?note=n-new'))
+    const body = net.calls.find((c) => c.url === USE).body
+    expect(body.answers).toEqual({ p1: 'Pullback', p2: { any: true } })
+    expect(body.choices).toEqual({ routine_a: { create: true } })
+  })
+
+  it('every control in the sheet and its picker wears a class the stylesheet floors at 44 px', async () => {
+    installServer({
+      preview: previewAnswer([...RICH_SLOTS, { ...HOLD, any: true, suggested: null }], { questions: QUESTIONS, tools: TOOLS })
+    })
+    mount()
+    await ready()
+    const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/library/library.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
+    const floored = new Set()
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/min-height:\s*var\(--tap-min\)/.test(m[2])) continue
+      for (const part of m[1].split(',')) { const cls = part.match(/\.[A-Za-z][\w-]*/g); if (cls) floored.add(cls[cls.length - 1].slice(1)) }
+    }
+    expect(floored.size).toBeGreaterThan(4)                                         // non-vacuity
+    const wears = (el) => [...el.classList].some((c) => [...floored].some((f) => c === f || c.includes(`_${f}_`)))
+    const check = (minimum) => {
+      const root = document.querySelector('[data-adopt-sheet]')
+      const controls = [...root.querySelectorAll('button, input, select, textarea')]
+      expect(controls.length).toBeGreaterThan(minimum)
+      for (const el of controls) {
+        const target = el.type === 'checkbox' || el.type === 'radio' ? el.closest('label') : el
+        expect(wears(target), `${el.outerHTML.slice(0, 80)} is not floored`).toBe(true)
+      }
+    }
+    check(6)
+    fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
+    await screen.findByRole('radio', { name: 'Pullback' })
+    check(8)
+    fireEvent.click(pickerCancel())
+    fireEvent.click(screen.getByRole('button', { name: 'Change hold days' }))
+    screen.getByRole('checkbox', { name: 'Any hold days' })
+    check(8)
+  })
+})
+
+// ── the door ──────────────────────────────────────────────────────────────────────────────────────────
+
+describe('openAdoptSheet', () => {
+  it('opens one at a time on its own root', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+    const close = openAdoptSheet({ galleryId: GID, kind: 'template' })
+    const again = openAdoptSheet({ galleryId: GID, kind: 'widget' })
+    expect(again).toBe(close)
+    expect(await screen.findByRole('dialog', { name: TITLE })).toBeTruthy()
+    expect(document.querySelectorAll('[data-adopt-sheet-root]')).toHaveLength(1)
+    expect(document.querySelector('[data-adopt-sheet]').getAttribute('data-adopt-sheet')).toBe('template')
+    await waitFor(() => expect(net.previews()).toHaveLength(1))
+    act(() => close())
+    await waitFor(() => expect(document.querySelector('[data-adopt-sheet-root]')).toBeNull())
+    const next = openAdoptSheet({ galleryId: GID, kind: 'routine' })
+    expect(next).not.toBe(close)
+    act(() => next())
+    await waitFor(() => expect(document.querySelector('[data-adopt-sheet-root]')).toBeNull())
+  })
+
+  it('offline: nothing is asked', async () => {
+    setOnline(false)
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS) })
+    mount()
+    expect((await screen.findByRole('alert')).textContent).toBe("You're offline. Try again when you're back online.")
+    expect(net.calls).toHaveLength(0)
+  })
+})

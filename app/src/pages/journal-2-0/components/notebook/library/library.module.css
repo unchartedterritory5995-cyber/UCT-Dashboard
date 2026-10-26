@@ -265,3 +265,115 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
+
+/* Task 11.17: the adoption sheet ("Make it yours") and its "pick yours" choices. */
+.credit {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  color: var(--text-muted);
+}
+
+.slotItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+  padding: 4px 0;
+}
+
+.slotRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm, 8px);
+}
+
+.slotText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-md, 15px);
+  color: var(--text-primary, var(--text));
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+/* A radio or checkbox answer: the whole row (the box and its words) is the target. */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  min-height: var(--tap-min);
+  font-size: var(--text-md, 15px);
+  color: var(--text-primary, var(--text));
+  cursor: pointer;
+}
+
+.choice input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.choice input:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.previewList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+  gap: var(--space-sm, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.previewCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.previewTitle {
+  margin: 0;
+  font-size: var(--text-md, 15px);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  color: var(--text-primary, var(--text));
+}
+
+.sampleTag {
+  margin: 0;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--ut-gold);
+  font-size: var(--text-sm, 13px);
+  color: var(--text-primary, var(--text));
+}
