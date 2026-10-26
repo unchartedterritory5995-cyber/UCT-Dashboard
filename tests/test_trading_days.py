@@ -136,3 +136,29 @@ def test_helpers_count_weekdays_past_the_horizon():
     sat = next(d for d in beyond if d.weekday() == 5)
     assert td.next_session_after(sat) == sat + timedelta(days=2)
     assert td.nth_session_before(sat + timedelta(days=2), 1) == sat - timedelta(days=1)
+
+
+# ── Task 11.2: the ET day of a timestamp and the last session of a week ───────────────────────
+
+def test_et_day_of_bare_date_and_iso():
+    assert td.et_day_of("2026-10-24") == "2026-10-24"
+    # 03:30 UTC and UTC midnight on the 28th are both the 27th in New York.
+    assert td.et_day_of("2026-10-28T03:30:00Z") == "2026-10-27"
+    assert td.et_day_of("2026-10-28T00:00:00Z") == "2026-10-27"
+    assert td.et_day_of("2026-10-28T00:00:00+00:00") == "2026-10-27"
+    assert td.et_day_of("2026-10-27T23:30:00-04:00") == "2026-10-27"
+    # A naive timestamp is read as UTC (the timeutil rule for stored stamps).
+    assert td.et_day_of("2026-10-28T03:30:00") == "2026-10-27"
+    for bad in (None, "", "not a date", "2026-02-30", "2026-10-28Tnope", 20261028):
+        assert td.et_day_of(bad) is None, bad
+
+
+def test_last_session_of_week_all_holiday_week_falls_back(monkeypatch):
+    assert td.last_session_of_week(date(2026, 10, 24)) == date(2026, 10, 23)  # Saturday
+    assert td.last_session_of_week(date(2026, 10, 19)) == date(2026, 10, 23)  # Monday
+    assert td.last_session_of_week(date(2026, 7, 4)) == date(2026, 7, 2)      # Friday holiday
+    # A week with no session at all answers the session on or before its Sunday: the Friday
+    # of the week before.
+    dead = {date(2026, 11, 16) + timedelta(days=i) for i in range(7)}
+    monkeypatch.setattr(td, "is_session", lambda d: d.weekday() < 5 and d not in dead)
+    assert td.last_session_of_week(date(2026, 11, 18)) == date(2026, 11, 13)

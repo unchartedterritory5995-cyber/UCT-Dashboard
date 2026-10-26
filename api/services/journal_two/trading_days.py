@@ -11,6 +11,7 @@ that began (``beyond_from``) so a caller can say so with ``beyond_note``.
 """
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 from typing import NamedTuple
 
@@ -33,6 +34,37 @@ def today_et(now: datetime | None = None) -> date:
     if now.tzinfo is None:
         now = now.replace(tzinfo=timeutil.UTC)
     return now.astimezone(timeutil.ET).date()
+
+
+_BARE_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_STAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]")
+
+
+def et_day_of(ts: str | None) -> str | None:
+    """The ET calendar date of an ISO timestamp, as ``YYYY-MM-DD``.
+
+    A bare ``YYYY-MM-DD`` (a real date) is returned as is; a timestamp is read as its instant
+    (naive means UTC, the ``timeutil`` rule for stored stamps) and dated in New York; anything
+    else is None. ⛔ Not ``timeutil.compute_trading_day_et``: its date-only rule reads an exact
+    UTC midnight as the typed UTC day, which would date a note made at ``00:00:00Z`` (20:00 ET
+    the evening before) on the wrong day."""
+    if not isinstance(ts, str):
+        return None
+    s = ts.strip()
+    if _BARE_DAY_RE.match(s):
+        try:
+            return date.fromisoformat(s).isoformat()
+        except ValueError:
+            return None
+    if not _STAMP_RE.match(s):
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timeutil.UTC)
+    return dt.astimezone(timeutil.ET).date().isoformat()
 
 
 def is_session(d: date) -> bool:
@@ -102,3 +134,11 @@ def nth_session_before(d: date, n: int) -> date:
     for _ in range(n):
         cur = session_on_or_before(cur - timedelta(days=1))
     return cur
+
+
+def last_session_of_week(d: date) -> date:
+    """The last session in the Monday-to-Sunday week containing ``d`` (a Saturday or Sunday
+    belongs to the week just ended). A week with no session answers the session on or before
+    its Sunday, which is the same walk: back from Sunday to the first session."""
+    sunday = d + timedelta(days=6 - d.weekday())
+    return session_on_or_before(sunday)
