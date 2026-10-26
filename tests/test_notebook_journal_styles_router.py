@@ -117,13 +117,16 @@ def test_kinds_and_in_use(client):
 
 
 def test_delete_kind_reports_the_purged_deleted_styles(client):
-    """Carry note c: a kind's soft-deleted styles go with it, and the answer says how many."""
+    """Carry note c: a kind's soft-deleted styles do not block its delete. Task 11.13 fix round 1 (c3): they are
+    KEPT (never hard-deleted), so the count of styles removed for good is 0 and the client says only "Kind deleted"."""
     _as(client)
     k = client.post("/api/j2/note-kinds", json={"name": "Swing"}).json()["kind"]
     s = client.post("/api/j2/journal-styles", json={"name": "S", "kindId": k["id"]}).json()["style"]
     client.delete(f"/api/j2/journal-styles/{s['id']}")
     r = client.delete(f"/api/j2/note-kinds/{k['id']}")
-    assert r.status_code == 200 and r.json() == {"ok": True, "purgedDeletedStyles": 1}
+    assert r.status_code == 200 and r.json() == {"ok": True, "purgedDeletedStyles": 0}
+    from api.services.journal_two import journal_styles as js
+    assert js.get_style("u1", s["id"], include_deleted=True)["deletedAt"]          # the row is still there
     assert client.delete(f"/api/j2/note-kinds/{k['id']}").status_code == 404
     assert client.delete("/api/j2/note-kinds/thesis").status_code == 400
 

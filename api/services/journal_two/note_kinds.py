@@ -11,10 +11,12 @@ Two facts, two places, never one restated:
 
 A kind in use cannot be deleted: a note's current kind counts whether the note is live OR in Trash
 (restoring it would bring back a dead id; the hold ends with the 30-day Trash purge), and a LIVE style's
-kind counts. The member's SOFT-DELETED styles of that kind do not block: they are hard-deleted in the
-same transaction as the kind and the result reports how many (`purgedDeletedStyles`). There is no soft
-delete for kinds, so no restore path can orphan a value. The check, the purge and the DELETE share one
-write lock.
+kind counts. The member's SOFT-DELETED styles of that kind do not block, and they are KEPT (Task 11.13 fix
+round 1, c3 / W11-R10: a style row is never hard-deleted, because notes' style stamps and Update layout read
+it, and Recently deleted lists it for its 30 days). `journal_styles.restore_style` refuses to bring one back
+while its kind is gone, so no restore path can orphan a value; `purgedDeletedStyles` is therefore always 0
+(kept for the client, which words a non-zero count). There is no soft delete for kinds. The check and the
+DELETE share one write lock.
 """
 from __future__ import annotations
 
@@ -202,7 +204,7 @@ def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, in
     """(notes holding it, of which in Trash, LIVE styles holding it).
 
     Trashed notes COUNT (restoring one must never bring back a dead id); soft-deleted styles do not
-    (delete_kind purges them with the kind). The note scan is one SQL statement (`json_extract`, guarded
+    (they are kept, and restore_style refuses one whose kind is gone). The note scan is one SQL statement (`json_extract`, guarded
     by `json_valid` so one unreadable row cannot block every delete).
     ⛔ A SAMPLE note COUNTS here, on purpose (tests/test_sample_never_feeds_real_numbers.py): this is a
     hold on the value, not a statistic. A sample is a real row the member can set a kind on; deleting the
@@ -221,8 +223,9 @@ def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, in
 
 
 def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = None) -> dict | bool:
-    """Delete a member kind. Returns `{"purgedDeletedStyles": n}` on success (truthy), False when there
-    is no such kind. Raises KindInUse while a note (live or trashed) or a live style holds it."""
+    """Delete a member kind. Returns `{"purgedDeletedStyles": 0}` on success (truthy; the member's deleted
+    styles of the kind are KEPT, c3), False when there is no such kind. Raises KindInUse while a note (live or
+    trashed) or a live style (archived included) holds it."""
     if kind_id in BUILTIN_KIND_IDS:
         raise KindValidationError("Built-in kinds can't be deleted.")
     from api.services.journal_two.notes import _begin_immediate
@@ -249,13 +252,9 @@ def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = No
             if started:
                 conn.rollback()
             raise KindInUse(f"This kind is used by {' and '.join(parts)}. {tail}")
-        purged = 0
-        if _has_styles_table(conn):
-            purged = conn.execute("DELETE FROM j2_journal_styles WHERE user_id = ? AND kind_id = ?"
-                                  " AND deleted_at IS NOT NULL", (user_id, kind_id)).rowcount
         conn.execute("DELETE FROM j2_note_kinds WHERE id = ? AND user_id = ?", (kind_id, user_id))
         conn.commit()
-        return {"purgedDeletedStyles": purged}
+        return {"purgedDeletedStyles": 0}
     except BaseException:
         if started and conn.in_transaction:
             conn.rollback()
