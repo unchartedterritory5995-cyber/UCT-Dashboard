@@ -263,31 +263,114 @@ def _store(conn, style_id, blocks, outline):
     conn.commit()
 
 
-def test_publish_strips_every_template_slot_and_its_placeholder(conn, lib_on, monkeypatch):
-    monkeypatch.setenv(W11, "1")
+FAMILY = [
+    {"block": "built_a", "settings": {"ref": f"def:{DEF_ID}", "defRev": 3, "note": CANARY}},
+    {"block": "routine_a", "settings": {"ref": f"routine:{ROUTINE_ID}", "bind": "note-day", "x": CANARY}},
+    {"block": "tracker_b", "settings": {"ref": f"tracker:{TRACKER_ID}", "display": "chart", "x": CANARY}},
+]
+SLOT_BLOCKS = [{"block": "chart", "settings": {"tf": "D"}}, *FAMILY]
+SLOT_OUTLINE = {"type": "doc", "content": [
+    {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]},
+    _para("{{block:built_a}}"), _para("{{block:chart}}"),
+    {"type": "bulletList", "content": [{"type": "listItem", "content": [_para("{{block:routine_a}}")]}]},
+    _para("{{block:tracker_b}}"), _para("Keep it simple."),
+]}
+LEAKS = (CANARY, DEF_ID, ROUTINE_ID, TRACKER_ID, "def:", "routine:", "tracker:", "built_a", "routine_a", "tracker_b")
+
+
+def _assert_no_slot(obj, *, outline=True):
+    """Nothing of a template slot in `obj`, and the ordinary chart block (and, when `outline`, the rest of the outline)
+    still there, so the check cannot pass by everything being empty."""
+    text = json.dumps(obj)
+    for leaked in LEAKS:
+        assert leaked not in text, leaked
+    assert '"chart"' in text
+    if outline:
+        assert "{{block:chart}}" in text and "Keep it simple." in text
+
+
+def _published_payload(conn, gid, column="payload_json"):
+    raw = conn.execute(f"SELECT {column} FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0]
+    return json.loads(raw)
+
+
+@pytest.mark.parametrize("wave11", ["0", "1"])
+def test_publish_strips_every_template_slot_and_its_placeholder(conn, lib_on, monkeypatch, wave11):
+    """W11-R19, in BOTH wave 11 states: a dark slot is still a member's id (re-review M2)."""
+    monkeypatch.setenv(W11, wave11)
     s = _style(conn)
-    family = [
-        {"block": "built_a", "settings": {"ref": f"def:{DEF_ID}", "defRev": 3, "note": CANARY}},
-        {"block": "routine_a", "settings": {"ref": f"routine:{ROUTINE_ID}", "bind": "note-day", "x": CANARY}},
-        {"block": "tracker_b", "settings": {"ref": f"tracker:{TRACKER_ID}", "display": "chart", "x": CANARY}},
-    ]
-    outline = {"type": "doc", "content": [
-        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]},
-        _para("{{block:built_a}}"), _para("{{block:chart}}"),
-        {"type": "bulletList", "content": [{"type": "listItem", "content": [_para("{{block:routine_a}}")]}]},
-        _para("{{block:tracker_b}}"), _para("Keep it simple."),
-    ]}
-    _store(conn, s["id"], [{"block": "chart", "settings": {"tf": "D"}}, *family], outline)
+    _store(conn, s["id"], SLOT_BLOCKS, SLOT_OUTLINE)
     item = gallery.publish_style("author", s["id"], title="Slots", description="", category="journal",
                                  trading_style=None, conn=conn)
-    payload = json.loads(conn.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
-                                      (item["id"],)).fetchone()[0])
-    text = json.dumps(payload)
-    for leaked in (CANARY, DEF_ID, ROUTINE_ID, TRACKER_ID, "def:", "routine:", "tracker:",
-                   "built_a", "routine_a", "tracker_b"):
+    payload = _published_payload(conn, item["id"])
+    _assert_no_slot(payload)
+    assert [b["block"] for b in payload["blocks"]] == ["chart"]
+
+
+@pytest.mark.parametrize("wave11", ["0", "1"])
+def test_publish_strips_slots_from_a_linked_template_outline(conn, lib_on, monkeypatch, wave11):
+    """The outline's other source: a style whose outline is a linked note template (`outline_template_id`)."""
+    monkeypatch.setenv(W11, wave11)
+    s = _style(conn)
+    conn.execute("INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json, created_at,"
+                 " updated_at) VALUES ('tpl-slots', 'author', 'T', 'T', ?, NULL, 'x', 'x')", (json.dumps(SLOT_OUTLINE),))
+    conn.execute("UPDATE j2_journal_styles SET blocks_json = ?, outline_body_json = NULL, outline_template_id ="
+                 " 'tpl-slots' WHERE id = ?", (json.dumps(SLOT_BLOCKS), s["id"]))
+    conn.commit()
+    item = gallery.publish_style("author", s["id"], title="Linked", description="", category="journal",
+                                 trading_style=None, conn=conn)
+    _assert_no_slot(_published_payload(conn, item["id"]))
+
+
+@pytest.mark.parametrize("wave11", ["0", "1"])
+def test_a_held_revision_carries_no_slot(conn, lib_on, monkeypatch, wave11):
+    """The held-revision path (R-P3-3): an approved listing published again holds the new version in `pending_json`.
+    Neither the stored revision nor the reviewer's view of it carries a slot."""
+    monkeypatch.setenv(W11, wave11)
+    s = _style(conn)
+    first = gallery.publish_style("author", s["id"], title="Held", description="", category="journal",
+                                  trading_style=None, conn=conn)
+    gallery.admin_act("admin", first["id"], "approve", reviewed_updated_at=first["updatedAt"], conn=conn)
+    _store(conn, s["id"], SLOT_BLOCKS, SLOT_OUTLINE)
+    gallery.publish_style("author", s["id"], title="Held", description="", category="journal",
+                          trading_style=None, conn=conn)
+    held = _published_payload(conn, first["id"], "pending_json")
+    _assert_no_slot(held["payload"])
+    rev = gallery.get_item("admin", first["id"], is_admin=True, conn=conn)["pendingRevision"]
+    _assert_no_slot(rev["payload"])
+
+
+def _slotted_listing(conn, version=1):
+    """An APPROVED member style listing whose stored payload holds every slot family with canary settings, written
+    by hand (a row edited outside `publish_style`, or written before the strip): the read-side case."""
+    gid = _row(conn, item_type="style", user_id="author", title="Hand-made")
+    payload = {"kindId": "weekend_prep", "outlineBodyJson": SLOT_OUTLINE, "blocks": SLOT_BLOCKS, "properties": {}}
+    conn.execute("UPDATE j2_template_gallery SET payload_json = ?, body_json = ?, version = ? WHERE id = ?",
+                 (json.dumps(payload), json.dumps(SLOT_OUTLINE), version, gid))
+    conn.commit()
+    return gid
+
+
+@pytest.mark.parametrize("wave11", ["0", "1"])
+def test_a_stored_slot_is_never_served_adopted_or_offered(conn, lib_on, monkeypatch, wave11):
+    """Re-review M1: `_safe_listed`, the read-side backstop, drops what the write side drops -- through GET, adopt and
+    the update plan."""
+    monkeypatch.setenv(W11, wave11)
+    gid = _slotted_listing(conn)
+    _assert_no_slot(gallery.get_item("viewer", gid, conn=conn)["payload"])
+    adopted = gallery.adopt_style("viewer", gid, conn=conn)
+    stored = conn.execute("SELECT blocks_json, outline_body_json FROM j2_journal_styles WHERE id = ? AND user_id = ?",
+                          (adopted["style"]["id"], "viewer")).fetchone()
+    _assert_no_slot({"blocks": json.loads(stored[0]), "outline": json.loads(stored[1] or "null")})
+    # The update plan: the listed version moves past the copy's, so a plan is offered from the slotted payload.
+    conn.execute("UPDATE j2_template_gallery SET version = 2 WHERE id = ?", (gid,))
+    conn.execute("UPDATE j2_journal_styles SET source_version = 1 WHERE id = ?", (adopted["style"]["id"],))
+    conn.commit()
+    plan = gallery.plan_update("viewer", adopted["style"]["id"], conn=conn)
+    assert plan is not None
+    text = json.dumps(plan)
+    for leaked in LEAKS:
         assert leaked not in text, leaked
-    assert [b["block"] for b in payload["blocks"]] == ["chart"]                  # the ordinary block travels
-    assert "{{block:chart}}" in text and "Keep it simple." in text              # and so does the rest of the outline
 
 
 def test_publish_of_a_style_without_slots_is_unchanged(conn, lib_on):

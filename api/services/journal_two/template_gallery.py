@@ -1262,22 +1262,16 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
             props[pid] = value
         else:
             dropped += 1
-    # ⛔ Wave 11 (ruling W11-R19): since Task 11.3 `KNOWN_BLOCKS` accepts the template slot families
-    # (`built_<k>`, `routine_<k>`, `tracker_<k>`), whose settings name the member's OWN rows (`def:` / `routine:` /
-    # `tracker:` ids). None of that may travel, so EVERY family-slot block and its outline placeholder is dropped
-    # here (`journal_styles.slot_family`, never a re-typed pattern). Task 11.8 replaces this strip with
-    # `share.share_template`, the one reducer (W11-R1).
-    if outline:
-        outline = _without_slot_placeholders(outline)
+    # ⛔ Wave 11 (ruling W11-R19): no template slot travels -- `_without_template_slots`, the one strip, shared with
+    # the read-side backstop `_safe_listed`. Task 11.8 replaces it with `share.share_template` (W11-R1).
+    blocks, outline = _without_template_slots(style.get("blocks"), outline)
     return {
         "kindId": style["kindId"],
         "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
         # Task 18 (R50): a snapshot slot ships with empty settings. A ticker, a list or a date range is the
         # author's; the copy is a scaffold, filled with each adopter's own defaults when they make a note.
         "blocks": [{**b, "settings": {}} if b["block"] in js.SNAPSHOT_SLOT_KINDS else b
-                   for b in (style.get("blocks") or [])
-                   if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS
-                   and js.slot_family(b.get("block")) is None],
+                   for b in blocks if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS],
         "properties": props,
         "droppedProperties": dropped,
     }
@@ -1286,6 +1280,20 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
 def _placeholder_text(node: Any) -> str:
     return "".join(c.get("text") or "" for c in node.get("content") or []
                    if isinstance(c, dict) and c.get("type") == "text")
+
+
+def _without_template_slots(blocks: Any, outline: Any) -> tuple[list, Any]:
+    """⛔ THE ONE STRIP (W11-R19, re-review M1). Since Task 11.3 `KNOWN_BLOCKS` accepts the template slot families
+    (`built_<k>`, `routine_<k>`, `tracker_<k>`), whose settings name a member's OWN rows (`def:` / `routine:` /
+    `tracker:` ids). Until Task 11.8's reducer, no slot may leave a style in a gallery payload, so EVERY block whose
+    `journal_styles.slot_family` is set, and its outline placeholder at any depth, is dropped. In EVERY switch state:
+    a dark slot is still a member's id. Called by the write side (`style_payload`, every publish and every held
+    revision) and the read side (`_safe_listed`: GET, adopt, the update plan and apply). Task 11.8 replaces both
+    calls with `share.share_template`. Returns (blocks as a list, outline)."""
+    from api.services.journal_two import journal_styles as js
+    kept = [b for b in (blocks if isinstance(blocks, list) else [])
+            if not (isinstance(b, dict) and js.slot_family(b.get("block")) is not None)]
+    return kept, (_without_slot_placeholders(outline) if outline else outline)
 
 
 def _without_slot_placeholders(body: Any) -> Any:
@@ -2448,10 +2456,11 @@ def _safe_listed(payload: Any) -> dict:
     iteration."""
     from api.services.journal_two import journal_styles as js
     raw = payload if isinstance(payload, dict) else {}
-    blocks = raw.get("blocks")
     props = raw.get("properties")
-    outline = raw.get("outlineBodyJson")
     kind = raw.get("kindId")
+    # W11-R19 (re-review M1): a stored listing holding a template slot (a hand-edited row, or one written before the
+    # strip) is read as if it held none. The same strip as the write side; Task 11.8 replaces it.
+    blocks, outline = _without_template_slots(raw.get("blocks"), raw.get("outlineBodyJson"))
     return {
         "kindId": kind if isinstance(kind, str) else None,
         "blocks": [b for b in (blocks if isinstance(blocks, list) else [])
