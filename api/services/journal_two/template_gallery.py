@@ -4405,17 +4405,72 @@ def _style_use_days(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> 
     """The distinct ET days, oldest first, of the member's live notes whose `style_id` is one of THEIR copies of
     gallery style `gallery_id` (W11-R8). Archived notes count (a use is a use); trashed ones do not. ⛔ The day is
     `trading_days.et_day_of(created_at)`, never `substr(created_at, 1, 10)` (a UTC day). Both reads are scoped to
-    `user_id`: no other member's copy or note is ever read. Bounded to the newest USE_DAY_NOTES_LIMIT notes."""
+    `user_id`: no other member's copy or note is ever read. Bounded to the newest USE_DAY_NOTES_LIMIT notes.
+
+    Ruling W11-R39 (fix round 1, m-4): a note counts only when it was CREATED at or after the copy it names was made
+    (the copy row's `created_at`, compared as instants). An old note switched onto the copy keeps its old
+    `created_at`, so it never counts: switching three old notes from three days onto a copy unlocks nothing. A note or
+    copy whose stamp cannot be read does not count (unknown is never a use)."""
     from api.services.journal_two import trading_days
-    copies = [r[0] for r in conn.execute(
-        "SELECT id FROM j2_journal_styles WHERE user_id = ? AND source_gallery_id = ?", (user_id, gallery_id))]
-    if not copies:
+    made = {r[0]: _instant(r[1]) for r in conn.execute(
+        "SELECT id, created_at FROM j2_journal_styles WHERE user_id = ? AND source_gallery_id = ?",
+        (user_id, gallery_id))}
+    if not made:
         return []
-    marks = ",".join("?" * len(copies))
+    marks = ",".join("?" * len(made))
     rows = conn.execute(
-        f"SELECT created_at FROM j2_notes WHERE user_id = ? AND style_id IN ({marks}) AND deleted_at IS NULL"
-        f" ORDER BY created_at DESC LIMIT {USE_DAY_NOTES_LIMIT}", (user_id, *copies)).fetchall()
-    return sorted({d for d in (trading_days.et_day_of(r[0]) for r in rows) if d})
+        f"SELECT style_id, created_at FROM j2_notes WHERE user_id = ? AND style_id IN ({marks})"
+        f" AND deleted_at IS NULL ORDER BY created_at DESC LIMIT {USE_DAY_NOTES_LIMIT}",
+        (user_id, *made)).fetchall()
+    days = set()
+    for style_id, created_at in rows:
+        copy_at, note_at = made.get(style_id), _instant(created_at)
+        if copy_at is None or note_at is None or note_at < copy_at:
+            continue
+        day = trading_days.et_day_of(created_at)
+        if day:
+            days.add(day)
+    return sorted(days)
+
+
+def _instant(ts: Any) -> datetime | None:
+    """An ISO stamp as an aware UTC instant (naive is UTC, the stored-stamp rule), or None when it is not one."""
+    if not isinstance(ts, str) or not ts.strip():
+        return None
+    try:
+        out = datetime.fromisoformat(ts.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return out if out.tzinfo else out.replace(tzinfo=timezone.utc)
+
+
+class _CallerTx:
+    """Fix round 1 (m-1): caller-connection semantics. A write that BEGAN its own transaction commits it (or rolls it
+    back on an error); a write inside a transaction the CALLER opened runs in a SAVEPOINT, released on success and
+    rolled back to on an error, so the caller's own pending writes are never committed or discarded from here."""
+
+    _NAME = "j2_gallery_helpful_w11"
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+        self.began = not conn.in_transaction
+
+    def __enter__(self) -> "_CallerTx":
+        if not self.began:
+            self.conn.execute(f"SAVEPOINT {self._NAME}")
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        if self.began:
+            if exc_type is None:
+                self.conn.commit()
+            elif self.conn.in_transaction:
+                self.conn.rollback()
+        else:
+            if exc_type is not None:
+                self.conn.execute(f"ROLLBACK TO {self._NAME}")
+            self.conn.execute(f"RELEASE {self._NAME}")
+        return False
 
 
 def use_days(user_id: str, row: Mapping[str, Any], *, conn: sqlite3.Connection) -> int:
@@ -4484,13 +4539,8 @@ def set_helpful(user_id: str, gallery_id: Any, on: bool,
         row = _votable_row(conn, user_id, gallery_id)
         if row is None:
             return None
-        try:
+        with _CallerTx(conn):
             _write_helpful(conn, user_id, row, bool(on))
-            conn.commit()
-        except Exception:
-            if conn.in_transaction:
-                conn.rollback()
-            raise
         _mine, count = _helpful_state(conn, user_id, gallery_id)
         return {"helpful": bool(on), "count": count}
     finally:
@@ -4546,7 +4596,9 @@ def answer_helpful_prompt(user_id: str, gallery_id: Any, answer: Any, *,
     "yes" also marks Helpful through the same rule as `set_helpful` (`_write_helpful`), in the SAME transaction: a
     refusal (`GalleryConflict` code `helpful_days`) rolls the prompt row back too. `{"answer", "helpful", "count"}`,
     with `answer` the STORED answer. `GalleryError(S_HELPFUL_ANSWER)` for an answer outside HELPFUL_ANSWERS; None
-    when wave 11 or the library is off or the member may not vote on the item (unseen, unlisted, their own)."""
+    when wave 11 or the library is off, the member may not vote on the item (unseen, unlisted, their own), or the item
+    is not a template (fix round 1, m-5: the line is only shown for `style` items). Caller-connection semantics
+    (m-1): a transaction the caller opened is never committed or rolled back here (`_CallerTx`)."""
     if answer not in HELPFUL_ANSWERS:
         raise GalleryError(S_HELPFUL_ANSWER)
     if not _wave11_library_on() or not user_id:
@@ -4555,18 +4607,13 @@ def answer_helpful_prompt(user_id: str, gallery_id: Any, answer: Any, *,
     conn = conn or get_connection()
     try:
         row = _votable_row(conn, user_id, gallery_id)
-        if row is None:
+        if row is None or row["item_type"] != "style":     # m-5: the line is only ever shown for a template
             return None
-        try:
+        with _CallerTx(conn):
             cur = conn.execute("INSERT OR IGNORE INTO j2_gallery_helpful_prompts (user_id, item_id, answer,"
                                " answered_at) VALUES (?, ?, ?, ?)", (user_id, gallery_id, answer, _now()))
             if cur.rowcount == 1 and answer == "yes":
                 _write_helpful(conn, user_id, row, True)
-            conn.commit()
-        except Exception:
-            if conn.in_transaction:
-                conn.rollback()
-            raise
         stored = conn.execute("SELECT answer FROM j2_gallery_helpful_prompts WHERE user_id = ? AND item_id = ?",
                               (user_id, gallery_id)).fetchone()[0]
         mine, count = _helpful_state(conn, user_id, gallery_id)

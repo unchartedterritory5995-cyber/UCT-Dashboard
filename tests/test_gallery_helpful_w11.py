@@ -29,8 +29,16 @@ def _listed_style(db, title="Setup study"):
     return list_template(db, style(db)["id"], title=title)
 
 
-def _copy(db, gid, uid=MEMBER):
-    return gallery.adopt_style(uid, gid, conn=db)["style"]["id"]
+#: Fix round 1 (W11-R39): only notes created at or after the copy count, so the fixtures' copies are made before
+#: the fixtures' notes (adoption stamps the real clock; the notes below are dated 2026-10-19 onward).
+COPY_MADE = "2026-10-01T00:00:00+00:00"
+
+
+def _copy(db, gid, uid=MEMBER, made_at=COPY_MADE):
+    sid = gallery.adopt_style(uid, gid, conn=db)["style"]["id"]
+    db.execute("UPDATE j2_journal_styles SET created_at = ? WHERE id = ?", (made_at, sid))
+    db.commit()
+    return sid
 
 
 def _note(db, style_id, created_at, uid=MEMBER, deleted=False):
@@ -280,3 +288,76 @@ def test_a_later_yes_after_another_answer_changes_nothing(db):
     assert gallery.answer_helpful_prompt(MEMBER, gid, "yes", conn=db) == {"answer": "dismissed", "helpful": False,
                                                                           "count": 0}
     assert _helpful_rows(db, gid) == 0
+
+
+# ── fix round 1 ──────────────────────────────────────────────────────────────────────────────────
+
+def test_old_notes_switched_onto_a_copy_never_count(db):
+    """Ruling W11-R39 (m-4): a use day is a note CREATED at or after the copy was made. Three old notes from three
+    different days, switched onto the copy (their `created_at` kept, as `journal_styles` does), unlock nothing."""
+    gid = _listed_style(db)
+    sid = _copy(db, gid, made_at="2026-10-25T00:00:00Z")
+    old = [_note(db, sid, ts) for ts in (DAY1, DAY2, DAY3)]              # 10-19, 10-20, 10-21: before the copy
+    row = gallery._row(db, gid, MEMBER)
+    assert gallery.use_days(MEMBER, row, conn=db) == 0
+    _refused(lambda: gallery.set_helpful(MEMBER, gid, True, conn=db))
+    assert gallery.helpful_prompt(MEMBER, old[-1], conn=db) == {"show": False}
+    new = [_note(db, sid, ts) for ts in ("2026-10-25T14:00:00Z", "2026-10-26T14:00:00Z", "2026-10-27T14:00:00Z")]
+    assert gallery.use_days(MEMBER, row, conn=db) == 3
+    assert gallery.helpful_prompt(MEMBER, new[-1], conn=db)["show"] is True
+    assert gallery.set_helpful(MEMBER, gid, True, conn=db) == {"helpful": True, "count": 1}
+
+
+def _caller_write(db):
+    """A pending write of the caller's own, in a transaction the CALLER opened."""
+    db.execute("UPDATE users SET display_name = 'Pending' WHERE id = ?", (OTHER,))
+    assert db.in_transaction
+
+
+def _caller_value(db):
+    return db.execute("SELECT display_name FROM users WHERE id = ?", (OTHER,)).fetchone()[0]
+
+
+def test_a_refusal_never_rolls_back_the_callers_transaction(db):
+    """m-1: a `helpful_days` refusal inside a caller's transaction undoes only its own writes (the prompt row), never
+    the caller's pending write, and commits nothing."""
+    gid = _listed_style(db)
+    _note(db, _copy(db, gid), DAY1)
+    for call in (lambda: gallery.set_helpful(MEMBER, gid, True, conn=db),
+                 lambda: gallery.answer_helpful_prompt(MEMBER, gid, "yes", conn=db)):
+        _caller_write(db)
+        _refused(call)
+        assert db.in_transaction and _caller_value(db) == "Pending"          # still the caller's, still pending
+        assert _prompt_rows(db) == 0 and _helpful_rows(db, gid) == 0
+        db.rollback()
+        assert _caller_value(db) == "Other"                                  # nothing was committed for it
+
+
+def test_a_success_never_commits_the_callers_transaction(db):
+    """m-1: inside a caller's transaction the write stays the caller's to commit or discard."""
+    gid = _listed_style(db)
+    sid = _copy(db, gid)
+    for ts in (DAY1, DAY2, DAY3):
+        _note(db, sid, ts)
+    _caller_write(db)
+    assert gallery.set_helpful(MEMBER, gid, True, conn=db)["helpful"] is True
+    assert gallery.answer_helpful_prompt(MEMBER, gid, "not_really", conn=db)["answer"] == "not_really"
+    assert db.in_transaction
+    db.rollback()                                                            # the caller discards: all of it goes
+    assert _caller_value(db) == "Other" and _helpful_rows(db, gid) == 0 and _prompt_rows(db) == 0
+    # and with no caller transaction, each call commits its own write
+    assert gallery.answer_helpful_prompt(MEMBER, gid, "yes", conn=db)["helpful"] is True
+    assert not db.in_transaction and _prompt_rows(db) == 1
+
+
+@pytest.mark.parametrize("item_type", ["widget", "outline"])
+def test_the_prompt_answer_is_for_templates_only(db, item_type):
+    """m-5: the 3rd-day line is only ever shown for a template, so only a template's answer is stored."""
+    if item_type == "widget":
+        gid = list_tool(db, "widget", widget(db)["id"])
+    else:
+        gid = raw_row(db, item_type="outline", user_id=AUTHOR)
+    assert gallery._votable_row(db, MEMBER, gid) is not None                 # votable: the refusal is the type's
+    for answer in gallery.HELPFUL_ANSWERS:
+        assert gallery.answer_helpful_prompt(MEMBER, gid, answer, conn=db) is None
+    assert _prompt_rows(db) == 0 and _helpful_rows(db, gid) == 0
