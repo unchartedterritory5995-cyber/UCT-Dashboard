@@ -2331,6 +2331,11 @@ _PHASE_2_ALTERS = [
     # Task 11.8: the listed version a copy is on, so My tools can offer "Update from the library" for a routine or
     # tracker copy too (their own tables carry no version). Moved by `template_gallery.update_tool`.
     "ALTER TABLE j2_gallery_credits ADD COLUMN source_version INTEGER",
+    # Task 11.8 fix round 1 (I-1): a copy's own lineage -- the listing's item type, and for a tool a template made its
+    # part's key in that template and the part's fingerprint -- so an update is offered only when it applies.
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_item_type TEXT",
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_key TEXT",
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_hash TEXT",
     # The member's answer to the 3rd-day Helpful line (W11-R9): yes, not_really or dismissed, once per
     # (member, item).
     """CREATE TABLE IF NOT EXISTS j2_gallery_helpful_prompts (
@@ -2340,6 +2345,10 @@ _PHASE_2_ALTERS = [
         answered_at TEXT NOT NULL,
         PRIMARY KEY (user_id, item_id)
     )""",
+    # Task 11.13 (W11-R10): an archived template is hidden from TemplatePicker, the kind section and the default
+    # choice, and stays readable by `get_style` (notes keep their style stamp). NULL = not archived. A column on a
+    # table already in account_purge._DIRECT_USER_TABLES, so the purge and the manifest need no new row.
+    "ALTER TABLE j2_journal_styles ADD COLUMN archived_at TEXT",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

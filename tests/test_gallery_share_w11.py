@@ -355,18 +355,42 @@ def test_a_refused_share_is_never_stored_or_logged(db, capsys):
     assert "secret" not in out.out and "secret" not in out.err and "Field 1" not in out.out
 
 
-def test_no_log_call_in_the_gallery_names_a_refusal():
-    """Rail: no `print` / logging call in template_gallery.py formats an exception's text (a share refusal may echo the
-    author's formula), only its type name."""
-    src = GALLERY_SRC.read_text(encoding="utf-8")
+_LOG_ATTRS = ("debug", "info", "warning", "warn", "error", "exception", "critical", "log")
+
+
+def _exception_text_in_logs(src: str) -> list[str]:
+    """Every print or logging call that formats a caught exception's VALUE (`{e}`, `str(e)`, `e.sentence`,
+    `"%s" % e`, a bare `e` argument) rather than only its type name (`type(e).__name__`). A share refusal's text may
+    echo the author's own formula (11.4 m3), so no log line may carry any exception's text."""
     tree = ast.parse(src)
+    caught = {h.name for h in ast.walk(tree) if isinstance(h, ast.ExceptHandler) and h.name}
     bad = []
     for n in ast.walk(tree):
-        if isinstance(n, ast.Call) and (getattr(n.func, "id", None) == "print"
-                                        or getattr(n.func, "attr", None) in ("warning", "info", "error", "exception")):
-            text = ast.unparse(n)
-            if ".sentence" in text:
-                bad.append(text)
-    assert bad == []
-    planted = "def f(e):\n    print(f'x {e.sentence}')\n"
-    assert any(".sentence" in ast.unparse(c) for c in ast.walk(ast.parse(planted)) if isinstance(c, ast.Call))
+        if not isinstance(n, ast.Call):
+            continue
+        name = getattr(n.func, "id", None) or getattr(n.func, "attr", None)
+        if name != "print" and name not in _LOG_ATTRS:
+            continue
+        for node in ast.walk(n):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "type":
+                continue                                             # type(e) alone names no text
+            if isinstance(node, ast.Name) and node.id in caught:
+                parent_ok = any(isinstance(p, ast.Attribute) and p.attr == "__name__"
+                                and isinstance(p.value, ast.Call) and getattr(p.value.func, "id", None) == "type"
+                                and node in ast.walk(p) for p in ast.walk(n))
+                if not parent_ok:
+                    bad.append(ast.unparse(n))
+                    break
+    return bad
+
+
+def test_no_log_call_in_the_gallery_names_a_refusal():
+    """Rail (fix round 1, M-2): no `print` / logging call in template_gallery.py formats an exception's text in ANY
+    form, only its type name. Non-vacuity: every form is caught when planted, and the allowed form is not."""
+    assert _exception_text_in_logs(GALLERY_SRC.read_text(encoding="utf-8")) == []
+    for form in ("print(f'x {e}')", "print(f'x {e.sentence}')", "print('x', str(e))", "print('x %s' % e)",
+                 "log.warning('x %s', e)", "log.exception(e)"):
+        planted = f"def f():\n    try:\n        pass\n    except Exception as e:\n        {form}\n"
+        assert _exception_text_in_logs(planted), form
+    ok = "def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {type(e).__name__}')\n"
+    assert _exception_text_in_logs(ok) == []
