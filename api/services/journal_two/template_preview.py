@@ -133,6 +133,7 @@ def _refuse(sentence: str, sid: str) -> share.ShareError:
 
 #: The most a preview's answers may weigh altogether: the gallery route's own body bound (16 KB).
 MAX_ANSWERS_BYTES = 16 * 1024
+S_ANSWERS_TOO_LONG = "Your answers are too long. Shorten one and try again."
 #: Choices that take exactly one text (an account, a property, a routine or tracker ref); the rest take one text or
 #: a list of texts (a filter's values).
 _SINGLE_TYPES = frozenset({"account", "property", "routine", "tracker"})
@@ -203,7 +204,7 @@ def clean_answers(slots: list[dict], answers: Mapping) -> dict:
             out[sid] = copy.deepcopy(a)
     if out and len(_canonical(out).encode("utf-8")) > MAX_ANSWERS_BYTES:
         biggest = max(out, key=lambda k: len(_canonical(out[k])))
-        raise _refuse(_plan().S_TEXT_TOO_LONG, biggest)
+        raise _refuse(S_ANSWERS_TOO_LONG, biggest)
     return out
 
 
@@ -241,11 +242,11 @@ def _choices(slots: list[dict], answers: Mapping, user_id: str, conn: sqlite3.Co
     """(the served `slots`, {slot id: the value each choice runs with}, {slot id: what it runs with when the
     viewer's own answer is set aside}). A choice with no value is absent from the second.
 
-    `answers` is `clean_answers`' output. Under `run.SAMPLE_BELOW` closed trades (`sample`), ruling W11-R27: the
-    member's real values never filter the Sample data book. A choice the book can be filtered by, that the member
-    has a value for, is suggested the book's own most used value instead; one they have no value for keeps no
-    suggestion (Review Focus 5: Any where allowed, else "Pick a ..."). An answer naming a value the book lacks runs
-    with the book's most used value (else Any where allowed); the card says so through its Sample data label."""
+    `answers` is `clean_answers`' output. `suggested` (and `value` when unanswered) is ALWAYS the member's own value
+    or None (W11-R27b): it is what the sheet sends on Use. Under `run.SAMPLE_BELOW` closed trades (`sample`), ruling
+    W11-R27: the member's real values never filter the Sample data book. A value the book lacks runs, INTERNALLY,
+    with the book's most used value (else Any where allowed), shown only as `sampleValue`; the card says so
+    through its Sample data label. No own value keeps no suggestion (Review Focus 5: Any, else "Pick a ...")."""
     real = gallery_suggest.suggest_for(user_id, slots, conn=conn) if slots else {}
     out: list[dict] = []
     used: dict[str, Any] = {}
@@ -253,24 +254,29 @@ def _choices(slots: list[dict], answers: Mapping, user_id: str, conn: sqlite3.Co
     for s in slots:
         sid = s["id"]
         any_ok = s.get("any") is True
-        sug = real.get(sid)
+        sug = real.get(sid)                                  # ALWAYS the member's own, or None (W11-R27b)
+        shown = answers.get(sid, sug["value"] if sug is not None else ({"any": True} if any_ok else None))
+        ran = shown                                          # what the card runs with
         book = _book_values(s) if sample else None
-        book_sug = {"value": book[0], "label": book[0]} if book else None
-        if book is not None and sug is not None:
-            sug = book_sug                                   # the member's own value never filters the book
-        default = sug["value"] if sug is not None else ({"any": True} if any_ok else None)
-        value = answers.get(sid, default)
-        if book is not None and sid in answers and not (isinstance(value, Mapping) and value.get("any") is True):
+        if book is not None and ran is not None and not (isinstance(ran, Mapping) and ran.get("any") is True):
             fld = _catalog().sources[s["source"]].fields[s["field"]]
-            if not _in_book(value, book, bool(getattr(fld, "ci", False))):
+            if not _in_book(ran, book, bool(getattr(fld, "ci", False))):
                 # never a real value over the book (W11-R27): the book's own, else Any where allowed
-                value = book_sug["value"] if book_sug else ({"any": True} if any_ok else None)
-        out.append({"id": sid, "type": s["type"], "label": _label_of(s), "any": any_ok, "suggested": sug,
-                    "value": copy.deepcopy(value)})
-        if value is not None:
-            used[sid] = value
-        if default is not None:
-            defaults[sid] = default
+                ran = book[0] if book else ({"any": True} if any_ok else None)
+        row = {"id": sid, "type": s["type"], "label": _label_of(s), "any": any_ok, "suggested": sug,
+               "value": copy.deepcopy(shown)}
+        if ran != shown:
+            row["sampleValue"] = copy.deepcopy(ran)          # what the Sample data card used, never sent on Use
+        out.append(row)
+        if ran is not None:
+            used[sid] = ran
+        if sid in answers:
+            default = sug["value"] if sug is not None else ({"any": True} if any_ok else None)
+            if book is not None and default is not None and not isinstance(default, Mapping) \
+                    and not _in_book(default, book, False):
+                default = book[0] if book else ({"any": True} if any_ok else None)
+            if default is not None:
+                defaults[sid] = default
     return out, used, defaults
 
 

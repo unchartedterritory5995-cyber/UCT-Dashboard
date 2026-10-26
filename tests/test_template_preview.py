@@ -371,14 +371,17 @@ def test_sample_mode_never_filters_the_book_with_a_real_value(conn):
         card = out["cards"][0]
         assert card["sample"] is True and card["payload"]["sample"] is True
         assert card["payload"]["count"] > 0                                    # the book's rows, not an empty card
-        assert out["slots"][0]["suggested"] == {"value": book_top, "label": book_top}
-        assert out["slots"][0]["value"] == book_top
-        assert "MyRealSetup" not in json.dumps(out)
+        # W11-R27b: what the sheet sends on Use is ALWAYS the member's own value, never the book's
+        assert out["slots"][0]["suggested"] == {"value": "MyRealSetup", "label": "MyRealSetup"}
+        assert out["slots"][0]["value"] == "MyRealSetup"
+        assert out["slots"][0]["sampleValue"] == book_top                      # the book's, said apart
+        assert book_top not in json.dumps({k: v for k, v in out["slots"][0].items() if k != "sampleValue"})
     # an answer the book DOES hold runs as given
     tp._CACHE.clear()
     held = _book_setups()[-1]
     out = _go(conn, gid, answers={"p1": held})
     assert out["slots"][0]["value"] == held and out["cards"][0]["payload"]["count"] > 0
+    assert "sampleValue" not in out["slots"][0]
     # five trades: real again, the member's own value
     _trades(conn, 2, setup="MyRealSetup")
     tp._CACHE.clear()
@@ -454,6 +457,13 @@ def test_answers_are_trimmed_to_declared_choices_before_keying(conn, monkeypatch
     with pytest.raises(share.ShareError):
         tp.preview_mine(UID, gid, conn=conn, now=NOW, answers={"p1": "y" * 5000})
     assert len(tp._CACHE) == 2                                                # refused, not cached
+    # the 16 KB total has its own sentence, at the largest answer's choice
+    many = [dict(s, id=f"p{i}") for i, s in enumerate([{"type": "setup", "any": True}] * 20, start=1)]
+    big = {f"p{i}": ["v" * 200] * 5 for i in range(1, 20)}
+    big["p20"] = ["w" * 200] * 6
+    with pytest.raises(share.ShareError) as e:
+        tp.clean_answers(many, big)
+    assert e.value.sentence == "Your answers are too long. Shorten one and try again." and e.value.slot == "p20"
     assert tp.clean_answers([{"id": "p1", "type": "setup", "any": True}],
                             {"p1": "Flag", "zz": 1}) == {"p1": "Flag"}
 
@@ -504,3 +514,19 @@ def test_anonymous_author_credit_reads_mid_sentence(conn):
     conn.execute("UPDATE users SET display_name = 'b@example.test' WHERE id = ?", (B,))
     conn.commit()
     assert _go(conn, _row(conn, _template(1), title="Gap fill"))["credit"] == "Based on a UCT member's Gap fill"
+
+
+def test_use_answer_is_never_a_book_value(conn):
+    """W11-R27b: for every choice, under 5 trades or not, `suggested` and an unanswered `value` (what AdoptSheet
+    sends on Use) are the member's own value or null, never a value only the Sample data book holds."""
+    add_user(conn, B)
+    book = set(_book_setups())
+    for n, setup in ((0, None), (2, "OwnOne"), (4, "OwnTwo")):
+        if n:
+            _trades(conn, n, setup=setup)
+        tp._CACHE.clear()
+        out = _go(conn, _row(conn, _template(1, any_ok=False)))
+        slot = out["slots"][0]
+        sent = slot["value"] if slot["value"] is not None else (slot["suggested"] or {}).get("value")
+        assert sent is None or sent not in book
+        assert slot["suggested"] is None or slot["suggested"]["value"] not in book
