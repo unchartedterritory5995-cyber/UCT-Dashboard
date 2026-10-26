@@ -779,20 +779,18 @@ def _row(rows: Mapping[str, Any], ref: str, prefix: str, what: str) -> Mapping:
     return row
 
 
-def _template_known(family: str, key: str) -> bool:
-    """Is `key` one of Task 11.6's routine or tracker templates? False while that module does not
-    exist: a key that cannot be proved real does not travel (fix round 1, M3)."""
+def _template_tools_landed() -> bool:
+    """Has Task 11.6's `template_tools` landed? Whether a key is IN its tables is
+    `journal_styles.slot_settings_of`'s check (`_template_key_ok`), which runs first; that check
+    accepts any well-shaped key while the module is absent, so this refuses every template key until
+    the module exists: a key that cannot be proved real does not travel (fix round 1, M3)."""
     try:
-        tools = importlib.import_module(TEMPLATE_TOOLS_MODULE)
+        importlib.import_module(TEMPLATE_TOOLS_MODULE)
     except ModuleNotFoundError as e:
         if e.name != TEMPLATE_TOOLS_MODULE:
             raise
         return False
-    table = getattr(tools, "ROUTINE_TEMPLATES" if family == "routine" else "TRACKER_TEMPLATES", None)
-    try:
-        return table is not None and key in table
-    except TypeError:
-        return False
+    return True
 
 
 def _block_keep(keep: frozenset[str], bid: str) -> frozenset[str]:
@@ -801,10 +799,17 @@ def _block_keep(keep: frozenset[str], bid: str) -> frozenset[str]:
 
 
 def _journal_styles():
-    """The template grammar's ONE authority (`KNOWN_BLOCKS`, `slot_family`, `slot_settings_of`),
-    imported when a template is shared, never at module load."""
+    """The template grammar's ONE authority (`slot_family`, `slot_settings_of`), imported when a
+    template is shared, never at module load."""
     from api.services.journal_two import journal_styles
     return journal_styles
+
+
+def _known_block(bid: str) -> bool:
+    """Can this server place a non-slot block? THE rule P3a's `style_payload` uses:
+    `journal_styles.KNOWN_BLOCKS`, named through an import alias so 11.3's rail can resolve it."""
+    from api.services.journal_two import journal_styles as js
+    return bid in js.KNOWN_BLOCKS
 
 
 def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Mapping[str, dict],
@@ -859,7 +864,7 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
         enabled = b.get("enabled", True) is not False
         family = js.slot_family(bid)
         if family is None:
-            if bid in js.KNOWN_BLOCKS:
+            if _known_block(bid):
                 blocks.append({"block": bid, "enabled": enabled, "settings": {}})
             else:
                 _say(sentences, N_UNKNOWN_BLOCK)
@@ -911,7 +916,7 @@ def share_template(style: dict, *, definitions: Mapping[str, dict], routines: Ma
                 out = {"inline": inline[ref]}
             elif "ref" in st and family == "tracker" and st["ref"] in wplan.BUILTIN_TRACKER_REFS:
                 out = {"ref": st["ref"]}
-            elif "template" in st and _template_known(family, st["template"]):
+            elif "template" in st and _template_tools_landed():
                 out = {"template": st["template"]}
             else:
                 _say(sentences, N_UNREADABLE_WIDGET)

@@ -411,6 +411,9 @@ def test_the_template_grammar_is_journal_styles():
     """share_template reads the block and slot grammar from journal_styles itself, never a copy."""
     from api.services.journal_two import journal_styles
     assert share._journal_styles() is journal_styles
+    # the block rule is journal_styles.KNOWN_BLOCKS itself (prefix- and flag-aware membership)
+    assert share._known_block("chart") and share._known_block("built_a")
+    assert not share._known_block("zzq_canary_7f3a") and not share._known_block("")
 
 
 def test_unvalidated_refs_do_not_travel():

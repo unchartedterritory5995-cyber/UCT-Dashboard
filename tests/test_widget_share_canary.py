@@ -254,21 +254,6 @@ def _leaky_payload(real, key, stored_key):
     return leaky
 
 
-class _Everything:
-    def __contains__(self, x):
-        return True
-
-
-class _EveryBlock:
-    """The template grammar with C1 re-planted: KNOWN_BLOCKS accepts any id."""
-
-    def __init__(self, real):
-        self.slot_family = real.slot_family
-        self.slot_settings_of = real.slot_settings_of
-        self.StyleValidationError = real.StyleValidationError
-        self.KNOWN_BLOCKS = _Everything()
-
-
 def _plant(monkeypatch, defect):
     if defect in ("filters", "formulas", "display", "accounts"):
         monkeypatch.setattr(share, "share_plan", _leaky_plan(share.share_plan, defect))
@@ -280,9 +265,8 @@ def _plant(monkeypatch, defect):
         monkeypatch.setattr(share, "share_tracker", _leaky_payload(share.share_tracker, "name", "name"))
     elif defect == "tracker_unit":
         monkeypatch.setattr(share, "share_tracker", _leaky_payload(share.share_tracker, "unit", "unit"))
-    elif defect == "block_ids":
-        real = share._journal_styles()
-        monkeypatch.setattr(share, "_journal_styles", lambda: _EveryBlock(real))
+    elif defect == "block_ids":                  # C1 re-planted: every block id is "known"
+        monkeypatch.setattr(share, "_known_block", lambda bid: True)
     else:
         raise AssertionError(defect)
 

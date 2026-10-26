@@ -267,20 +267,8 @@ def test_sweep_template():
 # -- the sweep has teeth: round 0's two leaks, re-planted, go red ---------------------------------
 
 def test_sweep_catches_an_unknown_block_copied(monkeypatch):
-    """C1 re-planted: a grammar whose KNOWN_BLOCKS accepts any id."""
-    real = share._journal_styles()
-
-    class Everything:
-        def __contains__(self, x):
-            return True
-
-    class Grammar:
-        KNOWN_BLOCKS = Everything()
-        slot_family = staticmethod(real.slot_family)
-        slot_settings_of = staticmethod(real.slot_settings_of)
-        StyleValidationError = real.StyleValidationError
-
-    monkeypatch.setattr(share, "_journal_styles", lambda: Grammar)
+    """C1 re-planted: every block id answers as one this server can place."""
+    monkeypatch.setattr(share, "_known_block", lambda bid: True)
     failures, _tried, _shared = sweep(maximal_template(), reduce_template)
     assert any("'block'" in f and "travelled" in f for f in failures)
 
