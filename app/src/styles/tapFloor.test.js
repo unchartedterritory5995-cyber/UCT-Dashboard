@@ -460,14 +460,15 @@ describe('the template library floors every control at 44px at every width', () 
 // `min-*: var(--tap-min)`, never saw it. Retest: any campaign persona at 820 or 390 (P01 a.02 shows it).
 const FEEDBACK_CSS = join(SRC, 'components', 'FeedbackWidget.module.css')
 
-/** The last `prop` value for exactly `selector` among the @media bodies that apply at `width`. */
+/** The last `prop` value for `selector` (alone or as a context selector's target) among the @media bodies that apply at `width`. */
 function lastAt(css, width, selector, prop) {
   let v
   const rule = /([^{}]+)\{([^{}]*)\}/g
   const text = mediaBodies(stripComments(css), width)
   let m
   while ((m = rule.exec(text))) {
-    if (!m[1].split(',').map((x) => x.trim()).includes(selector)) continue
+    // the selector itself, or `.fab` as the target of a context selector (`:global(html[...]) .fab`, review m-1)
+    if (!m[1].split(',').map((x) => x.trim()).some((x) => x === selector || x.endsWith(` ${selector}`))) continue
     for (const d of m[2].matchAll(/([-a-zA-Z]+)\s*:\s*([^;]+?)\s*(?:;|$)/g)) if (d[1] === prop) v = d[2].trim()
   }
   return v
@@ -485,5 +486,14 @@ describe('D-W11-004: the feedback "?" button is a 44 px finger target on the tou
     const old = '@media (max-width: 1024px) { .fab { width: 40px !important; height: 40px !important; } }'
     expect(isFloor(lastAt(old, 820, '.fab', 'width'))).toBe(false)
     expect(lastAt(old, 820, '.fab', 'height')).toBe('40px !important')
+  })
+
+  it('CONTROL (review m-1): a size set on `.fab` in a context selector (the chart shell) is seen', () => {
+    const ctx = [
+      '@media (max-width: 1024px) { .fab { width: var(--tap-min, 44px) !important; } }',
+      '@media (max-width: 1024px) { :global(html[data-mobile-chart-shell]) .fab { width: 40px !important; } }',
+    ].join(' ')
+    expect(lastAt(ctx, 820, '.fab', 'width')).toBe('40px !important')
+    expect(lastAt('@media (max-width: 1024px) { .fabric { width: 40px; } }', 820, '.fab', 'width')).toBeUndefined()
   })
 })
