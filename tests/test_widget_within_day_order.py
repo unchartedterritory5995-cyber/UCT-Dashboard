@@ -84,7 +84,7 @@ def _labels(payload):
 
 def test_the_pushdown_sql_orders_a_day_by_close_time(seeded):
     _p, _rng, (sql, params) = _compiled(sources.CLOSED, _list())
-    assert sql.endswith("DESC, t.exit_date DESC, t.id DESC LIMIT 5001")
+    assert sql.endswith("DESC, julianday(t.exit_date) DESC, t.id DESC LIMIT 5001")
     assert [r["symbol"] for r in seeded.execute(sql, params)] == EXPECTED
 
 
@@ -159,15 +159,74 @@ def test_the_sample_book_breaks_a_day_by_close_time_not_by_id():
     assert got == [t["id"] for t in reversed(trades)]
 
 
-def test_the_scan_adds_no_sort_of_its_own(seeded):
-    # The day expression already forces ONE temp B-tree; the new tie-break rides in it.
-    for source, raw in ((sources.CLOSED, _list()),
-                        (sources.CLOSED, raw_plan(range={"token": "last_20_trades"})),
-                        (sources.OPTIONS, opt_raw(measures=("strategies",)))):
+def test_the_tie_break_rides_in_the_one_existing_sort(seeded):
+    # Two halves, and the first is what a revert reds: the ORDER BY carries the instant through
+    # julianday (never the stamp as text, never the id second); the plan still has exactly ONE
+    # temp B-tree (the day expression already forced it), so the new key added no sort.
+    for source, raw, keys in (
+            (sources.CLOSED, _list(), "julianday(t.exit_date) DESC, t.id DESC LIMIT"),
+            (sources.CLOSED, raw_plan(range={"token": "last_20_trades"}),
+             "julianday(t.exit_date) DESC, t.id DESC LIMIT"),
+            (sources.OPTIONS, opt_raw(measures=("strategies",)),
+             "julianday(COALESCE(o.closed_at, o.entry_date)) DESC, o.id DESC LIMIT")):
         _p, _rng, (sql, params) = _compiled(source, raw)
+        assert keys in sql.split(" ORDER BY ", 1)[1], sql
         steps = [r[3] for r in seeded.execute("EXPLAIN QUERY PLAN " + sql, params)]
         assert sum("TEMP B-TREE" in s for s in steps) == 1, steps
         assert "USE TEMP B-TREE FOR ORDER BY" in steps
+
+
+# -- mixed offsets (fix round 1, I-1 / m-2): broker imports keep the broker's own offset -------
+
+# One ET day, ids against time. Text order reads 18:00:00.123Z, 17:30:00Z, 17:30:00.500Z,
+# 15:00:00-04:00 -- the -04:00 stamp is 19:00Z, the NEWEST, and the same-second pair is
+# backwards ('.' sorts before 'Z'). The true instants: 19:00, 18:00:00.123, 17:30:00.5, 17:30.
+MIXED = [
+    ("OFFS", "2026-10-23T15:00:00-04:00", "00000000-0000-4000-8000-0000000000d1"),
+    ("FRAC", "2026-10-23T18:00:00.123Z", "55555555-0000-4000-8000-0000000000d2"),
+    ("HALF", "2026-10-23T17:30:00.500Z", "aaaaaaaa-0000-4000-8000-0000000000d3"),
+    ("ZULU", "2026-10-23T17:30:00Z", "ffffffff-0000-4000-8000-0000000000d4"),
+]
+MIXED_EXPECTED = [m[0] for m in MIXED] + ["PRIOR"]
+
+
+def test_mixed_offset_closes_sort_by_true_instant_in_sql_and_scan(conn):
+    for sym, ex, tid in reversed(MIXED):
+        _seed_trade(conn, sym, "2026-10-23", ex, tid, commit=False)
+    _seed_trade(conn, "PRIOR", "2026-10-22", "2026-10-22T23:59:00Z",
+                "00000000-0000-4000-8000-0000000000d5", commit=False)   # cross-day control
+    conn.commit()
+    p, rng, (sql, params) = _compiled(sources.CLOSED, _list())
+    assert [r["symbol"] for r in conn.execute(sql, params)] == MIXED_EXPECTED
+    sc = sources.scan(conn, p, {}, rng, UID, today=TODAY)
+    assert [r["symbol"] for r in sc.rows] == MIXED_EXPECTED
+
+
+def test_mixed_offset_strategies_sort_by_true_instant_in_sql_and_python(conn):
+    for sym, ex, sid in reversed(MIXED):
+        add_opt(conn, UID, entry="2026-10-23T13:31:00Z", closed_at=ex, underlying=sym, sid=sid,
+                commit=False)
+    add_opt(conn, UID, entry="2026-10-22T13:31:00Z", closed_at="2026-10-22T23:59:00Z",
+            underlying="PRIOR", sid="00000000-0000-4000-8000-0000000000d5", commit=False)
+    conn.commit()
+    p, rng, (sql, params) = _compiled(sources.OPTIONS, opt_raw(measures=("strategies",)))
+    assert [r["underlying"] for r in conn.execute(sql, params)] == MIXED_EXPECTED
+    sc = sources.scan(conn, p, {}, rng, UID, today=TODAY)          # the Python re-sort
+    assert [r["underlying"] for r in sc.rows] == MIXED_EXPECTED
+
+
+def test_an_empty_close_stamp_is_picked_and_ordered_as_sql_does(conn):
+    # m-1: COALESCE picks a present '' over the entry, and julianday('') is NULL, last under DESC.
+    # The Python re-sort must make the same pick, not fall through to the entry by truthiness.
+    add_opt(conn, UID, entry="2026-10-23T19:30:00Z", closed_at="", stamp="2026-10-23",
+            underlying="BLANK", sid="ffffffff-0000-4000-8000-0000000000e1", commit=False)
+    add_opt(conn, UID, entry="2026-10-23T13:31:00Z", closed_at="2026-10-23T15:00:00Z",
+            underlying="CLOSED", sid="00000000-0000-4000-8000-0000000000e2", commit=False)
+    conn.commit()
+    p, rng, (sql, params) = _compiled(sources.OPTIONS, opt_raw(measures=("strategies",)))
+    assert [r["underlying"] for r in conn.execute(sql, params)] == ["CLOSED", "BLANK"]
+    sc = sources.scan(conn, p, {}, rng, UID, today=TODAY)
+    assert [r["underlying"] for r in sc.rows] == ["CLOSED", "BLANK"]
 
 
 # -- options strategies (the same order: a SQL pushdown and a Python re-sort) ------------------
@@ -191,7 +250,7 @@ def opts(conn):
 
 def test_the_options_pushdown_sql_orders_a_day_by_close_time(opts):
     _p, _rng, (sql, params) = _compiled(sources.OPTIONS, opt_raw(measures=("strategies",)))
-    assert "COALESCE(o.closed_at, o.entry_date) DESC, o.id DESC" in sql
+    assert "julianday(COALESCE(o.closed_at, o.entry_date)) DESC, o.id DESC" in sql
     assert [r["underlying"] for r in opts.execute(sql, params)] == OPT_EXPECTED
 
 

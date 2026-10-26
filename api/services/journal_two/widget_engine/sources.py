@@ -253,6 +253,14 @@ def _weekday(day: Any) -> str | None:
         return None
 
 
+def _instant(iso: Any) -> float:
+    """A stamp's true instant for ordering (F-SORT-1): `_sort_key`'s parse, so any offset reads
+    as the moment it names. A missing or unreadable stamp is -inf: last under a descending sort,
+    as SQL's `julianday` NULL is."""
+    dt = timeutil._parse(iso) if iso else None
+    return dt.timestamp() if dt is not None else float("-inf")
+
+
 def _sort_key(iso: Any, seq: int) -> str:
     """An exit-time ordering key for the streak measures (`measures._ordered` sorts day then id):
     the UTC instant, then the scan position. Never the trade id."""
@@ -1386,9 +1394,13 @@ def scan_options(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         if d is None or d > rng.to_day or (rng.from_day is not None and d < rng.from_day):
             continue
         kept.append((d, r))
-    # the ET day, then the row's own instant, then the id: `compile.OPTION_ORDER` (F-SORT-1)
-    kept.sort(key=lambda p: (p[0], str(p[1].get("closed_at") or p[1].get("entry_date") or ""),
-                             str(p[1].get("id") or "")), reverse=True)
+    # the ET day, then the row's own instant, then the id: `compile.OPTION_ORDER` (F-SORT-1).
+    # The instant is picked as SQL's COALESCE picks it (NULL-ness, so '' is present and reads as
+    # unknown), then read as a true instant like `julianday`.
+    def _row_instant(r: dict) -> float:
+        c = r.get("closed_at")
+        return _instant(c if c is not None else r.get("entry_date"))
+    kept.sort(key=lambda p: (p[0], _row_instant(p[1]), str(p[1].get("id") or "")), reverse=True)
     capped = False
     if over:
         # Rows past the LIMIT have a SQL day no later than the last row read, and an ET day the
