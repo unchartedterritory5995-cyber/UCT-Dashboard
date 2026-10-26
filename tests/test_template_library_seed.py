@@ -36,10 +36,11 @@ from api.services.journal_two import template_gallery as gallery
 from api.services.journal_two import template_library as tl
 from api.services.journal_two.widget_engine import share, shelf
 from api.services.journal_two.widget_engine.sources import CATALOG
-from tests._gallery_w11_helpers import MEMBER, OTHER, db, waves, ALL_WAVES  # noqa: F401 -- `db` is a fixture
+from tests._gallery_w11_helpers import AUTHOR, MEMBER, OTHER, db, waves, ALL_WAVES  # noqa: F401 -- `db` is a fixture
 
 REPO = Path(__file__).resolve().parents[1]
 SEED_REL = "api/services/journal_two/template_library_seed.json"
+PAYLOADS_REL = "api/services/journal_two/template_library_payloads.json"
 FETCH = "git fetch origin master"
 
 # ── the ruled table: the brief's 27 rows, verbatim ───────────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ def _notation(block: dict) -> str:
 
 
 def _live() -> list[dict]:
-    return [r for r in tl.LIBRARY if r["seedKey"] not in tl.RETIRED]
+    return tl.live_rows()
 
 
 def test_twenty_seven_rows_in_spec_order_and_groups():
@@ -191,10 +192,27 @@ def test_twenty_seven_rows_in_spec_order_and_groups():
     assert "sort" not in tag                               # a list reads newest first by default
 
 
-def test_the_seed_file_is_lf_json():
-    blob = (REPO / SEED_REL).read_bytes()
-    assert b"\r" not in blob.replace(b"\r\n", b"\n") and blob.replace(b"\r\n", b"\n").endswith(b"]\n}\n")
-    assert json.loads(blob)["templates"] and json.loads(blob)["retired"] == []
+def _stored_blob(rel: str) -> bytes:
+    """The bytes git STORES for `rel` (the index blob; `core.autocrlf` may rewrite the working copy's endings)."""
+    r = subprocess.run([shutil.which("git") or "git", "-C", str(REPO), "cat-file", "blob", f":{rel}"],
+                       capture_output=True, env=_scrubbed_env())
+    if r.returncode != 0:
+        pytest.fail(f"git could not read the stored blob of {rel}: {r.stderr.decode(errors='replace').strip()}")
+    return r.stdout
+
+
+def _cr_free(blob: bytes) -> bool:
+    return b"\r" not in blob
+
+
+def test_the_seed_files_are_lf_json():
+    for rel in (SEED_REL, PAYLOADS_REL):
+        blob = _stored_blob(rel)
+        assert _cr_free(blob), rel                        # not one CR byte, CRLF or bare
+        assert blob.endswith(b"}\n") and json.loads(blob)
+    assert json.loads(_stored_blob(SEED_REL))["retired"] == []
+    # control: the check sees a CR, CRLF and bare alike
+    assert not _cr_free(b'{"a": 1}\r\n') and not _cr_free(b'{"a":\r 1}\n') and _cr_free(b'{"a": 1}\n')
 
 
 # ── the import checks ────────────────────────────────────────────────────────────────────────────────────────────
@@ -279,7 +297,7 @@ BREAKS = [
 
 def test_an_unbroken_copy_loads(tmp_path):
     rows = tl.load_library_seed(_write(tmp_path, _seed_doc()))
-    assert [r["seedKey"] for r in rows] == [r["seedKey"] for r in tl.LIBRARY]
+    assert [r["seedKey"] for r in rows] == [r["seedKey"] for r in tl.rows()]
 
 
 @pytest.mark.parametrize("what, names, edit", BREAKS, ids=[b[0] for b in BREAKS])
@@ -297,14 +315,71 @@ def test_a_retired_row_may_share_its_slug_with_its_replacement(tmp_path):
     assert rows[-1]["seedKey"] == "uct-template-morning-routine-v2"
 
 
-def test_the_module_checks_the_seed_when_it_is_imported():
-    """`LIBRARY` is `load_library_seed()` at module level (so a broken seed fails the import), never a lazy read."""
-    import ast
-    tree = ast.parse(Path(tl.__file__).read_text(encoding="utf-8"))
-    assigns = [n for n in tree.body if isinstance(n, ast.AnnAssign) and getattr(n.target, "id", None) == "LIBRARY"]
-    assert len(assigns) == 1
-    call = assigns[0].value
-    assert isinstance(call, ast.Call) and call.func.id == "load_library_seed" and not call.args
+def test_the_shipped_seed_is_valid():
+    """The CI guard (W11-R37): the committed seed loads with no error, so a broken seed cannot ship."""
+    tl.reset_library_state()
+    state = tl.library_state()
+    assert state.error is None and len(state.rows) == 27
+    assert [r["seedKey"] for r in tl.load_library_seed()] == [r["seedKey"] for r in state.rows]
+
+
+_BROKEN_IMPORT = r"""
+import pathlib, sys
+real = pathlib.Path.read_text
+def read_text(self, *a, **k):
+    if self.name == "template_library_seed.json":
+        return '{"templates": [{"seedKey": "broken"}]}'
+    return real(self, *a, **k)
+pathlib.Path.read_text = read_text
+from api.services.journal_two import template_library as tl
+st = tl.library_state()
+print("IMPORTED", tl.GROUP_KEYS[-1], st.error is not None, len(st.rows))
+"""
+
+
+def test_the_module_imports_even_when_the_seed_is_broken():
+    """W11-R37: importing `template_library` never raises, whatever the seed holds; the error is the state's."""
+    import sys
+    r = subprocess.run([sys.executable, "-c", _BROKEN_IMPORT], capture_output=True, text=True, cwd=str(REPO),
+                       env=_scrubbed_env(), timeout=120)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert "IMPORTED habits True 0" in r.stdout, r.stdout[-2000:]
+    assert "the official template seed is broken" in r.stdout
+    # control: the same probe with the real seed reports a valid library, so the patch above is what broke it
+    ok = subprocess.run([sys.executable, "-c", _BROKEN_IMPORT.replace('"template_library_seed.json"', '"nothing"')],
+                        capture_output=True, text=True, cwd=str(REPO), env=_scrubbed_env(), timeout=120)
+    assert ok.returncode == 0 and "IMPORTED habits False 27" in ok.stdout, ok.stdout[-2000:] + ok.stderr[-2000:]
+
+
+@pytest.fixture
+def broken_seed(tmp_path):
+    """`SEED_FILE` pointed at a corrupted copy (one row's group unknown), the cached state reset around the test."""
+    doc = _seed_doc()
+    _row(doc, "morning-routine")["group"] = "evening"
+    real = tl.SEED_FILE
+    tl.SEED_FILE = _write(tmp_path, doc)
+    tl.reset_library_state()
+    try:
+        yield
+    finally:
+        tl.SEED_FILE = real
+        tl.reset_library_state()
+
+
+def test_a_broken_seed_boots_and_every_read_keeps_working(db, broken_seed, capsys):
+    """W11-R37: a corrupted seed -> the boot succeeds, the official rows are absent, the error is logged loudly, and
+    `list_gallery(group=...)` still answers (no LibrarySeedError, no 500)."""
+    db.execute("DELETE FROM j2_template_gallery")
+    db.commit()
+    gallery.ensure_gallery_schema(db)                                         # a boot: never raises
+    out = capsys.readouterr().out
+    assert "ERROR" in out and "uct-template-morning-routine-v1" in out
+    assert _official(db) == []
+    assert gallery.list_gallery(MEMBER, group="habits", conn=db) == []
+    assert gallery.list_gallery(MEMBER, conn=db) is not None                  # the other rows still list
+    with pytest.raises(gallery.GalleryError):
+        gallery.list_gallery(MEMBER, group="evening", conn=db)               # the error class is unchanged
+    assert tl.GROUP_KEYS == tuple(k for k, _ in RULED_GROUPS)                 # static, independent of the seed
 
 
 # ── the shelf pins and the inline plans ──────────────────────────────────────────────────────────────────────────
@@ -315,7 +390,7 @@ def _manifest() -> dict:
 
 def test_every_pinned_shelf_revision_exists(tmp_path):
     files = {e["file"] for e in _manifest()["files"]}
-    pins = [(b["settings"]["ref"], b["settings"]["defRev"]) for r in tl.LIBRARY for b in r["blocks"]
+    pins = [(b["settings"]["ref"], b["settings"]["defRev"]) for r in tl.rows() for b in r["blocks"]
             if js.slot_family(b["block"]) == "built" and b["settings"]["ref"].startswith("shelf:")]
     assert len(pins) == 23                                         # non-vacuity: every built shelf slot of the table
     for ref, rev in pins:
@@ -331,7 +406,7 @@ def test_every_pinned_shelf_revision_exists(tmp_path):
 
 def test_every_inline_plan_validates():
     seen = 0
-    for r in tl.LIBRARY:
+    for r in tl.rows():
         answers = {s["id"]: ({"any": True} if s["any"] else "Breakout") for s in r["slots"]}
         for d in r["definitions"]:
             resolved = share.resolve_plan(copy.deepcopy(d["plan"]), r["slots"], answers, catalog=CATALOG)
@@ -420,19 +495,38 @@ def test_a_failed_official_seed_is_logged_and_writes_nothing(db, monkeypatch, ca
     assert "official template seed skipped" in capsys.readouterr().out
 
 
-def test_a_retired_row_is_never_inserted_and_a_stored_one_is_hidden_once(db, monkeypatch):
+def test_a_retired_row_is_hidden_only_when_its_replacement_is_new_and_an_unhide_stays(db, tmp_path):
+    """M-3: the seed sets visibility only for rows it newly creates. A stored -v1 is hidden in the pass that inserts
+    its -v2; an admin who unhides it afterwards keeps it as they left it across reboots."""
     db.execute("DELETE FROM j2_template_gallery")
     db.commit()
-    tl.seed_template_library(db)
-    key = "uct-template-morning-routine-v1"
-    monkeypatch.setattr(tl, "RETIRED", (key,))
-    assert tl.seed_template_library(db) == 0
-    row = db.execute("SELECT hidden, hidden_by FROM j2_template_gallery WHERE seed_key = ?", (key,)).fetchone()
-    assert (row["hidden"], row["hidden_by"]) == (1, tl.RETIRED_BY)
-    db.execute("DELETE FROM j2_template_gallery")
-    db.commit()
-    assert tl.seed_template_library(db) == 26
-    assert db.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE seed_key = ?", (key,)).fetchone()[0] == 0
+    tl.reset_library_state()
+    assert tl.seed_template_library(db) == 27
+    v1, v2 = "uct-template-morning-routine-v1", "uct-template-morning-routine-v2"
+    doc = _seed_doc()
+    doc["templates"].append(dict(copy.deepcopy(_row(doc, "morning-routine")), seedKey=v2))
+    doc["retired"] = [v1]
+    real = tl.SEED_FILE
+    tl.SEED_FILE = _write(tmp_path, doc)
+    tl.reset_library_state()
+    try:
+        state = lambda k: db.execute("SELECT hidden, hidden_by FROM j2_template_gallery WHERE seed_key = ?",  # noqa
+                                     (k,)).fetchone()
+        assert tl.seed_template_library(db) == 1                              # the -v2 is new
+        assert tuple(state(v1)) == (1, tl.RETIRED_BY) and tuple(state(v2)) == (0, None)
+        gid = gallery.firm_style_id(v1)
+        assert gallery.admin_act("admin", gid, "unhide", conn=db) is not None
+        for _ in range(2):                                                    # reboots
+            assert tl.seed_template_library(db) == 0
+            assert tuple(state(v1)) == (0, None)
+        # a fresh install never inserts the retired row
+        db.execute("DELETE FROM j2_template_gallery")
+        db.commit()
+        assert tl.seed_template_library(db) == 27
+        assert state(v1) is None and tuple(state(v2)) == (0, None)
+    finally:
+        tl.SEED_FILE = real
+        tl.reset_library_state()
 
 
 # ── visibility ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -553,6 +647,36 @@ def _fill(c, uid, row, setup):
     return gallery.use_library_template(uid, gid, answers=answers, choices=choices, conn=c)
 
 
+_FAMILY_KIND = {"built": "builtWidget", "routine": "routine", "tracker": "tracker"}
+
+
+def _slot_accounting(row: dict, embeds: list, skipped: list) -> tuple[list, list]:
+    """(slots unaccounted for, malformed skip lines). EVERY family slot of the row must become exactly one node of
+    its kind or exactly one skip line naming its block (I-2): per family, nodes + skipped slots == slots."""
+    from collections import Counter
+    bad_skips = [s for s in skipped if not (isinstance(s, dict) and isinstance(s.get("block"), str)
+                                            and isinstance(s.get("reason"), str) and s["reason"])]
+    skipped_ids = Counter(s.get("block") for s in skipped if isinstance(s, dict))
+    slots = Counter(_FAMILY_KIND[js.slot_family(b["block"])] for b in row["blocks"] if js.slot_family(b["block"]))
+    got = Counter(n["attrs"]["widgetId"] for n in embeds if n["attrs"]["widgetId"] in _FAMILY_KIND.values())
+    for b in row["blocks"]:
+        fam = js.slot_family(b["block"])
+        if fam and skipped_ids[b["block"]]:
+            got[_FAMILY_KIND[fam]] += skipped_ids[b["block"]]
+    missing = sorted((k, slots[k], got[k]) for k in set(slots) | set(got) if slots[k] != got[k])
+    return missing, bad_skips
+
+
+def test_slot_accounting_sees_one_missing_slot_of_several():
+    """Control for I-2: three of four built nodes present (no skip line) is refused, all four is accepted."""
+    row = next(r for r in _live() if r["slug"] == "monthly-review")
+    node = {"attrs": {"widgetId": "builtWidget"}}
+    assert _slot_accounting(row, [node] * 4, []) == ([], [])
+    assert _slot_accounting(row, [node] * 3, [])[0] == [("builtWidget", 4, 3)]
+    assert _slot_accounting(row, [node] * 3, [{"block": "built_d", "reason": "slot-missing:built_d"}]) == ([], [])
+    assert _slot_accounting(row, [node] * 4, [{"reason": "x"}])[1] == [{"reason": "x"}]
+
+
 def test_every_row_fills_on_the_sample_book_without_a_500(db):
     db.execute("DELETE FROM j2_template_gallery")
     db.commit()
@@ -567,17 +691,62 @@ def test_every_row_fills_on_the_sample_book_without_a_500(db):
             text = json.dumps(body)
             assert "{{block:" not in text, (uid, row["slug"])
             embeds = [n for n in _walk(body) if n.get("type") == "widgetEmbed"]
-            ids = {n["attrs"]["widgetId"] for n in embeds}
-            skipped = out["skipped"]
-            for b in row["blocks"]:
-                fam = js.slot_family(b["block"])
-                if fam is None:
-                    continue
-                kind = {"built": "builtWidget", "routine": "routine", "tracker": "tracker"}[fam]
-                assert kind in ids or any(b["block"] in str(s) for s in skipped), (uid, row["slug"], b["block"])
+            assert _slot_accounting(row, embeds, out["skipped"]) == ([], []), (uid, row["slug"])
             for n in embeds:
                 if n["attrs"]["widgetId"] == "builtWidget":
                     assert _zeros(n["attrs"]["params"]) == [], (uid, row["slug"])
+
+
+def _today_et() -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
+
+def test_tag_todays_trades_lists_newest_day_first(db):
+    """M-1: "sort newest" is the list view's own order, which the closed-trades scan sets: newest ET day first
+    (`ORDER BY <ET day> DESC, t.id DESC`). Tag today's trades' own plan, run over a wider range, puts three trades on
+    three days newest day first. (Within ONE day the scan's tiebreak is the trade id, not the exit time: recorded
+    in the 11.10 report as an engine limit, not railed here.)"""
+    from datetime import date, timedelta
+    from tests.test_widget_sources import add_trade
+    from api.services.journal_two.widget_engine import run
+    today = date.fromisoformat(_today_et())
+    for sym, back in (("AAA", 3), ("CCC", 1), ("BBB", 2)):
+        d = (today - timedelta(days=back)).isoformat()
+        add_trade(db, AUTHOR, day=d, symbol=sym)
+    row = next(r for r in _live() if r["slug"] == "tag-todays-trades")
+    plan = copy.deepcopy(row["definitions"][0]["plan"])
+    assert plan["range"] == {"token": "today"} and "sort" not in plan
+    out = run.run_plan(AUTHOR, plan, {"range": {"token": "last_30d"}}, lane="run")
+    labels = [r["label"] for r in out["rows"]]
+    assert labels == ["CCC", "BBB", "AAA"], labels
+
+
+@pytest.mark.parametrize("slug, wave10_blocks", [("goal-setting", {"built_a"}), ("rules-review", {"built_a"})])
+def test_wave10_off_hides_its_shelf_slot_and_the_rest_fills(db, monkeypatch, slug, wave10_blocks):
+    """M-2 (Review Focus 5): wave 10 off, wave 11 on. A shelf slot whose plan needs wave 10 is HIDDEN by the one
+    decider (`journal_styles.slot_wave_off`): no node and no sentence. Every other slot still fills."""
+    from collections import Counter
+    db.execute("DELETE FROM j2_template_gallery")
+    db.commit()
+    tl.seed_template_library(db)
+    row = next(r for r in _live() if r["slug"] == slug)
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W10_ENABLED", raising=False)
+    hidden = {b["block"] for b in row["blocks"] if js.slot_family(b["block"])
+              and js.slot_wave_off(b["block"], b["settings"])}
+    assert hidden == wave10_blocks                                   # the one decider names exactly these
+    out = _fill(db, MEMBER, row, None)
+    embeds = [n for n in _walk(out["note"]["bodyJson"]) if n.get("type") == "widgetEmbed"]
+    assert not any(isinstance(s, dict) and s.get("block") in hidden for s in out["skipped"])
+    shown = dict(row, blocks=[b for b in row["blocks"] if b["block"] not in hidden])
+    assert _slot_accounting(shown, embeds, out["skipped"]) == ([], [])
+    assert "{{block:" not in json.dumps(out["note"]["bodyJson"])
+    # control: with wave 10 on, the same slot fills (so the absence above is the wave, not a broken slot)
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+    out_on = _fill(db, OTHER, row, None)
+    on = Counter(n["attrs"]["widgetId"] for n in _walk(out_on["note"]["bodyJson"]) if n.get("type") == "widgetEmbed")
+    assert on["builtWidget"] == sum(1 for b in row["blocks"] if js.slot_family(b["block"]) == "built")
 
 
 # ── copy (R-33, member words) ────────────────────────────────────────────────────────────────────────────────────
@@ -585,13 +754,14 @@ def test_every_row_fills_on_the_sample_book_without_a_500(db):
 #: Spec §10 names three templates with a trader's own word for one idea's write-up; R-33 governs the app's word for
 #: a widget's settings. These three TITLES are kept as the spec names them; nothing else may say "plan" bare.
 SPEC_TITLES_WITH_PLAN = ("Game plan", "Trade plan (one idea)", "Options trade plan")
-_BANNED = ("plan", "definition", "shelf", "slot", "payload", "reducer", "scope", "journal style", "inline")
+_BANNED = ("plan", "definition", "shelf", "slot", "payload", "reducer", "scope", "journal style", "inline",
+           "source", "built widget", "checklist")
 _EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿⬀-⯿️]")
 
 
 def _copy_texts() -> list[str]:
     out = []
-    for r in tl.LIBRARY:
+    for r in tl.rows():
         if r["title"] not in SPEC_TITLES_WITH_PLAN:
             out.append(r["title"])
         out.append(r["description"])
@@ -610,9 +780,9 @@ def test_no_bare_plan_word_in_seed_copy():
     bad = [t for t in texts if any(re.search(rf"\b{w}", t.lower().replace("trading plan", "")) for w in _BANNED)]
     assert bad == []
     assert any("trading plan" in t.lower() for t in texts)              # the allowance is used, not dead
-    assert [t for t in texts + [r["title"] for r in tl.LIBRARY] if _EMOJI.search(t)] == []
+    assert [t for t in texts + [r["title"] for r in tl.rows()] if _EMOJI.search(t)] == []
     # the exemption is exactly the spec's three titles, each used once
-    assert sorted(r["title"] for r in tl.LIBRARY if re.search(r"\bplan\b", r["title"].lower())) == sorted(
+    assert sorted(r["title"] for r in tl.rows() if re.search(r"\bplan\b", r["title"].lower())) == sorted(
         SPEC_TITLES_WITH_PLAN)
     # control: the sweep sees a bare "plan" where it would be wrong
     assert any(re.search(r"\bplan", t.lower().replace("trading plan", "")) for t in ["Your plan for today"])
@@ -639,8 +809,48 @@ def released_violations(released: list[dict], local: list[dict], base: list[dict
     return out
 
 
+def _payloads() -> dict:
+    return json.loads((REPO / PAYLOADS_REL).read_text(encoding="utf-8"))["payloads"]
+
+
+def test_every_live_row_stores_its_committed_payload():
+    """M-4: what the seeder STORES (outline, payload, preview, derived by code) hashes to the committed value for
+    every live row, so a change in the deriving code is seen, not only a change in the seed row."""
+    want = _payloads()
+    got = {r["seedKey"]: tl.payload_hash(r) for r in _live()}
+    assert got == want
+    # control: a change to the deriving code moves the hash
+    row = _live()[0]
+    real = tl._outline_from_sections
+    try:
+        tl._outline_from_sections = lambda secs: real(secs)[:-1]
+        assert tl.payload_hash(row) != want[row["seedKey"]]
+    finally:
+        tl._outline_from_sections = real
+
+
+def released_payload_violations(released: dict, local: dict, base: dict | None) -> list[str]:
+    """The same rule as `released_violations`, over the committed stored-payload hashes."""
+    out = []
+    for key, sha in released.items():
+        if key in local:
+            if local[key] != sha and (base or {}).get(key) != local[key]:
+                out.append(f"{key}: its stored payload changed after release")
+        elif key in (base or {}):
+            out.append(f"{key}: its stored payload was removed after release")
+    return out
+
+
+def test_released_payload_violations_sees_a_change():
+    a = {"k1": "1" * 64, "k2": "2" * 64}
+    assert released_payload_violations(a, a, a) == []
+    assert released_payload_violations(a, {**a, "k1": "9" * 64}, a) == ["k1: its stored payload changed after release"]
+    assert released_payload_violations(a, {"k2": a["k2"]}, a) == ["k1: its stored payload was removed after release"]
+    assert released_payload_violations({**a, "k3": "3" * 64}, a, a) == []
+
+
 def test_released_violations_sees_a_changed_or_removed_row():
-    rows = copy.deepcopy(tl.LIBRARY[:3])
+    rows = copy.deepcopy(tl.rows()[:3])
     assert released_violations(rows, rows, rows) == []                                       # identical: clean
     edited = copy.deepcopy(rows)
     edited[0]["title"] = edited[0]["title"] + "!"
@@ -652,7 +862,7 @@ def test_released_violations_sees_a_changed_or_removed_row():
     reordered = [dict(reversed(list(r.items()))) for r in rows]
     assert released_violations(rows, reordered, rows) == []
     # the world moving is not a violation: master released a fourth row after this branch's base ...
-    ahead = rows + copy.deepcopy(tl.LIBRARY[3:4])
+    ahead = rows + copy.deepcopy(tl.rows()[3:4])
     assert released_violations(ahead, rows, rows) == [] and released_violations(ahead, rows, None) == []
     # ... and master editing a row this branch never touched is master's, not this branch's
     assert released_violations(edited, rows, rows) == []
@@ -671,13 +881,13 @@ def _git(*args: str) -> subprocess.CompletedProcess:
                           errors="replace", env=_scrubbed_env())
 
 
-def _show(ref: str) -> list[dict] | None:
-    if _git("cat-file", "-e", f"{ref}:{SEED_REL}").returncode != 0:
+def _show(ref: str, rel: str = SEED_REL, key: str = "templates"):
+    if _git("cat-file", "-e", f"{ref}:{rel}").returncode != 0:
         return None
-    r = _git("show", f"{ref}:{SEED_REL}")
+    r = _git("show", f"{ref}:{rel}")
     if r.returncode != 0:
-        pytest.fail(f"git could not read {ref}:{SEED_REL} ({r.stderr.strip()}); run `{FETCH}`")
-    return json.loads(r.stdout)["templates"]
+        pytest.fail(f"git could not read {ref}:{rel} ({r.stderr.strip()}); run `{FETCH}`")
+    return json.loads(r.stdout)[key]
 
 
 def test_released_rows_never_change():
@@ -693,5 +903,9 @@ def test_released_rows_never_change():
     base_sha = _git("merge-base", "HEAD", "origin/master")
     if base_sha.returncode != 0:
         pytest.fail(f"no merge-base with origin/master ({base_sha.stderr.strip()}); run `{FETCH}`")
-    bad = released_violations(released, tl.LIBRARY, _show(base_sha.stdout.strip()))
+    base = base_sha.stdout.strip()
+    bad = released_violations(released, tl.rows(), _show(base))
+    released_payloads = _show("origin/master", PAYLOADS_REL, "payloads")
+    if released_payloads is not None:
+        bad += released_payload_violations(released_payloads, _payloads(), _show(base, PAYLOADS_REL, "payloads"))
     assert bad == [], bad

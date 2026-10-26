@@ -625,7 +625,7 @@ def _kind_count(c, kind):
 def test_a_boot_seeds_the_official_templates_beside_the_firm_styles(booted):
     from api.services.journal_two import template_library as tl
     assert _kind_count(booted, "firm") == 15
-    assert _kind_count(booted, "official") == len(tl.LIBRARY) - len(tl.RETIRED) == 27
+    assert _kind_count(booted, "official") == len(tl.live_rows()) == 27
 
 
 @pytest.mark.parametrize("broken", ["seed_firm_styles", "seed_template_library"])

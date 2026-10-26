@@ -14,10 +14,14 @@ The seed is `template_library_seed.json`, one row per template:
      "definitions": [{"key", "plan", "name", "description"}], "slots": [{"id", "type", "label", "any",
      "source", "field"}]}
 
-`load_library_seed` checks every row when this module is imported (`LIBRARY`), so a broken seed fails the import,
-and with it the boot of whatever imports this module, never a member's card. `seed_template_library` writes the rows
-INSERT OR IGNORE by seed key, so an admin's later hide or unfeature is never undone by a reboot; a failure there is
-logged, never raised (the P5 row 27 rule).
+Ruling W11-R37: this module ALWAYS imports. `GROUPS` / `GROUP_KEYS` are static constants that never depend on the
+seed (the gallery's `group=` filter reads them), and the seed is loaded and checked once, lazily, by
+`library_state()`, which caches an ok/error answer. A broken seed (`load_library_seed` raises `LibrarySeedError`
+naming the row) therefore never crashes a boot and never 500s a member: the seeder writes nothing and logs loudly,
+the official templates are simply absent, and every gallery read keeps working on the remaining rows. The CI guard
+stays: `tests/test_template_library_seed.py` fails on a broken seed, so one cannot ship.
+`seed_template_library` writes the rows INSERT OR IGNORE by seed key, so an admin's later hide or unfeature is never
+undone by a reboot; a failure there is logged, never raised (the P5 row 27 rule).
 
 ⛔ A released row never changes (R-P5-4): to change an official template, add a `-v2` row and list the `-v1` key in
 the file's `retired` list. `tests/test_template_library_seed.py::test_released_rows_never_change` holds this file
@@ -29,8 +33,9 @@ import copy
 import json
 import re
 import sqlite3
+import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from api.services.journal_two.template_tools import LibraryError  # noqa: F401 -- the one refusal class (W9-R14)
 
@@ -255,7 +260,14 @@ def _check_row(i: int, row: Any, pins: frozenset) -> dict:
 def load_library_seed(path: Path | str = SEED_FILE, *, manifest_path: Path | str | None = None) -> list[dict]:
     """The seed's rows, in file order, each checked (`LibrarySeedError` naming the row otherwise): the seed key's
     shape and uniqueness, its group, kind of note and category, its blocks, definitions, choices and sections. A
-    `retired` key must name a row of the file (rows are never removed), and the live rows' slugs are unique."""
+    `retired` key must name a row of the file (rows are never removed) and have a newer live row for its slug, and
+    the live rows' slugs are unique. RAISES: the CI rails call it directly; runtime reads go through
+    `library_state()`, which never raises."""
+    return _load(path, manifest_path=manifest_path)[0]
+
+
+def _load(path: Path | str = SEED_FILE, *, manifest_path: Path | str | None = None) -> tuple[list[dict], tuple]:
+    """`(rows, retired keys)` of the seed, every row checked; `LibrarySeedError` naming the row otherwise."""
     from api.services.journal_two.widget_engine import shelf
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -281,12 +293,65 @@ def load_library_seed(path: Path | str = SEED_FILE, *, manifest_path: Path | str
     stray = sorted(set(retired) - keys)
     if stray:
         raise LibrarySeedError(f"{', '.join(stray)}: retired but not a row of the seed")
-    return copy.deepcopy(rows)
+    by_key = {r["seedKey"]: r for r in rows}
+    orphaned = sorted(k for k in retired if by_key[k]["slug"] not in live_slugs)
+    if orphaned:
+        raise LibrarySeedError(f"{', '.join(orphaned)}: retired with no newer row for its slug (add the -v2 row)")
+    return copy.deepcopy(rows), tuple(retired)
 
 
-def _retired(path: Path | str = SEED_FILE) -> tuple[str, ...]:
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return tuple(data.get("retired", []))
+class LibraryState(NamedTuple):
+    """`library_state()`'s cached answer: the checked rows and retired keys, or `error` (then both are empty)."""
+    rows: tuple
+    retired: tuple
+    error: str | None
+
+
+_STATE_LOCK = threading.Lock()
+_STATE: LibraryState | None = None
+
+
+def library_state() -> LibraryState:
+    """The seed, loaded and checked ONCE and cached (W11-R37). Never raises: a broken seed answers `error` (logged
+    loudly, once) with no rows, so the official templates are simply absent."""
+    global _STATE
+    st = _STATE
+    if st is not None:
+        return st
+    with _STATE_LOCK:
+        if _STATE is None:
+            try:
+                rows_, retired_ = _load(SEED_FILE)
+                _STATE = LibraryState(tuple(rows_), retired_, None)
+            except Exception as e:  # noqa: BLE001 -- a broken seed is an absent library, never a crash
+                msg = f"{type(e).__name__}: {e}"
+                print(f"[template-library] ERROR: the official template seed is broken; no official template is"
+                      f" listed until it is fixed: {msg}")
+                _STATE = LibraryState((), (), msg)
+        return _STATE
+
+
+def reset_library_state() -> None:
+    """Drop the cached answer (tests, after pointing `SEED_FILE` elsewhere)."""
+    global _STATE
+    with _STATE_LOCK:
+        _STATE = None
+
+
+def rows() -> list[dict]:
+    """Every seed row (retired ones included), as fresh copies; empty while the seed is broken."""
+    return copy.deepcopy(list(library_state().rows))
+
+
+def retired() -> tuple[str, ...]:
+    """The seed keys replaced by a newer version (`-v2`); empty while the seed is broken."""
+    return library_state().retired
+
+
+def live_rows() -> list[dict]:
+    """The rows the seeder writes: every row not retired."""
+    gone = set(retired())
+    return [r for r in rows() if r["seedKey"] not in gone]
 
 
 def _para(text: str) -> dict:
@@ -321,22 +386,31 @@ def row_parts(row: dict) -> tuple[dict, dict, list[dict]]:
     return outline, payload, tg.preview_lines({"type": "doc", "content": shown})
 
 
-#: The marker `seed_template_library` writes as `hidden_by` when it hides a retired row, so it hides one only once.
+#: The marker `seed_template_library` writes as `hidden_by` when it hides a retired row.
 RETIRED_BY = "uct-template-library"
 
 
 def seed_template_library(conn: sqlite3.Connection) -> int:
     """INSERT OR IGNORE each live official template by seed key: `kind = 'official'`, `item_type = 'style'`,
-    approved, featured, no author, version 1, its group in `template_group`. A retired row is never inserted, and a
-    stored one is hidden once (a visibility state, never a delete). Returns how many rows were added (0 on every boot
-    after the first). A failure is logged, never raised: nothing is written."""
+    approved, featured, no author, version 1, its group in `template_group`. Returns how many rows were added (0 on
+    every boot after the first).
+
+    A retired row is never inserted. The seed sets visibility only for rows it newly creates: a stored retired row
+    is hidden in the same pass that newly inserts its replacement (its `-v2`), and never again, so an admin who
+    unhides it later keeps it as they left it. A broken seed writes nothing and is logged loudly (W11-R37); any
+    other failure is rolled back and logged, never raised."""
     from api.services.journal_two import template_gallery as tg
+    state = library_state()
+    if state.error is not None:
+        print(f"[template-library] ERROR: official template seed skipped, the seed is broken: {state.error}")
+        return 0
     try:
-        retired = set(RETIRED)
+        gone = set(state.retired)
         added = 0
+        new_slugs: set = set()
         now = tg._now()
-        for row in LIBRARY:
-            if row["seedKey"] in retired:
+        for row in state.rows:
+            if row["seedKey"] in gone:
                 continue
             outline, payload, preview = row_parts(row)
             cur = conn.execute(
@@ -348,11 +422,14 @@ def seed_template_library(conn: sqlite3.Connection) -> int:
                 (tg.firm_style_id(row["seedKey"]), row["seedKey"], row["title"], row["description"],
                  row["category"], json.dumps(outline), now, now, now, json.dumps(preview), json.dumps(payload),
                  row["group"]))
-            added += cur.rowcount or 0
-        for key in sorted(retired):
-            conn.execute("UPDATE j2_template_gallery SET hidden = 1, hidden_by = ?, hidden_at = ?"
-                         " WHERE seed_key = ? AND kind = ? AND hidden = 0 AND hidden_by IS NULL",
-                         (RETIRED_BY, now, key, KIND))
+            if cur.rowcount:
+                added += cur.rowcount
+                new_slugs.add(row["slug"])
+        for row in state.rows:
+            if row["seedKey"] in gone and row["slug"] in new_slugs:
+                conn.execute("UPDATE j2_template_gallery SET hidden = 1, hidden_by = ?, hidden_at = ?"
+                             " WHERE seed_key = ? AND kind = ? AND hidden = 0",
+                             (RETIRED_BY, now, row["seedKey"], KIND))
         conn.commit()
         return added
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed (P5 row 27)
@@ -364,12 +441,13 @@ def seed_template_library(conn: sqlite3.Connection) -> int:
         return 0
 
 
-#: THE checked rows, read once when this module is imported: a broken seed fails the import.
-LIBRARY: list[dict] = load_library_seed()
-#: The seed keys of rows replaced by a newer version (`-v2`): never inserted, hidden once if stored.
-RETIRED: tuple[str, ...] = _retired()
+def payload_hash(row: dict) -> str:
+    """The canonical SHA-256 of what the seeder STORES for a row (outline, payload, preview), so a change in the
+    code that derives them is as visible to the released-rows rail as a change in the seed row itself (M-4)."""
+    from api.services.journal_two.widget_engine import shelf
+    outline, payload, preview = row_parts(row)
+    return shelf.canonical_hash({"outline": outline, "payload": payload, "preview": preview})
 
 
-def rows() -> list[dict]:
-    """Every seed row (retired ones included), as fresh copies."""
-    return copy.deepcopy(LIBRARY)
+#: The committed `payload_hash` of each live row, checked by the tests; append-only once released.
+PAYLOADS_FILE = Path(__file__).with_name("template_library_payloads.json")
