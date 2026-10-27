@@ -2145,6 +2145,20 @@ def without_placeholder_lines(body: Any) -> Any:
     return {**body, "content": strip(body["content"])}
 
 
+def with_trailing_paragraph(body: Any) -> Any:
+    """11.20 walk D2: `body` as the editor will hold it once it is open. TipTap's TrailingNode (StarterKit, `notAfter`
+    empty) appends ONE empty paragraph on the editor's first dispatched transaction whenever the doc's last top-level
+    node is not a paragraph, and that append is a docChanged the autosave sends: the first open of the note wrote it.
+    So a styled create stores the paragraph itself (the trade-plan canvas's rule, lib/tradeCanvas.js buildCanvasDoc,
+    "so opening it is not an edit"). An empty doc, or anything that is not a doc, is returned as it came. Total."""
+    if not isinstance(body, dict) or not isinstance(body.get("content"), list) or not body["content"]:
+        return body
+    last = body["content"][-1]
+    if isinstance(last, dict) and last.get("type") == "paragraph":
+        return body
+    return {**body, "content": [*body["content"], {"type": "paragraph"}]}
+
+
 def _after_first_heading(content: list) -> int:
     for i, n in enumerate(content):
         if isinstance(n, dict) and n.get("type") == "heading":
@@ -2499,6 +2513,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
     def insert(base: dict, composed: dict) -> dict:
         """The note's INSERT: as before without a hook; guarded, inside this create's own locked transaction."""
         stamp = (composed["styleId"], composed["styleVersion"], composed["kindId"])
+        base = {**base, "bodyJson": with_trailing_paragraph(base.get("bodyJson"))}   # D2: opening it writes nothing
         if not guarded:
             return notes_service.create_note(user_id, base, conn, properties=composed["properties"],
                                              captured_properties="keep", style_stamp=stamp)

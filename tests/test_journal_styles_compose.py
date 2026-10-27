@@ -1040,3 +1040,24 @@ def test_a_styled_create_passes_its_note_day_answers_and_choices_to_compose(db_p
         with pytest.raises(js.StyleValidationError) as e:
             js.create_styled_note("u1", {"kindId": "trade_plan", "title": "y", **bad})
         assert str(e.value) == js.S_BAD_ANSWERS
+
+
+def test_a_note_made_from_a_style_ending_on_a_widget_stores_the_editors_trailing_paragraph(db_path, monkeypatch):
+    """11.20 walk D2: a member style whose outline ends on a widget made a note that ENDED on the widget. TipTap's
+    TrailingNode appends an empty paragraph on the editor's first transaction (the plugin runs on any dispatched
+    transaction whose doc does not end on a paragraph), so the first open of that note changed its doc and the
+    autosave wrote it. The insert stores the body the editor would hold: ONE empty paragraph after the widget, and
+    nothing else moved (CONTROL: the composed blocks before it are exactly compose's)."""
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    s = js.create_style("u1", {"name": "Ends on a widget", "kindId": "weekly_review",
+                               "outlineBodyJson": {"type": "doc", "content": [js._h("Week"), js._ph("myWatchlistToday")]},
+                               "blocks": [{"block": "myWatchlistToday", "enabled": True, "settings": {"list": "flagged"}}]})
+    monkeypatch.setattr(nw, "build", _fake_build([]))
+    _waves(monkeypatch, 1)
+    note, _ = js.create_styled_note("u1", {"styleId": s["id"], "title": "today"})
+    content = note["bodyJson"]["content"]
+    assert [n["type"] for n in content] == ["heading", "widgetEmbed", "paragraph"]
+    assert content[-1] == {"type": "paragraph"}
+    from api.services.journal_two import notes as notes_service
+    stored = notes_service.get_note("u1", note["id"])["bodyJson"]["content"]
+    assert stored[-1] == {"type": "paragraph"} and stored[:-1] == content[:-1]

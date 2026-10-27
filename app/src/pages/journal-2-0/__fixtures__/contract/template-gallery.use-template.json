@@ -186,11 +186,14 @@
               "widgetId": "prepLevels"
             },
             "type": "widgetEmbed"
+          },
+          {
+            "type": "paragraph"
           }
         ],
         "type": "doc"
       },
-      "bodyPlain": "Your list today The names you are watching, and why each one is on the list. [widget] What's moving Which of your names are moving, and is it a move you want? [my movers] Levels to wait for The price that would make each name worth a trade. [key levels from my plans]",
+      "bodyPlain": "Your list today The names you are watching, and why each one is on the list. [widget] What's moving Which of your names are moving, and is it a move you want? [my movers] Levels to wait for The price that would make each name worth a trade. [key levels from my plans] ",
       "createdAt": "2026-10-05T14:30:00+00:00",
       "dailyDate": null,
       "deletedAt": null,
