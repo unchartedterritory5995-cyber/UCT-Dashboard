@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
 import { acquireFullscreenSheet } from './fullscreenSheetAttr'
-import { inertBackground } from './backgroundInert'
+import { inertBackground, openerLayer } from './backgroundInert'
 import styles from './Sheet.module.css'
 
 /* Sheet — responsive modal / drawer primitive.
@@ -111,6 +111,19 @@ export default function Sheet({
     [open],
   )
 
+  // W11-R80: a sheet opened from inside a layer drawn ABOVE the modal rung (TickerPopup's modal, z 8600) is drawn
+  // above that layer, not under it. Read once per opening, like `openerAtRender`; a caller's own `zIndex` wins.
+  // ⛔ The layer is found from WHERE THIS SHEET IS RENDERED (a hidden anchor left in place while the panel portals to
+  // <body>), never from focus: iOS Safari does not focus a tapped button, so `document.activeElement` is <body> there.
+  const anchorRef = useRef(null)
+  const [layerZ, setLayerZ] = useState(null)
+  useLayoutEffect(() => {
+    if (!open) { setLayerZ(null); return }
+    const z = openerLayer(anchorRef.current || openerAtRender)?.z
+    setLayerZ(Number.isFinite(z) && z >= 1000 ? z + 1 : null)
+  }, [open, openerAtRender])
+  const backdropZ = zIndex != null ? zIndex : layerZ
+
   // Resolve effective variant
   const resolved =
     variant === 'auto' ? (isTouch ? 'bottom-sheet' : 'modal') : variant
@@ -129,8 +142,9 @@ export default function Sheet({
   // declaration order, so the page is live again before focus is put back on the opener inside it.
   useEffect(() => {
     if (!open) return undefined
-    return inertBackground(panelRef.current?.parentElement || null)
-  }, [open])
+    // W11-R80: the opener's own layer (a popup portal above the modal rung) stays live.
+    return inertBackground(panelRef.current?.parentElement || null, anchorRef.current || openerAtRender)
+  }, [open, openerAtRender])
 
   // Escape to close + focus management
   useEffect(() => {
@@ -266,10 +280,13 @@ export default function Sheet({
       ? undefined
       : { maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth }
 
-  return createPortal(
+  return (<>
+    {/* W11-R80: where this sheet is rendered, for `openerLayer` (hidden, no box, no name). */}
+    <span ref={anchorRef} hidden data-sheet-anchor="" />
+    {createPortal(
     <div
       className={`${styles.backdrop} ${styles[resolved]}`}
-      style={zIndex != null ? { zIndex } : undefined}
+      style={backdropZ != null ? { zIndex: backdropZ } : undefined}
       onMouseDown={(e) => {
         if (dismissOnBackdrop && e.target === e.currentTarget) onCloseRef.current?.()
       }}
@@ -310,5 +327,6 @@ export default function Sheet({
       </div>
     </div>,
     document.body,
-  )
+  )}
+  </>)
 }

@@ -9,10 +9,14 @@
 import { useState } from 'react'
 import { act, render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { createPortal } from 'react-dom'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test } from 'vitest'
 import Sheet from './Sheet'
 
-afterEach(cleanup)
+// The app's root, as main.jsx mounts it: the page a sheet makes inert.
+let appRoot
+beforeEach(() => { appRoot = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'root' })) })
+afterEach(() => { cleanup(); appRoot.remove() })
+const renderApp = (ui) => render(ui, { container: appRoot })
 
 const frames = (n = 2) => act(() => new Promise((resolve) => {
   const step = (k) => (k ? requestAnimationFrame(() => step(k - 1)) : resolve())
@@ -42,7 +46,7 @@ function Host() {
 }
 
 test('the page behind an open sheet is inert; the sheet is not; closing restores the page and focus', async () => {
-  render(<Host />)
+  renderApp(<Host />)
   const opener = screen.getByRole('button', { name: 'Open outer' })
   opener.focus()
   expect(pageRoot().hasAttribute('inert')).toBe(false)
@@ -58,7 +62,7 @@ test('the page behind an open sheet is inert; the sheet is not; closing restores
 })
 
 test('a nested sheet makes the outer one inert while it is open, and only then', async () => {
-  render(<Host />)
+  renderApp(<Host />)
   fireEvent.click(screen.getByRole('button', { name: 'Open outer' }))
   await frames()
   fireEvent.click(screen.getByRole('button', { name: 'Open inner' }))
@@ -77,7 +81,7 @@ test('a nested sheet makes the outer one inert while it is open, and only then',
 })
 
 test("what a sheet's own content portals after it opens (a menu) is never made inert", async () => {
-  render(<Host />)
+  renderApp(<Host />)
   fireEvent.click(screen.getByRole('button', { name: 'Open outer' }))
   await frames()
   fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
@@ -90,7 +94,7 @@ test('CONTROL: an element that was inert before the sheet opened is still inert 
   already.setAttribute('inert', '')
   document.body.appendChild(already)
   try {
-    render(<Host />)
+    renderApp(<Host />)
     fireEvent.click(screen.getByRole('button', { name: 'Open outer' }))
     await frames()
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -99,4 +103,51 @@ test('CONTROL: an element that was inert before the sheet opened is still inert 
   } finally {
     already.remove()
   }
+})
+
+// W11-R80 (review I-1): two layers the app draws ABOVE every modal must stay live while a sheet is open.
+test('a body child marked data-sheet-keep-live (the video player) stays live; an unmarked one does not', async () => {
+  const live = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'video' }))
+  live.setAttribute('data-sheet-keep-live', '')
+  const other = document.body.appendChild(document.createElement('div'))
+  try {
+    renderApp(<Host />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open outer' }))
+    await frames()
+    expect(live.hasAttribute('inert')).toBe(false)
+    expect(other.hasAttribute('inert')).toBe(true)                    // CONTROL: no marker, inert as before
+    expect(appRoot.hasAttribute('inert')).toBe(true)
+  } finally {
+    live.remove()
+    other.remove()
+  }
+})
+
+/** TickerPopup's shape: its own <body> portal above the modal rung, opening a default-z Sheet from inside it. */
+function PopupHost() {
+  const [open, setOpen] = useState(false)
+  return createPortal(
+    <div data-testid="popup" style={{ position: 'fixed', zIndex: 8600 }}>
+      <button type="button" onClick={() => setOpen(true)}>Chart tools</button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Tools" labelledByTitle><button type="button">Draw</button></Sheet>
+    </div>,
+    document.body,
+  )
+}
+
+test('a sheet opened from inside a higher popup leaves its host popup live, and is drawn above it', async () => {
+  renderApp(<><button type="button">Page</button><PopupHost /></>)
+  fireEvent.click(screen.getByRole('button', { name: 'Chart tools' }))
+  await frames()
+  const popup = screen.getByTestId('popup')
+  expect(popup.hasAttribute('inert')).toBe(false)                    // the opener's own layer
+  expect(appRoot.hasAttribute('inert')).toBe(true)                   // the page under both is still inert
+  expect(Number(backdropOf('Tools').style.zIndex)).toBeGreaterThan(8600)
+})
+
+test('CONTROL: a sheet opened from the page keeps the default modal rung (no inline z-index)', async () => {
+  renderApp(<Host />)
+  fireEvent.click(screen.getByRole('button', { name: 'Open outer' }))
+  await frames()
+  expect(backdropOf('Outer').style.zIndex).toBe('')
 })

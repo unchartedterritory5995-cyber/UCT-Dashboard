@@ -49,11 +49,13 @@ const LIST = [
 
 const renderLayer = () =>
   render(<MemoryRouter><GlobalVideoLayer /></MemoryRouter>)
+// W11-R80: the host is its own <body> child (a portal), not inside the render container.
+const videoHost = () => document.querySelector('[data-video-host]')
 
 describe('GlobalVideoLayer', () => {
   it('renders nothing while closed', () => {
-    const { container } = renderLayer()
-    expect(container.firstChild).toBeNull()
+    renderLayer()
+    expect(videoHost()).toBeNull()
   })
 
   it('builds the player and shows the title when a video plays', () => {
@@ -175,10 +177,10 @@ describe('GlobalVideoLayer', () => {
   // jsdom (like iPhone WebKit) has NO element-fullscreen API — the button must
   // fall back to fake fullscreen instead of silently doing nothing.
   it('fullscreen button falls back to viewport-pinned mode without a fullscreen API', () => {
-    const { container } = renderLayer()
+    renderLayer()
     act(() => store.play(LIST, 0))
     fireEvent.click(screen.getByLabelText('Fullscreen'))
-    const host = container.firstChild
+    const host = videoHost()
     expect(host.style.top).toBe('0px')
     expect(host.style.left).toBe('0px')
     expect(document.documentElement.style.overflow).toBe('hidden')
@@ -204,13 +206,13 @@ describe('GlobalVideoLayer', () => {
   })
 
   it('leaving the docked theater exits fake fullscreen', () => {
-    const { container } = renderLayer()
+    renderLayer()
     act(() => store.play(LIST, 0))
     fireEvent.click(screen.getByLabelText('Fullscreen'))
-    expect(container.firstChild.style.top).toBe('0px')
+    expect(videoHost().style.top).toBe('0px')
     act(() => store.minimize())
     expect(document.documentElement.style.overflow).not.toBe('hidden')
-    expect(container.firstChild.style.top).not.toBe('0px')
+    expect(videoHost().style.top).not.toBe('0px')
   })
 
   describe('mobile audio-primary playback', () => {
@@ -1029,5 +1031,31 @@ describe('GlobalVideoLayer', () => {
       expect(audioEl.currentTime).toBe(1340) // seeded synchronously, pre-resolve
       expect(lastPlayerVars.start).toBe(1340) // YT and audio agree on the clip start
     })
+  })
+})
+
+// W11-R80 (review I-1 of the walk-fix branch): the player is drawn ABOVE every modal (z 8500), so it must stay live
+// while a Sheet holds the page inert. It is its own <body> child marked keep-live (a subtree of an inert #root could
+// never be exempted: inert is inherited), and its controls still work with a sheet open.
+describe('the player stays live above an open Sheet (W11-R80)', () => {
+  it('is a keep-live body child, not inert while a sheet is open, and its controls still act', async () => {
+    const Sheet = (await import('../mobile/Sheet')).default
+    const appRoot = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'root' }))
+    try {
+      const tree = (open) => <MemoryRouter><GlobalVideoLayer /><Sheet open={open} onClose={() => {}} title="Menu" labelledByTitle><button type="button">Item</button></Sheet></MemoryRouter>
+      const view = render(tree(false), { container: appRoot })
+      act(() => store.play(LIST, 0))                                    // the player is up BEFORE the sheet opens
+      const host = videoHost()
+      expect(host.parentElement).toBe(document.body)
+      expect(host.hasAttribute('data-sheet-keep-live')).toBe(true)
+      view.rerender(tree(true))
+      expect(appRoot.hasAttribute('inert')).toBe(true)                 // the page under the sheet is still inert
+      expect(host.closest('[inert]')).toBeNull()                        // the player is not
+      fireEvent.click(screen.getByLabelText('Back 15 seconds'))
+      expect(lastPlayer.seekTo).toHaveBeenCalledWith(5, true)
+      view.unmount()
+    } finally {
+      appRoot.remove()
+    }
   })
 })

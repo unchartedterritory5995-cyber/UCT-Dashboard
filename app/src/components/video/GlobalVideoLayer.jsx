@@ -8,6 +8,7 @@
 // so the player reads as part of our ecosystem, not YouTube's.
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
 import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos, registerTimeGetter, getDockEl, seekTo as storeSeekTo, consumeStartAt } from './videoStore'
@@ -797,8 +798,11 @@ export default function GlobalVideoLayer() {
     morphing ? styles.morphing : '',
   ].filter(Boolean).join(' ')
 
-  return (
-    <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode}>
+  // W11-R80: the host is its OWN <body> child (a portal) marked keep-live. It is drawn above every modal (z 8500), and
+  // while a Sheet is open the page under it is `inert` (components/mobile/backgroundInert.js); inert is inherited, so a
+  // player inside #root went dead under every sheet while still on screen, and a tap fell through to the backdrop.
+  return createPortal(
+    <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode} data-video-host="" data-sheet-keep-live="">
       <div ref={hostRef} className={styles.frame} />
       {/* Mobile audio-primary track. Inert unless isAudioPrimary() is driving
           it (flag off / desktop pointer => never gets a src). A 404 (no
@@ -948,5 +952,5 @@ export default function GlobalVideoLayer() {
         </div>
       )}
     </div>
-  )
+  , document.body)
 }

@@ -10,13 +10,41 @@
 //     so closing never un-inerts something another owner made inert.
 // The returned release must run BEFORE focus is restored to the opener (an inert element cannot take focus): Sheet
 // declares this effect before its focus effect, and React runs cleanups in declaration order.
+//
+// ⛔ W11-R80 (review I-1): two layers stay LIVE, because the app draws them ABOVE every modal and `inert` hit-tests
+// like `pointer-events: none` (a tap on them would fall through to the sheet's backdrop and close it):
+//   * a <body> child marked `data-sheet-keep-live` (GlobalVideoLayer's player host, z 8500, a portal for this reason:
+//     inert is inherited, so nothing INSIDE an inert #root can be exempted);
+//   * the opener's own layer (`openerLayer`): the <body> portal the sheet was opened from, when that is neither the
+//     app root nor another sheet (TickerPopup's modal, z 8600). A nested sheet's outer sheet is still made inert.
 const held = new WeakMap()   // element -> how many open sheets hold it inert
+const KEEP_LIVE = 'data-sheet-keep-live'
 
-export function inertBackground(own) {
+/** The <body> portal `opener` sits in, when it is a layer of its own (not #root, not a sheet), with the highest
+ *  numeric z-index on the way up to it; null otherwise. */
+export function openerLayer(opener) {
+  if (typeof document === 'undefined' || !opener || !opener.isConnected || !document.body) return null
+  let host = opener
+  let z = null
+  while (host && host.parentElement && host.parentElement !== document.body) {
+    const n = parseInt(getComputedStyle(host).zIndex, 10)
+    if (Number.isFinite(n)) z = z === null ? n : Math.max(z, n)
+    host = host.parentElement
+  }
+  if (!host || host.parentElement !== document.body) return null
+  if (host.id === 'root' || host.querySelector('[data-sheet-panel]')) return null
+  const n = parseInt(getComputedStyle(host).zIndex, 10)
+  if (Number.isFinite(n)) z = z === null ? n : Math.max(z, n)
+  return { el: host, z }
+}
+
+export function inertBackground(own, opener = null) {
   if (typeof document === 'undefined' || !document.body) return () => {}
   const mine = []
+  const layer = openerLayer(opener)?.el || null
   for (const el of [...document.body.children]) {
     if (el === own || (own && el.contains(own)) || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue
+    if (el === layer || el.hasAttribute(KEEP_LIVE)) continue      // W11-R80: drawn above the modal, kept live
     const n = held.get(el)
     if (n === undefined) {
       if (el.hasAttribute('inert')) continue        // somebody else's: leave it exactly as it is
