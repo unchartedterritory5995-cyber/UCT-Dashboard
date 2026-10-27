@@ -103,9 +103,9 @@ function post(url, raw, extraHeaders = null) {
  * 5xx), nothing was sent (`offline`), the server's own failure (`server`, `busy`), or `conflict`, which is how the
  * server answers a twin request still in flight ("That is already on its way. Try again in a moment.",
  * `template_gallery.S_KEY_IN_FLIGHT`). Every other code settles, `too_long` included (the run was refused before it
- * wrote). The server's KeyReused (the key sent for another item or door) is a definite refusal and would settle, but
- * today it shares the in-flight `conflict` code, so the safe reading wins; it cannot come from here, because a key is
- * held per door and item, the pair the server compares. All of this is railed against the server's source
+ * wrote), and so do `key_reused` (the key sent for another item or door, a definite refusal, A9; it cannot come from
+ * here, because a key is held per door and item, the pair the server compares) and `listing_moved` (the listing
+ * changed twice under the press and nothing was made, W11-R60). All of this is railed against the server's source
  * (templateLibrary.server.test.js).
  */
 const UNSETTLED = new Set(['network', 'offline', 'server', 'busy', 'conflict'])

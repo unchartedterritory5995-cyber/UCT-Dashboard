@@ -4,30 +4,21 @@
 // three doors that pass it on (`key=_key(request)`), and the in-flight refusal the client must treat as unsettled
 // (a 409 `conflict`, whose retry reuses the key so the server answers the first request's note).
 //
-// The server files land on the backend branch and reach this branch at the be -> impl merge. Until then the source is
-// read from that branch with `git show`, never skipped (SharePreviewSheet.server.test.js's reader: GIT_* scrubbed,
-// CRLF tolerated). After the merge the working tree holds it and git is not consulted.
+// The server files reached this branch at the be -> impl merge, so they are read from the working tree (CRLF
+// tolerated); the pre-merge `git show` of the backend branch is gone with the wait it covered.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
 import { useTemplate, adoptTemplate, adoptTool, answerSettled } from './templateLibrary'
 
 const REPO = path.resolve(__dirname, '../../../../..')
-const BE_BRANCH = 'origin/feat/notebook-widgets-p2-be'
 const GALLERY_PY = 'api/services/journal_two/template_gallery.py'
 const ROUTER_PY = 'api/routers/notebook_template_gallery.py'
 
-function serverSource(rel, marker) {
-  const abs = path.join(REPO, rel)
-  const local = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : ''
-  if (marker.test(local)) return local
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')))
-  return execFileSync('git', ['-C', REPO, 'show', `${BE_BRANCH}:${rel}`], { env, encoding: 'utf8' })
-}
+const serverSource = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8')
 
-const gallery = serverSource(GALLERY_PY, /^IDEMPOTENCY_HEADER = /m)
-const router = serverSource(ROUTER_PY, /^def _key\(/m)
+const gallery = serverSource(GALLERY_PY)
+const router = serverSource(ROUTER_PY)
 const headerName = /^IDEMPOTENCY_HEADER = "([^"]+)"\r?$/m.exec(gallery)?.[1]
 
 /** The body of one `def <name>(` in the router: up to the next top-level decorator or def. */
@@ -83,16 +74,24 @@ describe("the Use and Adopt key is the server's", () => {
     const busy = code(/except wrun\.EngineBusy as e:\s*\r?\n\s*raise _err\(503, "(\w+)"/)
     const server = code(/except gallery\.GalleryServerError as e:\s*\r?\n\s*raise _err\(500, "(\w+)"/)
     const inFlight = code(/except gallery\.GalleryConflict as e:\s*\r?\n\s*raise _err\(409, getattr\(e, "code", None\) or "(\w+)"/)
-    const keyReused = /^class KeyReused\(ToolError\):[\s\S]*?^\s+code = "(\w+)"/m.exec(gallery)?.[1]
-    for (const c of [tooLong, busy, server, inFlight, keyReused]) expect(c).toMatch(/^\w+$/)
+    // A9 / W11-R60: KeyReused and a twice-moved listing answer codes of their own, read from the service's constants.
+    const keyReused = /^KEY_REUSED_CODE = "(\w+)"\r?$/m.exec(gallery)?.[1]
+    const listingMoved = /^LISTING_MOVED_CODE = "(\w+)"\r?$/m.exec(gallery)?.[1]
+    for (const c of [tooLong, busy, server, inFlight, keyReused, listingMoved]) expect(c).toMatch(/^\w+$/)
+    // ...and KeyReused really answers it (its class carries the constant, never a retyped string).
+    expect(gallery).toMatch(/^class KeyReused\(ToolError\):[\s\S]*?^\s+code = KEY_REUSED_CODE\r?$/m)
     expect(answerSettled({ ok: false, code: tooLong })).toBe(true)
     expect(answerSettled({ ok: false, code: busy })).toBe(false)
     expect(answerSettled({ ok: false, code: server })).toBe(false)
     expect(answerSettled({ ok: false, code: inFlight })).toBe(false)
-    // KeyReused is a definite refusal (W11-R44) and settles, but only a code of its own can say so: while it shares
-    // the in-flight twin's code the safe reading (keep the key) wins. Unreachable from this client either way: a key
-    // is held per door and item, the very pair the server compares. Goes green the other way once be gives it a code.
-    expect(answerSettled({ ok: false, code: keyReused })).toBe(keyReused !== inFlight)
+    // SETTLED ANSWERS (flipped at the be merge): KeyReused is a definite refusal (W11-R44), and a listing that moved
+    // twice made nothing and asks for a fresh look (W11-R59/R60); each now has a code of its own, distinct from the
+    // in-flight `conflict`, so each settles the press.
+    expect(keyReused).toBe('key_reused')
+    expect(listingMoved).toBe('listing_moved')
+    expect(new Set([keyReused, listingMoved, inFlight]).size).toBe(3)
+    expect(answerSettled({ ok: false, code: keyReused, message: 'x' })).toBe(true)
+    expect(answerSettled({ ok: false, code: listingMoved, message: 'x' })).toBe(true)
   })
 
   it("the in-flight refusal is a codeless GalleryConflict, answered 409 'conflict': the client treats it as unsettled", () => {
