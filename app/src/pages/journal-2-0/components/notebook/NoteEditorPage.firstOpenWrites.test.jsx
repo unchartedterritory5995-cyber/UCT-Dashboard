@@ -59,12 +59,18 @@ const runClock = () => act(async () => { await vi.advanceTimersByTimeAsync(ARCHI
 // The server's styled create, plus a SECOND Market context that already holds its archive (stored with a `fallback`):
 // an open must never re-archive it (review m-2's first widened case), so the exemption below covers only the embeds
 // stored with `fallback: null`. A Market context, because it is the snapshot jsdom can draw live (a chart cannot).
+let ARCHIVED_AT = -1
 const OLD_ARCHIVE = { url: '/api/j2/notes/n1/images/old.png', w: 10, h: 10 }
 const templateMade = () => {
   const note = { ...contractBody('notes.create.kind').note, locked: false }
   const mc = note.bodyJson.content.findIndex((n) => n.type === 'widgetEmbed' && n.attrs.widgetId === 'marketcontext')
-  const archived = { ...note.bodyJson.content[mc], attrs: { ...note.bodyJson.content[mc].attrs, embedId: 'mc-archived', fallback: OLD_ARCHIVE } }
+  // W11-R82 m-3: BOTH Market contexts carry `embedId: null` (an embed stored before embed ids). Keyed by id, the fresh
+  // one's null also blanks the archived one's fallback (the R80 rail, keyed by embedId, goes red on this fixture with
+  // no mutant at all); keyed by POSITION the two cannot collide.
+  note.bodyJson.content[mc] = { ...note.bodyJson.content[mc], attrs: { ...note.bodyJson.content[mc].attrs, embedId: null } }
+  const archived = { ...note.bodyJson.content[mc], attrs: { ...note.bodyJson.content[mc].attrs, embedId: null, fallback: OLD_ARCHIVE } }
   note.bodyJson.content.splice(mc + 1, 0, archived)
+  ARCHIVED_AT = mc + 1
   return note
 }
 
@@ -111,22 +117,26 @@ async function openEditor() {
   })
 }
 
-/** Every widgetEmbed in `body`, at any depth. */
+/** Every widgetEmbed in `body`, at any depth, with its POSITION (the child-index path, e.g. "3" or "4.0.1"). W11-R82
+ *  m-3: embeds are keyed by position, never by embedId, which can be null (an embed stored before ids) and collide. */
 const embedsOf = (body) => {
   const out = []
-  const walk = (n) => { if (n?.type === 'widgetEmbed') out.push(n); (n?.content || []).forEach(walk) }
-  walk(body)
+  const walk = (n, path) => {
+    if (n?.type === 'widgetEmbed') out.push({ node: n, path })
+    ;(n?.content || []).forEach((c, i) => walk(c, path ? `${path}.${i}` : String(i)))
+  }
+  walk(body, '')
   return out
 }
 /** W11-R79 m-2: the exemption, exactly. `body` (RAW, no schema round trip) with `fallback` put back to null ONLY on the
- *  embeds that were STORED with `fallback: null` (`ids`, by embedId); every other byte must already be the stored one. */
-const withoutNewArchives = (body, ids) => {
-  const walk = (n) => ({
+ *  embeds at the positions STORED with `fallback: null` (`paths`); every other byte must already be the stored one. */
+const withoutNewArchives = (body, paths) => {
+  const walk = (n, path) => ({
     ...n,
-    ...(n.type === 'widgetEmbed' && ids.has(n.attrs?.embedId) ? { attrs: { ...n.attrs, fallback: null } } : {}),
-    ...(Array.isArray(n.content) ? { content: n.content.map(walk) } : {}),
+    ...(n.type === 'widgetEmbed' && paths.has(path) ? { attrs: { ...n.attrs, fallback: null } } : {}),
+    ...(Array.isArray(n.content) ? { content: n.content.map((c, i) => walk(c, path ? `${path}.${i}` : String(i))) } : {}),
   })
-  return walk(JSON.parse(JSON.stringify(body)))
+  return walk(JSON.parse(JSON.stringify(body)), '')
 }
 const bodiesSent = () => updateMock.mock.calls.map(([patch]) => patch?.bodyJson).filter(Boolean)
 const fallbacks = (body) => (body.content || []).filter((n) => n.type === 'widgetEmbed').map((n) => n.attrs.fallback?.url || null)
@@ -143,7 +153,7 @@ describe('the first open of a template-made note writes only the self-archive (W
     await runClock()
     await runClock()
     const sent = bodiesSent()
-    const fresh = new Set(embedsOf(NOTE.bodyJson).filter((n) => n.attrs.fallback == null).map((n) => n.attrs.embedId))
+    const fresh = new Set(embedsOf(NOTE.bodyJson).filter((e) => e.node.attrs.fallback == null).map((e) => e.path))
     expect(fresh.size, 'non-vacuity: embeds stored without an archive').toBeGreaterThan(0)
     expect(sent.length, 'precondition: the self-archive wrote (the exemption is exercised)').toBeGreaterThan(0)
     // At most one write per embed that had no archive: no extra open-write rides the exemption.
@@ -153,12 +163,12 @@ describe('the first open of a template-made note writes only the self-archive (W
       // RAW bytes: the stored body exactly, once only the newly archived embeds' `fallback` is put back
       expect(withoutNewArchives(body, fresh)).toEqual(NOTE.bodyJson)
       // and each write ADDS an archive (never an identical re-send of what was already there)
-      const had = new Set(embedsOf(before).filter((n) => n.attrs.fallback?.url).map((n) => n.attrs.embedId))
-      expect(embedsOf(body).some((n) => fresh.has(n.attrs.embedId) && n.attrs.fallback?.url && !had.has(n.attrs.embedId)),
+      const had = new Set(embedsOf(before).filter((e) => e.node.attrs.fallback?.url).map((e) => e.path))
+      expect(embedsOf(body).some((e) => fresh.has(e.path) && e.node.attrs.fallback?.url && !had.has(e.path)),
         'a write that archives nothing new').toBe(true)
       before = body
     }
-    expect(embedsOf(sent.at(-1)).find((n) => n.attrs.embedId === 'mc-archived').attrs.fallback).toEqual(OLD_ARCHIVE)
+    expect(sent.at(-1).content[ARCHIVED_AT].attrs.fallback).toEqual(OLD_ARCHIVE)
     expect(fallbacks(sent.at(-1))).toContain('/api/j2/notes/n1/images/archive.png')
     // and after it: zero document changes, zero further writes
     const changes = []
