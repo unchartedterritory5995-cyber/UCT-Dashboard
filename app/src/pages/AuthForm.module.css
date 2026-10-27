@@ -166,6 +166,15 @@
   color: var(--bg);
 }
 .submitPro:hover:not(:disabled) { opacity: 0.9; background: var(--accent); color: var(--bg); }
+/* W11-R82 m-2: disabled is also the LOADING state ("Logging in...", "Checking...") and the TOTP "Verify" before a code
+   is typed, so its words stay at full contrast (.submit's `opacity: 0.6` read 2.69:1 in light). It says "not now" by
+   its own cue instead: the not-allowed cursor and a dashed ring inside the button, in the ink colour. */
+.submitPro:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  outline: 2px dashed var(--bg);
+  outline-offset: -5px;
+}
 
 .switchText {
   font-size: 13px;

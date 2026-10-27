@@ -85,18 +85,42 @@ const resolve = (value, layers) => {
 
 // `.submitPro` composes `.submit`: the element carries both classes.
 const GOLD = ['submit', 'submitPro']
-describe('the Login gold submit is readable in every theme (W11-R81 PD-1)', () => {
+/** sRGB alpha blend of `top` over `under` (what `opacity` does to a flat button over the card). */
+const blend = (top, under, a) => {
+  const t = hexRgb(top)
+  const u = hexRgb(under)
+  return '#' + t.map((c, i) => Math.round(c * a + u[i] * (1 - a)).toString(16).padStart(2, '0')).join('')
+}
+describe('the Login gold submit is readable in every theme and every state (W11-R81 PD-1, W11-R82 m-2)', () => {
   for (const [theme, layers] of Object.entries(THEMES)) {
-    for (const state of ['rest', 'hover']) {
-      it(`${theme}, ${state}: at least 4.5:1`, () => {
+    // `disabled` is also the LOADING state ("Logging in...", "Checking..."): the buttons are disabled while they load,
+    // and the TOTP "Verify" is disabled until a code is typed. Both carry words a member reads, so they keep 4.5:1.
+    for (const state of ['rest', 'hover', 'disabled']) {
+      it(`${theme}, ${state}: at least 4.5:1, opacity included (over the card, --bg-surface)`, () => {
         const fg = resolve(winner('color', GOLD, state), layers)
         const bg = resolve(winner('background', GOLD, state), layers)
+        const surface = resolve('var(--bg-surface)', layers)
         expect(fg).toMatch(/^#[0-9a-f]{6}$/i)
         expect(bg).toMatch(/^#[0-9a-f]{6}$/i)
-        expect(contrast(hexRgb(fg), hexRgb(bg))).toBeGreaterThanOrEqual(4.5)
+        const op = Number(winner('opacity', GOLD, state) ?? 1)
+        const f = op < 1 ? blend(fg, surface, op) : fg
+        const b = op < 1 ? blend(bg, surface, op) : bg
+        expect(contrast(hexRgb(f), hexRgb(b))).toBeGreaterThanOrEqual(4.5)
       })
     }
   }
+  it('CONTROL: the blend is real (the green .submit at its old disabled opacity 0.6 reads lower than at rest)', () => {
+    const [layers] = [THEMES.light]
+    const fg = resolve('var(--text-bright)', layers)
+    const bg = resolve('var(--ut-green)', layers)
+    const surface = resolve('var(--bg-surface)', layers)
+    expect(contrast(hexRgb(blend(fg, surface, 0.6)), hexRgb(blend(bg, surface, 0.6))))
+      .toBeLessThan(contrast(hexRgb(fg), hexRgb(bg)))
+  })
+  it('a disabled gold button still says it is disabled without dimming its words (its own cue: not-allowed + a dashed inset ring)', () => {
+    expect(winner('cursor', GOLD, 'disabled')).toBe('not-allowed')
+    expect(winner('outline', GOLD, 'disabled') || '').toMatch(/dashed/)
+  })
   it("takes the shared solid-gold pair, .btn-primary's own (one source, never a third ink)", () => {
     const primary = block(BUTTONS, '.btn-primary')
     expect(winner('color', GOLD, 'rest')).toBe(decl(primary, 'color'))
