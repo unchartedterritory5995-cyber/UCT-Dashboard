@@ -19,7 +19,7 @@
 
 import { allCapabilityNames, getCapability } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
-import { chartQualifier } from './deixis'
+import { chartQualifier, ordinalChart, ORD_RE } from './deixis'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
 // are the same obvious commands as "15 minute chart" — no model call.
@@ -140,6 +140,11 @@ export function extractTarget(text, host = null) {
     const count = all[1].toLowerCase() === 'both' ? 2 : all[2] ? (COUNT_WORD[all[2].toLowerCase()] || Number(all[2])) : null
     return { text: cut(s, all), target: count ? { all: true, count } : { all: true } }
   }
+  // ⭐ Charts operator P1: "the second chart", "chart 3", "the last one", "the middle chart" — the board's
+  // reading order (deixis.ordinalChart). Resolved against the LIVE charts: one chart → `{chart}`; a word
+  // that names none (the 5th of 3) or an unclear "middle" → `{ask}` (the orchestrator asks, nothing runs).
+  const ord = host ? ordinalChart(s, host.charts?.list?.() || []) : null
+  if (ord) return { text: cut(s, ord.match), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
   const m = POS_RE.exec(s)
   if (m) {
     const word = (m[1] || m[2] || '').toLowerCase()
@@ -202,7 +207,7 @@ export function fastParse(text, opts = {}) {
 // the fast path's own phrase words, registered with the lexicon (it cannot import this module)
 // (every function holding phrase words is listed — the control words must stay known words, or a typo
 // of "cancel" could be read as the only other word near it)
-const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source,
+const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source, ORD_RE.source,
   fastParseExact.toString(), controlWord.toString(), capabilityPhrases.toString()]
 setBaseSources(LEXICON_SOURCES)
 

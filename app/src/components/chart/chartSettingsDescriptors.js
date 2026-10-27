@@ -108,6 +108,8 @@ const ELIGIBLE = [
   E('textColor', 'canvas', 'Scale text color', 'color', { ui: 'Chart Settings → Canvas → Scale text' }),
   E('watermark.sizeScale', 'watermark', 'Watermark size', 'enum', { options: WM_SIZES, ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
   E('watermark.weight', 'watermark', 'Watermark weight', 'enum', { options: vals(WM_WEIGHTS), ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
+  // ── Charts operator P1: the watermark's colour (the dialog's picker writes it with the opacity beside it, unchanged) ──
+  E('watermark.color', 'watermark', 'Watermark color', 'color', { ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
   ...WM_LINES.map(([k, label, defOff]) => E(`watermark.lines.${k}`, 'watermark', `Watermark ${label.toLowerCase()} line`, 'bool',
     { ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK, default: !defOff })),
   ...PDL_LINES.flatMap(([k, label]) => [
@@ -166,7 +168,6 @@ const KNOWN = [
   K('volume.barStyle', 'volume', 'Volume bar style', 'Chart Settings → Indicators → Volume'),
   K('volume.plotStyle', 'volume', 'Volume plot style', 'Chart Settings → Indicators → Volume'),
   K('watermark.opacity', 'watermark', 'Watermark opacity', 'Chart Settings → Canvas → Watermark'),
-  K('watermark.color', 'watermark', 'Watermark color', 'Chart Settings → Canvas → Watermark'),
   K('watermark.lines.*', 'watermark', 'Watermark lines (ticker/company/sector…)', 'Chart Settings → Canvas → Watermark'),
   K('watermark.x', 'watermark', 'Watermark position', 'right-click → Move watermark'),
   K('watermark.y', 'watermark', 'Watermark position', 'right-click → Move watermark'),

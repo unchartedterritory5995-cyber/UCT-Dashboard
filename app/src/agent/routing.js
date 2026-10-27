@@ -27,7 +27,16 @@ export const GROUPS = [
     vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
       /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing|thin bars|invert|template|defaults?|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
-      /\bvolume\b/] },
+      /\bvolume\b/,
+      // P1: a symbol / setting put on a chart NAMED by position or order ("TSLA on the left", "on the second one")
+      /\bon the (left|right|top|bottom|first|second|third|fourth|last|middle)\b/] },
+  // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
+  // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
+  // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only', domains: ['chartSetup'],
+    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
+      /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
+      /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/] },
@@ -44,15 +53,15 @@ export const GROUPS = [
       // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
       // "put the 50 on it", "make it a 9" after an add) and the short names traders type ("bollies", "bb")
       /\bmoving averages?\b|\b(mas?|bbands?|bb|bollies|boll)\b|\b\d{1,3}[- ]?(?:day|week|period)\b/,
-      /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,
+      /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make|swap|replace)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,
       /\b(build|make|create|write|code)\b.*\b(indicator|study|signal|formula)\b/, /\b(when|whenever|if)\b.*\b(cross(es)?|above|below)\b/,
       // a colour RULE ("colour the candles by trend"), not a colour ("colour the candles green")
       /\b(colou?r|paint|highlight|shade)\w*\b.*\bby (trend|momentum|strength|signal|condition)\b/,
       // INDICATORS M3: the authoring draft ("show me the preview", "save the draft")
       /\b(preview|draft)\b/] },
-  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, restyle, remove, list)', domains: ['drawing'],
+  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     words: [/\bdraw\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
-  { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete)', domains: ['watchlist'],
+  { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
     words: [/\bscreen\w*\b/, /\bscans?\b/, /\bfind (me )?(stocks|names|tickers)\b/, /\bfilter\w*\b/, /\b(stocks|names) (with|above|below|over|under)\b/, /\b(top|first) \d+\b/, /\bresults?\b/, /\b(adr|rs rating|rvol|market cap|dollar volume|52[- ]week)\b/,

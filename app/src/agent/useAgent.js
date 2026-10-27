@@ -25,7 +25,8 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
+import { multiChartPlan } from './multiChart'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -49,6 +50,29 @@ import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
 
 registerBuiltins()
+
+// ⛔ Charts operator P1 hardening: a model QUESTION's choices become buttons. Only a non-empty string, or an
+// object with a non-empty string `label` (NL-1: plus a context `ref`, translated back to a real target), ever
+// reaches the panel — a null, a number, a nested object is dropped, never rendered and never dereferenced.
+const MAX_CHOICES = 12
+const CHOICE_CHARS = 120
+export function clarifyChoices(raw, refMap = null) {
+  if (!Array.isArray(raw)) return []
+  const out = []
+  for (const c of raw) {
+    if (out.length >= MAX_CHOICES) break
+    const label = typeof c === 'string' ? c : (c && typeof c === 'object' && !Array.isArray(c) && typeof c.label === 'string' ? c.label : null)
+    if (!label || !label.trim()) continue
+    const ref = refMap && c && typeof c === 'object' && typeof c.ref === 'string' ? (refMap[c.ref]?.ref || null) : null
+    out.push({ label: label.trim().slice(0, CHOICE_CHARS), ref })
+  }
+  return out
+}
+// ⛔ The SERVER refuses a model plan over the shared contract's maxOps (turn.py MAX_OPS); the panel holds a
+// model plan to the same number before anything is planned (the client planner's own ceiling, executor
+// MAX_OPS, is wider on purpose: it also carries the fast path's expansions).
+export const MAX_MODEL_OPS = MANIFEST_CONTRACT.limits.maxOps
+export const TOO_MANY_OPS = `That plan has more than ${MAX_MODEL_OPS} changes — UCT Agent makes at most ${MAX_MODEL_OPS} in one request, so nothing was changed. Ask for it in smaller parts.`
 
 // An ARGUMENT that names another context target (widget.showList's `list` = a watchlist ref) is
 // translated back like a target — only for the args a capability declares (`argRefs: {arg: kind}`),
@@ -1088,6 +1112,28 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: memRef.text, outcomeData: { kind: 'reference-refused' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }
+      // ⭐ Charts operator P1: whole sentences that name SEVERAL charts — "NVDA on the left and AMD on the right",
+      // "show NVDA and AMD side by side", "make the left chart look like the right one" (agent/multiChart.js). The
+      // same registry ops through the same execute; anything it can't read with certainty goes on as before.
+      const multi = (answering || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
+      if (multi?.kind === 'say') {
+        push({ role: 'agent', text: multi.text })
+        record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (multi?.kind === 'ops') {
+        lastActionsRef.current = multi.ops.map(o => o.action)
+        return await execute(multi.ops, { path: 'fast', mode: multi.mode, member: text, voice, onTarget: multi.note || null })
+      }
+      if (multi?.kind === 'steps') {
+        // one chart reused, then a NEW chart proposed — the second step only if the first one landed
+        const [first, second] = multi.steps
+        lastActionsRef.current = [...first.ops, ...second.ops].map(o => o.action)
+        await execute(first.ops, { path: 'fast', mode: first.mode, member: text, voice })
+        const now = (() => { try { return host?.charts?.read?.(second.needs.ref) } catch { return null } })()
+        if (String(now?.symbol || '').toUpperCase() !== second.needs.symbol) return
+        return await execute(second.ops, { path: 'fast', mode: second.mode, member: text, voice })
+      }
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
       const fast = answering ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
@@ -1142,6 +1188,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         for (const k of kindsOf(fast.ops)) {
           let list = getTargetKind(k)?.list(host) || []
           if (fast.target?.position && list.length > 1) list = matchPosition(list, fast.target.position)
+          // P1: "on the second chart" — the kind's entry for THAT chart (a kind that is not chart-backed drops out → the model)
+          if (fast.target?.chart) list = list.filter(s => chartRefOf(getTargetKind(k), s) === fast.target.chart)
+          if (fast.target?.ask) list = []
           if (list.length === 1) pick[k] = list[0].ref
         }
         if (fast.ops.every(o => o.target || pick[getCapability(o.action)?.target])) {
@@ -1185,18 +1234,26 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           if (hit.length) candidates = hit
           else ask = `I don't see a ${fast.target.position} ${noun}. Which one?`
         }
+        // ⭐ P1: "the second chart", "chart 3", "the middle one" (fastPath.extractTarget, resolved on the live
+        // board): exactly that chart's entry of this kind — or, when the words name no chart, the question
+        let ordAsk = fast.target?.ask ? fast.target.ask.text : null
+        if (fast.target?.chart) {
+          const hit = charts.filter(c => chartRefOf(kind, c) === fast.target.chart)
+          if (hit.length === 1) candidates = hit
+          else ordAsk = ask
+        }
         // Context & Awareness 1B: "this chart / this stock / it" → the chart the member last CLICKED
         // (agent/deixis.js). No live selection → the question below, exactly as before.
         let implicitTarget = null
-        if (!fast.target?.position && candidates.length > 1) {
+        if (!fast.target?.position && !fast.target?.chart && !ordAsk && candidates.length > 1) {
           const d = resolveDeictic({ host, kind, candidates, text, chartOp: true })
           if (d?.ref) candidates = candidates.filter(c => c.ref === d.ref)
           if (d?.implicit && candidates.length === 1) implicitTarget = `On ${candidates[0].label || 'the chart you selected'} — the chart you last clicked.`
         }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
-        if (candidates.length > 1 || unmatchedHint) {
+        if (candidates.length > 1 || unmatchedHint || ordAsk) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
-          push({ role: 'question', text: ask, choices: candidates.map(c => ({ ref: c.ref, label: c.label })), local: true })
+          push({ role: 'question', text: ordAsk || ask, choices: (ordAsk ? charts : candidates).map(c => ({ ref: c.ref, label: c.label })), local: true })
           record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
@@ -1388,7 +1445,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (env.disposition === 'clarify' && nl1) {
         // NL-1: choices carry the context ref they stand for; kept (as real refs) for the next message, so
         // a click on a choice — or "the right one", "2", "AMD" typed — is read against them
-        const choices = (env.question?.choices || []).map(c => (typeof c === 'string' ? { label: c, ref: null } : { label: c.label, ref: (c.ref && refMap[c.ref]?.ref) || null }))
+        const choices = clarifyChoices(env.question?.choices, refMap)
         pendingRef.current = p?.kind === 'proposal' ? p : null
         // the groups this request was given (beyond the core) stay with the question, so the answer has them too
         pendingQuestionRef.current = { text: env.question?.text || env.reply, choices, groups: nl1Sel ? nl1Sel.selected.filter(g => !nl1Sel.core.includes(g)) : [] }
@@ -1397,12 +1454,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       if (env.disposition === 'clarify') {
         pendingRef.current = p                     // a question doesn't drop a waiting proposal
-        push({ role: 'question', text: env.question?.text || env.reply, choices: (env.question?.choices || []).map(c => ({ label: c })) })
+        push({ role: 'question', text: env.question?.text || env.reply, choices: clarifyChoices(env.question?.choices).map(c => ({ label: c.label })) })
         return
       }
       // ⛔ P2-A2: only a plan the server marked apply / propose ever reaches the planner (agentClient.turnReply
       // already fails any other reply — this is the second lock, at the point where a plan could run)
       if (env.disposition !== 'apply' && env.disposition !== 'propose') { push({ role: 'error', text: "UCT Agent couldn't complete that request. No changes were made." }); return }
+      // ⛔ P1: a model plan over the shared op limit never reaches the planner (the server refuses one too)
+      if ((env.ops || []).length > MAX_MODEL_OPS) {
+        push({ role: 'error', text: TOO_MANY_OPS })
+        record({ member: null, outcome: TOO_MANY_OPS, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
+        return
+      }
       // apply / propose: translate the context refs back to real target refs
       // ⛔ LOCAL-RESULT BOUNDARY: a plan holding a local-only lookup shows UCT's answer, never the
       // model's own words about it (the server blanks that reply too). The one exception is the

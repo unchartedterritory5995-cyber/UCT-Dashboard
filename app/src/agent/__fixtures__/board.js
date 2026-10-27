@@ -52,7 +52,7 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
     const charts = state.widgets.filter(x => x.type === 'chart')
     const pos = positionWord(w, charts) || null
     return {
-      ref: id, label: `Chart ${id}`, position: pos,
+      ref: id, label: `Chart ${id}`, position: pos, cell: { x: w.x, y: w.y, w: w.w, h: w.h },
       symbol: state.groupSyms[keyOf(w)] || 'SPY', tf: w.opts.tf || 'D',
       stored: w.opts.settings ?? null, cs: mergeChartSettings(w.opts.settings || null),
       linkedCount: 0,
@@ -224,6 +224,14 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
         const before = wl.items.length
         wl.items = wl.items.filter(i => i.id !== decodeURIComponent(di[1]))
         return before === wl.items.length ? nope(404, 'Item not found') : ok({ ok: true })
+      }
+      // the Watchlists page's notes route (one item's note)
+      const ni = /^\/items\/([^/]+)\/notes$/.exec(sub)
+      if (method === 'PUT' && ni) {
+        const it = wl.items.find(i => i.id === decodeURIComponent(ni[1]))
+        if (!it) return nope(404, 'Item not found')
+        it.notes = body.notes
+        return ok({ ...it })
       }
       if (method === 'PUT' && sub === '/reorder') {
         const pos = new Map(body.item_ids.map((id, k) => [id, k]))

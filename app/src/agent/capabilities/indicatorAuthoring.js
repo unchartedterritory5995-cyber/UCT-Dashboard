@@ -12,6 +12,9 @@
 //                           an M2 `indicator.add` per requested chart
 //   indicator.undoDraft     the draft's own last step, when the Agent's Undo stack has none
 //                           (after a reload) — from `draftStatus().undoStepId`
+//   indicator.discardDraft  ⭐ Charts operator P1: throw ONE draft away (the specialist's own
+//                           `discardDraft`, pinned to the revision the member saw) — always proposed;
+//                           nothing saved is touched; no Undo (the draft is gone)
 //
 // ⛔ NO SECOND ENGINE, NO SECOND STORE. The Agent never reads a tree or a formula, never calls
 // /converse, never writes a definition, and never rebuilds a draft from chat. It keeps only the
@@ -25,7 +28,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import {
   AUTHORING_CONTRACT, AUTHORING_REASONS as R, openDraft, draftTurn, draftUndo, draftStatus, listDrafts,
-  saveDraft, showDraftPreview, renameDraft,
+  saveDraft, showDraftPreview, renameDraft, discardDraft,
 } from '../../components/chart/builder/agentAuthoring'
 
 const NEW = 'draft:new'
@@ -100,7 +103,7 @@ function rememberSaved(v) { try { store()?.setItem(LAST_KEY, JSON.stringify(v)) 
 // while it was the only one. With two or more usable drafts, a request on any OTHER draft (or with
 // none selected) is not planned: the member is shown the drafts and picks one. Unrelated Agent
 // actions never touch the selection.
-const DRAFT_ACTIONS = new Set(['indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft'])
+const DRAFT_ACTIONS = new Set(['indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft', 'indicator.discardDraft'])
 const labelOf = (s) => (s.status?.name ? `“${s.status.name}” (draft)` : 'Untitled draft')
 export function draftAmbiguity(host, ops) {
   const on = (ops || []).filter(o => o && DRAFT_ACTIONS.has(o.action) && o.target !== NEW)
@@ -563,6 +566,15 @@ export const indicatorDraftsKind = {
     let undoData = null
     const followUps = []
     for (const op of patch.ops) {
+      if (op.type === 'discard') {
+        // the specialist's own discard, pinned to the revision the member approved — a draft changed since is refused
+        const out = discardDraft(draftRef, { expectedRevision: op.pinRevision }, authoringCtx(host, originOf(snap.status)))
+        if (!out.ok) throw fail(refusalSentence(out))
+        const act = readActive()
+        if (act && act.key === draftRef.key && act.lineage === draftRef.lineage) setActive(null)
+        lines.push(`Discarded ${shownName(name, 'the draft')} — it is gone (nothing saved was touched).`)
+        continue
+      }
       if (op.type === 'turn') {
         if (!op.chartRef || !boardCharts(host).some(c => c.ref === op.chartRef)) throw fail('That chart is no longer on the board, so nothing was sent — say which chart this indicator is for.')
         const ctx = authoringCtx(host, op.chartRef)
@@ -918,6 +930,28 @@ export function registerIndicatorAuthoringCapabilities() {
     },
     apply: (st) => ({ ...st, ops: [{ type: 'undoStep', stepId: st.status.undoStepId }] }),
     describe: (b) => `Undo the last change to ${nameOf(b)}`,
+  })
+
+  registerCapability({
+    ...common,
+    name: 'indicator.discardDraft',
+    risk: 'confirm',             // always proposed: the draft's unsaved work is gone afterwards
+    reversible: false,
+    undo: 'none',
+    exclusive: true,
+    exclusiveReason: 'Discard the draft on its own — ask for anything else separately.',
+    summary: 'Throw away ONE unsaved indicator draft ("never mind that indicator", "discard the draft"). Always shown as a proposal first. Saved indicators and charts are never touched.',
+    hints: 'target = the draft\'s ref (usually the active one). Only a draft — to remove an indicator from a chart use indicator.remove.',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    undoNote: 'A discarded draft can’t be brought back — describe the indicator again to start a new one.',
+    check(st) {
+      if (st.new) return 'There is no draft to discard.'
+      const u = usable(st); if (u) return u
+      if (st.ops.length) return 'Discard the draft on its own.'
+      return null
+    },
+    apply: (st) => ({ ...st, ops: [{ type: 'discard', pinRevision: st.status.revision }] }),
+    describe: (b) => `Discard ${nameOf(b)} (unsaved — it can’t be brought back)`,
   })
 }
 

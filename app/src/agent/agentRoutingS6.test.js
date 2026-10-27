@@ -25,6 +25,7 @@ import workspaceSrc from './capabilities/workspace.js?raw'
 import indicatorEditsSrc from './capabilities/indicatorEdits.js?raw'
 import indicatorsSrc from './capabilities/indicators.js?raw'
 import indicatorAuthoringSrc from './capabilities/indicatorAuthoring.js?raw'
+import chartSetupSrc from './capabilities/chartSetup.js?raw'
 
 registerBuiltins()
 const P = (src) => parseFormula(src).ast
@@ -181,7 +182,7 @@ describe('proposal wording — pending before approval, past tense only in recei
     expect(pendingLines(p.lines)).toEqual(['Delete the layout “Momentum” (permanent)'])
   })
   it('REGISTRY AUDIT: every past-tense verb that starts a describe() string is known to pendingLine', () => {
-    const SRC = { alertSrc, boardSrc, chartSrc, drawingsSrc, layoutSrc, savedScreensSrc, watchlistSrc, workspaceSrc, indicatorEditsSrc, indicatorsSrc, indicatorAuthoringSrc }
+    const SRC = { alertSrc, boardSrc, chartSrc, drawingsSrc, layoutSrc, savedScreensSrc, watchlistSrc, workspaceSrc, indicatorEditsSrc, indicatorsSrc, indicatorAuthoringSrc, chartSetupSrc }
     const unknown = []
     for (const [file, src] of Object.entries(SRC)) {
       for (const block of src.split(/\n {4}describe[:(]/).slice(1)) {

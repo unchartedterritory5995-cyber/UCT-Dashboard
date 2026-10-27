@@ -22,7 +22,7 @@ const { routeManifest, groupOfAction } = routing
 import manifestGolden from './contract/manifest.golden.json'
 import manifestContract from './contract/manifest.contract.json'
 import { getCapability, getTargetKind } from './capabilities'
-import { resolveDeictic } from './deixis'
+import { resolveDeictic, chartRefOf } from './deixis'
 import { planOps, collectTargets } from './executor'
 import { buildChartSource } from './host'
 import { makeBoard } from './__fixtures__/board'
@@ -73,6 +73,9 @@ function targetOf(host, ops, fast, text) {
   const kind = getTargetKind(kinds[0])
   let list = kind ? kind.list(host) : []
   if (fast.target?.all && list.length > 1) return { all: list.map(s => s.label) }
+  // P1: "the second chart" (fastPath.extractTarget, resolved on the live board) — the panel's rule (useAgent.send)
+  if (fast.target?.ask) return { ask: true }
+  if (fast.target?.chart) { const hit = list.filter(s => chartRefOf(kind, s) === fast.target.chart); return hit.length === 1 ? { label: hit[0].label, ref: hit[0].ref } : { ask: true } }
   if (fast.target?.position && list.length > 1) { const hit = matchPosition(list, fast.target.position); if (hit.length) list = hit }
   if (!fast.target?.position && list.length > 1) {
     const d = resolveDeictic({ host, kind, candidates: list, text, chartOp: true })

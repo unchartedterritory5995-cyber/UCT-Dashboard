@@ -85,7 +85,9 @@ export function planOps(targets, ops, env = {}, ctx = null) {
     }
     const kind = getTargetKind(tgt.kind)
     const before = kind.stateOf(tgt.snap)
-    const opEnv = { ...env, target: tgt.snap, resourcesInPlan }
+    // `peer(ref)`: another target of this plan's kinds, READ ONLY, as the plan sees it (Charts operator P1:
+    // "make this chart look like that one" reads the other chart). Only targets collected for this plan.
+    const opEnv = { ...env, target: tgt.snap, resourcesInPlan, peer: (r) => (all.get(r)?.virtual ? null : all.get(r)?.snap || null) }
     let st = before
     const noops = []
     let confirm = false

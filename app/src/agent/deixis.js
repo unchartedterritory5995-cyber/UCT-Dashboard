@@ -124,11 +124,40 @@ export function pickedChoice(text, choices = []) {
   return n >= 1 && n <= choices.length ? choices[n - 1]?.ref || null : null
 }
 
+// ── Charts operator P1: a chart named by its ORDER on the board ──
+// "the second chart", "chart 3", "the 2nd one", "the last chart", "the middle chart". Reading order is the
+// board's (top to bottom, then left to right — host.charts.list()). "middle" only when it is unambiguous:
+// an odd number (3 or 5) of charts in ONE row or ONE column. → { ref, word } | { ask } | null (no such words).
+const ORD_WORDS = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6 }
+export const ORD_RE = /\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th|6th|last|middle|center|centre)\s+(?:chart|one)\b|\bchart\s+(?:#\s*)?([1-9])\b/i
+export function ordinalChart(text, charts = []) {
+  const m = ORD_RE.exec(String(text || ''))
+  if (!m) return null
+  const n = charts.length
+  const word = (m[1] || `chart ${m[2]}`).toLowerCase()
+  if (!n) return { ask: { text: 'There are no charts on this board.', choices: [] }, match: m }
+  let idx = null
+  if (m[2]) idx = Number(m[2]) - 1
+  else if (word === 'last') idx = n - 1
+  else if (['middle', 'center', 'centre'].includes(word)) {
+    const cells = charts.map(c => c.cell).filter(Boolean)
+    const oneRow = cells.length === n && new Set(cells.map(c => c.y)).size === 1
+    const oneCol = cells.length === n && new Set(cells.map(c => c.x)).size === 1
+    idx = (n === 3 || n === 5) && (oneRow || oneCol) ? (n - 1) / 2 : null
+    if (idx == null) return { ask: { text: 'Which chart is the middle one here? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+  } else idx = ORD_WORDS[word] - 1
+  if (idx < 0 || idx >= n) return { ask: { text: `There ${n === 1 ? 'is only one chart' : `are only ${n} charts`} here — which one do you mean?`, choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+  return { ref: charts[idx].ref, word, match: m }
+}
+
 /** The charts on this board the member's words NAME: a position word that fits exactly one chart, or a
  *  symbol exactly one chart shows ("put RSI on NVDA"). Short tickers count only as typed in capitals. */
 export function chartsNamedBy(text, charts = []) {
   const s = String(text || '')
   const named = new Set()
+  // P1: "the second chart", "chart 3", "the last one", "the middle chart"
+  const ord = ordinalChart(s, charts)
+  if (ord?.ref) named.add(ord.ref)
   for (const m of s.matchAll(POS_WORDS)) {
     const w = m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')
     const parts = w.split('-')

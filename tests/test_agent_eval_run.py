@@ -149,7 +149,7 @@ def test_a_reroute_replays_the_recorded_groups_or_stops_as_the_panel_does():
                                   "layouts+lists+workspace": None})
     body = r.reroute_request(item, cats, ["workspace"])
     names = [c["name"] for c in body["capabilities"]]
-    assert "widget.add" in names and len(names) <= 60 and body["routing"]["stable"] == 41
+    assert "widget.add" in names and len(names) <= 60 and body["routing"]["stable"] == len(PARITY["cases"][0]["names"])   # the core
     assert body["message"] == item["body"]["message"] and body["context"] == item["body"]["context"]
     assert r.reroute_request(item, cats, ["charts", "workspace"]) == body          # an already-sent group is dropped
     assert r.reroute_request(item, cats, ["workspace", "layouts", "lists"]) is None          # recorded: does not fit

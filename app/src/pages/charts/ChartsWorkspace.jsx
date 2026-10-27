@@ -3105,6 +3105,8 @@ export default function ChartsWorkspace() {
           default_chart_tf: (x) => sp('default_chart_tf', x),
           alert_sound: (x) => sp('alert_sound', x),
           alert_sound_type: (x) => sp('alert_sound_type', x),
+          // the member's saved chart templates (a JSON list) — the key Chart Settings → Templates writes
+          chart_templates: (x) => sp('chart_templates', x),
         }[k]
         return w ? w(v) : Promise.resolve(false)
       },
