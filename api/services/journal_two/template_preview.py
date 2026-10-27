@@ -28,7 +28,7 @@ sheet (`AdoptSheet.jsx`, Task 11.17) renders:
   ⚠️ Per process, like every cache on the one web pod: a second process keeps its own.
 * Writes nothing. List endpoints never call this (W11-R12: a list card says it fills in later).
 
-Visibility is the gallery's own rule (`template_gallery._row` + `_can_see`, which applies `_library_hides`), and the
+Visibility is the gallery's own rule (`template_gallery.gallery_row` + `can_see`, which applies `_library_hides`), and the
 payload is the LISTED version (`_listed_payload`: `payload_json`, never `pending_json`). Those three are read through
 the gallery module rather than restated here, so "who may see this item" has one authority.
 """
@@ -57,7 +57,7 @@ _CACHE = TTLCache(max_size=500)
 S_PICK = "Pick a {label} to see this widget."
 #: A built slot past the batch's `run.MAX_EXAMPLES` cards (the wording a list card uses, W11-R12).
 S_NOT_PREVIEWED = "Fills in with your own data when you make a note."
-#: The credit's words (W11-R7). The label is the one `template_gallery._author_label` answers.
+#: The credit's words (W11-R7). The label is the one `template_gallery.author_label` answers.
 # The credit line's words live in ONE place: `template_gallery.credit_text` (Task 11.8, carry c5).
 
 #: The card slot of a single listed widget, and the tool slot of a single listed routine or tracker.
@@ -119,9 +119,9 @@ def cache_key(gallery_id: str, version: Any, user_id: str, et_day: str, answers:
 
 
 def _number(x: Any) -> bool:
-    """THE reducer's own number test (`share._is_number`: finite, never a bool, an int too large for a float
+    """THE reducer's own number test (`share.is_number`: finite, never a bool, an int too large for a float
     refused), so the preview and the resolve can never disagree about what a number is."""
-    return share._is_number(x)
+    return share.is_number(x)
 
 
 def _refuse(sentence: str, sid: str) -> share.ShareError:
@@ -491,7 +491,7 @@ def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Con
     blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
     # The ONE decider's slot ctx (W11-R20, 11.5 fix round 1): the inline definitions, and the author's own `def:`
     # refs in one owned read. A non-author gets no member here, so nothing of anyone's is read for them.
-    wave_ctx = js._slot_ctx(user_id if author else None, conn, blocks, definitions)
+    wave_ctx = js.slot_ctx(user_id if author else None, conn, blocks, definitions)
     cards: list[dict] = []
     tools: list[dict] = []
     pending: list[tuple[dict, dict]] = []

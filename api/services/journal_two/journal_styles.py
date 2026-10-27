@@ -885,8 +885,8 @@ def _with_library_facts(user_id: str, styles: list[dict], conn: sqlite3.Connecti
             and any(s.get("sourceGalleryId") == g and (facts.get(s["id"]) or {}).get("credit") is None
                     for s in styles)]
     fallback: dict = {}
-    if need and tg._wave11_library_on():
-        fallback = {r["id"]: tg._row_credit(r) for r in tg._read(conn, None, f"g.id IN ({_marks(len(need))})", need)}
+    if need and tg.wave11_library_on():
+        fallback = {r["id"]: tg.row_credit(r) for r in tg.read_rows(conn, None, f"g.id IN ({_marks(len(need))})", need)}
     out = []
     for s in styles:
         gid = s.get("sourceGalleryId")
@@ -1616,6 +1616,10 @@ def _slot_ctx(user_id: Any, conn: sqlite3.Connection | None, blocks: Any = None,
     if user_id is not None:
         _sf.prefetch(blocks, ctx)
     return ctx
+
+
+#: F-ALIAS-1 A2 (ledger 139): the public name other modules read (`template_preview`). The SAME function object.
+slot_ctx = _slot_ctx
 
 
 def _block_settings_by_id(blocks: Any) -> dict[str, Any]:

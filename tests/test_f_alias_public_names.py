@@ -11,7 +11,10 @@ from pathlib import Path
 
 import pytest
 
+from api.services.journal_two import journal_styles as js
 from api.services.journal_two import note_properties
+from api.services.journal_two import template_gallery as tg
+from api.services.journal_two.widget_engine import share
 from api.services.journal_two.widget_engine import payload as wpayload
 from api.services.journal_two.widget_engine import sources as wsources
 
@@ -22,6 +25,17 @@ ALIASES = [
     (wsources, "tags", "_tags"),
     (wpayload, "scope_label", "_scope_label"),
     (note_properties, "parse_properties_json", "_parse_properties_json"),
+    # A2 (ledger 139)
+    (tg, "wave11_library_on", "_wave11_library_on"),
+    (tg, "row_credit", "_row_credit"),
+    (tg, "read_rows", "_read"),
+    (js, "slot_ctx", "_slot_ctx"),
+    (share, "is_number", "_is_number"),
+    # carry 11.9 c1 (already public before F-ALIAS-1; railed here so they stay the functions themselves)
+    (tg, "gallery_row", "_row"),
+    (tg, "can_see", "_can_see"),
+    (tg, "listed_payload", "_listed_payload"),
+    (tg, "author_label", "_author_label"),
 ]
 
 #: The wave 11 modules (11.9's and 11.12's) that read these helpers, and the private names none of them may read
@@ -29,10 +43,15 @@ ALIASES = [
 CONSUMERS = [
     "api/services/journal_two/gallery_suggest.py",
     "api/services/journal_two/widget_engine/run.py",
+    "api/services/journal_two/template_preview.py",
+    "api/services/journal_two/journal_styles.py",
+    "api/routers/notebook_template_gallery.py",
+    "api/routers/notebook_journal_styles.py",
 ]
 
 
 def _private_names() -> set[str]:
+    # `_slot_ctx` is journal_styles' own (called bare there), so an attribute read of it anywhere is cross-module.
     return {private for _m, _pub, private in ALIASES}
 
 

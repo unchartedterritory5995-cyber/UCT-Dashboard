@@ -208,6 +208,10 @@ def _is_number(x: Any) -> bool:
         return False
 
 
+#: F-ALIAS-1 A2 (ledger 139): the public name other modules read (`template_preview`). The SAME function object.
+is_number = _is_number
+
+
 def _edit_text(raw: Any, limit: int, sentence: str) -> str | None:
     """An author's typed text: trimmed, None when empty, refused past `limit` or unencodable."""
     if raw is None:
