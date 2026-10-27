@@ -1,0 +1,5 @@
+fastapi==0.115.6
+uvicorn==0.32.1
+httpx==0.28.1
+boto3==1.42.54
+sentry-sdk==2.23.1
