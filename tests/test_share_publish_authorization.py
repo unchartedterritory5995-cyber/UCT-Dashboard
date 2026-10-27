@@ -34,11 +34,19 @@ rows of the one matrix; every property runs over both where it applies. Wave 11'
 (`POST /api/j2/template-gallery/share/preview`, `notebook_template_gallery.py`) is a row too: the
 derivation finds it by its `share` segment, so the behaviour app mounts the gallery router as well,
 and its gate, its body reader and its 429 are wave 11's (`_require_w11`, `w11_body`, `{code, message}`).
+
+F-ALIAS-1R m-1: the path-word rule is LEXICAL, so wave 11's "publish a tool to the community"
+(`POST /api/j2/template-gallery/tools`) has no `publish` segment and was missed. The derivation adds a
+SEMANTIC rule beside it, read off the same real app: every wave 11 door (`_require_w11` among its direct
+dependencies) whose endpoint spends the router's ONE publish charge (`_charged_publish`) is a publishing
+door and needs a row too. The other wave 11 doors (adopt, use, preview with my data, the library list, the
+helpful prompt, an adopter's update) send nothing of the member's to anyone and stay outside the matrix.
 """
 from __future__ import annotations
 
 import functools
 import importlib
+import inspect
 import json
 import os
 import re
@@ -116,6 +124,12 @@ PROOF_MATRIX: dict[tuple[str, str], dict[str, Any]] = {
     #    `require_paid`), and `_hit(PREVIEW_RATE, SCOPE_PREVIEW, ...)` keyed on the member. ──
     ("POST", "/api/j2/template-gallery/share/preview"):
         {"auth": "owner", "gate": G_W11, "bucket": "notebook-gallery-preview", "plan": "paid", "body": "w11"},
+    # ── wave 11 (Task 11.12, F-ALIAS-1R m-1): publish one of the member's own widgets, routines or trackers to the
+    #    community (a PENDING item). Read off the route: `dependencies=[Depends(_require_w11)]`, `w11_body`, and
+    #    `_charged_publish` -> `_hit(PUBLISH_RATE, SCOPE_PUBLISH, ...)` keyed on the member (plus a DURABLE daily
+    #    charge, `DAILY_PUBLISH_SCOPE`, given back on any refusal). ──
+    ("POST", "/api/j2/template-gallery/tools"):
+        {"auth": "owner", "gate": G_W11, "bucket": "notebook-gallery-publish", "plan": "paid", "body": "w11"},
 }
 
 #: Ruling D-B10, verbatim numbers: (requests allowed, per) for each bucket.
@@ -128,6 +142,8 @@ BUCKET_LIMITS: dict[str, tuple[int, str]] = {
     "notebook-publish-mint": (30, "hour"),
     # Wave 11's preview scope (the gallery's SCOPE_PREVIEW at PREVIEW_RATE): the plan's 60/hour, per member.
     "notebook-gallery-preview": (60, "hour"),
+    # The gallery's publish scope (SCOPE_PUBLISH at PUBLISH_RATE), which POST /tools shares with every publish.
+    "notebook-gallery-publish": (10, "hour"),
 }
 
 PUBLIC_HEADERS = {
@@ -146,13 +162,23 @@ FREE = {"plan": "free"}
 
 # ── the derivation, from the REAL app ───────────────────────────────────────────────────
 
+def _is_wave11_publishing_door(route: APIRoute) -> bool:
+    """The SEMANTIC rule (F-ALIAS-1R m-1): a wave 11 door (its router's `_require_w11` is a direct dependency) whose
+    endpoint spends that router's one publish charge, `_charged_publish`."""
+    module = importlib.import_module(route.endpoint.__module__)
+    gate, charge = getattr(module, "_require_w11", None), getattr(module, "_charged_publish", None)
+    if gate is None or charge is None or gate not in [d.call for d in route.dependant.dependencies]:
+        return False
+    return "_charged_publish(" in inspect.getsource(route.endpoint)
+
+
 @functools.lru_cache(maxsize=1)
 def _real_app_routes() -> tuple[tuple[str, str], ...]:
     from api.main import app  # noqa: WPS433 -- late: the repo-root conftest has pinned /data
     out = []
     for r in app.routes:
         if isinstance(r, APIRoute) and r.path.startswith("/api/j2/"):
-            if SEGMENTS & set(r.path.split("/")):
+            if SEGMENTS & set(r.path.split("/")) or _is_wave11_publishing_door(r):
                 out.extend((m, r.path) for m in sorted(r.methods))
     return tuple(sorted(set(out)))
 
@@ -166,6 +192,22 @@ def test_the_derivation_finds_the_public_read_route():
     derived = set(_real_app_routes())
     assert ("GET", "/api/j2/shared/{token}") in derived, sorted(derived)
     assert ("GET", "/api/j2/published/{slug}") in derived, sorted(derived)
+    assert ("POST", "/api/j2/template-gallery/tools") in derived, sorted(derived)       # the semantic rule (m-1)
+
+
+def test_the_semantic_rule_takes_the_wave11_publish_door_and_leaves_its_neighbours():
+    """CONTROL for the semantic rule: of the wave 11 doors it takes exactly the one that publishes; the older publish
+    doors (not wave 11) and the wave 11 doors that publish nothing stay out."""
+    from api.main import app  # noqa: WPS433
+    tgr = importlib.import_module(GALLERY_ROUTER)
+    w11 = [r for r in app.routes if isinstance(r, APIRoute) and r.endpoint.__module__ == GALLERY_ROUTER
+           and tgr._require_w11 in [d.call for d in r.dependant.dependencies]]
+    assert len(w11) >= 8, [r.path for r in w11]
+    taken = {(m, r.path) for r in w11 if _is_wave11_publishing_door(r) for m in r.methods}
+    assert taken == {("POST", "/api/j2/template-gallery/tools")}, taken
+    old_publish = [r for r in app.routes if isinstance(r, APIRoute) and r.endpoint.__module__ == GALLERY_ROUTER
+                   and "_charged_publish(" in inspect.getsource(r.endpoint) and r not in w11]
+    assert old_publish and not any(_is_wave11_publishing_door(r) for r in old_publish)
 
 
 def test_the_selection_rule_can_tell_a_share_route_from_a_neighbour():
@@ -286,6 +328,14 @@ def test_the_wave11_bucket_is_the_routers_preview_scope():
     assert spec["bucket"] == tgr.SCOPE_PREVIEW
     allowed, per = BUCKET_LIMITS[spec["bucket"]]
     assert tgr.PREVIEW_RATE == f"{allowed}/{per}"
+
+
+def test_the_tools_bucket_is_the_routers_publish_scope():
+    tgr = importlib.import_module(GALLERY_ROUTER)
+    spec = PROOF_MATRIX[("POST", "/api/j2/template-gallery/tools")]
+    assert spec["bucket"] == tgr.SCOPE_PUBLISH
+    allowed, per = BUCKET_LIMITS[spec["bucket"]]
+    assert tgr.PUBLISH_RATE == f"{allowed}/{per}"
 
 
 @pytest.mark.parametrize("row", sorted(PROOF_MATRIX), ids=lambda r: f"{r[0]} {r[1]}")
@@ -566,6 +616,8 @@ BUILDERS: dict[tuple[str, str], RequestBuilder] = {
         lambda w, t: ("GET", f"/api/j2/shared/{_token_for(w, t)}/att/inline/pic.png"),
     ("POST", "/api/j2/template-gallery/share/preview"):
         lambda w, t: ("POST", "/api/j2/template-gallery/share/preview"),
+    ("POST", "/api/j2/template-gallery/tools"):
+        lambda w, t: ("POST", "/api/j2/template-gallery/tools"),
 }
 
 #: row -> build(world, target) -> the JSON body the row's request carries (its thing is named in the body, not the
@@ -573,6 +625,8 @@ BUILDERS: dict[tuple[str, str], RequestBuilder] = {
 BODIES: dict[tuple[str, str], Callable[[dict, str], dict]] = {
     ("POST", "/api/j2/template-gallery/share/preview"):
         lambda w, t: {"kind": "widget", "id": _widget_for(w, t)},
+    ("POST", "/api/j2/template-gallery/tools"):
+        lambda w, t: {"kind": "widget", "id": _widget_for(w, t), "title": "Shared widget"},
 }
 
 
@@ -1320,7 +1374,7 @@ WRITE_SPIES = {
     "api.services.journal_two.note_publish": (
         "publish_note", "publish_folder", "refresh", "set_expiry", "revoke", "list_mine",
         "resolve", "resolve_member", "resolve_attachment"),
-    "api.services.journal_two.template_gallery": ("share_preview",),
+    "api.services.journal_two.template_gallery": ("share_preview", "publish_tool"),
 }
 
 
@@ -1389,9 +1443,9 @@ MALFORMED = {"content": b"{", "headers": {"Content-Type": "application/json"}}
 def test_the_body_rows_are_every_post_and_patch_row():
     """Non-vacuity: the malformed-body rails below run over something, and over exactly the
     matrix's write rows -- the four expiry doors, refresh and wave 11's share preview."""
-    assert len(BODY_ROWS) == 6, BODY_ROWS
+    assert len(BODY_ROWS) == 7, BODY_ROWS
     assert sum(1 for r in BODY_ROWS if PROOF_MATRIX[r]["body"] == "expiry") == 4
-    assert sum(1 for r in BODY_ROWS if PROOF_MATRIX[r]["body"] == "w11") == 1
+    assert sum(1 for r in BODY_ROWS if PROOF_MATRIX[r]["body"] == "w11") == 2
 
 
 @pytest.mark.parametrize("row", BODY_ROWS, ids=_ids)
