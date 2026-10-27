@@ -155,7 +155,7 @@
   },
   "routine_not_yours": {
    "text": "This routine is not in your account.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:1973"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:2026"
   },
   "former_member": {
    "text": "Based on a former member's",
@@ -174,19 +174,19 @@
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4251"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4273"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4250"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4272"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3206"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3228"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5071"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5093"
   },
   "title_too_long": {
    "text": "title too long",
@@ -2702,7 +2702,10 @@
           "820",
           "390"
          ],
-         "text_not_contains": "last_result"
+         "text_not_contains": "last_result",
+         "samples": 4,
+         "interval_ms": 500,
+         "text_nonempty": true
         }
        ],
        "why": "a refused formula blocks the preview (WidgetBuilderSheet.jsx:489, 1343): the last result stays, dimmed at --preview-dim-opacity 0.9, with 'Showing the last result.' beside it or leading the phone bar"
@@ -2775,8 +2778,11 @@
        "latency_ms": 6000
       },
       {
-       "do": "not_reachable",
-       "reason": "the retry retest needs a FAILED preview with a kept result: Try again is drawn only under a failure (PreviewPane.jsx:74 `failed`, :100 PreviewActions; none for offline or superseded, :131). A refused formula never asks (WidgetBuilderSheet.jsx:489, 535), and busy or too_long cannot be forced from the browser (ruling CAMPAIGN-W11), so 'the line stays through the retry, nothing new is announced' is INCONCLUSIVE by design here; the unit rail is PreviewPane.lastResult.test.jsx"
+       "do": "retry_kept_preview",
+       "source": "Closed trades",
+       "samples": 6,
+       "interval_ms": 400,
+       "why": "f-def-1-report.md fix round 2 retest, scripted per review n6: the browser answers the preview busy (503, the server's shape) so Try again draws over the kept result (PreviewPane.jsx:74, :100, :141); the line stays and the live region announces nothing new through the retry (ruling W11-R50b)"
       },
       {
        "do": "close_dialog",
@@ -4859,7 +4865,7 @@
  ],
  "validation": {
   "_about": "Persona validation (Task 11.21 Step 4, rulings W11-R65/W11-R70): each step's selectors, labels, routes and copy were read against the merged tree; `ok` = unchanged and correct, `fixed: <what>`, `not_reachable` = INCONCLUSIVE by design, `http` = not a browser step (graded by the w11/api judges), `added` = a retest script. The selector rail (selector_problems) re-checks every step on each run.",
-  "ref": "origin/feat/notebook-widgets-p2 @ 1d20ebdb78",
+  "ref": "origin/feat/notebook-widgets-p2 @ ab49f5d68e (validated at 1d20ebdb78; no widget-builder or widget_engine file changed since; sentence lines re-read)",
   "steps": {
    "P01.a.01": "http",
    "P01.a.02": "ok + F-DEF-1 measure",
@@ -5010,7 +5016,7 @@
    "P25.b.03": "added: F-DEF-1 retest script",
    "P25.b.04": "added: F-DEF-1 retest script",
    "P25.b.05": "added: F-DEF-1 retest script",
-   "P25.b.06": "not_reachable",
+   "P25.b.06": "added: F-DEF-1 retest script",
    "P25.b.07": "added: F-DEF-1 retest script",
    "P26.a.01": "http",
    "P26.a.02": "ok",

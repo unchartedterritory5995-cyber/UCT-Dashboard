@@ -2030,8 +2030,8 @@ def test_i5_the_live_region_is_summary_only_at_p25_a05_and_the_loading_and_retry
     b = next(s for s in next(p for p in SPEC["personas"] if p["id"] == "P25")["scripts"] if s["id"] == "P25.b")
     dos = [s["do"] for s in b["steps"]]
     assert "axe_while_loading" in dos and dos.index("builder_blank") < dos.index("axe_while_loading")
-    retry = next(s for s in b["steps"] if s["do"] == "not_reachable")
-    assert "Try again" in retry["reason"] and "PreviewPane.jsx:" in retry["reason"]
+    retry = next(s for s in b["steps"] if s["do"] == "retry_kept_preview")       # scripted since round 2 (n6)
+    assert retry["samples"] >= 3 and "PreviewPane.jsx:" in retry["why"]
 
 
 def test_i5_axe_while_loading_never_passes_without_seeing_the_loading_state():
@@ -2039,7 +2039,7 @@ def test_i5_axe_while_loading_never_passes_without_seeing_the_loading_state():
     body = src[src.index("def a_axe_while_loading"):src.index("def open_phone_preview")]
     assert "raise Inconclusive(\"the kept preview was never seen loading" in body
     assert "runOnly: { type: 'rule', values: ['color-contrast'] }" in src
-    assert 'got.get("passes", 0) > 0' in body                           # a run that checked nothing is not a pass
+    assert "axe_contrast_verdict(got)" in body                        # checked nothing / incomplete: not a pass
 
 
 def test_m2_p04_checks_the_split_it_made_and_copy_is_quoted():
@@ -2108,3 +2108,179 @@ def test_c1_a_tool_launcher_with_a_shorter_kill_list_than_the_app_roots_refuses(
     finally:
         sys.path[:] = saved_path
         boot.REPO_ROOT = saved_root
+
+
+# ── fix round 2 (scoped re-review of b004a0fb5b): N1, n2, n5, n6, n7 ─────────────────────────────────────────────
+#
+# Mutants (ledger campaign-mutants/mutate_r2.py): N1 PYTHONDONTWRITEBYTECODE not set; n2 the schema boot back on the
+# shell's env; n5a axe `incomplete` ignored; n5b Network.enable dropped; n6a the "nothing new announced" check
+# dropped; n6b the cue check dropped; n7a samples ignored; n7b an empty live region passing. Each turned this red.
+
+def test_n1_the_served_env_never_writes_bytecode_into_the_app_root(tmp_path):
+    fw = _g3_fw(tmp_path, {}, all_names=[], c1=[])
+    fs = rc.campaign_flag_sets(fw)
+    for base in ({"PATH": "x"}, {"PATH": "x", "PYTHONDONTWRITEBYTECODE": "0"}):
+        assert rc.campaign_env(fs, base=base)[0]["PYTHONDONTWRITEBYTECODE"] == "1"
+
+
+def test_n2_the_schema_boot_uses_the_hermetic_campaign_env(tmp_path, monkeypatch):
+    fw = _g3_fw(tmp_path, {"NOTEBOOK_GATE_A": {"status": "armed", "where": ["web"]}}, all_names=["NOTEBOOK_GATE_A"],
+                c1=["NOTEBOOK_GATE_A"])
+    monkeypatch.setattr(rc, "load_walk_libs", lambda app_root: (None, fw, None, None))
+    monkeypatch.setenv("NOTEBOOK_POISON_FROM_SHELL", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-poison")
+    env = sm.schema_env(tmp_path)
+    assert "NOTEBOOK_POISON_FROM_SHELL" not in env and "ANTHROPIC_API_KEY" not in env
+    assert env["NOTEBOOK_GATE_A"] == "1" and env["PYTHONDONTWRITEBYTECODE"] == "1"
+    import inspect
+    assert "env=schema_env(app_root)" in inspect.getsource(sm.boot_schema_clock)
+
+
+def test_n5_axe_incomplete_is_inconclusive_and_the_network_domain_is_enabled_first():
+    assert "'incomplete'" in rc.AXE_CONTRAST_JS and "incomplete:" in rc.AXE_CONTRAST_JS
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    body = src[src.index("def a_axe_while_loading"):src.index("#: The server's busy refusal")]
+    assert rc.axe_contrast_verdict({"violations": [], "passes": 3, "incomplete": 1})[1]          # never a pass
+    assert rc.axe_contrast_verdict({"violations": [], "passes": 0, "incomplete": 0})[1]
+    assert rc.axe_contrast_verdict({"violations": [], "passes": 3, "incomplete": 0}) == (True, None)   # control
+    assert rc.axe_contrast_verdict({"violations": [{"id": "color-contrast"}], "passes": 3})[0] is False
+    assert "ok, unsure = axe_contrast_verdict(got)" in body and "raise Inconclusive(unsure)" in body
+    assert body.index('cdp.send("Network.enable")') < body.index('"Network.emulateNetworkConditions"')
+
+
+class _RetryWorld:
+    """A stand-in page for a_retry_kept_preview: the CDP Fetch handler is invoked when the source tile or Try again is
+    pressed (each is one preview request the browser answers busy), and each evaluate() returns the next sample."""
+
+    def __init__(self, samples, before, try_again=True):
+        self.samples, self.before, self.try_again = list(samples), before, try_again
+        self.handler, self.sent, self.started = None, [], False
+
+    # the CDP session
+    def on(self, ev, fn):
+        self.handler = fn
+
+    def send(self, method, params=None):
+        self.sent.append(method)
+
+    def detach(self):
+        pass
+
+    # the page
+    def evaluate(self, js, *a):
+        if not self.started:
+            self.started = True
+            return self.before
+        return self.samples.pop(0) if self.samples else self.before
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def get_by_role(self, role, name=None, exact=False):
+        world = self
+
+        class Loc:
+            def filter(self, **k):
+                return self
+
+            @property
+            def last(self):
+                return self
+
+            @property
+            def first(self):
+                return self
+
+            def wait_for(self, *a, **k):
+                if name == "Try again" and not world.try_again:
+                    raise TimeoutError("no Try again")
+
+            def click(self, *a, **k):
+                world.handler({"requestId": f"r{len(world.sent)}"})
+
+            def get_by_role(self, *a, **k):
+                return world.get_by_role(*a, **k)
+        return Loc()
+
+
+def _retry_run(world, vp=(1200, 800)):
+    R = type("R", (), {})()
+    R.size, R.keyboard, R.touch = vp, False, False
+    R.page = lambda name="main": world
+    R.contexts = {"main": type("C", (), {"new_cdp_session": lambda self, pg: world})()}
+    R.g = type("G", (), {"sentence": lambda self, k: "Showing the last result."})()
+    return R
+
+
+LAST = "Showing the last result."
+SUMMARY = "Net P&L for closed trades in the last 90 days, all accounts. 40 trades."
+
+
+def test_n6_the_retry_keeps_the_line_and_announces_nothing_new():
+    good = {"live": SUMMARY, "line": LAST, "bar": None}
+    w = _RetryWorld([good] * 7, before={"live": SUMMARY, "line": None, "bar": None})
+    row = {"checks": [], "read": []}
+    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1}, row)
+    assert row["checks"] and all(c["ok"] for c in row["checks"]), [c for c in row["checks"] if not c["ok"]]
+    assert "Fetch.enable" in w.sent and "Fetch.fulfillRequest" in w.sent and "Fetch.disable" in w.sent
+
+
+@pytest.mark.parametrize("bad,why", [
+    ({"live": "Showing the last result. " + SUMMARY, "line": LAST, "bar": None}, "announced"),
+    ({"live": "", "line": LAST, "bar": None}, "emptied"),
+    ({"live": SUMMARY, "line": None, "bar": None}, "the line went"),
+])
+def test_n6_controls_a_changed_live_region_or_a_lost_line_fails(bad, why):
+    good = {"live": SUMMARY, "line": LAST, "bar": None}
+    w = _RetryWorld([good, good, bad, good, good, good, good], before={"live": SUMMARY, "line": None, "bar": None})
+    row = {"checks": [], "read": []}
+    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1}, row)
+    assert not all(c["ok"] for c in row["checks"]), why
+
+
+def test_n6_a_retry_that_cannot_be_drawn_is_inconclusive():
+    w = _RetryWorld([], before={"live": SUMMARY, "line": None, "bar": None}, try_again=False)
+    with pytest.raises(rc.Inconclusive, match="Try again never drew"):
+        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades"}, {"checks": [], "read": []})
+    w = _RetryWorld([], before={"live": "", "line": None, "bar": None})
+    with pytest.raises(rc.Inconclusive, match="no summary before"):
+        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades"}, {"checks": [], "read": []})
+
+
+def test_n6_the_retry_is_scripted_in_p25_b():
+    b = next(s for s in next(p for p in SPEC["personas"] if p["id"] == "P25")["scripts"] if s["id"] == "P25.b")
+    dos = [s["do"] for s in b["steps"]]
+    assert "retry_kept_preview" in dos and "not_reachable" not in dos
+    assert dos.index("axe_while_loading") < dos.index("retry_kept_preview")
+
+
+class _Seq(_Loc):
+    """A locator whose evaluate() answers the next value each call (one per sample)."""
+
+    def __init__(self, values):
+        super().__init__([values[0]])
+        self.values = list(values)
+
+    def nth(self, i):
+        return self
+
+    def evaluate(self, js):
+        return self.values.pop(0) if len(self.values) > 1 else self.values[0]
+
+
+def test_n7_the_live_region_is_sampled_and_an_empty_one_fails():
+    t = {"defect": "D-W11-007", "what": "live", "testid": "builder-live", "viewports": ["820"], "samples": 3,
+         "interval_ms": 1, "text_nonempty": True, "text_not_contains": "last_result"}
+    for values, want in (([_box(text=SUMMARY)] * 3, [True, True] * 3),
+                         ([_box(text=SUMMARY), _box(text=""), _box(text=SUMMARY)], [True, True, False, True, True, True]),
+                         ([_box(text=SUMMARY), _box(text=LAST), _box(text=SUMMARY)], [True, True, True, False, True, True])):
+        R, row = _measure_run([])
+        pg = R.page()
+        seq = _Seq(values)
+        type(pg).get_by_test_id = lambda self, *a: seq
+        type(pg).wait_for_timeout = lambda self, ms: None
+        R.page = lambda name="main", pg=pg: pg
+        rc.run_measures(R, {"measure": [t]}, row)
+        assert [c["ok"] for c in row["checks"]] == want, [c["what"] for c in row["checks"]]
+    p25 = next(x for x in _step("P25.a.05")["measure"] if x.get("testid") == "builder-live")
+    assert p25["samples"] >= 3 and p25["text_nonempty"] is True

@@ -464,6 +464,14 @@ def boot_schema(app_root: Path, data_dir: Path, port: int, out_dir: Path) -> str
     return how
 
 
+def schema_env(app_root: Path) -> dict:
+    """The schema boot's env: run_campaign's hermetic campaign_env (review n2), the same served flag set as the
+    campaign's own servers, derived from the app root, with no operator-shell variable and no bytecode written."""
+    import run_campaign as rc  # noqa: E402 -- lazy: run_campaign imports this module
+    fw = rc.load_walk_libs(app_root)[1]
+    return rc.campaign_env(rc.campaign_flag_sets(fw))[0]
+
+
 def boot_schema_clock(app_root: Path, data_dir: Path, port: int, out_dir: Path) -> str:
     """The schema boot through sandbox_clock.py at the real now (no shift that matters: the tables are the
     app's own either way). For a caller that must not open C:\\data at all: the hub launcher hashes the
@@ -482,7 +490,8 @@ def boot_schema_clock(app_root: Path, data_dir: Path, port: int, out_dir: Path) 
            "--data-dir", str(data_dir), "--port", str(port), "--app-root", str(app_root), "--no-remint"]
     kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True})
     with open(log, "w", encoding="utf-8") as fh:
-        proc = subprocess.Popen(cmd, cwd=str(app_root), stdout=fh, stderr=subprocess.STDOUT, **kw)
+        proc = subprocess.Popen(cmd, cwd=str(app_root), stdout=fh, stderr=subprocess.STDOUT, env=schema_env(app_root),
+                                **kw)
     try:
         end, ok = time.time() + 400, False
         while time.time() < end and proc.poll() is None and not ok:

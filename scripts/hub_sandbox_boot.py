@@ -555,7 +555,10 @@ def _use_app_root(app_root):
     """`--app-root` (review C1): serve, and derive the census from, ANOTHER checkout's api/ and conftest, while this
     file (the tool tree's launcher, with its G2 options) runs. This tree's root leaves sys.path, the app root takes its
     place. Refused when the app root is inside the shared root, or when the app root's own launcher kills a flag this
-    one does not (a tool tree older than the app must never serve with a shorter kill list)."""
+    one does not (a tool tree older than the app must never serve with a shorter kill list).
+    ⚠️ SCOPE (review n3): only the KILL_LIST NAMES are compared, not their values, the model-key policy or any other
+    env policy in the app root's launcher; this launcher's own policy is what runs. And (n4) the app root's conftest
+    resolves `shared_root_guard` from THIS tree's scripts/ (first on sys.path), identical while both trees agree."""
     global REPO_ROOT
     app_root = os.path.abspath(app_root)
     why = _shared_root_guard().refuse(app_root)

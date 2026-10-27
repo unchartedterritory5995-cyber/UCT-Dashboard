@@ -146,6 +146,10 @@ HANDLER_ANCHORS: dict[str, tuple[str, str]] = {
     "builder-preview-view": (_WB + "PreviewPane.jsx", 'data-testid="builder-preview-view"'),
     "aria-busy": (_WB + "PreviewPane.jsx", "aria-busy={status === 'loading'}"),
     "hub-root": ("app/src/hub/HubRoot.jsx", 'data-testid="hub-root"'),
+    "builder-preview-last": (_WB + "PreviewPane.jsx", 'data-testid="builder-preview-last">{LAST_RESULT_SENTENCE}'),
+    "Try again": (_WB + "PreviewPane.jsx", "<span>Try again</span>"),
+    "busy code": ("app/src/pages/journal-2-0/lib/builtWidgets.js", "busy: 'Busy right now. Try again in a moment.'"),
+    "preview route": ("app/src/pages/journal-2-0/lib/builtWidgets.js", "'/preview'"),
     "formula-field": (_WB + "sections/FormulaSection.jsx", 'data-testid="formula-field"'),
     "example-card-": (_WB + "ExampleCard.jsx", "data-testid={`example-card-${example.id}`}"),
     "data-snapshot-frame": (_NB + "widgets/SnapshotFrame.jsx", 'data-snapshot-frame=""'),
@@ -223,6 +227,8 @@ ACTION_ANCHORS: dict[str, tuple[str, ...]] = {
     "widget_share_on": ("data-snapshot-frame", "switch", "Show on shared pages"),
     "share_public": ("Share", "Share this note", "Share link address", "Create link"),
     "axe_while_loading": ("builder title", "source radio", "builder-preview-view", "aria-busy", "builder-summary-bar"),
+    "retry_kept_preview": ("builder title", "source radio", "Try again", "builder-live", "builder-preview-last",
+                           "builder-summary-bar", "busy code", "preview route"),
 }
 #: What every step with `measure` targets leans on: an absent FeedbackWidget is excused only where the hub is shown
 #: or a sheet is open (absent_explained, review m3).
@@ -690,6 +696,8 @@ def campaign_env(fs: dict, overrides: dict | None = None, base=None) -> tuple[di
     applied.update(overrides or {})
     env.update(applied)
     env.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
+    # Review N1: the servers import the app root's code with cwd there; no __pycache__ is ever written into it.
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     return env, [f"{k}={v}" for k, v in sorted(applied.items())]
 
 
@@ -1815,10 +1823,24 @@ AXE_CONTRAST_JS = """async (sel) => {
   const root = document.querySelector(sel);
   if (!root) return { error: 'no ' + sel };
   const r = await window.axe.run(root, { runOnly: { type: 'rule', values: ['color-contrast'] },
-                                         resultTypes: ['violations', 'passes'] });
+                                         resultTypes: ['violations', 'passes', 'incomplete'] });
   return { violations: r.violations.map(v => ({ id: v.id, nodes: v.nodes.length,
              summary: (v.nodes[0] && v.nodes[0].failureSummary || '').slice(0, 300) })),
-           passes: r.passes.reduce((n, v) => n + v.nodes.length, 0) } }"""
+           passes: r.passes.reduce((n, v) => n + v.nodes.length, 0),
+           incomplete: r.incomplete.reduce((n, v) => n + v.nodes.length, 0) } }"""
+
+
+def axe_contrast_verdict(got: dict) -> tuple[bool, str | None]:
+    """(no violation, why it is still not a pass). Review n5: a contrast axe could not compute (a gradient, an
+    overlap: `incomplete`) is never read as a pass, and neither is a run that checked no text node."""
+    ok = not got.get("error") and not got.get("violations")
+    if not ok:
+        return False, None
+    if got.get("incomplete", 0) > 0:
+        return True, f"axe could not compute contrast for {got['incomplete']} node(s) while loading"
+    if got.get("passes", 0) <= 0:
+        return True, "axe checked no text node while loading"
+    return True, None
 
 
 def a_axe_while_loading(R, s, row):
@@ -1835,6 +1857,7 @@ def a_axe_while_loading(R, s, row):
     if R.size[0] <= 640:
         open_phone_preview(R, row)
     cdp = R.contexts["main"].new_cdp_session(pg)
+    cdp.send("Network.enable")                  # review n5: the emulation applies to an enabled Network domain
     cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": int(s.get("latency_ms", 6000)),
                                                   "downloadThroughput": -1, "uploadThroughput": -1})
     try:
@@ -1850,13 +1873,85 @@ def a_axe_while_loading(R, s, row):
               abs(float(m["opacity"]) - 0.9) < 0.005, m["opacity"])
         got = pg.evaluate(AXE_CONTRAST_JS, sel)
         row["read"].append({"what": "axe color-contrast while loading", "text": json.dumps(got)[:1200]})
-        check(row, "axe color-contrast passes while the preview loads",
-              not got.get("error") and not got.get("violations") and got.get("passes", 0) > 0, json.dumps(got)[:400])
+        ok, unsure = axe_contrast_verdict(got)
+        check(row, "axe color-contrast finds no violation while the preview loads", ok, json.dumps(got)[:400])
+        if ok and unsure:
+            raise Inconclusive(unsure)
     finally:
         with contextlib.suppress(Exception):
             cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": 0,
                                                           "downloadThroughput": -1, "uploadThroughput": -1})
             cdp.detach()
+
+
+#: The server's busy refusal (widget_engine run.py BUSY, builtWidgets.js `busy`), as the browser would receive it.
+BUSY_BODY = {"detail": {"code": "busy", "message": "Busy right now. Try again in a moment."}}
+PREVIEW_URL_PATTERN = "*/api/j2/widget-definitions/preview*"
+
+#: The live region's text, the kept-result line, and the phone bar's text, read together (one sample).
+LIVE_SAMPLE_JS = """() => {
+  const live = [...document.querySelectorAll('[data-testid=builder-live]')].pop();
+  const line = document.querySelector('[data-testid=builder-preview-last]');
+  const bar = document.querySelector('[data-testid=builder-summary-bar]');
+  const shown = (e) => !!e && e.getBoundingClientRect().height > 0 && getComputedStyle(e).display !== 'none';
+  return { live: live ? (live.textContent || '') : null, line: shown(line) ? line.innerText.trim() : null,
+           bar: shown(bar) ? bar.innerText.trim() : null } }"""
+
+
+def a_retry_kept_preview(R, s, row):
+    """F-DEF-1 fix round 2 retest (ruling W11-R50b), scripted per review n6: the browser answers the builder's preview
+    request with the server's 503 `busy` (CDP Fetch), so the kept result stays under a failure and Try again draws;
+    Try again is pressed (answered busy again). Sampled through it: the "Showing the last result." line (or the phone
+    bar's lead) stays at every sample, and the live region never changes from the summary it held before the failure
+    and never says the line. A state that cannot be drawn reads INCONCLUSIVE with its reason, never PASS."""
+    import base64
+    pg = R.page()
+    dlg = builder(pg)
+    if R.size[0] <= 640:
+        open_phone_preview(R, row)
+    last = R.g.sentence("last_result")
+    before = pg.evaluate(LIVE_SAMPLE_JS)
+    if not (before.get("live") or "").strip():
+        raise Inconclusive("the live region held no summary before the failure (no kept preview to retry)")
+    cdp = R.contexts["main"].new_cdp_session(pg)
+    seen = {"paused": 0}
+
+    def on_paused(ev):
+        seen["paused"] += 1
+        cdp.send("Fetch.fulfillRequest", {"requestId": ev["requestId"], "responseCode": 503,
+                                          "responseHeaders": [{"name": "Content-Type", "value": "application/json"}],
+                                          "body": base64.b64encode(json.dumps(BUSY_BODY).encode()).decode()})
+    cdp.on("Fetch.requestPaused", on_paused)
+    cdp.send("Fetch.enable", {"patterns": [{"urlPattern": PREVIEW_URL_PATTERN, "requestStage": "Request"}]})
+    samples = []
+    try:
+        act(R, pg, dlg.get_by_role("radio", name=s["source"]))         # a new preview: answered busy
+        retry = dlg.get_by_role("button", name="Try again", exact=True)
+        try:
+            retry.first.wait_for(timeout=8000)
+        except Exception:  # noqa: BLE001
+            raise Inconclusive(f"Try again never drew over a kept result ({seen['paused']} preview request(s) "
+                               "answered busy)")
+        samples.append({"at": "failed", **pg.evaluate(LIVE_SAMPLE_JS)})
+        act(R, pg, retry.first)
+        for k in range(int(s.get("samples", 6))):
+            pg.wait_for_timeout(int(s.get("interval_ms", 400)))
+            samples.append({"at": f"retry+{(k + 1) * int(s.get('interval_ms', 400))}ms", **pg.evaluate(LIVE_SAMPLE_JS)})
+    finally:
+        with contextlib.suppress(Exception):
+            cdp.send("Fetch.disable")
+            cdp.detach()
+    row["read"].append({"what": "samples (live region, line, phone bar)", "text": json.dumps([before] + samples)[:2500]})
+    check(row, "the browser answered the preview busy at least twice (the failure and the retry)",
+          seen["paused"] >= 2, str(seen["paused"]))
+    wide = R.size[0] > 640
+    for smp in samples:
+        cue = smp.get("line") == last if wide else (smp.get("bar") or "").startswith(last)
+        check(row, f"{smp['at']}: the kept-result cue is shown", cue, json.dumps(smp)[:300])
+        check(row, f"{smp['at']}: the live region never says the cue", last not in (smp.get("live") or ""),
+              smp.get("live") or "")
+        check(row, f"{smp['at']}: nothing new is announced (the summary held before the failure)",
+              (smp.get("live") or "") == before["live"], smp.get("live") or "")
 
 
 def open_phone_preview(R: Run, row: dict) -> None:
@@ -1920,8 +2015,11 @@ def run_measures(R: Run, s: dict, row: dict) -> None:
         if n > 1 and not t.get("all"):
             check(row, f"{what}: exactly one on the page", False, f"{n} found")
             continue
-        for m in [loc.nth(i).evaluate(MEASURE_JS) for i in range(n)]:
-            measure_one(R, row, t, what, m)
+        for k in range(max(1, int(t.get("samples", 1)))):
+            if k:
+                pg.wait_for_timeout(int(t.get("interval_ms", 400)))
+            for m in [loc.nth(i).evaluate(MEASURE_JS) for i in range(loc.count())]:
+                measure_one(R, row, t, what + (f" (sample {k + 1})" if t.get("samples") else ""), m)
 
 
 def absent_explained(pg) -> str | None:
@@ -1959,6 +2057,8 @@ def measure_one(R: Run, row: dict, t: dict, what: str, m: dict) -> None:
     if t.get("text_not_starts"):
         want = R.g.sentence(t["text_not_starts"])
         check(row, f"{what}: no longer starts {want!r}", not m["text"].startswith(want), m["text"])
+    if t.get("text_nonempty"):
+        check(row, f"{what}: says something (the summary)", bool(m["text"].strip()), m["text"])
     if t.get("text_not_contains"):
         want = R.g.sentence(t["text_not_contains"])
         check(row, f"{what}: never says {want!r}", want not in m["text"], m["text"])
@@ -2485,6 +2585,7 @@ ACTIONS = {
     "flag_restart": a_flag_restart, "widget_share_on": a_widget_share_on,
     "share_public": a_share_public, "admin_login": a_admin_login, "throttle": a_throttle, "check_text": a_check_text,
     "noop": a_noop, "not_reachable": a_not_reachable, "theme": a_theme, "axe_while_loading": a_axe_while_loading,
+    "retry_kept_preview": a_retry_kept_preview,
     # wave 11 (real route shapes, w11_steps)
     "w11_browse": a_w11_browse, "w11_preview": a_w11_preview, "w11_share_preview": a_w11_share_preview,
     "w11_publish": a_w11_publish, "w11_adopt": a_w11_adopt, "w11_use": a_w11_use, "w11_unkeyed": a_w11_unkeyed,
