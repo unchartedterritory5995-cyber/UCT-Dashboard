@@ -313,6 +313,44 @@ def test_the_templates_tab_read_is_a_constant_number_of_statements(db):
     assert all(r["credit"] == "Based on Sam's Setup study" and r["fromLibrary"] for r in rows[20])
 
 
+def _gallery_reads(seen: list[str]) -> list[str]:
+    return [s for s in seen if "j2_template_gallery" in s and s.lstrip().upper().startswith("SELECT")]
+
+
+def test_the_library_facts_read_each_listing_once_however_many_distinct_listings_there_are(db):
+    """F-ALIAS-1 A4 (11.12 r2 n-4): `from_library_many` is the ONE read of which listings exist; there is no second
+    `present` re-read. 2 and 12 DISTINCT source listings -- a third of them withdrawn, every copy without a credit
+    snapshot (so the pre-wave-11 fallback read runs) -- cost the same statements, and the gallery is read the same
+    number of times. A withdrawn listing is still `fromLibrary` (fail closed) and credits nothing."""
+    counts, reads, rows = {}, {}, {}
+    for k in (2, 12):
+        db.execute("DELETE FROM j2_journal_styles WHERE user_id = ?", (MEMBER,))
+        db.commit()
+        gone = set()
+        for i in range(k):
+            src = style(db, name=f"Study {k}-{i}")
+            gid = list_template(db, src["id"], title=f"Study {k}-{i}")
+            s = _mine(db, f"c{k}-{i}")
+            db.execute("UPDATE j2_journal_styles SET source_gallery_id = ? WHERE id = ?", (gid, s["id"]))
+            if i % 3 == 0:
+                db.execute("DELETE FROM j2_template_gallery WHERE id = ?", (gid,))     # withdrawn
+                gone.add(s["id"])
+        db.commit()
+        holder = {}
+        seen = _statements(db, lambda: holder.setdefault("v", js.list_styles(MEMBER, db, view="live")))
+        counts[k], reads[k], rows[k] = len(seen), len(_gallery_reads(seen)), holder["v"]
+    assert counts[2] == counts[12], counts
+    # exactly three gallery reads: `library_facts`, `from_library_many` (which listings exist, and whose) and the
+    # one batched fallback-credit read. A re-read of which listings exist would make it four.
+    assert reads[2] == reads[12] == 3, reads
+    assert len(rows[12]) == 12 and all(r["fromLibrary"] for r in rows[12])
+    for r in rows[12]:
+        if r["id"] in gone:
+            assert r["credit"] is None, r                                      # gone: no row, no credit
+        else:
+            assert r["credit"] and r["credit"].startswith("Based on "), r       # the pre-wave-11 fallback credit
+
+
 @pytest.mark.parametrize("wave_on", [True, False])
 def test_the_archive_filter_follows_wave_11(db, monkeypatch, wave_on):
     """W11-R38: hidden from the picker, the kind section and the default choice ONLY while wave 11 is on. Off, it is

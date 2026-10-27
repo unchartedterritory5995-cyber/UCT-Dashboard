@@ -859,12 +859,13 @@ def _marks(n: int) -> str:
 def _with_library_facts(user_id: str, styles: list[dict], conn: sqlite3.Connection) -> list[dict]:
     """Each of the member's styles with `usedIn`, `credit`, `fromLibrary` and `updateAvailable`, in a CONSTANT number
     of statements (I-1): one grouped count, one `library_facts` call over every id (batched by template_gallery),
-    one `IN (...)` read of the source gallery rows, and one batched gallery read for the pre-wave-11 credits.
+    one `from_library_many` read of the source gallery rows, and one batched gallery read for the pre-wave-11
+    credits.
 
     `credit` and `updateAvailable` are `library_facts` (the copy's snapshot, W11-R7; {} while the library or wave 11
     is off). A copy adopted before wave 11 wrote snapshots is credited from the gallery row it came from
-    (`_row_credit`, as adopting words it). `fromLibrary` is `_from_library`'s rule (P3a-T10-R5) applied to the
-    batched read: it came from ANOTHER member's listing, or from one that is gone (fail closed), so the member's own
+    (`row_credit`, as adopting words it). `fromLibrary` is `from_library_many`'s rule (P3a-T10-R5), the batched
+    read: it came from ANOTHER member's listing, or from one that is gone (fail closed), so the member's own
     listing is never credited."""
     from api.services.journal_two import template_gallery as tg
     counts = _used_in_counts(user_id, conn)
@@ -873,15 +874,13 @@ def _with_library_facts(user_id: str, styles: list[dict], conn: sqlite3.Connecti
     # Task 11.12 (carry 15): THE `_from_library` rule (P3a-T10-R5) is template_gallery's, batched in one statement;
     # this module keeps no copy of it.
     lib = tg.from_library_many(user_id, gids, conn=conn) if gids else {}
-    present: set = set()
-    if gids:
-        present = {r[0] for r in conn.execute(
-            f"SELECT id FROM j2_template_gallery WHERE id IN ({_marks(len(gids))})", gids)}
 
     def from_lib(gid: Any) -> bool:
         return bool(gid) and bool(lib.get(gid))
 
-    need = [g for g in gids if from_lib(g) and g in present
+    # F-ALIAS-1 A4 (11.12 r2 n-4): no second read of which listings still exist. A gone listing is `from_lib` (fail
+    # closed) and simply reads no row below, so it falls back to no credit, exactly as the dropped re-read decided.
+    need = [g for g in gids if from_lib(g)
             and any(s.get("sourceGalleryId") == g and (facts.get(s["id"]) or {}).get("credit") is None
                     for s in styles)]
     fallback: dict = {}
