@@ -251,3 +251,17 @@ def test_each_member_has_their_own_day(app, client):
     _login_as(app, "u2")
     b = _today(client).json()
     assert b["created"] is True and b["note"]["id"] != a["id"]
+
+
+def test_a_daily_note_from_a_template_ends_on_the_paragraph_the_editor_would_add(app, client):
+    """W11-R79 follow-up 4a: a daily template ending on a block that is not a paragraph (here a list, or once its last
+    placeholder line is dropped, a heading) made a daily note TipTap's TrailingNode appends a paragraph to as it opens.
+    The daily note stores it (`journal_styles.with_trailing_paragraph`, the one authority styled creates use)."""
+    _login_as(app, "u1")
+    para = lambda t: {"type": "paragraph", "content": [{"type": "text", "text": t}]}   # noqa: E731
+    heading = {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]}
+    body = {"type": "doc", "content": [para("Intro"), heading, para("{{block:prepWire}}")]}
+    src = client.post("/api/j2/notes", json={"title": "Prep", "bodyJson": body}).json()["note"]
+    tid = client.post("/api/j2/note-templates", json={"noteId": src["id"], "name": "Prep"}).json()["template"]["id"]
+    note = _today(client, templateId=tid).json()["note"]
+    assert note["bodyJson"]["content"] == [para("Intro"), heading, {"type": "paragraph"}]
