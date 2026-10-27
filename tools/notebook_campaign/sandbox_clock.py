@@ -90,6 +90,58 @@ def refuse_data_dir(data_dir) -> str | None:
     return f"--data-dir {why}" if why else None
 
 
+#: The app-root modules this launcher imports by bare name. Each must come from `--app-root`, never from the tool
+#: tree: `refuse_data_dir` imports `seed_members`, whose `_guard()` puts the TOOL tree's scripts/ on sys.path and
+#: caches the tool tree's `shared_root_guard`.
+APP_ROOT_MODULES = ("hub_sandbox_boot", "sandbox_identity", "shared_root_guard", "conftest")
+
+
+def _file_of(mod) -> str | None:
+    """Where `mod` was loaded from: its file, else its package's first path entry; None for a file-less stand-in."""
+    if mod is None:
+        return None
+    return getattr(mod, "__file__", None) or next(iter(getattr(mod, "__path__", None) or []), None)
+
+
+def _under(path, root) -> bool:
+    p = os.path.normcase(os.path.abspath(str(path)))
+    r = os.path.normcase(os.path.abspath(str(root)))
+    return p == r or p.startswith(r.rstrip(os.sep) + os.sep)
+
+
+def serve_from(app_root: Path) -> str | None:
+    """Make `--app-root` the ONE source of the launcher, guard, sandbox identity, conftest and api, deterministically,
+    whatever sys.path already holds (W11-R88). The app root and its scripts/ go FIRST, moved there when already
+    present further back (the old `if p not in sys.path` left a present entry behind the tool tree's scripts/, so
+    `import hub_sandbox_boot` found the tool tree's launcher, whose REPO_ROOT insert then served the tool tree's
+    api/). An APP_ROOT_MODULES module cached from elsewhere is dropped so it is re-imported from the app root.
+    Returns why serving is refused (an `api` already imported from elsewhere cannot be swapped), or None.
+    A module with no file on disk is an in-process stand-in a rail injected on purpose: it is left alone."""
+    root = Path(app_root).resolve()
+    served = sys.modules.get("api.main") or sys.modules.get("api")   # what `from api.main import app` would use
+    api_file = _file_of(served)
+    if api_file is not None and not _under(api_file, root):
+        return f"`api` is already imported from {api_file}, not from --app-root {root}"
+    want = [str(root), str(root / "scripts")]
+    keyed = {os.path.normcase(os.path.abspath(w)) for w in want}
+    sys.path[:] = want + [x for x in sys.path if os.path.normcase(os.path.abspath(x or os.getcwd())) not in keyed]
+    for name in APP_ROOT_MODULES:
+        f = _file_of(sys.modules.get(name))
+        if f is not None and not _under(f, root):
+            del sys.modules[name]
+    return None
+
+
+def served_outside(app_root: Path, names=APP_ROOT_MODULES + ("api.main",)) -> list[str]:
+    """Each named module that is loaded and was NOT loaded from `--app-root` ("name: file"); [] when all are."""
+    out = []
+    for name in names:
+        f = _file_of(sys.modules.get(name))
+        if f is not None and not _under(f, app_root):
+            out.append(f"{name}: {f}")
+    return out
+
+
 def refuse_host(host: str | None) -> str | None:
     if (host or "").strip().lower() in LOOPBACK:
         return None
@@ -803,9 +855,10 @@ def main(argv=None) -> int:
         return 2
     app_root = Path(args.app_root).resolve()
     sandbox = os.path.abspath(args.data_dir)
-    for p in (str(app_root / "scripts"), str(app_root)):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    why = serve_from(app_root)
+    if why:
+        print(f"REFUSED: {why}", flush=True)
+        return 2
     os.chdir(app_root)
     import hub_sandbox_boot as hsb  # noqa: E402 -- the app root's launcher: its rules, not a copy
     import sandbox_identity as sid  # noqa: E402
@@ -824,6 +877,10 @@ def main(argv=None) -> int:
 
     shift = ClockShift(instant).install()
     from api.main import app as _app  # noqa: E402
+    stray = served_outside(app_root)
+    if stray:
+        print(f"REFUSED: not served from --app-root {app_root}: {'; '.join(stray)}", flush=True)
+        return 2
     shift.sweep_all()
     sweeps = neutralize_session_sweeps()
     rep = shift.report()
@@ -833,6 +890,7 @@ def main(argv=None) -> int:
     print("  " + "-" * 68)
     print(f"  Data dir     : {sandbox}")
     print(f"  App root     : {app_root}")
+    print(f"  Served api   : {_file_of(sys.modules.get('api.main'))} (launcher {_file_of(hsb)})")
     print(f"  URL          : http://{args.host}:{args.port}")
     print(f"  Path pins    : {len(pins)} env vars (hub_sandbox_boot.apply_sandbox_env)")
     print(f"  Shared roots : {', '.join(conftest.SHARED_DATA_ROOTS)} (writes RAISE; this launcher hashes none)")
@@ -853,6 +911,8 @@ def main(argv=None) -> int:
 
     body = sid.payload(nonce, data_dir=sandbox, integrity_log="", pid=os.getpid(),
                        started_at=_RD.now(_UTC).isoformat(timespec="seconds"))
+    body["served_from"] = {"app_root": str(app_root), "api_main": _file_of(sys.modules.get("api.main")),
+                           "launcher": _file_of(hsb)}
     body["clock_shift"] = {**shift.report(), "unshiftable_tables": sorted(unshift["static"]["tables"])}
     import uvicorn  # noqa: E402
     try:

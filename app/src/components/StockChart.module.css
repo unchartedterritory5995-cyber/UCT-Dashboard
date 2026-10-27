@@ -1170,6 +1170,18 @@
   }
 }
 
+/* ── The TickerPopup's chart on the touch tier ──
+   The same A/L/% chips measured ~22px inside the popup (axe `target-size`, 820 and 390).
+   `TickerPopup.jsx` marks its chart area `data-ticker-popup-chart`; scoped like the embed rule
+   above so workspace grid cells and the phone shell keep their sizing.
+   Rail: `components/TickerPopup.tapFloor.test.js`. */
+@media (max-width: 1024px) {
+  :global([data-ticker-popup-chart]) .scaleToggleBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;

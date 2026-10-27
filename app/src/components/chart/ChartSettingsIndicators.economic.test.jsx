@@ -16,6 +16,7 @@ import { mergeChartSettings } from './chartDefaults'
 import { parseSource } from './engine/sourceRef'
 import { _resetEconomicForTests } from './engine/economicSeries'
 import { CATALOG } from './economic/__fixtures__/econCatalog'
+import { resultRows } from './__tests__/resultRows'
 
 let calls = []
 function stubFetch(catalogStatus) {
@@ -51,7 +52,7 @@ const openAdd = () => {
   if (!document.body.querySelector('[data-testid="add-surface"]')) fireEvent.click(screen.getByTestId('add-enter'))
 }
 const tabKeys = () => [...document.body.querySelectorAll('[role="tab"][data-tab]')].map((b) => b.dataset.tab)
-const rows = () => screen.queryAllByRole('option')
+const rows = () => resultRows()
 const econRows = () => rows().filter((o) => o.dataset.resultKind === 'economic')
 const live = (cs) => (Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []).filter((i) => i && !i.deleted && !i.removed)
 

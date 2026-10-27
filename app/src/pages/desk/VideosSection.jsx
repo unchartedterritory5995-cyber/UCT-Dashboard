@@ -360,14 +360,19 @@ export default function VideosSection() {
   }, [])
 
   // Community "Discussion" links: one batch lookup of desk-seeded threads for
-  // every video on the page. Flag-off → endpoint 503s → fetcher returns null →
-  // no links render (the desired dark behavior).
+  // every video on the page. Gated on /api/community/status `enabled` — the
+  // server's own `_enabled_for` reader, the same one that 503s desk-threads,
+  // under the same SWR key the NavBar polls — so Community-off sends no
+  // request and no links render (the desired dark behavior).
   const allVideoIds = useMemo(
     () => (categories || []).flatMap((c) => c.videos.map((v) => v.id)).filter(Boolean),
     [categories],
   )
+  const { data: communityStatus } = useSWR('/api/community/status', fetcher)
   const { data: deskThreads } = useSWR(
-    allVideoIds.length ? `/api/community/desk-threads?ids=${allVideoIds.join(',')}` : null,
+    communityStatus?.enabled && allVideoIds.length
+      ? `/api/community/desk-threads?ids=${allVideoIds.join(',')}`
+      : null,
     fetcher,
   )
 

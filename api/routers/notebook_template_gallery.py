@@ -833,8 +833,9 @@ def _viewer_credits(conn, user_id: str, items: list[dict]) -> dict[str, str]:
 
 
 def _card_facts(user_id: str, items: list[dict], *, in_yours: bool = False) -> list[dict]:
-    """The list cards with `contains` and the viewer's `credit` (and, for the library, `inYourTemplates`), in a
-    constant number of statements plus one credit read per held copy. Wave 11 off: the cards exactly as they were."""
+    """The list cards with `contains` and the viewer's `credit` (and, for the library, `inYourTemplates` and
+    `seedKey`), in a constant number of statements plus one credit read per held copy. Wave 11 off: the cards exactly
+    as they were."""
     if not items or not _w11_on():
         return items
     from api.services.auth_db import get_connection
@@ -844,11 +845,17 @@ def _card_facts(user_id: str, items: list[dict], *, in_yours: bool = False) -> l
         names = _contains(conn, ids)
         credits = _viewer_credits(conn, user_id, items)
         held: set = set()
+        seeds: dict = {}
         if in_yours and ids:
             held = {r[0] for r in conn.execute(
                 "SELECT DISTINCT source_gallery_id FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL"
                 f" AND archived_at IS NULL AND source_gallery_id IN ({', '.join('?' for _ in ids)})",
                 (user_id, *ids))}
+            # The owner's chip ruling (2026-10-27): a few official templates sit under a chip by their SEED KEY, not
+            # their group (`FAMILY_TEMPLATES`, lib/templateLibrary.js), so a library card carries its row's own
+            # `seed_key` (None for a row the seed did not write).
+            seeds = {r[0]: r[1] for r in conn.execute(
+                f"SELECT id, seed_key FROM j2_template_gallery WHERE id IN ({', '.join('?' for _ in ids)})", ids)}
     finally:
         conn.close()
     out = []
@@ -858,6 +865,7 @@ def _card_facts(user_id: str, items: list[dict], *, in_yours: bool = False) -> l
             card["credit"] = credits[i["id"]]
         if in_yours:
             card["inYourTemplates"] = i.get("id") in held
+            card["seedKey"] = seeds.get(i.get("id"))
         out.append(card)
     return out
 
@@ -890,8 +898,8 @@ def publish_tool_endpoint(body: dict[str, Any] = Depends(w11_body),
 @router.get("/library", dependencies=[Depends(_require_w11)])
 def library_endpoint(group: str = "", user: dict = Depends(require_paid)) -> JSONResponse:
     """`?group=` -> `{templates, groups}`: the official templates (W11-R4), approved and visible, in
-    `template_library.GROUPS` order (one group with `group`), each the gallery's summary with `group`, `contains`
-    and `inYourTemplates` (the member holds a live copy)."""
+    `template_library.GROUPS` order (one group with `group`), each the gallery's summary with `group`, `contains`,
+    `inYourTemplates` (the member holds a live copy) and `seedKey` (the seed row it came from, or None)."""
     keys = template_library.GROUP_KEYS
     if group and group not in keys:
         raise _err(400, "invalid", "Unknown group.")

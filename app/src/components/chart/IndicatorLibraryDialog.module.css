@@ -112,11 +112,25 @@
   border-radius: var(--radius-md);
   cursor: pointer;
 }
-.row:hover, .row:focus-visible {
+/* ⚠️ The row itself is no longer focusable — its title line is a real button —
+   so the focus treatment follows that button's keyboard focus, on the row. */
+.row:hover, .row:has(.primary:focus-visible) {
   background: var(--bg-hover);
   outline: none;
   border-color: var(--border);
 }
+/* The title-line button, reset to the span it replaced. */
+.primary {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+.primary:focus-visible { outline: none; }
 .rowOn { background: var(--bg-elevated); border-color: var(--border-accent); }
 
 /* A member's OWN formula. ⛔ A LEADING RULE, NOT A BACKGROUND WASH: `.rowOn`

@@ -9,7 +9,7 @@ import { render, screen, within, cleanup, waitFor } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import TemplateLibrarySection, { IN_YOURS, SECTION_TITLE } from './TemplateLibrarySection'
 import LibraryCardFacts, { FILLS_SENTENCE, containsWords, updatedWords, usedByWords } from './LibraryCardFacts'
-import { FAMILY_GROUPS, LIBRARY_GROUPS, familyKeeps } from '../../../lib/templateLibrary'
+import { FAMILY_GROUPS, FAMILY_TEMPLATES, LIBRARY_GROUPS, familyKeeps } from '../../../lib/templateLibrary'
 import { contractBody } from '../../../__fixtures__/contract'
 import { FAMILIES } from '../../../lib/notebookTemplates'
 import { readFileSync } from 'node:fs'
@@ -50,7 +50,9 @@ function serverGroups() {
 /** Merge step M3: the shipped official seed's live rows (Task 11.10), read from the JSON file (never retyped). */
 function seedRows() {
   const src = readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'template_library_seed.json'), 'utf8')
-  return JSON.parse(src).templates
+  const seed = JSON.parse(src)
+  const gone = new Set(Array.isArray(seed.retired) ? seed.retired : [])
+  return seed.templates.filter((r) => !gone.has(r.seedKey))
 }
 
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
@@ -201,6 +203,8 @@ describe('the Template library section', () => {
     const groups = serverGroups()
     expect(spec.length).toBe(groups.length)                                  // non-vacuity: every category line read
     expect(seed.length).toBeGreaterThan(20)                                  // non-vacuity: the seed was read
+    // The owner's 2026-10-27 ruling: a template pinned by seed key (FAMILY_TEMPLATES) sits under that chip alone.
+    const pinnedOf = (seedKey) => Object.keys(FAMILY_TEMPLATES).filter((f) => FAMILY_TEMPLATES[f].includes(seedKey))
     const chipOf = (groupKey) => FAMILIES.filter((f) => FAMILY_GROUPS[f.key].includes(groupKey)).map((f) => f.key)
     const seen = new Set()
     for (const { label, items } of spec) {
@@ -212,7 +216,8 @@ describe('the Template library section', () => {
         expect(r.group, r.title).toBe(group.key)                             // ...in the spec's category
         const keptBy = FAMILIES.filter((f) => familyKeeps(f.key, r)).map((f) => f.key)
         expect(keptBy.length, r.title).toBe(1)                               // exactly one chip...
-        expect(keptBy, r.title).toEqual(chipOf(group.key))                   // ...its spec category's
+        const pinned = pinnedOf(r.seedKey)
+        expect(keptBy, r.title).toEqual(pinned.length ? pinned : chipOf(group.key))   // ...its override's, else its spec category's
         seen.add(r.seedKey)
       }
     }
@@ -223,11 +228,45 @@ describe('the Template library section', () => {
     expect(chip('Pre-session check-in')).toEqual(['mind'])
   })
 
+  it("the owner's chip ruling (2026-10-27): three templates sit under Around a trade by SEED KEY, the rest by group", () => {
+    const seed = seedRows()
+    expect(seed.length).toBeGreaterThan(20)                                  // non-vacuity: the real seed was read
+    const byTitle = (title) => seed.find((r) => r.title === title)
+    const chip = (r) => FAMILIES.filter((f) => familyKeeps(f.key, r)).map((f) => f.key)
+    // The three pinned templates, found by their shipped TITLE (never the key the override names), land in trades.
+    for (const t of ['Trade plan (one idea)', 'Options trade plan', 'Trade post-mortem']) {
+      expect(byTitle(t), t).toBeTruthy()
+      expect(chip(byTitle(t)), t).toEqual(['trades'])
+    }
+    // during_day is a ritual group now: its other template, Mid-day and risk check, is a ritual.
+    expect(byTitle('Mid-day and risk check').group).toBe('during_day')
+    expect(chip(byTitle('Mid-day and risk check'))).toEqual(['rituals'])
+    // A template with no override follows its group, also beside a pinned neighbour in the same group.
+    expect(chip(byTitle("Tag today's trades"))).toEqual(['rituals'])        // after_close, like Trade post-mortem
+    expect(chip(byTitle('Setup study'))).toEqual(['research'])              // playbook, like Options trade plan
+    // The same rows without their seed key fall back to their group: the override is by key, never by title.
+    expect(chip({ ...byTitle('Trade post-mortem'), seedKey: undefined })).toEqual(['rituals'])
+    // Every override names a live seed row, under exactly one chip that is a real chip.
+    const live = new Set(seed.map((r) => r.seedKey))
+    const pinned = Object.entries(FAMILY_TEMPLATES).flatMap(([f, keys]) => keys.map((k) => [f, k]))
+    expect(pinned.length).toBe(3)
+    for (const [f, k] of pinned) {
+      expect(FAMILIES.map((x) => x.key), f).toContain(f)
+      expect(live.has(k), k).toBe(true)
+      expect(pinned.filter(([, other]) => other === k).length, k).toBe(1)
+    }
+    // Every chip keeps at least one shipped template; "Around a trade" is never empty.
+    for (const fam of FAMILIES) expect(seed.filter((r) => familyKeeps(fam.key, r)).length, fam.key).toBeGreaterThan(0)
+    expect(seed.filter((r) => familyKeeps('trades', r)).map((r) => r.title).sort())
+      .toEqual(['Options trade plan', 'Trade plan (one idea)', 'Trade post-mortem'])
+  })
+
   it("every picker chip shows the library rows it keeps, from the server's REAL /library answer (contract fixture)", async () => {
     // I-2: the answer is the recorded contract fixture (`template-gallery.library`), so a server shape change reds a
     // client test here. The oracle is `familyKeeps` itself (the one rule), never a restatement of it (m-5).
     const rows = contractBody('template-gallery.library').templates
     expect(rows.length).toBeGreaterThan(20)                                  // non-vacuity: the real list
+    expect(rows.every((r) => typeof r.seedKey === 'string' && r.seedKey)).toBe(true)   // the server sends the key
     for (const fam of FAMILIES) {
       installServer({ library: rows })
       await mount({ category: fam.key })

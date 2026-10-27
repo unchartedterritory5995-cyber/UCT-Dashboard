@@ -14,6 +14,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { useState } from 'react'
 import ChartSettingsModal from '../ChartSettingsModal'
 import { mergeChartSettings } from '../chartDefaults'
+import { resultRows } from './resultRows'
 
 function Host({ initial, seen }) {
   const [cs, setCs] = useState(initial)
@@ -37,7 +38,7 @@ describe('Volume Profile + Add', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
     fireEvent.click(screen.getByTestId('add-enter'))
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'volume profile' } })
-    const row = screen.getAllByRole('option').find((o) => /Volume Profile/.test(o.textContent))
+    const row = resultRows().find((o) => /Volume Profile/.test(o.textContent))
     expect(row, 'Volume Profile is not offered').toBeTruthy()
     fireEvent.click(row)
     expect(seen.cs, 'the click wrote nothing').toBeTruthy()

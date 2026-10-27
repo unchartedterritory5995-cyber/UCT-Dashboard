@@ -33,6 +33,7 @@ import { fileURLToPath } from 'node:url'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 import { resolvePaneOrder, storedPaneOrder, PRICE_PANE } from './engine/paneOrder'
+import { structureList, rowPrimaryOf, rowIsSelected } from './__tests__/resultRows'
 
 vi.mock('../../hooks/useBreadthSymbols', async (importOriginal) => {
   const actual = await importOriginal()
@@ -254,16 +255,17 @@ describe('the inspector holds exactly one selection', () => {
   it('⛔ THE LIST POINTS `aria-controls` AT THE REGION ITS SELECTION DRIVES', () => {
     // ⚰️ IT WAS ON EACH ROW'S EXPANDER, paired with `aria-expanded`, because each
     // row opened a region of its own. There is one region now and the LIST drives
-    // it, which is the list-and-detail pattern `listbox` is for — so the pointer
-    // belongs on the listbox, and `aria-expanded` has nothing left to describe.
+    // it — so the pointer belongs on the LIST, and `aria-expanded` has nothing
+    // left to describe. (It was a `listbox`; its rows held the reorder grip, a
+    // control inside an option, so it is a labelled group of rows now.)
     //
     // ⛔ THE CLAIM IS THE ONE IT ALWAYS WAS: a screen-reader user told that
     // something changed must have a way to find WHAT changed.
     let cs = base()
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
-    const list = document.body.querySelector('[role="listbox"][aria-label="Series on this chart"]')
-    expect(list, 'the structure is not a listbox').toBeTruthy()
+    const list = structureList()
+    expect(list, 'the structure list is not on screen').toBeTruthy()
     expect(list.getAttribute('aria-controls'), 'it points somewhere before anything is selected').toBeFalsy()
 
     select(/Relative Strength/)
@@ -278,7 +280,7 @@ describe('the inspector holds exactly one selection', () => {
       .toBe(rowFor(/Relative Strength/).getAttribute('data-row-id'))
   })
 
-  it('⛔ THE ROWS ARE OPTIONS, AND EXACTLY ONE IS SELECTED AND TABBABLE', () => {
+  it('⛔ EVERY ROW HAS ONE NAME BUTTON, AND EXACTLY ONE IS SELECTED AND TABBABLE', () => {
     // ⭐ A ROVING TABINDEX, which is what makes one Tab stop reach the whole list
     // and the arrows walk it — the keyboard equivalent of the click this design
     // reduced every row to.
@@ -287,16 +289,18 @@ describe('the inspector holds exactly one selection', () => {
     show(cs); openTab(); select(/Relative Strength/)
     const opts = [...document.body.querySelectorAll('[data-structure-row]')]
     expect(opts.length).toBeGreaterThan(1)
-    expect(opts.every((o) => o.getAttribute('role') === 'option')).toBe(true)
-    expect(opts.filter((o) => o.getAttribute('aria-selected') === 'true').length).toBe(1)
-    expect(opts.filter((o) => o.getAttribute('tabindex') === '0').length).toBe(1)
+    // ⛔ NOT OPTIONS ANY MORE: an option cannot hold the grip (see resultRows.js).
+    expect(opts.every((o) => o.getAttribute('role') === null)).toBe(true)
+    expect(opts.every((o) => o.querySelectorAll('[data-row-primary]').length === 1)).toBe(true)
+    expect(opts.filter(rowIsSelected).length).toBe(1)
+    expect(opts.filter((o) => rowPrimaryOf(o).getAttribute('tabindex') === '0').length).toBe(1)
   })
 
   it('⭐ ↓ AND ↑ WALK THE WHOLE STRUCTURE, PANE BOUNDARIES INCLUDED', () => {
     let cs = base()
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
-    const list = document.body.querySelector('[role="listbox"][aria-label="Series on this chart"]')
+    const list = structureList()
     const names = () => [...document.body.querySelectorAll('[data-structure-row]')]
       .map((r) => r.querySelector('[class*="insRowName"]').textContent.trim())
 
@@ -439,7 +443,7 @@ describe('⚰️ the Track B deep link lands on the inline editor', () => {
     const row = [...document.body.querySelectorAll('[data-structure-row]')]
       .find((x) => x.getAttribute('data-row-id') === r.id)
     expect(row, 'the linked row is not in the structure at all').toBeTruthy()
-    expect(row.getAttribute('aria-selected'), 'the deep link did not select the row').toBe('true')
+    expect(rowIsSelected(row), 'the deep link did not select the row').toBe(true)
   })
 
   it('⭐ `ind:<instanceId>` still works — the older spelling is not dropped', () => {

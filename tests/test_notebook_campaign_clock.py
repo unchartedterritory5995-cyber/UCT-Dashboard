@@ -656,6 +656,16 @@ def test_m2_main_pins_the_hub_env_before_the_shift_and_the_api_import(tmp_path, 
     monkeypatch.chdir(tmp_path)
     root = tmp_path / "approot"
     (root / "api").mkdir(parents=True)
+    # W11-R88: main serves conftest and the guard from --app-root only (an on-disk copy from elsewhere is dropped,
+    # then refused). The app root gets the real guard file; conftest is a file-less stand-in, which main leaves alone
+    # (and which keeps pytest's own conftest module out of reach of that eviction).
+    (root / "scripts").mkdir()
+    (root / "scripts" / "shared_root_guard.py").write_bytes((REPO / "scripts" / "shared_root_guard.py").read_bytes())
+    assert sc.refuse_data_dir(str(tmp_path / "sb")) is None          # loads the tool tree's guard, as main does
+    monkeypatch.setitem(sys.modules, "shared_root_guard", sys.modules["shared_root_guard"])  # restored after
+    cft = types.ModuleType("conftest")
+    cft.SHARED_DATA_ROOTS, cft.SHARED_ROOT_VIOLATIONS = [], []
+    monkeypatch.setitem(sys.modules, "conftest", cft)
     try:
         rc_ = sc.main(["--clock", SUNDAY_NIGHT, "--data-dir", str(tmp_path / "sb"), "--app-root", str(root),
                        "--port", "8199"])

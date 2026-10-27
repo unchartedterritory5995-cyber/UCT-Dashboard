@@ -7,6 +7,7 @@ import { mergeChartSettings } from './chartDefaults'
 import { AuthContext } from '../../context/AuthContext'
 import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
+import { resultRows, getResultRow, findResultRow } from './__tests__/resultRows'
 
 // ─── THE DOORS ONTO THE LIBRARY, AND THE ONE MOUNT SITE THAT GETS NONE ──────
 //
@@ -60,7 +61,7 @@ describe('ChartToolbar — the indicator library', () => {
 
     expect(ref.current.openIndicatorLibrary()).toBe(true)
     expect(await screen.findByRole('searchbox')).toBeTruthy()
-    expect(screen.getAllByRole('option').length).toBeGreaterThan(10)
+    expect(resultRows().length).toBeGreaterThan(10)
   })
 
   it('adds an indicator end to end, through the toolbar\'s own settings writer', async () => {
@@ -69,7 +70,7 @@ describe('ChartToolbar — the indicator library', () => {
     const { onUpdateSettings } = mount({ ref })
     ref.current.openIndicatorLibrary()
     await screen.findByRole('searchbox')
-    await user.click(screen.getByRole('option', { name: /Average True Range/ }))
+    await user.click(getResultRow(/Average True Range/))
     expect(onUpdateSettings).toHaveBeenCalledTimes(1)
     const next = onUpdateSettings.mock.calls[0][0]
     expect(isIndicatorEnabled(next, 'atr', ENGINE_OWNED)).toBe(true)
@@ -136,7 +137,7 @@ describe('ChartToolbar — the indicator library', () => {
     // `closeOthers`, which would close the panel for an unrelated reason and make
     // this case unable to fail.
     ref.current.openIndicatorLibrary()
-    const row = await screen.findByRole('option', { name: /Average True Range/ })
+    const row = await findResultRow(/Average True Range/)
     await user.click(row)
 
     expect(screen.queryByText('Preset'),

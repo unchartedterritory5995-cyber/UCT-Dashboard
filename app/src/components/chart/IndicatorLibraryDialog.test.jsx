@@ -11,6 +11,7 @@ import { isIndicatorEnabled, setIndicatorEnabled, definitionVisibility, addInsta
 import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { resultRows, getResultRow, primaryOf } from './__tests__/resultRows'
 
 // ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
 //
@@ -60,7 +61,7 @@ const open = (settings = base(), registry = engineRegistry) => {
   return { onChange }
 }
 
-const optionIds = () => screen.getAllByRole('option').map((o) => o.dataset.defId)
+const optionIds = () => resultRows().map((o) => o.dataset.defId)
 const type = (v) => fireEvent.change(screen.getByRole('searchbox'), { target: { value: v } })
 
 describe('the indicator library — search-first, add-and-stay-open, checkmarks', () => {
@@ -73,7 +74,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // ⭐ 2026-10-01 — in the FIXED Technical order (`technicalCategories.js`),
     // not first-appearance order.
     expect(headings).toEqual(orderCategories([...new Set(OFFERED().map((r) => r.category))]))
-    expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
+    expect(resultRows()).toHaveLength(OFFERED().length)
     // …and the carved-out section is one of them. A list built from definitions
     // alone drops it — the regression B3 Task 11 refused.
     expect(optionIds()).toContain('volumeProfile')
@@ -113,7 +114,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
 
   it('shows the long name and the one-line blurb, not the chip abbreviation', () => {
     open()
-    const row = screen.getByRole('option', { name: /Relative Strength Index/ })
+    const row = getResultRow(/Relative Strength Index/)
     expect(within(row).getByText(/how much of recent movement has been up/i)).toBeTruthy()
     // The long name is `meta.name`; the SHORT name is still there, as a chip.
     expect(within(row).getByText('RSI')).toBeTruthy()
@@ -147,7 +148,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
   it('a query that matches nothing says so instead of rendering an empty dialog', () => {
     open()
     type('zzzzz')
-    expect(screen.queryAllByRole('option')).toHaveLength(0)
+    expect(resultRows()).toHaveLength(0)
     // ⚰️ IT SAID "No indicator matches", AND THAT STOPPED BEING TRUE ON
     // 2026-09-16. This list now holds securities and breadth measures as well as
     // indicators (owner §7/§9), so an empty result is not a statement about
@@ -158,7 +159,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
 
   it('adding leaves the dialog OPEN and ticks the row (spec §6 add-and-stay-open)', () => {
     const { onChange } = open()
-    fireEvent.click(screen.getByRole('option', { name: /Average True Range/ }))
+    fireEvent.click(getResultRow(/Average True Range/))
     expect(onChange).toHaveBeenCalledTimes(1)
     const next = onChange.mock.calls[0][0]
     expect(isIndicatorEnabled(next, 'atr', ENGINE_OWNED)).toBe(true)
@@ -168,7 +169,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // assertion above cannot tell the two apart on its own.
     expect(next.indicatorInstances.some((i) => i && i.defId === 'atr' && !i.deleted)).toBe(true)
     expect(screen.getByRole('searchbox'), 'the dialog closed after an add').toBeTruthy()
-    expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
+    expect(resultRows()).toHaveLength(OFFERED().length)
   })
 
   it('🔴 reopening clears a stale search — a member never comes back to an empty library', () => {
@@ -190,7 +191,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     rerender(<IndicatorLibraryDialog open {...props} />)
 
     expect(screen.getByRole('searchbox').value, 'the query survived a close').toBe('')
-    expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
+    expect(resultRows()).toHaveLength(OFFERED().length)
   })
 
   // ⭐ A1 (D3): A SECOND CLICK HIDES, IT NO LONGER DELETES. The row's direction reads
@@ -201,8 +202,8 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
   it('A1 (D3) — a second click HIDES it (kept, never tombstoned), and the row un-ticks', () => {
     const on = setIndicatorEnabled(base(), 'rsi', true, engineRegistry)
     const { onChange } = open(on)
-    expect(screen.getByRole('option', { name: /Relative Strength Index/ }).getAttribute('aria-selected')).toBe('true')
-    fireEvent.click(screen.getByRole('option', { name: /Relative Strength Index/ }))
+    expect(primaryOf(getResultRow(/Relative Strength Index/)).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(getResultRow(/Relative Strength Index/))
     const next = onChange.mock.calls[0][0]
     const was = on.indicatorInstances.find((i) => i.instanceId === 'legacy:rsi')
     const now = next.indicatorInstances.find((i) => i.instanceId === 'legacy:rsi')
@@ -217,14 +218,14 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
   it('the carved-out section is addable too — it has a settings toggle and no definition', () => {
     const settings = base()
     const { onChange } = open(settings)
-    fireEvent.click(screen.getByRole('option', { name: /Volume Profile/ }))
+    fireEvent.click(getResultRow(/Volume Profile/))
     // ⛔ NOT through instanceControls: there is nothing to instantiate, and
     // `setIndicatorEnabled` returns the settings BY IDENTITY for a def the
     // registry does not know — so routing it there makes the toggle do nothing.
     // Straight to its settings slice, the way the MA overlays write.
     expect(onChange.mock.calls[0][0].indicators.volumeProfile.enabled).toBe(true)
     expect(onChange.mock.calls[0][0].indicatorInstances).toEqual(settings.indicatorInstances)
-    expect(screen.getByRole('option', { name: /Volume Profile/ }).getAttribute('aria-selected')).toBe('false')
+    expect(primaryOf(getResultRow(/Volume Profile/)).getAttribute('aria-pressed')).toBe('false')
   })
 
   // ⚰️ THE REPAINT HALF OF THIS CASE IS RETIRED, NOT DELETED, AND THE REASON IS
@@ -245,18 +246,18 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
   // reason: `volumeProfile` has no definition, so there is nothing to measure.
   it('shows the tier badge the definition declares — and no repaint badge nobody measured', () => {
     open()
-    const row = screen.getByRole('option', { name: /Session VWAP/ })
+    const row = getResultRow(/Session VWAP/)
     expect(within(row).queryByText(/premium/i)).toBeNull()   // every native is tier: free
     expect(row.querySelector('[data-repaint]'),
       'a hand-written compute the linter may not read wears a repaint badge').toBeNull()
-    const carved = screen.getByRole('option', { name: /Volume Profile/ })
+    const carved = getResultRow(/Volume Profile/)
     expect(within(carved).queryByText(/repaint/i)).toBeNull()
   })
 
   it('a session indicator says so, derived from meta.timeframes', () => {
     open()
-    expect(within(screen.getByRole('option', { name: /Session VWAP/ })).getByText('Intraday only')).toBeTruthy()
-    expect(within(screen.getByRole('option', { name: /Average True Range/ })).queryByText('Intraday only')).toBeNull()
+    expect(within(getResultRow(/Session VWAP/)).getByText('Intraday only')).toBeTruthy()
+    expect(within(getResultRow(/Average True Range/)).queryByText('Intraday only')).toBeNull()
   })
 
   it('refuses to render a definition the registry does not know, rather than a blank row', () => {
@@ -289,11 +290,11 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // `volumeProfile` (Volume) up beside it and the ghost's own category lands
     // after both.
     expect(optionIds()).toEqual(['volume', 'volumeProfile', 'ghost'])
-    fireEvent.click(screen.getByRole('option', { name: /Ghost Indicator/ }))
+    fireEvent.click(getResultRow(/Ghost Indicator/))
     expect(onChange, 'a refused write was persisted').not.toHaveBeenCalled()
     // …and the control half: the carved-out row on the SAME render does write, so
     // this is a refusal and not a dialog that never calls onChange.
-    fireEvent.click(screen.getByRole('option', { name: /Volume Profile/ }))
+    fireEvent.click(getResultRow(/Volume Profile/))
     expect(onChange).toHaveBeenCalledTimes(1)
   })
 
@@ -311,7 +312,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
    *  is a moving subject (`/Relative Strength/` matches `rsi` AND `rsLine`), and a
    *  name lookup that misses THROWS, which reads as a broken control rather than
    *  as a mis-aimed test. */
-  const rowFor = (defId) => screen.getAllByRole('option').find((o) => o.dataset.defId === defId)
+  const rowFor = (defId) => resultRows().find((o) => o.dataset.defId === defId)
   const addAnotherIn = (defId) => {
     const row = rowFor(defId)
     expect(row, `no ${defId} row in the dialog — this case is asserting on nothing`).toBeTruthy()
@@ -430,7 +431,7 @@ describe('A1 doors', () => {
     const { rerender } = render(ui())
     return { get cs() { return cs }, writes }
   }
-  const rsiRow = () => screen.getAllByRole('option').find((o) => o.dataset.defId === 'rsi')
+  const rsiRow = () => resultRows().find((o) => o.dataset.defId === 'rsi')
 
   it('A1 (D3) — a shown row hides (○ + Hidden pill); a second click shows the SAME instances back', () => {
     const start = setIndicatorEnabled(base(), 'rsi', true, engineRegistry)
@@ -439,14 +440,14 @@ describe('A1 doors', () => {
 
     fireEvent.click(rsiRow())
     expect(h.writes).toHaveLength(1)
-    expect(rsiRow().getAttribute('aria-selected'), 'a hidden row still reads ticked').toBe('false')
+    expect(primaryOf(rsiRow()).getAttribute('aria-pressed'), 'a hidden row still reads ticked').toBe('false')
     expect(within(rsiRow()).getByTestId('row-hidden').textContent).toBe('Hidden')
     expect(rsiRow().querySelector('[aria-hidden="true"]').textContent).toBe('○')
     expect(live(h.cs).map((i) => i.instanceId)).toEqual(['legacy:rsi'])
 
     fireEvent.click(rsiRow())
     expect(h.writes).toHaveLength(2)
-    expect(rsiRow().getAttribute('aria-selected')).toBe('true')
+    expect(primaryOf(rsiRow()).getAttribute('aria-pressed')).toBe('true')
     expect(within(rsiRow()).queryByTestId('row-hidden')).toBeNull()
     // Byte-identical to what was there before the hide — no marker left, nothing re-built.
     expect(live(h.cs)).toEqual(live(start))

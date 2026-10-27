@@ -3070,3 +3070,96 @@ def test_r85_001_the_d005_suppression_covers_pointer_runs_with_the_same_geometry
         for bad in (_ov(under=False), _ov(focused=True), _ov(summary="Target has insufficient size")):
             row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [bad]}}}
             assert [f["kind"] for f in rc.findings_of(R, row)] == ["axe:serious"] and "suppressed" not in row
+
+
+# ── W11-R88: the clock launcher serves --app-root's api, launcher and guard, whatever sys.path already holds ─────────
+# A browser check booted `sandbox_clock.main` in-process with the app root's scripts/ ALREADY on sys.path (behind):
+# `refuse_data_dir` -> `seed_members._guard()` put the TOOL tree's scripts/ ahead of it, the old
+# `if p not in sys.path: insert` skipped the present entry, so `import hub_sandbox_boot` found the TOOL tree's
+# launcher, whose REPO_ROOT insert served the TOOL tree's api/ (no app/dist: every SPA route 404'd). Two throwaway
+# trees, every module a stand-in that names its tree; the real sandbox_clock.py and seed_members.py run in a child.
+
+_FAKE_LAUNCHER = '''import os, sys
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)   # the real launcher's own insert: what turned a wrong launcher into a wrong api
+import shared_root_guard  # noqa: F401
+def _refuse_port_in_use(port): return None
+def model_keys_opted_in(flag): return False
+def apply_sandbox_env(sandbox, email, allow_model_keys=False): return {}
+def _start_violation_reporter(conftest): return None
+'''
+_FAKE_FILES = {
+    "scripts/hub_sandbox_boot.py": _FAKE_LAUNCHER,
+    "scripts/shared_root_guard.py": "def refuse(path, roots=None):\n    return None\n",
+    "scripts/sandbox_identity.py": ("def mint(): return 'n'\ndef payload(nonce, **kw): return dict(kw)\n"
+                                    "def wrap_app(app, body): return app\n"),
+    "conftest.py": "SHARED_DATA_ROOTS = []\nSHARED_ROOT_VIOLATIONS = []\n",
+    "api/__init__.py": "",
+    "api/services/__init__.py": "",
+    "api/services/auth_service.py": "def cleanup_expired_sessions():\n    return 0\n",
+    "api/main.py": "async def app(scope, receive, send):\n    return None\n",
+}
+_DRIVER = '''import json, os, sys, types
+tool_here, app_scripts, preseed, preimport = sys.argv[1], sys.argv[2], sys.argv[3] == "1", sys.argv[4] == "1"
+sys.path[:0] = [tool_here] + ([app_scripts] if preseed else [])
+if preimport:   # the api package already imported from the TOOL tree before main runs
+    sys.path.insert(0, os.path.dirname(os.path.dirname(tool_here)))
+    import api  # noqa: F401
+    sys.path.pop(0)
+uv = types.ModuleType("uvicorn")
+def run(app, **kw):
+    names = ("api.main", "hub_sandbox_boot", "sandbox_identity", "shared_root_guard", "conftest")
+    print("SERVED " + json.dumps({n: getattr(sys.modules.get(n), "__file__", None) for n in names}), flush=True)
+    os._exit(0)
+uv.run = run
+sys.modules["uvicorn"] = uv
+import sandbox_clock
+sys.exit(sandbox_clock.main(sys.argv[5:]))
+'''
+
+
+def _two_trees(tmp_path):
+    tool, app = tmp_path / "tool", tmp_path / "app"
+    for root in (tool, app):
+        for rel, body in _FAKE_FILES.items():
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(body, encoding="utf-8")
+    here = tool / "tools" / "notebook_campaign"
+    here.mkdir(parents=True)
+    for name in ("sandbox_clock.py", "seed_members.py"):
+        (here / name).write_bytes((REPO / "tools" / "notebook_campaign" / name).read_bytes())
+    (tmp_path / "driver.py").write_text(_DRIVER, encoding="utf-8")
+    (tmp_path / "sbx").mkdir()
+    return tool, app, here
+
+
+def _boot(tmp_path, preseed, preimport=False):
+    tool, app, here = _two_trees(tmp_path)
+    env = {k: v for k, v in __import__("os").environ.items() if k.upper() not in ("PYTHONPATH", "PYTHONHOME")}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    cmd = [sys.executable, str(tmp_path / "driver.py"), str(here), str(app / "scripts"),
+           "1" if preseed else "0", "1" if preimport else "0",
+           "--clock", "2026-11-22T21:00:00-05:00", "--data-dir", str(tmp_path / "sbx"), "--port", "1",
+           "--app-root", str(app), "--no-remint"]
+    p = subprocess.run(cmd, cwd=str(tmp_path), env=env, capture_output=True, text=True, timeout=180)
+    return tool, app, p
+
+
+@pytest.mark.parametrize("preseed", [True, False], ids=["app-scripts-already-on-path", "clean-path"])
+def test_r88_the_clock_launcher_serves_the_app_roots_api_launcher_and_guard(tmp_path, preseed):
+    tool, app, p = _boot(tmp_path, preseed)
+    line = next((ln for ln in p.stdout.splitlines() if ln.startswith("SERVED ")), None)
+    assert line, f"rc {p.returncode}\n{p.stdout[-3000:]}\n{p.stderr[-3000:]}"
+    served = json.loads(line[len("SERVED "):])
+    for name in ("api.main", "hub_sandbox_boot", "sandbox_identity", "conftest"):
+        f = served[name]
+        assert f and Path(f).resolve().is_relative_to(app.resolve()), f"{name} served from {f}, not {app}"
+    # the guard the launcher imported is the app root's too (the tool tree's cached copy was dropped)
+    assert Path(served["shared_root_guard"]).resolve().is_relative_to(app.resolve()), served["shared_root_guard"]
+
+
+def test_r88_an_api_already_imported_from_another_tree_is_refused_not_served(tmp_path):
+    tool, app, p = _boot(tmp_path, preseed=True, preimport=True)
+    assert p.returncode == 2 and "SERVED " not in p.stdout, p.stdout[-2000:]
+    assert "REFUSED: `api` is already imported from" in p.stdout and str(tool) in p.stdout

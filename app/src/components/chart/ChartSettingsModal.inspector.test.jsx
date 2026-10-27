@@ -40,6 +40,7 @@ import {
   POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf, glyphFamilyOf, GLYPH_FAMILIES, LIBRARY_TABS,
 } from './discoveryCatalog'
 import { INDICES_PRESET } from './symbolSearchModel'
+import { resultRows, getResultRow, structureList, rowIsSelected } from './__tests__/resultRows'
 
 // ⚠️ THE BREADTH REGISTRY IS A NETWORK FACT, so the family oracle is stubbed —
 // otherwise `symbolFamily` answers `'unknown'` and the Inspector's KIND line is
@@ -659,8 +660,8 @@ describe('DRAG — SERIES ORDER **INSIDE** A PANE', () => {
     expect(inspectorName()).toBe('EMA 20')
     drag(/^EMA 20$/, /^SMA 200$/, 'below')
     expect(inspectorName(), 'moving the open row closed or changed the editor').toBe('EMA 20')
-    expect(rowFor(/^EMA 20$/).getAttribute('aria-selected'),
-      'the moved row lost its selected state').toBe('true')
+    expect(rowIsSelected(rowFor(/^EMA 20$/)),
+      'the moved row lost its selected state').toBe(true)
   })
 
   it('⛔ A DROP THAT CHANGES NOTHING WRITES NOTHING', () => {
@@ -1322,7 +1323,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     // indicators would have to scroll to reach it.
     const left = document.body.querySelector('[data-testid="chart-structure"]')
     expect(left.contains(btn), 'the Add door left the current-chart column').toBe(true)
-    const list = left.querySelector('[role="listbox"]')
+    const list = structureList(left)
     expect(list.contains(btn), 'the Add door scrolls away with the list').toBe(false)
     expect(list.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING,
       'the Add door is above the list it is supposed to terminate').toBeTruthy()
@@ -1624,7 +1625,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     fireEvent.click(tabNamed('Fundamentals'))
     const row = [...document.body.querySelectorAll('[data-testid="add-surface"] [class*="resName"]')]
       .find((e) => e.textContent.trim() === 'Net Margin')
-    fireEvent.click(row.closest('[tabindex]'))
+    fireEvent.click(row.closest('li'))
     const insts = (seen.cs?.indicatorInstances || []).filter((i) => i && !i.deleted && i.defId === 'dataSeries')
     const made = insts.find((i) => i.inputs?.source === 'fund:net_margin')
     expect(made, 'the click did not create a fund: dataSeries').toBeTruthy()
@@ -1760,7 +1761,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
       { target: { value: 'QQQ' } })
 
     const hit = await waitFor(() => {
-      const r = within(screen.getByTestId('add-surface')).queryAllByRole('option')
+      const r = resultRows(screen.getByTestId('add-surface'))
         .find((o) => o.dataset.resultKind === 'security')
       expect(r, 'the ticker never arrived as a result').toBeTruthy()
       return r
@@ -1784,7 +1785,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'QQQ' } })
     const hit = await waitFor(() => {
-      const r = within(screen.getByTestId('add-surface')).queryAllByRole('option')
+      const r = resultRows(screen.getByTestId('add-surface'))
         .find((o) => o.dataset.resultKind === 'security')
       expect(r).toBeTruthy()
       return r
@@ -1794,7 +1795,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     expect(document.body.querySelector('[data-testid="add-surface"]'),
       'the Add surface stayed open over the thing that just landed').toBeFalsy()
     expect(inspectorName(), 'the new series is not the one being edited').toBe('QQQ')
-    expect(rowFor(/^QQQ$/).getAttribute('aria-selected')).toBe('true')
+    expect(rowIsSelected(rowFor(/^QQQ$/))).toBe(true)
     // ⭐ AND IT IS MARKED, BRIEFLY, IN THE LIST — a landing mark, not a toast.
     expect(rowFor(/^QQQ$/).getAttribute('data-landed')).toBe('true')
   })
@@ -1807,8 +1808,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     show(base()); openTab(); openAdd()
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'Relative Strength' } })
-    fireEvent.click(within(screen.getByTestId('add-surface'))
-      .getByRole('option', { name: /Relative Strength Index/ }))
+    fireEvent.click(getResultRow(/Relative Strength Index/, screen.getByTestId('add-surface')))
 
     expect(document.body.querySelector('[data-testid="add-surface"]')).toBeFalsy()
     expect(inspectorName()).toMatch(/Relative Strength Index/)
@@ -1844,7 +1844,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     // ⛔ ONE LINE, NOT A RESERVED BLOCK. It must not pretend to know how many
     // tickers are coming — reserving a twenty-row group's height for results that
     // may never arrive was measured and rejected.
-    expect(within(pending).queryAllByRole('option'), 'the notice reserved result rows').toHaveLength(0)
+    expect(resultRows(pending), 'the notice reserved result rows').toHaveLength(0)
     void resolve
   })
 
@@ -1861,7 +1861,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
       { target: { value: 'QQQ' } })
 
     return waitFor(() => {
-      expect(within(screen.getByTestId('add-surface')).queryAllByRole('option')
+      expect(resultRows(screen.getByTestId('add-surface'))
         .some((o) => o.dataset.resultKind === 'security'), 'the symbols never arrived').toBe(true)
       expect(screen.queryByTestId('symbols-pending'),
         'the loading notice outlived the group it stood in for').toBeNull()
@@ -1885,7 +1885,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'Relative Strength' } })
 
-    const rows = within(screen.getByTestId('add-surface')).getAllByRole('option')
+    const rows = resultRows(screen.getByTestId('add-surface'))
     expect(rows.length).toBeGreaterThan(0)
     for (const r of rows) {
       expect(r.getAttribute('data-result-key'), `a result row has no anchor: ${r.textContent}`).toBeTruthy()
@@ -2044,7 +2044,7 @@ describe('NARROW — one state, rendered two ways', () => {
     expect(screen.getByTestId('chart-structure')).toBeTruthy()
     expect(screen.queryByTestId('inspector')).toBeNull()
     // ⛔ THE SELECTION SURVIVED THE TRIP. Back is navigation, not a deselect.
-    expect(rowFor(/Relative Strength/).getAttribute('aria-selected')).toBe('true')
+    expect(rowIsSelected(rowFor(/Relative Strength/))).toBe(true)
   })
 
   it('⭐ ARRANGE TAKES THE WHOLE NARROW SURFACE, and Done gives it back', () => {

@@ -47,7 +47,7 @@
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
 import { orderCategories } from './technicalCategories'
-import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
 } from './indicatorRegistry'
@@ -274,6 +274,11 @@ function aliasRowId(rowId, settings) {
 // collide with an indicator row id (`ovl:0`, `inst:rsi:1`, `overlay-2`, …).
 const featureRowId = (id) => `feature:${id}`
 
+// A result key as an id fragment. Injective (every non-word character becomes its
+// code point), so two keys can never share an id — `technical:macd` and a ticker
+// `TECHNICAL_MACD` stay apart.
+const resultIdSafe = (key) => String(key).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)
+
 export default function ChartSettingsIndicators({
   rows,
   settings,
@@ -329,6 +334,8 @@ export default function ChartSettingsIndicators({
   // the inspector offers only instance-level actions, exactly as before.
   definitionDoors = null,
 }) {
+  // ⭐ The prefix for each catalogue result's state id (`aria-describedby`).
+  const resultIdBase = useId()
   // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
   // AND the server-provided admin role. A member flipping localStorage from
   // DevTools still sees exactly the old "+ New Formula".
@@ -1493,9 +1500,9 @@ export default function ChartSettingsIndicators({
    * ↑ / ↓ / Home / End across the whole structure, panes included.
    *
    * ⛔ ACCESSIBILITY IS NOT THE PRICE OF MINIMALISM. The rows lost their per-row
-   * gear, ✕ and chevron; they did not lose keyboard reach. The list is a
-   * `listbox` of `option`s with a roving tabindex, so one Tab stop reaches it and
-   * the arrows walk it — and because the Inspector is driven by `selected`, moving
+   * gear, ✕ and chevron; they did not lose keyboard reach. Each row's name is a
+   * button with a roving tabindex, so one Tab stop reaches the list and the
+   * arrows walk it — and because the Inspector is driven by `selected`, moving
    * the selection IS opening the editor.
    */
   const onStructureKeys = useCallback((e) => {
@@ -1514,7 +1521,7 @@ export default function ChartSettingsIndicators({
     e.preventDefault()
     setSelected(next)
     try {
-      listRef.current?.querySelector(`[data-row-id="${CSS.escape(next)}"]`)?.focus()
+      listRef.current?.querySelector(`[data-row-primary="${CSS.escape(next)}"]`)?.focus()
     } catch { /* jsdom has no CSS.escape; the selection still moved */ }
   }, [flatRows, addedFeatures, selected])
 
@@ -1539,9 +1546,6 @@ export default function ChartSettingsIndicators({
       >
         <div className={styles.insGroupHead}>{f.group}</div>
         <div
-          role="option"
-          aria-selected={isSel}
-          tabIndex={isSel ? 0 : -1}
           data-row-id={rid}
           data-feature-row={f.id}
           data-structure-row="true"
@@ -1555,11 +1559,20 @@ export default function ChartSettingsIndicators({
         >
           {/* The grip slot and rail keep the name on the same column as every
               series row; both stay EMPTY — a feature is not reorderable and has
-              no plot colour to show. */}
+              no plot colour to show. The name is the row's roving tab stop, as
+              on a series row (see `renderStructureRow`). */}
+          <button
+            type="button"
+            className={styles.insRowPrimary}
+            data-row-primary={rid}
+            tabIndex={isSel ? 0 : -1}
+            aria-current={isSel ? 'true' : undefined}
+          >
+            <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
+            <span className={styles.insRowName} title={f.name}>{f.name}</span>
+            {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
+          </button>
           <span className={styles.insRowGripSlot} />
-          <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
-          <span className={styles.insRowName} title={f.name}>{f.name}</span>
-          {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
         </div>
       </div>
     )
@@ -1585,11 +1598,17 @@ export default function ChartSettingsIndicators({
     const markLast = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === null
       && group.rows[group.rows.length - 1] && group.rows[group.rows.length - 1].id === row.id
     return (
+      /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS NAME IS. This `<div>` was a
+         `role="option"` holding the reorder grip — a `<button>`, tabbable on the
+         selected row of a pane with more than one series — which is a control
+         nested inside a control (axe `nested-interactive`). Moving the grip
+         beside the option does not help: a listbox may own only options, and axe
+         reports the button as a child it does not allow. So the list is not a
+         listbox: the roving tab stop is the `<button data-row-primary>` below
+         (the same ↑/↓/Home/End on the list, the same one Tab stop), and the grip
+         is its sibling. Click, drag and the grip's own keys are unchanged. */
       <div
         key={row.id}
-        role="option"
-        aria-selected={isSel}
-        tabIndex={isSel ? 0 : -1}
         data-row-id={row.id}
         data-def-id={row.defId || (row.path?.kind === 'indicator' ? row.id : undefined)}
         data-structure-row="true"
@@ -1641,6 +1660,42 @@ export default function ChartSettingsIndicators({
         } : undefined}
         onDragEnd={endSeriesDrag}
       >
+        {/* ⭐ THE ROVING TAB STOP. No handler of its own: a click bubbles to the
+            row's `onClick`, and ↑/↓/Home/End reach the list's `onKeyDown`.
+            `aria-current` is what `aria-selected` said on the option. It comes
+            FIRST in the DOM so Tab still lands here before the grip, exactly as
+            it did when the grip was inside; `.insRowGripSlot` is drawn first by
+            `order`. */}
+        <button
+          type="button"
+          className={styles.insRowPrimary}
+          data-row-primary={row.id}
+          tabIndex={isSel ? 0 : -1}
+          aria-current={isSel ? 'true' : undefined}
+        >
+          {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
+              `flex: none`, nudged half a pixel onto the text's x-height. Not a
+              swatch (retired: reads as a bullet), not a chevron (retired), not a
+              line sample. `aria-hidden` and no handler of its own: the ROW is the
+              target, so pointing at the rail already points at the row. */}
+          <i
+            className={styles.insRail}
+            style={tint ? { background: tint } : undefined}
+            aria-hidden="true"
+          />
+          {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
+              35% `Relative Strength Index (period 14)` ellipsizes — which is
+              explicitly acceptable — but the member must still be able to find out
+              what it says without selecting it. `title` is this panel's existing
+              convention for exactly that, and the canonical name is untouched:
+              nothing is abbreviated, persisted or renamed. */}
+          <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
+          {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
+              the toolbar the brief rules out; the row is dimmed AND says why, so a
+              member scanning the column sees which lines are off without hovering
+              anything, and a screen reader is told rather than shown. */}
+          {!on && <span className={styles.insRowOffTag}>Off</span>}
+        </button>
         {/* ⚰️⚰️ FOURTEEN ARROWS STOOD AT THE FAR RIGHT OF THIS LIST — a ↑ and a
             ↓ on every row, two of them permanently dimmed at each pane's edges.
             They were correct and they were LOUD: owner, 2026-09-17: *"with many
@@ -1727,28 +1782,6 @@ export default function ChartSettingsIndicators({
             </button>
           )}
         </span>
-        {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
-            `flex: none`, nudged half a pixel onto the text's x-height. Not a
-            swatch (retired: reads as a bullet), not a chevron (retired), not a
-            line sample. `aria-hidden` and no handler of its own: the ROW is the
-            target, so pointing at the rail already points at the row. */}
-        <i
-          className={styles.insRail}
-          style={tint ? { background: tint } : undefined}
-          aria-hidden="true"
-        />
-        {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
-            35% `Relative Strength Index (period 14)` ellipsizes — which is
-            explicitly acceptable — but the member must still be able to find out
-            what it says without selecting it. `title` is this panel's existing
-            convention for exactly that, and the canonical name is untouched:
-            nothing is abbreviated, persisted or renamed. */}
-        <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
-        {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
-            the toolbar the brief rules out; the row is dimmed AND says why, so a
-            member scanning the column sees which lines are off without hovering
-            anything, and a screen reader is told rather than shown. */}
-        {!on && <span className={styles.insRowOffTag}>Off</span>}
         {/* ⚰️⚰️ A `↑` AND A `↓` STOOD HERE ON EVERY ORDERABLE ROW — a span at
             the far right, boundary members carrying a dimmed, `aria-disabled`
             ghost so the column would not ripple as rows moved. Every word of that
@@ -3096,13 +3129,24 @@ export default function ChartSettingsIndicators({
     // click is not offered.
     const refused = row.capability === CAPABILITY.UNSUPPORTED
     const canAdd = !on && !refused
+    const canAct = canAdd || (isFeature && on)
     const isEcon = row.kind === 'economic'
+    // The state word ("Active" / "Unavailable") sits beside the add control, not
+    // inside the title button, so the button names it by reference.
+    const stateId = (refused || on) ? `${resultIdBase}-state-${resultIdSafe(row.key || row.id)}` : undefined
     return (
+      /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS TITLE LINE IS. This `<li>` was a
+         `role="option"` with `tabIndex={0}` — and an ACTIVE row carries "Add
+         another", a user formula carries Modify / Edit formula / Custom copy, so
+         axe measured a focusable control nested inside an interactive one
+         (`nested-interactive`, on `movingAverage` — the one row on the chart).
+         An option cannot hold buttons, so the list is a plain list now: the
+         keyboard door is the real `<button>` around the title line below, and
+         its click BUBBLES to this `onClick` — one writer, so pointer and
+         keyboard add exactly the same way. The secondary buttons are siblings
+         of that button, never inside it. */
       <li
         key={row.key || row.id}
-        role="option"
-        aria-selected={on}
-        aria-disabled={refused ? 'true' : undefined}
         data-def-id={row.id}
         /* ⭐ THE ANCHOR'S ADDRESS, and it is `row.key` rather than `row.id` because
            a ticker and a definition can collide on `id` while `key` is what React
@@ -3115,12 +3159,8 @@ export default function ChartSettingsIndicators({
            be. `title` on the row rather than on the name, so the whole row is the
            hover target for it. */
         title={row.description || undefined}
-        tabIndex={0}
         className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
-        onClick={() => { if (canAdd || (isFeature && on)) addRow(row) }}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && (canAdd || (isFeature && on))) { e.preventDefault(); addRow(row) }
-        }}
+        onClick={() => { if (canAct) addRow(row) }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
             COLOUR: the LEFT column's micro-rail says *this is the plotted line you
@@ -3138,7 +3178,18 @@ export default function ChartSettingsIndicators({
             On one line the name, chip and metadata split ~330px three ways and every
             name truncated to a word. Economic only — every other kind keeps its line. */}
         <span className={`${styles.resMain} ${isEcon ? styles.resMainStacked : ''}`}>
-          <span className={styles.resTitleRow}>
+          {/* ⭐ THE ROW'S KEYBOARD DOOR — see the note on the `<li>`. No handler of
+              its own: Enter and Space click a native button, and that click
+              bubbles to the row. `aria-disabled`, not `disabled`, so a row that
+              is already on stays reachable and still says so. */}
+          <button
+            type="button"
+            className={`${styles.resTitleRow} ${styles.resPrimary}`}
+            data-result-primary="true"
+            aria-disabled={canAct ? undefined : 'true'}
+            aria-describedby={stateId}
+            title={row.description || undefined}
+          >
             <span className={styles.resName}>{row.name}</span>
             {/* ⭐ `chip` names a breadth row's POPULATION (UCT · US · NASDAQ · NYSE) so four
                 identically named metrics are told apart; every other kind keeps `shortName`. */}
@@ -3167,7 +3218,7 @@ export default function ChartSettingsIndicators({
             {row.tier && row.tier !== 'free' && !row.userDefined && (
               <span className={styles.resTier}>{row.tier}</span>
             )}
-          </span>
+          </button>
           {/* ⭐ PHASE 4 — the DEFINITION's own doors on the member's saved indicator:
               the same calls as the legend menu and the inspector. Buttons stop the
               click from also adding the row. */}
@@ -3242,10 +3293,10 @@ export default function ChartSettingsIndicators({
             — exactly as the library's "+ Add another" does. `volumeProfile` is
             carved out and has nothing to instantiate, so it gets the word alone. */}
         {refused ? (
-          <span className={styles.resActive}><span className={styles.resActiveTag}>Unavailable</span></span>
+          <span className={styles.resActive}><span className={styles.resActiveTag} id={stateId}>Unavailable</span></span>
         ) : on ? (
           <span className={styles.resActive}>
-            <span className={styles.resActiveTag}>Active</span>
+            <span className={styles.resActiveTag} id={stateId}>Active</span>
             {!row.carvedOut && !row.singleton && (
               <button
                 type="button"
@@ -3526,7 +3577,7 @@ export default function ChartSettingsIndicators({
                 `Popular` and `Formulas` resolve to a single group whose name is
                 the tab's own word; printing it again is furniture. */}
             {groups.length > 1 && <div className={styles.insSectionLabel}>{c}</div>}
-            <ul className={styles.resList} role="listbox" aria-label={c}>
+            <ul className={styles.resList} aria-label={c}>
               {tabResults.filter((r) => r.category === c).map(renderResult)}
             </ul>
           </section>
@@ -3652,12 +3703,12 @@ export default function ChartSettingsIndicators({
             ) : (
               <div
                 className={styles.insStructure}
-                role="listbox"
+                role="group"
                 aria-label="Series on this chart"
                 /* ⚰️ `aria-controls` WAS ON EVERY ROW'S EXPANDER, paired with
                    `aria-expanded`, because each row opened a region of its own.
-                   There is ONE region now and the LIST drives it — which is what
-                   `listbox` means — so the pointer belongs here, and
+                   There is ONE region now and the LIST drives it, so the pointer
+                   belongs here, and
                    `aria-expanded` has nothing left to describe. A member told
                    that something changed still has a way to find WHAT changed. */
                 aria-controls={selected ? inspectorDomId(selected) : undefined}
