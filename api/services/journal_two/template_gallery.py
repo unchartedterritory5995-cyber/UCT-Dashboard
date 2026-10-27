@@ -1431,12 +1431,16 @@ def _skeleton(text: str, *, latin: bool) -> str:
     skeleton) or every alphanumeric character (so an address written in another script, an IDN, has a skeleton too).
     Every space, line break, punctuation mark, invisible, combining or blank character is gone by construction."""
     t = unicodedata.normalize("NFKC", text).casefold()
+    if t.isascii():
+        return t.translate(_ASCII_NOT_ALNUM)             # W11-R66: both skeletons, at C speed, for ASCII text
     return (_NOT_LATIN if latin else _NOT_ALNUM).sub("", t)
 
 
 _NOT_LATIN = re.compile(r"[^a-z0-9]+")
 #: `\w` in a `str` pattern is exactly `str.isalnum()` plus `_`, so this keeps precisely the alphanumerics.
 _NOT_ALNUM = re.compile(r"[\W_]+")
+#: W11-R66: for casefolded ASCII text the two skeletons are the same `[a-z0-9]`: every other ASCII character goes.
+_ASCII_NOT_ALNUM = {cp: None for cp in range(128) if not (chr(cp).isascii() and chr(cp).isalnum())}
 
 
 _HOST = re.compile(r"^((?:[a-z][a-z0-9+.-]*:)?(?://)?(?:[^@/?#]*@)?)([^/?#:]*)(.*)$", re.I | re.S)
@@ -1497,26 +1501,36 @@ HOST_SKELETON_MIN = 4
 #: through), bounds every judgement's cost by a constant, and costs nothing a member writes as a link in practice:
 #: 2,048 characters is a page of prose under one link. W11-R62: a STRETCH of one host whose joined text is longer is
 #: no longer dropped whole for its length (an inline list of 120 lesson links to one site went): it is judged in
-#: overlapping windows of at most this length (`_long_stretch_is_an_address`), and then each part on its own.
+#: overlapping windows of its FORM text (`_long_stretch_is_an_address`), then each part on its own; a node over the
+#: cap still drops the whole stretch (W11-R66: the cap only ever drops, it never splices).
 LINK_TEXT_JUDGE_MAX = 2048
 
 
 def _long_stretch_is_an_address(parts: list, memo: dict) -> bool:
-    """W11-R62: is a one-host stretch whose JOINED text is over `LINK_TEXT_JUDGE_MAX` an address? `parts` is its
-    nodes in order, `(text, hrefs)` (a joiner between two linked parts has no hrefs). The joined text is judged by
-    `_link_text_is_an_address` in windows of `LINK_TEXT_JUDGE_MAX` characters stepping half that, each against the
-    hrefs of the parts it overlaps: every address of up to half the cap lies whole inside one window (and a longer
-    one shows its scheme or dotted host in one), so a split address is still seen as a whole, as under the cap. True
-    drops the whole stretch.
+    """W11-R62 as corrected by W11-R66: is a one-host stretch whose JOINED text is over `LINK_TEXT_JUDGE_MAX` an
+    address? `parts` is its nodes in order, `(text, hrefs)` (a joiner between two linked parts has no hrefs). True
+    drops the whole stretch. ⛔ The cap only ever DROPS, it never splices:
 
-    Linear: a part of length L overlaps at most 2L / `LINK_TEXT_JUDGE_MAX` + 2 windows, and each window costs its
-    own text and the hrefs of the parts it overlaps."""
+    * any single node over `LINK_TEXT_JUDGE_MAX` drops the whole stretch (R56 for that case): dropping that node alone
+      would let the parts either side of it travel next to each other ("broker" + 2,100 blanks + ".com");
+    * the windows are cut over the stretch's FORM text -- each node's `_address_form`, which removes the invisible,
+      blank, symbol, combining and control characters the judge never looks at -- so padding the judge ignores
+      cannot hold an address apart across windows. Windows of `LINK_TEXT_JUDGE_MAX` form characters step half that,
+      each judged against the hrefs of the nodes it overlaps (form offsets mapped back to nodes): every address
+      whose FORM is up to half the cap lies whole inside one window (and a longer one shows its scheme or dotted host
+      in one), so a split address is seen whole, as under the cap.
+
+    Linear: each node's form is computed once per body (`_text_facts`, shared with its own judgement), and a node of form length L overlaps at most
+    2L / `LINK_TEXT_JUDGE_MAX` + 2 windows, each costing its own text and the hrefs of the nodes it overlaps."""
     import bisect
+    if any(len(text) > LINK_TEXT_JUDGE_MAX for text, _h in parts):
+        return True
+    forms = [_text_facts(text, memo)[2] for text, _h in parts]       # shared with each part's own judgement
     starts, at = [], 0
-    for text, _h in parts:
+    for f in forms:
         starts.append(at)
-        at += len(text)
-    joined = "".join(text for text, _h in parts)
+        at += len(f)
+    joined = "".join(forms)
     width = LINK_TEXT_JUDGE_MAX
     step = width // 2
     s = 0
@@ -1524,7 +1538,7 @@ def _long_stretch_is_an_address(parts: list, memo: dict) -> bool:
         e = min(s + width, len(joined))
         lo, hi = bisect.bisect_right(starts, s) - 1, bisect.bisect_left(starts, e)
         hrefs = [h for p in parts[max(lo, 0):hi] for h in p[1]]
-        if _link_text_is_an_address(joined[s:e], hrefs, memo):
+        if _link_text_is_an_address(joined[s:e], hrefs, memo, formed=True):
             return True
         if e >= len(joined):
             return False
@@ -1593,7 +1607,19 @@ def _href_facts(href: str, memo: dict) -> tuple[frozenset, frozenset, frozenset]
     return got
 
 
-def _link_text_is_an_address(text: Any, hrefs: list, memo: dict | None = None) -> bool:
+def _text_facts(text: str, memo: dict, *, formed: bool = False) -> tuple:
+    """(is it address-shaped, its two skeletons, its `_address_form`) for one text, worked out ONCE per distinct text
+    per body (`memo`, keyed by a tuple so it never meets `_href_facts`' href keys). `formed`: the text is already an
+    `_address_form` (a W11-R66 window), so it is its own form and only its shape and skeletons are worked out."""
+    key = ("form" if formed else "text", text)
+    got = memo.get(key)
+    if got is None:
+        form = text if formed else _address_form(text)
+        got = memo[key] = (_has_address_shape(form), (_skeleton(text, latin=True), _skeleton(text, latin=False)), form)
+    return got
+
+
+def _link_text_is_an_address(text: Any, hrefs: list, memo: dict | None = None, *, formed: bool = False) -> bool:
     """⛔ THE one authority for "this link text is an address, so it goes whole" (W11-R47 and W11-R48, superseding the
     form-by-form detection of W11-R40, fix round 5 and F-NOTE-1). True when ANY of:
 
@@ -1637,12 +1663,8 @@ def _link_text_is_an_address(text: Any, hrefs: list, memo: dict | None = None) -
         return True                                       # W11-R56: not judged; it goes whole (toward privacy)
     memo = {} if memo is None else memo
     # W11-R56: what the text alone decides is worked out once per distinct text per body (a one-part stretch and the
-    # part itself are the same text); keyed by a tuple, so it never meets `_href_facts`' href keys
-    mine = memo.get(("text", text))
-    if mine is None:
-        mine = memo[("text", text)] = (_has_address_shape(_address_form(text)),
-                                       (_skeleton(text, latin=True), _skeleton(text, latin=False)))
-    shape, skels = mine
+    # part itself are the same text): `_text_facts`
+    shape, skels, _form = _text_facts(text, memo, formed=formed)
     if shape:
         return True
     facts = [_href_facts(h, memo) for h in dict.fromkeys(h for h in hrefs if isinstance(h, str) and h.strip())]
@@ -1743,8 +1765,8 @@ def _without_links(body: Any) -> Any:
                 stretch = run[k:m]
                 joined = "".join(text_of(x) for x in stretch)
                 if len(joined) > LINK_TEXT_JUDGE_MAX:
-                    # W11-R62: a long stretch is judged in windows, never dropped for its length; a single part
-                    # over the cap still goes on its own (the per-part judgement below)
+                    # W11-R62/R66: a long stretch is judged in windows over its form text, never dropped for its
+                    # length alone; a node over the cap drops the whole stretch (the cap never splices)
                     hit = _long_stretch_is_an_address(
                         [(text_of(x), hrefs_of(x)) for x in stretch], memo)
                 else:
