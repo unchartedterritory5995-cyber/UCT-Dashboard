@@ -189,31 +189,54 @@ export const LIBRARY_GROUPS = Object.freeze([
 
 /**
  * Which Template library rows each of the template picker's category chips keeps (its FAMILIES keys,
- * lib/notebookTemplates.js). ONE authority: the row's library GROUP (`template_library.GROUPS`, LIBRARY_GROUPS above),
- * which IS spec §10's "Categories follow a trader's routine" list, word for word, one category per template.
+ * lib/notebookTemplates.js). ONE authority, two parts: a short per-template override by SEED KEY (FAMILY_TEMPLATES
+ * below), and otherwise the row's library GROUP (`template_library.GROUPS`, LIBRARY_GROUPS above), which IS spec
+ * §10's "Categories follow a trader's routine" list, word for word, one category per template.
  * Merge fix round 1 (W11-R68): the chips used to follow the gallery `category` field, which has four values
  * (`template_gallery.CATEGORIES`) for the spec's nine, so every daily-prep row read as "research" and Pre-session
  * check-in sat under two chips. Each group belongs to exactly ONE chip:
- *   * rituals ("Daily & weekly rituals"): the night before, before the open, after the close, weekly / monthly,
- *     challenges and habits (Night-before prep, Pre-market prep, Morning routine, ...);
- *   * trades ("Around a trade"): during the day (Mid-day and risk check, Trade plan (one idea)). PENDING THE
- *     OWNER'S PRODUCT CALL (merge re-review n-1, 2026-10-26): the coordinator kept during_day under "Around a trade"
- *     for now, although the chip name suggests a per-template rule; it is not an owner ruling yet;
- *   * research ("Thesis & research"): playbook (Setup study, New setup idea, Rules review, Options trade plan);
+ *   * rituals ("Daily & weekly rituals"): the night before, before the open, during the day, after the close,
+ *     weekly / monthly, challenges and habits (Night-before prep, Pre-market prep, Mid-day and risk check, ...);
+ *   * trades ("Around a trade"): no group; its templates come from FAMILY_TEMPLATES alone;
+ *   * research ("Thesis & research"): playbook (Setup study, New setup idea, Rules review);
  *   * mind ("Mindset"): mindset (Pre-session check-in).
  * ⛔ Railed by TemplateLibrarySection.test.jsx: its keys are exactly FAMILIES' keys, every server group is in exactly
  *    one chip, and every template of the spec §10 table (parsed from the spec) is kept by exactly one chip, the one
- *    its spec category maps to, matched against the shipped seed (parsed, never retyped).
+ *    its override or spec category maps to, matched against the shipped seed (parsed, never retyped).
  */
 export const FAMILY_GROUPS = Object.freeze({
-  rituals: Object.freeze(['night_before', 'before_open', 'after_close', 'weekly_monthly', 'challenges', 'habits']),
-  trades: Object.freeze(['during_day']),
+  rituals: Object.freeze(['night_before', 'before_open', 'during_day', 'after_close', 'weekly_monthly', 'challenges',
+    'habits']),
+  trades: Object.freeze([]),
   research: Object.freeze(['playbook']),
   mind: Object.freeze(['mindset']),
 })
 
-/** Does a library row pass a family chip (a FAMILIES key)? Its library group is one of the chip's. */
+/**
+ * The owner's ruling (2026-10-27, merge re-review n-1): the templates a member expects under "Around a trade", named by
+ * their seed key (`seedKey` in template_library_seed.json, which the /library card carries), whatever their group.
+ * A row named here is kept by THIS chip only. ⛔ Railed by TemplateLibrarySection.test.jsx: every key is a live seed
+ * row, and the trades chip is never empty.
+ */
+export const FAMILY_TEMPLATES = Object.freeze({
+  trades: Object.freeze([
+    'uct-template-trade-plan-one-idea-v1',     // Trade plan (one idea), during the day
+    'uct-template-options-trade-plan-v1',      // Options trade plan, playbook
+    'uct-template-trade-post-mortem-v1',       // Trade post-mortem, after the close
+  ]),
+})
+
+/** The chip a seed key is pinned to by FAMILY_TEMPLATES, or null. */
+function pinnedFamily(seedKey) {
+  if (typeof seedKey !== 'string' || !seedKey) return null
+  for (const [family, keys] of Object.entries(FAMILY_TEMPLATES)) if (keys.includes(seedKey)) return family
+  return null
+}
+
+/** Does a library row pass a family chip (a FAMILIES key)? Its override's chip, else its library group's. */
 export function familyKeeps(family, row) {
+  const pinned = pinnedFamily(row?.seedKey)
+  if (pinned) return pinned === family
   const groups = Object.hasOwn(FAMILY_GROUPS, family) ? FAMILY_GROUPS[family] : []
   return groups.includes(row?.group)
 }
