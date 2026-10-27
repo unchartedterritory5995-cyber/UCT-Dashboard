@@ -195,4 +195,24 @@ describe('New note: pick a kind', () => {
     expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')
     expect(screen.getByText('Tracker').tagName).toBe('EM')                 // no name for it: the family word
   })
+
+  it("F-FE-1 c2: the SERVER's slotNames shape (keyed by BLOCK ID, style and preview) names each slot; unresolved has no key", async () => {
+    // journal_styles.slot_names serves `{block id: name}` on the served style AND the preview answer (W11-R21); an
+    // UNRESOLVED slot has no key (W11-R43), so its line is the client's own label (the family word), never the
+    // server's refusal sentence. Each slot carries a ref the names do NOT hold: only the block-id lookup names it.
+    const preview = { ...previewBody, slotNames: { routine_1: 'Pre-market routine' }, bodyJson: { type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: { widgetId: 'built_a', params: { ref: 'def:d9', defRev: 1 } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'routine_1', params: { ref: 'routine:r9' } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'tracker_b', params: { ref: 'tracker:t9' } } },
+    ] } }
+    const list = { ...listBody, styles: listBody.styles.map((st) => (st.id === 's-mine'
+      ? { ...st, slotNames: { built_a: 'Equity curve' } } : st)) }
+    renderSection({}, { list, preview })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    expect((await screen.findByText('Widget: Equity curve')).tagName).toBe('EM')          // the style's, by block id
+    expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')            // the preview's, by block id
+    expect(screen.getByText('Tracker').tagName).toBe('EM')                                // unresolved: no key
+    expect(screen.queryByText(/not in your account/i)).toBeNull()
+  })
 })

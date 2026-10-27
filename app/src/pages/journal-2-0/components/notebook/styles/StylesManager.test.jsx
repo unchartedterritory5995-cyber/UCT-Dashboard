@@ -339,6 +339,26 @@ describe('the Styles manager', () => {
     expect(put().blocks.map((b) => b.block)).toEqual(['built_b', 'built_a', 'routine_1', 'routine_2'])
   })
 
+  it("F-FE-1 c2: the SERVER's slotNames shape (keyed by BLOCK ID) names each row; an unresolved slot has no key", async () => {
+    // journal_styles.slot_names serves `{block id: name}` (W11-R21), and since W11-R43 an UNRESOLVED slot (missing,
+    // unreadable) has NO key at all, so the row reads the client's own slot label, never a refusal sentence. Each slot
+    // here carries a ref the names table does NOT hold, so only the block-id lookup can name it.
+    const SERVED = [
+      { block: 'built_a', enabled: true, settings: { ref: 'def:7d1e3f0a-1111-4222-8333-444455556666', defRev: 3 } },
+      { block: 'routine_1', enabled: true, settings: { ref: 'routine:0b2c3d4e-1111-4222-8333-444455556666' } },
+      { block: 'tracker_b', enabled: true, settings: { ref: 'tracker:5e6f7a8b-1111-4222-8333-444455556666' } },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: SERVED,
+      slotNames: { built_a: 'Equity curve', routine_1: 'Pre-market routine' } })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const boxes = within(list).getAllByRole('checkbox').map((el) => el.getAttribute('aria-label'))
+    expect(boxes).toEqual(['Use Widget: Equity curve', 'Use Routine: Pre-market routine', 'Use Tracker'])
+    expect(within(list).queryByText(/not in your account|isn.t available/i)).toBeNull()
+  })
+
   it('reorders blocks with Move up/Move down and keeps an unknown block', async () => {
     routes.unshift(['GET', MEMBER_URL, UNKNOWN_BLOCK])
     installFetch()
