@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/journal-styles/f639a12e4a8a4a01a390c2bfaab68df5/used-in",
+    "note": "The viewer's live notes made from this template: the one Use above.",
+    "path": "/api/j2/journal-styles/f639a12e4a8a4a01a390c2bfaab68df5/used-in",
+    "status": 200
+  },
+  "body": {
+    "notes": [
+      {
+        "id": "a1c02ef811ff463eb682f218c6a6b877",
+        "title": "",
+        "updatedAt": "2026-10-05T14:30:00+00:00"
+      }
+    ]
+  }
+}

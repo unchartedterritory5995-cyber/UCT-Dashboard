@@ -23,6 +23,7 @@
       "description": "",
       "featured": false,
       "firm": false,
+      "group": null,
       "hasRevision": false,
       "helpedByMe": false,
       "helpfulCount": 0,

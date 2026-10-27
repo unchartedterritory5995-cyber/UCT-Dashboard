@@ -19,6 +19,7 @@
         "description": "Story first, then the outcome.",
         "featured": false,
         "firm": false,
+        "group": null,
         "helpedByMe": false,
         "helpfulCount": 0,
         "id": "fe945544b95f411b885465c35840dd0a",

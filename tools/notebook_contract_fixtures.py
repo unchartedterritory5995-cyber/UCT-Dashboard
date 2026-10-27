@@ -100,6 +100,13 @@ FLAGS = (
     "NOTEBOOK_LAYOUT_SHARING_ENABLED",
 )
 
+#: Notebook widgets wave 11 (the template library, sharing and adopting). NOT in FLAGS on purpose: the world's
+#: builders pin the answers members get today, with wave 11 dark (it changes some of them, e.g. Helpful asks for
+#: use on 3 days). But the journal styles and template gallery routers mounted below carry wave 11 doors that
+#: answer the one 404 BEFORE the session while it is off, so the signed-out sweep turns it on (each wave 11 route
+#: then pins its 401) and the flags-off sweep turns it off with the rest.
+W11_FLAG = "NOTEBOOK_WIDGETS_W11_ENABLED"
+
 
 # ── determinism: the clock, the ids, the undo list ────────────────────────────────────────────
 
@@ -1951,7 +1958,8 @@ def journal_styles(w: World) -> None:
     gone = w.client.post(base, json={"name": "Deleted with its kind", "kindId": spare}).json()["style"]["id"]
     w.client.delete(f"{base}/{gone}")
     w.record("note-kinds.delete", "DELETE", f"{kinds}/{spare}", case="success", expect=200,
-             note="The kind's one soft-deleted style goes with it, and the answer counts it.")
+             note="The kind's one soft-deleted style is KEPT (W11-R10: a style row is never hard-deleted), "
+                  "so the count is 0; restore_style refuses it while its kind is gone.")
     w.record("note-kinds.delete.not-found", "DELETE", f"{kinds}/{spare}", case="error", expect=404)
     w.record("note-kinds.mapping-offer", "GET", f"{kinds}/mapping-offer", case="success", expect=200)
     w.record("note-kinds.mapping-offer.apply", "POST", f"{kinds}/mapping-offer", case="success", expect=200,
@@ -2119,11 +2127,12 @@ def sweeps(w: World) -> None:
         return rows
 
     w.as_user(None)
+    w.p.setenv(W11_FLAG, "1")
     w.out["sweep.signed-out"] = {
         "_contract": {"endpoint": "every route", "case": "error", "status": 401, "path": "",
                       "note": "No session, every flag on."},
         "body": sweep(401)}
-    for flag in FLAGS:
+    for flag in (*FLAGS, W11_FLAG):
         w.p.setenv(flag, "0")
     w.out["sweep.flags-off"] = {
         "_contract": {"endpoint": "every route", "case": "error", "status": 404, "path": "",
@@ -2131,6 +2140,7 @@ def sweeps(w: World) -> None:
         "body": sweep(404)}
     for flag in FLAGS:
         w.p.setenv(flag, "1")
+    w.p.setenv(W11_FLAG, None)                    # back to the world's wave 11: dark
     w.as_user(MEMBER)
 
 
@@ -2724,6 +2734,103 @@ def layout_library(w: World) -> None:
     w.record("template-gallery.layouts.adopt.version-moved", "POST", f"{base}/{tid}/adopt-layout", case="error",
              expect=409, json_body={"version": 1},
              note="The member previewed version 1 and version 2 is listed now: nothing is adopted.")
+    w.as_user(MEMBER)
+
+
+@builder
+def wave11_library(w: World) -> None:
+    """Notebook widgets wave 11 (the template library, sharing and adopting; merge step M5 at the be merge). One
+    successful answer per wave 11 door: the official library, preview with my data, Use (a note from a template),
+    the 3rd-day Helpful line and its answer, the template's journal-styles views (used in, duplicate, archive,
+    unarchive, delete), and a routine shared, previewed, approved, adopted and updated to its next listed version.
+
+    Wave 11 and the waves its doors build on are ON only inside this builder: the world's other answers are the ones
+    members get today, with wave 11 dark. Recorded last, so no other builder's ids move."""
+    from api.services.journal_two import routines
+    base, styles = "/api/j2/template-gallery", "/api/j2/journal-styles"
+    waves = (1, 2, 3, 4, 5, 6, 8, 9, 10, 11)
+    for n in waves:
+        w.p.setenv(f"NOTEBOOK_WIDGETS_W{n}_ENABLED", "1")
+    author = w.member("w11-author", "Wren Author")
+    viewer = w.member("w11-viewer", "Vic Viewer")
+
+    def approve(gid: str) -> None:
+        w.as_user(ADMIN)
+        q = w.client.get(f"{base}/admin/queue")
+        assert q.status_code == 200, f"setup: the review queue answered {q.status_code}"
+        seen = next(r["updatedAt"] for r in q.json()["pending"] if r["id"] == gid)
+        res = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
+        assert res.status_code == 200, f"setup: approving {gid} answered {res.status_code}: {res.text[:200]}"
+
+    # The official library (Task 11.10's seed), its preview with the viewer's own (empty) data, and a Use.
+    w.as_user(viewer)
+    lib = w.record("template-gallery.library", "GET", f"{base}/library", case="success", expect=200,
+                   note="The official templates, in template_library.GROUPS order, each with group, contains "
+                        "and inYourTemplates; `groups` is the server's tuple.")
+    assert lib["templates"], "setup: the official library is empty"
+    by_title = {r["title"]: r["id"] for r in lib["templates"]}
+    w.record("template-gallery.preview-mine.questions", "POST", f"{base}/{by_title['Night-before prep']}/preview-mine",
+             case="success", expect=200, json_body={},
+             note="A template holding a routine part: `questions` asks which routine (Use refuses `unresolved` "
+                  "until it is answered).")
+    gid = by_title["Watchlist review"]                # no widget, routine or tracker part: nothing to choose
+    w.record("template-gallery.preview-mine", "POST", f"{base}/{gid}/preview-mine", case="success", expect=200,
+             json_body={}, note="Preview with my data: slots, cards, tools and questions with the viewer's data.")
+    used = w.record("template-gallery.use-template", "POST", f"{base}/{gid}/use-template", case="success",
+                    expect=200, json_body={},
+                    note="The first Use adopts the template (a copy in the viewer's templates) and makes a note.")
+    note_id, style_id = used["note"]["id"], used["style"]["id"]
+    w.record("template-gallery.helpful-prompt", "GET", f"{base}/notes/{note_id}/helpful-prompt", case="success",
+             expect=200, note="Used on one day only: the 3rd-day line does not show. Asking records nothing.")
+    w.record("template-gallery.helpful-prompt.answer", "POST", f"{base}/{gid}/helpful-prompt", case="success",
+             expect=200, json_body={"answer": "dismissed"}, note="Dismissed: no Helpful mark, nothing else asked.")
+    # The viewer's copy of the template, in the journal-styles views.
+    w.record("journal-styles.used-in", "GET", f"{styles}/{style_id}/used-in", case="success", expect=200,
+             note="The viewer's live notes made from this template: the one Use above.")
+    dup = w.record("journal-styles.duplicate", "POST", f"{styles}/{style_id}/duplicate", case="success",
+                   expect=200, json_body={})
+    dup_id = dup["style"]["id"]
+    w.record("journal-styles.archive", "POST", f"{styles}/{dup_id}/archive", case="success", expect=200,
+             json_body={})
+    w.record("journal-styles.unarchive", "POST", f"{styles}/{dup_id}/unarchive", case="success", expect=200,
+             json_body={})
+    archived = w.client.post(f"{styles}/{dup_id}/archive", json={})
+    assert archived.status_code == 200, f"setup: archiving the copy again answered {archived.status_code}"
+    w.record("journal-styles.delete-typed", "POST", f"{styles}/{dup_id}/delete", case="success", expect=200,
+             json_body={"typedName": dup["style"]["name"]},
+             note="Only from Archived, with its name typed: the soft delete (Recently deleted keeps it 30 days).")
+
+    # A routine: shared (preview, then publish), approved, adopted, then its next version taken into the copy.
+    c = w.conn()
+    try:
+        made = routines.create(author, name="Morning routine", items=[{"text": "Coffee"}, {"text": "Mark levels"}],
+                               schedule={"kind": "every"}, conn=c)
+    finally:
+        c.close()
+    rid = made["id"]
+    w.as_user(author)
+    w.record("template-gallery.share.preview", "POST", f"{base}/share/preview", case="success", expect=200,
+             json_body={"kind": "routine", "id": rid},
+             note="What sharing the author's routine would send. Nothing is written or stored.")
+    shared = w.record("template-gallery.tools.publish", "POST", f"{base}/tools", case="success", expect=200,
+                      json_body={"kind": "routine", "id": rid, "edits": {"items": ["Coffee", "Mark levels"]}},
+                      note="Pending until an admin reviews it.")
+    tid = shared["template"]["id"]
+    approve(tid)
+    w.as_user(viewer)
+    adopted = w.record("template-gallery.adopt-tool", "POST", f"{base}/{tid}/adopt-tool", case="success",
+                       expect=200, json_body={}, note="A copy of the listed routine in the viewer's My tools.")
+    w.as_user(author)
+    again = w.client.post(f"{base}/tools", json={"kind": "routine", "id": rid,
+                                                 "edits": {"items": ["Coffee", "Read the news"]}})
+    assert again.status_code == 200, f"setup: resharing the routine answered {again.status_code}: {again.text[:200]}"
+    approve(tid)
+    w.as_user(viewer)
+    w.record("template-gallery.tools.update", "POST", f"{base}/tools/updates/routine/{adopted['id']}",
+             case="success", expect=200, json_body={},
+             note="The listed version 2 taken into the viewer's copy: an unchanged item keeps its id.")
+    for n in waves:
+        w.p.setenv(f"NOTEBOOK_WIDGETS_W{n}_ENABLED", None)
     w.as_user(MEMBER)
 
 

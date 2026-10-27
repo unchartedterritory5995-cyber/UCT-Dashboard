@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/8a42b32deeb35693adb359d641789d26/helpful-prompt",
+    "note": "Dismissed: no Helpful mark, nothing else asked.",
+    "path": "/api/j2/template-gallery/8a42b32deeb35693adb359d641789d26/helpful-prompt",
+    "requestBody": {
+      "answer": "dismissed"
+    },
+    "status": 200
+  },
+  "body": {
+    "answer": "dismissed",
+    "count": 0,
+    "helpful": false
+  }
+}

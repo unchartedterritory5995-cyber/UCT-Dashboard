@@ -1,0 +1,349 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/8a42b32deeb35693adb359d641789d26/use-template",
+    "note": "The first Use adopts the template (a copy in the viewer's templates) and makes a note.",
+    "path": "/api/j2/template-gallery/8a42b32deeb35693adb359d641789d26/use-template",
+    "requestBody": {},
+    "status": 200
+  },
+  "body": {
+    "created": {
+      "routines": [],
+      "trackers": [],
+      "widgets": []
+    },
+    "credit": "Based on UCT's Watchlist review",
+    "note": {
+      "accountId": null,
+      "archivedAt": null,
+      "bodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Your list today",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "The names you are watching, and why each one is on the list.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "5cefbf8c495748bc92b887ba13acab18",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "asOf": "2026-10-05T14:30:00Z",
+                "earningsUnknown": false,
+                "listLabel": "Flagged",
+                "rows": [],
+                "source": "market",
+                "sourceDetail": "Prices: live market data, delayed. Earnings dates: UCT calendar."
+              },
+              "v": 1,
+              "widgetId": "myWatchlistToday"
+            },
+            "type": "widgetEmbed"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "What's moving",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Which of your names are moving, and is it a move you want?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "cdd97ca7c629476a879348b7007947c3",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "snapshot": {
+                  "capturedAt": "2026-10-05T14:30:00Z",
+                  "detail": null,
+                  "items": [
+                    {
+                      "asOf": "2026-10-02T20:00:00Z",
+                      "changePct": -4.2,
+                      "price": 160.25,
+                      "source": "last close",
+                      "symbol": "AMD"
+                    },
+                    {
+                      "asOf": "2026-10-05T14:29:00Z",
+                      "changePct": 3.1,
+                      "price": 182.5,
+                      "source": "live price",
+                      "symbol": "NVDA"
+                    },
+                    {
+                      "asOf": "2026-10-02T20:00:00Z",
+                      "changePct": null,
+                      "price": 412.5,
+                      "source": "last close",
+                      "symbol": "MSFT"
+                    }
+                  ],
+                  "missing": null,
+                  "part": "movers",
+                  "scanned": 4,
+                  "total": 4,
+                  "unquoted": 1
+                }
+              },
+              "searchText": "[my movers]",
+              "v": 1,
+              "widgetId": "prepMovers"
+            },
+            "type": "widgetEmbed"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Levels to wait for",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "The price that would make each name worth a trade.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "d7aa616d99c7444095e03359e0367a6d",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "snapshot": {
+                  "capturedAt": "2026-10-05T14:30:00Z",
+                  "cards": [],
+                  "detail": "No setups on your board yet. Draw a plan's entry on a chart to see its levels here.",
+                  "missing": "no_setups",
+                  "part": "levels",
+                  "total": 0
+                }
+              },
+              "searchText": "[key levels from my plans]",
+              "v": 1,
+              "widgetId": "prepLevels"
+            },
+            "type": "widgetEmbed"
+          }
+        ],
+        "type": "doc"
+      },
+      "bodyPlain": "Your list today The names you are watching, and why each one is on the list. [widget] What's moving Which of your names are moving, and is it a move you want? [my movers] Levels to wait for The price that would make each name worth a trade. [key levels from my plans]",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "dailyDate": null,
+      "deletedAt": null,
+      "firstImageUrl": null,
+      "folderId": null,
+      "heroImageUrl": null,
+      "id": "a1c02ef811ff463eb682f218c6a6b877",
+      "kindId": "watchlist_note",
+      "locked": false,
+      "propertiesJson": {
+        "builtin:note_kind": "watchlist_note"
+      },
+      "styleId": "f639a12e4a8a4a01a390c2bfaab68df5",
+      "styleVersion": 1,
+      "subtitle": null,
+      "tags": [],
+      "ticker": null,
+      "title": "",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "userId": "contract-w11-viewer"
+    },
+    "reused": {
+      "routines": [],
+      "trackers": []
+    },
+    "skipped": [],
+    "style": {
+      "blocks": [
+        {
+          "block": "myWatchlistToday",
+          "enabled": true,
+          "settings": {}
+        },
+        {
+          "block": "prepMovers",
+          "enabled": true,
+          "settings": {}
+        },
+        {
+          "block": "prepLevels",
+          "enabled": true,
+          "settings": {}
+        }
+      ],
+      "builtin": false,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "deletedAt": null,
+      "hasOutline": true,
+      "id": "f639a12e4a8a4a01a390c2bfaab68df5",
+      "isDefault": false,
+      "kindId": "watchlist_note",
+      "name": "Watchlist review",
+      "outlineBodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Your list today",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "The names you are watching, and why each one is on the list.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:myWatchlistToday}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "What's moving",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Which of your names are moving, and is it a move you want?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:prepMovers}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Levels to wait for",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "The price that would make each name worth a trade.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:prepLevels}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "outlineTemplateId": null,
+      "properties": {},
+      "sourceGalleryId": "8a42b32deeb35693adb359d641789d26",
+      "sourceVersion": 1,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "version": 1
+    }
+  }
+}

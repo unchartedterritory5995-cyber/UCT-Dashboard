@@ -1,0 +1,49 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/86034b16f06755b3942acefbbc80f571/preview-mine",
+    "note": "A template holding a routine part: `questions` asks which routine (Use refuses `unresolved` until it is answered).",
+    "path": "/api/j2/template-gallery/86034b16f06755b3942acefbbc80f571/preview-mine",
+    "requestBody": {},
+    "status": 200
+  },
+  "body": {
+    "cards": [],
+    "credit": "Based on UCT's Night-before prep",
+    "questions": [
+      {
+        "createName": "Night-before prep",
+        "kind": "routine",
+        "slot": "routine_a",
+        "use": null
+      }
+    ],
+    "slots": [],
+    "tools": [
+      {
+        "bind": "next-trading-day",
+        "forDayLabel": "For Tue Oct 6",
+        "items": [
+          {
+            "text": "Build tomorrow's watchlist"
+          },
+          {
+            "text": "Mark levels on my top names"
+          },
+          {
+            "text": "Check tomorrow's earnings and economic calendar"
+          },
+          {
+            "text": "Set tomorrow's max loss"
+          },
+          {
+            "text": "Write my plan for the open"
+          }
+        ],
+        "kind": "routine",
+        "name": "Night-before prep",
+        "slot": "routine_a"
+      }
+    ]
+  }
+}

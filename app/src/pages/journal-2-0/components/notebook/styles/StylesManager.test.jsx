@@ -831,13 +831,24 @@ describe('kinds of note', () => {
     await screen.findByText(/Kind deleted\. 2 styles you had deleted for it were removed for good\./)
   })
 
-  it('the server’s own answer (one deleted style went with the kind) is worded in the singular', async () => {
+  it('one deleted style that went with the kind is worded in the singular', async () => {
+    routes.unshift(['DELETE', OWN_KIND_URL, kindDeleted(1)])
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    await screen.findByText('Kind deleted. 1 style you had deleted for it was removed for good.')
+  })
+
+  it('the server’s own answer (wave 11 KEEPS the deleted styles, W11-R10: a count of 0) reads "Kind deleted." alone', async () => {
+    expect(KIND_DELETED.purgedDeletedStyles).toBe(0)          // the contract fixture, regenerated at the be merge
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED])
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText(`Kind deleted. ${KIND_DELETED.purgedDeletedStyles} style you had deleted for it was removed for good.`)
+    await screen.findByText('Kind deleted.')
+    expect(screen.queryByText(/removed for good/)).toBeNull()
   })
 
   it('built-in kinds have no Rename or Delete', async () => {

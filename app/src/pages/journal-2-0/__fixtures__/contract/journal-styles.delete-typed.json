@@ -1,0 +1,143 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles/52f54caeac8e42079a4d788627e80443/delete",
+    "note": "Only from Archived, with its name typed: the soft delete (Recently deleted keeps it 30 days).",
+    "path": "/api/j2/journal-styles/52f54caeac8e42079a4d788627e80443/delete",
+    "requestBody": {
+      "typedName": "Watchlist review copy"
+    },
+    "status": 200
+  },
+  "body": {
+    "style": {
+      "archivedAt": "2026-10-05T14:30:00+00:00",
+      "blocks": [
+        {
+          "block": "myWatchlistToday",
+          "enabled": true,
+          "settings": {}
+        },
+        {
+          "block": "prepMovers",
+          "enabled": true,
+          "settings": {}
+        },
+        {
+          "block": "prepLevels",
+          "enabled": true,
+          "settings": {}
+        }
+      ],
+      "builtin": false,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "deletedAt": "2026-10-05T14:30:00+00:00",
+      "hasOutline": true,
+      "id": "52f54caeac8e42079a4d788627e80443",
+      "isDefault": false,
+      "kindId": "watchlist_note",
+      "name": "Watchlist review copy",
+      "outlineBodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Your list today",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "The names you are watching, and why each one is on the list.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:myWatchlistToday}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "What's moving",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Which of your names are moving, and is it a move you want?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:prepMovers}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Levels to wait for",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "The price that would make each name worth a trade.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:prepLevels}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "outlineTemplateId": null,
+      "properties": {},
+      "sourceGalleryId": "8a42b32deeb35693adb359d641789d26",
+      "sourceVersion": 1,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "version": 1
+    }
+  }
+}

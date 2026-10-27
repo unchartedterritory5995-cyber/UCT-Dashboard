@@ -109,6 +109,12 @@
       },
       "status": 401
     },
+    "GET /api/j2/journal-styles/{style_id}/used-in": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "GET /api/j2/my-playbook": {
       "body": {
         "detail": "Not authenticated"
@@ -277,6 +283,18 @@
       },
       "status": 401
     },
+    "GET /api/j2/template-gallery/library": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/template-gallery/notes/{note_id}/helpful-prompt": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "GET /api/j2/template-gallery/updates": {
       "body": {
         "detail": "Not authenticated"
@@ -403,13 +421,37 @@
       },
       "status": 401
     },
+    "POST /api/j2/journal-styles/{style_id}/archive": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "POST /api/j2/journal-styles/{style_id}/default": {
       "body": {
         "detail": "Not authenticated"
       },
       "status": 401
     },
+    "POST /api/j2/journal-styles/{style_id}/delete": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/journal-styles/{style_id}/duplicate": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "POST /api/j2/journal-styles/{style_id}/restore": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/journal-styles/{style_id}/unarchive": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -499,7 +541,25 @@
       },
       "status": 401
     },
+    "POST /api/j2/template-gallery/share/preview": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "POST /api/j2/template-gallery/styles": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/tools": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/tools/updates/{kind}/{copy_id}": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -523,7 +583,25 @@
       },
       "status": 401
     },
+    "POST /api/j2/template-gallery/{gallery_id}/adopt-tool": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "POST /api/j2/template-gallery/{gallery_id}/helpful": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/helpful-prompt": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/preview-mine": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -536,6 +614,12 @@
       "status": 401
     },
     "POST /api/j2/template-gallery/{gallery_id}/use": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/use-template": {
       "body": {
         "detail": "Not authenticated"
       },
