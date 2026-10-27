@@ -561,6 +561,25 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   verify the Setups page cards/playbooks + the gap rays on the review screen and send renders; then the Gap
   Support one-at-a-time review from ARGX and the Go Signal review, rulings recorded as source_ruling fixtures.
 
+- **2026-10-27 (this sitting):** PR #470 merged 7a55be49ac (owner's instruction), web deploy SUCCESS 11:46Z; the gap rays
+  and the playbooks verified live. GAP SUPPORT REVIEW COMPLETE, 42/42: nine one at a time on the review screen, then the
+  rest ten at a time from a local contact sheet (`scratchpad/review_sheet/`, `python -m http.server 8765`, images sent to
+  the owner's phone, grades asked four per question). Rulings in `docs/study/audits/2026-10-24/owner_verdicts.jsonl`:
+  the level is the GAP-UP DAY LOW (hold = open gap, best; slight breach with a close back above = good; fill to the
+  gap-fill spot and reclaim = lesser; no reclaim = failed gap, out); gaps up only, not in a downtrend (bear gaps off the
+  highs = a separate lesson, TODO); the gap bar itself is a PEG, a gap never revisited is nothing. Keeps: great = META
+  2023-02-24, NVDA 2023-03-02, MU 2024-01-02, AFRM 2024-09-10, DOCS 2023-01-06; good = AAPL 2024-05-08, MSFT 2023-02-17,
+  EDU 2023-01-30, KKR 2024-08-05, TWLO 2025-11-21, TER 2025-11-21; okay = 15; cut = 18; NVDA 2026-09-09 pending (bad bars).
+  Finder + generator updated (06d74cef8f: gap_low/test_kind facts, not_downtrend gate, held > slight > fill ranking);
+  overlay flipped so the gap-up low is the gold primary ray (762134c977 on the cards branch). RAY READING: on every
+  Gap Support chart the LOWER line is the gap-fill spot (prior-day high) and the UPPER line is the gap-up low.
+  GO SIGNAL: the owner ruled it is an HOURLY signal (Oops/UNR family) and stopped the daily grading after 4 of 45; the
+  45 daily drafts stay drafts. Pod hourly coverage (read-only scan): tf='60' bars only since 2026-09-28 for most names
+  (NVDA/SPY/QQQ since 2025-08, TSLA/AAPL/ANET since 2026-07); historical hourly examples need a vendor fetch (the
+  bars_sqlite intraday path paginates full history) or the examples come from the last month only. OWNER DECISION.
+  OWNER STILL RUNS (classifier blocks pod writes): `scratchpad/apply_verdicts_gap_run.ps1` (the 42 rulings),
+  `import_contrasts_run.ps1`, `retire_xom_sling_run.ps1`. Railway SSH timed out twice around 16:30Z then worked.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
