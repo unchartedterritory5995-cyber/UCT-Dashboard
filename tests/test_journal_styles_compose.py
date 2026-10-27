@@ -627,19 +627,11 @@ def test_the_server_kind_titles_match_the_client_widget_kinds():
 
 
 
-def test_the_client_names_every_slot_kind_by_the_servers_title():
-    """Task 11.14: journalBlocks.SNAPSHOT_BLOCK_LABELS names every snapshot kind a style may place by the server's
-    notebook_widgets.KIND_TITLE, read from the client file, never restated."""
-    import re
-    from pathlib import Path
-    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
-    src = Path("app/src/pages/journal-2-0/lib/journalBlocks.js").read_text(encoding="utf-8")
-    start = src.index("export const SNAPSHOT_BLOCK_LABELS")
-    block = src[start:src.index("})", start)]
-    client = dict(re.findall(r"^\s+(\w+): '([^']+)',", block, flags=re.M))
-    kinds = list(js.SNAPSHOT_SLOT_KINDS)                    # the server's list, never a hand-typed copy (M2)
-    assert len(kinds) == 12                                                               # non-vacuity
-    assert client == {k: nw.KIND_TITLE[k] for k in kinds}
+# Merge review m-5: the client-label rail for the snapshot slot kinds is ONE test,
+# tests/test_journal_styles_store.py::test_the_client_names_every_snapshot_slot_by_the_servers_title (it imports the
+# client module through Node, so it reads what the client exports rather than a regex over its text). The copy that
+# stood here asserted the same equality a second time, with a restated count.
+
 
 def _client_widget_rows():
     """{id: row text} for each WIDGET_KINDS row in the client file, read from the file, never restated."""
