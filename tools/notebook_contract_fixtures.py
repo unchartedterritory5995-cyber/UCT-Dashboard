@@ -1960,8 +1960,8 @@ def journal_styles(w: World) -> None:
     gone = w.client.post(base, json={"name": "Deleted with its kind", "kindId": spare}).json()["style"]["id"]
     w.client.delete(f"{base}/{gone}")
     w.record("note-kinds.delete", "DELETE", f"{kinds}/{spare}", case="success", expect=200,
-             note="The kind's one soft-deleted style is KEPT (W11-R10: a style row is never hard-deleted), "
-                  "so the count is 0; restore_style refuses it while its kind is gone.")
+             note="Wave 11 dark (W11-R69): the kind's one soft-deleted style goes with it, and the answer counts "
+                  "it. With wave 11 on it is kept instead (note-kinds.delete.w11).")
     w.record("note-kinds.delete.not-found", "DELETE", f"{kinds}/{spare}", case="error", expect=404)
     w.record("note-kinds.mapping-offer", "GET", f"{kinds}/mapping-offer", case="success", expect=200)
     w.record("note-kinds.mapping-offer.apply", "POST", f"{kinds}/mapping-offer", case="success", expect=200,
@@ -2825,6 +2825,14 @@ def wave11_library(w: World) -> None:
     w.record("journal-styles.delete-typed", "POST", f"{styles}/{dup_id}/delete", case="success", expect=200,
              json_body={"typedName": dup["style"]["name"]},
              note="Only from Archived, with its name typed: the soft delete (Recently deleted keeps it 30 days).")
+    # W11-R69: with wave 11 ON, deleting a kind KEEPS its soft-deleted styles (Recently deleted lists them).
+    kinds = "/api/j2/note-kinds"
+    spare = w.client.post(kinds, json={"name": "Spare w11"}).json()["kind"]["id"]
+    gone = w.client.post(styles, json={"name": "Deleted with its kind", "kindId": spare}).json()["style"]["id"]
+    assert w.client.delete(f"{styles}/{gone}").status_code == 200, "setup: deleting the style"
+    w.record("note-kinds.delete.w11", "DELETE", f"{kinds}/{spare}", case="success", expect=200,
+             note="Wave 11 on (W11-R69 / W11-R10): the kind's soft-deleted style is KEPT, so the count is 0; "
+                  "restore_style refuses it while its kind is gone.")
     w.record("journal-styles.list.live", "GET", f"{styles}?view=live", case="success", expect=200,
              note="The Templates tab's live list: the library copy, with its credit and how many notes use it.")
     w.record("journal-styles.list.deleted", "GET", f"{styles}?view=deleted", case="success", expect=200,

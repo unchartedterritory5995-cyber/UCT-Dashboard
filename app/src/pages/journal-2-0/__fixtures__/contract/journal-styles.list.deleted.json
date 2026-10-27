@@ -74,6 +74,28 @@
     ],
     "styles": [
       {
+        "archivedAt": null,
+        "blocks": [],
+        "builtin": false,
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "credit": null,
+        "deletedAt": "2026-10-05T14:30:00+00:00",
+        "fromLibrary": false,
+        "hasOutline": false,
+        "id": "d6587257ae584905b6d07f6eb2d79cb2",
+        "isDefault": false,
+        "kindId": "k_2b5da98882ad4892bdbc1a9ff8ddd967",
+        "name": "Deleted with its kind",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updateAvailable": false,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedIn": 0,
+        "version": 1
+      },
+      {
         "archivedAt": "2026-10-05T14:30:00+00:00",
         "blocks": [
           {

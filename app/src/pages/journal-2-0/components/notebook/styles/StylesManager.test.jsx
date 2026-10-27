@@ -71,6 +71,7 @@ const RICH_OUTLINE = {
 }
 const PREVIEW = contractBody('journal-styles.preview')
 const KIND_DELETED = contractBody('note-kinds.delete')
+const KIND_DELETED_W11 = contractBody('note-kinds.delete.w11')       // W11-R69: wave 11 on keeps the deleted styles
 const kindDeleted = (n) => ({ ...KIND_DELETED, purgedDeletedStyles: n })
 const IN_USE = contract('note-kinds.delete.in-use')
 const OFFER = contractBody('note-kinds.mapping-offer')
@@ -851,8 +852,9 @@ describe('kinds of note', () => {
     await screen.findByText(/Kind deleted\. 2 styles you had deleted for it were removed for good\./)
   })
 
-  it('one deleted style that went with the kind is worded in the singular', async () => {
-    routes.unshift(['DELETE', OWN_KIND_URL, kindDeleted(1)])
+  it('the server’s own answer with wave 11 dark (one deleted style went with the kind) is worded in the singular', async () => {
+    expect(KIND_DELETED.purgedDeletedStyles).toBe(1)          // W11-R69: wave 11 off purges, the fixture counts it
+    routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED])
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
@@ -860,9 +862,9 @@ describe('kinds of note', () => {
     await screen.findByText('Kind deleted. 1 style you had deleted for it was removed for good.')
   })
 
-  it('the server’s own answer (wave 11 KEEPS the deleted styles, W11-R10: a count of 0) reads "Kind deleted." alone', async () => {
-    expect(KIND_DELETED.purgedDeletedStyles).toBe(0)          // the contract fixture, regenerated at the be merge
-    routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED])
+  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Kind deleted." alone', async () => {
+    expect(KIND_DELETED_W11.purgedDeletedStyles).toBe(0)
+    routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED_W11])
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))

@@ -2,12 +2,12 @@
   "_contract": {
     "case": "success",
     "endpoint": "DELETE /api/j2/note-kinds/k_454af67ac7ab4e53b8de3c02c7c21b01",
-    "note": "The kind's one soft-deleted style is KEPT (W11-R10: a style row is never hard-deleted), so the count is 0; restore_style refuses it while its kind is gone.",
+    "note": "Wave 11 dark (W11-R69): the kind's one soft-deleted style goes with it, and the answer counts it. With wave 11 on it is kept instead (note-kinds.delete.w11).",
     "path": "/api/j2/note-kinds/k_454af67ac7ab4e53b8de3c02c7c21b01",
     "status": 200
   },
   "body": {
     "ok": true,
-    "purgedDeletedStyles": 0
+    "purgedDeletedStyles": 1
   }
 }
