@@ -49,7 +49,7 @@
                   "exposureDelta": 2.5,
                   "exposureScore": 72.5,
                   "marketPhase": "Uptrend",
-                  "pctAbove200": 66.0,
+                  "pctAbove200": 66,
                   "pctAbove50": 61.4,
                   "powerTrend": null,
                   "qqq": {
@@ -59,7 +59,7 @@
                     "value": {
                       "changePct": 1.25,
                       "closed": true,
-                      "price": 486.0
+                      "price": 486
                     }
                   },
                   "regime": {

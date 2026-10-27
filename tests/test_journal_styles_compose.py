@@ -1138,3 +1138,64 @@ def test_a_styled_create_stores_every_widget_embed_attribute_the_editor_holds(db
     inner = out["content"][0]["content"][0]["attrs"]
     assert inner["frozen"] is True and inner["ta"] is None and inner["layout"] == {"width": "full", "height": 320}
     assert body["content"][0]["content"][0]["attrs"] == {"frozen": True}                          # input untouched
+
+
+def _embed_attrs(body):
+    out = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "widgetEmbed":
+                out.append(n.get("attrs") or {})
+            for c in n.get("content") or []:
+                walk(c)
+    walk(body)
+    return out
+
+
+def _integral_floats(v, path=""):
+    if isinstance(v, float) and v.is_integer():
+        return [path]
+    if isinstance(v, dict):
+        return [p for k, x in v.items() for p in _integral_floats(x, f"{path}.{k}")]
+    if isinstance(v, list):
+        return [p for i, x in enumerate(v) for p in _integral_floats(x, f"{path}[{i}]")]
+    return []
+
+
+def test_w11_r84_a_styled_create_stores_widget_embeds_exactly_as_the_browser_round_trips_them(db_path, monkeypatch):
+    """W11-R84 (the re-walk's D2 residual): the one allowed first-open PUT carried, besides `fallback`, the editor
+    dropping `tradeRefType` (an attribute its schema does not declare) and the browser's JSON round trip writing
+    72.0 as 72 (Market context readings, the prep pack's exposure). The insert now stores exactly that form: only
+    the attributes WIDGET_EMBED_ATTR_DEFAULTS declares, and an integral float inside an embed's attrs as an int.
+    CONTROL: a non-integral float (72.5) and a bool are untouched, and nothing outside widgetEmbed attrs moves."""
+    from api.services.journal_two import journal_styles as js
+    note, _ = js.create_styled_note("u1", {"kindId": "trade_plan", "ticker": "NVDA", "title": "plan"})
+    attrs = _embed_attrs(note["bodyJson"])
+    assert any(a.get("widgetId") == "marketcontext" for a in attrs)                 # non-vacuity: the real stamp
+    for a in attrs:
+        assert set(a) <= set(js.WIDGET_EMBED_ATTR_DEFAULTS), sorted(set(a) - set(js.WIDGET_EMBED_ATTR_DEFAULTS))
+        assert _integral_floats(a) == [], _integral_floats(a)
+    # the server's REAL recorded styled create (the contract fixture the client rails load, regenerated from the
+    # router): its Market context readings were stored as 66.0 before this; JSON reads "66.0" back as a float
+    import pathlib
+    rec = json.loads((pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "pages" / "journal-2-0" / "__fixtures__"
+                      / "contract" / "notes.create.kind.json").read_text(encoding="utf-8"))["body"]["note"]["bodyJson"]
+    rec_attrs = _embed_attrs(rec)
+    assert any(a.get("widgetId") == "marketcontext" and a.get("params", {}).get("readings") for a in rec_attrs)
+    for a in rec_attrs:
+        assert set(a) <= set(js.WIDGET_EMBED_ATTR_DEFAULTS) and _integral_floats(a) == [], (a.get("widgetId"), _integral_floats(a))
+    # the helper on the walk's exact shape
+    body = {"type": "doc", "content": [
+        {"type": "widgetEmbed", "attrs": {"widgetId": "routine", "tradeRefType": None,
+                                          "params": {"readings": {"breadthScore": 62.0, "pct": 72.5, "on": True,
+                                                                  "rows": [1.0, 2.25]}}}},
+        {"type": "paragraph", "attrs": {"indent": 2.0}, "content": [{"type": "text", "text": "x"}]}]}
+    out = js.with_editor_attrs(body)
+    e = out["content"][0]["attrs"]
+    assert "tradeRefType" not in e
+    r = e["params"]["readings"]
+    assert r["breadthScore"] == 62 and type(r["breadthScore"]) is int
+    assert r["pct"] == 72.5 and r["on"] is True and r["rows"] == [1, 2.25] and type(r["rows"][0]) is int
+    assert out["content"][1] == body["content"][1]                                    # not an embed: untouched
+    assert "tradeRefType" in body["content"][0]["attrs"]                              # input untouched

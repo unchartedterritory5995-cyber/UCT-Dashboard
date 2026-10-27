@@ -2165,18 +2165,34 @@ WIDGET_EMBED_ATTR_DEFAULTS: dict[str, Any] = json.loads(  # widgetEmbed-attr-def
 )  # widgetEmbed-attr-defaults:end
 
 
+def _as_json_round_trips(v: Any) -> Any:
+    """W11-R84: `v` as a browser's JSON round trip leaves it: an integral float is an int (JSON.parse("72.0") is 72 and
+    JSON.stringify writes "72"); every other value, a non-integral float, a bool, a string, is untouched. Only values
+    that JSON-compare equal change, and only below 2**53 (where a JS number is still exactly that integer)."""
+    if isinstance(v, float) and v.is_integer() and abs(v) < 2 ** 53:
+        return int(v)
+    if isinstance(v, dict):
+        return {k: _as_json_round_trips(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_as_json_round_trips(x) for x in v]
+    return v
+
+
 def with_editor_attrs(body: Any) -> Any:
-    """W11-R79 m-2: `body` with every widgetEmbed (at any depth) holding each attribute the editor's schema declares:
-    a missing one gets its default (`WIDGET_EMBED_ATTR_DEFAULTS`, deep-copied), a present one is never replaced. The
-    editor fills the same defaults as it parses, so a server body without them differed from what the editor holds,
-    and the first write after an open carried them as drift. A copy; total."""
+    """W11-R79 m-2 / W11-R84: `body` with every widgetEmbed (at any depth) holding EXACTLY the attributes the editor's
+    schema declares (`WIDGET_EMBED_ATTR_DEFAULTS`): a missing one gets its default (deep-copied), a present one is never
+    replaced, and one the schema does not declare (e.g. `tradeRefType`) is dropped, as the editor drops it. Every value
+    inside those attributes is in its JSON-round-tripped form (`_as_json_round_trips`: 72.0 -> 72). A server body in
+    any other form differed from what the editor holds, and the first write after an open carried the difference as
+    drift. A copy; total; nodes other than widgetEmbed are untouched."""
     def walk(node: Any) -> Any:
         if not isinstance(node, dict):
             return node
         out = dict(node)
         if out.get("type") == "widgetEmbed":
             attrs = out.get("attrs") if isinstance(out.get("attrs"), dict) else {}
-            out["attrs"] = {**copy.deepcopy(WIDGET_EMBED_ATTR_DEFAULTS), **attrs}
+            declared = {k: v for k, v in attrs.items() if k in WIDGET_EMBED_ATTR_DEFAULTS}
+            out["attrs"] = _as_json_round_trips({**copy.deepcopy(WIDGET_EMBED_ATTR_DEFAULTS), **declared})
         if isinstance(out.get("content"), list):
             out["content"] = [walk(c) for c in out["content"]]
         return out
