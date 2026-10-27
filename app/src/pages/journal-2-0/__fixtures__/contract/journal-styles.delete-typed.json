@@ -1,9 +1,9 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/journal-styles/52f54caeac8e42079a4d788627e80443/delete",
+    "endpoint": "POST /api/j2/journal-styles/c02616e402cf46b99e9ab80204132bfd/delete",
     "note": "Only from Archived, with its name typed: the soft delete (Recently deleted keeps it 30 days).",
-    "path": "/api/j2/journal-styles/52f54caeac8e42079a4d788627e80443/delete",
+    "path": "/api/j2/journal-styles/c02616e402cf46b99e9ab80204132bfd/delete",
     "requestBody": {
       "typedName": "Watchlist review copy"
     },
@@ -33,7 +33,7 @@
       "createdAt": "2026-10-05T14:30:00+00:00",
       "deletedAt": "2026-10-05T14:30:00+00:00",
       "hasOutline": true,
-      "id": "52f54caeac8e42079a4d788627e80443",
+      "id": "c02616e402cf46b99e9ab80204132bfd",
       "isDefault": false,
       "kindId": "watchlist_note",
       "name": "Watchlist review copy",

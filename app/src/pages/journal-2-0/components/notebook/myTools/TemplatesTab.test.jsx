@@ -7,6 +7,7 @@ import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-li
 import MyToolsSheet from './MyToolsSheet'
 import { BUILTIN_NOTE_KINDS } from '../../../lib/noteKinds'
 import { openSharePreview } from '../library/openSharePreview.js'
+import { contractBody } from '../../../__fixtures__/contract'
 
 const bp = vi.hoisted(() => ({ phone: false, touch: false }))
 const flags = vi.hoisted(() => ({ eleven: true, library: true }))
@@ -120,6 +121,34 @@ const showList = (label) => fireEvent.click(screen.getByRole('button', { name: l
 const sent = (method, path) => net.calls.filter((c) => c.method === method && c.path === path)
 
 describe('My tools, Templates tab', () => {
+  it("merge review I-2: the server's REAL lists and used-in answer (contract fixtures) render as the member's rows", async () => {
+    // The recorded answers of GET /journal-styles?view=live|archived and /{id}/used-in (wave 11 on): a server shape
+    // change reds this test, not only the fixture freshness rail.
+    const liveBody = contractBody('journal-styles.list.live')
+    const archivedBody = contractBody('journal-styles.list.archived')
+    const usedBody = contractBody('journal-styles.used-in')
+    const copy = liveBody.styles.find((st) => !st.builtin)
+    const gone = archivedBody.styles.find((st) => !st.builtin)
+    expect(copy && gone).toBeTruthy()                                       // non-vacuity: the member's own rows
+    net = installFetch([
+      ['GET', 'journal-styles?view=live', () => liveBody],
+      ['GET', 'journal-styles?view=archived', () => archivedBody],
+      ['GET', `journal-styles/${copy.id}/used-in`, () => usedBody],
+    ])
+    await openTab()
+    const row = rowOf(copy.name)
+    expect(row).toHaveTextContent(copy.credit)                              // "Based on UCT's Watchlist review"
+    const usedBtn = within(row).getByRole('button', { name: new RegExp(`^Used in ${copy.usedIn} notes`) })
+    fireEvent.click(usedBtn)
+    expect(await screen.findByRole('heading', { name: `“${copy.name}” is in ${usedBody.notes.length} notes` })).toBeInTheDocument()
+    const links = await screen.findAllByRole('link', { name: /Untitled note/ })
+    expect(links.map((a) => a.getAttribute('href')).sort())
+      .toEqual(usedBody.notes.map((n) => `/journal/notebook?note=${n.id}`).sort())
+    fireEvent.click(screen.getByRole('button', { name: 'Back to your templates' }))
+    showList('Archived')
+    expect(await screen.findByText(gone.name)).toBeInTheDocument()
+  })
+
   it('templates_rows_used_in_kind_and_credit', async () => {
     await openTab()
     expect(net.calls[0]).toMatchObject({ method: 'GET', path: 'journal-styles?view=live' })

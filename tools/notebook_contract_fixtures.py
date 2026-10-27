@@ -2782,6 +2782,24 @@ def wave11_library(w: World) -> None:
     note_id, style_id = used["note"]["id"], used["style"]["id"]
     w.record("template-gallery.helpful-prompt", "GET", f"{base}/notes/{note_id}/helpful-prompt", case="success",
              expect=200, note="Used on one day only: the 3rd-day line does not show. Asking records nothing.")
+    # The 3rd use day (merge review I-2): two more Uses; the copy and the first two notes are dated to two earlier ET
+    # days, so the newest note is on the viewer's 3rd use day and its line shows.
+    later = []
+    for _ in range(2):
+        again_used = w.client.post(f"{base}/{gid}/use-template", json={})
+        assert again_used.status_code == 200, f"setup: a later Use answered {again_used.status_code}"
+        later.append(again_used.json()["note"]["id"])
+    c = w.conn()
+    try:
+        c.execute("UPDATE j2_journal_styles SET created_at = ? WHERE id = ?", ("2026-10-01T14:00:00+00:00", style_id))
+        c.execute("UPDATE j2_notes SET created_at = ? WHERE id = ?", ("2026-10-01T15:00:00+00:00", note_id))
+        c.execute("UPDATE j2_notes SET created_at = ? WHERE id = ?", ("2026-10-02T15:00:00+00:00", later[0]))
+        c.commit()
+    finally:
+        c.close()
+    w.record("template-gallery.helpful-prompt.third-day", "GET", f"{base}/notes/{later[1]}/helpful-prompt",
+             case="success", expect=200,
+             note="The viewer's 3rd use day of the template: the line shows, worded by the server.")
     w.record("template-gallery.helpful-prompt.answer", "POST", f"{base}/{gid}/helpful-prompt", case="success",
              expect=200, json_body={"answer": "dismissed"}, note="Dismissed: no Helpful mark, nothing else asked.")
     # The viewer's copy of the template, in the journal-styles views.
@@ -2796,9 +2814,15 @@ def wave11_library(w: World) -> None:
              json_body={})
     archived = w.client.post(f"{styles}/{dup_id}/archive", json={})
     assert archived.status_code == 200, f"setup: archiving the copy again answered {archived.status_code}"
+    w.record("journal-styles.list.archived", "GET", f"{styles}?view=archived", case="success", expect=200,
+             note="The Templates tab's Archived list: the archived duplicate.")
     w.record("journal-styles.delete-typed", "POST", f"{styles}/{dup_id}/delete", case="success", expect=200,
              json_body={"typedName": dup["style"]["name"]},
              note="Only from Archived, with its name typed: the soft delete (Recently deleted keeps it 30 days).")
+    w.record("journal-styles.list.live", "GET", f"{styles}?view=live", case="success", expect=200,
+             note="The Templates tab's live list: the library copy, with its credit and how many notes use it.")
+    w.record("journal-styles.list.deleted", "GET", f"{styles}?view=deleted", case="success", expect=200,
+             note="The Templates tab's Recently deleted list: the deleted duplicate.")
 
     # A routine: shared (preview, then publish), approved, adopted, then its next version taken into the copy.
     c = w.conn()
@@ -2812,6 +2836,9 @@ def wave11_library(w: World) -> None:
     w.record("template-gallery.share.preview", "POST", f"{base}/share/preview", case="success", expect=200,
              json_body={"kind": "routine", "id": rid},
              note="What sharing the author's routine would send. Nothing is written or stored.")
+    w.record("template-gallery.share.preview.edits", "POST", f"{base}/share/preview", case="success", expect=200,
+             json_body={"kind": "routine", "id": rid, "edits": {"name": "Morning routine", "items": ["Coffee", "Mark levels"]}},
+             note="The share sheet's second ask, with the prefilled words as edits: `travels` is what would be listed.")
     shared = w.record("template-gallery.tools.publish", "POST", f"{base}/tools", case="success", expect=200,
                       json_body={"kind": "routine", "id": rid, "edits": {"items": ["Coffee", "Mark levels"]}},
                       note="Pending until an admin reviews it.")

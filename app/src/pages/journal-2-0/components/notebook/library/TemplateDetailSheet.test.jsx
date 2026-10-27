@@ -11,6 +11,7 @@ import TemplateDetailSheet, { DATA_HEADING, USE_TEMPLATE_LABEL } from './Templat
 import { openAdoptSheet } from './openAdoptSheet'
 import { bindWords } from '../../../lib/templateSlots'
 import { SAMPLE_RIBBON } from '../widgetBuilder/ExampleCard'
+import { contractBody } from '../../../__fixtures__/contract'
 
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
   useIsPhone: () => false, useIsTouch: () => false, useIsTablet: () => false, useIsDesktop: () => true,
@@ -76,6 +77,34 @@ async function open(props = {}) {
 const previewCalls = () => calls.filter((c) => c.path.endsWith('/preview-mine'))
 
 describe('the template detail', () => {
+  it("merge review I-2: a REAL library row and its REAL preview-mine answer (contract fixtures) render the server's facts", async () => {
+    const libRow = contractBody('template-gallery.library').templates.find((r) => r.title === 'Night-before prep')
+    const preview = contractBody('template-gallery.preview-mine.questions')
+    const tool = preview.tools[0]
+    expect(libRow && tool && tool.items.length).toBeTruthy()                 // non-vacuity: a row with a routine part
+    calls = []
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = new URL(String(url), 'http://x')
+      const method = init.method || 'GET'
+      calls.push({ path: u.pathname, method })
+      if (u.pathname === `/api/j2/template-gallery/${libRow.id}/preview-mine` && method === 'POST') return json(200, preview)
+      if (u.pathname === `/api/j2/template-gallery/${libRow.id}` && method === 'GET') {
+        return json(200, { template: { ...libRow, bodyJson: OUTLINE } })
+      }
+      return json(404, {})
+    })
+    render(<TemplateDetailSheet item={libRow} onClose={() => {}} />)
+    const el = await waitFor(() => {
+      const found = document.querySelector(`[data-preview-tool="${tool.slot}"]`)
+      expect(found).not.toBeNull()
+      return found
+    })
+    expect(within(el).getByText(tool.name)).toBeInTheDocument()
+    for (const item of tool.items) expect(within(el).getByText(item.text)).toBeInTheDocument()
+    expect(within(el).getByText(tool.forDayLabel)).toBeInTheDocument()       // the server's day words
+    expect(document.querySelector('[data-credit]').textContent).toBe(preview.credit)
+  })
+
   it('detail_calls_preview_mine_once_and_labels_sample', async () => {
     await open()
     await waitFor(() => expect(document.querySelectorAll('[data-built-view]').length).toBe(2))

@@ -1,30 +1,30 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/template-gallery/tools/updates/routine/9f7a90e6-e289-4270-9ac2-72fd63bc5d00",
+    "endpoint": "POST /api/j2/template-gallery/tools/updates/routine/2122e945-e10f-443c-92e9-0b757a6a6a62",
     "note": "The listed version 2 taken into the viewer's copy: an unchanged item keeps its id.",
-    "path": "/api/j2/template-gallery/tools/updates/routine/9f7a90e6-e289-4270-9ac2-72fd63bc5d00",
+    "path": "/api/j2/template-gallery/tools/updates/routine/2122e945-e10f-443c-92e9-0b757a6a6a62",
     "requestBody": {},
     "status": 200
   },
   "body": {
-    "id": "9f7a90e6-e289-4270-9ac2-72fd63bc5d00",
+    "id": "2122e945-e10f-443c-92e9-0b757a6a6a62",
     "kind": "routine",
     "tool": {
       "archived": false,
       "createdDay": "2026-10-05",
       "deleted": false,
       "etag": 2,
-      "id": "9f7a90e6-e289-4270-9ac2-72fd63bc5d00",
+      "id": "2122e945-e10f-443c-92e9-0b757a6a6a62",
       "items": [
         {
-          "id": "77284411-bf6f-4e59-8c68-332f784b10e8",
+          "id": "1b55154e-9ace-42cb-9ce8-1110dc6793c0",
           "negative": false,
           "suggest": null,
           "text": "Coffee"
         },
         {
-          "id": "92d90613-7152-45e2-9101-47e420947c29",
+          "id": "738a8478-f3be-44d2-89ce-e18a1f64ce65",
           "negative": false,
           "suggest": null,
           "text": "Read the news"

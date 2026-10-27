@@ -5,6 +5,7 @@ import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import HelpfulPromptLine, { promptOf, ANSWERED_WORDS } from './HelpfulPromptLine'
 import { GALLERY } from '../../../lib/templateLibrary'
+import { contractBody } from '../../../__fixtures__/contract'
 
 const SHOW = { show: true, itemId: 'g1', title: 'Pre-market prep', line: 'Was Pre-market prep helpful?' }
 const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body })
@@ -32,6 +33,34 @@ const posts = () => calls.filter((c) => c.method === 'POST')
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)) })
 
 describe('HelpfulPromptLine', () => {
+  it("merge review I-2: the server's REAL answers (contract fixtures): the 3rd-day line shows, a 1st-day note shows none", async () => {
+    const third = contractBody('template-gallery.helpful-prompt.third-day')
+    expect(third.show).toBe(true)                                         // non-vacuity: the recorded 3rd day
+    promptAnswer = json(third)
+    postAnswer = json(contractBody('template-gallery.helpful-prompt.answer'))
+    global.fetch.mockImplementation(async (url, init = {}) => {
+      const method = init.method || 'GET'
+      calls.push({ url: String(url), method, body: init.body ? JSON.parse(init.body) : null })
+      if (method === 'GET' && String(url) === `${GALLERY}/notes/n1/helpful-prompt`) return promptAnswer
+      if (method === 'POST' && String(url) === `${GALLERY}/${third.itemId}/helpful-prompt`) return postAnswer
+      return json({ detail: 'Not found' }, 404)
+    })
+    const user = userEvent.setup()
+    const { unmount } = render(<HelpfulPromptLine noteId="n1" />)
+    expect(await screen.findByText(third.line)).toBeInTheDocument()       // the server's own words
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+    await waitFor(() => expect(posts()).toHaveLength(1))
+    expect(posts()[0]).toEqual({ url: `${GALLERY}/${third.itemId}/helpful-prompt`, method: 'POST', body: { answer: 'dismissed' } })
+    unmount()
+    // The 1st-day answer (`{show: false}`) shows nothing.
+    promptAnswer = json(contractBody('template-gallery.helpful-prompt'))
+    calls = []
+    const { container } = render(<HelpfulPromptLine noteId="n1" />)
+    await waitFor(() => expect(calls).toHaveLength(1))
+    await settle()
+    expect(container.textContent).toBe('')
+  })
+
   it('line_shows_only_when_server_says_show', async () => {
     const { unmount } = render(<HelpfulPromptLine noteId="n1" />)
     expect(await screen.findByText('Was Pre-market prep helpful?')).toBeInTheDocument()

@@ -1,15 +1,15 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/template-gallery/213cbb7f267641e4b36df06ce9812049/adopt-tool",
+    "endpoint": "POST /api/j2/template-gallery/a8e8eb7416f64d7ab4564481cb181a3c/adopt-tool",
     "note": "A copy of the listed routine in the viewer's My tools.",
-    "path": "/api/j2/template-gallery/213cbb7f267641e4b36df06ce9812049/adopt-tool",
+    "path": "/api/j2/template-gallery/a8e8eb7416f64d7ab4564481cb181a3c/adopt-tool",
     "requestBody": {},
     "status": 200
   },
   "body": {
     "credit": "Based on Wren Author's Routine with 2 items",
-    "id": "9f7a90e6-e289-4270-9ac2-72fd63bc5d00",
+    "id": "2122e945-e10f-443c-92e9-0b757a6a6a62",
     "kind": "routine"
   }
 }

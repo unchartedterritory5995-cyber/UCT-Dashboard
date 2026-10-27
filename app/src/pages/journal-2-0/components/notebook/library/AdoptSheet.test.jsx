@@ -14,6 +14,7 @@ import AdoptSheet, {
   ADDED_SENTENCE, ADDED_TEMPLATE_SENTENCE, DEBOUNCE_MS, MISSING_HINT, TITLE, UPDATED_SENTENCE, creditLine, createWords, useYourWords,
 } from './AdoptSheet'
 import { openAdoptSheet } from './openAdoptSheet'
+import { contractBody } from '../../../__fixtures__/contract'
 
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
   useIsPhone: () => true, useIsTouch: () => true, useIsTablet: () => false, useIsDesktop: () => false,
@@ -115,6 +116,25 @@ const ready = () => waitFor(() => expect(document.querySelector('[data-slot]')).
 
 beforeEach(() => { setOnline(true) })
 afterEach(() => { cleanup(); setOnline(true); vi.useRealTimers() })
+
+// ── the server's REAL shapes (merge review I-2) ────────────────────────────────────────────────────────
+
+describe("AdoptSheet against the server's recorded answers (contract fixtures)", () => {
+  it('preview-mine.questions asks its routine question by the server fields; Use sends the choice and opens note.id', async () => {
+    const preview = contractBody('template-gallery.preview-mine.questions')
+    const used = contractBody('template-gallery.use-template')
+    const q = preview.questions[0]
+    expect(q && q.use === null && typeof q.createName === 'string').toBe(true)    // non-vacuity: a real question
+    const net = installServer({ preview: () => preview, use: () => used })
+    const { navigate } = mount()
+    expect(await screen.findByText(createWords(q.createName))).toBeInTheDocument()  // q.createName, q.use: null
+    await waitFor(() => expect(useButton()).not.toBeDisabled())
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.posts().filter((c) => c.url === USE)).toHaveLength(1))
+    expect(net.posts().find((c) => c.url === USE).body.choices).toEqual({ [q.slot]: { create: true } })
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(`/journal/notebook?note=${used.note.id}`))
+  })
+})
 
 // ── opening ──────────────────────────────────────────────────────────────────────────────────────────
 

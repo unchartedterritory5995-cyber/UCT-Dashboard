@@ -11,6 +11,7 @@ import SharePreviewSheet, {
   SENT_SENTENCE, DEBOUNCE_MS, pickLine, fieldsFromPrefill, sharedNumbers, FIELD_NAME_HINT, CATEGORY_HINT,
 } from './SharePreviewSheet'
 import { openSharePreview } from './openSharePreview'
+import { contractBody } from '../../../__fixtures__/contract'
 
 const waves = vi.hoisted(() => ({ eleven: true }))
 vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 11 && waves.eleven }))
@@ -361,6 +362,22 @@ describe('fix round 1', () => {
     expect(screen.getAllByRole('textbox', { name: 'Item 1' })).toHaveLength(1)
     await waitFor(() => expect(net.previews().length).toBe(2))
     expect(Object.keys(net.previews()[1].body.edits.blocks)).toEqual(['routine_a'])
+  })
+})
+
+describe("the server's recorded answers (contract fixtures, merge review I-2)", () => {
+  it('a routine share: the prefill fills the form, and what travels is the server answer to the prefilled edits', async () => {
+    const first = contractBody('template-gallery.share.preview')
+    const withEdits = contractBody('template-gallery.share.preview.edits')
+    expect(withEdits.travels?.items?.length).toBeGreaterThan(0)            // non-vacuity: a real travelling list
+    const net = installServer((body) => (body.edits ? withEdits : first))
+    mount({ kind: 'routine', id: 'r1' })
+    const fields = await screen.findAllByRole('textbox', { name: /^Item \d$/ })
+    expect(fields.map((i) => i.value)).toEqual(first.prefill.items.map((i) => i.text))
+    await primed(net)
+    expect(net.previews()[1].body.edits).toEqual({ name: first.prefill.name, items: first.prefill.items.map((i) => i.text) })
+    for (const item of withEdits.travels.items) expect(within(travels()).getByText(item.text)).toBeTruthy()
+    for (const line of withEdits.notShared) expect(screen.getByText(line)).toBeTruthy()
   })
 })
 

@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/notes/92d90613715245e2910147e420947c29/helpful-prompt",
+    "note": "The viewer's 3rd use day of the template: the line shows, worded by the server.",
+    "path": "/api/j2/template-gallery/notes/92d90613715245e2910147e420947c29/helpful-prompt",
+    "status": 200
+  },
+  "body": {
+    "itemId": "8a42b32deeb35693adb359d641789d26",
+    "line": "Was Watchlist review helpful?",
+    "show": true,
+    "title": "Watchlist review"
+  }
+}

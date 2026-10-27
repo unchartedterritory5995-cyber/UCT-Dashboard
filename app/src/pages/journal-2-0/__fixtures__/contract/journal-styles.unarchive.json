@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/journal-styles/52f54caeac8e42079a4d788627e80443/unarchive",
-    "path": "/api/j2/journal-styles/52f54caeac8e42079a4d788627e80443/unarchive",
+    "endpoint": "POST /api/j2/journal-styles/c02616e402cf46b99e9ab80204132bfd/unarchive",
+    "path": "/api/j2/journal-styles/c02616e402cf46b99e9ab80204132bfd/unarchive",
     "requestBody": {},
     "status": 200
   },
@@ -30,7 +30,7 @@
       "createdAt": "2026-10-05T14:30:00+00:00",
       "deletedAt": null,
       "hasOutline": true,
-      "id": "52f54caeac8e42079a4d788627e80443",
+      "id": "c02616e402cf46b99e9ab80204132bfd",
       "isDefault": false,
       "kindId": "watchlist_note",
       "name": "Watchlist review copy",
