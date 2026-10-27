@@ -464,6 +464,14 @@ def boot_schema(app_root: Path, data_dir: Path, port: int, out_dir: Path) -> str
     return how
 
 
+def schema_env(app_root: Path) -> dict:
+    """The schema boot's env: run_campaign's hermetic campaign_env (review n2), the same served flag set as the
+    campaign's own servers, derived from the app root, with no operator-shell variable and no bytecode written."""
+    import run_campaign as rc  # noqa: E402 -- lazy: run_campaign imports this module
+    fw = rc.load_walk_libs(app_root)[1]
+    return rc.campaign_env(rc.campaign_flag_sets(fw))[0]
+
+
 def boot_schema_clock(app_root: Path, data_dir: Path, port: int, out_dir: Path) -> str:
     """The schema boot through sandbox_clock.py at the real now (no shift that matters: the tables are the
     app's own either way). For a caller that must not open C:\\data at all: the hub launcher hashes the
@@ -482,7 +490,8 @@ def boot_schema_clock(app_root: Path, data_dir: Path, port: int, out_dir: Path) 
            "--data-dir", str(data_dir), "--port", str(port), "--app-root", str(app_root), "--no-remint"]
     kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True})
     with open(log, "w", encoding="utf-8") as fh:
-        proc = subprocess.Popen(cmd, cwd=str(app_root), stdout=fh, stderr=subprocess.STDOUT, **kw)
+        proc = subprocess.Popen(cmd, cwd=str(app_root), stdout=fh, stderr=subprocess.STDOUT, env=schema_env(app_root),
+                                **kw)
     try:
         end, ok = time.time() + 400, False
         while time.time() < end and proc.poll() is None and not ok:
@@ -513,6 +522,13 @@ def boot_schema_clock(app_root: Path, data_dir: Path, port: int, out_dir: Path) 
     return how
 
 
+def schema_booter(args):
+    """Review I2: the schema boot never hashes or logs into the shared data root or the app root by default. The
+    clock launcher (sandbox_clock.py: no snapshot, its output kept in the data dir) is the default; the hub launcher's
+    read-only hash of C:\\data is an explicit, loudly named opt-in."""
+    return boot_schema if args.schema_via_hub_launcher_hashing_shared_root else boot_schema_clock
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data-dir", required=True)
@@ -523,8 +539,10 @@ def main(argv=None) -> int:
     ap.add_argument("--schema-port", type=int, default=SCHEMA_PORT)
     ap.add_argument("--no-heavy-lock", action="store_true")
     ap.add_argument("--schema-via-clock-launcher", action="store_true",
-                    help="boot the schema through sandbox_clock.py (hashes nothing under C:\\data) instead of "
-                         "the hub launcher (which hashes it read-only)")
+                    help="(the default since review I2; kept so older command lines still parse)")
+    ap.add_argument("--schema-via-hub-launcher-hashing-shared-root", action="store_true",
+                    help="OPT-IN, the old schema boot: the hub launcher, which hashes every .db under C:\\data "
+                         "read-only and logs into the app root's docs. Never under the campaign rule")
     args = ap.parse_args(argv)
 
     why = refuse_shared_root(args.data_dir)
@@ -545,7 +563,7 @@ def main(argv=None) -> int:
     only = {x.strip() for x in args.only.split(",") if x.strip()}
     people = [p for p in spec["personas"] if not only or p["id"] in only]
 
-    (boot_schema_clock if args.schema_via_clock_launcher else boot_schema)(app_root, data_dir, args.schema_port, data_dir)
+    schema_booter(args)(app_root, data_dir, args.schema_port, data_dir)
 
     sys.path.insert(0, str(app_root))
     sys.path.insert(0, str(app_root / "scripts"))

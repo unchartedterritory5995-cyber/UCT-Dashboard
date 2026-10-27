@@ -30,7 +30,7 @@
   },
   "sample_label": {
    "text": "Sample data",
-   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx:36",
+   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx:40",
    "fragment": "SAMPLE_LABEL = 'Sample data'"
   },
   "empty_widgets": {
@@ -110,7 +110,7 @@
   },
   "routine_rate": {
    "text": "Too many changes in a minute. Try again shortly.",
-   "source": "api/routers/notebook_routines.py:204"
+   "source": "api/routers/notebook_routines.py:205"
   },
   "account_public": {
    "text": "Account 1",
@@ -120,7 +120,8 @@
   },
   "library_title": {
    "text": "Template library",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:24"
+   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:25",
+   "fragment": "SECTION_TITLE = 'Template library'"
   },
   "adopt_title": {
    "text": "Make it yours",
@@ -128,11 +129,11 @@
   },
   "share_title": {
    "text": "Share to library",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:31"
+   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:33"
   },
   "share_sent": {
    "text": "Sent. UCT reviews every item before it's listed.",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:36"
+   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:38"
   },
   "new_words": {
    "text": "New",
@@ -145,62 +146,62 @@
   },
   "pick_setup": {
    "text": "Pick a setup to see this widget.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_preview.py:57",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_preview.py:57",
    "fragment": "S_PICK = \"Pick a {label} to see this widget.\""
   },
   "not_yours": {
    "text": "That choice isn't in your account.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/slot_fill.py:457"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/slot_fill.py:457"
   },
   "routine_not_yours": {
    "text": "This routine is not in your account.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/journal_styles.py:1973"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:2026"
   },
   "former_member": {
    "text": "Based on a former member's",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:603",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:603",
    "fragment": "CREDIT_FORMER_SENTENCE = \"Based on a former member's {title}\""
   },
   "anonymous_author": {
    "text": "A UCT member",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:153",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:153",
    "fragment": "ANONYMOUS_AUTHOR = \"A UCT member\""
   },
   "week_of": {
    "text": "For the week of",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/tool_binding.py:93",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/tool_binding.py:93",
    "fragment": "For the week of {"
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4201"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4273"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4200"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4272"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:3156"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3228"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:5021"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5093"
   },
   "title_too_long": {
    "text": "title too long",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/notes.py:1242",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/notes.py:1242",
    "fragment": "S_TITLE_TOO_LONG = \"title too long\"",
    "note": "A3 (cbfe9db4b5): notes.validate_title is the one authority; the router answers str(e)"
   },
   "need_if_match": {
    "text": "Reload to see the newer version.",
-   "source": "api/routers/notebook_routines.py:209",
+   "source": "api/routers/notebook_routines.py:210",
    "fragment": "S_NEED_IF_MATCH = \"Reload to see the newer version.\""
   },
   "body_too_large": {
    "text": "That is too much to send at once.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/widget_request_body.py:27",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/widget_request_body.py:27",
    "fragment": "S_BODY_TOO_LARGE = \"That is too much to send at once.\"",
    "note": "the wave 11 reader (read_json_object) re-raises the cap as 413 invalid with this sentence; the old router reader's \"Request too large\" is not what a w11 door says"
   },
@@ -212,6 +213,18 @@
   "too_long_srv": {
    "text": "This is a lot of data to add up. Try a shorter range or fewer splits.",
    "source": "api/services/journal_two/widget_engine/run.py:69"
+  },
+  "last_result": {
+   "text": "Showing the last result.",
+   "source": "origin/feat/notebook-widgets-p2:app/src/pages/journal-2-0/lib/builtWidgets.js:48",
+   "fragment": "LAST_RESULT_SENTENCE = 'Showing the last result.'",
+   "note": "F-DEF-1 ruling W11-R50/R50b: beside the dimmed preview (PreviewPane.jsx:104) and leading the phone summary bar (PreviewPane.jsx:177)"
+  },
+  "split_none_hour": {
+   "text": "None of these trades have a value for ET hour yet.",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/widget_engine/aggregate.py:51",
+   "fragment": "S_SPLIT_NONE = \"None of these {rows} have a value for {label} yet.\"",
+   "note": "rows=trades, label = the field's label 'ET hour' (sources.py:383); the payload's `empty`, drawn in the preview body (PreviewPane.jsx:110)"
   }
  },
  "personas": [
@@ -251,6 +264,85 @@
        "timing": "note_first_paint",
        "forbid": [
         "raw"
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        },
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle (touch floor still wins)",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "820"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select (in More at 390)",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "390"
+         ],
+         "hidden": true
+        },
+        {
+         "defect": "D-W11-003",
+         "what": "the note title input",
+         "role": "textbox",
+         "name": "Note title",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Note title\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-004",
+         "what": "the FeedbackWidget ?",
+         "role": "button",
+         "name": "?",
+         "source": "app/src/components/FeedbackWidget.jsx",
+         "fragment": "title=\"Help & Feedback\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44,
+         "min_width": 44,
+         "absent_is": "inconclusive"
+        }
        ]
       },
       {
@@ -271,7 +363,86 @@
        ]
       },
       {
-       "do": "close_dialog"
+       "do": "close_dialog",
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        },
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle (touch floor still wins)",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "820"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select (in More at 390)",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "390"
+         ],
+         "hidden": true
+        },
+        {
+         "defect": "D-W11-003",
+         "what": "the note title input",
+         "role": "textbox",
+         "name": "Note title",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Note title\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-004",
+         "what": "the FeedbackWidget ?",
+         "role": "button",
+         "name": "?",
+         "source": "app/src/components/FeedbackWidget.jsx",
+         "fragment": "title=\"Help & Feedback\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44,
+         "min_width": 44,
+         "absent_is": "inconclusive"
+        }
+       ]
       }
      ]
     },
@@ -318,7 +489,17 @@
        "forbid": [
         "zeros"
        ],
-       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty"
+       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:mood\": {\"name\": \"Check-in mood\""
+        },
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:focus\": {\"name\": \"Check-in focus\""
+        }
+       ]
       },
       {
        "do": "my_tools_tab",
@@ -335,6 +516,56 @@
       },
       {
        "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P01.c",
+     "title": "F-DEF-1 retest: the note page in the light theme",
+     "viewports": [
+      "1200"
+     ],
+     "why": "P01 a.02 in light (f-def-1-report.md m-3): the quiet toggle at opacity 0.9 holds 4.5:1; axe runs on the step",
+     "steps": [
+      {
+       "do": "theme",
+       "value": "light"
+      },
+      {
+       "do": "seed_note",
+       "title": "Campaign P01 light note",
+       "paras": [
+        "Light."
+       ],
+       "save_as": "n3"
+      },
+      {
+       "do": "open_note",
+       "note": "n3",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the quiet details toggle in light",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24,
+         "opacity": 0.9,
+         "theme": "light"
+        }
+       ]
+      },
+      {
+       "do": "theme",
+       "restore": true
       }
      ]
     }
@@ -521,6 +752,12 @@
        ],
        "forbid": [
         "zeros"
+       ],
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "text += f\" {count:,} {u}.\""
+        }
        ]
       },
       {
@@ -569,7 +806,61 @@
       {
        "do": "open_note",
        "note": "n1",
-       "timing": "note_first_paint"
+       "timing": "note_first_paint",
+       "measure": [
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "820"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select (in More at 390)",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "390"
+         ],
+         "hidden": true
+        },
+        {
+         "defect": "D-W11-003",
+         "what": "the note title input",
+         "role": "textbox",
+         "name": "Note title",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Note title\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-004",
+         "what": "the FeedbackWidget ?",
+         "role": "button",
+         "name": "?",
+         "source": "app/src/components/FeedbackWidget.jsx",
+         "fragment": "title=\"Help & Feedback\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44,
+         "min_width": 44,
+         "absent_is": "inconclusive"
+        }
+       ]
       },
       {
        "do": "open_builder",
@@ -583,9 +874,15 @@
       {
        "do": "builder_split",
        "by": "Account",
-       "live_re": "(?i)split by|by account",
+       "live_re": "(?i)split by account",
        "forbid": [
         "zeros"
+       ],
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
        ]
       },
       {
@@ -666,6 +963,13 @@
        ],
        "forbid": [
         "zeros"
+       ],
+       "open_phone_preview": true,
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/payload.py",
+         "fragment": "S_CAPPED_RANGE_NO_DAY = \"Newest {n:,} {unit}\""
+        }
        ]
       },
       {
@@ -723,8 +1027,19 @@
       },
       {
        "do": "builder_split",
-       "by": "Hour",
-       "live_re": "(?i)need(s)? times"
+       "by": "ET hour",
+       "live_re": "(?i)split by ET hour",
+       "open_phone_preview": true,
+       "expect": [
+        "split_none_hour"
+       ],
+       "why": "the field is 'ET hour' (sources.py:395); 80 untimed trades leave every row without an hour, so the preview body says the split-none sentence (aggregate.py:51, PreviewPane.jsx:112); the live summary only names the split (plan.py:1224)",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
+       ]
       },
       {
        "do": "close_dialog"
@@ -978,7 +1293,15 @@
        "do": "check_text",
        "within": "dialog",
        "expect_re": [
-        "(?i)table|as a table|show the numbers"
+        "Show as table"
+       ],
+       "open_phone_preview": true,
+       "why": "the table alternative is the 'Show as table' button (PreviewPane.jsx:120)",
+       "copy_sources": [
+        {
+         "path": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "Show as table"
+        }
        ]
       },
       {
@@ -1393,6 +1716,20 @@
         0,
         1,
         2
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        }
        ]
       },
       {
@@ -2008,7 +2345,8 @@
     "2026-11-27T12:41:00-05:00",
     "2026-11-27T15:43:00-05:00"
    ],
-   "clock_note": "the half day after Thanksgiving 2026 (13:00 ET close): a 15:45 reminder moves back to 12:45. Instant 0 watches it ring; instant 1 watches 15:45 pass with nothing more. One run (the bell is a once-a-day fact per member)."
+   "clock_note": "the half day after Thanksgiving 2026 (13:00 ET close): a 15:45 reminder moves back to 12:45. Instant 0 watches it ring; instant 1 watches 15:45 pass with nothing more. One run (the bell is a once-a-day fact per member).",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P21",
@@ -2190,12 +2528,20 @@
       },
       {
        "do": "builder_blank",
-       "source": "Closed trades"
+       "source": "Trading days"
       },
       {
        "do": "builder_split",
-       "by": "Routine",
-       "live_re": "(?i)routine"
+       "by": "Routine done",
+       "live_re": "(?i)split by routine done",
+       "ref": "History routine",
+       "why": "'Routine done' is the Trading days source's routine field (sources.py:663); picking it opens the routine picker, whose buttons are the routines' names (RefPicker.jsx:62-66, WidgetBuilderSheet.jsx:1221)",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
+       ]
       },
       {
        "do": "close_dialog",
@@ -2307,13 +2653,136 @@
        "do": "builder_formula",
        "name": "Winner",
        "formula": "If([net] > 0, 1",
-       "expect_error": true
+       "expect_error": true,
+       "measure": [
+        {
+         "defect": "D-W11-007",
+         "what": "the kept preview's text cue",
+         "testid": "builder-preview-last",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "data-testid=\"builder-preview-last\">{LAST_RESULT_SENTENCE}",
+         "viewports": [
+          "1200",
+          "820"
+         ],
+         "text": "last_result"
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the dimmed preview",
+         "testid": "builder-preview-view",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "data-testid=\"builder-preview-view\"",
+         "viewports": [
+          "1200",
+          "820"
+         ],
+         "opacity": 0.9
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the phone summary bar leads with the cue",
+         "testid": "builder-summary-bar",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "{last ? `${LAST_RESULT_SENTENCE} ` : ''}",
+         "viewports": [
+          "390"
+         ],
+         "text_starts": "last_result",
+         "first_span_opacity": 0.9
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the live region carries the summary only (W11-R50b)",
+         "testid": "builder-live",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "aria-live=\"polite\" data-testid=\"builder-live\">{said}</p>",
+         "viewports": [
+          "1200",
+          "820",
+          "390"
+         ],
+         "text_not_contains": "last_result",
+         "samples": 4,
+         "interval_ms": 500,
+         "text_nonempty": true
+        }
+       ],
+       "why": "a refused formula blocks the preview (WidgetBuilderSheet.jsx:489, 1343): the last result stays, dimmed at --preview-dim-opacity 0.9, with 'Showing the last result.' beside it or leading the phone bar"
       },
       {
        "do": "builder_formula_append",
        "text": ", 0)",
        "expect_valid": true,
-       "expect_value": "If([net] > 0, 1, 0)"
+       "expect_value": "If([net] > 0, 1, 0)",
+       "measure": [
+        {
+         "defect": "D-W11-007",
+         "what": "no kept-result cue once the formula is fixed",
+         "testid": "builder-preview-last",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "data-testid=\"builder-preview-last\">{LAST_RESULT_SENTENCE}",
+         "viewports": [
+          "1200",
+          "820"
+         ],
+         "absent": true
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the phone bar no longer leads with the cue",
+         "testid": "builder-summary-bar",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "{last ? `${LAST_RESULT_SENTENCE} ` : ''}",
+         "viewports": [
+          "390"
+         ],
+         "text_not_starts": "last_result"
+        }
+       ]
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    },
+    {
+     "id": "P25.b",
+     "title": "F-DEF-1 retest: the preview while it loads, and the retry",
+     "why": "f-def-1-report.md fix round 1 I-2 (axe color-contrast while loading) and fix round 2 (Try again)",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P25 loading",
+       "paras": [
+        "Loading."
+       ],
+       "save_as": "n2"
+      },
+      {
+       "do": "open_note",
+       "note": "n2"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades",
+       "timing": "preview"
+      },
+      {
+       "do": "axe_while_loading",
+       "source": "Open positions",
+       "latency_ms": 6000
+      },
+      {
+       "do": "retry_kept_preview",
+       "source": "Closed trades",
+       "samples": 6,
+       "interval_ms": 400,
+       "why": "f-def-1-report.md fix round 2 retest, scripted per review n6: the browser answers the preview busy (503, the server's shape) so Try again draws over the kept result (PreviewPane.jsx:74, :100, :141); the line stays and the live region announces nothing new through the retry (ruling W11-R50b)"
       },
       {
        "do": "close_dialog",
@@ -2587,7 +3056,18 @@
       {
        "do": "builder_split",
        "by": "Hold time",
-       "live_re": "(?i)need(s)? times"
+       "live_re": "(?i)split by hold time",
+       "why": "the Hold time split buckets hold days (sources.py:413, 277-292), which date-only trades have",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
+       ]
+      },
+      {
+       "do": "not_reachable",
+       "reason": "the hold-minutes sentence (aggregate.py:38) is said only for a Hold minutes FILTER (aggregate.py:434-438); the filter picker (WhichOnesSection.jsx:140-147, 483-515) has no campaign action yet, so this claim is INCONCLUSIVE by design, never a pass"
       },
       {
        "do": "close_dialog",
@@ -3136,7 +3616,8 @@
     "2026-11-24T21:00:00-05:00",
     "2026-11-25T23:30:00-05:00"
    ],
-   "clock_note": "Sunday 21:00 ET (Mon 02:00Z) binds to Mon Nov 23 (a UTC note day would give Tue). Tuesday 21:00 ET (Wed 02:00Z) binds to Wed Nov 25 (a UTC note day would give Fri: Thursday is closed). The eve of Thanksgiving, Wednesday 23:30 ET, binds to Fri Nov 27 either way, so the ET-vs-UTC trap is carried by the first two instants."
+   "clock_note": "Sunday 21:00 ET (Mon 02:00Z) binds to Mon Nov 23 (a UTC note day would give Tue). Tuesday 21:00 ET (Wed 02:00Z) binds to Wed Nov 25 (a UTC note day would give Fri: Thursday is closed). The eve of Thanksgiving, Wednesday 23:30 ET, binds to Fri Nov 27 either way, so the ET-vs-UTC trap is carried by the first two instants.",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P38",
@@ -3225,7 +3706,8 @@
     "2026-11-28T11:00:00-05:00",
     "2026-12-26T10:00:00-05:00"
    ],
-   "clock_note": "Saturday after Thanksgiving (the week's last session is the Friday half day), and Saturday 26 Dec 2026 (Friday 25 Dec is closed, so the week's last session is Thursday 24 Dec, an early close). Both are after the seed date, so no seeded stamp is in the future."
+   "clock_note": "Saturday after Thanksgiving (the week's last session is the Friday half day), and Saturday 26 Dec 2026 (Friday 25 Dec is closed, so the week's last session is Thursday 24 Dec, an early close). Both are after the seed date, so no seeded stamp is in the future.",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P39",
@@ -3276,7 +3758,8 @@
     }
    ],
    "validated": false,
-   "notes": "API-only and spends the adopt scope (30/hour per member): one run, 1200 pointer. The in-flight 409 and listing_moved are not forceable from a client; their steps say so (INCONCLUSIVE)."
+   "notes": "API-only and spends the adopt scope (30/hour per member): one run, 1200 pointer. The in-flight 409 and listing_moved are not forceable from a client; their steps say so (INCONCLUSIVE).",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P40",
@@ -3472,7 +3955,8 @@
     "2026-11-11T10:00:00-05:00",
     "2026-11-12T19:30:00-05:00"
    ],
-   "clock_note": "three ET days (Tue, Wed, Thu) whose first two share ONE UTC day (11-11T01:00Z and 11-11T15:00Z): a server counting UTC days would still refuse Helpful on the third. One run: the 3rd-day line shows once per member."
+   "clock_note": "three ET days (Tue, Wed, Thu) whose first two share ONE UTC day (11-11T01:00Z and 11-11T15:00Z): a server counting UTC days would still refuse Helpful on the third. One run: the 3rd-day line shows once per member.",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P42",
@@ -3707,7 +4191,21 @@
       {
        "do": "open_note",
        "note": "n1",
-       "timing": "note_first_paint"
+       "timing": "note_first_paint",
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        }
+       ]
       },
       {
        "do": "open_builder"
@@ -3805,6 +4303,20 @@
        ],
        "expect_status": [
         404
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        }
        ]
       },
       {
@@ -3915,6 +4427,12 @@
        "path": "/journal/notebook?view=all",
        "expect_re": [
         "(?i)sign in|log in"
+       ],
+       "copy_sources": [
+        {
+         "path": "app/src/pages/Login.jsx",
+         "fragment": "{loading ? 'Logging in...' : 'Log In'}"
+        }
        ]
       },
       {
@@ -4034,7 +4552,17 @@
        "forbid": [
         "zeros"
        ],
-       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty"
+       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:mood\": {\"name\": \"Check-in mood\""
+        },
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:focus\": {\"name\": \"Check-in focus\""
+        }
+       ]
       },
       {
        "do": "my_tools_tab",
@@ -4055,7 +4583,8 @@
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "viewports_why": "phone-only member by definition (plan row P49): 390, coarse pointer"
   },
   {
    "id": "P50",
@@ -4330,7 +4859,308 @@
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "viewports_why": "tablet member by definition (plan row P50): 820, coarse pointer"
   }
- ]
+ ],
+ "validation": {
+  "_about": "Persona validation (Task 11.21 Step 4, rulings W11-R65/W11-R70): each step's selectors, labels, routes and copy were read against the merged tree; `ok` = unchanged and correct, `fixed: <what>`, `not_reachable` = INCONCLUSIVE by design, `http` = not a browser step (graded by the w11/api judges), `added` = a retest script. The selector rail (selector_problems) re-checks every step on each run.",
+  "ref": "origin/feat/notebook-widgets-p2 @ ab49f5d68e (validated at 1d20ebdb78; no widget-builder or widget_engine file changed since; sentence lines re-read)",
+  "steps": {
+   "P01.a.01": "http",
+   "P01.a.02": "ok + F-DEF-1 measure",
+   "P01.a.03": "ok",
+   "P01.a.04": "ok",
+   "P01.a.05": "ok + F-DEF-1 measure",
+   "P01.b.01": "ok",
+   "P01.b.02": "ok",
+   "P01.b.03": "ok",
+   "P01.b.04": "ok",
+   "P01.b.05": "ok",
+   "P01.b.06": "ok",
+   "P01.c.01": "added: F-DEF-1 retest script",
+   "P01.c.02": "http",
+   "P01.c.03": "added: F-DEF-1 retest script",
+   "P01.c.04": "added: F-DEF-1 retest script",
+   "P02.a.01": "http",
+   "P02.a.02": "ok",
+   "P02.a.03": "ok",
+   "P02.a.04": "ok",
+   "P02.a.05": "ok",
+   "P02.b.01": "ok",
+   "P02.b.02": "http",
+   "P03.a.01": "http",
+   "P03.a.02": "ok",
+   "P03.a.03": "ok",
+   "P03.a.04": "ok",
+   "P03.a.05": "ok",
+   "P03.b.01": "http",
+   "P03.b.02": "ok",
+   "P03.b.03": "ok",
+   "P03.b.04": "ok",
+   "P03.b.05": "ok",
+   "P04.a.01": "http",
+   "P04.a.02": "ok + F-DEF-1 measure",
+   "P04.a.03": "ok",
+   "P04.a.04": "ok",
+   "P04.a.05": "fixed: live_re 'split by account' (review m2)",
+   "P04.a.06": "ok",
+   "P04.a.07": "ok",
+   "P04.a.08": "ok",
+   "P04.a.09": "ok",
+   "P05.a.01": "http",
+   "P05.a.02": "ok",
+   "P05.a.03": "ok",
+   "P05.a.04": "fixed: open_phone_preview (PreviewPane.jsx:165-189)",
+   "P05.a.05": "ok",
+   "P06.a.01": "http",
+   "P06.a.02": "ok",
+   "P06.a.03": "ok",
+   "P06.a.04": "ok",
+   "P06.a.05": "fixed: split 'ET hour' (sources.py:395)",
+   "P06.a.06": "ok",
+   "P07.a.01": "http",
+   "P07.a.02": "ok",
+   "P07.a.03": "ok",
+   "P07.a.04": "ok",
+   "P07.a.05": "ok",
+   "P08.a.01": "http",
+   "P08.a.02": "ok",
+   "P08.a.03": "ok",
+   "P08.a.04": "ok",
+   "P08.a.05": "ok",
+   "P09.a.01": "http",
+   "P09.a.02": "ok",
+   "P09.a.03": "ok",
+   "P09.a.04": "ok",
+   "P09.a.05": "ok",
+   "P09.a.06": "ok",
+   "P09.a.07": "ok",
+   "P09.a.08": "ok",
+   "P09.a.09": "ok",
+   "P09.a.10": "ok",
+   "P09.a.11": "ok",
+   "P10.a.01": "http",
+   "P10.a.02": "ok",
+   "P10.a.03": "ok",
+   "P10.a.04": "ok",
+   "P10.a.05": "fixed: open_phone_preview, 'Show as table' (PreviewPane.jsx:120)",
+   "P10.a.06": "ok",
+   "P10.a.07": "ok",
+   "P10.a.08": "ok",
+   "P10.a.09": "ok",
+   "P11.a.01": "ok",
+   "P11.a.02": "ok",
+   "P11.a.03": "ok",
+   "P12.a.01": "http",
+   "P12.a.02": "ok",
+   "P12.a.03": "ok",
+   "P12.a.04": "ok",
+   "P12.a.05": "ok",
+   "P12.b.01": "http",
+   "P12.b.02": "ok",
+   "P12.b.03": "ok",
+   "P12.b.04": "ok",
+   "P12.b.05": "ok",
+   "P12.b.06": "ok",
+   "P13.a.01": "http",
+   "P13.a.02": "http",
+   "P13.a.03": "ok",
+   "P13.a.04": "ok",
+   "P13.a.05": "ok",
+   "P14.a.01": "http",
+   "P14.a.02": "http",
+   "P14.a.03": "ok",
+   "P14.a.04": "ok",
+   "P14.a.05": "http",
+   "P14.a.06": "ok",
+   "P14.a.07": "ok",
+   "P14.a.08": "ok",
+   "P14.a.09": "ok + F-DEF-1 measure",
+   "P14.a.10": "http",
+   "P15.a.01": "http",
+   "P15.a.02": "ok",
+   "P15.a.03": "ok",
+   "P15.a.04": "http",
+   "P15.a.05": "ok",
+   "P15.a.06": "http",
+   "P15.a.07": "http",
+   "P16.a.01": "http",
+   "P17.a.01": "http",
+   "P18.a.01": "http",
+   "P19.a.01": "http",
+   "P20.a.01": "http",
+   "P20.a.02": "http",
+   "P20.b.01": "http",
+   "P21.a.01": "http",
+   "P22.a.01": "ok",
+   "P22.a.02": "ok",
+   "P22.a.03": "ok",
+   "P22.a.04": "ok",
+   "P23.a.01": "http",
+   "P23.a.02": "ok",
+   "P23.a.03": "ok",
+   "P23.a.04": "fixed: source 'Trading days' (sources.py:1788)",
+   "P23.a.05": "fixed: split 'Routine done' + ref (sources.py:663)",
+   "P23.a.06": "ok",
+   "P24.a.01": "http",
+   "P25.a.01": "http",
+   "P25.a.02": "ok",
+   "P25.a.03": "ok",
+   "P25.a.04": "ok",
+   "P25.a.05": "ok + F-DEF-1 measure",
+   "P25.a.06": "ok + F-DEF-1 measure",
+   "P25.a.07": "ok",
+   "P25.b.01": "http",
+   "P25.b.02": "added: F-DEF-1 retest script",
+   "P25.b.03": "added: F-DEF-1 retest script",
+   "P25.b.04": "added: F-DEF-1 retest script",
+   "P25.b.05": "added: F-DEF-1 retest script",
+   "P25.b.06": "added: F-DEF-1 retest script",
+   "P25.b.07": "added: F-DEF-1 retest script",
+   "P26.a.01": "http",
+   "P26.a.02": "ok",
+   "P26.a.03": "ok",
+   "P26.a.04": "ok",
+   "P26.a.05": "ok",
+   "P27.a.01": "http",
+   "P27.a.02": "ok",
+   "P27.a.03": "ok",
+   "P27.a.04": "ok",
+   "P27.a.05": "ok",
+   "P28.a.01": "http",
+   "P28.a.02": "ok",
+   "P28.a.03": "ok",
+   "P29.a.01": "http",
+   "P29.a.02": "ok",
+   "P29.a.03": "ok",
+   "P30.a.01": "http",
+   "P30.a.02": "ok",
+   "P30.a.03": "ok",
+   "P30.a.04": "ok",
+   "P30.a.05": "fixed: live_re 'split by hold time' (sources.py:413, plan.py:1223)",
+   "P30.a.06": "not_reachable",
+   "P30.a.07": "ok",
+   "P31.a.01": "http",
+   "P31.a.02": "ok",
+   "P31.a.03": "ok",
+   "P32.a.01": "http",
+   "P32.a.02": "ok",
+   "P32.a.03": "ok",
+   "P32.a.04": "ok",
+   "P32.a.05": "ok",
+   "P32.a.06": "ok",
+   "P33.a.01": "not_reachable",
+   "P34.a.01": "ok",
+   "P34.a.02": "ok",
+   "P34.b.01": "http",
+   "P34.b.02": "http",
+   "P35.a.01": "http",
+   "P35.a.02": "ok",
+   "P35.a.03": "ok",
+   "P35.a.04": "ok",
+   "P35.a.05": "ok",
+   "P35.b.01": "ok",
+   "P35.b.02": "http",
+   "P35.b.03": "http",
+   "P35.b.04": "http",
+   "P35.c.01": "http",
+   "P35.c.02": "http",
+   "P35.c.03": "http",
+   "P35.c.04": "http",
+   "P35.c.05": "http",
+   "P35.c.06": "http",
+   "P36.a.01": "ok",
+   "P36.a.02": "http",
+   "P37.a.01": "http",
+   "P37.a.02": "http",
+   "P37.b.01": "http",
+   "P37.b.02": "http",
+   "P37.c.01": "http",
+   "P37.c.02": "http",
+   "P38.a.01": "http",
+   "P38.a.02": "http",
+   "P38.b.01": "http",
+   "P38.b.02": "http",
+   "P39.a.01": "http",
+   "P39.a.02": "http",
+   "P39.a.03": "http",
+   "P39.a.04": "http",
+   "P39.a.05": "http",
+   "P40.a.01": "ok",
+   "P40.a.02": "http",
+   "P40.a.03": "http",
+   "P40.a.04": "http",
+   "P41.a.01": "http",
+   "P41.a.02": "http",
+   "P41.a.03": "http",
+   "P41.a.04": "http",
+   "P41.b.01": "http",
+   "P41.b.02": "http",
+   "P41.b.03": "http",
+   "P41.b.04": "http",
+   "P41.c.01": "http",
+   "P41.c.02": "http",
+   "P41.c.03": "http",
+   "P41.c.04": "http",
+   "P41.c.05": "http",
+   "P41.c.06": "http",
+   "P41.c.07": "http",
+   "P42.a.01": "not_reachable",
+   "P43.a.01": "http",
+   "P43.a.02": "http",
+   "P44.a.01": "ok",
+   "P44.a.02": "ok",
+   "P44.a.03": "ok",
+   "P44.a.04": "ok",
+   "P45.a.01": "http",
+   "P45.a.02": "http",
+   "P46.a.01": "http",
+   "P46.a.02": "ok + F-DEF-1 measure",
+   "P46.a.03": "ok",
+   "P46.a.04": "ok",
+   "P46.a.05": "ok",
+   "P46.a.06": "ok",
+   "P46.a.07": "http",
+   "P46.a.08": "http",
+   "P46.a.09": "ok",
+   "P46.a.10": "ok",
+   "P46.a.11": "ok",
+   "P46.a.12": "ok",
+   "P46.a.13": "http",
+   "P46.a.14": "ok",
+   "P46.a.15": "http",
+   "P46.a.16": "ok",
+   "P46.a.17": "http",
+   "P46.a.18": "ok + F-DEF-1 measure",
+   "P46.a.19": "http",
+   "P46.a.20": "ok",
+   "P46.a.21": "http",
+   "P47.a.01": "http",
+   "P47.a.02": "http",
+   "P47.a.03": "http",
+   "P48.a.01": "ok",
+   "P48.a.02": "http",
+   "P49.a.01": "http",
+   "P49.a.02": "ok",
+   "P49.a.03": "ok",
+   "P49.a.04": "ok",
+   "P49.a.05": "ok",
+   "P49.b.01": "ok",
+   "P49.b.02": "ok",
+   "P49.b.03": "ok",
+   "P49.b.04": "ok",
+   "P49.b.05": "ok",
+   "P49.b.06": "ok",
+   "P50.a.01": "http",
+   "P50.a.02": "http",
+   "P50.a.03": "ok",
+   "P50.a.04": "ok",
+   "P50.a.05": "ok",
+   "P50.a.06": "ok",
+   "P50.a.07": "ok",
+   "P50.b.01": "http",
+   "P50.b.02": "http"
+  }
+ }
 }

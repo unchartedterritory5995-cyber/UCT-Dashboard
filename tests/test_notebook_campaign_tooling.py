@@ -1224,3 +1224,1063 @@ def test_m_d_control_a_vouched_session_or_a_real_clock_server_sets_the_cookie(tm
     g, R, made = browser_run(tmp_path, clock=False, vouched=None)
     R.new_context("main")
     assert [c["value"] for c in made[0].cookies] == ["seeded-p13"] and R.session_refusal is None
+
+
+# ── persona validation pass: every selector a step drives is still in the frontend it drives ──────────────────────
+#
+# MUTANT LEDGER (each turned this block red, then the file was restored byte for byte from a scratch copy):
+# S1 P06.a.05 `by` back to "Hour"; S2 P23.a.04 `source` back to "Closed trades"; S3 a card id that is not on the shelf;
+# S4 HANDLER_ANCHORS "builder-live" fragment renamed; S5 a handler's get_by_role name changed to "Save now";
+# S6 a measure target without its fragment; S7 script_runs_at always true; S7b the run loop no longer asking it;
+# S8 the min-height compare dropped; S9 `hidden` passing on an absent control; S10 the P25 phone-bar retest removed;
+# S11 a drifted step driven anyway. Control unmutated: 19 passed. Result: all 12 red (scratchpad mutate_sel.py).
+
+def frontend_read():
+    read = rc.git_reader(REPO, rc.FRONTEND_REF)
+    assert read("app/src/App.jsx") is not None, (
+        f"{rc.FRONTEND_REF} does not resolve in {REPO}: fetch it; this rail never passes by reading nothing")
+    return read
+
+
+def test_every_persona_selector_is_in_the_frontend_at_the_campaign_ref():
+    problems = rc.selector_problems(SPEC, frontend_read())
+    assert not problems, json.dumps(problems, indent=1)
+
+
+def test_the_selector_rail_names_a_drifted_selector_and_passes_its_control():
+    """Control: a stand-in frontend. With every fragment present the step is clean; a split field the source does not
+    have, or a handler fragment gone from its file, is named."""
+    src = ('CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [\n    _f("hour_et", "ET hour", "number", split=True),\n'
+           ']}\nCLOSED = Source("closed_trades", "Closed trades", "Every trade (all).", "trades",\n    CLOSED_FIELDS, scan)\n')
+    files: dict = {}
+    for path, frag in rc.HANDLER_ANCHORS.values():
+        files[path] = files.get(path, "") + "\n" + (frag if not frag.startswith("re:") else "> Discard them </button>")
+    files[rc.SOURCES_PY] = src
+
+    def spec_with(by):
+        steps = [{"do": "builder_blank", "source": "Closed trades"}, {"do": "builder_split", "by": by}]
+        return {"personas": [{"id": "P99", "data": {}, "scripts": [{"id": "P99.a", "steps": steps}]}]}
+
+    def read(path):
+        return files.get(path)
+
+    assert rc.selector_problems(spec_with("ET hour"), read) == []
+    bad = rc.selector_problems(spec_with("Hour"), read)
+    assert [(x["step"], "'Hour'" in x["why"]) for x in bad] == [("P99.a.02", True)]
+    live = rc.HANDLER_ANCHORS["builder-live"][0]
+    files[live] = files[live].replace("builder-live", "renamed-live")
+    assert any("builder-live" in x["why"] for x in rc.selector_problems(spec_with("ET hour"), read))
+
+
+def _handler_source() -> str:
+    text = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    return text[text.index("def top_dialog"):text.index("# ── wave 11 steps")]
+
+
+def _handler_literals(body: str):
+    """(names and texts a handler passes to a role/label/text/test-id query, attribute tokens of its CSS locators)."""
+    names = set()
+    for m in re.finditer(r"get_by_(role|label|text|test_id)\(([^\n]*)", body):
+        kind, args = m[1], m[2]
+        if kind == "role":
+            names.update(re.findall(r'name=(?:re\.compile\()?r?"([^"]+)"', args))
+        else:
+            names.update(re.findall(r'^(?:re\.compile\()?r?"([^"]+)"', args))
+    names.update(re.findall(r'filter\(has_text=(?:re\.compile\()?r?"([^"]+)"', body))
+    attrs = set()
+    for m in re.finditer(r"""locator\(\s*f?(["'])(.+?)\1\)""", body):
+        sel = m[2]
+        attrs.update((a, v.strip('"')) for a, v in re.findall(r'\[([\w-]+)(?:=("?[\w-]+))?', sel))
+        attrs.update(("class", c) for c in re.findall(r"(?:^|\s)\.([A-Za-z][\w-]*)", sel))
+    return names, attrs
+
+
+def _loose_literals(names, attrs) -> list:
+    frags = [f.lower() for _, f in rc.HANDLER_ANCHORS.values()]
+    loose = []
+    for n in names:
+        if n in rc.HANDLER_LITERALS:
+            if rc.HANDLER_LITERALS[n] not in rc.HANDLER_ANCHORS:
+                loose.append(n)
+            continue
+        loose += [part for part in n.split("|") if not any(part.lower() in f for f in frags)]
+    for a, v in attrs:
+        if a == "class":
+            ok = f".{v}" in rc.HANDLER_LITERALS
+        elif a == "role":
+            ok = any(f'role="{v}"' in f for f in frags)
+        elif a == "data-testid":
+            ok = any(v in f for f in frags)
+        else:
+            ok = any(a in f for f in frags)
+        if not ok:
+            loose.append(f"[{a}={v}]")
+    return loose
+
+
+def test_every_literal_selector_a_handler_drives_is_anchored_in_the_frontend():
+    """A handler's own selectors (the ones no persona names): each literal is in some HANDLER_ANCHORS fragment, so the
+    rail above reads it from the frontend. A new literal with no anchor turns this red."""
+    names, attrs = _handler_literals(_handler_source())
+    assert {"Insert block", "Start blank", "My tools", "Share link address", "Build a widget|Edit widget|Edit a copy"} \
+        <= names                                                    # the scan sees them (control on the extractor)
+    assert ("data-routine-block", "") in attrs and ("role", "checkbox") in attrs
+    assert _loose_literals(names, attrs) == []
+    assert _loose_literals({"Save now"}, set()) == ["Save now"]      # control: an unanchored name is caught
+    assert _loose_literals(set(), {("data-gone", "")}) == ["[data-gone=]"]
+
+
+def test_every_action_anchor_exists_and_names_a_real_action():
+    used = {k for v in rc.ACTION_ANCHORS.values() for k in v} | set(rc.MEASURE_ANCHORS)
+    assert used <= set(rc.HANDLER_ANCHORS), used - set(rc.HANDLER_ANCHORS)
+    assert set(rc.HANDLER_ANCHORS) - used == set(), set(rc.HANDLER_ANCHORS) - used
+    assert set(rc.ACTION_ANCHORS) <= set(rc.ACTIONS)
+
+
+def test_a_drifted_step_reads_inconclusive_before_it_drives_anything(tmp_path):
+    g = rc.Campaign.__new__(rc.Campaign)
+    g.caps, g.selector_drift = {}, {("P06", "P06.a.05"): ["split field 'Hour' is not in sources.py"]}
+    R = type("R", (), {"p": {"id": "P06"}, "vp": "1200", "mode": "pointer", "pages": {}, "session_refusal": None,
+                       "dir": tmp_path})()
+    called = []
+    orig = rc.ACTIONS["builder_split"]
+    rc.ACTIONS["builder_split"] = lambda *a: called.append(a)
+    try:
+        row = g.step(R, {"title": "t"}, {"do": "builder_split", "by": "Hour"}, "P06.a.05", None)
+    finally:
+        rc.ACTIONS["builder_split"] = orig
+    assert row["verdict"] == "INCONCLUSIVE" and "Hour" in row["error"] and not called
+
+
+def test_personas_off_the_default_viewports_say_why_and_pointer_follows_the_viewport():
+    default = SPEC["defaults"]["viewports"]
+    assert default == ["1200", "820", "390"]
+    for p in SPEC["personas"]:
+        if p["viewports"] != default:
+            assert p.get("viewports_why"), p["id"]
+        assert set(p["viewports"]) <= set(default), p["id"]
+    sizes = SPEC["viewport_sizes"]
+    assert [sizes[v][0] <= rc.TOUCH_MAX for v in default] == [False, True, True]   # 1200 fine, 820/390 coarse
+
+
+def test_a_not_reachable_step_is_inconclusive_with_its_reason_never_a_pass():
+    with pytest.raises(rc.Inconclusive, match="aggregate.py:38"):
+        rc.a_not_reachable(None, {"reason": "said only for a filter (aggregate.py:38)"}, {})
+    reasons = [st for p in SPEC["personas"] for sc in p["scripts"] for st in sc["steps"] if st["do"] == "not_reachable"]
+    assert reasons and all(re.search(r"\.\w+:\d", st["reason"]) for st in reasons)
+
+
+FDEF_RETESTS = [   # (step, defect, viewports the step must measure at), from f-def-1-report.md
+    ("P01.a.02", "D-W11-001", {"1200"}), ("P14.a.09", "D-W11-001", {"1200"}), ("P46.a.18", "D-W11-001", {"1200"}),
+    ("P01.a.02", "D-W11-002", {"820", "390"}), ("P04.a.02", "D-W11-002", {"820", "390"}),
+    ("P01.a.02", "D-W11-003", {"820", "390"}), ("P04.a.02", "D-W11-003", {"820", "390"}),
+    ("P01.a.02", "D-W11-004", {"820", "390"}), ("P04.a.02", "D-W11-004", {"820", "390"}),
+    ("P25.a.05", "D-W11-007", {"1200", "820", "390"}),
+]
+
+
+def _step(sid):
+    p = next(x for x in SPEC["personas"] if x["id"] == sid[:3])
+    sc = next(s for s in p["scripts"] if sid.startswith(s["id"] + "."))
+    return sc["steps"][int(sid.rsplit(".", 1)[1]) - 1]
+
+
+@pytest.mark.parametrize("sid,defect,vps", FDEF_RETESTS)
+def test_the_f_def_1_retests_are_scripted_at_their_viewports(sid, defect, vps):
+    covered = {v for t in _step(sid).get("measure") or [] if t["defect"] == defect for v in t["viewports"]}
+    assert vps <= covered, (sid, defect, covered)
+
+
+def test_the_f_def_1_retests_assert_the_fixed_values():
+    def tgt(sid, defect, vp):
+        return next(t for t in _step(sid)["measure"] if t["defect"] == defect and vp in t["viewports"])
+    toggle = tgt("P01.a.02", "D-W11-001", "1200")
+    assert (toggle["role"], toggle["name"], toggle["min_height"]) == ("button", "Add details", 24)
+    assert tgt("P04.a.02", "D-W11-002", "820")["min_height"] == 44
+    assert tgt("P04.a.02", "D-W11-002", "390")["hidden"] is True
+    assert tgt("P04.a.02", "D-W11-003", "390")["min_height"] == 44
+    fab = tgt("P04.a.02", "D-W11-004", "820")
+    assert fab["min_height"] == 44 == fab["min_width"]
+    m5 = _step("P25.a.05")["measure"]
+    assert any(t.get("opacity") == 0.9 and {"1200", "820"} <= set(t["viewports"]) for t in m5)
+    assert any(t.get("text") == "last_result" and {"1200", "820"} <= set(t["viewports"]) for t in m5)
+    assert any(t.get("text_starts") == "last_result" and t.get("first_span_opacity") == 0.9
+               and t["viewports"] == ["390"] for t in m5)
+    assert SPEC["sentences"]["last_result"]["text"] == "Showing the last result."
+    m6 = _step("P25.a.06")["measure"]
+    assert any(t.get("absent") for t in m6) and any(t.get("text_not_starts") == "last_result" for t in m6)
+    light = next(s for s in next(p for p in SPEC["personas"] if p["id"] == "P01")["scripts"] if s["id"] == "P01.c")
+    assert light["viewports"] == ["1200"]
+    assert [s["do"] for s in light["steps"]] == ["theme", "seed_note", "open_note", "theme"]
+    assert light["steps"][0]["value"] == "light" and light["steps"][-1].get("restore") is True
+    t = light["steps"][2]["measure"][0]
+    assert (t["opacity"], t["theme"], t["min_height"]) == (0.9, "light", 24)
+
+
+def test_the_new_sentences_verify_at_the_frontend_ref():
+    got = rc.verify_sentences({"sentences": {k: SPEC["sentences"][k] for k in ("last_result", "split_none_hour")}}, REPO)
+    assert all(v["ok"] and v["line_ok"] for v in got.values()), got
+
+
+def test_a_script_with_viewports_runs_only_there():
+    assert rc.script_runs_at({"viewports": ["1200"]}, "1200") is True
+    assert rc.script_runs_at({"viewports": ["1200"]}, "390") is False
+    assert rc.script_runs_at({}, "390") is True                           # control: no list, every viewport
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    loop = src[src.index("for sc in scripts_at(persona):"):src.index("ran_in = once_gate(")]
+    assert re.search(r"if not script_runs_at\(sc, vp\):\s*\n\s*vp_skipped\.append\(.*\)\s*\n\s*continue\n", loop), loop
+
+
+class _Loc:
+    def __init__(self, items):
+        self.items = items
+
+    def count(self):
+        return len(self.items)
+
+    def nth(self, i):
+        return _Loc([self.items[i]])
+
+    @property
+    def first(self):
+        return _Loc(self.items[:1])
+
+    def is_visible(self):
+        return self.items[0]["display"] != "none"
+
+    def evaluate(self, js):
+        return self.items[0]
+
+
+def _measure_run(found, vp="820", explained=None):
+    class Pg:
+        def get_by_role(self, *a, **k):
+            return _Loc(found)
+
+        def get_by_test_id(self, *a):
+            return _Loc(found)
+
+        def evaluate(self, js, *a):
+            return explained                    # absent_explained's answer: the hub shown, a sheet open, or None
+
+    class G:
+        def sentence(self, k):
+            return "Showing the last result."
+
+    class R:
+        def page(self):
+            return Pg()
+    r = R()
+    r.vp, r.g = vp, G()
+    return r, {"checks": [], "read": []}
+
+
+def _box(h=44, w=44, display="block", opacity="1", text="", span=None, theme="dark"):
+    return {"h": h, "w": w, "display": display, "visibility": "visible", "opacity": opacity, "text": text,
+            "spanOpacity": span, "theme": theme}
+
+
+def test_run_measures_fails_a_short_control_and_passes_a_floored_one():
+    t = {"defect": "D-W11-003", "what": "title", "role": "textbox", "name": "Note title", "viewports": ["820"],
+         "min_height": 44}
+    for found, vp, want in (([_box(h=34)], "820", [False]), ([_box(h=44)], "820", [True]), ([_box(h=34)], "1200", [])):
+        R, row = _measure_run(found, vp)
+        rc.run_measures(R, {"measure": [t]}, row)
+        assert [c["ok"] for c in row["checks"]] == want, (found, vp)
+
+
+def test_run_measures_hidden_needs_the_control_in_the_page_and_opacity_and_text_are_read():
+    hid = {"defect": "D-W11-002", "what": "folder", "role": "combobox", "name": "Folder", "viewports": ["820"],
+           "hidden": True}
+    for found, want in (([], [False]), ([_box(display="none")], [True]), ([_box()], [False])):
+        R, row = _measure_run(found)
+        rc.run_measures(R, {"measure": [hid]}, row)
+        assert [c["ok"] for c in row["checks"]] == want, found            # absent is not "hidden"
+    dim = {"defect": "D-W11-007", "what": "dim", "testid": "x", "viewports": ["820"], "opacity": 0.9}
+    for op, ok in (("0.9", True), ("0.75", False)):
+        R, row = _measure_run([_box(opacity=op)])
+        rc.run_measures(R, {"measure": [dim]}, row)
+        assert [c["ok"] for c in row["checks"]] == [ok]
+    bar = {"defect": "D-W11-007", "what": "bar", "testid": "x", "viewports": ["820"], "text_starts": "last_result",
+           "first_span_opacity": 0.9}
+    R, row = _measure_run([_box(text="Showing the last result. Win rate", span="0.9")])
+    rc.run_measures(R, {"measure": [bar]}, row)
+    assert [c["ok"] for c in row["checks"]] == [True, True]
+    R, row = _measure_run([_box(text="Win rate", span="1")])
+    rc.run_measures(R, {"measure": [bar]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False, False]
+    fab = {"defect": "D-W11-004", "what": "fab", "role": "button", "name": "?", "viewports": ["820"],
+           "min_height": 44, "absent_is": "inconclusive"}
+    R, row = _measure_run([], explained="the hub is shown")
+    rc.run_measures(R, {"measure": [fab]}, row)
+    assert row["checks"] == [] and row["inconclusive"]
+    R, row = _measure_run([])                   # review m3: absent with nothing to explain it is a FAIL
+    rc.run_measures(R, {"measure": [fab]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False] and not row.get("inconclusive")
+
+
+def test_m7_measure_reads_every_match_or_asks_for_exactly_one():
+    t = {"defect": "D-W11-003", "what": "title", "role": "textbox", "name": "Note title", "viewports": ["820"],
+         "min_height": 44}
+    R, row = _measure_run([_box(h=44), _box(h=30)])
+    rc.run_measures(R, {"measure": [t]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False] and "exactly one" in row["checks"][0]["what"]
+    R, row = _measure_run([_box(h=44), _box(h=30)])
+    rc.run_measures(R, {"measure": [{**t, "all": True}]}, row)
+    assert [c["ok"] for c in row["checks"]] == [True, False]          # every match measured
+
+
+def test_m7_restore_theme_puts_an_absent_preference_back_as_absent_and_checks_the_answer():
+    posted = []
+
+    class Req:
+        def __init__(self, status):
+            self.status = status
+
+        def post(self, url, data):
+            posted.append(data)
+            return type("A", (), {"status": self.status})()
+
+    for status, raises in ((200, False), (500, True)):
+        posted.clear()
+        R = rc.Run.__new__(rc.Run)
+        R.theme_was, R.pages, R.g = {"value": None}, {"main": None}, type("G", (), {"base": "http://127.0.0.1:1"})()
+        R.page = lambda name="main", st=status: type("P", (), {"request": Req(st)})()
+        if raises:
+            with pytest.raises(rc.Inconclusive):
+                R.restore_theme()
+        else:
+            R.restore_theme()
+            assert R.theme_restored == {"value": "", "was_absent": True, "http": 200}
+        assert posted == [{"key": "theme", "value": ""}]
+
+
+# ── sandbox-recipe G2: the campaign's launcher never opens, reads, writes or hashes the shared data root ────────────
+#
+# The spy is the launcher's own process (a subprocess, so its env pins and tripwire never leak into this one): every
+# os / open / glob entry point that can stat, list, hash or open a path is wrapped, plus an audit hook, and each path is
+# tested with shared_root_guard.hit() against C:\data and a FAKE root. Every boot points the launcher's snapshot at the
+# fake root, and the CONTROL boots it WITHOUT the flag: the spy must see the fake root read, so a spy that cannot fire
+# cannot pass, and no test (nor any mutant) ever reads the live root.
+#
+# ⚠️ WHAT THIS PROVES, AND WHAT IT DOES NOT (review I3, ruling W11-R70 ACCEPTED): the spy stubs `api.main` and
+# uvicorn, so it covers the launcher's code up to serving. The SERVED app, once imported, runs `os.path.isdir("/data")`
+# (which is C:\data with the cwd on C:) in three pre-existing modules: api/services/cot_service.py (module level, before
+# its COT_DB_PATH read), api/services/research/ratings_db.py (module level, before RESEARCH_RATINGS_DB_PATH) and
+# api/services/single_stock_etfs.py (each resolve, before SSETF_DB_PATH). That is a directory stat only: no file under
+# it is opened, read, written or hashed. The claim is therefore "never opens, reads, writes or hashes; three
+# pre-existing app modules stat the directory", recorded in sandbox-recipe.md; app code is not edited here.
+
+_SPY = r'''
+import builtins, glob, io, json, os, sys, types
+repo, fake, out_json = sys.argv[1], sys.argv[2], sys.argv[3]
+argv = sys.argv[4:]
+sys.path[:0] = [os.path.join(repo, "scripts"), repo]
+import shared_root_guard as srg
+ROOTS = srg.canonical_roots(["C:\\data", "/data", fake])
+hits = []
+
+def note(fn, p):
+    try:
+        if isinstance(p, int):
+            return
+        h = srg.hit(p, ROOTS)
+    except Exception:
+        return
+    if h:
+        hits.append([fn, str(p)])
+
+def wrap(mod, name):
+    orig = getattr(mod, name)
+    def spy(*a, **k):
+        if a:
+            note(f"{mod.__name__}.{name}", a[0])
+        return orig(*a, **k)
+    setattr(mod, name, spy)
+
+for n in ("stat", "lstat", "open", "scandir", "listdir", "walk", "makedirs", "mkdir", "remove", "replace", "rename",
+          "access", "chmod", "utime"):
+    if hasattr(os, n):
+        wrap(os, n)
+for n in ("exists", "isfile", "isdir", "getsize", "getmtime", "realpath", "lexists", "islink"):
+    wrap(os.path, n)
+wrap(builtins, "open"); wrap(io, "open"); wrap(glob, "glob"); wrap(glob, "iglob")
+sys.addaudithook(lambda ev, args: note("audit:" + ev, args[0]) if ev in ("open", "os.listdir", "os.scandir",
+                 "glob.glob", "os.mkdir", "os.remove", "os.rename") and args else None)
+
+api, api_main = types.ModuleType("api"), types.ModuleType("api.main")
+async def app(scope, receive, send):
+    return None
+api_main.app = app
+api.main = api_main
+sys.modules["api"], sys.modules["api.main"] = api, api_main
+uv = types.ModuleType("uvicorn")
+uv.run = lambda *a, **k: None
+sys.modules["uvicorn"] = uv
+
+# Whatever the mode, a snapshot the launcher takes reads the FAKE root, never the live one: so a mutant that drops
+# the flag is caught by the spy without this test ever opening the live root itself.
+import data_root_snapshot as drs
+drs.DEFAULT_ROOT = fake
+drs.snapshot.__defaults__ = (fake,)
+import hub_sandbox_boot as boot
+sys.argv = ["hub_sandbox_boot.py"] + argv
+code = 0
+try:
+    boot.main()
+except SystemExit as e:
+    code = e.code
+json.dump({"hits": hits, "code": code, "repo_root": boot.REPO_ROOT}, open(out_json, "w"))
+'''
+
+
+def _free_port() -> int:
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def _boot_with_spy(tmp_path, *, flag: bool, app_root: bool = False) -> dict:
+    import os
+    import subprocess
+    fake = tmp_path / "fake-shared-root"
+    (fake / "sub").mkdir(parents=True)
+    (fake / "sub" / "live.db").write_bytes(b"SQLite format 3\x00 fake")
+    spy = tmp_path / "spy.py"
+    spy.write_text(_SPY, encoding="utf-8")
+    out = tmp_path / "out"
+    argv = ["--data-dir", str(tmp_path / "sbx"), "--port", str(_free_port()), "--host", "127.0.0.1",
+            "--log-dir", str(out)] + (["--no-shared-root-snapshot"] if flag else []) + \
+        (["--app-root", str(REPO)] if app_root else [])
+    env = {k: v for k, v in os.environ.items() if not k.startswith("RAILWAY_")}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    r = subprocess.run([sys.executable, str(spy), str(REPO), str(fake), str(tmp_path / "spy.json"), *argv],
+                       cwd=str(REPO), env=env, capture_output=True, text=True, timeout=300)
+    assert (tmp_path / "spy.json").is_file(), r.stdout[-2000:] + r.stderr[-2000:]
+    got = json.loads((tmp_path / "spy.json").read_text())
+    got["stdout"], got["out"] = r.stdout, out
+    return got
+
+
+def test_g2_the_launcher_with_the_campaign_flag_never_opens_the_shared_root(tmp_path):
+    got = _boot_with_spy(tmp_path, flag=True, app_root=True)
+    assert got["code"] in (0, None), got["stdout"][-1500:]
+    assert "HUB SANDBOX" in got["stdout"]                                  # the whole pre-serve path ran
+    assert got["hits"] == [], got["hits"][:10]
+    logs = list(got["out"].glob("sandbox-integrity-*.md"))                 # the log is in --out, not the repo
+    assert len(logs) == 1, list(got["out"].iterdir())
+    text = logs[0].read_text(encoding="utf-8")
+    assert "NOT HASHED" in text and "CLEAN" not in text.split("\n- ")[1]   # never claims a compare it did not make
+    assert "integrity log: " + str(logs[0]) in got["stdout"]
+
+
+def test_g2_control_the_spy_sees_a_launcher_that_reads_a_root(tmp_path):
+    got = _boot_with_spy(tmp_path, flag=False)
+    assert any("fake-shared-root" in p for _, p in got["hits"]), got["stdout"][-1500:]
+    assert not any("fake-shared-root" not in p for _, p in got["hits"]), got["hits"][:10]   # and never the real one
+
+
+def test_g2_the_launcher_refuses_a_log_dir_inside_the_census_roots(tmp_path, monkeypatch, capsys):
+    """Against FAKE roots handed in as the census would (review m9: the log dir is refused against the same roots as
+    the data dir), so neither this test nor a mutant that drops the refusal ever creates anything under the live one;
+    `os.makedirs` is a tripwire here as well."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    fake = tmp_path / "fake-root"
+    made = []
+    monkeypatch.setattr(boot.os, "makedirs", lambda *a, **k: made.append(a))
+    with pytest.raises(SystemExit):
+        boot._log_file(str(fake / "sandbox-runs"), None, roots=[str(fake)])
+    assert "REFUSING" in capsys.readouterr().out and made == []
+    boot._log_file(str(tmp_path / "out"), None, roots=[str(fake)])     # control: a sandbox folder is accepted
+    assert made == [(str(tmp_path / "out"),)]
+    src = (REPO / "scripts" / "hub_sandbox_boot.py").read_text(encoding="utf-8")
+    assert "roots=roots if roots is not None else _census_roots()" in src   # the default is the census, not a copy
+
+
+def test_g2_the_tool_launcher_accepts_the_campaigns_options():
+    import subprocess
+    r = subprocess.run([sys.executable, str(rc.TOOL_LAUNCHER), "--help"], capture_output=True, text=True,
+                       cwd=str(REPO), timeout=120, env={**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"},
+                       encoding="utf-8")
+    assert r.returncode == 0, r.stderr[-800:]
+    for opt in ("--app-root", "--no-shared-root-snapshot", "--log-dir"):
+        assert re.search(r"(?<![\w-])" + re.escape(opt) + r"(?![\w-])", r.stdout), opt    # the option itself
+
+
+def test_g2_the_harness_passes_the_campaigns_launcher_flags_through(tmp_path, monkeypatch):
+    th = rc.load_tool_harness()
+    seen = {}
+    monkeypatch.setattr(th.subprocess, "Popen", lambda cmd, **k: seen.update(cmd=cmd, **k))
+    box = th.Sandbox("x", 1, tmp_path / "y.log", extra_args=["--no-shared-root-snapshot", "--log-dir", "z"],
+                     cwd=tmp_path, boot_script=tmp_path / "boot.py", env={"PATH": "p"})
+    box.start()
+    assert seen["cmd"][4] == str(tmp_path / "boot.py") and seen["cmd"][-3:] == ["--no-shared-root-snapshot", "--log-dir", "z"]
+    assert seen["cwd"] == str(tmp_path) and seen["env"] == {"PATH": "p"}
+
+
+# ── review C1: --own-sandbox works with an app root that predates the campaign's launcher options ──────────────────
+
+OLD_TOOLING = "0ac5b99cda"      # the merge-base: its harness has no extra_args, its launcher no G2 options
+
+
+def _old_app_root(tmp_path) -> Path:
+    """An app root whose tools/ and scripts/ are the merge-base's (no extra_args, no --no-shared-root-snapshot),
+    with the served tree's own ledger and auth.py, so the flags derive exactly as a run's do."""
+    import subprocess
+    app = tmp_path / "app"
+    for rel in ("tools/notebook_perf_harness.py", "scripts/hub_sandbox_boot.py", "docs/notebook/perf-budgets.json"):
+        f = app / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(subprocess.run(["git", "show", f"{OLD_TOOLING}:{rel}"], cwd=str(REPO), capture_output=True,
+                                    text=True, encoding="utf-8", check=True).stdout, encoding="utf-8")
+    for rel in ("docs/feature_flags.json", "api/routers/auth.py"):
+        f = app / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(frontend_read()(rel), encoding="utf-8")
+    return app
+
+
+def _load_as(path: Path, name: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_c1_own_sandbox_builds_and_starts_with_an_app_root_that_lacks_the_new_options(tmp_path, monkeypatch):
+    app = _old_app_root(tmp_path)
+    old_h = _load_as(app / "tools" / "notebook_perf_harness.py", "old_app_harness_for_c1")
+    with pytest.raises(TypeError):                     # control: the app root's own harness cannot take the options
+        old_h.Sandbox("x", 1, tmp_path / "l.log", extra_args=["--no-shared-root-snapshot"])
+    assert "--no-shared-root-snapshot" not in (app / "scripts" / "hub_sandbox_boot.py").read_text(encoding="utf-8")
+
+    class FW:
+        REPO = app
+        NOT_MEMBER_GATES = {"NOTEBOOK_DOOR_GUARD", "J2_ATTACHMENT_BACKUP_ENABLED", "J2_ATTACHMENT_GC_ENABLED",
+                            "J2_OCR_ENABLED"}
+
+        @staticmethod
+        def flag_sets():
+            return {"all_names": ["NOTEBOOK_DOOR_GUARD"], "c1": []}
+    th = rc.load_tool_harness()
+    seen = {}
+
+    class Proc:
+        pid = 4242
+
+        def poll(self):
+            return None
+    monkeypatch.setattr(th.subprocess, "Popen", lambda cmd, **k: (seen.update(cmd=cmd, **k), Proc())[1])
+    monkeypatch.setattr(th.Sandbox, "wait_healthy", lambda self, *a: True)
+    monkeypatch.setattr(th.Sandbox, "wait_checkpoint", lambda self, *a: True)
+    monkeypatch.setattr(th, "port_busy", lambda port: False)
+    monkeypatch.setenv("NOTEBOOK_POISON_FROM_SHELL", "1")
+    (tmp_path / "out").mkdir()                         # a run's --out exists before its sandbox boots
+    libs = (old_h, FW, None, None)                     # what load_walk_libs(<an old app root>) hands run_campaign
+    sb = rc.owned_sandbox(libs, app, tmp_path / "sbx", 8999, tmp_path / "out")
+    sb.start()                                         # must not raise
+    cmd = seen["cmd"]
+    assert cmd[4] == str(rc.TOOL_LAUNCHER)                                 # the TOOL tree's launcher
+    assert cmd[cmd.index("--app-root") + 1] == str(app) and "--no-shared-root-snapshot" in cmd
+    assert cmd[cmd.index("--log-dir") + 1] == str(tmp_path / "out")
+    assert seen["cwd"] == str(app)                                          # serving the app root's api/
+    assert "NOTEBOOK_POISON_FROM_SHELL" not in seen["env"]                  # hermetic (I6)
+    assert seen["env"]["NOTEBOOK_DOOR_GUARD"] == "unknown-only"             # production's mode (I4)
+    assert sb.boots[0]["launcher"] == str(rc.TOOL_LAUNCHER)
+
+
+def test_c1_main_builds_the_owned_sandbox_through_the_one_factory():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    main = src[src.index("def main("):]
+    assert "owned_sandbox(libs, app_root, data_dir, args.port, out)" in main and "OwnedSandbox(" not in main
+
+
+# ── review I1: NOT HASHED is its own status, never NOT CLEAN ─────────────────────────────────────────────────────────
+
+def _launcher_constant(name: str) -> str:
+    import ast
+    tree = ast.parse(rc.TOOL_LAUNCHER.read_text(encoding="utf-8"))
+    return next(n.value.value for n in tree.body if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", None) == name for t in n.targets))
+
+
+def _unhashed_log(tmp_path, labels) -> Path:
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    log = tmp_path / "integ.md"
+    for lab in labels:
+        boot._append_unhashed(str(log), lab)
+    return log
+
+
+def test_i1_an_unhashed_boot_reads_not_hashed_never_not_clean(tmp_path):
+    th = rc.load_tool_harness()
+    assert th.NOT_HASHED == _launcher_constant("NOT_HASHED")              # the launcher's words, one authority
+    log = _unhashed_log(tmp_path, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])
+    integ = th.read_integrity(log, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])
+    assert (integ["status"], integ["clean"]) == ("NOT HASHED", False)
+    line = th.integrity_line(integ)
+    assert line.startswith("SANDBOX INTEGRITY: NOT HASHED") and "NOT CLEAN" not in line and "db files hashed" not in line
+
+
+def test_i1_controls_a_missing_checkpoint_and_a_dirty_line_still_read_as_before(tmp_path):
+    th = rc.load_tool_harness()
+    log = _unhashed_log(tmp_path, [th.PRE_BOOT, th.POST_BOOT])
+    assert th.read_integrity(log, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])["status"] == "INCOMPLETE"
+    with open(log, "a", encoding="utf-8") as f:
+        f.write("- `2026-10-26 00:00:00`  **shutdown** \u2014 C:\\x, 3 db files \u2014 **1 FILE(S) CHANGED**\n")
+    assert th.read_integrity(log, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])["status"] == "NOT CLEAN"
+
+
+def test_i1_the_campaign_records_the_status_in_run_json(tmp_path):
+    th = rc.load_tool_harness()
+    log = _unhashed_log(tmp_path, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])
+    sb = rc.OwnedSandbox.__new__(rc.OwnedSandbox)
+    sb.th, sb.out, sb.boots = th, tmp_path, [{"boot": 1}]
+    sb.sb = type("SB", (), {"stop": lambda self: "graceful", "integrity_path": lambda self: str(log)})()
+    sb.stop()
+    assert sb.boots[0]["integrity"] == "NOT HASHED" and "NOT CLEAN" not in sb.boots[0]["first_line"]
+
+
+# ── review I2: the seeder's schema boot never hashes or logs into the shared root or the app root by default ───────
+
+def test_i2_the_default_schema_boot_is_the_clock_launcher_and_hashing_is_an_opt_in():
+    args = sm.argparse.Namespace(schema_via_hub_launcher_hashing_shared_root=False, schema_via_clock_launcher=False)
+    assert sm.schema_booter(args) is sm.boot_schema_clock
+    args.schema_via_hub_launcher_hashing_shared_root = True
+    assert sm.schema_booter(args) is sm.boot_schema                        # control: the explicit opt-in
+    import inspect
+    body = inspect.getsource(sm.boot_schema_clock)
+    assert "sandbox_clock.py" in body and "hub_sandbox_boot" not in body and ".Sandbox(" not in body
+    assert "DEFAULT_ROOT" not in body and "data_root_snapshot" not in body
+    src = (REPO / "tools" / "notebook_campaign" / "seed_members.py").read_text(encoding="utf-8")
+    assert "schema_booter(args)(app_root, data_dir, args.schema_port, data_dir)" in src
+
+
+# ── G3 / review I4 / I6: production's served flags, at production's values, on a hermetic env ──────────────────────
+#
+# Mutants (scratchpad mutate_g3.py and mutate_r1.py): campaign_env ignoring `armed_web`; armed_on_web ignoring `where`
+# or `status`; non-member gates kept; one sandbox back on flag_sets; the mode value served as "1"; the base env
+# copying the whole shell; MEMBER_VISIBLE dropped. Each turned this block red.
+
+def _g3_fw(tmp_path, flags: dict, all_names: list, c1: list, not_member=(), auth_py: str | None = None):
+    (tmp_path / "docs").mkdir(exist_ok=True)
+    (tmp_path / "docs" / "feature_flags.json").write_text(json.dumps({"flags": flags}), encoding="utf-8")
+    if auth_py is not None:
+        (tmp_path / "api" / "routers").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "api" / "routers" / "auth.py").write_text(auth_py, encoding="utf-8")
+
+    class FW:
+        REPO = tmp_path
+        NOT_MEMBER_GATES = set(not_member)
+
+        @staticmethod
+        def flag_sets():
+            return {"all_names": list(all_names), "c1": list(c1)}
+    return FW
+
+
+def _served(fs, base=None) -> dict:
+    return rc.campaign_env(fs, base=base if base is not None else {"PATH": "x"})[0]
+
+
+def test_g3_an_armed_web_flag_that_is_not_a_notebook_gate_is_served_on(tmp_path):
+    flags = {"NOTEBOOK_EXAMPLE_NOTES_ENABLED": {"status": "armed", "where": ["web"]},
+             "NOTEBOOK_WORKER_ONLY": {"status": "armed", "where": ["worker"]},
+             "NOTEBOOK_DARK_ONE": {"status": "dark", "where": ["web"]},
+             "J2_ATTACHMENT_GC_ENABLED": {"status": "armed", "where": ["web"]},
+             "J2_OCR_ENABLED": {"status": "armed", "where": ["web"]},
+             "NOTEBOOK_GATE_A": {"status": "armed", "where": ["web"]}}
+    fw = _g3_fw(tmp_path, flags, all_names=sorted(flags), c1=["NOTEBOOK_GATE_A"],
+                not_member={"J2_ATTACHMENT_GC_ENABLED", "J2_OCR_ENABLED"})
+    fs = rc.campaign_flag_sets(fw)
+    on = _served(fs)
+    assert {"NOTEBOOK_EXAMPLE_NOTES_ENABLED", "NOTEBOOK_GATE_A", rc.W8, rc.W11, "J2_OCR_ENABLED"} <= set(on)
+    assert on["J2_OCR_ENABLED"] == "1"                                      # member-visible: follows production (I6)
+    # controls: a worker-only, a dark and a non-member gate stay off
+    assert not set(on) & {"NOTEBOOK_WORKER_ONLY", "NOTEBOOK_DARK_ONE", "J2_ATTACHMENT_GC_ENABLED"}
+
+
+def test_i4_a_mode_flag_is_served_at_productions_recorded_value(tmp_path):
+    """The served tree's own ledger and auth.py (at FRONTEND_REF): NOTEBOOK_DOOR_GUARD is armed on web in mode
+    `unknown-only`, so the campaign serves exactly that, never "1" and never the code default `full`."""
+    read = frontend_read()
+    led = json.loads(read("docs/feature_flags.json"))["flags"]
+    fw = _g3_fw(tmp_path, led, all_names=["NOTEBOOK_DOOR_GUARD"], c1=[], auth_py=read("api/routers/auth.py"),
+                not_member={"NOTEBOOK_DOOR_GUARD", "J2_OCR_ENABLED"})
+    fs = rc.campaign_flag_sets(fw)
+    assert fs["mode_problems"] == [] and fs["modes"] == {"NOTEBOOK_DOOR_GUARD": "unknown-only"}
+    assert _served(fs)["NOTEBOOK_DOOR_GUARD"] == "unknown-only"
+    # parity for every valued flag: each NOTEBOOK_MODE_FLAGS name armed on web is served at a value auth.py allows
+    for name, allowed in rc.mode_flags(tmp_path / "api" / "routers" / "auth.py").items():
+        if led.get(name, {}).get("status") == "armed":
+            assert _served(fs)[name] in allowed and _served(fs)[name] != "1", name
+
+
+def test_i4_an_unverified_mode_value_refuses_the_boot(tmp_path, monkeypatch):
+    auth = ('A = "full"\nB = "unknown-only"\nNOTEBOOK_MODE_FLAGS = {\n    "NOTEBOOK_DOOR_GUARD": (A, (A, B)),\n'
+            '    "NOTEBOOK_OTHER_MODE": (A, (A, B)),\n}\n')
+    led = {"NOTEBOOK_DOOR_GUARD": {"status": "armed", "where": ["web"], "note": "nothing quoted here"},
+           "NOTEBOOK_OTHER_MODE": {"status": "armed", "where": ["web"], "note": ""}}
+    fs = rc.campaign_flag_sets(_g3_fw(tmp_path, led, all_names=sorted(led), c1=[], auth_py=auth))
+    assert len(fs["mode_problems"]) == 2                                   # the quote missing; no recorded value
+    with pytest.raises(SystemExit, match="mode flag"):
+        rc.campaign_env(fs)
+
+
+def test_i6_the_served_env_is_hermetic(tmp_path):
+    fw = _g3_fw(tmp_path, {"NOTEBOOK_GATE_A": {"status": "armed", "where": ["web"]}}, all_names=["NOTEBOOK_GATE_A"],
+                c1=["NOTEBOOK_GATE_A"])
+    fs = rc.campaign_flag_sets(fw)
+    shell = {"PATH": "C:\\py", "SystemRoot": "C:\\Windows", "TEMP": "C:\\t", "APPDATA": "C:\\a",
+             "NOTEBOOK_POISON_ENABLED": "1", "NOTEBOOK_DOOR_GUARD": "full", "ANTHROPIC_API_KEY": "sk-x",
+             "RAILWAY_ENVIRONMENT": "production", "DATA_DIR": "C:\\data", "COMPASS_AUTOMATION_ENABLED": "1"}
+    env, applied = rc.campaign_env(fs, base=shell)
+    for leak in ("NOTEBOOK_POISON_ENABLED", "ANTHROPIC_API_KEY", "RAILWAY_ENVIRONMENT", "DATA_DIR",
+                 "COMPASS_AUTOMATION_ENABLED", "NOTEBOOK_DOOR_GUARD"):
+        assert leak not in env, leak
+    assert env["PATH"] == "C:\\py" and env["SystemRoot"] == "C:\\Windows" and env["NOTEBOOK_GATE_A"] == "1"
+    assert "NOTEBOOK_GATE_A=1" in applied
+    import os
+    before = dict(os.environ)
+    rc.campaign_env(fs)
+    assert dict(os.environ) == before                                      # never writes this process's env
+
+
+def test_g3_the_served_trees_ledger_arms_example_notes_so_the_campaign_serves_them():
+    """The real ledger (this tree's docs/feature_flags.json, the file flag_sets reads): example notes are armed on web
+    in production, so P48's example pages are checked against production's shape."""
+    led = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
+    led = led if isinstance(led, dict) else {f.get("name"): f for f in led}
+    assert "NOTEBOOK_EXAMPLE_NOTES_ENABLED" in rc.armed_on_web(led, ())
+
+
+def test_g3_both_campaign_sandboxes_read_the_derived_flag_sets_and_the_hermetic_env():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert src.count("self.fs = campaign_flag_sets(fw)") == 2 and "self.fs = fw.flag_sets()" not in src
+    assert src.count("env, flags = campaign_env(self.fs") == 1 and "env=env" in src
+    assert "os.environ.update(" not in src[src.index("def campaign_env"):src.index("def owned_sandbox")]
+
+
+# ── sandbox-recipe G4: every sentence is read from the merged tree the campaign serves ───────────────────────────────
+#
+# Mutants (scratchpad mutate_g4.py): one sentence back on origin/feat/notebook-widgets-p2-be; a ref that does not
+# exist; a cited line moved off its fragment; ref_resolves answering True for anything. Each turned this block red.
+
+def test_g4_every_sentence_source_ref_is_the_campaign_ref_and_resolves():
+    refs = rc.sentence_refs(SPEC)
+    assert refs, "no sentence is read at a ref: the rail would pass on nothing"
+    assert set(refs) == {rc.FRONTEND_REF}, {r: v for r, v in refs.items() if r != rc.FRONTEND_REF}
+    assert all(rc.ref_resolves(REPO, r) for r in refs)
+    assert rc.ref_resolves(REPO, "origin/no-such-branch-for-this-rail") is False          # control
+
+
+def test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line():
+    """At FRONTEND_REF (what the PR branch serves), whether the source names the ref or is read from the app root at
+    run time: the fragment is in the file and on the line the persona file cites."""
+    read = frontend_read()
+    bad = {}
+    for k, s in SPEC["sentences"].items():
+        m = rc._SOURCE_RE.match(s["source"])
+        text = read(m["path"])
+        frag = s.get("fragment") or s["text"]
+        if text is None or frag not in text:
+            bad[k] = f"{frag!r} not in {m['path']}"
+            continue
+        lines = text.splitlines()
+        n = int(m["line"]) if m["line"] else 0
+        if not rc.fragment_on_line(lines, n, frag):                     # the WHOLE fragment (review m6)
+            bad[k] = f"line {n} of {m['path']} does not hold {frag[:24]!r}"
+    assert not bad, bad
+
+
+def test_g4_a_sentence_on_another_ref_is_named():
+    spec = {"sentences": {"a": {"text": "x", "source": "origin/feat/notebook-widgets-p2-be:api/x.py:1"},
+                          "b": {"text": "y", "source": "api/y.py:2"}}}
+    assert rc.sentence_refs(spec) == {"origin/feat/notebook-widgets-p2-be": ["a"]}
+
+
+# ── fix round 1 (review-campaign-g2g4.md, ruling W11-R70): the remaining rails ─────────────────────────────────────
+
+def test_m6_the_whole_fragment_must_be_on_its_line():
+    lines = ["const SAMPLE_LABEL = 'Sample data' // the label", "next"]
+    assert rc.fragment_on_line(lines, 1, "SAMPLE_LABEL = 'Sample data'")
+    assert not rc.fragment_on_line(lines, 1, "SAMPLE_LABEL = 'Sample data (drifted)'")    # same 24-char prefix
+    assert not rc.fragment_on_line(lines, 2, "SAMPLE_LABEL")
+    assert rc.fragment_on_line(lines, 1, "the label\nnext")                               # a two-line fragment
+
+
+def test_m6_a_run_reads_every_sentence_from_the_tree_it_serves(tmp_path):
+    (tmp_path / "x.js").write_text("const A = 'served words'\n", encoding="utf-8")
+    spec = {"sentences": {"a": {"text": "served words", "source": "origin/feat/no-such-ref-at-all:x.js:1",
+                                "fragment": "A = 'served words'"}}}
+    assert rc.verify_sentences(spec, tmp_path, served_tree=True)["a"]["ok"] is True
+    assert rc.verify_sentences(spec, tmp_path)["a"]["ok"] is False          # control: the ref read is unreadable
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert "g.sentences = verify_sentences(spec, app_root, served_tree=True)" in src
+
+
+def test_i5_the_live_region_is_summary_only_at_p25_a05_and_the_loading_and_retry_retests_are_scripted():
+    m5 = _step("P25.a.05")["measure"]
+    live = [t for t in m5 if t.get("testid") == "builder-live"]
+    assert live and live[0]["text_not_contains"] == "last_result" and set(live[0]["viewports"]) == {"1200", "820", "390"}
+    b = next(s for s in next(p for p in SPEC["personas"] if p["id"] == "P25")["scripts"] if s["id"] == "P25.b")
+    dos = [s["do"] for s in b["steps"]]
+    assert "axe_while_loading" in dos and dos.index("builder_blank") < dos.index("axe_while_loading")
+    retry = next(s for s in b["steps"] if s["do"] == "retry_kept_preview")       # scripted since round 2 (n6)
+    assert retry["samples"] >= 3 and "PreviewPane.jsx:" in retry["why"]
+
+
+def test_i5_axe_while_loading_never_passes_without_seeing_the_loading_state():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    body = src[src.index("def a_axe_while_loading"):src.index("def open_phone_preview")]
+    assert "raise Inconclusive(\"the kept preview was never seen loading" in body
+    assert "runOnly: { type: 'rule', values: ['color-contrast'] }" in src
+    assert "axe_contrast_verdict(got)" in body                        # checked nothing / incomplete: not a pass
+
+
+def test_m2_p04_checks_the_split_it_made_and_copy_is_quoted():
+    assert _step("P04.a.05")["live_re"] == "(?i)split by account"
+    for sid in ("P04.a.05", "P06.a.05", "P23.a.05", "P30.a.05", "P01.b.04", "P05.a.04", "P10.a.05", "P48.a.01"):
+        assert _step(sid).get("copy_sources"), sid
+
+
+def test_m4_every_step_has_a_validation_record_and_the_counts_add_up():
+    v = SPEC["validation"]
+    assert v["ref"].startswith(rc.FRONTEND_REF)
+    every = {f"{sc['id']}.{i + 1:02d}" for p in SPEC["personas"] for sc in p["scripts"] for i in range(len(sc["steps"]))}
+    assert set(v["steps"]) == every
+    kinds = {k: sum(1 for x in v["steps"].values() if x.split(":")[0].split(" +")[0] == k)
+             for k in ("ok", "fixed", "not_reachable", "http", "added")}
+    assert sum(kinds.values()) == len(every)
+    nr = {sid for sid, x in v["steps"].items() if x == "not_reachable"}
+    assert nr == {f"{sc['id']}.{i + 1:02d}" for p in SPEC["personas"] for sc in p["scripts"]
+                  for i, st in enumerate(sc["steps"]) if st["do"] in ("not_reachable", "noop")}
+
+
+def test_m3_a_run_lists_every_inconclusive_reason():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert 'res["inconclusive"] = [{"step": x["step"], "why": x.get("error") or ""} for x in R.steps' in src
+    assert 'print(f"    INCONCLUSIVE {x[\'step\']}' in src
+
+
+# MUTANT LEDGER, ALL ROUNDS (review m8; re-run from the ledger folder's mutate_*.py; each turned the named rail red and
+# the file was restored byte for byte from a copy, never by git checkout):
+#   persona/selector (mutate_sel.py): S1 P06 by "Hour"; S2 P23 source "Closed trades"; S3 a card not on the shelf;
+#     S4 the builder-live anchor renamed; S5 a handler role name not anchored; S6 a measure target without its
+#     fragment; S7 script_runs_at always true; S7b the loop not asking it; S8 the min-height compare dropped; S9
+#     `hidden` passing on an absent control; S10 the P25 phone-bar retest removed; S11 a drifted step driven anyway.
+#   G2 (mutate_g2.py): M1 the flag not skipping the snapshot; M2 the campaign dropping the flag; M3 the log in the
+#     repo again; M4 the harness dropping extra args; M5 a log dir in the shared root accepted (fake roots only).
+#   G3 (mutate_g3.py): M1 campaign_env ignoring armed_web; M2 `where` ignored; M3 `status` ignored; M4 non-member
+#     gates kept; M5 one sandbox back on flag_sets.
+#   G4 (mutate_g4.py): M1 back on the -be ref; M2 a ref that does not exist; M3 a cited line moved; M4 ref_resolves
+#     always true.
+#   fix round 1 (mutate_r1.py): C1a the app root's harness used for the boot; C1b --app-root dropped; I1a NOT HASHED
+#     read as dirty; I1b the status not recorded; I2 the hashing schema boot as default; I4a the mode value not
+#     applied; I4b the ledger quote not checked; I6a the whole shell copied; I6b MEMBER_VISIBLE dropped; m3 an absent
+#     FAB always excused; m7a exactly-one dropped; m7b absent restored as "dark"; m9 the guard's default roots again;
+#     L --app-root gone from the launcher; C1c the kill-list parity check disabled; m6 the 24-char line check back; I5 the live-region target removed; m2 P04's
+#     regex back; m4 a step without a validation record.
+
+
+def test_c1_a_tool_launcher_with_a_shorter_kill_list_than_the_app_roots_refuses(tmp_path, capsys):
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    app = tmp_path / "app"
+    (app / "scripts").mkdir(parents=True)
+    mine = sorted(boot.KILL_LIST)
+    (app / "scripts" / "hub_sandbox_boot.py").write_text(
+        "KILL_LIST = {" + ", ".join(f"{k!r}: '0'" for k in mine + ["NEW_OUTBOUND_JOB_ENABLED"]) + "}\n",
+        encoding="utf-8")
+    saved_path, saved_root = list(sys.path), boot.REPO_ROOT
+    try:
+        with pytest.raises(SystemExit):
+            boot._use_app_root(str(app))
+        assert "NEW_OUTBOUND_JOB_ENABLED" in capsys.readouterr().out
+        (app / "scripts" / "hub_sandbox_boot.py").write_text(
+            "KILL_LIST = {" + ", ".join(f"{k!r}: '0'" for k in mine) + "}\n", encoding="utf-8")
+        assert boot._use_app_root(str(app)) == str(app)                  # control: the same kill list is served
+        assert sys.path[0] == str(app) and boot.REPO_ROOT == str(app)
+    finally:
+        sys.path[:] = saved_path
+        boot.REPO_ROOT = saved_root
+
+
+# ── fix round 2 (scoped re-review of b004a0fb5b): N1, n2, n5, n6, n7 ─────────────────────────────────────────────
+#
+# Mutants (ledger campaign-mutants/mutate_r2.py): N1 PYTHONDONTWRITEBYTECODE not set; n2 the schema boot back on the
+# shell's env; n5a axe `incomplete` ignored; n5b Network.enable dropped; n6a the "nothing new announced" check
+# dropped; n6b the cue check dropped; n7a samples ignored; n7b an empty live region passing. Each turned this red.
+
+def test_n1_the_served_env_never_writes_bytecode_into_the_app_root(tmp_path):
+    fw = _g3_fw(tmp_path, {}, all_names=[], c1=[])
+    fs = rc.campaign_flag_sets(fw)
+    for base in ({"PATH": "x"}, {"PATH": "x", "PYTHONDONTWRITEBYTECODE": "0"}):
+        assert rc.campaign_env(fs, base=base)[0]["PYTHONDONTWRITEBYTECODE"] == "1"
+
+
+def test_n2_the_schema_boot_uses_the_hermetic_campaign_env(tmp_path, monkeypatch):
+    fw = _g3_fw(tmp_path, {"NOTEBOOK_GATE_A": {"status": "armed", "where": ["web"]}}, all_names=["NOTEBOOK_GATE_A"],
+                c1=["NOTEBOOK_GATE_A"])
+    monkeypatch.setattr(rc, "load_walk_libs", lambda app_root: (None, fw, None, None))
+    monkeypatch.setenv("NOTEBOOK_POISON_FROM_SHELL", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-poison")
+    env = sm.schema_env(tmp_path)
+    assert "NOTEBOOK_POISON_FROM_SHELL" not in env and "ANTHROPIC_API_KEY" not in env
+    assert env["NOTEBOOK_GATE_A"] == "1" and env["PYTHONDONTWRITEBYTECODE"] == "1"
+    import inspect
+    assert "env=schema_env(app_root)" in inspect.getsource(sm.boot_schema_clock)
+
+
+def test_n5_axe_incomplete_is_inconclusive_and_the_network_domain_is_enabled_first():
+    assert "'incomplete'" in rc.AXE_CONTRAST_JS and "incomplete:" in rc.AXE_CONTRAST_JS
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    body = src[src.index("def a_axe_while_loading"):src.index("#: The server's busy refusal")]
+    assert rc.axe_contrast_verdict({"violations": [], "passes": 3, "incomplete": 1})[1]          # never a pass
+    assert rc.axe_contrast_verdict({"violations": [], "passes": 0, "incomplete": 0})[1]
+    assert rc.axe_contrast_verdict({"violations": [], "passes": 3, "incomplete": 0}) == (True, None)   # control
+    assert rc.axe_contrast_verdict({"violations": [{"id": "color-contrast"}], "passes": 3})[0] is False
+    assert "ok, unsure = axe_contrast_verdict(got)" in body and "raise Inconclusive(unsure)" in body
+    assert body.index('cdp.send("Network.enable")') < body.index('"Network.emulateNetworkConditions"')
+
+
+class _RetryWorld:
+    """A stand-in page for a_retry_kept_preview: the CDP Fetch handler is invoked when the source tile or Try again is
+    pressed (each is one preview request the browser answers busy), and each evaluate() returns the next sample."""
+
+    def __init__(self, samples, before, try_again=True):
+        self.samples, self.before, self.try_again = list(samples), before, try_again
+        self.handler, self.sent, self.started = None, [], False
+
+    # the CDP session
+    def on(self, ev, fn):
+        self.handler = fn
+
+    def send(self, method, params=None):
+        self.sent.append(method)
+
+    def detach(self):
+        pass
+
+    # the page
+    def evaluate(self, js, *a):
+        if not self.started:
+            self.started = True
+            return self.before
+        return self.samples.pop(0) if self.samples else self.before
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def get_by_role(self, role, name=None, exact=False):
+        world = self
+
+        class Loc:
+            def filter(self, **k):
+                return self
+
+            @property
+            def last(self):
+                return self
+
+            @property
+            def first(self):
+                return self
+
+            def wait_for(self, *a, **k):
+                if name == "Try again" and not world.try_again:
+                    raise TimeoutError("no Try again")
+
+            def click(self, *a, **k):
+                world.handler({"requestId": f"r{len(world.sent)}"})
+
+            def get_by_role(self, *a, **k):
+                return world.get_by_role(*a, **k)
+        return Loc()
+
+
+def _retry_run(world, vp=(1200, 800)):
+    R = type("R", (), {})()
+    R.size, R.keyboard, R.touch = vp, False, False
+    R.page = lambda name="main": world
+    R.contexts = {"main": type("C", (), {"new_cdp_session": lambda self, pg: world})()}
+    R.g = type("G", (), {"sentence": lambda self, k: "Showing the last result."})()
+    return R
+
+
+LAST = "Showing the last result."
+SUMMARY = "Net P&L for closed trades in the last 90 days, all accounts. 40 trades."
+
+
+def test_n6_the_retry_keeps_the_line_and_announces_nothing_new():
+    good = {"live": SUMMARY, "line": LAST, "bar": None}
+    w = _RetryWorld([good] * 7, before={"live": SUMMARY, "line": None, "bar": None})
+    row = {"checks": [], "read": []}
+    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1}, row)
+    assert row["checks"] and all(c["ok"] for c in row["checks"]), [c for c in row["checks"] if not c["ok"]]
+    assert "Fetch.enable" in w.sent and "Fetch.fulfillRequest" in w.sent and "Fetch.disable" in w.sent
+
+
+@pytest.mark.parametrize("bad,why", [
+    ({"live": "Showing the last result. " + SUMMARY, "line": LAST, "bar": None}, "announced"),
+    ({"live": "", "line": LAST, "bar": None}, "emptied"),
+    ({"live": SUMMARY, "line": None, "bar": None}, "the line went"),
+])
+def test_n6_controls_a_changed_live_region_or_a_lost_line_fails(bad, why):
+    good = {"live": SUMMARY, "line": LAST, "bar": None}
+    w = _RetryWorld([good, good, bad, good, good, good, good], before={"live": SUMMARY, "line": None, "bar": None})
+    row = {"checks": [], "read": []}
+    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1}, row)
+    assert not all(c["ok"] for c in row["checks"]), why
+
+
+def test_n6_a_retry_that_cannot_be_drawn_is_inconclusive():
+    w = _RetryWorld([], before={"live": SUMMARY, "line": None, "bar": None}, try_again=False)
+    with pytest.raises(rc.Inconclusive, match="Try again never drew"):
+        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades"}, {"checks": [], "read": []})
+    w = _RetryWorld([], before={"live": "", "line": None, "bar": None})
+    with pytest.raises(rc.Inconclusive, match="no summary before"):
+        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades"}, {"checks": [], "read": []})
+
+
+def test_n6_the_retry_is_scripted_in_p25_b():
+    b = next(s for s in next(p for p in SPEC["personas"] if p["id"] == "P25")["scripts"] if s["id"] == "P25.b")
+    dos = [s["do"] for s in b["steps"]]
+    assert "retry_kept_preview" in dos and "not_reachable" not in dos
+    assert dos.index("axe_while_loading") < dos.index("retry_kept_preview")
+
+
+class _Seq(_Loc):
+    """A locator whose evaluate() answers the next value each call (one per sample)."""
+
+    def __init__(self, values):
+        super().__init__([values[0]])
+        self.values = list(values)
+
+    def nth(self, i):
+        return self
+
+    def evaluate(self, js):
+        return self.values.pop(0) if len(self.values) > 1 else self.values[0]
+
+
+def test_n7_the_live_region_is_sampled_and_an_empty_one_fails():
+    t = {"defect": "D-W11-007", "what": "live", "testid": "builder-live", "viewports": ["820"], "samples": 3,
+         "interval_ms": 1, "text_nonempty": True, "text_not_contains": "last_result"}
+    for values, want in (([_box(text=SUMMARY)] * 3, [True, True] * 3),
+                         ([_box(text=SUMMARY), _box(text=""), _box(text=SUMMARY)], [True, True, False, True, True, True]),
+                         ([_box(text=SUMMARY), _box(text=LAST), _box(text=SUMMARY)], [True, True, True, False, True, True])):
+        R, row = _measure_run([])
+        pg = R.page()
+        seq = _Seq(values)
+        type(pg).get_by_test_id = lambda self, *a: seq
+        type(pg).wait_for_timeout = lambda self, ms: None
+        R.page = lambda name="main", pg=pg: pg
+        rc.run_measures(R, {"measure": [t]}, row)
+        assert [c["ok"] for c in row["checks"]] == want, [c["what"] for c in row["checks"]]
+    p25 = next(x for x in _step("P25.a.05")["measure"] if x.get("testid") == "builder-live")
+    assert p25["samples"] >= 3 and p25["text_nonempty"] is True

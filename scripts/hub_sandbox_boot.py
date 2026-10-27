@@ -514,6 +514,112 @@ def _start_post_boot_compare(drs, baseline, log_file, port):
     threading.Thread(target=_run, daemon=True, name="data-root-compare").start()
 
 
+#: The root word a checkpoint carries when the shared data root was never read (`--no-shared-root-snapshot`).
+NOT_OPENED_ROOT = "shared data root not opened (--no-shared-root-snapshot)"
+#: That checkpoint's verdict: an honest "nothing was hashed", never CLEAN (CLEAN would claim files were compared).
+NOT_HASHED = "NOT HASHED (the run never opens the shared data root)"
+
+
+def _census_roots():
+    """The shared roots the census derives (conftest.SHARED_DATA_ROOTS): the same roots `_refuse_shared_root`
+    checks the data dir against, so the log dir and the data dir are refused by one rule (review m9)."""
+    import conftest
+    return conftest.SHARED_DATA_ROOTS
+
+
+def _log_file(log_dir, drs, roots=None):
+    """The integrity log: under `log_dir` (a run's own evidence folder) when given, else the repo's
+    `docs/plans/joystick/sandbox-runs` (the device runbook's place). A `log_dir` inside the shared root is
+    refused by the one refusal authority, against the census roots, before anything is created."""
+    if not log_dir:
+        return drs.log_path_for(REPO_ROOT)
+    why = _shared_root_guard().refuse(log_dir, roots=roots if roots is not None else _census_roots())
+    if why:
+        print(f"  REFUSING TO RUN. --log-dir: {why}.")
+        sys.exit(1)
+    os.makedirs(log_dir, exist_ok=True)
+    return os.path.join(os.path.abspath(log_dir), time.strftime("sandbox-integrity-%Y-%m-%dT%H-%M-%S.md"))
+
+
+def _kill_list_names(launcher_path):
+    """The KILL_LIST keys of another launcher file, read by AST (never imported)."""
+    import ast
+    tree = ast.parse(open(launcher_path, encoding="utf-8").read())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "KILL_LIST" for t in node.targets)                 and isinstance(node.value, ast.Dict):
+            return {k.value for k in node.value.keys if isinstance(k, ast.Constant)}
+    return set()
+
+
+def _use_app_root(app_root):
+    """`--app-root` (review C1): serve, and derive the census from, ANOTHER checkout's api/ and conftest, while this
+    file (the tool tree's launcher, with its G2 options) runs. This tree's root leaves sys.path, the app root takes its
+    place. Refused when the app root is inside the shared root, or when the app root's own launcher kills a flag this
+    one does not (a tool tree older than the app must never serve with a shorter kill list).
+    ⚠️ SCOPE (review n3): only the KILL_LIST NAMES are compared, not their values, the model-key policy or any other
+    env policy in the app root's launcher; this launcher's own policy is what runs. And (n4) the app root's conftest
+    resolves `shared_root_guard` from THIS tree's scripts/ (first on sys.path), identical while both trees agree."""
+    global REPO_ROOT
+    app_root = os.path.abspath(app_root)
+    why = _shared_root_guard().refuse(app_root)
+    if why:
+        print(f"  REFUSING TO RUN. --app-root: {why}.")
+        sys.exit(1)
+    theirs = os.path.join(app_root, "scripts", "hub_sandbox_boot.py")
+    if os.path.isfile(theirs):
+        extra = sorted(_kill_list_names(theirs) - set(KILL_LIST))
+        if extra:
+            print(f"  REFUSING TO RUN. --app-root's launcher kills {extra}, which this launcher does not.")
+            sys.exit(1)
+    mine = os.path.normcase(os.path.abspath(REPO_ROOT))
+    sys.path[:] = [x for x in sys.path if os.path.normcase(os.path.abspath(x or os.getcwd())) != mine]
+    sys.path.insert(0, app_root)
+    REPO_ROOT = app_root
+    return app_root
+
+
+def _append_unhashed(log_file, label, extra=None):
+    """One checkpoint line in the integrity log's own format (data_root_snapshot.append_log), saying the shared
+    root was not read. The harness parses it like any other line; its verdict is NOT HASHED, so it never reads
+    as clean evidence about the live root."""
+    import io
+    fresh = not os.path.exists(log_file)
+    with io.open(log_file, "a", encoding="utf-8", newline="\n") as fh:
+        if fresh:
+            fh.write("# Sandbox run — integrity log (shared data root NOT read)\n\n"
+                     "This run was started with --no-shared-root-snapshot: it never stats, hashes or opens the\n"
+                     "shared data root. Writes there are still refused by the tripwire (conftest guard).\n\n")
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        fh.write(f"- `{now}`  **{label}** — {NOT_OPENED_ROOT}, 0 db files — {NOT_HASHED}\n")
+        if extra:
+            fh.write(f"    - {extra}\n")
+    return log_file
+
+
+def _start_post_boot_marker(log_file, port):
+    """The checkpoints a harness waits for, written once the server answers, with no snapshot taken."""
+    import urllib.request
+
+    def _run():
+        deadline = time.time() + 180
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=3) as r:
+                    if r.status == 200:
+                        break
+            except Exception:  # noqa: BLE001 -- not up yet
+                pass
+            time.sleep(2)
+        else:
+            print("  [post-boot] server never became healthy.")
+            return
+        for label, delay in (("post-boot (+15s)", 15), ("post-prewarm (+120s)", 105)):
+            time.sleep(delay)
+            _append_unhashed(log_file, label)
+
+    threading.Thread(target=_run, daemon=True, name="data-root-marker").start()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data-dir", default=r"C:\data-hubtest")
@@ -523,10 +629,19 @@ def main():
     ap.add_argument("--allow-model-keys", action="store_true",
                     help="pass ANTHROPIC/OPENAI/PERPLEXITY keys through (PAID model "
                          f"calls possible). Default blanks them. Env form: {ALLOW_MODEL_KEYS_ENV}=1")
+    ap.add_argument("--app-root", default=None,
+                    help="serve this checkout's api/ (and derive its census) instead of the one this launcher sits in")
+    ap.add_argument("--log-dir", default=None,
+                    help="write the integrity log into this directory (a tool's own --out), never the repo")
+    ap.add_argument("--no-shared-root-snapshot", action="store_true",
+                    help="never stat, hash or open the shared data root (C:\\data): the checkpoints say NOT HASHED. "
+                         "For tools under the rule that nothing opens it (the notebook campaign)")
     args = ap.parse_args()
 
     sandbox = os.path.abspath(args.data_dir)
     _refuse_port_in_use(args.port)
+    if args.app_root:
+        _use_app_root(args.app_root)
 
     # ⛔ THE SNAPSHOT IS THE FIRST THING THIS RUN REPORTS, BEFORE ANY HEALTH
     # CHECK. "Reports clean" is never evidence of "wrote nowhere" — the boot
@@ -542,13 +657,18 @@ def main():
     # IS the sandbox that writes this log (`sandbox_identity.verify`) -- never "whatever
     # answers the port".
     nonce = sid.mint()
-    log_file = drs.log_path_for(REPO_ROOT)
-    baseline = drs.snapshot()
-    drs.append_log(log_file, "pre-boot (baseline)", drs.DEFAULT_ROOT,
-                   len(baseline), [], extra=sid.log_extra(sandbox, nonce))
+    log_file = _log_file(args.log_dir, drs)
+    hashed = not args.no_shared_root_snapshot
+    if hashed:
+        baseline = drs.snapshot()
+        drs.append_log(log_file, "pre-boot (baseline)", drs.DEFAULT_ROOT,
+                       len(baseline), [], extra=sid.log_extra(sandbox, nonce))
+    else:
+        baseline = None
+        _append_unhashed(log_file, "pre-boot (baseline)", extra=sid.log_extra(sandbox, nonce))
     print("")
     print(f"  [pre-boot] shared data root baseline: {len(baseline)} db files "
-          f"hashed (sha256)")
+          f"hashed (sha256)" if hashed else f"  [pre-boot] {NOT_OPENED_ROOT}")
     print(f"  [pre-boot] integrity log: {log_file}")
     print(f"  [pre-boot] sandbox identity: {nonce} (served at {sid.IDENTITY_PATH})")
 
@@ -583,7 +703,10 @@ def main():
     print("  reach live data and was stopped. Report it; do not ignore it.")
     print("")
 
-    _start_post_boot_compare(drs, baseline, log_file, args.port)
+    if hashed:
+        _start_post_boot_compare(drs, baseline, log_file, args.port)
+    else:
+        _start_post_boot_marker(log_file, args.port)
 
     import uvicorn
     try:
@@ -598,14 +721,18 @@ def main():
         # Shutdown checkpoint. A leak that only happens on teardown — a
         # checkpoint, a flush, an atexit handler — would be invisible to the
         # post-boot check alone.
-        diffs = drs.compare(baseline, drs.snapshot())
-        drs.append_log(log_file, "shutdown", drs.DEFAULT_ROOT,
-                       len(baseline), diffs)
-        if diffs:
-            drs._print_diffs("shutdown", diffs)
-            sys.exit(2)
-        print(f"  [shutdown] shared data root CLEAN ({len(baseline)} db files "
-              f"byte-identical). Log: {log_file}")
+        if not hashed:
+            _append_unhashed(log_file, "shutdown")
+            print(f"  [shutdown] {NOT_OPENED_ROOT}. Log: {log_file}")
+        else:
+            diffs = drs.compare(baseline, drs.snapshot())
+            drs.append_log(log_file, "shutdown", drs.DEFAULT_ROOT,
+                           len(baseline), diffs)
+            if diffs:
+                drs._print_diffs("shutdown", diffs)
+                sys.exit(2)
+            print(f"  [shutdown] shared data root CLEAN ({len(baseline)} db files "
+                  f"byte-identical). Log: {log_file}")
 
 
 if __name__ == "__main__":
