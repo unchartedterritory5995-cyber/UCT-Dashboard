@@ -540,6 +540,7 @@ def test_deleting_a_kind_keeps_its_deleted_templates_and_restore_refuses_them(db
     """c3 (W11-R10): `note_kinds.delete_kind` never hard-deletes a style row. The deleted template stays in Recently
     deleted (and readable for any note's stamp); restoring it is refused while its kind is gone."""
     from api.services.journal_two import note_kinds as nk
+    assert nk._keeps_deleted_styles()                  # W11-R69: kept because wave 11 is on in this suite's world
     k = nk.create_kind(MEMBER, "Swing", conn=db)
     s = _mine(db, "Swing plan", kind=k["id"])
     js.archive_style(MEMBER, s["id"], conn=db)
