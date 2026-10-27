@@ -71,6 +71,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -83,6 +84,7 @@ from api.middleware.auth_middleware import (
 from api.services import daily_counters
 from api.services.journal_two import journal_styles as js
 from api.services.journal_two import notes as notes_service
+from api.services.journal_two import note_personal_api as papi
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import template_gallery as gallery
 from api.services.journal_two import template_library
@@ -600,8 +602,20 @@ async def w11_body(request: Request, _user: dict = Depends(require_paid)) -> dic
         lambda: body_cap.read_capped_body(request, W11_MAX_BODY_BYTES, TOO_LARGE_SENTENCE), W11_MAX_BODY_DEPTH, _err)
 
 
+#: 11.20 R1: the house sentence for another writer holding auth.db past its 3 s (the personal API's own words).
+DATABASE_BUSY_SENTENCE = papi.BUSY_SENTENCE
+
+
+def _database_busy(e: BaseException) -> bool:
+    """SQLite's own words for a write lock it could not get in time; any other OperationalError is a real fault."""
+    text = str(e).lower()
+    return isinstance(e, sqlite3.OperationalError) and ("locked" in text or "busy" in text)
+
+
 def _w11(fn) -> Any:
-    """Run `fn()`; answer every refusal from its CLASS (W9-R14). None is the one 404."""
+    """Run `fn()`; answer every refusal from its CLASS (W9-R14). None is the one 404. 11.20 R1: a database another
+    writer holds past the timeout is 503 `busy` with the house sentence (nothing was written: every wave 11 write is
+    one transaction), never a 500; the client resends the same Idempotency-Key on `busy`."""
     try:
         out = fn()
     except HTTPException:
@@ -641,6 +655,10 @@ def _w11(fn) -> Any:
         raise _err(503, "busy", e.sentence)
     except wrun.EngineTooLong as e:
         raise _err(503, "too_long", e.sentence)
+    except sqlite3.OperationalError as e:
+        if not _database_busy(e):
+            raise
+        raise _err(503, "busy", DATABASE_BUSY_SENTENCE) from None
     if out is None:
         raise public.not_found()
     return out

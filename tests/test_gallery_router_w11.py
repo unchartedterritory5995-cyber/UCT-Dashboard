@@ -877,3 +877,53 @@ def test_a_second_use_does_not_ask_the_routine_question_again(app, client, db):
     as_user(app, OTHER)
     other = _send(client, "POST", f"{GALLERY}/{gid}/preview-mine", {})
     assert [q["slot"] for q in other.json()["questions"]] == ["routine_a"]
+
+
+def _hold_write_lock():
+    """Another writer holding auth.db's write lock (a second connection inside BEGIN IMMEDIATE)."""
+    import sqlite3
+    from api.services import auth_db
+    holder = sqlite3.connect(auth_db._DB_PATH, isolation_level=None)
+    holder.execute("BEGIN IMMEDIATE")
+    return holder
+
+
+def test_a_busy_database_is_the_busy_answer_never_a_500_on_adopt_and_use(app, client, db):
+    # 11.20 rehearsal R1: adopt-tool answered 500 with an unhandled `sqlite3.OperationalError: database is locked`
+    # while another writer held the lock past auth.db's 3 s. Through the REAL doors, with a real held lock: the
+    # member gets 503 `busy` with the house sentence (no-store, a code the client resends the same key on), nothing
+    # is made, and the same press succeeds once the lock is gone.
+    from api.routers import notebook_template_gallery as tgr
+    from api.services import daily_counters
+    r = routine(db)
+    gid = list_tool(db, "routine", r["id"], edits={"name": "Open", "items": ["Coffee", "Mark levels"]})
+    off = _official(db)
+    as_user(app, MEMBER)
+    before = db.execute("SELECT COUNT(*) FROM j2_routines WHERE user_id = ?", (MEMBER,)).fetchone()[0]
+    key = {"Idempotency-Key": str(uuid.uuid4())}
+    holder = _hold_write_lock()
+    try:
+        got = _send(client, "POST", f"{GALLERY}/{gid}/adopt-tool", {}, key)
+        used = _send(client, "POST", f"{GALLERY}/{off}/use-template", {"choices": {"routine_a": {"create": True}}})
+    finally:
+        holder.rollback()
+        holder.close()
+    for resp in (got, used):
+        assert resp.status_code == 503
+        assert resp.json()["detail"] == {"code": "busy", "message": tgr.DATABASE_BUSY_SENTENCE}
+        assert _no_store(resp)
+    assert db.execute("SELECT COUNT(*) FROM j2_routines WHERE user_id = ?", (MEMBER,)).fetchone()[0] == before
+    from api.services.journal_two.calendar import et_today
+    assert daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER) == 0       # no adopt charge kept
+    again = _send(client, "POST", f"{GALLERY}/{gid}/adopt-tool", {}, key)            # the same press, lock gone
+    assert again.status_code == 200 and not again.json().get("replayed")
+
+
+def test_an_operational_error_that_is_not_busy_is_not_dressed_as_busy(app, client, db, monkeypatch):
+    # CONTROL: only SQLite's busy/locked words are the busy answer; any other database fault stays a server fault.
+    import sqlite3
+    monkeypatch.setattr(gallery, "adopt_tool", lambda *a, **k: (_ for _ in ()).throw(
+        sqlite3.OperationalError("no such table: j2_routines")))
+    as_user(app, MEMBER)
+    with pytest.raises(sqlite3.OperationalError):
+        _send(client, "POST", f"{GALLERY}/g1/adopt-tool", {})
