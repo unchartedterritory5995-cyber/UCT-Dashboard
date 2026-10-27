@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
 import { acquireFullscreenSheet } from './fullscreenSheetAttr'
-import { inertBackground, openerLayer } from './backgroundInert'
+import { inertBackground, openerLayer, MODAL_Z } from './backgroundInert'
 import styles from './Sheet.module.css'
 
 /* Sheet — responsive modal / drawer primitive.
@@ -116,11 +116,14 @@ export default function Sheet({
   // ⛔ The layer is found from WHERE THIS SHEET IS RENDERED (a hidden anchor left in place while the panel portals to
   // <body>), never from focus: iOS Safari does not focus a tapped button, so `document.activeElement` is <body> there.
   const anchorRef = useRef(null)
+  const liftOf = () => {
+    const z = openerLayer(anchorRef.current || openerAtRender)?.z
+    return Number.isFinite(z) && z >= MODAL_Z ? z + 1 : null
+  }
   const [layerZ, setLayerZ] = useState(null)
   useLayoutEffect(() => {
-    if (!open) { setLayerZ(null); return }
-    const z = openerLayer(anchorRef.current || openerAtRender)?.z
-    setLayerZ(Number.isFinite(z) && z >= 1000 ? z + 1 : null)
+    setLayerZ(open ? liftOf() : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, openerAtRender])
   const backdropZ = zIndex != null ? zIndex : layerZ
 
@@ -142,8 +145,11 @@ export default function Sheet({
   // declaration order, so the page is live again before focus is put back on the opener inside it.
   useEffect(() => {
     if (!open) return undefined
-    // W11-R80: the opener's own layer (a popup portal above the modal rung) stays live.
-    return inertBackground(panelRef.current?.parentElement || null, anchorRef.current || openerAtRender)
+    // W11-R82: everything under this sheet's scrim is inert; only a keep-live layer drawn above this sheet's own z
+    // stays live. The z is worked out here, as the render's (a caller's `zIndex`, else the lift, else the modal rung).
+    const z = zIndex != null ? Number(zIndex) : (liftOf() ?? MODAL_Z)
+    return inertBackground(panelRef.current?.parentElement || null, Number.isFinite(z) ? z : MODAL_Z)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, openerAtRender])
 
   // Escape to close + focus management

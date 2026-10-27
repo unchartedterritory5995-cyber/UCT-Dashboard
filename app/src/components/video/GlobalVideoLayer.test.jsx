@@ -1,7 +1,9 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import GlobalVideoLayer from './GlobalVideoLayer'
+import GlobalVideoLayer, { VIDEO_HOST_Z } from './GlobalVideoLayer'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import * as store from './videoStore'
 import { videoOwnsMediaSession, setVideoOwnsMediaSession } from './mediaSessionOwner'
 
@@ -1047,7 +1049,7 @@ describe('the player stays live above an open Sheet (W11-R80)', () => {
       act(() => store.play(LIST, 0))                                    // the player is up BEFORE the sheet opens
       const host = videoHost()
       expect(host.parentElement).toBe(document.body)
-      expect(host.hasAttribute('data-sheet-keep-live')).toBe(true)
+      expect(host.getAttribute('data-sheet-keep-live')).toBe(String(VIDEO_HOST_Z))
       view.rerender(tree(true))
       expect(appRoot.hasAttribute('inert')).toBe(true)                 // the page under the sheet is still inert
       expect(host.closest('[inert]')).toBeNull()                        // the player is not
@@ -1058,4 +1060,10 @@ describe('the player stays live above an open Sheet (W11-R80)', () => {
       appRoot.remove()
     }
   })
+})
+
+it("W11-R82: the keep-live marker's z is the host's own CSS z-index (one number)", () => {
+  const css = readFileSync(join(process.cwd(), 'src/components/video/GlobalVideoLayer.module.css'), 'utf8')
+  const host = /[.]host[ ]*[{]([^}]*)[}]/.exec(css)[1]
+  expect(Number(/z-index:[ ]*([0-9]+)/.exec(host)[1])).toBe(VIDEO_HOST_Z)
 })

@@ -105,10 +105,11 @@ test('CONTROL: an element that was inert before the sheet opened is still inert 
   }
 })
 
-// W11-R80 (review I-1): two layers the app draws ABOVE every modal must stay live while a sheet is open.
-test('a body child marked data-sheet-keep-live (the video player) stays live; an unmarked one does not', async () => {
+// W11-R80/R82 (review I-1): a keep-live layer drawn ABOVE the sheet's backdrop stays live; everything under the scrim
+// is inert (W11-R82: a keep-live layer is live only while its z is above the sheet's).
+test('a body child marked data-sheet-keep-live (the video player) stays live under a normal sheet; an unmarked one does not', async () => {
   const live = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'video' }))
-  live.setAttribute('data-sheet-keep-live', '')
+  live.setAttribute('data-sheet-keep-live', '8500')                    // its z: above the modal rung (1000)
   const other = document.body.appendChild(document.createElement('div'))
   try {
     renderApp(<Host />)
@@ -135,14 +136,35 @@ function PopupHost() {
   )
 }
 
-test('a sheet opened from inside a higher popup leaves its host popup live, and is drawn above it', async () => {
+test('W11-R82: a sheet opened from inside a higher popup is drawn above it and operable, and the popup under its scrim is inert until it closes', async () => {
   renderApp(<><button type="button">Page</button><PopupHost /></>)
   fireEvent.click(screen.getByRole('button', { name: 'Chart tools' }))
   await frames()
   const popup = screen.getByTestId('popup')
-  expect(popup.hasAttribute('inert')).toBe(false)                    // the opener's own layer
-  expect(appRoot.hasAttribute('inert')).toBe(true)                   // the page under both is still inert
-  expect(Number(backdropOf('Tools').style.zIndex)).toBeGreaterThan(8600)
+  expect(Number(backdropOf('Tools').style.zIndex)).toBeGreaterThan(8600)   // lifted above its host
+  expect(backdropOf('Tools').hasAttribute('inert')).toBe(false)              // and operable
+  expect(screen.getByRole('button', { name: 'Draw' }).closest('[inert]')).toBeNull()
+  expect(popup.hasAttribute('inert')).toBe(true)                             // under the scrim: inert
+  expect(appRoot.hasAttribute('inert')).toBe(true)
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await frames()
+  expect(popup.hasAttribute('inert')).toBe(false)                            // live again after
+})
+
+test('W11-R82: a keep-live layer BELOW a lifted sheet (the 8500 player under an 8601 sheet) is inert while it is open', async () => {
+  const video = document.body.appendChild(document.createElement('div'))
+  video.setAttribute('data-sheet-keep-live', '8500')
+  try {
+    renderApp(<PopupHost />)
+    fireEvent.click(screen.getByRole('button', { name: 'Chart tools' }))
+    await frames()
+    expect(video.hasAttribute('inert')).toBe(true)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await frames()
+    expect(video.hasAttribute('inert')).toBe(false)
+  } finally {
+    video.remove()
+  }
 })
 
 test('CONTROL: a sheet opened from the page keeps the default modal rung (no inline z-index)', async () => {

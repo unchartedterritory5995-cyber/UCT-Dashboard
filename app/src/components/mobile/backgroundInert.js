@@ -11,12 +11,12 @@
 // The returned release must run BEFORE focus is restored to the opener (an inert element cannot take focus): Sheet
 // declares this effect before its focus effect, and React runs cleanups in declaration order.
 //
-// ⛔ W11-R80 (review I-1): two layers stay LIVE, because the app draws them ABOVE every modal and `inert` hit-tests
-// like `pointer-events: none` (a tap on them would fall through to the sheet's backdrop and close it):
-//   * a <body> child marked `data-sheet-keep-live` (GlobalVideoLayer's player host, z 8500, a portal for this reason:
-//     inert is inherited, so nothing INSIDE an inert #root can be exempted);
-//   * the opener's own layer (`openerLayer`): the <body> portal the sheet was opened from, when that is neither the
-//     app root nor another sheet (TickerPopup's modal, z 8600). A nested sheet's outer sheet is still made inert.
+// ⛔ W11-R80 / W11-R82 (review I-1): ONE layer kind stays live, and only while it is drawn ABOVE this sheet: a <body>
+// child marked `data-sheet-keep-live="<its z-index>"` (GlobalVideoLayer's player host, a portal for this reason: inert
+// is inherited, so nothing INSIDE an inert #root can be exempted). `inert` hit-tests like `pointer-events: none`, so a
+// layer above the scrim must stay live or a tap on it falls through to the backdrop. A layer UNDER the scrim (the player
+// under a sheet lifted above it, the popup a sheet was opened from once the sheet is lifted above it, a menu portal) is
+// covered: nothing can reach it, so it is inert like the rest of the page (R82: the opener-layer skip is gone).
 const held = new WeakMap()   // element -> how many open sheets hold it inert
 const KEEP_LIVE = 'data-sheet-keep-live'
 
@@ -38,13 +38,25 @@ export function openerLayer(opener) {
   return { el: host, z }
 }
 
-export function inertBackground(own, opener = null) {
+/** The z a keep-live layer is drawn at: the higher of its computed z-index and the one its marker declares (the marker
+ *  carries the layer's own number, e.g. `data-sheet-keep-live="8500"`, read where CSS cannot be: jsdom, a stylesheet
+ *  not yet applied). NaN when neither is a number: such a layer is never kept live. */
+function layerZOf(el) {
+  const a = parseInt(el.getAttribute(KEEP_LIVE), 10)
+  const c = typeof getComputedStyle === 'function' ? parseInt(getComputedStyle(el).zIndex, 10) : NaN
+  const zs = [a, c].filter(Number.isFinite)
+  return zs.length ? Math.max(...zs) : NaN
+}
+
+/** The rung every Sheet backdrop sits on unless lifted (`--z-modal`, tokens.css). */
+export const MODAL_Z = 1000
+
+export function inertBackground(own, sheetZ = MODAL_Z) {
   if (typeof document === 'undefined' || !document.body) return () => {}
   const mine = []
-  const layer = openerLayer(opener)?.el || null
   for (const el of [...document.body.children]) {
     if (el === own || (own && el.contains(own)) || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue
-    if (el === layer || el.hasAttribute(KEEP_LIVE)) continue      // W11-R80: drawn above the modal, kept live
+    if (el.hasAttribute(KEEP_LIVE) && layerZOf(el) > sheetZ) continue   // drawn ABOVE this sheet: kept live
     const n = held.get(el)
     if (n === undefined) {
       if (el.hasAttribute('inert')) continue        // somebody else's: leave it exactly as it is

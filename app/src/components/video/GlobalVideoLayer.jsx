@@ -29,6 +29,9 @@ import {
 import styles from './GlobalVideoLayer.module.css'
 
 const NEXT_COUNTDOWN = 6
+// W11-R82: the host's z-index (GlobalVideoLayer.module.css `.host`, railed equal by GlobalVideoLayer.test.jsx). Its
+// keep-live marker carries it, so an open Sheet keeps the player live only while the player is drawn above that sheet.
+export const VIDEO_HOST_Z = 8500
 
 function useViewport() {
   const [vp, setVp] = useState(() => ({
@@ -802,7 +805,7 @@ export default function GlobalVideoLayer() {
   // while a Sheet is open the page under it is `inert` (components/mobile/backgroundInert.js); inert is inherited, so a
   // player inside #root went dead under every sheet while still on screen, and a tap fell through to the backdrop.
   return createPortal(
-    <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode} data-video-host="" data-sheet-keep-live="">
+    <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode} data-video-host="" data-sheet-keep-live={String(VIDEO_HOST_Z)}>
       <div ref={hostRef} className={styles.frame} />
       {/* Mobile audio-primary track. Inert unless isAudioPrimary() is driving
           it (flag off / desktop pointer => never gets a src). A 404 (no
