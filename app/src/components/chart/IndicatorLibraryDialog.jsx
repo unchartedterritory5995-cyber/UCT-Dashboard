@@ -63,7 +63,7 @@
 // job is to offer a member their own formulas and therefore the surface that
 // owes them a sentence when it cannot. See `indicatorCatalog.userRefusalRows`.
 import { orderCategories } from './technicalCategories'
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, useId } from 'react'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
@@ -405,6 +405,11 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     return exact ? [exact, ...ranked.filter((c) => c !== exact)] : ranked
   }, [rows, symbolRows, query])
 
+  // ⭐ A row's description id, for its title button's `aria-describedby`. The key
+  // is encoded injectively (every non-alphanumeric becomes its code point).
+  const blurbBase = useId()
+  const blurbId = (row) => `${blurbBase}-blurb-${String(row.key || row.id).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)}`
+
   const toggle = useCallback((row) => {
     // ⭐ A DISCOVERY RESULT CREATES THROUGH THE FACADE. `toggledRow` speaks
     // definitions, overlays and settings slices; a SYMBOL is none of those, and
@@ -506,7 +511,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
         {groups.map((category) => (
           <section key={category} className={styles.group}>
             <h3 className={styles.groupHead}>{category}</h3>
-            <ul className={styles.list} role="listbox" aria-label={category}>
+            <ul className={styles.list} aria-label={category}>
               {rows.filter((r) => r.category === category).map((row) => {
                 // ⛔ A SYMBOL IS NEVER "ALREADY ON" — `isRowOn` answers per
                 // DEFINITION and a symbol row's id is a ticker. Three QQQ series on
@@ -517,10 +522,17 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                 const on = !!vis && vis.state === 'shown'
                 const hiddenRow = !!vis && vis.state === 'hidden'
                 return (
+                  /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS TITLE LINE IS. This `<li>`
+                     was a `role="option"` with `tabIndex={0}`, and an ON row
+                     carries "+ Add another" — a focusable control nested inside an
+                     interactive one (axe `nested-interactive`, measured on
+                     `movingAverage`, the one row on a default chart). An option
+                     cannot hold a button, so the list is a plain list: the toggle
+                     is the real `<button aria-pressed>` round the title line, its
+                     click BUBBLES to this `onClick` (one writer for pointer and
+                     keyboard), and "+ Add another" is its sibling. */
                   <li
                     key={row.key || row.id}
-                    role="option"
-                    aria-selected={on}
                     data-def-id={row.id}
                     data-result-kind={row.kind || undefined}
                     /* ⭐ THE PROVENANCE, ON THE ROW ITSELF. A member's formula is
@@ -530,19 +542,25 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                        below + the pill) rather than only by which heading it
                        happens to sit under. */
                     data-user-defined={row.userDefined ? 'true' : 'false'}
-                    tabIndex={0}
                     className={`${styles.row} ${on ? styles.rowOn : ''} ${row.userDefined ? styles.rowMine : ''}`}
                     onClick={() => toggle(row)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(row) }
-                    }}
                   >
                     <span className={styles.check} aria-hidden="true"
                       title={vis && vis.partial ? `${vis.visible} of ${vis.live} shown` : undefined}>
                       {on ? (vis.partial ? '✓◐' : '✓') : hiddenRow ? '○' : ''}
                     </span>
                     <span className={styles.main}>
-                      <span className={styles.titleRow}>
+                      {/* ⭐ THE KEYBOARD DOOR. No handler of its own: Enter and
+                          Space click a native button and the click bubbles to the
+                          row. `aria-pressed` is the state `aria-selected` used to
+                          carry; the description is named by reference. */}
+                      <button
+                        type="button"
+                        className={`${styles.titleRow} ${styles.primary}`}
+                        data-result-primary="true"
+                        aria-pressed={on}
+                        aria-describedby={row.description ? blurbId(row) : undefined}
+                      >
                         {/* The LONG name here — `meta.name`. Menus, region titles
                             and compact strips take `shortName`; this surface and
                             the generated settings rows take the full one. */}
@@ -571,8 +589,8 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                         {row.tier && row.tier !== 'free' && !row.userDefined && (
                           <span className={styles.tier}>{row.tier}</span>
                         )}
-                      </span>
-                      {row.description && <span className={styles.blurb}>{row.description}</span>}
+                      </button>
+                      {row.description && <span className={styles.blurb} id={blurbId(row)}>{row.description}</span>}
                     </span>
                     {/* ⛔ ONLY ON A ROW THAT IS ON, AND NEVER ON THE CARVED-OUT ONE.
                         `volumeProfile` has no definition, so `addInstance` returns

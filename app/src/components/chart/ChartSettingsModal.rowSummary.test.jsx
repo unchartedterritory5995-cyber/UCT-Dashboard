@@ -435,8 +435,10 @@ describe('accessibility — the way this feature broke before', () => {
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
     for (const row of document.body.querySelectorAll('[data-structure-row]')) {
-      expect(row.getAttribute('role')).toBe('option')
-      const controls = [...row.querySelectorAll('button')]
+      // ⚠️ The row's name button IS the row (it was the option); it is not a
+      // control the row grew, so it is set aside and required exactly once.
+      expect(row.querySelectorAll('[data-row-primary]').length).toBe(1)
+      const controls = [...row.querySelectorAll('button:not([data-row-primary])')]
       expect(controls.length, 'a row grew more controls than the order handle')
         .toBeLessThanOrEqual(1)
       for (const b of controls) {

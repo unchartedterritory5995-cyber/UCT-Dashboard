@@ -252,6 +252,7 @@ describe('Patterns button ⇄ Auto patterns — one source of truth', () => {
 // ─── The Indicators library: the row exists only where the host offers it ─────
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import * as engineRegistry from './engine/nativeRegistry'
+import { primaryOf } from './__tests__/resultRows'
 
 const uctRow = () => document.querySelector('[data-def-id="uctIntelligence"]')
 
@@ -267,7 +268,7 @@ describe('Indicators library — UCT Intelligence entry', () => {
     render(<IndicatorLibraryDialog open onClose={() => {}} settings={mergeChartSettings(null)}
       onChange={onChange} registry={engineRegistry} extraRows={[UCT_INTELLIGENCE_ROW]} />)
     expect(document.querySelectorAll('[data-def-id="uctIntelligence"]')).toHaveLength(1)
-    expect(uctRow().getAttribute('aria-selected')).toBe('false')
+    expect(primaryOf(uctRow()).getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(uctRow())
     const written = onChange.mock.calls.at(-1)[0]
     expect(written.showPatterns).toBe(true)
@@ -279,7 +280,7 @@ describe('Indicators library — UCT Intelligence entry', () => {
     const added = addUctIntelligence(mergeChartSettings(null))
     render(<IndicatorLibraryDialog open onClose={() => {}} settings={added}
       onChange={onChange} registry={engineRegistry} extraRows={[UCT_INTELLIGENCE_ROW]} />)
-    expect(uctRow().getAttribute('aria-selected')).toBe('true')
+    expect(primaryOf(uctRow()).getAttribute('aria-pressed')).toBe('true')
     expect(screen.queryByLabelText('Add another UCT Intelligence')).toBeNull()
     fireEvent.click(uctRow())
     const written = onChange.mock.calls.at(-1)[0]

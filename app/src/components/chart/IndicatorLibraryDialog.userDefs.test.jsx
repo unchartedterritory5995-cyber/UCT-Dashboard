@@ -42,6 +42,7 @@ import { ENGINE_OWNED } from './engine/flipState'
 import { buildDefinition } from './builder/BuilderSheet'
 import { evaluateFormula } from './builder/FormulaField'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { resultRows, getResultRow } from './__tests__/resultRows'
 
 // ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
 //
@@ -112,7 +113,7 @@ const open = (settings = base()) => {
   return { onChange, view }
 }
 
-const optionIds = () => screen.getAllByRole('option').map((o) => o.dataset.defId)
+const optionIds = () => resultRows().map((o) => o.dataset.defId)
 /** ⚠️ SORTED, because the DOM order is the dialog's CATEGORY GROUPING, not
  *  registry order — the rows are rendered one `<section>` per category. Sorted
  *  equality still catches a duplicate or a drop (equal multisets), which is what
@@ -136,7 +137,7 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     // The claim, at the level a member experiences it: the row exists, in the
     // list they browse, addressable by the name they typed.
     expect(optionIds()).toContain(USER_ID)
-    const row = screen.getByRole('option', { name: /20-bar average/ })
+    const row = getResultRow(/20-bar average/)
     expect(row).toBeTruthy()
     // …and the blurb IS `meta.description`, which `buildDefinition` fills from
     // the read-back derived from their own tree — the same sentence they
@@ -153,7 +154,7 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     // dialog makes, not a missing field.
     expect(def.meta.tier).toBe('premium')
     open()
-    const row = screen.getByRole('option', { name: /20-bar average/ })
+    const row = getResultRow(/20-bar average/)
     expect(within(row).getByText('Your formula')).toBeTruthy()
     expect(within(row).queryByText(/^premium$/i),
       'the tier badge is on the member\'s own row — beside "Your formula", "Premium" reads as "you cannot use this"')
@@ -166,7 +167,7 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     // declares `Depends(require_paid)` — see the definition's own comment), so
     // its badge must still render. `indicatorCatalog.test.js` pins `d.meta.tier`
     // for it but never touches the DOM — this is that render-side half.
-    const rsLineRow = screen.getByRole('option', { name: /Relative Strength Line/ })
+    const rsLineRow = getResultRow(/Relative Strength Line/)
     expect(within(rsLineRow).getByText('premium')).toBeTruthy()
   })
 
@@ -240,12 +241,12 @@ describe('⭐ it is visually a DIFFERENT KIND OF THING, not a sixteenth indicato
   it('carries the provenance on the ROW — an attribute and a named pill, not colour alone', () => {
     install(memberFormula('20-bar average'))
     open()
-    const mine = screen.getByRole('option', { name: /20-bar average/ })
+    const mine = getResultRow(/20-bar average/)
     expect(mine.getAttribute('data-user-defined')).toBe('true')
     expect(within(mine).getByText('Your formula')).toBeTruthy()
     // ⛔ CONTROL: a shipped row is marked as NOT a member's, and shows no pill.
     // Without this the attribute could be hardcoded 'true' on every row.
-    const rsi = screen.getByRole('option', { name: /Relative Strength Index/ })
+    const rsi = getResultRow(/Relative Strength Index/)
     expect(rsi.getAttribute('data-user-defined')).toBe('false')
     expect(within(rsi).queryByText('Your formula')).toBeNull()
   })
@@ -294,7 +295,7 @@ describe('⭐ the row is a live control, through the ONE writer', () => {
     const [def] = install(memberFormula('20-bar average'))
     const settings = base()
     const { onChange } = open(settings)
-    fireEvent.click(screen.getByRole('option', { name: /20-bar average/ }))
+    fireEvent.click(getResultRow(/20-bar average/))
     expect(onChange).toHaveBeenCalledTimes(1)
     const next = onChange.mock.calls[0][0]
     // ⛔ AN INSTANCE, not just a legacy toggle — the instance list is what the
