@@ -188,41 +188,32 @@ export const LIBRARY_GROUPS = Object.freeze([
 ])
 
 /**
- * Task 11.16 fix round 1 (review I-1): the template picker's category chips are its FAMILIES keys
- * (lib/notebookTemplates.js), and a listed template carries one of the gallery's CATEGORIES
- * (`template_gallery.CATEGORIES`, lib/templateGallery.js GALLERY_CATEGORIES). No existing module relates the two, so
- * this is the ONE mapping: a family chip keeps the Template library rows whose category is in its list.
- *   * rituals ("Daily & weekly rituals") -> journal, review: the daily journal and the weekly review;
- *   * research ("Thesis & research") -> research;
- *   * trades ("Around a trade") -> trade_plan;
- *   * mind ("Mindset") -> no category; it keeps the library's own Mindset GROUP (FAMILY_GROUPS below).
- * Merge step M3: mind used to map to journal, so two chips shared one category, and the official seed
- * (template_library_seed.json, Task 11.10) holds no journal row at all: the Mindset chip reached no official template.
- * A mindset template is a research or review row by category, so the chip that names it is matched by GROUP.
- * ⛔ Railed by TemplateLibrarySection.test.jsx: its keys are exactly FAMILIES' keys, every category it names is in
- *    the server's CATEGORIES tuple (parsed from template_gallery.py, never retyped), every server category is
- *    reached by exactly ONE chip, and every chip keeps at least one row of the shipped seed (parsed, never retyped).
- */
-export const FAMILY_CATEGORIES = Object.freeze({
-  rituals: Object.freeze(['journal', 'review']),
-  research: Object.freeze(['research']),
-  trades: Object.freeze(['trade_plan']),
-  mind: Object.freeze([]),
-})
-
-/**
- * Merge step M3: a family chip may also keep the library rows of named GROUPS (`template_library.GROUPS` keys, the
- * LIBRARY_GROUPS above). A row passes a chip when its category OR its group is the chip's.
+ * Which Template library rows each of the template picker's category chips keeps (its FAMILIES keys,
+ * lib/notebookTemplates.js). ONE authority: the row's library GROUP (`template_library.GROUPS`, LIBRARY_GROUPS above),
+ * which IS spec §10's "Categories follow a trader's routine" list, word for word, one category per template.
+ * Merge fix round 1 (W11-R68): the chips used to follow the gallery `category` field, which has four values
+ * (`template_gallery.CATEGORIES`) for the spec's nine, so every daily-prep row read as "research" and Pre-session
+ * check-in sat under two chips. Each group belongs to exactly ONE chip:
+ *   * rituals ("Daily & weekly rituals"): the night before, before the open, after the close, weekly / monthly,
+ *     challenges and habits (Night-before prep, Pre-market prep, Morning routine, ...);
+ *   * trades ("Around a trade"): during the day (Mid-day and risk check, Trade plan (one idea));
+ *   * research ("Thesis & research"): playbook (Setup study, New setup idea, Rules review, Options trade plan);
+ *   * mind ("Mindset"): mindset (Pre-session check-in).
+ * ⛔ Railed by TemplateLibrarySection.test.jsx: its keys are exactly FAMILIES' keys, every server group is in exactly
+ *    one chip, and every template of the spec §10 table (parsed from the spec) is kept by exactly one chip, the one
+ *    its spec category maps to, matched against the shipped seed (parsed, never retyped).
  */
 export const FAMILY_GROUPS = Object.freeze({
+  rituals: Object.freeze(['night_before', 'before_open', 'after_close', 'weekly_monthly', 'challenges', 'habits']),
+  trades: Object.freeze(['during_day']),
+  research: Object.freeze(['playbook']),
   mind: Object.freeze(['mindset']),
 })
 
-/** Does a library row pass a family chip (a FAMILIES key)? Its category or its group is the chip's. */
+/** Does a library row pass a family chip (a FAMILIES key)? Its library group is one of the chip's. */
 export function familyKeeps(family, row) {
-  const cats = Object.hasOwn(FAMILY_CATEGORIES, family) ? FAMILY_CATEGORIES[family] : []
   const groups = Object.hasOwn(FAMILY_GROUPS, family) ? FAMILY_GROUPS[family] : []
-  return cats.includes(row?.category) || groups.includes(row?.group)
+  return groups.includes(row?.group)
 }
 
 /** Preview with my data (W11-R12): each choice at its answer, its suggested value or Any. */

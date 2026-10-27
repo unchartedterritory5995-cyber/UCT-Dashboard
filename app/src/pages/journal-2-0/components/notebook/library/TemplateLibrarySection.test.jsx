@@ -9,16 +9,35 @@ import { render, screen, within, cleanup, waitFor } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import TemplateLibrarySection, { IN_YOURS, SECTION_TITLE } from './TemplateLibrarySection'
 import LibraryCardFacts, { FILLS_SENTENCE, containsWords, updatedWords, usedByWords } from './LibraryCardFacts'
-import { FAMILY_CATEGORIES, FAMILY_GROUPS, LIBRARY_GROUPS, familyKeeps } from '../../../lib/templateLibrary'
+import { FAMILY_GROUPS, LIBRARY_GROUPS, familyKeeps } from '../../../lib/templateLibrary'
+import { contractBody } from '../../../__fixtures__/contract'
 import { FAMILIES } from '../../../lib/notebookTemplates'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-/** The server's gallery categories, parsed from template_gallery.py (never retyped here). */
-function serverCategories() {
-  const src = readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'template_gallery.py'), 'utf8')
-  const m = /^CATEGORIES\s*=\s*\(([^)]*)\)/m.exec(src)
-  return m ? [...m[1].matchAll(/"([a-z_]+)"/g)].map((x) => x[1]) : []
+/**
+ * W11-R68: spec §10's "Categories follow a trader's routine" table, parsed from the spec itself (never retyped here):
+ * `[{label, items}]`, one entry per `  - <Category>: <item> · <item>` line, each item as written (a description in
+ * parentheses may follow its title).
+ */
+function specCategories() {
+  const src = readFileSync(join(process.cwd(), '..', 'docs', 'superpowers', 'specs',
+    '2026-10-24-notebook-widgets-phase2-design.md'), 'utf8').replace(/\r\n/g, '\n')
+  const at = src.indexOf("Categories follow a trader's routine:")
+  if (at < 0) return []
+  const out = []
+  for (const line of src.slice(at).split('\n').slice(1)) {
+    const m = /^ {2}- ([^:]+): (.+)$/.exec(line)
+    if (!m) break
+    out.push({ label: m[1].trim(), items: m[2].split(' · ').map((x) => x.trim()) })
+  }
+  return out
+}
+
+/** The seed row a spec item names: the longest seed title the item is, or starts with followed by " (". */
+function seedRowFor(item, seed) {
+  const hits = seed.filter((r) => item === r.title || item.startsWith(`${r.title} (`))
+  return hits.sort((a, b) => b.title.length - a.title.length)[0] || null
 }
 
 /** Merge step M4: the server's library groups, parsed from template_library.py's GROUPS tuple (never retyped). */
@@ -162,20 +181,12 @@ describe('the Template library section', () => {
     expect([...document.querySelectorAll('[data-library-card]')].map((c) => c.getAttribute('data-library-card'))).toEqual(['g-mind'])
   })
 
-  it("FAMILY_CATEGORIES is one mapping over the real chips and the server's real categories", () => {
-    const cats = serverCategories()
-    expect(cats.length).toBeGreaterThan(3)                                   // non-vacuity: the tuple was read
-    expect(Object.keys(FAMILY_CATEGORIES).sort()).toEqual(FAMILIES.map((f) => f.key).sort())
-    for (const list of Object.values(FAMILY_CATEGORIES)) for (const c of list) expect(cats).toContain(c)
-    // Every category the server can send is reached by exactly ONE chip: no listed template is unreachable, and
-    // no two chips share a category (merge step M3: rituals and mind both named journal).
-    for (const c of cats) expect(Object.values(FAMILY_CATEGORIES).filter((l) => l.includes(c)).length, c).toBe(1)
-    // FAMILY_GROUPS names real chips and real library groups.
-    const groupKeys = LIBRARY_GROUPS.map((g) => g.key)
-    for (const [fam, list] of Object.entries(FAMILY_GROUPS)) {
-      expect(FAMILIES.map((f) => f.key), fam).toContain(fam)
-      for (const g of list) expect(groupKeys, g).toContain(g)
-    }
+  it("FAMILY_GROUPS is one mapping: the real chips, the server's real groups, each group under exactly ONE chip", () => {
+    const groupKeys = serverGroups().map((g) => g.key)
+    expect(groupKeys.length).toBeGreaterThan(5)                              // non-vacuity: the tuple was read
+    expect(Object.keys(FAMILY_GROUPS).sort()).toEqual(FAMILIES.map((f) => f.key).sort())
+    for (const list of Object.values(FAMILY_GROUPS)) for (const g of list) expect(groupKeys, g).toContain(g)
+    for (const g of groupKeys) expect(Object.values(FAMILY_GROUPS).filter((l) => l.includes(g)).length, g).toBe(1)
   })
 
   it("LIBRARY_GROUPS is the server's template_library.GROUPS, key for key and word for word (M4)", () => {
@@ -184,31 +195,44 @@ describe('the Template library section', () => {
     expect(LIBRARY_GROUPS.map((g) => ({ key: g.key, label: g.label }))).toEqual(server)
   })
 
-  it('every picker chip keeps at least one row of the shipped official seed, and every seed row has a chip (M3)', () => {
+  it('W11-R68: every template of the spec §10 table is kept by exactly ONE chip, the one its spec category names', () => {
+    const spec = specCategories()
     const seed = seedRows()
+    const groups = serverGroups()
+    expect(spec.length).toBe(groups.length)                                  // non-vacuity: every category line read
     expect(seed.length).toBeGreaterThan(20)                                  // non-vacuity: the seed was read
-    for (const fam of FAMILIES) expect(seed.filter((r) => familyKeeps(fam.key, r)).length, fam.key).toBeGreaterThan(0)
-    for (const r of seed) expect(FAMILIES.some((f) => familyKeeps(f.key, r)), r.title).toBe(true)
-    // The Mindset chip keeps the library's Mindset group (its seed row is a research row by category).
-    expect(seed.filter((r) => familyKeeps('mind', r)).map((r) => r.group)).toEqual(seed.filter((r) => r.group === 'mindset').map(() => 'mindset'))
+    const chipOf = (groupKey) => FAMILIES.filter((f) => FAMILY_GROUPS[f.key].includes(groupKey)).map((f) => f.key)
+    const seen = new Set()
+    for (const { label, items } of spec) {
+      const group = groups.find((g) => g.label === label)
+      expect(group, label).toBeTruthy()                                      // the spec's category is a server group
+      for (const item of items) {
+        const r = seedRowFor(item, seed)
+        expect(r, item).toBeTruthy()                                         // the spec's template ships
+        expect(r.group, r.title).toBe(group.key)                             // ...in the spec's category
+        const keptBy = FAMILIES.filter((f) => familyKeeps(f.key, r)).map((f) => f.key)
+        expect(keptBy.length, r.title).toBe(1)                               // exactly one chip...
+        expect(keptBy, r.title).toEqual(chipOf(group.key))                   // ...its spec category's
+        seen.add(r.seedKey)
+      }
+    }
+    expect(seed.filter((r) => !seen.has(r.seedKey)).map((r) => r.title)).toEqual([])   // no shipped row outside the table
+    // The coordinator's reading of the table (W11-R68), pinned: routine prep is a ritual, the check-in is Mindset.
+    const chip = (title) => FAMILIES.filter((f) => familyKeeps(f.key, seed.find((r) => r.title === title))).map((f) => f.key)
+    for (const t of ['Night-before prep', 'Pre-market prep', 'Morning routine']) expect(chip(t), t).toEqual(['rituals'])
+    expect(chip('Pre-session check-in')).toEqual(['mind'])
   })
 
-  it('every picker chip shows the library rows of its mapped categories and groups (what the server sends)', async () => {
-    const cats = serverCategories()
-    // One row per server category, each in a group no chip maps (so a category match is the only way in), plus one
-    // row per library group in a category no chip maps (so a group match is the only way in).
-    const mapped = new Set(Object.values(FAMILY_GROUPS).flat())
-    const plain = LIBRARY_GROUPS.find((g) => !mapped.has(g.key)).key
-    const rows = [
-      ...cats.map((c, i) => row({ id: `g-${c}`, title: `Template ${i}`, group: plain, category: c })),
-      ...LIBRARY_GROUPS.map((g, i) => row({ id: `gr-${g.key}`, title: `Grouped ${i}`, group: g.key, category: 'zz_unmapped' })),
-    ]
+  it("every picker chip shows the library rows it keeps, from the server's REAL /library answer (contract fixture)", async () => {
+    // I-2: the answer is the recorded contract fixture (`template-gallery.library`), so a server shape change reds a
+    // client test here. The oracle is `familyKeeps` itself (the one rule), never a restatement of it (m-5).
+    const rows = contractBody('template-gallery.library').templates
+    expect(rows.length).toBeGreaterThan(20)                                  // non-vacuity: the real list
     for (const fam of FAMILIES) {
       installServer({ library: rows })
       await mount({ category: fam.key })
       const shown = [...document.querySelectorAll('[data-library-card]')].map((c) => c.getAttribute('data-library-card')).sort()
-      const want = rows.filter((r) => FAMILY_CATEGORIES[fam.key].includes(r.category)
-        || (FAMILY_GROUPS[fam.key] || []).includes(r.group)).map((r) => r.id).sort()
+      const want = rows.filter((r) => familyKeeps(fam.key, r)).map((r) => r.id).sort()
       expect(want.length, fam.key).toBeGreaterThan(0)                        // each chip keeps something
       expect(shown, fam.key).toEqual(want)
       cleanup()

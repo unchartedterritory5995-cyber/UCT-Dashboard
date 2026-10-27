@@ -3,9 +3,9 @@
 // UCT's official templates (ruling W11-R4), one row of cards per group, in the server's group order
 // (`LIBRARY_GROUPS`). TemplatePicker.jsx draws this ABOVE "Your templates" while wave 11 is on, loading it on demand.
 //   * It reuses the picker's search box and category chips: a search matches a template's title, description and
-//     what it contains; a family chip keeps the templates whose gallery category (`FAMILY_CATEGORIES`) or library
-//     group (`FAMILY_GROUPS`, merge step M3) is that family's (`familyKeeps`, lib/templateLibrary.js, the ONE
-//     mapping; fix round 1 I-1); "Your templates" hides it.
+//     what it contains; a family chip keeps the templates whose library group (spec §10's routine category) is
+//     that family's (`FAMILY_GROUPS` / `familyKeeps`, lib/templateLibrary.js, the ONE mapping; W11-R68);
+//     "Your templates" hides it.
 //   * It tells the picker how many templates it is showing (`onMatches`), so the picker's "No templates match" line
 //     and its screen-reader line never contradict a library match on the same screen (fix round 1 I-2).
 //   * Each card shows the library facts (LibraryCardFacts: type chip, author, "For:", "Contains:", "Used by" or "New",
