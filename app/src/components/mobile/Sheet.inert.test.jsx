@@ -167,6 +167,19 @@ test('W11-R82: a keep-live layer BELOW a lifted sheet (the 8500 player under an 
   }
 })
 
+test('W11-R82 m-1: the anchor never takes a box, whatever display a parent rule gives its children', async () => {
+  const css = document.head.appendChild(document.createElement('style'))
+  css.textContent = '.row > * { display: block }'
+  try {
+    renderApp(<div className="row"><Sheet open onClose={() => {}} title="Row sheet" labelledByTitle>x</Sheet></div>)
+    const anchor = appRoot.querySelector('[data-sheet-anchor]')
+    expect(anchor).not.toBeNull()
+    expect(getComputedStyle(anchor).display).toBe('none')
+  } finally {
+    css.remove()
+  }
+})
+
 test('CONTROL: a sheet opened from the page keeps the default modal rung (no inline z-index)', async () => {
   renderApp(<Host />)
   fireEvent.click(screen.getByRole('button', { name: 'Open outer' }))

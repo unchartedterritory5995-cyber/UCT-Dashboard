@@ -48,6 +48,10 @@ import styles from './Sheet.module.css'
  *                      touch bottom-sheet needs one (it can open from inside
  *                      TickerPopup, whose overlay now sits above --z-modal).
  */
+// W11-R82 m-1: the anchor's `display: none` is INLINE. `hidden` is only the UA's display:none, and an author rule such as
+// `.row > * { display: block }` beats it (recorded four times in this codebase), giving the anchor a box and a gap.
+const ANCHOR_STYLE = Object.freeze({ display: 'none' })
+
 export default function Sheet({
   open,
   onClose,
@@ -288,7 +292,7 @@ export default function Sheet({
 
   return (<>
     {/* W11-R80: where this sheet is rendered, for `openerLayer` (hidden, no box, no name). */}
-    <span ref={anchorRef} hidden data-sheet-anchor="" />
+    <span ref={anchorRef} hidden style={ANCHOR_STYLE} data-sheet-anchor="" />
     {createPortal(
     <div
       className={`${styles.backdrop} ${styles[resolved]}`}
