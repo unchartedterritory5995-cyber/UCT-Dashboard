@@ -2424,7 +2424,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
             if _nk().get_kind(user_id, kind_id, conn) is None:
                 raise StyleValidationError("Choose a kind of note.")
             style = default_style_for_kind(user_id, kind_id, conn)
-        ticker = notes_service._validate_ticker(payload.get("ticker"))
+        ticker = notes_service.validate_ticker(payload.get("ticker"))
         prefill = None
         if payload.get("planPrefill") is True:
             # Tier 2 part A (/plan): the member's own levels, a dated price and a source link, added to
@@ -2560,7 +2560,7 @@ def preview(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) 
                      "blocks": _clean_blocks(draft.get("blocks"), legacy=lambda: _member_legacy_blocks(user_id, conn)),
                      "properties": _clean_properties(user_id, draft.get("properties"), conn)}
         try:
-            asked = notes_service._validate_ticker(payload.get("ticker")) if payload.get("ticker") else None
+            asked = notes_service.validate_ticker(payload.get("ticker")) if payload.get("ticker") else None
         except notes_service.NoteValidationError as e:
             raise StyleValidationError(str(e)) from e
         ticker = asked or latest_ticker(user_id, conn)

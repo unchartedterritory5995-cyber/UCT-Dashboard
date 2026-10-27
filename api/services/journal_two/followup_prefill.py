@@ -16,7 +16,7 @@ this module only READS it, never assigns into it. The retrieved time comes from 
 one field both the memory and the snapshot layers carry (never `age_seconds` or `stale`).
 
 SHARED HELPERS (one place, for the follow-up job, Task 7, to import rather than restate): `_day_words`,
-`as_number`, `quarter_for`, `event_for`, `valid_symbol` (the server's own ticker shape, notes._validate_ticker),
+`as_number`, `quarter_for`, `event_for`, `valid_symbol` (the server's own ticker shape, notes.validate_ticker),
 `_today_et`. Which session reacted is earnings_followup.reaction_session (over reminder_block.add_trading_days);
 there is no copy of either here.
 """
@@ -58,11 +58,11 @@ def _today_et() -> date:
 
 
 def valid_symbol(raw: Any) -> bool:
-    """True when `raw` is a ticker the SERVER accepts: notes._validate_ticker is the one authority for the
+    """True when `raw` is a ticker the SERVER accepts: notes.validate_ticker is the one authority for the
     shape (letters, digits, dot, hyphen), so this never restates its pattern."""
     from api.services.journal_two import notes as notes_service
     try:
-        return notes_service._validate_ticker(raw) is not None
+        return notes_service.validate_ticker(raw) is not None
     except notes_service.NoteValidationError:
         return False
 

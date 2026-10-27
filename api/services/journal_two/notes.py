@@ -1235,6 +1235,22 @@ def _validate_ticker(raw: Any) -> str | None:
     return t
 
 
+#: F-ALIAS-1 A3 (11.12 r2 n-1): THE ticker rule's public name (the gallery's Use door reads it before any charge).
+#: The SAME function object.
+validate_ticker = _validate_ticker
+#: The one sentence a title past `MAX_TITLE_CHARS` is refused with.
+S_TITLE_TOO_LONG = "title too long"
+
+
+def validate_title(raw: Any) -> str:
+    """THE note title rule (F-ALIAS-1 A3): trimmed, and refused past `MAX_TITLE_CHARS` with `S_TITLE_TOO_LONG`.
+    `create_note`, `update_note` and the gallery's Use door (before its charge) all call it; none restates it."""
+    title = (raw or "").strip()
+    if len(title) > MAX_TITLE_CHARS:
+        raise NoteValidationError(S_TITLE_TOO_LONG)
+    return title
+
+
 # ── Import support ───────────────────────────────────────────────────────────
 
 def _import_payload_hash(note: dict) -> str:
@@ -3470,9 +3486,7 @@ def create_note(
     if not commit and conn is None:
         raise ValueError("create_note(commit=False) needs the caller's connection")
     payload = payload or {}
-    title = (payload.get("title") or "").strip()
-    if len(title) > MAX_TITLE_CHARS:
-        raise NoteValidationError("title too long")
+    title = validate_title(payload.get("title"))
     subtitle = payload.get("subtitle")
     if subtitle is not None:
         if not isinstance(subtitle, str):
@@ -3917,9 +3931,7 @@ def update_note(
         params: list[Any] = []
 
         if "title" in patch:
-            t = (patch["title"] or "").strip()
-            if len(t) > MAX_TITLE_CHARS:
-                raise NoteValidationError("title too long")
+            t = validate_title(patch["title"])
             sets.append("title = ?"); params.append(t)
         if "subtitle" in patch:
             s = patch["subtitle"]

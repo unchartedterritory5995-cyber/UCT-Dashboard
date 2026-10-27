@@ -663,19 +663,21 @@ def _notify(body: dict) -> bool:
 
 def _note_fields(body: dict) -> dict:
     """I-1: a Use's note fields, checked BEFORE any charge by the notes module's own rules: the ticker by
-    `notes._validate_ticker` (type, length, grammar) and the title by type and `notes.MAX_TITLE_CHARS`. A refusal is
+    `notes.validate_ticker` (type, length, grammar) and the title by type and `notes.validate_title`. A refusal is
     400 `invalid`; a Use never answers 500 for what a member typed."""
     out: dict = {}
     if "title" in body and body["title"] is not None:
         title = body["title"]
         if not isinstance(title, str):
             raise _err(400, "invalid", TITLE_TEXT_SENTENCE)
-        if len(title.strip()) > notes_service.MAX_TITLE_CHARS:
-            raise _err(400, "invalid", "title too long")
+        try:
+            notes_service.validate_title(title)                 # the notes module's one rule and sentence (A3)
+        except notes_service.NoteValidationError as e:
+            raise _err(400, "invalid", str(e))
         out["title"] = title
     if "ticker" in body:
         try:
-            ticker = notes_service._validate_ticker(body["ticker"])
+            ticker = notes_service.validate_ticker(body["ticker"])
         except notes_service.NoteValidationError as e:
             raise _err(400, "invalid", str(e))
         if ticker is not None:

@@ -13,6 +13,7 @@ import pytest
 
 from api.services.journal_two import journal_styles as js
 from api.services.journal_two import note_properties
+from api.services.journal_two import notes
 from api.services.journal_two import template_gallery as tg
 from api.services.journal_two.widget_engine import share
 from api.services.journal_two.widget_engine import payload as wpayload
@@ -31,6 +32,8 @@ ALIASES = [
     (tg, "read_rows", "_read"),
     (js, "slot_ctx", "_slot_ctx"),
     (share, "is_number", "_is_number"),
+    # A3 (11.12 r2 n-1)
+    (notes, "validate_ticker", "_validate_ticker"),
     # carry 11.9 c1 (already public before F-ALIAS-1; railed here so they stay the functions themselves)
     (tg, "gallery_row", "_row"),
     (tg, "can_see", "_can_see"),
@@ -47,6 +50,7 @@ CONSUMERS = [
     "api/services/journal_two/journal_styles.py",
     "api/routers/notebook_template_gallery.py",
     "api/routers/notebook_journal_styles.py",
+    "api/services/journal_two/followup_prefill.py",
 ]
 
 
@@ -78,3 +82,30 @@ def test_CONTROL_the_scan_sees_a_private_read():
     tree = ast.parse("from x import sources as wsources\nwsources._tags('[]')\n")
     hits = [n for n in ast.walk(tree) if isinstance(n, ast.Attribute) and n.attr in _private_names()]
     assert len(hits) == 1
+
+
+# ── A3: one title rule, one sentence ───────────────────────────────────────────────────────────────
+
+def _string_constants(path: str) -> list[str]:
+    tree = ast.parse((REPO / path).read_text(encoding="utf-8"))
+    return [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+
+
+def test_the_title_sentence_is_typed_once_in_the_notes_module_and_nowhere_in_the_gallery_router():
+    assert _string_constants("api/services/journal_two/notes.py").count(notes.S_TITLE_TOO_LONG) == 1
+    assert notes.S_TITLE_TOO_LONG not in _string_constants("api/routers/notebook_template_gallery.py")
+
+
+def test_the_use_doors_title_check_is_the_notes_rule_and_its_sentence():
+    from fastapi import HTTPException
+    from api.routers import notebook_template_gallery as tgr
+    with pytest.raises(notes.NoteValidationError, match=f"^{notes.S_TITLE_TOO_LONG}$"):
+        notes.validate_title("x" * (notes.MAX_TITLE_CHARS + 1))
+    with pytest.raises(HTTPException) as e:
+        tgr._note_fields({"title": " " + "x" * (notes.MAX_TITLE_CHARS + 1)})
+    assert e.value.status_code == 400
+    assert e.value.detail == {"code": "invalid", "message": notes.S_TITLE_TOO_LONG}
+    # CONTROL: at the cap (and padded with spaces the rule trims) the title passes, as sent.
+    ok = " " + "x" * notes.MAX_TITLE_CHARS + " "
+    assert tgr._note_fields({"title": ok}) == {"title": ok}
+    assert notes.validate_title(ok) == "x" * notes.MAX_TITLE_CHARS
