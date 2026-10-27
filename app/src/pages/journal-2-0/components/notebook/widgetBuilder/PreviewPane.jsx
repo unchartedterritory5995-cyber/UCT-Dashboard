@@ -46,6 +46,11 @@ const finite = (v) => typeof v === 'number' && Number.isFinite(v)
 export function summaryLine(name, payload, unit) {
   // Fix 1, I-4: a preview on the bundled sample book says so first, wherever its summary is read.
   const parts = payload?.sample === true ? [SAMPLE_LABEL, name || 'Widget'] : [name || 'Widget']
+  // W11-R81 PD-2 (plan w7-w8 :666): an `empty` payload says its spec 5.9 sentence, never a zero count or a zero value
+  // ("Daily P&L bars · 0 trades · $0.00" over an empty range). The same test as the preview body's (`empty`, not
+  // tooLarge), so the bar and the body say one thing.
+  const empty = typeof payload?.empty === 'string' && payload.empty && !payload.tooLarge ? payload.empty : null
+  if (empty) return [...parts, empty].join(' · ')
   if (payload && finite(payload.count)) parts.push(`${payload.count.toLocaleString('en-US')} ${countNoun(unit, payload.count)}`)
   const m = measuresOf(payload || {})[0]
   const v = payload?.value
