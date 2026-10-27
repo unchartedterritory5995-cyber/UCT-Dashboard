@@ -919,11 +919,45 @@ def test_a_busy_database_is_the_busy_answer_never_a_500_on_adopt_and_use(app, cl
     assert again.status_code == 200 and not again.json().get("replayed")
 
 
-def test_an_operational_error_that_is_not_busy_is_not_dressed_as_busy(app, client, db, monkeypatch):
-    # CONTROL: only SQLite's busy/locked words are the busy answer; any other database fault stays a server fault.
+def _real_operational_error(sql: str):
+    """A REAL sqlite3.OperationalError (with its `sqlite_errorcode`), raised by SQLite itself."""
     import sqlite3
-    monkeypatch.setattr(gallery, "adopt_tool", lambda *a, **k: (_ for _ in ()).throw(
-        sqlite3.OperationalError("no such table: j2_routines")))
+    c = sqlite3.connect(":memory:")
+    c.execute("CREATE TABLE t (a)")
+    try:
+        c.execute(sql)
+    except sqlite3.OperationalError as e:
+        return e
+    finally:
+        c.close()
+    raise AssertionError(f"{sql!r} did not fail")
+
+
+@pytest.mark.parametrize("sql, words", [
+    ("SELECT locked FROM t", "no such column: locked"),
+    ("SELECT * FROM j2_user_blocked", "no such table: j2_user_blocked"),
+    ("blocked", 'near "blocked": syntax error'),
+    ("SELECT * FROM j2_routines", "no such table: j2_routines"),
+])
+def test_an_operational_error_that_is_not_busy_is_not_dressed_as_busy(app, client, db, monkeypatch, sql, words):
+    # CONTROL (W11-R75): only SQLite's own BUSY/LOCKED result codes are the busy answer. A schema fault whose words
+    # carry a lock word -- `j2_notes` really has a column named `locked` -- stays a server fault, never `busy`.
+    import sqlite3
+    err = _real_operational_error(sql)
+    assert str(err) == words and err.sqlite_errorcode == sqlite3.SQLITE_ERROR       # non-vacuity: real, not busy
+    monkeypatch.setattr(gallery, "adopt_tool", lambda *a, **k: (_ for _ in ()).throw(err))
     as_user(app, MEMBER)
     with pytest.raises(sqlite3.OperationalError):
         _send(client, "POST", f"{GALLERY}/g1/adopt-tool", {})
+
+
+@pytest.mark.parametrize("code, busy", [(5, True), (6, True), (517, True), (262, True), (1, False), (11, False)])
+def test_busy_is_the_base_result_code_extended_codes_included(code, busy):
+    # W11-R75: SQLITE_BUSY (5), SQLITE_LOCKED (6) and their extended codes (BUSY_SNAPSHOT 517, LOCKED_SHAREDCACHE
+    # 262; base code in the low byte) are busy; SQLITE_ERROR (1) and CORRUPT (11) are not, whatever the words say.
+    import sqlite3
+    from api.routers import notebook_template_gallery as tgr
+    e = sqlite3.OperationalError("database is locked" if not busy else "no such column: x")
+    e.sqlite_errorcode = code
+    assert tgr._database_busy(e) is busy
+    assert tgr._database_busy(sqlite3.OperationalError("database is locked")) is False   # no code: not SQLite's

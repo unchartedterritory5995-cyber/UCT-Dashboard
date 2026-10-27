@@ -606,10 +606,17 @@ async def w11_body(request: Request, _user: dict = Depends(require_paid)) -> dic
 DATABASE_BUSY_SENTENCE = papi.BUSY_SENTENCE
 
 
+#: The two SQLite result codes for "another connection holds the lock" (base codes: extended codes such as
+#: SQLITE_BUSY_SNAPSHOT or SQLITE_LOCKED_SHAREDCACHE carry them in the low byte).
+_BUSY_CODES = frozenset({sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED})
+
+
 def _database_busy(e: BaseException) -> bool:
-    """SQLite's own words for a write lock it could not get in time; any other OperationalError is a real fault."""
-    text = str(e).lower()
-    return isinstance(e, sqlite3.OperationalError) and ("locked" in text or "busy" in text)
+    """W11-R75: SQLite's own RESULT CODE says a lock was not granted in time, never the message's words: `j2_notes`
+    has a real column named `locked`, so "no such column: locked" is a schema fault and must stay a 500. An error
+    with no code (raised by hand, not by SQLite) is not busy."""
+    code = getattr(e, "sqlite_errorcode", None)
+    return isinstance(e, sqlite3.OperationalError) and isinstance(code, int) and (code & 0xFF) in _BUSY_CODES
 
 
 def _w11(fn) -> Any:
