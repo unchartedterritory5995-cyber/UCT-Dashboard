@@ -6,8 +6,11 @@
  * upload, `updateAttributes({ fallback })`, phase 1's durability pipeline). That is one write per such embed, ONCE:
  * the note then holds its archive and every later open writes nothing. A template-made note's Market context (and
  * any other snapshot the template placed) has no archive yet, so its first open writes exactly that, ~3.5-13.5 s in.
- * NOTHING ELSE may change: the rail compares every body the page sends against the stored body with only `fallback`
- * blanked, and then requires zero further document changes.
+ * NOTHING ELSE may change (W11-R79 m-2, the exemption exactly): every body the page sends must equal the stored body
+ * byte for byte (RAW, no schema round trip) once `fallback` is put back to null on the embeds STORED with
+ * `fallback: null` -- and on those alone; an embed that already held an archive (the chart, below) is never re-archived.
+ * At most one write per such embed, each one adding an archive (never an identical re-send); then zero further
+ * document changes.
  *
  * CONTROL: a note with no snapshot embed opens with zero writes and zero document changes.
  *
@@ -53,7 +56,18 @@ let realIO
 const ARCHIVE_BUDGET_MS = 14_000          // the self-archive's 3.5 s settle and five 2 s retries, then the autosave
 const runClock = () => act(async () => { await vi.advanceTimersByTimeAsync(ARCHIVE_BUDGET_MS) })
 
-const templateMade = () => ({ ...contractBody('notes.create.kind').note, locked: false })
+// The server's styled create, plus a SECOND Market context that already holds its archive (stored with a `fallback`):
+// an open must never re-archive it (review m-2's first widened case), so the exemption below covers only the embeds
+// stored with `fallback: null`. A Market context, because it is the snapshot jsdom can draw live (a chart cannot).
+const OLD_ARCHIVE = { url: '/api/j2/notes/n1/images/old.png', w: 10, h: 10 }
+const templateMade = () => {
+  const note = { ...contractBody('notes.create.kind').note, locked: false }
+  const mc = note.bodyJson.content.findIndex((n) => n.type === 'widgetEmbed' && n.attrs.widgetId === 'marketcontext')
+  const archived = { ...note.bodyJson.content[mc], attrs: { ...note.bodyJson.content[mc].attrs, embedId: 'mc-archived', fallback: OLD_ARCHIVE } }
+  note.bodyJson.content.splice(mc + 1, 0, archived)
+  return note
+}
+
 const plain = () => ({
   id: 'n2', title: 'Plain', subtitle: '', folderId: null, ticker: null, tags: [], heroImageUrl: null,
   updatedAt: '2026-10-01T14:00:00.000000+00:00', isFavorite: false, locked: false,
@@ -97,15 +111,22 @@ async function openEditor() {
   })
 }
 
-/** A body as the editor's schema holds it, with every widgetEmbed's `fallback` blanked: the exemption's one key. */
-const withoutFallback = (ed, body) => {
-  const json = ed.schema.nodeFromJSON(body).toJSON()
+/** Every widgetEmbed in `body`, at any depth. */
+const embedsOf = (body) => {
+  const out = []
+  const walk = (n) => { if (n?.type === 'widgetEmbed') out.push(n); (n?.content || []).forEach(walk) }
+  walk(body)
+  return out
+}
+/** W11-R79 m-2: the exemption, exactly. `body` (RAW, no schema round trip) with `fallback` put back to null ONLY on the
+ *  embeds that were STORED with `fallback: null` (`ids`, by embedId); every other byte must already be the stored one. */
+const withoutNewArchives = (body, ids) => {
   const walk = (n) => ({
     ...n,
-    ...(n.type === 'widgetEmbed' ? { attrs: { ...n.attrs, fallback: null } } : {}),
+    ...(n.type === 'widgetEmbed' && ids.has(n.attrs?.embedId) ? { attrs: { ...n.attrs, fallback: null } } : {}),
     ...(Array.isArray(n.content) ? { content: n.content.map(walk) } : {}),
   })
-  return walk(json)
+  return walk(JSON.parse(JSON.stringify(body)))
 }
 const bodiesSent = () => updateMock.mock.calls.map(([patch]) => patch?.bodyJson).filter(Boolean)
 const fallbacks = (body) => (body.content || []).filter((n) => n.type === 'widgetEmbed').map((n) => n.attrs.fallback?.url || null)
@@ -117,15 +138,27 @@ describe('the first open of a template-made note writes only the self-archive (W
       && n.attrs.mode === 'snapshot' && n.attrs.fallback == null)).toBe(true)                 // non-vacuity
     const ed = await openEditor()
     // the Market context's live body is a lazy chunk: let it arrive (real time) before the archive's clock runs
-    await waitFor(() => expect(document.querySelector('[data-widget-embed-view="marketcontext"]')?.textContent).toContain('Market phase'),
+    await waitFor(() => expect(document.querySelectorAll('[data-widget-embed-view="marketcontext"]')[0]?.textContent).toContain('Market phase'),
       { timeout: 15_000 })
     await runClock()
     await runClock()
     const sent = bodiesSent()
+    const fresh = new Set(embedsOf(NOTE.bodyJson).filter((n) => n.attrs.fallback == null).map((n) => n.attrs.embedId))
+    expect(fresh.size, 'non-vacuity: embeds stored without an archive').toBeGreaterThan(0)
     expect(sent.length, 'precondition: the self-archive wrote (the exemption is exercised)').toBeGreaterThan(0)
-    expect(archive.store).toHaveBeenCalled()
-    const stored = withoutFallback(ed, NOTE.bodyJson)
-    for (const body of sent) expect(withoutFallback(ed, body)).toEqual(stored)                   // fallback ONLY
+    // At most one write per embed that had no archive: no extra open-write rides the exemption.
+    expect(sent.length).toBeLessThanOrEqual(fresh.size)
+    let before = NOTE.bodyJson
+    for (const body of sent) {
+      // RAW bytes: the stored body exactly, once only the newly archived embeds' `fallback` is put back
+      expect(withoutNewArchives(body, fresh)).toEqual(NOTE.bodyJson)
+      // and each write ADDS an archive (never an identical re-send of what was already there)
+      const had = new Set(embedsOf(before).filter((n) => n.attrs.fallback?.url).map((n) => n.attrs.embedId))
+      expect(embedsOf(body).some((n) => fresh.has(n.attrs.embedId) && n.attrs.fallback?.url && !had.has(n.attrs.embedId)),
+        'a write that archives nothing new').toBe(true)
+      before = body
+    }
+    expect(embedsOf(sent.at(-1)).find((n) => n.attrs.embedId === 'mc-archived').attrs.fallback).toEqual(OLD_ARCHIVE)
     expect(fallbacks(sent.at(-1))).toContain('/api/j2/notes/n1/images/archive.png')
     // and after it: zero document changes, zero further writes
     const changes = []

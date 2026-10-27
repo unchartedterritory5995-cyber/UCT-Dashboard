@@ -1112,3 +1112,29 @@ def test_p1_compose_keeps_the_inline_nodes_of_a_placed_a_disabled_and_a_nested_p
     lst = next(n for n in c if n["type"] == "bulletList")
     assert lst["content"][0]["content"] == [{"type": "paragraph", "content": [_MENTION]}]
     assert "{{block:" not in json.dumps(out["bodyJson"])
+
+
+def test_a_styled_create_stores_every_widget_embed_attribute_the_editor_holds(db_path, monkeypatch):
+    """W11-R79 m-2: the editor's schema gives every widgetEmbed a default for each attribute it declares
+    (lib/widgetEmbedNode.jsx), so a server body missing `frozen`, `searchText`, `ta` or `tradeRef` is not what the
+    editor holds, and the first write after open (the self-archive's) carried those defaults as drift. The insert
+    stores the editor's form (`journal_styles.WIDGET_EMBED_ATTR_DEFAULTS`, pinned to the schema by
+    lib/widgetEmbedAttrDefaults.test.js); a value the body already holds is never replaced."""
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    s = js.create_style("u1", {"name": "Attrs", "kindId": "weekly_review",
+                               "outlineBodyJson": {"type": "doc", "content": [js._h("Week"), js._ph("myWatchlistToday")]},
+                               "blocks": [{"block": "myWatchlistToday", "enabled": True, "settings": {"list": "flagged"}}]})
+    monkeypatch.setattr(nw, "build", _fake_build([]))
+    _waves(monkeypatch, 1)
+    note, _ = js.create_styled_note("u1", {"styleId": s["id"], "title": "today"})
+    embeds = [n for n in note["bodyJson"]["content"] if n["type"] == "widgetEmbed"]
+    assert embeds
+    for e in embeds:
+        assert set(js.WIDGET_EMBED_ATTR_DEFAULTS) <= set(e["attrs"]), sorted(set(js.WIDGET_EMBED_ATTR_DEFAULTS) - set(e["attrs"]))
+        assert e["attrs"]["widgetId"] == "myWatchlistToday" and e["attrs"]["mode"] == "snapshot"   # kept, not defaulted
+    # the helper itself: fills what is missing, at any depth, never overwrites
+    body = {"type": "doc", "content": [{"type": "columns", "content": [{"type": "widgetEmbed", "attrs": {"frozen": True}}]}]}
+    out = js.with_editor_attrs(body)
+    inner = out["content"][0]["content"][0]["attrs"]
+    assert inner["frozen"] is True and inner["ta"] is None and inner["layout"] == {"width": "full", "height": 320}
+    assert body["content"][0]["content"][0]["attrs"] == {"frozen": True}                          # input untouched

@@ -2155,6 +2155,34 @@ def without_placeholder_lines(body: Any) -> Any:
     return {**body, "content": strip(body["content"])}
 
 
+#: W11-R79 m-2: every attribute the editor's `widgetEmbed` node declares, with its default (lib/widgetEmbedNode.jsx,
+#: `addAttributes`). ⛔ A COPY of the client's schema, so it is PINNED to it: lib/widgetEmbedAttrDefaults.test.js builds
+#: the real editor schema and requires this JSON (between the two markers) to equal its defaults, key for key.
+WIDGET_EMBED_ATTR_DEFAULTS: dict[str, Any] = json.loads(  # widgetEmbed-attr-defaults:begin
+    '{"v": 1, "widgetId": null, "params": {}, "capturedAt": null, "embedId": null, "mode": "snapshot",'
+    ' "fallback": null, "frozen": false, "tradeRef": null, "annotations": [], "caption": null,'
+    ' "layout": {"width": "full", "height": 320}, "searchText": null, "ta": null}'
+)  # widgetEmbed-attr-defaults:end
+
+
+def with_editor_attrs(body: Any) -> Any:
+    """W11-R79 m-2: `body` with every widgetEmbed (at any depth) holding each attribute the editor's schema declares:
+    a missing one gets its default (`WIDGET_EMBED_ATTR_DEFAULTS`, deep-copied), a present one is never replaced. The
+    editor fills the same defaults as it parses, so a server body without them differed from what the editor holds,
+    and the first write after an open carried them as drift. A copy; total."""
+    def walk(node: Any) -> Any:
+        if not isinstance(node, dict):
+            return node
+        out = dict(node)
+        if out.get("type") == "widgetEmbed":
+            attrs = out.get("attrs") if isinstance(out.get("attrs"), dict) else {}
+            out["attrs"] = {**copy.deepcopy(WIDGET_EMBED_ATTR_DEFAULTS), **attrs}
+        if isinstance(out.get("content"), list):
+            out["content"] = [walk(c) for c in out["content"]]
+        return out
+    return walk(body) if isinstance(body, dict) else body
+
+
 def with_trailing_paragraph(body: Any) -> Any:
     """11.20 walk D2: `body` as the editor will hold it once it is open. TipTap's TrailingNode (StarterKit, `notAfter`
     empty) appends ONE empty paragraph on the editor's first dispatched transaction whenever the doc's last top-level
@@ -2527,7 +2555,8 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
     def insert(base: dict, composed: dict) -> dict:
         """The note's INSERT: as before without a hook; guarded, inside this create's own locked transaction."""
         stamp = (composed["styleId"], composed["styleVersion"], composed["kindId"])
-        base = {**base, "bodyJson": with_trailing_paragraph(base.get("bodyJson"))}   # D2: opening it writes nothing
+        # D2 / W11-R79 m-2: the body the editor will hold, so opening it writes nothing but the self-archive.
+        base = {**base, "bodyJson": with_trailing_paragraph(with_editor_attrs(base.get("bodyJson")))}
         if not guarded:
             return notes_service.create_note(user_id, base, conn, properties=composed["properties"],
                                              captured_properties="keep", style_stamp=stamp)
