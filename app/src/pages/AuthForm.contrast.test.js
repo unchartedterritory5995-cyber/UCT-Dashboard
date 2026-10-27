@@ -142,3 +142,22 @@ describe('the Login controls hold the 44 px floor on the touch tier (W11-R81 PD-
     expect(rest.map((r) => decl(r.body, 'min-height')).filter(Boolean)).toEqual([])
   })
 })
+
+// W11-R84 New-2 (re-walk, axe serious, live on master): the Login page's "Join the launch list" (`.switchLink`) read
+// 4.2:1 in dark, --ut-green #2d8c4e on the card's --bg-surface #17181b. Every text link on the auth card (the switch
+// link and "Forgot password?", at rest and hovered) reaches 4.5:1 on the card in every theme.
+describe('the auth card links are readable in every theme (W11-R84 New-2)', () => {
+  for (const [cls, states] of [['switchLink', ['rest', 'hover']], ['forgotLink', ['rest', 'hover']]]) {
+    for (const [theme, layers] of Object.entries(THEMES)) {
+      for (const state of states) {
+        it(`.${cls}, ${theme}, ${state}: at least 4.5:1 on the card`, () => {
+          const fg = resolve(winner('color', [cls], state), layers)
+          const card = resolve(winner('background', ['card'], 'rest'), layers)
+          expect(card).toMatch(/^#[0-9a-f]{6}$/i)
+          expect(fg).toMatch(/^#[0-9a-f]{6}$/i)
+          expect(contrast(hexRgb(fg), hexRgb(card))).toBeGreaterThanOrEqual(4.5)
+        })
+      }
+    }
+  }
+})

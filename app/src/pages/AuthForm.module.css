@@ -95,7 +95,7 @@
   margin-top: -8px;
 }
 .forgotLink:hover {
-  color: var(--ut-green);
+  color: var(--success-ink);   /* W11-R84 New-2: --ut-green read 4.2:1 on the card in dark */
 }
 
 .form {
@@ -183,8 +183,10 @@
   margin-top: 20px;
 }
 
+/* W11-R84 New-2: "Join the launch list" read 4.2:1 (--ut-green #2d8c4e on the card's #17181b in dark). --success-ink
+   is the theme-tuned green ink that clears 4.5:1 on every surface (tokens.css). Rail: AuthForm.contrast.test.js. */
 .switchLink {
-  color: var(--ut-green);
+  color: var(--success-ink);
   text-decoration: none;
   font-weight: 500;
 }
