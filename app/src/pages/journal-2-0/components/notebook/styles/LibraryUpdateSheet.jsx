@@ -15,6 +15,7 @@ import { blockLabel } from '../../../lib/journalBlocks'
 import { applyStyleUpdate, getUpdatePlan } from '../../../lib/styleLibrary'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { DocBody } from '../TemplatePreview'
+import { outlineWithBlockNames } from '../../../lib/templateSlots'
 import { libraryError } from './styleErrors'
 import { usableBaseline } from '../../../lib/offline/baseline'
 import styles from './StylesManager.module.css'
@@ -139,7 +140,7 @@ export default function LibraryUpdateSheet({ styleId, onClose, onApplied }) {
                 </label>
                 <p className={styles.hint}>{OUTLINE_STAYS}</p>
                 <div className={styles.preview} aria-label="The author's new outline" role="region">
-                  <DocBody body={plan.newOutline} />
+                  <DocBody body={outlineWithBlockNames(plan.newOutline, null)} />
                 </div>
               </section>
             )}

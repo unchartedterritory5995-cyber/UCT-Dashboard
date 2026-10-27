@@ -668,6 +668,8 @@ def preview_lines(body: Any, limit: int = PREVIEW_LINES) -> list[dict]:
 
     def push(kind: str, text: str) -> None:
         t = " ".join(text.split())
+        if kind != "heading" and _is_placeholder_text(t):
+            return                    # W11-R76: a `{{block:<id>}}` line is a block, never a card line
         if t and len(lines) < limit:
             if len(t) > _PREVIEW_LINE_CHARS:
                 t = t[: _PREVIEW_LINE_CHARS - 1].rstrip() + "…"
@@ -687,12 +689,17 @@ def preview_lines(body: Any, limit: int = PREVIEW_LINES) -> list[dict]:
     return lines
 
 
-def _is_slot_placeholder_line(line: Any) -> bool:
-    """Is a stored preview line a template slot's `{{block:<id>}}` placeholder? (Task 11.8.)"""
+def _is_placeholder_text(text: Any) -> bool:
+    """W11-R76: THE card-line rule -- text that is exactly one `{{block:<id>}}` placeholder (the composer's own
+    grammar, `journal_styles.PLACEHOLDER_RE`), for ANY block id. `preview_lines` never writes one and `_summary`
+    never serves one (a row stored before the rule)."""
     from api.services.journal_two import journal_styles as js
-    text = line.get("text") if isinstance(line, dict) else None
-    m = js.PLACEHOLDER_RE.match(text.strip()) if isinstance(text, str) else None
-    return bool(m) and js.slot_family(m.group(1)) is not None
+    return isinstance(text, str) and js.PLACEHOLDER_RE.match(text.strip()) is not None
+
+
+def _is_placeholder_line(line: Any) -> bool:
+    """A stored preview line (not a heading) that is a placeholder (`_is_placeholder_text`)."""
+    return isinstance(line, dict) and line.get("kind") != "heading" and _is_placeholder_text(line.get("text"))
 
 
 def _revision_title(raw: str | None) -> str | None:
@@ -723,9 +730,10 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool, wave11:
             preview = loaded if isinstance(loaded, list) else []
         except (TypeError, ValueError):
             preview = []
-        # Task 11.8 (11.7 note): a row written by hand may hold a template slot's `{{block:<id>}}` line: never shown.
-        if wave11:
-            preview = [ln for ln in preview if not _is_slot_placeholder_line(ln)]
+        # Task 11.8 (11.7 note) widened by W11-R76: a stored row may hold a `{{block:<id>}}` line -- a slot's, or a
+        # built-in block's (written before the rule; live on master, where a shared style's card showed its second
+        # line as the token): never shown, whichever wave.
+        preview = [ln for ln in preview if not _is_placeholder_line(ln)]
     elif "body_json" in keys:
         try:
             preview = preview_lines(json.loads(row["body_json"] or "{}"))

@@ -59,7 +59,10 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
     onPreview({ ...base, body: null, loading: true, onUse: () => {} })
     try {
       const full = await getMemberTemplate(t.id)
-      onPreview({ ...base, body: full.bodyJson, onUse: () => { onPreview(null); onPick(full) } })
+      // W11-R76: a template used as a style outline holds `{{block:...}}` lines; the preview names each block.
+      // Loaded on demand (the lazy slot words), so this eager file adds no bytes but the import call.
+      const { outlineWithBlockNames } = await import('../../lib/templateSlots')
+      onPreview({ ...base, body: outlineWithBlockNames(full.bodyJson, null), onUse: () => { onPreview(null); onPick(full) } })
     } catch (e) {
       onPreview({ ...base, body: null, loadError: e?.message || "Couldn't load this template.", onUse: () => {} })
     }

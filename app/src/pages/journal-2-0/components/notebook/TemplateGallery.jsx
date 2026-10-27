@@ -41,6 +41,7 @@ import {
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
+import { outlineWithBlockNames } from '../../lib/templateSlots'
 // P3b Task 6: a style's Preview, with its examples ("In use"). Imported HERE only, so it ships inside this lazy chunk.
 import StyleItemPreview from './styles/StyleItemPreview'
 import { refusalSentence } from './StyleLibraryCard'
@@ -405,7 +406,8 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
     setPreview({ ...base, body: null, loading: true, onUse: () => {} })
     try {
       const full = await getGalleryTemplate(item.id)
-      setPreview({ ...base, body: full.bodyJson, onUse: () => use(item) })
+      // W11-R76: a placeholder line is the block's name, never a `{{block:...}}` token (a style: its block list)
+      setPreview({ ...base, body: outlineWithBlockNames(full.bodyJson, full.payload?.blocks ?? null), onUse: () => use(item) })
     } catch (err) {
       setPreview({ ...base, body: null, loadError: err?.message || "Couldn't load this template.", onUse: () => {} })
     }

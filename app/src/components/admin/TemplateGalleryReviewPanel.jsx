@@ -43,6 +43,7 @@ import { PANELS, PHASES, PHASE_LABELS } from '../../pages/journal-2-0/lib/pageLa
 import { blockLabel } from '../../pages/journal-2-0/lib/journalBlocks'
 import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import TemplatePreview from '../../pages/journal-2-0/components/notebook/TemplatePreview'
+import { outlineWithBlockNames } from '../../pages/journal-2-0/lib/templateSlots'
 import styles from '../../pages/journal-2-0/components/notebook/TemplateGallery.module.css'
 
 // A reported layout is hidden as a layout, never as a template (P4b final, item 5).
@@ -304,9 +305,10 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
         const shown = underReview(item, full)
         if (!shown) { setPreview({ ...base, loadError: REVISION_UNREADABLE_LINE }); return }
         setPreview({ ...base, subtitle: `${base.subtitle} (version ${shown.version})`,
-          body: shown.outline || { type: 'doc', content: [] } })
+          body: outlineWithBlockNames(shown.outline || { type: 'doc', content: [] }, shown.payload?.blocks ?? null) })
       } else {
-        setPreview({ ...base, body: full.bodyJson })
+        // W11-R76: a reviewer reads block names too, never a `{{block:...}}` token (a style: its block list)
+        setPreview({ ...base, body: outlineWithBlockNames(full.bodyJson, full.payload?.blocks ?? null) })
       }
     } catch (err) {
       setPreview({ ...base, loadError: err?.message || "Couldn't load this template." })

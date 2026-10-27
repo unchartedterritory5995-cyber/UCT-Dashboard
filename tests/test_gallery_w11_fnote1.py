@@ -478,8 +478,17 @@ def test_get_item_with_wave_11_off_is_byte_identical_to_before_task_11_8(db, mon
                 for gid in (g_p3a, g_shared, g_tool) for who in (MEMBER, "admin")}
     waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
     live_off, old_off = reads(gallery), reads(old)
+
+    def without_placeholder_lines(raw: str) -> str:
+        # W11-R76 (review I-3, live on master) is the ONE deliberate change to the wave-off answer: a card line that
+        # is a `{{block:<id>}}` placeholder is never served, whichever wave. Every other byte stays identical.
+        item = json.loads(raw)
+        if isinstance(item, dict) and isinstance(item.get("preview"), list):
+            item["preview"] = [ln for ln in item["preview"] if not gallery._is_placeholder_line(ln)]
+        return json.dumps(item, sort_keys=False, default=str)
+    assert any("{{block:routine_a}}" in json.dumps(json.loads(v).get("preview")) for v in old_off.values())  # non-vacuity
     for k in live_off:
-        assert live_off[k] == old_off[k], k
+        assert live_off[k] == without_placeholder_lines(old_off[k]), k
     assert "99887766" in live_off[(g_p3a, MEMBER)]                    # wave off: the stored outline, as before
     waves(monkeypatch, *ALL_WAVES)
     live_on = reads(gallery)
