@@ -163,18 +163,23 @@ export function cleanTemplateName(name) {
  *
  * @param {object} cs        the chart's settings blob
  * @param {object|function} registry  the engine registry (`nativeRegistry`)
- * @param {{name: string, id?: string, now?: number}} opts
+ * @param {{name: string, id?: string, now?: number, onlyIds?: string[]}} opts
+ *   `onlyIds` (2026-10-27, the Agent's I-8 copy): capture only these instances. A source
+ *   or a shared pane that points OUTSIDE the set falls back exactly as one pointing at an
+ *   indicator the template does not carry already does. Absent ⇒ every live indicator.
  * @returns {{ok: true, template: object} | {ok: false, reason: 'bad-name'|'empty'}}
  */
-export function captureIndicatorTemplate(cs, registry, { name, id, now } = {}) {
+export function captureIndicatorTemplate(cs, registry, { name, id, now, onlyIds } = {}) {
   const clean = cleanTemplateName(name)
   if (!clean) return { ok: false, reason: 'bad-name' }
   const view = isObj(cs) ? (adoptOverlayAverages(cs) || cs) : null
   const list = view && Array.isArray(view.indicatorInstances) ? view.indicatorInstances : []
   const defOf = getDefOf(registry)
   const names = new Map(instancesOf(view || {}, registry).filter((r) => !r.setting).map((r) => [r.instanceId, r.name]))
+  const only = Array.isArray(onlyIds) ? new Set(onlyIds) : null
 
   const eligible = list.filter((inst) => isObj(inst) && typeof inst.instanceId === 'string'
+    && (!only || only.has(inst.instanceId))
     && !isInstanceTombstone(inst) && !isPreview(inst) && typeof inst.defId === 'string' && defOf(inst.defId))
   const live = eligible.slice(0, MAX_TEMPLATE_INDICATORS)
   if (!live.length) return { ok: false, reason: 'empty' }

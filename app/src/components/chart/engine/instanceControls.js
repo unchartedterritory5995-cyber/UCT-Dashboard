@@ -82,6 +82,26 @@ import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
          DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE } from './presentation'
 import { CALC_TIMEFRAMES, normalizeVisibility } from './instanceTimeframe'
 import { calcTimeframeCapability } from './calcTimeframeCapability'
+import { resolveToken } from '../designTokens'
+
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+const FN_COLOR = /^(?:rgba?|hsla?)\(\s*[-+0-9.%\s,/]+\)$/i
+
+/**
+ * ⭐ I-13 (2026-10-27) — IS THIS A COLOUR THE CHART CAN DRAW?
+ *
+ * A hex colour (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`), a functional `rgb()/rgba()/
+ * hsl()/hsla()`, or a theme token (`token:bull`, `token:info@soft`) that resolves.
+ * Before this, a `color` input took any non-empty string, so a write of `"green-ish"`
+ * stored a value every renderer silently drew as nothing.
+ */
+export function isValidColorValue(value) {
+  if (typeof value !== 'string') return false
+  const v = value.trim()
+  if (!v || v !== value) return false
+  if (HEX_COLOR.test(v) || FN_COLOR.test(v)) return true
+  return v.startsWith('token:') && resolveToken(v, 'classic') !== null
+}
 
 /**
  * ⭐⭐ P2X — A DELETE SEVERS EVERY REFERENCE TO THE DELETED INSTANCES: another
@@ -171,6 +191,11 @@ export function checkInstanceInput(def, key, value) {
   const errors = []
   validateInputValue(declared, coerced, `inputs.${key}`, errors)
   if (errors.length) return { ok: false, why: errors[0], spec: declared }
+  // ⭐ I-13: a colour must be one the chart can draw. The definition's own declared
+  // default is always admitted, whatever its spelling, so "back to default" never refuses.
+  if (declared.type === 'color' && coerced !== declared.default && !isValidColorValue(coerced)) {
+    return { ok: false, why: `"${key}" takes a colour such as #22c55e or a theme colour (token:bull), not ${JSON.stringify(value)}`, spec: declared }
+  }
   return { ok: true, value: coerced }
 }
 
