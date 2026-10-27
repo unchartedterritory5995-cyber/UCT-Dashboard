@@ -1133,7 +1133,10 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
             if w11 and out["payload"].get("format") != SHARED_TEMPLATE_FORMAT:
                 # Task 11.8 (11.7 note): a listing the reducer did not write serves no template slot placeholder.
                 out["bodyJson"] = _without_slot_placeholders(out["bodyJson"])
-            if w11:
+            if w11 and not is_admin and row["user_id"] != viewer_id:
+                # Post-walk p-2: a MEMBER's read is stripped of the dark-wave slots (a note made from it would not
+                # have them). The review panel and the author read the listed template itself: every slot members
+                # will get once the wave is on.
                 out["payload"], out["bodyJson"] = _without_dark_slots(out["payload"], out["bodyJson"], conn)
             # P3a Task 10 fix round 1 (ruling P3a-T10-R1): a reviewer must see a held REVISION before approving
             # it. ADMINS ONLY, and only on this single-row read (the list and the queue never name pending_json,
