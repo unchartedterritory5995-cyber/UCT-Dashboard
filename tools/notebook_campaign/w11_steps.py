@@ -296,9 +296,12 @@ def http_call(base: str, spec: dict, cookie: str | None, timeout: float = 60.0) 
     if cookie:
         headers["Cookie"] = f"uct_session={cookie}"
     url = base.rstrip("/") + spec["path"]
-    scheme, _, netloc = url.split("/", 3)[:3]
-    if not spec["path"].startswith("/") or refuse_non_local(f"{scheme}//{netloc}"):
-        raise PermissionError(f"the request URL {url!r} does not stay on {base!r}")
+    if not isinstance(spec.get("path"), str) or not spec["path"].startswith("/"):
+        # Review m-a: a path that does not start with "/" is appended to the AUTHORITY ("@evil.example/x" makes the
+        # base's port userinfo and evil.example the host). The base itself was checked above; this is the only
+        # thing a path can add to the origin.
+        raise PermissionError(f"the request path {spec.get('path')!r} does not start with '/', so {url!r} would "
+                              f"not stay on {base!r}")
     r = urllib.request.Request(url, data=data, method=spec["method"], headers=headers)
     try:
         with _opener().open(r, timeout=timeout) as resp:

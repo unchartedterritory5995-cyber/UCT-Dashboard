@@ -510,7 +510,8 @@ def no_socket(monkeypatch):
 @pytest.mark.parametrize("base", ["https://uctintelligence.com", "http://10.0.0.5:8131",
                                   "http://uctintelligence.com\\@127.0.0.1:8131", "http://user@127.0.0.1:8131",
                                   "http://127.0.0.1:8131@uctintelligence.com", "http://127.0.0.1:abc",
-                                  "http://127.0.0.1 :8131", "http://127.0.0.1:8131\\", "http:\\\\127.0.0.1:8131"])
+                                  "http://127.0.0.1 :8131", "http://127.0.0.1:8131\\", "http:\\\\127.0.0.1:8131",
+                                  "http://127.0.0.1:08131", "http://127.0.0.1:"])
 def test_the_loopback_door_refuses_every_other_host_on_every_call(base, monkeypatch):
     no_socket(monkeypatch)
     assert w11.refuse_non_local(base)
@@ -587,6 +588,7 @@ def fake_run(tmp_path, base):
     R.g, R.p, R.vp, R.mode = g, {"id": "P39"}, "1200", "pointer"
     R.member, R.alias, R.remembered, R.pages, R.contexts = {"session": "s39"}, {}, {}, {}, {}
     R.dir, R.tag, R.keyboard, R.size, R.touch = tmp_path / "P39", "t", False, (1200, 800), False
+    R.session_refusal = None
     return g, R
 
 
@@ -1143,3 +1145,82 @@ def test_m3_an_evidence_folder_under_the_shared_root_is_refused(tmp_path, capsys
     monkeypatch.setattr(rc, "load_walk_libs", lambda root: pytest.fail("the walk libs were loaded"))
     code = rc.main(["--run-id", "x", "--base", "http://127.0.0.1:1", "--data-dir", str(data), "--out", r"C:\data\x"])
     assert code == 3 and "--out" in capsys.readouterr().out
+
+
+
+# ── fix round 2 (scoped re-review of f36a9a28dd): m-a .. m-d ──────────────────────────────────────────────
+# Mutants re-run for this round (scratchpad mutate_r2.py), each must turn this file red: N3 the per-request path
+# check removed; N4 the netloc == host[:port] comparison removed; N5 the tick's "before: not ticked" check made
+# always true; N6 the browser context falling back to the seeded session under a clock group; N7 a step running
+# despite a session refusal.
+
+@pytest.mark.parametrize("path", ["@evil.example/x", "evil.example/x", ".evil.example/x", ""])
+def test_m_a_a_path_that_does_not_start_with_a_slash_never_leaves_the_base(path, monkeypatch):
+    no_socket(monkeypatch)
+    with pytest.raises(PermissionError):
+        w11.http_call("http://127.0.0.1:8131", {"method": "GET", "path": path, "headers": {}}, "s")
+
+
+def test_m_b_the_netloc_must_be_exactly_host_and_port():
+    for base in ("http://127.0.0.1:08131", "http://127.0.0.1:", "http://localhost:0008131"):
+        assert w11.refuse_non_local(base) and "exactly host[:port]" in w11.refuse_non_local(base), base
+    assert w11.refuse_non_local("http://127.0.0.1:8131") is None
+
+
+def test_m_c_an_item_already_ticked_before_the_press_fails_the_before_check(stub, tmp_path):
+    def ans(method, path, headers, body):
+        if method == "GET":
+            return 200, {"id": "r1", "name": "R", "items": [{"id": "i1", "text": "Futures"}]}
+        if path.endswith("/routines/days"):
+            d = json.loads(body)["days"][0]
+            return 200, {"routines": {"r1": {"days": {d: {"state": "done", "ticked": {"i1": True}}}}}}
+        return 200, {"state": "done", "ticked": {"i1": True}}
+    stub.answer = ans
+    g, R = fake_run(tmp_path, stub.base)
+    R.alias["use_routine"] = {"id": "r1"}
+    row = step(g, R, {"do": "w11_routine"})
+    assert row["verdict"] == "FAIL"
+    assert [c["what"] for c in row["checks"] if not c["ok"]] == ["before: the item is not ticked today"]
+
+
+class FakeCtx:
+    def __init__(self):
+        self.cookies, self.installed = [], None
+        self.clock = types_ns(install=lambda time=None: setattr(self, "installed", time))
+
+    def add_cookies(self, c):
+        self.cookies.extend(c)
+
+
+def types_ns(**kw):
+    import types
+    return types.SimpleNamespace(**kw)
+
+
+def browser_run(tmp_path, *, clock: bool, vouched: str | None):
+    g, R = fake_run(tmp_path, "http://127.0.0.1:8131")
+    made = []
+    g.browser = types_ns(new_context=lambda **kw: made.append(FakeCtx()) or made[-1])
+    g.clock_server = object() if clock else None
+    g.session_override = {"P13": vouched} if vouched else {}
+    R.p, R.member = {"id": "P13"}, {"session": "seeded-p13"}
+    return g, R, made
+
+
+def test_m_d_under_a_clock_group_the_browser_gets_no_seeded_cookie_and_every_step_is_inconclusive(tmp_path,
+                                                                                                 monkeypatch):
+    g, R, made = browser_run(tmp_path, clock=True, vouched=None)
+    R.new_context("main")
+    assert made[0].cookies == [] and R.session_refusal and "vouched" in R.session_refusal
+    monkeypatch.setitem(rc.ACTIONS, "open", lambda *a: pytest.fail("a browser step ran without a vouched session"))
+    row = g.step(R, {"id": "P13.a", "title": "t"}, {"do": "open", "path": "/journal"}, "P13.a.01", None)
+    assert row["verdict"] == "INCONCLUSIVE" and "vouched" in row["error"]
+
+
+def test_m_d_control_a_vouched_session_or_a_real_clock_server_sets_the_cookie(tmp_path):
+    g, R, made = browser_run(tmp_path, clock=True, vouched="minted-p13")
+    R.new_context("main")
+    assert [c["value"] for c in made[0].cookies] == ["minted-p13"] and R.session_refusal is None
+    g, R, made = browser_run(tmp_path, clock=False, vouched=None)
+    R.new_context("main")
+    assert [c["value"] for c in made[0].cookies] == ["seeded-p13"] and R.session_refusal is None

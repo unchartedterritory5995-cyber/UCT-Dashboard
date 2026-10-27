@@ -483,6 +483,7 @@ class Run:
         self.remembered: dict = {}
         self.tag = f"{g.run_id}-{vp}-{mode}"
         self.steps: list[dict] = []
+        self.session_refusal: str | None = None   # set by new_context when a clock group has no vouched session
 
     # contexts and pages
     def new_context(self, name: str):
@@ -492,7 +493,7 @@ class Run:
         if self.g.clock_server is not None:
             # The browser's clock agrees with the server's: the same shifted now, ticking.
             ctx.clock.install(time=shifted_now())
-        session = (self.g.session_override or {}).get(self.p["id"]) or self.member.get("session")
+        session = browser_session(self)
         if session:
             host = urlparse(self.g.base).hostname
             ctx.add_cookies([{"name": "uct_session", "value": session, "domain": host, "path": "/",
@@ -1310,6 +1311,17 @@ def a_noop(R, s, row):
 # persona's own session, and grades them with w11_steps' judges. A judge that says INCONCLUSIVE raises Inconclusive
 # (never a pass); EXPECTED-PENDING raises Pending. Every request and answer is in the step's `read`.
 
+def browser_session(R: Run) -> str | None:
+    """The session a browser context carries: `cookie_of`'s rule (review m-d, the I7 hazard on the browser side).
+    Under a clock group with no launcher-vouched session the context gets NO cookie, and `session_refusal` makes
+    every step of the run INCONCLUSIVE before it drives anything."""
+    try:
+        return cookie_of(R)
+    except Inconclusive as e:
+        R.session_refusal = str(e)
+        return None
+
+
 def cookie_of(R: Run) -> str | None:
     """The persona's session. Under a clock group ONLY the one the launcher vouched for at this instant (review I7,
     the N7 rule the probe already keeps): a seeded cookie the shifted server reads as expired would be DELETED by
@@ -2042,6 +2054,10 @@ class Campaign:
         if unmet:
             row["verdict"] = "INCONCLUSIVE"
             row["error"] = "needs " + ", ".join(unmet) + ": " + "; ".join(NEED_WHY[n] for n in unmet)
+        elif getattr(R, "session_refusal", None):
+            row["verdict"] = "INCONCLUSIVE"
+            row["error"] = f"INCONCLUSIVE: {R.session_refusal}"
+            skip_rest = R.session_refusal
         elif skip_rest:
             row["verdict"] = "INCONCLUSIVE"
             row["error"] = skip_rest
