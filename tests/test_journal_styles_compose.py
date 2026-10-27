@@ -627,11 +627,6 @@ def test_the_server_kind_titles_match_the_client_widget_kinds():
 
 
 
-#: Task 11.14: the six wave 10 dedicated kinds a template may hold (Task 11.3 appends them to
-#: journal_styles.SNAPSHOT_SLOT_KINDS on the backend branch). Named here so this rail checks them on both branches.
-_WAVE10_SLOT_KINDS = ("myRiskLeftToday", "myGamePlan", "myTiltCheck", "myRevengeClean", "myPropFirm", "myAlertsFired")
-
-
 def test_the_client_names_every_slot_kind_by_the_servers_title():
     """Task 11.14: journalBlocks.SNAPSHOT_BLOCK_LABELS names every snapshot kind a style may place by the server's
     notebook_widgets.KIND_TITLE, read from the client file, never restated."""
@@ -642,7 +637,7 @@ def test_the_client_names_every_slot_kind_by_the_servers_title():
     start = src.index("export const SNAPSHOT_BLOCK_LABELS")
     block = src[start:src.index("})", start)]
     client = dict(re.findall(r"^\s+(\w+): '([^']+)',", block, flags=re.M))
-    kinds = list(dict.fromkeys([*js.SNAPSHOT_SLOT_KINDS, *_WAVE10_SLOT_KINDS]))
+    kinds = list(js.SNAPSHOT_SLOT_KINDS)                    # the server's list, never a hand-typed copy (M2)
     assert len(kinds) == 12                                                               # non-vacuity
     assert client == {k: nw.KIND_TITLE[k] for k in kinds}
 

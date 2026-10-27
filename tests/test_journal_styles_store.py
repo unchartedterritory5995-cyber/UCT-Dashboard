@@ -48,11 +48,6 @@ def test_the_client_block_catalog_equals_the_server_catalog():
     assert shape(client) == shape(js.BLOCK_KINDS)
 
 
-#: Task 11.3: server slot kinds whose client label row is Task 11.14's (delete this set when it lands).
-_CLIENT_LABELS_PENDING_TASK_11_14 = frozenset({
-    "myRiskLeftToday", "myGamePlan", "myTiltCheck", "myRevengeClean", "myPropFirm", "myAlertsFired"})
-
-
 def test_the_client_names_every_snapshot_slot_by_the_servers_title():
     """Notebook widgets Task 15: a starter style's snapshot slot has no BLOCK_KINDS row, so journalBlocks.js names
     it from SNAPSHOT_BLOCK_LABELS. Every slot the server can place is named there, by notebook_widgets.KIND_TITLE."""
@@ -65,11 +60,7 @@ def test_the_client_names_every_snapshot_slot_by_the_servers_title():
     assert r.returncode == 0, (r.stderr or b"").decode("utf-8", "replace")[:2000]
     got = json.loads(r.stdout.decode("utf-8"))
     assert got["labels"]                                                   # non-vacuity
-    # Wave 11 (Task 11.3): the six wave 10 slot kinds land on the server first; the client's six
-    # SNAPSHOT_BLOCK_LABELS rows are the eager Task 11.14 (frontend lane). Until then the ONLY server slots the
-    # client may lack are exactly those six, and every one the client names carries the server's title.
-    assert got["labels"] == {k: nw.KIND_TITLE[k] for k in js.SNAPSHOT_SLOT_KINDS if k in got["labels"]}
-    assert set(js.SNAPSHOT_SLOT_KINDS) - set(got["labels"]) <= _CLIENT_LABELS_PENDING_TASK_11_14
+    assert got["labels"] == {k: nw.KIND_TITLE[k] for k in js.SNAPSHOT_SLOT_KINDS}
     assert got["named"] == "My P&L and stats"
     assert got["other"] == "A block from a newer version (zzNew)"          # control: an unknown id still reads so
     assert not set(js.SNAPSHOT_SLOT_KINDS) & {k["id"] for k in js.BLOCK_KINDS}   # never offered by the editor
