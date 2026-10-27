@@ -26,7 +26,7 @@ from api.services.journal_two import widget_definitions as wd
 from api.services.journal_two.widget_engine import run, share
 from tests._gallery_w11_helpers import (  # noqa: F401 -- `db` is a fixture used by name
     AUTHOR, MEMBER, NOW, OTHER, SETUP_PLAN, approve, built, counts, db, heading, list_template, list_tool, para,
-    routine, routine_edits, routine_slot, style, tracker, tracker_slot, widget,
+    pin_clock, routine, routine_edits, routine_slot, style, tracker, tracker_slot, widget,
 )
 from tests.test_widget_sources import add_account
 
@@ -431,7 +431,8 @@ def _days(db, uid=MEMBER):
     return sorted(r_[0] for r_ in db.execute("SELECT day FROM j2_gallery_use_days WHERE user_id = ?", (uid,)))
 
 
-def test_use_day_recorded_once_per_et_day_and_never_for_author(db):
+def test_use_day_recorded_once_per_et_day_and_never_for_author(db, monkeypatch):
+    pin_clock(monkeypatch)                     # W11-R74: the copy's items are valid from NOW's ET day
     r = routine(db)
     gr = list_tool(db, "routine", r["id"], edits=routine_edits("Coffee"))
     mine = gallery.adopt_tool(MEMBER, gr, conn=db)["id"]

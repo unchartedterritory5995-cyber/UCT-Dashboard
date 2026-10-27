@@ -22,7 +22,7 @@ from api.services.journal_two import journal_styles as js
 from api.services.journal_two import routines, template_gallery as gallery, trackers
 from api.services.journal_two import widget_definitions as wd
 from tests._gallery_w11_helpers import (  # noqa: F401 -- `db` is a fixture used by name
-    AUTHOR, MEMBER, NOW, OTHER, approve, built, counts, db, heading, list_template, list_tool, para, routine,
+    AUTHOR, MEMBER, NOW, OTHER, approve, built, counts, db, heading, list_template, list_tool, para, pin_clock, routine,
     routine_edits, routine_slot, style, tracker, tracker_slot, waves, widget,
 )
 from tests.test_widget_share_canary import CANARY
@@ -77,7 +77,8 @@ def test_a_template_made_tool_is_offered_only_its_own_update_and_it_applies(db):
     assert gallery.update_tool(MEMBER, "tracker", tid, conn=db) is None
 
 
-def test_a_template_made_tool_records_no_use_day(db):
+def test_a_template_made_tool_records_no_use_day(db, monkeypatch):
+    pin_clock(monkeypatch)                     # W11-R74: the copy's items are valid from NOW's ET day
     gid, s, w = _template(db)
     out = gallery.adopt_style(MEMBER, gid, answers={"p1": "Flag"}, choices=CHOICES, conn=db)
     rid = out["created"]["routines"][0]["id"]
@@ -103,7 +104,8 @@ def test_an_applied_template_update_is_no_longer_offered(db):
 
 # ── I-3 (W11-R34b) ─────────────────────────────────────────────────────────────────────────────────
 
-def test_a_routine_update_keeps_every_unchanged_item_and_its_ticks(db):
+def test_a_routine_update_keeps_every_unchanged_item_and_its_ticks(db, monkeypatch):
+    pin_clock(monkeypatch)                     # W11-R74: the copy's items are valid from NOW's ET day
     r = routine(db)
     gid = list_tool(db, "routine", r["id"], edits=routine_edits("Coffee", "Read"))
     mine = gallery.adopt_tool(MEMBER, gid, conn=db)["id"]

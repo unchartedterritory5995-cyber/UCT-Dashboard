@@ -26,6 +26,17 @@ SETUP_PLAN = {"v": 1, "source": "closed_trades",
               "measures": [{"key": "trades"}], "range": {"token": "all"}}
 
 
+def pin_clock(monkeypatch, at: datetime = NOW) -> datetime:
+    """W11-R74: the tool stores' own clock seam (`routines._now`, `trackers._now`, `widget_definitions._now`: each
+    reads `datetime.now` only when no `now=` was passed) pinned to `at`. A door that passes no `now=` -- an adoption
+    making a routine, whose items are valid from TODAY ET -- then makes it on `at`'s ET day, so a test that ticks a
+    fixed day does not turn red when the wall clock crosses ET midnight. An explicit `now=` still wins."""
+    for mod in (routines, trackers, wd):
+        real = mod._now
+        monkeypatch.setattr(mod, "_now", lambda now=None, _real=real: _real(now or at))
+    return at
+
+
 def waves(monkeypatch, *on):
     for w in range(1, 13):
         if w in on:
