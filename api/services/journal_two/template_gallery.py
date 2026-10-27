@@ -5040,6 +5040,19 @@ def update_tool(user_id: str, copy_kind: Any, copy_id: Any, *, answers: Any = No
 gallery_row = _row
 can_see = _can_see
 listed_payload = _listed_payload
+
+
+def member_copy(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> sqlite3.Row | None:
+    """11.20 R2: the member's newest LIVE copy of a listed template (`_newest_copy`, the copy a Use reuses), as
+    `(id, updated_at, blocks_json)`, or None. The copy carries the choices a Use remembered (`slot_fill.
+    remember_choices`), so the next preview asks only what it does not yet remember."""
+    copy_id = _newest_copy(conn, user_id, gallery_id)
+    if copy_id is None:
+        return None
+    return conn.execute("SELECT id, updated_at, blocks_json FROM j2_journal_styles WHERE id = ? AND user_id = ?",
+                        (copy_id, user_id)).fetchone()
+
+
 author_label = _author_label
 #: F-ALIAS-1 A2 (ledger 139): the gallery reads `journal_styles` makes across modules. The SAME function objects.
 wave11_library_on = _wave11_library_on

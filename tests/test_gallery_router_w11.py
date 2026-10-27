@@ -852,3 +852,28 @@ def test_a_key_spent_on_another_item_is_key_reused_and_a_key_in_flight_is_confli
     assert busy.status_code == 409, busy.text
     assert busy.json()["detail"] == {"code": "conflict", "message": gallery.S_KEY_IN_FLIGHT}
     assert busy.json()["detail"]["code"] != reused.json()["detail"]["code"]
+
+
+def test_a_second_use_does_not_ask_the_routine_question_again(app, client, db):
+    # 11.20 rehearsal R2 / spec §10: "asks once per slot ... the choice is remembered for that template". The first
+    # Use answers the routine question and remembers it on the member's copy; the next preview of the SAME listed
+    # template asks nothing for that slot (it read the listing, and a cached first answer, before), and the next Use
+    # places the remembered routine.
+    gid = _official(db)
+    as_user(app, MEMBER)
+    first = _send(client, "POST", f"{GALLERY}/{gid}/preview-mine", {})
+    assert first.status_code == 200
+    assert [q["slot"] for q in first.json()["questions"]] == ["routine_a"]          # non-vacuity: asked the first time
+    one = _send(client, "POST", f"{GALLERY}/{gid}/use-template", {"choices": {"routine_a": {"create": True}}})
+    assert one.status_code == 200
+    again = _send(client, "POST", f"{GALLERY}/{gid}/preview-mine", {})
+    assert again.status_code == 200
+    assert again.json()["questions"] == []
+    two = _send(client, "POST", f"{GALLERY}/{gid}/use-template", {})
+    assert two.status_code == 200
+    ids = _routine_ids_in_notes(db)
+    assert len(ids) == 2 and len(set(ids)) == 1 and ids[0]                          # the remembered routine, twice
+    # CONTROL: another member who never used it is still asked.
+    as_user(app, OTHER)
+    other = _send(client, "POST", f"{GALLERY}/{gid}/preview-mine", {})
+    assert [q["slot"] for q in other.json()["questions"]] == ["routine_a"]

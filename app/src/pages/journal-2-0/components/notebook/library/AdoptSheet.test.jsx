@@ -136,6 +136,28 @@ describe("AdoptSheet against the server's recorded answers (contract fixtures)",
   })
 })
 
+describe('a second Use of a template (11.20 rehearsal R2, spec §10: asked once per slot)', () => {
+  it('asks nothing the server says is remembered, and sends no choice for that slot', async () => {
+    // The server answers a second Use's preview from the member's copy, where the first Use remembered the routine:
+    // the slot is not in `questions` (template_preview.preview_mine, railed server-side by
+    // test_gallery_router_w11::test_a_second_use_does_not_ask_the_routine_question_again).
+    const first = contractBody('template-gallery.preview-mine.questions')
+    expect(first.questions.length).toBeGreaterThan(0)                          // non-vacuity: the first Use asked
+    const second = { ...first, questions: [] }
+    const used = contractBody('template-gallery.use-template')
+    const net = installServer({ preview: () => second, use: () => used })
+    mount()
+    await waitFor(() => expect(net.previews().length).toBe(1))
+    await waitFor(() => expect(useButton()).not.toBeDisabled())
+    expect(document.querySelector('[data-question]')).toBeNull()
+    expect(screen.queryByText(createWords(first.questions[0].createName))).toBeNull()
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.posts().filter((c) => c.url === USE)).toHaveLength(1))
+    const choices = net.posts().find((c) => c.url === USE).body.choices || {}
+    expect(Object.hasOwn(choices, first.questions[0].slot)).toBe(false)
+  })
+})
+
 // ── opening ──────────────────────────────────────────────────────────────────────────────────────────
 
 describe('opening the sheet', () => {

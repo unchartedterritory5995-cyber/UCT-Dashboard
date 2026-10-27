@@ -112,10 +112,14 @@ def _canonical(answers: Mapping) -> str:
     return json.dumps(answers, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
 
 
-def cache_key(gallery_id: str, version: Any, user_id: str, et_day: str, answers: Mapping) -> str:
-    """THE key (W11-R12): the item, its listed version, the viewer, the ET day and the answers' hash."""
+def cache_key(gallery_id: str, version: Any, user_id: str, et_day: str, answers: Mapping,
+              copy: Any = None) -> str:
+    """THE key (W11-R12): the item, its listed version, the viewer, the ET day and the answers' hash. 11.20 R2:
+    `copy` is the viewer's own copy of a template as last written (`[id, updated_at]`), so a Use that remembers a
+    choice starts a fresh preview; None (no copy, or not a template) keys exactly as before."""
     digest = hashlib.sha256(_canonical(answers).encode("utf-8")).hexdigest()
-    return "preview_mine::" + json.dumps([gallery_id, version, user_id, et_day, digest], default=str)
+    parts = [gallery_id, version, user_id, et_day, digest] + ([copy] if copy is not None else [])
+    return "preview_mine::" + json.dumps(parts, default=str)
 
 
 def _number(x: Any) -> bool:
@@ -479,8 +483,20 @@ def _builtin_trackers() -> Mapping:
 
 # -- the item kinds --------------------------------------------------------------------------------
 
+def _copy_blocks(mine: Any) -> list | None:
+    """The blocks of the viewer's own copy (`template_gallery.member_copy`), or None when there is none or it is
+    unreadable (then the listing asks, as for a first Use)."""
+    if mine is None:
+        return None
+    try:
+        blocks = json.loads(mine["blocks_json"] or "[]")
+    except (TypeError, ValueError):
+        return None
+    return blocks if isinstance(blocks, list) else None
+
+
 def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Connection, answers: Mapping,
-              now: datetime) -> dict:
+              now: datetime, asked_from: list | None = None) -> dict:
     js = _js()
     slots = _slots_of(payload)
     sample = _run().wants_sample(conn, user_id)              # read ONCE: the choices and the batch share it
@@ -529,7 +545,8 @@ def _template(payload: Mapping, *, author: bool, user_id: str, conn: sqlite3.Con
                                note_day=note_day))
     _run_cards(user_id, pending, now, sample=sample)
     return {"slots": served, "cards": cards, "tools": tools,
-            "questions": _questions(payload, user_id=user_id, conn=conn)}
+            "questions": _questions(payload if asked_from is None else {**payload, "blocks": asked_from},
+                                    user_id=user_id, conn=conn)}
 
 
 def _questions(payload: Mapping, *, user_id: str, conn: sqlite3.Connection) -> list:
@@ -622,13 +639,18 @@ def preview_mine(user_id: str, gallery_id: str, *, answers: dict | None = None, 
         payload = tg.listed_payload(row) or {}
         # I-3: only the declared choices, each checked, key the cache, run and are echoed
         answers = clean_answers(_slots_of(payload), answers)
-        key = cache_key(gallery_id, row["version"], user_id, trading_days.today_et(now).isoformat(), answers)
+        # 11.20 R2: a template the viewer already uses asks its reuse questions from THEIR copy, which holds the
+        # choices a Use remembered (spec §10: asked once per slot); the listing still draws everything else.
+        mine = tg.member_copy(c, user_id, gallery_id) if item_type == "style" else None
+        key = cache_key(gallery_id, row["version"], user_id, trading_days.today_et(now).isoformat(), answers,
+                        copy=[mine["id"], mine["updated_at"]] if mine is not None else None)
         hit = _CACHE.get(key)
         if hit is not None:
             return copy.deepcopy(hit)
         author = row["user_id"] == user_id
         if item_type == "style":
-            out = _template(payload, author=author, user_id=user_id, conn=c, answers=answers, now=now)
+            out = _template(payload, author=author, user_id=user_id, conn=c, answers=answers, now=now,
+                            asked_from=_copy_blocks(mine))
         elif item_type == "widget_definition":
             out = _widget(payload, user_id=user_id, conn=c, answers=answers, now=now)
         else:
