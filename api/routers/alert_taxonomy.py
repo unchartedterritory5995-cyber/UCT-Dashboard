@@ -161,6 +161,50 @@ def suspend_rating_change_alert(predicate_id: str, user: dict = Depends(get_curr
     return {"predicate_id": predicate_id, "suspended": True}
 
 
+# ── Trade Exchange News: news-match (dark: ALERT_NEWS_MATCH_ENABLED) ─────────
+
+def _news_match_armed() -> None:
+    from api.services.alert_taxonomy import news_match as _nm
+    if not _nm.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+class NewsMatchCreate(BaseModel):
+    tickers: list[str] | None = None
+    keywords: list[str] | None = None
+    mode: str = "any"
+
+
+@router.post("/api/alerts/taxonomy/news-match", dependencies=[Depends(_news_match_armed)])
+def create_news_match_alert(body: NewsMatchCreate, user: dict = Depends(require_admin)):
+    """Be told when a Trade Exchange headline names these tickers / keywords.
+    ⛔ ADMIN-ONLY while the News widget is dark (same audience as its stream)."""
+    from api.services.alert_taxonomy import news_match as _nm
+    _nm.register()
+    try:
+        pid = _nm.register_predicate_for_user(user["id"], tickers=body.tickers,
+                                              keywords=body.keywords, mode=body.mode)
+    except PredicateRegistrationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"predicate_id": pid}
+
+
+@router.get("/api/alerts/taxonomy/news-match", dependencies=[Depends(_news_match_armed)])
+def list_news_match_alerts(active_only: bool = True, user: dict = Depends(require_admin)):
+    from api.services.alert_taxonomy import news_match as _nm
+    return {"predicates": _predicates.list_predicates(type_id=_nm.TYPE_ID, user_id=user["id"],
+                                                      active_only=active_only)}
+
+
+@router.delete("/api/alerts/taxonomy/news-match/{predicate_id}",
+               dependencies=[Depends(_news_match_armed)])
+def suspend_news_match_alert(predicate_id: str, user: dict = Depends(require_admin)):
+    """Suspend, never delete: the predicate and its fires stay."""
+    if not _predicates.suspend_predicate(predicate_id, user["id"]):
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"predicate_id": predicate_id, "suspended": True}
+
+
 @router.post("/api/admin/alerts/taxonomy/run-rating-change-sweep",
              dependencies=[Depends(_rating_change_armed)])
 def run_rating_change_sweep_now(_admin: dict = Depends(require_admin)):

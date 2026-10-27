@@ -332,9 +332,10 @@ FAMILIES: dict[str, Family] = {
     "trade-exchange-news-internal": Family(
         TIER_BULK,
         "Trade Exchange News: the receiver service's private-network push of each "
-        "headline (one sender, bursty during market-moving news). Bearer-gated "
-        "inline; the ceiling only bounds a misbehaving or leaked caller. A refused "
-        "push loses nothing -- web's reconciler recovers it from the R2 journal.",
+        "headline (one sender, bursty during market-moving news; bearer-gated inline, "
+        "a refused push loses nothing -- the reconciler recovers it from the R2 "
+        "journal) plus the admin-only member reads: one /recent page per widget "
+        "mount and one long-lived /stream per browser (the pool shares it).",
         ("/api/trade-exchange-news",),
     ),
     "admin-ops": Family(

@@ -70,6 +70,8 @@ const TYPE_ICONS = {
   // Without this entry every filing-watch row fell back to the generic bell, so
   // a new 10-K looked identical to a price alert in the member's list.
   document_arrival: 'document',
+  // Trade Exchange News alerts (S7 news-match, source="news_match"; dark).
+  news_match: 'wire',
 }
 
 const SEV_CLASS = {

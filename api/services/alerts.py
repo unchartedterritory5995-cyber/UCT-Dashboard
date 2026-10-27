@@ -271,6 +271,13 @@ def _s7_durable_alerts(user_id: str, limit: int) -> list[dict]:
                 out.append(_at_rc.alert_shape_for_fire(f))
             except Exception:
                 continue
+        elif f.get("trigger_type") == "news-match":
+            # Trade Exchange News (dark): event-driven news alerts.
+            try:
+                from api.services.alert_taxonomy import news_match as _at_nm
+                out.append(_at_nm.alert_shape_for_fire(f))
+            except Exception:
+                continue
     return out
 
 
@@ -288,7 +295,8 @@ def _dual_write_s7_read_if_applicable(alert: dict, user_id: str) -> None:
     never breaks the feed" posture.
     """
     data = alert.get("data")
-    if isinstance(data, dict) and data.get("source") == "rating_change" and data.get("s7_fire_key"):
+    if (isinstance(data, dict) and data.get("source") in ("rating_change", "news_match")
+            and data.get("s7_fire_key")):
         # FT-034: the same read-parity, keyed on the fire's own key.
         try:
             from api.services.alert_taxonomy import receipts as _at_receipts

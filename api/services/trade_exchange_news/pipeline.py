@@ -54,6 +54,17 @@ def _tickers_for(content: str) -> list[str]:
 DELAYED_AFTER_MS = 15_000
 
 
+def _alert_hook(ev: dict[str, Any]) -> None:
+    """Hand a NEW headline to the S7 news-match alerts (dark behind its own flag).
+    ``on_headline`` only enqueues onto news-match's own thread, so delivery I/O
+    never runs on, or waits for, this writer. Never raises."""
+    try:
+        from api.services.alert_taxonomy import news_match
+        news_match.on_headline(ev)
+    except Exception:  # noqa: BLE001 -- an alert fault must never cost a headline
+        pass
+
+
 def headline_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
     """⭐ ``seq`` is THE order: assigned once, by the single writer, at commit,
     contiguous within an ``epoch`` (AUTOINCREMENT, never reused; a rolled-back
@@ -92,8 +103,9 @@ class Pipeline:
                                 window_ms=config.dedupe_window_ms(),
                                 tickers=_tickers_for(rec["content"]))
         if out["kind"] == NEW:
-            self.loop.call_soon_threadsafe(self.hub.publish,
-                                           headline_event(out["headline"], self.store.epoch))
+            ev = headline_event(out["headline"], self.store.epoch)
+            self.loop.call_soon_threadsafe(self.hub.publish, ev)
+            _alert_hook(ev)
         elif out["kind"] == REPEAT:
             self.loop.call_soon_threadsafe(self.hub.publish,
                                            repeat_event(out["headline"], self.store.epoch))

@@ -9705,6 +9705,7 @@ def _is_gzip_exempt(path: str) -> bool:
         path.startswith("/api/stream")
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
+        or path == "/api/trade-exchange-news/stream"     # Trade Exchange News SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
         or path == "/api/agent/turn/stream"              # UCT Agent turn (answer streaming)
         or path == "/api/j2/ask/stream"                  # unified Ask token stream

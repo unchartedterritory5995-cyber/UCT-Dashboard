@@ -1472,6 +1472,15 @@
       ],
       "note": "TERM-086 (item 14 WF-B06), ENABLEMENT GATE, default OFF, read per request in api/services/inbound_alerts.py::is_enabled(). SERVICE: web. What it arms: POST /api/inbound-alerts/hook/{token} (the TradingView webhook door; the per-member secret in the path is the credential, stored only as its sha-256, rotatable and revocable, never logged) plus the member's own GET|POST|DELETE /api/inbound-alerts/receiver and POST .../receiver/rotate, and the admin read GET /api/admin/inbound-alerts. A received alert goes ONLY to the token owner's bell and email through watchlist_alert_service.deliver_alert_payload (TERM-011: never the admin Discord). Strict JSON schema (ticker required, unknown fields ignored), 4 KiB body cap, per-token rate limit INBOUND_ALERTS_RATE (default 30/minute), replay dedup per member. INBOUND ONLY: no order path, no brokerage call. OFF: every route of the feature does not match at routing, so the app answers exactly as if the router were not mounted. Rollback = unset this variable; nothing is deleted (tokens and receipts stay in auth.db, so a re-enable finds every member's URL still working). The member-facing Settings panel is not built yet; the API is the whole surface today. ARMED ON web 2026-09-30 22:43:57Z by owner ruling. Verified: GET /api/admin/inbound-alerts enabled:true; the member receiver route answers."
     },
+    "ALERT_NEWS_MATCH_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-27",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "Trade Exchange News Checkpoint C (2026-10-27). S7 trigger type news-match (api/services/alert_taxonomy/news_match.py), owner-approved at Checkpoint A, built DARK. ON: POST/GET/DELETE /api/alerts/taxonomy/news-match (admin-only while the News widget is dark) and the pipeline's NEW-headline hook evaluates member rules (tickers and/or keywords, no AI) on its own thread and fires once per member per headline through receipts.record_fire + delivery.deliver. Not registered at boot (CP3 unsigned; routes register on demand). Needs TXN_ENABLED to have any headlines. OFF: routes 404, hook is a no-op. Rollback = unset."
+    },
     "TXN_ENABLED": {
       "status": "dark",
       "since": "2026-10-27",
@@ -1480,6 +1489,16 @@
       ],
       "owner": "trade-exchange-news",
       "note": "Trade Exchange News Checkpoint B (2026-10-27). DARK BY OWNER RULE: no deploy, no member access and no Trade Exchange webhook registration without explicit owner approval; history storage additionally waits on Trade Exchange's written retention/redistribution permission. Read in api/services/trade_exchange_news/config.py::enabled() (strict == '1'). ON: mounts POST /api/trade-exchange-news/internal/ingest (the receiver service's private-network push, bearer TXN_INGEST_TOKEN checked as its sha-256 against TXN_INGEST_TOKEN_SHA256) and GET /api/admin/trade-exchange-news, and starts the single-writer pipeline (/data/trade_exchange_news.db, bounded 7 days / 5,000 headlines) plus the R2 journal reconciler. OFF: routes do not match, nothing starts, /data untouched. Rollback = unset; the store and the R2 journal are kept."
+    },
+    "TXN_STORAGE_PERMISSION_CONFIRMED": {
+      "status": "pending",
+      "since": "2026-10-27",
+      "where": [
+        "web",
+        "trade-exchange-news-receiver"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "Trade Exchange News: HARD STORAGE GATE. Real Trade Exchange headlines are stored (R2 journal + web SQLite) only after Trade Exchange's retention and redistribution permission is confirmed in writing (owner rule, Checkpoint B/C). Without it the web pipeline does not start even with TXN_ENABLED=1 and the receiver answers 503. Pending the provider's written confirmation; synthetic-only staging may set it."
     },
     "INDICATOR_VISION_ENABLED": {
       "status": "armed",
