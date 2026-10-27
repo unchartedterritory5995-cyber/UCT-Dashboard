@@ -538,7 +538,7 @@ def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection
     from api.services.journal_two.note_kinds import NOTE_KIND_PROPERTY
 
     out: list[dict] = []
-    for property_id in np._parse_properties_json(raw):
+    for property_id in np.parse_properties_json(raw):
         if len(out) >= MAX_PROPERTY_DEFS:
             break
         if np.is_builtin_property_id(property_id):
@@ -4960,6 +4960,10 @@ gallery_row = _row
 can_see = _can_see
 listed_payload = _listed_payload
 author_label = _author_label
+#: F-ALIAS-1 A2 (ledger 139): the gallery reads `journal_styles` makes across modules. The SAME function objects.
+wave11_library_on = _wave11_library_on
+row_credit = _row_credit
+read_rows = _read
 
 
 def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
