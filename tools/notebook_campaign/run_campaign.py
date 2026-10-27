@@ -410,6 +410,20 @@ def git_reader(app_root: Path, ref: str):
     return read
 
 
+#: W11-R85 (003-008): the preview-mine window the SERVER declares (`PREVIEW_MINE_RATE`, a per-member Limiter scope),
+#: read from the served tree at run start, never restated here. The runner paces preview-mine calls to it.
+RATE_SOURCE = "api/routers/notebook_template_gallery.py"
+_RATE_DECL = re.compile(r'^PREVIEW_MINE_RATE\s*=\s*"(\d+)/(second|minute|hour)"', re.M)
+_RATE_PER_S = {"second": 1, "minute": 60, "hour": 3600}
+
+
+def preview_mine_rate(app_root: Path) -> tuple[int, int] | None:
+    """(calls, window in seconds) from the served `PREVIEW_MINE_RATE`, or None when the tree does not declare it."""
+    f = Path(app_root) / RATE_SOURCE
+    m = _RATE_DECL.search(f.read_text(encoding="utf-8", errors="replace")) if f.is_file() else None
+    return (int(m.group(1)), _RATE_PER_S[m.group(2)]) if m else None
+
+
 def tree_reader(app_root: Path):
     """`read(path)` for `selector_problems`: the file in `app_root`'s working tree (what the run serves)."""
     def read(path: str) -> str | None:
@@ -1951,7 +1965,7 @@ def a_admin_login(R, s, row):
         R.contexts["main"].add_cookies([{"name": "uct_session", "value": cached, "domain": host, "path": "/",
                                          "httpOnly": True, "secure": False, "sameSite": "Lax"}])
         me = pg.request.get(R.g.base + "/api/auth/me")
-        role = (me.json() if me.ok else {}).get("role")
+        role = ((me.json() if me.ok else {}).get("user") or {}).get("role")   # W11-R85 009: the wire's shape
         if me.ok and role == "admin":
             check(row, "the admin's session from this campaign's one sign-in is still admin", True, "role admin")
             return
@@ -2334,14 +2348,47 @@ def cookie_of(R: Run) -> str | None:
     return vouched or R.member.get("session")
 
 
+def is_preview_mine(spec: dict) -> bool:
+    return str(spec.get("path", "")).split("?")[0].endswith("/preview-mine")
+
+
+def pace_preview_mine(R: Run, row: dict, calls: int = 1, now=time.monotonic, sleep=time.sleep) -> None:
+    """W11-R85 (003-008): hold this member's preview-mine calls inside the server's declared window, across every
+    run of the campaign (the Limiter keys on the member, and six runs of one persona share it)."""
+    rate = getattr(R.g, "preview_mine_rate", None)
+    if not rate:
+        return
+    n, win = rate
+    sent = R.g.paced.setdefault(R.p["id"], [])
+    t = now()
+    sent[:] = [x for x in sent if t - x < win]
+    if len(sent) + calls > n:
+        wait = win - (t - sent[len(sent) + calls - n - 1]) + 0.5
+        row["read"].append({"what": "paced to the served PREVIEW_MINE_RATE", "text": f"{n} per {win} s: waited {wait:.1f} s"})
+        sleep(wait)
+        t = now()
+        sent[:] = [x for x in sent if t - x < win]
+    sent.extend([now()] * calls)
+
+
 def w11_send(R: Run, row: dict, spec: dict, what: str | None = None):
+    mine = is_preview_mine(spec)
+    if mine:
+        pace_preview_mine(R, row)
     resp = w11.http_call(R.g.base, spec, cookie_of(R))
     row["read"].append({"what": what or f"{spec['method']} {spec['path']}",
                         "text": f"HTTP {resp.status} {resp['text'][:600]}"})
+    if mine and resp.status == 429:
+        # the designed limit, met even though the runner paced to it: the step proved nothing, it never passes
+        raise Inconclusive(f"preview-mine answered 429 although paced to PREVIEW_MINE_RATE "
+                           f"{getattr(R.g, 'preview_mine_rate', None)}: {resp['text'][:200]}")
     return resp
 
 
 def w11_race(R: Run, row: dict, specs: list[dict], what: str):
+    k = sum(1 for sp in specs if is_preview_mine(sp))
+    if k:
+        pace_preview_mine(R, row, calls=k)
     resps = w11.race(R.g.base, specs, cookie_of(R))
     row["read"].append({"what": what, "text": json.dumps([[r.status, r["text"][:160]] for r in resps])})
     return resps
@@ -2912,6 +2959,12 @@ READ_TEXT_MAX = 8000
 
 #: The surface's text WITHOUT its live regions (W11-R83 m-2): a sentence that must be in the body is never found in an
 #: sr-only announcement. Block elements are joined with spaces so two blocks never run together.
+#: W11-R85 011: the shown text minus every live region (the sr-only status line repeats the spec'd count sentence).
+SHOWN_TEXT_JS = """(e) => { let t = e.innerText || '';
+  for (const x of e.querySelectorAll('[aria-live], [role=status], [role=alert]')) { const s = x.innerText || '';
+    if (s) t = t.split(s).join(' ') }
+  return t }"""
+
 BODY_TEXT_JS = """(e) => { const c = e.cloneNode(true);
   c.querySelectorAll('[aria-live], [role=status], [role=alert]').forEach(x => x.remove());
   c.querySelectorAll('p, div, li, h1, h2, h3, h4, section, aside, button, label, span').forEach(x => x.append(' '));
@@ -2961,7 +3014,7 @@ def expectations(R: Run, s: dict, row: dict) -> None:
     for rx in s.get("forbid_re") or []:
         check(row, f"never matches {rx}", re.search(rx, text) is None, ", ".join(re.findall(rx, text)[:4]))
     if "zeros" in (s.get("forbid") or []):
-        z = zeros_in(text, bool(s.get("zero_ok")))
+        z = zeros_in(sur.evaluate(SHOWN_TEXT_JS) or "", bool(s.get("zero_ok")))
         check(row, "no zero, NaN, undefined or [object Object] is shown", not z, ", ".join(z))
     if "raw" in (s.get("forbid") or []):
         raw = pg.evaluate("() => ({imgx: document.querySelectorAll('img[src=\"x\"]').length,"
@@ -2997,14 +3050,14 @@ def metrics(R: Run, row: dict) -> dict:
     return out
 
 
-def obscured_unfocused(v: dict, keyboard: bool = False) -> bool:
-    """T-17, scoped by ruling W11-R83 I-2 to the triaged D-W11-005 geometry: in a KEYBOARD run, an axe target-size
-    "partially obscured" whose every node (all of them read, never a sample) is covered by the builder's sticky phone
-    summary bar (`[data-testid=builder-summary-bar]`, probed at the corners and centre) and is not the focused control.
-    Anything else is filed: a pointer run (a touch member cannot tap a covered target, WCAG 2.5.8), a node covered by
-    anything else, a node not read. A suppression is recorded (findings_of), never silent."""
+def obscured_unfocused(v: dict) -> bool:
+    """T-17, scoped by rulings W11-R83 I-2 and W11-R85 (001/002) to the triaged D-W11-005 geometry, in pointer and
+    keyboard runs alike: an axe target-size "partially obscured" whose every node (all of them read, never a sample)
+    is covered by the builder's sticky phone summary bar (`[data-testid=builder-summary-bar]`, probed at the corners
+    and centre) and is not the focused control: the scroll artifact under the sticky bar. Anything else is filed: a
+    node covered by anything else, a node not read, a focused node. A suppression is recorded (findings_of)."""
     nodes = v.get("node_info") or []
-    return (keyboard and v.get("id") == "target-size" and bool(nodes) and len(nodes) >= int(v.get("nodes") or 0)
+    return (v.get("id") == "target-size" and bool(nodes) and len(nodes) >= int(v.get("nodes") or 0)
             and all("obscured" in (n.get("summary") or "") and n.get("underBar") and not n.get("focused")
                     for n in nodes))
 
@@ -3047,10 +3100,10 @@ def findings_of(R: Run, row: dict) -> list[dict]:
         for t in small:                       # one finding per control, so the same control dedupes across runs
             out.append({"kind": "tap", "page": "main", "detail": f"under {TAP_FLOOR} px: " + json.dumps(t, ensure_ascii=False)})
     for v in (m.get("axe") or {}).get("violations") or []:
-        if obscured_unfocused(v, getattr(R, "keyboard", False)):
+        if obscured_unfocused(v):
             # T-17 / D-W11-005, recorded so triage sees every one (W11-R83 I-2)
             row.setdefault("suppressed", []).append({"rule": v.get("id"), "why": "D-W11-005: under the builder's "
-                                                     "sticky summary bar, not focused, keyboard run",
+                                                     "sticky summary bar, not focused",
                                                      "targets": [n.get("target") for n in v.get("node_info") or []]})
             continue
         if v.get("impact") in ("serious", "critical"):
@@ -3080,6 +3133,8 @@ class Campaign:
         self.session_override: dict = {}  # persona id -> a session the clock launcher re-minted
         self.once_ran: dict = {}          # (persona, script, instant) -> the run a `once` script ran in
         self.facts: dict = {}             # (persona, fact) -> value, kept across runs and clock boots
+        self.preview_mine_rate = None     # (calls, window s) from the served tree (W11-R85)
+        self.paced: dict = {}             # persona -> monotonic times of its preview-mine calls, across runs
 
     def sentence(self, key: str) -> str:
         v = self.sentences.get(key)
@@ -3167,7 +3222,8 @@ class Campaign:
     def step(self, R: Run, sc: dict, s: dict, sid_: str, skip_rest: str | None) -> dict:
         row = {"step": sid_, "do": s["do"], "title": s.get("title") or sc["title"], "persona": R.p["id"],
                "viewport": R.vp, "mode": R.mode, "checks": [], "read": [], "timings": {}, "screenshots": [],
-               "verdict": None, "blocking": s["do"] in BLOCKING, "expect_status": list(s.get("expect_status") or [])}
+               "verdict": None, "blocking": s["do"] in BLOCKING, "expect_status": list(s.get("expect_status") or []),
+               "expect_http": [dict(x) for x in s.get("expect_http") or []]}
         needs = set(sc.get("needs") or []) | set(s.get("needs") or [])
         unmet = sorted(n for n in needs if not self.caps.get(n))
         drift = getattr(self, "selector_drift", {}).get((R.p["id"], sid_))
@@ -3344,6 +3400,7 @@ def main(argv=None) -> int:
     libs = load_walk_libs(app_root)
     g = Campaign(args, spec, manifest, libs, out)
     g.sentences = verify_sentences(spec, app_root, served_tree=True)
+    g.preview_mine_rate = preview_mine_rate(app_root)
     for x in selector_problems(spec, tree_reader(app_root)):
         g.selector_drift.setdefault((x["persona"], x["step"]), []).append(x["why"])
     axe = Path(args.axe) if args.axe else app_root / "app" / "node_modules" / "axe-core" / "axe.min.js"

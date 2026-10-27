@@ -2619,7 +2619,7 @@ def test_t14_the_admin_signs_in_once_per_campaign_and_later_runs_reuse_the_sessi
             return Resp(200)
 
         def get(self, url):
-            return Resp(200, {"role": "admin"})
+            return Resp(200, {"user": {"role": "admin"}})                       # the wire's shape (W11-R85 009)
 
     class Ctx:
         def cookies(self):
@@ -2668,11 +2668,11 @@ def test_t16_p06_discards_on_close():
 def test_t17_an_obscured_unfocused_target_is_not_a_finding():
     v = {"id": "target-size", "impact": "serious", "help": "h", "nodes": 1, "targets": ["#a"],
          "node_info": [{"summary": "Target is partially obscured", "focused": False, "underBar": True}]}
-    assert rc.obscured_unfocused(v, keyboard=True)
+    assert rc.obscured_unfocused(v)
     assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target is partially obscured", "focused": True,
-                                                          "underBar": True}]}, keyboard=True)
+                                                          "underBar": True}]})
     assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target has insufficient size", "focused": False,
-                                                          "underBar": True}]}, keyboard=True)
+                                                          "underBar": True}]})
     R = type("R", (), {"touch": False, "keyboard": True})()
     row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [v]}}}
     assert rc.findings_of(R, row) == []
@@ -2732,9 +2732,13 @@ def test_coverage_every_persona_carries_its_served_run_validation_record():
 
 # ── W11-R83: the R81 review's fixes, each with an over-suppression control (mutate_r83.py turns each red) ─────────
 
-def _expect_zero(text, zero_ok):
+def _expect_zero(text, zero_ok, live=""):
     class Sur:
         def inner_text(self, timeout=None):
+            return text + live
+
+        def evaluate(self, js):
+            assert js == rc.SHOWN_TEXT_JS
             return text
     R = type("R", (), {"page": lambda self: None})()
     row = {"checks": [], "read": []}
@@ -2762,21 +2766,19 @@ def _ov(nodes=1, info=None, under=True, focused=False, summary="Target is partia
 
 
 def test_i2_the_obscured_suppression_is_the_d005_geometry_only_and_is_recorded():
-    assert rc.obscured_unfocused(_ov(), keyboard=True)
-    assert not rc.obscured_unfocused(_ov(), keyboard=False)                       # a pointer-mode node is filed
-    assert not rc.obscured_unfocused(_ov(under=False), keyboard=True)             # covered by anything else: filed
-    assert not rc.obscured_unfocused(_ov(focused=True), keyboard=True)
+    assert rc.obscured_unfocused(_ov())
+    assert not rc.obscured_unfocused(_ov(under=False))                            # covered by anything else: filed
+    assert not rc.obscured_unfocused(_ov(focused=True))
     thirteen = _ov(nodes=13)
     thirteen["node_info"] = thirteen["node_info"][:12]                            # a 13th node not read: filed
-    assert not rc.obscured_unfocused(thirteen, keyboard=True)
-    assert rc.obscured_unfocused(_ov(nodes=13), keyboard=True)                    # all 13 read and covered: suppressed
+    assert not rc.obscured_unfocused(thirteen)
+    assert rc.obscured_unfocused(_ov(nodes=13))                                   # all 13 read and covered: suppressed
     assert ".map(n => { let el" in rc.AXE_RUN_JS and "slice(0, 12).map(n => { let el" not in rc.AXE_RUN_JS
     assert "builder-summary-bar" in rc.AXE_RUN_JS
     R = type("R", (), {"touch": False, "keyboard": True})()
     row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov()]}}}
     assert rc.findings_of(R, row) == [] and row["suppressed"][0]["targets"] == ["#c0"]
-    R.keyboard = False
-    row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov()]}}}
+    row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov(under=False)]}}}
     assert [f["kind"] for f in rc.findings_of(R, row)] == ["axe:serious"] and "suppressed" not in row
     src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
     assert 'res["suppressed"] = [{"step": x["step"], **sup} for x in R.steps' in src
@@ -2902,3 +2904,169 @@ def test_i3_the_g4_rail_reads_the_served_tree_not_a_ref(tmp_path):
     assert rc.tree_reader(tmp_path)("missing.txt") is None
     src = inspect.getsource(test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line)
     assert "rc.tree_reader(REPO)" in src and "frontend_read()" not in src
+
+
+# ── W11-R85: the final campaign's tooling residue (mutate_r85.py turns each red, both directions) ──────────────────
+
+def test_r85_010_the_signed_out_open_expects_one_401_from_auth_me_only():
+    st = _step("P48.a.01")
+    assert st["do"] == "open" and st["expect_http"] == [{"status": 401, "url": "/api/auth/me", "max": 1}]
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert '"expect_http": [dict(x) for x in s.get("expect_http") or []]}' in src  # the step's own entry reaches the row
+    R = type("R", (), {"touch": False})()
+
+    def filed(events):
+        row = {"expect_status": [], "expect_http": [dict(x) for x in st["expect_http"]], "events": {"main": events}}
+        return [f["detail"] for f in rc.findings_of(R, row)]
+    me = {"http": 401, "method": "GET", "url": "http://127.0.0.1:1/api/auth/me"}
+    assert filed([me]) == []
+    assert len(filed([me, me])) == 1                                              # a second 401: filed
+    assert len(filed([{"http": 401, "method": "GET", "url": "http://127.0.0.1:1/api/j2/notes"}])) == 1
+    assert len(filed([{"http": 500, "method": "GET", "url": "http://127.0.0.1:1/api/auth/me"}])) == 1
+
+
+def test_r85_012_the_cap_refusal_step_expects_its_409():
+    st = _step("P50.a.06")
+    assert st["do"] == "builder_save_expect_refusal" and st["expect_status"] == [409] and "count_cap" in st["expect"]
+    others = [sid for sid, s in [(f"{sc['id']}.{i:02d}", s) for p in SPEC["personas"] for sc in p["scripts"]
+                                 for i, s in enumerate(sc["steps"], 1)] if 409 in (s.get("expect_status") or [])]
+    assert "P50.a.06" in others
+
+
+def test_r85_003_the_preview_mine_window_is_the_served_constant():
+    import re as _re
+    src = (REPO / rc.RATE_SOURCE).read_text(encoding="utf-8")
+    m = _re.search(r'^PREVIEW_MINE_RATE = "(\d+)/minute"', src, _re.M)
+    assert m and rc.preview_mine_rate(REPO) == (int(m.group(1)), 60)
+    assert "self.preview_mine_rate = None" in (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(
+        encoding="utf-8") and "g.preview_mine_rate = preview_mine_rate(app_root)" in (
+        REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+
+
+def test_r85_003_the_rate_parser_moves_with_the_source(tmp_path):
+    f = tmp_path / rc.RATE_SOURCE
+    f.parent.mkdir(parents=True)
+    f.write_text('X = 1\nPREVIEW_MINE_RATE = "7/hour"\n', encoding="utf-8")
+    assert rc.preview_mine_rate(tmp_path) == (7, 3600)
+    f.write_text("X = 1\n", encoding="utf-8")
+    assert rc.preview_mine_rate(tmp_path) is None
+
+
+def _pace_run(n=10, win=60):
+    R = type("R", (), {})()
+    R.p = {"id": "P35"}
+    R.g = type("G", (), {"preview_mine_rate": (n, win), "paced": {}})()
+    return R
+
+
+def test_r85_003_the_runner_paces_preview_mine_to_the_window_across_runs():
+    clock, slept = [1000.0], []
+
+    def now():
+        return clock[0]
+
+    def sleep(s):
+        slept.append(s)
+        clock[0] += s
+    R = _pace_run()
+    for i in range(10):                                                           # ten in one second: no wait
+        rc.pace_preview_mine(R, {"read": []}, now=now, sleep=sleep)
+        clock[0] += 0.1
+    assert slept == []
+    row = {"read": []}
+    rc.pace_preview_mine(R, row, now=now, sleep=sleep)                            # the 11th waits out the window
+    assert len(slept) == 1 and 58 <= slept[0] <= 61 and row["read"]
+    clock[0] += 120
+    rc.pace_preview_mine(R, {"read": []}, now=now, sleep=sleep, calls=3)          # a race of 3 after the window
+    assert len(slept) == 1 and len(R.g.paced["P35"]) == 3                       # a race spends one slot per call
+    R2 = _pace_run()
+    R2.g.paced = {"P35": [clock[0]] * 9}                                          # a race of 3 with 9 spent: waits
+    rc.pace_preview_mine(R2, {"read": []}, now=now, sleep=sleep, calls=3)
+    assert len(slept) == 2
+
+
+def test_r85_003_a_429_that_still_arrives_is_inconclusive_never_a_pass(monkeypatch):
+    class Resp(dict):
+        def __init__(self, status):
+            super().__init__(text='{"detail":{"code":"rate"}}')
+            self.status, self.body = status, {}
+    R = _pace_run()
+    R.g.base = "http://127.0.0.1:1"
+    monkeypatch.setattr(rc, "cookie_of", lambda R: "c")
+    paced = []
+    monkeypatch.setattr(rc, "pace_preview_mine", lambda R, row, calls=1, **k: paced.append(calls))
+    monkeypatch.setattr(rc.w11, "http_call", lambda base, spec, cookie: Resp(429))
+    row = {"checks": [], "read": []}
+    with pytest.raises(rc.Inconclusive, match="429"):
+        rc.w11_send(R, row, rc.w11.b_preview_mine("g1"))
+    assert paced == [1] and not row["checks"]
+    rc.w11_send(R, row, rc.w11.b_library())                                       # control: another 429 is the step's
+    assert paced == [1]
+    monkeypatch.setattr(rc.w11, "race", lambda base, specs, cookie: [Resp(503)] * len(specs))
+    rc.w11_race(R, row, [rc.w11.b_preview_mine("a"), rc.w11.b_preview_mine("b")], "two at once")
+    assert paced == [1, 2]
+
+
+def test_r85_009_the_admin_role_is_read_where_the_wire_puts_it():
+    me_src = (REPO / "api" / "routers" / "auth.py").read_text(encoding="utf-8")
+    i = me_src.index('@router.get("/me")')
+    assert '"user":' in me_src[i:i + 6000]                                       # the shape the fake below mirrors
+    logins = []
+
+    class Resp:
+        def __init__(self, status, body=None):
+            self.status, self.ok, self._b = status, status == 200, body or {}
+
+        def json(self):
+            return self._b
+
+    def run(me_body, facts):
+        class Req:
+            def post(self, url, data):
+                logins.append(url)
+                return Resp(200)
+
+            def get(self, url):
+                return Resp(200, me_body)
+
+        class Ctx:
+            def cookies(self):
+                return [{"name": "uct_session", "value": "admin-sess"}]
+
+            def add_cookies(self, c):
+                pass
+        R = type("R", (), {})()
+        R.p, R.member = {"id": "P45"}, {"email": "a@x", "password": "p"}
+        R.g = type("G", (), {"base": "http://127.0.0.1:1", "facts": facts})()
+        R.contexts = {"main": Ctx()}
+        R.page = lambda name="main": type("P", (), {"request": Req()})()
+        rc.a_admin_login(R, {}, {"checks": [], "read": []})
+    facts = {}
+    for _ in range(6):
+        run({"user": {"role": "admin"}, "plan": "pro"}, facts)
+    assert len(logins) == 1                                                       # six runs, one sign-in
+    logins.clear()
+    facts = {}
+    for _ in range(3):
+        run({"user": {"role": "member"}}, facts)                                  # control: not admin, signs in again
+    assert len(logins) == 3
+
+
+def test_r85_011_the_zero_check_never_reads_the_live_region():
+    shown = "Daily P&L bars. No closed trades in this range."
+    live = " Net P&L for closed trades in the last 90 days, all accounts. 0 trades."
+    assert _expect_zero(shown, zero_ok=False, live=live) == [True]               # the sr-only count is not read
+    assert _expect_zero(shown + " 0 trades", zero_ok=False, live=live) == [False]  # a SHOWN zero still fails
+    assert "[aria-live]" in rc.SHOWN_TEXT_JS and "innerText" in rc.SHOWN_TEXT_JS
+    assert "split(s).join(' ')" in rc.SHOWN_TEXT_JS
+
+
+def test_r85_001_the_d005_suppression_covers_pointer_runs_with_the_same_geometry():
+    for kb in (False, True):
+        R = type("R", (), {"touch": not kb, "keyboard": kb})()
+        row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov()]}}}
+        assert rc.findings_of(R, row) == [] and row["suppressed"][0]["targets"] == ["#c0"]
+        assert row["suppressed"][0]["why"].startswith("D-W11-005")
+        for bad in (_ov(under=False), _ov(focused=True), _ov(summary="Target has insufficient size")):
+            row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [bad]}}}
+            assert [f["kind"] for f in rc.findings_of(R, row)] == ["axe:serious"] and "suppressed" not in row
