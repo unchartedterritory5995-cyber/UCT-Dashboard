@@ -8,7 +8,7 @@ import { mergeChartSettings, instanceTombstone } from './chartDefaults'
 import { getDefinition, listDefinitions } from './engine/nativeRegistry'
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
-import { resultRows, getResultRow, resultIsOn } from './__tests__/resultRows'
+import { resultRows, getResultRow, resultIsOn, rowIsSelected } from './__tests__/resultRows'
 
 // ─── THE INDICATORS TAB, END TO END ─────────────────────────────────────────
 //
@@ -329,7 +329,8 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     expect(screen.queryByRole('button', { name: /^Remove / }),
       'a Remove button exists before anything is selected').toBeNull()
     for (const r of rows()) {
-      for (const b of r.querySelectorAll('button')) {
+      // ⚠️ The row's own name button is the row (it was the option itself).
+      for (const b of r.querySelectorAll('button:not([data-row-primary])')) {
         expect(b.hasAttribute('data-row-grip'),
           `the row ${nameOf(r)} carries a control that is not the order handle`).toBe(true)
       }
@@ -614,9 +615,9 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     // ⚰️ IT READ `aria-expanded` ON THE ROW'S OWN EXPANDER. Rows do not expand;
     // they are selected, and the Inspector shows the selection. Same promise —
     // *"open to edit right away"* — read where the answer now lives.
-    expect(row.getAttribute('aria-selected'),
+    expect(rowIsSelected(row),
       'the row the gear named is not selected — the member has to hunt for it')
-      .toBe('true')
+      .toBe(true)
     expect(inspector().getAttribute('data-inspector-for')).toBe('legacy:vwap')
     // The controls it promised are actually there.
     expect(screen.getByText('Opacity %')).toBeTruthy()
@@ -627,7 +628,7 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     // who merely opened the modal, which is the density the tab exists to fix.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
     openIndicators()
-    expect(rows().filter((r) => r.getAttribute('aria-selected') === 'true'),
+    expect(rows().filter(rowIsSelected),
       'a row selected itself with no deep link').toHaveLength(0)
     expect(inspector(), 'an editor opened itself with no deep link').toBeFalsy()
   })

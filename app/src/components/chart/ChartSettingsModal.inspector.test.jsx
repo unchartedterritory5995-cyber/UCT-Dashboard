@@ -40,7 +40,7 @@ import {
   POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf, glyphFamilyOf, GLYPH_FAMILIES, LIBRARY_TABS,
 } from './discoveryCatalog'
 import { INDICES_PRESET } from './symbolSearchModel'
-import { resultRows, getResultRow } from './__tests__/resultRows'
+import { resultRows, getResultRow, structureList, rowIsSelected } from './__tests__/resultRows'
 
 // ⚠️ THE BREADTH REGISTRY IS A NETWORK FACT, so the family oracle is stubbed —
 // otherwise `symbolFamily` answers `'unknown'` and the Inspector's KIND line is
@@ -660,8 +660,8 @@ describe('DRAG — SERIES ORDER **INSIDE** A PANE', () => {
     expect(inspectorName()).toBe('EMA 20')
     drag(/^EMA 20$/, /^SMA 200$/, 'below')
     expect(inspectorName(), 'moving the open row closed or changed the editor').toBe('EMA 20')
-    expect(rowFor(/^EMA 20$/).getAttribute('aria-selected'),
-      'the moved row lost its selected state').toBe('true')
+    expect(rowIsSelected(rowFor(/^EMA 20$/)),
+      'the moved row lost its selected state').toBe(true)
   })
 
   it('⛔ A DROP THAT CHANGES NOTHING WRITES NOTHING', () => {
@@ -1323,7 +1323,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     // indicators would have to scroll to reach it.
     const left = document.body.querySelector('[data-testid="chart-structure"]')
     expect(left.contains(btn), 'the Add door left the current-chart column').toBe(true)
-    const list = left.querySelector('[role="listbox"]')
+    const list = structureList(left)
     expect(list.contains(btn), 'the Add door scrolls away with the list').toBe(false)
     expect(list.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING,
       'the Add door is above the list it is supposed to terminate').toBeTruthy()
@@ -1795,7 +1795,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     expect(document.body.querySelector('[data-testid="add-surface"]'),
       'the Add surface stayed open over the thing that just landed').toBeFalsy()
     expect(inspectorName(), 'the new series is not the one being edited').toBe('QQQ')
-    expect(rowFor(/^QQQ$/).getAttribute('aria-selected')).toBe('true')
+    expect(rowIsSelected(rowFor(/^QQQ$/))).toBe(true)
     // ⭐ AND IT IS MARKED, BRIEFLY, IN THE LIST — a landing mark, not a toast.
     expect(rowFor(/^QQQ$/).getAttribute('data-landed')).toBe('true')
   })
@@ -2044,7 +2044,7 @@ describe('NARROW — one state, rendered two ways', () => {
     expect(screen.getByTestId('chart-structure')).toBeTruthy()
     expect(screen.queryByTestId('inspector')).toBeNull()
     // ⛔ THE SELECTION SURVIVED THE TRIP. Back is navigation, not a deselect.
-    expect(rowFor(/Relative Strength/).getAttribute('aria-selected')).toBe('true')
+    expect(rowIsSelected(rowFor(/Relative Strength/))).toBe(true)
   })
 
   it('⭐ ARRANGE TAKES THE WHOLE NARROW SURFACE, and Done gives it back', () => {

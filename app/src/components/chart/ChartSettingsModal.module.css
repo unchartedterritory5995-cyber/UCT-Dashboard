@@ -1234,10 +1234,31 @@
   transition: background 110ms, color 110ms;
 }
 .insRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
-.insRow:focus-visible {
+/* ⚠️ THE ROW IS NOT FOCUSABLE ANY MORE — its name is a real button (see
+   `renderStructureRow`), so the ring is drawn round the ROW while that button
+   has keyboard focus, exactly where it used to be. */
+.insRow:has(.insRowPrimary:focus-visible) {
   outline: none;
   box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
 }
+/* The name button: rail · name · Off, laid out as the row laid them out, and
+   reset to the plain text it replaced. It takes the row's flexible space. */
+.insRowPrimary {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+.insRowPrimary:focus-visible { outline: none; }
 
 /* ⭐⭐ THE SELECTED STATE — A TONAL STEP AND A GOLD EDGE, AND NOTHING ELSE.
    ⛔ NOT A GLOWING CARD. The owner's brief names it directly; a selected row in a
@@ -1352,6 +1373,9 @@
    is joined by `Dollar Volume` nothing shifts. */
 .insRowGripSlot {
   flex: none;
+  /* ⚠️ DRAWN FIRST, WRITTEN SECOND: the slot follows the name button in the DOM
+     so Tab reaches the row before its grip; `order` puts it back on the left. */
+  order: -1;
   /* 13px, which is the middle of the 12–14px the brief asks for — big enough to
      aim at with a pointer, small enough that the column it opens does not read as
      a second control column. */

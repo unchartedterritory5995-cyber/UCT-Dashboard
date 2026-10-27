@@ -95,3 +95,25 @@ export function nestedInteractive(container) {
   }
   return out
 }
+
+// ─── THE "SERIES ON THIS CHART" STRUCTURE LIST ────────────────────────────
+// ⛔ Its rows were `role="option"` in a `role="listbox"`, holding the reorder
+// grip button — nested-interactive again, and a listbox may not own the grip as a
+// sibling either. Each `[data-structure-row]` is a plain row now; its roving tab
+// stop is `<button data-row-primary>`, and `aria-current` says what
+// `aria-selected` said.
+
+/** The structure list itself (the `onKeyDown` target for ↑/↓/Home/End). */
+export function structureList(container = document.body) {
+  return container.querySelector('[role="group"][aria-label="Series on this chart"]')
+}
+
+/** A structure row's name button — its roving tab stop. */
+export function rowPrimaryOf(row) {
+  return row.querySelector('[data-row-primary]')
+}
+
+/** Is this structure row the selected one? */
+export function rowIsSelected(row) {
+  return rowPrimaryOf(row)?.getAttribute('aria-current') === 'true'
+}

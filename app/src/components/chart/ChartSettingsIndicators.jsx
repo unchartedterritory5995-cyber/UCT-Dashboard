@@ -1500,9 +1500,9 @@ export default function ChartSettingsIndicators({
    * ↑ / ↓ / Home / End across the whole structure, panes included.
    *
    * ⛔ ACCESSIBILITY IS NOT THE PRICE OF MINIMALISM. The rows lost their per-row
-   * gear, ✕ and chevron; they did not lose keyboard reach. The list is a
-   * `listbox` of `option`s with a roving tabindex, so one Tab stop reaches it and
-   * the arrows walk it — and because the Inspector is driven by `selected`, moving
+   * gear, ✕ and chevron; they did not lose keyboard reach. Each row's name is a
+   * button with a roving tabindex, so one Tab stop reaches the list and the
+   * arrows walk it — and because the Inspector is driven by `selected`, moving
    * the selection IS opening the editor.
    */
   const onStructureKeys = useCallback((e) => {
@@ -1521,7 +1521,7 @@ export default function ChartSettingsIndicators({
     e.preventDefault()
     setSelected(next)
     try {
-      listRef.current?.querySelector(`[data-row-id="${CSS.escape(next)}"]`)?.focus()
+      listRef.current?.querySelector(`[data-row-primary="${CSS.escape(next)}"]`)?.focus()
     } catch { /* jsdom has no CSS.escape; the selection still moved */ }
   }, [flatRows, addedFeatures, selected])
 
@@ -1546,9 +1546,6 @@ export default function ChartSettingsIndicators({
       >
         <div className={styles.insGroupHead}>{f.group}</div>
         <div
-          role="option"
-          aria-selected={isSel}
-          tabIndex={isSel ? 0 : -1}
           data-row-id={rid}
           data-feature-row={f.id}
           data-structure-row="true"
@@ -1562,11 +1559,20 @@ export default function ChartSettingsIndicators({
         >
           {/* The grip slot and rail keep the name on the same column as every
               series row; both stay EMPTY — a feature is not reorderable and has
-              no plot colour to show. */}
+              no plot colour to show. The name is the row's roving tab stop, as
+              on a series row (see `renderStructureRow`). */}
+          <button
+            type="button"
+            className={styles.insRowPrimary}
+            data-row-primary={rid}
+            tabIndex={isSel ? 0 : -1}
+            aria-current={isSel ? 'true' : undefined}
+          >
+            <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
+            <span className={styles.insRowName} title={f.name}>{f.name}</span>
+            {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
+          </button>
           <span className={styles.insRowGripSlot} />
-          <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
-          <span className={styles.insRowName} title={f.name}>{f.name}</span>
-          {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
         </div>
       </div>
     )
@@ -1592,11 +1598,17 @@ export default function ChartSettingsIndicators({
     const markLast = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === null
       && group.rows[group.rows.length - 1] && group.rows[group.rows.length - 1].id === row.id
     return (
+      /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS NAME IS. This `<div>` was a
+         `role="option"` holding the reorder grip — a `<button>`, tabbable on the
+         selected row of a pane with more than one series — which is a control
+         nested inside a control (axe `nested-interactive`). Moving the grip
+         beside the option does not help: a listbox may own only options, and axe
+         reports the button as a child it does not allow. So the list is not a
+         listbox: the roving tab stop is the `<button data-row-primary>` below
+         (the same ↑/↓/Home/End on the list, the same one Tab stop), and the grip
+         is its sibling. Click, drag and the grip's own keys are unchanged. */
       <div
         key={row.id}
-        role="option"
-        aria-selected={isSel}
-        tabIndex={isSel ? 0 : -1}
         data-row-id={row.id}
         data-def-id={row.defId || (row.path?.kind === 'indicator' ? row.id : undefined)}
         data-structure-row="true"
@@ -1648,6 +1660,42 @@ export default function ChartSettingsIndicators({
         } : undefined}
         onDragEnd={endSeriesDrag}
       >
+        {/* ⭐ THE ROVING TAB STOP. No handler of its own: a click bubbles to the
+            row's `onClick`, and ↑/↓/Home/End reach the list's `onKeyDown`.
+            `aria-current` is what `aria-selected` said on the option. It comes
+            FIRST in the DOM so Tab still lands here before the grip, exactly as
+            it did when the grip was inside; `.insRowGripSlot` is drawn first by
+            `order`. */}
+        <button
+          type="button"
+          className={styles.insRowPrimary}
+          data-row-primary={row.id}
+          tabIndex={isSel ? 0 : -1}
+          aria-current={isSel ? 'true' : undefined}
+        >
+          {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
+              `flex: none`, nudged half a pixel onto the text's x-height. Not a
+              swatch (retired: reads as a bullet), not a chevron (retired), not a
+              line sample. `aria-hidden` and no handler of its own: the ROW is the
+              target, so pointing at the rail already points at the row. */}
+          <i
+            className={styles.insRail}
+            style={tint ? { background: tint } : undefined}
+            aria-hidden="true"
+          />
+          {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
+              35% `Relative Strength Index (period 14)` ellipsizes — which is
+              explicitly acceptable — but the member must still be able to find out
+              what it says without selecting it. `title` is this panel's existing
+              convention for exactly that, and the canonical name is untouched:
+              nothing is abbreviated, persisted or renamed. */}
+          <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
+          {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
+              the toolbar the brief rules out; the row is dimmed AND says why, so a
+              member scanning the column sees which lines are off without hovering
+              anything, and a screen reader is told rather than shown. */}
+          {!on && <span className={styles.insRowOffTag}>Off</span>}
+        </button>
         {/* ⚰️⚰️ FOURTEEN ARROWS STOOD AT THE FAR RIGHT OF THIS LIST — a ↑ and a
             ↓ on every row, two of them permanently dimmed at each pane's edges.
             They were correct and they were LOUD: owner, 2026-09-17: *"with many
@@ -1734,28 +1782,6 @@ export default function ChartSettingsIndicators({
             </button>
           )}
         </span>
-        {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
-            `flex: none`, nudged half a pixel onto the text's x-height. Not a
-            swatch (retired: reads as a bullet), not a chevron (retired), not a
-            line sample. `aria-hidden` and no handler of its own: the ROW is the
-            target, so pointing at the rail already points at the row. */}
-        <i
-          className={styles.insRail}
-          style={tint ? { background: tint } : undefined}
-          aria-hidden="true"
-        />
-        {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
-            35% `Relative Strength Index (period 14)` ellipsizes — which is
-            explicitly acceptable — but the member must still be able to find out
-            what it says without selecting it. `title` is this panel's existing
-            convention for exactly that, and the canonical name is untouched:
-            nothing is abbreviated, persisted or renamed. */}
-        <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
-        {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
-            the toolbar the brief rules out; the row is dimmed AND says why, so a
-            member scanning the column sees which lines are off without hovering
-            anything, and a screen reader is told rather than shown. */}
-        {!on && <span className={styles.insRowOffTag}>Off</span>}
         {/* ⚰️⚰️ A `↑` AND A `↓` STOOD HERE ON EVERY ORDERABLE ROW — a span at
             the far right, boundary members carrying a dimmed, `aria-disabled`
             ghost so the column would not ripple as rows moved. Every word of that
@@ -3677,12 +3703,12 @@ export default function ChartSettingsIndicators({
             ) : (
               <div
                 className={styles.insStructure}
-                role="listbox"
+                role="group"
                 aria-label="Series on this chart"
                 /* ⚰️ `aria-controls` WAS ON EVERY ROW'S EXPANDER, paired with
                    `aria-expanded`, because each row opened a region of its own.
-                   There is ONE region now and the LIST drives it — which is what
-                   `listbox` means — so the pointer belongs here, and
+                   There is ONE region now and the LIST drives it, so the pointer
+                   belongs here, and
                    `aria-expanded` has nothing left to describe. A member told
                    that something changed still has a way to find WHAT changed. */
                 aria-controls={selected ? inspectorDomId(selected) : undefined}

@@ -20,6 +20,8 @@
 //      said (`aria-pressed` in the dialog, `aria-describedby` → "Active" in the
 //      Add surface).
 // CONTROLS prove the walk and axe both go red on the old markup.
+// The structure list ("Series on this chart") had the same defect with the
+// reorder grip; its half of the rail is at the bottom of this file.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -28,7 +30,10 @@ import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
 import * as engineRegistry from './engine/nativeRegistry'
 import { runAxe, formatViolations } from '../../pages/journal-2-0/a11y/axeHarness'
-import { nestedInteractive, resultRows, getResultRow, primaryOf, resultIsOn } from './__tests__/resultRows'
+import {
+  nestedInteractive, resultRows, getResultRow, primaryOf, resultIsOn,
+  structureList, rowPrimaryOf, rowIsSelected,
+} from './__tests__/resultRows'
 
 afterEach(cleanup)
 
@@ -187,5 +192,79 @@ describe('the Add surface in Chart Settings', () => {
     primaryOf(row).focus()
     await user.keyboard('{Enter}')
     expect(onChange).not.toHaveBeenCalled()
+  })
+})
+
+// ─── THE "SERIES ON THIS CHART" LIST ──────────────────────────────────────
+// Same class, the other list: each row was a `role="option"` holding the
+// reorder grip, which is TABBABLE on the selected row of a pane with more than
+// one series — so the defect only shows with that row selected. The default
+// chart's price pane holds several moving averages, which is that case.
+describe('the structure list in Chart Settings', () => {
+  const rows = () => [...document.body.querySelectorAll('[data-structure-row]')]
+  const nameOf = (r) => (r.querySelector('[class*="insRowName"]')?.textContent || '').trim()
+  const mount = (onChange = vi.fn()) => {
+    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+    return onChange
+  }
+  /** Select the first row whose grip is live — a pane with more than one series. */
+  const selectMovable = () => {
+    const row = rows().find((r) => r.getAttribute('data-movable') === 'true')
+    expect(row, 'no pane with more than one series, so no live grip to test').toBeTruthy()
+    fireEvent.click(row)
+    return row
+  }
+
+  it('the selected row of a multi-series pane has a TABBABLE grip — the case that failed is on screen', () => {
+    mount()
+    const row = selectMovable()
+    expect(rowIsSelected(row)).toBe(true)
+    const grip = row.querySelector('[data-row-grip]')
+    expect(grip, 'the selected movable row has no grip').toBeTruthy()
+    expect(grip.getAttribute('tabindex')).toBe('0')
+    expect(grip.hasAttribute('data-grip-inert')).toBe(false)
+  })
+
+  it('⛔ no row is a control that holds a control — our walk and axe agree', async () => {
+    mount()
+    selectMovable()
+    const left = screen.getByTestId('chart-structure')
+    expect(nestedInteractive(left)).toEqual([])
+    const found = await axeFindings(left)
+    expect(found, formatViolations(found)).toEqual([])
+  })
+
+  it('one Tab stop, and the arrows walk it: focus follows the selection onto the next name button', () => {
+    mount()
+    const row = selectMovable()
+    const stops = rows().filter((r) => rowPrimaryOf(r).getAttribute('tabindex') === '0')
+    expect(stops).toEqual([row])
+    rowPrimaryOf(row).focus()
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' })
+    const next = rows()[rows().indexOf(row) + 1]
+    expect(rowIsSelected(next), `↓ did not select ${nameOf(next)}`).toBe(true)
+    expect(document.activeElement, 'focus did not follow the selection').toBe(rowPrimaryOf(next))
+  })
+
+  it('the grip keeps its own keys: ↑ on it reorders and does not move the selection', () => {
+    const onChange = mount()
+    const rowsBefore = rows()
+    const second = rowsBefore.find((r, i) => i > 0 && r.getAttribute('data-movable') === 'true'
+      && rowsBefore[i - 1].getAttribute('data-movable') === 'true'
+      && rowsBefore[i - 1].closest('[role="group"]') === r.closest('[role="group"]'))
+    expect(second, 'no two movable rows in one pane').toBeTruthy()
+    fireEvent.click(second)
+    const grip = second.querySelector('[data-row-grip]')
+    grip.focus()
+    fireEvent.keyDown(grip, { key: 'ArrowUp' })
+    expect(onChange, 'ArrowUp on the grip wrote nothing').toHaveBeenCalled()
+    expect(rows().filter(rowIsSelected).map(nameOf)).toEqual([nameOf(second)])
+  })
+
+  it('the list is a labelled group, not a listbox that could own no grip', () => {
+    mount()
+    expect(structureList()).toBeTruthy()
+    expect(document.body.querySelector('[role="listbox"][aria-label="Series on this chart"]')).toBeNull()
   })
 })
