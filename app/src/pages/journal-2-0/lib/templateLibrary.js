@@ -196,7 +196,9 @@ export const LIBRARY_GROUPS = Object.freeze([
  * check-in sat under two chips. Each group belongs to exactly ONE chip:
  *   * rituals ("Daily & weekly rituals"): the night before, before the open, after the close, weekly / monthly,
  *     challenges and habits (Night-before prep, Pre-market prep, Morning routine, ...);
- *   * trades ("Around a trade"): during the day (Mid-day and risk check, Trade plan (one idea));
+ *   * trades ("Around a trade"): during the day (Mid-day and risk check, Trade plan (one idea)). OWNER PRODUCT
+ *     CALL (merge re-review n-1, 2026-10-26): during_day stays under "Around a trade" although the chip name suggests
+ *     a per-template rule; keep it unless the owner reopens it;
  *   * research ("Thesis & research"): playbook (Setup study, New setup idea, Rules review, Options trade plan);
  *   * mind ("Mindset"): mindset (Pre-session check-in).
  * ⛔ Railed by TemplateLibrarySection.test.jsx: its keys are exactly FAMILIES' keys, every server group is in exactly
