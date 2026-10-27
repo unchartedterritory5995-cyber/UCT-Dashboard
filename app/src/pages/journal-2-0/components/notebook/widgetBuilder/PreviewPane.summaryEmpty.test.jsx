@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import PreviewPane, { summaryLine, ANNOUNCE_DELAY_MS } from './PreviewPane'
+import { coverageByNeed, coverageText } from './builderCatalog'
 
 const MEASURES = [{ key: 'netPnl', label: 'Net P&L', unit: 'trades', fmt: 'money' }]
 const EMPTY = { view: 'bar', empty: 'No closed trades in this range.', count: 0, value: { v1: 0 }, measures: MEASURES,
@@ -63,5 +64,26 @@ describe('the desktop summary and the live region over an empty source (W11-R84 
     expect(document.body.textContent).toContain(FULL.summary)
     await act(async () => { await vi.advanceTimersByTimeAsync(ANNOUNCE_DELAY_MS) })
     expect(screen.getByTestId('builder-live').textContent).toBe(FULL.summary)
+  })
+})
+
+// W11-R84 m-2: rows EXIST but none has the split value (payload.py `empty`, the result's split sentence; the payload's
+// `count` still names how many rows were read: tests/test_widget_shelf.py r84_m2). The builder shows that sentence and,
+// BY DESIGN, no coverage line for the same empty answer, though rows were read.
+describe('a split none of the rows has a value for (W11-R84 m-2)', () => {
+  const CAT = { measures: new Map([['expectancyR', { key: 'expectancyR', needs: ['r'], unit: 'trades' }]]) }
+  const PLAN = { measures: [{ key: 'expectancyR' }] }
+  const SPLIT_EMPTY = { view: 'bar', count: 12, empty: 'None of these trades have a value for R bucket yet.',
+    coverage: [{ have: 0, total: 12 }], measures: [{ key: 'expectancyR', label: 'Expectancy (R)', unit: 'trades', fmt: 'r' }] }
+  it('coverage stays hidden even though 12 rows were read, and the phone bar says the sentence', () => {
+    const by = coverageByNeed(CAT, PLAN, SPLIT_EMPTY)
+    expect(by.size).toBe(0)
+    expect(coverageText(CAT, CAT.measures.get('expectancyR'), by)).toBe('')
+    expect(summaryLine('Expectancy by R bucket', SPLIT_EMPTY, 'trades')).toBe('Expectancy by R bucket · None of these trades have a value for R bucket yet.')
+  })
+  it('CONTROL: the same rows with a value show their coverage', () => {
+    const { empty: _e, ...withValue } = SPLIT_EMPTY
+    const by = coverageByNeed(CAT, PLAN, { ...withValue, coverage: [{ have: 3, total: 12 }] })
+    expect(coverageText(CAT, CAT.measures.get('expectancyR'), by)).toBe('R known on 3 of 12 trades')
   })
 })
