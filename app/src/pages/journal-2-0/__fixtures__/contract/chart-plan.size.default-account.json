@@ -37,6 +37,7 @@
     "account": {
       "accountId": "ccdcfe8a-fafc-4c32-bb5a-5d2623c5df04",
       "accountSize": 100000.0,
+      "accountSizeIsDefault": true,
       "riskPct": null
     },
     "compass": {
