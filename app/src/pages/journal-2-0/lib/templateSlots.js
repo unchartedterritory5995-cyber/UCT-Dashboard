@@ -48,6 +48,12 @@ export function slotRef(settings) {
  * name, by the slot's ref (see `slotRef`) or else by its block id. `'Widget: Equity curve'`, `'Routine: Pre-market
  * routine'`, `'Tracker: Sleep'`; the family word alone (`'Widget'`) when the name is unknown. Null for a block that
  * is not a slot.
+ * The two keys have one reader each, and neither is a second contract with the server: the BLOCK ID is the server's
+ * `slotNames` key (journal_styles.slot_names, read by StyleEditor and KindSection through `slotNamesOf`); the REF is
+ * the share preview's own table (SharePreviewSheet's TemplateTravels keys a shared template's inline definitions,
+ * routines and trackers by `inline:<key>`, built client-side from `travels`). A ref holds a colon and a block id
+ * cannot, so the two never collide. (Merge review m-4 proposed deleting the ref lookup as dead; it is not:
+ * SharePreviewSheet.test.jsx "lists each held widget, routine and tracker ..." and templateSlots.test.js redden.)
  */
 export function slotLabel(block, names = {}) {
   const fam = slotFamily(block?.block)
