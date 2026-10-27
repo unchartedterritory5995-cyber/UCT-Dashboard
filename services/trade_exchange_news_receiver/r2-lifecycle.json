@@ -1,0 +1,16 @@
+{
+  "Rules": [
+    {
+      "ID": "txn-journal-expire-8d",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "trade-exchange-news/v1/events/" },
+      "Expiration": { "Days": 8 }
+    },
+    {
+      "ID": "txn-preflight-canary-expire-1d",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "trade-exchange-news/v1/preflight/" },
+      "Expiration": { "Days": 1 }
+    }
+  ]
+}
