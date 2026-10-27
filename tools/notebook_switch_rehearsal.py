@@ -340,12 +340,21 @@ NOT_REHEARSED = {
     "NOTEBOOK_WIDGETS_W3_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets wave 3, Market on my names and the options flow for a ticker; "
                                     "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w3_enabled on the auth payload; no rendered on/off probe in this tool; "
                                     "its off evidence is tests/test_notebook_widgets_e2e.py (test_wave3_routes_are_dark_without_their_flag) and SlashMenu.items.test.jsx (wave 3 on/off)"),
-    "NOTEBOOK_WIDGETS_W4_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets wave 4, the page widgets in the / menu (a client menu gate); "
-                                    "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w4_enabled on the auth payload; no rendered on/off probe in this tool; "
-                                    "its off evidence is SlashMenu.items.test.jsx (a wave turns on only its own kinds) and the page widget capture tests (app/src/pages/charts/widgets/captures/*Capture.test.jsx)"),
-    "NOTEBOOK_WIDGETS_W5_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets wave 5, chart sets and presets (a client menu gate); "
-                                    "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w5_enabled on the auth payload; no rendered on/off probe in this tool; "
-                                    "its off evidence is SlashMenu.items.test.jsx (a wave turns on only its own kinds)"),
+    "NOTEBOOK_WIDGETS_W4_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets "
+                                    "wave 4, the page widgets in the / menu (a client menu gate); payload key only: "
+                                    "armed, so the window switches it with the armed set and verifies "
+                                    "notebook_widgets_w4_enabled on the auth payload; no rendered on/off probe in "
+                                    "this tool; its off evidence is each page widget's capture test, e.g. "
+                                    "app/src/pages/charts/widgets/captures/alertsCapture.test.jsx ('W4 off: the item"
+                                    " is absent') and app/src/pages/charts/widgets/captures/calendarCapture.test.jsx"
+                                    " ('W4 off: the item is absent')"),
+    "NOTEBOOK_WIDGETS_W5_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets "
+                                    "wave 5, chart sets and presets (a client menu gate); payload key only: armed, "
+                                    "so the window switches it with the armed set and verifies "
+                                    "notebook_widgets_w5_enabled on the auth payload; no rendered on/off probe in "
+                                    "this tool; its off evidence is "
+                                    "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx "
+                                    "('slash_set_absent_when_w5_off')"),
     "NOTEBOOK_WIDGETS_W6_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets wave 6, trade recap, P&L calendar and the room widgets; "
                                     "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w6_enabled on the auth payload; no rendered on/off probe in this tool; "
                                     "its off evidence is tests/test_notebook_widgets_router.py (test_wave6_kinds_404_when_w6_off) and tests/test_notebook_widgets_e2e.py (test_wave6_routes_are_dark_without_their_flag)"),
