@@ -35,6 +35,7 @@
               "capturedAt": "2026-10-05T14:30:00Z",
               "embedId": "b960969baf444c9fab942e2569348438",
               "fallback": null,
+              "frozen": false,
               "layout": {
                 "height": null,
                 "width": "full"
@@ -87,6 +88,9 @@
                 "updated": "10:30 AM ET",
                 "wireDate": "2026-10-05"
               },
+              "searchText": null,
+              "ta": null,
+              "tradeRef": null,
               "v": 1,
               "widgetId": "marketcontext"
             },
@@ -108,6 +112,7 @@
               "capturedAt": "2026-10-05T14:30:00Z",
               "embedId": "84605430a6dc421e85d5beefc6ddde2c",
               "fallback": null,
+              "frozen": false,
               "layout": {
                 "height": null,
                 "width": "full"
@@ -118,6 +123,9 @@
                 "tf": "D",
                 "to": 1791210600
               },
+              "searchText": null,
+              "ta": null,
+              "tradeRef": null,
               "v": 1,
               "widgetId": "chart"
             },
@@ -130,6 +138,7 @@
               "capturedAt": "2026-10-05T14:30:00Z",
               "embedId": "7eb6eef614c34292924f89173c0e7e08",
               "fallback": null,
+              "frozen": false,
               "layout": {
                 "height": null,
                 "width": "full"
@@ -142,6 +151,8 @@
                 "setup": ""
               },
               "searchText": "[pre-entry checklist]",
+              "ta": null,
+              "tradeRef": null,
               "v": 1,
               "widgetId": "preEntryChecklist"
             },
@@ -205,6 +216,7 @@
               "capturedAt": "2026-10-05T14:30:00Z",
               "embedId": "e5fe1d29ca374cd9b2f8e1ad65ce4b85",
               "fallback": null,
+              "frozen": false,
               "layout": {
                 "height": null,
                 "width": "full"
@@ -216,6 +228,8 @@
                 "regimeId": "amber"
               },
               "searchText": "[position sizing]",
+              "ta": null,
+              "tradeRef": null,
               "v": 1,
               "widgetId": "positionSizing"
             },

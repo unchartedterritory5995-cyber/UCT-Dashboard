@@ -51,6 +51,11 @@
   overflow: auto;
   padding: 4px 0;
 }
+/* 11.20 walk D5: the list is in the Tab order (it scrolls); a focused list shows it. */
+.list:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
 
 .row {
   display: flex;

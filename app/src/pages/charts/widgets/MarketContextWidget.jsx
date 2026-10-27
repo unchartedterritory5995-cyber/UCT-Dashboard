@@ -157,7 +157,8 @@ export default function MarketContextWidget({
       )}
 
       {readings && (
-        <div className={styles.list}>
+        // 11.20 walk D5 (axe scrollable-region-focusable): the list scrolls, so a keyboard member must be able to reach it.
+        <div className={styles.list} role="region" aria-label="Market context readings" tabIndex={0}>
           {CONTEXT_ROWS.filter((r) => preset.context.includes(r.key)).map((r) => {
             const v = readings[r.key]
             // `== null` on purpose (the TradesTable idiom): an absent reading

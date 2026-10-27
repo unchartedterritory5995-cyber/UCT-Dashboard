@@ -99,3 +99,38 @@ def test_a_listed_style_serves_no_dark_wave_slot(db, monkeypatch, off, gone):
     ids, placed = _shown(item)
     want = [k for k in ("built_a", "built_b", "routine_a") if k not in gone]
     assert sorted(ids) == sorted(want) and sorted(placed) == sorted(want)
+
+
+@pytest.mark.parametrize("off, gone", [((9,), {"routine_a"}), ((10,), {"built_a"})])
+def test_the_reviewer_and_the_author_read_every_slot_a_member_read_is_stripped(db, monkeypatch, off, gone):
+    """Post-walk p-2: the dark-slot strip (review n-3) is what a MEMBER's preview must see, because a member's note
+    would not have those slots. The admin review panel and the item's author read the listed template itself: a
+    reviewer approving it, or its author, must see every slot members will get once the wave is on."""
+    gid = _slot_template(db)
+    waves(monkeypatch, *[w for w in ALL_WAVES if w not in off])
+    every = ["built_a", "built_b", "routine_a"]
+    for reader, admin in ((AUTHOR, False), ("an-admin", True)):
+        ids, placed = _shown(gallery.get_item(reader, gid, is_admin=admin, conn=db))
+        assert sorted(ids) == every and sorted(placed) == every, (reader, admin)
+    # CONTROL: a member's read is still stripped.
+    ids, placed = _shown(gallery.get_item(MEMBER, gid, conn=db))
+    want = [k for k in every if k not in gone]
+    assert sorted(ids) == want and sorted(placed) == want
+
+
+def test_a_stripped_slot_placeholder_keeps_its_mention_and_image():
+    """W11-R79 follow-up 4b (post-walk p-1's rule, `journal_styles._inline_rest`): a slot placeholder's TEXT is the
+    placeholder, its other inline nodes are the author's. Stripping the slot keeps them in a paragraph at its place,
+    at the top level and nested; a bare hardBreak is not kept. CONTROL: a kept slot (`keep`) is untouched."""
+    mention = {"type": "mention", "attrs": {"id": "n1", "label": "AMD thesis"}}
+    image = {"type": "image", "attrs": {"src": "/x.png"}}
+    ph = lambda bid, *inline: {"type": "paragraph", "content": [{"type": "text", "text": "{{block:%s}}" % bid}, *inline]}  # noqa: E731
+    body = _doc(heading("Plan"), ph("routine_a", mention, {"type": "hardBreak"}, image), ph("built_a", {"type": "hardBreak"}),
+                {"type": "bulletList", "content": [{"type": "listItem", "content": [ph("tracker_a", image)]}]})
+    out = gallery._without_slot_placeholders(body)
+    assert out["content"][1] == {"type": "paragraph", "content": [mention, image]}
+    assert len(out["content"]) == 3                                  # the hardBreak-only placeholder is gone
+    assert out["content"][2]["content"][0]["content"] == [{"type": "paragraph", "content": [image]}]
+    assert TOKEN not in json.dumps(out)
+    kept = gallery._without_slot_placeholders(body, keep=frozenset({"routine_a"}))
+    assert kept["content"][1] == body["content"][1]

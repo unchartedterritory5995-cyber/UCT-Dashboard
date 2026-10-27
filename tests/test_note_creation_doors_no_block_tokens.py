@@ -12,7 +12,23 @@ import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-READS = re.compile(r"note_templates\.get_template\(|SELECT\s+(?:\*|body_json)\s+FROM\s+j2_note_templates")
+READS = re.compile(
+    r"note_templates\.get_template\("
+    # post-walk p-3: the function imported by name (alone, in a parenthesised list, or renamed)
+    r"|from\s+[\w.]*note_templates\s+import\s+(?:\([^)]*?|[^\n]*?)\bget_template\b"
+    # post-walk p-3: any SELECT whose column list names body_json (or *), across adjacent string literals
+    r"|SELECT\s+(?:\w+\.)?\*\s+FROM\s+j2_note_templates\b"
+    r"|SELECT\s+(?:(?!\bFROM\b|;)[\s\S]){0,400}?\bbody_json\b(?:(?!\bFROM\b|;)[\s\S]){0,400}?\bFROM\s+j2_note_templates\b",
+    re.IGNORECASE,
+)
+#: post-walk p-3: `import note_templates as nt` then `nt.get_template(` -- the alias is read from the import.
+ALIAS = re.compile(r"\bimport\s+note_templates\s+as\s+(\w+)")
+
+
+def _reads(src: str) -> bool:
+    if READS.search(src):
+        return True
+    return any(re.search(rf"\b{re.escape(a)}\.get_template\(", src) for a in ALIAS.findall(src))
 
 #: module -> what it does with the body. "NOTE" marks a door that MAKES A NOTE from it.
 DOORS = {
@@ -29,9 +45,36 @@ def _readers() -> set[str]:
         rel = p.relative_to(ROOT).as_posix()
         if rel.endswith("journal_two/note_templates.py"):
             continue
-        if READS.search(p.read_text(encoding="utf-8", errors="ignore")):
+        if _reads(p.read_text(encoding="utf-8", errors="ignore")):
             out.add(rel)
     return out
+
+
+# Post-walk p-3: the shapes a door can read a member template's body in, and two that are NOT a read. The census must
+# see every one of the first list, and none of the second, or a new door slips past it by spelling.
+SEEN = [
+    "from api.services.journal_two import note_templates\nnote_templates.get_template(uid, tid)",
+    "from api.services.journal_two.note_templates import get_template\nget_template(uid, tid)",
+    "from api.services.journal_two.note_templates import (\n    list_templates,\n    get_template as read_tpl,\n)",
+    "from api.services.journal_two import note_templates as nt\nnt.get_template(uid, tid)",
+    'conn.execute("SELECT body_json FROM j2_note_templates WHERE id = ?", (tid,))',
+    'conn.execute("SELECT id, title, body_json FROM j2_note_templates WHERE id = ?", (tid,))',
+    'conn.execute("SELECT t.body_json, t.title"\n             " FROM j2_note_templates t WHERE t.id = ?", (tid,))',
+    'conn.execute("select * from j2_note_templates where user_id = ?", (uid,))',
+]
+NOT_SEEN = [
+    'conn.execute("SELECT 1 FROM j2_note_templates WHERE id = ? AND user_id = ?", (tid, uid))',
+    'conn.execute("SELECT COUNT(*) AS c FROM j2_note_templates WHERE user_id = ?", (uid,))',
+    "from api.services.journal_two.note_templates import list_templates\nlist_templates(uid)",
+    'conn.execute("SELECT body_json FROM j2_notes WHERE id = ?", (nid,))',
+]
+
+
+def test_the_census_sees_every_shape_of_a_read_and_nothing_else():
+    for src in SEEN:
+        assert _reads(src), src
+    for src in NOT_SEEN:
+        assert not _reads(src), src
 
 
 def test_every_door_that_reads_a_member_template_body_is_named():

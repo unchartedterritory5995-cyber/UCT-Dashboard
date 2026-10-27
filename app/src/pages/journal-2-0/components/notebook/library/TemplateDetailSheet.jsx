@@ -52,8 +52,10 @@ const drawBuilt = (payload) => (
  * @param onClose  Close, Escape, or the hand-over to the adoption sheet
  * @param navigate the app router's navigate, handed to the adoption sheet (a template's Use opens the new note)
  * @param busy     the picker is making a note: "Use this template" waits (fix round 1 m-4)
+ * @param landNote `(note) => void` from the picker's host (11.20 walk D1): the new note is landed by it, which closes
+ *                 the New note sheet, instead of a bare navigate that left the sheet open over the note
  */
-export default function TemplateDetailSheet({ item, onClose, navigate = null, busy = false }) {
+export default function TemplateDetailSheet({ item, onClose, navigate = null, busy = false, landNote = null }) {
   const uid = useId()
   const id = item?.id
   const [outline, setOutline] = useState({ status: 'loading', body: null })
@@ -78,7 +80,8 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
     try {
       const mod = await import('./openAdoptSheet')
       onClose?.()
-      mod.openAdoptSheet({ galleryId: id, kind: 'template', ...(typeof navigate === 'function' ? { navigate } : {}) })
+      mod.openAdoptSheet({ galleryId: id, kind: 'template', ...(typeof navigate === 'function' ? { navigate } : {}),
+        ...(typeof landNote === 'function' ? { landNote } : {}) })
     } catch {
       setDoorProblem(doorLostSentence())
     }

@@ -165,6 +165,29 @@ describe('outlineWithBlockNames follows compose (review m-3)', () => {
     expect(outlineWithBlockNames(doc(h('A'), p(t('x'))), [on('prepWire')])).toEqual(doc(h('A'), ital('Morning wire and exposure'), p(t('x'))))
     expect(outlineWithBlockNames(doc(p(t('x'))), [on('prepWire')])).toEqual(doc(ital('Morning wire and exposure'), p(t('x'))))
   })
+  // Post-walk p-1: a paragraph whose TEXT is exactly a placeholder but that also holds a non-text inline node (a mention,
+  // an image) is still a placeholder (`_plain`), and only its TEXT is the placeholder: the node is the author's and is
+  // kept, in a paragraph of its own at the placeholder's place (before the block's line, as compose keeps it before the
+  // block). A hardBreak alone is not kept (it is nothing without the text).
+  const mention = { type: 'mention', attrs: { id: 'n1', label: 'AMD thesis' } }
+  const img = { type: 'image', attrs: { src: '/x.png' } }
+  it('p-1: a placed placeholder keeps its mention and image, before the block line', () => {
+    const out = outlineWithBlockNames(doc(p(t('{{block:prepWire}}'), mention, { type: 'hardBreak' }, img)), [on('prepWire')])
+    expect(out).toEqual(doc(p(mention, img), ital('Morning wire and exposure')))
+  })
+  it("p-1: a disabled block's placeholder drops its text and keeps the mention", () => {
+    expect(outlineWithBlockNames(doc(h('A'), p(t('{{block:chart}}'), mention)), [{ block: 'chart', enabled: false }]))
+      .toEqual(doc(h('A'), p(mention)))
+  })
+  it('p-1: a nested placeholder keeps its image in the paragraph left in its place', () => {
+    const list = { type: 'bulletList', content: [{ type: 'listItem', content: [p(t('{{block:prepLevels}}'), img)] }] }
+    const out = outlineWithBlockNames(doc(h('Plan'), list), [on('prepLevels')])
+    expect(out).toEqual(doc(h('Plan'), ital('Key levels from my plans'),
+      { type: 'bulletList', content: [{ type: 'listItem', content: [p(img)] }] }))
+  })
+  it('p-1: with no block list the line is named and the mention kept', () => {
+    expect(outlineWithBlockNames(doc(p(t('{{block:tracker_a}}'), mention)), null)).toEqual(doc(p(mention), ital('Tracker')))
+  })
   it('with NO block list (a bare outline: a template, an update) every placeholder line is named in place', () => {
     const out = outlineWithBlockNames(doc(p(t('{{block:prepWire}}')), p(t('{{block:tracker_a}}'))), null)
     expect(out).toEqual(doc(ital('Morning wire and exposure'), ital('Tracker')))

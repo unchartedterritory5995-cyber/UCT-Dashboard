@@ -1400,6 +1400,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         push({ role: 'question', text: env.question?.text || env.reply, choices: (env.question?.choices || []).map(c => ({ label: c })) })
         return
       }
+      // ⛔ P2-A2: only a plan the server marked apply / propose ever reaches the planner (agentClient.turnReply
+      // already fails any other reply — this is the second lock, at the point where a plan could run)
+      if (env.disposition !== 'apply' && env.disposition !== 'propose') { push({ role: 'error', text: "UCT Agent couldn't complete that request. No changes were made." }); return }
       // apply / propose: translate the context refs back to real target refs
       // ⛔ LOCAL-RESULT BOUNDARY: a plan holding a local-only lookup shows UCT's answer, never the
       // model's own words about it (the server blanks that reply too). The one exception is the

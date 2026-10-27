@@ -163,3 +163,22 @@ def test_unknown_style_and_kind(client):
     assert r.status_code == 400 and r.json()["detail"] == "Choose a kind of note."
     assert client.post("/api/j2/notes", json={"styleId": 5}).status_code == 400
     assert client.post("/api/j2/notes", json={"kindId": "thesis", "ticker": "no way"}).status_code == 400
+
+
+
+# 11.20 walk D2: the first open of a template-made note wrote it once. One cause: the composed body ended on a block
+# that is not a paragraph (a widget, a routine), and TipTap's TrailingNode appends an empty paragraph on the editor's
+# first transaction, a docChanged the autosave then sends. A styled create now stores the body the editor would hold
+# (the trade-plan canvas precedent, lib/tradeCanvas.js buildCanvasDoc). The end-to-end rail is in
+# test_journal_styles_compose.py; the editor half is lib/composedNoteOpensClean.test.jsx.
+def test_the_trailing_paragraph_rule_is_the_editors(client):
+    """`with_trailing_paragraph` adds ONE empty paragraph only after a last block that is not a paragraph (TrailingNode's
+    rule: the doc's default node type, `notAfter` empty), and leaves every other body exactly as it was."""
+    from api.services.journal_two.journal_styles import with_trailing_paragraph
+    w = {"type": "widgetEmbed", "attrs": {"widgetId": "x"}}
+    p = {"type": "paragraph", "content": [{"type": "text", "text": "hi"}]}
+    assert with_trailing_paragraph({"type": "doc", "content": [w]}) == {"type": "doc", "content": [w, {"type": "paragraph"}]}
+    assert with_trailing_paragraph({"type": "doc", "content": [w, p]}) == {"type": "doc", "content": [w, p]}
+    assert with_trailing_paragraph({"type": "doc", "content": [{"type": "heading"}]})["content"][-1] == {"type": "paragraph"}
+    assert with_trailing_paragraph({"type": "doc", "content": []}) == {"type": "doc", "content": []}
+    assert with_trailing_paragraph(None) is None

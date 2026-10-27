@@ -2126,6 +2126,15 @@ def _placeholder_kind(node: Any) -> str | None:
     return m.group(1) if m else None
 
 
+def _inline_rest(node: Any) -> list[dict]:
+    """Post-walk p-1: a placeholder paragraph's OTHER inline nodes (a mention, an image), as a paragraph of their own
+    (`[]` when there are none). Only a placeholder's TEXT is the placeholder (`_plain` reads text children only), so
+    whenever the text is dropped or replaced by a block, these are the author's and stay at its place. A bare
+    hardBreak is not kept: it is nothing without the text. The client twin is templateSlots.outlineWithBlockNames."""
+    kept = [c for c in (node.get("content") or []) if isinstance(c, dict) and c.get("type") not in ("text", "hardBreak")]
+    return [{"type": "paragraph", "content": kept}] if kept else []
+
+
 def without_placeholder_lines(body: Any) -> Any:
     """W11-R77 (review n-1): `body` with every `{{block:<id>}}` placeholder paragraph (`_placeholder_kind`, the
     composer's own test) removed at any depth, for a door that makes a NOTE from a member template without composing
@@ -2135,6 +2144,7 @@ def without_placeholder_lines(body: Any) -> Any:
         out = []
         for node in content:
             if _placeholder_kind(node) is not None:
+                out.extend(_inline_rest(node))                 # p-1: only the placeholder's text goes
                 continue
             if isinstance(node, dict) and isinstance(node.get("content"), list):
                 node = {**node, "content": _never_empty(node["content"], strip(node["content"]))}
@@ -2143,6 +2153,48 @@ def without_placeholder_lines(body: Any) -> Any:
     if not isinstance(body, dict) or not isinstance(body.get("content"), list):
         return body
     return {**body, "content": strip(body["content"])}
+
+
+#: W11-R79 m-2: every attribute the editor's `widgetEmbed` node declares, with its default (lib/widgetEmbedNode.jsx,
+#: `addAttributes`). ⛔ A COPY of the client's schema, so it is PINNED to it: lib/widgetEmbedAttrDefaults.test.js builds
+#: the real editor schema and requires this JSON (between the two markers) to equal its defaults, key for key.
+WIDGET_EMBED_ATTR_DEFAULTS: dict[str, Any] = json.loads(  # widgetEmbed-attr-defaults:begin
+    '{"v": 1, "widgetId": null, "params": {}, "capturedAt": null, "embedId": null, "mode": "snapshot",'
+    ' "fallback": null, "frozen": false, "tradeRef": null, "annotations": [], "caption": null,'
+    ' "layout": {"width": "full", "height": 320}, "searchText": null, "ta": null}'
+)  # widgetEmbed-attr-defaults:end
+
+
+def with_editor_attrs(body: Any) -> Any:
+    """W11-R79 m-2: `body` with every widgetEmbed (at any depth) holding each attribute the editor's schema declares:
+    a missing one gets its default (`WIDGET_EMBED_ATTR_DEFAULTS`, deep-copied), a present one is never replaced. The
+    editor fills the same defaults as it parses, so a server body without them differed from what the editor holds,
+    and the first write after an open carried them as drift. A copy; total."""
+    def walk(node: Any) -> Any:
+        if not isinstance(node, dict):
+            return node
+        out = dict(node)
+        if out.get("type") == "widgetEmbed":
+            attrs = out.get("attrs") if isinstance(out.get("attrs"), dict) else {}
+            out["attrs"] = {**copy.deepcopy(WIDGET_EMBED_ATTR_DEFAULTS), **attrs}
+        if isinstance(out.get("content"), list):
+            out["content"] = [walk(c) for c in out["content"]]
+        return out
+    return walk(body) if isinstance(body, dict) else body
+
+
+def with_trailing_paragraph(body: Any) -> Any:
+    """11.20 walk D2: `body` as the editor will hold it once it is open. TipTap's TrailingNode (StarterKit, `notAfter`
+    empty) appends ONE empty paragraph on the editor's first dispatched transaction whenever the doc's last top-level
+    node is not a paragraph, and that append is a docChanged the autosave sends: the first open of the note wrote it.
+    So a styled create stores the paragraph itself (the trade-plan canvas's rule, lib/tradeCanvas.js buildCanvasDoc,
+    "so opening it is not an edit"). An empty doc, or anything that is not a doc, is returned as it came. Total."""
+    if not isinstance(body, dict) or not isinstance(body.get("content"), list) or not body["content"]:
+        return body
+    last = body["content"][-1]
+    if isinstance(last, dict) and last.get("type") == "paragraph":
+        return body
+    return {**body, "content": [*body["content"], {"type": "paragraph"}]}
 
 
 def _after_first_heading(content: list) -> int:
@@ -2320,16 +2372,20 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
                     out.append(node)
                     continue
                 if bid is not None:
+                    rest = _inline_rest(node)               # p-1: a mention or an image beside it stays
                     if not top:
                         # ⛔ Review I-1: a block is placed in place ONLY at the doc's top level. A
                         # widgetEmbed is not valid as a list item's first child, and a drop could
                         # empty a container; a nested placeholder becomes an empty paragraph (valid
                         # in every container) and its block falls through to after the first heading.
-                        out.append({"type": "paragraph"})
+                        out.append(rest[0] if rest else {"type": "paragraph"})
                     elif bid in enabled:
+                        out.extend(rest)
                         out.extend(build(enabled[bid]))
                         placed.add(bid)
-                    continue                                # a disabled block's top-level placeholder vanishes
+                    else:
+                        out.extend(rest)                    # a disabled block's top-level placeholder text vanishes
+                    continue
                 if isinstance(node, dict) and isinstance(node.get("content"), list):
                     node = {**node, "content": _never_empty(node["content"], walk(node["content"], False))}
                 out.append(node)
@@ -2499,6 +2555,8 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
     def insert(base: dict, composed: dict) -> dict:
         """The note's INSERT: as before without a hook; guarded, inside this create's own locked transaction."""
         stamp = (composed["styleId"], composed["styleVersion"], composed["kindId"])
+        # D2 / W11-R79 m-2: the body the editor will hold, so opening it writes nothing but the self-archive.
+        base = {**base, "bodyJson": with_trailing_paragraph(with_editor_attrs(base.get("bodyJson")))}
         if not guarded:
             return notes_service.create_note(user_id, base, conn, properties=composed["properties"],
                                              captured_properties="keep", style_stamp=stamp)

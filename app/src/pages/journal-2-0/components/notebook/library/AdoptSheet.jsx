@@ -132,8 +132,11 @@ function Refusal({ p }) {
  *                  'update' (Task 11.19: Use takes the listed version into the member's copy `copyId` through
  *                  `updateTool`, never a new copy; a widget, routine or tracker only, anything else stays a use)
  * @param copyId    the member's copy, for mode 'update'
+ * @param landNote  `(note) => void`, when the door's host opens notes itself (the New note sheet, 11.20 walk D1): a
+ *                  template's Use hands it the new note INSTEAD of navigating, so the host closes its own sheet and
+ *                  opens the note through the same door its other picks use (focus in the new note)
  */
-export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone, mode = 'use', copyId = null }) {
+export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone, mode = 'use', copyId = null, landNote = null }) {
   const uid = useId()
   const isUpdate = mode === 'update' && UPDATABLE.has(kind) && (typeof copyId === 'string' ? copyId !== '' : Number.isFinite(copyId))
   const isTemplate = kind === 'template' && !isUpdate
@@ -259,7 +262,8 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
       try { onDone?.({ kind, editor, ...out.data }) } catch { /* the note is made: the close and the move still run */ }
       onClose?.()
       if (noteId != null && noteId !== '') {
-        if (typeof navigate === 'function') navigate(noteHref(noteId))
+        if (typeof landNote === 'function') landNote(out.data.note)
+        else if (typeof navigate === 'function') navigate(noteHref(noteId))
         else openNoteInPlace({ button: 0, preventDefault() {} }, noteId)
       }
       return

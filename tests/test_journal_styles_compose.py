@@ -4,6 +4,7 @@ paragraph that is exactly {{block:<id>}}), the rest after the first heading -> p
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -1040,3 +1041,100 @@ def test_a_styled_create_passes_its_note_day_answers_and_choices_to_compose(db_p
         with pytest.raises(js.StyleValidationError) as e:
             js.create_styled_note("u1", {"kindId": "trade_plan", "title": "y", **bad})
         assert str(e.value) == js.S_BAD_ANSWERS
+
+
+def test_a_note_made_from_a_style_ending_on_a_widget_stores_the_editors_trailing_paragraph(db_path, monkeypatch):
+    """11.20 walk D2: a member style whose outline ends on a widget made a note that ENDED on the widget. TipTap's
+    TrailingNode appends an empty paragraph on the editor's first transaction (the plugin runs on any dispatched
+    transaction whose doc does not end on a paragraph), so the first open of that note changed its doc and the
+    autosave wrote it. The insert stores the body the editor would hold: ONE empty paragraph after the widget, and
+    nothing else moved (CONTROL: the composed blocks before it are exactly compose's)."""
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    s = js.create_style("u1", {"name": "Ends on a widget", "kindId": "weekly_review",
+                               "outlineBodyJson": {"type": "doc", "content": [js._h("Week"), js._ph("myWatchlistToday")]},
+                               "blocks": [{"block": "myWatchlistToday", "enabled": True, "settings": {"list": "flagged"}}]})
+    monkeypatch.setattr(nw, "build", _fake_build([]))
+    _waves(monkeypatch, 1)
+    note, _ = js.create_styled_note("u1", {"styleId": s["id"], "title": "today"})
+    content = note["bodyJson"]["content"]
+    assert [n["type"] for n in content] == ["heading", "widgetEmbed", "paragraph"]
+    assert content[-1] == {"type": "paragraph"}
+    from api.services.journal_two import notes as notes_service
+    stored = notes_service.get_note("u1", note["id"])["bodyJson"]["content"]
+    assert stored[-1] == {"type": "paragraph"} and stored[:-1] == content[:-1]
+
+
+# Post-walk p-1: a paragraph whose TEXT is exactly `{{block:x}}` but that also holds a non-text inline node (a mention,
+# an image) is a placeholder (`_plain` reads text children only), and only its TEXT is the placeholder. The node is the
+# author's: kept, in a paragraph of its own at the placeholder's place, whether the placeholder is dropped (the daily
+# note, a disabled block), placed (before the block) or nested. A bare hardBreak is not kept. The client twin is
+# templateSlots.outlineWithBlockNames (templateSlots.test.js, p-1).
+_MENTION = {"type": "mention", "attrs": {"id": "n1", "label": "AMD thesis"}}
+_IMAGE = {"type": "image", "attrs": {"src": "/x.png"}}
+
+
+def _ph_with(block, *inline):
+    return {"type": "paragraph", "content": [{"type": "text", "text": "{{block:%s}}" % block}, *inline]}
+
+
+def test_p1_the_daily_note_drops_only_the_placeholder_text():
+    from api.services.journal_two import journal_styles as js
+    body = {"type": "doc", "content": [js._h("Day"), _ph_with("prepWire", _MENTION, {"type": "hardBreak"}, _IMAGE),
+                                       _ph_with("chart", {"type": "hardBreak"}),
+                                       {"type": "bulletList", "content": [{"type": "listItem", "content": [
+                                           _ph_with("prepLevels", _IMAGE)]}]}]}
+    out = js.without_placeholder_lines(body)
+    assert out["content"][1] == {"type": "paragraph", "content": [_MENTION, _IMAGE]}
+    assert len(out["content"]) == 3                                   # the hardBreak-only placeholder is gone
+    assert out["content"][2]["content"][0]["content"] == [{"type": "paragraph", "content": [_IMAGE]}]
+    assert "{{block:" not in json.dumps(out)
+
+
+def test_p1_compose_keeps_the_inline_nodes_of_a_placed_a_disabled_and_a_nested_placeholder(db_path, monkeypatch):
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    s = js.create_style("u1", {"name": "Inline", "kindId": "weekly_review",
+                               "outlineBodyJson": {"type": "doc", "content": [
+                                   js._h("Week"), _ph_with("myWatchlistToday", _MENTION), _ph_with("myPnlStats", _IMAGE),
+                                   {"type": "bulletList", "content": [{"type": "listItem", "content": [
+                                       _ph_with("myRulesCheck", _MENTION)]}]}]},
+                               "blocks": [{"block": "myWatchlistToday", "enabled": True, "settings": {"list": "flagged"}},
+                                          {"block": "myPnlStats", "enabled": False, "settings": {}},
+                                          {"block": "myRulesCheck", "enabled": True, "settings": {}}]})
+    monkeypatch.setattr(nw, "build", _fake_build([]))
+    _waves(monkeypatch, 1, 2)
+    out = js.compose("u1", js.get_style("u1", s["id"]), ticker=None, conn=None, now=NOW)
+    c = out["bodyJson"]["content"]
+    kinds = [(n["type"], (n.get("attrs") or {}).get("widgetId")) for n in c]
+    # the nested placeholder's block goes after the first heading; the placed one keeps its mention just before it
+    i = kinds.index(("widgetEmbed", "myWatchlistToday"))
+    assert c[i - 1] == {"type": "paragraph", "content": [_MENTION]}
+    assert {"type": "paragraph", "content": [_IMAGE]} in c            # the disabled block's image stays
+    lst = next(n for n in c if n["type"] == "bulletList")
+    assert lst["content"][0]["content"] == [{"type": "paragraph", "content": [_MENTION]}]
+    assert "{{block:" not in json.dumps(out["bodyJson"])
+
+
+def test_a_styled_create_stores_every_widget_embed_attribute_the_editor_holds(db_path, monkeypatch):
+    """W11-R79 m-2: the editor's schema gives every widgetEmbed a default for each attribute it declares
+    (lib/widgetEmbedNode.jsx), so a server body missing `frozen`, `searchText`, `ta` or `tradeRef` is not what the
+    editor holds, and the first write after open (the self-archive's) carried those defaults as drift. The insert
+    stores the editor's form (`journal_styles.WIDGET_EMBED_ATTR_DEFAULTS`, pinned to the schema by
+    lib/widgetEmbedAttrDefaults.test.js); a value the body already holds is never replaced."""
+    from api.services.journal_two import journal_styles as js, notebook_widgets as nw
+    s = js.create_style("u1", {"name": "Attrs", "kindId": "weekly_review",
+                               "outlineBodyJson": {"type": "doc", "content": [js._h("Week"), js._ph("myWatchlistToday")]},
+                               "blocks": [{"block": "myWatchlistToday", "enabled": True, "settings": {"list": "flagged"}}]})
+    monkeypatch.setattr(nw, "build", _fake_build([]))
+    _waves(monkeypatch, 1)
+    note, _ = js.create_styled_note("u1", {"styleId": s["id"], "title": "today"})
+    embeds = [n for n in note["bodyJson"]["content"] if n["type"] == "widgetEmbed"]
+    assert embeds
+    for e in embeds:
+        assert set(js.WIDGET_EMBED_ATTR_DEFAULTS) <= set(e["attrs"]), sorted(set(js.WIDGET_EMBED_ATTR_DEFAULTS) - set(e["attrs"]))
+        assert e["attrs"]["widgetId"] == "myWatchlistToday" and e["attrs"]["mode"] == "snapshot"   # kept, not defaulted
+    # the helper itself: fills what is missing, at any depth, never overwrites
+    body = {"type": "doc", "content": [{"type": "columns", "content": [{"type": "widgetEmbed", "attrs": {"frozen": True}}]}]}
+    out = js.with_editor_attrs(body)
+    inner = out["content"][0]["content"][0]["attrs"]
+    assert inner["frozen"] is True and inner["ta"] is None and inner["layout"] == {"width": "full", "height": 320}
+    assert body["content"][0]["content"][0]["attrs"] == {"frozen": True}                          # input untouched

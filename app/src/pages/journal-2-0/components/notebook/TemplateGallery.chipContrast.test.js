@@ -126,3 +126,21 @@ describe('every gallery chip is a whole finger target on the touch tier (R6)', (
     expect(rest.map((r) => decl(r.body, 'min-width')).filter(Boolean)).toEqual([])
   })
 })
+
+// 11.20 walk D4: every gallery card's "Use <name>" button (widget, routine and tracker cards: one word, "Use") measured
+// 41x44 at 820 and 390. On the touch tier every gallery button (`.btn`, the cards' Use, Preview and Helpful) is at
+// least --tap-min in BOTH directions, its label centred; 1200 is unchanged.
+describe('every gallery card button is a whole finger target on the touch tier (walk D4)', () => {
+  const touch = rules(CSS).filter((r) => r.media && /max-width:\s*1024px/.test(r.media) && r.selectors.includes('.btn'))
+  it('min-width and min-height are var(--tap-min) inside the <=1024px query, the label centred', () => {
+    expect(touch.length).toBeGreaterThan(0)
+    expect(touch.map((r) => decl(r.body, 'min-height')).filter(Boolean)).toContain('var(--tap-min)')
+    expect(touch.map((r) => decl(r.body, 'min-width')).filter(Boolean)).toContain('var(--tap-min)')
+    expect(touch.map((r) => decl(r.body, 'justify-content')).filter(Boolean)).toContain('center')
+  })
+  it('CONTROL: at rest (no media) a card button declares no width floor (the desktop card is unchanged)', () => {
+    const rest = rules(CSS).filter((r) => !r.media && r.selectors.includes('.btn'))
+    expect(rest.length).toBeGreaterThan(0)
+    expect(rest.map((r) => decl(r.body, 'min-width')).filter(Boolean)).toEqual([])
+  })
+})

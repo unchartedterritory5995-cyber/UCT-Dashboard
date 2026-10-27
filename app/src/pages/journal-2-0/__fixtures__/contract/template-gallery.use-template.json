@@ -47,6 +47,7 @@
               "capturedAt": "2026-10-05T14:30:00Z",
               "embedId": "5cefbf8c495748bc92b887ba13acab18",
               "fallback": null,
+              "frozen": false,
               "layout": {
                 "height": null,
                 "width": "full"
@@ -60,6 +61,9 @@
                 "source": "market",
                 "sourceDetail": "Prices: live market data, delayed. Earnings dates: UCT calendar."
               },
+              "searchText": null,
+              "ta": null,
+              "tradeRef": null,
               "v": 1,
               "widgetId": "myWatchlistToday"
             },
@@ -93,6 +97,7 @@
               "capturedAt": "2026-10-05T14:30:00Z",
               "embedId": "cdd97ca7c629476a879348b7007947c3",
               "fallback": null,
+              "frozen": false,
               "layout": {
                 "height": null,
                 "width": "full"
@@ -133,6 +138,8 @@
                 }
               },
               "searchText": "[my movers]",
+              "ta": null,
+              "tradeRef": null,
               "v": 1,
               "widgetId": "prepMovers"
             },
@@ -166,6 +173,7 @@
               "capturedAt": "2026-10-05T14:30:00Z",
               "embedId": "d7aa616d99c7444095e03359e0367a6d",
               "fallback": null,
+              "frozen": false,
               "layout": {
                 "height": null,
                 "width": "full"
@@ -182,15 +190,20 @@
                 }
               },
               "searchText": "[key levels from my plans]",
+              "ta": null,
+              "tradeRef": null,
               "v": 1,
               "widgetId": "prepLevels"
             },
             "type": "widgetEmbed"
+          },
+          {
+            "type": "paragraph"
           }
         ],
         "type": "doc"
       },
-      "bodyPlain": "Your list today The names you are watching, and why each one is on the list. [widget] What's moving Which of your names are moving, and is it a move you want? [my movers] Levels to wait for The price that would make each name worth a trade. [key levels from my plans]",
+      "bodyPlain": "Your list today The names you are watching, and why each one is on the list. [widget] What's moving Which of your names are moving, and is it a move you want? [my movers] Levels to wait for The price that would make each name worth a trade. [key levels from my plans] ",
       "createdAt": "2026-10-05T14:30:00+00:00",
       "dailyDate": null,
       "deletedAt": null,

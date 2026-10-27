@@ -76,7 +76,8 @@ describe('I-1: "Showing the last result." whenever the preview is failed or stal
 
   it.each([['failed', FAILED], ['stale', STALE]])('phone, %s: the summary bar starts with the same words', (_n, state) => {
     pane(state, { phone: true, keyboardOpen: false })
-    expect(screen.getByTestId('builder-summary-bar')).toHaveTextContent(new RegExp(`^${LAST_RESULT_SENTENCE.replace('.', '\\.')} Net P&L · 47 trades`))
+    // PAYLOAD is an `empty` payload, so the bar says its sentence after the name, never a count (W11-R81 PD-2)
+    expect(screen.getByTestId('builder-summary-bar')).toHaveTextContent(new RegExp(`^${LAST_RESULT_SENTENCE.replace('.', '\\.')} Net P&L · Nothing to draw here\\.`))
   })
 
   it('CONTROL, fresh: no line, no prefix on the phone bar, and the live region says the summary alone', async () => {

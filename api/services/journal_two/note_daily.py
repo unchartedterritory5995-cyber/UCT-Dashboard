@@ -106,7 +106,9 @@ def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dic
                 # W11-R77: a template that is also a style's outline holds `{{block:...}}` lines; a daily note
                 # composes no block, so it gets none of them (never raw placeholder text in a member's note).
                 from api.services.journal_two import journal_styles as _js
-                payload["bodyJson"] = _js.without_placeholder_lines(tpl["bodyJson"])
+                # W11-R79 (4a): and it ends on the paragraph TipTap's TrailingNode would add as it opens, so opening
+                # it is not an edit (the one authority, journal_styles.with_trailing_paragraph).
+                payload["bodyJson"] = _js.with_trailing_paragraph(_js.without_placeholder_lines(tpl["bodyJson"]))
                 properties = tpl["properties"] or None
         try:
             note = notes_service.create_note(user_id, payload, conn=conn,
