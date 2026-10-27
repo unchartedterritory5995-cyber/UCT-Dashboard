@@ -266,12 +266,12 @@ def test_foreign_def_ref_is_a_sentence_and_reads_nothing_foreign(db, monkeypatch
     out = js.compose(A, js.get_style(A, s["id"]), ticker=None, conn=None, now=NOW)
     assert "This widget is not in your account." in _lines(out["bodyJson"])
     assert out["skipped"] == [{"block": "built_a", "reason": "slot-missing:built_a"}]
-    assert out["slotNames"] == {"built_a": "This widget is not in your account."}
+    assert "slotNames" not in out                     # W11-R43: an unresolved slot has no name (the line says why)
     assert spy.calls == [] and _built_nodes(out["bodyJson"]) == []
     assert defs.users and {u for _, u in defs.users} == {A}                      # never asked as member B
     assert "Their secret widget" not in json.dumps(out)
     served = js.served_style(js.get_style(A, s["id"]), A)
-    assert served["slotNames"] == {"built_a": "This widget is not in your account."}
+    assert "slotNames" not in served
 
 
 def test_deleted_def_31_days_is_a_sentence(db, monkeypatch):
@@ -404,10 +404,15 @@ def test_served_style_and_preview_carry_slot_names_resolved_for_the_member(db, m
         {"block": "built_b", "settings": {"ref": f"def:{mine['id']}", "defRev": 1}},
         {"block": "built_c", "settings": {"ref": f"def:{theirs['id']}", "defRev": 1}}]})
     defs = _DefsSpy(monkeypatch)
-    want = {"built_a": "Equity curve", "built_b": "Setups this month",
-            "built_c": "This widget is not in your account."}
-    assert js.served_style(js.get_style(A, s["id"]), A)["slotNames"] == want
-    assert js.preview(A, {"styleId": s["id"]})["slotNames"] == want
+    # W11-R43 (F-ALIAS-1 A7): the unresolved slot (built_c, another member's widget) has NO key -- never its refusal
+    # sentence as a name -- so the client's slotLabel falls back to its own label. The two resolved slots keep theirs.
+    want = {"built_a": "Equity curve", "built_b": "Setups this month"}
+    refusals = {*js.SLOT_MISSING_SENTENCES.values(), *js.SLOT_UNREADABLE_SENTENCES.values()}
+    for names in (js.served_style(js.get_style(A, s["id"]), A)["slotNames"],
+                  js.preview(A, {"styleId": s["id"]})["slotNames"],
+                  js.compose(A, js.get_style(A, s["id"]), ticker=None, conn=None, now=NOW)["slotNames"]):
+        assert names == want and "built_c" not in names
+        assert not refusals & set(names.values())
     assert {u for _, u in defs.users} == {A}
     assert "slotNames" not in js.served_style(js.get_style(A, s["id"]))               # no member: no names
     _waves(monkeypatch, *(w for w in ALL_ON if w != 11))                              # dark: byte-identical
@@ -458,7 +463,7 @@ def test_a_legacy_kept_built_block_is_re_reduced_before_it_is_filled(db, monkeyp
     out = js.compose(A, js.get_style(A, s["id"]), ticker="NVDA", conn=None, now=NOW)
     assert "This widget couldn't be read." in _lines(out["bodyJson"]) and spy.calls == []
     assert {"block": "built_a", "reason": "slot-unreadable:built_a"} in out["skipped"]
-    assert js.served_style(js.get_style(A, s["id"]), A)["slotNames"] == {"built_a": "This widget couldn't be read."}
+    assert "slotNames" not in js.served_style(js.get_style(A, s["id"]), A)              # W11-R43: no name
 
 
 def test_a_stored_id_fullmatch_refuses_is_kept_by_the_legacy_rule(db):

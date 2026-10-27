@@ -1990,8 +1990,11 @@ def slot_skip_sentence(block: dict, reason: Any, ctx: dict) -> str | None:
 
 def slot_names(blocks: Any, user_id: Any, conn: sqlite3.Connection | None = None,
                definitions: dict | None = None, *, ctx: dict | None = None) -> dict[str, str]:
-    """Ruling W11-R21: `{block id: display name}` for each family slot shown (its wave on): the member's own
-    target's name (resolved `WHERE id = ? AND user_id = ?`), else the slot's unresolved sentence. Family-generic:
+    """Ruling W11-R21: `{block id: display name}` for each family slot shown (its wave on) whose target RESOLVES:
+    the member's own target's name (resolved `WHERE id = ? AND user_id = ?`). Ruling W11-R43 (F-ALIAS-1 A7): an
+    UNRESOLVED slot (missing, unreadable) has NO key, so a refusal sentence is never used as a display name; the
+    client's `slotLabel` falls back to its own slot label, and the sentence stays where it belongs (the note's skip
+    line, `slot_skip_sentence`). Family-generic:
     a family with no resolver in `FAMILY_NAMERS` (yet) is left out. Served as `slotNames` (served_style, compose,
     preview) and read by the client's `slotLabel(b, names)` by block id. Every `def:` name comes from ONE batched
     owned read per request (`ctx`, `_slot_ctx`); a name past the read budget is the family word."""
@@ -2008,8 +2011,9 @@ def slot_names(blocks: Any, user_id: Any, conn: sqlite3.Connection | None = None
         namer = FAMILY_NAMERS.get(fam)
         if namer is None:
             continue
-        name, reason = namer(b, ctx)
-        out[bid] = name if name else (slot_skip_sentence(b, f"{reason}:{bid}", ctx) or _FAMILY_WORDS[fam])
+        name, _reason = namer(b, ctx)
+        if name:
+            out[bid] = name
     return out
 
 

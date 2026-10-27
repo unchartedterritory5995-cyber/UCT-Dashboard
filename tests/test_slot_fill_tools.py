@@ -576,9 +576,7 @@ def test_foreign_ref_sentence_and_no_foreign_read(db):
     lines = _lines(out["bodyJson"])
     assert lines.count("This routine is not in your account.") == 2
     assert "This tracker is not in your account." in lines
-    assert out["slotNames"] == {"routine_a": "This routine is not in your account.",
-                                "tracker_a": "This tracker is not in your account.",
-                                "routine_b": "This routine is not in your account."}
+    assert "slotNames" not in out                     # W11-R43: no unresolved slot is named by its sentence
     tool_reads = [s for s in seen if "FROM j2_routines" in s or "FROM j2_trackers" in s]
     assert tool_reads and all(f"'{A}'" in s for s in tool_reads)
     assert all(B not in s for s in seen) and "Secret" not in json.dumps(out)
