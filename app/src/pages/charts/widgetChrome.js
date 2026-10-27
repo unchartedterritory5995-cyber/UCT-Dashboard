@@ -16,6 +16,7 @@ import { mergeAlertsWidgetSettings } from './widgets/alertsWidgetSettings'
 import { mergeCalendarWidgetSettings } from './widgets/calendarWidgetSettings'
 import { mergeOptionsFlowWidgetSettings } from './widgets/optionsFlowWidgetSettings'
 import { mergeNhnlSettings } from './widgets/nhnlSettings'
+import { mergeTxnWidgetSettings } from './widgets/tradeExchangeNewsSettings'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { sanitizeChartTabs } from './chartTabs'
 import { resolveActiveTab } from './widgetTabs'
@@ -112,9 +113,10 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (surrogate.type === 'news' || surrogate.type === 'notebook' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter') {
+  if (surrogate.type === 'news' || surrogate.type === 'notebook' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter' || surrogate.type === 'tradeExchangeNews') {
     const mergeFn = surrogate.type === 'news'
       ? mergeNewsWidgetSettings
+      : surrogate.type === 'tradeExchangeNews' ? mergeTxnWidgetSettings
       : surrogate.type === 'notebook' ? mergeNotebookWidgetSettings
         : surrogate.type === 'alerts' ? mergeAlertsWidgetSettings
           : surrogate.type === 'calendar' ? mergeCalendarWidgetSettings

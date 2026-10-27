@@ -1,0 +1,428 @@
+/* Trade Exchange News widget.
+ *
+ * ⭐ NO DESIGN SYSTEM OF ITS OWN. Every measure below is copied from the
+ * first-party widgets and says where from:
+ *   header row 34px / search row 32px ......... Watchlists.module.css .pickHeader,
+ *                                               ThemeTrackerPage.module.css .periodBar/.searchBar
+ *   search input ............................... ThemeTrackerPage.module.css .searchInput
+ *   icon buttons ............................... ThemeTrackerPage .settingsBtn / Watchlists .wlActionBtn
+ *   row padding 5px 8px, 11px/600 symbols ...... Watchlists.module.css .listRow / .rowSym
+ *   hover / selected (gold dim + inset) ........ Watchlists.module.css .listRow:hover / .listRowSelected
+ *   thin scrollbar ............................. Watchlists.module.css .listBody
+ *   new-row flash 0.9s, reduced-motion aware ... NewHighsLowsWidget.module.css .flash
+ * Colours resolve: this widget's own ⚙ var (--txn-*) → the workspace chrome
+ * (--widget-*, set by WidgetHost from the canvas) → the app theme tokens.
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--txn-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--txn-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-sans);
+  position: relative;
+}
+
+/* ── header row (34px, the shared first-header-row height) ─────────────── */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  min-height: 34px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  flex: 0 0 auto;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--txn-chrome, var(--widget-text, var(--text-muted)));
+  white-space: nowrap;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--txn-chrome, var(--text-muted));
+  flex: 0 0 auto;
+}
+.toneLive .dot { background: var(--txn-up, var(--ut-green-bright)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--txn-up, var(--ut-green-bright)) 22%, transparent); }
+.toneLive { color: var(--txn-chrome-strong, var(--widget-text-strong, var(--text))); }
+.toneWarn .dot { background: var(--ut-gold, #dcbb5e); }
+.toneOff .dot { background: var(--txn-down, var(--ut-red-bright)); }
+.spacer { flex: 1 1 auto; }
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 3px 4px;
+  color: var(--txn-chrome, var(--widget-text, var(--text-muted)));
+  opacity: 0.75;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.iconBtn:hover {
+  opacity: 1;
+  color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
+  background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover)));
+}
+.iconBtnOn {
+  opacity: 1;
+  color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
+  border-color: var(--ut-gold-glow, color-mix(in srgb, var(--ut-gold) 40%, transparent));
+}
+
+/* ── search + filters row (32px, the shared second-header-row height) ──── */
+.searchBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 32px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  flex: 0 0 auto;
+}
+.searchWrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
+  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  border-radius: 3px;
+  padding: 5px 26px 5px 10px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--txn-text, var(--text));
+  outline: none;
+  transition: border-color 0.15s;
+}
+.searchInput::placeholder { color: var(--txn-chrome, var(--text-muted)); }
+.searchInput:focus { border-color: var(--accent); }
+.searchClear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--txn-chrome, var(--text-muted));
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.filterBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  border-radius: 3px;
+  padding: 3px 7px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--txn-chrome, var(--text-muted));
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.filterBtn:hover { background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover))); }
+.filterBtnOn {
+  color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
+  border-color: var(--ut-gold-glow, color-mix(in srgb, var(--ut-gold) 40%, transparent));
+  background: var(--ut-gold-dim);
+}
+.listSelect {
+  max-width: 132px;
+  min-width: 0;
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
+  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  border-radius: 3px;
+  padding: 3px 4px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--txn-text, var(--text));
+  flex: 0 1 auto;
+}
+
+/* ── notices ───────────────────────────────────────────────────────────── */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 10.5px;
+  color: var(--txn-chrome-strong, var(--text));
+  background: color-mix(in srgb, var(--txn-down, var(--ut-red-bright)) 10%, transparent);
+  border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  flex: 0 0 auto;
+}
+.noticeInfo { background: color-mix(in srgb, var(--ut-gold) 8%, transparent); }
+.noticeBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--txn-accent, var(--ut-gold));
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ── the feed ──────────────────────────────────────────────────────────── */
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-anchor: none;   /* the widget anchors scroll itself (auto-follow off) */
+  scrollbar-width: thin;
+  scrollbar-color: var(--txn-divider, var(--widget-divider-strong, var(--border-accent))) transparent;
+}
+.list::-webkit-scrollbar { width: 10px; }
+.list::-webkit-scrollbar-thumb {
+  background: var(--txn-divider, var(--widget-divider-strong, var(--border-accent)));
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 8px;
+  align-items: baseline;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--txn-row-divider, var(--widget-divider-strong, var(--border)));
+  transition: background 0.1s;
+}
+.compact .row { padding: 5px 8px; }
+.row:hover { background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover))); }
+.rowSelected {
+  background: var(--ut-gold-dim) !important;
+  box-shadow: inset 2px 0 0 0 var(--ut-gold);
+}
+.time {
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+  color: var(--txn-chrome, var(--text-muted));
+  white-space: nowrap;
+}
+.headline {
+  font-size: 11px;          /* the canonical row size (Watchlist .rowSym / numbers) */
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--txn-text, var(--text-bright));
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.compact .headline {
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sym {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--txn-sym, var(--text-bright));
+  cursor: pointer;
+  border-bottom: 1px dotted color-mix(in srgb, currentColor 45%, transparent);
+}
+.sym:hover, .symLinked { color: var(--ut-gold); }
+.badges { display: inline-flex; gap: 4px; align-self: center; }
+.badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--txn-chrome, var(--text-muted));
+  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  white-space: nowrap;
+}
+.badgeDelayed { color: var(--ut-gold); border-color: color-mix(in srgb, var(--ut-gold) 40%, transparent); }
+
+.flash {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0; animation: txnRowFlash 0.9s ease-out;
+  background: var(--txn-up, var(--ut-green-bright));
+}
+@keyframes txnRowFlash {
+  0%   { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; }
+}
+.row > .time, .row > .headline, .row > .badges { position: relative; z-index: 1; }
+
+.jump {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 74px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
+  background: var(--txn-bg-solid, var(--widget-canvas, var(--bg-elevated)));
+  color: var(--ut-gold);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.more {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  color: var(--txn-chrome, var(--text-muted));
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.more:hover { color: var(--ut-gold); }
+.empty {
+  padding: 16px 12px;
+  font-size: 11.5px;
+  color: var(--txn-chrome, var(--text-muted));
+}
+.emptyBtn {
+  margin-left: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ut-gold);
+  cursor: pointer;
+}
+
+/* ── footer: "N headlines · times are UCT receipt (ET)" — ThemeTrackerPage .ttFooter ── */
+.footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--txn-chrome, var(--text-muted));
+  border-top: 1px solid var(--widget-divider-strong, var(--txn-row-divider, color-mix(in srgb, var(--text-heading) 11%, transparent)));
+  background: var(--txn-bg, var(--widget-canvas, var(--bg)));
+  white-space: nowrap;
+  overflow: hidden;
+}
+.footerCount { font-weight: 600; color: var(--txn-sym, var(--text-bright)); flex: 0 0 auto; }
+.footerNote { overflow: hidden; text-overflow: ellipsis; }
+
+/* ── alerts popover ────────────────────────────────────────────────────── */
+.alertsPop {
+  position: absolute;
+  top: 36px;
+  right: 6px;
+  z-index: 5;
+  width: min(280px, calc(100% - 12px));
+  max-height: calc(100% - 44px);
+  overflow-y: auto;
+  background: var(--menu-bg, var(--bg-elevated));
+  color: var(--menu-text, var(--text));
+  border: 1px solid var(--menu-border, var(--border));
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-size: 11px;
+}
+.alertsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 10px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--menu-border, var(--border));
+}
+.alertsForm { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+.alertsInput, .alertsSelect {
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
+  border: 1px solid var(--menu-border, var(--border));
+  border-radius: 3px;
+  padding: 5px 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: inherit;
+  outline: none;
+  min-width: 0;
+}
+.alertsInput:focus { border-color: var(--accent); }
+.alertsRow { display: flex; gap: 6px; }
+.alertsSelect { flex: 1 1 auto; }
+.alertsAdd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--ut-gold-dim);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  cursor: pointer;
+}
+.alertsAdd:disabled { opacity: 0.45; cursor: default; }
+.alertsList { border-top: 1px solid var(--menu-border, var(--border)); }
+.alertsRule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
+}
+.alertsRuleText { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.alertsNote, .alertsFoot { padding: 8px 10px; color: var(--menu-muted, var(--text-muted)); }
+.alertsFoot { font-size: 10px; }
+.alertsErr { color: var(--ut-red-bright); font-size: 10.5px; padding: 0 2px; }
+.alertsOk { color: var(--ut-green-bright); font-size: 10.5px; padding: 0 2px; }
+
+/* ── responsive (the widget, not the viewport: .widgetBody is the container) ── */
+@container (max-width: 330px) {
+  .listSelect { max-width: 92px; }
+}
+@container (max-width: 290px) {
+  .row { grid-template-columns: 1fr auto; }
+  .time { grid-column: 1 / -1; }
+  .statusText { display: none; }
+}
+@container (max-width: 250px) {
+  .filterLabel { display: none; }
+}

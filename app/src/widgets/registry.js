@@ -828,6 +828,27 @@ const PANEL_MANIFESTS = {
     liveCapable: false,
   },
 
+  tradeExchangeNews: {
+    // "News": the Trade Exchange breaking-news feed (one shared, seq-ordered stream
+    // for every instance). NOT the per-stock `news` (News & Catalysts) widget, which
+    // stays registered with all its dependants. ⛔ DARK: listed in captureRelease's
+    // UNRELEASED_CAPTURE_WIDGETS, and the server routes are admin-only.
+    labels: { header: 'News', menu: 'News', tab: 'News' },
+    defaults: { w: 4, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'settings', type: 'json' },
+      { key: 'follow', type: 'boolean', default: true },
+      { key: 'linked', type: 'boolean', default: false },
+      { key: 'watchlistId', type: 'string' },
+    ],
+    plainText: () => '[news: Trade Exchange headlines]',
+    reconstructable: false,                     // a live feed at a past instant is not replayable here
+    liveCapable: false,
+  },
+
   // ── G-040 (wave 10, lane CX): the three trader-specific capture doors ───────
   // Rulings: docs/notebook/future-internal-capture-expansion.md (controller,
   // owner-delegated, 2026-10-01). ⛔ CAPTURE-ONLY: none of these is a workspace
@@ -1136,7 +1157,7 @@ export const WIDGET_CATEGORIES = [
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
   { key: 'internals', label: 'Market Internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
-  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar', 'notebook'] },
+  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'tradeExchangeNews', 'aisearch', 'calendar', 'notebook'] },
   { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
 
@@ -1158,6 +1179,7 @@ export const WIDGET_CATALOG = {
   marketcontext:{ icon: 'compass',  blurb: 'Phase, exposure and breadth in one read.' },
   aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
+  tradeExchangeNews: { icon: 'wire', blurb: 'Breaking market headlines from Trade Exchange, live.', live: true },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },
   alerts:       { icon: 'bell',     blurb: 'Your price alerts, updating live.' },
   calendar:     { icon: 'calendar', blurb: 'Earnings & market events for any day.' },

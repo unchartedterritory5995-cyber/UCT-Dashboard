@@ -65,6 +65,7 @@ import * as priceStreamManager from './priceStreamManager'
 import * as barsStreamManager from './barsStreamManager'
 import * as chainStreamManager from './chainStreamManager'
 import * as timeSalesStreamManager from './timeSalesStreamManager'
+import * as tradeExchangeNewsStreamManager from './tradeExchangeNewsStreamManager'
 
 export const DELIVERY = Object.freeze({
   LAST_VALUE_WINS: 'last-value-wins',
@@ -104,6 +105,12 @@ const NEEDS = Object.freeze({
   'time-and-sales': Object.freeze({
     delivery: DELIVERY.EVERY_MESSAGE_MATTERS,
     pool: timeSalesStreamManager, subscribe: 'subscribe', read: 'getSnapshot', retry: 'retry',
+  }),
+  // Trade Exchange News: every headline is merged into one seq-ordered feed and a
+  // missed seq is replayed, so none may be dropped (lib/tradeExchangeNewsStreamManager.js).
+  'trade-exchange-news': Object.freeze({
+    delivery: DELIVERY.EVERY_MESSAGE_MATTERS,
+    pool: tradeExchangeNewsStreamManager, subscribe: 'subscribe', read: 'getSnapshot', retry: 'retry',
   }),
   tape: Object.freeze({
     delivery: DELIVERY.EVERY_MESSAGE_MATTERS,
