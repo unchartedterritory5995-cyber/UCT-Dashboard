@@ -611,6 +611,31 @@ def _member_legacy_blocks(user_id: str, conn: sqlite3.Connection) -> set:
     return out
 
 
+def _unservable_blocks(blocks_json: Any) -> dict:
+    """W11-R67: {block id: stored settings} for each STORED block whose settings nest past `MAX_KEPT_SETTINGS_DEPTH`
+    (written before the W11-R54 cap) -- the blocks `_servable_blocks` serves with empty settings. First of each id."""
+    try:
+        stored = json.loads(blocks_json or "[]")
+    except (TypeError, ValueError):
+        return {}
+    out: dict = {}
+    for sb in stored if isinstance(stored, list) else []:
+        if (isinstance(sb, dict) and isinstance(sb.get("block"), str) and isinstance(sb.get("settings"), (dict, list))
+                and _json_depth_exceeds(sb["settings"], MAX_KEPT_SETTINGS_DEPTH)):
+            out.setdefault(sb["block"], sb["settings"])
+    return out
+
+
+def _member_unservable_blocks(user_id: str, conn: sqlite3.Connection) -> dict:
+    """`_unservable_blocks` over every one of the member's live styles (the draft preview names no row)."""
+    out: dict = {}
+    for r in conn.execute("SELECT blocks_json FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
+                          (user_id,)).fetchall():
+        for k, v in _unservable_blocks(r["blocks_json"]).items():
+            out.setdefault(k, v)
+    return out
+
+
 def _check_kept_verbatim(settings: Any) -> None:
     """THE check on a block's settings kept VERBATIM (an unknown id stored before the grammar, a family slot stored
     before it, a newer version's block): at most `MAX_KEPT_SETTINGS_DEPTH` deep (W11-R54; iterative, judged BEFORE
@@ -626,7 +651,14 @@ def _servable_blocks(blocks_json: Any) -> list:
     """W11-R54 read-side guard: a STORED style's blocks as every door serves them. A row written before the depth cap
     with a block whose settings nest past `MAX_KEPT_SETTINGS_DEPTH` is served with that block's settings EMPTY (the
     block itself stays, so the member sees it and can save or delete the style), never a value whose serialisation
-    500s the list, GET, PUT, /default and DELETE. Every other block is served exactly as stored."""
+    500s the list, GET, PUT, /default and DELETE. Every other block is served exactly as stored.
+
+    W11-R67: sending the served `{}` back (a save of the served blocks, a duplicate, a draft preview) is NOT an edit of
+    that block: `_clean_blocks(unservable=...)` keeps the STORED value on a save, a duplicate and a draft preview,
+    so no later save is refused for a block the member never touched (a LEGACY block -- an
+    id the grammar refuses, or a family slot stored before its grammar -- would otherwise fail its legacy match).
+    Removing the block, or sending it new settings, works as for any block. A newer version's block (`kind is None`)
+    keeps its stored value the same way, so nothing stored is lost by a save."""
     blocks = json.loads(blocks_json or "[]")
     if not isinstance(blocks, list):
         return blocks
@@ -634,13 +666,18 @@ def _servable_blocks(blocks_json: Any) -> list:
             and _json_depth_exceeds(b["settings"], MAX_KEPT_SETTINGS_DEPTH) else b for b in blocks]
 
 
-def _clean_blocks(raw: Any, legacy: Any = None) -> list[dict]:
+def _clean_blocks(raw: Any, legacy: Any = None, unservable: Any = None) -> list[dict]:
     """`legacy` (`_legacy_blocks` of the stored row(s): update_style, duplicate and the draft preview): a block
     that fails the grammar but was stored exactly so (a hand-made row from before Task 11.3, when the id was an
     unknown block kept verbatim) is kept verbatim, so the member can still save, duplicate and preview the style.
     That covers a family block whose settings fail `slot_settings_of` and an id `BLOCK_ID_RE.fullmatch` refuses.
     `legacy` may be a callable answering the set: it is called once, only when a block would otherwise be
-    refused (fix round 1, m-5: the draft preview parses the member's styles only then)."""
+    refused (fix round 1, m-5: the draft preview parses the member's styles only then).
+
+    `unservable` (W11-R67; a dict or a callable answering it, `_unservable_blocks` of the stored row(s), asked only
+    when a block arrives with empty settings): a block sent with `{}` (or none) whose STORED value is one
+    `_servable_blocks` serves empty keeps that stored value verbatim (a save, a duplicate, a draft preview: no
+    answer serves it, `_row` re-reads through the guard). Any other settings for it are judged as usual."""
     held: list = []
 
     def in_legacy(bid: Any, settings: Any) -> bool:
@@ -655,11 +692,25 @@ def _clean_blocks(raw: Any, legacy: Any = None) -> list[dict]:
     if not isinstance(raw, list) or len(raw) > MAX_BLOCKS:
         raise StyleValidationError(f"A style can hold up to {MAX_BLOCKS} blocks.")
     out, seen = [], set()
+    deep: list = []
+
+    def stored_deep(bid: str) -> Any:
+        if unservable is None:
+            return None
+        if not deep:
+            deep.append(unservable() if callable(unservable) else unservable)
+        return deep[0].get(bid)
+
     for b in raw:
         if not isinstance(b, dict) or not isinstance(b.get("block"), str):
             raise StyleValidationError("Each block needs a valid block id.")
         bid = b["block"]
         settings = b.get("settings") if b.get("settings") is not None else {}
+        if settings == {} and bid not in seen and stored_deep(bid) is not None:
+            # W11-R67: the served `{}` of a stored value too deep to serve is not an edit: keep the stored value
+            seen.add(bid)
+            out.append({"block": bid, "enabled": bool(b.get("enabled", True)), "settings": stored_deep(bid)})
+            continue
         if not BLOCK_ID_RE.fullmatch(bid):                    # fullmatch: no `built_a<newline>` id
             if not in_legacy(bid, settings):
                 raise StyleValidationError("Each block needs a valid block id.")
@@ -1128,7 +1179,7 @@ def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = N
     began = False
     try:
         dup = payload.get("duplicateOf")
-        legacy = None
+        legacy = unservable = None
         if dup is not None:
             if not isinstance(dup, str) or not dup.strip():
                 raise StyleValidationError("duplicateOf must be text")
@@ -1137,12 +1188,13 @@ def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = N
                 if src is None:
                     raise StyleValidationError("You can only duplicate one of your own styles.")
                 legacy = _legacy_blocks(src["blocks_json"])      # 11.3 re-review m-2: the copy keeps them too
+                unservable = _unservable_blocks(src["blocks_json"])  # W11-R67: and the values served empty
             provenance = provenance or _provenance_of(user_id, dup, conn)
         name = _clean_name(payload.get("name"))
         kind = _clean_kind(user_id, payload.get("kindId"), conn)
         tpl = _clean_template(user_id, payload.get("outlineTemplateId"), conn)
         outline = _clean_outline(payload.get("outlineBodyJson"))
-        blocks = _clean_blocks(payload.get("blocks"), legacy=legacy)
+        blocks = _clean_blocks(payload.get("blocks"), legacy=legacy, unservable=unservable)
         props = _clean_properties(user_id, payload.get("properties"), conn)
         if not conn.in_transaction and (commit or owned):
             # Fix round 1 (M-3): the cap's count and the insert are ONE short write lock, the same one duplicate takes,
@@ -1253,7 +1305,8 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
             o = _clean_outline(patch["outlineBodyJson"])
             cleaned["outlineBodyJson"] = json.dumps(o) if o else None
         if "blocks" in patch:
-            sent = _clean_blocks(patch["blocks"], legacy=_legacy_blocks(r["blocks_json"]))
+            sent = _clean_blocks(patch["blocks"], legacy=_legacy_blocks(r["blocks_json"]),
+                                 unservable=_unservable_blocks(r["blocks_json"]))
             sent = _keep_remembered(sent, r["blocks_json"])
             # Final review I-1: a slot hidden from the client (its wave is off) is kept, not dropped, and
             # at the index it was STORED at (cleanup queue: it used to be appended, so a save while a wave
@@ -2588,7 +2641,8 @@ def preview(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) 
                      "outlineTemplateId": _clean_template(user_id, draft.get("outlineTemplateId"), conn),
                      "outlineBodyJson": _clean_outline(draft.get("outlineBodyJson")),
                      # 11.3 re-review m-2: a block the member has STORED exactly so is kept, as a save keeps it.
-                     "blocks": _clean_blocks(draft.get("blocks"), legacy=lambda: _member_legacy_blocks(user_id, conn)),
+                     "blocks": _clean_blocks(draft.get("blocks"), legacy=lambda: _member_legacy_blocks(user_id, conn),
+                                             unservable=lambda: _member_unservable_blocks(user_id, conn)),
                      "properties": _clean_properties(user_id, draft.get("properties"), conn)}
         try:
             asked = notes_service.validate_ticker(payload.get("ticker")) if payload.get("ticker") else None

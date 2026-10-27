@@ -195,3 +195,89 @@ def test_CONTROL_the_seeded_row_is_the_failure_it_stands_for():
         to_jsonable_python(deep)
     shallow = {"style": {"blocks": [{"settings": settings_of_depth(CAP, "list")}]}}
     assert to_jsonable_python(shallow) == shallow
+
+
+# ── W11-R67: the served {} of a stored deep LEGACY block is not an edit ────────────────────────────────────────────
+
+def _seed_deep_block(bid: str, depth: int = 96) -> tuple[str, object]:
+    """A style written straight into the temp DB with a `chart` block and `bid` holding settings `depth + 1` deep, as
+    a row stored before the cap (on master `routine_a` and `built_a` are unknown ids kept verbatim; `bad id!` is an
+    id the grammar refuses). Returns (style id, the stored deep settings)."""
+    made = js.create_style(UID, {"name": "Old", "kindId": "weekend_prep",
+                                 "blocks": [{"block": "chart", "settings": {}}]})
+    deep = {"x": nested_list(depth)}
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        stored = json.loads(c.execute("SELECT blocks_json FROM j2_journal_styles WHERE id = ?",
+                                      (made["id"],)).fetchone()[0])
+        stored.append({"block": bid, "enabled": True, "settings": deep})
+        c.execute("UPDATE j2_journal_styles SET blocks_json = ? WHERE id = ?", (json.dumps(stored), made["id"]))
+        c.commit()
+    finally:
+        c.close()
+    return made["id"], deep
+
+
+def _stored_settings(sid: str, bid: str):
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        blocks = json.loads(c.execute("SELECT blocks_json FROM j2_journal_styles WHERE id = ?", (sid,)).fetchone()[0])
+    finally:
+        c.close()
+    return next((b["settings"] for b in blocks if b.get("block") == bid), None)
+
+
+LEGACY_IDS = ["routine_a", "built_a", "bad id!", "zzfuture"]
+
+
+@pytest.fixture
+def waves_on(monkeypatch):
+    """Every release wave on, so a family slot (`routine_a`, `built_a`) is SHOWN to the member, as it is once wave 11
+    is armed (with it off the slot is hidden and a save keeps it where it was stored)."""
+    for wave in range(1, 12):
+        monkeypatch.setenv(f"NOTEBOOK_WIDGETS_W{wave}_ENABLED", "1")
+
+
+@pytest.mark.parametrize("bid", LEGACY_IDS)
+def test_W11_R67_saving_the_served_blocks_keeps_the_stored_value_and_is_not_refused(client, waves_on, bid):
+    sid, deep = _seed_deep_block(bid)
+    served = client.get(f"{URL}/{sid}").json()["style"]["blocks"]
+    assert [b["block"] for b in served] == ["chart", bid] and served[1]["settings"] == {}
+    saved = client.put(f"{URL}/{sid}", json={"blocks": served, "name": "Renamed"})
+    assert saved.status_code == 200, (bid, saved.text[:300])
+    assert _stored_settings(sid, bid) == deep                                    # no data loss
+    assert client.get(f"{URL}/{sid}").json()["style"]["blocks"][1]["settings"] == {}   # still served empty
+    assert client.get(URL).status_code == 200
+    # removing the block works
+    gone = client.put(f"{URL}/{sid}", json={"blocks": served[:1]})
+    assert gone.status_code == 200, gone.text[:300]
+    assert [b["block"] for b in client.get(f"{URL}/{sid}").json()["style"]["blocks"]] == ["chart"]
+    assert _stored_settings(sid, bid) is None
+
+
+@pytest.mark.parametrize("bid", LEGACY_IDS)
+def test_W11_R67_a_draft_preview_and_a_duplicate_of_the_served_blocks_answer(client, waves_on, bid):
+    sid, deep = _seed_deep_block(bid)
+    served = client.get(f"{URL}/{sid}").json()["style"]
+    draft = {"name": "Draft", "kindId": "weekend_prep", "blocks": served["blocks"]}
+    preview = client.post(f"{URL}/preview", json={"style": draft})
+    assert preview.status_code == 200, (bid, preview.text[:300])
+    dup = client.post(URL, json={**draft, "name": "Copy", "duplicateOf": sid})
+    assert dup.status_code == 200, (bid, dup.text[:300])
+    assert _stored_settings(dup.json()["style"]["id"], bid) == deep             # the copy keeps the stored value
+    assert client.get(URL).status_code == 200
+
+
+def test_W11_R67_CONTROL_new_settings_for_that_block_are_judged_as_usual(client, waves_on):
+    """Only the served {} is the stored value: other settings for that block are an edit and meet the grammar (an
+    unknown block's new value is kept; one past the cap is refused)."""
+    sid, _deep = _seed_deep_block("zzfuture")
+    served = client.get(f"{URL}/{sid}").json()["style"]["blocks"]
+    changed = [served[0], {**served[1], "settings": {"a": 1}}]
+    assert client.put(f"{URL}/{sid}", json={"blocks": changed}).status_code == 200
+    assert _stored_settings(sid, "zzfuture") == {"a": 1}
+    past = settings_of_depth(CAP + 1, "list")
+    r = client.put(f"{URL}/{sid}", json={"blocks": [served[0], {**served[1], "settings": past}]})
+    assert r.status_code == 400 and r.json()["detail"] == js.S_SETTINGS_TOO_DEEP
