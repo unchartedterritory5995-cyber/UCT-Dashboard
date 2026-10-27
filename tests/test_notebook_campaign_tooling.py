@@ -171,26 +171,44 @@ def merged_text(rel: str, needle: str) -> str:
     raise AssertionError(f"no tree holds {rel} with {needle!r}")
 
 
-PREFIXES = {w11.GALLERY_ROUTER: ('prefix="/api/j2/template-gallery"', w11.GALLERY),
-            w11.STYLES_ROUTER: ('prefix="/api/j2"', "/api/j2"),
-            w11.ROUTINES_ROUTER: ('prefix="/api/j2/routines"', w11.ROUTINES),
-            w11.NOTES_ROUTER: ('prefix="/api/j2"', "/api/j2"),
-            w11.ALERTS_ROUTER: ("router = APIRouter()", "")}
+#: router file -> (the APIRouter object its routes hang on, that object's prefix). Review m11: the decorator must be
+#: `@<that object>.<method>("<path>"` at the start of a line, and the object must be assigned with that prefix
+#: (notebook_routines.py holds routines_router AND trackers_router, both with "/{rid}" routes).
+PREFIXES = {w11.GALLERY_ROUTER: ("router", "/api/j2/template-gallery"),
+            w11.STYLES_ROUTER: ("router", "/api/j2"),
+            w11.ROUTINES_ROUTER: ("routines_router", "/api/j2/routines"),
+            w11.NOTES_ROUTER: ("router", "/api/j2"),
+            w11.ALERTS_ROUTER: ("router", "")}
 NEEDLE = {w11.GALLERY_ROUTER: "use-template", w11.STYLES_ROUTER: "/unarchive"}
+
+
+def decorated(text: str, obj: str, method: str, path: str) -> bool:
+    return re.search(rf'^@{obj}\.{method.lower()}\(\s*"{re.escape(path)}"', text, re.M) is not None
+
+
+def prefixed(text: str, obj: str, prefix: str) -> bool:
+    if not prefix:
+        return re.search(rf"^{obj} = APIRouter\(\)", text, re.M) is not None
+    return re.search(rf'^{obj} = APIRouter\(\s*prefix="{re.escape(prefix)}"', text, re.M) is not None
 
 
 @pytest.mark.parametrize("name", sorted(w11.ROUTES))
 def test_every_wave11_route_the_steps_call_is_declared_by_its_router(name):
     method, rel, path = w11.ROUTES[name]
     text = merged_text(rel, NEEDLE.get(rel, "@"))
-    assert re.search(rf'\.{method.lower()}\(\s*"{re.escape(path)}"', text), (name, rel, path)
-    assert PREFIXES[rel][0] in text, rel
+    obj, prefix = PREFIXES[rel]
+    assert decorated(text, obj, method, path), (name, rel, obj, path)
+    assert prefixed(text, obj, prefix), (rel, obj, prefix)
 
 
-def test_control_the_route_rail_reds_on_a_route_that_does_not_exist():
+def test_control_the_route_rail_reds_on_a_route_that_does_not_exist_or_hangs_on_another_router():
     text = merged_text(w11.GALLERY_ROUTER, "use-template")
-    assert re.search(r'\.post\(\s*"/\{gallery_id\}/use-template"', text)
-    assert not re.search(r'\.post\(\s*"/\{gallery_id\}/use-templates"', text)
+    assert decorated(text, "router", "POST", "/{gallery_id}/use-template")
+    assert not decorated(text, "router", "POST", "/{gallery_id}/use-templates")
+    routines = merged_text(w11.ROUTINES_ROUTER, "@")
+    assert decorated(routines, "trackers_router", "PUT", "/{tid}/days/{day}")           # the tracker log
+    assert not decorated(routines, "routines_router", "PUT", "/{tid}/days/{day}")        # is not a routine route
+    assert not prefixed(routines, "trackers_router", "/api/j2/routines")
 
 
 def test_the_builders_build_the_paths_the_routes_declare():
@@ -209,6 +227,7 @@ def test_the_builders_build_the_paths_the_routes_declare():
              "restore": w11.b_style_action(sid, "restore"), "routine_get": w11.b_routine_get(rid),
              "routine_put": w11.b_routine_put(rid, {"name": "x"}),
              "routine_tick": w11.b_routine_tick(rid, "2026-11-23", "i1"), "note_get": w11.b_note(nid),
+             "routine_days": w11.b_routine_days([rid], ["2026-11-23"]),
              "alerts": w11.b_alerts()}
     assert set(built) == set(w11.ROUTES)
     ids = {"gallery_id": gid, "style_id": sid, "rid": rid, "note_id": nid, "day": "2026-11-23", "item_id": "i1"}
@@ -294,24 +313,29 @@ def test_judge_refusal_reads_status_code_and_sentence():
     assert w11.judge_refusal(R_(409, ref("conflict", "Reload.")), 428, "conflict", "Reload.")["verdict"] == w11.FAIL
     assert w11.judge_refusal(R_(428, ref("invalid", "Reload.")), 428, "conflict", "Reload.")["verdict"] == w11.FAIL
     assert w11.judge_refusal(R_(428, ref("conflict", "Other.")), 428, "conflict", "Reload.")["verdict"] == w11.FAIL
-    plain = w11.judge_refusal(R_(413, {"detail": "Request too large"}), 413, None, "Request too large")
+    big = "That is too much to send at once."
+    assert w11.judge_refusal(R_(413, ref("invalid", big)), 413, "invalid", big)["verdict"] == w11.PASS
+    # the old router reader's shape is NOT what a wave 11 door answers (review C1)
+    assert w11.judge_refusal(R_(413, {"detail": "Request too large"}), 413, "invalid", big)["verdict"] == w11.FAIL
+    plain = w11.judge_refusal(R_(400, {"detail": "Choose live."}), 400, None, "Choose live.")
     assert plain["verdict"] == w11.PASS
+    pend = w11.judge_refusal(R_(409, ref("old", "m")), 409, "new", "m", interim_code="old")
+    assert pend["verdict"] == w11.PENDING          # the generic interim path (no step uses it today)
 
 
-def test_key_reused_is_expected_pending_while_the_branch_answers_conflict():
+def test_key_reused_is_final_and_conflict_is_a_fail():
     s = "That was already sent for something else. Press it again to send this one."
     assert w11.judge_key_reused(R_(409, ref("key_reused", s)), s)["verdict"] == w11.PASS
-    pend = w11.judge_key_reused(R_(409, ref("conflict", s)), s)
-    assert pend["verdict"] == w11.PENDING and "A9" in pend["why"]
+    assert w11.judge_key_reused(R_(409, ref("conflict", s)), s)["verdict"] == w11.FAIL       # A9 landed (I4)
     assert w11.judge_key_reused(R_(409, ref("conflict", "other")), s)["verdict"] == w11.FAIL     # wrong sentence
     assert w11.judge_key_reused(R_(200, {"replayed": True}), s)["verdict"] == w11.FAIL
     assert w11.judge_key_reused(R_(409, ref("in_flight", s)), s)["verdict"] == w11.FAIL
 
 
-def test_listing_moved_is_expected_pending_while_the_branch_answers_conflict():
+def test_listing_moved_is_final_and_conflict_is_a_fail():
     s = "This template changed while it was being added. Nothing was made. Try again."
     assert w11.judge_listing_moved(R_(409, ref("listing_moved", s)), s)["verdict"] == w11.PASS
-    assert w11.judge_listing_moved(R_(409, ref("conflict", s)), s)["verdict"] == w11.PENDING
+    assert w11.judge_listing_moved(R_(409, ref("conflict", s)), s)["verdict"] == w11.FAIL     # W11-R60 landed
     assert w11.judge_listing_moved(R_(409, ref("conflict", "That is already on its way.")), s)["verdict"] == w11.FAIL
 
 
@@ -351,7 +375,19 @@ def test_in_flight_race_with_the_409_passes_and_its_failures_fail():
     wrong = R_(409, ref("key_reused", IN_FLIGHT))
     assert w11.judge_in_flight([made, wrong], "note.id", IN_FLIGHT)["verdict"] == w11.FAIL
     assert w11.judge_in_flight([made, R_(500, text="boom"), busy], "note.id", IN_FLIGHT)["verdict"] == w11.FAIL
-    assert w11.judge_in_flight([R_(0, text="URLError")] * 3, "note.id", IN_FLIGHT)["verdict"] == w11.FAIL
+    # review I1: nothing made is a defect, whatever else answered
+    assert w11.judge_in_flight([busy] * 4, "note.id", IN_FLIGHT)["verdict"] == w11.FAIL
+    assert w11.judge_in_flight([rep, rep, rep, busy], "note.id", IN_FLIGHT)["verdict"] == w11.FAIL
+    assert w11.judge_in_flight([made], "note.id", IN_FLIGHT)["verdict"] == w11.FAIL           # no twin answered
+
+
+def test_a_transport_failure_is_inconclusive_never_a_product_fail():
+    lost = R_(0, text="URLError")
+    made, busy = R_(200, {"note": {"id": "n1"}}), R_(409, ref("conflict", IN_FLIGHT))
+    assert w11.judge_in_flight([lost] * 3, "note.id", IN_FLIGHT)["verdict"] == w11.INCONCLUSIVE
+    assert w11.judge_in_flight([made, busy, lost], "note.id", IN_FLIGHT)["verdict"] == w11.INCONCLUSIVE
+    assert w11.judge_busy([R_(200, {}), lost], BUSY)["verdict"] == w11.INCONCLUSIVE
+    assert w11.judge_too_long_engine(lost, "x")["verdict"] == w11.INCONCLUSIVE
 
 
 def test_in_flight_leaves_a_moved_listing_to_its_own_judge():
@@ -378,6 +414,7 @@ def test_engine_too_long_judge():
     assert w11.judge_too_long_engine(R_(200, {"cards": []}), tl)["verdict"] == w11.INCONCLUSIVE
     assert w11.judge_too_long_engine(R_(503, ref("too_long", tl)), tl)["verdict"] == w11.PASS
     assert w11.judge_too_long_engine(R_(500, text="x"), tl)["verdict"] == w11.FAIL
+    assert w11.judge_too_long_engine(R_(503, ref("busy", BUSY)), tl)["verdict"] == w11.INCONCLUSIVE    # m6
 
 
 def test_readers():
@@ -464,14 +501,64 @@ def test_http_call_reads_a_refusal_as_an_answer_not_an_exception(stub):
     assert got.status == 409 and w11.detail_of(got.body) == ("conflict", IN_FLIGHT)
 
 
-@pytest.mark.parametrize("base", ["https://uctintelligence.com", "http://10.0.0.5:8131"])
-def test_the_loopback_door_refuses_every_other_host_on_every_call(base, monkeypatch):
+def no_socket(monkeypatch):
     import urllib.request
     monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: pytest.fail("a socket was opened"))
+    monkeypatch.setattr(w11, "_opener", lambda: pytest.fail("a socket was opened"))
+
+
+@pytest.mark.parametrize("base", ["https://uctintelligence.com", "http://10.0.0.5:8131",
+                                  "http://uctintelligence.com\\@127.0.0.1:8131", "http://user@127.0.0.1:8131",
+                                  "http://127.0.0.1:8131@uctintelligence.com", "http://127.0.0.1:abc",
+                                  "http://127.0.0.1 :8131", "http://127.0.0.1:8131\\", "http:\\\\127.0.0.1:8131"])
+def test_the_loopback_door_refuses_every_other_host_on_every_call(base, monkeypatch):
+    no_socket(monkeypatch)
+    assert w11.refuse_non_local(base)
+    assert rc.refuse_non_local(base)
     with pytest.raises(PermissionError):
         w11.http_call(base, w11.b_library(), "s")
     with pytest.raises(PermissionError):
         w11.race(base, [w11.b_library()], "s")
+
+
+@pytest.mark.parametrize("base", ["http://uctintelligence.com\\@127.0.0.1:8131", "http://127.0.0.1:8131\\",
+                                  "http://localhost@127.0.0.1:8131", "http://127.0.0.1:8131/\\x"])
+def test_m1_a_backslash_or_userinfo_is_refused_before_parsing_and_says_so(base):
+    """Review m1: refused for what it IS (a backslash or `@`), before urlparse is asked anything, so no later
+    parser difference can matter. The netloc checks behind it are a second layer, not the reason."""
+    why = w11.refuse_non_local(base)
+    assert why and "backslash, userinfo" in why
+
+
+@pytest.mark.parametrize("base", ["http://127.0.0.1:8131", "http://LOCALHOST:8131", "http://[::1]:8131",
+                                  "http://localhost"])
+def test_control_a_plain_loopback_origin_is_allowed(base):
+    assert w11.refuse_non_local(base) is None
+
+
+def test_a_redirect_is_never_followed_and_the_cookie_never_leaves():
+    other = Stub(lambda *a: (200, {"elsewhere": True}))
+    target = other.base.replace("127.0.0.1", "localhost") + "/api/alerts"
+
+    class Redirecting(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", target)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Redirecting)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        got = w11.http_call(f"http://127.0.0.1:{srv.server_address[1]}", w11.b_alerts(), "secret-session")
+        assert got.status == 302                     # the 3xx IS the answer
+        assert other.seen == []                      # nothing (no Cookie) reached the next host
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        other.close()
 
 
 def test_race_sends_its_requests_together(stub):
@@ -494,6 +581,7 @@ def fake_run(tmp_path, base):
     g.caps = {"w11": True, "restart": False, "clock": False, "sql_clock": False}
     g.sentences = {k: {"ok": True} for k in SPEC["sentences"]}
     g.session_override, g.manifest, g.facts, g.once_ran = {}, {"members": {}}, {}, {}
+    g.clock_server = None
     g.benign, g.walk = (), None
     R = object.__new__(rc.Run)
     R.g, R.p, R.vp, R.mode = g, {"id": "P39"}, "1200", "pointer"
@@ -544,8 +632,8 @@ def test_an_in_flight_step_with_the_409_passes(stub, tmp_path):
     assert row["verdict"] == "PASS", row
 
 
-@pytest.mark.parametrize("code,want", [("conflict", w11.PENDING), ("key_reused", "PASS")])
-def test_a_key_reused_step_is_expected_pending_on_the_interim_code_and_pass_on_the_new_one(stub, tmp_path, code, want):
+@pytest.mark.parametrize("code,want", [("conflict", "FAIL"), ("key_reused", "PASS")])
+def test_a_key_reused_step_passes_on_key_reused_and_fails_on_conflict(stub, tmp_path, code, want):
     def ans(method, path, headers, body):
         if path.endswith("/use-template"):
             return 200, {"note": {"id": "n1"}}
@@ -554,7 +642,7 @@ def test_a_key_reused_step_is_expected_pending_on_the_interim_code_and_pass_on_t
     g, R = fake_run(tmp_path, stub.base)
     row = step(g, R, {"do": "w11_key_reused", "template": "Pre-market prep"})
     assert row["verdict"] == want, row
-    assert rc.run_verdict([row]) == ("INCONCLUSIVE" if want == w11.PENDING else "PASS")
+    assert rc.run_verdict([row]) == want
     paths = [s["path"] for s in stub.seen if s["method"] == "POST"]
     assert paths[-2].endswith("/use-template") and paths[-1].endswith("/adopt")
     k = [s["headers"].get("Idempotency-Key") for s in stub.seen if s["method"] == "POST"]
@@ -571,8 +659,7 @@ def test_listing_moved_and_an_unknown_template_read_inconclusive(stub, tmp_path)
 
 
 def test_a_non_local_base_makes_a_w11_step_inconclusive_and_sends_nothing(tmp_path, monkeypatch):
-    import urllib.request
-    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: pytest.fail("a socket was opened"))
+    no_socket(monkeypatch)
     g, R = fake_run(tmp_path, "https://uctintelligence.com")
     row = step(g, R, {"do": "w11_browse"})
     assert row["verdict"] == "INCONCLUSIVE" and "PermissionError" in row["error"]
@@ -725,3 +812,334 @@ def test_a_wave11_step_never_names_a_sentence_list_key_with_another_meaning():
     for pid, st in [(p, s) for d in rc.W11_ACTIONS for p, s in steps_of(d)]:
         for k in ("expect", "expect_absent"):
             assert all(x in keys for x in st.get(k) or []), (pid, st)
+
+
+# ── fix round 1 (review of a6e1be0e17): runner-level rails, each fed the backend's REAL answer shapes ──────────
+#
+# MUTANT LEDGER (re-run: scratchpad mutate_r1.py; each must turn this file red, then the file is restored byte for
+# byte). Reviewer's eight: R1 cookie_of -> always the seeded session; R2 judge_in_flight without the one-made check;
+# R3 a_w11_bell -> one always-true check; R4 a_w11_routine -> one always-true check; R5 a_w11_helpful_prompt ->
+# always-true; R6 a_w11_too_large accepting 200/400/413; R7 a_w11_use without "the replay made nothing";
+# R8 a_w11_adopt ignoring new_key_makes_another. Fix-round ones: F1 the 413 judged on the old shape; F2 the Use sent
+# with no answers; F3 answers taken from sampleValue; F4 a bell read that is not 200 counted as empty; F5 the
+# loopback guard without the backslash/userinfo refusal; F6 redirects followed; F7 --out unguarded; F8 a w11 step
+# with no check reading PASS; F9 key_reused accepting `conflict`; F10 an in-flight transport loss graded FAIL.
+# Result at fix round 1: all 18 red. R4 and F5 first SURVIVED (a second check caught the same defect), so each got a
+# rail of its own: test_i2_a_tick_answer_that_says_false... and test_m1_a_backslash_or_userinfo_is_refused...
+
+SETUP_STUDY_PREVIEW = {   # template_preview.preview_mine's shape for an official template with one declared choice
+    "slots": [{"id": "p1", "type": "setup", "label": "Setup", "any": False,
+               "suggested": {"value": "Breakout", "label": "Breakout"}, "value": "Breakout", "sampleValue": "Pullback"}],
+    "cards": [{"slot": "built_a", "title": "Win rate", "payload": {"rows": []}, "sample": False}],
+    "tools": [], "questions": [], "credit": "Based on UCT's Setup study"}
+
+
+def lib_two(stub, answer, extra=()):
+    titles = [("g-pmp", "Pre-market prep"), ("g-ss", "Setup study"), *extra]
+
+    def a(method, path, headers, body):
+        if path.startswith("/api/j2/template-gallery/library"):
+            return 200, {"templates": [{"id": i, "title": t, "firm": True, "group": "playbook", "contains": []}
+                                       for i, t in titles], "groups": [{"key": "playbook", "label": "Playbook"}]}
+        return answer(method, path, headers, body)
+    stub.answer = a
+
+
+def posts(stub, tail):
+    return [s for s in stub.seen if s["method"] == "POST" and s["path"].endswith(tail)]
+
+
+def test_c2_the_use_answers_every_declared_choice_from_the_preview_never_sample_value(stub, tmp_path):
+    def ans(method, path, headers, body):
+        if path.endswith("/preview-mine"):
+            return 200, SETUP_STUDY_PREVIEW
+        sent = json.loads(body or b"{}")
+        if sent.get("answers") != {"p1": "Breakout"}:
+            return 400, ref("unresolved", "Answer every choice.")       # _resolved_answers' refusal
+        out = {"note": {"id": "n1"}, "style": {"id": "c1", "name": "Setup study"},
+               "created": {"widgets": [], "routines": [], "trackers": []}, "reused": {"routines": [], "trackers": []}}
+        if len(posts(stub, "/use-template")) > 1:
+            out["replayed"] = True
+        return 200, out
+    lib_two(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    assert step(g, R, {"do": "w11_preview", "template": "Setup study"})["verdict"] == "PASS"
+    row = step(g, R, {"do": "w11_use", "template": "Setup study", "answers": "preview"}, "x.02")
+    assert row["verdict"] == "PASS", [c for c in row["checks"] if not c["ok"]]
+    for s_ in posts(stub, "/use-template"):
+        assert json.loads(s_["body"])["answers"] == {"p1": "Breakout"}            # the value, never "Pullback"
+
+
+def test_c2_a_use_that_needs_answers_without_a_preview_or_a_value_sends_nothing(stub, tmp_path):
+    lib_two(stub, lambda *a: pytest.fail("a Use was sent"))
+    g, R = fake_run(tmp_path, stub.base)
+    assert step(g, R, {"do": "w11_use", "template": "Setup study", "answers": "preview"})["verdict"] == "INCONCLUSIVE"
+    R.remembered["preview:Setup study"] = {"slots": [{"id": "p1", "type": "setup", "value": None,
+                                                      "sampleValue": "Pullback"}]}
+    row = step(g, R, {"do": "w11_use", "template": "Setup study"}, "x.02")
+    assert row["verdict"] == "INCONCLUSIVE" and "p1" in row["error"]
+
+
+def test_answers_from_preview_takes_values_and_names_the_unanswered():
+    pv = {"slots": [{"id": "a", "value": "Breakout", "sampleValue": "X"}, {"id": "b", "value": {"any": True}},
+                    {"id": "c", "value": None, "sampleValue": "Y"}]}
+    assert w11.answers_from_preview(pv) == ({"a": "Breakout", "b": {"any": True}}, ["c"])
+
+
+def test_m4_a_replay_with_no_created_does_not_pass_made_nothing(stub, tmp_path):
+    n = {"k": 0}
+
+    def ans(*a):
+        n["k"] += 1
+        return 200, {"note": {"id": "n1"}, **({"replayed": True} if n["k"] > 1 else {})}
+    library_then(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    row = step(g, R, {"do": "w11_use", "template": "Pre-market prep"})
+    assert row["verdict"] == "FAIL"
+    assert any("made nothing" in c["what"] and not c["ok"] for c in row["checks"])
+
+
+def test_i2_the_tick_reads_the_ticked_map_before_and_after(stub, tmp_path):
+    state = {"ticked": False, "write": True}
+
+    def ans(method, path, headers, body):
+        if method == "GET":
+            return 200, {"id": "r1", "name": "Pre-market routine", "items": [{"id": "i1", "text": "Futures"}]}
+        if path.endswith("/routines/days"):
+            d = json.loads(body)["days"][0]
+            return 200, {"routines": {"r1": {"days": {d: {"state": "done" if state["ticked"] else "not_done",
+                                                         "ticked": {"i1": state["ticked"]}}}}}}
+        if state["write"]:
+            state["ticked"] = True
+        return 200, {"state": "done", "ticked": {"i1": state["ticked"]}, "items": [{"id": "i1"}]}
+    stub.answer = ans
+    g, R = fake_run(tmp_path, stub.base)
+    R.alias["use_routine"] = {"id": "r1"}
+    row = step(g, R, {"do": "w11_routine"})
+    assert row["verdict"] == "PASS", [c for c in row["checks"] if not c["ok"]]
+    assert sum(1 for r in row["read"] if r["what"].startswith("state ")) == 2
+    state.update(ticked=False, write=False)              # a server that answers 200 and writes nothing
+    assert step(g, R, {"do": "w11_routine"}, "x.02")["verdict"] == "FAIL"
+
+
+def test_i2_a_tick_answer_that_says_false_fails_even_if_a_later_read_says_true(stub, tmp_path):
+    reads = {"n": 0}
+
+    def ans(method, path, headers, body):
+        if method == "GET":
+            return 200, {"id": "r1", "name": "R", "items": [{"id": "i1", "text": "Futures"}]}
+        if path.endswith("/routines/days"):
+            reads["n"] += 1
+            t = reads["n"] > 1
+            d = json.loads(body)["days"][0]
+            return 200, {"routines": {"r1": {"days": {d: {"state": "done" if t else "not_done", "ticked": {"i1": t}}}}}}
+        return 200, {"state": "not_done", "ticked": {"i1": False}}      # the answer itself says not ticked
+    stub.answer = ans
+    g, R = fake_run(tmp_path, stub.base)
+    R.alias["use_routine"] = {"id": "r1"}
+    row = step(g, R, {"do": "w11_routine"})
+    assert row["verdict"] == "FAIL"
+    assert [c["what"] for c in row["checks"] if not c["ok"]] == ["the answer says the item is ticked (ticked map: true)"]
+
+
+def test_i3_a_bell_that_does_not_answer_200_is_inconclusive_not_empty(stub, tmp_path):
+    stub.answer = lambda *a: (401, {"detail": "Not signed in"})
+    g, R = fake_run(tmp_path, stub.base)
+    g.manifest = {"members": {}}
+    R.member = {"session": "s20", "routines": [{"name": "Close reminder", "id": "r20"}]}
+    row = step(g, R, {"do": "w11_bell", "routine": "Close reminder", "count": 0})
+    assert row["verdict"] == "INCONCLUSIVE" and "401" in row["error"]
+    stub.answer = lambda *a: (200, [])
+    assert step(g, R, {"do": "w11_bell", "routine": "Close reminder", "count": 0}, "x.02")["verdict"] == "PASS"
+    one = [{"type": "routine_reminder", "data": {"routineId": "r20", "day": rc.today_et().isoformat()}}]
+    stub.answer = lambda *a: (200, one)
+    assert step(g, R, {"do": "w11_bell", "routine": "Close reminder", "count": 0}, "x.03")["verdict"] == "FAIL"
+    assert step(g, R, {"do": "w11_bell", "routine": "Close reminder", "count": 1}, "x.04")["verdict"] == "PASS"
+    assert g.facts[("P39", "bell_seen:r20")] is True
+    stub.answer = lambda *a: (200, [])
+    g.facts.clear()
+    row = step(g, R, {"do": "w11_bell", "routine": "Close reminder", "count": 1, "needs_seen": True}, "x.05")
+    assert row["verdict"] == "INCONCLUSIVE" and stub.seen[-1]["path"] != "never"
+
+
+def test_i7_under_a_clock_group_a_step_sends_only_a_vouched_session(stub, tmp_path):
+    library_then(stub, lambda *a: (200, {}))
+    g, R = fake_run(tmp_path, stub.base)
+    g.clock_server = object()                            # a clock group is being served
+    row = step(g, R, {"do": "w11_browse"})
+    assert row["verdict"] == "INCONCLUSIVE" and "vouched" in row["error"]
+    assert stub.seen == []                               # the seeded cookie was never sent
+    g.session_override = {"P39": "minted-39"}
+    step(g, R, {"do": "w11_browse"}, "x.02")
+    assert stub.seen and all(s["headers"]["Cookie"] == "uct_session=minted-39" for s in stub.seen)
+    g.clock_server, g.session_override = None, {}
+    stub.seen.clear()
+    step(g, R, {"do": "w11_browse"}, "x.03")
+    assert stub.seen[-1]["headers"]["Cookie"] == "uct_session=s39"   # a real-clock server: the seeded session
+
+
+def test_m7_a_w11_step_with_no_check_is_inconclusive(tmp_path, monkeypatch):
+    monkeypatch.setitem(rc.ACTIONS, "w11_silent", lambda R, s, row: None)
+    monkeypatch.setattr(rc, "W11_ACTIONS", rc.W11_ACTIONS | {"w11_silent"})
+    g, R = fake_run(tmp_path, "http://127.0.0.1:1")
+    row = step(g, R, {"do": "w11_silent"})
+    assert row["verdict"] == "INCONCLUSIVE" and "read nothing" in row["error"]
+
+
+def test_c1_the_413_step_grades_the_wave11_readers_answer(stub, tmp_path):
+    big = SPEC["sentences"]["body_too_large"]["text"]
+    assert big == "That is too much to send at once."
+    g, R = fake_run(tmp_path, stub.base)
+    for answer, want in (((413, ref("invalid", big)), "PASS"), ((413, {"detail": "Request too large"}), "FAIL"),
+                         ((200, {"travels": None}), "FAIL"), ((400, ref("invalid", big)), "FAIL")):
+        stub.answer = lambda *a, answer=answer: answer
+        assert step(g, R, {"do": "w11_too_large"})["verdict"] == want, answer
+    assert len(posts(stub, "/share/preview")[-1]["body"]) > w11.W11_MAX_BODY_BYTES
+
+
+def test_title_too_long_sends_301_characters_unkeyed_and_wants_400_invalid(stub, tmp_path):
+    msg = SPEC["sentences"]["title_too_long"]["text"]
+    library_then(stub, lambda *a: (400, ref("invalid", msg)))
+    g, R = fake_run(tmp_path, stub.base)
+    assert step(g, R, {"do": "w11_title_too_long", "template": "Pre-market prep"})["verdict"] == "PASS"
+    sent = posts(stub, "/use-template")[-1]
+    assert len(json.loads(sent["body"])["title"]) == w11.MAX_TITLE_CHARS + 1 and "Idempotency-Key" not in sent["headers"]
+    library_then(stub, lambda *a: (200, {"note": {"id": "n"}}))
+    assert step(g, R, {"do": "w11_title_too_long", "template": "Pre-market prep"}, "x.02")["verdict"] == "FAIL"
+
+
+def test_the_preview_step_reads_sample_questions_and_bindings(stub, tmp_path):
+    pv = {"slots": [], "cards": [{"slot": "b", "payload": {}, "sample": True}],
+          "tools": [{"slot": "routine_a", "bind": "next-trading-day", "forDayLabel": "For Mon Nov 23"}],
+          "questions": [{"slot": "routine_a", "use": {"id": "r1", "name": "Morning routine"}}]}
+    lib_two(stub, lambda *a: (200, pv))
+    g, R = fake_run(tmp_path, stub.base)
+    good = {"do": "w11_preview", "template": "Pre-market prep", "expect_sample": True,
+            "expect_question_use": "Morning routine",
+            "expect_tools": [{"slot": "routine_a", "bind": "next-trading-day", "forDayLabel": "For Mon Nov 23"}]}
+    assert step(g, R, good)["verdict"] == "PASS"
+    for bad in ({"expect_own_data": True}, {"expect_question_use": "Other"},
+                {"expect_tools": [{"slot": "routine_a", "bind": "week", "forDayLabel": "For Mon Nov 23"}]}):
+        assert step(g, R, {"do": "w11_preview", "template": "Pre-market prep", **bad}, "x.02")["verdict"] == "FAIL", bad
+
+
+def test_the_share_preview_and_publish_steps(stub, tmp_path):
+    state = {"travels": {"title": "T", "blocks": []}}
+
+    def ans(method, path, headers, body):
+        if "?view=live" in path:
+            return 200, {"styles": [{"id": "s34", "name": "zzq-canary-7f3a template"}]}
+        if path.endswith("/share/preview"):
+            assert json.loads(body) == {"kind": "template", "id": "s34"}
+            return 200, {"travels": state["travels"], "notShared": [], "prefill": {}}
+        assert path.endswith("/styles") and json.loads(body)["styleId"] == "s34"
+        return 200, {"template": {"id": "L1", "title": "Campaign"}}
+    stub.answer = ans
+    g, R = fake_run(tmp_path, stub.base)
+    sp = {"do": "w11_share_preview", "kind": "template", "name": "zzq-canary-7f3a template",
+          "forbid_text": ["zzq-canary-7f3a"]}
+    assert step(g, R, sp)["verdict"] == "PASS"
+    assert step(g, R, {"do": "w11_publish", "title": "Campaign", "forbid_text": ["zzq-canary-7f3a"]},
+                "x.02")["verdict"] == "PASS" and R.alias["listing"]["id"] == "L1"
+    state["travels"] = {"title": "zzq-canary-7f3a template"}
+    assert step(g, R, sp, "x.03")["verdict"] == "FAIL"
+    state["travels"] = None
+    assert step(g, R, sp, "x.04")["verdict"] == "INCONCLUSIVE"
+
+
+def test_the_adopt_step_replays_and_a_new_key_makes_another(stub, tmp_path):
+    state = {"distinct": True}
+    seen_keys = {}
+
+    def ans(method, path, headers, body):
+        k = headers.get("Idempotency-Key")
+        if k in seen_keys:
+            return 200, {"style": {"id": seen_keys[k], "name": "C"}, "replayed": True}
+        seen_keys[k] = f"c{len(seen_keys)}" if state["distinct"] else "c0"
+        return 200, {"style": {"id": seen_keys[k], "name": "C"}}
+    library_then(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    st = {"do": "w11_adopt", "template": "Pre-market prep", "new_key_makes_another": True}
+    assert step(g, R, st)["verdict"] == "PASS"
+    state["distinct"] = False                               # a new key that answers the SAME copy
+    seen_keys.clear()
+    assert step(g, R, st, "x.02")["verdict"] == "FAIL"
+
+
+def test_the_unkeyed_step_sends_no_key_and_wants_two_results(stub, tmp_path):
+    n = {"k": 0}
+
+    def ans(*a):
+        n["k"] += 1
+        return 200, {"note": {"id": f"n{n['k']}"}}
+    library_then(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    assert step(g, R, {"do": "w11_unkeyed", "template": "Pre-market prep"})["verdict"] == "PASS"
+    assert all("Idempotency-Key" not in s_["headers"] for s_ in posts(stub, "/use-template"))
+    library_then(stub, lambda *a: (428, ref("conflict", "Reload")))
+    assert step(g, R, {"do": "w11_unkeyed", "template": "Pre-market prep"}, "x.02")["verdict"] == "FAIL"
+
+
+def test_the_busy_and_engine_steps(stub, tmp_path):
+    busy = SPEC["sentences"]["busy_srv"]["text"]
+    tl = SPEC["sentences"]["too_long_srv"]["text"]
+    n = {"k": 0}
+
+    def ans(*a):
+        with stub.lock:
+            n["k"] += 1
+            k = n["k"]
+        return (503, ref("busy", busy)) if k == 2 else (200, {"cards": []})
+    lib_two(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    assert step(g, R, {"do": "w11_busy", "templates": ["Pre-market prep", "Setup study"]})["verdict"] == "PASS"
+    assert len(posts(stub, "/preview-mine")) == 2
+    lib_two(stub, lambda *a: (200, {"cards": []}))
+    assert step(g, R, {"do": "w11_busy", "templates": ["Pre-market prep", "Setup study"]}, "x.02")["verdict"] == \
+        "INCONCLUSIVE"
+    lib_two(stub, lambda *a: (503, ref("too_long", tl)))
+    assert step(g, R, {"do": "w11_engine_too_long", "template": "Setup study"}, "x.03")["verdict"] == "PASS"
+    lib_two(stub, lambda *a: (503, ref("busy", busy)))
+    assert step(g, R, {"do": "w11_engine_too_long", "template": "Setup study"}, "x.04")["verdict"] == "INCONCLUSIVE"
+
+
+def test_the_helpful_steps(stub, tmp_path):
+    days = SPEC["sentences"]["helpful_days"]["text"]
+    state = {"mode": "refuse"}
+
+    def ans(method, path, headers, body):
+        if path.endswith("/helpful-prompt") and method == "GET":
+            return 200, {"show": True, "itemId": "g-ss", "title": "Setup study", "line": "Was Setup study helpful?"}
+        if path.endswith("/helpful-prompt"):
+            return 200, {"answer": json.loads(body)["answer"], "helpful": True, "count": 1}
+        if method == "DELETE":
+            return 200, {"helpful": False, "count": 0}
+        if state["mode"] == "refuse":
+            return 409, ref("helpful_days", days)
+        return 200, {"helpful": state["mode"] == "mark", "count": 1}
+    lib_two(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    R.alias["used"] = "n1"
+    assert step(g, R, {"do": "w11_helpful", "template": "Setup study", "outcome": "refused"})["verdict"] == "PASS"
+    state["mode"] = "mark"
+    assert step(g, R, {"do": "w11_helpful", "template": "Setup study", "outcome": "refused"}, "x.02")["verdict"] == "FAIL"
+    assert step(g, R, {"do": "w11_helpful", "template": "Setup study", "outcome": "allowed"}, "x.03")["verdict"] == "PASS"
+    state["mode"] = "silent"                               # 200 that marks nothing
+    assert step(g, R, {"do": "w11_helpful", "template": "Setup study", "outcome": "allowed"}, "x.04")["verdict"] == "FAIL"
+    assert step(g, R, {"do": "w11_helpful", "template": "Setup study", "outcome": "unmarked"}, "x.05")["verdict"] == "PASS"
+    assert step(g, R, {"do": "w11_helpful_prompt", "template": "Setup study", "show": True}, "x.06")["verdict"] == "PASS"
+    assert step(g, R, {"do": "w11_helpful_prompt", "template": "Setup study", "show": False}, "x.07")["verdict"] == "FAIL"
+    assert posts(stub, "/x") == [] and [s_ for s_ in stub.seen if s_["path"].endswith("/notes/n1/helpful-prompt")]
+    assert step(g, R, {"do": "w11_helpful_answer", "template": "Setup study", "answer": "yes"}, "x.08")["verdict"] == "PASS"
+    R.alias.pop("used")
+    assert step(g, R, {"do": "w11_helpful_prompt", "template": "Setup study", "show": True}, "x.09")["verdict"] == \
+        "INCONCLUSIVE"
+
+
+def test_m3_an_evidence_folder_under_the_shared_root_is_refused(tmp_path, capsys, monkeypatch):
+    data = tmp_path / "sandbox"
+    data.mkdir()
+    (data / sm.MANIFEST_NAME).write_text(json.dumps({"members": {}}), encoding="utf-8")
+    monkeypatch.setattr(rc, "load_walk_libs", lambda root: pytest.fail("the walk libs were loaded"))
+    code = rc.main(["--run-id", "x", "--base", "http://127.0.0.1:1", "--data-dir", str(data), "--out", r"C:\data\x"])
+    assert code == 3 and "--out" in capsys.readouterr().out

@@ -1311,8 +1311,17 @@ def a_noop(R, s, row):
 # (never a pass); EXPECTED-PENDING raises Pending. Every request and answer is in the step's `read`.
 
 def cookie_of(R: Run) -> str | None:
-    """The persona's session: the one the clock launcher vouched for at this instant, else the seeded one."""
-    return (R.g.session_override or {}).get(R.p["id"]) or R.member.get("session")
+    """The persona's session. Under a clock group ONLY the one the launcher vouched for at this instant (review I7,
+    the N7 rule the probe already keeps): a seeded cookie the shifted server reads as expired would be DELETED by
+    its own `validate_session` on that very request, so with no vouched session the step refuses (INCONCLUSIVE)
+    and sends nothing. On a real-clock server, the seeded session."""
+    vouched = (R.g.session_override or {}).get(R.p["id"])
+    if getattr(R.g, "clock_server", None) is not None:
+        if not vouched:
+            raise Inconclusive("no session the clock launcher vouched for at this instant (clock-sessions.json); a "
+                               "seeded cookie could be read as expired and its row deleted, so nothing was sent")
+        return vouched
+    return vouched or R.member.get("session")
 
 
 def w11_send(R: Run, row: dict, spec: dict, what: str | None = None):
@@ -1487,6 +1496,21 @@ def choices_from_preview(preview: dict | None, title: str, *, strict: bool) -> d
     return picks or None
 
 
+def use_answers(preview: dict | None, title: str, *, required: bool) -> dict | None:
+    """A Use's `answers` from the preview's `slots[]` (`w11.answers_from_preview`: each slot's `value`, never
+    `sampleValue`), as the member's client sends them. Review C2: a template that declares a choice is refused
+    `unresolved` without it, so a declared slot with no value of the member's own, or (`required`) no preview read
+    at all, is INCONCLUSIVE and nothing is sent."""
+    if preview is None:
+        if required:
+            raise Inconclusive(f"no preview of {title!r} was read earlier in this run, so its choices are unknown")
+        return None
+    answers, missing = w11.answers_from_preview(preview)
+    if missing:
+        raise Inconclusive(f"the preview of {title!r} has no value of the member's own for {missing}")
+    return answers or None
+
+
 def _embeds_of(R, row, note: dict) -> list[dict]:
     doc = w11.note_body(note)
     if doc is None and isinstance(note.get("id"), str):
@@ -1499,25 +1523,29 @@ def a_w11_use(R, s, row):
     """Use (make a note) with an Idempotency-Key, then the same key again: the FIRST note, `replayed: true`."""
     title = s["template"]
     gid = w11_template(R, row, title)
-    choices = (choices_from_preview(R.remembered.get(f"preview:{title}"), title, strict=s["pick"] == "suggested")
+    preview = R.remembered.get(f"preview:{title}")
+    choices = (choices_from_preview(preview, title, strict=s["pick"] == "suggested")
                if s.get("pick") in ("suggested", "auto") else None)
+    answers = use_answers(preview, title, required=s.get("answers") == "preview")
     k = w11.new_key()
     t0 = time.perf_counter()
-    first = w11_send(R, row, w11.b_use_template(gid, key=k, choices=choices), "use-template (key K)")
+    first = w11_send(R, row, w11.b_use_template(gid, key=k, answers=answers, choices=choices), "use-template (key K)")
     row["timings"][s.get("timing") or "use"] = round((time.perf_counter() - t0) * 1000)
-    second = w11_send(R, row, w11.b_use_template(gid, key=k, choices=choices), "use-template again (key K, a replay)")
+    second = w11_send(R, row, w11.b_use_template(gid, key=k, answers=answers, choices=choices),
+                      "use-template again (key K, a replay)")
     w11_apply(row, w11.judge_replay(first, second, "note.id"))
-    made = w11.get_path(second.body, "created") or {}
-    check(row, "the replay made nothing", all(not made.get(f) for f in ("widgets", "routines", "trackers")),
-          json.dumps(made))
+    made = w11.get_path(second.body, "created")
+    check(row, "the replay made nothing (`created` present, every list empty)",
+          isinstance(made, dict) and all(isinstance(made.get(f), list) and not made[f]
+                                         for f in ("widgets", "routines", "trackers")), json.dumps(made))
     body = first.body if isinstance(first.body, dict) else {}
     if s.get("expect_credit"):
         check(row, f"the credit reads {s['expect_credit']!r}", s["expect_credit"] in str(body.get("credit")),
               repr(body.get("credit")))
     if "expect_new_routines" in s:
-        got = w11.get_path(body, "created.routines") or []
-        check(row, f"the Use made {s['expect_new_routines']} new routine(s)", len(got) == s["expect_new_routines"],
-              json.dumps(got))
+        got = w11.get_path(body, "created.routines")
+        check(row, f"the Use made {s['expect_new_routines']} new routine(s)",
+              isinstance(got, list) and len(got) == s["expect_new_routines"], json.dumps(got))
     if s.get("expect_reused"):
         rid = R.resolve(f"@routine:{s['expect_reused']}")
         got = w11.get_path(body, "reused.routines") or []
@@ -1627,10 +1655,30 @@ def a_w11_routine(R, s, row):
     items = w11.get_path(resp.body, "items") or w11.get_path(resp.body, "routine.items") or []
     if not check(row, "the routine has items today", isinstance(items, list) and bool(items), json.dumps(items)[:200]):
         return
-    item = items[0]["id"]
-    tick = w11_send(R, row, w11.b_routine_tick(rid, today_et().isoformat(), item, True), "tick item 1 today")
+    item, day = items[0]["id"], today_et().isoformat()
+
+    def day_entry(what):
+        r = w11_send(R, row, w11.b_routine_days([rid], [day]), what)
+        if r.status != 200:
+            check(row, f"{what}: the day read answers 200", False, f"HTTP {r.status} {r['text'][:200]}")
+            raise Inconclusive(f"the day read answered HTTP {r.status}")
+        return w11.get_path(r.body, f"routines.{rid}.days.{day}") or {}
+    before = day_entry("read the day before the tick")
+    row["read"].append({"what": "state before", "text": json.dumps({"state": before.get("state"),
+                                                                     "ticked": before.get("ticked")})})
+    check(row, "before: the item is not ticked today", (before.get("ticked") or {}).get(item) is False,
+          json.dumps(before.get("ticked")))
+    tick = w11_send(R, row, w11.b_routine_tick(rid, day, item, True), "tick item 1 today")
     check(row, "the tick answers 200", tick.status == 200, f"HTTP {tick.status} {tick['text'][:200]}")
-    check(row, "the answer names the ticked item", item in tick["text"], "")
+    check(row, "the answer says the item is ticked (ticked map: true)",
+          w11.get_path(tick.body, f"ticked.{item}") is True, json.dumps(w11.get_path(tick.body, "ticked")))
+    after = day_entry("read the day after the tick")
+    row["read"].append({"what": "state after", "text": json.dumps({"state": after.get("state"),
+                                                                    "ticked": after.get("ticked")})})
+    check(row, "after: a fresh read has it ticked", (after.get("ticked") or {}).get(item) is True,
+          json.dumps(after.get("ticked")))
+    check(row, "the day's state was read before and after", isinstance(before.get("state"), str)
+          and isinstance(after.get("state"), str), f"{before.get('state')!r} -> {after.get('state')!r}")
 
 
 def a_w11_if_match_missing(R, s, row):
@@ -1645,8 +1693,9 @@ def a_w11_if_match_missing(R, s, row):
 def a_w11_too_large(R, s, row):
     """A body one byte over the wave 11 cap (W11_MAX_BODY_BYTES), counted while it arrives: 413."""
     resp = w11_send(R, row, w11.b_oversized(f"{w11.GALLERY}/share/preview"), "POST share/preview, 16 KiB + 1")
-    row["read"].append({"what": "the 413's code (recorded, not graded)", "text": repr(w11.detail_of(resp.body)[0])})
-    w11_apply(row, w11.judge_refusal(resp, 413, None, R.g.sentence("body_too_large")))
+    # Review C1: the wave 11 reader (`widget_request_body.read_json_object`) re-raises the cap as 413 `invalid`
+    # "That is too much to send at once." -- not the old router reader's "Request too large".
+    w11_apply(row, w11.judge_refusal(resp, 413, "invalid", R.g.sentence("body_too_large")))
 
 
 def a_w11_title_too_long(R, s, row):
@@ -1681,6 +1730,8 @@ def a_w11_helpful(R, s, row):
         w11_apply(row, w11.judge_refusal(resp, 409, "helpful_days", R.g.sentence("helpful_days")))
     else:
         w11_apply(row, w11.judge_status(resp, [200], "marking Helpful on the 3rd use day"))
+        check(row, "the answer says it is marked (helpful: true)", w11.get_path(resp.body, "helpful") is True,
+              resp["text"][:200])
 
 
 def a_w11_helpful_prompt(R, s, row):
@@ -1732,7 +1783,10 @@ def a_w11_bell(R, s, row):
         deadline = time.time() + max(0.0, (target - now).total_seconds())
     while True:
         resp = w11_send(R, row, w11.b_alerts(), "GET the bell")
-        got = w11.reminders_for(resp.body, rid, day) if resp.status == 200 else []
+        if resp.status != 200:
+            # Review I3: a bell that did not answer is not an empty bell ("exactly 0" must never pass on a 401/500).
+            raise Inconclusive(f"the bell answered HTTP {resp.status}, so its reminders were not read")
+        got = w11.reminders_for(resp.body, rid, day)
         if deadline is None or time.time() >= deadline or (want and len(got) > want):
             break
         time.sleep(min(15.0, max(0.5, deadline - time.time())))
@@ -1995,6 +2049,8 @@ class Campaign:
             try:
                 ACTIONS[s["do"]](R, s, row)
                 expectations(R, s, row)
+                if s["do"] in W11_ACTIONS and not row["checks"]:
+                    raise Inconclusive("the step read nothing (no check), so it proved nothing")
                 row["verdict"] = "PASS" if all(c["ok"] for c in row["checks"]) else "FAIL"
             except KeyboardUnreachable as e:
                 row["verdict"] = "FAIL"
@@ -2133,6 +2189,10 @@ def main(argv=None) -> int:
     app_root = Path(args.app_root).resolve()
     spec = seedmod.load_personas(args.personas)
     out = Path(args.out) if args.out else REPO / "docs" / "notebook" / "evidence" / args.run_id
+    why = seedmod.refuse_shared_root(str(out))          # review m3: every data path, the evidence folder too
+    if why:
+        print(f"REFUSED: --out {why}")
+        return 3
     out.mkdir(parents=True, exist_ok=True)
     libs = load_walk_libs(app_root)
     g = Campaign(args, spec, manifest, libs, out)

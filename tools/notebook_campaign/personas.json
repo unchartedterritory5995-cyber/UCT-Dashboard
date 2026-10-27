@@ -154,16 +154,17 @@
   },
   "routine_not_yours": {
    "text": "This routine is not in your account.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/journal_styles.py:1942"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/journal_styles.py:1973"
   },
   "former_member": {
    "text": "Based on a former member's",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:601",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:603",
    "fragment": "CREDIT_FORMER_SENTENCE = \"Based on a former member's {title}\""
   },
   "anonymous_author": {
    "text": "A UCT member",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:151"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:153",
+   "fragment": "ANONYMOUS_AUTHOR = \"A UCT member\""
   },
   "week_of": {
    "text": "For the week of",
@@ -172,11 +173,11 @@
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4198"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4201"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4197"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4200"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
@@ -184,12 +185,13 @@
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:5008"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:5021"
   },
   "title_too_long": {
    "text": "title too long",
-   "source": "origin/feat/notebook-widgets-p2-be:api/routers/notebook_template_gallery.py:674",
-   "fragment": "raise _err(400, \"invalid\", \"title too long\")"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/notes.py:1242",
+   "fragment": "S_TITLE_TOO_LONG = \"title too long\"",
+   "note": "A3 (cbfe9db4b5): notes.validate_title is the one authority; the router answers str(e)"
   },
   "need_if_match": {
    "text": "Reload to see the newer version.",
@@ -197,9 +199,10 @@
    "fragment": "S_NEED_IF_MATCH = \"Reload to see the newer version.\""
   },
   "body_too_large": {
-   "text": "Request too large",
-   "source": "api/routers/notebook_template_gallery.py:105",
-   "fragment": "TOO_LARGE_SENTENCE = \"Request too large\""
+   "text": "That is too much to send at once.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/widget_request_body.py:27",
+   "fragment": "S_BODY_TOO_LARGE = \"That is too much to send at once.\"",
+   "note": "the wave 11 reader (read_json_object) re-raises the cap as 413 invalid with this sentence; the old router reader's \"Request too large\" is not what a w11 door says"
   },
   "busy_srv": {
    "text": "Busy right now. Try again in a moment.",
@@ -3064,8 +3067,40 @@
     },
     {
      "id": "P37.b",
-     "title": "Wednesday 23:30 ET, the eve of Thanksgiving, binds to Friday",
+     "title": "Tuesday 21:00 ET (already Wednesday in UTC) binds to Wednesday",
      "at": 1,
+     "needs": [
+      "w11",
+      "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Night-before prep",
+       "expect_tools": [
+        {
+         "slot": "routine_a",
+         "bind": "next-trading-day",
+         "forDayLabel": "For Wed Nov 25"
+        }
+       ]
+      },
+      {
+       "do": "w11_use",
+       "template": "Night-before prep",
+       "pick": "auto",
+       "expect_embed": {
+        "family": "routine",
+        "day": "2026-11-25",
+        "label": "For Wed Nov 25"
+       }
+      }
+     ]
+    },
+    {
+     "id": "P37.c",
+     "title": "Wednesday 23:30 ET, the eve of Thanksgiving, binds to Friday",
+     "at": 2,
      "needs": [
       "w11",
       "clock"
@@ -3098,9 +3133,10 @@
    "validated": false,
    "clock": [
     "2026-11-22T21:00:00-05:00",
+    "2026-11-24T21:00:00-05:00",
     "2026-11-25T23:30:00-05:00"
    ],
-   "clock_note": "Sunday night before Thanksgiving week, then the eve of Thanksgiving at 23:30 ET (04:30Z Thursday): the night-before routine binds to the next session, Monday, then Friday."
+   "clock_note": "Sunday 21:00 ET (Mon 02:00Z) binds to Mon Nov 23 (a UTC note day would give Tue). Tuesday 21:00 ET (Wed 02:00Z) binds to Wed Nov 25 (a UTC note day would give Fri: Thursday is closed). The eve of Thanksgiving, Wednesday 23:30 ET, binds to Fri Nov 27 either way, so the ET-vs-UTC trap is carried by the first two instants."
   },
   {
    "id": "P38",
@@ -3153,7 +3189,7 @@
     },
     {
      "id": "P38.b",
-     "title": "A holiday-Friday week: bound to Thursday, \"For the week of Jun 29\"",
+     "title": "A holiday-Friday week: bound to Thursday, \"For the week of Dec 21\"",
      "at": 1,
      "needs": [
       "w11",
@@ -3167,7 +3203,7 @@
         {
          "slot": "routine_a",
          "bind": "week",
-         "forDayLabel": "For the week of Jun 29"
+         "forDayLabel": "For the week of Dec 21"
         }
        ]
       },
@@ -3177,8 +3213,8 @@
        "pick": "auto",
        "expect_embed": {
         "family": "routine",
-        "day": "2026-07-02",
-        "label": "For the week of Jun 29"
+        "day": "2026-12-24",
+        "label": "For the week of Dec 21"
        }
       }
      ]
@@ -3187,9 +3223,9 @@
    "validated": false,
    "clock": [
     "2026-11-28T11:00:00-05:00",
-    "2026-07-04T10:00:00-04:00"
+    "2026-12-26T10:00:00-05:00"
    ],
-   "clock_note": "Saturday after Thanksgiving (the week's last session is the Friday half day), and Saturday 4 July 2026 (Friday 3 July is the observed holiday, so the week's last session is Thursday)."
+   "clock_note": "Saturday after Thanksgiving (the week's last session is the Friday half day), and Saturday 26 Dec 2026 (Friday 25 Dec is closed, so the week's last session is Thursday 24 Dec, an early close). Both are after the seed date, so no seeded stamp is in the future."
   },
   {
    "id": "P39",
@@ -3334,8 +3370,13 @@
      ],
      "steps": [
       {
-       "do": "w11_use",
+       "do": "w11_preview",
        "template": "Setup study"
+      },
+      {
+       "do": "w11_use",
+       "template": "Setup study",
+       "answers": "preview"
       },
       {
        "do": "w11_helpful",
@@ -3359,8 +3400,13 @@
      ],
      "steps": [
       {
-       "do": "w11_use",
+       "do": "w11_preview",
        "template": "Setup study"
+      },
+      {
+       "do": "w11_use",
+       "template": "Setup study",
+       "answers": "preview"
       },
       {
        "do": "w11_helpful",
@@ -3384,8 +3430,13 @@
      ],
      "steps": [
       {
-       "do": "w11_use",
+       "do": "w11_preview",
        "template": "Setup study"
+      },
+      {
+       "do": "w11_use",
+       "template": "Setup study",
+       "answers": "preview"
       },
       {
        "do": "w11_helpful_prompt",

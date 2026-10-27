@@ -14,7 +14,10 @@ A judge answers `{"verdict", "checks", "why"}`:
   * INCONCLUSIVE when the step could not be driven to the state it exists to read (a race that never raced, a
     pool that never filled): that is never a pass, and it always says why;
   * EXPECTED-PENDING when the server answers the documented interim shape of a change that lands in a pending
-    backend batch (ruling W11-R60 `listing_moved`, merge-checklist A9 `key_reused`): not a pass, not a defect.
+    backend batch (`judge_refusal(..., interim_code=...)`): not a pass, not a defect. ⛔ No step uses it today:
+    `key_reused` (A9) and `listing_moved` (W11-R60) are FINAL on the backend (a196151762), so `conflict` for either
+    is a FAIL.
+  * A transport failure (status 0: nothing answered) is INCONCLUSIVE in every judge, never a product FAIL.
 
 This module never imports api.* and reads no environment variable.
 """
@@ -75,6 +78,7 @@ ROUTES = {
     "routine_get": ("GET", ROUTINES_ROUTER, "/{rid}"),
     "routine_put": ("PUT", ROUTINES_ROUTER, "/{rid}"),
     "routine_tick": ("PUT", ROUTINES_ROUTER, "/{rid}/days/{day}/items/{item_id}"),
+    "routine_days": ("POST", ROUTINES_ROUTER, "/days"),
     "note_get": ("GET", NOTES_ROUTER, "/notes/{note_id}"),
     "alerts": ("GET", ALERTS_ROUTER, "/api/alerts"),
 }
@@ -82,15 +86,30 @@ ROUTES = {
 
 # ── the loopback guard (THE one; run_campaign imports it) ─────────────────────────────────
 
+_NOT_LOCAL = ("--base {base!r} is not localhost/127.0.0.1. This tool only ever drives a local sandbox; "
+              "production stays dark and only smoke@ and bench@ sign in to production, never this tool.")
+
+
 def refuse_non_local(base: str) -> str | None:
+    """Why `base` is not a loopback origin, or None. Refused BEFORE parsing (review m1, a parser differential): a
+    backslash (WHATWG/Chromium reads `\\` as `/`, urllib does not, so `http://evil.com\\@127.0.0.1` names a
+    different host to each), any `@` (userinfo), whitespace or a control character. Then the parsed netloc must be
+    exactly `host[:port]` with a numeric port, so no spelling can mean one host to urllib and another to the browser."""
+    if not isinstance(base, str) or not base:
+        return f"--base {base!r} is not a URL"
+    if "\\" in base or "@" in base or any(ord(c) <= 32 or ord(c) == 127 for c in base):
+        return f"--base {base!r} holds a backslash, userinfo or a control character; " + _NOT_LOCAL.format(base=base)
     try:
         u = urlparse(base)
-    except Exception:  # noqa: BLE001
+        port = u.port
+    except Exception:  # noqa: BLE001 -- an unreadable port is not an origin
         return f"--base {base!r} is not a URL"
     host = (u.hostname or "").lower()
-    if u.scheme not in ("http", "https") or host not in LOCAL_HOSTS:
-        return (f"--base {base!r} is not localhost/127.0.0.1. This tool only ever drives a local sandbox; "
-                "production stays dark and only smoke@ and bench@ sign in to production, never this tool.")
+    if u.scheme not in ("http", "https") or host not in LOCAL_HOSTS or u.username or u.password:
+        return _NOT_LOCAL.format(base=base)
+    expected = (f"[{host}]" if ":" in host else host) + (f":{port}" if port is not None else "")
+    if u.netloc.lower() != expected:
+        return f"--base {base!r} is not exactly host[:port]; " + _NOT_LOCAL.format(base=base)
     return None
 
 
@@ -210,6 +229,11 @@ def b_routine_tick(rid: str, day: str, item_id: str, ticked: bool = True) -> dic
     return req("PUT", f"{ROUTINES}/{_enc(rid)}/days/{_enc(day)}/items/{_enc(item_id)}", {"ticked": bool(ticked)})
 
 
+def b_routine_days(ids: list[str], days: list[str]) -> dict:
+    """The batched day read: `{routines: {id: {routine, days: {day: DayEntry}}}}` (DayEntry carries `ticked`)."""
+    return req("POST", f"{ROUTINES}/days", {"ids": list(ids), "days": list(days)})
+
+
 def b_note(note_id: str) -> dict:
     return req("GET", f"{NOTES}/{_enc(note_id)}")
 
@@ -227,6 +251,17 @@ def b_oversized(path: str, n_bytes: int = W11_MAX_BODY_BYTES + 1) -> dict:
 
 
 # ── the one loopback door ────────────────────────────────────────────────────────────────
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Review m2: a 3xx is the answer, never followed (urllib would copy the Cookie to the next host)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+        return None
+
+
+def _opener():
+    return urllib.request.build_opener(_NoRedirect)
+
 
 class Resp(dict):
     """`{status, body, text, headers}`; `body` is the parsed JSON or None."""
@@ -260,9 +295,13 @@ def http_call(base: str, spec: dict, cookie: str | None, timeout: float = 60.0) 
         headers.setdefault("Content-Type", "application/json")
     if cookie:
         headers["Cookie"] = f"uct_session={cookie}"
-    r = urllib.request.Request(base.rstrip("/") + spec["path"], data=data, method=spec["method"], headers=headers)
+    url = base.rstrip("/") + spec["path"]
+    scheme, _, netloc = url.split("/", 3)[:3]
+    if not spec["path"].startswith("/") or refuse_non_local(f"{scheme}//{netloc}"):
+        raise PermissionError(f"the request URL {url!r} does not stay on {base!r}")
+    r = urllib.request.Request(url, data=data, method=spec["method"], headers=headers)
     try:
-        with urllib.request.urlopen(r, timeout=timeout) as resp:
+        with _opener().open(r, timeout=timeout) as resp:
             return make_resp(resp.status, resp.read().decode("utf-8", "replace"), dict(resp.headers))
     except urllib.error.HTTPError as e:
         return make_resp(e.code, e.read().decode("utf-8", "replace"), dict(e.headers or {}))
@@ -321,6 +360,23 @@ def find_by(items: Any, field: str, value: str) -> dict | None:
         if isinstance(it, dict) and it.get(field) == value:
             return it
     return None
+
+
+def answers_from_preview(preview: Any) -> tuple[dict, list[str]]:
+    """A Use's `answers` the way the member's client builds them (merge-checklist F3, AdoptSheet): every declared
+    choice in the preview's `slots[]`, answered with that slot's `value` (the member's own answer, else their
+    suggested value, else Any where the choice allows it). ⛔ NEVER `sampleValue` (W11-R41: what a Sample data card
+    ran, never sent on Use). Answers `(answers, unanswered slot ids)`."""
+    out, missing = {}, []
+    for sl in get_path(preview, "slots") or []:
+        if not isinstance(sl, dict) or not isinstance(sl.get("id"), str):
+            continue
+        v = sl.get("value")
+        if v is None:
+            missing.append(sl["id"])
+        else:
+            out[sl["id"]] = v
+    return out, missing
 
 
 def library_template(body: Any, title: str) -> dict | None:
@@ -467,14 +523,22 @@ def judge_in_flight(resps: list[Resp], id_path: str, in_flight: str, *, listing_
     in-flight refusal (409 `conflict`, `in_flight`). INCONCLUSIVE when no 409 was seen: the twins waited for the
     first (`_wait_for_key`, up to 15 s) and replayed it, so the in-flight answer was not forced."""
     checks: list = []
+    lost = [r for r in resps if r.status == 0]
     ok = [r for r in resps if r.status == 200]
     busy = [r for r in resps if r.status == 409]
-    other = [r for r in resps if r.status not in (200, 409)]
+    other = [r for r in resps if r.status not in (0, 200, 409)]
     _chk(checks, "every answer is 200 or 409", not other, json.dumps([(r.status, r["text"][:120]) for r in other]))
     ids = {_id_at(r, id_path) for r in ok}
     _chk(checks, f"every 200 names ONE {id_path}", len(ids) <= 1 and None not in ids, repr(sorted(map(str, ids))))
     made = [r for r in ok if get_path(r.body, "replayed") is not True]
-    _chk(checks, "at most one press made something (the rest replayed)", len(made) <= 1, f"{len(made)} made")
+    if lost and len(made) == 0:
+        return _done(checks, inconclusive=f"{len(lost)} of {len(resps)} presses never reached the server (transport)")
+    # Review I1: EXACTLY one press made the result (none made is a defect: K presses, no note), and the others
+    # answered it (a replay) or were refused in flight.
+    _chk(checks, "exactly one press made something", len(made) == 1, f"{len(made)} made of {len(resps)}")
+    others = (len(ok) - len(made)) + len(busy)
+    _chk(checks, "every other press replayed it or was refused in flight", others >= 1 and others + len(made) + len(
+        lost) == len(resps), f"{len(ok) - len(made)} replayed, {len(busy)} refused, {len(lost)} lost")
     moved = []
     for r in busy:
         code, msg = detail_of(r.body)
@@ -484,8 +548,8 @@ def judge_in_flight(resps: list[Resp], id_path: str, in_flight: str, *, listing_
         _chk(checks, "a 409 is the in-flight refusal (code 'conflict')", code == "conflict", f"{code!r} {msg!r}")
         _chk(checks, f"a 409 says {in_flight!r}", msg == in_flight, repr(msg))
     seen = len(busy) - len(moved)
-    if not ok and not seen:
-        return _done(checks, inconclusive="no press answered at all")
+    if lost:
+        return _done(checks, inconclusive=f"{len(lost)} of {len(resps)} presses never reached the server (transport)")
     if seen == 0:
         return _done(checks, inconclusive=(
             f"{len(resps)} presses with one key all answered 200 ({len(made)} made, {len(ok) - len(made)} replayed): "
@@ -496,15 +560,13 @@ def judge_in_flight(resps: list[Resp], id_path: str, in_flight: str, *, listing_
 
 def judge_listing_moved(resp: Resp, sentence: str) -> dict:
     """A listing that moved under the write lock twice (W11-R59/R60): 409 code `listing_moved` with the sentence.
-    The branch answers `conflict` until part S lands: EXPECTED-PENDING then."""
-    return judge_refusal(resp, 409, "listing_moved", sentence, interim_code="conflict",
-                         pending_why="W11-R60: `listing_moved` lands in part S; the branch still answers 'conflict'")
+    FINAL on the backend (a196151762): `conflict` is a FAIL."""
+    return judge_refusal(resp, 409, "listing_moved", sentence)
 
 
 def judge_key_reused(resp: Resp, sentence: str) -> dict:
-    """The same key on another door or item: 409 `key_reused` (merge-checklist A9). Interim: `conflict`."""
-    return judge_refusal(resp, 409, "key_reused", sentence, interim_code="conflict",
-                         pending_why="A9: `key_reused` lands in part S; the branch still answers 'conflict'")
+    """The same key on another door or item: 409 `key_reused` (A9). FINAL on the backend: `conflict` is a FAIL."""
+    return judge_refusal(resp, 409, "key_reused", sentence)
 
 
 def judge_busy(resps: list[Resp], busy: str) -> dict:
@@ -512,8 +574,12 @@ def judge_busy(resps: list[Resp], busy: str) -> dict:
     queues) or a 429 `rate` (recorded). INCONCLUSIVE when no 503 was seen: the runs finished before they overlapped."""
     checks: list = []
     n_busy = 0
+    lost = 0
     for r in resps:
         code, msg = detail_of(r.body)
+        if r.status == 0:
+            lost += 1
+            continue
         if r.status == 503:
             _chk(checks, "a 503 is code 'busy'", code == "busy", f"{code!r} {msg!r}")
             _chk(checks, f"a 503 says {busy!r}", msg == busy, repr(msg))
@@ -522,6 +588,8 @@ def judge_busy(resps: list[Resp], busy: str) -> dict:
             _chk(checks, "a 429 is code 'rate'", code == "rate", f"{code!r} {msg!r}")
         else:
             _chk(checks, "every other answer is 200", r.status == 200, f"HTTP {r.status} {r['text'][:160]}")
+    if lost and not any(not c["ok"] for c in checks):
+        return _done(checks, inconclusive=f"{lost} of {len(resps)} previews never reached the server (transport)")
     if n_busy == 0:
         return _done(checks, inconclusive=(
             f"{len(resps)} concurrent previews, none refused busy: the member's gates (MEMBER_MAX=2, PREVIEW_MAX=2 "
@@ -533,6 +601,9 @@ def judge_too_long_engine(resp: Resp, too_long: str) -> dict:
     """The engine's deadline (`run.DEADLINE_S` per SQL read): 503 `too_long`. Only gradeable when it happened."""
     if resp.status == 503 and detail_of(resp.body)[0] == "too_long":
         return judge_refusal(resp, 503, "too_long", too_long)
+    if resp.status == 0 or (resp.status == 503 and detail_of(resp.body)[0] == "busy"):
+        return _done([], inconclusive=("the pool was full (503 busy) or nothing answered, so the engine's deadline "
+                                       f"was never reached (HTTP {resp.status})"))
     checks: list = []
     _chk(checks, "the preview answered (200)", resp.status == 200, f"HTTP {resp.status} {resp['text'][:200]}")
     return _done(checks, inconclusive=(
