@@ -1,5 +1,5 @@
 {
- "_about": "Task 11.21 Step 4: the 50 campaign personas (plan docs/superpowers/plans/2026-10-24-notebook-widgets-p2-w11.md). `data` is read by seed_members.py; `scripts` by run_campaign.py. Every expected sentence names the file:line it is read from and the exact `fragment` that must still be in that file; run_campaign.py checks each one against the source before a run and refuses a drifted sentence (a sentence is quoted, never a second authority). `needs`: w11 = a wave 11 backend route (reported INCONCLUSIVE when the server lacks it), restart = a flag flip (needs a sandbox the runner owns), clock = a server clock seam (none exists: always INCONCLUSIVE). `validated`: the script was driven end to end in the tooling dry run.",
+ "_about": "Task 11.21 Step 4: the 50 campaign personas (plan docs/superpowers/plans/2026-10-24-notebook-widgets-p2-w11.md). `data` is read by seed_members.py; `scripts` by run_campaign.py. Every expected sentence names the file:line it is read from and the exact `fragment` that must still be in that file; run_campaign.py checks each one against the source before a run and refuses a drifted sentence (a sentence is quoted, never a second authority). `needs`: w11 = a wave 11 backend route (reported INCONCLUSIVE when the server lacks it), restart = a flag flip (needs a sandbox the runner owns), clock = the launcher-only clock shift (sandbox_clock.py, ruling W11-R49; INCONCLUSIVE without --clock-launcher; `clock` is one ISO instant or a list, a script's `at` names one); `once` = the script runs in the persona's first run only. `validated`: the script was driven end to end in the tooling dry run.",
  "defaults": {
   "clock": "2026-10-23T16:30:00-04:00",
   "admin_email": "hubtest@local.dev",
@@ -154,21 +154,64 @@
   },
   "routine_not_yours": {
    "text": "This routine is not in your account.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/journal_styles.py:1942"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/journal_styles.py:1973"
   },
   "former_member": {
    "text": "Based on a former member's",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:601",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:603",
    "fragment": "CREDIT_FORMER_SENTENCE = \"Based on a former member's {title}\""
   },
   "anonymous_author": {
    "text": "A UCT member",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:151"
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:153",
+   "fragment": "ANONYMOUS_AUTHOR = \"A UCT member\""
   },
   "week_of": {
    "text": "For the week of",
    "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/tool_binding.py:93",
    "fragment": "For the week of {"
+  },
+  "key_in_flight": {
+   "text": "That is already on its way. Try again in a moment.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4201"
+  },
+  "key_reused": {
+   "text": "That was already sent for something else. Press it again to send this one.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4200"
+  },
+  "listing_moved": {
+   "text": "This template changed while it was being added. Nothing was made. Try again.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:3156"
+  },
+  "helpful_days": {
+   "text": "You can mark this helpful after using it on 3 different days.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:5021"
+  },
+  "title_too_long": {
+   "text": "title too long",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/notes.py:1242",
+   "fragment": "S_TITLE_TOO_LONG = \"title too long\"",
+   "note": "A3 (cbfe9db4b5): notes.validate_title is the one authority; the router answers str(e)"
+  },
+  "need_if_match": {
+   "text": "Reload to see the newer version.",
+   "source": "api/routers/notebook_routines.py:209",
+   "fragment": "S_NEED_IF_MATCH = \"Reload to see the newer version.\""
+  },
+  "body_too_large": {
+   "text": "That is too much to send at once.",
+   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/widget_request_body.py:27",
+   "fragment": "S_BODY_TOO_LARGE = \"That is too much to send at once.\"",
+   "note": "the wave 11 reader (read_json_object) re-raises the cap as 413 invalid with this sentence; the old router reader's \"Request too large\" is not what a w11 door says"
+  },
+  "busy_srv": {
+   "text": "Busy right now. Try again in a moment.",
+   "source": "api/services/journal_two/widget_engine/run.py:68",
+   "fragment": "BUSY = \"Busy right now. Try again in a moment.\""
+  },
+  "too_long_srv": {
+   "text": "This is a lot of data to add up. Try a shorter range or fewer splits.",
+   "source": "api/services/journal_two/widget_engine/run.py:69"
   }
  },
  "personas": [
@@ -374,15 +417,10 @@
        ]
       },
       {
-       "do": "library_preview",
+       "do": "w11_preview",
        "template": "Setup study",
        "timing": "preview",
-       "expect": [
-        "sample_label"
-       ],
-       "forbid": [
-        "zeros"
-       ]
+       "expect_sample": true
       }
      ],
      "needs": [
@@ -1904,13 +1942,10 @@
    "exercises": "one bell item at 12:45 ET, none late",
    "email": "campaign-p20@local.dev",
    "viewports": [
-    "1200",
-    "820",
-    "390"
+    "1200"
    ],
    "modes": [
-    "pointer",
-    "keyboard"
+    "pointer"
    ],
    "data": {
     "routines": [
@@ -1931,20 +1966,49 @@
    "scripts": [
     {
      "id": "P20.a",
-     "title": "One bell item at 12:45 ET on the half day, none late",
-     "steps": [
-      {
-       "do": "noop"
-      }
-     ],
+     "title": "One bell item at 12:45 ET on the half day",
+     "at": 0,
      "needs": [
       "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_bell",
+       "routine": "Close reminder",
+       "count": 0
+      },
+      {
+       "do": "w11_bell",
+       "routine": "Close reminder",
+       "until_et": "12:52",
+       "count": 1
+      }
+     ]
+    },
+    {
+     "id": "P20.b",
+     "title": "None late: 15:45 ET passes with no second bell",
+     "at": 1,
+     "needs": [
+      "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_bell",
+       "routine": "Close reminder",
+       "until_et": "15:51",
+       "needs_seen": true,
+       "count": 1
+      }
      ]
     }
    ],
    "validated": false,
-   "clock": "2026-11-27T12:00:00-05:00",
-   "clock_note": "the half day after Thanksgiving 2026, before the 13:00 ET close"
+   "clock": [
+    "2026-11-27T12:41:00-05:00",
+    "2026-11-27T15:43:00-05:00"
+   ],
+   "clock_note": "the half day after Thanksgiving 2026 (13:00 ET close): a 15:45 reminder moves back to 12:45. Instant 0 watches it ring; instant 1 watches 15:45 pass with nothing more. One run (the bell is a once-a-day fact per member)."
   },
   {
    "id": "P21",
@@ -2711,7 +2775,7 @@
    "scripts": [
     {
      "id": "P34.a",
-     "title": "Save as template, share preview, nothing private on the listing",
+     "title": "The Templates tab opens on the author's own templates",
      "steps": [
       {
        "do": "open",
@@ -2719,25 +2783,39 @@
       },
       {
        "do": "my_tools",
-       "tab": "Templates",
-       "needs": [
-        "w11"
-       ]
-      },
-      {
-       "do": "share_preview_template",
-       "name": "zzq-canary-7f3a template",
-       "forbid_text": [
-        "zzq-canary-7f3a"
-       ],
-       "needs": [
-        "w11"
-       ]
+       "tab": "Templates"
       }
      ],
      "needs": [
       "w11"
      ]
+    },
+    {
+     "id": "P34.b",
+     "title": "Save as template, share preview, nothing private on the listing",
+     "once": true,
+     "steps": [
+      {
+       "do": "w11_share_preview",
+       "kind": "template",
+       "name": "zzq-canary-7f3a template",
+       "forbid_text": [
+        "zzq-canary-7f3a"
+       ]
+      },
+      {
+       "do": "w11_publish",
+       "title": "Campaign P34 {run}",
+       "category": "journal",
+       "forbid_text": [
+        "zzq-canary-7f3a"
+       ]
+      }
+     ],
+     "needs": [
+      "w11"
+     ],
+     "why_once": "the publish scope is 10/hour plus a durable 10/day per member"
     }
    ],
    "validated": false
@@ -2836,22 +2914,60 @@
        ]
       },
       {
-       "do": "library_use",
-       "template": "Pre-market prep",
-       "timing": "sheet_open",
-       "expect": [
-        "adopt_title"
-       ]
+       "do": "w11_browse",
+       "template": "Pre-market prep"
       },
       {
-       "do": "adopt_use",
-       "expect_re": [
-        "Based on UCT's"
-       ]
+       "do": "w11_preview",
+       "template": "Pre-market prep",
+       "timing": "preview",
+       "expect_own_data": true
+      },
+      {
+       "do": "w11_use",
+       "template": "Pre-market prep",
+       "pick": "auto",
+       "timing": "use",
+       "expect_credit": "UCT"
       }
      ],
      "needs": [
       "w11"
+     ]
+    },
+    {
+     "id": "P35.c",
+     "title": "Adopt with a key and a replay, restore from the Templates tab, a routine, the forced refusals",
+     "once": true,
+     "needs": [
+      "w11"
+     ],
+     "why_once": "the adopt scope is 30/hour per member; every Use and Adopt here spends it",
+     "steps": [
+      {
+       "do": "w11_adopt",
+       "template": "Pre-market prep",
+       "new_key_makes_another": true
+      },
+      {
+       "do": "w11_restore",
+       "copy": "copy"
+      },
+      {
+       "do": "w11_routine",
+       "routine": "@use_routine"
+      },
+      {
+       "do": "w11_if_match_missing",
+       "routine": "@use_routine"
+      },
+      {
+       "do": "w11_too_large"
+      },
+      {
+       "do": "w11_title_too_long",
+       "template": "Pre-market prep"
+      }
      ]
     }
    ],
@@ -2882,17 +2998,15 @@
        "path": "/journal/notebook#templates",
        "expect": [
         "library_title"
-       ]
-      },
-      {
-       "do": "library_preview",
-       "template": "Setup study",
-       "expect": [
-        "pick_setup"
        ],
        "forbid": [
         "zeros"
        ]
+      },
+      {
+       "do": "w11_preview",
+       "template": "Setup study",
+       "expect_card_sentence": "pick_setup"
       }
      ],
      "needs": [
@@ -2908,13 +3022,10 @@
    "exercises": "Sunday night, the eve of Thanksgiving, 23:30 ET binding",
    "email": "campaign-p37@local.dev",
    "viewports": [
-    "1200",
-    "820",
-    "390"
+    "1200"
    ],
    "modes": [
-    "pointer",
-    "keyboard"
+    "pointer"
    ],
    "data": {
     "trades": {
@@ -2924,21 +3035,108 @@
    "scripts": [
     {
      "id": "P37.a",
-     "title": "Sunday night, the eve of Thanksgiving, 23:30 ET binding",
-     "steps": [
-      {
-       "do": "noop"
-      }
-     ],
+     "title": "Sunday 21:00 ET binds to Monday",
+     "at": 0,
      "needs": [
       "w11",
       "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Night-before prep",
+       "expect_tools": [
+        {
+         "slot": "routine_a",
+         "bind": "next-trading-day",
+         "forDayLabel": "For Mon Nov 23"
+        }
+       ]
+      },
+      {
+       "do": "w11_use",
+       "template": "Night-before prep",
+       "pick": "auto",
+       "expect_embed": {
+        "family": "routine",
+        "day": "2026-11-23",
+        "label": "For Mon Nov 23"
+       }
+      }
+     ]
+    },
+    {
+     "id": "P37.b",
+     "title": "Tuesday 21:00 ET (already Wednesday in UTC) binds to Wednesday",
+     "at": 1,
+     "needs": [
+      "w11",
+      "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Night-before prep",
+       "expect_tools": [
+        {
+         "slot": "routine_a",
+         "bind": "next-trading-day",
+         "forDayLabel": "For Wed Nov 25"
+        }
+       ]
+      },
+      {
+       "do": "w11_use",
+       "template": "Night-before prep",
+       "pick": "auto",
+       "expect_embed": {
+        "family": "routine",
+        "day": "2026-11-25",
+        "label": "For Wed Nov 25"
+       }
+      }
+     ]
+    },
+    {
+     "id": "P37.c",
+     "title": "Wednesday 23:30 ET, the eve of Thanksgiving, binds to Friday",
+     "at": 2,
+     "needs": [
+      "w11",
+      "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Night-before prep",
+       "expect_tools": [
+        {
+         "slot": "routine_a",
+         "bind": "next-trading-day",
+         "forDayLabel": "For Fri Nov 27"
+        }
+       ]
+      },
+      {
+       "do": "w11_use",
+       "template": "Night-before prep",
+       "pick": "auto",
+       "expect_embed": {
+        "family": "routine",
+        "day": "2026-11-27",
+        "label": "For Fri Nov 27"
+       }
+      }
      ]
     }
    ],
    "validated": false,
-   "clock": "2026-11-22T21:00:00-05:00",
-   "clock_note": "Sunday night before Thanksgiving week 2026 (the eve-of-Thanksgiving 23:30 ET instant, Wed 11-25, needs a second boot: not scripted yet)"
+   "clock": [
+    "2026-11-22T21:00:00-05:00",
+    "2026-11-24T21:00:00-05:00",
+    "2026-11-25T23:30:00-05:00"
+   ],
+   "clock_note": "Sunday 21:00 ET (Mon 02:00Z) binds to Mon Nov 23 (a UTC note day would give Tue). Tuesday 21:00 ET (Wed 02:00Z) binds to Wed Nov 25 (a UTC note day would give Fri: Thursday is closed). The eve of Thanksgiving, Wednesday 23:30 ET, binds to Fri Nov 27 either way, so the ET-vs-UTC trap is carried by the first two instants."
   },
   {
    "id": "P38",
@@ -2946,13 +3144,10 @@
    "exercises": "Saturday and holiday-Friday week binding, \"For the week of\"",
    "email": "campaign-p38@local.dev",
    "viewports": [
-    "1200",
-    "820",
-    "390"
+    "1200"
    ],
    "modes": [
-    "pointer",
-    "keyboard"
+    "pointer"
    ],
    "data": {
     "trades": {
@@ -2962,21 +3157,75 @@
    "scripts": [
     {
      "id": "P38.a",
-     "title": "Saturday and holiday-Friday week binding, \"For the week of\"",
-     "steps": [
-      {
-       "do": "noop"
-      }
-     ],
+     "title": "Saturday: the week of Nov 23, bound to the Friday half day",
+     "at": 0,
      "needs": [
       "w11",
       "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Weekly review",
+       "expect_tools": [
+        {
+         "slot": "routine_a",
+         "bind": "week",
+         "forDayLabel": "For the week of Nov 23"
+        }
+       ]
+      },
+      {
+       "do": "w11_use",
+       "template": "Weekly review",
+       "pick": "auto",
+       "expect_embed": {
+        "family": "routine",
+        "day": "2026-11-27",
+        "label": "For the week of Nov 23"
+       }
+      }
+     ]
+    },
+    {
+     "id": "P38.b",
+     "title": "A holiday-Friday week: bound to Thursday, \"For the week of Dec 21\"",
+     "at": 1,
+     "needs": [
+      "w11",
+      "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Weekly review",
+       "expect_tools": [
+        {
+         "slot": "routine_a",
+         "bind": "week",
+         "forDayLabel": "For the week of Dec 21"
+        }
+       ]
+      },
+      {
+       "do": "w11_use",
+       "template": "Weekly review",
+       "pick": "auto",
+       "expect_embed": {
+        "family": "routine",
+        "day": "2026-12-24",
+        "label": "For the week of Dec 21"
+       }
+      }
      ]
     }
    ],
    "validated": false,
-   "clock": "2026-11-28T11:00:00-05:00",
-   "clock_note": "the Saturday after Thanksgiving 2026 (holiday-shortened week)"
+   "clock": [
+    "2026-11-28T11:00:00-05:00",
+    "2026-12-26T10:00:00-05:00"
+   ],
+   "clock_note": "Saturday after Thanksgiving (the week's last session is the Friday half day), and Saturday 26 Dec 2026 (Friday 25 Dec is closed, so the week's last session is Thursday 24 Dec, an early close). Both are after the seed date, so no seeded stamp is in the future."
   },
   {
    "id": "P39",
@@ -2984,13 +3233,10 @@
    "exercises": "one copy, one routine, two notes",
    "email": "campaign-p39@local.dev",
    "viewports": [
-    "1200",
-    "820",
-    "390"
+    "1200"
    ],
    "modes": [
-    "pointer",
-    "keyboard"
+    "pointer"
    ],
    "data": {
     "trades": {
@@ -3000,27 +3246,37 @@
    "scripts": [
     {
      "id": "P39.a",
-     "title": "One copy, one routine, two notes",
-     "steps": [
-      {
-       "do": "api_concurrent",
-       "method": "POST",
-       "path": "/api/j2/template-gallery/@official:pre-market-prep/use-template",
-       "body": {},
-       "contexts": 2,
-       "expect_status": [
-        200,
-        201,
-        409
-       ]
-      }
-     ],
+     "title": "One key pressed four times at once, a replay, no key, a reused key",
      "needs": [
       "w11"
+     ],
+     "steps": [
+      {
+       "do": "w11_in_flight",
+       "template": "Pre-market prep",
+       "presses": 4
+      },
+      {
+       "do": "w11_use",
+       "template": "Pre-market prep",
+       "pick": "auto"
+      },
+      {
+       "do": "w11_unkeyed",
+       "template": "Pre-market prep"
+      },
+      {
+       "do": "w11_key_reused",
+       "template": "Pre-market prep"
+      },
+      {
+       "do": "w11_listing_moved"
+      }
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "notes": "API-only and spends the adopt scope (30/hour per member): one run, 1200 pointer. The in-flight 409 and listing_moved are not forceable from a client; their steps say so (INCONCLUSIVE)."
   },
   {
    "id": "P40",
@@ -3055,16 +3311,29 @@
       {
        "do": "open",
        "path": "/journal/notebook#templates",
+       "timing": "sheet_open",
        "expect": [
         "library_title"
        ]
       },
       {
-       "do": "library_use",
+       "do": "w11_preview",
        "template": "Pre-market prep",
-       "expect_re": [
-        "Use your Morning routine"
-       ]
+       "expect_question_use": "Morning routine"
+      },
+      {
+       "do": "w11_use",
+       "template": "Pre-market prep",
+       "pick": "suggested",
+       "expect_reused": "Morning routine",
+       "expect_embed_routine": "Morning routine"
+      },
+      {
+       "do": "w11_use",
+       "template": "Pre-market prep",
+       "note_as": "used2",
+       "expect_new_routines": 0,
+       "expect_embed_routine": "Morning routine"
       }
      ],
      "needs": [
@@ -3080,13 +3349,10 @@
    "exercises": "Helpful refused then allowed, the 3rd-day line once",
    "email": "campaign-p41@local.dev",
    "viewports": [
-    "1200",
-    "820",
-    "390"
+    "1200"
    ],
    "modes": [
-    "pointer",
-    "keyboard"
+    "pointer"
    ],
    "data": {
     "trades": {
@@ -3096,21 +3362,117 @@
    "scripts": [
     {
      "id": "P41.a",
-     "title": "Helpful refused then allowed, the 3rd-day line once",
-     "steps": [
-      {
-       "do": "noop"
-      }
-     ],
+     "title": "Day 1 (an ET evening that is already tomorrow in UTC): Helpful refused",
+     "at": 0,
      "needs": [
       "w11",
       "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Setup study"
+      },
+      {
+       "do": "w11_use",
+       "template": "Setup study",
+       "answers": "preview"
+      },
+      {
+       "do": "w11_helpful",
+       "template": "Setup study",
+       "outcome": "refused"
+      },
+      {
+       "do": "w11_helpful_prompt",
+       "template": "Setup study",
+       "show": false
+      }
+     ]
+    },
+    {
+     "id": "P41.b",
+     "title": "Day 2 (the same UTC day): Helpful still refused",
+     "at": 1,
+     "needs": [
+      "w11",
+      "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Setup study"
+      },
+      {
+       "do": "w11_use",
+       "template": "Setup study",
+       "answers": "preview"
+      },
+      {
+       "do": "w11_helpful",
+       "template": "Setup study",
+       "outcome": "refused"
+      },
+      {
+       "do": "w11_helpful_prompt",
+       "template": "Setup study",
+       "show": false
+      }
+     ]
+    },
+    {
+     "id": "P41.c",
+     "title": "Day 3: the line shows once, yes marks Helpful, and Helpful is allowed",
+     "at": 2,
+     "needs": [
+      "w11",
+      "clock"
+     ],
+     "steps": [
+      {
+       "do": "w11_preview",
+       "template": "Setup study"
+      },
+      {
+       "do": "w11_use",
+       "template": "Setup study",
+       "answers": "preview"
+      },
+      {
+       "do": "w11_helpful_prompt",
+       "template": "Setup study",
+       "show": true
+      },
+      {
+       "do": "w11_helpful_answer",
+       "template": "Setup study",
+       "answer": "yes"
+      },
+      {
+       "do": "w11_helpful_prompt",
+       "template": "Setup study",
+       "show": false
+      },
+      {
+       "do": "w11_helpful",
+       "template": "Setup study",
+       "outcome": "unmarked"
+      },
+      {
+       "do": "w11_helpful",
+       "template": "Setup study",
+       "outcome": "allowed"
+      }
      ]
     }
    ],
    "validated": false,
-   "clock": "2026-11-10T19:30:00-05:00",
-   "clock_note": "an ET evening that is already the next day in UTC (00:30Z)"
+   "clock": [
+    "2026-11-10T20:00:00-05:00",
+    "2026-11-11T10:00:00-05:00",
+    "2026-11-12T19:30:00-05:00"
+   ],
+   "clock_note": "three ET days (Tue, Wed, Thu) whose first two share ONE UTC day (11-11T01:00Z and 11-11T15:00Z): a server counting UTC days would still refuse Helpful on the third. One run: the 3rd-day line shows once per member."
   },
   {
    "id": "P42",
@@ -3938,6 +4300,32 @@
       {
        "do": "close_dialog",
        "discard": true
+      }
+     ]
+    },
+    {
+     "id": "P50.b",
+     "title": "A saturated preview pool and the engine's deadline",
+     "once": true,
+     "needs": [
+      "w11"
+     ],
+     "why_once": "preview with my data is 10/minute per member",
+     "steps": [
+      {
+       "do": "w11_busy",
+       "templates": [
+        "Monthly review",
+        "Quarterly edge review",
+        "Year in review",
+        "End-of-day recap",
+        "Weekly review",
+        "Setup study"
+       ]
+      },
+      {
+       "do": "w11_engine_too_long",
+       "template": "Year in review"
       }
      ]
     }
