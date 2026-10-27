@@ -77,9 +77,12 @@ async function open(props = {}) {
 const previewCalls = () => calls.filter((c) => c.path.endsWith('/preview-mine'))
 
 describe('the template detail', () => {
-  it("merge review I-2: a REAL library row and its REAL preview-mine answer (contract fixtures) render the server's facts", async () => {
+  it("merge review I-2 / n-3: a REAL library row, its REAL detail and preview-mine answers (contract fixtures) render the server's facts", async () => {
     const libRow = contractBody('template-gallery.library').templates.find((r) => r.title === 'Night-before prep')
+    const detail = contractBody('template-gallery.item.official')
     const preview = contractBody('template-gallery.preview-mine.questions')
+    expect(detail.template.id).toBe(libRow.id)                               // the same official row
+    const heading = detail.template.bodyJson.content.find((n) => n.type === 'heading').content[0].text
     const tool = preview.tools[0]
     expect(libRow && tool && tool.items.length).toBeTruthy()                 // non-vacuity: a row with a routine part
     calls = []
@@ -89,11 +92,12 @@ describe('the template detail', () => {
       calls.push({ path: u.pathname, method })
       if (u.pathname === `/api/j2/template-gallery/${libRow.id}/preview-mine` && method === 'POST') return json(200, preview)
       if (u.pathname === `/api/j2/template-gallery/${libRow.id}` && method === 'GET') {
-        return json(200, { template: { ...libRow, bodyJson: OUTLINE } })
+        return json(200, detail)
       }
       return json(404, {})
     })
     render(<TemplateDetailSheet item={libRow} onClose={() => {}} />)
+    expect(await screen.findByText(heading)).toBeInTheDocument()             // the outline, from the real bodyJson
     const el = await waitFor(() => {
       const found = document.querySelector(`[data-preview-tool="${tool.slot}"]`)
       expect(found).not.toBeNull()

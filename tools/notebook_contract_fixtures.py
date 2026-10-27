@@ -2776,6 +2776,9 @@ def wave11_library(w: World) -> None:
              case="success", expect=200, json_body={},
              note="A template holding a routine part: `questions` asks which routine (Use refuses `unresolved` "
                   "until it is answered).")
+    w.record("template-gallery.item.official", "GET", f"{base}/{by_title['Night-before prep']}", case="success",
+             expect=200, note="An official template's detail, as the Template library's detail sheet reads it "
+                              "(its outline, `bodyJson`).")
     gid = by_title["Watchlist review"]                # no widget, routine or tracker part: nothing to choose
     w.record("template-gallery.preview-mine", "POST", f"{base}/{gid}/preview-mine", case="success", expect=200,
              json_body={}, note="Preview with my data: slots, cards, tools and questions with the viewer's data.")

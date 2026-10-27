@@ -1,0 +1,273 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/86034b16f06755b3942acefbbc80f571",
+    "note": "An official template's detail, as the Template library's detail sheet reads it (its outline, `bodyJson`).",
+    "path": "/api/j2/template-gallery/86034b16f06755b3942acefbbc80f571",
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "UCT",
+      "authorHandle": null,
+      "bodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Levels for tomorrow",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Mark the prices you will act on at the open.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:prepLevels}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Earnings tomorrow",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Which of your names report before the open or after the close?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:prepEarnings}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Night-before routine",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Tick each step before you shut the screens.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:routine_a}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "category": "research",
+      "contains": [
+        "Night-before prep"
+      ],
+      "description": "Tomorrow's watchlist and levels, set the night before.",
+      "examples": [],
+      "featured": true,
+      "firm": true,
+      "group": "night_before",
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "id": "86034b16f06755b3942acefbbc80f571",
+      "itemType": "style",
+      "layoutPage": null,
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "payload": {
+        "blocks": [
+          {
+            "block": "prepLevels",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "prepEarnings",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "routine_a",
+            "enabled": true,
+            "settings": {
+              "bind": "next-trading-day",
+              "display": "items",
+              "template": "night_before"
+            }
+          }
+        ],
+        "definitions": [],
+        "format": 2,
+        "kindId": "daily_prep",
+        "outlineBodyJson": {
+          "content": [
+            {
+              "attrs": {
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Levels for tomorrow",
+                  "type": "text"
+                }
+              ],
+              "type": "heading"
+            },
+            {
+              "content": [
+                {
+                  "text": "Mark the prices you will act on at the open.",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "content": [
+                {
+                  "text": "{{block:prepLevels}}",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "attrs": {
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Earnings tomorrow",
+                  "type": "text"
+                }
+              ],
+              "type": "heading"
+            },
+            {
+              "content": [
+                {
+                  "text": "Which of your names report before the open or after the close?",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "content": [
+                {
+                  "text": "{{block:prepEarnings}}",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "attrs": {
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Night-before routine",
+                  "type": "text"
+                }
+              ],
+              "type": "heading"
+            },
+            {
+              "content": [
+                {
+                  "text": "Tick each step before you shut the screens.",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "content": [
+                {
+                  "text": "{{block:routine_a}}",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc"
+        },
+        "properties": {},
+        "routines": [],
+        "slots": [],
+        "trackers": []
+      },
+      "preview": [
+        {
+          "kind": "heading",
+          "text": "Levels for tomorrow"
+        },
+        {
+          "kind": "text",
+          "text": "Mark the prices you will act on at the open."
+        },
+        {
+          "kind": "heading",
+          "text": "Earnings tomorrow"
+        }
+      ],
+      "propertyCount": 0,
+      "propertyDefs": [],
+      "title": "Night-before prep",
+      "tradingStyle": null,
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}
