@@ -59,12 +59,13 @@ CREATE TABLE IF NOT EXISTS deliveries (
     extra_keys      TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS ix_txn_deliveries_received ON deliveries(received_at_ms);
+CREATE TABLE IF NOT EXISTS state (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 """
 
 NEW, REPEAT, KNOWN = "new", "repeat", "known"
 
 _COLS = ("seq", "event_id", "source", "content", "received_at_ms", "repeat_count",
-         "last_repeat_ms", "tickers", "via")
+         "last_repeat_ms", "tickers", "via", "ingested_at_ms")
 
 
 def _row(r: sqlite3.Row | tuple) -> dict[str, Any]:
@@ -79,6 +80,15 @@ class Store:
         self._local = threading.local()
         with self._conn() as c:
             c.executescript(_SCHEMA)
+        # ⭐ THE EPOCH: a random id minted once per database file. seq is only
+        # meaningful within one epoch -- if the file is ever recreated, seq
+        # restarts at 1 and a client holding cursor 4,812 must not read "nothing
+        # new". Every event and every replay carries the epoch; a client whose
+        # epoch differs discards its cursor and reloads.
+        if self.get_state("epoch") is None:
+            import secrets
+            self.set_state("epoch", secrets.token_hex(8))
+        self.epoch = self.get_state("epoch")
 
     def _conn(self) -> sqlite3.Connection:
         c = getattr(self._local, "conn", None)
@@ -86,10 +96,11 @@ class Store:
             c = sqlite3.connect(self.path, timeout=5, isolation_level=None,
                                 check_same_thread=False)
             c.execute("PRAGMA journal_mode=WAL")
-            # NORMAL under WAL: a commit survives a process crash; only an OS
-            # crash can lose the last transactions -- and the R2 journal still
-            # holds them, so the next reconcile restores them.
-            c.execute("PRAGMA synchronous=NORMAL")
+            # ⛔ FULL, not NORMAL: web's commit is one of the two stores the
+            # receiver may acknowledge on (the other is R2), so it must survive
+            # an OS crash / power loss, not only a process crash. The fsync this
+            # costs is measured in tests/test_trade_exchange_news_handoff.py.
+            c.execute("PRAGMA synchronous=FULL")
             self._local.conn = c
         return c
 
@@ -161,6 +172,16 @@ class Store:
             raise
         return {"by_age": by_age, "by_count": by_count, "ledger": ledger}
 
+    # ── small durable state (epoch, heartbeat, coverage gaps) ────────────────
+
+    def get_state(self, k: str) -> str | None:
+        r = self._conn().execute("SELECT v FROM state WHERE k=?", (k,)).fetchone()
+        return r[0] if r else None
+
+    def set_state(self, k: str, v: str) -> None:
+        self._conn().execute("INSERT INTO state(k, v) VALUES (?, ?) "
+                             "ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, v))
+
     # ── the reader side ──────────────────────────────────────────────────────
 
     def after(self, seq: int, limit: int = 500) -> list[dict[str, Any]]:
@@ -168,6 +189,16 @@ class Store:
             f"SELECT {','.join(_COLS)} FROM headlines WHERE seq > ? ORDER BY seq LIMIT ?",
             (int(seq), int(limit))).fetchall()
         return [_row(r) for r in rows]
+
+    def before(self, seq: int, limit: int = 200) -> list[dict[str, Any]]:
+        rows = self._conn().execute(
+            f"SELECT {','.join(_COLS)} FROM headlines WHERE seq < ? ORDER BY seq DESC LIMIT ?",
+            (int(seq), int(limit))).fetchall()
+        return [_row(r) for r in reversed(rows)]
+
+    def first_seq(self) -> int:
+        r = self._conn().execute("SELECT MIN(seq) FROM headlines").fetchone()
+        return int(r[0] or 0)
 
     def recent(self, limit: int = 200) -> list[dict[str, Any]]:
         rows = self._conn().execute(

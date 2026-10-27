@@ -73,7 +73,7 @@ def _receiver(journal, net: Switch):
                      "TXN_WEBHOOK_TOKEN_SHA256": rx.token_sha256(HOOK_TOKEN),
                      "TXN_INGEST_TOKEN": INGEST_TOKEN,
                      "TXN_WEB_INGEST_URL": "http://web.internal" + route.INGEST_PATH,
-                     "TXN_RATE_BURST": "10000"})
+                     "TXN_RATE_BURST": "10000", "TXN_STORAGE_PERMISSION_CONFIRMED": "1"})
     f = fw.Forwarder(cfg.web_ingest_url, cfg.ingest_token, client=httpx.AsyncClient(transport=net))
     app = appmod.create_app(cfg, journal, f)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://rx"), f
@@ -187,20 +187,37 @@ async def test_r2_shaped_journal_end_to_end_with_web_down():
     await rxc.aclose()
 
 
-async def test_journal_refusal_means_no_ack_and_the_retry_is_recovered_once():
+async def test_r2_down_and_web_down_means_no_ack_and_nothing_visible():
     s3 = FakeS3()
+    s3.fail_put = True
+    net = Switch(_web_app())
+    net.down = True
+    p = await _boot_web(web_journal.S3JournalReader(s3, "b"))
+    rxc, f = _receiver(jr.S3Journal(s3, "b"), net)
+    sub = asyncio.create_task(_collect(p.stream(0), 1, timeout=0.8))
+    r = await rxc.post(f"/hook/{HOOK_TOKEN}", json={"source": "TXNews1", "content": "SYNTHETIC x"})
+    assert r.status_code == 503
+    await f.drain()
+    with pytest.raises(asyncio.TimeoutError):
+        await sub                                                # nobody ever saw it
+    assert p.store.stats()["headlines"] == 0
+    await rxc.aclose()
+
+
+async def test_every_visible_headline_is_durable_somewhere():
+    """Visible => committed on web (FULL sync). R2 failing never makes a shown
+    headline unacknowledged, so the sender has no reason to retry it."""
+    s3 = FakeS3()
+    s3.fail_put = True
     net = Switch(_web_app())
     p = await _boot_web(web_journal.S3JournalReader(s3, "b"))
     rxc, f = _receiver(jr.S3Journal(s3, "b"), net)
-    s3.fail_put = True
-    r = await rxc.post(f"/hook/{HOOK_TOKEN}", json={"source": "TXNews1", "content": "SYNTHETIC x"})
-    assert r.status_code == 503
-    s3.fail_put = False
-    await _post(rxc, "SYNTHETIC x")                              # the sender's retry
-    await f.drain()
-    await rc.Reconciler(p, web_journal.S3JournalReader(s3, "b")).run_once()
-    (h,) = p.store.recent()
-    assert h["repeat_count"] == 1                                # counted, not doubled
+    seen = asyncio.create_task(_collect(p.stream(0), 1))
+    r = await rxc.post(f"/hook/{HOOK_TOKEN}", json={"source": "TXNews1", "content": "SYNTHETIC y"})
+    assert r.status_code == 200
+    (ev,) = await seen
+    assert p.store.known(ev["id"])
+    assert p.store._conn().execute("PRAGMA synchronous").fetchone()[0] == 2   # FULL
     await rxc.aclose()
 
 

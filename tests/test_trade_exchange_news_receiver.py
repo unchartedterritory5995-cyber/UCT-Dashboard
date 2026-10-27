@@ -30,7 +30,8 @@ GOOD = {"source": "TXNews1", "content": "SYNTHETIC: Example Corp announces a tes
 
 def _cfg(**over):
     env = {"TXN_RECEIVER_ENABLED": "1", "TXN_WEBHOOK_TOKEN_SHA256": rx.token_sha256(TOKEN),
-           "TXN_INGEST_TOKEN": "ingest-test", "TXN_WEB_INGEST_URL": "http://web.test/ingest"}
+           "TXN_INGEST_TOKEN": "ingest-test", "TXN_WEB_INGEST_URL": "http://web.test/ingest",
+           "TXN_STORAGE_PERMISSION_CONFIRMED": "1"}
     env.update(over)
     return rx.Config(env)
 
@@ -159,7 +160,7 @@ def test_token_bucket_refills():
 # ── the record ───────────────────────────────────────────────────────────────
 
 def test_record_preserves_content_verbatim_and_invents_nothing():
-    c, journal, _, _ = _client()
+    c, journal, _, _ = _client(_cfg(TXN_AUTH_MODES="path"))
     payload = {"source": "TXNews1", "content": "  SYNTHETIC:  Two  spaces\nand a newline  ",
                "undocumented": {"k": 1}}
     with c:
@@ -190,22 +191,78 @@ def test_ack_status_is_configurable_for_the_provider():
 
 # ── durability before acknowledgement ────────────────────────────────────────
 
-def test_journal_failure_is_503_not_an_ack_and_the_push_still_went():
+def test_journal_failure_with_web_committed_is_acked_and_rejournaled(monkeypatch):
+    """R2 down, web up: web's synchronous commit is a durable store, so the sender
+    gets its 2xx (no spurious retry/repeat) and the journal copy is retried."""
+    monkeypatch.setattr(appmod, "REJOURNAL_DELAYS_S", (0.05, 0.05))
     journal = jr.MemoryJournal()
     journal.fail = True
     c, _, pushes, app = _client(journal=journal)
     with c:
         r = c.post(f"/hook/{TOKEN}", json=GOOD)
-        time.sleep(0.05)
+        assert r.status_code == 200
+        journal.fail = False                 # R2 recovers
+        time.sleep(0.3)
+    v = app.state.counters.values
+    assert v["durable_via_web"] == 1 and v["journal_failed"] == 1 and v["rejournaled"] == 1
+    assert len(pushes.bodies) == 1 and len(journal.objects) == 1
+
+
+def test_neither_store_confirming_is_503_never_an_ack():
+    journal = jr.MemoryJournal()
+    journal.fail = True
+    c, _, pushes, app = _client(journal=journal, pushes=Pushes(status=503))
+    with c:
+        r = c.post(f"/hook/{TOKEN}", json=GOOD)
     assert r.status_code == 503 and r.headers["retry-after"] == "5"
-    assert app.state.counters.values["journal_failed"] == 1
-    assert len(pushes.bodies) == 1          # the live path never waited on storage
+    assert app.state.counters.values["accepted"] == 0
+
+
+def test_a_slow_journal_does_not_slow_the_ack_when_web_has_committed():
+    s3 = FakeS3()
+    s3.put_delay_s = 0.4
+    c, _, _, app = _client(journal=jr.S3Journal(s3, "b"))
+    with c:
+        t0 = time.perf_counter()
+        assert c.post(f"/hook/{TOKEN}", json=GOOD).status_code == 200
+        elapsed = time.perf_counter() - t0
+        time.sleep(0.6)
+    assert elapsed < 0.35
+    assert len(s3.objects) == 1 and app.state.counters.values["rejournaled"] == 0
+
+
+def test_nothing_is_stored_until_storage_permission_is_confirmed():
+    c, journal, pushes, _ = _client(_cfg(TXN_STORAGE_PERMISSION_CONFIRMED=""))
+    with c:
+        r = c.post(f"/hook/{TOKEN}", json=GOOD)
+        h = c.get("/health").json()
+    assert r.status_code == 503 and journal.objects == {} and pushes.bodies == []
+    assert "storage_permission_unconfirmed" in h["problems"]
+
+
+@pytest.mark.parametrize("modes,headers,path,ok", [
+    ("bearer", {"authorization": f"Bearer {TOKEN}"}, "/hook", True),
+    ("basic", {"authorization": "Basic " + __import__("base64").b64encode(f"txn:{TOKEN}".encode()).decode()}, "/hook", True),
+    ("header", {"x-txn-token": TOKEN}, "/hook", True),
+    ("path", {}, f"/hook/{TOKEN}", True),
+    ("bearer", {}, f"/hook/{TOKEN}", False),            # path mode disabled
+    ("basic", {"authorization": "Basic !!notbase64"}, "/hook", False),
+    ("header,path", {"x-txn-token": "wrong"}, f"/hook/{TOKEN}", False),  # first credential found wins
+])
+def test_credential_can_ride_a_header_so_it_never_reaches_a_request_log(modes, headers, path, ok):
+    c, journal, _, _ = _client(_cfg(TXN_AUTH_MODES=modes))
+    with c:
+        r = c.post(path, json=GOOD, headers=headers)
+    assert (r.status_code == 200) is ok
+    for raw in journal.objects.values():
+        assert TOKEN not in raw.decode()
 
 
 def test_journal_timeout_is_503():
     s3 = FakeS3()
     s3.put_delay_s = 0.5
-    c, _, _, _ = _client(_cfg(TXN_JOURNAL_TIMEOUT_S="0.1"), journal=jr.S3Journal(s3, "b"))
+    c, _, _, _ = _client(_cfg(TXN_JOURNAL_TIMEOUT_S="0.1"), journal=jr.S3Journal(s3, "b"),
+                         pushes=Pushes(status=503))
     with c:
         assert c.post(f"/hook/{TOKEN}", json=GOOD).status_code == 503
 

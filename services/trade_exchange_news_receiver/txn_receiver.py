@@ -15,6 +15,7 @@ the path secret, checked before the body is read.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -48,7 +49,7 @@ KEPT_HEADER_VALUES = frozenset({
 })
 #: Header names dropped entirely (not even the name is interesting, or the
 #: name itself is noise added by Railway's edge).
-DROPPED_HEADER_NAMES = frozenset({"cookie", "authorization", "proxy-authorization"})
+DROPPED_HEADER_NAMES = frozenset({"cookie", "authorization", "proxy-authorization", "x-txn-token"})
 MAX_HEADER_VALUE_CHARS = 200
 
 
@@ -77,6 +78,12 @@ class Config:
         self.rate_per_sec = _float(env, "TXN_RATE_PER_SEC", 2.0)
         self.journal_timeout_s = _float(env, "TXN_JOURNAL_TIMEOUT_S", 4.0)
         self.ack_status = _int(env, "TXN_ACK_STATUS", 200)
+        self.auth_modes = frozenset(
+            m.strip().lower() for m in env.get("TXN_AUTH_MODES", "path,bearer,basic,header").split(",")
+            if m.strip().lower() in AUTH_MODES)
+        # ⛔ Real Trade Exchange content is stored (R2 + web) only once its
+        # retention/redistribution permission is confirmed in writing (owner rule).
+        self.storage_permitted = env.get("TXN_STORAGE_PERMISSION_CONFIRMED", "") == "1"
         self.web_ingest_url = env.get(
             "TXN_WEB_INGEST_URL",
             "http://web.railway.internal:8080/api/trade-exchange-news/internal/ingest")
@@ -106,6 +113,39 @@ def _float(env: dict[str, str], key: str, default: float) -> float:
 
 def token_sha256(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+#: Where the sender may present the secret. Everything except ``path`` keeps it
+#: out of the request line -- and therefore out of Railway's HTTP logs.
+AUTH_MODES = ("path", "bearer", "basic", "header")
+TOKEN_HEADER = "x-txn-token"
+
+
+def presented_credential(path_token: str, headers: Any, modes: frozenset[str]) -> str:
+    """The secret the request carries, from the first enabled place it is found.
+
+    * ``bearer`` -- ``Authorization: Bearer <secret>``
+    * ``basic``  -- ``https://txn:<secret>@host/hook``: an HTTP client that honours
+                    URL userinfo sends it as ``Authorization: Basic`` (the password
+                    is the secret, the user name is ignored), so the secret is never
+                    in the path. Works only if Trade Exchange's client does this.
+    * ``header`` -- ``X-TXN-Token: <secret>`` (if the destination allows custom headers)
+    * ``path``   -- ``/hook/<secret>``, the fallback that needs nothing of the sender.
+    """
+    auth = headers.get("authorization", "") or ""
+    if "bearer" in modes and auth[:7].lower() == "bearer ":
+        return auth[7:].strip()
+    if "basic" in modes and auth[:6].lower() == "basic ":
+        try:
+            decoded = base64.b64decode(auth[6:].strip(), validate=True).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            return ""
+        return decoded.split(":", 1)[1] if ":" in decoded else ""
+    if "header" in modes and headers.get(TOKEN_HEADER):
+        return str(headers.get(TOKEN_HEADER)).strip()
+    if "path" in modes and path_token:
+        return path_token
+    return ""
 
 
 def verify_token(token: str, allowed_hashes: tuple[str, ...]) -> bool:
@@ -219,7 +259,8 @@ def build_record(source: str, content: str, extra: dict[str, Any], meta: dict[st
 class Counters:
     NAMES = ("received", "accepted", "refused_unknown", "rate_limited", "refused_oversize",
              "refused_malformed", "refused_source", "journal_failed",
-             "forwarded", "forward_failed")
+             "forwarded", "forward_failed", "durable_via_journal", "durable_via_web",
+             "rejournaled", "rejournal_failed", "refused_unpermitted")
 
     def __init__(self) -> None:
         self._lock = threading.Lock()

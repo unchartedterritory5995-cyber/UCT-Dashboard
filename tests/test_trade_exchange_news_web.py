@@ -389,3 +389,133 @@ def test_ticker_extraction_delegates_to_the_one_resolver():
     src = inspect.getsource(pl._tickers_for)
     assert "resolve_tickers(content, HEADLINE)" in src
     assert pl._tickers_for("SYNTHETIC: $ABCD jumps") == ["ABCD"]
+
+
+# ── Checkpoint C reliability review: order, epoch, coverage gaps ─────────────
+
+async def test_seq_is_contiguous_and_every_event_carries_the_epoch():
+    p = new_pipeline()
+    sub = p.hub.subscribe()
+    for i in range(5):
+        await p.submit(rec(f"SYNTHETIC {i}", BASE_MS + i * 100_000), "push")
+    await p.submit(rec("SYNTHETIC 0", BASE_MS + 1), "push")          # a repeat: no seq
+    await asyncio.sleep(0)
+    evs = [sub.queue.get_nowait() for _ in range(sub.queue.qsize())]
+    heads = [e for e in evs if e["type"] == "headline"]
+    assert [e["seq"] for e in heads] == [1, 2, 3, 4, 5]
+    assert {e["epoch"] for e in evs} == {p.store.epoch} and len(p.store.epoch) == 16
+
+
+def test_a_recreated_database_gets_a_new_epoch(tmp_path):
+    a = Store(str(tmp_path / "a.db"))
+    again = Store(str(tmp_path / "a.db"))
+    fresh = Store(str(tmp_path / "b.db"))
+    assert a.epoch == again.epoch and a.epoch != fresh.epoch
+
+
+async def test_a_record_recovered_late_is_flagged_delayed_not_slotted_into_the_past():
+    import time as _t
+    now = int(_t.time() * 1000)
+    p = new_pipeline()
+    live = await p.submit(rec("SYNTHETIC live", now), "push")
+    late = await p.submit(rec("SYNTHETIC missed", now - 120_000), "reconcile")
+    assert late["seq"] > live["seq"]                         # commit order, not receipt order
+    evs = p.store.after(0)
+    assert [pl.headline_event(r)["delayed"] for r in evs] == [False, True]
+
+
+async def test_concurrent_deliveries_from_two_receiver_clocks_get_one_total_order():
+    p = new_pipeline()
+    a = [rec(f"SYNTHETIC a{i}", BASE_MS + i * 1000) for i in range(20)]
+    b = [rec(f"SYNTHETIC b{i}", BASE_MS - 5_000 + i * 1000) for i in range(20)]   # skewed clock
+    streams = [p.stream(0) for _ in range(2)]
+    tasks = [asyncio.create_task(drain(s, 40)) for s in streams]
+    await asyncio.sleep(0.02)
+    await asyncio.gather(*(p.submit(r, "push") for pair in zip(a, b) for r in pair))
+    x, y = await asyncio.gather(*tasks)
+    assert [e["id"] for e in x] == [e["id"] for e in y]
+    assert [e["seq"] for e in x] == list(range(1, 41))
+
+
+def _rc_with(p, reader):
+    return rc.Reconciler(p, reader)
+
+
+async def test_first_boot_records_no_gap(tmp_path):
+    p = new_pipeline()
+    r = _rc_with(p, FileJournalReader(str(tmp_path)))
+    r.boot_assess()
+    assert r.coverage()["complete"] is True
+
+
+async def test_an_outage_longer_than_retention_is_reported_as_a_gap(monkeypatch, tmp_path):
+    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "168")
+    monkeypatch.setenv("TXN_JOURNAL_RETENTION_HOURS", "192")
+    import time as _t
+    now = int(_t.time() * 1000)
+    p = new_pipeline()
+    p.store.set_state("alive_ms", str(now - 9 * 24 * 3600 * 1000))     # down 9 days
+    r = _rc_with(p, FileJournalReader(str(tmp_path)))
+    r.boot_assess(now)
+    cov = r.coverage(now)
+    assert cov["complete"] is False
+    (g,) = cov["gaps"]
+    assert g["reason"] == "outage_exceeded_retention"
+    assert g["to_ms"] == now - 168 * 3600 * 1000          # recoverable floor = min(history, journal)
+
+
+async def test_a_short_outage_inside_retention_is_complete(tmp_path):
+    import time as _t
+    now = int(_t.time() * 1000)
+    p = new_pipeline()
+    p.store.set_state("alive_ms", str(now - 120_000))
+    r = _rc_with(p, FileJournalReader(str(tmp_path)))
+    r.boot_assess(now)
+    assert r.coverage(now)["complete"] is True
+
+
+async def test_no_journal_means_the_downtime_window_is_a_gap():
+    import time as _t
+    now = int(_t.time() * 1000)
+    p = new_pipeline()
+    p.store.set_state("alive_ms", str(now - 60_000))
+    r = _rc_with(p, None)
+    r.boot_assess(now)
+    assert [g["reason"] for g in r.coverage(now)["gaps"]] == ["no_journal"]
+
+
+async def test_an_unreachable_journal_is_a_gap_until_a_scan_succeeds(tmp_path):
+    class Flaky:
+        kind = "s3"
+        down = True
+
+        def ids_after(self, cursor):
+            if self.down:
+                raise ConnectionError("R2 down")
+            return iter(())
+
+        def get(self, eid):
+            raise AssertionError
+
+    p = new_pipeline()
+    p.store.set_state("alive_ms", str(int(__import__("time").time() * 1000) - 30_000))
+    reader = Flaky()
+    r = _rc_with(p, reader)
+    await r.run_once()
+    assert [g["reason"] for g in r.coverage()["gaps"]] == ["journal_unreachable"]
+    reader.down = False
+    await r.run_once()
+    assert r.coverage()["complete"] is True
+
+
+async def test_a_long_outage_backlog_is_fetched_in_parallel_but_ingested_in_order(tmp_path):
+    import time as _t
+    journal = jr.FileJournal(str(tmp_path / "j"))
+    base = int(_t.time() * 1000) - 3600_000
+    recs = [rec(f"SYNTHETIC backlog {i}", base + i * 1000) for i in range(300)]
+    for r_ in recs:
+        journal.put(r_)
+    p = new_pipeline()
+    r = _rc_with(p, FileJournalReader(str(tmp_path / "j")))
+    assert (await r.run_once())["recovered"] == 300
+    assert [h["event_id"] for h in p.store.after(0, 1000)] == [x["id"] for x in recs]

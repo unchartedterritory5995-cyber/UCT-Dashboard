@@ -326,10 +326,16 @@ class CompassPaywallMiddleware(BaseHTTPMiddleware):
                 )
         return await call_next(request)
 if _SENTRY_DSN:
+    # ⛔ before_send / before_send_transaction redact credentials that ride in a
+    # URL (logging_redaction.REDACTED_PATH_PREFIXES + credential-named query
+    # values) and touch nothing else -- see api/sentry_redaction.py.
+    from api import sentry_redaction as _sentry_redaction
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
         traces_sample_rate=0.1,
         environment=os.environ.get("RAILWAY_ENVIRONMENT", "development"),
+        before_send=_sentry_redaction.before_send,
+        before_send_transaction=_sentry_redaction.before_send_transaction,
     )
 
 # ⛔ IMPORTED, NOT RESTATED. This was a second hardcoded copy of the same

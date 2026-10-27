@@ -48,16 +48,30 @@ def _tickers_for(content: str) -> list[str]:
         return []
 
 
-def headline_event(row: dict[str, Any]) -> dict[str, Any]:
-    return {"type": "headline", "seq": row["seq"], "id": row["event_id"],
+#: A headline committed more than this long after its receipt reached members
+#: late (recovered from the journal after an outage, or a failed push). It is
+#: marked ``delayed`` so the widget can say so instead of passing it off as new.
+DELAYED_AFTER_MS = 15_000
+
+
+def headline_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
+    """⭐ ``seq`` is THE order: assigned once, by the single writer, at commit,
+    contiguous within an ``epoch`` (AUTOINCREMENT, never reused; a rolled-back
+    insert does not consume one). It is NOT receipt order -- ``received_at_ms``
+    is the receiver's clock, ULIDs from two receiver instances may interleave
+    differently, and an R2 LIST is only the order RECOVERY ingests in. Every
+    client sees the same seq order, and a client that ever sees seq != last+1
+    knows it missed something and replays."""
+    return {"type": "headline", "epoch": epoch, "seq": row["seq"], "id": row["event_id"],
             "source": row["source"], "content": row["content"],
             "received_at_ms": row["received_at_ms"], "tickers": row["tickers"],
-            "repeat_count": row["repeat_count"]}
+            "repeat_count": row["repeat_count"], "via": row["via"],
+            "delayed": (row["ingested_at_ms"] - row["received_at_ms"]) > DELAYED_AFTER_MS}
 
 
-def repeat_event(row: dict[str, Any]) -> dict[str, Any]:
-    return {"type": "repeat", "seq": row["seq"], "repeat_count": row["repeat_count"],
-            "last_repeat_ms": row["last_repeat_ms"]}
+def repeat_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
+    return {"type": "repeat", "epoch": epoch, "seq": row["seq"],
+            "repeat_count": row["repeat_count"], "last_repeat_ms": row["last_repeat_ms"]}
 
 
 class Pipeline:
@@ -78,9 +92,11 @@ class Pipeline:
                                 window_ms=config.dedupe_window_ms(),
                                 tickers=_tickers_for(rec["content"]))
         if out["kind"] == NEW:
-            self.loop.call_soon_threadsafe(self.hub.publish, headline_event(out["headline"]))
+            self.loop.call_soon_threadsafe(self.hub.publish,
+                                           headline_event(out["headline"], self.store.epoch))
         elif out["kind"] == REPEAT:
-            self.loop.call_soon_threadsafe(self.hub.publish, repeat_event(out["headline"]))
+            self.loop.call_soon_threadsafe(self.hub.publish,
+                                           repeat_event(out["headline"], self.store.epoch))
         self.counts[out["kind"]] += 1
         self.counts[via] += 1
         self._since_prune += 1
@@ -128,7 +144,7 @@ class Pipeline:
                 page = await asyncio.to_thread(self.store.after, last, REPLAY_PAGE)
                 for row in page:
                     last = row["seq"]
-                    yield headline_event(row)
+                    yield headline_event(row, self.store.epoch)
                 if len(page) < REPLAY_PAGE:
                     break
             while True:
@@ -138,7 +154,7 @@ class Pipeline:
                         page = await asyncio.to_thread(self.store.after, last, REPLAY_PAGE)
                         for row in page:
                             last = row["seq"]
-                            yield headline_event(row)
+                            yield headline_event(row, self.store.epoch)
                         if len(page) < REPLAY_PAGE:
                             break
                     continue

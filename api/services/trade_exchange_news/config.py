@@ -67,6 +67,19 @@ def history_max_items() -> int:
     return _int("TXN_HISTORY_MAX_ITEMS", 5000, lo=1)
 
 
+def journal_retention_ms() -> int:
+    """How long the R2 journal keeps a record (its bucket lifecycle rule; the
+    runbook sets 8 days). Recovery never reaches further back than this."""
+    return _int("TXN_JOURNAL_RETENTION_HOURS", 192, lo=1) * 3600 * 1000
+
+
+def storage_permitted() -> bool:
+    """⛔ Owner rule: real Trade Exchange headlines are stored only once their
+    retention + redistribution permission is confirmed in writing. Without this
+    the pipeline does not start even with TXN_ENABLED=1."""
+    return os.environ.get("TXN_STORAGE_PERMISSION_CONFIRMED", "").strip() == "1"
+
+
 def max_content_chars() -> int:
     return _int("TXN_MAX_CONTENT_CHARS", 8000, lo=1)
 
