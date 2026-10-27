@@ -520,6 +520,25 @@ def load_walk_libs(app_root: Path):
 
 # ── the sandbox this runner may own ───────────────────────────────────────────────────────
 
+def campaign_flag_sets(fw) -> dict:
+    """`fw.flag_sets()` plus `armed_web`: every flag production's ledger (the served tree's docs/feature_flags.json,
+    the SAME file `flag_sets` reads its armed set from) marks armed on web, member gates only (`fw.NOT_MEMBER_GATES`
+    excluded). Sandbox-recipe G3: `c1` keeps only NOTEBOOK_FLAGS gates, so an armed server-only flag such as
+    NOTEBOOK_EXAMPLE_NOTES_ENABLED was popped and the campaign served example notes OFF while production serves them
+    ON. Derived, never a hand-typed exception."""
+    fs = dict(fw.flag_sets())
+    ledger = json.loads((Path(fw.REPO) / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
+    led = ledger if isinstance(ledger, dict) else {f.get("name"): f for f in ledger}
+    fs["armed_web"] = armed_on_web(led, getattr(fw, "NOT_MEMBER_GATES", ()))
+    return fs
+
+
+def armed_on_web(led: dict, not_member_gates) -> list[str]:
+    """The ledger's flags with status `armed` whose `where` names web, less the gates that are not a member's."""
+    return sorted(n for n, f in led.items() if isinstance(f, dict) and f.get("status") == "armed"
+                  and "web" in (f.get("where") or []) and n not in set(not_member_gates))
+
+
 def campaign_env(fs: dict, overrides: dict | None = None) -> list[str]:
     """The flags a campaign server boots with (production's armed set + W8..W11 = 1, then `overrides`),
     written into this process's environment for the launcher child to inherit. Shared by the owned
@@ -529,7 +548,8 @@ def campaign_env(fs: dict, overrides: dict | None = None) -> list[str]:
         os.environ.pop(name, None)
     for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
         os.environ.pop(k, None)
-    on = sorted(set(fs["c1"]) | {W8, W9, W10, W11})
+    # Production's armed set: the NOTEBOOK_FLAGS gates (`c1`) and every other popped name the ledger arms on web (G3).
+    on = sorted(set(fs["c1"]) | {W8, W9, W10, W11} | (set(fs["all_names"]) & set(fs.get("armed_web") or ())))
     os.environ.update({n: "1" for n in on})
     os.environ.update(overrides)
     os.environ.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
@@ -545,7 +565,7 @@ class OwnedSandbox:
         self.h, self.fw, self.data_dir, self.port, self.out = h, fw, data_dir, port, out
         self.sb = None
         self.boots: list[dict] = []
-        self.fs = fw.flag_sets()
+        self.fs = campaign_flag_sets(fw)
         self.overrides: dict = {}
 
     @property
@@ -676,7 +696,7 @@ class ClockSandbox:
 
     def __init__(self, h, fw, launcher: Path, app_root: Path, data_dir: Path, port: int, out: Path):
         self.h, self.launcher, self.app_root, self.data_dir, self.port, self.out = h, launcher, app_root, data_dir, port, out
-        self.fs = fw.flag_sets()
+        self.fs = campaign_flag_sets(fw)
         self.proc = None
         self.boots: list[dict] = []
 

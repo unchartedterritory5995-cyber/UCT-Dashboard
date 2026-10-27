@@ -1668,7 +1668,9 @@ def test_g2_the_campaign_boots_its_own_sandbox_with_the_flag_and_its_out_dir(tmp
 
     h = type("H", (), {"Sandbox": FakeSandbox, "port_busy": staticmethod(lambda p: False), "POST_BOOT": "x",
                        "POST_BOOT_WAIT_S": 0})
-    fw = type("FW", (), {"flag_sets": staticmethod(lambda: {"all_names": [], "c1": [], "armed": []})})
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "feature_flags.json").write_text('{"flags": {}}', encoding="utf-8")
+    fw = type("FW", (), {"flag_sets": staticmethod(lambda: {"all_names": [], "c1": [], "armed": []}), "REPO": tmp_path})
     import os
     saved = dict(os.environ)                     # campaign_env writes this process's environment for the child
     try:
@@ -1695,3 +1697,60 @@ def test_g2_the_harness_passes_the_campaigns_launcher_flags_through():
     finally:
         subprocess.Popen = real
     assert seen["cmd"][-3:] == ["--no-shared-root-snapshot", "--log-dir", "z"]
+
+
+# ── sandbox-recipe G3: the campaign serves every flag production arms on web, derived from the ledger ───────────────
+#
+# Mutants (scratchpad mutate_g3.py): campaign_env ignoring `armed_web`; armed_on_web ignoring `where`; ignoring
+# `status`; ignoring NOT_MEMBER_GATES. Each turned this block red.
+
+def _g3_fw(tmp_path, flags: dict, all_names: list, c1: list, not_member=()):
+    (tmp_path / "docs").mkdir(exist_ok=True)
+    (tmp_path / "docs" / "feature_flags.json").write_text(json.dumps({"flags": flags}), encoding="utf-8")
+
+    class FW:
+        REPO = tmp_path
+        NOT_MEMBER_GATES = set(not_member)
+
+        @staticmethod
+        def flag_sets():
+            return {"all_names": list(all_names), "c1": list(c1)}
+    return FW
+
+
+def _env_on(fs) -> set:
+    import os
+    saved = dict(os.environ)
+    try:
+        return {n for n in rc.campaign_env(fs) if "=" not in n}
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+
+
+def test_g3_an_armed_web_flag_that_is_not_a_notebook_gate_is_served_on(tmp_path):
+    flags = {"NOTEBOOK_EXAMPLE_NOTES_ENABLED": {"status": "armed", "where": ["web"]},
+             "NOTEBOOK_WORKER_ONLY": {"status": "armed", "where": ["worker"]},
+             "NOTEBOOK_DARK_ONE": {"status": "dark", "where": ["web"]},
+             "NOTEBOOK_DOOR_GUARD": {"status": "armed", "where": ["web"]},
+             "NOTEBOOK_GATE_A": {"status": "armed", "where": ["web"]}}
+    fw = _g3_fw(tmp_path, flags, all_names=sorted(flags), c1=["NOTEBOOK_GATE_A"], not_member={"NOTEBOOK_DOOR_GUARD"})
+    fs = rc.campaign_flag_sets(fw)
+    assert fs["armed_web"] == ["NOTEBOOK_EXAMPLE_NOTES_ENABLED", "NOTEBOOK_GATE_A"]
+    on = _env_on(fs)
+    assert {"NOTEBOOK_EXAMPLE_NOTES_ENABLED", "NOTEBOOK_GATE_A", rc.W8, rc.W11} <= on
+    # controls: a worker-only, a dark and a non-member gate stay off
+    assert not on & {"NOTEBOOK_WORKER_ONLY", "NOTEBOOK_DARK_ONE", "NOTEBOOK_DOOR_GUARD"}
+
+
+def test_g3_the_served_trees_ledger_arms_example_notes_so_the_campaign_serves_them():
+    """The real ledger (this tree's docs/feature_flags.json, the file flag_sets reads): example notes are armed on web
+    in production, so P48's example pages are checked against production's shape."""
+    led = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
+    led = led if isinstance(led, dict) else {f.get("name"): f for f in led}
+    assert "NOTEBOOK_EXAMPLE_NOTES_ENABLED" in rc.armed_on_web(led, ())
+
+
+def test_g3_both_campaign_sandboxes_read_the_derived_flag_sets():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert src.count("self.fs = campaign_flag_sets(fw)") == 2 and "self.fs = fw.flag_sets()" not in src
