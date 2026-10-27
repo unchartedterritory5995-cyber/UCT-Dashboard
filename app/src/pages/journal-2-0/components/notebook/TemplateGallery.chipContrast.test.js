@@ -13,6 +13,8 @@ import { contrast, hexRgb } from '../../../../styles/__tests__/contrastMath'
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 const CSS = read('./TemplateGallery.module.css')
+// W11-R74 item 2: the template picker's category chips carry the same `.chip` / `.chipActive` pair.
+const SHEETS = { 'TemplateGallery.module.css': CSS, 'TemplatePicker.module.css': read('./TemplatePicker.module.css') }
 const TOKENS = read('../../../../styles/tokens.css')
 
 /** Top-level and @media-nested rules, in source order: [{selectors: [...], body}]. */
@@ -66,9 +68,9 @@ function matches(sel, classes, state) {
 }
 
 /** The winning value of `prop` for an element with `classes` in `state` (cascade: specificity, then order). */
-function winner(prop, classes, state) {
+function winner(prop, classes, state, css = CSS) {
   let best = null
-  rules(CSS).forEach((r, order) => {
+  rules(css).forEach((r, order) => {
     const v = decl(r.body, prop)
     if (v == null) return
     for (const s of r.selectors) {
@@ -91,12 +93,12 @@ function resolve(value, layers) {
 }
 
 const ACTIVE = ['chip', 'chipActive']
-describe('the gallery chip a member has chosen keeps its words readable (R5)', () => {
+for (const [sheet, css] of Object.entries(SHEETS)) describe(`${sheet}: a chip a member has chosen keeps its words readable (R5)`, () => {
   for (const [theme, layers] of Object.entries(THEMES)) {
     for (const state of ['rest', 'hover', 'focus-visible']) {
       it(`${theme}, ${state}: at least 4.5:1`, () => {
-        const fg = resolve(winner('color', ACTIVE, state), layers)
-        const bg = resolve(winner('background', ACTIVE, state), layers)
+        const fg = resolve(winner('color', ACTIVE, state, css), layers)
+        const bg = resolve(winner('background', ACTIVE, state, css), layers)
         expect(fg).toMatch(/^#[0-9a-f]{6}$/i)
         expect(bg).toMatch(/^#[0-9a-f]{6}$/i)
         expect(contrast(hexRgb(fg), hexRgb(bg))).toBeGreaterThanOrEqual(4.5)
@@ -104,8 +106,8 @@ describe('the gallery chip a member has chosen keeps its words readable (R5)', (
     }
   }
   it('CONTROL: the matcher sees the hover rule (an inactive chip, hovered, takes --text)', () => {
-    expect(winner('color', ['chip'], 'hover')).toBe('var(--text)')
-    expect(winner('color', ['chip'], 'rest')).toBe('var(--text-muted)')
+    expect(winner('color', ['chip'], 'hover', css)).toBe('var(--text)')
+    expect(winner('color', ['chip'], 'rest', css)).toBe('var(--text-muted)')
   })
 })
 
