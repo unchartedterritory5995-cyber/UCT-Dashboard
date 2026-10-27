@@ -32,7 +32,12 @@ GET /api/j2/template-gallery/library answers 200), else INCONCLUSIVE; `restart` 
 `clock` steps need --clock-launcher (tools/notebook_campaign/sandbox_clock.py, ruling W11-R49): a persona
 whose scripts need `clock` runs against a server booted by that launcher at the persona's `clock` instant
 (personas sharing an instant share one boot), with the browser's clock (Playwright context.clock) set to
-the same shifted now, so client and server agree; without the launcher those steps stay INCONCLUSIVE.
+the same shifted now, so client and server agree; without the launcher those steps stay INCONCLUSIVE. `clock` may
+be a LIST of instants (a story across days): the persona joins one boot per instant and each script runs at the
+instant its `at` names (default 0). `once` scripts (a per-member budget: the adopt scope, the publish cap, a one-time
+line) run in the persona's first run only. Wave 11 steps (`w11_*`, tools/notebook_campaign/w11_steps.py) drive the
+real routes over loopback HTTP as the persona's session, each graded PASS / FAIL / INCONCLUSIVE, or EXPECTED-PENDING
+when the server answers the interim shape of a pending backend batch (never a pass, never a defect).
 `sql_clock` steps (a verdict that rests on a SQLite CURRENT_TIMESTAMP / 'now' default) are always
 INCONCLUSIVE: the launcher cannot shift the database's own clock. INCONCLUSIVE is never a pass.
 
@@ -62,8 +67,9 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import seed_members as seedmod  # noqa: E402
+import w11_steps as w11  # noqa: E402
 
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+LOCAL_HOSTS = w11.LOCAL_HOSTS
 T = 30000
 TOUCH_MAX = 1024
 TAP_FLOOR = 44
@@ -85,22 +91,19 @@ class Inconclusive(Exception):
     """The step could not be driven to its end here (the message says why)."""
 
 
+class Pending(Exception):
+    """The server answered the documented interim shape of a change in a pending backend batch (EXPECTED-PENDING:
+    never a pass, never a defect; the message names the batch)."""
+
+
 class KeyboardUnreachable(Exception):
     """A visible control that Tab (and the arrow keys of its group) could not reach."""
 
 
 # ── refusals and source checks (pure) ─────────────────────────────────────────────────────
 
-def refuse_non_local(base: str) -> str | None:
-    try:
-        u = urlparse(base)
-    except Exception:  # noqa: BLE001
-        return f"--base {base!r} is not a URL"
-    host = (u.hostname or "").lower()
-    if u.scheme not in ("http", "https") or host not in LOCAL_HOSTS:
-        return (f"--base {base!r} is not localhost/127.0.0.1. This tool only ever drives a local sandbox; "
-                "production stays dark and only smoke@ and bench@ sign in to production, never this tool.")
-    return None
+#: THE loopback refusal lives in w11_steps (its HTTP door checks it on every call); one authority.
+refuse_non_local = w11.refuse_non_local
 
 
 def source_text(app_root: Path, source: str) -> str | None:
@@ -210,7 +213,7 @@ def next_defect_ids(existing: list[dict], n: int) -> list[str]:
 def run_verdict(steps: list[dict]) -> str:
     if any(s["verdict"] == "FAIL" or s.get("findings") for s in steps):
         return "FAIL"
-    if not steps or any(s["verdict"] == "INCONCLUSIVE" for s in steps):
+    if not steps or any(s["verdict"] in ("INCONCLUSIVE", w11.PENDING) for s in steps):
         return "INCONCLUSIVE"
     return "PASS"
 
@@ -331,20 +334,59 @@ def persona_needs_clock(p: dict) -> bool:
     return False
 
 
+def clock_instants(p: dict) -> list[str]:
+    """The persona's clock instants, in its own order: `clock` is one ISO instant or a LIST of them (a persona whose
+    story crosses days, e.g. P41's three ET days). A script names the instant it runs at with `at` (an index, default
+    0). Each instant must carry a UTC offset; a script's `at` must name one of them."""
+    raw = p.get("clock")
+    out = raw if isinstance(raw, list) else ([raw] if raw else [])
+    if not out or not all(isinstance(x, str) and x for x in out):
+        raise ValueError(f"{p.get('id')} needs the clock but declares no `clock` instant in personas.json")
+    for x in out:
+        if datetime.fromisoformat(x).tzinfo is None:
+            raise ValueError(f"{p.get('id')}'s clock {x!r} has no UTC offset")
+    for sc in p.get("scripts") or []:
+        at = sc.get("at", 0)
+        if not isinstance(at, int) or isinstance(at, bool) or not 0 <= at < len(out):
+            raise ValueError(f"{p.get('id')} script {sc.get('id')} runs `at` {at!r}, not one of its {len(out)} instants")
+    return out
+
+
 def clock_groups(people: list[dict]) -> list[tuple[str, list[dict]]]:
-    """Clock personas grouped by instant (one launcher boot per instant), in time order. A persona that
-    needs the clock but declares none is its own refusal: `(None, [p])` is never returned, it raises."""
+    """Clock personas grouped by instant (one launcher boot per instant), in time order. A persona with several
+    instants appears in several groups, each time as a copy carrying `_at` (the index of that instant), so the run
+    at that boot drives only the scripts whose `at` is that index. A persona that needs the clock but declares none
+    is its own refusal: `(None, [p])` is never returned, it raises."""
     groups: dict[float, tuple[str, list[dict]]] = {}
     for p in people:
         if not persona_needs_clock(p):
             continue
-        if not p.get("clock"):
-            raise ValueError(f"{p['id']} needs the clock but declares no `clock` instant in personas.json")
-        at = datetime.fromisoformat(p["clock"])
-        if at.tzinfo is None:
-            raise ValueError(f"{p['id']}'s clock {p['clock']!r} has no UTC offset")
-        groups.setdefault(at.timestamp(), (at.isoformat(), []))[1].append(p)     # one instant, any spelling
+        instants = clock_instants(p)
+        for i, inst in enumerate(instants):
+            at = datetime.fromisoformat(inst)
+            entry = {**p, "_at": i} if len(instants) > 1 else p
+            groups.setdefault(at.timestamp(), (at.isoformat(), []))[1].append(entry)    # one instant, any spelling
     return [groups[k] for k in sorted(groups)]
+
+
+def once_gate(ran: dict, persona: dict, sc: dict, run: str) -> str | None:
+    """A `once` script spends a per-member budget (the adopt scope's 30/hour, the publish 10/day, a one-time line):
+    it runs in the persona's FIRST run (per clock instant) only. None = run it now (and remember this run); else the
+    run it already ran in, which the skipping run records."""
+    if not sc.get("once"):
+        return None
+    key = (persona["id"], sc["id"], persona.get("_at"))
+    if key in ran:
+        return ran[key]
+    ran[key] = run
+    return None
+
+
+def scripts_at(persona: dict) -> list[dict]:
+    """The scripts a run drives: all of them, or (under a clock group of a multi-instant persona) those `at` it."""
+    if "_at" not in persona:
+        return list(persona.get("scripts") or [])
+    return [sc for sc in persona.get("scripts") or [] if sc.get("at", 0) == persona["_at"]]
 
 
 class ClockSandbox:
@@ -434,7 +476,7 @@ class Run:
         self.size = tuple(g.spec["viewport_sizes"][vp])
         self.touch = self.size[0] <= TOUCH_MAX
         self.member = g.manifest["members"].get(persona["id"], {})
-        self.dir = g.out / persona["id"] / f"{vp}-{mode}"
+        self.dir = g.out / persona["id"] / (f"{vp}-{mode}" + (f"-at{persona['_at']}" if "_at" in persona else ""))
         self.contexts: dict = {}
         self.pages: dict = {}          # name -> (page, events list)
         self.alias: dict = {}
@@ -1171,10 +1213,6 @@ def a_api_burst(R, s, row):
         check(row, f"the 429 says {want!r}", bool(msgs) and all(m == want for m in msgs), json.dumps(msgs[:3]))
 
 
-def a_api_concurrent(R, s, row):
-    raise Inconclusive("concurrent Use needs the wave 11 routes and an official template id")
-
-
 def a_flag_restart(R, s, row):
     sb = R.g.sandbox
     if sb is None:
@@ -1262,12 +1300,450 @@ def a_check_text(R, s, row):
     pass       # the expectations below do the reading
 
 
-def a_unscripted(R, s, row):
-    raise Inconclusive(f"the step {s['do']!r} is not scripted against a server that has it yet")
-
-
 def a_noop(R, s, row):
     raise Inconclusive("not scripted yet: the persona's script needs a server or a seam this run does not have")
+
+
+# ── wave 11 steps (Task 11.21 Step 4): the real route shapes, driven over loopback HTTP ─────────
+#
+# Each action builds its requests with w11_steps' builders, sends them through w11_steps' ONE loopback door as the
+# persona's own session, and grades them with w11_steps' judges. A judge that says INCONCLUSIVE raises Inconclusive
+# (never a pass); EXPECTED-PENDING raises Pending. Every request and answer is in the step's `read`.
+
+def cookie_of(R: Run) -> str | None:
+    """The persona's session: the one the clock launcher vouched for at this instant, else the seeded one."""
+    return (R.g.session_override or {}).get(R.p["id"]) or R.member.get("session")
+
+
+def w11_send(R: Run, row: dict, spec: dict, what: str | None = None):
+    resp = w11.http_call(R.g.base, spec, cookie_of(R))
+    row["read"].append({"what": what or f"{spec['method']} {spec['path']}",
+                        "text": f"HTTP {resp.status} {resp['text'][:600]}"})
+    return resp
+
+
+def w11_race(R: Run, row: dict, specs: list[dict], what: str):
+    resps = w11.race(R.g.base, specs, cookie_of(R))
+    row["read"].append({"what": what, "text": json.dumps([[r.status, r["text"][:160]] for r in resps])})
+    return resps
+
+
+def w11_apply(row: dict, judged: dict) -> dict:
+    """A judge's checks into the row; INCONCLUSIVE / EXPECTED-PENDING end the step with their reason."""
+    row["checks"].extend(judged["checks"])
+    if judged["verdict"] == w11.INCONCLUSIVE:
+        raise Inconclusive(judged["why"])
+    if judged["verdict"] == w11.PENDING:
+        raise Pending(judged["why"])
+    return judged
+
+
+def w11_template(R: Run, row: dict, title: str) -> str:
+    """The official template titled `title`, read from the library (cached per run)."""
+    k = f"tpl:{title}"
+    if k in R.alias:
+        return R.alias[k]["id"]
+    resp = w11_send(R, row, w11.b_library(), f"GET library (for {title!r})")
+    if resp.status != 200:
+        check(row, "the library answers 200", False, f"HTTP {resp.status}")
+        raise Inconclusive(f"the library did not answer, so {title!r} has no id")
+    card = w11.library_template(resp.body, title)
+    if card is None or not isinstance(card.get("id"), str):
+        raise Inconclusive(f"the seeded library has no official template titled {title!r}")
+    R.alias[k] = {"id": card["id"], "name": title}
+    return card["id"]
+
+
+def w11_style(R: Run, row: dict, name: str, view: str = "live") -> dict | None:
+    resp = w11_send(R, row, w11.b_templates(view), f"GET templates view={view}")
+    return w11.find_by(w11.get_path(resp.body, "styles"), "name", name) if resp.status == 200 else None
+
+
+def a_w11_browse(R, s, row):
+    resp = w11_send(R, row, w11.b_library(s.get("group", "")))
+    w11_apply(row, w11.judge_status(resp, [200], "the template library"))
+    cards, groups = w11.get_path(resp.body, "templates"), w11.get_path(resp.body, "groups")
+    check(row, "the library lists official templates", isinstance(cards, list) and bool(cards), str(type(cards)))
+    keys = [g.get("key") for g in groups] if isinstance(groups, list) else []
+    check(row, "the library names its groups", bool(keys), json.dumps(keys))
+    cards = cards if isinstance(cards, list) else []
+    check(row, "every card is UCT's (firm)", all(c.get("firm") is True for c in cards), "")
+    check(row, "every card sits in a named group", all(c.get("group") in keys for c in cards),
+          json.dumps(sorted({str(c.get('group')) for c in cards})))
+    check(row, "every card says what it contains (a list)", all(isinstance(c.get("contains"), list) for c in cards), "")
+    if s.get("template"):
+        card = w11.library_template(resp.body, s["template"])
+        if not check(row, f"the library lists {s['template']!r}", card is not None, ""):
+            return
+        R.alias[f"tpl:{s['template']}"] = {"id": card["id"], "name": s["template"]}
+
+
+def a_w11_preview(R, s, row):
+    title = s["template"]
+    gid = w11_template(R, row, title)
+    t0 = time.perf_counter()
+    resp = w11_send(R, row, w11.b_preview_mine(gid, s.get("answers")), f"POST preview-mine {title!r}")
+    row["timings"][s.get("timing") or "preview"] = round((time.perf_counter() - t0) * 1000)
+    w11_apply(row, w11.judge_status(resp, [200], "preview with my data"))
+    body = resp.body if isinstance(resp.body, dict) else {}
+    for k in ("slots", "cards", "tools", "questions"):
+        check(row, f"the preview carries `{k}` (a list)", isinstance(body.get(k), list), repr(type(body.get(k))))
+    R.remembered[f"preview:{title}"] = body
+    cards = body.get("cards") or []
+    ran = [c for c in cards if isinstance(c, dict) and "payload" in c]
+    if s.get("expect_sample"):
+        check(row, "the widgets ran on the Sample data book (under 5 closed trades)",
+              bool(ran) and all(c.get("sample") is True for c in ran), json.dumps([c.get("sample") for c in ran]))
+    if s.get("expect_own_data"):
+        check(row, "the widgets ran on the member's own trades", bool(ran) and not any(c.get("sample") for c in ran),
+              json.dumps([c.get("sample") for c in ran]))
+    if s.get("expect_card_sentence"):
+        want = R.g.sentence(s["expect_card_sentence"])
+        check(row, f"a card says {want!r}", any(isinstance(c, dict) and c.get("sentence") == want for c in cards),
+              json.dumps([c.get("sentence") for c in cards if isinstance(c, dict)])[:400])
+    if s.get("expect_question_use"):
+        qs = [q for q in body.get("questions") or [] if isinstance(q, dict)]
+        name = s["expect_question_use"]
+        check(row, f"a reuse question suggests the member's own {name!r}",
+              any(w11.get_path(q, "use.name") == name for q in qs), json.dumps(qs)[:400])
+    for want in s.get("expect_tools") or []:
+        tool = w11.find_by(body.get("tools"), "slot", want["slot"])
+        check(row, f"slot {want['slot']} binds {want['bind']!r} and reads {want['forDayLabel']!r}",
+              bool(tool) and tool.get("bind") == want["bind"] and tool.get("forDayLabel") == want["forDayLabel"],
+              json.dumps(tool))
+    for bad in R.fmt(s.get("forbid_text") or []):
+        check(row, f"{bad!r} is nowhere in the preview", bad not in resp["text"], "")
+
+
+def a_w11_share_preview(R, s, row):
+    kind, name = s["kind"], R.fmt(s["name"])
+    if kind == "template":
+        st = w11_style(R, row, name)
+        if st is None:
+            raise Inconclusive(f"the member has no live template named {name!r}")
+        tid = st["id"]
+    else:
+        tid = R.resolve(f"@{kind}:{name}")
+    resp = w11_send(R, row, w11.b_share_preview(kind, tid), f"POST share/preview {kind} {name!r}")
+    w11_apply(row, w11.judge_status(resp, [200], "the share preview"))
+    body = resp.body if isinstance(resp.body, dict) else {}
+    check(row, "the answer says what travels and what does not", "travels" in body and "notShared" in body,
+          json.dumps(sorted(body))[:300])
+    if body.get("travels") is None:
+        raise Inconclusive("the first ask answered the author's prefill only (`travels: null`): this reducer needs "
+                           "the author's typed words as `edits`, which this step does not type")
+    travels = json.dumps(body["travels"], ensure_ascii=False)
+    for bad in R.fmt(s.get("forbid_text") or []):
+        check(row, f"{bad!r} does not travel", bad not in travels, "")
+    R.remembered["share"] = {"kind": kind, "id": tid, "name": name}
+
+
+def a_w11_publish(R, s, row):
+    sh = R.remembered.get("share")
+    if not sh:
+        raise Inconclusive("nothing was share-previewed earlier in this run")
+    title = R.fmt(s["title"])
+    if sh["kind"] == "template":
+        spec = w11.b_publish_style(sh["id"], title=title, category=s.get("category", "journal"))
+    else:
+        spec = w11.b_publish_tool(sh["kind"], sh["id"], title=title)
+    resp = w11_send(R, row, spec, f"publish {sh['kind']} {sh['name']!r}")
+    w11_apply(row, w11.judge_status(resp, [200], "publishing"))
+    item = w11.get_path(resp.body, "template")
+    check(row, "the answer is the listing (a template with an id)", isinstance(w11.get_path(item, "id"), str), "")
+    for bad in R.fmt(s.get("forbid_text") or []):
+        check(row, f"{bad!r} is not on the listing", bad not in resp["text"], "")
+    R.alias[s.get("save_as", "listing")] = {"id": w11.get_path(item, "id"), "name": title}
+
+
+def a_w11_adopt(R, s, row):
+    """Adopt (the copy only, W11-R25b) with an Idempotency-Key, then the same key again: one copy, replayed."""
+    gid = w11_template(R, row, s["template"])
+    k = w11.new_key()
+    first = w11_send(R, row, w11.b_adopt_style(gid, key=k), "adopt (key K)")
+    second = w11_send(R, row, w11.b_adopt_style(gid, key=k), "adopt again (key K, a deliberate replay)")
+    w11_apply(row, w11.judge_replay(first, second, "style.id"))
+    if s.get("new_key_makes_another"):
+        third = w11_send(R, row, w11.b_adopt_style(gid, key=w11.new_key()), "adopt (a new key)")
+        a, c = w11.get_path(first.body, "style.id"), w11.get_path(third.body, "style.id")
+        check(row, "a NEW key makes another copy (the member's choice)", third.status == 200 and bool(c) and c != a,
+              f"HTTP {third.status} {a!r} / {c!r}")
+    style = w11.get_path(first.body, "style") or {}
+    R.alias[s.get("save_as", "adopted")] = {"id": style.get("id"), "name": style.get("name")}
+
+
+def choices_from_preview(preview: dict | None, title: str, *, strict: bool) -> dict | None:
+    """The member's own suggested tool for each reuse question (`questions[].use`, AdoptSheet's pre-selection), as
+    a Use's `choices` (`{slot: {"use": id}}`). `strict` (pick: "suggested", the persona IS the suggestion): no preview
+    or no suggestion is INCONCLUSIVE. Otherwise (pick: "auto") the Use goes without choices."""
+    if preview is None:
+        if strict:
+            raise Inconclusive(f"no preview of {title!r} was read earlier in this run")
+        return None
+    picks = {q["slot"]: {"use": w11.get_path(q, "use.id")} for q in preview.get("questions") or []
+             if isinstance(q, dict) and isinstance(q.get("slot"), str) and isinstance(w11.get_path(q, "use.id"), str)}
+    if not picks and strict:
+        raise Inconclusive(f"the preview of {title!r} suggested no tool of the member's own to pick")
+    return picks or None
+
+
+def _embeds_of(R, row, note: dict) -> list[dict]:
+    doc = w11.note_body(note)
+    if doc is None and isinstance(note.get("id"), str):
+        resp = w11_send(R, row, w11.b_note(note["id"]), "GET the note")
+        doc = w11.note_body(w11.get_path(resp.body, "note"))
+    return w11.tool_embeds(doc)
+
+
+def a_w11_use(R, s, row):
+    """Use (make a note) with an Idempotency-Key, then the same key again: the FIRST note, `replayed: true`."""
+    title = s["template"]
+    gid = w11_template(R, row, title)
+    choices = (choices_from_preview(R.remembered.get(f"preview:{title}"), title, strict=s["pick"] == "suggested")
+               if s.get("pick") in ("suggested", "auto") else None)
+    k = w11.new_key()
+    t0 = time.perf_counter()
+    first = w11_send(R, row, w11.b_use_template(gid, key=k, choices=choices), "use-template (key K)")
+    row["timings"][s.get("timing") or "use"] = round((time.perf_counter() - t0) * 1000)
+    second = w11_send(R, row, w11.b_use_template(gid, key=k, choices=choices), "use-template again (key K, a replay)")
+    w11_apply(row, w11.judge_replay(first, second, "note.id"))
+    made = w11.get_path(second.body, "created") or {}
+    check(row, "the replay made nothing", all(not made.get(f) for f in ("widgets", "routines", "trackers")),
+          json.dumps(made))
+    body = first.body if isinstance(first.body, dict) else {}
+    if s.get("expect_credit"):
+        check(row, f"the credit reads {s['expect_credit']!r}", s["expect_credit"] in str(body.get("credit")),
+              repr(body.get("credit")))
+    if "expect_new_routines" in s:
+        got = w11.get_path(body, "created.routines") or []
+        check(row, f"the Use made {s['expect_new_routines']} new routine(s)", len(got) == s["expect_new_routines"],
+              json.dumps(got))
+    if s.get("expect_reused"):
+        rid = R.resolve(f"@routine:{s['expect_reused']}")
+        got = w11.get_path(body, "reused.routines") or []
+        check(row, f"the Use reused the member's own {s['expect_reused']!r}", any(x.get("id") == rid for x in got),
+              json.dumps(got))
+    if s.get("expect_embed") or s.get("expect_embed_routine"):
+        embeds = _embeds_of(R, row, body.get("note") or {})
+        if s.get("expect_embed"):
+            want = s["expect_embed"]
+            check(row, f"a {want['family']} block binds to {want['day']} and is labelled {want['label']!r}",
+                  any(e["family"] == want["family"] and e["day"] == want["day"]
+                      and want["label"] in (e["searchText"] or "") for e in embeds), json.dumps(embeds))
+        if s.get("expect_embed_routine"):
+            rid = R.resolve(f"@routine:{s['expect_embed_routine']}")
+            check(row, f"the note's routine block is the member's own {s['expect_embed_routine']!r}",
+                  any(e["family"] == "routine" and e["id"] == rid for e in embeds), json.dumps(embeds))
+    note = body.get("note") or {}
+    R.alias[s.get("note_as", "used")] = note.get("id")
+    style = body.get("style") or {}
+    R.alias[s.get("copy_as", "copy")] = {"id": style.get("id"), "name": style.get("name")}
+    tools = (w11.get_path(body, "created.routines") or []) + (w11.get_path(body, "reused.routines") or [])
+    if tools:
+        R.alias["use_routine"] = {"id": tools[0].get("id"), "name": tools[0].get("name")}
+
+
+def a_w11_unkeyed(R, s, row):
+    """No Idempotency-Key where none is required (W11-R34: the key is optional on every wave 11 door): never 428."""
+    gid = w11_template(R, row, s["template"])
+    first = w11_send(R, row, w11.b_use_template(gid, key=None), "use-template (no key)")
+    second = w11_send(R, row, w11.b_use_template(gid, key=None), "use-template again (no key)")
+    w11_apply(row, w11.judge_unkeyed(first, second, "note.id"))
+
+
+def a_w11_in_flight(R, s, row):
+    """K presses with one key at once: one note, the rest replayed or 409 `conflict` S_KEY_IN_FLIGHT."""
+    gid = w11_template(R, row, s["template"])
+    k = w11.new_key()
+    n = int(s.get("presses", 4))
+    resps = w11_race(R, row, [w11.b_use_template(gid, key=k) for _ in range(n)], f"{n} x use-template, one key, at once")
+    moved = R.g.sentence("listing_moved")
+    for r in resps:
+        if r.status == 409 and w11.detail_of(r.body)[1] == moved:
+            row["read"].append({"what": "a listing moved during the race", "text": r["text"][:300]})
+    w11_apply(row, w11.judge_in_flight(resps, "note.id", R.g.sentence("key_in_flight"), listing_moved=moved))
+
+
+def a_w11_key_reused(R, s, row):
+    """One key on two doors (Use, then Adopt of the same template): 409 `key_reused` (A9; interim `conflict`)."""
+    gid = w11_template(R, row, s["template"])
+    k = w11.new_key()
+    first = w11_send(R, row, w11.b_use_template(gid, key=k), "use-template (key K)")
+    check(row, "the first press answers 200", first.status == 200, f"HTTP {first.status}")
+    if s.get("other_template"):
+        other = w11_template(R, row, s["other_template"])
+        second = w11_send(R, row, w11.b_use_template(other, key=k), "use-template on ANOTHER template (key K)")
+    else:
+        second = w11_send(R, row, w11.b_adopt_style(gid, key=k), "adopt the same template (key K, another door)")
+    w11_apply(row, w11.judge_key_reused(second, R.g.sentence("key_reused")))
+
+
+def a_w11_listing_moved(R, s, row):
+    raise Inconclusive(
+        "not forceable from a client: `listing_moved` (409, W11-R59/R60) needs the listed payload to change between "
+        "the clean outside the lock and the compare inside it, TWICE in one request -- an admin approving a revision "
+        "inside that window. The race steps grade it (judge_listing_moved) whenever it does happen.")
+
+
+def a_w11_restore(R, s, row):
+    """The Templates tab's own doors: archive, Restore from Archived, Delete permanently, Restore from Recently
+    deleted (it lands back in Archived, W11-R36 / F-FE-1 F4), then back to live."""
+    copy = R.alias.get(s.get("copy", "copy"))
+    if not isinstance(copy, dict) or not copy.get("id") or not copy.get("name"):
+        raise Inconclusive("no template copy (id and name) was made earlier in this run")
+    sid, name = copy["id"], copy["name"]
+
+    def listed(view):
+        resp = w11_send(R, row, w11.b_templates(view), f"GET templates view={view}")
+        return resp.status == 200 and w11.find_by(w11.get_path(resp.body, "styles"), "id", sid) is not None
+
+    def act_(action, **kw):
+        resp = w11_send(R, row, w11.b_style_action(sid, action, **kw), f"POST {action}")
+        check(row, f"{action} answers 200", resp.status == 200, f"HTTP {resp.status} {resp['text'][:200]}")
+        return resp
+    check(row, "the copy is in the live list", listed("live"), "")
+    r = act_("archive")
+    check(row, "archived: archivedAt is set", bool(w11.get_path(r.body, "style.archivedAt")), r["text"][:200])
+    check(row, "the copy is in Archived", listed("archived"), "")
+    act_("unarchive")
+    check(row, "Restore from Archived puts it back in the live list", listed("live"), "")
+    act_("archive")
+    act_("delete", typed_name=name)
+    check(row, "Delete permanently lists it in Recently deleted", listed("deleted"), "")
+    r = act_("restore")
+    check(row, "restored from Recently deleted, it lands in Archived (archivedAt kept)",
+          bool(w11.get_path(r.body, "style.archivedAt")), r["text"][:200])
+    check(row, "it is in Archived again", listed("archived"), "")
+    check(row, "it is no longer in Recently deleted", not listed("deleted"), "")
+    act_("unarchive")
+    check(row, "and back in the live list", listed("live"), "")
+
+
+def a_w11_routine(R, s, row):
+    """The routine a Use made or reused: read it, tick its first item today."""
+    rid = R.resolve(s.get("routine", "@use_routine"))
+    resp = w11_send(R, row, w11.b_routine_get(rid), "GET the routine")
+    w11_apply(row, w11.judge_status(resp, [200], "the routine"))
+    items = w11.get_path(resp.body, "items") or w11.get_path(resp.body, "routine.items") or []
+    if not check(row, "the routine has items today", isinstance(items, list) and bool(items), json.dumps(items)[:200]):
+        return
+    item = items[0]["id"]
+    tick = w11_send(R, row, w11.b_routine_tick(rid, today_et().isoformat(), item, True), "tick item 1 today")
+    check(row, "the tick answers 200", tick.status == 200, f"HTTP {tick.status} {tick['text'][:200]}")
+    check(row, "the answer names the ticked item", item in tick["text"], "")
+
+
+def a_w11_if_match_missing(R, s, row):
+    """PUT a routine with no If-Match, where it IS required (R-27): 428 `conflict` with its sentence."""
+    rid = R.resolve(s.get("routine", "@use_routine"))
+    got = w11_send(R, row, w11.b_routine_get(rid), "GET the routine")
+    name = w11.get_path(got.body, "name") or w11.get_path(got.body, "routine.name") or "Campaign routine"
+    resp = w11_send(R, row, w11.b_routine_put(rid, {"name": name}), "PUT the routine with no If-Match")
+    w11_apply(row, w11.judge_refusal(resp, 428, "conflict", R.g.sentence("need_if_match")))
+
+
+def a_w11_too_large(R, s, row):
+    """A body one byte over the wave 11 cap (W11_MAX_BODY_BYTES), counted while it arrives: 413."""
+    resp = w11_send(R, row, w11.b_oversized(f"{w11.GALLERY}/share/preview"), "POST share/preview, 16 KiB + 1")
+    row["read"].append({"what": "the 413's code (recorded, not graded)", "text": repr(w11.detail_of(resp.body)[0])})
+    w11_apply(row, w11.judge_refusal(resp, 413, None, R.g.sentence("body_too_large")))
+
+
+def a_w11_title_too_long(R, s, row):
+    """A Use whose title is one character over notes.MAX_TITLE_CHARS: 400 `invalid`, before any charge (I-1)."""
+    gid = w11_template(R, row, s["template"])
+    resp = w11_send(R, row, w11.b_use_template(gid, key=None, title="t" * (w11.MAX_TITLE_CHARS + 1)),
+                    f"use-template with a {w11.MAX_TITLE_CHARS + 1}-character title")
+    w11_apply(row, w11.judge_refusal(resp, 400, "invalid", R.g.sentence("title_too_long")))
+
+
+def a_w11_busy(R, s, row):
+    """Previews of several templates from one member at once: the engine's gates answer 503 `busy`, nothing queues."""
+    gids = [w11_template(R, row, t) for t in s["templates"]]
+    resps = w11_race(R, row, [w11.b_preview_mine(g) for g in gids], f"{len(gids)} previews at once")
+    w11_apply(row, w11.judge_busy(resps, R.g.sentence("busy_srv")))
+
+
+def a_w11_engine_too_long(R, s, row):
+    gid = w11_template(R, row, s["template"])
+    resp = w11_send(R, row, w11.b_preview_mine(gid), f"POST preview-mine {s['template']!r}")
+    w11_apply(row, w11.judge_too_long_engine(resp, R.g.sentence("too_long_srv")))
+
+
+def a_w11_helpful(R, s, row):
+    gid = w11_template(R, row, s["template"])
+    if s["outcome"] == "unmarked":
+        resp = w11_send(R, row, w11.b_helpful(gid, on=False), "DELETE helpful")
+        w11_apply(row, w11.judge_status(resp, [200], "un-marking Helpful"))
+        return
+    resp = w11_send(R, row, w11.b_helpful(gid), "POST helpful")
+    if s["outcome"] == "refused":
+        w11_apply(row, w11.judge_refusal(resp, 409, "helpful_days", R.g.sentence("helpful_days")))
+    else:
+        w11_apply(row, w11.judge_status(resp, [200], "marking Helpful on the 3rd use day"))
+
+
+def a_w11_helpful_prompt(R, s, row):
+    note = R.alias.get(s.get("note", "used"))
+    if not isinstance(note, str):
+        raise Inconclusive("no note was made from the template earlier in this run")
+    gid = w11_template(R, row, s["template"])
+    resp = w11_send(R, row, w11.b_helpful_prompt(note), "GET the 3rd-day line")
+    w11_apply(row, w11.judge_status(resp, [200], "the 3rd-day line"))
+    show = w11.get_path(resp.body, "show")
+    check(row, f"the line {'shows' if s['show'] else 'does not show'}", show is bool(s["show"]), repr(show))
+    if s["show"]:
+        check(row, "the line names the template", w11.get_path(resp.body, "itemId") == gid
+              and w11.get_path(resp.body, "line") == f"Was {s['template']} helpful?", resp["text"][:200])
+
+
+def a_w11_helpful_answer(R, s, row):
+    gid = w11_template(R, row, s["template"])
+    resp = w11_send(R, row, w11.b_helpful_answer(gid, s["answer"]), f"POST the answer {s['answer']!r}")
+    w11_apply(row, w11.judge_status(resp, [200], "answering the 3rd-day line"))
+    check(row, f"the stored answer is {s['answer']!r}", w11.get_path(resp.body, "answer") == s["answer"],
+          resp["text"][:200])
+    if s["answer"] == "yes":
+        check(row, "yes also marks Helpful", w11.get_path(resp.body, "helpful") is True, resp["text"][:200])
+
+
+def _et_now():
+    from zoneinfo import ZoneInfo
+    return shifted_now().astimezone(ZoneInfo("America/New_York"))
+
+
+def a_w11_bell(R, s, row):
+    """The bell's routine reminders for one routine (wave 9, Task 9.9), read until the shifted ET time `until_et`.
+    The reminder job is APScheduler's */5 ET cron, which fires on the REAL clock (unshiftable): a reminder that never
+    shows is INCONCLUSIVE (the job may not be registered in this sandbox), and "none late" is only gradeable after a
+    reminder WAS seen at an earlier instant (otherwise it would pass on a job that never runs)."""
+    rid = R.resolve(f"@routine:{s['routine']}")
+    day = R.resolve(s.get("day", "@today"))
+    want = int(s["count"])
+    fact = (R.p["id"], f"bell_seen:{rid}")
+    if s.get("needs_seen") and not R.g.facts.get(fact):
+        raise Inconclusive("no reminder was seen at an earlier instant, so a count read now could not tell 'none "
+                           "late' from 'the job never runs here'")
+    deadline = None
+    if s.get("until_et"):
+        hh, mm = (int(x) for x in s["until_et"].split(":"))
+        now = _et_now()
+        target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        deadline = time.time() + max(0.0, (target - now).total_seconds())
+    while True:
+        resp = w11_send(R, row, w11.b_alerts(), "GET the bell")
+        got = w11.reminders_for(resp.body, rid, day) if resp.status == 200 else []
+        if deadline is None or time.time() >= deadline or (want and len(got) > want):
+            break
+        time.sleep(min(15.0, max(0.5, deadline - time.time())))
+    row["read"].append({"what": "routine reminders in the bell", "text": json.dumps(got)[:600]})
+    if want and not got:
+        raise Inconclusive(f"no routine reminder reached the bell by {s.get('until_et')} ET (shifted): the */5 ET "
+                           "reminder job fires on the REAL clock and may not be registered in this sandbox")
+    check(row, f"the bell holds exactly {want} reminder(s) for {s['routine']!r} on {day}", len(got) == want,
+          json.dumps([a.get("timestamp") for a in got]))
+    if got:
+        R.g.facts[fact] = True
 
 
 ACTIONS = {
@@ -1281,11 +1757,20 @@ ACTIONS = {
     "insert_routine": a_insert_routine, "tick": a_tick, "new_context": a_new_context, "new_page": a_new_page,
     "concurrent_ticks": a_concurrent_ticks, "reload_all": a_reload_all, "remember_note": a_remember_note,
     "note_unchanged": a_note_unchanged, "offline": a_offline, "wait": a_wait, "api": a_api, "api_burst": a_api_burst,
-    "api_concurrent": a_api_concurrent, "flag_restart": a_flag_restart, "widget_share_on": a_widget_share_on,
+    "flag_restart": a_flag_restart, "widget_share_on": a_widget_share_on,
     "share_public": a_share_public, "admin_login": a_admin_login, "throttle": a_throttle, "check_text": a_check_text,
-    "library_preview": a_unscripted, "library_use": a_unscripted, "adopt_use": a_unscripted,
-    "share_preview_template": a_unscripted, "noop": a_noop,
+    "noop": a_noop,
+    # wave 11 (real route shapes, w11_steps)
+    "w11_browse": a_w11_browse, "w11_preview": a_w11_preview, "w11_share_preview": a_w11_share_preview,
+    "w11_publish": a_w11_publish, "w11_adopt": a_w11_adopt, "w11_use": a_w11_use, "w11_unkeyed": a_w11_unkeyed,
+    "w11_in_flight": a_w11_in_flight, "w11_key_reused": a_w11_key_reused, "w11_listing_moved": a_w11_listing_moved,
+    "w11_restore": a_w11_restore, "w11_routine": a_w11_routine, "w11_if_match_missing": a_w11_if_match_missing,
+    "w11_too_large": a_w11_too_large, "w11_title_too_long": a_w11_title_too_long, "w11_busy": a_w11_busy,
+    "w11_engine_too_long": a_w11_engine_too_long, "w11_helpful": a_w11_helpful,
+    "w11_helpful_prompt": a_w11_helpful_prompt, "w11_helpful_answer": a_w11_helpful_answer, "w11_bell": a_w11_bell,
 }
+#: Every wave 11 step talks to the server over HTTP only: a step that does not drive the browser page.
+W11_ACTIONS = frozenset(k for k in ACTIONS if k.startswith("w11_"))
 
 
 # ── checks, expectations, metrics ─────────────────────────────────────────────────────────
@@ -1302,10 +1787,10 @@ def sent_check(R, row, key, s, said, pred):
 
 
 def expectations(R: Run, s: dict, row: dict) -> None:
-    pg = R.page()
     keys = list(s.get("expect") or []) + list(s.get("expect_absent") or [])
     if not keys and not s.get("expect_re") and not s.get("forbid_re") and not s.get("forbid"):
         return
+    pg = R.page()
     sur = surface(pg, s.get("within") or row.get("surface"))
     for key in s.get("expect") or []:
         want = R.g.sentence(key)
@@ -1417,6 +1902,8 @@ class Campaign:
         self.caps = {"w11": False, "restart": False, "clock": False, "sql_clock": False}
         self.clock_server = None          # the ClockSandbox serving this group, if any
         self.session_override: dict = {}  # persona id -> a session the clock launcher re-minted
+        self.once_ran: dict = {}          # (persona, script, instant) -> the run a `once` script ran in
+        self.facts: dict = {}             # (persona, fact) -> value, kept across runs and clock boots
 
     def sentence(self, key: str) -> str:
         v = self.sentences.get(key)
@@ -1456,8 +1943,13 @@ class Campaign:
                               "server_now": shifted_now().isoformat(timespec="seconds"),
                               "skew_s": round(ms / 1000 - shifted_now().timestamp(), 1)}
         started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        once_skipped: list[str] = []
         try:
-            for sc in persona["scripts"]:
+            for sc in scripts_at(persona):
+                ran_in = once_gate(self.once_ran, persona, sc, f"{vp}-{mode}")
+                if ran_in:
+                    once_skipped.append(f"{sc['id']} (ran in {ran_in})")
+                    continue
                 skip_rest = None
                 for i, s in enumerate(sc["steps"]):
                     sid_ = f"{sc['id']}.{i + 1:02d}"
@@ -1468,11 +1960,15 @@ class Campaign:
         finally:
             R.close()
         verdict = run_verdict(R.steps)
-        counts = {v: sum(1 for s in R.steps if s["verdict"] == v) for v in ("PASS", "FAIL", "INCONCLUSIVE")}
+        counts = {v: sum(1 for s in R.steps if s["verdict"] == v) for v in w11.VERDICTS}
         res = {"run_id": self.run_id, "persona": persona["id"], "viewport": vp, "mode": mode, "verdict": verdict,
                "counts": counts, "findings": sum(len(s.get("findings") or []) for s in R.steps),
                "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                "evidence": str(R.dir.relative_to(self.out)).replace("\\", "/")}
+        if "_at" in persona:
+            res["at"] = {"index": persona["_at"], "instant": clock_instants(persona)[persona["_at"]]}
+        if once_skipped:
+            res["once_skipped"] = once_skipped
         if clock_read:
             res["clock"] = clock_read
         append_jsonl(self.out / "results.jsonl", res)
@@ -1507,6 +2003,9 @@ class Campaign:
             except Inconclusive as e:
                 row["verdict"] = "FAIL" if any(not c["ok"] for c in row["checks"]) else "INCONCLUSIVE"
                 row["error"] = f"INCONCLUSIVE: {e}"
+            except Pending as e:
+                row["verdict"] = "FAIL" if any(not c["ok"] for c in row["checks"]) else w11.PENDING
+                row["error"] = f"{w11.PENDING}: {e}"
             except Exception as e:  # noqa: BLE001 -- a read the driver could not finish
                 row["verdict"] = "FAIL" if any(not c["ok"] for c in row["checks"]) else "INCONCLUSIVE"
                 row["error"] = f"{type(e).__name__}: {str(e)[:500]}"
@@ -1515,8 +2014,10 @@ class Campaign:
         ran = not (unmet or skip_rest)
         row["events"] = {name: list(ev) for name, (_, ev) in R.pages.items() if ev}
         if ran:
-            pg = R.page()
-            if not pg.is_closed():
+            # A wave 11 step reads the server over HTTP and never touches the page: no screenshot or axe pass of a
+            # page it did not change (the findings below still read every page's events).
+            pg = R.page() if s["do"] not in W11_ACTIONS else None
+            if pg is not None and not pg.is_closed():
                 row["metrics"] = metrics(R, row)
                 try:
                     shot = R.dir / "shots" / f"{sid_.replace('.', '_')}.png"

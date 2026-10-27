@@ -281,7 +281,7 @@ def test_the_calendar_edge_personas_declare_a_clock_and_need_it():
     by = {p["id"]: p for p in SPEC["personas"]}
     for pid in CLOCK_PERSONAS:
         assert rc.persona_needs_clock(by[pid]), pid
-        assert sc.parse_clock(by[pid]["clock"]), pid
+        assert all(sc.parse_clock(x) for x in rc.clock_instants(by[pid])), pid
     assert by["P13"]["clock"].startswith("2026-11-30")
     assert "2025" not in json.dumps(by["P13"]["scripts"])
 
@@ -665,3 +665,189 @@ def test_m2_main_pins_the_hub_env_before_the_shift_and_the_api_import(tmp_path, 
     assert rc_ == 0
     assert order[:6] == ["port", "env", "reporter", "install", "api-import", "sweeps"] and order[-1] == "serve"
     assert seen == {"env_at_install": "pinned", "device_limit_at_install": "0", "shifted_at_import": True}
+
+
+# ── wave 11 scripting: several instants per persona, and THE named clock rail (W11-R49) ───────────────
+
+import ast  # noqa: E402
+import subprocess  # noqa: E402
+import types  # noqa: E402
+
+BY = {p["id"]: p for p in SPEC["personas"]}
+MERGED_REFS = ("origin/feat/notebook-widgets-p2", "origin/feat/notebook-widgets-p2-be")
+
+
+def test_a_persona_with_several_instants_joins_one_group_per_instant_in_time_order():
+    people = [{"id": "M", "clock": ["2026-11-12T19:30:00-05:00", "2026-11-10T20:00:00-05:00"],
+               "scripts": [{"id": "M.a", "at": 0, "needs": ["clock"], "steps": []},
+                           {"id": "M.b", "at": 1, "needs": ["clock"], "steps": []}]},
+              {"id": "S", "clock": "2026-11-11T01:00:00+00:00", "scripts": [{"needs": ["clock"], "steps": []}]}]
+    groups = rc.clock_groups(people)
+    assert [g[0] for g in groups] == ["2026-11-10T20:00:00-05:00", "2026-11-12T19:30:00-05:00"]
+    assert [(p["id"], p.get("_at")) for p in groups[0][1]] == [("M", 1), ("S", None)]      # one instant, one boot
+    assert [(p["id"], p.get("_at")) for p in groups[1][1]] == [("M", 0)]
+    assert [s["id"] for s in rc.scripts_at(groups[0][1][0])] == ["M.b"]
+    assert [s["id"] for s in rc.scripts_at(groups[1][1][0])] == ["M.a"]
+    assert [s.get("id") for s in rc.scripts_at(people[0])] == ["M.a", "M.b"]                 # no launcher: all
+
+
+@pytest.mark.parametrize("bad", [{"clock": ["2026-11-10T20:00:00"]}, {"clock": []},
+                                 {"clock": ["2026-11-10T20:00:00-05:00"], "at": 1}])
+def test_an_instant_list_is_refused_without_offsets_or_with_an_at_it_lacks(bad):
+    p = {"id": "X", "clock": bad["clock"], "scripts": [{"id": "X.a", "at": bad.get("at", 0), "needs": ["clock"],
+                                                        "steps": []}]}
+    with pytest.raises(ValueError):
+        rc.clock_groups([p])
+
+
+def test_every_clock_persona_declares_valid_instants_and_each_one_is_used():
+    for pid in CLOCK_PERSONAS:
+        inst = rc.clock_instants(BY[pid])
+        assert all(sc.parse_clock(x) for x in inst), pid
+        used = {s.get("at", 0) for s in BY[pid]["scripts"]}
+        assert used == set(range(len(inst))), (pid, used)
+
+
+def test_p41s_first_two_days_share_a_utc_day_and_all_three_are_distinct_et_days():
+    inst = [sc.parse_clock(x) for x in rc.clock_instants(BY["P41"])]
+    et = [x.astimezone(sc._et()).date() for x in inst]
+    utc = [x.astimezone(timezone.utc).date() for x in inst]
+    assert len(set(et)) == 3 and utc[0] == utc[1]          # a UTC-day counter would see only two days
+
+
+def _merged_source(rel: str, needle: str) -> tuple[str, str]:
+    p = REPO / rel
+    if p.is_file() and needle in p.read_text(encoding="utf-8", errors="replace"):
+        return p.read_text(encoding="utf-8"), "worktree"
+    for ref in MERGED_REFS:
+        r = subprocess.run(["git", "show", f"{ref}:{rel}"], cwd=str(REPO), capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        if r.returncode == 0 and needle in r.stdout:
+            return r.stdout, ref
+    raise AssertionError(f"no merged tree holds {rel} with {needle!r}")
+
+
+@pytest.fixture
+def merged_binding():
+    """The MERGED `trading_days` and `tool_binding` (this checkout once merged, else the wave 11 branches), loaded
+    as `api.*` modules (so the shim's scope covers them, as it covers the real ones in a served boot)."""
+    names = []
+
+    def load(rel, needle, name):
+        src, where = _merged_source(rel, needle)
+        mod = types.ModuleType(name)
+        mod.__file__ = f"<{where}:{rel}>"
+        sys.modules[name] = mod
+        names.append(name)
+        exec(compile(src, mod.__file__, "exec"), mod.__dict__)
+        return mod
+    td = load("api/services/journal_two/trading_days.py", "def last_session_of_week",
+              "api.services.journal_two._w11rail_trading_days")
+    tb = load("api/services/journal_two/tool_binding.py", "def for_day_label",
+              "api.services.journal_two._w11rail_tool_binding")
+    tb.trading_days = td                       # the binding reads ITS trading_days, the merged one
+    yield td, tb
+    for n in names:
+        sys.modules.pop(n, None)
+
+
+def _expected_bindings():
+    """(persona, instant, bind, label, day) from personas.json: the expectations the campaign asserts."""
+    out = []
+    for pid in ("P37", "P38"):
+        inst = rc.clock_instants(BY[pid])
+        for script in BY[pid]["scripts"]:
+            pv = next(s for s in script["steps"] if s["do"] == "w11_preview")["expect_tools"][0]
+            use = next(s for s in script["steps"] if s["do"] == "w11_use")["expect_embed"]
+            assert pv["forDayLabel"] == use["label"]
+            out.append((pid, inst[script.get("at", 0)], pv["bind"], pv["forDayLabel"], use["day"]))
+    return out
+
+
+@pytest.mark.parametrize("pid,instant,bind,label,day", _expected_bindings())
+def test_w11_clock_rail_the_shim_shifts_the_clock_the_merged_tool_binding_reads(merged_binding, pid, instant,
+                                                                                bind, label, day):
+    """THE clock rail. Under the launcher's shift, the MERGED tool_binding module's own `datetime` reads the persona's
+    instant, and the day it binds and the words it labels are exactly what personas.json asserts; uninstalled, it
+    reads the real clock again (the control: the same call is NOT the persona's answer today)."""
+    td, tb = merged_binding
+    shift = sc.ClockShift(sc.parse_clock(instant)).install()
+    try:
+        now = tb.datetime.now(timezone.utc)                          # the module's own clock read
+        assert abs((now - sc.parse_clock(instant)).total_seconds()) < 120, (pid, now)
+        assert td.today_et() == sc.parse_clock(instant).astimezone(sc._et()).date()
+        note_day = tb.note_day(daily_date=None, created_at=None, now=now)
+        bound = tb.bind_day(note_day, bind)
+        assert (bound, tb.for_day_label(bound, bind)) == (day, label), pid
+    finally:
+        shift.uninstall()
+    real = tb.datetime.now(timezone.utc)
+    assert abs((real - datetime.now(timezone.utc)).total_seconds()) < 5           # back on the real clock
+    assert tb.note_day(daily_date=None, created_at=None, now=real) != sc.parse_clock(instant).astimezone(
+        sc._et()).date().isoformat()
+
+
+def test_w11_clock_rail_the_shim_shifts_the_template_gallerys_now(merged_binding):
+    """The gallery stamps uses, credits and keys with `_now()` (template_gallery.py); the merged body is the same
+    one-liner this checkout's module has, and under the shift this checkout's module reads the persona's instant."""
+    from api.services.journal_two import template_gallery as tg
+    merged, _ = _merged_source("api/services/journal_two/template_gallery.py", "IDEMPOTENCY_HEADER")
+    body = "def _now() -> str:\n    return datetime.now(timezone.utc).isoformat()\n"
+    assert body in merged and body in (REPO / "api/services/journal_two/template_gallery.py").read_text(encoding="utf-8")
+    for instant in rc.clock_instants(BY["P41"]):
+        shift = sc.ClockShift(sc.parse_clock(instant)).install()
+        try:
+            got = datetime.fromisoformat(tg._now())
+            assert abs((got - sc.parse_clock(instant)).total_seconds()) < 120, instant
+        finally:
+            shift.uninstall()
+    assert abs((datetime.fromisoformat(tg._now()) - datetime.now(timezone.utc)).total_seconds()) < 5
+
+
+ARM_NAMES = {"ClockShift", "OffsetClock", "_make_classes", "_ScopedProxy", "_ShiftedModule", "neutralize_session_sweeps",
+             "apply_clock_env", "remint_sessions"}
+
+
+def _arming_sites(root: Path) -> list[str]:
+    hits = []
+    for path in root.rglob("*.py"):
+        rel = path.relative_to(REPO).as_posix()
+        if SKIP_DIRS & set(path.relative_to(REPO).parts) or rel.startswith("tests/") or rel.startswith("external/"):
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Import) and any(a.name.split(".")[-1] == "sandbox_clock" for a in n.names):
+                hits.append(f"{rel}: import sandbox_clock")
+            elif isinstance(n, ast.ImportFrom) and (n.module or "").split(".")[-1] == "sandbox_clock":
+                hits.append(f"{rel}: from sandbox_clock import")
+            elif isinstance(n, ast.Name) and n.id in ARM_NAMES:
+                hits.append(f"{rel}: {n.id}")
+            elif isinstance(n, ast.Attribute) and n.attr in ARM_NAMES:
+                hits.append(f"{rel}: .{n.attr}")
+    return hits
+
+
+def test_w11_clock_rail_only_the_launcher_arms_the_shift():
+    """Nothing outside the launcher can arm the shift: no module under api/, app/, scripts/ or tools/ (tests aside)
+    imports sandbox_clock or names its arming parts, except sandbox_clock.py itself; the campaign runner reaches it
+    only as a CHILD PROCESS (`ClockSandbox.start`'s argv); and the launcher reads no environment variable of its own
+    (a flag could arm it from outside)."""
+    launcher = "tools/notebook_campaign/sandbox_clock.py"
+    hits = [h for r in ("api", "app", "scripts", "tools") for h in _arming_sites(REPO / r)
+            if not h.startswith(launcher + ":")]
+    assert hits == []
+    src = inspect.getsource(rc.ClockSandbox.start)
+    assert "str(self.launcher)" in src and '"--clock"' in src and "subprocess.Popen" in src
+    tree = ast.parse((REPO / launcher).read_text(encoding="utf-8"))
+    reads = [ast.unparse(n) for n in ast.walk(tree)
+             if (isinstance(n, ast.Call) and ast.unparse(n.func) in ("os.environ.get", "os.getenv", "environ.get"))
+             or (isinstance(n, ast.Subscript) and ast.unparse(n.value) in ("os.environ", "environ")
+                 and isinstance(n.ctx, ast.Load))]
+    assert reads == []
+
+
+def test_control_the_arming_scan_finds_the_launchers_own_sites():
+    assert any(h.startswith("tools/notebook_campaign/sandbox_clock.py:") for h in _arming_sites(REPO / "tools"))
