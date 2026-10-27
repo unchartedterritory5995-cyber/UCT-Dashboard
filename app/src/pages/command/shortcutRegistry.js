@@ -321,6 +321,15 @@ export const SHORTCUTS = Object.freeze([
       + 'a non-modal step lets Tab through untouched.',
   }),
   decl({
+    // W11-R86: wave 11's My tools Templates tab added this raw (TemplatesTab.jsx); migrated unchanged.
+    id: 'myTools.templatesEscape',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Escape on the My tools Templates tab closes its open menu, else steps back from a template view to '
+      + 'the list. Bound while the tab is mounted; it acts only when the sheet panel it sits in is the topmost '
+      + 'one, and stops propagation when it acts. Window capture, inside a field too.',
+  }),
+  decl({
     id: 'notebook.bulkBar',
     chord: { code: 'KeyB', alt: true, shift: false, mod: 'either' },
     target: 'window', capture: false, inEditable: true, repeat: true,
@@ -477,6 +486,24 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   ...SURFACE_ESCAPES.map((id) => ack([id, 'notebook.tourEscape'], 'surface',
     'Escape matches both. The tour runs only on the Notebook, which never mounts this '
       + 'binding; and if both were live, each acts only when it is the topmost layer.')),
+  // W11-R86: the My tools Templates tab's Escape (migrated from its raw listener, behaviour unchanged).
+  ack(['myTools.templatesEscape', 'palette.close'], 'propagation',
+    'Escape matches both. The palette is not a sheet, so with it open over My tools the Templates tab is '
+      + 'still the topmost sheet panel: its window-capture binding runs before the document-capture binding of the palette '
+      + 'one and, when it acts (a menu open, or a template view to step back from), stops propagation, so '
+      + 'the palette stays open; on the plain list it does not act and the palette closes. Exactly what the '
+      + 'raw listener did.'),
+  ack(['myTools.templatesEscape', 'video.escape'], 'propagation',
+    'Escape matches both. The Templates tab listens in the window capture phase and stops propagation '
+      + 'when it acts, so the video binding (window bubble) never sees that press; on the plain list it does '
+      + 'not act and the video key works as usual.'),
+  ack(['myTools.templatesEscape', 'notebook.tourEscape'], 'layer',
+    'Escape matches both. Each acts only when its own layer is the topmost one (the tour its card, the '
+      + 'Templates tab its sheet panel), and each stops propagation when it acts, so one press is answered '
+      + 'by one of them.'),
+  ...SURFACE_ESCAPES.map((id) => ack([id, 'myTools.templatesEscape'], 'surface',
+    'Escape matches both. My tools opens only from the Notebook, which mounts none of the trader archive '
+      + 'lightbox, the screener layout menu or the admin study review.')),
   ack(['archive.lightboxClose', 'screener.gridMenuClose'], 'surface',
     'Escape matches both. One is on the trader archive, the other on the screener Charts '
       + 'view; they are never mounted on the same page.'),

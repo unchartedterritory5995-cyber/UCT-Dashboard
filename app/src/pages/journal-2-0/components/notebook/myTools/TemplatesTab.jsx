@@ -19,6 +19,7 @@ import {
   isLibraryCopy, keptUntilText, listHeadingText, notesWord, templateArchiveSentence, usedInText,
 } from './myToolsLib'
 import { libraryOn, openShare } from './libraryActions'
+import { registerShortcuts } from '../../../../command/shortcutRegistry'
 import styles from './myTools.module.css'
 
 /**
@@ -302,8 +303,9 @@ export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
       e.stopPropagation()
       k.back()
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    // W11-R86: through the shared key registry (declared there with its scope), so the key-listener census sees
+    // it. Same node (window), same phase (capture), same rule (every Escape, in a field too), same order.
+    return registerShortcuts({ 'myTools.templatesEscape': onKey })
   }, [])
 
   const gone = useCallback((text = TEMPLATE_COPY.gone) => {
