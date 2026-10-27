@@ -1,4 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import useHistoryUserId from '../../../components/chart/useHistoryUserId'
+import { recordIndicatorChange } from '../../../components/chart/indicatorHistoryStore'
+import { labelFor as indicatorLabelFor } from '../../../components/chart/indicatorCatalog'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import { ChartHostOverlayContext } from '../widgets/chartHostOverlay'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
@@ -204,6 +207,18 @@ export default function MobileChartsApp({
   csRef.current = cs
   const writeRef = useRef(write)
   writeRef.current = write
+  // ⭐ A1.2 — the ƒx sheet's hide / show / remove land on the SAME Undo stack the chart's
+  // StockChart toasts from (`chart:<widgetId>`, ChartPane's key), so the phone gets the
+  // "RSI hidden · Undo" toast too.
+  const historyUserId = useHistoryUserId()
+  const writeFromIndicatorSheet = useCallback((next) => {
+    if (chartWidget?.id) {
+      try {
+        recordIndicatorChange(`chart:${chartWidget.id}`, cs, next, { userId: historyUserId, labelOf: indicatorLabelFor, origin: chartWidget.id })
+      } catch { /* recording never blocks a write */ }
+    }
+    write(next)
+  }, [chartWidget?.id, cs, historyUserId, write])
   const chartWidgetId = chartWidget?.id || null
   useEffect(() => {
     if (!chartApiById || !chartWidgetId) return undefined
@@ -597,7 +612,9 @@ export default function MobileChartsApp({
         open={sheet === 'indicators'}
         onClose={closeSheet}
         cs={cs}
-        onWrite={write}
+        onWrite={writeFromIndicatorSheet}
+        historyKey={chartWidget?.id ? `chart:${chartWidget.id}` : null}
+        historyUserId={historyUserId}
         onBrowseLibrary={browseLibrary}
         onOpenSettings={openSettings}
         className={sheetTheme}
