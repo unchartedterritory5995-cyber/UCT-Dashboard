@@ -1,0 +1,186 @@
+{
+ "viewport": "820",
+ "step": "W11.10",
+ "title": "My tools -> Templates management",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "a row shows name, kind, 'Used in <N> notes', last edited, and the credit for a copy",
+   "ok": true,
+   "read": "Pre-market prep\nDaily prep\n·\nUsed in 1 note\n·\nEdited today\n·\nBased on UCT's Pre-market prep\nOpen"
+  },
+  {
+   "what": "an own template with no note reads 'Not in any note' and no credit",
+   "ok": true,
+   "read": "Share source 820\nDaily prep\n·\nNot in any note\n·\nEdited today\nOpen"
+  },
+  {
+   "what": "Active row actions: Open, Rename, Duplicate, Share to library, Archive (no Delete permanently)",
+   "ok": true,
+   "read": "[\"\\u00d7\", \"Open\", \"Rename\", \"Duplicate\", \"Share to library\", \"Archive\"]"
+  },
+  {
+   "what": "Duplicate makes a copy ('Made “<name>”.')",
+   "ok": true,
+   "read": "Made “Share source 820 copy”."
+  },
+  {
+   "what": "Rename -> 'Renamed to “Manage me 820”.'",
+   "ok": true,
+   "read": "Renamed to “Manage me 820”."
+  },
+  {
+   "what": "Archive of a template in 1 notes reads \"It stays in your 1 note. New notes can't use it until you restore it.\"",
+   "ok": true,
+   "read": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nBack\nArchive “Pre-market prep”?\n\nIt stays in your 1 note. New notes can't use it until you restore it.\n\nIt leaves your template list; you can restore it from Archived.\n\nCancel\nArchive"
+  },
+  {
+   "what": "Archive of a template in no note says \"New notes can't use it until you restore it.\" (the menu item's hint)",
+   "ok": true,
+   "read": "New notes can't use it until you restore it. [Archive] | "
+  },
+  {
+   "what": "the archived template is GONE from the picker",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Archived row actions: Restore and Delete permanently",
+   "ok": true,
+   "read": "[\"\\u00d7\", \"Restore\", \"Delete permanently\"]"
+  },
+  {
+   "what": "Restore brings it back to Active",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "restored, it is back in the picker",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Delete permanently needs the name typed (DeleteConfirm)",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the delete button is off until the name is typed",
+   "ok": true,
+   "read": "true"
+  },
+  {
+   "what": "Recently deleted lists it with 'Kept until Nov 26'",
+   "ok": true,
+   "read": "Manage me 820\nDeleted Oct 27\n·\nKept until Nov 26\nRestore"
+  },
+  {
+   "what": "Recently deleted offers Restore",
+   "ok": true,
+   "read": "[\"\\u00d7\", \"Restore\"]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Templates rows",
+   "text": "[\"Pre-market prep\\nDaily prep\\n\\u00b7\\nUsed in 1 note\\n\\u00b7\\nEdited today\\n\\u00b7\\nBased on UCT's Pre-market prep\\nOpen\", \"Share source 820\\nDaily prep\\n\\u00b7\\nNot in any note\\n\\u00b7\\nEdited today\\nOpen\"]"
+  },
+  {
+   "what": "Active row menu",
+   "text": "[\"\\u00d7\", \"Open\", \"Rename\", \"Duplicate\", \"Share to library\", \"Archive\"]"
+  },
+  {
+   "what": "after Duplicate",
+   "text": "Made “Share source 820 copy”."
+  },
+  {
+   "what": "Archive item (with its hint)",
+   "text": "New notes can't use it until you restore it. [Archive]"
+  },
+  {
+   "what": "after Archive",
+   "text": "Archived “Manage me 820”. Restore it from Archived."
+  },
+  {
+   "what": "Pre-market prep Archive panel",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nBack\nArchive “Pre-market prep”?\n\nIt stays in your 1 note. New notes can't use it until you restore it.\n\nIt leaves your template list; you can restore it from Archived.\n\nCancel\nArchive"
+  },
+  {
+   "what": "Archived list",
+   "text": "[\"Manage me 820\\nDaily prep\\n\\u00b7\\nNot in any note\\n\\u00b7\\nEdited today\\nRestore\"]"
+  },
+  {
+   "what": "after Restore",
+   "text": "Restored “Manage me 820” to your templates."
+  },
+  {
+   "what": "after delete",
+   "text": "“Manage me 820” moved to Recently deleted. It's kept for 30 days."
+  },
+  {
+   "what": "Recently deleted",
+   "text": "[\"Manage me 820\\nDeleted Oct 27\\n\\u00b7\\nKept until Nov 26\\nRestore\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "For a template in no note the sentence is the Archive item's title / aria-description only (not visible text, and no tooltip on touch); the visible message after archiving reads: "
+ ],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "templates-tab": {
+   "overflow": {
+    "vw": 820,
+    "docScrollWidth": 820,
+    "bodyScrollWidth": 820,
+    "inner": [
+     [
+      820,
+      820
+     ],
+     [
+      772,
+      772
+     ],
+     [
+      506,
+      506
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 13,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "820/W11_10-mytools.png",
+  "820/W11_10-archive-panel.png",
+  "820/W11_10-delete-confirm.png",
+  "820/W11_10-recently-deleted.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:24:21",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:26:05"
+}

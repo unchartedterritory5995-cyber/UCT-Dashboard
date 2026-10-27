@@ -1,0 +1,44 @@
+{
+ "viewport": "1200",
+ "step": "W11.16",
+ "title": "Reduced motion",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "reduced motion: the share preview's number switch has no transition",
+   "ok": true,
+   "read": "[\"1e-05s|all\", \"1e-05s|none\"]"
+  },
+  {
+   "what": "no-preference: the transition exists",
+   "ok": true,
+   "read": "[\"0s|all\", \"0.15s|left\"]"
+  },
+  {
+   "what": "reduced motion: nothing in the library animates",
+   "ok": true,
+   "read": "0"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "transitions by motion setting",
+   "text": "{\"reduce\": {\"library_running_animations\": 0, \"switch_transitions\": [\"1e-05s|all\", \"1e-05s|none\"]}, \"no-preference\": {\"library_running_animations\": 0, \"switch_transitions\": [\"0s|all\", \"0.15s|left\"]}}"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A-reduce": [],
+  "A-no-preference": []
+ },
+ "metrics": {},
+ "screenshots": [
+  "1200/W11_16-motion-on.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:13:09",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:14:07"
+}

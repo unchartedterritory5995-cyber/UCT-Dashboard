@@ -1,0 +1,26 @@
+{
+ "viewport": "1200",
+ "step": "W11.13",
+ "title": "390 with the keyboard open",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "not applicable at this viewport",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [],
+ "verdict": "PASS",
+ "notes": [
+  "390 only"
+ ],
+ "events": {},
+ "metrics": {},
+ "screenshots": [],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:07:09",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:07:09"
+}

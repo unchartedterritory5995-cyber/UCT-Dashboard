@@ -1,0 +1,381 @@
+{
+ "viewport": "390",
+ "step": "W11.17",
+ "title": "Chips and doors",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "door: TemplatePicker's Template library section",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "every library card carries one type chip 'Template'",
+   "ok": true,
+   "read": "27 chips"
+  },
+  {
+   "what": "the search filters the library by title, description and contains",
+   "ok": true,
+   "read": "[\"Night-before prep\", \"Earnings day prep\", \"Pre-market prep\"]"
+  },
+  {
+   "what": "the 'Daily & weekly rituals' chip keeps exactly the ['after_close', 'before_open', 'challenges', 'habits', 'night_before', 'weekly_monthly'] groups",
+   "ok": true,
+   "read": "[\"after_close\", \"before_open\", \"challenges\", \"habits\", \"night_before\", \"weekly_monthly\"]"
+  },
+  {
+   "what": "R8: 'Night-before prep' is under the 'Daily & weekly rituals' chip",
+   "ok": true,
+   "read": "[\"Night-before prep\", \"Watchlist review\", \"Earnings day prep\", \"Game plan\", \"Pre-market prep\", \"Tilt reset\", \"Mistake log entry\", \"Trade post-mortem\", \"Tag today's trades\", \"End-of-day recap\", \"Goal setting\", \"Year in review\", \"Quarterly edge review\", \"Monthly review\", \"Weekend swing review\", \"Weekly review\", \"30-day consistency challenge\", \"Prop-firm challenge tracker\", \"Trading-day tracker set\", \"Morning routine\"]"
+  },
+  {
+   "what": "R8: 'Pre-market prep' is under the 'Daily & weekly rituals' chip",
+   "ok": true,
+   "read": "[\"Night-before prep\", \"Watchlist review\", \"Earnings day prep\", \"Game plan\", \"Pre-market prep\", \"Tilt reset\", \"Mistake log entry\", \"Trade post-mortem\", \"Tag today's trades\", \"End-of-day recap\", \"Goal setting\", \"Year in review\", \"Quarterly edge review\", \"Monthly review\", \"Weekend swing review\", \"Weekly review\", \"30-day consistency challenge\", \"Prop-firm challenge tracker\", \"Trading-day tracker set\", \"Morning routine\"]"
+  },
+  {
+   "what": "R8: 'Morning routine' is under the 'Daily & weekly rituals' chip",
+   "ok": true,
+   "read": "[\"Night-before prep\", \"Watchlist review\", \"Earnings day prep\", \"Game plan\", \"Pre-market prep\", \"Tilt reset\", \"Mistake log entry\", \"Trade post-mortem\", \"Tag today's trades\", \"End-of-day recap\", \"Goal setting\", \"Year in review\", \"Quarterly edge review\", \"Monthly review\", \"Weekend swing review\", \"Weekly review\", \"30-day consistency challenge\", \"Prop-firm challenge tracker\", \"Trading-day tracker set\", \"Morning routine\"]"
+  },
+  {
+   "what": "R5: the active 'Daily & weekly rituals' chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "[{\"text\": \"Daily & weekly rituals\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 139.6, \"h\": 44}]"
+  },
+  {
+   "what": "R6: every picker/library chip is >= 44 x 44 on the touch tier ('Daily & weekly rituals' active)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the 'Around a trade' chip keeps exactly the ['during_day'] groups",
+   "ok": true,
+   "read": "[\"during_day\"]"
+  },
+  {
+   "what": "R5: the active 'Around a trade' chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "[{\"text\": \"Around a trade\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 103.8, \"h\": 44}]"
+  },
+  {
+   "what": "R6: every picker/library chip is >= 44 x 44 on the touch tier ('Around a trade' active)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the 'Thesis & research' chip keeps exactly the ['playbook'] groups",
+   "ok": true,
+   "read": "[\"playbook\"]"
+  },
+  {
+   "what": "R5: the active 'Thesis & research' chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "[{\"text\": \"Thesis & research\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 121.1, \"h\": 44}]"
+  },
+  {
+   "what": "R6: every picker/library chip is >= 44 x 44 on the touch tier ('Thesis & research' active)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the 'Mindset' chip keeps exactly the ['mindset'] groups",
+   "ok": true,
+   "read": "[\"mindset\"]"
+  },
+  {
+   "what": "R8: 'Pre-session check-in' is under the 'Mindset' chip",
+   "ok": true,
+   "read": "[\"Pre-session check-in\"]"
+  },
+  {
+   "what": "R5: the active 'Mindset' chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "[{\"text\": \"Mindset\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 65.5, \"h\": 44}]"
+  },
+  {
+   "what": "R6: every picker/library chip is >= 44 x 44 on the touch tier ('Mindset' active)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "R8: every library template sits under exactly one chip",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "'Your templates' hides the library section",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "door: the community gallery opens from the picker",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "gallery cards carry type chips (Template / Widget / Routine / Tracker present)",
+   "ok": true,
+   "read": "[\"Routine\", \"Template\", \"Tracker\", \"Widget\"]"
+  },
+  {
+   "what": "R5: every active gallery chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "[{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 63.5, \"h\": 44}, {\"text\": \"Widgets\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 66.6, \"h\": 44}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 44, \"h\": 44}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chi"
+  },
+  {
+   "what": "R6: every gallery filter chip is >= 44 x 44 on the touch tier",
+   "ok": true,
+   "read": "[{\"text\": \"Browse\", \"w\": 63.5, \"h\": 44}, {\"text\": \"Your submissions\", \"w\": 120.8, \"h\": 44}, {\"text\": \"Following\", \"w\": 75.7, \"h\": 44}, {\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Outlines\", \"w\": 68, \"h\": 44}, {\"text\": \"Styles\", \"w\": 55.9, \"h\": 44}, {\"text\": \"Widgets\", \"w\": 66.6, \"h\": 44}, {\"text\": \"Routines\", \"w\": 71.2, \"h\": 44}, {\"text\": \"Trackers\", \"w\": 69.3, \"h\": 44}, {\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Swing\", \"w\": 55.9, \"h\": 44}, {\"text\": \"Day\", \"w\": 44, \"h\": 44}, {\"text\": \"Prop\","
+  },
+  {
+   "what": "door: My tools -> Templates",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "door: 'Manage my tools' is in the / menu (end of the Mine group)",
+   "ok": true,
+   "read": "[\"My watchlist today\\nYour names: price, move, earnings; refreshes\", \"My names reporting\\nEarnings this week with expected move\", \"Market on my names\\nYour names vs their sector; refreshes\", \"Room buzz on my names\\nYour names in the room\", \"My earnings reactions\\nResults and the move after\", \"Ticker"
+  },
+  {
+   "what": "door: 'Manage…' in the ⋯ menu of a placed built widget",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Manage…' on the built widget opens My tools",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "door: 'Manage…' in the ⋯ menu of a placed routine",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Manage…' on the routine opens My tools",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "door: 'Manage…' in the ⋯ menu of a placed tracker",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Manage…' on the tracker opens My tools",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "search 'prep' keeps",
+   "text": "[\"Night-before prep\", \"Earnings day prep\", \"Pre-market prep\"]"
+  },
+  {
+   "what": "chip 'Daily & weekly rituals' keeps",
+   "text": "[\"Night-before prep\", \"Watchlist review\", \"Earnings day prep\", \"Game plan\", \"Pre-market prep\", \"Tilt reset\", \"Mistake log entry\", \"Trade post-mortem\", \"Tag today's trades\", \"End-of-day recap\", \"Goal setting\", \"Year in review\", \"Quarterly edge review\", \"Monthly review\", \"Weekend swing review\", \"Weekly review\", \"30-day consistency challenge\", \"Prop-firm challenge tracker\", \"Trading-day tracker set\", \"Morning routine\"]"
+  },
+  {
+   "what": "chip 'Daily & weekly rituals': active chip contrast / sizes",
+   "text": "{\"active\": {\"rest\": [{\"text\": \"Daily & weekly rituals\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 139.6, \"h\": 44}], \"hover\": []}, \"sizes\": [{\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Daily & weekly rituals\", \"w\": 139.6, \"h\": 44}, {\"text\": \"Thesis & research\", \"w\": 121.1, \"h\": 44}, {\"text\": \"Around a trade\", \"w\": 103.8, \"h\": 44}, {\"text\": \"Mindset\", \"w\": 65.5, \"h\": 44}, {\"text\": \"Your templates\", \"w\": 104.2, \"h\": 44}]}"
+  },
+  {
+   "what": "chip 'Around a trade' keeps",
+   "text": "[\"Trade plan (one idea)\", \"Mid-day and risk check\"]"
+  },
+  {
+   "what": "chip 'Around a trade': active chip contrast / sizes",
+   "text": "{\"active\": {\"rest\": [{\"text\": \"Around a trade\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 103.8, \"h\": 44}], \"hover\": []}, \"sizes\": [{\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Daily & weekly rituals\", \"w\": 139.6, \"h\": 44}, {\"text\": \"Thesis & research\", \"w\": 121.1, \"h\": 44}, {\"text\": \"Around a trade\", \"w\": 103.8, \"h\": 44}, {\"text\": \"Mindset\", \"w\": 65.5, \"h\": 44}, {\"text\": \"Your templates\", \"w\": 104.2, \"h\": 44}]}"
+  },
+  {
+   "what": "chip 'Thesis & research' keeps",
+   "text": "[\"Options trade plan\", \"Rules review\", \"New setup idea\", \"Setup study\"]"
+  },
+  {
+   "what": "chip 'Thesis & research': active chip contrast / sizes",
+   "text": "{\"active\": {\"rest\": [{\"text\": \"Thesis & research\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 121.1, \"h\": 44}], \"hover\": []}, \"sizes\": [{\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Daily & weekly rituals\", \"w\": 139.6, \"h\": 44}, {\"text\": \"Thesis & research\", \"w\": 121.1, \"h\": 44}, {\"text\": \"Around a trade\", \"w\": 103.8, \"h\": 44}, {\"text\": \"Mindset\", \"w\": 65.5, \"h\": 44}, {\"text\": \"Your templates\", \"w\": 104.2, \"h\": 44}]}"
+  },
+  {
+   "what": "chip 'Mindset' keeps",
+   "text": "[\"Pre-session check-in\"]"
+  },
+  {
+   "what": "chip 'Mindset': active chip contrast / sizes",
+   "text": "{\"active\": {\"rest\": [{\"text\": \"Mindset\", \"cls\": \"_chip_1jkdr_258 _chipActive_1jkdr_278\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 65.5, \"h\": 44}], \"hover\": []}, \"sizes\": [{\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Daily & weekly rituals\", \"w\": 139.6, \"h\": 44}, {\"text\": \"Thesis & research\", \"w\": 121.1, \"h\": 44}, {\"text\": \"Around a trade\", \"w\": 103.8, \"h\": 44}, {\"text\": \"Mindset\", \"w\": 65.5, \"h\": 44}, {\"text\": \"Your templates\", \"w\": 104.2, \"h\": 44}]}"
+  },
+  {
+   "what": "gallery type chips",
+   "text": "[\"Routine\", \"Template\", \"Tracker\", \"Widget\"]"
+  },
+  {
+   "what": "gallery: active chips / chip sizes",
+   "text": "{\"active\": {\"rest\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 63.5, \"h\": 44}, {\"text\": \"Widgets\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 66.6, \"h\": 44}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 44, \"h\": 44}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 44, \"h\": 44}], \"hover\": []}, \"sizes\": [{\"text\": \"Browse\", \"w\": 63.5, \"h\": 44}, {\"text\": \"Your submissions\", \"w\": 120.8, \"h\": 44}, {\"text\": \"Following\", \"w\": 75.7, \"h\": 44}, {\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Outlines\", \"w\": 68, \"h\": 44}, {\"text\": \"Styles\", \"w\": 55.9, \"h\": 44}, {\"text\": \"Widgets\", \"w\": 66.6, \"h\": 44}, {\"text\": \"Routines\", \"w\": 71.2, \"h\": 44}, {\"text\": \"Trackers\", \"w\": 69.3, \"h\": 44}, {\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Swing\", \"w\": 55.9, \"h\": 44}, {\"text\": \"Day\", \"w\": 44, \"h\": 44}, {\"text\": \"Prop\", \"w\": 48.2, \"h\": 44}, {\"text\": \"Options\", \"w\": 65.5, \"h\": 44}, {\"text\": \"Earnings\", \"w\": 71.2, \"h\": 44}, {\"text\": \"Long-term\", \"w\": 78.9, \"h\": 44}, {\"text\": \"All\", \"w\": 44, \"h\": 44}, {\"text\": \"Trade plan\", \"w\": 79.5, \"h\": 44}, {\"text\": \"Journal\", \"w\": 63.5, \"h\": 44}, {\"text\": \"Research\", \"w\": 73.8, \"h\": 44}, {\"text\": \"Review\", \"w\": 61.6, \"h\": 44}]}"
+  },
+  {
+   "what": "/ menu rows",
+   "text": "[\"My watchlist today\\nYour names: price, move, earnings; refreshes\", \"My names reporting\\nEarnings this week with expected move\", \"Market on my names\\nYour names vs their sector; refreshes\", \"Room buzz on my names\\nYour names in the room\", \"My earnings reactions\\nResults and the move after\", \"Ticker card\\nType a symbol \\u2014 e.g. /ticker NVDA\", \"Options flow on a ticker\\nType a symbol \\u2014 e.g. /flow NVDA\", \"Chart\\nType a symbol \\u2014 e.g. /chart AMD 15m or /chart AMD D 3/13\", \"MTF stack\\nType a symbol \\u2014 e.g. /mtf AMD (D + 1h + 15m), /mtf AMD W (W + D + 1h); add a date to anchor\", \"Before / after\\nType symbol + day \\u2014 e.g. /compare AMD 3/13 (add 15m for intraday)\", \"Versus\\nType a symbol \\u2014 e.g. /vs AMD (beside SPY, QQQ, its sector or theme ETF)\", \"Price\\nType a symbol \\u2"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "gallery": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 248,
+    "small": [
+     {
+      "label": "Use Sleep 390",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 15548,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Prep routine 390",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 15727,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Setup win rate 390",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 15961,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Sleep 820",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 16433,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Prep routine 820",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 16612,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Setup win rate 820",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 16846,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Sleep 1200",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 17318,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Prep routine 1200",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 17496,
+      "offscreen": true,
+      "covered": true
+     },
+     {
+      "label": "Use Setup win rate 1200",
+      "tag": "BUTTON",
+      "cls": "_btn_6z3ba_441 _primary_6z3ba_493",
+      "w": 41,
+      "h": 44,
+      "x": 32,
+      "y": 17731,
+      "offscreen": true,
+      "covered": true
+     }
+    ],
+    "smallCount": 9,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/W11_17-picker.png",
+  "390/W11_17-gallery.png",
+  "390/W11_17-gallery-chips.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:47:49",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:48:59"
+}

@@ -1,0 +1,130 @@
+[mode] walk-w11off pid=3056 instant=2026-10-27T06:01:05-05:00 port=8151 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-w11off.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-w11off.err.log
+walk start
+    [06:01:18] saw identity
+    [06:01:18] ok  identity data_dir = the walk data dir
+    [06:01:18] ok  identity pid = the recorded PID 3056
+    [06:01:18] ok  identity clock_shift.instant = the mode's instant 2026-10-27T06:01:05-05:00
+    [06:01:18] ok  GET /api/auth/me as A answers 200
+    [06:01:18] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:01:18] ok  notebook_widgets_w8_enabled is True
+    [06:01:18] ok  notebook_widgets_w9_enabled is True
+    [06:01:18] ok  notebook_widgets_w10_enabled is True
+    [06:01:18] ok  notebook_widgets_w11_enabled is False
+    [06:01:18] ok  notebook_style_library_enabled is true
+    [06:01:18] ok  GET /api/j2/template-gallery/library answers 404
+    [06:01:18] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:01:18] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:01:18] saw boot log lines
+[1200 W11.0] PASS  checks 26/26  findings 0
+    [06:01:18] saw identity
+    [06:01:18] ok  identity data_dir = the walk data dir
+    [06:01:18] ok  identity pid = the recorded PID 3056
+    [06:01:18] ok  identity clock_shift.instant = the mode's instant 2026-10-27T06:01:05-05:00
+    [06:01:18] ok  GET /api/auth/me as A answers 200
+    [06:01:18] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:01:18] ok  notebook_widgets_w8_enabled is True
+    [06:01:18] ok  notebook_widgets_w9_enabled is True
+    [06:01:18] ok  notebook_widgets_w10_enabled is True
+    [06:01:18] ok  notebook_widgets_w11_enabled is False
+    [06:01:18] ok  notebook_style_library_enabled is true
+    [06:01:18] ok  GET /api/j2/template-gallery/library answers 404
+    [06:01:18] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:01:18] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:01:18] saw boot log lines
+[820 W11.0] PASS  checks 26/26  findings 0
+    [06:01:18] saw identity
+    [06:01:18] ok  identity data_dir = the walk data dir
+    [06:01:18] ok  identity pid = the recorded PID 3056
+    [06:01:18] ok  identity clock_shift.instant = the mode's instant 2026-10-27T06:01:05-05:00
+    [06:01:18] ok  GET /api/auth/me as A answers 200
+    [06:01:18] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:01:18] ok  notebook_widgets_w8_enabled is True
+    [06:01:18] ok  notebook_widgets_w9_enabled is True
+    [06:01:18] ok  notebook_widgets_w10_enabled is True
+    [06:01:18] ok  notebook_widgets_w11_enabled is False
+    [06:01:18] ok  notebook_style_library_enabled is true
+    [06:01:19] ok  GET /api/j2/template-gallery/library answers 404
+    [06:01:19] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:01:19] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:01:19] saw boot log lines
+[390 W11.0] PASS  checks 26/26  findings 0
+[mode] walk-w11off pid=3056 instant=2026-10-27T06:01:05-05:00 port=8151 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-w11off.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-w11off.err.log
+walk start
+    [06:01:57] saw off: /api/auth/me w11 / library status
+    [06:01:57] ok  off: /api/auth/me notebook_widgets_w11_enabled is False
+    [06:01:57] ok  off: GET /template-gallery/library answers 404
+    [06:02:09] ok  off: the Template library section is gone
+    [06:02:12] ok  off: the three new item types are gone in the gallery
+    [06:02:28] ok  W11OFF: My tools > Templates reads 'Templates are coming soon.'
+    [06:02:52] saw off: note w112_note rendered
+    [06:02:52] ok  off: note w112_note unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:02:52] ok  off: note w112_note renders the same text as before the flip (plan W11.12)
+    [06:02:52] saw off: note w112_note writes while opening it / stored body same / updatedAt
+    [06:02:52] ok  off: opening note w112_note sends no note PUT (the flip never rewrites a member's note)
+    [06:03:14] saw off: note share_note rendered
+    [06:03:14] ok  off: note share_note unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:03:14] ok  off: note share_note renders the same text as before the flip (plan W11.12)
+    [06:03:14] saw off: note share_note writes while opening it / stored body same / updatedAt
+    [06:03:14] ok  off: opening note share_note sends no note PUT (the flip never rewrites a member's note)
+    [06:03:36] saw off: note a_tplnote rendered
+    [06:03:36] ok  off: note a_tplnote unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:03:36] ok  off: note a_tplnote renders the same text as before the flip (plan W11.12)
+    [06:03:36] saw off: note a_tplnote writes while opening it / stored body same / updatedAt
+    [06:03:36] ok  off: opening note a_tplnote sends no note PUT (the flip never rewrites a member's note)
+    [06:03:51] saw off: style editor blocks
+    [06:03:51] ok  W11OFF: a style holding slots opens in the style editor without them
+    [06:03:53] saw off: stored style blocks after save
+[1200 W11.12] FAIL  checks 18/19  findings 0
+   x ON (before the flip): opening note w112_note sends no note PUT | [{"m": "PUT", "u": "http://127.0.0.1:8151/api/j2/notes/a0bbe4570a9a44f7843ab45c35542991", "s": 200}]
+    [06:03:53] saw off: /api/auth/me w11 / library status
+    [06:03:53] ok  off: /api/auth/me notebook_widgets_w11_enabled is False
+    [06:03:53] ok  off: GET /template-gallery/library answers 404
+    [06:04:06] ok  off: the Template library section is gone
+    [06:04:08] ok  off: the three new item types are gone in the gallery
+    [06:04:24] ok  W11OFF: My tools > Templates reads 'Templates are coming soon.'
+    [06:04:48] saw off: note w112_note rendered
+    [06:04:48] ok  off: note w112_note unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:04:48] ok  off: note w112_note renders the same text as before the flip (plan W11.12)
+    [06:04:48] saw off: note w112_note writes while opening it / stored body same / updatedAt
+    [06:04:48] ok  off: opening note w112_note sends no note PUT (the flip never rewrites a member's note)
+    [06:05:10] saw off: note share_note rendered
+    [06:05:10] ok  off: note share_note unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:05:10] ok  off: note share_note renders the same text as before the flip (plan W11.12)
+    [06:05:10] saw off: note share_note writes while opening it / stored body same / updatedAt
+    [06:05:10] ok  off: opening note share_note sends no note PUT (the flip never rewrites a member's note)
+    [06:05:32] saw off: note a_tplnote rendered
+    [06:05:32] ok  off: note a_tplnote unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:05:32] ok  off: note a_tplnote renders the same text as before the flip (plan W11.12)
+    [06:05:32] saw off: note a_tplnote writes while opening it / stored body same / updatedAt
+    [06:05:32] ok  off: opening note a_tplnote sends no note PUT (the flip never rewrites a member's note)
+    [06:05:47] saw off: style editor blocks
+    [06:05:47] ok  W11OFF: a style holding slots opens in the style editor without them
+    [06:05:50] saw off: stored style blocks after save
+[820 W11.12] FAIL  checks 18/19  findings 0
+   x ON (before the flip): opening note w112_note sends no note PUT | [{"m": "PUT", "u": "http://127.0.0.1:8151/api/j2/notes/94187b05387846b78ac1f1dc8b233f29", "s": 200}]
+    [06:05:50] saw off: /api/auth/me w11 / library status
+    [06:05:50] ok  off: /api/auth/me notebook_widgets_w11_enabled is False
+    [06:05:50] ok  off: GET /template-gallery/library answers 404
+    [06:06:02] ok  off: the Template library section is gone
+    [06:06:05] ok  off: the three new item types are gone in the gallery
+    [06:06:20] ok  W11OFF: My tools > Templates reads 'Templates are coming soon.'
+    [06:06:44] saw off: note w112_note rendered
+    [06:06:44] ok  off: note w112_note unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:06:44] ok  off: note w112_note renders the same text as before the flip (plan W11.12)
+    [06:06:44] saw off: note w112_note writes while opening it / stored body same / updatedAt
+    [06:06:44] ok  off: opening note w112_note sends no note PUT (the flip never rewrites a member's note)
+    [06:07:06] saw off: note share_note rendered
+    [06:07:06] ok  off: note share_note unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:07:06] ok  off: note share_note renders the same text as before the flip (plan W11.12)
+    [06:07:06] saw off: note share_note writes while opening it / stored body same / updatedAt
+    [06:07:06] ok  off: opening note share_note sends no note PUT (the flip never rewrites a member's note)
+    [06:07:34] saw off: note a_tplnote rendered
+    [06:07:34] ok  off: note a_tplnote unchanged: same block count and kinds as before the flip (plan W11.12)
+    [06:07:34] ok  off: note a_tplnote renders the same text as before the flip (plan W11.12)
+    [06:07:34] saw off: note a_tplnote writes while opening it / stored body same / updatedAt
+    [06:07:34] ok  off: opening note a_tplnote sends no note PUT (the flip never rewrites a member's note)
+    [06:07:48] saw off: style editor blocks
+    [06:07:48] ok  W11OFF: a style holding slots opens in the style editor without them
+    [06:07:51] saw off: stored style blocks after save
+[390 W11.12] FAIL  checks 18/19  findings 0
+   x ON (before the flip): opening note w112_note sends no note PUT | [{"m": "PUT", "u": "http://127.0.0.1:8151/api/j2/notes/254af0294bdd49bc82df82e1e47f3b96", "s": 200}]

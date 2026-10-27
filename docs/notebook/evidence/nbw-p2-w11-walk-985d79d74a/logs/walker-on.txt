@@ -1,0 +1,1114 @@
+[mode] walk-on pid=32712 instant=2026-10-27T04:57:11-05:00 port=8151 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.err.log
+walk start
+    [04:57:31] saw identity
+    [04:57:31] ok  identity data_dir = the walk data dir
+    [04:57:31] ok  identity pid = the recorded PID 32712
+    [04:57:31] ok  identity clock_shift.instant = the mode's instant 2026-10-27T04:57:11-05:00
+    [04:57:31] ok  GET /api/auth/me as A answers 200
+    [04:57:31] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [04:57:31] ok  notebook_widgets_w8_enabled is True
+    [04:57:31] ok  notebook_widgets_w9_enabled is True
+    [04:57:31] ok  notebook_widgets_w10_enabled is True
+    [04:57:31] ok  notebook_widgets_w11_enabled is True
+    [04:57:31] ok  notebook_style_library_enabled is true
+    [04:57:31] ok  GET /api/j2/template-gallery/library answers 200
+    [04:57:32] ok  boot log: '[startup] notebook routine reminders registered' present
+    [04:57:32] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [04:57:32] saw boot log lines
+[1200 W11.0] PASS  checks 13/13  findings 0
+    [04:57:32] saw identity
+    [04:57:32] ok  identity data_dir = the walk data dir
+    [04:57:32] ok  identity pid = the recorded PID 32712
+    [04:57:32] ok  identity clock_shift.instant = the mode's instant 2026-10-27T04:57:11-05:00
+    [04:57:32] ok  GET /api/auth/me as A answers 200
+    [04:57:32] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [04:57:32] ok  notebook_widgets_w8_enabled is True
+    [04:57:32] ok  notebook_widgets_w9_enabled is True
+    [04:57:32] ok  notebook_widgets_w10_enabled is True
+    [04:57:32] ok  notebook_widgets_w11_enabled is True
+    [04:57:32] ok  notebook_style_library_enabled is true
+    [04:57:32] ok  GET /api/j2/template-gallery/library answers 200
+    [04:57:32] ok  boot log: '[startup] notebook routine reminders registered' present
+    [04:57:32] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [04:57:32] saw boot log lines
+[820 W11.0] PASS  checks 13/13  findings 0
+    [04:57:32] saw identity
+    [04:57:32] ok  identity data_dir = the walk data dir
+    [04:57:32] ok  identity pid = the recorded PID 32712
+    [04:57:32] ok  identity clock_shift.instant = the mode's instant 2026-10-27T04:57:11-05:00
+    [04:57:32] ok  GET /api/auth/me as A answers 200
+    [04:57:32] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [04:57:32] ok  notebook_widgets_w8_enabled is True
+    [04:57:32] ok  notebook_widgets_w9_enabled is True
+    [04:57:32] ok  notebook_widgets_w10_enabled is True
+    [04:57:32] ok  notebook_widgets_w11_enabled is True
+    [04:57:32] ok  notebook_style_library_enabled is true
+    [04:57:32] ok  GET /api/j2/template-gallery/library answers 200
+    [04:57:32] ok  boot log: '[startup] notebook routine reminders registered' present
+    [04:57:32] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [04:57:32] saw boot log lines
+[390 W11.0] PASS  checks 13/13  findings 0
+[mode] walk-on pid=32712 instant=2026-10-27T04:57:11-05:00 port=8151 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.err.log
+walk start
+    [04:57:36] saw section heading
+    [04:57:36] ok  section heading reads 'Template library'
+    [04:57:36] saw groups in order
+    [04:57:36] ok  groups appear in the server/LIBRARY_GROUPS order
+    [04:57:37] saw first card
+    [04:57:37] saw cards
+    [04:57:37] ok  every card: Template chip, author, For:, Contains: (when it holds any), Used by/New (never 0), Updated <Mon D>
+    [04:57:37] ok  cards read 'Updated Oct 27' (listed today ET)
+    [04:57:37] ok  the list makes NO preview-mine request
+    [04:57:37] ok  no zeros on the picker
+    [04:57:42] saw detail sheet
+    [04:57:42] ok  the detail makes exactly ONE preview-mine
+    [04:57:42] ok  no card is labelled 'Sample data' (A has trades)
+    [04:57:42] ok  the routine slot shows its name, items and bind words ('For Tue Oct 27')
+    [04:57:42] ok  no day state in the detail (no tick control)
+    [04:57:42] ok  credit line 'Based on UCT's Pre-market prep'
+    [04:57:42] ok  the outline shows headings and prompts, no raw {{block:...}} placeholder
+[1200 W11.1] PASS  checks 12/12  findings 0
+    [04:57:54] saw adopt sheet
+    [04:57:54] saw reuse question radios
+    [04:57:54] saw A's routines before
+    [04:57:54] ok  A's own 'Morning routine' (best match) is pre-selected: 'Use your Morning routine'
+    [04:57:55] ok  chose 'Create Pre-market routine from the template'
+    [04:58:00] NO  W11.2: after Use the new note is in front (no sheet left open over it)
+    [04:58:06] saw new note
+    [04:58:06] ok  navigated to a new note holding the prep blocks
+    [04:58:06] ok  the routine block is bound to the note's day ('For Tue Oct 27')
+    [04:58:06] ok  no raw {{block:..}} placeholder in the note
+    [04:58:06] ok  snapshot blocks are filled (numbers, not placeholders)
+    [04:58:06] saw focus before Tab
+    [04:58:06] ok  the routine items are reachable by Tab
+    [04:58:08] ok  Space toggles the item (the tick shows)
+    [04:58:08] ok  ticking sends ZERO note PUTs (§6.2)
+    [04:58:15] ok  after reload the tick is still there
+    [04:58:15] ok  after reload the note shows no unsaved change (updatedAt unchanged by open + tick)
+    [04:58:15] ok  no note PUT across tick + reload
+[1200 W11.2] FAIL  checks 12/13  findings 1
+   x W11.2: after Use the new note is in front (no sheet left open over it) | ["New note"]
+   ! axe:serious note scrollable-region-focusable: Scrollable region must have keyboard access (1 nodes) ['._list_11zhg_95'] -- Fix any of the following:
+  Element should have focusable content
+  Element should be focusabl
+    [04:58:36] saw adopt sheet
+    [04:58:36] saw second use: radios
+    [04:58:36] ok  no routine question this time (the choice is remembered for that template)
+    [04:58:40] NO  W11.3: after Use the new note is in front (no sheet left open over it)
+    [04:58:41] ok  exactly ONE routine made from the template (unique on user, source_template_key)
+    [04:58:56] saw My tools > Routines
+    [04:58:56] ok  My tools > Routines lists ONE 'Pre-market routine' reading 'From template: Pre-market prep'
+    [04:59:12] ok  the second note was deleted (Trash) through the note's Delete
+    [04:59:12] ok  deleting the note did NOT delete the routine
+[1200 W11.3] FAIL  checks 5/6  findings 5
+   x W11.3: after Use the new note is in front (no sheet left open over it) | ["New note"]
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/documents"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/properties"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/thesis-summary"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/trade-ref/resolve"}
+    [04:59:24] saw A adopt sheet (Setup study)
+    [04:59:24] saw A's setups by trade count
+    [04:59:24] ok  the setup slot opens at A's most-used setup (Pullback / Earnings drift / Breakout / Gap and go; a tie accepts 
+    [04:59:24] ok  the preview renders immediately (no 'Pick a setup' sentence; widgets drawn)
+    [04:59:24] ok  Use is enabled
+    [04:59:31] saw N adopt sheet (Setup study)
+    [04:59:31] ok  N: the widget reads 'Pick a setup to see this widget.'
+    [04:59:31] ok  N: Use is disabled
+    [04:59:31] ok  N: 'Pick a value for each choice, or Any.' beside Use
+    [04:59:31] ok  N: no 0 anywhere
+    [04:59:34] saw N: setup picker
+[1200 W11.6] PASS  checks 7/7  findings 0
+    [05:00:11] ok  setup note: two built widgets, one routine and one tracker placed
+    [05:00:16] ok  saved as the style 'Share source 1200'
+    [05:00:35] saw share preview
+    [05:00:35] ok  title 'Share to library'
+    [05:00:35] ok  heading 'What will be shared'
+    [05:00:35] ok  the Name is prefilled with the template's name
+    [05:00:35] ok  a Description field is offered
+    [05:00:35] ok  'Widget: Setup win rate 1200' is listed with its controls
+    [05:00:35] ok  'Widget: Daily P&L bars' is listed with its controls
+    [05:00:35] ok  'Routine: Prep routine 1200' is listed with its controls
+    [05:00:35] ok  'Tracker: Sleep 1200' is listed with its controls
+    [05:00:35] ok  'People who use it pick their own: <Setup, ...>' names the setup choice
+    [05:00:35] saw number switches
+    [05:00:35] ok  every number switch 'Share this number (<value>)' starts OFF
+    [05:00:36] saw exactly what travels
+    [05:00:36] ok  'Exactly what travels' is plain words, never JSON
+    [05:00:36] ok  'Exactly what travels' names none of A's account names or the picked setup (no stored member text)
+    [05:00:36] ok  no id travels
+    [05:00:39] ok  switching ONE number on sends the next server preview
+    [05:00:39] saw exactly what travels, one number on
+    [05:00:39] ok  the next server preview lists that number (2) only
+    [05:00:46] ok  Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:00:53] saw review queue
+    [05:00:53] ok  the review queue lists 'Share source 1200' waiting
+    [05:00:56] ok  'Share source 1200' is listed after approval
+    [05:01:03] saw B adopt sheet
+    [05:01:03] ok  credit line names A's template
+    [05:01:03] saw B choices
+    [05:01:07] ok  B changed the setup from its suggestion (Earnings drift) to Breakout
+    [05:01:15] ok  Use -> 'Added to your templates.'
+    [05:01:32] saw B My tools > Templates
+    [05:01:32] ok  B's copy reads 'Based on <label>'s Share source 1200' (label not an email; else 'A UCT member')
+    [05:01:51] ok  Use Share source 1200: after Use the new note is in front (no sheet left open over it)
+    [05:01:55] saw B's note from the copy
+    [05:01:55] ok  nothing of A's values appears in B's note (A's account names)
+    [05:01:55] ok  B's note holds the routine and tracker blocks
+    [05:01:55] ok  B's note holds the two built widgets (two frames drawn)
+    [05:01:55] saw B's widget definitions
+    [05:01:55] ok  B holds its own copies of both widgets, named as shared
+[1200 W11.7] PASS  checks 29/29  findings 0
+    [05:02:11] saw share preview (Widgets)
+    [05:02:11] ok  Widgets: the own row offers 'Share to library' and opens the same share preview
+    [05:02:14] ok  Widgets: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:02:35] saw share preview (Routines)
+    [05:02:35] ok  Routines: the own row offers 'Share to library' and opens the same share preview
+    [05:02:35] ok  routine share carries item text only (no ticks/history)
+    [05:02:38] ok  Routines: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:02:58] saw share preview (Trackers)
+    [05:02:58] ok  Trackers: the own row offers 'Share to library' and opens the same share preview
+    [05:02:58] ok  tracker share carries name, kind and unit only
+    [05:03:02] ok  Trackers: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:03:17] saw review queue
+    [05:03:17] ok  the review queue lists 'Setup win rate 1200' waiting
+    [05:03:17] ok  the review queue lists 'Prep routine 1200' waiting
+    [05:03:17] ok  the review queue lists 'Sleep 1200' waiting
+    [05:03:25] ok  'Setup win rate 1200' is listed after approval
+    [05:03:25] ok  'Prep routine 1200' is listed after approval
+    [05:03:25] ok  'Sleep 1200' is listed after approval
+    [05:03:39] ok  B finds the listed widget 'Setup win rate 1200' (filtered by its type chip)
+    [05:03:39] ok  the 'Setup win rate 1200' card carries the type chip 'Widget'
+    [05:03:43] ok  B adopts 'Setup win rate 1200': 'Added to My tools.'
+    [05:04:01] ok  B finds the listed routine 'Prep routine 1200' (filtered by its type chip)
+    [05:04:01] ok  the 'Prep routine 1200' card carries the type chip 'Routine'
+    [05:04:05] ok  B adopts 'Prep routine 1200': 'Added to My tools.'
+    [05:04:23] ok  B finds the listed tracker 'Sleep 1200' (filtered by its type chip)
+    [05:04:23] ok  the 'Sleep 1200' card carries the type chip 'Tracker'
+    [05:04:27] ok  B adopts 'Sleep 1200': 'Added to My tools.'
+    [05:04:28] saw B's copies by name, before -> after
+    [05:04:28] ok  adopting adds exactly one copy of 'Setup win rate 1200' to B's My tools
+    [05:04:28] ok  adopting adds exactly one copy of 'Prep routine 1200' to B's My tools
+    [05:04:28] ok  adopting adds exactly one copy of 'Sleep 1200' to B's My tools
+    [05:04:43] saw B My tools > Widgets
+    [05:04:43] ok  B's Widgets row for 'Setup win rate 1200' carries the credit line
+    [05:04:44] ok  B's copy of 'Setup win rate 1200' offers NO 'Share to library'
+    [05:04:47] saw B My tools > Routines
+    [05:04:47] ok  B's Routines row for 'Prep routine 1200' carries the credit line
+    [05:04:48] ok  B's copy of 'Prep routine 1200' offers NO 'Share to library'
+    [05:04:51] saw B My tools > Trackers
+    [05:04:51] ok  B's Trackers row for 'Sleep 1200' carries the credit line
+    [05:04:52] ok  B's copy of 'Sleep 1200' offers NO 'Share to library'
+    [05:04:52] ok  B's adopted routine carries A's item text
+    [05:04:52] ok  B's adopted tracker carries name, kind and unit
+[1200 W11.8] PASS  checks 34/34  findings 0
+    [05:05:04] saw Templates rows
+    [05:05:04] ok  a row shows name, kind, 'Used in <N> notes', last edited, and the credit for a copy
+    [05:05:04] ok  an own template with no note reads 'Not in any note' and no credit
+    [05:05:06] saw Active row menu
+    [05:05:06] ok  Active row actions: Open, Rename, Duplicate, Share to library, Archive (no Delete permanently)
+    [05:05:07] saw after Duplicate
+    [05:05:07] ok  Duplicate makes a copy ('Made “<name>”.')
+    [05:05:12] ok  Rename -> 'Renamed to “Manage me 1200”.'
+    [05:05:12] saw Archive item (with its hint)
+    [05:05:14] saw after Archive
+    [05:05:16] saw Pre-market prep Archive panel
+    [05:05:16] ok  Archive of a template in 1 notes reads "It stays in your 1 note. New notes can't use it until you restore it."
+    [05:05:17] ok  Archive of a template in no note says "New notes can't use it until you restore it." (the menu item's hint)
+    [05:05:32] ok  the archived template is GONE from the picker
+    [05:05:49] saw Archived list
+    [05:05:50] ok  Archived row actions: Restore and Delete permanently
+    [05:05:51] saw after Restore
+    [05:05:53] ok  Restore brings it back to Active
+    [05:06:08] ok  restored, it is back in the picker
+    [05:06:30] ok  Delete permanently needs the name typed (DeleteConfirm)
+    [05:06:30] ok  the delete button is off until the name is typed
+    [05:06:32] saw after delete
+    [05:06:34] saw Recently deleted
+    [05:06:34] ok  Recently deleted lists it with 'Kept until Nov 26'
+    [05:06:35] ok  Recently deleted offers Restore
+[1200 W11.10] PASS  checks 15/15  findings 0
+    [05:06:51] ok  Use Share source 1200: after Use the new note is in front (no sheet left open over it)
+    [05:06:59] saw addresses
+    [05:07:02] saw share link text
+    [05:07:02] ok  the share link says 'A private account item is not shown on public pages.' for the private widgets/routine/tra
+    [05:07:02] ok  adjacent private items share ONE line on the share link (counted 1)
+    [05:07:02] ok  no value, account name, routine item or day state on the share link
+    [05:07:02] ok  no tick state on the share link
+    [05:07:09] saw published page text
+    [05:07:09] ok  the published page says 'A private account item is not shown on public pages.' for the private widgets/routine
+    [05:07:09] ok  adjacent private items share ONE line on the published page (counted 1)
+    [05:07:09] ok  no value, account name, routine item or day state on the published page
+    [05:07:09] ok  no tick state on the published page
+[1200 W11.11] PASS  checks 9/9  findings 2
+   ! event anon-share link {"console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"}
+   ! event anon-published page {"console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"}
+    [05:07:09] ok  not applicable at this viewport
+[1200 W11.13] PASS  checks 1/1  findings 0
+    [05:07:22] saw keyboard audit: template picker + library section
+    [05:07:22] ok  template picker + library section: every visible control is reached by Tab (a radio group / tab list counts on
+    [05:07:22] ok  template picker + library section: focus stays inside the sheet (trap)
+    [05:07:25] saw keyboard audit: library detail
+    [05:07:25] ok  library detail: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:07:25] ok  library detail: focus stays inside the sheet (trap)
+    [05:07:26] ok  library detail: Escape returns focus to the control that opened it
+    [05:07:32] saw keyboard audit: adopt sheet (Pre-market prep)
+    [05:07:32] ok  adopt sheet (Pre-market prep): every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:07:32] ok  adopt sheet (Pre-market prep): focus stays inside the sheet (trap)
+    [05:07:33] ok  adopt sheet: Escape closes it
+    [05:07:33] saw focus after closing the adopt sheet
+    [05:07:58] ok  SlotPicker: a value is picked with arrows and Done by keyboard
+    [05:07:58] ok  SlotPicker: after Done, focus returns to its Change button
+    [05:07:58] saw keyboard audit: adopt sheet (Setup study, with a choice)
+    [05:07:58] ok  adopt sheet (Setup study, with a choice): every visible control is reached by Tab (a radio group / tab list co
+    [05:07:58] ok  adopt sheet (Setup study, with a choice): focus stays inside the sheet (trap)
+    [05:08:15] ok  My tools: the Templates tab is reached and selected by keyboard
+    [05:08:15] saw keyboard audit: My tools > Templates
+    [05:08:15] ok  My tools > Templates: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:08:15] ok  My tools > Templates: focus stays inside the sheet (trap)
+    [05:08:17] saw row actions menu by keyboard
+    [05:08:17] ok  Templates row: the Actions menu opens by Enter
+    [05:08:17] ok  Templates row: arrow keys reach 'Share to library'
+    [05:08:17] ok  Templates row: Escape returns focus to the row's Actions button
+    [05:08:22] saw keyboard audit: share preview
+    [05:08:22] ok  share preview: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:08:22] ok  share preview: focus stays inside the sheet (trap)
+    [05:08:24] ok  share preview: the number switch toggles with Space
+    [05:08:26] ok  share preview: Escape returns focus to the control that opened it
+    [05:08:43] ok  review queue: opened by keyboard
+    [05:08:43] saw keyboard audit: review queue (gallery)
+    [05:08:43] ok  review queue (gallery): every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:08:43] ok  review queue (gallery): focus stays inside the sheet (trap)
+[1200 W11.14] PASS  checks 25/25  findings 0
+    [05:08:52] saw theme before the pass (data-theme)
+    [05:09:06] saw data-theme after picking Light
+    [05:09:24] saw light: dimmed (opacity < 1) text in the adopt sheet
+    [05:10:17] saw Light: gallery active chips
+    [05:10:17] ok  R5 Light: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:10:18] ok  Light: axe color-contrast has no serious finding on light-picker
+    [05:10:18] ok  Light: axe color-contrast has no serious finding on light-detail
+    [05:10:18] ok  Light: axe color-contrast has no serious finding on light-adopt
+    [05:10:18] ok  Light: axe color-contrast has no serious finding on light-share
+    [05:10:18] ok  Light: axe color-contrast has no serious finding on light-mytools
+    [05:10:18] ok  Light: axe color-contrast has no serious finding on light-gallery
+    [05:10:31] saw data-theme after picking Graphite
+    [05:10:50] saw dark: dimmed (opacity < 1) text in the adopt sheet
+    [05:11:43] saw Graphite: gallery active chips
+    [05:11:43] ok  R5 Graphite: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:11:43] ok  Graphite: axe color-contrast has no serious finding on dark-picker
+    [05:11:43] ok  Graphite: axe color-contrast has no serious finding on dark-detail
+    [05:11:43] ok  Graphite: axe color-contrast has no serious finding on dark-adopt
+    [05:11:43] ok  Graphite: axe color-contrast has no serious finding on dark-share
+    [05:11:43] ok  Graphite: axe color-contrast has no serious finding on dark-mytools
+    [05:11:43] ok  Graphite: axe color-contrast has no serious finding on dark-gallery
+    [05:11:57] saw data-theme after picking OLED Black
+    [05:12:16] saw oled: dimmed (opacity < 1) text in the adopt sheet
+    [05:13:08] saw OLED Black: gallery active chips
+    [05:13:08] ok  R5 OLED Black: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:13:09] ok  OLED Black: axe color-contrast has no serious finding on oled-picker
+    [05:13:09] ok  OLED Black: axe color-contrast has no serious finding on oled-detail
+    [05:13:09] ok  OLED Black: axe color-contrast has no serious finding on oled-adopt
+    [05:13:09] ok  OLED Black: axe color-contrast has no serious finding on oled-share
+    [05:13:09] ok  OLED Black: axe color-contrast has no serious finding on oled-mytools
+    [05:13:09] ok  OLED Black: axe color-contrast has no serious finding on oled-gallery
+[1200 W11.15] PASS  checks 21/21  findings 12
+   ! event A-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/push/config"}
+   ! event A-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/routing"}
+   ! event A-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/webhooks"}
+   ! event A-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/screener/spec-alerts"}
+   ! event A-dark {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/push/config"}
+   ! event A-dark {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/routing"}
+   ! event A-dark {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/webhooks"}
+   ! event A-dark {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/screener/spec-alerts"}
+    [05:14:07] saw transitions by motion setting
+    [05:14:07] ok  reduced motion: the share preview's number switch has no transition
+    [05:14:07] ok  no-preference: the transition exists
+    [05:14:07] ok  reduced motion: nothing in the library animates
+[1200 W11.16] PASS  checks 3/3  findings 0
+    [05:14:16] ok  door: TemplatePicker's Template library section
+    [05:14:16] ok  every library card carries one type chip 'Template'
+    [05:14:17] saw search 'prep' keeps
+    [05:14:17] ok  the search filters the library by title, description and contains
+    [05:14:20] saw chip 'Daily & weekly rituals' keeps
+    [05:14:20] ok  the 'Daily & weekly rituals' chip keeps exactly the ['after_close', 'before_open', 'challenges', 'habits', 'ni
+    [05:14:20] ok  R8: 'Night-before prep' is under the 'Daily & weekly rituals' chip
+    [05:14:20] ok  R8: 'Pre-market prep' is under the 'Daily & weekly rituals' chip
+    [05:14:20] ok  R8: 'Morning routine' is under the 'Daily & weekly rituals' chip
+    [05:14:21] saw chip 'Daily & weekly rituals': active chip contrast / sizes
+    [05:14:21] ok  R5: the active 'Daily & weekly rituals' chip holds >= 4.5:1 at rest and hovered
+    [05:14:23] saw chip 'Around a trade' keeps
+    [05:14:23] ok  the 'Around a trade' chip keeps exactly the ['during_day'] groups
+    [05:14:24] saw chip 'Around a trade': active chip contrast / sizes
+    [05:14:24] ok  R5: the active 'Around a trade' chip holds >= 4.5:1 at rest and hovered
+    [05:14:26] saw chip 'Thesis & research' keeps
+    [05:14:26] ok  the 'Thesis & research' chip keeps exactly the ['playbook'] groups
+    [05:14:26] saw chip 'Thesis & research': active chip contrast / sizes
+    [05:14:26] ok  R5: the active 'Thesis & research' chip holds >= 4.5:1 at rest and hovered
+    [05:14:29] saw chip 'Mindset' keeps
+    [05:14:29] ok  the 'Mindset' chip keeps exactly the ['mindset'] groups
+    [05:14:29] ok  R8: 'Pre-session check-in' is under the 'Mindset' chip
+    [05:14:29] saw chip 'Mindset': active chip contrast / sizes
+    [05:14:29] ok  R5: the active 'Mindset' chip holds >= 4.5:1 at rest and hovered
+    [05:14:29] ok  R8: every library template sits under exactly one chip
+    [05:14:30] ok  'Your templates' hides the library section
+    [05:14:34] ok  door: the community gallery opens from the picker
+    [05:14:34] saw gallery type chips
+    [05:14:34] ok  gallery cards carry type chips (Template / Widget / Routine / Tracker present)
+    [05:14:38] saw gallery: active chips / chip sizes
+    [05:14:38] ok  R5: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:14:53] ok  door: My tools -> Templates
+    [05:15:10] saw / menu rows
+    [05:15:10] ok  door: 'Manage my tools' is in the / menu (end of the Mine group)
+    [05:15:10] ok  door: 'Manage…' in the ⋯ menu of a placed built widget
+    [05:15:12] ok  'Manage…' on the built widget opens My tools
+    [05:15:13] ok  door: 'Manage…' in the ⋯ menu of a placed routine
+    [05:15:15] ok  'Manage…' on the routine opens My tools
+    [05:15:16] ok  door: 'Manage…' in the ⋯ menu of a placed tracker
+    [05:15:18] ok  'Manage…' on the tracker opens My tools
+[1200 W11.17] PASS  checks 28/28  findings 0
+    [05:15:42] saw P01 measured
+    [05:15:42] ok  D-W11-001 P01 1200: the note details toggle is at least 24 px tall
+    [05:15:42] ok  D-W11-001 P01 1200: axe target-size has no finding on the note page
+    [05:16:41] saw P01 light measured
+    [05:16:41] ok  m-3 P01 1200 light: the quiet details toggle reads opacity 0.9
+    [05:16:41] ok  m-3 P01 1200 light: axe color-contrast has no finding on the note page (no details)
+    [05:16:55] saw P25 a.05 broken formula state
+    [05:16:55] saw builder checks
+    [05:16:55] ok  the broken formula shows its inline error
+    [05:16:55] ok  1200: 'Showing the last result.' is visible beside the dimmed preview
+    [05:16:55] ok  the live region stays summary-only (no 'Showing the last result.')
+    [05:16:55] ok  preview dim opacity reads 0.9
+    [05:16:56] ok  axe color-contrast: no finding on the builder with the dimmed preview
+    [05:16:59] ok  fixed, the line is gone
+[1200 FDEF] PASS  checks 10/10  findings 8
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/push/config"}
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/routing"}
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/webhooks"}
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/screener/spec-alerts"}
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/push/config"}
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/routing"}
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/webhooks"}
+   ! event P01-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/screener/spec-alerts"}
+    [05:17:04] saw section heading
+    [05:17:04] ok  section heading reads 'Template library'
+    [05:17:04] saw groups in order
+    [05:17:04] ok  groups appear in the server/LIBRARY_GROUPS order
+    [05:17:04] saw first card
+    [05:17:04] saw cards
+    [05:17:04] ok  every card: Template chip, author, For:, Contains: (when it holds any), Used by/New (never 0), Updated <Mon D>
+    [05:17:04] ok  cards read 'Updated Oct 27' (listed today ET)
+    [05:17:04] ok  the list makes NO preview-mine request
+    [05:17:04] ok  no zeros on the picker
+    [05:17:09] saw detail sheet
+    [05:17:09] ok  the detail makes exactly ONE preview-mine
+    [05:17:09] ok  no card is labelled 'Sample data' (A has trades)
+    [05:17:09] ok  the routine slot shows its name, items and bind words ('For Tue Oct 27')
+    [05:17:09] ok  no day state in the detail (no tick control)
+    [05:17:09] ok  credit line 'Based on UCT's Pre-market prep'
+    [05:17:09] ok  the outline shows headings and prompts, no raw {{block:...}} placeholder
+[820 W11.1] PASS  checks 12/12  findings 0
+    [05:17:21] saw adopt sheet
+    [05:17:21] saw reuse question radios
+    [05:17:21] saw A's routines before
+    [05:17:21] ok  A has no routine: only 'Create Pre-market routine from the template' is offered
+    [05:17:22] ok  chose 'Create Pre-market routine from the template'
+    [05:17:26] NO  W11.2: after Use the new note is in front (no sheet left open over it)
+    [05:17:32] saw new note
+    [05:17:32] ok  navigated to a new note holding the prep blocks
+    [05:17:32] ok  the routine block is bound to the note's day ('For Tue Oct 27')
+    [05:17:32] ok  no raw {{block:..}} placeholder in the note
+    [05:17:32] ok  snapshot blocks are filled (numbers, not placeholders)
+    [05:17:32] saw focus before Tab
+    [05:17:32] ok  the routine items are reachable by Tab
+Timeout (0:20:00)!
+Thread 0x000018f4 (most recent call first):
+  File "C:\Python314\Lib\concurrent\futures\thread.py", line 116 in _worker
+  File "C:\Python314\Lib\threading.py", line 1023 in run
+  File "C:\Python314\Lib\threading.py", line 1081 in _bootstrap_inner
+  File "C:\Python314\Lib\threading.py", line 1043 in _bootstrap
+
+Thread 0x000092e4 (most recent call first):
+  File "C:\Python314\Lib\asyncio\windows_events.py", line 775 in _poll
+  File "C:\Python314\Lib\asyncio\windows_events.py", line 446 in select
+  File "C:\Python314\Lib\asyncio\base_events.py", line 2008 in _run_once
+  File "C:\Python314\Lib\asyncio\base_events.py", line 677 in run_forever
+  File "C:\Python314\Lib\asyncio\base_events.py", line 706 in run_until_complete
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\playwright\sync_api\_context_manager.py", line 56 in greenlet_main
+    [05:17:34] ok  Space toggles the item (the tick shows)
+    [05:17:34] ok  ticking sends ZERO note PUTs (§6.2)
+    [05:17:41] ok  after reload the tick is still there
+    [05:17:41] ok  after reload the note shows no unsaved change (updatedAt unchanged by open + tick)
+    [05:17:41] ok  no note PUT across tick + reload
+[820 W11.2] FAIL  checks 12/13  findings 1
+   x W11.2: after Use the new note is in front (no sheet left open over it) | ["New note"]
+   ! axe:serious note scrollable-region-focusable: Scrollable region must have keyboard access (1 nodes) ['._list_11zhg_95'] -- Fix any of the following:
+  Element should have focusable content
+  Element should be focusabl
+    [05:17:53] saw adopt sheet
+    [05:17:53] saw second use: radios
+    [05:17:53] ok  no routine question this time (the choice is remembered for that template)
+    [05:17:57] NO  W11.3: after Use the new note is in front (no sheet left open over it)
+    [05:17:57] ok  exactly ONE routine made from the template (unique on user, source_template_key)
+    [05:18:13] saw My tools > Routines
+    [05:18:13] ok  My tools > Routines lists ONE 'Pre-market routine' reading 'From template: Pre-market prep'
+    [05:18:29] ok  the second note was deleted (Trash) through the note's Delete
+    [05:18:29] ok  deleting the note did NOT delete the routine
+[820 W11.3] FAIL  checks 5/6  findings 5
+   x W11.3: after Use the new note is in front (no sheet left open over it) | ["New note"]
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/67c2f21f3d3c4c85a3674b12f291e35e"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/67c2f21f3d3c4c85a3674b12f291e35e/documents"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/67c2f21f3d3c4c85a3674b12f291e35e/thesis-summary"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/67c2f21f3d3c4c85a3674b12f291e35e/properties"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/67c2f21f3d3c4c85a3674b12f291e35e/trade-ref/resolve"}
+    [05:18:41] saw A adopt sheet (Setup study)
+    [05:18:41] saw A's setups by trade count
+    [05:18:41] ok  the setup slot opens at A's most-used setup (Pullback / Earnings drift / Gap and go / Breakout; a tie accepts 
+    [05:18:41] ok  the preview renders immediately (no 'Pick a setup' sentence; widgets drawn)
+    [05:18:41] ok  Use is enabled
+    [05:18:48] saw N adopt sheet (Setup study)
+    [05:18:48] ok  N: the widget reads 'Pick a setup to see this widget.'
+    [05:18:48] ok  N: Use is disabled
+    [05:18:48] ok  N: 'Pick a value for each choice, or Any.' beside Use
+    [05:18:48] ok  N: no 0 anywhere
+    [05:18:51] saw N: setup picker
+[820 W11.6] PASS  checks 7/7  findings 0
+    [05:19:28] ok  setup note: two built widgets, one routine and one tracker placed
+    [05:19:33] ok  saved as the style 'Share source 820'
+    [05:19:53] saw share preview
+    [05:19:53] ok  title 'Share to library'
+    [05:19:53] ok  heading 'What will be shared'
+    [05:19:53] ok  the Name is prefilled with the template's name
+    [05:19:53] ok  a Description field is offered
+    [05:19:53] ok  'Widget: Setup win rate 820' is listed with its controls
+    [05:19:53] ok  'Widget: Daily P&L bars' is listed with its controls
+    [05:19:53] ok  'Routine: Prep routine 820' is listed with its controls
+    [05:19:53] ok  'Tracker: Sleep 820' is listed with its controls
+    [05:19:53] ok  'People who use it pick their own: <Setup, ...>' names the setup choice
+    [05:19:53] saw number switches
+    [05:19:53] ok  every number switch 'Share this number (<value>)' starts OFF
+    [05:19:53] saw exactly what travels
+    [05:19:53] ok  'Exactly what travels' is plain words, never JSON
+    [05:19:53] ok  'Exactly what travels' names none of A's account names or the picked setup (no stored member text)
+    [05:19:53] ok  no id travels
+    [05:19:56] ok  switching ONE number on sends the next server preview
+    [05:19:56] saw exactly what travels, one number on
+    [05:19:56] ok  the next server preview lists that number (2) only
+    [05:20:03] ok  Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:20:17] saw review queue
+    [05:20:17] ok  the review queue lists 'Share source 820' waiting
+    [05:20:20] ok  'Share source 820' is listed after approval
+    [05:20:33] saw B adopt sheet
+    [05:20:33] ok  credit line names A's template
+    [05:20:33] saw B choices
+    [05:20:37] ok  B changed the setup from its suggestion (Earnings drift) to Breakout
+    [05:20:45] ok  Use -> 'Added to your templates.'
+    [05:21:01] saw B My tools > Templates
+    [05:21:01] ok  B's copy reads 'Based on <label>'s Share source 820' (label not an email; else 'A UCT member')
+    [05:21:21] ok  Use Share source 820: after Use the new note is in front (no sheet left open over it)
+    [05:21:24] saw B's note from the copy
+    [05:21:24] ok  nothing of A's values appears in B's note (A's account names)
+    [05:21:24] ok  B's note holds the routine and tracker blocks
+    [05:21:24] ok  B's note holds the two built widgets (two frames drawn)
+    [05:21:24] saw B's widget definitions
+    [05:21:24] ok  B holds its own copies of both widgets, named as shared
+[820 W11.7] PASS  checks 29/29  findings 0
+    [05:21:40] saw share preview (Widgets)
+    [05:21:40] ok  Widgets: the own row offers 'Share to library' and opens the same share preview
+    [05:21:43] ok  Widgets: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:22:04] saw share preview (Routines)
+    [05:22:04] ok  Routines: the own row offers 'Share to library' and opens the same share preview
+    [05:22:04] ok  routine share carries item text only (no ticks/history)
+    [05:22:07] ok  Routines: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:22:27] saw share preview (Trackers)
+    [05:22:27] ok  Trackers: the own row offers 'Share to library' and opens the same share preview
+    [05:22:27] ok  tracker share carries name, kind and unit only
+    [05:22:31] ok  Trackers: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:22:45] saw review queue
+    [05:22:45] ok  the review queue lists 'Setup win rate 820' waiting
+    [05:22:45] ok  the review queue lists 'Prep routine 820' waiting
+    [05:22:45] ok  the review queue lists 'Sleep 820' waiting
+    [05:22:53] ok  'Setup win rate 820' is listed after approval
+    [05:22:53] ok  'Prep routine 820' is listed after approval
+    [05:22:53] ok  'Sleep 820' is listed after approval
+    [05:23:07] ok  B finds the listed widget 'Setup win rate 820' (filtered by its type chip)
+    [05:23:07] ok  the 'Setup win rate 820' card carries the type chip 'Widget'
+    [05:23:12] ok  B adopts 'Setup win rate 820': 'Added to My tools.'
+    [05:23:30] ok  B finds the listed routine 'Prep routine 820' (filtered by its type chip)
+    [05:23:30] ok  the 'Prep routine 820' card carries the type chip 'Routine'
+    [05:23:34] ok  B adopts 'Prep routine 820': 'Added to My tools.'
+    [05:23:52] ok  B finds the listed tracker 'Sleep 820' (filtered by its type chip)
+    [05:23:52] ok  the 'Sleep 820' card carries the type chip 'Tracker'
+    [05:23:56] ok  B adopts 'Sleep 820': 'Added to My tools.'
+    [05:23:56] saw B's copies by name, before -> after
+    [05:23:56] ok  adopting adds exactly one copy of 'Setup win rate 820' to B's My tools
+    [05:23:56] ok  adopting adds exactly one copy of 'Prep routine 820' to B's My tools
+    [05:23:56] ok  adopting adds exactly one copy of 'Sleep 820' to B's My tools
+    [05:24:12] saw B My tools > Widgets
+    [05:24:12] ok  B's Widgets row for 'Setup win rate 820' carries the credit line
+    [05:24:13] ok  B's copy of 'Setup win rate 820' offers NO 'Share to library'
+    [05:24:16] saw B My tools > Routines
+    [05:24:16] ok  B's Routines row for 'Prep routine 820' carries the credit line
+    [05:24:17] ok  B's copy of 'Prep routine 820' offers NO 'Share to library'
+    [05:24:20] saw B My tools > Trackers
+    [05:24:20] ok  B's Trackers row for 'Sleep 820' carries the credit line
+    [05:24:21] ok  B's copy of 'Sleep 820' offers NO 'Share to library'
+    [05:24:21] ok  B's adopted routine carries A's item text
+    [05:24:21] ok  B's adopted tracker carries name, kind and unit
+[820 W11.8] PASS  checks 34/34  findings 0
+    [05:24:33] saw Templates rows
+    [05:24:33] ok  a row shows name, kind, 'Used in <N> notes', last edited, and the credit for a copy
+    [05:24:33] ok  an own template with no note reads 'Not in any note' and no credit
+    [05:24:34] saw Active row menu
+    [05:24:34] ok  Active row actions: Open, Rename, Duplicate, Share to library, Archive (no Delete permanently)
+    [05:24:36] saw after Duplicate
+    [05:24:36] ok  Duplicate makes a copy ('Made “<name>”.')
+    [05:24:40] ok  Rename -> 'Renamed to “Manage me 820”.'
+    [05:24:41] saw Archive item (with its hint)
+    [05:24:43] saw after Archive
+    [05:24:45] saw Pre-market prep Archive panel
+    [05:24:45] ok  Archive of a template in 1 notes reads "It stays in your 1 note. New notes can't use it until you restore it."
+    [05:24:46] ok  Archive of a template in no note says "New notes can't use it until you restore it." (the menu item's hint)
+    [05:25:01] ok  the archived template is GONE from the picker
+    [05:25:18] saw Archived list
+    [05:25:19] ok  Archived row actions: Restore and Delete permanently
+    [05:25:21] saw after Restore
+    [05:25:22] ok  Restore brings it back to Active
+    [05:25:37] ok  restored, it is back in the picker
+    [05:25:59] ok  Delete permanently needs the name typed (DeleteConfirm)
+    [05:25:59] ok  the delete button is off until the name is typed
+    [05:26:02] saw after delete
+    [05:26:04] saw Recently deleted
+    [05:26:04] ok  Recently deleted lists it with 'Kept until Nov 26'
+    [05:26:05] ok  Recently deleted offers Restore
+[820 W11.10] PASS  checks 15/15  findings 0
+    [05:26:21] ok  Use Share source 820: after Use the new note is in front (no sheet left open over it)
+    [05:26:29] saw addresses
+    [05:26:32] saw share link text
+    [05:26:32] ok  the share link says 'A private account item is not shown on public pages.' for the private widgets/routine/tra
+    [05:26:32] ok  adjacent private items share ONE line on the share link (counted 1)
+    [05:26:32] ok  no value, account name, routine item or day state on the share link
+    [05:26:32] ok  no tick state on the share link
+    [05:27:14] saw published page text
+    [05:27:14] ok  the published page says 'A private account item is not shown on public pages.' for the private widgets/routine
+    [05:27:14] ok  adjacent private items share ONE line on the published page (counted 1)
+    [05:27:14] ok  no value, account name, routine item or day state on the published page
+    [05:27:14] ok  no tick state on the published page
+[820 W11.11] PASS  checks 9/9  findings 2
+   ! event anon-share link {"console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"}
+   ! event anon-published page {"console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"}
+    [05:27:14] ok  not applicable at this viewport
+[820 W11.13] PASS  checks 1/1  findings 0
+    [05:27:56] saw keyboard audit: template picker + library section
+    [05:27:56] ok  template picker + library section: every visible control is reached by Tab (a radio group / tab list counts on
+    [05:27:56] ok  template picker + library section: focus stays inside the sheet (trap)
+    [05:27:59] saw keyboard audit: library detail
+    [05:27:59] ok  library detail: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:27:59] ok  library detail: focus stays inside the sheet (trap)
+    [05:28:00] ok  library detail: Escape returns focus to the control that opened it
+    [05:28:06] saw keyboard audit: adopt sheet (Pre-market prep)
+    [05:28:06] ok  adopt sheet (Pre-market prep): every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:28:06] ok  adopt sheet (Pre-market prep): focus stays inside the sheet (trap)
+    [05:28:07] ok  adopt sheet: Escape closes it
+    [05:28:07] saw focus after closing the adopt sheet
+    [05:28:32] ok  SlotPicker: a value is picked with arrows and Done by keyboard
+    [05:28:32] ok  SlotPicker: after Done, focus returns to its Change button
+    [05:28:32] saw keyboard audit: adopt sheet (Setup study, with a choice)
+    [05:28:32] ok  adopt sheet (Setup study, with a choice): every visible control is reached by Tab (a radio group / tab list co
+    [05:28:32] ok  adopt sheet (Setup study, with a choice): focus stays inside the sheet (trap)
+    [05:28:49] ok  My tools: the Templates tab is reached and selected by keyboard
+    [05:28:49] saw keyboard audit: My tools > Templates
+    [05:28:49] ok  My tools > Templates: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:28:49] ok  My tools > Templates: focus stays inside the sheet (trap)
+    [05:28:51] saw row actions menu by keyboard
+    [05:28:51] ok  Templates row: the Actions menu opens by Enter
+    [05:28:51] ok  Templates row: Tab (touch: an action sheet) reach 'Share to library'
+    [05:28:51] ok  Templates row: Escape returns focus to the row's Actions button
+    [05:28:56] saw keyboard audit: share preview
+    [05:28:56] ok  share preview: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:28:56] ok  share preview: focus stays inside the sheet (trap)
+    [05:28:58] ok  share preview: the number switch toggles with Space
+    [05:29:00] ok  share preview: Escape returns focus to the control that opened it
+    [05:29:17] ok  review queue: opened by keyboard
+    [05:29:17] saw keyboard audit: review queue (gallery)
+    [05:29:17] ok  review queue (gallery): every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:29:17] ok  review queue (gallery): focus stays inside the sheet (trap)
+[820 W11.14] PASS  checks 25/25  findings 0
+    [05:29:17] ok  not walked at this viewport by the plan
+[820 W11.15] PASS  checks 1/1  findings 0
+    [05:29:17] ok  not walked at this viewport by the plan
+[820 W11.16] PASS  checks 1/1  findings 0
+    [05:29:26] ok  door: TemplatePicker's Template library section
+    [05:29:26] ok  every library card carries one type chip 'Template'
+    [05:29:28] saw search 'prep' keeps
+    [05:29:28] ok  the search filters the library by title, description and contains
+    [05:29:31] saw chip 'Daily & weekly rituals' keeps
+    [05:29:31] ok  the 'Daily & weekly rituals' chip keeps exactly the ['after_close', 'before_open', 'challenges', 'habits', 'ni
+    [05:29:31] ok  R8: 'Night-before prep' is under the 'Daily & weekly rituals' chip
+    [05:29:31] ok  R8: 'Pre-market prep' is under the 'Daily & weekly rituals' chip
+    [05:29:31] ok  R8: 'Morning routine' is under the 'Daily & weekly rituals' chip
+    [05:29:31] saw chip 'Daily & weekly rituals': active chip contrast / sizes
+    [05:29:31] ok  R5: the active 'Daily & weekly rituals' chip holds >= 4.5:1 at rest and hovered
+    [05:29:31] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Daily & weekly rituals' active)
+    [05:29:34] saw chip 'Around a trade' keeps
+    [05:29:34] ok  the 'Around a trade' chip keeps exactly the ['during_day'] groups
+    [05:29:34] saw chip 'Around a trade': active chip contrast / sizes
+    [05:29:34] ok  R5: the active 'Around a trade' chip holds >= 4.5:1 at rest and hovered
+    [05:29:34] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Around a trade' active)
+    [05:29:36] saw chip 'Thesis & research' keeps
+    [05:29:36] ok  the 'Thesis & research' chip keeps exactly the ['playbook'] groups
+    [05:29:36] saw chip 'Thesis & research': active chip contrast / sizes
+    [05:29:36] ok  R5: the active 'Thesis & research' chip holds >= 4.5:1 at rest and hovered
+    [05:29:36] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Thesis & research' active)
+    [05:29:39] saw chip 'Mindset' keeps
+    [05:29:39] ok  the 'Mindset' chip keeps exactly the ['mindset'] groups
+    [05:29:39] ok  R8: 'Pre-session check-in' is under the 'Mindset' chip
+    [05:29:39] saw chip 'Mindset': active chip contrast / sizes
+    [05:29:39] ok  R5: the active 'Mindset' chip holds >= 4.5:1 at rest and hovered
+    [05:29:39] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Mindset' active)
+    [05:29:39] ok  R8: every library template sits under exactly one chip
+    [05:29:40] ok  'Your templates' hides the library section
+    [05:29:43] ok  door: the community gallery opens from the picker
+    [05:29:43] saw gallery type chips
+    [05:29:43] ok  gallery cards carry type chips (Template / Widget / Routine / Tracker present)
+    [05:29:46] saw gallery: active chips / chip sizes
+    [05:29:46] ok  R5: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:29:46] ok  R6: every gallery filter chip is >= 44 x 44 on the touch tier
+    [05:30:02] ok  door: My tools -> Templates
+    [05:30:18] saw / menu rows
+    [05:30:18] ok  door: 'Manage my tools' is in the / menu (end of the Mine group)
+    [05:30:19] ok  door: 'Manage…' in the ⋯ menu of a placed built widget
+    [05:30:20] ok  'Manage…' on the built widget opens My tools
+    [05:30:22] ok  door: 'Manage…' in the ⋯ menu of a placed routine
+    [05:30:24] ok  'Manage…' on the routine opens My tools
+    [05:30:25] ok  door: 'Manage…' in the ⋯ menu of a placed tracker
+    [05:30:27] ok  'Manage…' on the tracker opens My tools
+[820 W11.17] PASS  checks 33/33  findings 0
+    [05:30:51] saw P01 measured
+    [05:30:51] ok  D-W11-002 P01 820: the header Folder select is at least 44 px tall
+    [05:30:51] ok  D-W11-003 P01 820: the title input is at least 44 px tall
+    [05:30:51] ok  D-W11-004 P01 820: FeedbackWidget '?' is 44 x 44
+    [05:31:15] saw P04 measured
+    [05:31:15] ok  D-W11-002 P04 820: the header Folder select is at least 44 px tall
+    [05:31:15] ok  D-W11-003 P04 820: the title input is at least 44 px tall
+    [05:31:15] ok  D-W11-004 P04 820: FeedbackWidget '?' is 44 x 44
+    [05:31:35] saw P25 a.05 broken formula state
+    [05:31:35] saw builder checks
+    [05:31:35] ok  the broken formula shows its inline error
+    [05:31:35] ok  820: 'Showing the last result.' is visible beside the dimmed preview
+    [05:31:35] ok  the live region stays summary-only (no 'Showing the last result.')
+    [05:31:35] ok  preview dim opacity reads 0.9
+    [05:31:36] ok  axe color-contrast: no finding on the builder with the dimmed preview
+    [05:31:39] ok  fixed, the line is gone
+[820 FDEF] PASS  checks 12/12  findings 0
+    [05:31:44] saw section heading
+    [05:31:44] ok  section heading reads 'Template library'
+    [05:31:44] saw groups in order
+    [05:31:44] ok  groups appear in the server/LIBRARY_GROUPS order
+    [05:31:45] saw first card
+    [05:31:45] saw cards
+    [05:31:45] ok  every card: Template chip, author, For:, Contains: (when it holds any), Used by/New (never 0), Updated <Mon D>
+    [05:31:45] ok  cards read 'Updated Oct 27' (listed today ET)
+    [05:31:45] ok  the list makes NO preview-mine request
+    [05:31:45] ok  no zeros on the picker
+    [05:31:49] saw detail sheet
+    [05:31:49] ok  the detail makes exactly ONE preview-mine
+    [05:31:49] ok  no card is labelled 'Sample data' (A has trades)
+    [05:31:49] ok  the routine slot shows its name, items and bind words ('For Tue Oct 27')
+    [05:31:49] ok  no day state in the detail (no tick control)
+    [05:31:49] ok  credit line 'Based on UCT's Pre-market prep'
+    [05:31:49] ok  the outline shows headings and prompts, no raw {{block:...}} placeholder
+[390 W11.1] PASS  checks 12/12  findings 0
+    [05:32:02] saw adopt sheet
+    [05:32:02] saw reuse question radios
+    [05:32:02] saw A's routines before
+    [05:32:02] ok  A has no routine: only 'Create Pre-market routine from the template' is offered
+    [05:32:02] ok  chose 'Create Pre-market routine from the template'
+    [05:32:06] NO  W11.2: after Use the new note is in front (no sheet left open over it)
+    [05:32:12] saw new note
+    [05:32:12] ok  navigated to a new note holding the prep blocks
+    [05:32:12] ok  the routine block is bound to the note's day ('For Tue Oct 27')
+    [05:32:12] ok  no raw {{block:..}} placeholder in the note
+    [05:32:12] ok  snapshot blocks are filled (numbers, not placeholders)
+    [05:32:12] saw focus before Tab
+    [05:32:12] ok  the routine items are reachable by Tab
+    [05:32:14] ok  Space toggles the item (the tick shows)
+    [05:32:14] ok  ticking sends ZERO note PUTs (§6.2)
+    [05:32:21] ok  after reload the tick is still there
+    [05:32:21] ok  after reload the note shows no unsaved change (updatedAt unchanged by open + tick)
+    [05:32:21] ok  no note PUT across tick + reload
+[390 W11.2] FAIL  checks 12/13  findings 1
+   x W11.2: after Use the new note is in front (no sheet left open over it) | ["New note"]
+   ! axe:serious note scrollable-region-focusable: Scrollable region must have keyboard access (1 nodes) ['._list_11zhg_95'] -- Fix any of the following:
+  Element should have focusable content
+  Element should be focusabl
+    [05:32:33] saw adopt sheet
+    [05:32:33] saw second use: radios
+    [05:32:33] ok  no routine question this time (the choice is remembered for that template)
+    [05:32:37] NO  W11.3: after Use the new note is in front (no sheet left open over it)
+    [05:32:38] ok  exactly ONE routine made from the template (unique on user, source_template_key)
+    [05:32:53] saw My tools > Routines
+    [05:32:53] ok  My tools > Routines lists ONE 'Pre-market routine' reading 'From template: Pre-market prep'
+    [05:33:09] ok  the second note was deleted (Trash) through the note's Delete
+    [05:33:09] ok  deleting the note did NOT delete the routine
+[390 W11.3] FAIL  checks 5/6  findings 5
+   x W11.3: after Use the new note is in front (no sheet left open over it) | ["New note"]
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/5181492f9fbe4823808a1f0e63abaf97"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/5181492f9fbe4823808a1f0e63abaf97/documents"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/5181492f9fbe4823808a1f0e63abaf97/thesis-summary"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/5181492f9fbe4823808a1f0e63abaf97/properties"}
+   ! event A {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/j2/notes/5181492f9fbe4823808a1f0e63abaf97/trade-ref/resolve"}
+    [05:33:21] saw A adopt sheet (Setup study)
+    [05:33:21] saw A's setups by trade count
+    [05:33:21] ok  the setup slot opens at A's most-used setup (Earnings drift / Gap and go / Pullback / Breakout; a tie accepts 
+    [05:33:21] ok  the preview renders immediately (no 'Pick a setup' sentence; widgets drawn)
+    [05:33:21] ok  Use is enabled
+    [05:33:27] saw N adopt sheet (Setup study)
+    [05:33:27] ok  N: the widget reads 'Pick a setup to see this widget.'
+    [05:33:27] ok  N: Use is disabled
+    [05:33:27] ok  N: 'Pick a value for each choice, or Any.' beside Use
+    [05:33:27] ok  N: no 0 anywhere
+    [05:33:30] saw N: setup picker
+[390 W11.6] PASS  checks 7/7  findings 0
+    [05:34:06] ok  setup note: two built widgets, one routine and one tracker placed
+    [05:34:11] ok  saved as the style 'Share source 390'
+    [05:34:31] saw share preview
+    [05:34:31] ok  title 'Share to library'
+    [05:34:31] ok  heading 'What will be shared'
+    [05:34:31] ok  the Name is prefilled with the template's name
+    [05:34:31] ok  a Description field is offered
+    [05:34:31] ok  'Widget: Setup win rate 390' is listed with its controls
+    [05:34:31] ok  'Widget: Daily P&L bars' is listed with its controls
+    [05:34:31] ok  'Routine: Prep routine 390' is listed with its controls
+    [05:34:31] ok  'Tracker: Sleep 390' is listed with its controls
+    [05:34:31] ok  'People who use it pick their own: <Setup, ...>' names the setup choice
+    [05:34:31] saw number switches
+    [05:34:31] ok  every number switch 'Share this number (<value>)' starts OFF
+    [05:34:31] saw exactly what travels
+    [05:34:31] ok  'Exactly what travels' is plain words, never JSON
+    [05:34:31] ok  'Exactly what travels' names none of A's account names or the picked setup (no stored member text)
+    [05:34:31] ok  no id travels
+    [05:34:34] ok  switching ONE number on sends the next server preview
+    [05:34:34] saw exactly what travels, one number on
+    [05:34:34] ok  the next server preview lists that number (2) only
+    [05:34:41] ok  Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:34:55] saw review queue
+    [05:34:55] ok  the review queue lists 'Share source 390' waiting
+    [05:34:58] ok  'Share source 390' is listed after approval
+    [05:35:04] saw B adopt sheet
+    [05:35:04] ok  credit line names A's template
+    [05:35:04] saw B choices
+    [05:35:09] ok  B changed the setup from its suggestion (Breakout) to Earnings drift
+    [05:35:16] ok  Use -> 'Added to your templates.'
+    [05:35:32] saw B My tools > Templates
+    [05:35:32] ok  B's copy reads 'Based on <label>'s Share source 390' (label not an email; else 'A UCT member')
+    [05:35:51] ok  Use Share source 390: after Use the new note is in front (no sheet left open over it)
+    [05:35:55] saw B's note from the copy
+    [05:35:55] ok  nothing of A's values appears in B's note (A's account names)
+    [05:35:55] ok  B's note holds the routine and tracker blocks
+    [05:35:55] ok  B's note holds the two built widgets (two frames drawn)
+    [05:35:55] saw B's widget definitions
+    [05:35:55] ok  B holds its own copies of both widgets, named as shared
+[390 W11.7] PASS  checks 29/29  findings 0
+    [05:36:11] saw share preview (Widgets)
+    [05:36:11] ok  Widgets: the own row offers 'Share to library' and opens the same share preview
+    [05:36:14] ok  Widgets: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:36:34] saw share preview (Routines)
+    [05:36:34] ok  Routines: the own row offers 'Share to library' and opens the same share preview
+    [05:36:34] ok  routine share carries item text only (no ticks/history)
+    [05:36:38] ok  Routines: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:36:58] saw share preview (Trackers)
+    [05:36:58] ok  Trackers: the own row offers 'Share to library' and opens the same share preview
+    [05:36:58] ok  tracker share carries name, kind and unit only
+    [05:37:01] ok  Trackers: Send -> 'Sent. UCT reviews every item before it's listed.'
+    [05:37:16] saw review queue
+    [05:37:16] ok  the review queue lists 'Setup win rate 390' waiting
+    [05:37:16] ok  the review queue lists 'Prep routine 390' waiting
+    [05:37:16] ok  the review queue lists 'Sleep 390' waiting
+    [05:37:24] ok  'Setup win rate 390' is listed after approval
+    [05:37:24] ok  'Prep routine 390' is listed after approval
+    [05:37:24] ok  'Sleep 390' is listed after approval
+Timeout (0:20:00)!
+Thread 0x000018f4 (most recent call first):
+  File "C:\Python314\Lib\concurrent\futures\thread.py", line 116 in _worker
+  File "C:\Python314\Lib\threading.py", line 1023 in run
+  File "C:\Python314\Lib\threading.py", line 1081 in _bootstrap_inner
+  File "C:\Python314\Lib\threading.py", line 1043 in _bootstrap
+
+Thread 0x000092e4 (most recent call first):
+  File "C:\Python314\Lib\asyncio\windows_events.py", line 775 in _poll
+  File "C:\Python314\Lib\asyncio\windows_events.py", line 446 in select
+  File "C:\Python314\Lib\asyncio\base_events.py", line 2008 in _run_once
+  File "C:\Python314\Lib\asyncio\base_events.py", line 677 in run_forever
+  File "C:\Python314\Lib\asyncio\base_events.py", line 706 in run_until_complete
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\playwright\sync_api\_context_manager.py", line 56 in greenlet_main
+    [05:37:38] ok  B finds the listed widget 'Setup win rate 390' (filtered by its type chip)
+    [05:37:38] ok  the 'Setup win rate 390' card carries the type chip 'Widget'
+    [05:37:42] ok  B adopts 'Setup win rate 390': 'Added to My tools.'
+    [05:38:00] ok  B finds the listed routine 'Prep routine 390' (filtered by its type chip)
+    [05:38:00] ok  the 'Prep routine 390' card carries the type chip 'Routine'
+    [05:38:05] ok  B adopts 'Prep routine 390': 'Added to My tools.'
+    [05:38:22] ok  B finds the listed tracker 'Sleep 390' (filtered by its type chip)
+    [05:38:22] ok  the 'Sleep 390' card carries the type chip 'Tracker'
+    [05:38:27] ok  B adopts 'Sleep 390': 'Added to My tools.'
+    [05:38:27] saw B's copies by name, before -> after
+    [05:38:27] ok  adopting adds exactly one copy of 'Setup win rate 390' to B's My tools
+    [05:38:27] ok  adopting adds exactly one copy of 'Prep routine 390' to B's My tools
+    [05:38:27] ok  adopting adds exactly one copy of 'Sleep 390' to B's My tools
+    [05:38:43] saw B My tools > Widgets
+    [05:38:43] ok  B's Widgets row for 'Setup win rate 390' carries the credit line
+    [05:38:43] ok  B's copy of 'Setup win rate 390' offers NO 'Share to library'
+    [05:38:47] saw B My tools > Routines
+    [05:38:47] ok  B's Routines row for 'Prep routine 390' carries the credit line
+    [05:38:47] ok  B's copy of 'Prep routine 390' offers NO 'Share to library'
+    [05:38:51] saw B My tools > Trackers
+    [05:38:51] ok  B's Trackers row for 'Sleep 390' carries the credit line
+    [05:38:51] ok  B's copy of 'Sleep 390' offers NO 'Share to library'
+    [05:38:52] ok  B's adopted routine carries A's item text
+    [05:38:52] ok  B's adopted tracker carries name, kind and unit
+[390 W11.8] PASS  checks 34/34  findings 0
+    [05:39:04] saw Templates rows
+    [05:39:04] ok  a row shows name, kind, 'Used in <N> notes', last edited, and the credit for a copy
+    [05:39:04] ok  an own template with no note reads 'Not in any note' and no credit
+    [05:39:04] ok  phone: rows are at least 56 px
+    [05:39:05] saw Active row menu
+    [05:39:05] ok  Active row actions: Open, Rename, Duplicate, Share to library, Archive (no Delete permanently)
+    [05:39:06] saw after Duplicate
+    [05:39:06] ok  Duplicate makes a copy ('Made “<name>”.')
+    [05:39:11] ok  Rename -> 'Renamed to “Manage me 390”.'
+    [05:39:12] saw Archive item (with its hint)
+    [05:39:13] saw after Archive
+    [05:39:16] saw Pre-market prep Archive panel
+    [05:39:16] ok  Archive of a template in 1 notes reads "It stays in your 1 note. New notes can't use it until you restore it."
+    [05:39:17] ok  Archive of a template in no note says "New notes can't use it until you restore it." (the menu item's hint)
+    [05:39:31] ok  the archived template is GONE from the picker
+    [05:39:49] saw Archived list
+    [05:39:50] ok  Archived row actions: Restore and Delete permanently
+    [05:39:51] saw after Restore
+    [05:39:53] ok  Restore brings it back to Active
+    [05:40:08] ok  restored, it is back in the picker
+    [05:40:30] ok  Delete permanently needs the name typed (DeleteConfirm)
+    [05:40:30] ok  the delete button is off until the name is typed
+    [05:40:32] saw after delete
+    [05:40:34] saw Recently deleted
+    [05:40:34] ok  Recently deleted lists it with 'Kept until Nov 26'
+    [05:40:35] ok  Recently deleted offers Restore
+[390 W11.10] PASS  checks 16/16  findings 0
+    [05:40:51] ok  Use Share source 390: after Use the new note is in front (no sheet left open over it)
+    [05:41:01] saw addresses
+    [05:41:04] saw share link text
+    [05:41:04] ok  the share link says 'A private account item is not shown on public pages.' for the private widgets/routine/tra
+    [05:41:04] ok  adjacent private items share ONE line on the share link (counted 1)
+    [05:41:04] ok  no value, account name, routine item or day state on the share link
+    [05:41:04] ok  no tick state on the share link
+    [05:41:11] saw published page text
+    [05:41:11] ok  the published page says 'A private account item is not shown on public pages.' for the private widgets/routine
+    [05:41:11] ok  adjacent private items share ONE line on the published page (counted 1)
+    [05:41:11] ok  no value, account name, routine item or day state on the published page
+    [05:41:11] ok  no tick state on the published page
+[390 W11.11] PASS  checks 9/9  findings 2
+   ! event anon-share link {"console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"}
+   ! event anon-published page {"console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"}
+    [05:41:27] saw number input box / visual viewport
+    [05:41:27] ok  (a) the focused number input lies inside visualViewport.height
+    [05:41:27] ok  (a) no horizontal page scroll
+    [05:41:27] ok  (a) the sheet's primary button (Use) is reachable by Tab
+    [05:41:44] ok  (b) the focused share-preview Name field lies inside visualViewport.height
+    [05:41:44] ok  (b) no horizontal page scroll
+    [05:41:45] saw (b) Send for review before a category is chosen
+    [05:41:46] ok  (b) the sheet's primary button (Send for review) is reachable by Tab
+[390 W11.13] PASS  checks 6/6  findings 0
+    [05:42:06] saw keyboard audit: template picker + library section
+    [05:42:06] ok  template picker + library section: every visible control is reached by Tab (a radio group / tab list counts on
+    [05:42:06] ok  template picker + library section: focus stays inside the sheet (trap)
+    [05:42:09] saw keyboard audit: library detail
+    [05:42:09] ok  library detail: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:42:09] ok  library detail: focus stays inside the sheet (trap)
+    [05:42:10] ok  library detail: Escape returns focus to the control that opened it
+    [05:42:16] saw keyboard audit: adopt sheet (Pre-market prep)
+    [05:42:16] ok  adopt sheet (Pre-market prep): every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:42:16] ok  adopt sheet (Pre-market prep): focus stays inside the sheet (trap)
+    [05:42:17] ok  adopt sheet: Escape closes it
+    [05:42:17] saw focus after closing the adopt sheet
+    [05:42:42] ok  SlotPicker: a value is picked with arrows and Done by keyboard
+    [05:42:42] ok  SlotPicker: after Done, focus returns to its Change button
+    [05:42:42] saw keyboard audit: adopt sheet (Setup study, with a choice)
+    [05:42:42] ok  adopt sheet (Setup study, with a choice): every visible control is reached by Tab (a radio group / tab list co
+    [05:42:42] ok  adopt sheet (Setup study, with a choice): focus stays inside the sheet (trap)
+    [05:42:59] ok  My tools: the Templates tab is reached and selected by keyboard
+    [05:42:59] saw keyboard audit: My tools > Templates
+    [05:42:59] ok  My tools > Templates: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:42:59] ok  My tools > Templates: focus stays inside the sheet (trap)
+    [05:43:00] saw row actions menu by keyboard
+    [05:43:00] ok  Templates row: the Actions menu opens by Enter
+    [05:43:00] ok  Templates row: Tab (touch: an action sheet) reach 'Share to library'
+    [05:43:01] ok  Templates row: Escape returns focus to the row's Actions button
+    [05:43:06] saw keyboard audit: share preview
+    [05:43:06] ok  share preview: every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:43:06] ok  share preview: focus stays inside the sheet (trap)
+    [05:43:08] ok  share preview: the number switch toggles with Space
+    [05:43:10] ok  share preview: Escape returns focus to the control that opened it
+    [05:43:27] ok  review queue: opened by keyboard
+    [05:43:27] saw keyboard audit: review queue (gallery)
+    [05:43:27] ok  review queue (gallery): every visible control is reached by Tab (a radio group / tab list counts once)
+    [05:43:27] ok  review queue (gallery): focus stays inside the sheet (trap)
+[390 W11.14] PASS  checks 25/25  findings 0
+    [05:43:36] saw theme before the pass (data-theme)
+    [05:43:49] saw data-theme after picking Light
+    [05:44:08] saw light: dimmed (opacity < 1) text in the adopt sheet
+    [05:45:00] saw Light: gallery active chips
+    [05:45:00] ok  R5 Light: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:45:00] NO  Light: axe color-contrast has no serious finding on light-picker
+    [05:45:00] NO  Light: axe color-contrast has no serious finding on light-detail
+    [05:45:00] NO  Light: axe color-contrast has no serious finding on light-adopt
+    [05:45:00] NO  Light: axe color-contrast has no serious finding on light-share
+    [05:45:00] NO  Light: axe color-contrast has no serious finding on light-mytools
+    [05:45:00] NO  Light: axe color-contrast has no serious finding on light-gallery
+    [05:45:14] saw data-theme after picking Graphite
+    [05:45:33] saw dark: dimmed (opacity < 1) text in the adopt sheet
+    [05:46:24] saw Graphite: gallery active chips
+    [05:46:24] ok  R5 Graphite: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:46:25] ok  Graphite: axe color-contrast has no serious finding on dark-picker
+    [05:46:25] ok  Graphite: axe color-contrast has no serious finding on dark-detail
+    [05:46:25] ok  Graphite: axe color-contrast has no serious finding on dark-adopt
+    [05:46:25] ok  Graphite: axe color-contrast has no serious finding on dark-share
+    [05:46:25] ok  Graphite: axe color-contrast has no serious finding on dark-mytools
+    [05:46:25] ok  Graphite: axe color-contrast has no serious finding on dark-gallery
+    [05:46:39] saw data-theme after picking OLED Black
+    [05:46:57] saw oled: dimmed (opacity < 1) text in the adopt sheet
+    [05:47:49] saw OLED Black: gallery active chips
+    [05:47:49] ok  R5 OLED Black: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:47:49] ok  OLED Black: axe color-contrast has no serious finding on oled-picker
+    [05:47:49] ok  OLED Black: axe color-contrast has no serious finding on oled-detail
+    [05:47:49] ok  OLED Black: axe color-contrast has no serious finding on oled-adopt
+    [05:47:49] ok  OLED Black: axe color-contrast has no serious finding on oled-share
+    [05:47:49] ok  OLED Black: axe color-contrast has no serious finding on oled-mytools
+    [05:47:49] ok  OLED Black: axe color-contrast has no serious finding on oled-gallery
+[390 W11.15] FAIL  checks 15/21  findings 18
+   x Light: axe color-contrast has no serious finding on light-picker | ["Fix any of the following:\n  Element has insufficient color contrast of 1.41 (foreground color: #0b0e11, background color: #2c2e2a, font size: 11.3pt (15px), fon"]
+   x Light: axe color-contrast has no serious finding on light-detail | ["Fix any of the following:\n  Element has insufficient color contrast of 1.41 (foreground color: #0b0e11, background color: #2c2e2a, font size: 11.3pt (15px), fon"]
+   x Light: axe color-contrast has no serious finding on light-adopt | ["Fix any of the following:\n  Element has insufficient color contrast of 1.41 (foreground color: #0b0e11, background color: #2c2e2a, font size: 11.3pt (15px), fon"]
+   x Light: axe color-contrast has no serious finding on light-share | ["Fix any of the following:\n  Element has insufficient color contrast of 1.41 (foreground color: #0b0e11, background color: #2c2e2a, font size: 11.3pt (15px), fon"]
+   x Light: axe color-contrast has no serious finding on light-mytools | ["Fix any of the following:\n  Element has insufficient color contrast of 1.41 (foreground color: #0b0e11, background color: #2c2e2a, font size: 11.3pt (15px), fon"]
+   x Light: axe color-contrast has no serious finding on light-gallery | ["Fix any of the following:\n  Element has insufficient color contrast of 1.41 (foreground color: #0b0e11, background color: #2c2e2a, font size: 11.3pt (15px), fon"]
+   ! axe:serious light-picker color-contrast: Elements must meet minimum color contrast ratio thresholds (1 nodes) ['._pageTitle_2m0cv_101'] -- Fix any of the following:
+  Element has insufficient color contrast of 1.41 (foregroun
+   ! axe:serious light-detail color-contrast: Elements must meet minimum color contrast ratio thresholds (1 nodes) ['._pageTitle_2m0cv_101'] -- Fix any of the following:
+  Element has insufficient color contrast of 1.41 (foregroun
+   ! axe:serious light-adopt color-contrast: Elements must meet minimum color contrast ratio thresholds (1 nodes) ['._pageTitle_2m0cv_101'] -- Fix any of the following:
+  Element has insufficient color contrast of 1.41 (foregroun
+   ! axe:serious light-share color-contrast: Elements must meet minimum color contrast ratio thresholds (1 nodes) ['._pageTitle_2m0cv_101'] -- Fix any of the following:
+  Element has insufficient color contrast of 1.41 (foregroun
+   ! axe:serious light-mytools color-contrast: Elements must meet minimum color contrast ratio thresholds (1 nodes) ['._pageTitle_2m0cv_101'] -- Fix any of the following:
+  Element has insufficient color contrast of 1.41 (foregroun
+   ! axe:serious light-gallery color-contrast: Elements must meet minimum color contrast ratio thresholds (1 nodes) ['._pageTitle_2m0cv_101'] -- Fix any of the following:
+  Element has insufficient color contrast of 1.41 (foregroun
+   ! event A-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/push/config"}
+   ! event A-light {"http": 404, "method": "GET", "url": "http://127.0.0.1:8151/api/alerts/routing"}
+    [05:47:49] ok  not walked at this viewport by the plan
+[390 W11.16] PASS  checks 1/1  findings 0
+    [05:47:59] ok  door: TemplatePicker's Template library section
+    [05:47:59] ok  every library card carries one type chip 'Template'
+    [05:48:00] saw search 'prep' keeps
+    [05:48:00] ok  the search filters the library by title, description and contains
+    [05:48:03] saw chip 'Daily & weekly rituals' keeps
+    [05:48:03] ok  the 'Daily & weekly rituals' chip keeps exactly the ['after_close', 'before_open', 'challenges', 'habits', 'ni
+    [05:48:03] ok  R8: 'Night-before prep' is under the 'Daily & weekly rituals' chip
+    [05:48:03] ok  R8: 'Pre-market prep' is under the 'Daily & weekly rituals' chip
+    [05:48:03] ok  R8: 'Morning routine' is under the 'Daily & weekly rituals' chip
+    [05:48:03] saw chip 'Daily & weekly rituals': active chip contrast / sizes
+    [05:48:03] ok  R5: the active 'Daily & weekly rituals' chip holds >= 4.5:1 at rest and hovered
+    [05:48:03] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Daily & weekly rituals' active)
+    [05:48:06] saw chip 'Around a trade' keeps
+    [05:48:06] ok  the 'Around a trade' chip keeps exactly the ['during_day'] groups
+    [05:48:06] saw chip 'Around a trade': active chip contrast / sizes
+    [05:48:06] ok  R5: the active 'Around a trade' chip holds >= 4.5:1 at rest and hovered
+    [05:48:06] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Around a trade' active)
+    [05:48:08] saw chip 'Thesis & research' keeps
+    [05:48:08] ok  the 'Thesis & research' chip keeps exactly the ['playbook'] groups
+    [05:48:08] saw chip 'Thesis & research': active chip contrast / sizes
+    [05:48:08] ok  R5: the active 'Thesis & research' chip holds >= 4.5:1 at rest and hovered
+    [05:48:08] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Thesis & research' active)
+    [05:48:11] saw chip 'Mindset' keeps
+    [05:48:11] ok  the 'Mindset' chip keeps exactly the ['mindset'] groups
+    [05:48:11] ok  R8: 'Pre-session check-in' is under the 'Mindset' chip
+    [05:48:11] saw chip 'Mindset': active chip contrast / sizes
+    [05:48:11] ok  R5: the active 'Mindset' chip holds >= 4.5:1 at rest and hovered
+    [05:48:11] ok  R6: every picker/library chip is >= 44 x 44 on the touch tier ('Mindset' active)
+    [05:48:11] ok  R8: every library template sits under exactly one chip
+    [05:48:12] ok  'Your templates' hides the library section
+    [05:48:16] ok  door: the community gallery opens from the picker
+    [05:48:16] saw gallery type chips
+    [05:48:16] ok  gallery cards carry type chips (Template / Widget / Routine / Tracker present)
+    [05:48:18] saw gallery: active chips / chip sizes
+    [05:48:18] ok  R5: every active gallery chip holds >= 4.5:1 at rest and hovered
+    [05:48:18] ok  R6: every gallery filter chip is >= 44 x 44 on the touch tier
+    [05:48:34] ok  door: My tools -> Templates
+    [05:48:50] saw / menu rows
+    [05:48:50] ok  door: 'Manage my tools' is in the / menu (end of the Mine group)
+    [05:48:51] ok  door: 'Manage…' in the ⋯ menu of a placed built widget
+    [05:48:53] ok  'Manage…' on the built widget opens My tools
+    [05:48:54] ok  door: 'Manage…' in the ⋯ menu of a placed routine
+    [05:48:56] ok  'Manage…' on the routine opens My tools
+    [05:48:57] ok  door: 'Manage…' in the ⋯ menu of a placed tracker
+    [05:48:59] ok  'Manage…' on the tracker opens My tools
+[390 W11.17] PASS  checks 33/33  findings 0
+    [05:49:23] saw P01 measured
+    [05:49:23] saw P01 390 folder select (lives in More, display:none expected)
+    [05:49:23] ok  D-W11-003 P01 390: the title input is at least 44 px tall
+    [05:49:23] ok  D-W11-004 P01 390: FeedbackWidget '?' is 44 x 44
+    [05:49:47] saw P04 measured
+    [05:49:47] saw P04 390 folder select (lives in More, display:none expected)
+    [05:49:47] ok  D-W11-003 P04 390: the title input is at least 44 px tall
+    [05:49:47] ok  D-W11-004 P04 390: FeedbackWidget '?' is 44 x 44
+    [05:50:07] saw P25 a.05 broken formula state
+    [05:50:07] saw builder checks
+    [05:50:07] ok  the broken formula shows its inline error
+    [05:50:07] ok  390: the summary bar leads with 'Showing the last result.'
+    [05:50:07] ok  the live region stays summary-only (no 'Showing the last result.')
+    [05:50:07] ok  preview dim opacity reads 0.9
+    [05:50:08] ok  axe color-contrast: no finding on the builder with the dimmed preview
+    [05:50:11] ok  fixed, the line is gone
+[390 FDEF] PASS  checks 10/10  findings 0
+[mode] walk-on pid=32712 instant=2026-10-27T04:57:11-05:00 port=8151 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.err.log
+walk start
+    [05:51:41] saw P14 toggle
+    [05:51:41] ok  D-W11-001 P14 1200: the note details toggle is at least 24 px tall
+    [05:51:41] ok  D-W11-001 P14 1200: axe target-size has no finding on the note page
+    [05:52:04] saw P46 toggle
+    [05:52:04] ok  D-W11-001 P46 1200: the note details toggle is at least 24 px tall
+    [05:52:04] ok  D-W11-001 P46 1200: axe target-size has no finding on the note page
+[1200 FDEF2] PASS  checks 4/4  findings 0
+[mode] walk-on pid=32712 instant=2026-10-27T04:57:11-05:00 port=8151 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.err.log
+walk start
+    [05:54:36] NO  ON (before the flip): opening note w112_note sends no note PUT
+    [05:54:59] ok  ON (before the flip): opening note share_note sends no note PUT
+    [05:55:21] ok  ON (before the flip): opening note a_tplnote sends no note PUT
+    [05:55:21] saw ON snapshot before the flip
+    [05:55:21] ok  snapshot of the W11.2-W11.7 notes and the style's slots taken under ON
+[1200 W11.12] FAIL  checks 3/4  findings 0
+   x ON (before the flip): opening note w112_note sends no note PUT | [{"m": "PUT", "u": "http://127.0.0.1:8151/api/j2/notes/a0bbe4570a9a44f7843ab45c35542991", "s": 200}]
+    [05:55:40] NO  ON (before the flip): opening note w112_note sends no note PUT
+    [05:56:03] ok  ON (before the flip): opening note share_note sends no note PUT
+    [05:56:25] ok  ON (before the flip): opening note a_tplnote sends no note PUT
+    [05:56:25] saw ON snapshot before the flip
+    [05:56:25] ok  snapshot of the W11.2-W11.7 notes and the style's slots taken under ON
+[820 W11.12] FAIL  checks 3/4  findings 0
+   x ON (before the flip): opening note w112_note sends no note PUT | [{"m": "PUT", "u": "http://127.0.0.1:8151/api/j2/notes/94187b05387846b78ac1f1dc8b233f29", "s": 200}]
+    [05:56:44] NO  ON (before the flip): opening note w112_note sends no note PUT
+    [05:57:07] ok  ON (before the flip): opening note share_note sends no note PUT
+    [05:57:28] ok  ON (before the flip): opening note a_tplnote sends no note PUT
+    [05:57:29] saw ON snapshot before the flip
+    [05:57:29] ok  snapshot of the W11.2-W11.7 notes and the style's slots taken under ON
+[390 W11.12] FAIL  checks 3/4  findings 0
+   x ON (before the flip): opening note w112_note sends no note PUT | [{"m": "PUT", "u": "http://127.0.0.1:8151/api/j2/notes/254af0294bdd49bc82df82e1e47f3b96", "s": 200}]
+[mode] walk-on pid=32712 instant=2026-10-27T04:57:11-05:00 port=8151 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-on.err.log
+walk start
+    [05:57:30] saw control: adopt-tool with no other writer
+    [05:57:30] ok  control: adopt-tool works (200) with no other writer
+    [05:57:34] saw busy: answers while this walker held auth.db (BEGIN IMMEDIATE)
+    [05:57:34] ok  busy helpful: never a 500
+    [05:57:34] ok  busy adopt: never a 500
+    [05:57:34] ok  busy adopt: answers 503 busy (the house sentence) while another writer holds the database
+    [05:57:34] ok  after the writer lets go, the same adopt-tool works (200)
+    [05:57:34] ok  the busy adopt wrote nothing: exactly one copy of the tracker after the retry
+[1200 R1] PASS  checks 6/6  findings 0

@@ -1,0 +1,26 @@
+{
+ "viewport": "820",
+ "step": "W11.16",
+ "title": "Reduced motion",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "not walked at this viewport by the plan",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [],
+ "verdict": "PASS",
+ "notes": [
+  "1200 only"
+ ],
+ "events": {},
+ "metrics": {},
+ "screenshots": [],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:29:17",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:29:17"
+}

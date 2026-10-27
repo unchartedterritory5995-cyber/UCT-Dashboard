@@ -1,0 +1,216 @@
+{
+ "viewport": "390",
+ "step": "FDEF",
+ "title": "F-DEF-1 retests",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D-W11-003 P01 390: the title input is at least 44 px tall",
+   "ok": true,
+   "read": "{\"w\": 310, \"h\": 44, \"vis\": true}"
+  },
+  {
+   "what": "D-W11-004 P01 390: FeedbackWidget '?' is 44 x 44",
+   "ok": true,
+   "read": "{\"w\": 44, \"h\": 44, \"vis\": true}"
+  },
+  {
+   "what": "D-W11-003 P04 390: the title input is at least 44 px tall",
+   "ok": true,
+   "read": "{\"w\": 310, \"h\": 44, \"vis\": true}"
+  },
+  {
+   "what": "D-W11-004 P04 390: FeedbackWidget '?' is 44 x 44",
+   "ok": true,
+   "read": "{\"w\": 44, \"h\": 44, \"vis\": true}"
+  },
+  {
+   "what": "the broken formula shows its inline error",
+   "ok": true,
+   "read": "[{\"what\": \"an inline sentence says what is wrong\", \"ok\": true, \"read\": \"A ( is missing its ).\"}]"
+  },
+  {
+   "what": "390: the summary bar leads with 'Showing the last result.'",
+   "ok": true,
+   "read": "Showing the last result. Net P&L, last 90 days · 60 trades · +$6,181.85\nShow the preview"
+  },
+  {
+   "what": "the live region stays summary-only (no 'Showing the last result.')",
+   "ok": true,
+   "read": "Net P&L for closed trades in the last 90 days, all accounts. 60 trades."
+  },
+  {
+   "what": "preview dim opacity reads 0.9",
+   "ok": true,
+   "read": "[\"0.9\", \"\"]"
+  },
+  {
+   "what": "axe color-contrast: no finding on the builder with the dimmed preview",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "fixed, the line is gone",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "P01 measured",
+   "text": "{\"toggle\": {\"w\": 91.4, \"h\": 44, \"vis\": true}, \"toggle_opacity\": \"0.9\", \"toggle_text\": \"Add details\", \"folder_select\": {\"w\": 0, \"h\": 0, \"vis\": false}, \"title_input\": {\"w\": 310, \"h\": 44, \"vis\": true}, \"feedback_fab\": {\"w\": 44, \"h\": 44, \"vis\": true}, \"axe_target_or_contrast\": []}"
+  },
+  {
+   "what": "P01 390 folder select (lives in More, display:none expected)",
+   "text": "{\"w\": 0, \"h\": 0, \"vis\": false}"
+  },
+  {
+   "what": "P04 measured",
+   "text": "{\"toggle\": {\"w\": 91.4, \"h\": 44, \"vis\": true}, \"toggle_opacity\": \"0.9\", \"toggle_text\": \"Add details\", \"folder_select\": {\"w\": 0, \"h\": 0, \"vis\": false}, \"title_input\": {\"w\": 310, \"h\": 44, \"vis\": true}, \"feedback_fab\": {\"w\": 44, \"h\": 44, \"vis\": true}, \"axe_target_or_contrast\": []}"
+  },
+  {
+   "what": "P04 390 folder select (lives in More, display:none expected)",
+   "text": "{\"w\": 0, \"h\": 0, \"vis\": false}"
+  },
+  {
+   "what": "P25 a.05 broken formula state",
+   "text": "{\"line_visible\": false, \"line_text\": null, \"live\": \"Net P&L for closed trades in the last 90 days, all accounts. 60 trades.\", \"bar\": \"Showing the last result. Net P&L, last 90 days \\u00b7 60 trades \\u00b7 +$6,181.85\\nShow the preview\", \"opacity\": \"0.9\", \"busy_opacity_var\": \"\"}"
+  },
+  {
+   "what": "builder checks",
+   "text": "[{\"what\": \"an inline sentence says what is wrong\", \"ok\": true, \"read\": \"A ( is missing its ).\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "P01-note": [],
+  "P04-note": [],
+  "P25": []
+ },
+ "metrics": {
+  "note-P01-note": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 31,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "note-P04-note": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 31,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "p25-builder-broken": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 38,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/FDEF-note-P01.png",
+  "390/FDEF-note-P04.png",
+  "390/FDEF-p25-broken.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:48:59",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:50:12"
+}

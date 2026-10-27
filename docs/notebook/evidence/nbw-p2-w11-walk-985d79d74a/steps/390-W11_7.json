@@ -1,0 +1,341 @@
+{
+ "viewport": "390",
+ "step": "W11.7",
+ "title": "Template share -> review -> adopt with pick-yours",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "setup note: two built widgets, one routine and one tracker placed",
+   "ok": true,
+   "read": "[{\"what\": \"the widget was saved (HTTP 200/201)\", \"ok\": true, \"read\": \"HTTP 200\"}, {\"what\": \"the widget 'Setup win rate 390' is placed in the note\", \"ok\": true, \"read\": \"Setup win rate 390\\nOnly you\\nas of Oct 27, 2026, 6:33 AM ET\\nShow on shared pages\\nSee it now\\nChange\\n\\nAll my accounts \\u00b7 La"
+  },
+  {
+   "what": "saved as the style 'Share source 390'",
+   "ok": true,
+   "read": "Lock\nArchive\nSave as template\nSave this note's setup as a style\nSaved as the style “Share source 390”."
+  },
+  {
+   "what": "title 'Share to library'",
+   "ok": true,
+   "read": "Share to library\n×\nWhat will be shared\nN"
+  },
+  {
+   "what": "heading 'What will be shared'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the Name is prefilled with the template's name",
+   "ok": true,
+   "read": "[\"Share source 390\", \"Setup win rate 390\", \"Daily P&L bars\", \"Prep routine 390\", \"Check futures\", \"Mark my levels\", \"Size my risk\", \"Sleep 390\", \"h\"]"
+  },
+  {
+   "what": "a Description field is offered",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Widget: Setup win rate 390' is listed with its controls",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Widget: Daily P&L bars' is listed with its controls",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Routine: Prep routine 390' is listed with its controls",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Tracker: Sleep 390' is listed with its controls",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'People who use it pick their own: <Setup, ...>' names the setup choice",
+   "ok": true,
+   "read": "People who use it pick their own: Setup, Number"
+  },
+  {
+   "what": "every number switch 'Share this number (<value>)' starts OFF",
+   "ok": true,
+   "read": "[[\"Hold days: Share this number (2)\", \"false\"]]"
+  },
+  {
+   "what": "'Exactly what travels' is plain words, never JSON",
+   "ok": true,
+   "read": "Exactly what travels\n\nName: Share source 390\n\nWidget: Setup win rate 390\n\nDescription: Win rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before"
+  },
+  {
+   "what": "'Exactly what travels' names none of A's account names or the picked setup (no stored member text)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "no id travels",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "switching ONE number on sends the next server preview",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the next server preview lists that number (2) only",
+   "ok": true,
+   "read": "Exactly what travels\n\nName: Share source 390\n\nWidget: Setup win rate 390\n\nDescription: Win rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\n\nShown as: Number with comparison\n\nWidget: Daily P&L bars\n\nDescription: Net P&L, spl"
+  },
+  {
+   "what": "Send -> 'Sent. UCT reviews every item before it's listed.'",
+   "ok": true,
+   "read": "Share to library\n×\n\nSent. UCT reviews every item before it's listed.\n\nDone"
+  },
+  {
+   "what": "the review queue lists 'Share source 390' waiting",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Share source 390' is listed after approval",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "credit line names A's template",
+   "ok": true,
+   "read": "Make it yours\n×\n\nBased on Campaign P29's Share source 390\n\nYour choices\nSetup: Breakout\nChange\nHold days: Any hold days\n"
+  },
+  {
+   "what": "B changed the setup from its suggestion (Breakout) to Earnings drift",
+   "ok": true,
+   "read": "Setup: Earnings drift\nChange"
+  },
+  {
+   "what": "Use -> 'Added to your templates.'",
+   "ok": true,
+   "read": "Make it yours\n×\n\nBased on Campaign P29's Share source 390\n\nAdded to your templates.\n\nDone"
+  },
+  {
+   "what": "B's copy reads 'Based on <label>'s Share source 390' (label not an email; else 'A UCT member')",
+   "ok": true,
+   "read": "Based on Campaign P29's Share source 390"
+  },
+  {
+   "what": "Use Share source 390: after Use the new note is in front (no sheet left open over it)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "nothing of A's values appears in B's note (A's account names)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "B's note holds the routine and tracker blocks",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B's note holds the two built widgets (two frames drawn)",
+   "ok": true,
+   "read": "2 frames"
+  },
+  {
+   "what": "B holds its own copies of both widgets, named as shared",
+   "ok": true,
+   "read": "[\"Daily P&L bars\", \"Setup win rate 390\"]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "share preview",
+   "text": "Share to library\n×\nWhat will be shared\nName\n\nA name can be at most 80 characters.\n\nDescription\n\nA description can be at most 280 characters.\n\nWidget: Setup win rate 390\nName\n\nA name can be at most 80 characters.\n\nDescription\n\nA description can be at most 280 characters.\n\nHold days: Share this number (2)\nWidget: Daily P&L bars\nName\n\nA name can be at most 80 characters.\n\nDescription\n\nA description can be at most 280 characters.\n\nRoutine: Prep routine 390\nName\n\nA name can be at most 80 characters.\n\nItems\n\nAn item can be at most 200 characters.\n\nTracker: Sleep 390\nName\n\nA name can be at most 80 characters.\n\nUnit\n\nA unit can be at most 16 characters.\n\nCategory (required)\nChoose a category\nTrade plan\nJournal\nResearch\nReview\n\nPick a category to send it.\n\nTrading style (optional)\nNo trading style\nSwing\nDay\nProp\nOptions\nEarnings\nLong-term\n\nPeople who use it pick their own: Setup, Number\n\nNot shared\nYour setups are left out; people pick their own.\nYour numbers are left out; people type their own.\nYour own title and subtitle are left out.\nYour ticks, history and reminders are left out.\nYour logged values are left out.\nExactly what travels\n\nName: Share source 390\n\nWidget: Setup win rate 390\n\nDescription: Win rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\n\nShown as: Number with comparison\n\nWidget: Daily P&L bars\n\nDescription: Net P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nShown as: "
+  },
+  {
+   "what": "number switches",
+   "text": "[[\"Hold days: Share this number (2)\", \"false\"]]"
+  },
+  {
+   "what": "exactly what travels",
+   "text": "Exactly what travels\n\nName: Share source 390\n\nWidget: Setup win rate 390\n\nDescription: Win rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\n\nShown as: Number with comparison\n\nWidget: Daily P&L bars\n\nDescription: Net P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nShown as: Bar\n\nRoutine: Prep routine 390 (For the day of the note)\n\nItems:\n\nCheck futures\nMark my levels\nSize my risk\n\nWhen: Every trading day\n\nTracker: Sleep 390 (For the day of the note)\n\nType: Number\n\nUnit: h\n\nDays: Trading days\n\nOutline\n\n \n\nWidget: Setup win rate 390\n\n \n\nWidget: Daily P&L bars\n\n \n\nRoutine: Prep routine 390\n\n \n\nTracker: Sleep 390\n\nBuilt for sharing."
+  },
+  {
+   "what": "exactly what travels, one number on",
+   "text": "Exactly what travels\n\nName: Share source 390\n\nWidget: Setup win rate 390\n\nDescription: Win rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\n\nShown as: Number with comparison\n\nWidget: Daily P&L bars\n\nDescription: Net P&L, split by day, for closed trades in the last 30 days, all accounts.\n\nShown as: Bar\n\nRoutine: Prep routine 390 (For the day of the note)\n\nItems:\n\nCheck futures\nMark my levels\nSize my risk\n\nWhen: Every trading day\n\nTracker: Sleep 390 (For the day of the note)\n\nType: Number\n\nUnit: h\n\nDays: Trading days\n\nOutline\n\n \n\nWidget: Setup win rate 390\n\n \n\nWidget: Daily P&L bars\n\n \n\nRoutine: Prep routine 390\n\n \n\nTracker: Sleep 390\n\nBuilt for sharing.\n\nShared numbers: Hold days 2"
+  },
+  {
+   "what": "review queue",
+   "text": "New note\n×\nStart from audio\nVoice note\nUpload recording\nFrom a Desk session\nTrade-plan canvas\nA board for a chart, your entry, stop and target, and notes — then link it from your thesis.\nBack to templates\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they are listed. Using one copies it into Your templates; it is yours to change.\n\nBrowse\nYour submissions\nReview queue\nFollowing\nWAITING FOR REVIEW (1)\nShare source 390\nby Campaign P29 · Journal\n\nKind of note: Daily prep\n\nBlocks: Widget, Widget, Routine, Tracker\n\nTrading style: not set\n\nPreview\nApprove\nReject…\nREPORTED (0)\n\nNo open reports.\n\nHIDDEN (0)\n\nNothing is hidden."
+  },
+  {
+   "what": "B adopt sheet",
+   "text": "Make it yours\n×\n\nBased on Campaign P29's Share source 390\n\nYour choices\nSetup: Breakout\nChange\nHold days: Any hold days\nChange\nPrep routine 390\nCreate Prep routine 390 from the template\nSleep 390\nCreate Sleep 390 from the template\nPreview with your data\n\nSetup win rate 390\n\nWin rate\n50.0%\n\nDaily P&L bars\n\nPrep routine 390\n\nCheck futures\nMark my levels\nSize my risk\n\nFor Tue Oct 27\n\nSleep 390\n\nNumber\n\nFor Tue Oct 27\n\nCancel\nUse"
+  },
+  {
+   "what": "B choices",
+   "text": "Setup: Breakout\nChange | Hold days: Any hold days\nChange"
+  },
+  {
+   "what": "B My tools > Templates",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nActive\nArchived\nRecently deleted\n1 TEMPLATE\nShare source 390\nDaily prep\n·\nNot in any note\n·\nEdited today\n·\nBased on Campaign P29's Share source 390"
+  },
+  {
+   "what": "B's note from the copy",
+   "text": "\n\n\n‹\n⋯\nMore\nWin rate, last 90 days\nOnly you\nas of Oct 27, 2026, 6:35 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNo closed trades in this range. Widen the range, or log a trade. Log a trade\n\nYour closed trades in the Journal.\n\n\n\n\n‹\n⋯\nMore\nNet P&L by day, last 30 days\nOnly you\nas of Oct 27, 2026, 6:35 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-09-28\n-$71.50\n2026-09-29\n-$163.50\n2026-09-30\n+$47.00\n2026-10-01\n+$162.00\n2026-10-02\n-$2,492.00\n2026-10-05\n+$448.00\n2026-10-06\n+$296.00\n2026-10-07\n+$85.50\n2026-10-08\n+$210.00\n2026-10-09\n-$132.00\n2026-10-22\n-$4,000.00\nShow as table\n\nYour closed trades in the Journal.\n\n\n\n\nRoutine\nRemove\n\nFor Tue Oct 27\nNot yet\n\nCheck futures\nMark my levels\nSize my risk\nSkip this day\nP&L on days you finished it\n\n\n\n\nTracker\nRemove\n\nFor Tue Oct 27\n\nh\n\nLog your first value; the chart starts with it.\n\nCompare with P&L\n\nBuilt for sharing."
+  },
+  {
+   "what": "B's widget definitions",
+   "text": "[\"Daily P&L bars\", \"Setup win rate 390\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "Plan W11.7 says B finds it 'in the Template library'; the Template library section lists UCT's official templates only (W11-R4), so a member's approved listing is found in the community gallery (same picker sheet).",
+  "B's placed frame is titled with the generated description (e.g. 'Win rate, last 90 days'), not the shared widget name 'Setup win rate 390' that B's My tools copy carries."
+ ],
+ "events": {
+  "A": [],
+  "admin-w117": [],
+  "B": []
+ },
+ "metrics": {
+  "share-preview": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 20,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "review": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 13,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "adopt": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 7,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/W11_7-share-preview.png",
+  "390/W11_7-review.png",
+  "390/W11_7-adopt.png",
+  "390/W11_7-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:33:30",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:35:55"
+}

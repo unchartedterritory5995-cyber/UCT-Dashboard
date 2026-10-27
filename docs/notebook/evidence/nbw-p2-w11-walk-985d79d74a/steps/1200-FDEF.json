@@ -1,0 +1,269 @@
+{
+ "viewport": "1200",
+ "step": "FDEF",
+ "title": "F-DEF-1 retests",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D-W11-001 P01 1200: the note details toggle is at least 24 px tall",
+   "ok": true,
+   "read": "{\"w\": 79.4, \"h\": 24, \"vis\": true}"
+  },
+  {
+   "what": "D-W11-001 P01 1200: axe target-size has no finding on the note page",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "m-3 P01 1200 light: the quiet details toggle reads opacity 0.9",
+   "ok": true,
+   "read": "0.9"
+  },
+  {
+   "what": "m-3 P01 1200 light: axe color-contrast has no finding on the note page (no details)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the broken formula shows its inline error",
+   "ok": true,
+   "read": "[{\"what\": \"an inline sentence says what is wrong\", \"ok\": true, \"read\": \"A ( is missing its ).\"}]"
+  },
+  {
+   "what": "1200: 'Showing the last result.' is visible beside the dimmed preview",
+   "ok": true,
+   "read": "Showing the last result."
+  },
+  {
+   "what": "the live region stays summary-only (no 'Showing the last result.')",
+   "ok": true,
+   "read": "Net P&L for closed trades in the last 90 days, all accounts. 60 trades."
+  },
+  {
+   "what": "preview dim opacity reads 0.9",
+   "ok": true,
+   "read": "[\"0.9\", \"\"]"
+  },
+  {
+   "what": "axe color-contrast: no finding on the builder with the dimmed preview",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "fixed, the line is gone",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "P01 measured",
+   "text": "{\"toggle\": {\"w\": 79.4, \"h\": 24, \"vis\": true}, \"toggle_opacity\": \"0.9\", \"toggle_text\": \"Add details\", \"folder_select\": {\"w\": 76, \"h\": 28, \"vis\": true}, \"title_input\": {\"w\": 698, \"h\": 57.4, \"vis\": true}, \"feedback_fab\": {\"w\": 24, \"h\": 24, \"vis\": true}, \"axe_target_or_contrast\": []}"
+  },
+  {
+   "what": "P01 light measured",
+   "text": "{\"toggle\": {\"w\": 79.4, \"h\": 24, \"vis\": true}, \"toggle_opacity\": \"0.9\", \"toggle_text\": \"Add details\", \"folder_select\": {\"w\": 76, \"h\": 28, \"vis\": true}, \"title_input\": {\"w\": 698, \"h\": 57.4, \"vis\": true}, \"feedback_fab\": {\"w\": 24, \"h\": 24, \"vis\": true}, \"axe_target_or_contrast\": []}"
+  },
+  {
+   "what": "P25 a.05 broken formula state",
+   "text": "{\"line_visible\": true, \"line_text\": \"Showing the last result.\", \"live\": \"Net P&L for closed trades in the last 90 days, all accounts. 60 trades.\", \"bar\": null, \"opacity\": \"0.9\", \"busy_opacity_var\": \"\"}"
+  },
+  {
+   "what": "builder checks",
+   "text": "[{\"what\": \"an inline sentence says what is wrong\", \"ok\": true, \"read\": \"A ( is missing its ).\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "P01-note": [],
+  "P01-light": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/screener/spec-alerts"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/screener/spec-alerts"
+   }
+  ],
+  "P25": []
+ },
+ "metrics": {
+  "note-P01-note": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "note-P01-light": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "p25-builder-broken": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/FDEF-note-P01.png",
+  "1200/FDEF-note-P01-light.png",
+  "1200/FDEF-p25-broken.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:15:18",
+ "findings": [
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/screener/spec-alerts\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/screener/spec-alerts\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T05:17:00"
+}

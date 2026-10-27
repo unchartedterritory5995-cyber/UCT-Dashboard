@@ -1,0 +1,155 @@
+{
+ "viewport": "1200",
+ "step": "W11.3",
+ "title": "Use Pre-market prep again",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "no routine question this time (the choice is remembered for that template)",
+   "ok": true,
+   "read": "0 question(s): []"
+  },
+  {
+   "what": "W11.3: after Use the new note is in front (no sheet left open over it)",
+   "ok": false,
+   "read": "[\"New note\"]"
+  },
+  {
+   "what": "exactly ONE routine made from the template (unique on user, source_template_key)",
+   "ok": true,
+   "read": "[\"Pre-market routine\"]"
+  },
+  {
+   "what": "My tools > Routines lists ONE 'Pre-market routine' reading 'From template: Pre-market prep'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the second note was deleted (Trash) through the note's Delete",
+   "ok": true,
+   "read": "9e95a2dc867f47db8663e727e10e7a9a"
+  },
+  {
+   "what": "deleting the note did NOT delete the routine",
+   "ok": true,
+   "read": "\"Pre-market routine\""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "adopt sheet",
+   "text": "Make it yours\n×\n\nBased on UCT's Pre-market prep\n\nPreview with your data\n\nPre-market routine\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\nFor Tue Oct 27\n\nCancel\nUse"
+  },
+  {
+   "what": "second use: radios",
+   "text": "[]"
+  },
+  {
+   "what": "My tools > Routines",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nActive\nArchived\nRecently deleted\nNew routine\n2 ROUTINES\nPre-market routine\nEvery trading day\n·\nUsed in 2 notes\n·\nEdited today\n·\nFrom template: Pre-market prep\nOpen\nMorning routine\nEvery trading day\n·\nNot in any note\n·\nEdited Oct 2\nOpen"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "A": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/documents"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/properties"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/thesis-summary"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/trade-ref/resolve"
+   }
+  ]
+ },
+ "metrics": {
+  "mytools": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_3-adopt.png",
+  "1200/W11_3-sheet-left-open.png",
+  "1200/W11_3-mytools.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T04:58:15",
+ "findings": [
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/documents\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/properties\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/thesis-summary\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/j2/notes/9e95a2dc867f47db8663e727e10e7a9a/trade-ref/resolve\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T04:59:12"
+}

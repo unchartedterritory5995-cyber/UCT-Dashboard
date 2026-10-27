@@ -1,0 +1,80 @@
+[mode] walk-sun pid=38128 instant=2026-11-22T21:00:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sun.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sun.err.log
+walk start
+    [06:16:48] saw identity
+    [06:16:48] ok  identity data_dir = the walk data dir
+    [06:16:48] ok  identity pid = the recorded PID 38128
+    [06:16:48] ok  identity clock_shift.instant = the mode's instant 2026-11-22T21:00:00-05:00
+    [06:16:48] ok  GET /api/auth/me as A answers 200
+    [06:16:48] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:16:48] ok  notebook_widgets_w8_enabled is True
+    [06:16:48] ok  notebook_widgets_w9_enabled is True
+    [06:16:48] ok  notebook_widgets_w10_enabled is True
+    [06:16:48] ok  notebook_widgets_w11_enabled is True
+    [06:16:48] ok  notebook_style_library_enabled is true
+    [06:16:48] ok  GET /api/j2/template-gallery/library answers 200
+    [06:16:48] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:16:48] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:16:48] saw boot log lines
+[1200 W11.0] PASS  checks 52/52  findings 0
+    [06:16:49] saw identity
+    [06:16:49] ok  identity data_dir = the walk data dir
+    [06:16:49] ok  identity pid = the recorded PID 38128
+    [06:16:49] ok  identity clock_shift.instant = the mode's instant 2026-11-22T21:00:00-05:00
+    [06:16:49] ok  GET /api/auth/me as A answers 200
+    [06:16:49] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:16:49] ok  notebook_widgets_w8_enabled is True
+    [06:16:49] ok  notebook_widgets_w9_enabled is True
+    [06:16:49] ok  notebook_widgets_w10_enabled is True
+    [06:16:49] ok  notebook_widgets_w11_enabled is True
+    [06:16:49] ok  notebook_style_library_enabled is true
+    [06:16:49] ok  GET /api/j2/template-gallery/library answers 200
+    [06:16:49] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:16:49] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:16:49] saw boot log lines
+[820 W11.0] PASS  checks 52/52  findings 0
+    [06:16:49] saw identity
+    [06:16:49] ok  identity data_dir = the walk data dir
+    [06:16:49] ok  identity pid = the recorded PID 38128
+    [06:16:49] ok  identity clock_shift.instant = the mode's instant 2026-11-22T21:00:00-05:00
+    [06:16:49] ok  GET /api/auth/me as A answers 200
+    [06:16:49] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:16:49] ok  notebook_widgets_w8_enabled is True
+    [06:16:49] ok  notebook_widgets_w9_enabled is True
+    [06:16:49] ok  notebook_widgets_w10_enabled is True
+    [06:16:49] ok  notebook_widgets_w11_enabled is True
+    [06:16:49] ok  notebook_style_library_enabled is true
+    [06:16:49] ok  GET /api/j2/template-gallery/library answers 200
+    [06:16:49] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:16:49] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:16:49] saw boot log lines
+[390 W11.0] PASS  checks 52/52  findings 0
+[mode] walk-sun pid=38128 instant=2026-11-22T21:00:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sun.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sun.err.log
+walk start
+    [06:17:37] saw A: server shifted now / browser clock
+    [06:17:37] ok  the server's shifted now is Sunday 2026-11-22 21:00 ET
+    [06:17:37] saw browser clock (ISO)
+    [06:17:48] saw Night-before prep detail
+    [06:17:53] NO  Night-before prep Use: after Use the new note is in front (no sheet left open over it)
+    [06:17:58] saw routine block
+    [06:17:58] ok  the routine block reads 'For Mon Nov 23' (next trading day after the ET note day)
+[1200 W11.4] FAIL  checks 2/3  findings 0
+   x Night-before prep Use: after Use the new note is in front (no sheet left open over it) | ["New note"]
+    [06:17:59] saw A: server shifted now / browser clock
+    [06:17:59] ok  the server's shifted now is Sunday 2026-11-22 21:00 ET
+    [06:17:59] saw browser clock (ISO)
+    [06:18:10] saw Night-before prep detail
+    [06:18:15] NO  Night-before prep Use: after Use the new note is in front (no sheet left open over it)
+    [06:18:19] saw routine block
+    [06:18:19] ok  the routine block reads 'For Mon Nov 23' (next trading day after the ET note day)
+[820 W11.4] FAIL  checks 2/3  findings 0
+   x Night-before prep Use: after Use the new note is in front (no sheet left open over it) | ["New note"]
+    [06:18:20] saw A: server shifted now / browser clock
+    [06:18:20] ok  the server's shifted now is Sunday 2026-11-22 21:00 ET
+    [06:18:20] saw browser clock (ISO)
+    [06:18:32] saw Night-before prep detail
+    [06:18:37] NO  Night-before prep Use: after Use the new note is in front (no sheet left open over it)
+    [06:18:41] saw routine block
+    [06:18:41] ok  the routine block reads 'For Mon Nov 23' (next trading day after the ET note day)
+[390 W11.4] FAIL  checks 2/3  findings 1
+   x Night-before prep Use: after Use the new note is in front (no sheet left open over it) | ["New note"]
+   ! overflow note {"vw": 390, "docScrollWidth": 390, "bodyScrollWidth": 390, "inner": [[401, 390], [377, 342], [377, 342]], "horizontal": true, "offenders": [{"tag": "DIV", "cls": "_menuRow_1kwt2_6", "text": "", "right

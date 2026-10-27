@@ -1,0 +1,160 @@
+{
+ "viewport": "390",
+ "step": "W11.11",
+ "title": "Share and publish the template-made note; open logged out",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "Use Share source 390: after Use the new note is in front (no sheet left open over it)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the share link says 'A private account item is not shown on public pages.' for the private widgets/routine/tracker",
+   "ok": true,
+   "read": "Untitled\n\n\n\n\nA private account item is not shown on public pages.\n\nBuilt for sharing.\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "adjacent private items share ONE line on the share link (counted 1)",
+   "ok": true,
+   "read": "1"
+  },
+  {
+   "what": "no value, account name, routine item or day state on the share link",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "no tick state on the share link",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the published page says 'A private account item is not shown on public pages.' for the private widgets/routine/tracker",
+   "ok": true,
+   "read": "Untitled\n\n\n\n\nA private account item is not shown on public pages.\n\nBuilt for sharing.\n\nPublished with UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "adjacent private items share ONE line on the published page (counted 1)",
+   "ok": true,
+   "read": "1"
+  },
+  {
+   "what": "no value, account name, routine item or day state on the published page",
+   "ok": true,
+   "read": "{}"
+  },
+  {
+   "what": "no tick state on the published page",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "addresses",
+   "text": "[\"http://127.0.0.1:8151/share/n/x_xq1rw0XqYWx7H1b9cSffNlNDYIZl8t\", \"http://127.0.0.1:8151/p/z434ZODbTbUyM7z4Dcd4lw\"]"
+  },
+  {
+   "what": "share link text",
+   "text": "Untitled\n\n\n\n\nA private account item is not shown on public pages.\n\nBuilt for sharing.\n\nWritten in UCT Intelligence — Navigate the market, effectively."
+  },
+  {
+   "what": "published page text",
+   "text": "Untitled\n\n\n\n\nA private account item is not shown on public pages.\n\nBuilt for sharing.\n\nPublished with UCT Intelligence — Navigate the market, effectively."
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "anon-share link": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+   }
+  ],
+  "anon-published page": [
+   {
+    "console": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+   }
+  ],
+  "A": []
+ },
+ "metrics": {
+  "public-share": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      350,
+      350
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 0,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": false
+   }
+  },
+  "public-published": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      350,
+      350
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 0,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": false
+   }
+  }
+ },
+ "screenshots": [
+  "390/W11_11-public.png",
+  "390/W11_11-public-published.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:40:35",
+ "findings": [
+  {
+   "kind": "event",
+   "page": "anon-share link",
+   "detail": "{\"console\": \"Failed to load resource: the server responded with a status of 401 (Unauthorized)\"}"
+  },
+  {
+   "kind": "event",
+   "page": "anon-published page",
+   "detail": "{\"console\": \"Failed to load resource: the server responded with a status of 401 (Unauthorized)\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T05:41:11"
+}

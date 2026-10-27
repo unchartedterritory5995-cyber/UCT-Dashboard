@@ -1,0 +1,113 @@
+{
+ "viewport": "1200",
+ "step": "FDEF2",
+ "title": "F-DEF-1 retests (P14, P46 at 1200)",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D-W11-001 P14 1200: the note details toggle is at least 24 px tall",
+   "ok": true,
+   "read": "{\"w\": 79.4, \"h\": 24, \"vis\": true}"
+  },
+  {
+   "what": "D-W11-001 P14 1200: axe target-size has no finding on the note page",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D-W11-001 P46 1200: the note details toggle is at least 24 px tall",
+   "ok": true,
+   "read": "{\"w\": 79.4, \"h\": 24, \"vis\": true}"
+  },
+  {
+   "what": "D-W11-001 P46 1200: axe target-size has no finding on the note page",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "P14 toggle",
+   "text": "{\"w\": 79.4, \"h\": 24, \"vis\": true}"
+  },
+  {
+   "what": "P46 toggle",
+   "text": "{\"w\": 79.4, \"h\": 24, \"vis\": true}"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "P14": [],
+  "P46": []
+ },
+ "metrics": {
+  "note-P14": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "note-P46": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/FDEF2-note-P14.png",
+  "1200/FDEF2-note-P46.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:51:30",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:52:04"
+}

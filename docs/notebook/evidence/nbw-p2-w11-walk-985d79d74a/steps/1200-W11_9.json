@@ -1,0 +1,240 @@
+{
+ "viewport": "1200",
+ "step": "W11.9",
+ "title": "[CLK-D1,D2,D3] Helpful after three ET days",
+ "mode": "CLK-D1+CLK-D2+CLK-D3",
+ "checks": [
+  {
+   "what": "Use Share source 1200: after Use the new note is in front (no sheet left open over it)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D1: B used the W11.7 template (a note was made)",
+   "ok": true,
+   "read": "http://127.0.0.1:8161/journal/notebook?note=a8feba7e267d444a9340d49debd46b41"
+  },
+  {
+   "what": "D1: no helpful line yet on the note",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "D1: 'You can mark this helpful after using it on 3 different days.' under the button",
+   "ok": true,
+   "read": "d on Campaign P35's Share source 1200\n\nFills in with your own data when you make a note.\n\nBuilt for sharing.\nPreview\nAdopt\nHelpful\nReport\n\nYou can mark this helpful after using it on 3 different days."
+  },
+  {
+   "what": "D1: the Helpful button stays enabled",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Use Share source 1200: after Use the new note is in front (no sheet left open over it)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D2: B used the W11.7 template (a note was made)",
+   "ok": true,
+   "read": "http://127.0.0.1:8161/journal/notebook?note=7b23ad2fc6724835b809af14b7b838a9"
+  },
+  {
+   "what": "D2 (3rd day): the note shows ONE line 'Was Share source 1200 helpful?'",
+   "ok": true,
+   "read": "Was Share source 1200 helpful?\n\nYes\nNot really"
+  },
+  {
+   "what": "D2 (3rd day): the line offers Yes, Not really and a Dismiss icon",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "D2 (3rd day): after Yes the line hides at once",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "D2 (3rd day): the listing's helpful count rises by exactly one",
+   "ok": true,
+   "read": "0 -> 1"
+  },
+  {
+   "what": "D2 (3rd day): after reload the line does not return",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "D2 (3rd day): after reload the count is still +1",
+   "ok": true,
+   "read": "1"
+  },
+  {
+   "what": "D2 (3rd day): no note PUT across mount and answer",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Use Share source 1200: after Use the new note is in front (no sheet left open over it)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D3: B used the W11.7 template (a note was made)",
+   "ok": true,
+   "read": "http://127.0.0.1:8161/journal/notebook?note=beb82c63f196475cacf9996173e0c67f"
+  },
+  {
+   "what": "D3: day 4: the line answered on day 3 does not come back",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "B-D1: server shifted now / browser clock",
+   "text": "Tuesday 2026-11-10 20:00 ET"
+  },
+  {
+   "what": "D1: server now",
+   "text": "2026-11-10T20:00:13.662049-05:00"
+  },
+  {
+   "what": "D1: the ET days B has used the template on (W11.7's Use counts)",
+   "text": "[\"2026-10-27\", \"2026-11-10\"]"
+  },
+  {
+   "what": "D1: card after Helpful",
+   "text": "Share source 1200\nCampaign P35 · Journal\nTemplate\n\nContains: Setup win rate 1200, Daily P&L bars, Prep routine 1200, Sleep 1200\n\nUsed by 1 trader · Updated Oct 27\n\nBased on Campaign P35's Share source 1200\n\nFills in with your own data when you make a note.\n\nBuilt for sharing.\nPreview\nAdopt\nHelpful\nReport\n\nYou can mark this helpful after using it on 3 different days."
+  },
+  {
+   "what": "B-D2: server shifted now / browser clock",
+   "text": "Wednesday 2026-11-11 10:00 ET"
+  },
+  {
+   "what": "D2: server now",
+   "text": "2026-11-11T10:00:25.010076-05:00"
+  },
+  {
+   "what": "D2: the ET days B has used the template on (W11.7's Use counts)",
+   "text": "[\"2026-10-27\", \"2026-11-10\", \"2026-11-11\"]"
+  },
+  {
+   "what": "D2: helpful line",
+   "text": "Was Share source 1200 helpful?\n\nYes\nNot really"
+  },
+  {
+   "what": "B-D3: server shifted now / browser clock",
+   "text": "Thursday 2026-11-12 19:30 ET"
+  },
+  {
+   "what": "D3: server now",
+   "text": "2026-11-12T19:30:21.816537-05:00"
+  },
+  {
+   "what": "D3: the ET days B has used the template on (W11.7's Use counts)",
+   "text": "[\"2026-10-27\", \"2026-11-10\", \"2026-11-11\", \"2026-11-12\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "B's W11.7 Use (the real ET day the walk ran) is a use day too, so D1 is B's 2nd day and D2 its 3rd: the 3rd-day line is expected on D2 (by ET days; a UTC-day server would count D1+D2 as one day and show it on D3).",
+  "D2 is B's 3rd ET day of use: the line must show here"
+ ],
+ "events": {
+  "B-D1": [
+   {
+    "http": 409,
+    "method": "POST",
+    "url": "http://127.0.0.1:8161/api/j2/template-gallery/04cdc13c731a4500be4fb16505dc94e2/helpful"
+   }
+  ],
+  "B-D2": [],
+  "B-D3": []
+ },
+ "metrics": {
+  "gallery-D1": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "helpful-line": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-helpful-prompt]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_9-helpful-d1.png",
+  "1200/W11_9-helpful-d3.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T06:32:04",
+ "findings": [
+  {
+   "kind": "event",
+   "page": "B-D1",
+   "detail": "{\"http\": 409, \"method\": \"POST\", \"url\": \"http://127.0.0.1:8161/api/j2/template-gallery/04cdc13c731a4500be4fb16505dc94e2/helpful\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T06:32:25"
+}

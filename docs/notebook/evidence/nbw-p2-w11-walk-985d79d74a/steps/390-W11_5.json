@@ -1,0 +1,93 @@
+{
+ "viewport": "390",
+ "step": "W11.5",
+ "title": "[CLK-SAT] Weekend swing review on Saturday",
+ "mode": "CLK-SAT",
+ "checks": [
+  {
+   "what": "Weekend swing review Use: after Use the new note is in front (no sheet left open over it)",
+   "ok": false,
+   "read": "[\"New note\"]"
+  },
+  {
+   "what": "the routine block reads 'For the week of Oct 19' (the week just ended, labelled from its Monday)",
+   "ok": true,
+   "read": "For the week of Oct 19\nOff day\n\nP&L on days you finished it"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "A: server shifted now / browser clock",
+   "text": "Saturday 2026-10-24 11:00 ET"
+  },
+  {
+   "what": "server shifted now",
+   "text": "2026-10-24T11:03:14.041557-04:00"
+  },
+  {
+   "what": "Weekend swing review detail",
+   "text": "Weekend swing review\n×\n\nBased on UCT's Weekend swing review\n\nOpen positions\n\nEvery open position, its stop and what it can cost you.\n\nMy open positions and risk\n\nEarnings next week\n\nWhich of your names report next week, and what you will do before each one.\n\nEarnings for my names\n\nThe week behind you\n\nHow last week went.\n\nWidget: Weekly scorecard\n\nYour routine for the week\n\nWork through the weekend review.\n\nRoutine: Weekend swing review\n\nPreview with your data\n\nWeekly scorecard\n\nWeekly scorecard\nOnly you\nas of Oct 24, 2026, 11:03 AM ET\n\nAll my accounts · This week\n\nNet P&L\n-$3,139.60\nvs the week of Oct 12\n+$1,848.30\nChange -$4,987.90\nfrom 13 trades\nWin rate\n15.4%small sample\nvs the week of Oct 12\n40.0%\nChange -24.6 pts\nfrom 13 decisive trades\nTrades\n13\nvs the week of Oct 12\n5\nChange +8\nfro"
+  },
+  {
+   "what": "routine block",
+   "text": "For the week of Oct 19\nOff day\n\nP&L on days you finished it"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "note-24": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-routine-block]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-routine-block]",
+    "controls": 2,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/W11_5-sheet-left-open.png",
+  "390/W11_5-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T06:25:50",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T06:26:12"
+}

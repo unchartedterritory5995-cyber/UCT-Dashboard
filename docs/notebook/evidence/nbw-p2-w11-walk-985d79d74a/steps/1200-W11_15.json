@@ -1,0 +1,1260 @@
+{
+ "viewport": "1200",
+ "step": "W11.15",
+ "title": "Themes: dark, light, OLED",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "R5 Light: every active gallery chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "{\"rest\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"ratio\": 6.23, \"w\": 63.5, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"ratio\": 6.23, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255,"
+  },
+  {
+   "what": "Light: axe color-contrast has no serious finding on light-picker",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Light: axe color-contrast has no serious finding on light-detail",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Light: axe color-contrast has no serious finding on light-adopt",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Light: axe color-contrast has no serious finding on light-share",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Light: axe color-contrast has no serious finding on light-mytools",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Light: axe color-contrast has no serious finding on light-gallery",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "R5 Graphite: every active gallery chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "{\"rest\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 10.24, \"w\": 63.5, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 10.24, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16"
+  },
+  {
+   "what": "Graphite: axe color-contrast has no serious finding on dark-picker",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Graphite: axe color-contrast has no serious finding on dark-detail",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Graphite: axe color-contrast has no serious finding on dark-adopt",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Graphite: axe color-contrast has no serious finding on dark-share",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Graphite: axe color-contrast has no serious finding on dark-mytools",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Graphite: axe color-contrast has no serious finding on dark-gallery",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "R5 OLED Black: every active gallery chip holds >= 4.5:1 at rest and hovered",
+   "ok": true,
+   "read": "{\"rest\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 63.5, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \""
+  },
+  {
+   "what": "OLED Black: axe color-contrast has no serious finding on oled-picker",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "OLED Black: axe color-contrast has no serious finding on oled-detail",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "OLED Black: axe color-contrast has no serious finding on oled-adopt",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "OLED Black: axe color-contrast has no serious finding on oled-share",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "OLED Black: axe color-contrast has no serious finding on oled-mytools",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "OLED Black: axe color-contrast has no serious finding on oled-gallery",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "theme before the pass (data-theme)",
+   "text": "oled"
+  },
+  {
+   "what": "data-theme after picking Light",
+   "text": "light"
+  },
+  {
+   "what": "light: dimmed (opacity < 1) text in the adopt sheet",
+   "text": "[]"
+  },
+  {
+   "what": "Light: gallery active chips",
+   "text": "{\"rest\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"ratio\": 6.23, \"w\": 63.5, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"ratio\": 6.23, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"ratio\": 6.23, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"ratio\": 6.23, \"w\": 36.7, \"h\": 24}], \"hover\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"ratio\": 6.23, \"w\": 63.5, \"h\": 24}, {\"t"
+  },
+  {
+   "what": "data-theme after picking Graphite",
+   "text": "dark"
+  },
+  {
+   "what": "dark: dimmed (opacity < 1) text in the adopt sheet",
+   "text": "[]"
+  },
+  {
+   "what": "Graphite: gallery active chips",
+   "text": "{\"rest\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 10.24, \"w\": 63.5, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 10.24, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 10.24, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 10.24, \"w\": 36.7, \"h\": 24}], \"hover\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 10.24, \"w\": 63.5, \"h\": 24}, {\"text\":"
+  },
+  {
+   "what": "data-theme after picking OLED Black",
+   "text": "oled"
+  },
+  {
+   "what": "oled: dimmed (opacity < 1) text in the adopt sheet",
+   "text": "[]"
+  },
+  {
+   "what": "OLED Black: gallery active chips",
+   "text": "{\"rest\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 63.5, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 36.7, \"h\": 24}, {\"text\": \"All\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 36.7, \"h\": 24}], \"hover\": [{\"text\": \"Browse\", \"cls\": \"_chip_6z3ba_101 _chipActive_6z3ba_189\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"ratio\": 11.31, \"w\": 63.5, \"h\": 24}, {\"text\": \"All\", \"cls\": "
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "Helpful line themes: the line only exists on a day-3 note (W11.9, clock boots); shot there in the default theme."
+ ],
+ "events": {
+  "A-light": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/screener/spec-alerts"
+   }
+  ],
+  "A-dark": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/screener/spec-alerts"
+   }
+  ],
+  "A-oled": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/screener/spec-alerts"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8151/api/push/config"
+   }
+  ]
+ },
+ "metrics": {
+  "light-picker": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nIn your templates\nTempla",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "light-detail": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "light-adopt": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "light-share": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "light-mytools": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "light-gallery": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-picker": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nIn your templates\nTempla",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-detail": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-adopt": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-share": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-mytools": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-gallery": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "oled-picker": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nIn your templates\nTempla",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "oled-detail": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "oled-adopt": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "oled-share": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "oled-mytools": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "oled-gallery": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_15-theme-light.png",
+  "1200/W11_15-theme-light-detail.png",
+  "1200/W11_15-theme-light-adopt.png",
+  "1200/W11_15-theme-light-share.png",
+  "1200/W11_15-theme-light-mytools.png",
+  "1200/W11_15-theme-light-gallery.png",
+  "1200/W11_15-theme-dark.png",
+  "1200/W11_15-theme-dark-detail.png",
+  "1200/W11_15-theme-dark-adopt.png",
+  "1200/W11_15-theme-dark-share.png",
+  "1200/W11_15-theme-dark-mytools.png",
+  "1200/W11_15-theme-dark-gallery.png",
+  "1200/W11_15-theme-oled.png",
+  "1200/W11_15-theme-oled-detail.png",
+  "1200/W11_15-theme-oled-adopt.png",
+  "1200/W11_15-theme-oled-share.png",
+  "1200/W11_15-theme-oled-mytools.png",
+  "1200/W11_15-theme-oled-gallery.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:08:43",
+ "findings": [
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/screener/spec-alerts\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/screener/spec-alerts\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-oled",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/screener/spec-alerts\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-oled",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-oled",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-oled",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8151/api/push/config\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T05:13:09"
+}
