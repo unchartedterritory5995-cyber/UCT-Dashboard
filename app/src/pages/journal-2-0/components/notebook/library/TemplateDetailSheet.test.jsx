@@ -5,6 +5,7 @@
 // forDayLabel}], questions, credit}`) and records every request. The built view is stood in for (its own suites cover
 // it): this file proves WHICH payload reaches it, and that the "Sample data" label follows the server's `sample`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { latchNotebookFlags, __resetNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { render, screen, within, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TemplateDetailSheet, { DATA_HEADING, USE_TEMPLATE_LABEL } from './TemplateDetailSheet'
@@ -110,6 +111,9 @@ describe('the template detail', () => {
   })
 
   it('R3: the REAL official outline names its blocks; no {{block:...}} token ever reaches the DOM', async () => {
+    // every release wave on (review n-3: a slot whose wave is off is not in the note, so not in the preview)
+    __resetNotebookFlags()
+    latchNotebookFlags(Object.fromEntries([1, 2, 3, 4, 5, 6, 8, 9, 10, 11].map((w) => [`notebook_widgets_w${w}_enabled`, true])))
     const libRow = contractBody('template-gallery.library').templates.find((r) => r.title === 'Night-before prep')
     const detail = contractBody('template-gallery.item.official')
     const preview = contractBody('template-gallery.preview-mine.questions')

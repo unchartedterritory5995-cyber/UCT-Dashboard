@@ -1,6 +1,7 @@
 // Notebook widgets phase 2, wave 11 (Task 11.14): the member's words for a template's slots, and the twins of the
 // server's slot grammar and "pick yours" type words, read from the server's own source text (never restated).
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
+import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -130,7 +131,11 @@ describe('slotNamesOf (W11-R21, Task 11.19)', () => {
 // `_placeholder_kind` reads text children only; a top-level placeholder of an enabled block is the block there; a
 // disabled block's vanishes; one the style does not list is the author's own text, kept; a nested one is an empty
 // paragraph and its block goes after the first heading, as does every enabled block with no placeholder).
+const ALL_WAVES_ON = Object.fromEntries([1, 2, 3, 4, 5, 6, 8, 9, 10, 11].map((w) => [`notebook_widgets_w${w}_enabled`, true]))
+
 describe('outlineWithBlockNames follows compose (review m-3)', () => {
+  beforeEach(() => { __resetNotebookFlags(); latchNotebookFlags(ALL_WAVES_ON) })     // every wave on: n-3 is its own
+  afterEach(() => __resetNotebookFlags())
   const t = (text) => ({ type: 'text', text })
   const p = (...c) => ({ type: 'paragraph', content: c })
   const h = (text) => ({ type: 'heading', attrs: { level: 2 }, content: [t(text)] })
@@ -163,5 +168,49 @@ describe('outlineWithBlockNames follows compose (review m-3)', () => {
   it('with NO block list (a bare outline: a template, an update) every placeholder line is named in place', () => {
     const out = outlineWithBlockNames(doc(p(t('{{block:prepWire}}')), p(t('{{block:tracker_a}}'))), null)
     expect(out).toEqual(doc(ital('Morning wire and exposure'), ital('Tracker')))
+  })
+})
+
+// Review n-3: a slot whose release wave is off has no placeholder in the note (journal_styles._served strips it,
+// `_slot_wave_off`), so the preview must not name it either. The family gates are the client's own wave flags
+// (notebookWidgetsFlags.widgetsWaveOn); a BUILT slot whose PINNED PLAN needs a dark wave (uses_tools with wave 9
+// off, uses_wave10 with wave 10 off) is judged by the server, which serves the listed item without it
+// (tests/test_gallery_no_block_tokens.py::test_a_listed_style_serves_no_dark_wave_slot).
+describe('outlineWithBlockNames drops a dark-wave slot (review n-3)', () => {
+  const t = (text) => ({ type: 'text', text })
+  const p = (...c) => ({ type: 'paragraph', content: c })
+  const h = (text) => ({ type: 'heading', attrs: { level: 2 }, content: [t(text)] })
+  const ital = (text) => p({ type: 'text', text, marks: [{ type: 'italic' }] })
+  const doc = (...content) => ({ type: 'doc', content })
+  const on = (block, settings = {}) => ({ block, enabled: true, settings })
+  const waves = (...off) => {
+    const flags = {}
+    for (const w of [1, 2, 3, 4, 5, 6, 8, 9, 10, 11]) flags[`notebook_widgets_w${w}_enabled`] = !off.includes(w)
+    __resetNotebookFlags()
+    latchNotebookFlags(flags)
+  }
+  afterEach(() => __resetNotebookFlags())
+  const BODY = doc(h('Plan'), p(t('{{block:routine_a}}')), p(t('{{block:tracker_a}}')), p(t('{{block:built_a}}')))
+  const BLOCKS = [on('routine_a'), on('tracker_a'), on('built_a', { ref: 'inline:d1' }), on('prepWire')]
+
+  it('every wave on: all three slots are named (control)', () => {
+    waves()
+    expect(outlineWithBlockNames(BODY, BLOCKS)).toEqual(doc(h('Plan'), ital('Morning wire and exposure'),
+      ital('Routine'), ital('Tracker'), ital('Widget')))
+  })
+  it('wave 9 off ALONE: the routine and tracker slots vanish, the widget stays', () => {
+    waves(9)
+    expect(outlineWithBlockNames(BODY, BLOCKS)).toEqual(doc(h('Plan'), ital('Morning wire and exposure'), ital('Widget')))
+  })
+  it("wave 10 off ALONE: no family is dark, so the client drops nothing (a plan needing wave 10 is the server's)", () => {
+    waves(10)
+    expect(outlineWithBlockNames(BODY, BLOCKS)).toEqual(doc(h('Plan'), ital('Morning wire and exposure'),
+      ital('Routine'), ital('Tracker'), ital('Widget')))
+  })
+  it('wave 8 off: the widget slot vanishes; wave 11 off: every slot does', () => {
+    waves(8)
+    expect(outlineWithBlockNames(BODY, BLOCKS)).toEqual(doc(h('Plan'), ital('Morning wire and exposure'), ital('Routine'), ital('Tracker')))
+    waves(11)
+    expect(outlineWithBlockNames(BODY, BLOCKS)).toEqual(doc(h('Plan'), ital('Morning wire and exposure')))
   })
 })

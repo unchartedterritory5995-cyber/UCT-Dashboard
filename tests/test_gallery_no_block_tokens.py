@@ -11,8 +11,11 @@ from __future__ import annotations
 import json
 
 from api.services.journal_two import template_gallery as gallery
+import pytest
+
 from tests._gallery_w11_helpers import (  # noqa: F401 -- `db` is a fixture used by name
-    AUTHOR, MEMBER, approve, db, heading, para, style,
+    ALL_WAVES, AUTHOR, MEMBER, approve, built, db, heading, list_template, para, routine, routine_slot, style, waves,
+    widget,
 )
 
 TOKEN = "{{block:"
@@ -59,3 +62,40 @@ def test_a_row_stored_before_this_rule_is_read_without_its_token(db):
     db.commit()
     card = next(c for c in gallery.list_gallery(MEMBER, conn=db) if c["id"] == out["id"])
     assert [ln["text"] for ln in card["preview"]] == ["Market", "Plan the open."]
+
+
+NOTES_PLAN = {"v": 1, "source": "notes", "measures": [{"key": "notes"}], "range": {"token": "all"}}   # wave 10's
+
+
+def _slot_template(db):
+    """A shared template: a widget whose plan needs wave 10 (built_a), a plain widget (built_b), a routine
+    (routine_a), each with its outline placeholder."""
+    w10 = widget(db, plan=NOTES_PLAN, name="Notes count")
+    plain = widget(db)
+    r = routine(db)
+    blocks = [built("a", w10["id"]), built("b", plain["id"]), routine_slot("a", r["id"])]
+    outline = _doc(heading("Plan"), para("{{block:built_a}}"), para("{{block:built_b}}"), para("{{block:routine_a}}"))
+    return list_template(db, style(db, blocks=blocks, outline=outline)["id"], title="Slots",
+                         edits={"blocks": {"routine_a": {"items": ["Coffee", "Mark levels"]}}})
+
+
+def _shown(item):
+    ids = [b["block"] for b in item["payload"]["blocks"]]
+    body = json.dumps(item["bodyJson"])
+    return ids, [k for k in ("built_a", "built_b", "routine_a") if "{{block:%s}}" % k in body]
+
+
+@pytest.mark.parametrize("off, gone", [
+    ((), set()),                                   # CONTROL: every wave on, every slot served
+    ((9,), {"routine_a"}),                         # wave 9 off ALONE: the routine slot
+    ((10,), {"built_a"}),                          # wave 10 off ALONE: the widget whose PLAN needs wave 10
+])
+def test_a_listed_style_serves_no_dark_wave_slot(db, monkeypatch, off, gone):
+    # Review n-3: a slot whose wave is off is not in a note made from the template (journal_styles._served strips
+    # it, `_slot_wave_off`), so the listed item the previews read serves neither its block nor its placeholder.
+    gid = _slot_template(db)
+    waves(monkeypatch, *[w for w in ALL_WAVES if w not in off])
+    item = gallery.get_item(MEMBER, gid, conn=db)
+    ids, placed = _shown(item)
+    want = [k for k in ("built_a", "built_b", "routine_a") if k not in gone]
+    assert sorted(ids) == sorted(want) and sorted(placed) == sorted(want)

@@ -9,6 +9,7 @@
 // the server's journal_styles.SLOT_ID_RE by templateSlots.test.js), so nothing eager imports this file.
 
 import { blockLabel } from './journalBlocks'
+import { widgetsWaveOn } from './notebookWidgetsFlags'
 import { PLACEHOLDER_LINE_RE } from '../components/notebook/styles/outlineText'
 
 /** Twin of `journal_styles.SLOT_ID_RE` (railed by templateSlots.test.js against the server's source text). */
@@ -137,6 +138,15 @@ export function slotNamesOf(source) {
  * With NO block list (`blocks` null or absent: a bare template outline, a library update), every placeholder line
  * is named in place, so no token reaches the page. Total: anything that is not a doc comes back as given.
  */
+/** A slot family whose release wave is off right now (the client half of `journal_styles._slot_wave_off`): every slot
+ *  while wave 11 is off; a routine or tracker slot while wave 9 is off; a built slot while wave 8 is off. */
+export function slotWaveOff(id) {
+  const fam = slotFamily(id)
+  if (!fam) return false
+  if (!widgetsWaveOn(11)) return true
+  return fam === 'built' ? !widgetsWaveOn(8) : !widgetsWaveOn(9)
+}
+
 export function outlineWithBlockNames(doc, blocks = null, names = {}) {
   if (!doc || typeof doc !== 'object' || !Array.isArray(doc.content)) return doc
   const isRec = (v) => v && typeof v === 'object'
@@ -158,7 +168,11 @@ export function outlineWithBlockNames(doc, blocks = null, names = {}) {
   const disabled = new Set()
   for (const b of blocks) {
     if (!isRec(b) || typeof b.block !== 'string') continue
-    if (b.enabled) { if (!enabled.has(b.block)) enabled.set(b.block, b) } else disabled.add(b.block)
+    // Review n-3: a slot whose release wave is off is DROPPED, block and placeholder, as journal_styles._served
+    // does (`_slot_wave_off`), so it is treated as a disabled block: its placeholder vanishes and it is never
+    // placed. Only the family gates are the client's to judge; a pinned plan's waves are the server's (it serves
+    // a listed item without such a slot).
+    if (b.enabled && !slotWaveOff(b.block)) { if (!enabled.has(b.block)) enabled.set(b.block, b) } else disabled.add(b.block)
   }
   const placed = new Set()
   const walk = (content, top) => {

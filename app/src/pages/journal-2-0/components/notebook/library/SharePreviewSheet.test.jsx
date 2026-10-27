@@ -13,8 +13,8 @@ import SharePreviewSheet, {
 import { openSharePreview } from './openSharePreview'
 import { contractBody } from '../../../__fixtures__/contract'
 
-const waves = vi.hoisted(() => ({ eleven: true }))
-vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 11 && waves.eleven }))
+const waves = vi.hoisted(() => ({ eleven: true, rest: false }))
+vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => (w === 11 ? waves.eleven : waves.rest) }))
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
   useIsPhone: () => false, useIsTouch: () => false, useIsTablet: () => false, useIsDesktop: () => true,
   useHasCoarsePointer: () => false, useHasNoHover: () => false,
@@ -90,7 +90,7 @@ function installServer(answer, { hold = false } = {}) {
 }
 const refuse = (code, message) => () => ({ __status: 400, body: { detail: { code, message } } })
 
-beforeEach(() => { setOnline(true); waves.eleven = true })
+beforeEach(() => { setOnline(true); waves.eleven = true; waves.rest = false })
 afterEach(() => { cleanup(); setOnline(true); vi.useRealTimers() })
 
 function mount(props) {
@@ -509,6 +509,7 @@ describe('the share preview of a template', () => {
   })
 
   it('R4: the outline names each block in plain words; no {{block:...}} token ever reaches the member', async () => {
+    waves.rest = true      // every release wave on (review n-3: a slot whose wave is off is not in the note, nor the preview)
     const line = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
     const OUTLINE = { type: 'doc', content: [
       { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Before the bell' }] },

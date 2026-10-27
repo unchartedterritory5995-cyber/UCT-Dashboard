@@ -1133,6 +1133,8 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
             if w11 and out["payload"].get("format") != SHARED_TEMPLATE_FORMAT:
                 # Task 11.8 (11.7 note): a listing the reducer did not write serves no template slot placeholder.
                 out["bodyJson"] = _without_slot_placeholders(out["bodyJson"])
+            if w11:
+                out["payload"], out["bodyJson"] = _without_dark_slots(out["payload"], out["bodyJson"], conn)
             # P3a Task 10 fix round 1 (ruling P3a-T10-R1): a reviewer must see a held REVISION before approving
             # it. ADMINS ONLY, and only on this single-row read (the list and the queue never name pending_json,
             # the M-6 / R-T4-1 rails); a member, the author included, never receives the field.
@@ -2095,6 +2097,37 @@ def _without_template_slots(blocks: Any, outline: Any) -> tuple[list, Any]:
     kept = [b for b in (blocks if isinstance(blocks, list) else [])
             if not (isinstance(b, dict) and js.slot_family(b.get("block")) is not None)]
     return kept, (_without_slot_placeholders(outline) if outline else outline)
+
+
+def _without_dark_slots(payload: Any, body: Any, conn: sqlite3.Connection) -> tuple[Any, Any]:
+    """Review n-3: a listed style as the previews read it, without the slots whose release wave is off NOW -- the
+    block and its outline placeholder -- because a note made from it would not have them (journal_styles._served,
+    the ONE decider `slot_wave_off`, judged with the listing's own inline definitions and no member, so a pinned
+    plan that needs a dark wave is dark too). Nothing else changes; the stored row is untouched."""
+    from api.services.journal_two import journal_styles as js
+    if not isinstance(payload, dict) or not isinstance(payload.get("blocks"), list):
+        return payload, body
+    defs = {d["key"]: d for d in payload.get("definitions") or []
+            if isinstance(d, dict) and isinstance(d.get("key"), str)}
+    ctx = js.slot_ctx(None, conn, payload["blocks"], defs)
+    dark = {b["block"] for b in payload["blocks"]
+            if isinstance(b, dict) and isinstance(b.get("block"), str) and js.slot_family(b["block"]) is not None
+            and js.slot_wave_off(b["block"], b.get("settings"), ctx)}
+    if not dark:
+        return payload, body
+    blocks = [b for b in payload["blocks"] if not (isinstance(b, dict) and b.get("block") in dark)]
+    present: set[str] = set()
+
+    def collect(node: Any) -> None:
+        if isinstance(node, dict):
+            m = js.PLACEHOLDER_RE.match(_placeholder_text(node).strip()) if node.get("type") == "paragraph" else None
+            if m:
+                present.add(m.group(1))
+            for c in node.get("content") or [] if isinstance(node.get("content"), list) else []:
+                collect(c)
+    collect(body)
+    # every slot placeholder stays but a dark slot's (`_without_slot_placeholders` keeps the ids it is given)
+    return {**payload, "blocks": blocks}, _without_slot_placeholders(body, keep=frozenset(present - dark))
 
 
 def _without_slot_placeholders(body: Any, keep: frozenset = frozenset()) -> Any:
