@@ -910,13 +910,38 @@ _ACTIVE_SHARED_ROOTS = list(SHARED_DATA_ROOTS)
 # Pinned only when the current value would land inside the shared root (unset
 # counts): an env var already pointed somewhere safe — `AUTH_DB_PATH`, or a real
 # OS-level override on a developer's box — is left exactly as it is.
+#
+# ⛔⛔ EXCEPT A VALUE INSIDE ANOTHER SESSION'S SANDBOX, which is "safe" for C:\data
+# and NOT safe for this process. An xdist worker is spawned by a controller that
+# has already imported this file, so it INHERITS every pin pointing into the
+# CONTROLLER's `uct_tests_datadir_*`. Skipped as "already safe", that left BOTH
+# workers on ONE set of files (114 of 116 pins, measured), and their concurrent
+# import-time schema writers (`flow_db.py`'s `PRAGMA journal_mode=WAL` first)
+# raced into `database is locked` while collecting `api.main`. The sandbox pair is
+# per PROCESS; an inherited one is re-pointed at this process's own.
+def _in_foreign_sandbox(path) -> bool:
+    """True when `path` lies in a sandbox this file minted in ANOTHER process."""
+    try:
+        full = os.path.normcase(os.path.abspath(os.fspath(path)))
+    except (TypeError, ValueError, OSError):
+        return False
+    tmp = os.path.normcase(os.path.abspath(tempfile.gettempdir()))
+    if not full.startswith(tmp + os.sep):
+        return False
+    top = full[len(tmp) + 1:].split(os.sep, 1)[0]
+    own = {os.path.basename(os.path.normcase(os.path.abspath(p)))
+           for p in (SANDBOX_DATA_ROOT, os.path.dirname(ISOLATED_AUTH_DB))}
+    return top.startswith(SANDBOX_PREFIXES) and top not in own
+
+
 def _redirect_shared_root_env_vars():
     applied = {}
     if _inert_in_production():      # a deployed service's env is never ours
         return applied
     for var, literal in SHARED_DATA_ENV_PINS.items():
         current = os.environ.get(var)
-        if current and not shared_root_guard.hit(current, SHARED_DATA_ROOTS):
+        if (current and not shared_root_guard.hit(current, SHARED_DATA_ROOTS)
+                and not _in_foreign_sandbox(current)):
             continue
         target = sandbox_for(literal)
         os.environ[var] = target
