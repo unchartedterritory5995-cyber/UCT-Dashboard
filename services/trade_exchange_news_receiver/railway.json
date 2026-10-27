@@ -3,14 +3,15 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
-    "watchPatterns": ["services/trade_exchange_news_receiver/**"]
+    "watchPatterns": [
+      "services/trade_exchange_news_receiver/**"
+    ]
   },
   "deploy": {
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
-    "overlapSeconds": 20,
-    "drainingSeconds": 10,
-    "restartPolicyType": "ALWAYS",
-    "numReplicas": 1
+    "overlapSeconds": "20",
+    "drainingSeconds": "10",
+    "restartPolicyType": "ALWAYS"
   }
 }
