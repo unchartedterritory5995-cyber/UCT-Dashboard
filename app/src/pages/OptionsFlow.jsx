@@ -5291,15 +5291,6 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
           );
         })()}
 
-        {/* Market Tide — own tab (moved off Market Read 2026-10-26). The panel is
-            self-contained: it fetches /api/options/market-tide and renders nothing
-            until OPTIONS_MARKET_TIDE_ENABLED, so it needs no flow (D/FD) state. */}
-        {tab==="Market Tide" && (
-          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <MarketTidePanel />
-          </div>
-        )}
-
         {/* Market Read */}
         {tab==="Market Read" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -6367,6 +6358,19 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
           </div>
         )}
 
+
+        {/* Market Tide — own tab (moved off Market Read 2026-10-26), tab sits
+            between Top Flow and Leaderboard (TABS order). Placed here, AFTER the
+            Market Read block, on purpose: a different-tab guard between the two
+            `tab==="Market Read"` guards truncates flowBootstrap's first-paint
+            range (see flowBootstrap.test.js). The panel is self-contained — it
+            fetches /api/options/market-tide, renders nothing until
+            OPTIONS_MARKET_TIDE_ENABLED, and reads no flow (D/FD) state. */}
+        {tab==="Market Tide" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <MarketTidePanel />
+          </div>
+        )}
 
         {/* Leaderboard */}
         {tab==="Leaderboard" && FD && (()=>{
