@@ -236,7 +236,7 @@ NOT_REHEARSED = {
     "NOTEBOOK_TRADE_CANVAS_ENABLED": ("armed on web 2026-10-03 (docs/feature_flags.json) (wave 11 11D): the "
                                       "trade-plan canvas note (schema level 3, NEVER-REVERT); no route of its own, "
                                       "only the doors that make a canvas"),
-    # Wave 13 lane 13I-1. No member surface yet: 13I-2 builds the panel that reads it.
+    # Wave 13 lane 13I-1, and the member surface 13I-2 built on it (FingerprintPanel).
     "NOTEBOOK_TA_FINGERPRINT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13I-1): the "
                                         "technical fingerprint and the chart-block index API, and the member surface "
                                         "13I-2 built on it (FingerprintPanel on a chart block); payload key only: the"
@@ -248,7 +248,7 @@ NOT_REHEARSED = {
     # Wave 13 lane 13C.
     "NOTEBOOK_EARNINGS_PREP_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13C): Reporting "
                                        "soon on Research Home and a one-click earnings prep note"),
-    # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
+    # Wave 13 lane 13H-1, and the member surfaces 13H-2..13H-4 built on its routes (ChartPlanPanel).
     "NOTEBOOK_CHART_PLAN_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13H-1): chart-plan "
                                     "sizing and alerts at drawn levels, and the member surfaces 13H-2..13H-4 built on"
                                     " them (the chart block's Plan door, ChartPlanPanel and its level controls); "
@@ -257,7 +257,7 @@ NOT_REHEARSED = {
                                     "evidence is "
                                     "app/src/pages/journal-2-0/components/notebook/WidgetEmbedView.chartPlan.test.jsx"
                                     " ('gate OFF: no Plan, no Replay, and the panel is never mounted')"),
-    # Wave 13 lane 13E-1. No member surface yet: 13E-2 builds the card and the prompt.
+    # Wave 13 lane 13E-1, and the member surface 13E-2 built on it (EntryContextCard, WhyPrompt).
     "NOTEBOOK_ENTRY_CONTEXT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13E-1): the market"
                                        " context frozen at the fill (API + capture hooks), and the member surface "
                                        "13E-2 built on it (EntryContextCard on the trade page, which holds "
@@ -422,9 +422,10 @@ NOT_REHEARSED = {
     "NOTEBOOK_WIDGETS_W11_ENABLED": ("dark (notebook widgets wave 11): the template library, sharing and adopting "
                                      "widgets, routines and trackers (needs NOTEBOOK_STYLE_LIBRARY_ENABLED and "
                                      "NOTEBOOK_JOURNAL_STYLES_ENABLED); every wave 11 door answers the one 404 while "
-                                     "off, read per request, before the plan and the body (the wave 11 router's gate "
-                                     "tests), the contract fixtures pin each door's 401 and flags-off 404, and "
-                                     "tests/test_gallery_item_types_w11.py "
+                                     "off, read per request, before the plan and the body "
+                                     "(tests/test_gallery_router_w11.py (test_every_new_route_404_when_w11_off, "
+                                     "test_flag_read_per_request)), the contract fixtures pin each door's 401 and "
+                                     "flags-off 404, and tests/test_gallery_item_types_w11.py "
                                      "(test_tool_types_hidden_while_w11_off_and_listed_when_on) shows the new library"
                                      " types absent while off; its rendered evidence is the wave 11 walk (Task "
                                      "11.20), not a probe here; waits for the owner's arming"),

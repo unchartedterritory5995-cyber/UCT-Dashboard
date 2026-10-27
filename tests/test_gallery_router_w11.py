@@ -160,6 +160,7 @@ def test_every_new_route_404_when_w11_off(app, client, monkeypatch):
     assert ("GET", "/{gallery_id}") not in derived                       # control: an ungated route is not derived
     huge = {"x": "a" * (40 * 1024)}                     # a body the door would refuse: the gate answers first
     waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED", raising=False)   # W11-R72: the gate OFF, stated here
     for plan in (PAID, FREE):                           # the gate runs before the plan check
         as_user(app, MEMBER, plan)
         for method, path, is_gallery, _pre in found:
@@ -184,6 +185,7 @@ def test_flag_read_per_request(app, client, monkeypatch):
     as_user(app, MEMBER)
     assert client.get(f"{GALLERY}/library").status_code == 200
     waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED", raising=False)   # W11-R72: the gate OFF, stated here
     assert client.get(f"{GALLERY}/library").status_code == 404
     assert client.get(f"{STYLES}/s1/used-in").status_code == 404
     waves(monkeypatch, *ALL_WAVES)
