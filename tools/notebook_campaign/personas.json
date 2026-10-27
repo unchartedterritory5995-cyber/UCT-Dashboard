@@ -186,7 +186,7 @@
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5093"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5183"
   },
   "title_too_long": {
    "text": "title too long",
