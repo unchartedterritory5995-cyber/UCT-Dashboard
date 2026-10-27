@@ -30,7 +30,7 @@
   },
   "sample_label": {
    "text": "Sample data",
-   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx:36",
+   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx:40",
    "fragment": "SAMPLE_LABEL = 'Sample data'"
   },
   "empty_widgets": {
@@ -128,11 +128,11 @@
   },
   "share_title": {
    "text": "Share to library",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:31"
+   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:33"
   },
   "share_sent": {
    "text": "Sent. UCT reviews every item before it's listed.",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:36"
+   "source": "app/src/pages/journal-2-0/components/notebook/library/SharePreviewSheet.jsx:38"
   },
   "new_words": {
    "text": "New",
@@ -212,6 +212,18 @@
   "too_long_srv": {
    "text": "This is a lot of data to add up. Try a shorter range or fewer splits.",
    "source": "api/services/journal_two/widget_engine/run.py:69"
+  },
+  "last_result": {
+   "text": "Showing the last result.",
+   "source": "origin/feat/notebook-widgets-p2:app/src/pages/journal-2-0/lib/builtWidgets.js:48",
+   "fragment": "LAST_RESULT_SENTENCE = 'Showing the last result.'",
+   "note": "F-DEF-1 ruling W11-R50/R50b: beside the dimmed preview (PreviewPane.jsx:104) and leading the phone summary bar (PreviewPane.jsx:177)"
+  },
+  "split_none_hour": {
+   "text": "None of these trades have a value for ET hour yet.",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/widget_engine/aggregate.py:51",
+   "fragment": "S_SPLIT_NONE = \"None of these {rows} have a value for {label} yet.\"",
+   "note": "rows=trades, label = the field's label 'ET hour' (sources.py:383); the payload's `empty`, drawn in the preview body (PreviewPane.jsx:110)"
   }
  },
  "personas": [
@@ -251,6 +263,85 @@
        "timing": "note_first_paint",
        "forbid": [
         "raw"
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        },
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle (touch floor still wins)",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "820"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select (in More at 390)",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "390"
+         ],
+         "hidden": true
+        },
+        {
+         "defect": "D-W11-003",
+         "what": "the note title input",
+         "role": "textbox",
+         "name": "Note title",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Note title\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-004",
+         "what": "the FeedbackWidget ?",
+         "role": "button",
+         "name": "?",
+         "source": "app/src/components/FeedbackWidget.jsx",
+         "fragment": "title=\"Help & Feedback\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44,
+         "min_width": 44,
+         "absent_is": "inconclusive"
+        }
        ]
       },
       {
@@ -271,7 +362,86 @@
        ]
       },
       {
-       "do": "close_dialog"
+       "do": "close_dialog",
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        },
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle (touch floor still wins)",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "820"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select (in More at 390)",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "390"
+         ],
+         "hidden": true
+        },
+        {
+         "defect": "D-W11-003",
+         "what": "the note title input",
+         "role": "textbox",
+         "name": "Note title",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Note title\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-004",
+         "what": "the FeedbackWidget ?",
+         "role": "button",
+         "name": "?",
+         "source": "app/src/components/FeedbackWidget.jsx",
+         "fragment": "title=\"Help & Feedback\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44,
+         "min_width": 44,
+         "absent_is": "inconclusive"
+        }
+       ]
       }
      ]
     },
@@ -335,6 +505,56 @@
       },
       {
        "do": "close_dialog"
+      }
+     ]
+    },
+    {
+     "id": "P01.c",
+     "title": "F-DEF-1 retest: the note page in the light theme",
+     "viewports": [
+      "1200"
+     ],
+     "why": "P01 a.02 in light (f-def-1-report.md m-3): the quiet toggle at opacity 0.9 holds 4.5:1; axe runs on the step",
+     "steps": [
+      {
+       "do": "theme",
+       "value": "light"
+      },
+      {
+       "do": "seed_note",
+       "title": "Campaign P01 light note",
+       "paras": [
+        "Light."
+       ],
+       "save_as": "n3"
+      },
+      {
+       "do": "open_note",
+       "note": "n3",
+       "timing": "note_first_paint",
+       "forbid": [
+        "raw"
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the quiet details toggle in light",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24,
+         "opacity": 0.9,
+         "theme": "light"
+        }
+       ]
+      },
+      {
+       "do": "theme",
+       "restore": true
       }
      ]
     }
@@ -569,7 +789,61 @@
       {
        "do": "open_note",
        "note": "n1",
-       "timing": "note_first_paint"
+       "timing": "note_first_paint",
+       "measure": [
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "820"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-002",
+         "what": "the header Folder select (in More at 390)",
+         "role": "combobox",
+         "name": "Folder",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Folder\"",
+         "viewports": [
+          "390"
+         ],
+         "hidden": true
+        },
+        {
+         "defect": "D-W11-003",
+         "what": "the note title input",
+         "role": "textbox",
+         "name": "Note title",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+         "fragment": "aria-label=\"Note title\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44
+        },
+        {
+         "defect": "D-W11-004",
+         "what": "the FeedbackWidget ?",
+         "role": "button",
+         "name": "?",
+         "source": "app/src/components/FeedbackWidget.jsx",
+         "fragment": "title=\"Help & Feedback\"",
+         "viewports": [
+          "820",
+          "390"
+         ],
+         "min_height": 44,
+         "min_width": 44,
+         "absent_is": "inconclusive"
+        }
+       ]
       },
       {
        "do": "open_builder",
@@ -666,7 +940,8 @@
        ],
        "forbid": [
         "zeros"
-       ]
+       ],
+       "open_phone_preview": true
       },
       {
        "do": "close_dialog"
@@ -723,8 +998,13 @@
       },
       {
        "do": "builder_split",
-       "by": "Hour",
-       "live_re": "(?i)need(s)? times"
+       "by": "ET hour",
+       "live_re": "(?i)split by ET hour",
+       "open_phone_preview": true,
+       "expect": [
+        "split_none_hour"
+       ],
+       "why": "the field is 'ET hour' (sources.py:383); 80 untimed trades leave every row without an hour, so the preview body says the split-none sentence (aggregate.py:51, PreviewPane.jsx:110); the live summary only names the split (plan.py:1224)"
       },
       {
        "do": "close_dialog"
@@ -978,8 +1258,10 @@
        "do": "check_text",
        "within": "dialog",
        "expect_re": [
-        "(?i)table|as a table|show the numbers"
-       ]
+        "Show as table"
+       ],
+       "open_phone_preview": true,
+       "why": "the table alternative is the 'Show as table' button (PreviewPane.jsx:121)"
       },
       {
        "do": "close_dialog"
@@ -1393,6 +1675,20 @@
         0,
         1,
         2
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        }
        ]
       },
       {
@@ -2008,7 +2304,8 @@
     "2026-11-27T12:41:00-05:00",
     "2026-11-27T15:43:00-05:00"
    ],
-   "clock_note": "the half day after Thanksgiving 2026 (13:00 ET close): a 15:45 reminder moves back to 12:45. Instant 0 watches it ring; instant 1 watches 15:45 pass with nothing more. One run (the bell is a once-a-day fact per member)."
+   "clock_note": "the half day after Thanksgiving 2026 (13:00 ET close): a 15:45 reminder moves back to 12:45. Instant 0 watches it ring; instant 1 watches 15:45 pass with nothing more. One run (the bell is a once-a-day fact per member).",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P21",
@@ -2190,12 +2487,14 @@
       },
       {
        "do": "builder_blank",
-       "source": "Closed trades"
+       "source": "Trading days"
       },
       {
        "do": "builder_split",
-       "by": "Routine",
-       "live_re": "(?i)routine"
+       "by": "Routine done",
+       "live_re": "(?i)split by routine done",
+       "ref": "History routine",
+       "why": "'Routine done' is the Trading days source's routine field (sources.py:651); picking it opens the routine picker, whose buttons are the routines' names (RefPicker.jsx:62-66, WidgetBuilderSheet.jsx:1220)"
       },
       {
        "do": "close_dialog",
@@ -2307,13 +2606,77 @@
        "do": "builder_formula",
        "name": "Winner",
        "formula": "If([net] > 0, 1",
-       "expect_error": true
+       "expect_error": true,
+       "measure": [
+        {
+         "defect": "D-W11-007",
+         "what": "the kept preview's text cue",
+         "testid": "builder-preview-last",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "data-testid=\"builder-preview-last\">{LAST_RESULT_SENTENCE}",
+         "viewports": [
+          "1200",
+          "820"
+         ],
+         "text": "last_result"
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the dimmed preview",
+         "testid": "builder-preview-view",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "data-testid=\"builder-preview-view\"",
+         "viewports": [
+          "1200",
+          "820"
+         ],
+         "opacity": 0.9
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the phone summary bar leads with the cue",
+         "testid": "builder-summary-bar",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "{last ? `${LAST_RESULT_SENTENCE} ` : ''}",
+         "viewports": [
+          "390"
+         ],
+         "text_starts": "last_result",
+         "first_span_opacity": 0.9
+        }
+       ],
+       "why": "a refused formula blocks the preview (WidgetBuilderSheet.jsx:489, 1343): the last result stays, dimmed at --preview-dim-opacity 0.9, with 'Showing the last result.' beside it or leading the phone bar"
       },
       {
        "do": "builder_formula_append",
        "text": ", 0)",
        "expect_valid": true,
-       "expect_value": "If([net] > 0, 1, 0)"
+       "expect_value": "If([net] > 0, 1, 0)",
+       "measure": [
+        {
+         "defect": "D-W11-007",
+         "what": "no kept-result cue once the formula is fixed",
+         "testid": "builder-preview-last",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "data-testid=\"builder-preview-last\">{LAST_RESULT_SENTENCE}",
+         "viewports": [
+          "1200",
+          "820"
+         ],
+         "absent": true
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the phone bar no longer leads with the cue",
+         "testid": "builder-summary-bar",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "{last ? `${LAST_RESULT_SENTENCE} ` : ''}",
+         "viewports": [
+          "390"
+         ],
+         "text_not_starts": "last_result"
+        }
+       ]
       },
       {
        "do": "close_dialog",
@@ -2587,7 +2950,12 @@
       {
        "do": "builder_split",
        "by": "Hold time",
-       "live_re": "(?i)need(s)? times"
+       "live_re": "(?i)split by hold time",
+       "why": "the Hold time split buckets hold days (sources.py:401, 277-292), which date-only trades have"
+      },
+      {
+       "do": "not_reachable",
+       "reason": "the hold-minutes sentence (aggregate.py:38) is said only for a Hold minutes FILTER (aggregate.py:434-438); the filter picker (WhichOnesSection.jsx:140-147, 483-515) has no campaign action yet, so this claim is INCONCLUSIVE by design, never a pass"
       },
       {
        "do": "close_dialog",
@@ -3136,7 +3504,8 @@
     "2026-11-24T21:00:00-05:00",
     "2026-11-25T23:30:00-05:00"
    ],
-   "clock_note": "Sunday 21:00 ET (Mon 02:00Z) binds to Mon Nov 23 (a UTC note day would give Tue). Tuesday 21:00 ET (Wed 02:00Z) binds to Wed Nov 25 (a UTC note day would give Fri: Thursday is closed). The eve of Thanksgiving, Wednesday 23:30 ET, binds to Fri Nov 27 either way, so the ET-vs-UTC trap is carried by the first two instants."
+   "clock_note": "Sunday 21:00 ET (Mon 02:00Z) binds to Mon Nov 23 (a UTC note day would give Tue). Tuesday 21:00 ET (Wed 02:00Z) binds to Wed Nov 25 (a UTC note day would give Fri: Thursday is closed). The eve of Thanksgiving, Wednesday 23:30 ET, binds to Fri Nov 27 either way, so the ET-vs-UTC trap is carried by the first two instants.",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P38",
@@ -3225,7 +3594,8 @@
     "2026-11-28T11:00:00-05:00",
     "2026-12-26T10:00:00-05:00"
    ],
-   "clock_note": "Saturday after Thanksgiving (the week's last session is the Friday half day), and Saturday 26 Dec 2026 (Friday 25 Dec is closed, so the week's last session is Thursday 24 Dec, an early close). Both are after the seed date, so no seeded stamp is in the future."
+   "clock_note": "Saturday after Thanksgiving (the week's last session is the Friday half day), and Saturday 26 Dec 2026 (Friday 25 Dec is closed, so the week's last session is Thursday 24 Dec, an early close). Both are after the seed date, so no seeded stamp is in the future.",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P39",
@@ -3276,7 +3646,8 @@
     }
    ],
    "validated": false,
-   "notes": "API-only and spends the adopt scope (30/hour per member): one run, 1200 pointer. The in-flight 409 and listing_moved are not forceable from a client; their steps say so (INCONCLUSIVE)."
+   "notes": "API-only and spends the adopt scope (30/hour per member): one run, 1200 pointer. The in-flight 409 and listing_moved are not forceable from a client; their steps say so (INCONCLUSIVE).",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P40",
@@ -3472,7 +3843,8 @@
     "2026-11-11T10:00:00-05:00",
     "2026-11-12T19:30:00-05:00"
    ],
-   "clock_note": "three ET days (Tue, Wed, Thu) whose first two share ONE UTC day (11-11T01:00Z and 11-11T15:00Z): a server counting UTC days would still refuse Helpful on the third. One run: the 3rd-day line shows once per member."
+   "clock_note": "three ET days (Tue, Wed, Thu) whose first two share ONE UTC day (11-11T01:00Z and 11-11T15:00Z): a server counting UTC days would still refuse Helpful on the third. One run: the 3rd-day line shows once per member.",
+   "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
   {
    "id": "P42",
@@ -3707,7 +4079,21 @@
       {
        "do": "open_note",
        "note": "n1",
-       "timing": "note_first_paint"
+       "timing": "note_first_paint",
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        }
+       ]
       },
       {
        "do": "open_builder"
@@ -3805,6 +4191,20 @@
        ],
        "expect_status": [
         404
+       ],
+       "measure": [
+        {
+         "defect": "D-W11-001",
+         "what": "the note details toggle",
+         "role": "button",
+         "name": "Add details",
+         "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
+         "fragment": "{has ? 'Details' : 'Add details'}",
+         "viewports": [
+          "1200"
+         ],
+         "min_height": 24
+        }
        ]
       },
       {
@@ -4055,7 +4455,8 @@
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "viewports_why": "phone-only member by definition (plan row P49): 390, coarse pointer"
   },
   {
    "id": "P50",
@@ -4330,7 +4731,8 @@
      ]
     }
    ],
-   "validated": false
+   "validated": false,
+   "viewports_why": "tablet member by definition (plan row P50): 820, coarse pointer"
   }
  ]
 }

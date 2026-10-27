@@ -119,6 +119,274 @@ def source_text(app_root: Path, source: str) -> str | None:
     return p.read_text(encoding="utf-8", errors="replace") if p.is_file() else None
 
 
+# ── selectors against the frontend source (persona validation pass) ───────────────────────
+#
+# Every selector a step drives (a data-testid, a role's name, a label, a route) is the product's own text, so it is
+# QUOTED from the file that renders it, never typed as a second authority. `selector_problems` reads each one from the
+# source: the runner before a run (the app root it serves, a drifted step reads INCONCLUSIVE) and the tooling rail at
+# FRONTEND_REF (tests/test_notebook_campaign_tooling.py), which goes red when a persona names a selector the frontend
+# no longer has.
+
+#: The merged frontend the campaign drives (wave 11, Notebook widgets phase 2).
+FRONTEND_REF = "origin/feat/notebook-widgets-p2"
+_NB = "app/src/pages/journal-2-0/components/notebook/"
+_WB = _NB + "widgetBuilder/"
+_MT = _NB + "myTools/"
+SOURCES_PY = "api/services/journal_two/widget_engine/sources.py"
+SHELF_MANIFEST = "api/services/journal_two/widget_engine/shelf/MANIFEST.json"
+SLASH_FILES = (_NB + "SlashMenu.jsx", "app/src/pages/journal-2-0/lib/notebookWidgets.js")
+
+#: The literal each handler drives -> (the file that renders it, the text that must still be in it).
+HANDLER_ANCHORS: dict[str, tuple[str, str]] = {
+    "builder-live": (_WB + "PreviewPane.jsx", 'data-testid="builder-live"'),
+    "builder-summary-bar": (_WB + "PreviewPane.jsx", 'data-testid="builder-summary-bar"'),
+    "builder-preview": (_WB + "PreviewPane.jsx", 'aria-label="Preview" data-testid="builder-preview"'),
+    "formula-field": (_WB + "sections/FormulaSection.jsx", 'data-testid="formula-field"'),
+    "example-card-": (_WB + "ExampleCard.jsx", "data-testid={`example-card-${example.id}`}"),
+    "data-snapshot-frame": (_NB + "widgets/SnapshotFrame.jsx", 'data-snapshot-frame=""'),
+    "data-routine-block": (_NB + "blocks/RoutineBlock.jsx", 'data-routine-block=""'),
+    "routine checkbox": (_NB + "blocks/RoutineBlock.jsx", 'role="checkbox" aria-checked={on} aria-label={item.text}'),
+    "Insert block": (_NB + "SlashMenu.jsx", 'role="listbox" id={menuId} aria-label="Insert block"'),
+    "/build": (_NB + "SlashMenu.jsx", "title: 'Build a widget', cmd: 'build'"),
+    "builder title": (_WB + "WidgetBuilderSheet.jsx",
+                      "'Edit widget' : target.mode === 'copy' ? 'Edit a copy' : 'Build a widget'"),
+    "Start blank": (_WB + "ExamplesGallery.jsx", "START_BLANK = 'Start blank'"),
+    "source radio": (_WB + "sections/SourceSection.jsx", 'role="radio" aria-checked={on}'),
+    "split chip": (_WB + "sections/SplitSection.jsx", "'No split. Pick one'"),
+    "split option": (_WB + "sections/SplitSection.jsx", "<span className={styles.optionLabel}>{f.label}</span>"),
+    "ref option": (_WB + "sections/RefPicker.jsx", "<span className={styles.optionLabel}>{r.name}</span>"),
+    "Name": (_WB + "sections/NameSection.jsx", "htmlFor={nameId}>Name</label>"),
+    "Save": (_WB + "WidgetBuilderSheet.jsx", "target.mode === 'copy' ? 'Save as a copy' : 'Save'"),
+    "Add your own field": (_WB + "sections/FormulaSection.jsx", "<span>Add your own field</span>"),
+    "formula Name": (_WB + "sections/FormulaSection.jsx", "<span className={b.fieldLabel}>Name</span>"),
+    "Formula": (_WB + "sections/FormulaSection.jsx", "htmlFor={`${id}-box`}>Formula</label>"),
+    "aria-invalid": (_WB + "sections/FormulaSection.jsx",
+                     "aria-describedby={resultId} aria-invalid={!r.ok || serverShown ? 'true' : undefined}"),
+    "First ": (_WB + "formulaFields.js", "return `First ${countNoun(unit, 1)}: ${shown}`"),
+    "Keep your changes?": (_WB + "WidgetBuilderSheet.jsx", "KEEP_QUESTION = 'Keep your changes?'"),
+    "Discard them": (_WB + "WidgetBuilderSheet.jsx", r"re:>\s*Discard them\s*</button>"),
+    "Close": ("app/src/components/mobile/Sheet.jsx", 'aria-label="Close"'),
+    "dialog": ("app/src/components/mobile/Sheet.jsx", 'role="dialog"'),
+    "My tools button": ("app/src/pages/journal-2-0/tabs/NotebookTab.jsx",
+                        "<span className={styles.actionLabel}>My tools</span>"),
+    "My tools dialog": (_MT + "MyToolsSheet.jsx", 'title="My tools" labelledByTitle'),
+    "tab": ("app/src/components/mobile/SegmentedNav.jsx", 'role="tab"'),
+    "filter button": (_MT + "ToolsTab.jsx", "aria-pressed={filter === key}"),
+    "/routine": (_NB + "SlashMenu.jsx", "title: 'Routine (remembered daily)', cmd: 'routine'"),
+    "Add a routine": (_NB + "routines/ToolPicker.jsx", "title: 'Add a routine'"),
+    "routine pick": (_NB + "routines/ToolPicker.jsx", "onClick={() => pick(t)}>{nameOf(t, kind)}</button>"),
+    "switch": ("app/src/components/ui/Switch.jsx", '<button type="button" role="switch" aria-checked={checked}'),
+    "Show on shared pages": (_NB + "widgets/SnapshotFrame.jsx", "<span>Show on shared pages</span>"),
+    "Share": (_NB + "NoteShareControls.jsx", 'data-tour="note-share"'),
+    "Share this note": (_NB + "NoteShareControls.jsx", 'ariaLabel="Share this note"'),
+    "Share link address": (_NB + "NoteShareControls.jsx", 'aria-label="Share link address"'),
+    "Create link": (_NB + "NoteShareControls.jsx", "onClick={createLink} disabled={busy}>Create link</button>"),
+    "ProseMirror": (_NB + "NoteEditorPage.jsx", "import { useEditor, EditorContent } from '@tiptap/react'"),
+}
+
+#: A handler literal whose text is not itself in its anchor's fragment (a template, a library's own class): the anchor
+#: it is read against. Every other literal a handler drives must appear in some HANDLER_ANCHORS fragment (the rail).
+HANDLER_LITERALS: dict[str, str] = {"^First trade: ": "First ", ".ProseMirror": "ProseMirror"}
+
+#: Which anchors each browser action leans on (a drifted anchor makes every step of that action INCONCLUSIVE).
+ACTION_ANCHORS: dict[str, tuple[str, ...]] = {
+    "open_note": ("ProseMirror", "data-snapshot-frame", "data-routine-block", "routine checkbox"),
+    "slash": ("ProseMirror", "Insert block"),
+    "open_builder": ("ProseMirror", "Insert block", "/build", "builder title"),
+    "builder_example": ("builder title", "example-card-", "builder-live"),
+    "builder_blank": ("builder title", "Start blank", "source radio", "builder-live"),
+    "builder_split": ("builder title", "split chip", "split option", "ref option", "builder-live"),
+    "builder_name": ("builder title", "Name"),
+    "builder_save": ("builder title", "Save", "data-snapshot-frame"),
+    "builder_save_expect_refusal": ("builder title", "Save"),
+    "builder_summary_visible": ("builder title", "builder-summary-bar", "builder-preview", "builder-live"),
+    "builder_formula": ("builder title", "Add your own field", "formula-field", "formula Name", "Formula",
+                        "aria-invalid"),
+    "builder_formula_append": ("builder title", "formula-field", "Formula", "aria-invalid", "First "),
+    "close_dialog": ("dialog", "Keep your changes?", "Discard them", "Close"),
+    "focus_returned": ("ProseMirror",),
+    "my_tools": ("My tools button", "My tools dialog", "tab"),
+    "my_tools_tab": ("My tools dialog", "tab"),
+    "my_tools_filter": ("My tools dialog", "filter button"),
+    "insert_routine": ("ProseMirror", "Insert block", "/routine", "Add a routine", "routine pick",
+                       "data-routine-block", "routine checkbox"),
+    "tick": ("data-routine-block", "routine checkbox"),
+    "concurrent_ticks": ("data-routine-block", "routine checkbox"),
+    "reload_all": ("data-routine-block", "routine checkbox"),
+    "new_context": ("data-routine-block", "routine checkbox"),
+    "new_page": ("data-routine-block", "routine checkbox"),
+    "widget_share_on": ("data-snapshot-frame", "switch", "Show on shared pages"),
+    "share_public": ("Share", "Share this note", "Share link address", "Create link"),
+}
+
+#: A route a step opens -> the source that serves it (the path, then each query key and hash it carries).
+ROUTE_ANCHORS: dict[str, tuple[str, str]] = {
+    "/journal": ("app/src/App.jsx", '<Route path="/journal" element={<JournalShellSelector />}>'),
+    "/journal/notebook": ("app/src/App.jsx", '<Route path="notebook" element={<NotebookSurface />} />'),
+    "?view=all": ("app/src/pages/journal-2-0/tabs/NotebookTab.jsx", "const viewAll = viewParam === 'all'"),
+    "?note=": ("app/src/pages/journal-2-0/tabs/NotebookTab.jsx", "searchParams.get('note')"),
+    "#templates": ("app/src/pages/journal-2-0/lib/notebookDoors.js", "NOTEBOOK_TEMPLATES_HASH = '#templates'"),
+}
+#: A `within` surface a check reads -> its anchor (None: the runner's own surface words).
+WITHIN_ANCHORS: dict[str, str | None] = {"dialog": None, "page": None, "[data-routine-block]": "data-routine-block"}
+
+
+def _split_fields_by_source(text: str) -> dict[str, set[str]]:
+    """sources.py read as text: each Source's label -> the labels of its fields that can split (`split=True`)."""
+    blocks = {}
+    for m in re.finditer(r"^(\w+_FIELDS): dict\[str, Field\] = \{f\.key: f for f in \[(.*?)^\]\}", text, re.M | re.S):
+        body = m[2]
+        starts = [x.start() for x in re.finditer(r"_f\(", body)] + [len(body)]
+        labels = set()
+        for a, b in zip(starts, starts[1:]):
+            chunk = body[a:b]
+            lab = re.match(r'_f\("\w+",\s*"([^"]+)"', chunk)
+            if lab and "split=True" in chunk:
+                labels.add(lab[1])
+        blocks[m[1]] = labels
+    out = {}
+    for m in re.finditer(r'Source\(\s*"\w+",\s*"([^"]+)",', text):
+        # The fields dict is the next *_FIELDS name: a description may itself hold parentheses ("(incl. options)").
+        fields = re.search(r"\b(\w+_FIELDS)\b", text[m.end():m.end() + 400])
+        if fields and fields[1] in blocks:
+            out[m[1]] = blocks[fields[1]]
+    return out
+
+
+def _slash_words(texts: list[str]) -> list[str]:
+    """Every `title:` and `description:` string the / menu shows (SlashMenu.jsx and the widget kinds it lists)."""
+    out = []
+    for t in texts:
+        out += re.findall(r"""\b(?:title|description):\s*(['"])(.+?)\1""", t)
+    return [w for _, w in out]
+
+
+def _persona_tool_names(p: dict) -> set[str]:
+    names = {r["name"] for r in (p.get("data") or {}).get("routines") or []}
+    for sc in p.get("scripts") or []:
+        for st in sc["steps"]:
+            if st["do"] == "api" and st.get("method") == "POST" and st.get("path") == "/api/j2/routines":
+                names.add((st.get("body") or {}).get("name", ""))
+    return names
+
+
+def step_anchors(p: dict, st: dict, src_label: str | None) -> list[tuple[str, str, str]]:
+    """(what, path, fragment) for each selector this step names itself; a fragment starting `re:` is a regex.
+    `src_label` is the source the script's builder is on (the last builder_blank), for a split's field."""
+    out = [(f"handler anchor {k!r}", *HANDLER_ANCHORS[k]) for k in ACTION_ANCHORS.get(st["do"], ())]
+    do = st["do"]
+    if do == "builder_example":
+        out.append((f"example card {st['card']!r}", SHELF_MANIFEST, f'"{st["card"]}"'))
+    if do == "builder_blank":
+        out.append((f"source {st['source']!r}", SOURCES_PY, "re:" + r'Source\(\s*"\w+",\s*"' + re.escape(st["source"]) + '"'))
+    if do == "builder_split":
+        out.append((f"split field {st['by']!r} on {src_label!r}", SOURCES_PY, f"split:{src_label}:{st['by']}"))
+    if do in ("my_tools", "my_tools_tab") and st.get("tab"):
+        out.append((f"tab {st['tab']!r}", _MT + "myToolsLib.js", f", '{st['tab']}']"))
+    if do == "my_tools_filter":
+        out.append((f"filter {st['label']!r}", _MT + "myToolsLib.js", f", '{st['label']}']"))
+    if do == "slash" and st.get("pick"):
+        out.append((f"/ menu row {st['pick']!r}", "|".join(SLASH_FILES), f"slash:{st['pick']}"))
+    if do == "open":
+        path = st["path"].split("#")[0].split("?")[0]
+        keys = [path] + [f"?{q}" for q in re.findall(r"[?&]([^&#]+)", st["path"])] + \
+            ["#" + h for h in re.findall(r"#(\w+)", st["path"])]
+        for k in keys:
+            if k not in ROUTE_ANCHORS:
+                out.append((f"route part {k!r}", "", "missing:no ROUTE_ANCHORS entry"))
+            else:
+                out.append((f"route part {k!r}", *ROUTE_ANCHORS[k]))
+    if do in ("open_note", "new_context", "new_page"):
+        out += [(f"route part {k!r}", *ROUTE_ANCHORS[k]) for k in ("/journal/notebook", "?note=")]
+    if do == "check_text" and st.get("within"):
+        w = st["within"]
+        if w not in WITHIN_ANCHORS:
+            out.append((f"surface {w!r}", "", "missing:no WITHIN_ANCHORS entry"))
+        elif WITHIN_ANCHORS[w]:
+            out.append((f"surface {w!r}", *HANDLER_ANCHORS[WITHIN_ANCHORS[w]]))
+    for t in st.get("measure") or []:
+        if not t.get("source") or not t.get("fragment"):
+            out.append((f"measure {t.get('what')!r}", "", "missing:a measure target names no source and fragment"))
+        else:
+            out.append((f"measure {t['what']!r}", t["source"], t["fragment"]))
+        if not t.get("testid") and not (t.get("role") and t.get("name")):
+            out.append((f"measure {t.get('what')!r}", "", "missing:a measure target needs a role and name or a testid"))
+    if do == "not_reachable" and not re.search(r"\.\w+:\d", st.get("reason") or ""):
+        out.append(("not_reachable reason", "", "missing:the reason must cite the file:line it was read from"))
+    return out
+
+
+def selector_problems(spec: dict, read) -> list[dict]:
+    """Every selector a persona step names, read from its source with `read(path) -> text | None`. Each problem:
+    {persona, step (`P06.a.05`), what, why}. An empty list: every selector is still in the frontend."""
+    cache: dict = {}
+
+    def text(path):
+        if path not in cache:
+            cache[path] = read(path)
+        return cache[path]
+
+    out = []
+    for p in spec["personas"]:
+        tools = _persona_tool_names(p)
+        for sc in p.get("scripts") or []:
+            src_label = None
+            for i, st in enumerate(sc["steps"]):
+                sid = f"{sc['id']}.{i + 1:02d}"
+                if st["do"] == "builder_blank":
+                    src_label = st["source"]
+                if st["do"] == "builder_example":
+                    src_label = None
+                why = []
+                for what, path, frag in step_anchors(p, st, src_label):
+                    if frag.startswith("missing:"):
+                        why.append(f"{what}: {frag[8:]}")
+                        continue
+                    if frag.startswith("slash:"):
+                        words = _slash_words([text(f) or "" for f in path.split("|")])
+                        if not any(re.search(frag[6:], w) for w in words):
+                            why.append(f"{what}: no / menu row in {path} matches")
+                        continue
+                    t = text(path)
+                    if t is None:
+                        why.append(f"{what}: {path} is unreadable")
+                    elif frag.startswith("split:"):
+                        _, label, field = frag.split(":", 2)
+                        fields = _split_fields_by_source(t)
+                        if label not in fields:
+                            why.append(f"{what}: no Source labelled {label!r} in {path}")
+                        elif field not in fields[label]:
+                            why.append(f"{what}: {label!r} has no split field {field!r} ({sorted(fields[label])})")
+                    elif frag.startswith("re:"):
+                        if not re.search(frag[3:], t):
+                            why.append(f"{what}: /{frag[3:]}/ not in {path}")
+                    elif frag not in t:
+                        why.append(f"{what}: {frag!r} not in {path}")
+                if st["do"] == "builder_split" and st.get("ref") and st["ref"] not in tools:
+                    why.append(f"routine {st['ref']!r} is not one this persona seeds")
+                if st["do"] == "insert_routine" and st["existing"] not in tools:
+                    why.append(f"routine {st['existing']!r} is not one this persona seeds")
+                out += [{"persona": p["id"], "step": sid, "do": st["do"], "why": w} for w in why]
+    return out
+
+
+def git_reader(app_root: Path, ref: str):
+    """`read(path)` for `selector_problems`: the file at `ref`, read with git in `app_root`'s repository."""
+    def read(path: str) -> str | None:
+        r = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=str(app_root), capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        return r.stdout if r.returncode == 0 else None
+    return read
+
+
+def tree_reader(app_root: Path):
+    """`read(path)` for `selector_problems`: the file in `app_root`'s working tree (what the run serves)."""
+    def read(path: str) -> str | None:
+        f = app_root / path
+        return f.read_text(encoding="utf-8", errors="replace") if f.is_file() else None
+    return read
+
+
 def verify_sentences(spec: dict, app_root: Path) -> dict:
     """key -> {ok, why, line_ok}. `ok` = the fragment is in the named file; `line_ok` = also on the named line."""
     out = {}
@@ -382,6 +650,12 @@ def once_gate(ran: dict, persona: dict, sc: dict, run: str) -> str | None:
     return None
 
 
+def script_runs_at(sc: dict, vp: str) -> bool:
+    """A script with `viewports` (an F-DEF-1 retest that is about one tier) runs only at those; the run records the
+    skip (`viewport_skipped`), so it never reads as a pass at the others."""
+    return not sc.get("viewports") or vp in sc["viewports"]
+
+
 def scripts_at(persona: dict) -> list[dict]:
     """The scripts a run drives: all of them, or (under a clock group of a multi-instant persona) those `at` it."""
     if "_at" not in persona:
@@ -484,6 +758,7 @@ class Run:
         self.tag = f"{g.run_id}-{vp}-{mode}"
         self.steps: list[dict] = []
         self.session_refusal: str | None = None   # set by new_context when a clock group has no vouched session
+        self.theme_was: dict | None = None        # the member's theme preference before a `theme` step changed it
 
     # contexts and pages
     def new_context(self, name: str):
@@ -523,7 +798,18 @@ class Run:
             self.new_page(name)
         return self.pages[name][0]
 
+    def restore_theme(self):
+        """Put the member's theme preference back as a `theme` step found it (an absent one reads as the default,
+        `dark`, Layout.jsx:113). Once: a second call does nothing."""
+        was, self.theme_was = self.theme_was, None
+        if was is None or "main" not in self.pages:
+            return
+        value = was.get("value") if isinstance(was.get("value"), str) else "dark"
+        self.page().request.post(self.g.base + "/api/auth/preferences", data={"key": "theme", "value": value})
+
     def close(self):
+        with contextlib.suppress(Exception):
+            self.restore_theme()
         for c in self.contexts.values():
             with contextlib.suppress(Exception):
                 c.close()
@@ -878,6 +1164,10 @@ def a_builder_split(R, s, row):
     dlg = builder(pg)
     act(R, pg, dlg.get_by_role("button", name=re.compile(r"split", re.I)).first)
     act(R, pg, dlg.get_by_role("button", name=s["by"], exact=True))
+    if s.get("ref"):
+        # A routine or tracker field asks which one (WidgetBuilderSheet.jsx:1220, RefPicker.jsx:62-66): its
+        # buttons are named by the routine's own name.
+        act(R, pg, dlg.get_by_role("button", name=R.fmt(s["ref"]), exact=True))
     rx = s.get("live_re")
     try:
         said = wait_live(pg, js_regex_test(rx or "."))
@@ -953,12 +1243,20 @@ def a_builder_formula(R, s, row):
         box.click()
     pg.keyboard.type(s["formula"], delay=40)
     if s.get("expect_error"):
-        err = f.locator("[class*=error]")
+        # The box's own state, never a CSS-module class: aria-invalid="true" and the sentence it is described by
+        # (FormulaSection.jsx:296-297, the result div at :320-323).
         try:
-            err.first.wait_for(timeout=T)
-            check(row, "an inline sentence says what is wrong", True, err.first.inner_text())
+            f.locator('textarea[aria-invalid="true"]').wait_for(timeout=T)
+            said = formula_result_text(box)
+            check(row, "an inline sentence says what is wrong", bool(said.strip()), said)
         except Exception:  # noqa: BLE001
             check(row, "an inline sentence says what is wrong", False, f.inner_text()[:300])
+
+
+def formula_result_text(box) -> str:
+    """The text of what the Formula box is described by (its result line: the error sentence or the first row)."""
+    return box.evaluate("b => { const d = document.getElementById(b.getAttribute('aria-describedby') || '');"
+                        " return d ? d.innerText : '' }") or ""
 
 
 def a_builder_formula_append(R, s, row):
@@ -975,7 +1273,7 @@ def a_builder_formula_append(R, s, row):
         except Exception:  # noqa: BLE001
             ok = False
         check(row, "fixed by keyboard, the formula is valid (the first-row line shows)", ok
-              and f.locator("[class*=error]").count() == 0, f.inner_text()[:300])
+              and box.get_attribute("aria-invalid") != "true", formula_result_text(box)[:300])
     if s.get("expect_value"):
         check(row, "the box reads the fixed formula", box.input_value() == s["expect_value"], box.input_value())
     check(row, "focus stayed in the Formula box", box.evaluate(FOCUS_IN_JS), "")
@@ -1303,6 +1601,109 @@ def a_check_text(R, s, row):
 
 def a_noop(R, s, row):
     raise Inconclusive("not scripted yet: the persona's script needs a server or a seam this run does not have")
+
+
+def a_not_reachable(R, s, row):
+    """A claim the current controls cannot drive (persona validation pass): INCONCLUSIVE by design, with its
+    reason, never a silent pass. `reason` is required (a rail checks it names the source it read)."""
+    raise Inconclusive(f"not reachable by design: {s['reason']}")
+
+
+def a_theme(R, s, row):
+    """The member's app theme, set the way Settings sets it: the `theme` preference (usePreferences -> POST
+    /api/auth/preferences, Layout.jsx applies it to <html data-theme>). The value it replaced is remembered and put
+    back by `{"restore": true}` or, whatever happens, when the run closes (Run.close), so no later run inherits it."""
+    pg = R.page()
+    if s.get("restore"):
+        R.restore_theme()
+        row["read"].append({"what": "theme restored", "text": json.dumps(R.theme_was)})
+        return
+    if R.theme_was is None:
+        r = pg.request.get(R.g.base + "/api/auth/preferences?keys=theme")
+        prev = (r.json() if r.ok else {}).get("theme")
+        R.theme_was = {"value": prev}
+    r = pg.request.post(R.g.base + "/api/auth/preferences", data={"key": "theme", "value": s["value"]})
+    check(row, f"the theme preference is {s['value']!r} (HTTP 200)", r.status == 200, f"HTTP {r.status}")
+
+
+def open_phone_preview(R: Run, row: dict) -> None:
+    """On a phone (<= 640 px) the builder draws its preview body only after the summary bar is opened
+    (PreviewPane.jsx:172-189): a member taps it. Wider, the pane is always drawn and this does nothing."""
+    if R.size[0] > 640:
+        return
+    pg = R.page()
+    bar = builder(pg).get_by_test_id("builder-summary-bar")
+    if not bar.count():
+        raise Inconclusive("the phone summary bar is not drawn, so the preview body cannot be opened")
+    if bar.first.get_attribute("aria-expanded") != "true":
+        act(R, pg, bar.first)
+        pg.wait_for_timeout(600)
+    row["read"].append({"what": "phone preview opened", "text": bar.first.get_attribute("aria-expanded") or ""})
+
+
+#: What a measure target is read with (the page's own computed answer, never a CSS-module class).
+MEASURE_JS = """(e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e);
+  const span = e.querySelector(':scope > span'); return { w: r.width, h: r.height, display: cs.display,
+  visibility: cs.visibility, opacity: cs.opacity, text: (e.innerText || '').trim().slice(0, 300),
+  spanOpacity: span ? getComputedStyle(span).opacity : null,
+  theme: document.documentElement.dataset.theme || null } }"""
+
+
+def measure_locator(R: Run, pg, t: dict):
+    if t.get("testid"):
+        return pg.get_by_test_id(t["testid"])
+    # A `hidden` target is looked for among hidden elements too: by default a role query skips them, and a check
+    # that "nothing visible was found" would pass on a page that never drew the control at all.
+    return pg.get_by_role(t["role"], name=t["name"], exact=True, include_hidden=bool(t.get("hidden")))
+
+
+def run_measures(R: Run, s: dict, row: dict) -> None:
+    """F-DEF-1 retests (f-def-1-report.md): each target that applies at this viewport is found by role and name (or
+    a data-testid) and read in the real browser: its box, its computed opacity, its rendered text."""
+    for t in s.get("measure") or []:
+        if t.get("viewports") and R.vp not in t["viewports"]:
+            continue
+        pg = R.page()
+        what = f"{t.get('defect', '')} {t['what']}".strip()
+        loc = measure_locator(R, pg, t)
+        n = loc.count()
+        if t.get("absent"):
+            shown = [i for i in range(n) if loc.nth(i).is_visible()]
+            check(row, f"{what}: not shown", not shown, f"{n} found, {len(shown)} visible")
+            continue
+        if t.get("hidden"):
+            m = [loc.nth(i).evaluate(MEASURE_JS) for i in range(n)]
+            check(row, f"{what}: in the page but not displayed",
+                  bool(m) and all(x["display"] == "none" or x["h"] == 0 for x in m), json.dumps(m))
+            continue
+        if not n:
+            if t.get("absent_is") == "inconclusive":
+                row.setdefault("inconclusive", []).append(f"{what}: not on this page (e.g. the hub hides it)")
+                continue
+            check(row, f"{what}: found", False, "0 found")
+            continue
+        m = loc.first.evaluate(MEASURE_JS)
+        row["read"].append({"what": f"measure {what}", "text": json.dumps(m)})
+        if "min_height" in t:
+            check(row, f"{what}: at least {t['min_height']} px tall", m["h"] >= t["min_height"] - 0.5, f"{m['h']:.1f} px")
+        if "min_width" in t:
+            check(row, f"{what}: at least {t['min_width']} px wide", m["w"] >= t["min_width"] - 0.5, f"{m['w']:.1f} px")
+        if "opacity" in t:
+            check(row, f"{what}: opacity {t['opacity']}", abs(float(m["opacity"]) - t["opacity"]) < 0.005, m["opacity"])
+        if "first_span_opacity" in t:
+            ok = m["spanOpacity"] is not None and abs(float(m["spanOpacity"]) - t["first_span_opacity"]) < 0.005
+            check(row, f"{what}: its text at opacity {t['first_span_opacity']}", ok, str(m["spanOpacity"]))
+        if t.get("theme"):
+            check(row, f"{what}: drawn in the {t['theme']} theme", m["theme"] == t["theme"], str(m["theme"]))
+        if t.get("text"):
+            want = R.g.sentence(t["text"])
+            check(row, f"{what}: says {want!r}", m["text"] == want and m["display"] != "none", m["text"])
+        if t.get("text_starts"):
+            want = R.g.sentence(t["text_starts"])
+            check(row, f"{what}: starts {want!r}", m["text"].startswith(want), m["text"])
+        if t.get("text_not_starts"):
+            want = R.g.sentence(t["text_not_starts"])
+            check(row, f"{what}: no longer starts {want!r}", not m["text"].startswith(want), m["text"])
 
 
 # ── wave 11 steps (Task 11.21 Step 4): the real route shapes, driven over loopback HTTP ─────────
@@ -1825,7 +2226,7 @@ ACTIONS = {
     "note_unchanged": a_note_unchanged, "offline": a_offline, "wait": a_wait, "api": a_api, "api_burst": a_api_burst,
     "flag_restart": a_flag_restart, "widget_share_on": a_widget_share_on,
     "share_public": a_share_public, "admin_login": a_admin_login, "throttle": a_throttle, "check_text": a_check_text,
-    "noop": a_noop,
+    "noop": a_noop, "not_reachable": a_not_reachable, "theme": a_theme,
     # wave 11 (real route shapes, w11_steps)
     "w11_browse": a_w11_browse, "w11_preview": a_w11_preview, "w11_share_preview": a_w11_share_preview,
     "w11_publish": a_w11_publish, "w11_adopt": a_w11_adopt, "w11_use": a_w11_use, "w11_unkeyed": a_w11_unkeyed,
@@ -1964,6 +2365,7 @@ class Campaign:
         self.sandbox: OwnedSandbox | None = None
         self.benign = tuple(self.fw.BENIGN) + EXTRA_BENIGN
         self.sentences = {}
+        self.selector_drift: dict = {}    # (persona, step id) -> why its selector is not in the served source
         self.axe_src = None
         self.caps = {"w11": False, "restart": False, "clock": False, "sql_clock": False}
         self.clock_server = None          # the ClockSandbox serving this group, if any
@@ -2010,8 +2412,12 @@ class Campaign:
                               "skew_s": round(ms / 1000 - shifted_now().timestamp(), 1)}
         started = datetime.now(timezone.utc).isoformat(timespec="seconds")
         once_skipped: list[str] = []
+        vp_skipped: list[str] = []
         try:
             for sc in scripts_at(persona):
+                if not script_runs_at(sc, vp):
+                    vp_skipped.append(f"{sc['id']} (runs at {', '.join(sc['viewports'])} only)")
+                    continue
                 ran_in = once_gate(self.once_ran, persona, sc, f"{vp}-{mode}")
                 if ran_in:
                     once_skipped.append(f"{sc['id']} (ran in {ran_in})")
@@ -2035,6 +2441,8 @@ class Campaign:
             res["at"] = {"index": persona["_at"], "instant": clock_instants(persona)[persona["_at"]]}
         if once_skipped:
             res["once_skipped"] = once_skipped
+        if vp_skipped:
+            res["viewport_skipped"] = vp_skipped
         if clock_read:
             res["clock"] = clock_read
         append_jsonl(self.out / "results.jsonl", res)
@@ -2048,6 +2456,7 @@ class Campaign:
                "verdict": None, "blocking": s["do"] in BLOCKING, "expect_status": list(s.get("expect_status") or [])}
         needs = set(sc.get("needs") or []) | set(s.get("needs") or [])
         unmet = sorted(n for n in needs if not self.caps.get(n))
+        drift = getattr(self, "selector_drift", {}).get((R.p["id"], sid_))
         for _, (_, ev) in R.pages.items():
             ev.clear()
         t0 = time.perf_counter()
@@ -2061,10 +2470,18 @@ class Campaign:
         elif skip_rest:
             row["verdict"] = "INCONCLUSIVE"
             row["error"] = skip_rest
+        elif drift:
+            row["verdict"] = "INCONCLUSIVE"
+            row["error"] = "a selector drifted from the served source: " + "; ".join(drift)
         else:
             try:
                 ACTIONS[s["do"]](R, s, row)
+                if s.get("open_phone_preview"):
+                    open_phone_preview(R, row)
                 expectations(R, s, row)
+                run_measures(R, s, row)
+                if row.get("inconclusive") and all(c["ok"] for c in row["checks"]):
+                    raise Inconclusive("; ".join(row["inconclusive"]))
                 if s["do"] in W11_ACTIONS and not row["checks"]:
                     raise Inconclusive("the step read nothing (no check), so it proved nothing")
                 row["verdict"] = "PASS" if all(c["ok"] for c in row["checks"]) else "FAIL"
@@ -2083,7 +2500,7 @@ class Campaign:
                 row["error"] = f"{type(e).__name__}: {str(e)[:500]}"
                 row["traceback"] = traceback.format_exc()[-1500:]
         row["ms"] = round((time.perf_counter() - t0) * 1000)
-        ran = not (unmet or skip_rest)
+        ran = not (unmet or skip_rest or drift)
         row["events"] = {name: list(ev) for name, (_, ev) in R.pages.items() if ev}
         if ran:
             # A wave 11 step reads the server over HTTP and never touches the page: no screenshot or axe pass of a
@@ -2213,6 +2630,8 @@ def main(argv=None) -> int:
     libs = load_walk_libs(app_root)
     g = Campaign(args, spec, manifest, libs, out)
     g.sentences = verify_sentences(spec, app_root)
+    for x in selector_problems(spec, tree_reader(app_root)):
+        g.selector_drift.setdefault((x["persona"], x["step"]), []).append(x["why"])
     axe = Path(args.axe) if args.axe else app_root / "app" / "node_modules" / "axe-core" / "axe.min.js"
     g.axe_src = axe.read_text(encoding="utf-8") if axe.is_file() else None
 
@@ -2230,8 +2649,12 @@ def main(argv=None) -> int:
             "app_tree": subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(app_root), capture_output=True, text=True).stdout.strip(),
             "data_dir": str(data_dir), "personas": [p["id"] for p in people], "modes": modes,
             "viewports": args.viewport or "per persona", "axe": {"path": str(axe), "present": bool(g.axe_src)},
-            "sentences": g.sentences, "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+            "sentences": g.sentences,
+            "selector_drift": {f"{k[0]} {k[1]}": v for k, v in g.selector_drift.items()}, "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     write_json(out / "run.json", meta)
+    if g.selector_drift:
+        print(f"NOTE: {len(g.selector_drift)} steps name a selector the app root no longer renders (they read "
+              f"INCONCLUSIVE): {sorted(f'{a} {b}' for a, b in g.selector_drift)}")
     drifted = [k for k, v in g.sentences.items() if not v["ok"]]
     if drifted:
         print(f"NOTE: {len(drifted)} sentences did not verify against their sources (their steps read INCONCLUSIVE): {drifted}")

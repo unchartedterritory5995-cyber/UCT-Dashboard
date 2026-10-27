@@ -1224,3 +1224,290 @@ def test_m_d_control_a_vouched_session_or_a_real_clock_server_sets_the_cookie(tm
     g, R, made = browser_run(tmp_path, clock=False, vouched=None)
     R.new_context("main")
     assert [c["value"] for c in made[0].cookies] == ["seeded-p13"] and R.session_refusal is None
+
+
+# ── persona validation pass: every selector a step drives is still in the frontend it drives ──────────────────────
+#
+# MUTANT LEDGER (each turned this block red, then the file was restored byte for byte from a scratch copy):
+# S1 P06.a.05 `by` back to "Hour"; S2 P23.a.04 `source` back to "Closed trades"; S3 a card id that is not on the shelf;
+# S4 HANDLER_ANCHORS "builder-live" fragment renamed; S5 a handler's get_by_role name changed to "Save now";
+# S6 a measure target without its fragment; S7 script_runs_at always true; S7b the run loop no longer asking it;
+# S8 the min-height compare dropped; S9 `hidden` passing on an absent control; S10 the P25 phone-bar retest removed;
+# S11 a drifted step driven anyway. Control unmutated: 19 passed. Result: all 12 red (scratchpad mutate_sel.py).
+
+def frontend_read():
+    read = rc.git_reader(REPO, rc.FRONTEND_REF)
+    assert read("app/src/App.jsx") is not None, (
+        f"{rc.FRONTEND_REF} does not resolve in {REPO}: fetch it; this rail never passes by reading nothing")
+    return read
+
+
+def test_every_persona_selector_is_in_the_frontend_at_the_campaign_ref():
+    problems = rc.selector_problems(SPEC, frontend_read())
+    assert not problems, json.dumps(problems, indent=1)
+
+
+def test_the_selector_rail_names_a_drifted_selector_and_passes_its_control():
+    """Control: a stand-in frontend. With every fragment present the step is clean; a split field the source does not
+    have, or a handler fragment gone from its file, is named."""
+    src = ('CLOSED_FIELDS: dict[str, Field] = {f.key: f for f in [\n    _f("hour_et", "ET hour", "number", split=True),\n'
+           ']}\nCLOSED = Source("closed_trades", "Closed trades", "Every trade (all).", "trades",\n    CLOSED_FIELDS, scan)\n')
+    files: dict = {}
+    for path, frag in rc.HANDLER_ANCHORS.values():
+        files[path] = files.get(path, "") + "\n" + (frag if not frag.startswith("re:") else "> Discard them </button>")
+    files[rc.SOURCES_PY] = src
+
+    def spec_with(by):
+        steps = [{"do": "builder_blank", "source": "Closed trades"}, {"do": "builder_split", "by": by}]
+        return {"personas": [{"id": "P99", "data": {}, "scripts": [{"id": "P99.a", "steps": steps}]}]}
+
+    def read(path):
+        return files.get(path)
+
+    assert rc.selector_problems(spec_with("ET hour"), read) == []
+    bad = rc.selector_problems(spec_with("Hour"), read)
+    assert [(x["step"], "'Hour'" in x["why"]) for x in bad] == [("P99.a.02", True)]
+    live = rc.HANDLER_ANCHORS["builder-live"][0]
+    files[live] = files[live].replace("builder-live", "renamed-live")
+    assert any("builder-live" in x["why"] for x in rc.selector_problems(spec_with("ET hour"), read))
+
+
+def _handler_source() -> str:
+    text = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    return text[text.index("def top_dialog"):text.index("# ── wave 11 steps")]
+
+
+def _handler_literals(body: str):
+    """(names and texts a handler passes to a role/label/text/test-id query, attribute tokens of its CSS locators)."""
+    names = set()
+    for m in re.finditer(r"get_by_(role|label|text|test_id)\(([^\n]*)", body):
+        kind, args = m[1], m[2]
+        if kind == "role":
+            names.update(re.findall(r'name=(?:re\.compile\()?r?"([^"]+)"', args))
+        else:
+            names.update(re.findall(r'^(?:re\.compile\()?r?"([^"]+)"', args))
+    names.update(re.findall(r'filter\(has_text=(?:re\.compile\()?r?"([^"]+)"', body))
+    attrs = set()
+    for m in re.finditer(r"""locator\(\s*f?(["'])(.+?)\1\)""", body):
+        sel = m[2]
+        attrs.update((a, v.strip('"')) for a, v in re.findall(r'\[([\w-]+)(?:=("?[\w-]+))?', sel))
+        attrs.update(("class", c) for c in re.findall(r"(?:^|\s)\.([A-Za-z][\w-]*)", sel))
+    return names, attrs
+
+
+def _loose_literals(names, attrs) -> list:
+    frags = [f.lower() for _, f in rc.HANDLER_ANCHORS.values()]
+    loose = []
+    for n in names:
+        if n in rc.HANDLER_LITERALS:
+            if rc.HANDLER_LITERALS[n] not in rc.HANDLER_ANCHORS:
+                loose.append(n)
+            continue
+        loose += [part for part in n.split("|") if not any(part.lower() in f for f in frags)]
+    for a, v in attrs:
+        if a == "class":
+            ok = f".{v}" in rc.HANDLER_LITERALS
+        elif a == "role":
+            ok = any(f'role="{v}"' in f for f in frags)
+        elif a == "data-testid":
+            ok = any(v in f for f in frags)
+        else:
+            ok = any(a in f for f in frags)
+        if not ok:
+            loose.append(f"[{a}={v}]")
+    return loose
+
+
+def test_every_literal_selector_a_handler_drives_is_anchored_in_the_frontend():
+    """A handler's own selectors (the ones no persona names): each literal is in some HANDLER_ANCHORS fragment, so the
+    rail above reads it from the frontend. A new literal with no anchor turns this red."""
+    names, attrs = _handler_literals(_handler_source())
+    assert {"Insert block", "Start blank", "My tools", "Share link address", "Build a widget|Edit widget|Edit a copy"} \
+        <= names                                                    # the scan sees them (control on the extractor)
+    assert ("data-routine-block", "") in attrs and ("role", "checkbox") in attrs
+    assert _loose_literals(names, attrs) == []
+    assert _loose_literals({"Save now"}, set()) == ["Save now"]      # control: an unanchored name is caught
+    assert _loose_literals(set(), {("data-gone", "")}) == ["[data-gone=]"]
+
+
+def test_every_action_anchor_exists_and_names_a_real_action():
+    used = {k for v in rc.ACTION_ANCHORS.values() for k in v}
+    assert used <= set(rc.HANDLER_ANCHORS), used - set(rc.HANDLER_ANCHORS)
+    assert set(rc.HANDLER_ANCHORS) - used == set(), set(rc.HANDLER_ANCHORS) - used
+    assert set(rc.ACTION_ANCHORS) <= set(rc.ACTIONS)
+
+
+def test_a_drifted_step_reads_inconclusive_before_it_drives_anything(tmp_path):
+    g = rc.Campaign.__new__(rc.Campaign)
+    g.caps, g.selector_drift = {}, {("P06", "P06.a.05"): ["split field 'Hour' is not in sources.py"]}
+    R = type("R", (), {"p": {"id": "P06"}, "vp": "1200", "mode": "pointer", "pages": {}, "session_refusal": None,
+                       "dir": tmp_path})()
+    called = []
+    orig = rc.ACTIONS["builder_split"]
+    rc.ACTIONS["builder_split"] = lambda *a: called.append(a)
+    try:
+        row = g.step(R, {"title": "t"}, {"do": "builder_split", "by": "Hour"}, "P06.a.05", None)
+    finally:
+        rc.ACTIONS["builder_split"] = orig
+    assert row["verdict"] == "INCONCLUSIVE" and "Hour" in row["error"] and not called
+
+
+def test_personas_off_the_default_viewports_say_why_and_pointer_follows_the_viewport():
+    default = SPEC["defaults"]["viewports"]
+    assert default == ["1200", "820", "390"]
+    for p in SPEC["personas"]:
+        if p["viewports"] != default:
+            assert p.get("viewports_why"), p["id"]
+        assert set(p["viewports"]) <= set(default), p["id"]
+    sizes = SPEC["viewport_sizes"]
+    assert [sizes[v][0] <= rc.TOUCH_MAX for v in default] == [False, True, True]   # 1200 fine, 820/390 coarse
+
+
+def test_a_not_reachable_step_is_inconclusive_with_its_reason_never_a_pass():
+    with pytest.raises(rc.Inconclusive, match="aggregate.py:38"):
+        rc.a_not_reachable(None, {"reason": "said only for a filter (aggregate.py:38)"}, {})
+    reasons = [st for p in SPEC["personas"] for sc in p["scripts"] for st in sc["steps"] if st["do"] == "not_reachable"]
+    assert reasons and all(re.search(r"\.\w+:\d", st["reason"]) for st in reasons)
+
+
+FDEF_RETESTS = [   # (step, defect, viewports the step must measure at), from f-def-1-report.md
+    ("P01.a.02", "D-W11-001", {"1200"}), ("P14.a.09", "D-W11-001", {"1200"}), ("P46.a.18", "D-W11-001", {"1200"}),
+    ("P01.a.02", "D-W11-002", {"820", "390"}), ("P04.a.02", "D-W11-002", {"820", "390"}),
+    ("P01.a.02", "D-W11-003", {"820", "390"}), ("P04.a.02", "D-W11-003", {"820", "390"}),
+    ("P01.a.02", "D-W11-004", {"820", "390"}), ("P04.a.02", "D-W11-004", {"820", "390"}),
+    ("P25.a.05", "D-W11-007", {"1200", "820", "390"}),
+]
+
+
+def _step(sid):
+    p = next(x for x in SPEC["personas"] if x["id"] == sid[:3])
+    sc = next(s for s in p["scripts"] if sid.startswith(s["id"] + "."))
+    return sc["steps"][int(sid.rsplit(".", 1)[1]) - 1]
+
+
+@pytest.mark.parametrize("sid,defect,vps", FDEF_RETESTS)
+def test_the_f_def_1_retests_are_scripted_at_their_viewports(sid, defect, vps):
+    covered = {v for t in _step(sid).get("measure") or [] if t["defect"] == defect for v in t["viewports"]}
+    assert vps <= covered, (sid, defect, covered)
+
+
+def test_the_f_def_1_retests_assert_the_fixed_values():
+    def tgt(sid, defect, vp):
+        return next(t for t in _step(sid)["measure"] if t["defect"] == defect and vp in t["viewports"])
+    toggle = tgt("P01.a.02", "D-W11-001", "1200")
+    assert (toggle["role"], toggle["name"], toggle["min_height"]) == ("button", "Add details", 24)
+    assert tgt("P04.a.02", "D-W11-002", "820")["min_height"] == 44
+    assert tgt("P04.a.02", "D-W11-002", "390")["hidden"] is True
+    assert tgt("P04.a.02", "D-W11-003", "390")["min_height"] == 44
+    fab = tgt("P04.a.02", "D-W11-004", "820")
+    assert fab["min_height"] == 44 == fab["min_width"]
+    m5 = _step("P25.a.05")["measure"]
+    assert any(t.get("opacity") == 0.9 and {"1200", "820"} <= set(t["viewports"]) for t in m5)
+    assert any(t.get("text") == "last_result" and {"1200", "820"} <= set(t["viewports"]) for t in m5)
+    assert any(t.get("text_starts") == "last_result" and t.get("first_span_opacity") == 0.9
+               and t["viewports"] == ["390"] for t in m5)
+    assert SPEC["sentences"]["last_result"]["text"] == "Showing the last result."
+    m6 = _step("P25.a.06")["measure"]
+    assert any(t.get("absent") for t in m6) and any(t.get("text_not_starts") == "last_result" for t in m6)
+    light = next(s for s in next(p for p in SPEC["personas"] if p["id"] == "P01")["scripts"] if s["id"] == "P01.c")
+    assert light["viewports"] == ["1200"]
+    assert [s["do"] for s in light["steps"]] == ["theme", "seed_note", "open_note", "theme"]
+    assert light["steps"][0]["value"] == "light" and light["steps"][-1].get("restore") is True
+    t = light["steps"][2]["measure"][0]
+    assert (t["opacity"], t["theme"], t["min_height"]) == (0.9, "light", 24)
+
+
+def test_the_new_sentences_verify_at_the_frontend_ref():
+    got = rc.verify_sentences({"sentences": {k: SPEC["sentences"][k] for k in ("last_result", "split_none_hour")}}, REPO)
+    assert all(v["ok"] and v["line_ok"] for v in got.values()), got
+
+
+def test_a_script_with_viewports_runs_only_there():
+    assert rc.script_runs_at({"viewports": ["1200"]}, "1200") is True
+    assert rc.script_runs_at({"viewports": ["1200"]}, "390") is False
+    assert rc.script_runs_at({}, "390") is True                           # control: no list, every viewport
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    loop = src[src.index("for sc in scripts_at(persona):"):src.index("ran_in = once_gate(")]
+    assert re.search(r"if not script_runs_at\(sc, vp\):\s*\n\s*vp_skipped\.append\(.*\)\s*\n\s*continue\n", loop), loop
+
+
+class _Loc:
+    def __init__(self, items):
+        self.items = items
+
+    def count(self):
+        return len(self.items)
+
+    def nth(self, i):
+        return _Loc([self.items[i]])
+
+    @property
+    def first(self):
+        return _Loc(self.items[:1])
+
+    def is_visible(self):
+        return self.items[0]["display"] != "none"
+
+    def evaluate(self, js):
+        return self.items[0]
+
+
+def _measure_run(found, vp="820"):
+    class Pg:
+        def get_by_role(self, *a, **k):
+            return _Loc(found)
+
+        def get_by_test_id(self, *a):
+            return _Loc(found)
+
+    class G:
+        def sentence(self, k):
+            return "Showing the last result."
+
+    class R:
+        def page(self):
+            return Pg()
+    r = R()
+    r.vp, r.g = vp, G()
+    return r, {"checks": [], "read": []}
+
+
+def _box(h=44, w=44, display="block", opacity="1", text="", span=None, theme="dark"):
+    return {"h": h, "w": w, "display": display, "visibility": "visible", "opacity": opacity, "text": text,
+            "spanOpacity": span, "theme": theme}
+
+
+def test_run_measures_fails_a_short_control_and_passes_a_floored_one():
+    t = {"defect": "D-W11-003", "what": "title", "role": "textbox", "name": "Note title", "viewports": ["820"],
+         "min_height": 44}
+    for found, vp, want in (([_box(h=34)], "820", [False]), ([_box(h=44)], "820", [True]), ([_box(h=34)], "1200", [])):
+        R, row = _measure_run(found, vp)
+        rc.run_measures(R, {"measure": [t]}, row)
+        assert [c["ok"] for c in row["checks"]] == want, (found, vp)
+
+
+def test_run_measures_hidden_needs_the_control_in_the_page_and_opacity_and_text_are_read():
+    hid = {"defect": "D-W11-002", "what": "folder", "role": "combobox", "name": "Folder", "viewports": ["820"],
+           "hidden": True}
+    for found, want in (([], [False]), ([_box(display="none")], [True]), ([_box()], [False])):
+        R, row = _measure_run(found)
+        rc.run_measures(R, {"measure": [hid]}, row)
+        assert [c["ok"] for c in row["checks"]] == want, found            # absent is not "hidden"
+    dim = {"defect": "D-W11-007", "what": "dim", "testid": "x", "viewports": ["820"], "opacity": 0.9}
+    for op, ok in (("0.9", True), ("0.75", False)):
+        R, row = _measure_run([_box(opacity=op)])
+        rc.run_measures(R, {"measure": [dim]}, row)
+        assert [c["ok"] for c in row["checks"]] == [ok]
+    bar = {"defect": "D-W11-007", "what": "bar", "testid": "x", "viewports": ["820"], "text_starts": "last_result",
+           "first_span_opacity": 0.9}
+    R, row = _measure_run([_box(text="Showing the last result. Win rate", span="0.9")])
+    rc.run_measures(R, {"measure": [bar]}, row)
+    assert [c["ok"] for c in row["checks"]] == [True, True]
+    R, row = _measure_run([_box(text="Win rate", span="1")])
+    rc.run_measures(R, {"measure": [bar]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False, False]
+    fab = {"defect": "D-W11-004", "what": "fab", "role": "button", "name": "?", "viewports": ["820"],
+           "min_height": 44, "absent_is": "inconclusive"}
+    R, row = _measure_run([])
+    rc.run_measures(R, {"measure": [fab]}, row)
+    assert row["checks"] == [] and row["inconclusive"]
