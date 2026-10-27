@@ -260,6 +260,10 @@ def test_error_codes_from_classes(app, client, db, monkeypatch):
     monkeypatch.setattr(gallery, "set_helpful", raising(gallery.GalleryConflict("Plain.")))
     r = client.post(f"{GALLERY}/g1/helpful")
     assert r.status_code == 409 and r.json()["detail"] == "Plain."
+    assert _no_store(r)                                     # part S m-4: the code-less 409 is no-store too
+    monkeypatch.setattr(gallery, "set_helpful", raising(gallery.GalleryError("Plain 400.")))
+    r = client.post(f"{GALLERY}/g1/helpful")
+    assert r.status_code == 400 and r.json()["detail"] == "Plain 400." and _no_store(r)
 
 
 def test_unresolved_and_not_yours_end_to_end(app, client, db):

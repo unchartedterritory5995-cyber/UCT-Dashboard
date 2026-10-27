@@ -254,7 +254,9 @@ def _bad(e: gallery.GalleryError) -> HTTPException:
     other refusal keeps today's plain-sentence detail."""
     if isinstance(e, gallery.GalleryConflict) and getattr(e, "code", None):
         return HTTPException(status_code=409, detail={"code": e.code, "message": str(e)}, headers=dict(NO_STORE))
-    return HTTPException(status_code=409 if isinstance(e, gallery.GalleryConflict) else 400, detail=str(e))
+    # part S review m-4: the plain-string refusal answers no-store too, as its coded sibling always did
+    return HTTPException(status_code=409 if isinstance(e, gallery.GalleryConflict) else 400, detail=str(e),
+                         headers=dict(NO_STORE))
 
 
 def _server_error(e: gallery.GalleryServerError) -> HTTPException:
