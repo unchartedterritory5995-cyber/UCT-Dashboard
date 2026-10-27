@@ -838,6 +838,11 @@ const EDITING_ONLY_MODES = new Set(['evidence', 'share'])
 const openingMode = (editRow, initialMode) => (
   editRow ? EDIT_MODE : (initialMode || DEFAULT_MODE)
 )
+/** The formula a caller's `initialDraft` puts in the box, or '' when it carries none. Read by the mount seed and the
+ *  open-reset, so the two cannot disagree about what counts as a draft. */
+const draftSourceOf = (initialDraft) => (
+  initialDraft && typeof initialDraft.source === 'string' && initialDraft.source.trim() ? initialDraft.source : ''
+)
 
 /**
  * ⭐ THE EVIDENCE BODY — the receipt for the SAVED definition, and a sentence
@@ -1194,7 +1199,10 @@ export default function BuilderSheet({
     setMemberInputs((prev) => prev.filter((_, j) => j !== i))
   }, [])
 
-  const [source, setSource] = useState('')
+  // ⛔ W11-R87 — SEEDED FROM THE CALLER'S DRAFT, for the same reason as `buildMode` above: a door that MOUNTS a
+  // fresh sheet with a draft (ScanObjectCard) otherwise paints an EMPTY Formula box for a frame before the open-reset
+  // effect fills it. The effect stays the one writer on every later opening; it writes this same value here.
+  const [source, setSource] = useState(() => (open && !editRow ? draftSourceOf(initialDraft) : ''))
   const [name, setName] = useState('')
   const [result, setResult] = useState(() => evaluateFormula('', BUILDER_INPUT_SCOPE))
 
@@ -1347,8 +1355,8 @@ export default function BuilderSheet({
     // ⭐ TERM-087: a generated answer's draft lands in the ONE source field, AFTER
     // the reset emptied it (same effect, later line — one writer of the opening
     // state). An `editRow` still wins: `openForEdit` runs after this effect.
-    if (initialDraft && typeof initialDraft.source === 'string' && initialDraft.source.trim()) {
-      setSource(initialDraft.source)
+    if (draftSourceOf(initialDraft)) {
+      setSource(draftSourceOf(initialDraft))
       importTelemetryRef.current = initialDraft.importId
         ? { importId: initialDraft.importId, dialect: initialDraft.dialect || 'ai-search' }
         : null
