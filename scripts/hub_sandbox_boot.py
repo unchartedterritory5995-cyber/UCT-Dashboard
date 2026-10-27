@@ -520,6 +520,38 @@ NOT_OPENED_ROOT = "shared data root not opened (--no-shared-root-snapshot)"
 NOT_HASHED = "NOT HASHED (the run never opens the shared data root)"
 
 
+#: T-19 (W11-R81): `--block-outbound` sends every HTTP(S) client that honours the proxy variables (requests, httpx,
+#: urllib, curl and so yfinance) to a closed loopback port, while loopback itself stays reachable. Opt-in, because the
+#: device sandbox draws charts from the keyless vendors; the notebook campaign passes it (and serves the same values on
+#: its clock and seeder boots through run_campaign.outbound_block, which reads this dict by AST).
+OUTBOUND_BLOCK = {
+    "HTTP_PROXY": "http://127.0.0.1:9", "HTTPS_PROXY": "http://127.0.0.1:9", "ALL_PROXY": "http://127.0.0.1:9",
+    "http_proxy": "http://127.0.0.1:9", "https_proxy": "http://127.0.0.1:9", "all_proxy": "http://127.0.0.1:9",
+    "NO_PROXY": "127.0.0.1,localhost,::1", "no_proxy": "127.0.0.1,localhost,::1",
+}
+
+
+#: The closed loopback port OUTBOUND_BLOCK points every proxy at.
+BLOCK_PORT = 9
+
+
+def _refuse_block_port_listening(port=BLOCK_PORT):
+    """W11-R83 m-6: the black hole must BE one. If anything listens on the block port (Windows' Simple TCP/IP
+    "discard" service binds 9), outbound calls would reach it, so the boot is refused.
+    NOT COVERED by the block, by design and recorded: a client built with `trust_env=False` ignores proxy variables
+    (api/routers/notebook_link_preview.py builds one), and raw sockets and DNS lookups. The block is proxy-hermetic."""
+    import socket
+    s = socket.socket()
+    s.settimeout(0.5)
+    try:
+        listening = s.connect_ex(("127.0.0.1", port)) == 0
+    finally:
+        s.close()
+    if listening:
+        print(f"  REFUSING TO RUN. --block-outbound: something listens on 127.0.0.1:{port}, so it is no black hole.")
+        sys.exit(1)
+
+
 def _census_roots():
     """The shared roots the census derives (conftest.SHARED_DATA_ROOTS): the same roots `_refuse_shared_root`
     checks the data dir against, so the log dir and the data dir are refused by one rule (review m9)."""
@@ -629,6 +661,8 @@ def main():
     ap.add_argument("--allow-model-keys", action="store_true",
                     help="pass ANTHROPIC/OPENAI/PERPLEXITY keys through (PAID model "
                          f"calls possible). Default blanks them. Env form: {ALLOW_MODEL_KEYS_ENV}=1")
+    ap.add_argument("--block-outbound", action="store_true",
+                    help="no outbound HTTP(S) from the server (OUTBOUND_BLOCK); loopback stays reachable")
     ap.add_argument("--app-root", default=None,
                     help="serve this checkout's api/ (and derive its census) instead of the one this launcher sits in")
     ap.add_argument("--log-dir", default=None,
@@ -642,6 +676,9 @@ def main():
     _refuse_port_in_use(args.port)
     if args.app_root:
         _use_app_root(args.app_root)
+    if args.block_outbound:
+        _refuse_block_port_listening()
+        os.environ.update(OUTBOUND_BLOCK)          # before anything that could open a connection is imported
 
     # ⛔ THE SNAPSHOT IS THE FIRST THING THIS RUN REPORTS, BEFORE ANY HEALTH
     # CHECK. "Reports clean" is never evidence of "wrote nowhere" — the boot

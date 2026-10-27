@@ -150,6 +150,10 @@ HANDLER_ANCHORS: dict[str, tuple[str, str]] = {
     "builder-preview-view": (_WB + "PreviewPane.jsx", 'data-testid="builder-preview-view"'),
     "aria-busy": (_WB + "PreviewPane.jsx", "aria-busy={status === 'loading'}"),
     "hub-root": ("app/src/hub/HubRoot.jsx", 'data-testid="hub-root"'),
+    "Skip tour": (_NB + "onboarding/tourCopy.js", "skip: 'Skip tour'"),
+    "tour dialog": (_NB + "onboarding/NotebookTour.jsx", 'aria-modal="true"'),
+    "share path": ("app/src/pages/journal-2-0/lib/noteShareLink.js", "SHARED_NOTE_PATH = '/share/n'"),
+    "publish path": ("app/src/pages/journal-2-0/lib/notePublishLink.js", "PUBLISHED_PATH = '/p'"),
     "builder-preview-last": (_WB + "PreviewPane.jsx", 'data-testid="builder-preview-last">{LAST_RESULT_SENTENCE}'),
     "Try again": (_WB + "PreviewPane.jsx", "<span>Try again</span>"),
     "busy code": ("app/src/pages/journal-2-0/lib/builtWidgets.js", "busy: 'Busy right now. Try again in a moment.'"),
@@ -203,7 +207,10 @@ HANDLER_LITERALS: dict[str, str] = {"^First trade: ": "First ", ".ProseMirror": 
 
 #: Which anchors each browser action leans on (a drifted anchor makes every step of that action INCONCLUSIVE).
 ACTION_ANCHORS: dict[str, tuple[str, ...]] = {
-    "open_note": ("ProseMirror", "data-snapshot-frame", "data-routine-block", "routine checkbox"),
+    "open_note": ("ProseMirror", "data-snapshot-frame", "data-routine-block", "routine checkbox", "Skip tour",
+                  "tour dialog"),
+    "open": ("Skip tour", "tour dialog"),
+    "open_public_page": ("share path", "publish path"),
     "slash": ("ProseMirror", "Insert block"),
     "open_builder": ("ProseMirror", "Insert block", "/build", "builder title"),
     "builder_example": ("builder title", "example-card-", "builder-live"),
@@ -502,12 +509,38 @@ AXE_RUN_JS = """async ([sel, tags]) => {
   return { version: window.axe.version, scope: sel && document.querySelector(sel) ? sel : 'body',
            violations: r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length,
              targets: v.nodes.slice(0, 4).map(n => n.target.join(' ')),
+             node_info: v.nodes.map(n => { let el = null; try { el = document.querySelector(n.target.join(' ')) } catch (e) {}
+               let underBar = false;
+               if (el) { const r = el.getBoundingClientRect();
+                 for (const [x, y] of [[r.left + 1, r.top + 1], [r.right - 1, r.top + 1], [r.left + 1, r.bottom - 1],
+                                        [r.right - 1, r.bottom - 1], [r.left + r.width / 2, r.top + r.height / 2]]) {
+                   const top = document.elementFromPoint(x, y);
+                   if (top && top.closest('[data-testid=builder-summary-bar]') && !el.contains(top)) underBar = true } }
+               return { target: n.target.join(' '), summary: (n.failureSummary || '').slice(0, 300),
+                        focused: !!el && (el === document.activeElement || el.contains(document.activeElement)),
+                        underBar } }),
              summary: (v.nodes[0] && v.nodes[0].failureSummary || '').slice(0, 300),
              html: (v.nodes[0] && v.nodes[0].html || '').slice(0, 200) })) };
 }"""
 
 
-def zeros_in(text: str) -> list[str]:
+#: T-4: sentences whose count is spec'd to be shown even when it is 0 (each quoted from its source; the selector rail
+#: reads every fragment): the small-sample line and the summary's row count.
+ZERO_EXEMPT = (
+    (r"Not enough \w+ yet \(\d[\d,]*\)", "app/src/pages/journal-2-0/components/notebook/widgets/builtViews/builtModel.js",
+     "const text = `Not enough ${unitWord(measure?.unit)} yet${finite(n) ? ` (${n})` : ''}`"),
+    (r"(?:all accounts|one account)\. \d[\d,]* (?:trades|positions|days|entries|strategies|notes)\.",
+     "api/services/journal_two/widget_engine/plan.py", 'text += f" {count:,} {u}."'),
+)
+
+
+def zeros_in(text: str, zero_ok: bool = False) -> list[str]:
+    """The zeros a member should never see. The spec'd count sentences (ZERO_EXEMPT) are exempt ONLY where the step
+    declares the zero correct (`zero_ok`: an empty range, W11-R83 I-1); everywhere else a "0 trades" on a seeded
+    book is a finding."""
+    if zero_ok:
+        for rx, _, _ in ZERO_EXEMPT:
+            text = re.sub(rx, " ", text or "")
     return sorted({m.group(0) for m in ZERO_RE.finditer(text or "")})
 
 
@@ -702,7 +735,31 @@ def campaign_env(fs: dict, overrides: dict | None = None, base=None) -> tuple[di
     env.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
     # Review N1: the servers import the app root's code with cwd there; no __pycache__ is ever written into it.
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    # T-19: no outbound vendor call (yfinance needs no key, so blanking keys never stopped it): every HTTP(S) client
+    # that honours the proxy variables (requests, httpx, urllib, curl) is sent to a closed loopback port; loopback
+    # itself (the server, the browser's own calls) is exempt. The values are the launcher's OUTBOUND_BLOCK.
+    env.update(outbound_block())
     return env, [f"{k}={v}" for k, v in sorted(applied.items())]
+
+
+def _ast_str_dict(path: Path, name: str) -> dict:
+    import ast
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == name for t in node.targets) \
+                and isinstance(node.value, ast.Dict):
+            return {k.value: v.value for k, v in zip(node.value.keys, node.value.values)
+                    if isinstance(k, ast.Constant) and isinstance(v, ast.Constant)}
+    return {}
+
+
+def outbound_block() -> dict:
+    """The tool launcher's OUTBOUND_BLOCK (read by AST, one authority): the proxy variables that black-hole outbound
+    HTTP(S) while loopback stays reachable (T-19)."""
+    got = _ast_str_dict(TOOL_LAUNCHER, "OUTBOUND_BLOCK")
+    if not got:
+        raise SystemExit("REFUSED: the tool launcher has no OUTBOUND_BLOCK; the sandbox would reach the network")
+    return got
 
 
 def owned_sandbox(libs, app_root: Path, data_dir: Path, port: int, out: Path) -> "OwnedSandbox":
@@ -738,7 +795,8 @@ class OwnedSandbox:
     def launcher_args(self) -> list[str]:
         """Sandbox-recipe G2 and review C1: the app root's api/ is served by the tool tree's launcher; the shared data
         root is never opened; the integrity log lands in this run's --out, never in a repo's docs."""
-        return ["--app-root", str(self.app_root), "--no-shared-root-snapshot", "--log-dir", str(self.out)]
+        return ["--app-root", str(self.app_root), "--no-shared-root-snapshot", "--log-dir", str(self.out),
+                "--block-outbound"]
 
     def start(self) -> None:
         if self.th.port_busy(self.port):
@@ -948,6 +1006,9 @@ class Run:
         self.steps: list[dict] = []
         self.session_refusal: str | None = None   # set by new_context when a clock group has no vouched session
         self.theme_was: dict | None = None        # the member's theme preference before a `theme` step changed it
+        self.slow_ms = 0                          # T-15: the wait a throttled network needs (a_throttle sets it)
+        self.tour_checked = False                 # T-2: the first-run tour is looked for once per run
+        self.notes_seeded = 0                     # T-2: a member with a note never meets the zero-note tour
         self.theme_restored: dict | None = None   # what restore_theme wrote back, and the answer
 
     # contexts and pages
@@ -987,6 +1048,11 @@ class Run:
         if name not in self.pages:
             self.new_page(name)
         return self.pages[name][0]
+
+    def t(self, base: int = None) -> int:
+        """A wait, in ms: `base` (default T), or longer when a `throttle` step slowed this run's network (T-15). Still
+        bounded, so a page that never loads still fails."""
+        return max(T if base is None else base, self.slow_ms)
 
     def restore_theme(self):
         """Put the member's theme preference back as a `theme` step found it (an absent one reads as the default,
@@ -1180,9 +1246,9 @@ def surface(pg, within: str | None):
     return loc.first if loc.count() else pg.locator("body")
 
 
-def editor(pg):
+def editor(pg, timeout: int = T):
     ed = pg.locator(".ProseMirror").first
-    ed.wait_for(state="visible", timeout=T)
+    ed.wait_for(state="visible", timeout=timeout)
     return ed
 
 
@@ -1223,15 +1289,47 @@ def builder(pg):
     return dlg
 
 
-def goto(R: Run, pg, path: str) -> float:
+def goto(R: Run, pg, path: str, row: dict | None = None) -> float:
     t0 = time.perf_counter()
-    pg.goto(R.url(path), wait_until="domcontentloaded", timeout=60000)
+    pg.goto(R.url(path), wait_until="domcontentloaded", timeout=R.t(60000))
     pg.wait_for_function("() => { const r = document.getElementById('root'); return r && r.childElementCount > 0 }",
-                         timeout=T)
+                         timeout=R.t())
     ms = (time.perf_counter() - t0) * 1000
     R.g.h._dismiss_intro(pg)
     R.g.fw.settle_first_run(pg)
+    dismiss_tour(R, pg, row)
     return ms
+
+
+#: The Notebook's first-run tour (onboarding/NotebookTour.jsx): a modal dialog with a focus trap that starts on its own
+#: for a member with no note. Its own close control is "Skip tour" (tourCopy.js TOUR_UI.skip), which records the tour
+#: as dismissed, so the next run of the same member does not meet it.
+TOUR_SKIP = "Skip tour"
+TOUR_WAIT_MS = 8000
+
+
+def dismiss_tour(R: Run, pg, row: dict | None) -> bool:
+    """T-2: close the first-run tour the way a member does, through its real close control, before the step's own
+    work. Looked for once per run, and only for a member who has no note yet (the tour starts at a note count of
+    zero). Returns whether it was there; a tour that will not close raises Inconclusive (never a silent pass)."""
+    if R.tour_checked or R.notes_seeded or ((R.p.get("data") or {}).get("notes") or {}).get("n"):
+        return False
+    R.tour_checked = True
+    R.tour_dismissed = False
+    card = pg.locator("[role=dialog][aria-modal=true]").filter(has=pg.get_by_role("button", name=TOUR_SKIP, exact=True))
+    try:
+        card.first.wait_for(state="visible", timeout=TOUR_WAIT_MS)
+    except Exception:  # noqa: BLE001 -- no tour for this member (already dismissed, or it has notes)
+        return False
+    act(R, pg, card.first.get_by_role("button", name=TOUR_SKIP, exact=True))
+    try:
+        card.first.wait_for(state="hidden", timeout=T)
+    except Exception:  # noqa: BLE001
+        raise Inconclusive("the first-run tour did not close on 'Skip tour'")
+    R.tour_dismissed = True
+    if row is not None:
+        row["read"].append({"what": "first-run tour", "text": "dismissed through 'Skip tour'"})
+    return True
 
 
 # ── the actions personas.json names ───────────────────────────────────────────────────────
@@ -1245,11 +1343,12 @@ def a_seed_note(R, s, row):
     if r.status not in (200, 201):
         raise Inconclusive(f"the notes door refused the seed note: HTTP {r.status} {r.text()[:200]}")
     R.alias[s.get("save_as", "n1")] = r.json()["note"]["id"]
+    R.notes_seeded += 1
 
 
 def a_open(R, s, row):
     pg = R.page()
-    ms = goto(R, pg, s["path"])
+    ms = goto(R, pg, s["path"], row)
     row["timings"][s.get("timing") or "page_first_paint"] = round(ms)
 
 
@@ -1259,13 +1358,13 @@ def a_open_note(R, s, row):
     if not nid:
         raise Inconclusive(f"no note {s['note']!r} was made earlier in this run")
     t0 = time.perf_counter()
-    pg.goto(R.url(f"/journal/notebook?note={nid}"), wait_until="domcontentloaded", timeout=60000)
+    pg.goto(R.url(f"/journal/notebook?note={nid}"), wait_until="domcontentloaded", timeout=R.t(60000))
     # The clock stops when the editor is drawn, BEFORE the intro is dismissed: the intro's own wait is
     # not the note's paint (the tooling dry run's timings still included it; see the campaign report).
-    pg.locator(".ProseMirror").first.wait_for(state="attached", timeout=T)
+    pg.locator(".ProseMirror").first.wait_for(state="attached", timeout=R.t())
     row["timings"][s.get("timing") or "note_first_paint"] = round((time.perf_counter() - t0) * 1000)
     R.g.h._dismiss_intro(pg)
-    editor(pg)
+    editor(pg, R.t())
     if "expect_frames" in s or "expect_routine_boxes" in s:
         render_all(pg)
     if "expect_frames" in s:
@@ -1567,7 +1666,18 @@ def boxes(pg):
 
 def a_tick(R, s, row):
     pg = R.page()
-    act(R, pg, boxes(pg).nth(s["index"]))
+    box = boxes(pg).nth(s["index"])
+    if box.get_attribute("aria-disabled") == "true":
+        # T-9: offline the tick is aria-disabled by design (wave 9 offline_disables_with_sentence). A member can still
+        # tap it (nothing is saved); the pointer press is forced past Playwright's enabled wait and the sentence read.
+        row["read"].append({"what": "the tick is aria-disabled", "text": "pressed anyway, as a member can"})
+        if R.keyboard:
+            act(R, pg, box)
+        else:
+            box.scroll_into_view_if_needed(timeout=T)
+            (box.tap if R.touch else box.click)(force=True, timeout=T)
+    else:
+        act(R, pg, box)
     pg.wait_for_timeout(1500)
 
 
@@ -1776,18 +1886,113 @@ def a_share_public(R, s, row):
         pub["ctx"].close()
 
 
+def check_public_page(R, row, pub, expect_keys=(), expect_texts=(), forbid=()) -> None:
+    """A stranger's page (walk.open_public): it answered, says what it must, leaks nothing it must not, and its
+    console and requests are read as findings (a stranger's own 401 on /api/auth/me excepted)."""
+    try:
+        dom = pub["dom"]
+        text = dom.get("text") or ""
+        row["read"].append({"what": "public page text", "text": text[:1500]})
+        row["read"].append({"what": "public payload", "text": json.dumps(pub.get("response"))})
+        check(row, "the public payload answered 200", (pub.get("response") or {}).get("status") == 200,
+              json.dumps(pub.get("response")))
+        for key in expect_keys:
+            want = R.g.sentence(key)
+            check(row, f"the public page says {want!r}", want in text, text[:300])
+        for want in expect_texts:
+            check(row, f"the public page shows {want!r}", sentence_in(want, text), text_window(want, text))
+        leaks = R.g.walk.leaks_in(pub, [R.fmt(w) for w in forbid])
+        check(row, "nothing private reaches the public page (text, attributes, payload)", not leaks, json.dumps(leaks))
+        shot = R.dir / "shots" / f"{row['step']}-public.png"
+        shot.parent.mkdir(parents=True, exist_ok=True)
+        pub["page"].screenshot(path=str(shot), full_page=True)
+        row["screenshots"].append(str(shot.relative_to(R.g.out)).replace("\\", "/"))
+        for e in pub["watch"].take():
+            if e.get("http") == 401 and "/api/auth/me" in (e.get("url") or ""):
+                continue        # a stranger's page asks who is signed in; 401 is the answer, not a failure
+            if (e.get("console") or "").startswith("Failed to load resource"):
+                continue        # the same request, already read above as an HTTP event
+            kind = ("http5xx" if e["http"] >= 500 else "http4xx") if "http" in e else "console" if "console" in e else "pageerror"
+            row.setdefault("findings_raw", []).append({"kind": kind, "page": "public",
+                                                       "detail": e.get("console") or e.get("pageerror") or
+                                                       f"{e.get('method')} {e.get('url')} -> {e.get('http')}"})
+    finally:
+        pub["ctx"].close()
+
+
+def a_open_public_page(R, s, row):
+    """T-18: a STRANGER (a fresh context with no cookie) opens a page the persona made public at seed time
+    (seed_members `public`: one note shared by link, and published), and reads it as anyone on the web would."""
+    which = s["page"]
+    path = ((R.member.get("public") or {}).get(f"{which}_path"))
+    if not path:
+        raise Inconclusive(f"the seed recorded no {which} page for {R.p['id']} (seed_members `public`)")
+    pub = R.g.walk.open_public(R.g.browser, R.vp if R.vp in R.g.walk.VIEWPORTS else "1200", R.g.base + path)
+    pubrec = R.member.get("public") or {}
+    private = pubrec.get("private") or {}
+    if not private.get("title"):
+        raise Inconclusive("the seed recorded no private sibling note, so a leak could not be told from no leak")
+    forbid = [R.member.get("email", ""), R.member.get("user_id", ""), private.get("title", ""), private.get("text", ""),
+              private.get("tag", "")] + list(s.get("forbid_public") or [])
+    check_public_page(R, row, pub, s.get("expect_public") or [],
+                      [pubrec.get("title", ""), pubrec.get("text", "")] if s.get("expect_note") else [],
+                      [w for w in forbid if w])
+
+
 def a_admin_login(R, s, row):
+    """The admin signs in ONCE per campaign (T-14: the sign-in door allows 5 a minute per address, and six runs signed
+    in six times). The session it gets is kept and carried into each later run's context, where /api/auth/me must
+    still say admin; only when it does not is a new sign-in made."""
     pg = R.page()
+    key = (R.p["id"], "admin_session")
+    cached = R.g.facts.get(key)
+    if cached:
+        host = urlparse(R.g.base).hostname
+        R.contexts["main"].add_cookies([{"name": "uct_session", "value": cached, "domain": host, "path": "/",
+                                         "httpOnly": True, "secure": False, "sameSite": "Lax"}])
+        me = pg.request.get(R.g.base + "/api/auth/me")
+        role = (me.json() if me.ok else {}).get("role")
+        if me.ok and role == "admin":
+            check(row, "the admin's session from this campaign's one sign-in is still admin", True, "role admin")
+            return
     r = pg.request.post(R.g.base + "/api/auth/login", data={"email": R.member.get("email"), "password": R.member.get("password")})
     check(row, "the admin signs in (ADMIN_EMAILS promotes at login)", r.status == 200, f"HTTP {r.status}")
+    got = [c["value"] for c in R.contexts["main"].cookies() if c.get("name") == "uct_session"]
+    if r.status == 200 and got:
+        R.g.facts[key] = got[-1]
+
+
+#: T-15. Chrome DevTools' "Fast 3G" preset (a realistic slow phone network): 1.44 Mbps down, 675 kbps up, 562.5 ms
+#: latency. 400 kbps with a 30 s wait could not fetch the Notebook's first open at all.
+THROTTLE_PROFILES = {"fast-3g": {"latency_ms": 562.5, "down_kbps": 1440, "up_kbps": 675}}
+#: The bytes a cold first open of a note fetched in the full campaign run (P50 820, campaign-run/triage.md T-15:
+#: 2,196,554 B), with headroom, and the round trips its requests take at most.
+FIRST_OPEN_BYTES = 2_600_000
+FIRST_OPEN_ROUND_TRIPS = 40
+
+
+def throttle_wait_ms(down_kbps: float, latency_ms: float) -> int:
+    """T-15: how long the first open can take on this network (bytes / throughput + round trips x latency), doubled.
+    Every wait of the run is at least this; it is still a bound, so a page that never loads still fails."""
+    expected = FIRST_OPEN_BYTES / (down_kbps * 125.0) * 1000 + FIRST_OPEN_ROUND_TRIPS * latency_ms
+    return int(2 * expected)
 
 
 def a_throttle(R, s, row):
     pg = R.page()
+    prof = THROTTLE_PROFILES.get(s.get("profile")) if s.get("profile") else None
+    if s.get("profile") and prof is None:
+        raise Inconclusive(f"no throttle profile {s['profile']!r}")
+    down = prof["down_kbps"] if prof else s.get("kbps", 400)
+    up = prof["up_kbps"] if prof else s.get("kbps", 400)
+    latency = prof["latency_ms"] if prof else s.get("latency_ms", 300)
     cdp = R.contexts["main"].new_cdp_session(pg)
-    kbps = s.get("kbps", 400)
-    cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": s.get("latency_ms", 300),
-                                                  "downloadThroughput": kbps * 128, "uploadThroughput": kbps * 128})
+    cdp.send("Network.enable")
+    cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": latency,
+                                                  "downloadThroughput": down * 125, "uploadThroughput": up * 125})
+    R.slow_ms = throttle_wait_ms(down, latency)
+    row["read"].append({"what": "throttle", "text": json.dumps({"down_kbps": down, "up_kbps": up, "latency_ms": latency,
+                                                                 "waits_ms": R.slow_ms})})
 
 
 def a_check_text(R, s, row):
@@ -1902,6 +2107,27 @@ LIVE_SAMPLE_JS = """() => {
            bar: shown(bar) ? bar.innerText.trim() : null } }"""
 
 
+#: Whether the preview is redrawing, read with the live sample.
+BUSY_JS = "() => !!document.querySelector('[data-testid=builder-preview-view][aria-busy=\"true\"]')"
+
+
+def wait_live_settled(pg, s: dict) -> dict:
+    """T-7: the baseline is the live region AFTER the previous step's held preview has answered and been announced:
+    no preview is busy, and the region text has not changed for `settle_ms` (the announce delay plus margin,
+    PreviewPane.jsx ANNOUNCE_DELAY_MS 1000). Bounded by `settle_timeout_ms`; an unsettled region is INCONCLUSIVE."""
+    settle, end = int(s.get("settle_ms", 1800)), time.time() + int(s.get("settle_timeout_ms", 30000)) / 1000
+    last, since = None, time.time()
+    while time.time() < end:
+        smp = pg.evaluate(LIVE_SAMPLE_JS)
+        busy = pg.evaluate(BUSY_JS)
+        if busy or smp.get("live") != (last or {}).get("live"):
+            last, since = smp, time.time()
+        elif (time.time() - since) * 1000 >= settle and (smp.get("live") or "").strip():
+            return smp
+        pg.wait_for_timeout(250)
+    raise Inconclusive("the live region never settled after the last preview (still busy or still changing)")
+
+
 def a_retry_kept_preview(R, s, row):
     """F-DEF-1 fix round 2 retest (ruling W11-R50b), scripted per review n6: the browser answers the builder's preview
     request with the server's 503 `busy` (CDP Fetch), so the kept result stays under a failure and Try again draws;
@@ -1914,7 +2140,9 @@ def a_retry_kept_preview(R, s, row):
     if R.size[0] <= 640:
         open_phone_preview(R, row)
     last = R.g.sentence("last_result")
-    before = pg.evaluate(LIVE_SAMPLE_JS)
+    before = wait_live_settled(pg, s)
+    expected_http = {"status": 503, "url": "/api/j2/widget-definitions/preview", "max": 0}
+    row.setdefault("expect_http", []).append(expected_http)   # T-8: this step's own injected answers, counted below
     if not (before.get("live") or "").strip():
         raise Inconclusive("the live region held no summary before the failure (no kept preview to retry)")
     cdp = R.contexts["main"].new_cdp_session(pg)
@@ -1922,6 +2150,7 @@ def a_retry_kept_preview(R, s, row):
 
     def on_paused(ev):
         seen["paused"] += 1
+        expected_http["max"] = seen["paused"]
         cdp.send("Fetch.fulfillRequest", {"requestId": ev["requestId"], "responseCode": 503,
                                           "responseHeaders": [{"name": "Content-Type", "value": "application/json"}],
                                           "body": base64.b64encode(json.dumps(BUSY_BODY).encode()).decode()})
@@ -1986,7 +2215,13 @@ def measure_locator(R: Run, pg, t: dict):
         return pg.get_by_test_id(t["testid"])
     # A `hidden` target is looked for among hidden elements too: by default a role query skips them, and a check
     # that "nothing visible was found" would pass on a page that never drew the control at all.
-    return pg.get_by_role(t["role"], name=t["name"], exact=True, include_hidden=bool(t.get("hidden")))
+    # T-3: a control with two real names (NoteDetailsLine.jsx `{has ? 'Details' : 'Add details'}`) is found under
+    # either, never under a guess: `name` may be a list of the exact names.
+    name = t["name"]
+    if isinstance(name, list):
+        name = re.compile("^(?:" + "|".join(re.escape(x) for x in name) + ")$")
+        return pg.get_by_role(t["role"], name=name, include_hidden=bool(t.get("hidden")))
+    return pg.get_by_role(t["role"], name=name, exact=True, include_hidden=bool(t.get("hidden")))
 
 
 def run_measures(R: Run, s: dict, row: dict) -> None:
@@ -2188,8 +2423,14 @@ def a_w11_preview(R, s, row):
     if s.get("expect_question_use"):
         qs = [q for q in body.get("questions") or [] if isinstance(q, dict)]
         name = s["expect_question_use"]
-        check(row, f"a reuse question suggests the member's own {name!r}",
-              any(w11.get_path(q, "use.name") == name for q in qs), json.dumps(qs)[:400])
+        if member_uses_template(R, row, gid):
+            # T-12: "asked once per slot, remembered per template" (W11-R73 R2, 6a53ee6d66): a member who already uses
+            # this template is not asked again; the remembered routine is placed by the Use (expect_embed_routine)
+            check(row, f"the routine question is not asked again (the member's answer for {title!r} is remembered)",
+                  not qs, json.dumps(qs)[:400])
+        else:
+            check(row, f"a reuse question suggests the member's own {name!r}",
+                  any(w11.get_path(q, "use.name") == name for q in qs), json.dumps(qs)[:400])
     for want in s.get("expect_tools") or []:
         tool = w11.find_by(body.get("tools"), "slot", want["slot"])
         check(row, f"slot {want['slot']} binds {want['bind']!r} and reads {want['forDayLabel']!r}",
@@ -2256,19 +2497,52 @@ def a_w11_adopt(R, s, row):
     R.alias[s.get("save_as", "adopted")] = {"id": style.get("id"), "name": style.get("name")}
 
 
+def client_choices(preview: dict | None) -> dict:
+    """The reuse questions' first answers EXACTLY as the member's client sends them (AdoptSheet.jsx firstChoices:
+    `{use: String(q.use.id)}` when the server found one, else `{create: true}`). T-13: `pick: auto` used to send
+    nothing for a question with no `use`, which the server rightly refuses `unresolved`."""
+    out = {}
+    for q in (preview or {}).get("questions") or []:
+        if isinstance(q, dict) and isinstance(q.get("slot"), str) and q["slot"]:
+            uid = w11.get_path(q, "use.id")
+            out[q["slot"]] = {"use": str(uid)} if uid is not None else {"create": True}
+    return out
+
+
 def choices_from_preview(preview: dict | None, title: str, *, strict: bool) -> dict | None:
-    """The member's own suggested tool for each reuse question (`questions[].use`, AdoptSheet's pre-selection), as
-    a Use's `choices` (`{slot: {"use": id}}`). `strict` (pick: "suggested", the persona IS the suggestion): no preview
-    or no suggestion is INCONCLUSIVE. Otherwise (pick: "auto") the Use goes without choices."""
+    """A Use's `choices`: client_choices. `strict` (pick: "suggested", the persona IS the suggestion): no preview, or
+    a question whose suggestion is missing, is INCONCLUSIVE, except a preview that asks NOTHING because the server
+    already remembers this member's answer for the template (W11-R73 R2): then the client sends no choice, and
+    neither does this."""
     if preview is None:
         if strict:
             raise Inconclusive(f"no preview of {title!r} was read earlier in this run")
         return None
-    picks = {q["slot"]: {"use": w11.get_path(q, "use.id")} for q in preview.get("questions") or []
-             if isinstance(q, dict) and isinstance(q.get("slot"), str) and isinstance(w11.get_path(q, "use.id"), str)}
-    if not picks and strict:
+    picks = client_choices(preview)
+    if strict and picks and not any("use" in v for v in picks.values()):
         raise Inconclusive(f"the preview of {title!r} suggested no tool of the member's own to pick")
-    return picks or None
+    return picks
+
+
+def preview_for(R: Run, row: dict, title: str) -> dict | None:
+    """The preview a Use is built from: the one read earlier in the run, else read now, as the client reads it before
+    Use (T-13: the P39 race and key steps sent a Use the client never sends, with no choices at all)."""
+    got = R.remembered.get(f"preview:{title}")
+    if got is not None:
+        return got
+    resp = w11_send(R, row, w11.b_preview_mine(w11_template(R, row, title)), f"POST preview-mine {title!r} (for Use)")
+    if resp.status != 200 or not isinstance(resp.body, dict):
+        raise Inconclusive(f"the preview of {title!r} did not answer (HTTP {resp.status}), so a Use cannot be built")
+    R.remembered[f"preview:{title}"] = resp.body
+    return resp.body
+
+
+def member_uses_template(R: Run, row: dict, gid: str) -> bool:
+    """Whether the member already has a live copy of this listed template (template_gallery.member_copy: the copy a
+    Use reuses, where a Use remembers the routine answer). Read from the member's own Templates list."""
+    resp = w11_send(R, row, w11.b_templates("live"), "GET templates view=live (a copy of this template?)")
+    styles = w11.get_path(resp.body, "styles") or []
+    return resp.status == 200 and any(isinstance(x, dict) and x.get("sourceGalleryId") == gid for x in styles)
 
 
 def use_answers(preview: dict | None, title: str, *, required: bool) -> dict | None:
@@ -2283,7 +2557,7 @@ def use_answers(preview: dict | None, title: str, *, required: bool) -> dict | N
     answers, missing = w11.answers_from_preview(preview)
     if missing:
         raise Inconclusive(f"the preview of {title!r} has no value of the member's own for {missing}")
-    return answers or None
+    return answers                      # W11-R83 m-4: `{}` when nothing is declared, as AdoptSheet sends it
 
 
 def _embeds_of(R, row, note: dict) -> list[dict]:
@@ -2298,9 +2572,10 @@ def a_w11_use(R, s, row):
     """Use (make a note) with an Idempotency-Key, then the same key again: the FIRST note, `replayed: true`."""
     title = s["template"]
     gid = w11_template(R, row, title)
-    preview = R.remembered.get(f"preview:{title}")
+    # W11-R83 m-4: the client always reads the preview and always sends `choices` for a template (AdoptSheet :247)
+    preview = preview_for(R, row, title)
     choices = (choices_from_preview(preview, title, strict=s["pick"] == "suggested")
-               if s.get("pick") in ("suggested", "auto") else None)
+               if s.get("pick") in ("suggested", "auto") else client_choices(preview))
     answers = use_answers(preview, title, required=s.get("answers") == "preview")
     k = w11.new_key()
     t0 = time.perf_counter()
@@ -2322,10 +2597,12 @@ def a_w11_use(R, s, row):
         check(row, f"the Use made {s['expect_new_routines']} new routine(s)",
               isinstance(got, list) and len(got) == s["expect_new_routines"], json.dumps(got))
     if s.get("expect_reused"):
-        rid = R.resolve(f"@routine:{s['expect_reused']}")
-        got = w11.get_path(body, "reused.routines") or []
-        check(row, f"the Use reused the member's own {s['expect_reused']!r}", any(x.get("id") == rid for x in got),
-              json.dumps(got))
+        # T-11: the answer's `reused` lists what the Use reused WITHOUT the member choosing it, and excludes the
+        # member's own pick by design (template_gallery.py made_now: "was not the member's own pick"). The member's
+        # pick shows as: nothing new made for it, and the note's routine block is that routine (expect_embed_routine).
+        made_ids = [x.get("id") for x in (w11.get_path(body, "created.routines") or [])]
+        check(row, f"the Use made no new routine in place of the member's own {s['expect_reused']!r}",
+              not made_ids, json.dumps(made_ids))
     if s.get("expect_embed") or s.get("expect_embed_routine"):
         embeds = _embeds_of(R, row, body.get("note") or {})
         if s.get("expect_embed"):
@@ -2342,24 +2619,35 @@ def a_w11_use(R, s, row):
     style = body.get("style") or {}
     R.alias[s.get("copy_as", "copy")] = {"id": style.get("id"), "name": style.get("name")}
     tools = (w11.get_path(body, "created.routines") or []) + (w11.get_path(body, "reused.routines") or [])
-    if tools:
+    picked = [v["use"] for v in (choices or {}).values() if isinstance(v, dict) and v.get("use")]
+    if picked:
+        # T-11: the member's own pick never appears in created/reused; the alias names the routine the Use placed
+        R.alias["use_routine"] = {"id": picked[0], "name": next(
+            (w11.get_path(q, "use.name") for q in (preview or {}).get("questions") or []
+             if str(w11.get_path(q, "use.id")) == picked[0]), "")}
+    elif tools:
         R.alias["use_routine"] = {"id": tools[0].get("id"), "name": tools[0].get("name")}
 
 
 def a_w11_unkeyed(R, s, row):
     """No Idempotency-Key where none is required (W11-R34: the key is optional on every wave 11 door): never 428."""
     gid = w11_template(R, row, s["template"])
-    first = w11_send(R, row, w11.b_use_template(gid, key=None), "use-template (no key)")
-    second = w11_send(R, row, w11.b_use_template(gid, key=None), "use-template again (no key)")
+    pv = preview_for(R, row, s["template"])
+    ch, ans = client_choices(pv), use_answers(pv, s["template"], required=False)
+    first = w11_send(R, row, w11.b_use_template(gid, key=None, answers=ans, choices=ch), "use-template (no key)")
+    second = w11_send(R, row, w11.b_use_template(gid, key=None, answers=ans, choices=ch), "use-template again (no key)")
     w11_apply(row, w11.judge_unkeyed(first, second, "note.id"))
 
 
 def a_w11_in_flight(R, s, row):
     """K presses with one key at once: one note, the rest replayed or 409 `conflict` S_KEY_IN_FLIGHT."""
     gid = w11_template(R, row, s["template"])
+    pv = preview_for(R, row, s["template"])
+    ch, ans = client_choices(pv), use_answers(pv, s["template"], required=False)
     k = w11.new_key()
     n = int(s.get("presses", 4))
-    resps = w11_race(R, row, [w11.b_use_template(gid, key=k) for _ in range(n)], f"{n} x use-template, one key, at once")
+    resps = w11_race(R, row, [w11.b_use_template(gid, key=k, answers=ans, choices=ch) for _ in range(n)],
+                     f"{n} x use-template, one key, at once")
     moved = R.g.sentence("listing_moved")
     for r in resps:
         if r.status == 409 and w11.detail_of(r.body)[1] == moved:
@@ -2370,8 +2658,10 @@ def a_w11_in_flight(R, s, row):
 def a_w11_key_reused(R, s, row):
     """One key on two doors (Use, then Adopt of the same template): 409 `key_reused` (A9; interim `conflict`)."""
     gid = w11_template(R, row, s["template"])
+    pv = preview_for(R, row, s["template"])
+    ch, ans = client_choices(pv), use_answers(pv, s["template"], required=False)
     k = w11.new_key()
-    first = w11_send(R, row, w11.b_use_template(gid, key=k), "use-template (key K)")
+    first = w11_send(R, row, w11.b_use_template(gid, key=k, answers=ans, choices=ch), "use-template (key K)")
     check(row, "the first press answers 200", first.status == 200, f"HTTP {first.status}")
     if s.get("other_template"):
         other = w11_template(R, row, s["other_template"])
@@ -2588,7 +2878,7 @@ ACTIONS = {
     "note_unchanged": a_note_unchanged, "offline": a_offline, "wait": a_wait, "api": a_api, "api_burst": a_api_burst,
     "flag_restart": a_flag_restart, "widget_share_on": a_widget_share_on,
     "share_public": a_share_public, "admin_login": a_admin_login, "throttle": a_throttle, "check_text": a_check_text,
-    "noop": a_noop, "not_reachable": a_not_reachable, "theme": a_theme, "axe_while_loading": a_axe_while_loading,
+    "noop": a_noop, "not_reachable": a_not_reachable, "theme": a_theme, "axe_while_loading": a_axe_while_loading, "open_public_page": a_open_public_page,
     "retry_kept_preview": a_retry_kept_preview,
     # wave 11 (real route shapes, w11_steps)
     "w11_browse": a_w11_browse, "w11_preview": a_w11_preview, "w11_share_preview": a_w11_share_preview,
@@ -2616,6 +2906,34 @@ def sent_check(R, row, key, s, said, pred):
         check(row, f"{key.replace('_', ' ')} {want!r}", pred(want, said), said)
 
 
+#: T-6: a surface read long enough to reach the preview pane (the builder's text before it runs past 1,500 chars).
+READ_TEXT_MAX = 8000
+
+
+#: The surface's text WITHOUT its live regions (W11-R83 m-2): a sentence that must be in the body is never found in an
+#: sr-only announcement. Block elements are joined with spaces so two blocks never run together.
+BODY_TEXT_JS = """(e) => { const c = e.cloneNode(true);
+  c.querySelectorAll('[aria-live], [role=status], [role=alert]').forEach(x => x.remove());
+  c.querySelectorAll('p, div, li, h1, h2, h3, h4, section, aside, button, label, span').forEach(x => x.append(' '));
+  return c.textContent || '' }"""
+
+
+def _norm_ws(t: str) -> str:
+    return re.sub(r"\s+", " ", (t or "").replace("\u00a0", " ")).strip()
+
+
+def sentence_in(want: str, text: str) -> bool:
+    return _norm_ws(want) in _norm_ws(text)
+
+
+def text_window(want: str, text: str, width: int = 300) -> str:
+    """Where in `text` the sentence is (or its first words), so a read never stops short of it (T-6)."""
+    t = _norm_ws(text)
+    head = _norm_ws(want)[:24]
+    i = t.find(head)
+    return t[max(0, i - 60):i + width] if i >= 0 else t[-width:]
+
+
 def expectations(R: Run, s: dict, row: dict) -> None:
     keys = list(s.get("expect") or []) + list(s.get("expect_absent") or [])
     if not keys and not s.get("expect_re") and not s.get("forbid_re") and not s.get("forbid"):
@@ -2626,12 +2944,15 @@ def expectations(R: Run, s: dict, row: dict) -> None:
         want = R.g.sentence(key)
         try:
             sur.get_by_text(want, exact=False).first.wait_for(timeout=12000)
-            ok = True
+            ok, read = True, ""
         except Exception:  # noqa: BLE001
-            ok = False
-        check(row, f"says {want!r}", ok, "" if ok else (sur.inner_text(timeout=3000) or "")[:400])
+            # T-6: the whole surface text, whitespace-normalised, is the authority; the read shows where it is
+            full = sur.evaluate(BODY_TEXT_JS) or ""
+            ok, read = sentence_in(want, full), text_window(want, full)
+        check(row, f"says {want!r}", ok, read)
     text = sur.inner_text(timeout=5000) or ""
-    row["read"].append({"what": f"surface text ({s.get('within') or row.get('surface') or 'page'})", "text": text[:1500]})
+    row["read"].append({"what": f"surface text ({s.get('within') or row.get('surface') or 'page'})",
+                        "text": text[:READ_TEXT_MAX]})
     for key in s.get("expect_absent") or []:
         want = R.g.sentence(key)
         check(row, f"does not say {want!r}", want not in text, "")
@@ -2640,7 +2961,7 @@ def expectations(R: Run, s: dict, row: dict) -> None:
     for rx in s.get("forbid_re") or []:
         check(row, f"never matches {rx}", re.search(rx, text) is None, ", ".join(re.findall(rx, text)[:4]))
     if "zeros" in (s.get("forbid") or []):
-        z = zeros_in(text)
+        z = zeros_in(text, bool(s.get("zero_ok")))
         check(row, "no zero, NaN, undefined or [object Object] is shown", not z, ", ".join(z))
     if "raw" in (s.get("forbid") or []):
         raw = pg.evaluate("() => ({imgx: document.querySelectorAll('img[src=\"x\"]').length,"
@@ -2676,13 +2997,31 @@ def metrics(R: Run, row: dict) -> dict:
     return out
 
 
+def obscured_unfocused(v: dict, keyboard: bool = False) -> bool:
+    """T-17, scoped by ruling W11-R83 I-2 to the triaged D-W11-005 geometry: in a KEYBOARD run, an axe target-size
+    "partially obscured" whose every node (all of them read, never a sample) is covered by the builder's sticky phone
+    summary bar (`[data-testid=builder-summary-bar]`, probed at the corners and centre) and is not the focused control.
+    Anything else is filed: a pointer run (a touch member cannot tap a covered target, WCAG 2.5.8), a node covered by
+    anything else, a node not read. A suppression is recorded (findings_of), never silent."""
+    nodes = v.get("node_info") or []
+    return (keyboard and v.get("id") == "target-size" and bool(nodes) and len(nodes) >= int(v.get("nodes") or 0)
+            and all("obscured" in (n.get("summary") or "") and n.get("underBar") and not n.get("focused")
+                    for n in nodes))
+
+
 def findings_of(R: Run, row: dict) -> list[dict]:
     out = []
     expected = set(row.get("expect_status") or [])
+    allow = [dict(x, used=0) for x in row.get("expect_http") or []]
     for page, evs in row.get("events", {}).items():
         for e in evs:
             if "http" in e:
                 if e["http"] in expected:
+                    continue
+                hit = next((a for a in allow if a["status"] == e["http"] and a["url"] in (e.get("url") or "")
+                            and a["used"] < a["max"]), None)
+                if hit:
+                    hit["used"] += 1          # W11-R83 m-1: one injected answer excuses one event, at that URL only
                     continue
                 out.append({"kind": "http5xx" if e["http"] >= 500 else "http4xx", "page": page,
                             "detail": f"{e['method']} {e['url']} -> {e['http']}"})
@@ -2708,6 +3047,12 @@ def findings_of(R: Run, row: dict) -> list[dict]:
         for t in small:                       # one finding per control, so the same control dedupes across runs
             out.append({"kind": "tap", "page": "main", "detail": f"under {TAP_FLOOR} px: " + json.dumps(t, ensure_ascii=False)})
     for v in (m.get("axe") or {}).get("violations") or []:
+        if obscured_unfocused(v, getattr(R, "keyboard", False)):
+            # T-17 / D-W11-005, recorded so triage sees every one (W11-R83 I-2)
+            row.setdefault("suppressed", []).append({"rule": v.get("id"), "why": "D-W11-005: under the builder's "
+                                                     "sticky summary bar, not focused, keyboard run",
+                                                     "targets": [n.get("target") for n in v.get("node_info") or []]})
+            continue
         if v.get("impact") in ("serious", "critical"):
             out.append({"kind": f"axe:{v['impact']}", "page": "main",
                         "detail": f"{v['id']}: {v['help']} ({v['nodes']} nodes) {v['targets'][:2]} -- "
@@ -2807,6 +3152,7 @@ class Campaign:
         # Review m3: no INCONCLUSIVE hides in a step file; the run's own row names each one and why.
         res["inconclusive"] = [{"step": x["step"], "why": x.get("error") or ""} for x in R.steps
                                if x["verdict"] == "INCONCLUSIVE"]
+        res["suppressed"] = [{"step": x["step"], **sup} for x in R.steps for sup in x.get("suppressed") or []]
         if vp_skipped:
             res["viewport_skipped"] = vp_skipped
         if clock_read:

@@ -1,5 +1,5 @@
 {
- "_about": "Task 11.21 Step 4: the 50 campaign personas (plan docs/superpowers/plans/2026-10-24-notebook-widgets-p2-w11.md). `data` is read by seed_members.py; `scripts` by run_campaign.py. Every expected sentence names the file:line it is read from and the exact `fragment` that must still be in that file; run_campaign.py checks each one against the source before a run and refuses a drifted sentence (a sentence is quoted, never a second authority). `needs`: w11 = a wave 11 backend route (reported INCONCLUSIVE when the server lacks it), restart = a flag flip (needs a sandbox the runner owns), clock = the launcher-only clock shift (sandbox_clock.py, ruling W11-R49; INCONCLUSIVE without --clock-launcher; `clock` is one ISO instant or a list, a script's `at` names one); `once` = the script runs in the persona's first run only. `validated`: the script was driven end to end in the tooling dry run.",
+ "_about": "Task 11.21 Step 4: the 50 campaign personas (plan docs/superpowers/plans/2026-10-24-notebook-widgets-p2-w11.md). `data` is read by seed_members.py; `scripts` by run_campaign.py. Every expected sentence names the file:line it is read from and the exact `fragment` that must still be in that file; run_campaign.py checks each one against the source before a run and refuses a drifted sentence (a sentence is quoted, never a second authority). `needs`: w11 = a wave 11 backend route (reported INCONCLUSIVE when the server lacks it), restart = a flag flip (needs a sandbox the runner owns), clock = the launcher-only clock shift (sandbox_clock.py, ruling W11-R49; INCONCLUSIVE without --clock-launcher; `clock` is one ISO instant or a list, a script's `at` names one); `once` = the script runs in the persona's first run only. `validated`: the served run that drove the script end to end, its run verdicts, the triage that classified every FAIL/INCONCLUSIVE step, and what changed in the script since (W11-R81). `single_step_why`: why one step is the whole test.",
  "defaults": {
   "clock": "2026-10-23T16:30:00-04:00",
   "admin_email": "hubtest@local.dev",
@@ -174,19 +174,19 @@
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4314"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4318"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4313"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4317"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3269"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3273"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5216"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5220"
   },
   "title_too_long": {
    "text": "title too long",
@@ -570,7 +570,14 @@
      ]
     }
    ],
-   "validated": true
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P02",
@@ -659,7 +666,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P03",
@@ -758,7 +772,9 @@
          "path": "api/services/journal_two/widget_engine/plan.py",
          "fragment": "text += f\" {count:,} {u}.\""
         }
-       ]
+       ],
+       "zero_ok": true,
+       "zero_ok_why": "12 trades, none in the widget's range: the spec'd 'Not enough trades yet (0)' (builtModel.js) is correct here"
       },
       {
        "do": "close_dialog"
@@ -766,7 +782,17 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 4,
+     "PASS": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "P03.b.04 W11-R83 I-1 zero_ok (declared)"
+    ]
+   }
   },
   {
    "id": "P04",
@@ -912,7 +938,15 @@
      ]
     }
    ],
-   "validated": true
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 1,
+     "PASS": 5
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P05",
@@ -931,7 +965,7 @@
    "data": {
     "trades": {
      "n": 5600,
-     "sessions": 250
+     "sessions": 55
     }
    },
    "scripts": [
@@ -978,7 +1012,16 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "data T-5: 55 sessions, all 5,600 trades inside last_90d"
+    ]
+   }
   },
   {
    "id": "P06",
@@ -1042,12 +1085,23 @@
        ]
       },
       {
-       "do": "close_dialog"
+       "do": "close_dialog",
+       "discard": true
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 4,
+     "INCONCLUSIVE": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "P06.a.06 T-16 discard"
+    ]
+   }
   },
   {
    "id": "P07",
@@ -1104,7 +1158,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P08",
@@ -1161,7 +1222,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P09",
@@ -1241,7 +1309,14 @@
      ]
     }
    ],
-   "validated": true
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P10",
@@ -1322,7 +1397,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P11",
@@ -1373,7 +1455,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P12",
@@ -1436,7 +1525,9 @@
        "forbid": [
         "zeros",
         "raw"
-       ]
+       ],
+       "zero_ok": true,
+       "zero_ok_why": "the example's last-30-days range holds none of P12's trades: the summary's '0 trades.' is correct here"
       },
       {
        "do": "close_dialog"
@@ -1483,7 +1574,16 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "P12.a.04 W11-R83 I-1 zero_ok (declared)"
+    ]
+   }
   },
   {
    "id": "P13",
@@ -1605,7 +1705,14 @@
      ]
     }
    ],
-   "validated": true,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
    "clock": "2026-11-30T20:00:00-05:00",
    "notes": "Thanksgiving 2026 (Thu 11-26 closed, Fri 11-27 half day), read on the Monday after. Its days are in the future for the real clock, so the script needs the clock launcher (ruling W11-R49, tools/notebook_campaign/sandbox_clock.py): server and browser both run from the persona's clock. Without --clock-launcher every step reads INCONCLUSIVE."
   },
@@ -1722,7 +1829,10 @@
          "defect": "D-W11-001",
          "what": "the note details toggle",
          "role": "button",
-         "name": "Add details",
+         "name": [
+          "Add details",
+          "Details"
+         ],
          "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
          "fragment": "{has ? 'Details' : 'Add details'}",
          "viewports": [
@@ -1739,7 +1849,17 @@
      ]
     }
    ],
-   "validated": true
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 2,
+     "PASS": 4
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "P14.a.09 T-3 toggle under both names"
+    ]
+   }
   },
   {
    "id": "P15",
@@ -1809,7 +1929,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "INCONCLUSIVE": 3,
+     "PASS": 3
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P16",
@@ -1872,11 +2000,44 @@
          "any_text_forbid": "\\b0 of\\b"
         }
        ]
+      },
+      {
+       "do": "seed_note",
+       "title": "Campaign P16 {run}",
+       "paras": [
+        "Strict."
+       ],
+       "save_as": "n1"
+      },
+      {
+       "do": "open_note",
+       "note": "n1"
+      },
+      {
+       "do": "insert_routine",
+       "existing": "Strict routine"
+      },
+      {
+       "do": "check_text",
+       "within": "[data-routine-block]",
+       "forbid_re": [
+        "\\b0 of\\b"
+       ],
+       "why": "the block a member sees reads the strict routine's consistency with skipped days, never '0 of'"
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "coverage: steps added for the persona description"
+    ]
+   }
   },
   {
    "id": "P17",
@@ -1934,11 +2095,43 @@
          "equals": "done"
         }
        ]
+      },
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/routines/days",
+       "body": {
+        "ids": [
+         "@routine:Changing routine"
+        ],
+        "days": [
+         "2026-10-21"
+        ]
+       },
+       "expect_status": [
+        200
+       ],
+       "checks": [
+        {
+         "path": "routines.@routine:Changing routine.days.2026-10-21.state",
+         "equals": "done"
+        }
+       ],
+       "why": "the second past day is unchanged too (history kept across the rename and removal)"
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "coverage: steps added for the persona description"
+    ]
+   }
   },
   {
    "id": "P18",
@@ -2219,11 +2412,38 @@
          "nonempty": true
         }
        ]
+      },
+      {
+       "do": "api",
+       "method": "PUT",
+       "path": "/api/j2/trackers/@tracker:Tracker 2/days/2026-10-23",
+       "body": {
+        "value": "not a number"
+       },
+       "expect_status": [
+        400
+       ],
+       "checks": [
+        {
+         "path": "detail.message",
+         "nonempty": true
+        }
+       ],
+       "why": "a number tracker refuses text with a sentence"
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "coverage: steps added for the persona description"
+    ]
+   }
   },
   {
    "id": "P19",
@@ -2267,11 +2487,40 @@
          "nonempty": true
         }
        ]
+      },
+      {
+       "do": "api",
+       "method": "PUT",
+       "path": "/api/j2/trackers/checkin:focus/days/2026-10-23",
+       "body": {
+        "value": 3
+       },
+       "expect_status": [
+        400,
+        403,
+        409
+       ],
+       "checks": [
+        {
+         "path": "detail.code",
+         "nonempty": true
+        }
+       ],
+       "why": "the second check-in tracker (focus) is read-only too"
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "coverage: steps added for the persona description"
+    ]
+   }
   },
   {
    "id": "P20",
@@ -2340,7 +2589,14 @@
      ]
     }
    ],
-   "validated": false,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
    "clock": [
     "2026-11-27T12:41:00-05:00",
     "2026-11-27T15:43:00-05:00"
@@ -2394,11 +2650,32 @@
          "sentence": "tool_window"
         }
        ]
+      },
+      {
+       "do": "api",
+       "method": "PUT",
+       "path": "/api/j2/routines/@routine:Late routine/days/@session-1/items/@item:Late routine:0",
+       "body": {
+        "ticked": true
+       },
+       "expect_status": [
+        200
+       ],
+       "why": "control: a tick one session back is inside the 7-session window and is accepted"
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "coverage: steps added for the persona description"
+    ]
+   }
   },
   {
    "id": "P22",
@@ -2471,7 +2748,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 3,
+     "INCONCLUSIVE": 3
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P23",
@@ -2550,7 +2835,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 2,
+     "PASS": 4
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P24",
@@ -2597,11 +2890,43 @@
        "count": 150,
        "expect_any_status": 429,
        "expect_message_sentence": "routine_rate"
+      },
+      {
+       "do": "api",
+       "method": "POST",
+       "path": "/api/j2/routines/days",
+       "body": {
+        "ids": [
+         "@routine:Rapid routine"
+        ],
+        "days": [
+         "@today"
+        ]
+       },
+       "expect_status": [
+        200
+       ],
+       "checks": [
+        {
+         "path": "routines.@routine:Rapid routine.days.@today.state",
+         "nonempty": true
+        }
+       ],
+       "why": "after the burst the day still reads (nothing lost: the accepted ticks left a readable state)"
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "coverage: steps added for the persona description"
+    ]
+   }
   },
   {
    "id": "P25",
@@ -2791,7 +3116,14 @@
      ]
     }
    ],
-   "validated": true
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P26",
@@ -2847,7 +3179,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P27",
@@ -2906,7 +3245,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P28",
@@ -2956,7 +3302,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 4,
+     "PASS": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P29",
@@ -3006,7 +3360,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 4,
+     "PASS": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P30",
@@ -3076,7 +3438,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 1,
+     "INCONCLUSIVE": 5
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P31",
@@ -3126,7 +3496,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P32",
@@ -3187,7 +3564,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P33",
@@ -3222,7 +3606,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "INCONCLUSIVE": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
+   "single_step_why": "noop by design: 'Updated version available' needs a shelf widget at revision 1 when the shelf has revision 2 of it, and the seeder places only the newest revision; scripting it needs a rev-1 placement seed (not available from the app's own doors)"
   },
   {
    "id": "P34",
@@ -3298,7 +3690,15 @@
      "why_once": "the publish scope is 10/hour plus a durable 10/day per member"
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 3,
+     "INCONCLUSIVE": 3
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P35",
@@ -3400,8 +3800,7 @@
       {
        "do": "w11_preview",
        "template": "Pre-market prep",
-       "timing": "preview",
-       "expect_own_data": true
+       "timing": "preview"
       },
       {
        "do": "w11_use",
@@ -3409,6 +3808,13 @@
        "pick": "auto",
        "timing": "use",
        "expect_credit": "UCT"
+      },
+      {
+       "do": "w11_preview",
+       "template": "Setup study",
+       "timing": "preview",
+       "expect_own_data": true,
+       "why": "T-10: Setup study carries 2 widget definitions (template_library_seed.json)"
       }
      ],
      "needs": [
@@ -3451,7 +3857,16 @@
      ]
     }
    ],
-   "validated": true
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "P35.b.03 T-10 own-data moved to P35.b.05 (Setup study)"
+    ]
+   }
   },
   {
    "id": "P36",
@@ -3494,7 +3909,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 5,
+     "PASS": 1
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P37",
@@ -3610,7 +4033,14 @@
      ]
     }
    ],
-   "validated": false,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 3
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
    "clock": [
     "2026-11-22T21:00:00-05:00",
     "2026-11-24T21:00:00-05:00",
@@ -3701,7 +4131,14 @@
      ]
     }
    ],
-   "validated": false,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
    "clock": [
     "2026-11-28T11:00:00-05:00",
     "2026-12-26T10:00:00-05:00"
@@ -3757,7 +4194,14 @@
      ]
     }
    ],
-   "validated": false,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 1
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
    "notes": "API-only and spends the adopt scope (30/hour per member): one run, 1200 pointer. The in-flight 409 and listing_moved are not forceable from a client; their steps say so (INCONCLUSIVE).",
    "viewports_why": "every step is a wave 11 HTTP step (no page is drawn), so one 1200 pointer run is the whole test"
   },
@@ -3824,7 +4268,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P41",
@@ -3949,7 +4400,14 @@
      ]
     }
    ],
-   "validated": false,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 3
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
    "clock": [
     "2026-11-10T20:00:00-05:00",
     "2026-11-11T10:00:00-05:00",
@@ -3991,7 +4449,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "INCONCLUSIVE": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
+   "single_step_why": "noop by design: 'Based on a former member's ...' needs a listed template whose author deleted their account; account deletion has no campaign door (and never against a seeded member mid-run)"
   },
   {
    "id": "P43",
@@ -4043,7 +4509,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P44",
@@ -4106,7 +4579,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 3,
+     "INCONCLUSIVE": 3
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P45",
@@ -4144,7 +4625,15 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 1,
+     "PASS": 5
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P46",
@@ -4197,7 +4686,10 @@
          "defect": "D-W11-001",
          "what": "the note details toggle",
          "role": "button",
-         "name": "Add details",
+         "name": [
+          "Add details",
+          "Details"
+         ],
          "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
          "fragment": "{has ? 'Details' : 'Add details'}",
          "viewports": [
@@ -4309,7 +4801,10 @@
          "defect": "D-W11-001",
          "what": "the note details toggle",
          "role": "button",
-         "name": "Add details",
+         "name": [
+          "Add details",
+          "Details"
+         ],
          "source": "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx",
          "fragment": "{has ? 'Details' : 'Add details'}",
          "viewports": [
@@ -4340,7 +4835,18 @@
      ]
     }
    ],
-   "validated": true
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 2,
+     "PASS": 4
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "P46.a.02 T-3 toggle under both names",
+     "P46.a.18 T-3 toggle under both names"
+    ]
+   }
   },
   {
    "id": "P47",
@@ -4398,7 +4904,14 @@
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "PASS": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   }
   },
   {
    "id": "P48",
@@ -4415,7 +4928,18 @@
     "keyboard"
    ],
    "data": {
-    "session": false
+    "session": false,
+    "public": {
+     "title": "Campaign P48 public note",
+     "text": "A note a stranger can read.",
+     "share": true,
+     "publish": true,
+     "private": {
+      "title": "Campaign P48 private plan zq7",
+      "text": "Private body zq7 never shared.",
+      "tag": "zq7-private"
+     }
+    }
    },
    "scripts": [
     {
@@ -4443,11 +4967,43 @@
         401,
         403
        ]
+      },
+      {
+       "do": "open_public_page",
+       "page": "share",
+       "expect_note": true,
+       "why": "T-18: the share link a member sent, opened as a stranger (/share/n/<token>, noteShareLink.js:15)"
+      },
+      {
+       "do": "open_public_page",
+       "page": "publish",
+       "expect_note": true,
+       "why": "T-18: the published page, opened as a stranger (/p/<slug>, notePublishLink.js:19)"
+      },
+      {
+       "do": "api",
+       "method": "GET",
+       "path": "/api/j2/template-gallery/library",
+       "expect_status": [
+        401,
+        403
+       ],
+       "why": "T-18: the template library and its example pages are members-only (AuthGuard; a stranger is refused)"
       }
      ]
     }
    ],
-   "validated": false
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 6
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "T-18 shared, published, gallery library as a stranger",
+     "data W11-R83 I-4 private sibling note forbidden on stranger pages"
+    ]
+   }
   },
   {
    "id": "P49",
@@ -4583,7 +5139,14 @@
      ]
     }
    ],
-   "validated": false,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "FAIL": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": []
+   },
    "viewports_why": "phone-only member by definition (plan row P49): 390, coarse pointer"
   },
   {
@@ -4795,8 +5358,7 @@
      "steps": [
       {
        "do": "throttle",
-       "latency_ms": 300,
-       "kbps": 400
+       "profile": "fast-3g"
       },
       {
        "do": "seed_note",
@@ -4859,13 +5421,22 @@
      ]
     }
    ],
-   "validated": false,
+   "validated": {
+    "served_run": "w11-campaign-985d79d74a-r2",
+    "runs": {
+     "INCONCLUSIVE": 2
+    },
+    "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
+    "changed_since": [
+     "P50.a.01 T-15 fast-3g profile"
+    ]
+   },
    "viewports_why": "tablet member by definition (plan row P50): 820, coarse pointer"
   }
  ],
  "validation": {
   "_about": "Persona validation (Task 11.21 Step 4, rulings W11-R65/W11-R70): each step's selectors, labels, routes and copy were read against the merged tree; `ok` = unchanged and correct, `fixed: <what>`, `not_reachable` = INCONCLUSIVE by design, `http` = not a browser step (graded by the w11/api judges), `added` = a retest script. The selector rail (selector_problems) re-checks every step on each run.",
-  "ref": "origin/feat/notebook-widgets-p2 @ ab49f5d68e (validated at 1d20ebdb78; no widget-builder or widget_engine file changed since; sentence lines re-read)",
+  "ref": "origin/feat/notebook-widgets-p2 @ c9644f7d7f (selector rail green; served run w11-campaign-985d79d74a-r2 triaged, W11-R81)",
   "steps": {
    "P01.a.01": "http",
    "P01.a.02": "ok + F-DEF-1 measure",
@@ -4918,7 +5489,7 @@
    "P06.a.03": "ok",
    "P06.a.04": "ok",
    "P06.a.05": "fixed: split 'ET hour' (sources.py:395)",
-   "P06.a.06": "ok",
+   "P06.a.06": "fixed: T-16 discard",
    "P07.a.01": "http",
    "P07.a.02": "ok",
    "P07.a.03": "ok",
@@ -4976,7 +5547,7 @@
    "P14.a.06": "ok",
    "P14.a.07": "ok",
    "P14.a.08": "ok",
-   "P14.a.09": "ok + F-DEF-1 measure",
+   "P14.a.09": "fixed: T-3 toggle under both names",
    "P14.a.10": "http",
    "P15.a.01": "http",
    "P15.a.02": "ok",
@@ -5062,7 +5633,7 @@
    "P35.a.05": "ok",
    "P35.b.01": "ok",
    "P35.b.02": "http",
-   "P35.b.03": "http",
+   "P35.b.03": "fixed: T-10 own-data moved to P35.b.05",
    "P35.b.04": "http",
    "P35.c.01": "http",
    "P35.c.02": "http",
@@ -5116,7 +5687,7 @@
    "P45.a.01": "http",
    "P45.a.02": "http",
    "P46.a.01": "http",
-   "P46.a.02": "ok + F-DEF-1 measure",
+   "P46.a.02": "fixed: T-3 toggle under both names",
    "P46.a.03": "ok",
    "P46.a.04": "ok",
    "P46.a.05": "ok",
@@ -5132,7 +5703,7 @@
    "P46.a.15": "http",
    "P46.a.16": "ok",
    "P46.a.17": "http",
-   "P46.a.18": "ok + F-DEF-1 measure",
+   "P46.a.18": "fixed: T-3 toggle under both names",
    "P46.a.19": "http",
    "P46.a.20": "ok",
    "P46.a.21": "http",
@@ -5152,7 +5723,7 @@
    "P49.b.04": "ok",
    "P49.b.05": "ok",
    "P49.b.06": "ok",
-   "P50.a.01": "http",
+   "P50.a.01": "fixed: T-15 fast-3g profile, waits sized",
    "P50.a.02": "http",
    "P50.a.03": "ok",
    "P50.a.04": "ok",
@@ -5160,7 +5731,20 @@
    "P50.a.06": "ok",
    "P50.a.07": "ok",
    "P50.b.01": "http",
-   "P50.b.02": "http"
+   "P50.b.02": "http",
+   "P16.a.02": "http",
+   "P16.a.03": "added: W11-R81 (coverage / T-18)",
+   "P16.a.04": "added: W11-R81 (coverage / T-18)",
+   "P16.a.05": "added: W11-R81 (coverage / T-18)",
+   "P17.a.02": "http",
+   "P18.a.02": "http",
+   "P19.a.02": "http",
+   "P21.a.02": "http",
+   "P24.a.02": "http",
+   "P35.b.05": "http",
+   "P48.a.03": "added: W11-R81 (coverage / T-18)",
+   "P48.a.04": "added: W11-R81 (coverage / T-18)",
+   "P48.a.05": "http"
   }
  }
 }

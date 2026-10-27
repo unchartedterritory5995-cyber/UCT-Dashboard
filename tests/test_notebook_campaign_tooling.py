@@ -592,10 +592,16 @@ def fake_run(tmp_path, base):
     return g, R
 
 
+#: The preview a P39-style step reads before its Use (T-13: the client reads one, and builds its choices from it).
+ONE_QUESTION_PREVIEW = {"slots": [], "cards": [], "tools": [], "questions": [{"slot": "routine_a", "use": None}]}
+
+
 def library_then(stub, answer):
     def a(method, path, headers, body):
         if path.startswith("/api/j2/template-gallery/library"):
             return 200, {"templates": [{"id": "g-pmp", "title": "Pre-market prep"}], "groups": []}
+        if path.endswith("/preview-mine"):
+            return 200, ONE_QUESTION_PREVIEW
         return answer(method, path, headers, body)
     stub.answer = a
 
@@ -754,7 +760,8 @@ def test_a_strict_pick_without_a_suggestion_is_inconclusive_and_auto_goes_withou
         rc.choices_from_preview(None, "T", strict=True)
     with pytest.raises(rc.Inconclusive):
         rc.choices_from_preview({"questions": [{"slot": "routine_a", "use": None}]}, "T", strict=True)
-    assert rc.choices_from_preview({"questions": [{"slot": "routine_a", "use": None}]}, "T", strict=False) is None
+    # T-13: what the member's client sends (AdoptSheet.jsx firstChoices): a question with no suggestion is `create`
+    assert rc.choices_from_preview({"questions": [{"slot": "routine_a", "use": None}]}, "T", strict=False) ==         {"routine_a": {"create": True}}
     assert rc.choices_from_preview(None, "T", strict=False) is None
     assert rc.choices_from_preview({"questions": [{"slot": "routine_a", "use": {"id": "r1", "name": "M"}}]}, "T",
                                    strict=True) == {"routine_a": {"use": "r1"}}
@@ -1979,9 +1986,10 @@ def test_g4_every_sentence_source_ref_is_the_campaign_ref_and_resolves():
 
 
 def test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line():
-    """At FRONTEND_REF (what the PR branch serves), whether the source names the ref or is read from the app root at
-    run time: the fragment is in the file and on the line the persona file cites."""
-    read = frontend_read()
+    """In the tree being SERVED (W11-R83 I-3: this checkout, merged with the wave branch before every campaign run, is
+    the code the server runs; a fixed ref goes stale under it): the fragment is in the file and on the cited line,
+    whether the source names a ref or not."""
+    read = rc.tree_reader(REPO)
     bad = {}
     for k, s in SPEC["sentences"].items():
         m = rc._SOURCE_RE.match(s["source"])
@@ -2168,9 +2176,10 @@ class _RetryWorld:
 
     # the page
     def evaluate(self, js, *a):
+        if js == rc.BUSY_JS:
+            return False                        # no preview is redrawing (T-7's settle reads it)
         if not self.started:
-            self.started = True
-            return self.before
+            return self.before                  # before the failure: the settled baseline, as often as it is read
         return self.samples.pop(0) if self.samples else self.before
 
     def wait_for_timeout(self, ms):
@@ -2196,6 +2205,7 @@ class _RetryWorld:
                     raise TimeoutError("no Try again")
 
             def click(self, *a, **k):
+                world.started = True
                 world.handler({"requestId": f"r{len(world.sent)}"})
 
             def get_by_role(self, *a, **k):
@@ -2220,7 +2230,8 @@ def test_n6_the_retry_keeps_the_line_and_announces_nothing_new():
     good = {"live": SUMMARY, "line": LAST, "bar": None}
     w = _RetryWorld([good] * 7, before={"live": SUMMARY, "line": None, "bar": None})
     row = {"checks": [], "read": []}
-    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1}, row)
+    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1,
+                                            "settle_ms": 1}, row)
     assert row["checks"] and all(c["ok"] for c in row["checks"]), [c for c in row["checks"] if not c["ok"]]
     assert "Fetch.enable" in w.sent and "Fetch.fulfillRequest" in w.sent and "Fetch.disable" in w.sent
 
@@ -2234,17 +2245,19 @@ def test_n6_controls_a_changed_live_region_or_a_lost_line_fails(bad, why):
     good = {"live": SUMMARY, "line": LAST, "bar": None}
     w = _RetryWorld([good, good, bad, good, good, good, good], before={"live": SUMMARY, "line": None, "bar": None})
     row = {"checks": [], "read": []}
-    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1}, row)
+    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1,
+                                            "settle_ms": 1}, row)
     assert not all(c["ok"] for c in row["checks"]), why
 
 
 def test_n6_a_retry_that_cannot_be_drawn_is_inconclusive():
     w = _RetryWorld([], before={"live": SUMMARY, "line": None, "bar": None}, try_again=False)
     with pytest.raises(rc.Inconclusive, match="Try again never drew"):
-        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades"}, {"checks": [], "read": []})
+        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "settle_ms": 1}, {"checks": [], "read": []})
     w = _RetryWorld([], before={"live": "", "line": None, "bar": None})
-    with pytest.raises(rc.Inconclusive, match="no summary before"):
-        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades"}, {"checks": [], "read": []})
+    with pytest.raises(rc.Inconclusive, match="never settled"):          # T-7: an empty region is no baseline
+        rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "settle_ms": 1, "settle_timeout_ms": 300},
+                                {"checks": [], "read": []})
 
 
 def test_n6_the_retry_is_scripted_in_p25_b():
@@ -2284,3 +2297,608 @@ def test_n7_the_live_region_is_sampled_and_an_empty_one_fails():
         assert [c["ok"] for c in row["checks"]] == want, [c["what"] for c in row["checks"]]
     p25 = next(x for x in _step("P25.a.05")["measure"] if x.get("testid") == "builder-live")
     assert p25["samples"] >= 3 and p25["text_nonempty"] is True
+
+
+# ── W11-R81 tooling defects (the full campaign run, scratchpad campaign-run/triage.md) ───────────────────────────────
+#
+# T-1: a list `clock` crashed the seeder (seed_members.py persona_clock). Mutants (campaign-mutants/mutate_r81.py):
+# T1a persona_clock back to fromisoformat(raw); T1b the latest instant instead of the earliest; T1c an instant with no
+# offset accepted.
+
+def test_t1_every_persona_clock_seeds_and_a_list_seeds_at_its_earliest_instant():
+    defaults = SPEC["defaults"]
+    for p in SPEC["personas"]:
+        got = sm.persona_clock(p, defaults)                              # never raises (P20, P37, P38, P41 are lists)
+        assert got.tzinfo is not None, p["id"]
+        if isinstance(p.get("clock"), list):
+            assert got == min(sm.datetime.fromisoformat(x) for x in p["clock"]), p["id"]
+            assert all(got <= sm.datetime.fromisoformat(x) for x in p["clock"])
+    p = {"id": "PX", "clock": ["2026-11-24T21:00:00-05:00", "2026-11-22T21:00:00-05:00"]}
+    assert sm.persona_clock(p, defaults).isoformat() == "2026-11-22T21:00:00-05:00"      # order-free: the earliest
+    assert sm.persona_clock({"id": "PY"}, defaults) == sm.datetime.fromisoformat(defaults["clock"])   # control
+    for bad in (["2026-11-22T21:00:00"], [1], "2026-11-22T21:00:00"):
+        with pytest.raises(SystemExit):
+            sm.persona_clock({"id": "PZ", "clock": bad}, defaults)
+    import inspect
+    assert '"clock_instants": [x.isoformat() for x in persona_instants(p, defaults)]' in inspect.getsource(sm.seed_member)
+
+
+# T-2..T-20 (W11-R81). Mutants for every rail below: campaign-mutants/mutate_r81.py (each turned its rail red).
+
+class _TourPage:
+    """A stand-in page for dismiss_tour: the tour card is there (or not), its Skip tour button records the press."""
+
+    def __init__(self, present=True, closes=True):
+        self.present, self.closes, self.pressed, self.waited = present, closes, 0, 0
+
+    def locator(self, sel):
+        page = self
+
+        class Card:
+            def filter(self, **k):
+                return self
+
+            @property
+            def first(self):
+                return self
+
+            def wait_for(self, state="visible", timeout=None):
+                page.waited += 1
+                if state == "visible" and not page.present:
+                    raise TimeoutError("no tour")
+                if state == "hidden" and not (page.closes and page.pressed):
+                    raise TimeoutError("still open")
+
+            def get_by_role(self, role, name=None, exact=False):
+                class Skip:
+                    def wait_for(self, *a, **k):
+                        pass
+
+                    def click(self, *a, **k):
+                        page.pressed += 1
+                return Skip()
+        return Card()
+
+    def get_by_role(self, *a, **k):
+        return None
+
+
+def _tour_run(notes=None):
+    R = type("R", (), {})()
+    R.tour_checked, R.notes_seeded, R.keyboard, R.touch = False, 0, False, False
+    R.p = {"id": "P22", "data": {"notes": notes} if notes else {}}
+    return R
+
+
+def test_t2_the_first_run_tour_is_dismissed_through_skip_tour_once_per_run():
+    pg, R, row = _TourPage(), _tour_run(), {"read": []}
+    assert rc.dismiss_tour(R, pg, row) is True and pg.pressed == 1
+    assert row["read"] == [{"what": "first-run tour", "text": "dismissed through 'Skip tour'"}]
+    assert rc.dismiss_tour(R, pg, row) is False and pg.pressed == 1          # once per run
+    pg = _TourPage(present=False)
+    assert rc.dismiss_tour(_tour_run(), pg, {"read": []}) is False and pg.pressed == 0   # control: no tour
+    pg = _TourPage()
+    assert rc.dismiss_tour(_tour_run(notes={"n": 3}), pg, {"read": []}) is False and pg.waited == 0   # has notes
+    with pytest.raises(rc.Inconclusive, match="did not close"):
+        rc.dismiss_tour(_tour_run(), _TourPage(closes=False), {"read": []})
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert "    dismiss_tour(R, pg, row)\n    return ms" in src.replace("\r\n", "\n")       # every goto looks for it
+    assert rc.TOUR_SKIP == "Skip tour"
+
+
+def test_t3_a_measure_target_finds_the_toggle_under_both_real_names():
+    seen = {}
+
+    class Pg:
+        def get_by_role(self, role, name=None, exact=False, include_hidden=False):
+            seen.update(role=role, name=name, exact=exact)
+            return "loc"
+    rc.measure_locator(None, Pg(), {"role": "button", "name": ["Add details", "Details"]})
+    assert seen["name"].match("Details") and seen["name"].match("Add details") and not seen["name"].match("Detailsx")
+    rc.measure_locator(None, Pg(), {"role": "button", "name": "Add details"})
+    assert (seen["name"], seen["exact"]) == ("Add details", True)                  # control: one name stays exact
+    for sid in ("P14.a.09", "P46.a.02", "P46.a.18"):
+        t = next(x for x in _step(sid)["measure"] if x["defect"] == "D-W11-001")
+        assert t["name"] == ["Add details", "Details"], sid
+
+
+def test_t4_the_specd_count_sentences_are_exempt_only_where_a_step_declares_the_zero():
+    summary = "Net P&L for closed trades in the last 90 days, all accounts. 0 trades."
+    assert rc.zeros_in("Win rate. Not enough trades yet (0)", zero_ok=True) == []
+    assert rc.zeros_in(summary, zero_ok=True) == []
+    # W11-R83 I-1, the over-suppression control: a member with trades who is shown "0 trades" FAILS
+    assert rc.zeros_in(summary) == ["0 trades"] and rc.zeros_in("Win rate. Not enough trades yet (0)") == ["(0)"]
+    assert rc.zeros_in("You made 0 trades today", zero_ok=True) == ["0 trades"]  # a bare zero is never exempt
+    declared = sorted(f"{pid}:{st.get('zero_ok_why', '')[:0]}" for pid, st in
+                      [(p["id"], st) for p in SPEC["personas"] for sc in p["scripts"] for st in sc["steps"]]
+                      if st.get("zero_ok"))
+    assert declared == ["P03:", "P12:"]
+    assert _step("P03.b.04")["zero_ok"] and _step("P12.a.04")["zero_ok"] and _step("P03.b.04")["zero_ok_why"]
+    read = frontend_read()
+    for rx, path, frag in rc.ZERO_EXEMPT:
+        assert frag in (read(path) or ""), (path, frag)                          # each exemption quotes its source
+
+
+def test_t5_p05_seeds_every_trade_inside_the_equity_curves_90_days():
+    spec = next(p for p in SPEC["personas"] if p["id"] == "P05")["data"]["trades"]
+    assert spec["n"] > 5000
+    # n sessions span at most n * 7/5 calendar days, plus at most 10 exchange holidays in any 90-day window
+    assert spec["sessions"] * 7 / 5 + 10 < 90, spec
+
+
+def test_t6_a_sentence_in_the_preview_pane_is_found_and_the_read_reaches_it():
+    long = "x " * 1200 + "None of these trades have a value for ET hour yet."
+    assert rc.sentence_in("None of these trades have a value for ET hour yet.", long)
+    assert "None of these trades have a value for ET hour yet." in rc.text_window("None of these trades", long)
+    assert not rc.sentence_in("None of these trades have a value for Setup yet.", long)      # control
+    assert rc.READ_TEXT_MAX >= 6000
+
+
+class _SettlePage:
+    def __init__(self, lives, busy):
+        self.lives, self.busy = list(lives), list(busy)
+
+    def evaluate(self, js):
+        if js == rc.BUSY_JS:
+            return self.busy.pop(0) if len(self.busy) > 1 else self.busy[0]
+        live = self.lives.pop(0) if len(self.lives) > 1 else self.lives[0]
+        return {"live": live, "line": None, "bar": None}
+
+    def wait_for_timeout(self, ms):
+        import time as _t
+        _t.sleep(ms / 1000)
+
+
+def test_t7_the_retry_baseline_waits_for_the_last_previews_announcement():
+    pg = _SettlePage(["stale summary", "stale summary", "fresh summary"], [True, True, False])
+    got = rc.wait_live_settled(pg, {"settle_ms": 300, "settle_timeout_ms": 5000})
+    assert got["live"] == "fresh summary"                                        # never the stale one
+    with pytest.raises(rc.Inconclusive, match="never settled"):
+        rc.wait_live_settled(_SettlePage(["a"], [True]), {"settle_ms": 100, "settle_timeout_ms": 600})
+
+
+def test_t8_the_retrys_own_503s_are_expected_not_findings():
+    good = {"live": SUMMARY, "line": LAST, "bar": None}
+    w = _RetryWorld([good] * 7, before={"live": SUMMARY, "line": None, "bar": None})
+    row = {"checks": [], "read": []}
+    rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1,
+                                            "settle_ms": 1}, row)
+    assert 503 not in row.get("expect_status", [])                               # never status-wide (W11-R83 m-1)
+    assert row["expect_http"] == [{"status": 503, "url": "/api/j2/widget-definitions/preview", "max": 2}]
+
+
+def test_t9_an_offline_disabled_tick_is_pressed_anyway():
+    pressed = {}
+
+    class Box:
+        def get_attribute(self, k):
+            return "true" if k == "aria-disabled" else None
+
+        def scroll_into_view_if_needed(self, **k):
+            pass
+
+        def click(self, **k):
+            pressed.update(k)
+
+    class Boxes:
+        def nth(self, i):
+            return Box()
+
+    class Pg:
+        def locator(self, sel):
+            return Boxes()
+
+        def wait_for_timeout(self, ms):
+            pass
+    R = type("R", (), {"keyboard": False, "touch": False, "page": lambda self: Pg()})()
+    row = {"read": []}
+    rc.a_tick(R, {"index": 0}, row)
+    assert pressed.get("force") is True and row["read"][0]["what"] == "the tick is aria-disabled"
+
+
+def test_t10_own_data_and_sample_previews_name_templates_that_carry_widgets():
+    seed = json.loads(frontend_read()("api/services/journal_two/template_library_seed.json"))
+    defs = {t["title"]: len(t.get("definitions") or []) for t in seed["templates"]}
+    for pid, st in steps_of("w11_preview"):
+        if st.get("expect_own_data") or st.get("expect_sample") or st.get("expect_card_sentence"):
+            assert defs.get(st["template"], 0) > 0, (pid, st["template"])
+    assert defs["Pre-market prep"] == 0                                           # why P35's own-data moved
+
+
+def test_t11_t12_t13_the_use_sends_the_clients_choices_and_reads_the_members_own_pick(stub, tmp_path):
+    q = {"slot": "routine_a", "use": {"id": "r-morning", "name": "Morning routine"}}
+    state = {"uses": False, "keys": set()}
+
+    def ans(method, path, headers, body):
+        if path.endswith("/preview-mine"):
+            return 200, {"slots": [], "cards": [], "tools": [], "questions": [] if state["uses"] else [q]}
+        if path.startswith("/api/j2/journal-styles"):
+            return 200, {"styles": [{"id": "c1", "sourceGalleryId": "g-pmp"}] if state["uses"] else []}
+        if path.endswith("/use-template"):
+            k = headers.get("Idempotency-Key")
+            replay = k in state["keys"]
+            state["keys"].add(k)
+            return 200, {"note": {"id": "n1"}, "style": {"id": "c1", "name": "Pre-market prep"}, "replayed": replay,
+                         "created": {"widgets": [], "routines": [], "trackers": []}, "reused": {"routines": []}}
+        return 404, {}
+    lib_two(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    R.member = {"session": "s40", "routines": [{"name": "Morning routine", "id": "r-morning"}]}
+    pv = step(g, R, {"do": "w11_preview", "template": "Pre-market prep", "expect_question_use": "Morning routine"})
+    assert pv["verdict"] == "PASS", pv
+    use = step(g, R, {"do": "w11_use", "template": "Pre-market prep", "pick": "suggested",
+                      "expect_reused": "Morning routine"})
+    assert use["verdict"] == "PASS", use
+    sent = [json.loads(s["body"]) for s in posts(stub, "/use-template")]
+    assert sent and all(b.get("choices") == {"routine_a": {"use": "r-morning"}} for b in sent)       # T-13
+    assert R.alias["use_routine"]["id"] == "r-morning"                                              # T-11
+    state["uses"] = True                                                                            # T-12
+    R.remembered.clear()
+    pv2 = step(g, R, {"do": "w11_preview", "template": "Pre-market prep", "expect_question_use": "Morning routine"})
+    assert pv2["verdict"] == "PASS", pv2
+    state["uses"] = False
+    q["use"] = None                                                                                 # auto: create
+    R.remembered.clear()
+    stub.seen.clear()
+    step(g, R, {"do": "w11_use", "template": "Pre-market prep", "pick": "auto"})
+    assert [json.loads(s["body"]).get("choices") for s in posts(stub, "/use-template")][0] == \
+        {"routine_a": {"create": True}}
+
+
+def test_t11_a_use_that_made_a_routine_in_place_of_the_pick_fails(stub, tmp_path):
+    q = {"slot": "routine_a", "use": {"id": "r-morning", "name": "Morning routine"}}
+    keys = set()
+
+    def ans(method, path, headers, body):
+        if path.endswith("/preview-mine"):
+            return 200, {"slots": [], "cards": [], "tools": [], "questions": [q]}
+        k = headers.get("Idempotency-Key")
+        replay = k in keys
+        keys.add(k)
+        return 200, {"note": {"id": "n1"}, "replayed": replay,
+                     "created": {"widgets": [], "routines": [] if replay else [{"id": "r-new"}], "trackers": []}}
+    lib_two(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    R.member = {"session": "s", "routines": [{"name": "Morning routine", "id": "r-morning"}]}
+    row = step(g, R, {"do": "w11_use", "template": "Pre-market prep", "pick": "suggested",
+                      "expect_reused": "Morning routine"})
+    assert row["verdict"] == "FAIL"
+    assert [c["what"] for c in row["checks"] if not c["ok"]] ==         ["the Use made no new routine in place of the member's own 'Morning routine'"]      # only that check
+
+
+def test_t6_expectations_find_a_sentence_the_text_query_missed(monkeypatch):
+    want = "None of these trades have a value for ET hour yet."
+
+    class Sur:
+        def get_by_text(self, *a, **k):
+            class L:
+                @property
+                def first(self):
+                    return self
+
+                def wait_for(self, **k):
+                    raise TimeoutError("missed")
+            return L()
+
+        def inner_text(self, timeout=None):
+            return "x " * 1200 + want
+
+        def evaluate(self, js):
+            assert js == rc.BODY_TEXT_JS                                         # the body, never the live region
+            return "x " * 1200 + want
+    monkeypatch.setattr(rc, "surface", lambda pg, within: Sur())
+    R = type("R", (), {"page": lambda self: None})()
+    R.g = type("G", (), {"sentence": lambda self, k: want})()
+    row = {"checks": [], "read": []}
+    rc.expectations(R, {"expect": ["split_none_hour"]}, row)
+    assert [c["ok"] for c in row["checks"]] == [True] and want in row["checks"][0]["read"]
+    assert len(row["read"][0]["text"]) > 1500                                     # the read reaches the pane
+
+
+def test_t13_the_p39_race_and_key_steps_send_the_clients_choices(stub, tmp_path):
+    library_then(stub, lambda *a: (200, {"note": {"id": "n1"}, "replayed": False}))
+    g, R = fake_run(tmp_path, stub.base)
+    step(g, R, {"do": "w11_unkeyed", "template": "Pre-market prep"})
+    bodies = [json.loads(s["body"]) for s in posts(stub, "/use-template")]
+    assert bodies and all(b.get("choices") == {"routine_a": {"create": True}} for b in bodies)
+
+
+def test_t14_the_admin_signs_in_once_per_campaign_and_later_runs_reuse_the_session():
+    logins, cookies_added = [], []
+
+    class Resp:
+        def __init__(self, status, body=None):
+            self.status, self.ok, self._b = status, status == 200, body or {}
+
+        def json(self):
+            return self._b
+
+    class Req:
+        def post(self, url, data):
+            logins.append(url)
+            return Resp(200)
+
+        def get(self, url):
+            return Resp(200, {"role": "admin"})
+
+    class Ctx:
+        def cookies(self):
+            return [{"name": "uct_session", "value": "admin-sess"}]
+
+        def add_cookies(self, c):
+            cookies_added.extend(c)
+    facts = {}
+
+    def run():
+        R = type("R", (), {})()
+        R.p, R.member = {"id": "P45"}, {"email": "a@x", "password": "p"}
+        R.g = type("G", (), {"base": "http://127.0.0.1:1", "facts": facts})()
+        R.contexts = {"main": Ctx()}
+        R.page = lambda name="main": type("P", (), {"request": Req()})()
+        row = {"checks": [], "read": []}
+        rc.a_admin_login(R, {}, row)
+        return row
+    run()
+    assert len(logins) == 1 and facts[("P45", "admin_session")] == "admin-sess"
+    for _ in range(5):
+        assert all(c["ok"] for c in run()["checks"])
+    assert len(logins) == 1 and len(cookies_added) == 5                          # six runs, ONE sign-in
+
+
+def test_t15_a_throttled_run_waits_for_its_own_network_and_still_has_a_bound():
+    prof = rc.THROTTLE_PROFILES["fast-3g"]
+    w = rc.throttle_wait_ms(prof["down_kbps"], prof["latency_ms"])
+    assert rc.T < w < 10 * 60 * 1000                                             # longer than 30 s, still bounded
+    assert rc.throttle_wait_ms(400, 300) > rc.throttle_wait_ms(1440, 300)
+    R = rc.Run.__new__(rc.Run)
+    R.slow_ms = 0
+    assert R.t() == rc.T and R.t(60000) == 60000                                 # control: no throttle
+    R.slow_ms = w
+    assert R.t() == w
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    body = src[src.index("def a_open_note"):src.index("def render_all")]
+    assert body.count("timeout=R.t(") >= 1 and 'wait_for(state="attached", timeout=R.t())' in body
+    assert _step("P50.a.01") == {"do": "throttle", "profile": "fast-3g"}
+
+
+def test_t16_p06_discards_on_close():
+    assert _step("P06.a.06").get("discard") is True
+
+
+def test_t17_an_obscured_unfocused_target_is_not_a_finding():
+    v = {"id": "target-size", "impact": "serious", "help": "h", "nodes": 1, "targets": ["#a"],
+         "node_info": [{"summary": "Target is partially obscured", "focused": False, "underBar": True}]}
+    assert rc.obscured_unfocused(v, keyboard=True)
+    assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target is partially obscured", "focused": True,
+                                                          "underBar": True}]}, keyboard=True)
+    assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target has insufficient size", "focused": False,
+                                                          "underBar": True}]}, keyboard=True)
+    R = type("R", (), {"touch": False, "keyboard": True})()
+    row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [v]}}}
+    assert rc.findings_of(R, row) == []
+    row["metrics"]["axe"]["violations"][0]["node_info"][0]["focused"] = True     # control: focused, filed
+    assert [f["kind"] for f in rc.findings_of(R, row)] == ["axe:serious"]
+
+
+def test_t18_a_stranger_reads_the_shared_and_published_pages():
+    import inspect
+    src = inspect.getsource(sm.seed_member)
+    assert "svc.shares.create_share(uid, nid)" in src and "svc.publish.publish_note(uid, nid)" in src
+    assert "SHARED_NOTE_PATH = '" + sm.SHARED_NOTE_PATH + "'" in frontend_read()("app/src/pages/journal-2-0/lib/noteShareLink.js")
+    p48 = next(p for p in SPEC["personas"] if p["id"] == "P48")
+    assert p48["data"]["public"]["share"] and p48["data"]["public"]["publish"] and p48["data"]["session"] is False
+    pages = [st["page"] for sc in p48["scripts"] for st in sc["steps"] if st["do"] == "open_public_page"]
+    assert pages == ["share", "publish"]
+    R = type("R", (), {"member": {}, "p": {"id": "P48"}})()
+    with pytest.raises(rc.Inconclusive, match="no share page"):
+        rc.a_open_public_page(R, {"page": "share"}, {"checks": [], "read": []})
+
+
+def test_t19_the_served_env_reaches_no_network_but_loopback(tmp_path):
+    fw = _g3_fw(tmp_path, {}, all_names=[], c1=[])
+    env = rc.campaign_env(rc.campaign_flag_sets(fw), base={"PATH": "x"})[0]
+    block = rc.outbound_block()
+    for k in ("HTTP_PROXY", "HTTPS_PROXY", "https_proxy", "NO_PROXY"):
+        assert env[k] == block[k], k
+    assert block["HTTPS_PROXY"].startswith("http://127.0.0.1:") and "127.0.0.1" in block["NO_PROXY"]
+    sb = rc.OwnedSandbox.__new__(rc.OwnedSandbox)
+    sb.app_root, sb.out = tmp_path, tmp_path
+    assert "--block-outbound" in sb.launcher_args()
+    src = rc.TOOL_LAUNCHER.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert "        _refuse_block_port_listening()\n        os.environ.update(OUTBOUND_BLOCK)" in src
+
+
+def test_t20_a_clock_boot_exits_on_ctrl_break():
+    import ast
+    tree = ast.parse((REPO / "tools" / "notebook_campaign" / "sandbox_clock.py").read_text(encoding="utf-8"))
+    runs = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "run"
+            and getattr(n.func.value, "id", "") == "uvicorn"]
+    assert runs and all(any(k.arg == "timeout_graceful_shutdown" for k in r.keywords) for r in runs)
+    src = (REPO / "tools" / "notebook_campaign" / "sandbox_clock.py").read_text(encoding="utf-8")
+    assert "os._exit(code)" in src[src.index('if __name__ == "__main__":'):]
+
+
+def test_coverage_every_persona_has_more_than_one_step_or_says_why():
+    for p in SPEC["personas"]:
+        n = sum(len(sc["steps"]) for sc in p["scripts"])
+        assert n > 1 or p.get("single_step_why"), p["id"]
+
+
+def test_coverage_every_persona_carries_its_served_run_validation_record():
+    for p in SPEC["personas"]:
+        v = p.get("validated")
+        assert isinstance(v, dict) and v["served_run"] and v["runs"] and "triage" in v, p["id"]
+
+
+# ── W11-R83: the R81 review's fixes, each with an over-suppression control (mutate_r83.py turns each red) ─────────
+
+def _expect_zero(text, zero_ok):
+    class Sur:
+        def inner_text(self, timeout=None):
+            return text
+    R = type("R", (), {"page": lambda self: None})()
+    row = {"checks": [], "read": []}
+    import types
+    orig = rc.surface
+    rc.surface = lambda pg, within: Sur()
+    try:
+        rc.expectations(R, {"forbid": ["zeros"], **({"zero_ok": True} if zero_ok else {})}, row)
+    finally:
+        rc.surface = orig
+    return [c["ok"] for c in row["checks"]]
+
+
+def test_i1_a_step_that_does_not_declare_the_zero_fails_on_0_trades():
+    summary = "Net P&L for closed trades in the last 90 days, all accounts. 0 trades."
+    assert _expect_zero(summary, zero_ok=False) == [False]                       # the seeded book's control
+    assert _expect_zero(summary, zero_ok=True) == [True]
+
+
+def _ov(nodes=1, info=None, under=True, focused=False, summary="Target is partially obscured"):
+    info = info if info is not None else [{"target": f"#c{i}", "summary": summary, "underBar": under,
+                                           "focused": focused} for i in range(nodes)]
+    return {"id": "target-size", "impact": "serious", "help": "h", "nodes": nodes, "targets": ["#c0"],
+            "node_info": info}
+
+
+def test_i2_the_obscured_suppression_is_the_d005_geometry_only_and_is_recorded():
+    assert rc.obscured_unfocused(_ov(), keyboard=True)
+    assert not rc.obscured_unfocused(_ov(), keyboard=False)                       # a pointer-mode node is filed
+    assert not rc.obscured_unfocused(_ov(under=False), keyboard=True)             # covered by anything else: filed
+    assert not rc.obscured_unfocused(_ov(focused=True), keyboard=True)
+    thirteen = _ov(nodes=13)
+    thirteen["node_info"] = thirteen["node_info"][:12]                            # a 13th node not read: filed
+    assert not rc.obscured_unfocused(thirteen, keyboard=True)
+    assert rc.obscured_unfocused(_ov(nodes=13), keyboard=True)                    # all 13 read and covered: suppressed
+    assert ".map(n => { let el" in rc.AXE_RUN_JS and "slice(0, 12).map(n => { let el" not in rc.AXE_RUN_JS
+    assert "builder-summary-bar" in rc.AXE_RUN_JS
+    R = type("R", (), {"touch": False, "keyboard": True})()
+    row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov()]}}}
+    assert rc.findings_of(R, row) == [] and row["suppressed"][0]["targets"] == ["#c0"]
+    R.keyboard = False
+    row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov()]}}}
+    assert [f["kind"] for f in rc.findings_of(R, row)] == ["axe:serious"] and "suppressed" not in row
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert 'res["suppressed"] = [{"step": x["step"], **sup} for x in R.steps' in src
+
+
+def test_i3_the_moved_lines_are_pinned_to_the_served_tree():
+    want = {"key_in_flight": 4318, "key_reused": 4317, "listing_moved": 3273, "helpful_days": 5220}
+    for k, line in want.items():
+        assert SPEC["sentences"][k]["source"].endswith(f":{line}"), (k, SPEC["sentences"][k]["source"])
+
+
+def test_i4_the_stranger_pages_forbid_the_private_note_its_body_tag_and_the_member_id(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(rc, "check_public_page", lambda R, row, pub, keys, texts, forbid: seen.update(forbid=forbid))
+    walk = type("W", (), {"VIEWPORTS": {"1200": (1200, 800)}, "open_public": staticmethod(lambda *a, **k: {})})
+    R = type("R", (), {})()
+    R.vp, R.p = "1200", {"id": "P48"}
+    R.g = type("G", (), {"walk": walk, "browser": None, "base": "http://127.0.0.1:1"})()
+    R.member = {"email": "p48@x", "user_id": "u-48", "public": {
+        "share_path": "/share/n/t", "title": "Pub", "text": "Pub body",
+        "private": {"title": "Secret zq7", "text": "Secret body", "tag": "zq7-private"}}}
+    rc.a_open_public_page(R, {"page": "share"}, {"checks": [], "read": []})
+    assert {"p48@x", "u-48", "Secret zq7", "Secret body", "zq7-private"} <= set(seen["forbid"])
+    R.member["public"].pop("private")
+    with pytest.raises(rc.Inconclusive, match="no private sibling"):
+        rc.a_open_public_page(R, {"page": "share"}, {"checks": [], "read": []})
+    import inspect
+    src = inspect.getsource(sm.seed_member)
+    assert 'svc.notes.create_note(uid, {"title": pv["title"], "bodyJson": pbody, "tags": [pv["tag"]]})' in src
+    priv = next(p for p in SPEC["personas"] if p["id"] == "P48")["data"]["public"]["private"]
+    assert priv["title"] and priv["text"] and priv["tag"]
+
+
+def test_m1_the_retrys_exemption_is_its_url_and_its_count():
+    R = type("R", (), {"touch": False})()
+
+    def files(events, mx=2):
+        row = {"expect_status": [], "expect_http": [{"status": 503, "url": "/api/j2/widget-definitions/preview",
+                                                     "max": mx}], "events": {"main": events}}
+        return [f["detail"] for f in rc.findings_of(R, row)]
+    pv = {"http": 503, "method": "POST", "url": "http://x/api/j2/widget-definitions/preview"}
+    assert files([pv, pv]) == []
+    assert len(files([pv, pv, pv])) == 1                                          # a third 503 than intercepted
+    assert len(files([{"http": 503, "method": "POST", "url": "http://x/api/j2/widget-definitions/run"}])) == 1
+
+
+def test_m2_a_sentence_only_in_the_live_region_is_not_found_in_the_body(monkeypatch):
+    want = "None of these trades have a value for ET hour yet."
+
+    class Sur:
+        def get_by_text(self, *a, **k):
+            class L:
+                @property
+                def first(self):
+                    return self
+
+                def wait_for(self, **k):
+                    raise TimeoutError("missed")
+            return L()
+
+        def inner_text(self, timeout=None):
+            return "body text " + want                                            # the live region says it
+
+        def evaluate(self, js):
+            return "body text"                                                     # the body does not
+    monkeypatch.setattr(rc, "surface", lambda pg, within: Sur())
+    R = type("R", (), {"page": lambda self: None})()
+    R.g = type("G", (), {"sentence": lambda self, k: want})()
+    row = {"checks": [], "read": []}
+    rc.expectations(R, {"expect": ["split_none_hour"]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False]
+    assert "[aria-live]" in rc.BODY_TEXT_JS and ".remove()" in rc.BODY_TEXT_JS
+
+
+def test_m3_a_dismissed_tour_is_recorded_on_the_run():
+    pg, R = _TourPage(), _tour_run()
+    rc.dismiss_tour(R, pg, None)
+    assert R.tour_dismissed is True
+
+
+def test_m4_a_use_with_no_question_sends_empty_choices_like_the_client(stub, tmp_path):
+    def ans(method, path, headers, body):
+        if path.endswith("/preview-mine"):
+            return 200, {"slots": [], "cards": [], "tools": [], "questions": []}
+        return 200, {"note": {"id": "n1"}, "replayed": False}
+    lib_two(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    step(g, R, {"do": "w11_use", "template": "Pre-market prep", "pick": "auto"})
+    body = json.loads(posts(stub, "/use-template")[0]["body"])
+    assert body.get("choices") == {} and body.get("answers") == {}
+
+
+def test_m5_every_expect_reused_step_also_proves_the_pick_by_its_embed():
+    found = [(pid, st) for pid, st in steps_of("w11_use") if st.get("expect_reused")]
+    assert found and all(st.get("expect_embed_routine") == st["expect_reused"] for _, st in found), found
+
+
+def test_m6_the_launcher_refuses_a_block_port_that_listens():
+    import socket
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    port = srv.getsockname()[1]
+    try:
+        with pytest.raises(SystemExit):
+            boot._refuse_block_port_listening(port)
+    finally:
+        srv.close()
+    boot._refuse_block_port_listening(port)                                       # control: nothing listens now
+    src = rc.TOOL_LAUNCHER.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert "    if args.block_outbound:\n        _refuse_block_port_listening()" in src
+    assert "trust_env=False" in src                                               # the gap, recorded
+
+
+def test_i3_the_g4_rail_reads_the_served_tree_not_a_ref(tmp_path):
+    """Right after a merge the ref and the served tree agree, so a ref-reading rail would pass today and go stale
+    under the next merge: the rail must read the working tree, and say so in its source."""
+    import inspect
+    (tmp_path / "a.txt").write_text("served", encoding="utf-8")
+    assert rc.tree_reader(tmp_path)("a.txt").strip() == "served"
+    assert rc.tree_reader(tmp_path)("missing.txt") is None
+    src = inspect.getsource(test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line)
+    assert "rc.tree_reader(REPO)" in src and "frontend_read()" not in src

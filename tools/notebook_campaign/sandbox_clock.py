@@ -856,12 +856,24 @@ def main(argv=None) -> int:
     body["clock_shift"] = {**shift.report(), "unshiftable_tables": sorted(unshift["static"]["tables"])}
     import uvicorn  # noqa: E402
     try:
-        uvicorn.run(sid.wrap_app(_app, body), host=args.host, port=args.port, log_level="warning")
+        # T-20: a bounded graceful shutdown, so CTRL_BREAK ends a boot whose background work is still running
+        uvicorn.run(sid.wrap_app(_app, body), host=args.host, port=args.port, log_level="warning",
+                    timeout_graceful_shutdown=SHUTDOWN_GRACE_S)
     finally:
         n = len(conftest.SHARED_ROOT_VIOLATIONS)
         print(f"  [shutdown] shared-root writes blocked during this run: {n}", flush=True)
     return 2 if conftest.SHARED_ROOT_VIOLATIONS else 0
 
 
+#: T-20 (W11-R81): how long uvicorn waits for open requests once CTRL_BREAK arrives. Clock boot 10 of the full run
+#: ignored the signal (busy prewarm threads kept the process alive) and was stopped by PID.
+SHUTDOWN_GRACE_S = 15
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    code = main()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    # T-20: the app's non-daemon background threads (prewarms) must not hold the process open after the server has
+    # stopped: exit now, with the code main() decided.
+    os._exit(code)

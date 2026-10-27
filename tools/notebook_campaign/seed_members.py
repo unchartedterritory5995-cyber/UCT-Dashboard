@@ -103,8 +103,27 @@ def _const_str(e: ast.AST) -> str:
     return ast.literal_eval(e)
 
 
+#: The public share page's path (app/src/pages/journal-2-0/lib/noteShareLink.js SHARED_NOTE_PATH); a rail reads it.
+SHARED_NOTE_PATH = "/share/n"
+
+
+def persona_instants(p: dict, defaults: dict) -> list[datetime]:
+    """Every instant the persona runs at: `clock` is one ISO instant or a LIST (run_campaign.clock_instants, a story
+    across days: P20, P37, P38, P41). Each must carry a UTC offset; anything else is refused, never guessed."""
+    raw = p.get("clock") or defaults["clock"]
+    items = raw if isinstance(raw, list) else [raw]
+    if not items or not all(isinstance(x, str) and x for x in items):
+        raise SystemExit(f"REFUSED: {p.get('id')}'s clock {raw!r} is not an ISO instant or a list of them")
+    out = [datetime.fromisoformat(x) for x in items]
+    if any(x.tzinfo is None for x in out):
+        raise SystemExit(f"REFUSED: {p.get('id')}'s clock {raw!r} has an instant with no UTC offset")
+    return out
+
+
 def persona_clock(p: dict, defaults: dict) -> datetime:
-    return datetime.fromisoformat(p.get("clock") or defaults["clock"])
+    """The instant a persona is SEEDED at (tooling defect T-1: a list clock crashed the seeder). The EARLIEST of its
+    instants, so every seeded date precedes every instant the runner later boots the clock launcher at."""
+    return min(persona_instants(p, defaults))
 
 
 # ── the recipe: what one persona gets (deterministic) ─────────────────────────────────────
@@ -189,12 +208,14 @@ class Services:
 
     def __init__(self):
         from api.services import auth_service, auth_db
-        from api.services.journal_two import (accounts, journal_styles, note_properties, notes, options,
-                                              routines, trackers, trades, trading_days, widget_definitions)
+        from api.services.journal_two import (accounts, journal_styles, note_properties, note_publish, note_shares,
+                                              notes, options, routines, trackers, trades, trading_days,
+                                              widget_definitions)
         self.auth, self.auth_db = auth_service, auth_db
         self.accounts, self.styles, self.props, self.notes = accounts, journal_styles, note_properties, notes
         self.options, self.routines, self.trackers, self.trades = options, routines, trackers, trades
         self.days, self.defs = trading_days, widget_definitions
+        self.shares, self.publish = note_shares, note_publish
 
 
 def sessions_before(svc: Services, clock: datetime, n: int) -> list[date]:
@@ -230,7 +251,8 @@ def seed_member(svc: Services, p: dict, idx: int, seed: int, defaults: dict, cor
     clock = persona_clock(p, defaults)
     data = p.get("data") or {}
     email = p["email"]
-    rec: dict = {"persona": p["id"], "email": email, "password": PASSWORD, "clock": clock.isoformat()}
+    rec: dict = {"persona": p["id"], "email": email, "password": PASSWORD, "clock": clock.isoformat(),
+                 "clock_instants": [x.isoformat() for x in persona_instants(p, defaults)]}
     user = svc.auth.create_user(email, PASSWORD, p.get("display_name") or f"Campaign {p['id']}")
     uid = user["id"]
     rec["user_id"] = uid
@@ -326,6 +348,25 @@ def seed_member(svc: Services, p: dict, idx: int, seed: int, defaults: dict, cor
             continue
         note_ids.append(_id(note))
     rec["notes"] = note_ids[:25]
+
+    # T-18: public pages a stranger opens (P48): one note, shared by link and published, through the app's own doors
+    pub = data.get("public") or {}
+    if pub:
+        body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": pub["text"]}]}]}
+        nid = _id(svc.notes.create_note(uid, {"title": pub["title"], "bodyJson": body, "tags": []}))
+        rec["public"] = {"note": nid, "title": pub["title"], "text": pub["text"]}
+        if pub.get("private"):
+            # W11-R83 I-4: a PRIVATE sibling (never shared): its title, body and tag must never reach a stranger
+            pv = pub["private"]
+            pbody = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": pv["text"]}]}]}
+            pid_ = _id(svc.notes.create_note(uid, {"title": pv["title"], "bodyJson": pbody, "tags": [pv["tag"]]}))
+            rec["public"]["private"] = {"note": pid_, "title": pv["title"], "text": pv["text"], "tag": pv["tag"]}
+        if pub.get("share"):
+            share = svc.shares.create_share(uid, nid)
+            rec["public"]["share_path"] = f"{SHARED_NOTE_PATH}/{share['token']}" if share else None
+        if pub.get("publish"):
+            page = svc.publish.publish_note(uid, nid)
+            rec["public"]["publish_path"] = page.get("path") if page else None
 
     # routines
     rec["routines"] = []
