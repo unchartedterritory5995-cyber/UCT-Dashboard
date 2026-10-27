@@ -83,6 +83,7 @@ from fastapi.responses import JSONResponse
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.routers import notebook_widget_definitions as definitions
 from api.services import request_body_cap as body_cap
+from api.services.journal_two import library_rows
 from api.services.journal_two import notebook_widgets as nwidgets
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import routine_days
@@ -383,7 +384,7 @@ def _if_match(request: Request, stale_sentence: str) -> int:
 def list_routines(filter: str = "active", user: dict = Depends(require_paid)) -> Any:
     uid = _uid(user)
     _read_rate(uid)
-    return _ok({"routines": _store(lambda: rstore.list_routines(uid, filter=filter))})
+    return _ok({"routines": library_rows.with_library_facts(uid, "routine", _store(lambda: rstore.list_routines(uid, filter=filter)))})
 
 
 @routines_router.post("")
@@ -512,7 +513,7 @@ def routine_vs_pnl(rid: str, user: dict = Depends(require_paid)) -> Any:
 def list_trackers(filter: str = "active", user: dict = Depends(require_paid)) -> Any:
     uid = _uid(user)
     _read_rate(uid)
-    return _ok({"trackers": _store(lambda: tstore.list_trackers(uid, filter=filter))})
+    return _ok({"trackers": library_rows.with_library_facts(uid, "tracker", _store(lambda: tstore.list_trackers(uid, filter=filter)))})
 
 
 @trackers_router.post("")

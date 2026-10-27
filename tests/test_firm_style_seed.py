@@ -568,3 +568,79 @@ def test_with_both_switches_on_every_firm_style_adopts(conn, monkeypatch):
         assert out is not None, r["seed_key"]
         assert out["style"]["kindId"] == json.loads(r["payload_json"])["kindId"]
         assert out["credit"] == f"Based on UCT's {r['title']}"
+
+
+W11 = "NOTEBOOK_WIDGETS_W11_ENABLED"
+
+
+@pytest.mark.parametrize("library", ["0", "1"])
+@pytest.mark.parametrize("starter", ["0", "1"])
+@pytest.mark.parametrize("wave11", ["0", "1"])
+def test_official_rows_one_rule_two_renderings(conn, monkeypatch, library, starter, wave11):
+    """Task 11.7 (W11-R4). The equality rail above, extended over the 2 x 2 x 2 states of the library, starter-packs
+    and wave 11 switches and over EVERY row kind, the official templates (`kind = 'official'`) and the three tool
+    item types included. `_hidden_styles()` answers one of five strings, `_library_hides` (one row) and the list WHERE
+    (`_hidden_styles_sql AND _type_visible_clause`) branch on that one answer and keep exactly the same rows, and each
+    answer is held to what the switches MEAN: an official row is shown only while the library AND wave 11 are on,
+    whatever the starter switch says; a firm style only while the library AND starter packs are on; a tool row only
+    while the library AND wave 11 are on. The example and layout switches are on, so they hide nothing here."""
+    lib, st, w11 = library == "1", starter == "1", wave11 == "1"
+    for name, value in ((LIBRARY, library), (STARTER, starter), (W11, wave11),
+                        (EXAMPLES, "1"), (PAGE_LAYOUTS, "1"), (SHARING, "1")):
+        monkeypatch.setenv(name, value)
+    answer = gallery._hidden_styles()
+    assert answer in ("all", "firm", "official", "firm+official", "")
+    assert answer == ("all" if not lib else "+".join(k for k, on in (("firm", st), ("official", w11)) if not on))
+    ids = {
+        "outline": _typed_row(conn, "outline", "firm", user_id=None),
+        "firm_style": _typed_row(conn, "style", "firm", user_id=None),
+        "official_style": _typed_row(conn, "style", "official", user_id=None, template_group="Daily"),
+        "member_style": _typed_row(conn, "style", "member"),
+        "example": _typed_row(conn, gallery.EXAMPLE_ITEM, "member"),
+        "layout": _typed_row(conn, gallery.LAYOUT_ITEM, "member", source_page="trade"),
+        **{t: _typed_row(conn, t, "member", source_tool_id=f"tool-{t}") for t in gallery.TOOL_ITEM_TYPES},
+    }
+    ours = set(ids.values())
+    rows = conn.execute(f"SELECT id, item_type, kind FROM j2_template_gallery WHERE id IN ({','.join('?' * len(ours))})",
+                        tuple(ours)).fetchall()
+    shown = {r["id"] for r in rows if not gallery._library_hides(r)}
+    where = f"{gallery._hidden_styles_sql()} AND {gallery._type_visible_clause()}"
+    kept = {r[0] for r in conn.execute(f"SELECT g.id FROM j2_template_gallery g WHERE {where}")} & ours
+    assert shown == kept, "the row rule and the list WHERE disagree"
+    want = {"outline": True, "firm_style": lib and st, "official_style": lib and w11, "member_style": lib,
+            "example": lib, "layout": lib, **{t: lib and w11 for t in gallery.TOOL_ITEM_TYPES}}
+    assert {k: ids[k] in shown for k in ids} == want
+    assert {i for i in ours if gallery.get_item(ADMIN, i, is_admin=True, conn=conn) is not None} == shown
+    listed = {x["id"] for x in gallery.list_gallery(MEMBER, conn=conn)} & ours
+    assert listed == shown - {ids["example"]}
+
+
+# ── Task 11.10: the official templates have their own `try` beside the firm styles (P5 row 27) ─────────────────
+
+def _kind_count(c, kind):
+    return c.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE kind = ? AND item_type = 'style'",
+                     (kind,)).fetchone()[0]
+
+
+def test_a_boot_seeds_the_official_templates_beside_the_firm_styles(booted):
+    from api.services.journal_two import template_library as tl
+    assert _kind_count(booted, "firm") == 15
+    assert _kind_count(booted, "official") == len(tl.live_rows()) == 27
+
+
+@pytest.mark.parametrize("broken", ["seed_firm_styles", "seed_template_library"])
+def test_a_failed_seed_never_skips_the_other(booted, monkeypatch, capsys, broken):
+    """Each seed has its own `try` in `ensure_gallery_schema`, so one that raises (a firm style here, the official
+    templates there) never takes the other, or the boot, down; the log line names the one that failed."""
+    from api.services.journal_two import template_library as tl
+    booted.execute("DELETE FROM j2_template_gallery")
+    booted.commit()
+
+    def boom(conn):
+        raise RuntimeError("seed broke")
+    monkeypatch.setattr(gallery if broken == "seed_firm_styles" else tl, broken, boom)
+    gallery.ensure_gallery_schema(booted)                                       # never raises
+    assert _kind_count(booted, "firm") == (0 if broken == "seed_firm_styles" else 15)
+    assert _kind_count(booted, "official") == (27 if broken == "seed_firm_styles" else 0)
+    out = capsys.readouterr().out
+    assert ("firm styles" if broken == "seed_firm_styles" else "official templates") in out

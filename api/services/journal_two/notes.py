@@ -1235,6 +1235,22 @@ def _validate_ticker(raw: Any) -> str | None:
     return t
 
 
+#: F-ALIAS-1 A3 (11.12 r2 n-1): THE ticker rule's public name (the gallery's Use door reads it before any charge).
+#: The SAME function object.
+validate_ticker = _validate_ticker
+#: The one sentence a title past `MAX_TITLE_CHARS` is refused with.
+S_TITLE_TOO_LONG = "title too long"
+
+
+def validate_title(raw: Any) -> str:
+    """THE note title rule (F-ALIAS-1 A3): trimmed, and refused past `MAX_TITLE_CHARS` with `S_TITLE_TOO_LONG`.
+    `create_note`, `update_note` and the gallery's Use door (before its charge) all call it; none restates it."""
+    title = (raw or "").strip()
+    if len(title) > MAX_TITLE_CHARS:
+        raise NoteValidationError(S_TITLE_TOO_LONG)
+    return title
+
+
 # ── Import support ───────────────────────────────────────────────────────────
 
 def _import_payload_hash(note: dict) -> str:
@@ -3449,6 +3465,7 @@ def create_note(
     properties: dict[str, Any] | None = None,
     style_stamp: tuple[str | None, int | None, str] | None = None,
     captured_properties: str = "drop",
+    commit: bool = True,
 ) -> dict[str, Any]:
     """`daily_date` and `properties` are INTERNAL (never read from `payload`,
     so `POST /notes` cannot set them): the daily note is made in ONE insert,
@@ -3461,11 +3478,15 @@ def create_note(
     written in the same insert.
     `isCopy` (exactly `true`, from `payload`) says the body is ANOTHER note's (Duplicate note): every
     check-in in it starts unpicked, through `trader_blocks.unpick_checkins` (P2 Tier 3 final fix I1). A
-    conflicted copy never sends it: it holds the member's own unsent version of the same note."""
+    conflicted copy never sends it: it holds the member's own unsent version of the same note.
+    `commit` is INTERNAL (F-NOTE-1, ruling W11-R42): `False` inserts the note on the CALLER'S connection and leaves the
+    transaction open, so the caller can write the returned note's id elsewhere (a create key) and commit both at once.
+    The caller then owns the commit, the rollback and the created events (none is logged before a commit); it needs a
+    connection of its own (`conn`), never one this opens. The default commits and logs exactly as before."""
+    if not commit and conn is None:
+        raise ValueError("create_note(commit=False) needs the caller's connection")
     payload = payload or {}
-    title = (payload.get("title") or "").strip()
-    if len(title) > MAX_TITLE_CHARS:
-        raise NoteValidationError("title too long")
+    title = validate_title(payload.get("title"))
     subtitle = payload.get("subtitle")
     if subtitle is not None:
         if not isinstance(subtitle, str):
@@ -3528,6 +3549,8 @@ def create_note(
         )
         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
         row = _read_own_write(conn, new_id)  # before the commit -- see update_note
+        if not commit:
+            return _row_to_note(row)
         conn.commit()
         _log_notebook_event(user_id, "notebook_note_created")
         if "thesis" in tags:
@@ -3908,9 +3931,7 @@ def update_note(
         params: list[Any] = []
 
         if "title" in patch:
-            t = (patch["title"] or "").strip()
-            if len(t) > MAX_TITLE_CHARS:
-                raise NoteValidationError("title too long")
+            t = validate_title(patch["title"])
             sets.append("title = ?"); params.append(t)
         if "subtitle" in patch:
             s = patch["subtitle"]

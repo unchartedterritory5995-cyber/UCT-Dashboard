@@ -27,6 +27,16 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery/authors/{handle}    paid     an author's page by opaque handle (P3a; 404 while off)
   member  POST   /api/j2/template-gallery/authors/{handle}/follow   paid  follow an author (P3a; 404 while off; 60/hour)
   member  DELETE /api/j2/template-gallery/authors/{handle}/follow   paid  stop following (P3a; 404 while off; same budget)
+  Wave 11 (Task 11.12; each 404 while wave 11 or the library is off, read per request, before the plan and the body):
+  member  POST   /api/j2/template-gallery/share/preview       paid     what sharing a widget/routine/tracker/template sends
+  member  POST   /api/j2/template-gallery/tools               paid     share a widget, routine or tracker (publish budget)
+  member  GET    /api/j2/template-gallery/library             paid     the official templates by group (?group=)
+  member  POST   /api/j2/template-gallery/tools/updates/{kind}/{copy_id}  paid  take the listed version into a copy
+  member  GET    /api/j2/template-gallery/notes/{note_id}/helpful-prompt  paid  the 3rd-day line (read-only)
+  member  POST   /api/j2/template-gallery/{gallery_id}/preview-mine   paid  preview with my data (preview budget)
+  member  POST   /api/j2/template-gallery/{gallery_id}/adopt-tool     paid  adopt a listed tool (adopt budget)
+  member  POST   /api/j2/template-gallery/{gallery_id}/use-template   paid  make a note from a template (adopt budget)
+  member  POST   /api/j2/template-gallery/{gallery_id}/helpful-prompt paid  answer the 3rd-day line (Helpful budget)
   admin   GET    /api/j2/template-gallery/admin/queue                  pending, reported, hidden
   admin   PATCH  /api/j2/template-gallery/admin/items/{gallery_id}     approve|reject|hide|unhide|feature|unfeature
   admin   PATCH  /api/j2/template-gallery/admin/reports/{report_id}    hide|dismiss
@@ -64,14 +74,25 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 
 from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import (
     get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
 )
 from api.services import daily_counters
+from api.services.journal_two import journal_styles as js
+from api.services.journal_two import notes as notes_service
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import template_gallery as gallery
+from api.services.journal_two import template_library
+from api.services.journal_two import template_preview
+from api.services.journal_two import widget_definitions as wdefs
+from api.services.journal_two import widget_request_body as wbody
+from api.services.journal_two.notebook_widgets import notebook_widgets_wave_on
+from api.services.journal_two.tool_errors import ToolError
+from api.services.journal_two.widget_engine import run as wrun
+from api.services.journal_two.widget_engine.plan import PlanError, PlanTooNew
 
 PUBLISH_RATE = "10/hour"
 REPORT_RATE = "30/hour"
@@ -148,7 +169,8 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
     reads the sentence as a literal in the HTTPException call)."""
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="The community template gallery requires a paid plan")
+        raise HTTPException(status_code=402, detail="The community template gallery requires a paid plan",
+                            headers={"Cache-Control": "no-store"})
     return user
 
 
@@ -159,15 +181,27 @@ async def _read_json(request: Request) -> dict[str, Any]:
     if not raw.strip():
         return {}
     try:
-        data = json.loads(raw)
+        data = wbody.loads_plain_body(raw)      # F-ALIAS-1R A5: a body too deep to parse is its 400, never a 500
     except ValueError:
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers=dict(NO_STORE))
     if not isinstance(data, dict):
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers=dict(NO_STORE))
+    if wbody.unsavable_text(data):
+        # Task 11.12 fix round 2 (I-A): a lone surrogate is the ONE body-reader refusal (`unsavable_text`), here in
+        # this router's plain-sentence shape. It was a 500 on every door this reader serves.
+        raise HTTPException(status_code=400, detail=wbody.bad_character_sentence(), headers=dict(NO_STORE))
     return data
 
 
 async def paid_body(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
+    return await _read_json(request)
+
+
+async def library_body(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`/styles` and `/{id}/adopt` (Task 11.12 m-8): while wave 11 is on they carry wave 11's inputs (`edits`, `keep`,
+    `answers`, `choices`), so the body is read by the wave 11 reader (16 KB, depth 16); off, by today's."""
+    if _w11_on():
+        return await w11_body(request, _user)
     return await _read_json(request)
 
 
@@ -186,13 +220,27 @@ def _cap(env: str, default: int) -> int:
         return default
 
 
-def _daily_take(scope: str, user: dict, cap_env: str, default: int, sentence: str) -> str:
-    """One durable charge for today (ET), or a 429 with the plain sentence. Returns the day
-    so a refused write can give the charge back."""
+def _hit(limit: str, scope: str, user: dict, sentence: str, *, w11: bool = False) -> None:
+    """THE in-process rate rule of this router: one `public.enforce_rate` hit, keyed on the member. `w11` only
+    changes the SHAPE of the 429 (a wave 11 door answers `{code: rate, message}` with no-store); the bucket and
+    the count are the same, so a scope shared by an old and a wave 11 door is one budget."""
+    try:
+        public.enforce_rate(limit, scope, f"member:{user['id']}", sentence, public=False)
+    except HTTPException as e:
+        if w11 and e.status_code == 429:
+            raise _err(429, "rate", sentence) from None
+        raise
+
+
+def _daily_take(scope: str, user: dict, cap_env: str, default: int, sentence: str, *, w11: bool = False) -> str:
+    """One durable charge for today (ET), or a 429 with the plain sentence (`{code: rate}` for a wave 11 door).
+    Returns the day so a refused write can give the charge back."""
     from api.services.journal_two.calendar import et_today
     day = et_today()
     refused = daily_counters.take(day, [daily_counters.Charge(scope, str(user["id"]), 1, _cap(cap_env, default))])
     if refused is not None:
+        if w11:
+            raise _err(429, "rate", sentence)
         raise HTTPException(status_code=429, detail=sentence)
     return day
 
@@ -202,6 +250,10 @@ def _give_back(day: str, scope: str, user: dict) -> None:
 
 
 def _bad(e: gallery.GalleryError) -> HTTPException:
+    """Wave 11 (carry 3): a conflict that carries a machine code (`helpful_days`) answers `{code, message}`; every
+    other refusal keeps today's plain-sentence detail."""
+    if isinstance(e, gallery.GalleryConflict) and getattr(e, "code", None):
+        return HTTPException(status_code=409, detail={"code": e.code, "message": str(e)}, headers=dict(NO_STORE))
     return HTTPException(status_code=409 if isinstance(e, gallery.GalleryConflict) else 400, detail=str(e))
 
 
@@ -210,13 +262,16 @@ def _server_error(e: gallery.GalleryServerError) -> HTTPException:
     return HTTPException(status_code=500, detail=str(e))
 
 
-def _charged_publish(user: dict, publish: Any) -> Any:
-    """ONE charge rule for every publish route -- an outline, a style, an example note (P3b review M-7): the
-    in-process 10/hour, then one durable charge for today, then `publish()`. A refusal of any kind gives the day's
-    charge back: a 400 or 409 (`GalleryError`), a 404 (`None`), and an unexpected failure too, so a typo or a
-    server fault never costs a member a slot. Returns what `publish()` returned."""
-    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
+def _charged_publish(user: dict, publish: Any, *, w11: bool = False) -> Any:
+    """ONE charge rule for every publish route -- an outline, a style, an example note, a layout, and since wave 11
+    a widget, routine or tracker (`POST /tools`) and a template (P3b review M-7): the in-process 10/hour, then one
+    durable charge for today, then `publish()`. A refusal of any kind gives the day's charge back: a 400 or 409
+    (`GalleryError`), a 404 (`None`), and an unexpected failure too, so a typo or a server fault never costs a
+    member a slot. Returns what `publish()` returned. `w11` (Task 11.12) only shapes the 429s for a wave 11 door;
+    such a door hands in a `publish` already wrapped in `_w11`, so its refusals arrive mapped."""
+    _hit(PUBLISH_RATE, SCOPE_PUBLISH, user, PUBLISH_RATE_SENTENCE, w11=w11)
+    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE,
+                      w11=w11)
     try:
         item = publish()
     except gallery.GalleryError as e:
@@ -256,7 +311,8 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
     except gallery.GalleryError as e:
         raise _bad(e)
     # R-P3b-6 (ruling P3b-R6): what the lazy library may offer, additively. A client reads a missing key as false.
-    return {"templates": items, "viewer": {"admin": _is_admin(user)},
+    # Wave 11 (Task 11.12): each card's `contains` and the viewer's `credit` (`_card_facts`; unchanged while off).
+    return {"templates": _card_facts(user["id"], items), "viewer": {"admin": _is_admin(user)},
             "capabilities": {"exampleNotes": gallery.example_enabled(),
                              "layoutSharing": gallery.layout_sharing_enabled()}}
 
@@ -267,15 +323,29 @@ def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any
 
 
 @router.post("/styles", dependencies=[Depends(_require_library)])
-def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
+def publish_style_endpoint(body: dict[str, Any] = Depends(library_body), user: dict = Depends(require_paid)) -> Any:
     """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
     held revision of an approved one. 404 for everyone while the library is off (R-P3-10), by the
-    `_require_library` route dependency, before the plan check and the body."""
-    item = _charged_publish(user, lambda: gallery.publish_style(
+    `_require_library` route dependency, before the plan check and the body.
+
+    Wave 11 (Task 11.12): while wave 11 is on the author's share-preview answers travel too (`edits`, `keep`,
+    W11-R6), every refusal answers from its class (`_w11`: a `ShareError` is 400 with its code), and the answer adds
+    `droppedSlots` and is `no-store`. Off, exactly today's route."""
+    if not _w11_on():
+        item = _charged_publish(user, lambda: gallery.publish_style(
+            user["id"], body.get("styleId"), title=body.get("title"), description=body.get("description"),
+            category=body.get("category"), trading_style=body.get("tradingStyle")))
+        dropped = item.pop("droppedProperties", 0)
+        return {"template": item, "droppedProperties": dropped}
+    item = _charged_publish(user, lambda: _w11(lambda: gallery.publish_style(
         user["id"], body.get("styleId"), title=body.get("title"), description=body.get("description"),
-        category=body.get("category"), trading_style=body.get("tradingStyle")))
+        category=body.get("category"), trading_style=body.get("tradingStyle"), edits=body.get("edits"),
+        keep=_keep(body))), w11=True)
     dropped = item.pop("droppedProperties", 0)
-    return {"template": item, "droppedProperties": dropped}
+    out = {"template": item, "droppedProperties": dropped}
+    if "droppedSlots" in item:
+        out["droppedSlots"] = item.pop("droppedSlots")
+    return _ok(out)
 
 
 # ⛔ P4b: the literal `/layouts` routes are declared BEFORE `GET /{gallery_id}` too, each gated by
@@ -427,7 +497,7 @@ def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_bod
 def feed_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{templates: [...]}` -- what the authors this member follows have listed, newest first. The same item
     shape as the gallery list, so one card renders both."""
-    return {"templates": gallery.feed(user["id"])}
+    return {"templates": _card_facts(user["id"], gallery.feed(user["id"]))}
 
 
 @router.get("/authors/{handle}", dependencies=[Depends(_require_library)])
@@ -436,6 +506,8 @@ def author_page_endpoint(handle: str, user: dict = Depends(require_paid)) -> dic
     page = gallery.author_page(user["id"], handle)
     if page is None:
         raise public.not_found()
+    if isinstance(page.get("items"), list):
+        page = {**page, "items": _card_facts(user["id"], page["items"])}
     return page
 
 
@@ -459,12 +531,414 @@ def unfollow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[s
     return out
 
 
+# ── wave 11 (Task 11.12): sharing, adopting, using and previewing templates ─────────────────────
+#
+# ⛔ Every route in this block carries `_require_w11` in `dependencies=[...]`: while wave 11
+# (`notebook_widgets_wave_on(11)`) or the library switch is off, every caller gets the one `public.not_found()` 404,
+# read PER REQUEST, before the plan check and before the body is read (11.11 m-3). The literal paths are declared
+# here, ABOVE `GET /{gallery_id}`, so "library", "share", "tools" and "notes" are never read as an item id.
+#   * BODIES: `w11_body`, at most W11_MAX_BODY_BYTES and W11_MAX_BODY_DEPTH levels (413 / 400 `invalid`).
+#   * ERRORS: `{"detail": {"code", "message"}}` from the refusal's CLASS (W9-R14: a `ToolError`'s own `status`,
+#     `code` and `sentence`, a `ShareError`'s `slot` beside them), never by matching a sentence. ⛔ A refusal's
+#     sentence is never logged or stored (R35: it may echo the author's own words).
+#   * Every 200 and every error carries `Cache-Control: no-store` (`_ok`, `_err`, `public.not_found()`, the 402).
+#   * RATES (in-process, ⚠️ PER-PROCESS STATE): the share preview and preview with my data spend
+#     `notebook-gallery-preview` (60/hour), and preview with my data also `notebook-gallery-preview-mine`
+#     (PREVIEW_MINE_RATE, its own short window, 11.9 m-1); publishing a tool spends the publish scope (10/hour plus
+#     the durable 10/day); adopting a tool and using a template the adopt budget (30/hour plus the durable 50/day);
+#     a library update the adopt scope's hourly half; the 3rd-day answer the Helpful scope.
+#   * IDEMPOTENCY (W11-R34): `Idempotency-Key` is read and passed as `key=` to `adopt_tool`, `adopt_style` and
+#     `use_library_template`; a malformed key is ignored, the existing create-key rule (`create_keys`).
+
+NO_STORE = {"Cache-Control": "no-store"}
+W11_MAX_BODY_BYTES = 16 * 1024
+W11_MAX_BODY_DEPTH = 16
+PREVIEW_MINE_RATE = "10/minute"
+SCOPE_PREVIEW_MINE = "notebook-gallery-preview-mine"
+NOTIFY_SENTENCE = "notify must be true or false"
+#: m-2: the wave 11 previews' 429 (the plan's words for the preview scope); the scope is shared with P3b's example
+#: preview, whose own sentence stays its own.
+W11_PREVIEW_RATE_SENTENCE = "Too many previews in an hour. Try again later."
+PREVIEW_MINE_RATE_SENTENCE = "Too many previews at once. Try again in a minute."
+NOTE_CONFLICT_SENTENCE = "That note changed while it was being made. Try again."
+#: I-1: a Use's own note fields (`title`, `ticker`); anything else in the body is not a note field.
+TITLE_TEXT_SENTENCE = "title must be text"
+#: The new paths this block adds (the 404 rail enumerates the router's routes against it).
+W11_PATHS = (
+    "/share/preview", "/tools", "/library", "/tools/updates/{kind}/{copy_id}", "/notes/{note_id}/helpful-prompt",
+    "/{gallery_id}/preview-mine", "/{gallery_id}/adopt-tool", "/{gallery_id}/use-template",
+    "/{gallery_id}/helpful-prompt",
+)
+
+
+def _w11_on() -> bool:
+    """Wave 11 AND the library switch, read per call (both are needed by every wave 11 door)."""
+    return gallery.library_enabled() and notebook_widgets_wave_on(11)
+
+
+def _require_w11() -> None:
+    """The wave 11 gate, a route dependency (resolved after the router's gate, before the plan check and the
+    body): off, every caller gets the one 404 a route that does not exist answers."""
+    if not _w11_on():
+        raise public.not_found()
+
+
+def _err(status: int, code: str, message: str, **extra: Any) -> HTTPException:
+    return HTTPException(status_code=status, detail={"code": code, "message": message, **extra},
+                         headers=dict(NO_STORE))
+
+
+def _ok(content: Any) -> JSONResponse:
+    return JSONResponse(content=content, headers=dict(NO_STORE))
+
+
+async def w11_body(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """The gate, then the member, then the body: at most W11_MAX_BODY_BYTES, W11_MAX_BODY_DEPTH deep."""
+    return await wbody.read_json_object(
+        lambda: body_cap.read_capped_body(request, W11_MAX_BODY_BYTES, TOO_LARGE_SENTENCE), W11_MAX_BODY_DEPTH, _err)
+
+
+def _w11(fn) -> Any:
+    """Run `fn()`; answer every refusal from its CLASS (W9-R14). None is the one 404."""
+    try:
+        out = fn()
+    except HTTPException:
+        raise
+    except ToolError as e:          # ShareError, LibraryError, CountCapError, KeyReused, RoutineError, TrackerError
+        if e.status == 404:
+            raise public.not_found()
+        slot = getattr(e, "slot", None)
+        raise _err(e.status, e.code, e.sentence, **({"slot": slot} if isinstance(slot, str) and slot else {}))
+    except gallery.GalleryConflict as e:
+        raise _err(409, getattr(e, "code", None) or "conflict", str(e))
+    except gallery.GalleryError as e:
+        raise _err(400, "invalid", str(e))
+    except gallery.GalleryServerError as e:
+        raise _err(500, "server", str(e))
+    except wdefs.WidgetError as e:
+        # m-3: by STATUS only (W9-R14). The widget store's cap never reaches here as a WidgetError: every wave 11
+        # door that can make a widget wraps it in `CountCapError` (`template_gallery._cap_sentence`).
+        if e.status == 404:
+            raise public.not_found()
+        raise _err(409 if e.status == 409 else 400, "conflict" if e.status == 409 else "invalid", e.sentence)
+    except notes_service.NoteValidationError as e:     # I-1: a Use's note fields, refused by the notes module
+        raise _err(400, "invalid", str(e))
+    except notes_service.NoteConflictError:
+        raise _err(409, "conflict", NOTE_CONFLICT_SENTENCE)
+    except notes_service.NoteLockedError as e:
+        raise _err(423, "locked", str(e))
+    except js.StyleNotFound:
+        raise public.not_found()
+    except js.StyleValidationError as e:
+        raise _err(400, "invalid", str(e))
+    except PlanTooNew as e:
+        raise _err(409, "too_new", e.sentence)
+    except PlanError as e:
+        raise _err(400, "invalid", e.sentence)
+    except wrun.EngineBusy as e:
+        raise _err(503, "busy", e.sentence)
+    except wrun.EngineTooLong as e:
+        raise _err(503, "too_long", e.sentence)
+    if out is None:
+        raise public.not_found()
+    return out
+
+
+def _key(request: Request) -> str | None:
+    """W11-R34: the request's `Idempotency-Key`, as sent (the service applies the one uuid4 rule)."""
+    return request.headers.get(gallery.IDEMPOTENCY_HEADER)
+
+
+def _notify(body: dict) -> bool:
+    notify = body.get("notify", False)
+    if notify is None:
+        return False
+    if not isinstance(notify, bool):
+        raise _err(400, "invalid", NOTIFY_SENTENCE)
+    return notify
+
+
+def _note_fields(body: dict) -> dict:
+    """I-1: a Use's note fields, checked BEFORE any charge by the notes module's own rules: the ticker by
+    `notes.validate_ticker` (type, length, grammar) and the title by type and `notes.validate_title`. A refusal is
+    400 `invalid`; a Use never answers 500 for what a member typed."""
+    out: dict = {}
+    if "title" in body and body["title"] is not None:
+        title = body["title"]
+        if not isinstance(title, str):
+            raise _err(400, "invalid", TITLE_TEXT_SENTENCE)
+        try:
+            notes_service.validate_title(title)                 # the notes module's one rule and sentence (A3)
+        except notes_service.NoteValidationError as e:
+            raise _err(400, "invalid", str(e))
+        out["title"] = title
+    if "ticker" in body:
+        try:
+            ticker = notes_service.validate_ticker(body["ticker"])
+        except notes_service.NoteValidationError as e:
+            raise _err(400, "invalid", str(e))
+        if ticker is not None:
+            out["ticker"] = ticker
+    return out
+
+
+def _keep(body: dict) -> Any:
+    keep = body.get("keep")
+    return () if keep is None else keep
+
+
+# ── card facts (carry: `_summary` gains `contains` and the viewer's `credit`) ───────────────────────
+#
+# `_summary` already carries `usedBy` (the distinct-use count; the client words 0 as "New") and `updatedAt`. While
+# wave 11 is on every card ALSO carries `contains` (the names its reduced payload places: each inline widget,
+# routine and tracker by its shared name, a ready-made widget by its shelf name, a template routine or tracker by
+# its template's name, a check-in by the check-in's) and, on an item the viewer holds a copy of, that copy's
+# `credit` (W11-R7, the copy's snapshot). ⛔ The names are read INSIDE SQLite (`json_each` over the stored payload,
+# guarded by `json_valid`): the list never parses a whole payload in Python (security review M-6).
+
+_PARTS_SQL = (
+    "SELECT g.id, '{part}', json_extract(p.value, '$.key'), json_extract(p.value, '$.name'),"
+    " json_extract(p.value, '$.plan') FROM j2_template_gallery g, json_each(CASE WHEN json_valid(g.payload_json)"
+    " THEN g.payload_json ELSE '{{}}' END, '$.{part}') p WHERE g.id IN ({marks}) AND g.item_type = 'style'"
+    " AND json_type(p.value) = 'object'")
+_BLOCKS_SQL = (
+    "SELECT g.id, p.value FROM j2_template_gallery g, json_each(CASE WHEN json_valid(g.payload_json)"
+    " THEN g.payload_json ELSE '{{}}' END, '$.blocks') p WHERE g.id IN ({marks}) AND g.item_type = 'style'"
+    " AND json_valid(g.payload_json) AND json_extract(g.payload_json, '$.format') = 2"
+    " AND json_type(p.value) = 'object' ORDER BY g.id, CAST(p.key AS INTEGER)")
+
+
+def _part_name(family: str, settings: dict, block: dict, parts: dict) -> str | None:
+    from api.services.journal_two import slot_fill, template_tools, trackers
+    if family == "built":
+        ref = settings.get("ref") if isinstance(settings.get("ref"), str) else ""
+        if ref.startswith("inline:"):
+            return (parts.get(("definitions", ref[len("inline:"):])) or (None,))[0]
+        if ref.startswith("shelf:"):
+            try:
+                name, _reason = slot_fill.slot_name(block, {})
+            except Exception:          # noqa: BLE001 -- an unreadable shelf ref names nothing
+                return None
+            return name
+        return None
+    pool = "routines" if family == "routine" else "trackers"
+    if isinstance(settings.get("inline"), str):
+        return (parts.get((pool, settings["inline"])) or (None,))[0]
+    templates = template_tools.ROUTINE_TEMPLATES if family == "routine" else template_tools.TRACKER_TEMPLATES
+    if isinstance(settings.get("template"), str) and settings["template"] in templates:
+        return templates[settings["template"]].get("name")
+    ref = settings.get("ref")
+    if family == "tracker" and isinstance(ref, str) and ref in trackers.BUILTIN:
+        return trackers.BUILTIN[ref].get("name")
+    return None
+
+
+def _contains(conn, ids: list[str]) -> dict[str, list[str]]:
+    """{item id: [names]} for the template items among `ids`, in block order, each name once."""
+    if not ids:
+        return {}
+    marks = ", ".join("?" for _ in ids)
+    parts: dict[str, dict] = {}
+    for part in ("definitions", "routines", "trackers"):
+        for gid, kind, key, name, plan in conn.execute(_PARTS_SQL.format(part=part, marks=marks), ids):
+            if isinstance(key, str):
+                parts.setdefault(gid, {})[(kind, key)] = (name if isinstance(name, str) and name.strip() else None,
+                                                          plan)
+    out: dict[str, list[str]] = {}
+    for gid, raw in conn.execute(_BLOCKS_SQL.format(marks=marks), ids):
+        try:
+            block = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        family = js.slot_family(block.get("block")) if isinstance(block, dict) else None
+        settings = block.get("settings") if family and isinstance(block.get("settings"), dict) else None
+        if settings is None:
+            continue
+        mine = parts.get(gid, {})
+        try:
+            defs = {k: {"plan": json.loads(p) if isinstance(p, str) else p}
+                    for (kind, k), (_n, p) in mine.items() if kind == "definitions"}
+            if js.slot_wave_off(block["block"], settings, {"definitions": defs}):
+                continue                                  # a dark family is never named (flags-off rule)
+        except Exception:          # noqa: BLE001 -- an unreadable slot names nothing
+            continue
+        name = _part_name(family, settings, block, mine)
+        names = out.setdefault(gid, [])
+        if isinstance(name, str) and name.strip() and name.strip() not in names:
+            names.append(name.strip())
+    return out
+
+
+def _viewer_credits(conn, user_id: str, items: list[dict]) -> dict[str, str]:
+    """{item id: the credit of the viewer's newest copy of it} (W11-R7, the copy's snapshot). m-6: ONE read of the
+    viewer's credit rows, then ONE `library_facts` call per copy kind (at most four), never a read per copy."""
+    kinds = {i["id"]: ("template" if i.get("itemType") == "style" else gallery.TOOL_KIND_OF.get(i.get("itemType")))
+             for i in items if not i.get("mine") and isinstance(i.get("id"), str)}
+    kinds = {k: v for k, v in kinds.items() if v}
+    if not kinds:
+        return {}
+    marks = ", ".join("?" for _ in kinds)
+    newest: dict[str, tuple[str, str]] = {}
+    for gid, kind, tool_id in conn.execute(
+            "SELECT gallery_id, tool_kind, tool_id FROM j2_gallery_credits WHERE user_id = ? AND gallery_id IN"
+            f" ({marks}) ORDER BY created_at, rowid", (user_id, *kinds)):
+        if kinds.get(gid) == kind:
+            newest[gid] = (kind, tool_id)
+    by_kind: dict[str, list[str]] = {}
+    for kind, tool_id in newest.values():
+        by_kind.setdefault(kind, []).append(tool_id)
+    facts = {kind: gallery.library_facts(user_id, kind, ids, conn=conn) for kind, ids in by_kind.items()}
+    out = {}
+    for gid, (kind, tool_id) in newest.items():
+        credit = (facts.get(kind, {}).get(tool_id) or {}).get("credit")
+        if credit:
+            out[gid] = credit
+    return out
+
+
+def _card_facts(user_id: str, items: list[dict], *, in_yours: bool = False) -> list[dict]:
+    """The list cards with `contains` and the viewer's `credit` (and, for the library, `inYourTemplates`), in a
+    constant number of statements plus one credit read per held copy. Wave 11 off: the cards exactly as they were."""
+    if not items or not _w11_on():
+        return items
+    from api.services.auth_db import get_connection
+    ids = [i["id"] for i in items if isinstance(i.get("id"), str)]
+    conn = get_connection()
+    try:
+        names = _contains(conn, ids)
+        credits = _viewer_credits(conn, user_id, items)
+        held: set = set()
+        if in_yours and ids:
+            held = {r[0] for r in conn.execute(
+                "SELECT DISTINCT source_gallery_id FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL"
+                f" AND archived_at IS NULL AND source_gallery_id IN ({', '.join('?' for _ in ids)})",
+                (user_id, *ids))}
+    finally:
+        conn.close()
+    out = []
+    for i in items:
+        card = {**i, "contains": names.get(i.get("id"), [])}
+        if i.get("id") in credits:
+            card["credit"] = credits[i["id"]]
+        if in_yours:
+            card["inYourTemplates"] = i.get("id") in held
+        out.append(card)
+    return out
+
+
+# ── the wave 11 routes ──────────────────────────────────────────────────────────────────────────────
+
+@router.post("/share/preview", dependencies=[Depends(_require_w11)])
+def share_preview_endpoint(body: dict[str, Any] = Depends(w11_body),
+                           user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{kind, id, edits?, keep?}` -> `{travels, slots, kept, notShared, prefill, outline?, outlineGone?,
+    droppedSlots?, droppedProperties?}` (W11-R22): what sharing one of the member's own widgets, routines, trackers
+    or templates would send. The author only; nothing is written or stored."""
+    _hit(PREVIEW_RATE, SCOPE_PREVIEW, user, W11_PREVIEW_RATE_SENTENCE, w11=True)
+    return _ok(_w11(lambda: gallery.share_preview(user["id"], body.get("kind"), body.get("id"),
+                                                  edits=body.get("edits"), keep=_keep(body))))
+
+
+@router.post("/tools", dependencies=[Depends(_require_w11)])
+def publish_tool_endpoint(body: dict[str, Any] = Depends(w11_body),
+                          user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{kind, id, title, description?, edits, keep?}` -> `{template}`: a PENDING widget, routine or tracker item
+    (or a held revision of an approved one). ⛔ The LISTED title is the reduced payload's (11.15 M-6), never
+    `title` as sent: the service fills only what the payload leaves blank."""
+    item = _charged_publish(user, lambda: _w11(lambda: gallery.publish_tool(
+        user["id"], body.get("kind"), body.get("id"), title=body.get("title"), description=body.get("description"),
+        edits=body.get("edits"), keep=_keep(body))), w11=True)
+    return _ok({"template": item})
+
+
+@router.get("/library", dependencies=[Depends(_require_w11)])
+def library_endpoint(group: str = "", user: dict = Depends(require_paid)) -> JSONResponse:
+    """`?group=` -> `{templates, groups}`: the official templates (W11-R4), approved and visible, in
+    `template_library.GROUPS` order (one group with `group`), each the gallery's summary with `group`, `contains`
+    and `inYourTemplates` (the member holds a live copy)."""
+    keys = template_library.GROUP_KEYS
+    if group and group not in keys:
+        raise _err(400, "invalid", "Unknown group.")
+    # m-6: ONE list read across every group, put in GROUPS order (stable: newest first inside a group). The list is
+    # capped at `LIST_LIMIT` rows; only a capped answer (which could have cut an official row) is re-read per group.
+    order = {k: i for i, k in enumerate(keys)}
+
+    def official(listed: list[dict]) -> list[dict]:
+        return [r for r in listed if r.get("firm") and r.get("group") in order]
+    listed = _w11(lambda: gallery.list_gallery(user["id"], item_type="style", group=group or None,
+                                               is_admin=_is_admin(user)))
+    if len(listed) >= gallery.LIST_LIMIT and not group:
+        listed = [r for g in keys for r in _w11(lambda: gallery.list_gallery(
+            user["id"], item_type="style", group=g, is_admin=_is_admin(user)))]
+    rows = sorted(official(listed), key=lambda r: order[r["group"]])
+    return _ok({"templates": _card_facts(user["id"], rows, in_yours=True),
+                "groups": [{"key": k, "label": label} for k, label in template_library.GROUPS]})
+
+
+@router.post("/tools/updates/{kind}/{copy_id}", dependencies=[Depends(_require_w11)])
+def update_tool_endpoint(kind: str, copy_id: str, body: dict[str, Any] = Depends(w11_body),
+                         user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{answers?}` -> `{kind, id, version, tool}`: the LISTED version taken into the member's adopted copy. A new
+    choice left unanswered is 400 `unresolved` (the client then opens "Make it yours" for the copy); 404 when the
+    copy is not the member's library copy or nothing newer is listed."""
+    _hit(ADOPT_RATE, SCOPE_ADOPT, user, ADOPT_RATE_SENTENCE, w11=True)
+    return _ok(_w11(lambda: gallery.update_tool(user["id"], kind, copy_id, answers=body.get("answers"))))
+
+
+@router.get("/notes/{note_id}/helpful-prompt", dependencies=[Depends(_require_w11)])
+def helpful_prompt_endpoint(note_id: str, user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{show: false}` or `{show: true, itemId, title, line}` (W11-R9). Read-only: asking records nothing."""
+    return _ok(gallery.helpful_prompt(user["id"], note_id))
+
+
+@router.post("/{gallery_id}/preview-mine", dependencies=[Depends(_require_w11)])
+def preview_mine_endpoint(gallery_id: str, body: dict[str, Any] = Depends(w11_body),
+                          user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{answers?}` -> `{slots, cards, tools, questions, credit}` (W11-R12, R24, R27b): the item with the viewer's
+    own data. Spends the shared preview scope AND its own short per-member window (11.9 m-1)."""
+    _hit(PREVIEW_MINE_RATE, SCOPE_PREVIEW_MINE, user, PREVIEW_MINE_RATE_SENTENCE, w11=True)
+    _hit(PREVIEW_RATE, SCOPE_PREVIEW, user, W11_PREVIEW_RATE_SENTENCE, w11=True)
+    return _ok(_w11(lambda: template_preview.preview_mine(user["id"], gallery_id, answers=body.get("answers"))))
+
+
+@router.post("/{gallery_id}/adopt-tool", dependencies=[Depends(_require_w11)])
+def adopt_tool_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Depends(w11_body),
+                        user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{answers?, notify?}` -> `{kind, id, credit}` (`replayed: true` for a repeated `Idempotency-Key`)."""
+    notify = _notify(body)
+    return _ok(_spend_adopt(user, lambda: _w11(lambda: gallery.adopt_tool(
+        user["id"], gallery_id, answers=body.get("answers"), notify=notify, key=_key(request))), w11=True))
+
+
+@router.post("/{gallery_id}/use-template", dependencies=[Depends(_require_w11)])
+def use_template_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Depends(w11_body),
+                          user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{answers?, choices?, ticker?, title?}` -> `{note, skipped, style, credit, created, reused}`: a note made
+    from the member's copy of a listed template (the first Use adopts it, W11-R4). Two at once make one copy
+    (Review Focus 2). The note is served as every note is (`_servable_note`)."""
+    fields = _note_fields(body)
+    out = _spend_adopt(user, lambda: _w11(lambda: gallery.use_library_template(
+        user["id"], gallery_id, answers=body.get("answers"), choices=body.get("choices"), payload=fields,
+        key=_key(request))), w11=True)
+    from api.routers.journal_two import _servable_note
+    return _ok({**out, "note": _servable_note(out["note"])})
+
+
+@router.post("/{gallery_id}/helpful-prompt", dependencies=[Depends(_require_w11)])
+def answer_helpful_prompt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(w11_body),
+                                   user: dict = Depends(require_paid)) -> JSONResponse:
+    """`{answer: yes|not_really|dismissed}` -> `{answer, helpful, count}`. "yes" also marks Helpful (409
+    `helpful_days` before the 3rd day). The wave gate runs before the answer is validated (11.11 m-3)."""
+    _hit(HELPFUL_RATE, SCOPE_HELPFUL, user, HELPFUL_RATE_SENTENCE, w11=True)
+    return _ok(_w11(lambda: gallery.answer_helpful_prompt(user["id"], gallery_id, body.get("answer"))))
+
+
 @router.get("/{gallery_id}")
 def get_item_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     item = gallery.get_item(user["id"], gallery_id, is_admin=_is_admin(user))
     if item is None:
         raise public.not_found()
-    return {"template": item}
+    return {"template": _card_facts(user["id"], [item])[0]}
 
 
 @router.get("/{gallery_id}/images/{n}", dependencies=[Depends(_require_example)])
@@ -509,12 +983,13 @@ def use_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[st
     return out
 
 
-def _spend_adopt(user: dict, adopt) -> dict[str, Any]:
-    """THE adopt budget, for a style and a layout alike (R-P3-11, F16): 30/hour in-process plus a durable 50/day,
-    and the day's charge given back on every refusal (a `GalleryError`, 400 or 409), on a None (404) and on an
-    exception. ONE copy: both adopt routes call this, never a block of their own."""
-    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
-    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
+def _spend_adopt(user: dict, adopt, *, w11: bool = False) -> dict[str, Any]:
+    """THE adopt budget, for a style, a layout, and since wave 11 a tool and a template's Use alike (R-P3-11, F16):
+    30/hour in-process plus a durable 50/day, and the day's charge given back on every refusal (a `GalleryError`,
+    400 or 409), on a None (404) and on an exception. ONE copy: every adopt route calls this, never a block of its
+    own. `w11` (Task 11.12) only shapes the 429s; a wave 11 door hands in an `adopt` already wrapped in `_w11`."""
+    _hit(ADOPT_RATE, SCOPE_ADOPT, user, ADOPT_RATE_SENTENCE, w11=w11)
+    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE, w11=w11)
     try:
         out = adopt()
     except gallery.GalleryError as e:
@@ -530,17 +1005,27 @@ def _spend_adopt(user: dict, adopt) -> dict[str, Any]:
 
 
 @router.post("/{gallery_id}/adopt", dependencies=[Depends(_require_library)])
-def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
+def adopt_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Depends(library_body),
                    user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{notify?: bool}` -> `{style, notify, credit}`: the member's own copy of a listed style (R-P3-10:
     404 while the library is off, by `_require_library`, before the plan and the body). Rate-limited per
-    R-P3-11: 30/hour in-process plus a durable 50/day; a refused or failed adopt gives the day's charge back."""
-    notify = body.get("notify", False)
-    if notify is None:
-        notify = False
-    if not isinstance(notify, bool):
-        raise HTTPException(status_code=400, detail="notify must be true or false")
-    return _spend_adopt(user, lambda: gallery.adopt_style(user["id"], gallery_id, notify=notify))
+    R-P3-11: 30/hour in-process plus a durable 50/day; a refused or failed adopt gives the day's charge back.
+
+    Wave 11 (Task 11.12): while wave 11 is on, `{notify?, answers?, choices?}` answer a template's choices and reuse
+    questions, the `Idempotency-Key` header is passed (W11-R34), and refusals answer from their class (`_w11`).
+    Off, exactly today's route."""
+    if _w11_on():
+        notify = _notify(body)                       # n-3: the wave 11 shape, with no-store
+    else:
+        notify = body.get("notify", False)
+        if notify is None:
+            notify = False
+        if not isinstance(notify, bool):
+            raise HTTPException(status_code=400, detail="notify must be true or false")
+        return _spend_adopt(user, lambda: gallery.adopt_style(user["id"], gallery_id, notify=notify))
+    return _ok(_spend_adopt(user, lambda: _w11(lambda: gallery.adopt_style(
+        user["id"], gallery_id, notify=notify, answers=body.get("answers"), choices=body.get("choices"),
+        key=_key(request))), w11=True))
 
 
 LAYOUT_VERSION_SENTENCE = "Say which version you previewed: version must be a whole number."
@@ -563,9 +1048,13 @@ def adopt_layout_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_b
 @router.post("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])
 def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{helpful: true, count}`. One per member per item; 404 for an item they can't see, one that isn't listed,
-    or their own (R-P3-10: 404 for everyone while the library is off; R-P3-11: 60/hour with unmarking)."""
+    or their own (R-P3-10: 404 for everyone while the library is off; R-P3-11: 60/hour with unmarking).
+    Wave 11 (W11-R8): before the 3rd use day, 409 `{"code": "helpful_days", "message": S_HELPFUL_DAYS}` (`_bad`)."""
     public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
-    out = gallery.set_helpful(user["id"], gallery_id, True)
+    try:
+        out = gallery.set_helpful(user["id"], gallery_id, True)
+    except gallery.GalleryError as e:
+        raise _bad(e)
     if out is None:
         raise public.not_found()
     return out

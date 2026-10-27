@@ -196,7 +196,32 @@ def _island_md():
 
 
 _ASIDE_ISLAND = re.compile(r'\A(<aside(?: data-variant="[a-z]+")?>)\n(.*)\n(</aside>)\s*\Z', re.S)
-_DETAILS_ISLAND = re.compile(r"\A<details>\n<summary>(.*?)</summary>\n(.*)\n</details>\s*\Z", re.S)
+#: A toggle island's fixed markers. W11-R61 (LIVE ON MASTER): this was the regex
+#: `\A<details>\n<summary>(.*?)</summary>\n(.*)\n</details>\s*\Z` (re.S), whose lazy summary group re-ran the greedy
+#: inner group from every `</summary>\n` in the block: quadratic (0.39 s at 40 KB, ~4 min at 1 MB, on the ONE web
+#: process). `_details_island` is the same accept/reject and the same two groups in linear time; the old regex is kept
+#: only in tests/test_notes_export_formats.py, as the equivalence oracle.
+_DETAILS_OPEN = "<details>\n<summary>"
+_SUMMARY_CLOSE = "</summary>\n"
+_DETAILS_CLOSE = "\n</details>"
+
+
+def _details_island(content: str) -> tuple[str, str] | None:
+    """(summary, inner) of a toggle island, else None. The block opens with `_DETAILS_OPEN` and ends with
+    `_DETAILS_CLOSE` followed by whitespace only (`rstrip()` strips exactly what the regex's whitespace run matched: both are
+    Unicode whitespace); the summary runs to the FIRST `_SUMMARY_CLOSE` (the lazy group), which must end at or before
+    that close (the inner may be empty). Fixed-string scans only: linear."""
+    if not content.startswith(_DETAILS_OPEN):
+        return None
+    head = len(_DETAILS_OPEN)
+    body = content.rstrip()
+    if not body.endswith(_DETAILS_CLOSE):
+        return None
+    close = len(body) - len(_DETAILS_CLOSE)
+    cut = content.find(_SUMMARY_CLOSE, head)
+    if cut < 0 or cut + len(_SUMMARY_CLOSE) > close:
+        return None
+    return content[head:cut], content[cut + len(_SUMMARY_CLOSE):close]
 
 
 def _island_inner(text: str) -> str:
@@ -216,10 +241,10 @@ def _render_islands(tokens) -> None:
         if m:
             tok.content = f"{m.group(1)}\n{_island_inner(m.group(2))}{m.group(3)}\n"
             continue
-        m = _DETAILS_ISLAND.match(tok.content)
-        if m:
-            summary = _island_md().renderInline(m.group(1))
-            tok.content = f"<details>\n<summary>{summary}</summary>\n{_island_inner(m.group(2))}</details>\n"
+        island = _details_island(tok.content)
+        if island:
+            summary = _island_md().renderInline(island[0])
+            tok.content = f"<details>\n<summary>{summary}</summary>\n{_island_inner(island[1])}</details>\n"
 
 
 def markdown_to_html(markdown: str) -> str:

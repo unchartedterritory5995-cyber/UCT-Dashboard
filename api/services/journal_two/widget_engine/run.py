@@ -1018,6 +1018,8 @@ def run_plan(user_id: str, plan: dict, settings: dict, *, lane: Lane, def_id: st
             _CACHE.set(key, out, CACHE_TTL_S)
             if lane == "run":
                 count_run(user_id)
+                from api.services.journal_two import template_gallery  # W11-R11 use-day hook (Task 11.8)
+                template_gallery.record_tool_use_day(user_id, "widget", def_id, now=now, conn=conn)
             return out
 
         ok, value = _FLIGHT.run_here(key, _compute, _WAIT_S)
@@ -1219,3 +1221,171 @@ def run_examples(user_id: str, ids: list[str], *, allowed: Callable[[dict], bool
         if not ok:
             value = _compute()
         return copy.deepcopy(value)
+
+
+# -- a batch of resolved plans (Task 11.9, ruling W11-R12) -------------------------------------------
+
+#: The code a card's own refusal carries in a batch answer (its plan does not read, or is too new).
+BATCH_CARD_CODE = "invalid"
+
+
+def _batch_cards(cards: Any) -> list[tuple[str, Any]]:
+    """`cards` as `[(key, plan)]`: at most `MAX_EXAMPLES` (a member sentence past that), each key a
+    distinct non-empty string (a caller's bug, never a member's, so a ValueError)."""
+    if not isinstance(cards, (list, tuple)):
+        raise PlanError(wplan.S_UNREADABLE)
+    if len(cards) > MAX_EXAMPLES:
+        raise PlanError(S_TOO_MANY_EXAMPLES)
+    out: list[tuple[str, Any]] = []
+    seen: set[str] = set()
+    for c in cards:
+        if (not isinstance(c, (list, tuple)) or len(c) != 2 or not isinstance(c[0], str)
+                or not c[0] or c[0] in seen):
+            raise ValueError("each card is a (unique key, plan) pair")
+        seen.add(c[0])
+        out.append((c[0], c[1]))
+    return out
+
+
+def _scope(payload: dict, acc: str, name: Any) -> None:
+    """A card narrowed to one of the member's own accounts says so, as `run_plan`'s payload does: a covering
+    scan's cut (`_narrow`) carries no account, so the echo and the scope label are set here from the account
+    actually scanned, the label through the payload module's own rule (`payload.scope_label`)."""
+    clipped = nw._clip(name, wplan.MAX_TEXT) if isinstance(name, str) else None
+    payload["accountId"] = acc
+    payload["scopeLabel"] = wpayload.scope_label(
+        wsources.Scan(payload.get("sourceKey") or "", [], False, None, 0, acc), clipped)
+
+
+def run_plans_batch(user_id: str, cards: list[tuple[str, dict]], *,
+                    now: datetime | None = None, sample: bool | None = None) -> dict:
+    """Up to `MAX_EXAMPLES` plans for the session member, in ONE batch through the `example` lane:
+    `{"cards": [{"key", "payload"} | {"key", "code", "message"}]}`, in the order given.
+
+    The machinery is `run_examples`' (Task 8.10), for plans the CALLER resolved (a shared widget's
+    choices filled in: Task 11.9's preview with my data) instead of shelf ids:
+
+    * ONE admission in the `example` lane (a preview slot, no daily-cap run, no preview generation),
+      ONE deadline over every scan, ONE cache entry for `CACHE_TTL_S` keyed on the member, every
+      card's key, plan hash and account, the sample switch and the member's data stamps, behind the
+      shared single-flight.
+    * Under `SAMPLE_BELOW` closed trades every card reads the sample book (`sample: True`), except a
+      card on the member's own routines or trackers (W9-R5), which always reads the member's rows.
+    * ONE scan per distinct (source, account) covers the cards that read it; each card is cut from it
+      (`_narrow`). A plan's `accounts` is honoured only for an account the member owns
+      (`sources.owned_account_id`): another member's id reads as all of this member's accounts, with
+      the run's own notice (`S_ACCOUNT_GONE`), never another member's rows.
+    * A card whose plan does not validate (or is too new) is `{"key", "code", "message"}` with the
+      plan module's own sentence; the other cards still run. Nothing to run reads nothing.
+
+    * `sample` is the caller's own `wants_sample` answer for this request, when it already read one (the preview
+      decides its choices on it, so the batch must run on the SAME answer); None reads it here.
+
+    Raises `PlanError` (more than `MAX_EXAMPLES` cards), `EngineBusy` or `EngineTooLong`."""
+    if not isinstance(user_id, str) or not user_id:
+        raise ValueError("a run needs the session member's id")
+    if sample is not None and not isinstance(sample, bool):
+        raise ValueError("sample is the caller's wants_sample answer, a bool")
+    pairs = _batch_cards(cards)
+    now = now or datetime.now(timezone.utc)
+    failed: dict[str, dict] = {}
+    bases: list[tuple[str, dict]] = []
+    for key, raw in pairs:
+        try:
+            bases.append((key, wplan.validate_plan(copy.deepcopy(raw), wsources.CATALOG)))
+        except PlanError as e:
+            failed[key] = {"key": key, "code": BATCH_CARD_CODE, "message": e.sentence}
+    order = [k for k, _ in pairs]
+    if not bases:
+        return {"cards": [failed[k] for k in order]}
+
+    real_today = nw._today_et(now)
+    w10 = _w10_on()
+    with _connection() as conn:
+        with deadline(conn):
+            if sample is None:
+                sample = wants_sample(conn, user_id)
+            items: list[tuple[str, dict, str | None, list[str], bool]] = []
+            for key, p in bases:
+                own = _never_sample(p)
+                requested = p["accounts"]["id"] if isinstance(p["accounts"], dict) else None
+                if sample and not own:
+                    acc, notices = None, []               # the book's accounts are never the member's
+                else:
+                    acc = wsources.owned_account_id(conn, user_id, requested)
+                    notices = [S_ACCOUNT_GONE] if requested and not acc else []
+                merged = wplan.validate_plan(_merge(p, {}, acc), wsources.CATALOG)
+                items.append((key, merged, acc, notices, own))
+            stamps = [None if sample and not own else data_stamp(conn, user_id, m["source"], m)
+                      for _k, m, _a, _n, own in items]
+            names = wsources._account_names(conn, user_id) if any(a for _k, _m, a, _n, _o in items) else {}
+        today = sample_today() if sample else real_today
+        blob = json.dumps([user_id, "plans_batch",
+                           [[k, wplan.plan_hash(m), a, n, o] for k, m, a, n, o in items],
+                           sample, stamps, today.isoformat(), real_today.isoformat(),
+                           _book()["digest"] if sample else None] + _w10_key(w10, False),
+                          sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
+        cache_key = "widget_plans_batch::" + hashlib.sha1(blob.encode("utf-8")).hexdigest()
+        hit = _CACHE.get(cache_key)
+        if hit is None:
+            def _compute() -> dict:
+                per_cover: dict[tuple[str, str | None], list[wplan.ResolvedRange]] = {}
+                for _k, m, acc, _n, own in items:
+                    if own:
+                        continue
+                    rng = wplan.resolve_range(m["range"], today)
+                    per_cover.setdefault((m["source"], acc), []).append(rng)
+                    crng = _compare_range(m, rng, today)
+                    if crng is not None:
+                        per_cover[(m["source"], acc)].append(crng)
+                with admit(user_id, "example"):
+                    budget = Budget(DEADLINE_S)
+                    covers: dict[tuple[str, str | None], wsources.Scan] = {}
+                    mine: dict[str, wsources.Scan] = {}
+                    goals: dict[str, Any] = {}
+                    if sample:
+                        covers = {ck: _sample_scan(ck[0]) for ck in per_cover}
+                    with deadline(conn, budget=budget):                 # one deadline, W10-R50
+                        for k, m, acc, _n, own in items:
+                            period = _goal_period(m)
+                            if period:
+                                goals[k] = (None if sample and not own
+                                            else _goal_target(conn, user_id, acc, period))
+                        if not sample:
+                            for ck, rngs in per_cover.items():
+                                covers[ck] = wsources.scan(conn, _cover_plan(ck[0]), {"accountId": ck[1]},
+                                                           _cover_range(rngs, today), user_id, today=today)
+                        for k, m, acc, _n, own in items:
+                            if not own:
+                                continue
+                            rng = wplan.resolve_range(m["range"], real_today)
+                            crng = _compare_range(m, rng, real_today)
+                            mine[k] = wsources.scan(
+                                conn, m, {"accountId": acc},
+                                _cover_range([rng] + ([crng] if crng is not None else []), real_today),
+                                user_id, today=real_today)
+                    answers: dict[str, dict] = {}
+                    for k, m, acc, notices, own in items:
+                        try:
+                            if own:
+                                payload = _card(m, mine[k], real_today, now, sample=False,
+                                                notices=notices, check=budget.check, w10=w10,
+                                                goal=goals.get(k))
+                            else:
+                                payload = _card(m, covers[(m["source"], acc)], today, now,
+                                                sample=sample, notices=notices, check=budget.check,
+                                                w10=w10, goal=goals.get(k))
+                            if acc:
+                                _scope(payload, acc, names.get(acc))
+                            answers[k] = {"key": k, "payload": payload}
+                        except PlanError as e:
+                            answers[k] = {"key": k, "code": BATCH_CARD_CODE, "message": e.sentence}
+                out = {"cards": answers}
+                _CACHE.set(cache_key, out, CACHE_TTL_S)
+                return out
+
+            ok, hit = _FLIGHT.run_here(cache_key, _compute, _WAIT_S)
+            if not ok:
+                hit = _compute()
+        ran = copy.deepcopy(hit["cards"])
+    return {"cards": [ran[k] if k in ran else failed[k] for k in order]}

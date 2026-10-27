@@ -28,7 +28,9 @@ def test_adopt_makes_the_members_own_copy_with_its_source(conn, lib_on):
     s = out["style"]
     assert s["sourceGalleryId"] == item["id"] and s["sourceVersion"] == 1
     assert s["kindId"] == "weekend_prep" and not s["builtin"]
-    assert out["credit"] == f"Based on {item['author']}'s {item['title']}"
+    # Task 11.8 (W11-R7, the one credit helper): an anonymous author reads "a UCT member" mid-sentence.
+    assert item["author"] == gallery.ANONYMOUS_AUTHOR
+    assert out["credit"] == f"Based on a UCT member's {item['title']}"
     row = conn.execute("SELECT notified_version FROM j2_gallery_watches WHERE gallery_id = ? AND user_id = ?",
                        (item["id"], "member")).fetchone()
     assert row["notified_version"] == 1

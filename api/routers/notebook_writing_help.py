@@ -39,6 +39,7 @@ from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_u
 from api.services import note_ask
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two import writing_help as wh
+from api.services.journal_two import widget_request_body as wbody
 
 import logging
 
@@ -114,7 +115,7 @@ async def _read_payload(request: Request, _user: dict = Depends(require_paid)) -
     if not raw.strip():
         return {}
     try:
-        body = json.loads(raw)
+        body = wbody.loads_plain_body(raw)  # W11-R55: too deep to parse is 400 no-store
     except ValueError:
         raise HTTPException(status_code=422, detail=wh.BAD_BODY_SENTENCE) from None
     if not isinstance(body, dict):

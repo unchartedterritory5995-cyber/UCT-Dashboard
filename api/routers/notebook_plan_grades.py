@@ -21,7 +21,6 @@ The rules (the gallery router's, `notebook_template_gallery.py`):
 """
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -31,6 +30,7 @@ from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_u
 from api.services.auth_db import get_connection
 from api.services.journal_two import plan_grading
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import widget_request_body as wbody
 
 #: Per member, in `api/limiter.py`'s in-memory storage -- the limiter and the read rate the
 #: sibling Notebook routes use (`notebook_shares.PUBLIC_RATE`). The three reads share one
@@ -76,7 +76,7 @@ async def _read_json(request: Request) -> dict[str, Any]:
     if not raw.strip():
         return {}
     try:
-        data = json.loads(raw)
+        data = wbody.loads_plain_body(raw)  # W11-R55: too deep to parse is 400 no-store
     except ValueError:
         raise HTTPException(status_code=422, detail="Send a JSON object")
     if not isinstance(data, dict):

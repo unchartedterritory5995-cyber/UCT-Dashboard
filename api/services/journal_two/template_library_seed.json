@@ -1,0 +1,1740 @@
+{
+ "v": 1,
+ "note": "Task 11.10 (W11-R4): the official templates of spec section 10, item for item. A released row never changes: add a -v2 row and list the -v1 key in retired.",
+ "templates": [
+  {
+   "seedKey": "uct-template-night-before-prep-v1",
+   "slug": "night-before-prep",
+   "title": "Night-before prep",
+   "group": "night_before",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "Tomorrow's watchlist and levels, set the night before.",
+   "blocks": [
+    {
+     "block": "prepLevels",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "prepEarnings",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "night_before",
+      "bind": "next-trading-day",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Levels for tomorrow",
+     "prompt": "Mark the prices you will act on at the open.",
+     "blocks": [
+      "prepLevels"
+     ]
+    },
+    {
+     "heading": "Earnings tomorrow",
+     "prompt": "Which of your names report before the open or after the close?",
+     "blocks": [
+      "prepEarnings"
+     ]
+    },
+    {
+     "heading": "Night-before routine",
+     "prompt": "Tick each step before you shut the screens.",
+     "blocks": [
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-pre-market-prep-v1",
+   "slug": "pre-market-prep",
+   "title": "Pre-market prep",
+   "group": "before_open",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "The wire, your names reporting, your levels and your pre-market routine.",
+   "blocks": [
+    {
+     "block": "prepWire",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "marketcontext",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myWatchlistToday",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myNamesReporting",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "prepLevels",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "premarket_routine",
+      "bind": "note-day",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "The market this morning",
+     "prompt": "Read the wire and note the tone before you look at a single name.",
+     "blocks": [
+      "prepWire",
+      "marketcontext"
+     ]
+    },
+    {
+     "heading": "Your names today",
+     "prompt": "Which names on your list are in play, and which of them report?",
+     "blocks": [
+      "myWatchlistToday",
+      "myNamesReporting"
+     ]
+    },
+    {
+     "heading": "Levels",
+     "prompt": "The prices that would make you act today.",
+     "blocks": [
+      "prepLevels"
+     ]
+    },
+    {
+     "heading": "Pre-market routine",
+     "prompt": "Finish every step before the open.",
+     "blocks": [
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-game-plan-v1",
+   "slug": "game-plan",
+   "title": "Game plan",
+   "group": "before_open",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "Today's read, your room under your loss limit and your rules.",
+   "blocks": [
+    {
+     "block": "myGamePlan",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRiskLeftToday",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRules",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "rules_i_keep",
+      "bind": "note-day",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Today's read",
+     "prompt": "What kind of day is it, and how will you trade it?",
+     "blocks": [
+      "myGamePlan"
+     ]
+    },
+    {
+     "heading": "Risk for today",
+     "prompt": "How much room you have before your daily loss limit.",
+     "blocks": [
+      "myRiskLeftToday"
+     ]
+    },
+    {
+     "heading": "Your rules",
+     "prompt": "The rules you trade by today, ticked as you keep them.",
+     "blocks": [
+      "myRules",
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-earnings-day-prep-v1",
+   "slug": "earnings-day-prep",
+   "title": "Earnings day prep",
+   "group": "before_open",
+   "kindId": "earnings",
+   "category": "research",
+   "description": "Your names reporting today and your trading plan around each report.",
+   "blocks": [
+    {
+     "block": "myNamesReporting",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "prepEarnings",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "marketcontext",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "chart",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Who reports",
+     "prompt": "Your names reporting today, before the open or after the close.",
+     "blocks": [
+      "myNamesReporting",
+      "prepEarnings"
+     ]
+    },
+    {
+     "heading": "The market going in",
+     "prompt": "How the broad market is set up before the reports.",
+     "blocks": [
+      "marketcontext"
+     ]
+    },
+    {
+     "heading": "Your approach to each report",
+     "prompt": "For each name: what you will do on a gap up, a gap down or no move.",
+     "blocks": [
+      "chart"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-watchlist-review-v1",
+   "slug": "watchlist-review",
+   "title": "Watchlist review",
+   "group": "before_open",
+   "kindId": "watchlist_note",
+   "category": "research",
+   "description": "Your list today, the names moving and the levels you are waiting for.",
+   "blocks": [
+    {
+     "block": "myWatchlistToday",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "prepMovers",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "prepLevels",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Your list today",
+     "prompt": "The names you are watching, and why each one is on the list.",
+     "blocks": [
+      "myWatchlistToday"
+     ]
+    },
+    {
+     "heading": "What's moving",
+     "prompt": "Which of your names are moving, and is it a move you want?",
+     "blocks": [
+      "prepMovers"
+     ]
+    },
+    {
+     "heading": "Levels to wait for",
+     "prompt": "The price that would make each name worth a trade.",
+     "blocks": [
+      "prepLevels"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-mid-day-risk-check-v1",
+   "slug": "mid-day-risk-check",
+   "title": "Mid-day and risk check",
+   "group": "during_day",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "Today's P&L, open risk and room left under your daily loss limit.",
+   "blocks": [
+    {
+     "block": "myRiskLeftToday",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myPositionsRisk",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myTiltCheck",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Where you stand",
+     "prompt": "Today's P&L and your room under your daily loss limit.",
+     "blocks": [
+      "myRiskLeftToday"
+     ]
+    },
+    {
+     "heading": "Open risk",
+     "prompt": "What each open position can still cost you at its stop.",
+     "blocks": [
+      "myPositionsRisk"
+     ]
+    },
+    {
+     "heading": "How you're trading",
+     "prompt": "Are you calm and keeping your trading plan, or forcing trades?",
+     "blocks": [
+      "myTiltCheck"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-trade-plan-one-idea-v1",
+   "slug": "trade-plan-one-idea",
+   "title": "Trade plan (one idea)",
+   "group": "during_day",
+   "kindId": "trade_plan",
+   "category": "trade_plan",
+   "description": "One idea: the setup, entry, stop, target and size.",
+   "blocks": [
+    {
+     "block": "chart",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "preEntryChecklist",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "positionSizing",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "marketcontext",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "preentry_checks",
+      "bind": "note-day",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "The setup",
+     "prompt": "What you see on the chart, and why this is worth a trade.",
+     "blocks": [
+      "chart",
+      "marketcontext"
+     ]
+    },
+    {
+     "heading": "Entry, stop and target",
+     "prompt": "Where you get in, where you are wrong, and where you take profits.",
+     "blocks": [
+      "preEntryChecklist",
+      "routine_a"
+     ]
+    },
+    {
+     "heading": "Size",
+     "prompt": "How many shares, so a loss at your stop stays inside your risk.",
+     "blocks": [
+      "positionSizing"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-end-of-day-recap-v1",
+   "slug": "end-of-day-recap",
+   "title": "End-of-day recap",
+   "group": "after_close",
+   "kindId": "post_trade_review",
+   "category": "review",
+   "description": "Today's trades, the rules you kept, your mistakes and tomorrow's list.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:recent-trades",
+      "defRev": 1,
+      "range": {
+       "token": "today"
+      }
+     }
+    },
+    {
+     "block": "built_b",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:daily-pnl-bars",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "myRulesCheck",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myMistakes",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "eod_review",
+      "bind": "note-day",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Today's trades",
+     "prompt": "Every trade you closed today, and how the day added up.",
+     "blocks": [
+      "built_a",
+      "built_b"
+     ]
+    },
+    {
+     "heading": "Rules and mistakes",
+     "prompt": "Which rules you kept, and what you would not do again.",
+     "blocks": [
+      "myRulesCheck",
+      "myMistakes"
+     ]
+    },
+    {
+     "heading": "Tomorrow",
+     "prompt": "Close out the day and set up tomorrow's list.",
+     "blocks": [
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-tag-todays-trades-v1",
+   "slug": "tag-todays-trades",
+   "title": "Tag today's trades",
+   "group": "after_close",
+   "kindId": "post_trade_review",
+   "category": "review",
+   "description": "Today's trades, one row each, to tag setup, mistakes and emotions.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "inline:a"
+     }
+    },
+    {
+     "block": "myMistakes",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Today's trades",
+     "prompt": "Tag each trade with its setup, any mistake and how you felt.",
+     "blocks": [
+      "built_a"
+     ]
+    },
+    {
+     "heading": "Mistakes",
+     "prompt": "The mistakes that showed up today.",
+     "blocks": [
+      "myMistakes"
+     ]
+    }
+   ],
+   "definitions": [
+    {
+     "key": "a",
+     "name": "Today's trades",
+     "description": "Every trade you closed today, one row each.",
+     "plan": {
+      "v": 1,
+      "source": "closed_trades",
+      "range": {
+       "token": "today"
+      },
+      "measures": [
+       {
+        "key": "net_pnl"
+       },
+       {
+        "key": "total_r"
+       }
+      ],
+      "view": {
+       "type": "list",
+       "auto": false
+      }
+     }
+    }
+   ],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-trade-post-mortem-v1",
+   "slug": "trade-post-mortem",
+   "title": "Trade post-mortem",
+   "group": "after_close",
+   "kindId": "post_trade_review",
+   "category": "review",
+   "description": "One trade: what happened, whether you kept your trading plan, what you'd change.",
+   "blocks": [
+    {
+     "block": "tradeReview",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "chart",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRules",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "What happened",
+     "prompt": "Walk through the trade from entry to exit.",
+     "blocks": [
+      "tradeReview",
+      "chart"
+     ]
+    },
+    {
+     "heading": "Did you keep your trading plan?",
+     "prompt": "Which of your rules you followed, and which you broke.",
+     "blocks": [
+      "myRules"
+     ]
+    },
+    {
+     "heading": "What you'd change",
+     "prompt": "One thing you would do differently next time.",
+     "blocks": []
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-mistake-log-entry-v1",
+   "slug": "mistake-log-entry",
+   "title": "Mistake log entry",
+   "group": "after_close",
+   "kindId": "post_trade_review",
+   "category": "review",
+   "description": "One mistake, what caused it and the rule that would have stopped it.",
+   "blocks": [
+    {
+     "block": "myMistakes",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRulesCheck",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "The mistake",
+     "prompt": "What you did, and what caused it.",
+     "blocks": [
+      "myMistakes"
+     ]
+    },
+    {
+     "heading": "The rule that would have stopped it",
+     "prompt": "Name the rule, and whether you kept it today.",
+     "blocks": [
+      "myRulesCheck"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-tilt-reset-v1",
+   "slug": "tilt-reset",
+   "title": "Tilt reset",
+   "group": "after_close",
+   "kindId": "post_trade_review",
+   "category": "review",
+   "description": "A short reset after a loss: what happened, your room left and your next step.",
+   "blocks": [
+    {
+     "block": "myTiltCheck",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRiskLeftToday",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "tilt_reset",
+      "bind": "note-day",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "What happened",
+     "prompt": "One line on the loss, and how you feel right now.",
+     "blocks": [
+      "myTiltCheck"
+     ]
+    },
+    {
+     "heading": "Room left",
+     "prompt": "How much room you have under your daily loss limit.",
+     "blocks": [
+      "myRiskLeftToday"
+     ]
+    },
+    {
+     "heading": "Your next step",
+     "prompt": "Work through the reset before you take another trade.",
+     "blocks": [
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-weekly-review-v1",
+   "slug": "weekly-review",
+   "title": "Weekly review",
+   "group": "weekly_monthly",
+   "kindId": "weekly_review",
+   "category": "review",
+   "description": "Your week's numbers, rules kept, recurring mistakes and one thing to change.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:weekly-scorecard",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "built_b",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:equity-curve",
+      "defRev": 1,
+      "range": {
+       "token": "this_week"
+      }
+     }
+    },
+    {
+     "block": "myRulesCheck",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myMistakes",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "weekly_review_routine",
+      "bind": "week",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Your week in numbers",
+     "prompt": "How the week added up, trade by trade.",
+     "blocks": [
+      "built_a",
+      "built_b"
+     ]
+    },
+    {
+     "heading": "Rules and mistakes",
+     "prompt": "The rules you kept, and the mistakes that kept coming back.",
+     "blocks": [
+      "myRulesCheck",
+      "myMistakes"
+     ]
+    },
+    {
+     "heading": "One thing to change",
+     "prompt": "Pick one change for next week, then finish the review.",
+     "blocks": [
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-weekend-swing-review-v1",
+   "slug": "weekend-swing-review",
+   "title": "Weekend swing review",
+   "group": "weekly_monthly",
+   "kindId": "weekend_prep",
+   "category": "research",
+   "description": "Open positions, stops and earnings next week, with your routine for the trading week.",
+   "blocks": [
+    {
+     "block": "myPositionsRisk",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "prepEarnings",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:weekly-scorecard",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "swing_weekend",
+      "bind": "week",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Open positions",
+     "prompt": "Every open position, its stop and what it can cost you.",
+     "blocks": [
+      "myPositionsRisk"
+     ]
+    },
+    {
+     "heading": "Earnings next week",
+     "prompt": "Which of your names report next week, and what you will do before each one.",
+     "blocks": [
+      "prepEarnings"
+     ]
+    },
+    {
+     "heading": "The week behind you",
+     "prompt": "How last week went.",
+     "blocks": [
+      "built_a"
+     ]
+    },
+    {
+     "heading": "Your routine for the week",
+     "prompt": "Work through the weekend review.",
+     "blocks": [
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-monthly-review-v1",
+   "slug": "monthly-review",
+   "title": "Monthly review",
+   "group": "weekly_monthly",
+   "kindId": "weekly_review",
+   "category": "review",
+   "description": "This month's results, the curve, the best trades and your symbols.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:month-in-review",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "built_b",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:equity-curve",
+      "defRev": 1,
+      "range": {
+       "token": "this_month"
+      }
+     }
+    },
+    {
+     "block": "built_c",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:best-trades",
+      "defRev": 1,
+      "range": {
+       "token": "this_month"
+      }
+     }
+    },
+    {
+     "block": "built_d",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:performance-by-symbol",
+      "defRev": 1,
+      "range": {
+       "token": "this_month"
+      }
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "The month",
+     "prompt": "This month's results and the shape of the curve.",
+     "blocks": [
+      "built_a",
+      "built_b"
+     ]
+    },
+    {
+     "heading": "What worked",
+     "prompt": "Your best trades, and the symbols that paid.",
+     "blocks": [
+      "built_c",
+      "built_d"
+     ]
+    },
+    {
+     "heading": "Next month",
+     "prompt": "One thing to keep, and one thing to change.",
+     "blocks": []
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-quarterly-edge-review-v1",
+   "slug": "quarterly-edge-review",
+   "title": "Quarterly edge review",
+   "group": "weekly_monthly",
+   "kindId": "weekly_review",
+   "category": "review",
+   "description": "Where your edge came from this quarter: expectancy, time of day, hold time and R.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:expectancy",
+      "defRev": 1,
+      "range": {
+       "token": "this_quarter"
+      }
+     }
+    },
+    {
+     "block": "built_b",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:pnl-by-time-of-day",
+      "defRev": 1,
+      "range": {
+       "token": "this_quarter"
+      }
+     }
+    },
+    {
+     "block": "built_c",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:pnl-by-hold-time",
+      "defRev": 1,
+      "range": {
+       "token": "this_quarter"
+      }
+     }
+    },
+    {
+     "block": "built_d",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:r-multiple-distribution",
+      "defRev": 1,
+      "range": {
+       "token": "this_quarter"
+      }
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Your edge this quarter",
+     "prompt": "What a trade was worth on average, and the R you made.",
+     "blocks": [
+      "built_a",
+      "built_d"
+     ]
+    },
+    {
+     "heading": "When it works",
+     "prompt": "The time of day and the hold time your results come from.",
+     "blocks": [
+      "built_b",
+      "built_c"
+     ]
+    },
+    {
+     "heading": "What to do more of",
+     "prompt": "Where your best trades came from, and how you will trade more of them.",
+     "blocks": []
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-year-in-review-v1",
+   "slug": "year-in-review",
+   "title": "Year in review",
+   "group": "weekly_monthly",
+   "kindId": "weekly_review",
+   "category": "review",
+   "description": "Your year: the curve, the drawdown, the best trades and your weekdays.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:equity-curve",
+      "defRev": 1,
+      "range": {
+       "token": "ytd"
+      }
+     }
+    },
+    {
+     "block": "built_b",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:max-drawdown",
+      "defRev": 1,
+      "range": {
+       "token": "ytd"
+      }
+     }
+    },
+    {
+     "block": "built_c",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:best-trades",
+      "defRev": 1,
+      "range": {
+       "token": "ytd"
+      }
+     }
+    },
+    {
+     "block": "built_d",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:pnl-by-weekday",
+      "defRev": 1,
+      "range": {
+       "token": "ytd"
+      }
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "The year",
+     "prompt": "The curve, and the deepest drawdown along the way.",
+     "blocks": [
+      "built_a",
+      "built_b"
+     ]
+    },
+    {
+     "heading": "The best of it",
+     "prompt": "Your best trades, and your best days of the week.",
+     "blocks": [
+      "built_c",
+      "built_d"
+     ]
+    },
+    {
+     "heading": "Next year",
+     "prompt": "What you will carry into next year, and what you will leave behind.",
+     "blocks": []
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-goal-setting-v1",
+   "slug": "goal-setting",
+   "title": "Goal setting",
+   "group": "weekly_monthly",
+   "kindId": "weekly_review",
+   "category": "review",
+   "description": "Your goals for the period and the numbers they rest on.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:goals-progress",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "built_b",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:win-rate",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "built_c",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:expectancy",
+      "defRev": 1
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Your goals",
+     "prompt": "Your goals for the period, and how far along you are.",
+     "blocks": [
+      "built_a"
+     ]
+    },
+    {
+     "heading": "The numbers behind them",
+     "prompt": "The win rate and the expectancy your goals rest on.",
+     "blocks": [
+      "built_b",
+      "built_c"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-setup-study-v1",
+   "slug": "setup-study",
+   "title": "Setup study",
+   "group": "playbook",
+   "kindId": "thesis",
+   "category": "research",
+   "description": "Your own stats on one setup: trades, win rate, expectancy and when it works.",
+   "blocks": [
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "inline:a"
+     }
+    },
+    {
+     "block": "built_b",
+     "enabled": true,
+     "settings": {
+      "ref": "inline:b"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Your numbers on this setup",
+     "prompt": "Every trade you took on it over the last twelve months.",
+     "blocks": [
+      "built_a"
+     ]
+    },
+    {
+     "heading": "When it works",
+     "prompt": "Your P&L on this setup by time of day.",
+     "blocks": [
+      "built_b"
+     ]
+    },
+    {
+     "heading": "What you learned",
+     "prompt": "What the numbers say about when to take this setup, and when to pass.",
+     "blocks": []
+    }
+   ],
+   "definitions": [
+    {
+     "key": "a",
+     "name": "Your stats on this setup",
+     "description": "Trades, win rate and expectancy on one setup over the last twelve months.",
+     "plan": {
+      "v": 1,
+      "source": "closed_trades",
+      "range": {
+       "token": "last_12m"
+      },
+      "filters": [
+       {
+        "field": "setup",
+        "op": "in",
+        "values": [
+         {
+          "pick": "p1"
+         }
+        ]
+       }
+      ],
+      "measures": [
+       {
+        "key": "trades"
+       },
+       {
+        "key": "win_rate"
+       },
+       {
+        "key": "expectancy_r"
+       }
+      ],
+      "view": {
+       "type": "number",
+       "auto": false
+      }
+     }
+    },
+    {
+     "key": "b",
+     "name": "This setup by time of day",
+     "description": "Your P&L on one setup by the hour you took it, over the last twelve months.",
+     "plan": {
+      "v": 1,
+      "source": "closed_trades",
+      "range": {
+       "token": "last_12m"
+      },
+      "filters": [
+       {
+        "field": "setup",
+        "op": "in",
+        "values": [
+         {
+          "pick": "p1"
+         }
+        ]
+       }
+      ],
+      "measures": [
+       {
+        "key": "net_pnl"
+       }
+      ],
+      "split": {
+       "by": "hour_et"
+      },
+      "view": {
+       "type": "bar",
+       "auto": false
+      }
+     }
+    }
+   ],
+   "slots": [
+    {
+     "id": "p1",
+     "type": "setup",
+     "label": "Setup",
+     "any": false,
+     "source": "closed_trades",
+     "field": "setup"
+    }
+   ]
+  },
+  {
+   "seedKey": "uct-template-new-setup-idea-v1",
+   "slug": "new-setup-idea",
+   "title": "New setup idea",
+   "group": "playbook",
+   "kindId": "thesis",
+   "category": "research",
+   "description": "A new setup: what it is, its rules and how you'll test it.",
+   "blocks": [
+    {
+     "block": "chart",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRules",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "The idea",
+     "prompt": "What the setup is, with a chart of a clean example.",
+     "blocks": [
+      "chart"
+     ]
+    },
+    {
+     "heading": "Its rules",
+     "prompt": "Entry, stop and exit, written as rules you can follow.",
+     "blocks": [
+      "myRules"
+     ]
+    },
+    {
+     "heading": "How you'll test it",
+     "prompt": "How many trades, at what size, and what result would make it worth keeping.",
+     "blocks": []
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-rules-review-v1",
+   "slug": "rules-review",
+   "title": "Rules review",
+   "group": "playbook",
+   "kindId": "weekly_review",
+   "category": "review",
+   "description": "Your rules, how often you kept them and what keeping them was worth.",
+   "blocks": [
+    {
+     "block": "myRules",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRulesCheck",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:process-vs-results",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "rules_i_keep",
+      "bind": "note-day",
+      "display": "pnl"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Your rules",
+     "prompt": "The rules you trade by.",
+     "blocks": [
+      "myRules"
+     ]
+    },
+    {
+     "heading": "How often you kept them",
+     "prompt": "Your record of keeping each rule.",
+     "blocks": [
+      "myRulesCheck",
+      "routine_a"
+     ]
+    },
+    {
+     "heading": "What keeping them was worth",
+     "prompt": "Your results on the days you kept your process, and the days you didn't.",
+     "blocks": [
+      "built_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-options-trade-plan-v1",
+   "slug": "options-trade-plan",
+   "title": "Options trade plan",
+   "group": "playbook",
+   "kindId": "trade_plan",
+   "category": "trade_plan",
+   "description": "One options trade: strategy, max loss, IV and expiry.",
+   "blocks": [
+    {
+     "block": "chart",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "preEntryChecklist",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "marketcontext",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "The trade",
+     "prompt": "The underlying, the strategy, and why it fits the chart.",
+     "blocks": [
+      "chart",
+      "marketcontext"
+     ]
+    },
+    {
+     "heading": "Max loss, IV and expiry",
+     "prompt": "The most you can lose, the implied volatility you are paying, and the expiry you chose.",
+     "blocks": [
+      "preEntryChecklist"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-pre-session-check-in-v1",
+   "slug": "pre-session-check-in",
+   "title": "Pre-session check-in",
+   "group": "mindset",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "Sleep, mood and focus before the session, and how they compare with your P&L.",
+   "blocks": [
+    {
+     "block": "moodCheckIn",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "tracker_a",
+     "enabled": true,
+     "settings": {
+      "template": "sleep",
+      "bind": "note-day",
+      "display": "chart"
+     }
+    },
+    {
+     "block": "tracker_b",
+     "enabled": true,
+     "settings": {
+      "ref": "checkin:mood",
+      "bind": "note-day",
+      "display": "pnl"
+     }
+    },
+    {
+     "block": "tracker_c",
+     "enabled": true,
+     "settings": {
+      "ref": "checkin:focus",
+      "bind": "note-day",
+      "display": "pnl"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "How you feel",
+     "prompt": "Sleep, mood and focus before the session.",
+     "blocks": [
+      "moodCheckIn",
+      "tracker_a"
+     ]
+    },
+    {
+     "heading": "How it shows in your P&L",
+     "prompt": "Your mood and focus next to your results.",
+     "blocks": [
+      "tracker_b",
+      "tracker_c"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-prop-firm-challenge-v1",
+   "slug": "prop-firm-challenge",
+   "title": "Prop-firm challenge tracker",
+   "group": "challenges",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "Room left under your daily loss and max drawdown limits, and today's risk.",
+   "blocks": [
+    {
+     "block": "myPropFirm",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRiskLeftToday",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:equity-curve",
+      "defRev": 1
+     }
+    },
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "rules_i_keep",
+      "bind": "note-day",
+      "display": "items"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Your challenge limits",
+     "prompt": "Room left under your daily loss and max drawdown limits.",
+     "blocks": [
+      "myPropFirm"
+     ]
+    },
+    {
+     "heading": "Today's risk",
+     "prompt": "How much you can still risk today.",
+     "blocks": [
+      "myRiskLeftToday"
+     ]
+    },
+    {
+     "heading": "Progress",
+     "prompt": "Your account curve so far.",
+     "blocks": [
+      "built_a"
+     ]
+    },
+    {
+     "heading": "Your rules",
+     "prompt": "The rules that keep the challenge alive.",
+     "blocks": [
+      "routine_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-consistency-30-v1",
+   "slug": "consistency-30",
+   "title": "30-day consistency challenge",
+   "group": "challenges",
+   "kindId": "weekly_review",
+   "category": "review",
+   "description": "Thirty trading days of the same routine, and how those days compare with your P&L.",
+   "blocks": [
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "consistency_30",
+      "bind": "note-day",
+      "display": "pnl"
+     }
+    },
+    {
+     "block": "myRevengeClean",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "built_a",
+     "enabled": true,
+     "settings": {
+      "ref": "shelf:daily-pnl-bars",
+      "defRev": 1
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Today's routine",
+     "prompt": "Tick the routine you are keeping for thirty trading days.",
+     "blocks": [
+      "routine_a"
+     ]
+    },
+    {
+     "heading": "Clean trading",
+     "prompt": "Days without a revenge trade.",
+     "blocks": [
+      "myRevengeClean"
+     ]
+    },
+    {
+     "heading": "Your days next to your P&L",
+     "prompt": "Your daily results while you keep the routine.",
+     "blocks": [
+      "built_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-morning-routine-v1",
+   "slug": "morning-routine",
+   "title": "Morning routine",
+   "group": "habits",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "Your morning routine, ticked every trading day.",
+   "blocks": [
+    {
+     "block": "routine_a",
+     "enabled": true,
+     "settings": {
+      "template": "morning_routine",
+      "bind": "note-day",
+      "display": "items"
+     }
+    },
+    {
+     "block": "tracker_a",
+     "enabled": true,
+     "settings": {
+      "template": "sleep",
+      "bind": "note-day",
+      "display": "chart"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Morning routine",
+     "prompt": "Tick each step, every trading day.",
+     "blocks": [
+      "routine_a"
+     ]
+    },
+    {
+     "heading": "Sleep",
+     "prompt": "How long you slept last night.",
+     "blocks": [
+      "tracker_a"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
+   "seedKey": "uct-template-trading-day-trackers-v1",
+   "slug": "trading-day-trackers",
+   "title": "Trading-day tracker set",
+   "group": "habits",
+   "kindId": "daily_prep",
+   "category": "research",
+   "description": "Sleep, energy, exercise and whether you kept your trading plan, once a day.",
+   "blocks": [
+    {
+     "block": "tracker_a",
+     "enabled": true,
+     "settings": {
+      "template": "sleep",
+      "bind": "note-day",
+      "display": "chart"
+     }
+    },
+    {
+     "block": "tracker_b",
+     "enabled": true,
+     "settings": {
+      "template": "energy",
+      "bind": "note-day",
+      "display": "chart"
+     }
+    },
+    {
+     "block": "tracker_c",
+     "enabled": true,
+     "settings": {
+      "template": "exercise",
+      "bind": "note-day",
+      "display": "chart"
+     }
+    },
+    {
+     "block": "tracker_d",
+     "enabled": true,
+     "settings": {
+      "template": "plan_followed",
+      "bind": "note-day",
+      "display": "chart"
+     }
+    }
+   ],
+   "sections": [
+    {
+     "heading": "Body",
+     "prompt": "Sleep, energy and exercise, once a day.",
+     "blocks": [
+      "tracker_a",
+      "tracker_b",
+      "tracker_c"
+     ]
+    },
+    {
+     "heading": "Your trading plan",
+     "prompt": "Did you keep your trading plan today?",
+     "blocks": [
+      "tracker_d"
+     ]
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  }
+ ],
+ "retired": []
+}

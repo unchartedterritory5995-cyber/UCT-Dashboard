@@ -20,7 +20,7 @@ import TemplateGallery from './TemplateGallery'
 import StyleLibraryCard from './StyleLibraryCard'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { GALLERY_SORTS } from '../../lib/templateGallery'
-import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
+import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TOOL_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
 import { contract, contractBody } from '../../__fixtures__/contract'
 import { helpfulWords, usedByWords } from './library/LibraryCardFacts'
 import { openAdoptSheet } from './library/openAdoptSheet'
@@ -170,17 +170,44 @@ describe('the switch', () => {
     const types = await screen.findByRole('group', { name: 'Filter by type' })
     // P3b (R-P3b-2): an example note is never a chip of its own. P4b (X21): the chips are the types this answer
     // offers. This fake's list answer carries no `capabilities`, so layout sharing reads as off and the Page layouts
-    // chip is not offered (LayoutLibrary.test.jsx holds the "on" half).
+    // chip is not offered (LayoutLibrary.test.jsx holds the "on" half). Wave 11 (W11-R17): these flags leave wave 11
+    // off, so neither are the Widgets, Routines and Trackers chips (the "on" half is the test below).
     expect(within(types).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout' && !TOOL_ITEM_TYPES.includes(t.key))
+        .map((t) => t.label)])
+    for (const name of ['Widgets', 'Routines', 'Trackers']) expect(within(types).queryByRole('button', { name })).toBeNull()
     expect(within(types).queryByRole('button', { name: 'Example notes' })).toBeNull()
     expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(ITEM_TYPES.some((t) => t.key === EXAMPLE_NOTE_TYPE)).toBe(true)
     expect(LISTED_ITEM_TYPES.map((t) => t.key)).toEqual(ITEM_TYPES.map((t) => t.key).filter((k) => k !== EXAMPLE_NOTE_TYPE))
+    expect(TOOL_ITEM_TYPES.every((k) => LISTED_ITEM_TYPES.some((t) => t.key === k))).toBe(true)   // non-vacuity
     const ts = screen.getByRole('group', { name: 'Filter by trading style' })
     expect(within(ts).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...TRADING_STYLES.map((t) => t.label)])
     expect([...screen.getByLabelText('Sort').options].map((o) => o.textContent)).toEqual(LIBRARY_SORTS.map((s) => s.label))
     expect(screen.getByRole('button', { name: 'Following' })).toBeInTheDocument()
+  })
+})
+
+describe('the tool type chips follow wave 11 (W11-R17)', () => {
+  it('wave 11 on: Widgets, Routines and Trackers are offered, after Styles', async () => {
+    server.library = true
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true,
+      notebook_widgets_w11_enabled: true })
+    await openGallery()
+    const types = await screen.findByRole('group', { name: 'Filter by type' })
+    expect(within(types).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
+    for (const name of ['Widgets', 'Routines', 'Trackers']) expect(within(types).getByRole('button', { name })).toBeInTheDocument()
+  })
+
+  it('wave 11 off: a door asking for a tool type opens at All, never on a chip the row does not offer', async () => {
+    flags()
+    render(wrap(<TemplateGallery onBack={vi.fn()} initialType="routine" />))
+    const types = await screen.findByRole('group', { name: 'Filter by type' })
+    expect(within(types).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(types).queryByRole('button', { name: 'Routines' })).toBeNull()
+    await waitFor(() => expect(listCalls().length).toBeGreaterThan(0))
+    expect(listCalls().some((c) => c.search.includes('type=routine'))).toBe(false)
   })
 })
 

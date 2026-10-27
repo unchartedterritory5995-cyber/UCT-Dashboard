@@ -14,18 +14,21 @@ module imports cleanly on its own; nothing here restates a kind constant.
 from __future__ import annotations
 
 import copy
+import importlib
 import json
 import logging
 import re
 import sqlite3
+import threading
 import time
 import uuid
 from concurrent.futures import TimeoutError as _FutTimeout
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import sample_marker
+from api.services.journal_two.json_depth import _json_depth_exceeds
 from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
@@ -49,6 +52,13 @@ MAX_STYLES_PER_MEMBER = 200
 MAX_STYLE_NAME_CHARS = 80
 MAX_BLOCKS = 30
 MAX_UNKNOWN_SETTINGS_BYTES = 4096
+#: W11-R54 (F-ALIAS-1 part S, I-1 -- LIVE ON MASTER): how deep a block's settings kept VERBATIM may nest (the settings
+#: object itself counts 1). A deeper value was stored and then 500ed every door that serves the style (the route's
+#: answer passed pydantic-core's serialisation depth), bricking the member's whole styles list. The wave 11 body
+#: reader's depth; no shipped client sends a settings value more than 3 deep.
+MAX_KEPT_SETTINGS_DEPTH = 16
+S_SETTINGS_TOO_LARGE = "That block's settings are too large."
+S_SETTINGS_TOO_DEEP = "That block's settings are nested too deeply."
 BLOCK_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,40}$")
 BUILTIN_PREFIX = "builtin:"
 
@@ -92,19 +102,272 @@ BLOCK_KINDS: tuple[dict, ...] = (
 #: Task 18 (R50): a member slot keeps the builder's request keys and nothing else (`_clean_blocks` reduces it
 #: through notebook_widgets.settings_of, so no payload figure is ever stored in a style), and
 #: `_build_widget_slot` passes them through to build() as params (it reads only the applier's own account).
+#: Wave 11 (Task 11.3): the six wave 10 dedicated kinds a template may hold, after the six, in this order. Each
+#: is gated by its own KIND_WAVE (10) in `_slot_wave_off`. `myPlanVsActual` is not a slot: it needs a trade pick.
 SNAPSHOT_SLOT_KINDS: tuple[str, ...] = (
-    "myWatchlistToday", "myNamesReporting", "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes")
-KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS) | frozenset(SNAPSHOT_SLOT_KINDS)
+    "myWatchlistToday", "myNamesReporting", "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes",
+    "myRiskLeftToday", "myGamePlan", "myTiltCheck", "myRevengeClean", "myPropFirm", "myAlertsFired")
+#: Ruling W11-R20: a wave 10 kind used as a template SLOT is a wave 11 capability. While wave 11 is off these
+#: six are exactly what they were before Task 11.3: not known blocks (`_KnownBlocks.__contains__` answers
+#: False, so "Save as style" leaves them out and the gallery reader drops them) and hidden from every slot path
+#: (`_slot_wave_off`: served, compose, update layout, kept on save). ⛔ The same flag-dependent membership holds
+#: for EVERY `_KnownBlocks` instance, `CREATE_ONLY_BLOCKS` included: `'myGamePlan' in CREATE_ONLY_BLOCKS` is
+#: False while wave 11 is off, so a membership test against it must come AFTER the `_slot_wave_off` skip.
+WAVE11_SLOT_KINDS: tuple[str, ...] = SNAPSHOT_SLOT_KINDS[6:]
+_WAVE11_SLOT_KIND_SET = frozenset(WAVE11_SLOT_KINDS)
+
+
+def _wave11_on() -> bool:
+    """Is notebook widgets wave 11 on, read NOW (imported at call time: this module imports notebook_widgets
+    only further down)."""
+    from api.services.journal_two import notebook_widgets
+    return notebook_widgets.notebook_widgets_wave_on(11)
+
+# ── Wave 11 (Task 11.3, rulings W11-R2 / W11-R3): template slot families ─────────────────────────
+# A template slot is a block id the existing BLOCK_ID_RE and PLACEHOLDER_RE already accept:
+# `built_<k>` (a built widget), `routine_<k>`, `tracker_<k>`, `<k>` 1-2 lowercase letters or digits.
+# Its target lives in the block's settings, reduced on every write by `slot_settings_of`.
+SLOT_FAMILIES: tuple[str, ...] = ("built", "routine", "tracker")
+SLOT_ID_RE = re.compile(r"^(built|routine|tracker)_[a-z0-9]{1,2}$")
+INLINE_KEY_RE = re.compile(r"^[a-z0-9]{1,8}$")
+
+
+def slot_family(block_id: Any) -> str | None:
+    """The slot family of a block id (`"built"`, `"routine"`, `"tracker"`), or None. Total."""
+    if not isinstance(block_id, str):
+        return None
+    m = SLOT_ID_RE.fullmatch(block_id)        # fullmatch: `$` alone would accept a trailing newline
+    return m.group(1) if m else None
+
+
+class _KnownBlocks(frozenset):
+    """W11-R3: the ONE authority over which block ids this server can place. Iteration, length and set
+    algebra are the frozenset's (the catalogued ids); membership ALSO answers True for every slot family id
+    (`SLOT_ID_RE`), so every `bid in KNOWN_BLOCKS` site accepts the families with no call-site change.
+    Ruling W11-R20: a WAVE11_SLOT_KINDS member answers False while wave 11 is off (read per call). That holds
+    for every instance of this class, `CREATE_ONLY_BLOCKS` as well as `KNOWN_BLOCKS` (11.3 re-review m-4).
+
+    ⛔ ONLY `in` is prefix- and flag-aware. Set algebra (`|`, `&`, `<=`, ...) returns or compares plain
+    frozensets of the catalogued ids, so a derived set (`KNOWN_BLOCKS | {...}`) silently loses both rules:
+    always test membership against KNOWN_BLOCKS itself. A non-hashable value answers False, never raises."""
+    __slots__ = ()
+
+    def __contains__(self, x: object) -> bool:
+        if isinstance(x, str):
+            if x in _WAVE11_SLOT_KIND_SET and frozenset.__contains__(self, x):
+                return _wave11_on()
+            return frozenset.__contains__(self, x) or SLOT_ID_RE.fullmatch(x) is not None
+        try:
+            return frozenset.__contains__(self, x)
+        except TypeError:                         # an unhashable value (a hand-edited row's list) is no block
+            return False
+
+
+KNOWN_BLOCKS = _KnownBlocks(frozenset(k["id"] for k in BLOCK_KINDS) | frozenset(SNAPSHOT_SLOT_KINDS))
 #: Task 15 fix round 1: ONE wall-clock budget for every slot a create builds. Slots are built LAST, after
 #: every other block and the prefill, so trader_blocks' create read budget is spent on the prep pack alone;
 #: a slot not finished inside this budget becomes its "couldn't load" sentence.
 SLOT_BUDGET_S = 4.0
 _SLOT_MARK = "__uctSlot"            # a deferred slot's in-body marker key, never stored
+_TOOL_MARK = "__uctTool"            # fix round 2: a routine / tracker slot left for the locked step, never stored
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
 
 
 class StyleValidationError(ValueError):
     pass
+
+
+# The slot settings' sentences (W11-R2). Member words only: Widget, Routine, Tracker.
+S_SLOT_REF = "Pick a widget for this spot."
+S_SLOT_REV = "This widget's version couldn't be read."
+S_SLOT_RANGE = "That date range isn't available."
+S_SLOT_TOOL = "Pick a routine or tracker for this spot."
+S_SLOT_BIND = "Pick the day this block is for."
+S_SLOT_DISPLAY = "That display isn't available."
+
+
+def _is_uuid4(raw: object) -> bool:
+    """A lowercase uuid4, exactly: THE one rule (`create_keys.clean_create_key`, its one home), with no trimming or
+    case folding (a stored ref is the id as issued)."""
+    from api.services.journal_two import create_keys
+    return isinstance(raw, str) and create_keys.clean_create_key(raw) == raw
+
+
+_TEMPLATE_KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+#: Display options per tool family (W11-R2), the first is the default.
+SLOT_DISPLAYS: dict[str, tuple[str, ...]] = {"routine": ("items", "pnl"), "tracker": ("chart", "pnl")}
+#: The tracker refs that name no row: the mood and focus check-in.
+SLOT_CHECKIN_REFS = ("checkin:mood", "checkin:focus")
+#: Used only while Task 11.2's `tool_binding.BINDS` (the one authority) has not landed in this checkout.
+_BINDS_BEFORE_TOOL_BINDING = ("note-day", "next-trading-day", "week")
+
+
+def _slot_binds() -> tuple[str, ...]:
+    """The day bindings a template slot may name: `tool_binding.BINDS`, read at call time."""
+    name = "api.services.journal_two.tool_binding"
+    try:
+        tool_binding = importlib.import_module(name)
+    except ModuleNotFoundError as e:
+        if e.name != name:
+            raise
+        return _BINDS_BEFORE_TOOL_BINDING
+    return tuple(tool_binding.BINDS)
+
+
+def _template_key_ok(family: str, key: Any) -> bool:
+    """A routine or tracker template key: the shape always; membership in `template_tools` once Task 11.6
+    has landed it (read lazily, so this grammar never imports it at module load)."""
+    if not isinstance(key, str) or not _TEMPLATE_KEY_RE.fullmatch(key):
+        return False
+    name = "api.services.journal_two.template_tools"
+    try:
+        template_tools = importlib.import_module(name)
+    except ModuleNotFoundError as e:
+        if e.name != name:
+            raise
+        return True
+    table = template_tools.ROUTINE_TEMPLATES if family == "routine" else template_tools.TRACKER_TEMPLATES
+    return key in table
+
+
+def _is_rev(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 1
+
+
+def slot_settings_of(family: str, settings: Any) -> dict:
+    """W11-R2: the ONE reduction of a template slot's settings, taken on every write (`_clean_blocks`).
+    Answers a NEW dict holding only the keys of the family's shape (unknown keys are dropped; `bind` and
+    `display` are written explicitly at their defaults); raises `StyleValidationError` with the slot
+    sentence for anything else.
+
+    built:   {"ref": "shelf:<slug>" | "def:<uuid4>" | "inline:<key>", "defRev": int >= 1 (shelf/def only),
+              "range": {"token": <plan.RANGE_TOKENS>} (optional)}
+    routine: exactly one of {"ref": "routine:<uuid4>"} / {"template": <key>} / {"inline": <key>},
+              "bind" in BINDS (default "note-day"), "display" in ("items", "pnl") (default "items")
+    tracker: the same with "ref" "tracker:<uuid4>" | "checkin:mood" | "checkin:focus" and
+              "display" in ("chart", "pnl") (default "chart")"""
+    s = settings if isinstance(settings, dict) else {}
+    if family == "built":
+        from api.services.journal_two.widget_engine import plan as wplan
+        from api.services.journal_two.widget_engine import shelf
+        ref = s.get("ref")
+        if not isinstance(ref, str):
+            raise StyleValidationError(S_SLOT_REF)
+        if ref.startswith(shelf.ID_PREFIX):
+            if not shelf.known(ref):              # the ids of shelf.examples() order (every id, once)
+                raise StyleValidationError(S_SLOT_REF)
+            if not _is_rev(s.get("defRev")) or shelf.revision(ref, s["defRev"]) is None:
+                raise StyleValidationError(S_SLOT_REV)
+            out: dict = {"ref": ref, "defRev": s["defRev"]}
+        elif ref.startswith("def:"):
+            if not _is_uuid4(ref[len("def:"):]):
+                raise StyleValidationError(S_SLOT_REF)
+            if not _is_rev(s.get("defRev")):
+                raise StyleValidationError(S_SLOT_REV)
+            out = {"ref": ref, "defRev": s["defRev"]}
+        elif ref.startswith("inline:"):
+            if not INLINE_KEY_RE.fullmatch(ref[len("inline:"):]):
+                raise StyleValidationError(S_SLOT_REF)
+            if "defRev" in s:
+                raise StyleValidationError(S_SLOT_REV)
+            out = {"ref": ref}
+        else:
+            raise StyleValidationError(S_SLOT_REF)
+        if "range" in s:
+            rng = s["range"]
+            if not (isinstance(rng, dict) and set(rng) == {"token"} and isinstance(rng["token"], str)
+                    and rng["token"] in wplan.RANGE_TOKENS):
+                raise StyleValidationError(S_SLOT_RANGE)
+            out["range"] = {"token": rng["token"]}
+        return out
+    if family not in ("routine", "tracker"):
+        raise StyleValidationError(S_SLOT_REF)
+    given = [k for k in ("ref", "template", "inline") if s.get(k) is not None]
+    if len(given) != 1:
+        raise StyleValidationError(S_SLOT_TOOL)
+    key, value = given[0], s[given[0]]
+    if key == "ref":
+        ok = isinstance(value, str) and (
+            (value.startswith(f"{family}:") and _is_uuid4(value[len(family) + 1:]))
+            or (family == "tracker" and value in SLOT_CHECKIN_REFS))
+    elif key == "template":
+        ok = _template_key_ok(family, value)
+    else:
+        ok = isinstance(value, str) and INLINE_KEY_RE.fullmatch(value) is not None
+    if not ok:
+        raise StyleValidationError(S_SLOT_TOOL)
+    binds = _slot_binds()
+    bind = s.get("bind", binds[0])
+    if not isinstance(bind, str) or bind not in binds:              # "today" (Follow today) included
+        raise StyleValidationError(S_SLOT_BIND)
+    displays = SLOT_DISPLAYS[family]
+    display = s.get("display", displays[0])
+    if not isinstance(display, str) or display not in displays:
+        raise StyleValidationError(S_SLOT_DISPLAY)
+    return {key: value, "bind": bind, "display": display}
+
+
+def slot_key(i: int) -> str:
+    """The `<k>` of the i-th slot of a family made from a note, in document order: `a`..`z`, then `a1`..`z1`,
+    `a2`, ... (always 1-2 lowercase letters or digits, `SLOT_ID_RE`)."""
+    letter = chr(ord("a") + i % 26)
+    return letter if i < 26 else f"{letter}{i // 26}"
+
+
+def _built_slots_on() -> bool:
+    """May "Save as style" make built slots now? Wave 11 and wave 8 on (while either is off a placed built
+    widget is left out exactly as before Task 11.5)."""
+    from api.services.journal_two import notebook_widgets
+    return notebook_widgets.notebook_widgets_wave_on(11) and notebook_widgets.notebook_widgets_wave_on(8)
+
+
+def built_slot_settings_of_node(params: Any) -> dict | None:
+    """A placed `builtWidget`'s params -> its slot settings (W11-R2), or None when it names no widget a template
+    can hold. A `shelf:` id keeps its pinned `defRev` (1 when absent, W10-R5); a member widget's uuid becomes
+    `def:<uuid>` at the placement's `defRev` (validated as the member's own at FILL time). `range` is kept only
+    as a token; `accountId` and `filter` are the member's viewer values and never reach a template."""
+    p = params if isinstance(params, dict) else {}
+    def_id, rev = p.get("defId"), p.get("defRev")
+    rev = rev if _is_rev(rev) else 1
+    if not isinstance(def_id, str) or not def_id:
+        return None
+    s: dict = {"ref": def_id if def_id.startswith("shelf:") else f"def:{def_id}", "defRev": rev}
+    rng = p.get("range")
+    if isinstance(rng, dict) and isinstance(rng.get("token"), str):
+        from api.services.journal_two.widget_engine import plan as wplan
+        if rng["token"] in wplan.RANGE_TOKENS:
+            s["range"] = {"token": rng["token"]}
+    try:
+        return slot_settings_of("built", s)
+    except StyleValidationError:
+        return None
+
+
+def _tool_slots_on() -> bool:
+    """May "Save as style" make routine and tracker slots now? Wave 11 and wave 9 on (while either is off a placed
+    routine or tracker block is left out exactly as before Task 11.6)."""
+    from api.services.journal_two import notebook_widgets
+    return notebook_widgets.notebook_widgets_wave_on(11) and notebook_widgets.notebook_widgets_wave_on(9)
+
+
+def tool_slot_settings_of_node(family: str, params: Any) -> dict | None:
+    """A placed routine or tracker block's params -> its slot settings (W11-R2), or None when it names no tool a
+    template can hold. The id becomes `routine:<id>` / `tracker:<id>` (a check-in as itself), validated as the
+    member's own at FILL time. `bind` is kept when it is one a template may name, else the note's day: a block
+    bound "today" (Follow today) saves as `note-day`, never a template default. `display` is kept when valid."""
+    p = params if isinstance(params, dict) else {}
+    tid = p.get(_sf.TOOL_ID_KEYS.get(family, ""))           # the params id key: slot_fill's one table
+    if family not in SLOT_DISPLAYS or not isinstance(tid, str) or not tid:
+        return None
+    ref = tid if family == "tracker" and tid in SLOT_CHECKIN_REFS else f"{family}:{tid}"
+    binds = _slot_binds()
+    bind = p.get("bind") if isinstance(p.get("bind"), str) and p.get("bind") in binds else binds[0]
+    displays = SLOT_DISPLAYS[family]
+    display = p.get("display") if isinstance(p.get("display"), str) and p.get("display") in displays else displays[0]
+    try:
+        return slot_settings_of(family, {"ref": ref, "bind": bind, "display": display})
+    except StyleValidationError:
+        return None
 
 
 class StyleNotFound(LookupError):
@@ -234,7 +497,7 @@ def builtin_style_id(kind_id: str) -> str:
 
 def _member_default(user_id: str, kind_id: str, conn: sqlite3.Connection) -> str | None:
     r = conn.execute("SELECT id FROM j2_journal_styles WHERE user_id = ? AND kind_id = ? AND is_default = 1"
-                     " AND deleted_at IS NULL", (user_id, kind_id)).fetchone()
+                     " AND deleted_at IS NULL" + _archive_hidden_sql(), (user_id, kind_id)).fetchone()
     return r["id"] if r else None
 
 
@@ -255,7 +518,7 @@ def _row(r: sqlite3.Row, *, full: bool) -> dict:
     out = {"id": r["id"], "name": r["name"], "kindId": r["kind_id"], "builtin": False,
            "isDefault": bool(r["is_default"]), "version": r["version"],
            "outlineTemplateId": r["outline_template_id"], "hasOutline": bool(body or r["outline_template_id"]),
-           "blocks": json.loads(r["blocks_json"] or "[]"), "properties": json.loads(r["properties_json"] or "{}"),
+           "blocks": _servable_blocks(r["blocks_json"]), "properties": json.loads(r["properties_json"] or "{}"),
            "sourceGalleryId": r["source_gallery_id"], "sourceVersion": r["source_version"],
            "createdAt": r["created_at"], "updatedAt": r["updated_at"], "deletedAt": r["deleted_at"]}
     if full:
@@ -311,30 +574,124 @@ def _clean_outline(raw: Any) -> dict | None:
         raise StyleValidationError(f"The outline could not be saved: {e}") from e
 
 
-def _clean_blocks(raw: Any) -> list[dict]:
+def _legacy_key(bid: Any, settings: Any) -> tuple[str, str] | None:
+    try:
+        return (bid, json.dumps(settings, sort_keys=True))
+    except (TypeError, ValueError):
+        return None
+
+
+def _legacy_blocks(blocks_json: Any) -> set:
+    """The legacy-keep set of one STORED `blocks_json`: (block id, canonical settings) of each stored block the
+    Task 11.3 grammar may now refuse, i.e. a family id (its settings can fail `slot_settings_of`) or an id that
+    `BLOCK_ID_RE.fullmatch` refuses (`chart\\n`: `.match` with `$` let it through before 11.3, as an unknown
+    block kept verbatim; 11.3 re-review m-1). Keyed on the EXACT stored id and settings."""
+    try:
+        stored = json.loads(blocks_json or "[]")
+    except (TypeError, ValueError):
+        return set()
+    out = set()
+    for sb in stored if isinstance(stored, list) else []:
+        if not isinstance(sb, dict) or not isinstance(sb.get("block"), str):
+            continue
+        if slot_family(sb["block"]) or not BLOCK_ID_RE.fullmatch(sb["block"]):
+            k = _legacy_key(sb["block"], sb.get("settings") if sb.get("settings") is not None else {})
+            if k is not None:
+                out.add(k)
+    return out
+
+
+def _member_legacy_blocks(user_id: str, conn: sqlite3.Connection) -> set:
+    """The legacy-keep set over every one of the member's live styles (the style editor's draft preview names no
+    row, so a block kept there must match one the member has stored; 11.3 re-review m-2)."""
+    out: set = set()
+    for r in conn.execute("SELECT blocks_json FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
+                          (user_id,)).fetchall():
+        out |= _legacy_blocks(r["blocks_json"])
+    return out
+
+
+def _check_kept_verbatim(settings: Any) -> None:
+    """THE check on a block's settings kept VERBATIM (an unknown id stored before the grammar, a family slot stored
+    before it, a newer version's block): at most `MAX_KEPT_SETTINGS_DEPTH` deep (W11-R54; iterative, judged BEFORE
+    the size, whose `json.dumps` recurses) and at most `MAX_UNKNOWN_SETTINGS_BYTES` long. Raises
+    `StyleValidationError` (400) with a sentence; never stores what a read could not serve."""
+    if _json_depth_exceeds(settings, MAX_KEPT_SETTINGS_DEPTH):
+        raise StyleValidationError(S_SETTINGS_TOO_DEEP)
+    if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
+        raise StyleValidationError(S_SETTINGS_TOO_LARGE)
+
+
+def _servable_blocks(blocks_json: Any) -> list:
+    """W11-R54 read-side guard: a STORED style's blocks as every door serves them. A row written before the depth cap
+    with a block whose settings nest past `MAX_KEPT_SETTINGS_DEPTH` is served with that block's settings EMPTY (the
+    block itself stays, so the member sees it and can save or delete the style), never a value whose serialisation
+    500s the list, GET, PUT, /default and DELETE. Every other block is served exactly as stored."""
+    blocks = json.loads(blocks_json or "[]")
+    if not isinstance(blocks, list):
+        return blocks
+    return [{**b, "settings": {}} if isinstance(b, dict) and isinstance(b.get("settings"), (dict, list))
+            and _json_depth_exceeds(b["settings"], MAX_KEPT_SETTINGS_DEPTH) else b for b in blocks]
+
+
+def _clean_blocks(raw: Any, legacy: Any = None) -> list[dict]:
+    """`legacy` (`_legacy_blocks` of the stored row(s): update_style, duplicate and the draft preview): a block
+    that fails the grammar but was stored exactly so (a hand-made row from before Task 11.3, when the id was an
+    unknown block kept verbatim) is kept verbatim, so the member can still save, duplicate and preview the style.
+    That covers a family block whose settings fail `slot_settings_of` and an id `BLOCK_ID_RE.fullmatch` refuses.
+    `legacy` may be a callable answering the set: it is called once, only when a block would otherwise be
+    refused (fix round 1, m-5: the draft preview parses the member's styles only then)."""
+    held: list = []
+
+    def in_legacy(bid: Any, settings: Any) -> bool:
+        if legacy is None:
+            return False
+        if not held:
+            held.append(legacy() if callable(legacy) else legacy)
+        return _legacy_key(bid, settings) in held[0]
+
     if raw is None:
         return []
     if not isinstance(raw, list) or len(raw) > MAX_BLOCKS:
         raise StyleValidationError(f"A style can hold up to {MAX_BLOCKS} blocks.")
     out, seen = [], set()
     for b in raw:
-        if not isinstance(b, dict) or not isinstance(b.get("block"), str) or not BLOCK_ID_RE.match(b["block"]):
+        if not isinstance(b, dict) or not isinstance(b.get("block"), str):
             raise StyleValidationError("Each block needs a valid block id.")
         bid = b["block"]
+        settings = b.get("settings") if b.get("settings") is not None else {}
+        if not BLOCK_ID_RE.fullmatch(bid):                    # fullmatch: no `built_a<newline>` id
+            if not in_legacy(bid, settings):
+                raise StyleValidationError("Each block needs a valid block id.")
+            if bid in seen:
+                raise StyleValidationError("A style can hold each block once.")
+            _check_kept_verbatim(settings)
+            seen.add(bid)
+            out.append({"block": bid, "enabled": bool(b.get("enabled", True)), "settings": settings})
+            continue                                          # stored before the grammar: kept verbatim
         if bid in seen:
             raise StyleValidationError("A style can hold each block once.")
         seen.add(bid)
-        settings = b.get("settings") if b.get("settings") is not None else {}
         if not isinstance(settings, dict):
             raise StyleValidationError("A block's settings must be an object.")
         kind = _BLOCK_BY_ID.get(bid)
-        if bid in SNAPSHOT_SLOT_KINDS:
+        family = slot_family(bid)
+        if family is not None:
+            # Wave 11 (W11-R2): a template slot keeps its family's shape only, reduced by the ONE function
+            # every write takes. Not `_nw.settings_of`, which keeps only short SETTING_KEYS strings.
+            try:
+                clean = slot_settings_of(family, settings)
+            except StyleValidationError:
+                if not in_legacy(bid, settings):
+                    raise
+                _check_kept_verbatim(settings)
+                clean = settings                                 # stored before the grammar: kept verbatim
+        elif bid in SNAPSHOT_SLOT_KINDS:
             # Task 18 (R50): a snapshot slot keeps the builder's request keys only; anything else (a frozen
             # payload's figures, rows, the share switch) is dropped here, the ONE reduction every write takes.
             clean = _nw.settings_of(settings)
         elif kind is None:
-            if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
-                raise StyleValidationError("That block's settings are too large.")
+            _check_kept_verbatim(settings)
             clean = settings                                     # a newer version's block: kept verbatim
         else:
             allowed = {s["key"]: s for s in kind["settings"]}
@@ -438,16 +795,301 @@ def get_style(user_id: str, style_id: Any, conn: sqlite3.Connection | None = Non
             conn.close()
 
 
-def list_styles(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict]:
-    """Built-in styles (in built-in kind order), then the member's live styles, oldest first."""
+#: Task 11.13 (W11-R10): the views of `list_styles`. "picker" is every existing caller's answer.
+STYLE_VIEWS = ("picker", "live", "archived", "deleted")
+#: Recently deleted lists a template this many days after its delete, and restore refuses it after that. Rows are
+#: never hard-deleted here: a note's style stamp and Update layout read them.
+RECENTLY_DELETED_DAYS = 30
+#: At most this many notes in a template's "Used in" list.
+USED_IN_LIMIT = 100
+S_BUILTIN_ARCHIVE = "Built-in templates can't be archived."
+S_BUILTIN_DELETE = "Built-in templates can't be deleted."
+S_ARCHIVE_FIRST = "Archive this template before deleting it."
+S_TYPE_NAME = "Type the template's name exactly to delete it."
+S_RESTORE_EXPIRED = "This template was deleted more than 30 days ago."
+S_RESTORE_KIND_GONE = "This template's kind of note was deleted, so it can't be restored."
+S_UNARCHIVE_FIRST = "Unarchive this template before making it the default."
+S_CAP = f"You can keep up to {MAX_STYLES_PER_MEMBER} styles. Delete one first."
+_VIEW_WHERE = {"live": "deleted_at IS NULL AND archived_at IS NULL",
+               "archived": "deleted_at IS NULL AND archived_at IS NOT NULL",
+               "deleted": "deleted_at IS NOT NULL AND deleted_at >= ?"}
+
+
+def _archive_hidden_sql() -> str:
+    """Ruling W11-R38: an archived template is hidden from the picker, the kind section and the default choice ONLY
+    while wave 11 is on. With wave 11 off it is an ordinary template again, exactly as before wave 11 (the archive
+    data is kept and applies again on re-arm). Read per call."""
+    return " AND archived_at IS NULL" if _wave11_on() else ""
+
+
+def _deleted_cutoff() -> str:
+    """The oldest `deleted_at` Recently deleted still lists (same ISO UTC form as `_now`, so text order is time
+    order)."""
+    return (datetime.now(timezone.utc) - timedelta(days=RECENTLY_DELETED_DAYS)).isoformat()
+
+
+def _view_row(r: sqlite3.Row, *, full: bool = False) -> dict:
+    """A My tools row: `_row` plus `archivedAt`. Only the Templates tab's views and its own doors carry the key
+    (M-1): the picker and every pre-wave-11 answer stay exactly what they were."""
+    return {**_row(r, full=full), "archivedAt": r["archived_at"]}
+
+
+def _view_style(user_id: str, style_id: str, conn: sqlite3.Connection, *, include_deleted: bool = False) -> dict | None:
+    r = _load_row(user_id, style_id, conn, include_deleted=include_deleted)
+    return _view_row(r, full=True) if r is not None else None
+
+
+def list_styles(user_id: str, conn: sqlite3.Connection | None = None, *, view: str = "picker") -> list[dict]:
+    """`view="picker"` (every existing caller): built-in styles (in built-in kind order), then the member's live
+    styles, oldest first. While wave 11 is on, archived ones are LEFT OUT (W11-R10: hidden from TemplatePicker, the
+    kind section and the default choice); with it off the answer is byte-for-byte the pre-wave-11 one (W11-R38, M-1).
+
+    My tools' Templates tab (Task 11.13) reads the member's OWN rows only (no built-ins), each with `archivedAt`,
+    `usedIn` (live notes made from it, sample notes excluded: one grouped count), `credit`, `fromLibrary` and
+    `updateAvailable`, in a constant number of statements however many rows there are (I-1):
+      * "live"     the rows the picker shows while wave 11 is on;
+      * "archived" archived rows, newest archive first;
+      * "deleted"  rows deleted within RECENTLY_DELETED_DAYS, newest delete first (each keeps its `archivedAt`, so
+                   a restore lands where it was)."""
+    if view not in STYLE_VIEWS:
+        raise StyleValidationError("Choose live, archived or deleted.")
     owned = conn is None
     conn = conn or get_connection()
     try:
-        out = [_builtin(user_id, k["id"], conn, full=False) for k in _nk().BUILTIN_NOTE_KINDS
-               if k["id"] in BUILTIN_STYLES]
-        rows = conn.execute("SELECT * FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL"
-                            " ORDER BY created_at, rowid", (user_id,)).fetchall()
-        return out + [_row(r, full=False) for r in rows]
+        if view == "picker":
+            rows = conn.execute("SELECT * FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL"
+                                + _archive_hidden_sql() + " ORDER BY created_at, rowid", (user_id,)).fetchall()
+            return [_builtin(user_id, k["id"], conn, full=False) for k in _nk().BUILTIN_NOTE_KINDS
+                    if k["id"] in BUILTIN_STYLES] + [_row(r, full=False) for r in rows]
+        order = {"archived": "archived_at DESC, rowid DESC", "deleted": "deleted_at DESC, rowid DESC"}.get(
+            view, "created_at, rowid")
+        params: tuple = (user_id, _deleted_cutoff()) if view == "deleted" else (user_id,)
+        rows = conn.execute(f"SELECT * FROM j2_journal_styles WHERE user_id = ? AND {_VIEW_WHERE[view]}"
+                            f" ORDER BY {order}", params).fetchall()
+        return _with_library_facts(user_id, [_view_row(r) for r in rows], conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def _used_in_counts(user_id: str, conn: sqlite3.Connection) -> dict[str, int]:
+    """{style id: live notes made from it} for every style of the member, in ONE grouped count. A note in the trash
+    and a sample note (sample_marker) are not uses."""
+    return {r["style_id"]: r["n"] for r in conn.execute(
+        "SELECT style_id, COUNT(*) AS n FROM j2_notes WHERE user_id = ? AND style_id IS NOT NULL"
+        " AND deleted_at IS NULL AND " + sample_marker.not_sample_sql() + " GROUP BY style_id", (user_id,))}
+
+
+def _marks(n: int) -> str:
+    return ", ".join("?" for _ in range(n))
+
+
+def _with_library_facts(user_id: str, styles: list[dict], conn: sqlite3.Connection) -> list[dict]:
+    """Each of the member's styles with `usedIn`, `credit`, `fromLibrary` and `updateAvailable`, in a CONSTANT number
+    of statements (I-1): one grouped count, one `library_facts` call over every id (batched by template_gallery),
+    one `from_library_many` read of the source gallery rows, and one batched gallery read for the pre-wave-11
+    credits.
+
+    `credit` and `updateAvailable` are `library_facts` (the copy's snapshot, W11-R7; {} while the library or wave 11
+    is off). A copy adopted before wave 11 wrote snapshots is credited from the gallery row it came from
+    (`row_credit`, as adopting words it). `fromLibrary` is `from_library_many`'s rule (P3a-T10-R5), the batched
+    read: it came from ANOTHER member's listing, or from one that is gone (fail closed), so the member's own
+    listing is never credited."""
+    from api.services.journal_two import template_gallery as tg
+    counts = _used_in_counts(user_id, conn)
+    facts = tg.library_facts(user_id, "template", [s["id"] for s in styles], conn=conn) if styles else {}
+    gids = list(dict.fromkeys(s["sourceGalleryId"] for s in styles if s.get("sourceGalleryId")))
+    # Task 11.12 (carry 15): THE `_from_library` rule (P3a-T10-R5) is template_gallery's, batched in one statement;
+    # this module keeps no copy of it.
+    lib = tg.from_library_many(user_id, gids, conn=conn) if gids else {}
+
+    def from_lib(gid: Any) -> bool:
+        return bool(gid) and bool(lib.get(gid))
+
+    # F-ALIAS-1 A4 (11.12 r2 n-4): no second read of which listings still exist. A gone listing is `from_lib` (fail
+    # closed) and simply reads no row below, so it falls back to no credit, exactly as the dropped re-read decided.
+    need = [g for g in gids if from_lib(g)
+            and any(s.get("sourceGalleryId") == g and (facts.get(s["id"]) or {}).get("credit") is None
+                    for s in styles)]
+    fallback: dict = {}
+    if need and tg.wave11_library_on():
+        fallback = {r["id"]: tg.row_credit(r) for r in tg.read_rows(conn, None, f"g.id IN ({_marks(len(need))})", need)}
+    out = []
+    for s in styles:
+        gid = s.get("sourceGalleryId")
+        fact = facts.get(s["id"]) or {}
+        credit = fact.get("credit")
+        if credit is None and from_lib(gid):
+            credit = fallback.get(gid)
+        out.append({**s, "usedIn": counts.get(s["id"], 0), "credit": credit, "fromLibrary": from_lib(gid),
+                    "updateAvailable": bool(fact.get("updateAvailable"))})
+    return out
+
+
+def _refuse_builtin_archive(style_id: Any) -> None:
+    if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+        raise StyleValidationError(S_BUILTIN_ARCHIVE)
+
+
+def archive_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Archive one of the member's live styles (W11-R10): hidden from the picker, the kind section and the default
+    choice; still readable by `get_style`, so every note keeps its style stamp and Update layout. Archiving the
+    kind's default clears `is_default` (the kind falls back to the built-in). ONE UPDATE, so no lock is held; an
+    already archived style keeps its first `archived_at`. None when it is not the member's live style."""
+    _refuse_builtin_archive(style_id)
+    owned = conn is None
+    conn = conn or get_connection()
+    caller_tx = conn.in_transaction          # fix round 2: a caller's open transaction is the caller's to commit
+    try:
+        conn.execute("UPDATE j2_journal_styles SET archived_at = COALESCE(archived_at, ?), is_default = 0"
+                     " WHERE id = ? AND user_id = ? AND deleted_at IS NULL", (_now(), style_id, user_id))
+        if not caller_tx:
+            conn.commit()
+        return _view_style(user_id, style_id, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def unarchive_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Back to the picker. It does not become the default again (the member chooses that). ONE UPDATE."""
+    _refuse_builtin_archive(style_id)
+    owned = conn is None
+    conn = conn or get_connection()
+    caller_tx = conn.in_transaction          # fix round 2: a caller's open transaction is the caller's to commit
+    try:
+        conn.execute("UPDATE j2_journal_styles SET archived_at = NULL WHERE id = ? AND user_id = ?"
+                     " AND deleted_at IS NULL", (style_id, user_id))
+        if not caller_tx:
+            conn.commit()
+        return _view_style(user_id, style_id, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def _copy_name(name: str) -> str:
+    """"<name> copy", the name cut so the whole fits MAX_STYLE_NAME_CHARS."""
+    suffix = " copy"
+    return name[:MAX_STYLE_NAME_CHARS - len(suffix)].rstrip() + suffix
+
+
+def duplicate_style(user_id: str, style_id: str, *, conn: sqlite3.Connection | None = None) -> dict | None:
+    """My tools' Duplicate (Task 11.13): a new live style named "<name> copy" with the source's kind, outline,
+    blocks and properties copied AS STORED (a family slot's ref -- a remembered routine, tracker or widget -- is
+    copied as it is, never re-asked), not the default, version 1. W11-R36 c4 (P3a-T10-R6): a duplicate of a LIBRARY
+    copy keeps its provenance (the source_* columns, `_provenance_of`, as `create_style`'s `duplicateOf` does) and
+    its credit snapshot; only the member's own originals duplicate clean. The source may be archived; a built-in is
+    copied from its definition. Refused at MAX_STYLES_PER_MEMBER with the cap's sentence.
+
+    The count and the insert are one short write lock (nothing slow inside it), the same lock `create_style` takes,
+    so neither can pass the cap past the other. A connection with the CALLER's transaction already open is written
+    on and left open: never committed here (M-2). None when the source is not the member's."""
+    owned = conn is None
+    conn = conn or get_connection()
+    caller_tx = conn.in_transaction
+    began = False
+    try:
+        prov = None
+        if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+            src = get_style(user_id, style_id, conn)
+            if src is None:
+                return None
+            fields = (src["name"], src["kindId"], None, json.dumps(src["outlineBodyJson"]),
+                      json.dumps(src["blocks"]), json.dumps(src["properties"]))
+        else:
+            r = _load_row(user_id, style_id, conn) if isinstance(style_id, str) else None
+            if r is None:
+                return None
+            fields = (r["name"], r["kind_id"], r["outline_template_id"], r["outline_body_json"],
+                      r["blocks_json"], r["properties_json"])
+            prov = _provenance_of(user_id, style_id, conn)
+        name, kind, tpl, outline, blocks, props = fields
+        if not caller_tx:
+            _lock_for_style(conn)
+            began = True
+        n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
+                         (user_id,)).fetchone()["c"]
+        if n >= MAX_STYLES_PER_MEMBER:
+            raise StyleValidationError(S_CAP)
+        sid, now = uuid.uuid4().hex, _now()
+        conn.execute(
+            "INSERT INTO j2_journal_styles (id, user_id, name, kind_id, outline_template_id, outline_body_json,"
+            " blocks_json, properties_json, is_default, source_gallery_id, source_version, version,"
+            " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 1, ?, ?)",
+            (sid, user_id, _copy_name(name), kind, tpl, outline, blocks, props, now, now))
+        if prov:
+            conn.execute("UPDATE j2_journal_styles SET " + ", ".join(f"{c} = ?" for c in _PROVENANCE_COLS)
+                         + " WHERE id = ? AND user_id = ?", (*prov, sid, user_id))
+            # W11-R36 c4, Task 11.12 (carry 15): the ONE credit copier is template_gallery's.
+            from api.services.journal_two import template_gallery as tg
+            tg.copy_credit(conn, style_id, sid, user_id=user_id)
+        if began:
+            conn.commit()
+        return _view_style(user_id, sid, conn)
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def style_used_in(user_id: str, style_id: Any, *, conn: sqlite3.Connection | None = None) -> list[dict] | None:
+    """The member's live notes made from one of their styles (archived or recently deleted included), newest edit
+    first, at most USED_IN_LIMIT: `[{id, title, updatedAt}]`. Sample notes and notes in the trash are left out.
+    None when the style is not the member's (a built-in has no "Used in" here)."""
+    if not isinstance(style_id, str) or not style_id or style_id.startswith(BUILTIN_PREFIX):
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if _load_row(user_id, style_id, conn, include_deleted=True) is None:
+            return None
+        rows = conn.execute(
+            "SELECT id, title, updated_at FROM j2_notes WHERE user_id = ? AND style_id = ? AND deleted_at IS NULL"
+            " AND " + sample_marker.not_sample_sql() + " ORDER BY updated_at DESC, rowid DESC LIMIT ?",
+            (user_id, style_id, USED_IN_LIMIT)).fetchall()
+        return [{"id": r["id"], "title": r["title"], "updatedAt": r["updated_at"]} for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def delete_style_typed(user_id: str, style_id: str, typed_name: Any, *,
+                       conn: sqlite3.Connection | None = None) -> dict | None:
+    """My tools' "Delete permanently" (W11-R10): only from Archived, only with the template's name typed exactly,
+    then the existing SOFT `delete_style` (Recently deleted lists it for RECENTLY_DELETED_DAYS; the row is never
+    hard-deleted). M-5: the archived and name checks and the delete are ONE short write lock and one transaction,
+    so an unarchive or a rename from another tab in between cannot let a live or renamed template through. None
+    when it is not the member's live style."""
+    if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+        raise StyleValidationError(S_BUILTIN_DELETE)
+    owned = conn is None
+    conn = conn or get_connection()
+    began = False
+    try:
+        if not conn.in_transaction:
+            _lock_for_style(conn)
+            began = True
+        r = _load_row(user_id, style_id, conn) if isinstance(style_id, str) else None
+        if r is None:
+            if began:
+                conn.rollback()
+            return None
+        if r["archived_at"] is None:
+            raise StyleValidationError(S_ARCHIVE_FIRST)
+        if not isinstance(typed_name, str) or typed_name != r["name"]:
+            raise StyleValidationError(S_TYPE_NAME)
+        # commits the one transaction only when this call began it (fix round 2: never the caller's)
+        if delete_style(user_id, style_id, conn, commit=began) is None:
+            return None
+        return _view_style(user_id, style_id, conn, include_deleted=True)
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -483,20 +1125,31 @@ def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = N
         raise StyleValidationError("Send a style object.")
     owned = conn is None
     conn = conn or get_connection()
+    began = False
     try:
         dup = payload.get("duplicateOf")
+        legacy = None
         if dup is not None:
             if not isinstance(dup, str) or not dup.strip():
                 raise StyleValidationError("duplicateOf must be text")
-            if not dup.startswith(BUILTIN_PREFIX) and _load_row(user_id, dup, conn, include_deleted=True) is None:
-                raise StyleValidationError("You can only duplicate one of your own styles.")
+            if not dup.startswith(BUILTIN_PREFIX):
+                src = _load_row(user_id, dup, conn, include_deleted=True)
+                if src is None:
+                    raise StyleValidationError("You can only duplicate one of your own styles.")
+                legacy = _legacy_blocks(src["blocks_json"])      # 11.3 re-review m-2: the copy keeps them too
             provenance = provenance or _provenance_of(user_id, dup, conn)
         name = _clean_name(payload.get("name"))
         kind = _clean_kind(user_id, payload.get("kindId"), conn)
         tpl = _clean_template(user_id, payload.get("outlineTemplateId"), conn)
         outline = _clean_outline(payload.get("outlineBodyJson"))
-        blocks = _clean_blocks(payload.get("blocks"))
+        blocks = _clean_blocks(payload.get("blocks"), legacy=legacy)
         props = _clean_properties(user_id, payload.get("properties"), conn)
+        if not conn.in_transaction and (commit or owned):
+            # Fix round 1 (M-3): the cap's count and the insert are ONE short write lock, the same one duplicate takes,
+            # so a create and a duplicate at once cannot both pass the count at the cap. Everything slow (the cleaning
+            # above) is done before it. A caller's own transaction (adopt, commit=False) is the caller's lock.
+            _lock_for_style(conn)
+            began = True
         n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
                          (user_id,)).fetchone()["c"]
         if n >= MAX_STYLES_PER_MEMBER:
@@ -511,9 +1164,13 @@ def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = N
         if provenance:
             conn.execute("UPDATE j2_journal_styles SET " + ", ".join(f"{c} = ?" for c in _PROVENANCE_COLS)
                          + " WHERE id = ? AND user_id = ?", (*provenance, sid, user_id))
-        if commit or owned:
+        if commit or owned or began:
             conn.commit()
         return get_style(user_id, sid, conn)
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -521,6 +1178,44 @@ def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = N
 
 _CONTENT_KEYS = {"kindId": "kind_id", "outlineTemplateId": "outline_template_id",
                  "outlineBodyJson": "outline_body_json", "blocks": "blocks_json", "properties": "properties_json"}
+
+
+def _keep_remembered(sent: list[dict], stored_json: Any) -> list[dict]:
+    """Ruling W11-R32: a save never silently undoes a remembered choice. For each family slot the save sends in its
+    unanswered form (`template` / `inline`) while the STORED slot of that id is a remembered ref (`routine:`,
+    `tracker:`, a check-in, or `def:`), the save is a stale copy of that slot: the stored ref is kept, with the
+    save's own `bind` / `display` (`range` for a built slot), which ARE the member's edits. Only sending a
+    different ref (an explicit change of the slot) replaces it. Remembering moves no version, so the version the
+    editor loaded cannot tell a stale copy apart; the per-slot rule can."""
+    try:
+        stored = json.loads(stored_json or "[]")
+    except (TypeError, ValueError):
+        return sent
+    refs = {b["block"]: b.get("settings") for b in stored if isinstance(b, dict) and isinstance(b.get("block"), str)
+            and isinstance(b.get("settings"), dict) and isinstance(b["settings"].get("ref"), str)}
+    out = []
+    for b in sent:
+        family = slot_family(b.get("block"))
+        old = refs.get(b.get("block"))
+        s = b.get("settings") if isinstance(b.get("settings"), dict) else {}
+        if family is None or old is None or "ref" in s and not str(s.get("ref", "")).startswith("inline:"):
+            out.append(b)
+            continue
+        if family in ("routine", "tracker") and ("template" in s or "inline" in s):
+            keep = {"ref": old["ref"], "bind": s.get("bind", old.get("bind")),
+                    "display": s.get("display", old.get("display"))}
+        elif family == "built" and str(s.get("ref", "")).startswith("inline:") and str(old["ref"]).startswith("def:"):
+            keep = {k: old[k] for k in ("ref", "defRev") if k in old}
+            if "range" in s:
+                keep["range"] = s["range"]
+        else:
+            out.append(b)
+            continue
+        try:
+            out.append({**b, "settings": slot_settings_of(family, keep)})
+        except StyleValidationError:
+            out.append(b)
+    return out
 
 
 def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connection | None = None, *,
@@ -534,9 +1229,17 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
         raise StyleValidationError("Send a style object.")
     owned = conn is None
     conn = conn or get_connection()
+    began = False
     try:
+        if "blocks" in patch and not conn.in_transaction:
+            # Fix round 3 (W11-R32): read and write the blocks under ONE short write lock, so a choice remembered by
+            # a create between this save's read and its write is seen by `_keep_remembered`, never overwritten.
+            _lock_for_style(conn)
+            began = True
         r = _load_row(user_id, style_id, conn)
         if r is None:
+            if began:
+                conn.rollback()
             return None
         sets, params, content_changed = [], [], False
         if "name" in patch:
@@ -550,12 +1253,18 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
             o = _clean_outline(patch["outlineBodyJson"])
             cleaned["outlineBodyJson"] = json.dumps(o) if o else None
         if "blocks" in patch:
-            sent = _clean_blocks(patch["blocks"])
+            sent = _clean_blocks(patch["blocks"], legacy=_legacy_blocks(r["blocks_json"]))
+            sent = _keep_remembered(sent, r["blocks_json"])
             # Final review I-1: a slot hidden from the client (its wave is off) is kept, not dropped, and
             # at the index it was STORED at (cleanup queue: it used to be appended, so a save while a wave
             # was off moved the slot to the end of the style for good).
             have = {b["block"] for b in sent}
-            for i, b in _hidden_slots_at(r["blocks_json"]):
+            try:
+                stored_blocks = json.loads(r["blocks_json"] or "[]")
+            except (TypeError, ValueError):
+                stored_blocks = []
+            hide_ctx = _slot_ctx(user_id, conn, stored_blocks)     # the decision served_style made for them
+            for i, b in _hidden_slots_at(r["blocks_json"], hide_ctx):
                 if b["block"] not in have:
                     sent.insert(min(i, len(sent)), b)
             cleaned["blocks"] = json.dumps(sent)
@@ -583,13 +1292,19 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
         if content_changed:
             sets.append("version = version + 1")
         if not sets:
+            if began:
+                conn.rollback()
             return _row(r, full=True)
         sets.append("updated_at = ?"); params.append(_now())
         conn.execute(f"UPDATE j2_journal_styles SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
                      (*params, style_id, user_id))
-        if commit or owned:
+        if commit or owned or began:
             conn.commit()
         return get_style(user_id, style_id, conn)
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -602,6 +1317,12 @@ def set_default(user_id: str, style_id: str, conn: sqlite3.Connection | None = N
         s = get_style(user_id, style_id, conn, full=False)
         if s is None:
             return None
+        if not s["builtin"] and _wave11_on() and conn.execute(
+                "SELECT archived_at FROM j2_journal_styles WHERE id = ? AND user_id = ?",
+                (style_id, user_id)).fetchone()["archived_at"]:
+            # W11-R10: an archived template is hidden from the default choice, so it cannot become the default.
+            # W11-R38: only while wave 11 is on; with it off an archived template is an ordinary one.
+            raise StyleValidationError(S_UNARCHIVE_FIRST)
         conn.execute("UPDATE j2_journal_styles SET is_default = 0 WHERE user_id = ? AND kind_id = ?"
                      " AND is_default = 1", (user_id, s["kindId"]))
         # The member has now CHOSEN this kind's default (the built-in included, which is otherwise
@@ -619,8 +1340,11 @@ def set_default(user_id: str, style_id: str, conn: sqlite3.Connection | None = N
             conn.close()
 
 
-def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
-    """Soft delete (spec P1.4: with undo). Remembers whether it was the default, for restore."""
+def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = None, *,
+                 commit: bool = True) -> dict | None:
+    """Soft delete (spec P1.4: with undo). Remembers whether it was the default, for restore. `commit=False`
+    (Task 11.13 fix round 2) leaves the write in the CALLER's open transaction; ignored when this function opened
+    the connection itself."""
     if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
         raise StyleValidationError("Built-in styles can't be deleted.")
     owned = conn is None
@@ -632,7 +1356,8 @@ def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = 
         now = _now()
         conn.execute("UPDATE j2_journal_styles SET deleted_at = ?, default_before_delete = is_default,"
                      " is_default = 0, updated_at = ? WHERE id = ? AND user_id = ?", (now, now, style_id, user_id))
-        conn.commit()
+        if commit or owned:
+            conn.commit()
         return get_style(user_id, style_id, conn, include_deleted=True)
     finally:
         if owned:
@@ -660,11 +1385,23 @@ def restore_style(user_id: str, style_id: str, conn: sqlite3.Connection | None =
             if began:
                 conn.rollback()
             return get_style(user_id, style_id, conn) if r else None
+        if r["deleted_at"] < _deleted_cutoff():
+            # W11-R10: Recently deleted keeps a template RECENTLY_DELETED_DAYS; after that it cannot come back (the row
+            # stays, for the notes' style stamps).
+            raise StyleValidationError(S_RESTORE_EXPIRED)
+        if _nk().get_kind(user_id, r["kind_id"], conn) is None:
+            # c3: deleting a kind keeps its deleted styles (never a hard delete); one of them cannot come back
+            # holding a kind that no longer exists.
+            raise StyleValidationError(S_RESTORE_KIND_GONE)
         n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
                          (user_id,)).fetchone()["c"]
         if n >= MAX_STYLES_PER_MEMBER:
             raise StyleValidationError(f"You can keep up to {MAX_STYLES_PER_MEMBER} styles. Delete one first.")
-        again = bool(r["default_before_delete"]) and _member_default(user_id, r["kind_id"], conn) is None
+        # A restored row keeps its `archived_at` (Task 11.13): an archived template lands back in Archived, and,
+        # while wave 11 is on (W11-R38), an archived one is never a kind's default.
+        wave11 = _wave11_on()
+        again = (bool(r["default_before_delete"]) and (r["archived_at"] is None or not wave11)
+                 and _member_default(user_id, r["kind_id"], conn) is None)
         sql = ("UPDATE j2_journal_styles SET deleted_at = NULL, is_default = ?, default_before_delete = 0,"
                " updated_at = ? WHERE id = ? AND user_id = ?")
         try:
@@ -672,7 +1409,8 @@ def restore_style(user_id: str, style_id: str, conn: sqlite3.Connection | None =
         except sqlite3.IntegrityError:
             conn.execute(sql, (0, _now(), style_id, user_id))
         conn.commit()
-        return get_style(user_id, style_id, conn)
+        # With wave 11 on, My tools reads where it landed (`archivedAt`); with it off the answer is today's (M-1).
+        return _view_style(user_id, style_id, conn) if wave11 else get_style(user_id, style_id, conn)
     except BaseException:
         if began and conn.in_transaction:
             conn.rollback()
@@ -724,6 +1462,10 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
         if note is None:
             return None
         blocks, seen = [], set()
+        built_slots_on = _built_slots_on()
+        tool_slots_on = _tool_slots_on()
+        n_built = [0]
+        n_tools = {"routine": 0, "tracker": 0}
 
         def leave_out(bid: Any, reason: str) -> None:
             entry = {"widgetId": bid if isinstance(bid, str) else None, "reason": reason}
@@ -733,9 +1475,40 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
         def strip(content: list, top: bool) -> list:
             out = []
             for node in content:
+                if (isinstance(node, dict) and node.get("type") == "widgetEmbed" and built_slots_on
+                        and (node.get("attrs") or {}).get("widgetId") == _nw.BUILT_KIND):
+                    # Wave 11 (Task 11.5): a placed built widget becomes a `built_<k>` slot pinned to its
+                    # revision, in document order. Its viewer values (account, filter) stay in the note.
+                    settings = built_slot_settings_of_node((node.get("attrs") or {}).get("params"))
+                    if settings is None:
+                        leave_out(_nw.BUILT_KIND, "not-a-style-block")
+                    else:
+                        sid = f"built_{slot_key(n_built[0])}"
+                        n_built[0] += 1
+                        blocks.append({"block": sid, "enabled": True, "settings": settings})
+                        if top:
+                            out.append(_ph(sid))
+                    continue                                    # every embed leaves the outline
+                if (isinstance(node, dict) and node.get("type") == "widgetEmbed" and tool_slots_on
+                        and (node.get("attrs") or {}).get("widgetId") in _sf.TOOL_ID_KEYS):
+                    # Task 11.6: a placed routine or tracker block becomes a `routine_<k>` / `tracker_<k>` slot naming
+                    # the member's own tool, keeping its bind (Follow today saves as the note's day) and display.
+                    family = node["attrs"]["widgetId"]
+                    settings = tool_slot_settings_of_node(family, node["attrs"].get("params"))
+                    if settings is None:
+                        leave_out(family, "not-a-style-block")
+                    else:
+                        sid = f"{family}_{slot_key(n_tools[family])}"
+                        n_tools[family] += 1
+                        blocks.append({"block": sid, "enabled": True, "settings": settings})
+                        if top:
+                            out.append(_ph(sid))
+                    continue                                    # every embed leaves the outline
                 if isinstance(node, dict) and node.get("type") == "widgetEmbed":
                     bid = (node.get("attrs") or {}).get("widgetId")
-                    if isinstance(bid, str) and BLOCK_ID_RE.match(bid) and bid not in seen and bid in KNOWN_BLOCKS:
+                    # Wave 11: a slot family id is never a widget a note holds; such an embed stays left out.
+                    if (isinstance(bid, str) and BLOCK_ID_RE.fullmatch(bid) and bid not in seen and bid in KNOWN_BLOCKS
+                            and slot_family(bid) is None):
                         seen.add(bid)
                         params = (node.get("attrs") or {}).get("params") or {}
                         if bid in SNAPSHOT_SLOT_KINDS:
@@ -813,32 +1586,93 @@ for _kind in SNAPSHOT_SLOT_KINDS:
 del _kind
 
 
-def _slot_wave_off(block_id: str) -> bool:
-    """Task 15: is this a snapshot slot whose release wave is off? Read per call. Such a slot is DROPPED
-    (no node, no skip line, never offered), exactly as the slash menu hides the kind."""
+def _slot_wave_off(block_id: str, settings: Any = None, ctx: dict | None = None) -> bool:
+    """Task 15: is this a slot whose release wave is off? Read per call. Such a slot is DROPPED (no node,
+    no skip line, never offered), exactly as the slash menu hides the kind. ONE function decides, on every
+    path: served_style, slotNames, preview, compose, update layout and kept-on-save (`_hidden_slots_at`).
+
+    A snapshot slot: its kind's KIND_WAVE. Wave 11 (Task 11.3): a slot family id is hidden while wave 11 is
+    off; a routine or tracker family also while wave 9 is off; a built family also while wave 8 is off and while
+    its PINNED plan needs a dark wave (`uses_tools` and wave 9 off, `uses_wave10` and wave 10 off). A `shelf:`
+    plan is read here; a `def:` / `inline:` plan needs the session member, so it is judged only when a slot ctx
+    is given (`_slot_ctx`: the member's batched owned read, the inline definitions) through
+    `slot_fill.plan_dark` (Task 11.5 fix round 1, I-2). Without a ctx it is shown (a reader with no member)."""
+    family = slot_family(block_id)
+    if family is not None:
+        on = _nw.notebook_widgets_wave_on
+        if not on(11):
+            return True
+        if family in ("routine", "tracker"):
+            return not on(9)
+        if not on(8):
+            return True
+        ref = settings.get("ref") if isinstance(settings, dict) else None
+        if isinstance(ref, str) and ref.startswith("shelf:"):
+            from api.services.journal_two.widget_engine import plan as wplan
+            from api.services.journal_two.widget_engine import shelf
+            pinned = shelf.revision(ref, settings.get("defRev"))
+            plan = pinned.get("plan") if pinned else None
+            if plan is not None:
+                if wplan.uses_tools(plan) and not on(9):
+                    return True
+                if wplan.uses_wave10(plan) and not on(10):
+                    return True
+        elif ctx is not None and isinstance(ref, str) and family == "built":
+            return _sf.plan_dark({"block": block_id, "settings": settings}, ctx)
+        return False
     if block_id not in SNAPSHOT_SLOT_KINDS:
         return False
+    if block_id in _WAVE11_SLOT_KIND_SET and not _nw.notebook_widgets_wave_on(11):
+        return True                                       # W11-R20: as a template slot it is wave 11's
     return not _nw.notebook_widgets_wave_on(_nw.KIND_WAVE[block_id])
 
 
-def served_style(style: Any) -> Any:
-    """Final review I-1: a style as the CLIENT is shown it. Every snapshot slot block whose wave is off
-    is dropped, and so is its `{{block:<kind>}}` outline placeholder (at any depth), so the live style
-    editor never names a dark widget: a dark surface is indistinguishable from none. Read per call.
-    The STORED style is untouched (a copy is returned); `update_style` keeps a hidden slot on save."""
-    if not isinstance(style, dict):
-        return style
+def slot_wave_off(block_id: str, settings: Any = None, ctx: dict | None = None) -> bool:
+    """The public name of THE one visibility decider (Task 11.6, the 11.9 carry: other modules read this, never the
+    private name). It calls `_slot_wave_off`, looked up at call time, so there is still exactly one implementation
+    and a patch of the private name reaches every caller of either. ⛔ Never a second check."""
+    return _slot_wave_off(block_id, settings, ctx)
+
+
+def _slot_ctx(user_id: Any, conn: sqlite3.Connection | None, blocks: Any = None,
+              definitions: dict | None = None) -> dict:
+    """A slot ctx for the session member: their inline definitions, and every `def:` ref in `blocks` read in
+    ONE owned statement (`slot_fill.prefetch`, I-3; Task 11.6: every `routine:` / `tracker:` ref too, one statement
+    per family). `conn` is the caller's (this thread's) connection."""
+    ctx = {"user_id": user_id, "conn": conn, "definitions": dict(definitions or {}), "defs": {}, "tools": {}}
+    if user_id is not None:
+        _sf.prefetch(blocks, ctx)
+    return ctx
+
+
+#: F-ALIAS-1 A2 (ledger 139): the public name other modules read (`template_preview`). The SAME function object.
+slot_ctx = _slot_ctx
+
+
+def _block_settings_by_id(blocks: Any) -> dict[str, Any]:
+    """{block id: settings} for a style's block list (the first of each id), so a placeholder can be judged
+    by the settings of the block it names."""
+    out: dict[str, Any] = {}
+    for b in blocks if isinstance(blocks, list) else []:
+        if isinstance(b, dict) and isinstance(b.get("block"), str):
+            out.setdefault(b["block"], b.get("settings"))
+    return out
+
+
+def _served(style: dict, ctx: dict | None) -> dict:
     out = dict(style)
     blocks = style.get("blocks")
     if isinstance(blocks, list):
         out["blocks"] = [b for b in blocks
-                         if not (isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"]))]
+                         if not (isinstance(b, dict) and isinstance(b.get("block"), str)
+                                 and _slot_wave_off(b["block"], b.get("settings"), ctx))]
+    by_id = _block_settings_by_id(blocks)
 
     def strip(content: list) -> list:
         kept = []
         for node in content:
             kind = _placeholder_kind(node)
-            if kind is not None and _slot_wave_off(kind):
+            if kind is not None and _slot_wave_off(kind, by_id.get(kind), ctx):
                 continue
             if isinstance(node, dict) and isinstance(node.get("content"), list):
                 node = {**node, "content": _never_empty(node["content"], strip(node["content"]))}
@@ -848,18 +1682,54 @@ def served_style(style: Any) -> Any:
     body = style.get("outlineBodyJson")
     if isinstance(body, dict) and isinstance(body.get("content"), list):
         out["outlineBodyJson"] = {**body, "content": strip(body["content"])}
+    if ctx is not None:
+        names = slot_names(out.get("blocks"), ctx["user_id"], ctx=ctx)
+        if names:
+            out["slotNames"] = names
     return out
 
 
-def _hidden_slots_at(blocks_json: Any) -> list[tuple[int, dict]]:
+def served_style(style: Any, user_id: Any = None, conn: sqlite3.Connection | None = None, *,
+                 ctx: dict | None = None) -> Any:
+    """Final review I-1: a style as the CLIENT is shown it. Every snapshot slot block whose wave is off
+    is dropped, and so is its `{{block:<kind>}}` outline placeholder (at any depth), so the live style
+    editor never names a dark widget: a dark surface is indistinguishable from none. Read per call.
+    The STORED style is untouched (a copy is returned); `update_style` keeps a hidden slot on save.
+    Wave 11 (W11-R21): given the session member's `user_id`, a slot whose member plan needs a dark wave is
+    hidden too, and a style showing a family slot carries `slotNames` (each target resolved for that member
+    only, in one batched read); a style showing none carries no key, so a dark wave 11 serves exactly what it
+    did before. `ctx` is a `_slot_ctx` shared across styles (`served_styles`)."""
+    if not isinstance(style, dict):
+        return style
+    if user_id is None and ctx is None:
+        return _served(style, None)
+    return _served(style, ctx if ctx is not None else _slot_ctx(user_id, conn, style.get("blocks")))
+
+
+def served_styles(styles: list, user_id: Any, conn: sqlite3.Connection | None = None) -> list:
+    """`served_style` over a list, with ONE batched read of every `def:` slot of every style (I-3)."""
+    owned = conn is None and user_id is not None
+    conn = conn or (get_connection() if owned else None)
+    try:
+        every = [b for s in styles if isinstance(s, dict) for b in (s.get("blocks") or [])]
+        ctx = _slot_ctx(user_id, conn, every)
+        return [served_style(s, user_id, ctx=ctx) for s in styles]
+    finally:
+        if owned:
+            conn.close()
+
+
+def _hidden_slots_at(blocks_json: Any, ctx: dict | None = None) -> list[tuple[int, dict]]:
     """(stored index, block) for each stored slot block `served_style` hides right now (its wave is off):
-    a client never saw them, so a save cannot have meant to remove or move them. In stored order."""
+    a client never saw them, so a save cannot have meant to remove or move them. In stored order. `ctx` is the
+    member's slot ctx (the same decision `served_style` made for them)."""
     try:
         stored = json.loads(blocks_json or "[]")
     except (TypeError, ValueError):
         return []
     return [(i, b) for i, b in enumerate(stored if isinstance(stored, list) else [])
-            if isinstance(b, dict) and isinstance(b.get("block"), str) and _slot_wave_off(b["block"])]
+            if isinstance(b, dict) and isinstance(b.get("block"), str)
+            and _slot_wave_off(b["block"], b.get("settings"), ctx)]
 
 
 
@@ -891,6 +1761,8 @@ def _build_widget_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]
 #: at call time; a saturated pool answers each slot's sentence at once instead of queueing.
 SLOT_POOL_WORKERS = 8
 _SLOT_POOL = None
+#: How often a fill whose member's share is held by their other fills looks again.
+_MEMBER_POLL_S = 0.02
 
 
 def _slot_pool():
@@ -900,47 +1772,277 @@ def _slot_pool():
     return _SLOT_POOL
 
 
+def _family_in_flight() -> int:
+    """How many of ONE MEMBER's family slots may hold a pool permit at once, across every fill they have running:
+    the engine's per-member gate (`run.MEMBER_MAX`), read at call time. More would only bounce off that gate."""
+    from api.services.journal_two.widget_engine import run
+    return max(1, int(run.MEMBER_MAX))
+
+
+#: Fix round 2 (re-review m-1): the per-MEMBER count of family slot tasks holding a slot pool permit, process-wide
+#: (⚠️ per-process state, like the pool itself). Taken by the dispatcher before a task is submitted; given back in
+#: the task's own `finally`, or by the dispatcher when the task never ran (refused or cancelled).
+_MEMBER_LOCK = threading.Lock()
+_MEMBER_IN_FLIGHT: dict[Any, int] = {}
+
+
+def _member_take(user_id: Any) -> bool:
+    with _MEMBER_LOCK:
+        n = _MEMBER_IN_FLIGHT.get(user_id, 0)
+        if n >= _family_in_flight():
+            return False
+        _MEMBER_IN_FLIGHT[user_id] = n + 1
+        return True
+
+
+def _member_give(user_id: Any) -> None:
+    with _MEMBER_LOCK:
+        n = _MEMBER_IN_FLIGHT.get(user_id, 1) - 1
+        if n > 0:
+            _MEMBER_IN_FLIGHT[user_id] = n
+        else:
+            _MEMBER_IN_FLIGHT.pop(user_id, None)
+
+
+def _member_task(fn: Callable, user_id: Any) -> Callable:
+    def task(block: dict, ctx: dict):
+        try:
+            return fn(block, ctx)
+        finally:
+            _member_give(user_id)
+    return task
+
+
 def _build_slots_bounded(blocks: list[dict], ctx: dict) -> list[tuple[dict | None, str | None]]:
     """Task 15 fix round 1: every slot as a future under ONE total SLOT_BUDGET_S (the `_implied_moves`
     shape in notebook_widgets). A slot not finished when the budget runs out answers its
     "widget-failed:<kind>" reason. Nothing blocks past the budget: an unstarted future is cancelled and a
     straggler is never waited for. Final review I-4: the slots share this module's bounded pool, and a slot
-    that finds it saturated answers its sentence at once."""
-    out: list[tuple[dict | None, str | None]] = []
+    that finds it saturated answers its sentence at once.
+
+    Task 11.5 fix round 1 (I-1) and round 2: a family slot is dispatched from THIS (the request) thread with at
+    most `_family_in_flight()` of the MEMBER's family slots (every fill of theirs, `_member_take`) holding a pool
+    permit; the rest queue here, never in the pool. A task that finds the engine busy answers `engine-busy` at once (no task ever sleeps holding a
+    permit) and is re-dispatched after `slot_fill.BUSY_RETRY_S`, inside the same budget."""
+    from collections import deque
+    from concurrent.futures import FIRST_COMPLETED, wait
+    results: list[tuple[dict | None, str | None] | None] = [None] * len(blocks)
     pool = _slot_pool()
     deadline = time.monotonic() + SLOT_BUDGET_S
-    futs = [pool.try_submit(_build_widget_slot, b, ctx) for b in blocks]
-    try:
-        for b, fut in zip(blocks, futs):
+    task_ctx = {**ctx, "conn": None}                  # a pool task never shares the caller's connection
+    futs: dict = {}                                   # future -> block index
+    queue: deque = deque()                            # family block indexes waiting to be dispatched
+    ready_at: dict[int, float] = {}
+    uid = ctx.get("user_id")
+
+    def failed(i: int, why: str) -> None:
+        _log.warning("widget slot %s not built: %s", blocks[i]["block"], why)
+        results[i] = (None, f"widget-failed:{blocks[i]['block']}")
+
+    for i, b in enumerate(blocks):
+        if b["block"] in SNAPSHOT_SLOT_KINDS:
+            fut = pool.try_submit(_build_widget_slot, b, task_ctx)
             if fut is None:
-                _log.warning("widget slot %s not built: the slot pool is saturated", b["block"])
-                out.append((None, f"widget-failed:{b['block']}"))
+                failed(i, "the slot pool is saturated")
+            else:
+                futs[fut] = i
+        else:
+            queue.append(i)
+    try:
+        while True:
+            now = time.monotonic()
+            blocked = False
+            while queue and ready_at.get(queue[0], 0.0) <= now:
+                if not _member_take(uid):
+                    blocked = True                    # the member's other slots hold the share: wait here
+                    break
+                i = queue.popleft()
+                fut = pool.try_submit(_member_task(BLOCK_BUILDERS.get(blocks[i]["block"]), uid), blocks[i], task_ctx)
+                if fut is None:
+                    _member_give(uid)
+                    failed(i, "the slot pool is saturated")
+                    continue
+                futs[fut] = i
+            if not futs and not queue:
+                break
+            left = deadline - now
+            if left <= 0:
+                break
+            nap = _MEMBER_POLL_S if blocked else max(0.0, ready_at.get(queue[0], now) - now) if queue else left
+            if not futs:                              # only queued slots: busy, or the member's share is taken
+                time.sleep(max(0.0, min(left, nap)))
                 continue
-            try:
-                out.append(fut.result(timeout=max(0.0, deadline - time.monotonic())))
-            except _FutTimeout:
-                _log.warning("widget slot %s not built: over the %.1fs slot budget", b["block"], SLOT_BUDGET_S)
-                out.append((None, f"widget-failed:{b['block']}"))
-            except Exception as e:  # noqa: BLE001 -- _build_widget_slot catches its own; belt for the pool
-                _log.warning("widget slot %s not built: %s", b["block"], type(e).__name__)
-                out.append((None, f"widget-failed:{b['block']}"))
+            wait_s = min(left, nap) if queue else left
+            done, _ = wait(list(futs), timeout=wait_s, return_when=FIRST_COMPLETED)
+            for fut in done:
+                i = futs.pop(fut)
+                family = blocks[i]["block"] not in SNAPSHOT_SLOT_KINDS
+                try:
+                    got = fut.result()
+                except Exception as e:  # noqa: BLE001 -- the builders catch their own; belt for the pool
+                    failed(i, type(e).__name__)
+                    continue
+                reason = got[1] if isinstance(got, tuple) and len(got) == 2 else None
+                if family and isinstance(reason, str) and reason.startswith(_sf.BUSY + ":"):
+                    ready_at[i] = time.monotonic() + _sf.BUSY_RETRY_S
+                    queue.append(i)
+                else:
+                    results[i] = got
     finally:
-        for fut in futs:
-            if fut is not None:
-                fut.cancel()
-    return out
+        for fut, i in futs.items():
+            if fut.cancel() and blocks[i]["block"] not in SNAPSHOT_SLOT_KINDS:
+                _member_give(uid)                     # never ran, so its own finally never gives it back
+    for i, r in enumerate(results):
+        if r is None:
+            failed(i, f"over the {SLOT_BUDGET_S:.1f}s slot budget")
+    return results
 
 
-#: block id -> builder. ⛔ Every id in KNOWN_BLOCKS has a builder (railed); P2 adds both together.
+#: block id -> builder. ⛔ Every CATALOGUED id (iterating KNOWN_BLOCKS) has a builder (railed); P2 adds both
+#: together. A slot family id is answered by its FAMILY's builder (`FAMILY_BUILDERS`, Task 11.5 adds `built`;
+#: Task 11.6 adds `routine` and `tracker`), through `_Builders`' family-aware lookup.
 from api.services.journal_two import trader_blocks as _tb  # noqa: E402 -- after BLOCK_KINDS, no cycle
 from api.services.journal_two import reminder_block as _rb  # noqa: E402 -- reads no journal_styles name
-BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
+from api.services.journal_two import slot_fill as _sf  # noqa: E402 -- imports journal_styles at call time only
+
+#: Wave 11: one builder per slot family, `(block, ctx) -> (node | None, reason | None)`. A `(None, None)` answer
+#: drops the slot with no node and no line (its plan needs a dark wave, as `_slot_wave_off` drops one).
+FAMILY_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
+    "built": _sf.build_built_slot, "routine": _sf.build_tool_slot, "tracker": _sf.build_tool_slot}
+#: Wave 11 (R21): one name resolver per slot family, `(block, ctx) -> (name | None, reason | None)`, reason one of
+#: `slot-missing` / `slot-unreadable` when the target does not resolve for the session member. Task 11.6: routine and
+#: tracker names come from ONE batched owned read per family per request (`slot_fill.prefetch_tools`).
+FAMILY_NAMERS: dict[str, Callable[[dict, dict], tuple[str | None, str | None]]] = {
+    "built": _sf.slot_name, "routine": _sf.tool_name, "tracker": _sf.tool_name}
+#: Wave 11: the widget's name for a sentence, per family (a family without one reads its family word).
+FAMILY_TITLES: dict[str, Callable[[dict, dict], str]] = {
+    "built": _sf.slot_title, "routine": _sf.tool_title, "tracker": _sf.tool_title}
+#: Task 11.6: a routine or tracker slot in a preview (it reads nothing), by the slot's bind.
+TOOL_PREVIEW_SENTENCES = {"note-day": "{name} goes here, for the day of your note.",
+                          "next-trading-day": "{name} goes here, for the next trading day.",
+                          "week": "{name} goes here, for the trading week."}
+#: Task 11.6: the slot families built in the slot pool (they run the widget engine). Routine and tracker slots never
+#: use the engine, so `compose` builds them on the request thread and they take no share of the member's engine slots.
+POOLED_FAMILIES = frozenset({"built"})
+_FAMILY_WORDS = {"built": "Widget", "routine": "Routine", "tracker": "Tracker"}
+
+
+class _Builders(dict):
+    """`BLOCK_BUILDERS`: iteration, length and keys are the catalogued ids (railed: `set(BLOCK_BUILDERS) ==
+    KNOWN_BLOCKS`); `get`, `[]` and `in` ALSO answer a slot family id with its family's builder, so
+    `BLOCK_BUILDERS.get(bid)` is the one lookup every caller (compose, update layout) makes."""
+    __slots__ = ()
+
+    @staticmethod
+    def _family(key: object):
+        fam = slot_family(key)
+        return FAMILY_BUILDERS.get(fam) if fam else None
+
+    def get(self, key, default=None):
+        try:
+            if dict.__contains__(self, key):
+                return dict.__getitem__(self, key)
+        except TypeError:
+            return default
+        found = self._family(key)
+        return found if found is not None else default
+
+    def __getitem__(self, key):
+        found = self.get(key)
+        if found is None:
+            raise KeyError(key)
+        return found
+
+    def __contains__(self, key: object) -> bool:
+        return self.get(key) is not None
+
+
+BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = _Builders({
     "chart": _build_chart, _rb.BLOCK_ID: _rb.build_reminder, **_tb.BUILDERS,
-    **{k: _build_widget_slot for k in SNAPSHOT_SLOT_KINDS}}
+    **{k: _build_widget_slot for k in SNAPSHOT_SLOT_KINDS}})
 #: Blocks built only when a note is made (R-T2B-13). Update layout neither offers nor lists them.
 #: Task 15: a snapshot slot too -- IR-S11, never today's data in an older note (an EMPTY note switched to
 #: a style is a create, and fills).
-CREATE_ONLY_BLOCKS = frozenset({_rb.BLOCK_ID, *SNAPSHOT_SLOT_KINDS})
+#: Wave 11 (Task 11.3): every slot family id too (the `_KnownBlocks` prefix test), IR-S11: slots fill only when
+#: a note is made. ⛔ 11.3 re-review m-4: membership here is flag-dependent like KNOWN_BLOCKS' (a
+#: WAVE11_SLOT_KINDS id answers False while wave 11 is off), so test it only after the `_slot_wave_off` skip.
+CREATE_ONLY_BLOCKS = _KnownBlocks({_rb.BLOCK_ID, *SNAPSHOT_SLOT_KINDS})
+
+#: Wave 11 (Task 11.5): a family slot's sentences, by reason prefix. Member words only.
+SLOT_MISSING_SENTENCES = {"built": "This widget is not in your account.",
+                          "routine": "This routine is not in your account.",
+                          "tracker": "This tracker is not in your account."}
+#: Fix round 1 (m-1): a plan made with a newer app (`plan.S_TOO_NEW`, restated: plan is imported lazily here).
+#: Fix round 1 (I3, W11-R30): a template slot that could not be asked here (switching a note to a style).
+SLOT_UNANSWERED_SENTENCES = {"built": "Make a new note from this template to choose its widget.",
+                             "routine": "Make a new note from this template to choose its routine.",
+                             "tracker": "Make a new note from this template to choose its tracker."}
+SLOT_TOO_NEW_SENTENCE = "This widget was made with a newer version of the app. Reload to use it."
+SLOT_UNREADABLE_SENTENCES = {"built": "This widget couldn't be read.",
+                             "routine": "This routine couldn't be read.",
+                             "tracker": "This tracker couldn't be read."}
+
+
+def _family_title(block: dict, ctx: dict) -> str:
+    fam = slot_family(block.get("block") if isinstance(block, dict) else None)
+    titler = FAMILY_TITLES.get(fam)
+    return titler(block, ctx) if titler else _FAMILY_WORDS.get(fam, "Widget")
+
+
+def slot_skip_sentence(block: dict, reason: Any, ctx: dict) -> str | None:
+    """The one line a family slot leaves when it is not filled, or None (no line). `slot-missing:*` and
+    `slot-unreadable:*` read per family; `widget-failed:*` and `widget-preview:*` name the widget (the snapshot
+    kinds' wording). Not a family slot -> None (`compose` reads SKIP_SENTENCES for the rest)."""
+    fam = slot_family(block.get("block") if isinstance(block, dict) else None)
+    if fam is None or not isinstance(reason, str):
+        return None
+    prefix = reason.split(":", 1)[0]
+    if prefix == _sf.MISSING:
+        return SLOT_MISSING_SENTENCES[fam]
+    if prefix == _sf.UNREADABLE:
+        return SLOT_UNREADABLE_SENTENCES[fam]
+    if prefix == _sf.TOO_NEW:
+        return SLOT_TOO_NEW_SENTENCE
+    if prefix in (_sf.FAILED, _sf.BUSY):
+        return f"{_family_title(block, ctx)} couldn't load. Type / to add it again."
+    if prefix == _sf.PREVIEW:
+        return f"{_family_title(block, ctx)} fills in with your own data when you make a note."
+    if prefix == _sf.UNANSWERED:
+        return SLOT_UNANSWERED_SENTENCES[fam]
+    if prefix == _sf.TOOL_PREVIEW:
+        s = _sf.tool_settings(block)
+        words = TOOL_PREVIEW_SENTENCES.get(s["bind"] if s else "note-day", TOOL_PREVIEW_SENTENCES["note-day"])
+        return words.format(name=_family_title(block, ctx))
+    return None
+
+
+def slot_names(blocks: Any, user_id: Any, conn: sqlite3.Connection | None = None,
+               definitions: dict | None = None, *, ctx: dict | None = None) -> dict[str, str]:
+    """Ruling W11-R21: `{block id: display name}` for each family slot shown (its wave on) whose target RESOLVES:
+    the member's own target's name (resolved `WHERE id = ? AND user_id = ?`). Ruling W11-R43 (F-ALIAS-1 A7): an
+    UNRESOLVED slot (missing, unreadable) has NO key, so a refusal sentence is never used as a display name; the
+    client's `slotLabel` falls back to its own slot label, and the sentence stays where it belongs (the note's skip
+    line, `slot_skip_sentence`). Family-generic:
+    a family with no resolver in `FAMILY_NAMERS` (yet) is left out. Served as `slotNames` (served_style, compose,
+    preview) and read by the client's `slotLabel(b, names)` by block id. Every `def:` name comes from ONE batched
+    owned read per request (`ctx`, `_slot_ctx`); a name past the read budget is the family word."""
+    out: dict[str, str] = {}
+    if ctx is None:
+        ctx = _slot_ctx(user_id, conn, blocks, definitions)
+    for b in blocks if isinstance(blocks, list) else []:
+        if not isinstance(b, dict):
+            continue
+        bid = b.get("block")
+        fam = slot_family(bid)
+        if fam is None or bid in out or _slot_wave_off(bid, b.get("settings"), ctx):
+            continue
+        namer = FAMILY_NAMERS.get(fam)
+        if namer is None:
+            continue
+        name, _reason = namer(b, ctx)
+        if name:
+            out[bid] = name
+    return out
 
 
 def _switched_off(block_id: str) -> bool:
@@ -1002,31 +2104,92 @@ def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
     return {"type": "doc", "content": []}
 
 
+def _enabled_blocks(blocks: Any) -> tuple[dict[str, dict], set[str]]:
+    """({block id: its first ENABLED block}, {ids listed disabled}), in the style's block order."""
+    enabled: dict[str, dict] = {}
+    disabled: set[str] = set()
+    for b in blocks if isinstance(blocks, list) else []:
+        if not isinstance(b, dict) or not isinstance(b.get("block"), str):
+            continue
+        if b.get("enabled"):
+            enabled.setdefault(b["block"], b)
+        else:
+            disabled.add(b["block"])
+    return enabled, disabled
+
+
+def _rest_after_heading(enabled: dict[str, dict], placed: set[str]) -> list[str]:
+    """The enabled blocks no top-level placeholder placed, in block order: compose puts them after the first heading."""
+    return [bid for bid in enabled if bid not in placed]
+
+
+def placement_order(content: Any, blocks: Any) -> list[str]:
+    """Ruling W11-R28: the block ids in the order a note made from them shows them: `compose`'s placement (an enabled
+    block at its TOP-LEVEL placeholder; the rest, `_rest_after_heading`, right after the first heading, or first when
+    there is none; a nested placeholder places nothing). Each id once, at its first place. Both `compose` and
+    `slot_fill.tool_questions` read the same two helpers, so the questions follow the note."""
+    enabled, _disabled = _enabled_blocks(blocks)
+    seq: list[str] = []
+    heading_at: int | None = None
+    for node in content if isinstance(content, list) else []:
+        if heading_at is None and isinstance(node, dict) and node.get("type") == "heading":
+            heading_at = len(seq)
+        bid = _placeholder_kind(node)
+        if bid is not None and bid in enabled:
+            seq.append(bid)
+    placed = set(seq)
+    i = heading_at if heading_at is not None else 0
+    out = seq[:i] + _rest_after_heading(enabled, placed) + seq[i:]
+    return list(dict.fromkeys(out))
+
+
 def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Connection | None,
             now: datetime | None = None, mode: str = "create",
-            after_build: Callable[[dict, dict], dict] | None = None, fill_widgets: bool = True) -> dict:
+            after_build: Callable[[dict, dict], dict] | None = None, fill_widgets: bool = True,
+            definitions: dict | None = None, note_day: str | None = None, answers: dict | None = None,
+            choices: dict | None = None, inline_routines: dict | None = None,
+            inline_trackers: dict | None = None, gallery_id: str | None = None,
+            template_title: str | None = None, tool_answers: bool = True, tools_later: bool = False) -> dict:
     """`after_build(doc, ctx) -> doc` is called in create mode only, once every block is placed (Tier 2
     part A, /plan: one more step on the SAME body, inside the same read budget).
-    `fill_widgets=False` (the preview, Task 15): a snapshot slot reads nobody's account and is named."""
+    `fill_widgets=False` (the preview, Task 15): a snapshot slot reads nobody's account and is named.
+    Wave 11: `definitions` is `{key: definition}` for a template's `inline:` refs (the caller of a use or an
+    adoption sets it), `note_day` the new note's day (default: the ET day of `now`). The answer carries
+    `slotNames` (W11-R21) when the style shows a family slot.
+    Task 11.6: `choices` answers each `template` / `inline` routine and tracker slot (`{block id: {"use": id} |
+    {"create": True}}`, `slot_fill.build_tool_slot`), `inline_routines` / `inline_trackers` are a shared payload's
+    tools by inline key, `gallery_id` the gallery item it came from (default: the style's `sourceGalleryId`) and
+    `template_title` the title a created tool records (default: the style's name). A tool this compose created is
+    listed as `toolsCreated` (`{block id: tool id}`), and every template slot this compose answered (created or a
+    VERIFIED `{"use"}`) as `toolsChosen` (`{block id: tool id}`, what `slot_fill.remember_choices` may remember).
+    `tool_answers=False` (fix round 1, I3 / ruling W11-R30): there is no surface to answer on (switching a note to a
+    style), so an unanswered template slot is skipped with its line, exactly as the update dry run plans it.
+    `tools_later=True` (fix round 2, W11-R31): routine and tracker slots are left as in-place markers for
+    `_finish_tools`, so the slow part of a create (the built slots) runs before the style's write lock is taken."""
     if mode not in BUILD_MODES:
         raise ValueError(f"unknown build mode {mode!r}")
     owned = conn is None
     conn = conn or get_connection()
     try:
-        ctx = {"ticker": ticker, "now": now or datetime.now(timezone.utc), "memo": {}, "mode": mode,
-               "user_id": user_id, "fill_widgets": fill_widgets}
+        now = now or datetime.now(timezone.utc)
+        if note_day is None:
+            from api.services.journal_two import trading_days
+            note_day = trading_days.et_day_of(now.isoformat())
+        ctx = {"ticker": ticker, "now": now, "memo": {}, "mode": mode,
+               "user_id": user_id, "fill_widgets": fill_widgets, "definitions": dict(definitions or {}),
+               "note_day": note_day, "answers": dict(answers or {}), "choices": dict(choices or {}), "conn": conn,
+               "defs": {}, "tools": {}, "inline_routines": dict(inline_routines or {}),
+               "inline_trackers": dict(inline_trackers or {}),
+               "gallery_id": gallery_id if gallery_id is not None else style.get("sourceGalleryId"),
+               "template_title": template_title if template_title is not None else style.get("name"),
+               "tool_answers": tool_answers}
+        _sf.prefetch(style.get("blocks"), ctx)            # ONE owned read of every def: slot (I-3)
         if mode == "create":
             # R-T12-C: ONE read budget for every block this create builds (trader_blocks owns the number).
             # A block still to read when it runs out lands uncaptured; an update reads nothing anyway.
             _tb.start_budget(ctx["memo"])
         doc = _outline_doc(user_id, style, conn)
-        enabled: dict[str, dict] = {}
-        disabled: set[str] = set()
-        for b in style.get("blocks") or []:
-            if b.get("enabled"):
-                enabled.setdefault(b["block"], b)
-            else:
-                disabled.add(b["block"])
+        enabled, disabled = _enabled_blocks(style.get("blocks"))
         skipped: list[dict] = []
         placed: set[str] = set()
 
@@ -1037,19 +2200,35 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
         deferred: list[tuple[dict, dict]] = []              # (marker node, block): slots, built last
 
         def build(b: dict) -> list[dict]:
-            if _switched_off(b["block"]) or _slot_wave_off(b["block"]):
+            if _switched_off(b["block"]) or _slot_wave_off(b["block"], b.get("settings"), ctx):
                 return []                                   # M1: hidden, as the insert menu hides it
-            if b["block"] in SNAPSHOT_SLOT_KINDS:
+            if b["block"] in SNAPSHOT_SLOT_KINDS or (slot_family(b["block"]) in POOLED_FAMILIES
+                                                     and b["block"] in BLOCK_BUILDERS):
+                # Wave 11 (Task 11.5): a built slot is deferred like a snapshot slot (built last, in the slot pool,
+                # under SLOT_BUDGET_S). Task 11.6: a routine or tracker slot is not (POOLED_FAMILIES): it is built
+                # here, in place, on this thread and connection, and never takes a share of the engine.
                 # Keeps the slot's PLACE. Matched below by its key, not by identity, so a prefill that copies the
                 # doc cannot strand one; every marker is replaced before the body is returned.
                 marker = {"type": "paragraph", _SLOT_MARK: len(deferred)}
                 deferred.append((marker, b))
                 return [marker]
+            if tools_later and slot_family(b["block"]) in _sf.TOOL_ID_KEYS:
+                # Fix round 2 (W11-R31): the slot keeps its PLACE and is filled in the short locked step
+                # (`_finish_tools`), from the style as it stands under the lock.
+                return [{"type": "paragraph", _TOOL_MARK: b["block"]}]
             builder = BLOCK_BUILDERS.get(b["block"])
             if builder is None:
                 note_skip(b["block"], "unknown-block")
                 return []
             node, reason = builder(b, ctx)
+            if node is None and slot_family(b["block"]):
+                # Task 11.6: a routine or tracker slot built in place answers like a deferred slot: (None, None) is
+                # dropped with no line, else its one family sentence.
+                if reason is None:
+                    return []
+                note_skip(b["block"], reason)
+                line = slot_skip_sentence(b, reason, ctx)
+                return [_p(line)] if line else []
             if node is None:
                 note_skip(b["block"], reason)
                 return [_p(SKIP_SENTENCES[reason])] if reason in SKIP_SENTENCES else []
@@ -1086,9 +2265,8 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
 
         doc["content"] = walk(doc.get("content") or [], True)
         rest: list[dict] = []
-        for bid, b in enabled.items():
-            if bid not in placed:
-                rest.extend(build(b))
+        for bid in _rest_after_heading(enabled, placed):
+            rest.extend(build(enabled[bid]))
         if rest:
             i = _after_first_heading(doc["content"])
             doc["content"][i:i] = rest
@@ -1113,10 +2291,12 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
                     b, (node, reason) = hit
                     if node is not None:
                         out.append(node)
-                    else:
+                    elif reason is not None:                # (None, None): dropped, no node and no line
                         note_skip(b["block"], reason)
-                        if reason in SKIP_SENTENCES:
-                            out.append(_p(SKIP_SENTENCES[reason]))
+                        line = (slot_skip_sentence(b, reason, ctx) if slot_family(b["block"])
+                                else SKIP_SENTENCES.get(reason))
+                        if line:
+                            out.append(_p(line))
                 return out
 
             doc["content"] = place(doc["content"]) or [{"type": "paragraph"}]
@@ -1129,14 +2309,98 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
             reg = _captured_regime(ctx)
             if reg:
                 props[np_.REGIME_AT_WRITE] = reg
-        return {"bodyJson": doc, "properties": props, "skipped": skipped,
-                "styleId": style.get("id"), "styleVersion": style.get("version"), "kindId": style["kindId"]}
+        out = {"bodyJson": doc, "properties": props, "skipped": skipped,
+               "styleId": style.get("id"), "styleVersion": style.get("version"), "kindId": style["kindId"]}
+        names = slot_names(style.get("blocks"), user_id, ctx=ctx)
+        if names:
+            out["slotNames"] = names
+        if ctx.get("created"):
+            out["toolsCreated"] = dict(ctx["created"])
+        if ctx.get("chosen"):
+            out["toolsChosen"] = dict(ctx["chosen"])
+        return out
     finally:
         if owned:
             conn.close()
 
 
-def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> tuple[dict, list]:
+#: Task 11.6: `answers` / `choices` on a styled create that are not objects.
+S_BAD_ANSWERS = "These template answers couldn't be read."
+
+
+def _asks_tools(style: dict) -> bool:
+    """Task 11.6 fix round 1 (I1): does this member's own style hold a `template` / `inline` routine or tracker slot
+    that is enabled and shown now (the one decider)? Only then does a styled create take the style's write lock:
+    that slot's answer will be remembered on the style, and two creates must not answer it differently."""
+    if style.get("builtin"):
+        return False
+    for b in style.get("blocks") or []:
+        if (isinstance(b, dict) and b.get("enabled") and slot_family(b.get("block")) in _sf.TOOL_ID_KEYS
+                and not slot_wave_off(b["block"], b.get("settings"))):
+            s = _sf.tool_settings(b)
+            if s is not None and "ref" not in s:
+                return True
+    return False
+
+
+#: Task 11.6 fix round 1 (I1): how long a styled create waits for another create of the same member's style to
+#: finish before it gives up (the other holds the write lock only while it composes and inserts one note).
+STYLE_LOCK_WAIT_S = 8.0
+
+
+def _lock_for_style(conn: sqlite3.Connection) -> None:
+    """`BEGIN IMMEDIATE` on the caller's connection, retried until STYLE_LOCK_WAIT_S has passed."""
+    from api.services.journal_two.widget_definitions import _begin_immediate
+    deadline = time.monotonic() + STYLE_LOCK_WAIT_S
+    while True:
+        try:
+            _begin_immediate(conn)
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.05)
+
+
+def _finish_tools(doc: dict, style: dict, ctx: dict, skipped: list) -> dict:
+    """Fix round 2 (W11-R31): fill the routine and tracker markers `compose(tools_later=True)` left, from the style AS
+    IT STANDS NOW (read under the lock): a slot another create already remembered is a ref, and this note adopts it
+    (I1). A marker whose block is gone, disabled or hidden now is dropped with no line. Runs inside the caller's short
+    write transaction; creating a tool joins it."""
+    current = {b["block"]: b for b in style.get("blocks") or []
+               if isinstance(b, dict) and isinstance(b.get("block"), str) and b.get("enabled")}
+
+    def fill(content: list) -> list:
+        out = []
+        for n in content:
+            if isinstance(n, dict) and _TOOL_MARK in n:
+                b = current.get(n[_TOOL_MARK])
+                if b is None or _slot_wave_off(b["block"], b.get("settings"), ctx):
+                    continue
+                node, reason = _sf.build_tool_slot(b, ctx)
+                if node is not None:
+                    out.append(node)
+                elif reason is not None:
+                    if {"block": b["block"], "reason": reason} not in skipped:
+                        skipped.append({"block": b["block"], "reason": reason})
+                    line = slot_skip_sentence(b, reason, ctx)
+                    if line:
+                        out.append(_p(line))
+                continue
+            if isinstance(n, dict) and isinstance(n.get("content"), list):
+                n = {**n, "content": fill(n["content"])}
+            out.append(n)
+        return out
+    return {**doc, "content": fill(doc.get("content") or []) or [{"type": "paragraph"}]}
+
+
+#: Fix round 2 (W11-R31): how many unlocked composes a styled create tries before it settles for the last one.
+STYLE_COMPOSE_TRIES = 2
+
+
+def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | None = None, *,
+                       before_insert: Callable[[sqlite3.Connection], None] | None = None,
+                       after_insert: Callable[[sqlite3.Connection, dict], None] | None = None) -> tuple[dict, list]:
     """A note made from a style (`styleId`, which wins) or from a kind's default style (`kindId`),
     composed here and written in ONE insert: body, property values and the style stamp, so there is
     no follow-up write and no second revision. Returns `(note, skipped)`. Behind journal_two's
@@ -1144,10 +2408,41 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
     checked the switch and the plan.
 
     Raises StyleNotFound (no such live style for this member), StyleValidationError (a bad
-    styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...)."""
+    styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...).
+
+    `before_insert` and `after_insert` (Task 11.8 fix round 5, ruling W11-R41; F-NOTE-1, ruling W11-R42) make a
+    GUARDED create: after the slow compose, ONE short write-locked transaction that THIS function begins, on either
+    insert path, runs `before_insert(conn)` (it may raise to refuse the note), inserts the note without committing
+    (`notes.create_note(commit=False)`), runs `after_insert(conn, note)` with the note's own id, and commits once.
+    Any exception, a BaseException included, rolls that transaction back: nothing is inserted and the connection is
+    left with no transaction open. A guarded create needs a connection with no transaction open; without either hook
+    nothing here changes."""
     from api.services.journal_two import notes as notes_service, plan_prefill
+    guarded = before_insert is not None or after_insert is not None
+    if guarded and conn is not None and conn.in_transaction:
+        raise ValueError("a guarded create_styled_note begins its own transaction: call it outside one")
     owned = conn is None
     conn = conn or get_connection()
+
+    def insert(base: dict, composed: dict) -> dict:
+        """The note's INSERT: as before without a hook; guarded, inside this create's own locked transaction."""
+        stamp = (composed["styleId"], composed["styleVersion"], composed["kindId"])
+        if not guarded:
+            return notes_service.create_note(user_id, base, conn, properties=composed["properties"],
+                                             captured_properties="keep", style_stamp=stamp)
+        if before_insert is not None:
+            before_insert(conn)
+        made = notes_service.create_note(user_id, base, conn, properties=composed["properties"],
+                                         captured_properties="keep", style_stamp=stamp, commit=False)
+        if after_insert is not None:
+            after_insert(conn, made)
+        conn.commit()
+        # create_note(commit=False) logs nothing before a commit: its two created events, after this one.
+        notes_service._log_notebook_event(user_id, "notebook_note_created")
+        if "thesis" in (made.get("tags") or []):
+            notes_service._log_notebook_event(user_id, "notebook_thesis_note_created")
+        return made
+
     try:
         style_id, kind_id = payload.get("styleId"), payload.get("kindId")
         if style_id is not None:
@@ -1160,7 +2455,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
             if _nk().get_kind(user_id, kind_id, conn) is None:
                 raise StyleValidationError("Choose a kind of note.")
             style = default_style_for_kind(user_id, kind_id, conn)
-        ticker = notes_service._validate_ticker(payload.get("ticker"))
+        ticker = notes_service.validate_ticker(payload.get("ticker"))
         prefill = None
         if payload.get("planPrefill") is True:
             # Tier 2 part A (/plan): the member's own levels, a dated price and a source link, added to
@@ -1179,12 +2474,82 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                 raise StyleValidationError("Choose one: a trade plan or an earnings follow-up.")
             report_date = followup_prefill.clean_request(followup, kind_id=style.get("kindId"), ticker=ticker)
             prefill = lambda doc, ctx: followup_prefill.apply(doc, ctx, conn, report_date)  # noqa: E731
-        composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create", after_build=prefill)
-        base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
-        base["bodyJson"] = composed["bodyJson"]
-        note = notes_service.create_note(
-            user_id, base, conn, properties=composed["properties"], captured_properties="keep",
-            style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
+        answers, choices = payload.get("answers"), payload.get("choices")
+        if answers is not None and not isinstance(answers, dict):
+            raise StyleValidationError(S_BAD_ANSWERS)
+        if choices is not None and not isinstance(choices, dict):
+            raise StyleValidationError(S_BAD_ANSWERS)
+        # Task 11.6 (W11-R14): the new note's day is the ET day it is made (a styled note has no daily date); every
+        # routine and tracker slot binds from it.
+        from api.services.journal_two import tool_binding
+        now = datetime.now(timezone.utc)
+        note_day = tool_binding.note_day(daily_date=None, created_at=now.isoformat(), now=now)
+        began = False
+        if _asks_tools(style):
+            # Fix round 3 (m-2): a create that will be refused fails here, before any compose or engine run.
+            _sf.prevalidate_answers(style, choices, user_id=user_id, conn=conn)
+        if _asks_tools(style) and not conn.in_transaction:
+            # Fix round 1 (I1) and round 2 (ruling W11-R31): the slow part (the built slots, the prep pack) is
+            # composed WITHOUT any lock, routine and tracker slots left as markers. Then ONE short IMMEDIATE
+            # transaction: re-read the style, fill the tool slots from it (validated as the member's own, a slot
+            # another create already remembered adopted as its ref), create or restore the tool, remember, insert.
+            # A style whose version moved while composing is composed again, once; past that the last body is used
+            # and only its tool slots, cheap, are taken from the style under the lock. The lock is never held
+            # across a built-slot run or any engine call (the 2026-07-01 auth.db outage class).
+            try:
+                # F-NOTE-1 fix round 1 (m-1): the lock, the re-read under it and everything after are inside the
+                # ONE try that rolls back, so no exception (a BaseException included) can leave the lock held.
+                composed_from = style
+                current = style
+                for attempt in range(STYLE_COMPOSE_TRIES):
+                    composed = compose(user_id, composed_from, ticker=ticker, conn=conn, mode="create",
+                                       after_build=prefill, now=now, note_day=note_day, answers=answers,
+                                       choices=choices, tools_later=True)
+                    _lock_for_style(conn)
+                    began = True
+                    current = get_style(user_id, style["id"], conn)
+                    if current is None:
+                        conn.rollback()
+                        raise StyleNotFound(style_id)
+                    if current["version"] == composed_from["version"] or attempt == STYLE_COMPOSE_TRIES - 1:
+                        break
+                    conn.rollback()                              # never compose while holding the lock
+                    began = False
+                    composed_from = current
+                ctx = {"user_id": user_id, "conn": conn, "now": now, "note_day": note_day, "fill_widgets": True,
+                       "choices": dict(choices or {}), "answers": dict(answers or {}), "tool_answers": True,
+                       "inline_routines": {}, "inline_trackers": {}, "definitions": {}, "defs": {}, "tools": {},
+                       "gallery_id": current.get("sourceGalleryId"), "template_title": current.get("name")}
+                body = _finish_tools(composed["bodyJson"], current, ctx, composed["skipped"])
+                base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
+                base["bodyJson"] = body
+                if ctx.get("chosen"):
+                    # Only the answers verified as the member's own, for slots filled now (I2). No version moves.
+                    _sf.remember_choices(user_id, current["id"], {}, ctx["chosen"], conn=conn)
+                note = insert(base, composed)
+            except BaseException:
+                if conn.in_transaction:
+                    conn.rollback()
+                raise
+            return note, composed["skipped"]
+        try:
+            # A guarded create entered with no transaction open (checked above): whatever is open from here is its own.
+            began = began or guarded
+            composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create", after_build=prefill,
+                               now=now, note_day=note_day, answers=answers, choices=choices)
+            base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
+            base["bodyJson"] = composed["bodyJson"]
+            if guarded and not conn.in_transaction:
+                # F-NOTE-1 (W11-R42, W11-R31): the short locked transaction starts only now, after the slow compose.
+                _lock_for_style(conn)
+            if composed.get("toolsChosen") and not style.get("builtin"):
+                # A caller's own transaction (or no unanswered tool slot): remember in that same transaction.
+                _sf.remember_choices(user_id, style["id"], {}, composed["toolsChosen"], conn=conn)
+            note = insert(base, composed)
+        except BaseException:
+            if began and conn.in_transaction:
+                conn.rollback()
+            raise
         return note, composed["skipped"]
     finally:
         if owned:
@@ -1222,10 +2587,11 @@ def preview(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) 
                      "kindId": _clean_kind(user_id, draft.get("kindId"), conn),
                      "outlineTemplateId": _clean_template(user_id, draft.get("outlineTemplateId"), conn),
                      "outlineBodyJson": _clean_outline(draft.get("outlineBodyJson")),
-                     "blocks": _clean_blocks(draft.get("blocks")),
+                     # 11.3 re-review m-2: a block the member has STORED exactly so is kept, as a save keeps it.
+                     "blocks": _clean_blocks(draft.get("blocks"), legacy=lambda: _member_legacy_blocks(user_id, conn)),
                      "properties": _clean_properties(user_id, draft.get("properties"), conn)}
         try:
-            asked = notes_service._validate_ticker(payload.get("ticker")) if payload.get("ticker") else None
+            asked = notes_service.validate_ticker(payload.get("ticker")) if payload.get("ticker") else None
         except notes_service.NoteValidationError as e:
             raise StyleValidationError(str(e)) from e
         ticker = asked or latest_ticker(user_id, conn)
@@ -1233,9 +2599,12 @@ def preview(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) 
         # Task 15: but it never fills a snapshot widget -- this door also serves the community library's
         # Preview of another member's style, and a preview writes nothing and reads no account.
         out = compose(user_id, style, ticker=ticker, conn=conn, mode="create", fill_widgets=False)
-        return {"bodyJson": out["bodyJson"], "properties": out["properties"], "skipped": out["skipped"],
-                "ticker": ticker, "tickerSource": "asked" if asked else ("latest-note" if ticker else None),
-                "mode": "create"}
+        answer = {"bodyJson": out["bodyJson"], "properties": out["properties"], "skipped": out["skipped"],
+                  "ticker": ticker, "tickerSource": "asked" if asked else ("latest-note" if ticker else None),
+                  "mode": "create"}
+        if "slotNames" in out:
+            answer["slotNames"] = out["slotNames"]                 # W11-R21: the editor names each slot
+        return answer
     finally:
         if owned:
             conn.close()
@@ -1322,6 +2691,14 @@ def _raw_note(user_id: str, note_id: str, conn: sqlite3.Connection) -> tuple[sql
     return r, body
 
 
+def _note_day_of(row: sqlite3.Row, now: datetime) -> str:
+    """A stored note's own day (W11-R14): its daily date, else the ET day it was created."""
+    from api.services.journal_two import tool_binding
+    keys = row.keys()
+    return tool_binding.note_day(daily_date=row["daily_date"] if "daily_date" in keys else None,
+                                 created_at=row["created_at"], now=now)
+
+
 def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn: sqlite3.Connection):
     """(style, built, plan). `built` is [(block, node)] -- the nodes the write inserts. ⛔ Each block is
     asked of ITS BUILDER (review M-6): a block whose builder cannot build it is skipped with the reason
@@ -1341,10 +2718,12 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
     # The plan's builders run in the mode the write will use, and the plan says which.
     mode = "create" if inserts_outline else "update"
     ctx = {"ticker": row["ticker"], "now": datetime.now(timezone.utc), "memo": {}, "mode": mode,
-           "user_id": user_id}
+           "user_id": user_id, "conn": conn, "definitions": {}, "defs": {}}
+    _sf.prefetch(style["blocks"], ctx)
     built, skipped = [], []
     for b in style["blocks"]:
-        if not b.get("enabled") or b["block"] in have or _switched_off(b["block"]) or _slot_wave_off(b["block"]):
+        if (not b.get("enabled") or b["block"] in have or _switched_off(b["block"])
+                or _slot_wave_off(b["block"], b.get("settings"), ctx)):
             continue                                        # M1: a switched-off block is never offered
         if b["block"] in CREATE_ONLY_BLOCKS and not inserts_outline:
             # R-T2B-13 / F8: "N trading days after creation" means something only when the note is made,
@@ -1356,7 +2735,19 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
         if builder is None:
             skipped.append({"block": b["block"], "reason": "unknown-block"})
             continue
-        if inserts_outline and (b["block"] in _tb.READS_ON_CREATE or b["block"] in SNAPSHOT_SLOT_KINDS):
+        if inserts_outline and slot_family(b["block"]) in _sf.TOOL_ID_KEYS:
+            # Fix round 1 (I3, ruling W11-R30): a routine or tracker slot is asked of its builder exactly as the
+            # write's compose asks it (no answers on this surface, the note's own day). Reading a ref is an owned
+            # read and writes nothing; an unanswered template slot is skipped with its reason, here and in the write.
+            node, reason = _sf.build_tool_slot(b, {**ctx, "tool_answers": False, "fill_widgets": True,
+                                                   "note_day": _note_day_of(row, ctx["now"])})
+            if node is None:
+                skipped.append({"block": b["block"], "reason": reason or "cannot-build"})
+            else:
+                built.append((b, None))
+            continue
+        if inserts_outline and (b["block"] in _tb.READS_ON_CREATE or b["block"] in SNAPSHOT_SLOT_KINDS
+                                or slot_family(b["block"])):
             # Review I-2: on the empty-note switch the write composes the body itself (compose, one
             # budget), so these nodes would be thrown away; a reading builder always builds, so the
             # plan lists it WITHOUT running it. The dry run (GET .../style-update-plan) and the write's
@@ -1373,8 +2764,10 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
             "fromVersion": None if switching else row["style_version"], "toVersion": style["version"],
             "switching": switching, "insertsOutline": inserts_outline, "mode": mode,
             # Task 15: a snapshot slot has no client catalog row, so the plan names it (the sheet reads `label`).
+            # Wave 11: a family slot is named the way its sentence names it (the member's own target, owned read).
             "add": [{"block": b["block"], "label": _nw.KIND_TITLE.get(b["block"]) if b["block"] in SNAPSHOT_SLOT_KINDS
-                     else None} for b, _ in built], "skipped": skipped,
+                     else (_family_title(b, ctx)
+                           if slot_family(b["block"]) else None)} for b, _ in built], "skipped": skipped,
             # Review M-4: two separate facts. `versionCurrent` = the note records the style's current
             # version; `missingBlocks` = the update would add at least one block. `upToDate` is both.
             "versionCurrent": version_current, "missingBlocks": bool(built),
@@ -1434,7 +2827,11 @@ def apply_style_update(user_id: str, note_id: str, *, style_id: str | None = Non
         patch: dict[str, Any] = {}
         captured: dict[str, Any] = {}
         if plan["insertsOutline"]:
-            composed = compose(user_id, style, ticker=row["ticker"], conn=conn, mode=plan["mode"])
+            # Task 11.6 (W11-R14): an empty note switched to a style binds its routine and tracker slots to the
+            # note's OWN day (its daily date, else the ET day it was created), never today's.
+            now = datetime.now(timezone.utc)
+            composed = compose(user_id, style, ticker=row["ticker"], conn=conn, mode=plan["mode"], now=now,
+                               note_day=_note_day_of(row, now), tool_answers=False)
             patch["bodyJson"] = composed["bodyJson"]
             # R-RC-1: an empty note switched to a style is create-equivalent (`plan["mode"]` is
             # "create" on this branch alone), so the regime its fresh stamp froze is recorded with it.

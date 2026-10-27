@@ -35,7 +35,7 @@ import {
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
 import {
-  EXAMPLE_NOTE_TYPE, LISTED_ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, isLinkableStyleItem, previewLibraryStyle,
+  EXAMPLE_NOTE_TYPE, LIBRARY_SORTS, TRADING_STYLES, isLinkableStyleItem, offeredItemTypes, previewLibraryStyle,
   tradingStyleLabel, useLibraryFeed, useLibraryList,
 } from '../../lib/styleLibrary'
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
@@ -319,7 +319,9 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
   const [sort, setSort] = useState('newest')
-  const [itemType, setItemType] = useState(() => (libraryOn && LISTED_ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
+  // The layout half of the chip rule is settled by the list answer (the effect below falls back to All); the wave 11
+  // half is latched now, so a door can never open the library on a tool type while wave 11 is off (W11-R17).
+  const [itemType, setItemType] = useState(() => (libraryOn && offeredItemTypes({ layoutSharing: true }).some((t) => t.key === initialType) ? initialType : ALL))
   const [tradingStyle, setTradingStyle] = useState(ALL)
   const [author, setAuthor] = useState(null) // an authorHandle, while their page is open
   const [preview, setPreview] = useState(null)
@@ -516,7 +518,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
             />
             {libraryOn && (
               <div className={styles.chipRow} role="group" aria-label="Filter by type" data-tour="library-types">
-                {[{ key: ALL, label: 'All' }, ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout' || layoutSharing)].map((t) => (
+                {[{ key: ALL, label: 'All' }, ...offeredItemTypes({ layoutSharing })].map((t) => (
                   <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
                     className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
                     onClick={() => chooseType(t.key)}>

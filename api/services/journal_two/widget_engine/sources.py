@@ -246,11 +246,23 @@ def _tags(raw: Any) -> list[str]:
     return []
 
 
+#: F-ALIAS-1 A1 (11.9 carry c1): the public name other modules read (`gallery_suggest`). The SAME function object.
+tags = _tags
+
+
 def _weekday(day: Any) -> str | None:
     try:
         return WEEKDAYS[date.fromisoformat(str(day)[:10]).weekday()]
     except (TypeError, ValueError):
         return None
+
+
+def _instant(iso: Any) -> float:
+    """A stamp's true instant for ordering (F-SORT-1): `_sort_key`'s parse, so any offset reads
+    as the moment it names. A missing or unreadable stamp is -inf: last under a descending sort,
+    as SQL's `julianday` NULL is."""
+    dt = timeutil._parse(iso) if iso else None
+    return dt.timestamp() if dt is not None else float("-inf")
 
 
 def _sort_key(iso: Any, seq: int) -> str:
@@ -692,7 +704,8 @@ def _nth_newest_trade_day(conn: sqlite3.Connection, user_id: str, acc: str | Non
     if acc:
         sql += " AND t.account_id = ?"
         params.append(acc)
-    sql += f" ORDER BY {_DAY} DESC, t.id DESC LIMIT {max(1, min(int(n), wcompile.LAST_N_MAX))}"
+    sql += (f" ORDER BY {wcompile.CLOSED_ORDER}"
+            f" LIMIT {max(1, min(int(n), wcompile.LAST_N_MAX))}")
     days = [r[0] for r in conn.execute(sql, params).fetchall() if r[0]]
     if not days:
         return None
@@ -1385,7 +1398,13 @@ def scan_options(conn: sqlite3.Connection, plan: dict, settings: dict | None,
         if d is None or d > rng.to_day or (rng.from_day is not None and d < rng.from_day):
             continue
         kept.append((d, r))
-    kept.sort(key=lambda p: (p[0], str(p[1].get("id") or "")), reverse=True)
+    # the ET day, then the row's own instant, then the id: `compile.OPTION_ORDER` (F-SORT-1).
+    # The instant is picked as SQL's COALESCE picks it (NULL-ness, so '' is present and reads as
+    # unknown), then read as a true instant like `julianday`.
+    def _row_instant(r: dict) -> float:
+        c = r.get("closed_at")
+        return _instant(c if c is not None else r.get("entry_date"))
+    kept.sort(key=lambda p: (p[0], _row_instant(p[1]), str(p[1].get("id") or "")), reverse=True)
     capped = False
     if over:
         # Rows past the LIMIT have a SQL day no later than the last row read, and an ET day the

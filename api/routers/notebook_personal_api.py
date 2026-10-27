@@ -30,7 +30,6 @@ double it — listed for the CLAUDE.md single-process roster.
 from __future__ import annotations
 
 import hashlib
-import json
 import sqlite3
 from typing import Any, Optional
 
@@ -45,6 +44,7 @@ from api.middleware.capture_scope import _bearer, require_capture_scope
 from api.services.journal_two import capture_auth
 from api.services import request_body_cap as body_cap
 from api.services.journal_two import note_personal_api as papi
+from api.services.journal_two import widget_request_body as wbody
 
 NOT_FOUND = "Not Found"   # byte-identical to FastAPI's unknown-route body
 
@@ -160,7 +160,7 @@ async def _json_body(request: Request) -> dict[str, Any]:
     if not raw.strip():
         return {}
     try:
-        body = json.loads(raw)
+        body = wbody.loads_plain_body(raw)  # W11-R55: too deep to parse is 400 no-store
     except ValueError:
         raise HTTPException(status_code=400, detail=BAD_JSON_SENTENCE) from None
     if not isinstance(body, dict):

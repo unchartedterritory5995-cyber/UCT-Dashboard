@@ -161,7 +161,8 @@ async def json_body(request: Request) -> dict:
     Content-Length says (413 `invalid` over it), and at most `MAX_BODY_DEPTH` levels of nesting (400
     `invalid`, as is a body the parser recurses out on). The one reader: `widget_request_body`."""
     return await wbody.read_json_object(
-        lambda: body_cap.read_capped_body(request, MAX_BODY, S_BODY_TOO_LARGE), MAX_BODY_DEPTH, _err)
+        lambda: body_cap.read_capped_body(request, MAX_BODY, S_BODY_TOO_LARGE), MAX_BODY_DEPTH, _err,
+        bad_character=wdefs.S_BAD_CHARACTER)
 
 
 def _rate(limit: str, scope: str, user_id: str, code: str, sentence: str) -> None:
@@ -678,7 +679,9 @@ def list_widgets(view: str = "live", user: dict = Depends(require_paid)) -> Any:
     if view not in LIST_VIEWS:
         raise _err(400, "invalid", wplan.S_UNREADABLE)
     items = wdefs.list_defs(_uid(user), archived=view == "archived", deleted=view == "deleted")
-    return _ok({"widgets": items})
+    # Wave 11 (Task 11.12, carry 8): library copies carry `sourceGalleryId`, `credit`, `updateAvailable`.
+    from api.services.journal_two import library_rows
+    return _ok({"widgets": library_rows.with_library_facts(_uid(user), "widget", items)})
 
 
 @router.post("")

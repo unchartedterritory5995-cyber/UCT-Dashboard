@@ -117,13 +117,16 @@ def test_kinds_and_in_use(client):
 
 
 def test_delete_kind_reports_the_purged_deleted_styles(client):
-    """Carry note c: a kind's soft-deleted styles go with it, and the answer says how many."""
+    """Carry note c: a kind's soft-deleted styles do not block its delete. Task 11.13 fix round 1 (c3): they are
+    KEPT (never hard-deleted), so the count of styles removed for good is 0 and the client says only "Kind deleted"."""
     _as(client)
     k = client.post("/api/j2/note-kinds", json={"name": "Swing"}).json()["kind"]
     s = client.post("/api/j2/journal-styles", json={"name": "S", "kindId": k["id"]}).json()["style"]
     client.delete(f"/api/j2/journal-styles/{s['id']}")
     r = client.delete(f"/api/j2/note-kinds/{k['id']}")
-    assert r.status_code == 200 and r.json() == {"ok": True, "purgedDeletedStyles": 1}
+    assert r.status_code == 200 and r.json() == {"ok": True, "purgedDeletedStyles": 0}
+    from api.services.journal_two import journal_styles as js
+    assert js.get_style("u1", s["id"], include_deleted=True)["deletedAt"]          # the row is still there
     assert client.delete(f"/api/j2/note-kinds/{k['id']}").status_code == 404
     assert client.delete("/api/j2/note-kinds/thesis").status_code == 400
 
@@ -320,7 +323,8 @@ def test_with_every_wave_off_no_served_style_names_a_slot(client, monkeypatch):
     _waves(monkeypatch)
     _as(client)
     # control: the STORED built-ins do hold slots, so an empty answer below is the filter, not the fixture
-    assert {b["block"] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]} >= set(js.SNAPSHOT_SLOT_KINDS)
+    # (the built-ins hold the six phase-1 slot kinds; the wave 10 ones, Task 11.3, are template-only)
+    assert {b["block"] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]} >= set(js.SNAPSHOT_SLOT_KINDS[:6])
     # a member style holding a slot (as a W1-on "Save as style" would have made it), its placeholder nested
     _waves(monkeypatch, 1, 2)
     made = client.post("/api/j2/journal-styles", json={

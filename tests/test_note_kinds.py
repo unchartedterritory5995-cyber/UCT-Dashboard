@@ -235,8 +235,9 @@ def test_a_kind_held_by_a_live_style_cannot_be_deleted(db_path):
     assert nk.get_kind("u1", k["id"]) is not None
 
 
-def test_soft_deleted_styles_are_purged_with_the_kind_and_reported(db_path):
-    """Ruling m-a: a soft-deleted style does not block; it is hard-deleted in the same transaction."""
+def test_soft_deleted_styles_do_not_block_and_are_kept(db_path):
+    """Ruling m-a: a soft-deleted style does not block the kind's delete. Task 11.13 fix round 1 (c3, W11-R10): it is
+    KEPT, never hard-deleted (notes' style stamps read it; Recently deleted lists it), so nothing is purged."""
     from api.services.journal_two import note_kinds as nk
     _styles_table()
     k = nk.create_kind("u1", "Swing")
@@ -246,9 +247,9 @@ def test_soft_deleted_styles_are_purged_with_the_kind_and_reported(db_path):
     _insert_style("s-other-kind", "u1", other["id"], "2026-10-01T00:00:00+00:00")     # same member, other kind
     _insert_style("s-other-member", "u2", k["id"], "2026-10-01T00:00:00+00:00")       # another member's row
     res = nk.delete_kind("u1", k["id"])
-    assert res and res["purgedDeletedStyles"] == 2
+    assert res and res["purgedDeletedStyles"] == 0
     assert nk.get_kind("u1", k["id"]) is None
-    assert _style_ids() == ["s-other-kind", "s-other-member"]
+    assert _style_ids() == ["s-del-1", "s-del-2", "s-other-kind", "s-other-member"]
 
 
 def test_a_refused_delete_purges_nothing(db_path):

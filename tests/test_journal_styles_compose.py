@@ -1027,3 +1027,29 @@ def _iter_flags(node):
             if isinstance(v, dict) and "note" in v and k.isupper():
                 yield k, v
             yield from _iter_flags(v)
+
+
+def test_a_styled_create_passes_its_note_day_answers_and_choices_to_compose(db_path, monkeypatch):
+    """Task 11.6: `create_styled_note` composes with the note's day (`tool_binding.note_day`, from the moment it is
+    made; a styled note has no daily date), and the payload's `answers` and `choices`. Not-object answers are
+    refused with one sentence before anything is written."""
+    from api.services.journal_two import journal_styles as js, tool_binding
+    seen: dict = {}
+    real = js.compose
+
+    def spy(*a, **k):
+        seen.update(k)
+        return real(*a, **k)
+    monkeypatch.setattr(js, "compose", spy)
+    days = []
+    real_day = tool_binding.note_day
+    monkeypatch.setattr(tool_binding, "note_day", lambda **k: days.append(k) or real_day(**k))
+    note, _ = js.create_styled_note("u1", {"kindId": "trade_plan", "title": "x", "answers": {"p1": "A+"},
+                                           "choices": {"routine_a": {"create": True}}})
+    assert days and days[0]["daily_date"] is None and days[0]["created_at"] == seen["now"].isoformat()
+    assert seen["note_day"] == real_day(daily_date=None, created_at=seen["now"].isoformat(), now=seen["now"])
+    assert seen["answers"] == {"p1": "A+"} and seen["choices"] == {"routine_a": {"create": True}}
+    for bad in ({"answers": []}, {"choices": "create"}):
+        with pytest.raises(js.StyleValidationError) as e:
+            js.create_styled_note("u1", {"kindId": "trade_plan", "title": "y", **bad})
+        assert str(e.value) == js.S_BAD_ANSWERS
