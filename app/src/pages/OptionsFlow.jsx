@@ -635,7 +635,7 @@ function expToISO(expStr) {
 
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist","Confluence"];
+const TABS = ["Market Read","Market Tide","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist","Confluence"];
 
 // Tabs whose panels read the demand-driven feature datasets (curatedThresholds,
 // wlDates, topFlowPicks). Derived by reading every consumer of those three
@@ -5291,10 +5291,18 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
           );
         })()}
 
+        {/* Market Tide — own tab (moved off Market Read 2026-10-26). The panel is
+            self-contained: it fetches /api/options/market-tide and renders nothing
+            until OPTIONS_MARKET_TIDE_ENABLED, so it needs no flow (D/FD) state. */}
+        {tab==="Market Tide" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <MarketTidePanel />
+          </div>
+        )}
+
         {/* Market Read */}
         {tab==="Market Read" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <MarketTidePanel />
             <StrategyScreensPanel />
             {/* Flow Intelligence Summary */}
             {FD && D.clean_confirmed && (()=>{
