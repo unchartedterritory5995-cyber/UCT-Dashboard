@@ -107,6 +107,104 @@ def test_every_notebook_gate_is_rehearsed_or_carries_a_reason(t, table):
     assert set(found) <= rehearsed | set(skipped)
 
 
+# ── merge review m-3: a reason is a claim, so the rail reads it ───────────────────────────────────────
+# A citation is `<repo path>` (the file must exist) optionally followed by ` (<names>)`: each name a bare identifier
+# (a pytest `def`, or a vitest title written as one) or a quoted vitest title ('...'). Each name must be a test in
+# that file. A reason that begins "armed" names a gate the ledger records as armed (and "armed on web" one armed on
+# web); one that begins "dark" names a gate the ledger does not record as armed.
+import re as _re
+
+_CITE = _re.compile(r"((?:app|tests|tools|docs|api|scripts)/[\w./-]+?\.(?:py|jsx|js|mjs|md|json))(?![\w.])")
+_NAME = _re.compile(r"\s*(?:'([^']*)'|([A-Za-z_]\w*))\s*(,|$)")
+
+
+def _cited_names(text: str, at: int):
+    """The ` (<names>)` group right after a path ending at `at`: (names, problem). No group: ([], None)."""
+    if not text.startswith(" (", at):
+        return [], None
+    depth, i, quote = 0, at + 1, False
+    while i < len(text):
+        ch = text[i]
+        if ch == "'":
+            quote = not quote
+        elif not quote and ch == "(":
+            depth += 1
+        elif not quote and ch == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        i += 1
+    inner = text[at + 2:i]
+    names, pos = [], 0
+    while pos < len(inner):
+        m = _NAME.match(inner, pos)
+        if not m or m.end() == pos:
+            return names, f"not a test name list: ({inner})"
+        names.append(m.group(1) if m.group(1) is not None else m.group(2))
+        pos = m.end()
+    return names, None
+
+
+def _has_test(path: Path, name: str) -> bool:
+    src = path.read_text(encoding="utf-8")
+    if path.suffix == ".py":
+        return _re.search(rf"^\s*def {_re.escape(name)}\(", src, _re.M) is not None
+    return _re.search(r"\b(?:it|test|describe)(?:\.\w+)?\(\s*(['\"`])" + _re.escape(name) + r"\1", src) is not None
+
+
+def reason_problems(reasons: dict, ledger: dict, repo: Path = REPO) -> list[str]:
+    out = []
+    for env, why in reasons.items():
+        for m in _CITE.finditer(why):
+            path = repo / m.group(1)
+            if not path.is_file():
+                out.append(f"{env}: cites {m.group(1)}, which does not exist")
+                continue
+            names, problem = _cited_names(why, m.end())
+            if problem:
+                out.append(f"{env}: {m.group(1)} {problem}")
+            for n in names:
+                if not _has_test(path, n):
+                    out.append(f"{env}: {m.group(1)} has no test named {n!r}")
+        status = (ledger.get(env) or {}).get("status")
+        where = (ledger.get(env) or {}).get("where") or []
+        if why.startswith("armed") and status != "armed":
+            out.append(f"{env}: the reason says armed, the ledger says {status!r}")
+        if why.startswith("armed on web") and "web" not in where:
+            out.append(f"{env}: the reason says armed on web, the ledger's where is {where!r}")
+        if why.startswith("dark") and status == "armed":
+            out.append(f"{env}: the reason says dark, the ledger says armed")
+    return out
+
+
+def test_every_reason_cites_real_tests_and_states_the_ledgers_status(t):
+    reasons = t.NOT_REHEARSED
+    cited = sum(len(list(_CITE.finditer(w))) for w in reasons.values())
+    assert cited >= 20                                                        # non-vacuity: citations were parsed
+    assert sum(w.startswith(("armed", "dark")) for w in reasons.values()) >= 30
+    assert reason_problems(reasons, t.ledger_flags()) == []
+
+
+def test_the_reason_rail_can_fail(t):
+    """Controls: a fake citation, a fake test name, a prose group, a flipped status, each reported."""
+    ledger = t.ledger_flags()
+    w1 = t.NOT_REHEARSED["NOTEBOOK_WIDGETS_W1_ENABLED"]
+    assert reason_problems({"NOTEBOOK_WIDGETS_W1_ENABLED": w1}, ledger) == []         # the real one is clean
+    bad = {
+        "NOTEBOOK_WIDGETS_W1_ENABLED": w1.replace("test_gate_off_404", "test_no_such_test_here"),
+        "NOTEBOOK_WIDGETS_W2_ENABLED": "armed on web: see tests/test_no_such_file.py (test_x)",
+        "NOTEBOOK_WIDGETS_W3_ENABLED": "armed on web: tests/test_notebook_widgets_e2e.py (some prose, it says)",
+        "NOTEBOOK_WIDGETS_W11_ENABLED": "armed on web: flipped",
+        "NOTEBOOK_WIDGETS_W10_ENABLED": "dark: flipped",
+    }
+    got = reason_problems(bad, ledger)
+    assert any("test_no_such_test_here" in g for g in got), got
+    assert any("test_no_such_file.py, which does not exist" in g for g in got), got
+    assert any("not a test name list" in g for g in got), got
+    assert any(g.startswith("NOTEBOOK_WIDGETS_W11_ENABLED: the reason says armed") for g in got), got
+    assert any(g.startswith("NOTEBOOK_WIDGETS_W10_ENABLED: the reason says dark") for g in got), got
+
+
 def test_every_door_is_a_route_the_app_registers(t):
     from api.routers import (notebook_onboarding, notebook_personal_api, notebook_publish,
                              notebook_shares, notebook_writing_help)
