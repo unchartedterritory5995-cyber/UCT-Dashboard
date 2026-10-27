@@ -110,7 +110,7 @@
   },
   "routine_rate": {
    "text": "Too many changes in a minute. Try again shortly.",
-   "source": "api/routers/notebook_routines.py:204"
+   "source": "api/routers/notebook_routines.py:205"
   },
   "account_public": {
    "text": "Account 1",
@@ -120,7 +120,8 @@
   },
   "library_title": {
    "text": "Template library",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:24"
+   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:25",
+   "fragment": "SECTION_TITLE = 'Template library'"
   },
   "adopt_title": {
    "text": "Make it yours",
@@ -145,62 +146,62 @@
   },
   "pick_setup": {
    "text": "Pick a setup to see this widget.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_preview.py:57",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_preview.py:57",
    "fragment": "S_PICK = \"Pick a {label} to see this widget.\""
   },
   "not_yours": {
    "text": "That choice isn't in your account.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/slot_fill.py:457"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/slot_fill.py:457"
   },
   "routine_not_yours": {
    "text": "This routine is not in your account.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/journal_styles.py:1973"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:1973"
   },
   "former_member": {
    "text": "Based on a former member's",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:603",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:603",
    "fragment": "CREDIT_FORMER_SENTENCE = \"Based on a former member's {title}\""
   },
   "anonymous_author": {
    "text": "A UCT member",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:153",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:153",
    "fragment": "ANONYMOUS_AUTHOR = \"A UCT member\""
   },
   "week_of": {
    "text": "For the week of",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/tool_binding.py:93",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/tool_binding.py:93",
    "fragment": "For the week of {"
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4201"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4251"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:4200"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4250"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:3156"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3206"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/template_gallery.py:5021"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5071"
   },
   "title_too_long": {
    "text": "title too long",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/notes.py:1242",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/notes.py:1242",
    "fragment": "S_TITLE_TOO_LONG = \"title too long\"",
    "note": "A3 (cbfe9db4b5): notes.validate_title is the one authority; the router answers str(e)"
   },
   "need_if_match": {
    "text": "Reload to see the newer version.",
-   "source": "api/routers/notebook_routines.py:209",
+   "source": "api/routers/notebook_routines.py:210",
    "fragment": "S_NEED_IF_MATCH = \"Reload to see the newer version.\""
   },
   "body_too_large": {
    "text": "That is too much to send at once.",
-   "source": "origin/feat/notebook-widgets-p2-be:api/services/journal_two/widget_request_body.py:27",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/widget_request_body.py:27",
    "fragment": "S_BODY_TOO_LARGE = \"That is too much to send at once.\"",
    "note": "the wave 11 reader (read_json_object) re-raises the cap as 413 invalid with this sentence; the old router reader's \"Request too large\" is not what a w11 door says"
   },

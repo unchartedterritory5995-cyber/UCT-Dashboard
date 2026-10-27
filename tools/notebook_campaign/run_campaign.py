@@ -387,6 +387,27 @@ def tree_reader(app_root: Path):
     return read
 
 
+_SOURCE_RE = re.compile(r"^(?:(?P<ref>origin/[^:]+):)?(?P<path>[^:]+?)(?::(?P<line>\d+))?$")
+
+
+def sentence_refs(spec: dict) -> dict:
+    """ref -> the sentence keys whose source is read at that ref (`<ref>:path:line`). Sandbox-recipe G4: every one
+    must be FRONTEND_REF, the merged tree the campaign serves, so a sentence is never verified against a branch the
+    server does not run (and never goes unreadable when a feature branch is deleted)."""
+    out: dict = {}
+    for k, s in spec["sentences"].items():
+        m = _SOURCE_RE.match(s["source"])
+        if m and m["ref"]:
+            out.setdefault(m["ref"], []).append(k)
+    return out
+
+
+def ref_resolves(app_root: Path, ref: str) -> bool:
+    r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], cwd=str(app_root),
+                       capture_output=True, text=True)
+    return r.returncode == 0
+
+
 def verify_sentences(spec: dict, app_root: Path) -> dict:
     """key -> {ok, why, line_ok}. `ok` = the fragment is in the named file; `line_ok` = also on the named line."""
     out = {}

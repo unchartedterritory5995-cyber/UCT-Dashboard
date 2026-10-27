@@ -1754,3 +1754,41 @@ def test_g3_the_served_trees_ledger_arms_example_notes_so_the_campaign_serves_th
 def test_g3_both_campaign_sandboxes_read_the_derived_flag_sets():
     src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
     assert src.count("self.fs = campaign_flag_sets(fw)") == 2 and "self.fs = fw.flag_sets()" not in src
+
+
+# ── sandbox-recipe G4: every sentence is read from the merged tree the campaign serves ───────────────────────────────
+#
+# Mutants (scratchpad mutate_g4.py): one sentence back on origin/feat/notebook-widgets-p2-be; a ref that does not
+# exist; a cited line moved off its fragment; ref_resolves answering True for anything. Each turned this block red.
+
+def test_g4_every_sentence_source_ref_is_the_campaign_ref_and_resolves():
+    refs = rc.sentence_refs(SPEC)
+    assert refs, "no sentence is read at a ref: the rail would pass on nothing"
+    assert set(refs) == {rc.FRONTEND_REF}, {r: v for r, v in refs.items() if r != rc.FRONTEND_REF}
+    assert all(rc.ref_resolves(REPO, r) for r in refs)
+    assert rc.ref_resolves(REPO, "origin/no-such-branch-for-this-rail") is False          # control
+
+
+def test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line():
+    """At FRONTEND_REF (what the PR branch serves), whether the source names the ref or is read from the app root at
+    run time: the fragment is in the file and on the line the persona file cites."""
+    read = frontend_read()
+    bad = {}
+    for k, s in SPEC["sentences"].items():
+        m = rc._SOURCE_RE.match(s["source"])
+        text = read(m["path"])
+        frag = s.get("fragment") or s["text"]
+        if text is None or frag not in text:
+            bad[k] = f"{frag!r} not in {m['path']}"
+            continue
+        lines = text.splitlines()
+        n = int(m["line"]) if m["line"] else 0
+        if not (0 < n <= len(lines) and frag[:24] in lines[n - 1]):
+            bad[k] = f"line {n} of {m['path']} does not hold {frag[:24]!r}"
+    assert not bad, bad
+
+
+def test_g4_a_sentence_on_another_ref_is_named():
+    spec = {"sentences": {"a": {"text": "x", "source": "origin/feat/notebook-widgets-p2-be:api/x.py:1"},
+                          "b": {"text": "y", "source": "api/y.py:2"}}}
+    assert rc.sentence_refs(spec) == {"origin/feat/notebook-widgets-p2-be": ["a"]}
