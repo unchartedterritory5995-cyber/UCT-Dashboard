@@ -10,7 +10,9 @@ import PreviewPane, { ANNOUNCE_DELAY_MS } from './PreviewPane'
 import { LAST_RESULT_SENTENCE } from '../../../lib/builtWidgets'
 
 const SUMMARY = 'Net P&L: +$2,140.00 over 47 trades.'
-const PAYLOAD = { view: 'number', empty: 'Nothing to draw here.', summary: SUMMARY, count: 47 }
+// A payload WITH data (47 trades): W11-R84 makes an `empty` payload say its sentence on every surface, which is not
+// what these rails are about.
+const PAYLOAD = { view: 'number', summary: SUMMARY, count: 47 }
 const FAILED = { status: 'error', error: { code: 'busy', message: 'x' } }
 const STALE = { status: 'ok', error: null, stale: true }
 const FRESH = { status: 'ok', error: null }
@@ -76,8 +78,7 @@ describe('I-1: "Showing the last result." whenever the preview is failed or stal
 
   it.each([['failed', FAILED], ['stale', STALE]])('phone, %s: the summary bar starts with the same words', (_n, state) => {
     pane(state, { phone: true, keyboardOpen: false })
-    // PAYLOAD is an `empty` payload, so the bar says its sentence after the name, never a count (W11-R81 PD-2)
-    expect(screen.getByTestId('builder-summary-bar')).toHaveTextContent(new RegExp(`^${LAST_RESULT_SENTENCE.replace('.', '\\.')} Net P&L · Nothing to draw here\\.`))
+    expect(screen.getByTestId('builder-summary-bar')).toHaveTextContent(new RegExp(`^${LAST_RESULT_SENTENCE.replace('.', '\\.')} Net P&L · 47 trades`))
   })
 
   it('CONTROL, fresh: no line, no prefix on the phone bar, and the live region says the summary alone', async () => {

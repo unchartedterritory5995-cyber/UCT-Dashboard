@@ -11,7 +11,7 @@ import HeatView from '../widgets/builtViews/HeatView'
 import ListView from '../widgets/builtViews/ListView'
 import ProgressView from '../widgets/builtViews/ProgressView'
 import { CoverageNote, Footnotes } from '../widgets/builtViews/Counts'
-import { measuresOf, cellOf, countNoun } from '../widgets/builtViews/builtModel'
+import { measuresOf, cellOf, countNoun, emptySentenceOf } from '../widgets/builtViews/builtModel'
 import { failureText, LAST_RESULT_SENTENCE } from '../../../lib/builtWidgets'
 import styles from './WidgetBuilderSheet.module.css'
 
@@ -49,7 +49,7 @@ export function summaryLine(name, payload, unit) {
   // W11-R81 PD-2 (plan w7-w8 :666): an `empty` payload says its spec 5.9 sentence, never a zero count or a zero value
   // ("Daily P&L bars · 0 trades · $0.00" over an empty range). The same test as the preview body's (`empty`, not
   // tooLarge), so the bar and the body say one thing.
-  const empty = typeof payload?.empty === 'string' && payload.empty && !payload.tooLarge ? payload.empty : null
+  const empty = emptySentenceOf(payload)
   if (empty) return [...parts, empty].join(' · ')
   if (payload && finite(payload.count)) parts.push(`${payload.count.toLocaleString('en-US')} ${countNoun(unit, payload.count)}`)
   const m = measuresOf(payload || {})[0]
@@ -94,7 +94,7 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
   }
   const view = Object.hasOwn(VIEWS, payload.view) ? payload.view : 'number'
   const View = VIEWS[view]
-  const empty = typeof payload.empty === 'string' && payload.empty && !payload.tooLarge ? payload.empty : null
+  const empty = emptySentenceOf(payload)
   const canToggle = !empty && view !== 'table'
   return (
     <>
@@ -156,9 +156,12 @@ export default function PreviewPane({
   const [open, setOpen] = useState(false)
   const bodyId = useId()
   const last = showingLast(payload, status, error, stale)
-  const said = useAnnounced(typeof payload?.summary === 'string' && payload.summary
-    ? `${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${payload.summary}` : '')
-  const summary = typeof payload?.summary === 'string' ? payload.summary : ''
+  // W11-R84 New-1: over an empty source the server's summary counts a zero ("... 0 strategies."). The live region says
+  // the empty sentence instead, and the visible summary line is not drawn: the preview body already shows that sentence.
+  const empty = emptySentenceOf(payload)
+  const spoken = empty || (typeof payload?.summary === 'string' ? payload.summary : '')
+  const said = useAnnounced(spoken ? `${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${spoken}` : '')
+  const summary = !empty && typeof payload?.summary === 'string' ? payload.summary : ''
   const body = (
     <PreviewBody payload={payload} status={status} error={error} onRetry={onRetry}
       onSuggestRange={onSuggestRange} canSuggestRange={canSuggestRange} suggestOff={suggestOff} stale={stale} />

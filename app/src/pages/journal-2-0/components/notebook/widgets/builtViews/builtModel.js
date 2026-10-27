@@ -6,6 +6,13 @@
 import { money, moneySigned, percent, rMultiple } from '../../../../../../lib/journal-2-0/format'
 
 export const SLOTS = 3
+
+/** W11-R81 PD-2 / W11-R84: THE one test for "this payload has nothing to show": its spec 5.9 sentence (`empty`, a
+ *  non-blank string, and not a too-large payload), else null. Every builder surface that would otherwise print a count
+ *  or a value (the phone bar, the summary line, the live region, the coverage line) asks it, and says the sentence or
+ *  nothing, never a zero. */
+export const emptySentenceOf = (p) => (p && typeof p === 'object' && typeof p.empty === 'string' && p.empty && !p.tooLarge
+  ? p.empty : null)
 export const NO_DATA = 'no data'
 export const SMALL_SAMPLE = 'small sample'
 /** Profit factor's cap (server measures.PF_CAP). Ruling R-29: a `pf` value at the cap reads "5+". */

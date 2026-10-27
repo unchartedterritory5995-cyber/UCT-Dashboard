@@ -3,9 +3,9 @@
 // "No closed trades in this range.". Plan w7-w8 :666: "An `empty` payload renders its §5.9 sentence ... never a zero
 // or a blank chart." The bar now says the empty payload's own sentence, after the widget's name, and no count or
 // value. Asserted by rendered text; CONTROL: a payload with data keeps "<name> · <count> · <value>".
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import PreviewPane, { summaryLine } from './PreviewPane'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
+import PreviewPane, { summaryLine, ANNOUNCE_DELAY_MS } from './PreviewPane'
 
 const MEASURES = [{ key: 'netPnl', label: 'Net P&L', unit: 'trades', fmt: 'money' }]
 const EMPTY = { view: 'bar', empty: 'No closed trades in this range.', count: 0, value: { v1: 0 }, measures: MEASURES,
@@ -31,5 +31,37 @@ describe('the phone summary bar over an empty range (W11-R81 PD-2)', () => {
   })
   it('a too-large payload is not "empty" (its own sentence path is unchanged)', () => {
     expect(summaryLine('W', { ...EMPTY, tooLarge: true }, 'trades')).not.toContain('No closed trades')
+  })
+})
+
+// W11-R84 New-1: the same rule on the desktop preview's summary line and the live region. Over an empty source the
+// summary read "...all accounts. 0 strategies." and the live region announced it. The empty sentence is what is shown
+// (once: the preview body already draws it) and what is announced; never the zero.
+const EMPTY_OPT = { view: 'number', empty: 'No options strategies in this range.', count: 0, value: { v1: 0 },
+  measures: [{ key: 'netPnl', label: 'Net P&L', unit: 'strategies', fmt: 'money' }],
+  summary: 'Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.' }
+const desktop = (payload) => render(
+  <PreviewPane payload={payload} name="Net P&L, last 90 days" unit="strategies" status="ok" error={null}
+    onRetry={() => {}} onSuggestRange={() => {}} canSuggestRange={false} />,
+)
+describe('the desktop summary and the live region over an empty source (W11-R84 New-1)', () => {
+  afterEach(() => vi.useRealTimers())
+  it('show the empty sentence, once, and never "0 strategies"', () => {
+    desktop(EMPTY_OPT)
+    expect(screen.getAllByText('No options strategies in this range.')).toHaveLength(1)
+    expect(document.body.textContent).not.toMatch(/0 strategies/)
+  })
+  it('the live region announces the empty sentence, never the zero', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    desktop(EMPTY_OPT)
+    await act(async () => { await vi.advanceTimersByTimeAsync(ANNOUNCE_DELAY_MS) })
+    expect(screen.getByTestId('builder-live').textContent).toBe('No options strategies in this range.')
+  })
+  it('CONTROL: a payload with data shows and announces its summary', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    desktop(FULL)
+    expect(document.body.textContent).toContain(FULL.summary)
+    await act(async () => { await vi.advanceTimersByTimeAsync(ANNOUNCE_DELAY_MS) })
+    expect(screen.getByTestId('builder-live').textContent).toBe(FULL.summary)
   })
 })

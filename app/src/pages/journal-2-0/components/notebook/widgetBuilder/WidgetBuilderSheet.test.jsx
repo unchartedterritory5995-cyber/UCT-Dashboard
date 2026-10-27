@@ -483,6 +483,22 @@ describe('WidgetBuilderSheet', () => {
     expect(screen.getAllByText('R known on 23 of 47 trades').length).toBeGreaterThan(0)
   })
 
+  // W11-R84 New-1 (PD-2's "never a zero" on the other surfaces): over an empty source the coverage line read "Days open
+  // known on 0 of 0 positions". An empty payload (the same test as the phone bar's) shows no coverage count at all.
+  it('an empty preview shows no "known on 0 of 0" coverage (W11-R84)', async () => {
+    route('POST', (u) => u.endsWith('/preview'), () => answer(payload({
+      measures: [{ label: 'Net P&L', unit: 'trades', kind: 'sum', fmt: 'money' }, { label: 'Expectancy (R)', unit: 'trades', kind: 'average', fmt: 'r' }],
+      coverage: [null, { have: 0, total: 0, hint: null }], count: 0, empty: 'No closed trades in this range.',
+      summary: 'Expectancy for trades in the last 90 days, all accounts. 0 trades.',
+    })))
+    await openBuilder()
+    fireEvent.click(screen.getByRole('button', { name: 'Measure' }))
+    fireEvent.click(screen.getByRole('button', { name: /Expectancy \(R\)/ }))
+    await flush(PREVIEW_DEBOUNCE_MS)
+    expect(screen.getAllByText('No closed trades in this range.').length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toMatch(/known on 0 of 0/)
+  })
+
   it('member words: the builder never says definition, shelf, built widget, source, plan or scope', async () => {
     await openBuilder()
     const opened = [
