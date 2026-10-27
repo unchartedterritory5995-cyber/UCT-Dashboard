@@ -9,7 +9,7 @@ import { render, screen, within, cleanup, waitFor } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import TemplateLibrarySection, { IN_YOURS, SECTION_TITLE } from './TemplateLibrarySection'
 import LibraryCardFacts, { FILLS_SENTENCE, containsWords, updatedWords, usedByWords } from './LibraryCardFacts'
-import { FAMILY_CATEGORIES, LIBRARY_GROUPS } from '../../../lib/templateLibrary'
+import { FAMILY_CATEGORIES, FAMILY_GROUPS, LIBRARY_GROUPS, familyKeeps } from '../../../lib/templateLibrary'
 import { FAMILIES } from '../../../lib/notebookTemplates'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -19,6 +19,19 @@ function serverCategories() {
   const src = readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'template_gallery.py'), 'utf8')
   const m = /^CATEGORIES\s*=\s*\(([^)]*)\)/m.exec(src)
   return m ? [...m[1].matchAll(/"([a-z_]+)"/g)].map((x) => x[1]) : []
+}
+
+/** Merge step M4: the server's library groups, parsed from template_library.py's GROUPS tuple (never retyped). */
+function serverGroups() {
+  const src = readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'template_library.py'), 'utf8')
+  const m = /^GROUPS\s*=\s*\((.*)\)\s*$/m.exec(src)
+  return m ? [...m[1].matchAll(/\("([a-z_]+)",\s*"([^"]+)"\)/g)].map((x) => ({ key: x[1], label: x[2] })) : []
+}
+
+/** Merge step M3: the shipped official seed's live rows (Task 11.10), read from the JSON file (never retyped). */
+function seedRows() {
+  const src = readFileSync(join(process.cwd(), '..', 'api', 'services', 'journal_two', 'template_library_seed.json'), 'utf8')
+  return JSON.parse(src).templates
 }
 
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
@@ -154,18 +167,48 @@ describe('the Template library section', () => {
     expect(cats.length).toBeGreaterThan(3)                                   // non-vacuity: the tuple was read
     expect(Object.keys(FAMILY_CATEGORIES).sort()).toEqual(FAMILIES.map((f) => f.key).sort())
     for (const list of Object.values(FAMILY_CATEGORIES)) for (const c of list) expect(cats).toContain(c)
-    // Every category the server can send is reached by some chip: no listed template is unreachable.
-    for (const c of cats) expect(Object.values(FAMILY_CATEGORIES).some((l) => l.includes(c)), c).toBe(true)
+    // Every category the server can send is reached by exactly ONE chip: no listed template is unreachable, and
+    // no two chips share a category (merge step M3: rituals and mind both named journal).
+    for (const c of cats) expect(Object.values(FAMILY_CATEGORIES).filter((l) => l.includes(c)).length, c).toBe(1)
+    // FAMILY_GROUPS names real chips and real library groups.
+    const groupKeys = LIBRARY_GROUPS.map((g) => g.key)
+    for (const [fam, list] of Object.entries(FAMILY_GROUPS)) {
+      expect(FAMILIES.map((f) => f.key), fam).toContain(fam)
+      for (const g of list) expect(groupKeys, g).toContain(g)
+    }
   })
 
-  it('every picker chip shows the library rows of its mapped categories (the categories the server sends)', async () => {
+  it("LIBRARY_GROUPS is the server's template_library.GROUPS, key for key and word for word (M4)", () => {
+    const server = serverGroups()
+    expect(server.length).toBeGreaterThan(5)                                 // non-vacuity: the tuple was read
+    expect(LIBRARY_GROUPS.map((g) => ({ key: g.key, label: g.label }))).toEqual(server)
+  })
+
+  it('every picker chip keeps at least one row of the shipped official seed, and every seed row has a chip (M3)', () => {
+    const seed = seedRows()
+    expect(seed.length).toBeGreaterThan(20)                                  // non-vacuity: the seed was read
+    for (const fam of FAMILIES) expect(seed.filter((r) => familyKeeps(fam.key, r)).length, fam.key).toBeGreaterThan(0)
+    for (const r of seed) expect(FAMILIES.some((f) => familyKeeps(f.key, r)), r.title).toBe(true)
+    // The Mindset chip keeps the library's Mindset group (its seed row is a research row by category).
+    expect(seed.filter((r) => familyKeeps('mind', r)).map((r) => r.group)).toEqual(seed.filter((r) => r.group === 'mindset').map(() => 'mindset'))
+  })
+
+  it('every picker chip shows the library rows of its mapped categories and groups (what the server sends)', async () => {
     const cats = serverCategories()
-    const rows = cats.map((c, i) => row({ id: `g-${c}`, title: `Template ${i}`, group: LIBRARY_GROUPS[i % LIBRARY_GROUPS.length].key, category: c }))
+    // One row per server category, each in a group no chip maps (so a category match is the only way in), plus one
+    // row per library group in a category no chip maps (so a group match is the only way in).
+    const mapped = new Set(Object.values(FAMILY_GROUPS).flat())
+    const plain = LIBRARY_GROUPS.find((g) => !mapped.has(g.key)).key
+    const rows = [
+      ...cats.map((c, i) => row({ id: `g-${c}`, title: `Template ${i}`, group: plain, category: c })),
+      ...LIBRARY_GROUPS.map((g, i) => row({ id: `gr-${g.key}`, title: `Grouped ${i}`, group: g.key, category: 'zz_unmapped' })),
+    ]
     for (const fam of FAMILIES) {
       installServer({ library: rows })
       await mount({ category: fam.key })
       const shown = [...document.querySelectorAll('[data-library-card]')].map((c) => c.getAttribute('data-library-card')).sort()
-      const want = rows.filter((r) => FAMILY_CATEGORIES[fam.key].includes(r.category)).map((r) => r.id).sort()
+      const want = rows.filter((r) => FAMILY_CATEGORIES[fam.key].includes(r.category)
+        || (FAMILY_GROUPS[fam.key] || []).includes(r.group)).map((r) => r.id).sort()
       expect(want.length, fam.key).toBeGreaterThan(0)                        // each chip keeps something
       expect(shown, fam.key).toEqual(want)
       cleanup()

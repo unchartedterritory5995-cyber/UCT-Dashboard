@@ -172,7 +172,8 @@ export function libraryList(group) {
 /**
  * The official templates' groups, in the server's order and words (`template_library.GROUPS`, Task 11.10). The
  * Template library section draws one row per group in THIS order (Task 11.16); a listed row names its group by key.
- * ⚠️ One fact in two files until a rail parses the server's tuple (a merge-step carry, recorded in 11.16's report).
+ * ⛔ One fact in two files, PINNED: TemplateLibrarySection.test.jsx parses the server's tuple from
+ *    template_library.py and asserts this list equals it, key for key and word for word (merge step M4).
  */
 export const LIBRARY_GROUPS = Object.freeze([
   Object.freeze({ key: 'night_before', label: 'The night before' }),
@@ -194,17 +195,35 @@ export const LIBRARY_GROUPS = Object.freeze([
  *   * rituals ("Daily & weekly rituals") -> journal, review: the daily journal and the weekly review;
  *   * research ("Thesis & research") -> research;
  *   * trades ("Around a trade") -> trade_plan;
- *   * mind ("Mindset") -> journal: a mindset template is written as a journal entry.
+ *   * mind ("Mindset") -> no category; it keeps the library's own Mindset GROUP (FAMILY_GROUPS below).
+ * Merge step M3: mind used to map to journal, so two chips shared one category, and the official seed
+ * (template_library_seed.json, Task 11.10) holds no journal row at all: the Mindset chip reached no official template.
+ * A mindset template is a research or review row by category, so the chip that names it is matched by GROUP.
  * ⛔ Railed by TemplateLibrarySection.test.jsx: its keys are exactly FAMILIES' keys, every category it names is in
- *    the server's CATEGORIES tuple (parsed from template_gallery.py, never retyped), and every server category is
- *    reached by some chip, so no listed template is unreachable from the chips.
+ *    the server's CATEGORIES tuple (parsed from template_gallery.py, never retyped), every server category is
+ *    reached by exactly ONE chip, and every chip keeps at least one row of the shipped seed (parsed, never retyped).
  */
 export const FAMILY_CATEGORIES = Object.freeze({
   rituals: Object.freeze(['journal', 'review']),
   research: Object.freeze(['research']),
   trades: Object.freeze(['trade_plan']),
-  mind: Object.freeze(['journal']),
+  mind: Object.freeze([]),
 })
+
+/**
+ * Merge step M3: a family chip may also keep the library rows of named GROUPS (`template_library.GROUPS` keys, the
+ * LIBRARY_GROUPS above). A row passes a chip when its category OR its group is the chip's.
+ */
+export const FAMILY_GROUPS = Object.freeze({
+  mind: Object.freeze(['mindset']),
+})
+
+/** Does a library row pass a family chip (a FAMILIES key)? Its category or its group is the chip's. */
+export function familyKeeps(family, row) {
+  const cats = Object.hasOwn(FAMILY_CATEGORIES, family) ? FAMILY_CATEGORIES[family] : []
+  const groups = Object.hasOwn(FAMILY_GROUPS, family) ? FAMILY_GROUPS[family] : []
+  return cats.includes(row?.category) || groups.includes(row?.group)
+}
 
 /** Preview with my data (W11-R12): each choice at its answer, its suggested value or Any. */
 export function previewMine(galleryId, answers) {
