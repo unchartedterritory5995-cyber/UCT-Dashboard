@@ -135,7 +135,9 @@ export function resolveChartRegionFromPanes(p) {
       }
       if (!pane.key) return { type: 'volume' }
       if (pane.key === volumePaneKey) return { type: 'volume' }
-      return { type: 'indicator', key: pane.key }
+      // ⭐ A1 (C2): the HOST INSTANCE the pane draws, when the caller knows it, so
+      // "Hide <label>" can hide THAT copy rather than every copy of the definition.
+      return pane.hostKey ? { type: 'indicator', key: pane.key, hostKey: pane.hostKey } : { type: 'indicator', key: pane.key }
     }
     top = bottom + separatorHeight
   }

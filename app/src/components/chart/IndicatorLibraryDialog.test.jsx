@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
 import { catalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
-import { isIndicatorEnabled, setIndicatorEnabled } from './engine/instanceControls'
+import { isIndicatorEnabled, setIndicatorEnabled, definitionVisibility, addInstance, setInstanceInput, setInstanceHidden } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
@@ -193,16 +193,25 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
   })
 
-  it('a second click removes it, and the row un-ticks', () => {
+  // ⭐ A1 (D3): A SECOND CLICK HIDES, IT NO LONGER DELETES. The row's direction reads
+  // VISIBILITY (`rowVisibility`), and OFF with a live instance keeps it — inputs and
+  // all — marked `hiddenVia: 'definition'`. The delete this case used to pin is
+  // `removeDefinition`'s now ("Remove all", in Chart Settings), and it is pinned there
+  // in the engine rails; this surface must never reach it.
+  it('A1 (D3) — a second click HIDES it (kept, never tombstoned), and the row un-ticks', () => {
     const on = setIndicatorEnabled(base(), 'rsi', true, engineRegistry)
     const { onChange } = open(on)
     expect(screen.getByRole('option', { name: /Relative Strength Index/ }).getAttribute('aria-selected')).toBe('true')
     fireEvent.click(screen.getByRole('option', { name: /Relative Strength Index/ }))
     const next = onChange.mock.calls[0][0]
-    expect(isIndicatorEnabled(next, 'rsi', ENGINE_OWNED)).toBe(false)
-    // The tombstone, not just the mirror: the mirror alone comes back on the
-    // next paint because the migrator re-projects it.
-    expect(next.indicatorInstances.some((i) => i.instanceId === 'legacy:rsi' && i.deleted === true)).toBe(true)
+    const was = on.indicatorInstances.find((i) => i.instanceId === 'legacy:rsi')
+    const now = next.indicatorInstances.find((i) => i.instanceId === 'legacy:rsi')
+    expect(now.deleted, 'the Library row deleted RSI — A1 says it hides').toBeUndefined()
+    expect(now).toEqual({ ...was, hidden: true, hiddenVia: 'definition' })
+    expect(next.indicatorInstances.some((i) => i && i.deleted === true), 'a tombstone was written').toBe(false)
+    // The mirror means "an instance EXISTS"; a hidden one still does.
+    expect(next.indicators.rsi.enabled).toBe(true)
+    expect(definitionVisibility(next, 'rsi', ENGINE_OWNED).state).toBe('hidden')
   })
 
   it('the carved-out section is addable too — it has a settings toggle and no definition', () => {
@@ -403,5 +412,70 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     render(<IndicatorLibraryDialog open={false} onClose={() => {}} settings={base()}
                                    onChange={vi.fn()} registry={engineRegistry} />)
     expect(screen.queryByRole('searchbox')).toBeNull()
+  })
+})
+
+// ─── A1 (D3) DOORS — THE LIBRARY ROW HIDES AND SHOWS, AND SHOWS BACK EXACTLY WHAT IT HID
+//
+// ⭐ STATEFUL ON PURPOSE. Every case above hands the dialog ONE blob and reads the
+// first write; the claim here is a ROUND TRIP (hide, then show), so each write is fed
+// back in as the next render's `settings`, the way the host does.
+describe('A1 doors', () => {
+  const live = (cs) => (cs.indicatorInstances || []).filter((i) => i && i.defId === 'rsi' && !i.deleted)
+  const stateful = (initial) => {
+    let cs = initial
+    const writes = []
+    const onChange = vi.fn((next) => { writes.push(next); cs = next; rerender(ui()) })
+    const ui = () => <IndicatorLibraryDialog open onClose={() => {}} settings={cs} onChange={onChange} registry={engineRegistry} />
+    const { rerender } = render(ui())
+    return { get cs() { return cs }, writes }
+  }
+  const rsiRow = () => screen.getAllByRole('option').find((o) => o.dataset.defId === 'rsi')
+
+  it('A1 (D3) — a shown row hides (○ + Hidden pill); a second click shows the SAME instances back', () => {
+    const start = setIndicatorEnabled(base(), 'rsi', true, engineRegistry)
+    const h = stateful(start)
+    expect(within(rsiRow()).queryByTestId('row-hidden')).toBeNull()
+
+    fireEvent.click(rsiRow())
+    expect(h.writes).toHaveLength(1)
+    expect(rsiRow().getAttribute('aria-selected'), 'a hidden row still reads ticked').toBe('false')
+    expect(within(rsiRow()).getByTestId('row-hidden').textContent).toBe('Hidden')
+    expect(rsiRow().querySelector('[aria-hidden="true"]').textContent).toBe('○')
+    expect(live(h.cs).map((i) => i.instanceId)).toEqual(['legacy:rsi'])
+
+    fireEvent.click(rsiRow())
+    expect(h.writes).toHaveLength(2)
+    expect(rsiRow().getAttribute('aria-selected')).toBe('true')
+    expect(within(rsiRow()).queryByTestId('row-hidden')).toBeNull()
+    // Byte-identical to what was there before the hide — no marker left, nothing re-built.
+    expect(live(h.cs)).toEqual(live(start))
+    expect(h.cs.indicators.rsi).toEqual(start.indicators.rsi)
+  })
+
+  it('A1 (D3) — RSI(7) visible + RSI(50) member-hidden: the row hides ONLY RSI(7) and shows ONLY RSI(7) back', () => {
+    let cs = setIndicatorEnabled(base(), 'rsi', true, engineRegistry)
+    cs = setInstanceInput(cs, 'legacy:rsi', 'period', 7, engineRegistry)
+    cs = addInstance(cs, 'rsi', engineRegistry)
+    const second = live(cs).find((i) => i.instanceId !== 'legacy:rsi').instanceId
+    cs = setInstanceInput(cs, second, 'period', 50, engineRegistry)
+    cs = setInstanceHidden(cs, second, true, engineRegistry)
+    expect(live(cs).map((i) => [i.inputs.period, i.hidden === true])).toEqual([[7, false], [50, true]])
+    const before = live(cs)
+
+    const h = stateful(cs)
+    fireEvent.click(rsiRow())
+    const [r7, r50] = live(h.cs)
+    expect(r7).toEqual({ ...before[0], hidden: true, hiddenVia: 'definition' })
+    // The member's own hide is NOT the definition's: untouched, and NO marker on it.
+    expect(r50).toEqual(before[1])
+    expect('hiddenVia' in r50).toBe(false)
+    expect(within(rsiRow()).getByTestId('row-hidden')).toBeTruthy()
+
+    fireEvent.click(rsiRow())
+    const after = live(h.cs)
+    expect(after[0], 'RSI(7) did not come back as it was').toEqual(before[0])
+    expect(after[1].hidden, 'showing the row un-hid the copy the MEMBER hid').toBe(true)
+    expect(after).toEqual(before)
   })
 })

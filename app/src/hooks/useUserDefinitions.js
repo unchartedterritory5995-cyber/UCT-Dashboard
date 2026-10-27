@@ -24,11 +24,11 @@
 // a transport failure (it never answered) and a refusal whose body is
 // unreadable. That is the same split `useIndicatorAlerts.createIndicatorAlert`
 // draws, for the same reason.
-import { useContext, useMemo } from 'react'
+import { useContext, useEffect, useMemo } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
 import {
-  installUserDefinitions, clearUserDefinitions, registryGeneration,
+  installUserDefinitions, clearUserDefinitions, registryGeneration, uninstallUserDefinition,
 } from '../components/chart/engine/nativeRegistry'
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
@@ -189,6 +189,7 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
   }
   if (r.ok) {
     mutate(USER_DEFINITIONS_KEY)
+    announceDefinitionsChanged()   // A1.4 — other open tabs re-read the store
     // K3: a saved definition can just have become (or stopped being) a
     // scannable "My Scans" filter entry — revalidate the rail's category so
     // every door (BuilderSheet included) sees it without waiting out
@@ -270,6 +271,7 @@ export async function forkUserDefinition(defId) {
   }
   if (r.ok) {
     mutate(USER_DEFINITIONS_KEY)
+    announceDefinitionsChanged()   // A1.4 — other open tabs re-read the store
     mutate(META_KEY)
     let made = null
     try { made = await r.json() } catch { /* a body-less 200 is still a copy */ }
@@ -340,8 +342,33 @@ const AUTHORITATIVE_EMPTY = new Set([401, 402, 403])
  * @returns {{installedIds: string[], errors: string[], generation: number,
  *            isLoading: boolean, error: any, refresh: () => void}}
  */
+// ⭐ A1.4 (WS3 P2-2) — the ids installed FROM A STORE RESPONSE. Only these are ever
+// uninstalled on absence: a formula BuilderSheet just installed (or a preview) is not in a
+// response yet and must never be evicted by a stale in-flight one.
+const _fromStore = new Set()
+
+// ⭐ A1.4 — a save / delete / fork in ONE tab makes every other open tab re-read the store, so a
+// deleted formula stops drawing everywhere (and shows as "can't be shown") without a reload.
+const DEFS_CHANNEL = 'uct.user-definitions'
+let _defsChannel
+function defsChannel() {
+  if (_defsChannel !== undefined) return _defsChannel
+  try { _defsChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(DEFS_CHANNEL) : null } catch { _defsChannel = null }
+  return _defsChannel
+}
+function announceDefinitionsChanged() {
+  try { defsChannel()?.postMessage({ type: 'user-definitions-changed' }) } catch { /* best effort */ }
+}
+
 export function useInstalledUserDefinitions() {
   const { rows, isLoading, error, refresh } = useUserDefinitions()
+  useEffect(() => {
+    const ch = defsChannel()
+    if (!ch) return undefined
+    const onMsg = (e) => { if (e && e.data && e.data.type === 'user-definitions-changed') mutate(USER_DEFINITIONS_KEY) }
+    ch.addEventListener('message', onMsg)
+    return () => ch.removeEventListener('message', onMsg)
+  }, [])
 
   // The rows' IDENTITY, not their contents: `def_id@version` is what the store
   // versions on and `rev` is what a maths change bumps, so two lists with the
@@ -374,8 +401,19 @@ export function useInstalledUserDefinitions() {
       .map(r => r && r.definition)
       .filter(d => d && typeof d === 'object')
     const { installed, errors: installErrors } = installUserDefinitions(docs)
+    // ⭐ A1.4 — uninstall ONLY on an authoritative, successful response, and only ids a
+    // previous response installed. Never on a transport error, a 5xx or while loading.
+    if (!isLoading && !error) {
+      const present = new Set(rows.map(r => r && r.def_id).filter(Boolean))
+      for (const id of [..._fromStore]) if (!present.has(id)) uninstallUserDefinition(id)
+      _fromStore.clear()
+      for (const d of installed) _fromStore.add(d.id)
+    }
     return { installedIds: installed.map(d => d.id), errors: installErrors }
-  }, [key, rows])
+  }, [key, rows, isLoading, error])
+  // The ids the store returned — installed or refused — so a non-resolving formula the store
+  // HAS reads "no longer passes checks", and one it lacks reads "deleted" (A1.4).
+  const storeDefIds = useMemo(() => new Set(rows.map(r => r && r.def_id).filter(Boolean)), [rows])
 
   return {
     installedIds,
@@ -384,6 +422,7 @@ export function useInstalledUserDefinitions() {
     // the value the registry holds for the definitions this render just put
     // there — not the one it held before them.
     generation: registryGeneration(),
+    storeDefIds,
     isLoading,
     error: error || null,
     refresh,
@@ -437,6 +476,7 @@ export async function deleteUserDefinition(defId) {
     return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
   }
   mutate(USER_DEFINITIONS_KEY)
+  announceDefinitionsChanged()   // A1.4 — other open tabs re-read the store
   // K3: a deleted definition may have been the last scannable one — same
   // revalidation as the save path above.
   mutate(META_KEY)

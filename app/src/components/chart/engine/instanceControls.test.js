@@ -7,7 +7,7 @@
 // alert popover, the screener and the `?indicators=` route read that section and
 // know nothing about instances.
 import { describe, it, expect } from 'vitest'
-import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from './instanceControls'
+import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled, removeDefinition, definitionVisibility, setInstanceHidden, HIDDEN_VIA_DEFINITION } from './instanceControls'
 import { normalizeInstances, migrateLegacyToInstances, legacyInstanceId } from './instances'
 import * as engineRegistry from './nativeRegistry'
 import { resolveDisplayTarget } from './displayTarget'
@@ -85,52 +85,104 @@ describe('setIndicatorEnabled — the instance AND the mirror, always both', () 
         .find(i => i.defId === 'rsi')))
   })
 
-  it('turning one OFF writes a TOMBSTONE, not a deletion', () => {
+  // ⭐⭐ A1 (D3, owner-approved 2026-10-13): the definition-level OFF HIDES; it never
+  // deletes. The delete contract these rails pinned is unchanged — it moved, verbatim, to
+  // `removeDefinition` ("Remove all N RSI"), and every assertion below still holds there.
+  it('turning one OFF HIDES it — kept, with its settings, marked as a definition hide', () => {
+    const on = setIndicatorEnabled(base(), 'rsi', true, R)
+    const off = setIndicatorEnabled(on, 'rsi', false, R)
+    const before = on.indicatorInstances.find(i => i.instanceId === 'legacy:rsi')
+    expect(off.indicatorInstances).toEqual([{ ...before, hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION }])
+    expect(off.indicators.rsi.enabled, 'the mirror means "exists": a hide never writes it').toBe(true)
+    expect(definitionVisibility(off, 'rsi', new Set(['rsi'])).state).toBe('hidden')
+    // …and ON shows EXACTLY that instance again, byte for byte, marker gone.
+    expect(JSON.stringify(setIndicatorEnabled(off, 'rsi', true, R).indicatorInstances)).toBe(JSON.stringify(on.indicatorInstances))
+    // a second OFF over an already-hidden definition writes nothing
+    expect(setIndicatorEnabled(off, 'rsi', false, R)).toBe(off)
+  })
+
+  it('removeDefinition writes a TOMBSTONE, not a deletion (the pre-A1 OFF, moved)', () => {
     // A bare removal is undone by the very next read: `migrateLegacyToInstances`
     // would see `enabled: true`… and a grid cell whose snapshot predates the
     // delete names the instance in full on its next unrelated write. Only a
     // persisting marker survives that (B2 Task 5).
     const on = setIndicatorEnabled(base(), 'rsi', true, R)
-    const off = setIndicatorEnabled(on, 'rsi', false, R)
+    const off = removeDefinition(on, 'rsi', R)
     expect(off.indicatorInstances).toEqual([{ instanceId: 'legacy:rsi', deleted: true }])
     expect(off.indicators.rsi.enabled).toBe(false)
     expect(live(off)).toEqual([])
   })
 
+  it('OFF with NO live instance (the legacy projection alone) still tombstones — unchanged', () => {
+    const cs = { indicators: { rsi: { enabled: true, period: 9 } }, indicatorInstances: [] }
+    expect(JSON.stringify(setIndicatorEnabled(cs, 'rsi', false, R))).toBe(JSON.stringify(removeDefinition(cs, 'rsi', R)))
+  })
+
   it('the tombstone survives a re-migration — "I turned it off and it came back"', () => {
-    const off = setIndicatorEnabled(setIndicatorEnabled(base(), 'rsi', true, R), 'rsi', false, R)
+    const off = removeDefinition(setIndicatorEnabled(base(), 'rsi', true, R), 'rsi', R)
     // The read-time migrator runs on every paint after Flip B.
     const remigrated = migrateLegacyToInstances(off, R)
     expect(normalizeInstances(remigrated, R).kept.filter(i => i.defId === 'rsi')).toEqual([])
   })
 
-  it('OFF tombstones EVERY live instance of the definition, not just the legacy one', () => {
-    // A settings row is per-DEFINITION at v1. Tombstoning only `legacy:rsi` would
-    // leave a second RSI drawing while the checkbox reads unchecked — and
-    // `isIndicatorEnabled` would then re-check the box on the next render, which
-    // is the same lie the `disabled` treatment exists to end, animated.
+  it('removeDefinition tombstones EVERY live instance of the definition, not just the legacy one', () => {
+    // "Remove all N RSI" means all of them. Tombstoning only `legacy:rsi` would leave
+    // a second RSI drawing after the member asked for none.
     const cs = { indicators: { rsi: { enabled: true } }, indicatorInstances: [
       { instanceId: 'legacy:rsi', defId: 'rsi', inputs: {}, hidden: false },
       { instanceId: 'second:rsi', defId: 'rsi', inputs: { period: 50 }, hidden: false },
     ] }
-    const off = setIndicatorEnabled(cs, 'rsi', false, R)
+    const off = removeDefinition(cs, 'rsi', R)
     expect(live(off)).toEqual([])
     expect(isIndicatorEnabled(off, 'rsi', new Set(['rsi']))).toBe(false)
     expect(off.indicatorInstances.map(i => i.instanceId).sort()).toEqual(['legacy:rsi', 'second:rsi'])
   })
 
-  it('…and leaves ANOTHER definition\'s instances alone', () => {
+  it('OFF hides EVERY visible instance; a member-hidden one gets NO marker and stays hidden on ON', () => {
+    // A definition switch that hid only `legacy:rsi` would leave a second RSI drawing
+    // while the checkbox reads unchecked.
+    const cs = { indicators: { rsi: { enabled: true } }, indicatorInstances: [
+      { instanceId: 'legacy:rsi', defId: 'rsi', inputs: {}, hidden: false },
+      { instanceId: 'second:rsi', defId: 'rsi', inputs: { period: 50 }, hidden: false },
+      { instanceId: 'third:rsi', defId: 'rsi', inputs: { period: 7 }, hidden: true },
+    ] }
+    const off = setIndicatorEnabled(cs, 'rsi', false, R)
+    expect(live(off).map(i => [i.instanceId, i.hidden, i.hiddenVia ?? null]).sort()).toEqual([
+      ['legacy:rsi', true, 'definition'], ['second:rsi', true, 'definition'], ['third:rsi', true, null]])
+    expect(live(off).find(i => i.instanceId === 'second:rsi').inputs.period, 'the hide kept its settings').toBe(50)
+    const on = setIndicatorEnabled(off, 'rsi', true, R)
+    expect(live(on).map(i => [i.instanceId, i.hidden]).sort()).toEqual([['legacy:rsi', false], ['second:rsi', false], ['third:rsi', true]])
+    expect(on.indicatorInstances.some(i => 'hiddenVia' in i)).toBe(false)
+  })
+
+  it('ON over a definition the member hid by hand (no marker) shows them all — the member asked to see it', () => {
+    const cs = { indicators: { rsi: { enabled: true } }, indicatorInstances: [
+      { instanceId: 'legacy:rsi', defId: 'rsi', inputs: {}, hidden: true },
+      { instanceId: 'second:rsi', defId: 'rsi', inputs: { period: 50 }, hidden: true },
+    ] }
+    expect(live(setIndicatorEnabled(cs, 'rsi', true, R)).every(i => i.hidden === false)).toBe(true)
+  })
+
+  it('a member\'s own hide or show of one instance supersedes a definition hide (the marker is removed)', () => {
+    const off = setIndicatorEnabled(setIndicatorEnabled(base(), 'rsi', true, R), 'rsi', false, R)
+    expect('hiddenVia' in setInstanceHidden(off, 'legacy:rsi', false, R).indicatorInstances[0]).toBe(false)
+    expect('hiddenVia' in setInstanceHidden(off, 'legacy:rsi', true, R).indicatorInstances[0]).toBe(false)
+  })
+
+  it('…and leaves ANOTHER definition\'s instances alone — hide and remove alike', () => {
     const cs = { indicators: { rsi: { enabled: true }, bb: { enabled: true } }, indicatorInstances: [
       { instanceId: 'legacy:rsi', defId: 'rsi', inputs: {}, hidden: false },
       { instanceId: 'legacy:bb', defId: 'bb', inputs: {}, hidden: false },
     ] }
-    const off = setIndicatorEnabled(cs, 'rsi', false, R)
-    expect(live(off).map(i => i.defId)).toEqual(['bb'])
-    expect(off.indicators.bb.enabled).toBe(true)
+    for (const off of [setIndicatorEnabled(cs, 'rsi', false, R), removeDefinition(cs, 'rsi', R)]) {
+      expect(live(off).filter(i => i.hidden !== true).map(i => i.defId)).toEqual(['bb'])
+      expect(off.indicators.bb.enabled).toBe(true)
+      expect(off.indicatorInstances.find(i => i.instanceId === 'legacy:bb')).toEqual(cs.indicatorInstances[1])
+    }
   })
 
   it('turning it back ON revives the same id', () => {
-    const off = setIndicatorEnabled(setIndicatorEnabled(base(), 'rsi', true, R), 'rsi', false, R)
+    const off = removeDefinition(setIndicatorEnabled(base(), 'rsi', true, R), 'rsi', R)
     const again = setIndicatorEnabled(off, 'rsi', true, R)
     const kept = live(again).filter(i => i.defId === 'rsi')
     expect(kept).toHaveLength(1)
@@ -242,13 +294,29 @@ describe('setIndicatorInput — same rule, both sides', () => {
     // something the user did not ask for, which is the same defect class as one
     // doing nothing. The value is still kept, in the mirror, so enabling later
     // picks it up.
-    const off = setIndicatorEnabled(setIndicatorEnabled(base(), 'rsi', true, R), 'rsi', false, R)
+    const off = removeDefinition(setIndicatorEnabled(base(), 'rsi', true, R), 'rsi', R)
     const typed = setIndicatorInput(off, 'rsi', 'period', 7, R)
     expect(live(typed), 'editing a period resurrected a switched-off indicator').toEqual([])
     expect(isIndicatorEnabled(typed, 'rsi', new Set(['rsi']))).toBe(false)
     expect(typed.indicators.rsi.period).toBe(7)
     // …and it survives the round trip: switching it back on adopts the value.
     expect(live(setIndicatorEnabled(typed, 'rsi', true, R)).find(i => i.defId === 'rsi').inputs.period).toBe(7)
+  })
+
+  it('⭐ A1 (R1): an input or COLOUR edit on a DEFINITION-HIDDEN indicator lands on it and never un-hides it', () => {
+    const on = setIndicatorEnabled(base(), 'rsi', true, R)
+    const off = setIndicatorEnabled(on, 'rsi', false, R)
+    for (const [key, value] of [['period', 7], ['color', '#c9a84c']]) {
+      const typed = setIndicatorInput(off, 'rsi', key, value, R)
+      const inst = typed.indicatorInstances.find(i => i.instanceId === 'legacy:rsi')
+      expect(inst.hidden, `editing ${key} un-hid the indicator`).toBe(true)
+      expect(inst.hiddenVia).toBe(HIDDEN_VIA_DEFINITION)
+      expect(inst.inputs[key]).toBe(value)
+      expect(typed.indicatorInstances.filter(i => i.defId === 'rsi')).toHaveLength(1)
+      expect(definitionVisibility(typed, 'rsi', new Set(['rsi'])).state).toBe('hidden')
+      // …and showing it later brings the edited value with it
+      expect(setIndicatorEnabled(typed, 'rsi', true, R).indicatorInstances.find(i => i.instanceId === 'legacy:rsi').inputs[key]).toBe(value)
+    }
   })
 
   it('…and the same for a blob that never enabled it at all', () => {
@@ -373,7 +441,11 @@ describe('isIndicatorEnabled — one answer for every control surface', () => {
     for (const flipped of [new Set(['rsi']), new Set()]) {
       const on = setIndicatorEnabled(base(), 'rsi', true, R)
       expect(isIndicatorEnabled(on, 'rsi', flipped)).toBe(true)
-      expect(isIndicatorEnabled(setIndicatorEnabled(on, 'rsi', false, R), 'rsi', flipped)).toBe(false)
+      expect(isIndicatorEnabled(removeDefinition(on, 'rsi', R), 'rsi', flipped)).toBe(false)
+      // ⭐ A1: a HIDE is not a removal — "exists" stays true; visibility is what changes
+      const hidden = setIndicatorEnabled(on, 'rsi', false, R)
+      expect(isIndicatorEnabled(hidden, 'rsi', flipped)).toBe(true)
+      expect(definitionVisibility(hidden, 'rsi', new Set(['rsi'])).state).toBe('hidden')
     }
   })
 })

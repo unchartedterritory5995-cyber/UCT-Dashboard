@@ -66,7 +66,7 @@
 // re-add, which `mergeSettingsOverride` already understands.
 
 import { validateInputValue } from './defSchema'
-import { legacyInstanceId, newInstanceId, stackRank } from './instances'
+import { legacyInstanceId, newInstanceId, stackRank, normalizeInstances } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 import { getDefinition } from './nativeRegistry'
 import {
@@ -295,16 +295,64 @@ export function withInstances(cs, instances, registry) {
   return { ...cs, indicatorInstances: sorted, preset: 'custom' }
 }
 
+/** The marker a DEFINITION-level hide leaves on each instance it hid (A1, D3). It means
+ *  something only while `hidden === true`: a marker on a visible instance is inert, which
+ *  keeps it safe under the grid's union merge (that merge cannot delete keys). Every member
+ *  hide or show of ONE instance (`setInstanceHidden`) removes it. */
+export const HIDDEN_VIA_DEFINITION = 'definition'
+
 /**
- * Turn one indicator on or off.
+ * ⭐ A1 (D3) — the three-state reader every definition-level toggle asks:
+ *  · `absent`  — no live stored instance, and no legacy projection draws;
+ *  · `shown`   — at least one live instance is visible, OR nothing is stored but the
+ *                legacy projection draws (`isIndicatorEnabled`'s P2b case);
+ *  · `hidden`  — live instances exist and every one is `hidden`.
+ * `partial` (some visible, some hidden) is for the UI only.
  *
- * OFF tombstones EVERY live instance of the definition, not just `legacy:<id>` —
- * a settings row is per-DEFINITION at v1, and leaving a second instance drawing
- * would make `isIndicatorEnabled` re-check the box the user just cleared.
+ * `isIndicatorEnabled` keeps its meaning, "a live instance EXISTS" (the migrator, the
+ * mirror, counts and the quick-menu listing use it). Only the toggles' checkmark and
+ * DIRECTION read this — otherwise a fully hidden RSI would read "on" and a click would
+ * hide it again, stuck.
+ */
+export function definitionVisibility(cs, defId, flippedIds) {
+  const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
+  let live = 0
+  let visible = 0
+  for (const inst of list) {
+    if (!isLiveInstance(inst) || inst.defId !== defId) continue
+    live++
+    if (inst.hidden !== true) visible++
+  }
+  if (!live) return { state: isIndicatorEnabled(cs, defId, flippedIds) ? 'shown' : 'absent', live: 0, visible: 0, partial: false }
+  return { state: visible ? 'shown' : 'hidden', live, visible, partial: visible > 0 && visible < live }
+}
+
+/** The ids `ids` act with: each one's group (`groupMemberIds`), unioned. */
+function withGroups(cs, ids) {
+  const out = new Set()
+  for (const id of ids) for (const m of groupMemberIds(cs, id)) out.add(m)
+  return out
+}
+
+/**
+ * Turn one indicator on or off — the DEFINITION-level door (Library row, right-click
+ * Indicators ▸, Ctrl+I/O/B/Alt+U, the phone switch, `applyRowPatch`).
  *
- * ON revives `legacy:<id>` if it is already there and live (so a user's edited
- * period is not rebuilt from the blob), otherwise builds the instance the
- * migrator would have built.
+ * ⭐⭐ A1 (D3): OFF HIDES, IT NEVER DELETES. Every live, VISIBLE instance of `defId` (with
+ * its group) becomes `{...i, hidden: true, hiddenVia: 'definition'}`. Instances the member
+ * had already hidden are untouched and get no marker. Inputs, timeframe, placement,
+ * presentation, dependents' sources and info values are all kept, and the mirror is not
+ * written (it means "an instance exists", `removeInstance`'s rule). Returns `cs` BY IDENTITY
+ * when nothing was visible. Deleting every instance is `removeDefinition`, a separate door.
+ *
+ * OFF with NO live instance (the legacy projection alone) is unchanged: the `legacy:<id>`
+ * tombstone is what stops the migrator projecting it back, and the inputs live in the mirror.
+ *
+ * ON when every live instance is hidden: un-hide the ones a definition hide marked (and
+ * drop the marker); if none is marked, un-hide them all (the member asked to see it). No add.
+ *
+ * ON otherwise is unchanged (`ensureLegacyInstance`): revive a live `legacy:<id>`, or build
+ * the instance the migrator would have built.
  *
  * @param {object} cs merged chart settings
  * @param {string} defId
@@ -317,20 +365,57 @@ export function setIndicatorEnabled(cs, defId, enabled, registry) {
   if (!def || !cs || typeof cs !== 'object') return cs
 
   const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
-  const id = legacyInstanceId(defId)
-  const indicators = { ...(cs.indicators || {}) }
-  indicators[defId] = { ...(indicators[defId] || {}), enabled }
+  const live = list.filter(i => isLiveInstance(i) && i.defId === defId)
 
   if (!enabled) {
-    const next = list.map(i => (isLiveInstance(i) && i.defId === defId ? instanceTombstone(i.instanceId) : i))
-    // Nothing stored yet, but the legacy toggle may still be projecting one in at
-    // read time — the tombstone is what stops the migrator putting it straight back.
-    if (!next.some(i => i && i.instanceId === id)) next.push(instanceTombstone(id))
-    const killed = list.filter(i => isLiveInstance(i) && i.defId === defId).map(i => i.instanceId)
-    return severDependents(severInfoValuesTo({ ...withInstances(cs, next, registry), indicators }, [...killed, id]),
-      [...killed, id], registry)
+    if (!live.length) return removeDefinition(cs, defId, registry)
+    const targets = withGroups(cs, live.filter(i => i.hidden !== true).map(i => i.instanceId))
+    if (!targets.size) return cs
+    // ⭐ An instance still hidden by an EARLIER definition hide — one the member left hidden
+    // while showing its siblings by hand — becomes the member's own hide here (marker
+    // dropped), so the next ON restores exactly what THIS hide hid: off → on is exact.
+    const next = list.map(i => {
+      if (!isLiveInstance(i)) return i
+      if (targets.has(i.instanceId)) return { ...i, hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION }
+      if (i.defId === defId && i.hidden === true && i.hiddenVia === HIDDEN_VIA_DEFINITION) return withoutMarker(i)
+      return i
+    })
+    return withInstances(cs, next, registry)
   }
 
+  if (live.length && live.every(i => i.hidden === true)) {
+    const marked = live.filter(i => i.hiddenVia === HIDDEN_VIA_DEFINITION)
+    const targets = withGroups(cs, (marked.length ? marked : live).map(i => i.instanceId))
+    const next = list.map(i => {
+      if (!isLiveInstance(i) || !targets.has(i.instanceId)) return i
+      const { hiddenVia: _via, ...rest } = i
+      return { ...rest, hidden: false }
+    })
+    const out = withInstances(cs, next, registry)
+    if (cs.indicators?.[defId]?.enabled === true) return out
+    const indicators = { ...(cs.indicators || {}) }
+    indicators[defId] = { ...(indicators[defId] || {}), enabled: true }
+    return { ...out, indicators }
+  }
+
+  return ensureLegacyInstance(cs, defId, registry)
+}
+
+/**
+ * ON as it shipped before A1: revive `legacy:<id>` if it is already there and live (so a
+ * user's edited period is not rebuilt from the blob) — hidden or not, it is returned AS IT
+ * IS — otherwise build the instance the migrator would have built. Writes the mirror true.
+ *
+ * ⭐ A1 (R1): `setIndicatorInput` calls THIS, not `setIndicatorEnabled(true)`, so editing
+ * an input or colour on a definition-hidden row never un-hides it.
+ */
+export function ensureLegacyInstance(cs, defId, registry) {
+  const def = resolveRegistry(registry)(defId)
+  if (!def || !cs || typeof cs !== 'object') return cs
+  const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  const id = legacyInstanceId(defId)
+  const indicators = { ...(cs.indicators || {}) }
+  indicators[defId] = { ...(indicators[defId] || {}), enabled: true }
   const prev = list.find(i => i && typeof i === 'object' && i.instanceId === id)
   const rest = list.filter(i => !i || typeof i !== 'object' || i.instanceId !== id)
   const revived = (prev && isLiveInstance(prev))
@@ -344,6 +429,28 @@ export function setIndicatorEnabled(cs, defId, enabled, registry) {
         hidden: false,
       }
   return { ...withInstances(cs, [...rest, revived], registry), indicators }
+}
+
+/**
+ * ⭐ A1 (D4) — "Remove all N RSI": the definition-level DELETE, exactly as OFF shipped
+ * before A1. Tombstones EVERY live instance of the definition plus `legacy:<id>` (the
+ * tombstone stops the migrator projecting it back), writes the mirror false, and severs
+ * dependents' sources and info values.
+ */
+export function removeDefinition(cs, defId, registry) {
+  const def = resolveRegistry(registry)(defId)
+  if (!def || !cs || typeof cs !== 'object') return cs
+  const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  const id = legacyInstanceId(defId)
+  const indicators = { ...(cs.indicators || {}) }
+  indicators[defId] = { ...(indicators[defId] || {}), enabled: false }
+  const next = list.map(i => (isLiveInstance(i) && i.defId === defId ? instanceTombstone(i.instanceId) : i))
+  // Nothing stored yet, but the legacy toggle may still be projecting one in at
+  // read time — the tombstone is what stops the migrator putting it straight back.
+  if (!next.some(i => i && i.instanceId === id)) next.push(instanceTombstone(id))
+  const killed = list.filter(i => isLiveInstance(i) && i.defId === defId).map(i => i.instanceId)
+  return severDependents(severInfoValuesTo({ ...withInstances(cs, next, registry), indicators }, [...killed, id]),
+    [...killed, id], registry)
 }
 
 /** The LIVE instance under `instanceId`, or null. A tombstone is not an
@@ -361,18 +468,27 @@ export function findInstance(cs, instanceId) {
  * 'panes'` drops the pane synchronously. That is the shipped decision
  * (`__tests__/hiddenIsRemovedNotParked.test.js`) and this door does not change it.
  *
- * ⛔ IT DOES NOT TOUCH THE MIRROR. `isIndicatorEnabled` counts a hidden instance
- * as ON — `Alt+Shift+I` declutters the chart and must not uncheck every box —
- * so writing `indicators[defId].enabled = false` here would make the checkbox
- * disagree with the reader on the very next paint.
+ * ⛔ IT DOES NOT TOUCH THE MIRROR. The mirror means "an instance EXISTS"
+ * (`removeInstance`'s rule); a hidden instance still exists, so writing
+ * `indicators[defId].enabled = false` here would tell the mirror's readers (the
+ * `?indicators=` route, `mergeSettingsOverride`) it was deleted.
+ *
+ * ⭐ A1: a member's own hide or show of an instance SUPERSEDES a definition hide, so
+ * this door also deletes `hiddenVia` (see `HIDDEN_VIA_DEFINITION`).
  */
+const withoutMarker = (inst) => {
+  if (!Object.prototype.hasOwnProperty.call(inst, 'hiddenVia')) return inst
+  const { hiddenVia: _via, ...rest } = inst
+  return rest
+}
+
 export function setInstanceHidden(cs, instanceId, hidden, registry) {
   if (!cs || typeof cs !== 'object' || typeof hidden !== 'boolean') return cs
   if (!findInstance(cs, instanceId)) return cs
   // ⭐ A GROUPED PART HIDES AND SHOWS WITH ITS GROUP — see `groupMemberIds`.
   const ids = groupMemberIds(cs, instanceId)
   const next = cs.indicatorInstances.map(i =>
-    (i && isLiveInstance(i) && ids.has(i.instanceId)) ? { ...i, hidden } : i)
+    (i && isLiveInstance(i) && ids.has(i.instanceId)) ? withoutMarker({ ...i, hidden }) : i)
   return withInstances(cs, next, registry)
 }
 
@@ -412,6 +528,43 @@ export function groupMemberIds(cs, instanceId) {
  * chart draws it — the exact disagreement the write-through mirror exists to
  * prevent.
  */
+/**
+ * ⭐ A1.4 — REMOVE a stored record that cannot be shown (`unavailableInstances`): a deleted
+ * or refused formula, a removed or out-of-range input, a damaged record. The same delete as
+ * `removeInstance` — tombstone (with its group), sever every dependent source and info value,
+ * mirror false when no live copy remains — which reaches the record because `findInstance`
+ * asks only "not a tombstone", never "valid". Returns `cs` by identity for an unknown id.
+ */
+export function removeUnavailable(cs, instanceId, registry) {
+  return removeInstance(cs, instanceId, registry)
+}
+
+/**
+ * ⭐ A1.4 — REPAIR a record whose definition still exists but whose inputs no longer fit it:
+ * every input the definition stopped declaring is deleted, and every value it would now reject
+ * is deleted (so the declared default applies). Everything else — placement, timeframe,
+ * presentation, visibility, the other inputs — is kept. Refused BY IDENTITY when the
+ * definition is unknown or the repaired record would still not validate.
+ */
+export function repairInstance(cs, instanceId, registry) {
+  const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
+  const at = list.findIndex(i => isLiveInstance(i) && i.instanceId === instanceId)
+  if (at < 0) return cs
+  const inst = list[at]
+  const def = resolveRegistry(registry)(inst.defId)
+  if (!def) return cs
+  const declared = declaredInputs(def)
+  const inputs = { ...(inst.inputs && typeof inst.inputs === 'object' && !Array.isArray(inst.inputs) ? inst.inputs : {}) }
+  for (const k of Object.keys(inputs)) {
+    if (!declared.has(k) || !checkInstanceInput(def, k, inputs[k]).ok) delete inputs[k]
+  }
+  const repaired = { ...inst, inputs }
+  if (normalizeInstances([repaired], registry).kept.length !== 1) return cs
+  const next = list.slice()
+  next[at] = repaired
+  return withInstances(cs, next, registry)
+}
+
 export function removeInstance(cs, instanceId, registry) {
   const inst = findInstance(cs, instanceId)
   if (!inst) return cs
@@ -596,7 +749,9 @@ export function setIndicatorInput(cs, defId, key, value, registry) {
   // flipped id.
   if (!isIndicatorEnabled(cs, defId, ONE_FLIPPED)) return { ...cs, indicators, preset: 'custom' }
 
-  const withInstance = setIndicatorEnabled(cs, defId, true, registry)
+  // ⭐ A1 (R1): ENSURE the legacy instance, never "turn on" — a definition-hidden row
+  // stays hidden while its input or colour is edited.
+  const withInstance = ensureLegacyInstance(cs, defId, registry)
   const id = legacyInstanceId(defId)
   const instances = (withInstance.indicatorInstances || []).map(i => (
     i && i.instanceId === id ? { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } } : i
@@ -1093,7 +1248,7 @@ export function duplicateInstance(cs, instanceId, registry) {
   const list = cs.indicatorInstances
   // ⚠️ `group` IS NOT COPIED: a duplicate of one COT output is a standalone series,
   // not a fourth member of the dataset it was copied from.
-  const { instanceId: _id, display, hidden: _hidden, group: _group, ...rest } = inst
+  const { instanceId: _id, display, hidden: _hidden, hiddenVia: _via, group: _group, ...rest } = inst
   const copy = JSON.parse(JSON.stringify(rest))
   const keptDisplay = display && typeof display === 'object'
     ? Object.fromEntries(Object.entries(display).filter(([k]) => k !== 'name')) : null
@@ -1141,7 +1296,7 @@ export function addInstanceCopy(cs, body, registry) {
   if (!def) return cs
   const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
   const {
-    instanceId: _id, scope: _scope, group: _group, deleted: _deleted, defVersion: _v, hidden, ...rest
+    instanceId: _id, scope: _scope, group: _group, deleted: _deleted, defVersion: _v, hidden, hiddenVia: _via, ...rest
   } = body
   const copy = JSON.parse(JSON.stringify(rest))
   const added = {

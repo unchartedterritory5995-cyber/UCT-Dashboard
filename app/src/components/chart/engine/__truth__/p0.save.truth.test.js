@@ -112,21 +112,20 @@ describe('0Q — an unregistered user definition\'s instance across merge and wr
   })
 
   it.each([[1], [null]])(
-    'HAZARD PINNED (no shipped producer found) — a blob at settingsVersion=%s carrying a user instance IS pruned by the fold',
+    'HAZARD FIXED (A1.4, PA3 D12) — a blob at settingsVersion=%s carrying a user instance is NOT pruned by the fold',
     (version) => {
       // ASKED: load a pre-v2 (or versionless) blob that draws my formula before it loads.
-      // DID: the `_storedVersion < 2` fold runs `normalizeInstances(seeded, engineRegistry)`
-      //      (chartDefaults.js:814), drops the unregistered instance, stamps v2 — and the
-      //      next write persists the loss. Registering later does NOT restore it.
-      // CLASS: this is the loss shape; it is reachable only if some writer persists a
-      //      blob below v2 that carries a user instance — none was found (report §0Q).
+      // ⚰️ WAS: the `_storedVersion < 2` fold dropped the unregistered instance, stamped v2,
+      //      and the next write persisted the loss — registering later did not restore it.
+      // ⭐ NOW: the fold keeps a record it cannot validate RAW (it is named "can't be shown"
+      //      meanwhile), so once the formula registers the instance is simply back.
       expect(registry.getDefinition(DEF_ID)).toBeNull()
       const cs = mergeChartSettings(storedBlob({ version }))
       expect(cs.settingsVersion).toBe(2)
-      expect(hasUser(cs)).toBe(false)
+      expect(hasUser(cs), 'the fold discarded the unregistered instance').toBe(true)
       const reread = persistAndReread({ ...cs, chartType: 'bars' })
       registry.installUserDefinitions([macdV2Doc({ id: DEF_ID })])
-      expect(hasUser(mergeChartSettings(JSON.stringify(reread)))).toBe(false)
+      expect(hasUser(mergeChartSettings(JSON.stringify(reread))), 'registering later did not restore it').toBe(true)
     },
   )
 

@@ -49,6 +49,33 @@ export function readChartsLink(search) {
   return { symbol: symbol || null, tf: tf || null }
 }
 
+/** ⭐ A1.3 (D6, C3) — the share link's chart state (`?state=<encoded>`, minted by
+ *  StockChart's Share). */
+export const SHARE_STATE_PARAM = 'state'
+
+let _shareClaimed = false
+/** ⭐ ONE-SHOT, ONE CHART. Returns the encoded share state to the FIRST caller per page load
+ *  and strips the param from the URL (keeping `history.state`, so the router's key and index
+ *  survive). Every later caller — every other chart on the page, and every reload, since the
+ *  param is gone — gets null. Before A1 the param was never stripped and every StockChart on
+ *  the page applied it, again on every reload. */
+export function claimShareState() {
+  if (_shareClaimed) return null
+  let encoded = null
+  try {
+    const p = new URLSearchParams(window.location.search)
+    encoded = p.get(SHARE_STATE_PARAM)
+    if (!encoded) return null
+    _shareClaimed = true
+    p.delete(SHARE_STATE_PARAM)
+    const q = p.toString()
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${q ? `?${q}` : ''}${window.location.hash || ''}`)
+  } catch { /* no window / history: nothing to claim or strip */ }
+  return encoded
+}
+/** Test-only. */
+export function _resetShareClaimForTests() { _shareClaimed = false }
+
 /** The same query string with the instruction REMOVED — so applying it once
  *  doesn't survive a refresh and fight the user's own later changes. */
 export function stripChartsLink(search) {
