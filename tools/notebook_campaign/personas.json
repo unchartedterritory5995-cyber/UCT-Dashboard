@@ -174,15 +174,15 @@
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4273"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4281"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4272"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4280"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3228"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3236"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
