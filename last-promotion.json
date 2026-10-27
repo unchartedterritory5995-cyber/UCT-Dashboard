@@ -1,9 +1,8 @@
 {
-  "promoted_sha": "826aa288ec44c1ee82525d4def82a7228eddd8b2",
-  "master_sha": "826aa288ec44c1ee82525d4def82a7228eddd8b2",
-  "gate_run_id": null,
-  "range_scan_state": null,
-  "range_scan_verdict": null,
-  "ts": "2026-10-27T19:03:33.925569Z",
-  "range_scan_note": "the gate log could not be read or carried no range-scan line; recorded as unknown, never as clean"
+  "promoted_sha": "54821d83f7b57196f6834df4813192add3f5d3eb",
+  "master_sha": "54821d83f7b57196f6834df4813192add3f5d3eb",
+  "gate_run_id": "40587664960",
+  "range_scan_state": "EXECUTED",
+  "range_scan_verdict": "CLEAN",
+  "ts": "2026-10-27T21:50:45.685973Z"
 }
