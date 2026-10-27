@@ -489,7 +489,17 @@
        "forbid": [
         "zeros"
        ],
-       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty"
+       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:mood\": {\"name\": \"Check-in mood\""
+        },
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:focus\": {\"name\": \"Check-in focus\""
+        }
+       ]
       },
       {
        "do": "my_tools_tab",
@@ -742,6 +752,12 @@
        ],
        "forbid": [
         "zeros"
+       ],
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "text += f\" {count:,} {u}.\""
+        }
        ]
       },
       {
@@ -858,9 +874,15 @@
       {
        "do": "builder_split",
        "by": "Account",
-       "live_re": "(?i)split by|by account",
+       "live_re": "(?i)split by account",
        "forbid": [
         "zeros"
+       ],
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
        ]
       },
       {
@@ -942,7 +964,13 @@
        "forbid": [
         "zeros"
        ],
-       "open_phone_preview": true
+       "open_phone_preview": true,
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/payload.py",
+         "fragment": "S_CAPPED_RANGE_NO_DAY = \"Newest {n:,} {unit}\""
+        }
+       ]
       },
       {
        "do": "close_dialog"
@@ -1005,7 +1033,13 @@
        "expect": [
         "split_none_hour"
        ],
-       "why": "the field is 'ET hour' (sources.py:383); 80 untimed trades leave every row without an hour, so the preview body says the split-none sentence (aggregate.py:51, PreviewPane.jsx:110); the live summary only names the split (plan.py:1224)"
+       "why": "the field is 'ET hour' (sources.py:395); 80 untimed trades leave every row without an hour, so the preview body says the split-none sentence (aggregate.py:51, PreviewPane.jsx:112); the live summary only names the split (plan.py:1224)",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
+       ]
       },
       {
        "do": "close_dialog"
@@ -1262,7 +1296,13 @@
         "Show as table"
        ],
        "open_phone_preview": true,
-       "why": "the table alternative is the 'Show as table' button (PreviewPane.jsx:121)"
+       "why": "the table alternative is the 'Show as table' button (PreviewPane.jsx:120)",
+       "copy_sources": [
+        {
+         "path": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "Show as table"
+        }
+       ]
       },
       {
        "do": "close_dialog"
@@ -2495,7 +2535,13 @@
        "by": "Routine done",
        "live_re": "(?i)split by routine done",
        "ref": "History routine",
-       "why": "'Routine done' is the Trading days source's routine field (sources.py:651); picking it opens the routine picker, whose buttons are the routines' names (RefPicker.jsx:62-66, WidgetBuilderSheet.jsx:1220)"
+       "why": "'Routine done' is the Trading days source's routine field (sources.py:663); picking it opens the routine picker, whose buttons are the routines' names (RefPicker.jsx:62-66, WidgetBuilderSheet.jsx:1221)",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
+       ]
       },
       {
        "do": "close_dialog",
@@ -2644,6 +2690,19 @@
          ],
          "text_starts": "last_result",
          "first_span_opacity": 0.9
+        },
+        {
+         "defect": "D-W11-007",
+         "what": "the live region carries the summary only (W11-R50b)",
+         "testid": "builder-live",
+         "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx",
+         "fragment": "aria-live=\"polite\" data-testid=\"builder-live\">{said}</p>",
+         "viewports": [
+          "1200",
+          "820",
+          "390"
+         ],
+         "text_not_contains": "last_result"
         }
        ],
        "why": "a refused formula blocks the preview (WidgetBuilderSheet.jsx:489, 1343): the last result stays, dimmed at --preview-dim-opacity 0.9, with 'Showing the last result.' beside it or leading the phone bar"
@@ -2678,6 +2737,46 @@
          "text_not_starts": "last_result"
         }
        ]
+      },
+      {
+       "do": "close_dialog",
+       "discard": true
+      }
+     ]
+    },
+    {
+     "id": "P25.b",
+     "title": "F-DEF-1 retest: the preview while it loads, and the retry",
+     "why": "f-def-1-report.md fix round 1 I-2 (axe color-contrast while loading) and fix round 2 (Try again)",
+     "steps": [
+      {
+       "do": "seed_note",
+       "title": "Campaign P25 loading",
+       "paras": [
+        "Loading."
+       ],
+       "save_as": "n2"
+      },
+      {
+       "do": "open_note",
+       "note": "n2"
+      },
+      {
+       "do": "open_builder"
+      },
+      {
+       "do": "builder_blank",
+       "source": "Closed trades",
+       "timing": "preview"
+      },
+      {
+       "do": "axe_while_loading",
+       "source": "Open positions",
+       "latency_ms": 6000
+      },
+      {
+       "do": "not_reachable",
+       "reason": "the retry retest needs a FAILED preview with a kept result: Try again is drawn only under a failure (PreviewPane.jsx:74 `failed`, :100 PreviewActions; none for offline or superseded, :131). A refused formula never asks (WidgetBuilderSheet.jsx:489, 535), and busy or too_long cannot be forced from the browser (ruling CAMPAIGN-W11), so 'the line stays through the retry, nothing new is announced' is INCONCLUSIVE by design here; the unit rail is PreviewPane.lastResult.test.jsx"
       },
       {
        "do": "close_dialog",
@@ -2952,7 +3051,13 @@
        "do": "builder_split",
        "by": "Hold time",
        "live_re": "(?i)split by hold time",
-       "why": "the Hold time split buckets hold days (sources.py:401, 277-292), which date-only trades have"
+       "why": "the Hold time split buckets hold days (sources.py:413, 277-292), which date-only trades have",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/widget_engine/plan.py",
+         "fragment": "s = f\"split by {_field_label(plan, catalog, split['by'])}\""
+        }
+       ]
       },
       {
        "do": "not_reachable",
@@ -4316,6 +4421,12 @@
        "path": "/journal/notebook?view=all",
        "expect_re": [
         "(?i)sign in|log in"
+       ],
+       "copy_sources": [
+        {
+         "path": "app/src/pages/Login.jsx",
+         "fragment": "{loading ? 'Logging in...' : 'Log In'}"
+        }
        ]
       },
       {
@@ -4435,7 +4546,17 @@
        "forbid": [
         "zeros"
        ],
-       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty"
+       "why": "the two check-in trackers are built in, so a new member's Trackers tab is never empty",
+       "copy_sources": [
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:mood\": {\"name\": \"Check-in mood\""
+        },
+        {
+         "path": "api/services/journal_two/trackers.py",
+         "fragment": "\"checkin:focus\": {\"name\": \"Check-in focus\""
+        }
+       ]
       },
       {
        "do": "my_tools_tab",
@@ -4735,5 +4856,305 @@
    "validated": false,
    "viewports_why": "tablet member by definition (plan row P50): 820, coarse pointer"
   }
- ]
+ ],
+ "validation": {
+  "_about": "Persona validation (Task 11.21 Step 4, rulings W11-R65/W11-R70): each step's selectors, labels, routes and copy were read against the merged tree; `ok` = unchanged and correct, `fixed: <what>`, `not_reachable` = INCONCLUSIVE by design, `http` = not a browser step (graded by the w11/api judges), `added` = a retest script. The selector rail (selector_problems) re-checks every step on each run.",
+  "ref": "origin/feat/notebook-widgets-p2 @ 1d20ebdb78",
+  "steps": {
+   "P01.a.01": "http",
+   "P01.a.02": "ok + F-DEF-1 measure",
+   "P01.a.03": "ok",
+   "P01.a.04": "ok",
+   "P01.a.05": "ok + F-DEF-1 measure",
+   "P01.b.01": "ok",
+   "P01.b.02": "ok",
+   "P01.b.03": "ok",
+   "P01.b.04": "ok",
+   "P01.b.05": "ok",
+   "P01.b.06": "ok",
+   "P01.c.01": "added: F-DEF-1 retest script",
+   "P01.c.02": "http",
+   "P01.c.03": "added: F-DEF-1 retest script",
+   "P01.c.04": "added: F-DEF-1 retest script",
+   "P02.a.01": "http",
+   "P02.a.02": "ok",
+   "P02.a.03": "ok",
+   "P02.a.04": "ok",
+   "P02.a.05": "ok",
+   "P02.b.01": "ok",
+   "P02.b.02": "http",
+   "P03.a.01": "http",
+   "P03.a.02": "ok",
+   "P03.a.03": "ok",
+   "P03.a.04": "ok",
+   "P03.a.05": "ok",
+   "P03.b.01": "http",
+   "P03.b.02": "ok",
+   "P03.b.03": "ok",
+   "P03.b.04": "ok",
+   "P03.b.05": "ok",
+   "P04.a.01": "http",
+   "P04.a.02": "ok + F-DEF-1 measure",
+   "P04.a.03": "ok",
+   "P04.a.04": "ok",
+   "P04.a.05": "fixed: live_re 'split by account' (review m2)",
+   "P04.a.06": "ok",
+   "P04.a.07": "ok",
+   "P04.a.08": "ok",
+   "P04.a.09": "ok",
+   "P05.a.01": "http",
+   "P05.a.02": "ok",
+   "P05.a.03": "ok",
+   "P05.a.04": "fixed: open_phone_preview (PreviewPane.jsx:165-189)",
+   "P05.a.05": "ok",
+   "P06.a.01": "http",
+   "P06.a.02": "ok",
+   "P06.a.03": "ok",
+   "P06.a.04": "ok",
+   "P06.a.05": "fixed: split 'ET hour' (sources.py:395)",
+   "P06.a.06": "ok",
+   "P07.a.01": "http",
+   "P07.a.02": "ok",
+   "P07.a.03": "ok",
+   "P07.a.04": "ok",
+   "P07.a.05": "ok",
+   "P08.a.01": "http",
+   "P08.a.02": "ok",
+   "P08.a.03": "ok",
+   "P08.a.04": "ok",
+   "P08.a.05": "ok",
+   "P09.a.01": "http",
+   "P09.a.02": "ok",
+   "P09.a.03": "ok",
+   "P09.a.04": "ok",
+   "P09.a.05": "ok",
+   "P09.a.06": "ok",
+   "P09.a.07": "ok",
+   "P09.a.08": "ok",
+   "P09.a.09": "ok",
+   "P09.a.10": "ok",
+   "P09.a.11": "ok",
+   "P10.a.01": "http",
+   "P10.a.02": "ok",
+   "P10.a.03": "ok",
+   "P10.a.04": "ok",
+   "P10.a.05": "fixed: open_phone_preview, 'Show as table' (PreviewPane.jsx:120)",
+   "P10.a.06": "ok",
+   "P10.a.07": "ok",
+   "P10.a.08": "ok",
+   "P10.a.09": "ok",
+   "P11.a.01": "ok",
+   "P11.a.02": "ok",
+   "P11.a.03": "ok",
+   "P12.a.01": "http",
+   "P12.a.02": "ok",
+   "P12.a.03": "ok",
+   "P12.a.04": "ok",
+   "P12.a.05": "ok",
+   "P12.b.01": "http",
+   "P12.b.02": "ok",
+   "P12.b.03": "ok",
+   "P12.b.04": "ok",
+   "P12.b.05": "ok",
+   "P12.b.06": "ok",
+   "P13.a.01": "http",
+   "P13.a.02": "http",
+   "P13.a.03": "ok",
+   "P13.a.04": "ok",
+   "P13.a.05": "ok",
+   "P14.a.01": "http",
+   "P14.a.02": "http",
+   "P14.a.03": "ok",
+   "P14.a.04": "ok",
+   "P14.a.05": "http",
+   "P14.a.06": "ok",
+   "P14.a.07": "ok",
+   "P14.a.08": "ok",
+   "P14.a.09": "ok + F-DEF-1 measure",
+   "P14.a.10": "http",
+   "P15.a.01": "http",
+   "P15.a.02": "ok",
+   "P15.a.03": "ok",
+   "P15.a.04": "http",
+   "P15.a.05": "ok",
+   "P15.a.06": "http",
+   "P15.a.07": "http",
+   "P16.a.01": "http",
+   "P17.a.01": "http",
+   "P18.a.01": "http",
+   "P19.a.01": "http",
+   "P20.a.01": "http",
+   "P20.a.02": "http",
+   "P20.b.01": "http",
+   "P21.a.01": "http",
+   "P22.a.01": "ok",
+   "P22.a.02": "ok",
+   "P22.a.03": "ok",
+   "P22.a.04": "ok",
+   "P23.a.01": "http",
+   "P23.a.02": "ok",
+   "P23.a.03": "ok",
+   "P23.a.04": "fixed: source 'Trading days' (sources.py:1788)",
+   "P23.a.05": "fixed: split 'Routine done' + ref (sources.py:663)",
+   "P23.a.06": "ok",
+   "P24.a.01": "http",
+   "P25.a.01": "http",
+   "P25.a.02": "ok",
+   "P25.a.03": "ok",
+   "P25.a.04": "ok",
+   "P25.a.05": "ok + F-DEF-1 measure",
+   "P25.a.06": "ok + F-DEF-1 measure",
+   "P25.a.07": "ok",
+   "P25.b.01": "http",
+   "P25.b.02": "added: F-DEF-1 retest script",
+   "P25.b.03": "added: F-DEF-1 retest script",
+   "P25.b.04": "added: F-DEF-1 retest script",
+   "P25.b.05": "added: F-DEF-1 retest script",
+   "P25.b.06": "not_reachable",
+   "P25.b.07": "added: F-DEF-1 retest script",
+   "P26.a.01": "http",
+   "P26.a.02": "ok",
+   "P26.a.03": "ok",
+   "P26.a.04": "ok",
+   "P26.a.05": "ok",
+   "P27.a.01": "http",
+   "P27.a.02": "ok",
+   "P27.a.03": "ok",
+   "P27.a.04": "ok",
+   "P27.a.05": "ok",
+   "P28.a.01": "http",
+   "P28.a.02": "ok",
+   "P28.a.03": "ok",
+   "P29.a.01": "http",
+   "P29.a.02": "ok",
+   "P29.a.03": "ok",
+   "P30.a.01": "http",
+   "P30.a.02": "ok",
+   "P30.a.03": "ok",
+   "P30.a.04": "ok",
+   "P30.a.05": "fixed: live_re 'split by hold time' (sources.py:413, plan.py:1223)",
+   "P30.a.06": "not_reachable",
+   "P30.a.07": "ok",
+   "P31.a.01": "http",
+   "P31.a.02": "ok",
+   "P31.a.03": "ok",
+   "P32.a.01": "http",
+   "P32.a.02": "ok",
+   "P32.a.03": "ok",
+   "P32.a.04": "ok",
+   "P32.a.05": "ok",
+   "P32.a.06": "ok",
+   "P33.a.01": "not_reachable",
+   "P34.a.01": "ok",
+   "P34.a.02": "ok",
+   "P34.b.01": "http",
+   "P34.b.02": "http",
+   "P35.a.01": "http",
+   "P35.a.02": "ok",
+   "P35.a.03": "ok",
+   "P35.a.04": "ok",
+   "P35.a.05": "ok",
+   "P35.b.01": "ok",
+   "P35.b.02": "http",
+   "P35.b.03": "http",
+   "P35.b.04": "http",
+   "P35.c.01": "http",
+   "P35.c.02": "http",
+   "P35.c.03": "http",
+   "P35.c.04": "http",
+   "P35.c.05": "http",
+   "P35.c.06": "http",
+   "P36.a.01": "ok",
+   "P36.a.02": "http",
+   "P37.a.01": "http",
+   "P37.a.02": "http",
+   "P37.b.01": "http",
+   "P37.b.02": "http",
+   "P37.c.01": "http",
+   "P37.c.02": "http",
+   "P38.a.01": "http",
+   "P38.a.02": "http",
+   "P38.b.01": "http",
+   "P38.b.02": "http",
+   "P39.a.01": "http",
+   "P39.a.02": "http",
+   "P39.a.03": "http",
+   "P39.a.04": "http",
+   "P39.a.05": "http",
+   "P40.a.01": "ok",
+   "P40.a.02": "http",
+   "P40.a.03": "http",
+   "P40.a.04": "http",
+   "P41.a.01": "http",
+   "P41.a.02": "http",
+   "P41.a.03": "http",
+   "P41.a.04": "http",
+   "P41.b.01": "http",
+   "P41.b.02": "http",
+   "P41.b.03": "http",
+   "P41.b.04": "http",
+   "P41.c.01": "http",
+   "P41.c.02": "http",
+   "P41.c.03": "http",
+   "P41.c.04": "http",
+   "P41.c.05": "http",
+   "P41.c.06": "http",
+   "P41.c.07": "http",
+   "P42.a.01": "not_reachable",
+   "P43.a.01": "http",
+   "P43.a.02": "http",
+   "P44.a.01": "ok",
+   "P44.a.02": "ok",
+   "P44.a.03": "ok",
+   "P44.a.04": "ok",
+   "P45.a.01": "http",
+   "P45.a.02": "http",
+   "P46.a.01": "http",
+   "P46.a.02": "ok + F-DEF-1 measure",
+   "P46.a.03": "ok",
+   "P46.a.04": "ok",
+   "P46.a.05": "ok",
+   "P46.a.06": "ok",
+   "P46.a.07": "http",
+   "P46.a.08": "http",
+   "P46.a.09": "ok",
+   "P46.a.10": "ok",
+   "P46.a.11": "ok",
+   "P46.a.12": "ok",
+   "P46.a.13": "http",
+   "P46.a.14": "ok",
+   "P46.a.15": "http",
+   "P46.a.16": "ok",
+   "P46.a.17": "http",
+   "P46.a.18": "ok + F-DEF-1 measure",
+   "P46.a.19": "http",
+   "P46.a.20": "ok",
+   "P46.a.21": "http",
+   "P47.a.01": "http",
+   "P47.a.02": "http",
+   "P47.a.03": "http",
+   "P48.a.01": "ok",
+   "P48.a.02": "http",
+   "P49.a.01": "http",
+   "P49.a.02": "ok",
+   "P49.a.03": "ok",
+   "P49.a.04": "ok",
+   "P49.a.05": "ok",
+   "P49.b.01": "ok",
+   "P49.b.02": "ok",
+   "P49.b.03": "ok",
+   "P49.b.04": "ok",
+   "P49.b.05": "ok",
+   "P49.b.06": "ok",
+   "P50.a.01": "http",
+   "P50.a.02": "http",
+   "P50.a.03": "ok",
+   "P50.a.04": "ok",
+   "P50.a.05": "ok",
+   "P50.a.06": "ok",
+   "P50.a.07": "ok",
+   "P50.b.01": "http",
+   "P50.b.02": "http"
+  }
+ }
 }

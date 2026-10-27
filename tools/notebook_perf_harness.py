@@ -155,6 +155,9 @@ PRE_BOOT = "pre-boot (baseline)"
 POST_BOOT = "post-boot (+15s)"
 PREWARM = "post-prewarm (+120s)"
 SHUTDOWN = "shutdown"
+# The verdict a `--no-shared-root-snapshot` boot writes (hub_sandbox_boot.NOT_HASHED, the launcher's words; a rail in
+# tests/test_notebook_campaign_tooling.py reads that constant by AST): its own status, never NOT CLEAN (review I1).
+NOT_HASHED = "NOT HASHED (the run never opens the shared data root)"
 # How long a --boot run waits for the launcher's +15 s / +120 s checkpoints before stopping it,
 # and how long a --base run waits for its sandbox's shutdown checkpoint by default. Read at call
 # time, so a rail can shorten them.
@@ -741,13 +744,22 @@ def read_integrity(path: str | os.PathLike | None, required: list[str]) -> dict:
             out["checkpoints"].append({"label": m["label"], "at": m["at"], "root": m["root"],
                                        "db_files": int(m["count"]), "verdict": m["verdict"]})
     labels = [c["label"] for c in out["checkpoints"]]
-    dirty = [f'{c["label"]}: {c["verdict"]}' for c in out["checkpoints"] if c["verdict"] != "CLEAN"]
+    unhashed = [c for c in out["checkpoints"] if c["verdict"] == NOT_HASHED]
+    # A boot that never read the shared root is all NOT HASHED; one mixed with CLEAN lines is not a run this launcher
+    # writes, so it counts as dirty (it cannot be read as either).
+    mixed = bool(unhashed) and len(unhashed) != len(out["checkpoints"])
+    dirty = [f'{c["label"]}: {c["verdict"]}' for c in out["checkpoints"]
+             if c["verdict"] != "CLEAN" and (c["verdict"] != NOT_HASHED or mixed)]
     missing = [r for r in required if r not in labels]
     if dirty:
         return {**out, "status": "NOT CLEAN", "clean": False, "why": "; ".join(dirty)}
     if missing:
         return {**out, "status": "INCOMPLETE", "clean": False,
                 "why": "no checkpoint " + ", ".join(repr(m) for m in missing)}
+    if unhashed:
+        return {**out, "status": "NOT HASHED", "clean": False, "hashed": False,
+                "why": "the shared data root was never read (--no-shared-root-snapshot); writes there are still "
+                       "refused by the tripwire"}
     return {**out, "status": "CLEAN", "clean": True, "why": ""}
 
 
@@ -759,7 +771,7 @@ def integrity_line(integ: dict, note: str = "", not_run: str | None = None) -> s
     files = sorted({c["db_files"] for c in integ["checkpoints"]})
     parts = [f"SANDBOX INTEGRITY: NOT RUN ({not_run}) -- the sandbox's checkpoints: "
              f"{integ['status']} -- {seen}" if not_run else f"SANDBOX INTEGRITY: {integ['status']} -- {seen}"]
-    if files:
+    if files and integ["status"] != "NOT HASHED":
         parts.append(f"{'/'.join(str(f) for f in files)} db files hashed")
     if integ.get("why"):
         parts.append(integ["why"])
@@ -800,21 +812,26 @@ class Sandbox:
     """One launcher process: started through `_SHIM` in its own process group, stopped by the
     signal the launcher already handles, and only then read for its integrity verdict."""
 
-    def __init__(self, data_dir: str, port: int, log_path: Path, extra_args: tuple = ()):
+    def __init__(self, data_dir: str, port: int, log_path: Path, extra_args: tuple = (), cwd=None,
+                 boot_script=None, env=None):
         self.data_dir, self.port, self.log_path = data_dir, port, Path(log_path)
+        # The notebook campaign (review C1, I6): the launcher of the TOOL tree, run in the APP ROOT, on a hermetic env.
+        self.cwd = Path(cwd) if cwd else REPO
+        self.boot_script = Path(boot_script) if boot_script else BOOT_SCRIPT
+        self.env = dict(env) if env is not None else None
         # Launcher flags a caller adds (the notebook campaign: --no-shared-root-snapshot --log-dir <its --out>).
         self.extra_args = tuple(str(a) for a in extra_args)
         self.proc: subprocess.Popen | None = None
         self.stop_how: str | None = None
 
     def start(self) -> None:
-        cmd = [sys.executable, "-u", "-c", _SHIM, str(BOOT_SCRIPT), "--data-dir", self.data_dir,
+        cmd = [sys.executable, "-u", "-c", _SHIM, str(self.boot_script), "--data-dir", self.data_dir,
                "--port", str(self.port), "--host", "127.0.0.1", *self.extra_args]
         kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
               else {"start_new_session": True})
         # The child inherits its own copy of the handle; ours is closed when the block ends.
         with open(self.log_path, "w", encoding="utf-8") as fh:
-            self.proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=fh, stderr=subprocess.STDOUT, **kw)
+            self.proc = subprocess.Popen(cmd, cwd=str(self.cwd), stdout=fh, stderr=subprocess.STDOUT, env=self.env, **kw)
 
     def alive(self) -> bool:
         return self.proc is not None and self.proc.poll() is None

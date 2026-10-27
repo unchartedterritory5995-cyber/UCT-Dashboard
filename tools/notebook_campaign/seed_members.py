@@ -513,6 +513,13 @@ def boot_schema_clock(app_root: Path, data_dir: Path, port: int, out_dir: Path) 
     return how
 
 
+def schema_booter(args):
+    """Review I2: the schema boot never hashes or logs into the shared data root or the app root by default. The
+    clock launcher (sandbox_clock.py: no snapshot, its output kept in the data dir) is the default; the hub launcher's
+    read-only hash of C:\\data is an explicit, loudly named opt-in."""
+    return boot_schema if args.schema_via_hub_launcher_hashing_shared_root else boot_schema_clock
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data-dir", required=True)
@@ -523,8 +530,10 @@ def main(argv=None) -> int:
     ap.add_argument("--schema-port", type=int, default=SCHEMA_PORT)
     ap.add_argument("--no-heavy-lock", action="store_true")
     ap.add_argument("--schema-via-clock-launcher", action="store_true",
-                    help="boot the schema through sandbox_clock.py (hashes nothing under C:\\data) instead of "
-                         "the hub launcher (which hashes it read-only)")
+                    help="(the default since review I2; kept so older command lines still parse)")
+    ap.add_argument("--schema-via-hub-launcher-hashing-shared-root", action="store_true",
+                    help="OPT-IN, the old schema boot: the hub launcher, which hashes every .db under C:\\data "
+                         "read-only and logs into the app root's docs. Never under the campaign rule")
     args = ap.parse_args(argv)
 
     why = refuse_shared_root(args.data_dir)
@@ -545,7 +554,7 @@ def main(argv=None) -> int:
     only = {x.strip() for x in args.only.split(",") if x.strip()}
     people = [p for p in spec["personas"] if not only or p["id"] in only]
 
-    (boot_schema_clock if args.schema_via_clock_launcher else boot_schema)(app_root, data_dir, args.schema_port, data_dir)
+    schema_booter(args)(app_root, data_dir, args.schema_port, data_dir)
 
     sys.path.insert(0, str(app_root))
     sys.path.insert(0, str(app_root / "scripts"))

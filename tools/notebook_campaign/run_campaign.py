@@ -106,12 +106,14 @@ class KeyboardUnreachable(Exception):
 refuse_non_local = w11.refuse_non_local
 
 
-def source_text(app_root: Path, source: str) -> str | None:
-    """The text of a sentence's source: `path:line` in the app root, or `<ref>:path:line` read with git."""
+def source_text(app_root: Path, source: str, served_tree: bool = False) -> str | None:
+    """The text of a sentence's source: `path:line` in the app root, or `<ref>:path:line` read with git. With
+    `served_tree` (a run: review m6) every source is read from the app root's working tree, the tree the server
+    serves, whatever ref it names, so a sentence is never verified against a tree the server is not running."""
     m = re.match(r"^(?:(?P<ref>origin/[^:]+):)?(?P<path>[^:]+?)(?::(?P<line>\d+))?$", source)
     if not m:
         return None
-    if m["ref"]:
+    if m["ref"] and not served_tree:
         r = subprocess.run(["git", "show", f"{m['ref']}:{m['path']}"], cwd=str(app_root), capture_output=True,
                            text=True, encoding="utf-8", errors="replace")
         return r.stdout if r.returncode == 0 else None
@@ -141,6 +143,9 @@ HANDLER_ANCHORS: dict[str, tuple[str, str]] = {
     "builder-live": (_WB + "PreviewPane.jsx", 'data-testid="builder-live"'),
     "builder-summary-bar": (_WB + "PreviewPane.jsx", 'data-testid="builder-summary-bar"'),
     "builder-preview": (_WB + "PreviewPane.jsx", 'aria-label="Preview" data-testid="builder-preview"'),
+    "builder-preview-view": (_WB + "PreviewPane.jsx", 'data-testid="builder-preview-view"'),
+    "aria-busy": (_WB + "PreviewPane.jsx", "aria-busy={status === 'loading'}"),
+    "hub-root": ("app/src/hub/HubRoot.jsx", 'data-testid="hub-root"'),
     "formula-field": (_WB + "sections/FormulaSection.jsx", 'data-testid="formula-field"'),
     "example-card-": (_WB + "ExampleCard.jsx", "data-testid={`example-card-${example.id}`}"),
     "data-snapshot-frame": (_NB + "widgets/SnapshotFrame.jsx", 'data-snapshot-frame=""'),
@@ -217,7 +222,11 @@ ACTION_ANCHORS: dict[str, tuple[str, ...]] = {
     "new_page": ("data-routine-block", "routine checkbox"),
     "widget_share_on": ("data-snapshot-frame", "switch", "Show on shared pages"),
     "share_public": ("Share", "Share this note", "Share link address", "Create link"),
+    "axe_while_loading": ("builder title", "source radio", "builder-preview-view", "aria-busy", "builder-summary-bar"),
 }
+#: What every step with `measure` targets leans on: an absent FeedbackWidget is excused only where the hub is shown
+#: or a sheet is open (absent_explained, review m3).
+MEASURE_ANCHORS = ("hub-root", "dialog")
 
 #: A route a step opens -> the source that serves it (the path, then each query key and hash it carries).
 ROUTE_ANCHORS: dict[str, tuple[str, str]] = {
@@ -304,6 +313,11 @@ def step_anchors(p: dict, st: dict, src_label: str | None) -> list[tuple[str, st
             out.append((f"surface {w!r}", "", "missing:no WITHIN_ANCHORS entry"))
         elif WITHIN_ANCHORS[w]:
             out.append((f"surface {w!r}", *HANDLER_ANCHORS[WITHIN_ANCHORS[w]]))
+    for c in st.get("copy_sources") or []:
+        # Review m2: copy a step expects (expect_re, live_re) quoted from the file that says it.
+        out.append((f"copy {c.get('fragment', '')[:40]!r}", c.get("path", ""), c.get("fragment") or "missing:no fragment"))
+    if st.get("measure"):
+        out += [(f"handler anchor {k!r}", *HANDLER_ANCHORS[k]) for k in MEASURE_ANCHORS]
     for t in st.get("measure") or []:
         if not t.get("source") or not t.get("fragment"):
             out.append((f"measure {t.get('what')!r}", "", "missing:a measure target names no source and fragment"))
@@ -408,12 +422,19 @@ def ref_resolves(app_root: Path, ref: str) -> bool:
     return r.returncode == 0
 
 
-def verify_sentences(spec: dict, app_root: Path) -> dict:
-    """key -> {ok, why, line_ok}. `ok` = the fragment is in the named file; `line_ok` = also on the named line."""
+def fragment_on_line(lines: list[str], n: int, frag: str) -> bool:
+    """The WHOLE fragment on the cited line (and the lines after it, for a fragment that spans lines): review m6."""
+    k = frag.count("\n") + 1
+    return 0 < n <= len(lines) and frag in "\n".join(lines[n - 1:n - 1 + k])
+
+
+def verify_sentences(spec: dict, app_root: Path, served_tree: bool = False) -> dict:
+    """key -> {ok, why, line_ok}. `ok` = the fragment is in the named file; `line_ok` = also on the named line.
+    `served_tree`: read every source from the app root's working tree (see source_text)."""
     out = {}
     for key, s in spec["sentences"].items():
         frag = s.get("fragment") or s["text"]
-        txt = source_text(app_root, s["source"])
+        txt = source_text(app_root, s["source"], served_tree)
         if txt is None:
             out[key] = {"ok": False, "why": f"source {s['source']} is unreadable"}
             continue
@@ -422,7 +443,7 @@ def verify_sentences(spec: dict, app_root: Path) -> dict:
             continue
         line = re.search(r":(\d+)$", s["source"])
         lines = txt.splitlines()
-        line_ok = bool(line) and 0 < int(line[1]) <= len(lines) and frag[:24] in lines[int(line[1]) - 1]
+        line_ok = bool(line) and fragment_on_line(lines, int(line[1]), frag)
         out[key] = {"ok": True, "why": "", "line_ok": line_ok}
     return out
 
@@ -541,16 +562,104 @@ def load_walk_libs(app_root: Path):
 
 # ── the sandbox this runner may own ───────────────────────────────────────────────────────
 
+#: The tool tree (this checkout): its harness and launcher boot the campaign's own sandbox (review C1).
+TOOL_HARNESS = REPO / "tools" / "notebook_perf_harness.py"
+TOOL_LAUNCHER = REPO / "scripts" / "hub_sandbox_boot.py"
+
+
+def load_tool_harness():
+    """The TOOL tree's notebook_perf_harness, loaded under its own module name so it never collides with the app root's
+    copy (`load_walk_libs`). Review C1: the app root may predate the campaign's launcher options; the campaign's own
+    sandbox therefore never depends on the app root's harness or launcher, only on its api/ (`--app-root`)."""
+    import importlib.util
+    name = "nbw_campaign_tool_harness"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, TOOL_HARNESS)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _ast_str_dict_keys(path: Path, name: str) -> set:
+    import ast
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == name for t in node.targets) \
+                and isinstance(node.value, ast.Dict):
+            return {k.value for k in node.value.keys if isinstance(k, ast.Constant)}
+    return set()
+
+
+def mode_flags(auth_py: Path) -> dict:
+    """NOTEBOOK_MODE_FLAGS from the served tree's api/routers/auth.py, by AST: name -> the allowed values."""
+    import ast
+    tree = ast.parse(auth_py.read_text(encoding="utf-8"))
+    consts = {}
+    for n in tree.body:
+        if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant):
+            for t in n.targets:
+                if isinstance(t, ast.Name):
+                    consts[t.id] = n.value.value
+    out = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "NOTEBOOK_MODE_FLAGS" for t in node.targets):
+            for k, v in zip(node.value.keys, node.value.values):
+                allowed = v.elts[1].elts if isinstance(v, ast.Tuple) and len(v.elts) > 1 else []
+                out[k.value] = tuple(consts.get(a.id) if isinstance(a, ast.Name) else getattr(a, "value", None)
+                                     for a in allowed)
+    return out
+
+
+#: A MODE flag's production value is recorded in the ledger only in its note, so each one is QUOTED: the value and the
+#: ledger sentence it is read from. `campaign_flag_sets` checks the quote is in that row's note and the value is one
+#: auth.py allows; a mode flag armed on web with no verified entry refuses the boot (never a guessed "1"). Review I4.
+PROD_MODE_VALUES = {
+    "NOTEBOOK_DOOR_GUARD": ("unknown-only", "A MODE, not a gate: full (the code default) | unknown-only (the live value)."),
+}
+#: Gates fw.NOT_MEMBER_GATES lists that a member DOES see, so they follow production (review I6): OCR of a member's
+#: own attachments is a member feature (J2_OCR_ENABLED gates its execution, api/main.py arms it at startup).
+MEMBER_VISIBLE = frozenset({"J2_OCR_ENABLED"})
+#: What a launched child takes from the operator's environment: enough to start Python, Node and Playwright, nothing
+#: else, so no flag, key or path the operator's shell carries reaches the served env (review I6). Case-insensitive.
+BASE_ENV_KEYS = ("PATH", "PATHEXT", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "TEMP", "TMP", "USERPROFILE",
+                 "HOMEDRIVE", "HOMEPATH", "HOME", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "PROGRAMFILES",
+                 "PROGRAMFILES(X86)", "PROGRAMW6432", "COMMONPROGRAMFILES", "NUMBER_OF_PROCESSORS",
+                 "PROCESSOR_ARCHITECTURE", "OS", "PYTHONIOENCODING", "PYTHONUTF8", "LANG", "LC_ALL", "TZ",
+                 "PLAYWRIGHT_BROWSERS_PATH")
+
+
 def campaign_flag_sets(fw) -> dict:
-    """`fw.flag_sets()` plus `armed_web`: every flag production's ledger (the served tree's docs/feature_flags.json,
-    the SAME file `flag_sets` reads its armed set from) marks armed on web, member gates only (`fw.NOT_MEMBER_GATES`
-    excluded). Sandbox-recipe G3: `c1` keeps only NOTEBOOK_FLAGS gates, so an armed server-only flag such as
-    NOTEBOOK_EXAMPLE_NOTES_ENABLED was popped and the campaign served example notes OFF while production serves them
-    ON. Derived, never a hand-typed exception."""
+    """`fw.flag_sets()` plus what the campaign serves, all read from the served tree (`fw.REPO`):
+    * `armed_web`: every ledger flag armed on web (docs/feature_flags.json, the file flag_sets reads), less the
+      non-member gates (fw.NOT_MEMBER_GATES minus MEMBER_VISIBLE) and the mode flags (G3, review I4, I6);
+    * `modes`: each NOTEBOOK_MODE_FLAGS name armed on web -> its verified production value; `mode_problems` when one
+      cannot be verified;
+    * `kill`: the tool launcher's KILL_LIST names (the launcher sets those itself, last)."""
     fs = dict(fw.flag_sets())
-    ledger = json.loads((Path(fw.REPO) / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
+    repo = Path(fw.REPO)
+    ledger = json.loads((repo / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
     led = ledger if isinstance(ledger, dict) else {f.get("name"): f for f in ledger}
-    fs["armed_web"] = armed_on_web(led, getattr(fw, "NOT_MEMBER_GATES", ()))
+    auth_py = repo / "api" / "routers" / "auth.py"
+    modes_allowed = mode_flags(auth_py) if auth_py.is_file() else {}
+    not_member = set(getattr(fw, "NOT_MEMBER_GATES", ())) - MEMBER_VISIBLE
+    fs["armed_web"] = armed_on_web(led, not_member | set(modes_allowed))
+    fs["modes"], fs["mode_problems"] = {}, []
+    for name, allowed in modes_allowed.items():
+        row = led.get(name) or {}
+        if not (row.get("status") == "armed" and "web" in (row.get("where") or [])):
+            continue
+        rec = PROD_MODE_VALUES.get(name)
+        if not rec:
+            fs["mode_problems"].append(f"{name}: armed on web with no recorded production value (PROD_MODE_VALUES)")
+        elif rec[0] not in allowed:
+            fs["mode_problems"].append(f"{name}: {rec[0]!r} is not one of {allowed} (auth.py)")
+        elif rec[1] not in (row.get("note") or ""):
+            fs["mode_problems"].append(f"{name}: the quoted ledger sentence is not in its row's note")
+        else:
+            fs["modes"][name] = rec[0]
+    fs["kill"] = sorted(_ast_str_dict_keys(TOOL_LAUNCHER, "KILL_LIST"))
     return fs
 
 
@@ -560,30 +669,48 @@ def armed_on_web(led: dict, not_member_gates) -> list[str]:
                   and "web" in (f.get("where") or []) and n not in set(not_member_gates))
 
 
-def campaign_env(fs: dict, overrides: dict | None = None) -> list[str]:
-    """The flags a campaign server boots with (production's armed set + W8..W11 = 1, then `overrides`),
-    written into this process's environment for the launcher child to inherit. Shared by the owned
-    sandbox and the clock sandbox, so the two serve the same product."""
-    overrides = overrides or {}
-    for name in fs["all_names"]:
-        os.environ.pop(name, None)
-    for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
-        os.environ.pop(k, None)
-    # Production's armed set: the NOTEBOOK_FLAGS gates (`c1`) and every other popped name the ledger arms on web (G3).
-    on = sorted(set(fs["c1"]) | {W8, W9, W10, W11} | (set(fs["all_names"]) & set(fs.get("armed_web") or ())))
-    os.environ.update({n: "1" for n in on})
-    os.environ.update(overrides)
-    os.environ.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
-    return on + [f"{k}={v}" for k, v in overrides.items()]
+def campaign_env(fs: dict, overrides: dict | None = None, base=None) -> tuple[dict, list[str]]:
+    """The env a campaign server boots with, built from nothing (review I6): BASE_ENV_KEYS from `base` (default the
+    operator's env), then production's served set (c1, W8..W11 = 1, every popped Notebook name production arms on
+    web, the MEMBER_VISIBLE gates production arms, each mode flag at its verified value), vendor keys blank, then
+    `overrides`. Returns (env, the applied NAME=value list for run.json). Never writes this process's environment.
+    Shared by the owned sandbox, the clock sandbox and the seeder's schema boot, so all three serve one product.
+    Flags outside the Notebook scope (other armed-on-web names) are not served: they read their code default,
+    the same on every operator's machine."""
+    if fs.get("mode_problems"):
+        raise SystemExit("REFUSED: a mode flag's production value is not verified: " + "; ".join(fs["mode_problems"]))
+    src = os.environ if base is None else base
+    keep = {k.upper() for k in BASE_ENV_KEYS}
+    env = {k: v for k, v in src.items() if k.upper() in keep}
+    kill = set(fs.get("kill") or ())
+    armed = set(fs.get("armed_web") or ())
+    on = (set(fs["c1"]) | {W8, W9, W10, W11} | (set(fs["all_names"]) & armed) | (MEMBER_VISIBLE & armed)) - kill
+    applied = {n: "1" for n in on}
+    applied.update(fs.get("modes") or {})
+    applied.update(overrides or {})
+    env.update(applied)
+    env.update({"FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
+    return env, [f"{k}={v}" for k, v in sorted(applied.items())]
+
+
+def owned_sandbox(libs, app_root: Path, data_dir: Path, port: int, out: Path) -> "OwnedSandbox":
+    """THE construction run_campaign's --own-sandbox uses (review C1): the app root's walk libraries for the flags,
+    the tool tree's harness and launcher for the boot. A rail builds it with an app root that lacks every new
+    launcher option and starts it with a stand-in process."""
+    return OwnedSandbox(libs[0], libs[1], data_dir, port, out, app_root=app_root)
 
 
 class OwnedSandbox:
-    """The app's launcher on the seeded data dir, started with the flags production has armed plus
-    W8..W11 = 1, and restarted with overrides for a flag-flip step. Stopped gracefully; each boot's
-    integrity log is moved into the evidence folder and its first line recorded."""
+    """The campaign's own sandbox on the seeded data dir: the TOOL tree's launcher (review C1) serving the app root's
+    api/ (`--app-root`), never opening the shared data root (`--no-shared-root-snapshot`, G2), its integrity log in
+    this run's --out, on a hermetic env (review I6) with the flags production has armed plus W8..W11 = 1; restarted
+    with overrides for a flag-flip step. Stopped gracefully; each boot's integrity log is kept in the evidence folder
+    and its first line and status recorded (NOT HASHED is its own status, review I1)."""
 
-    def __init__(self, h, fw, data_dir: Path, port: int, out: Path):
+    def __init__(self, h, fw, data_dir: Path, port: int, out: Path, app_root: Path | None = None):
         self.h, self.fw, self.data_dir, self.port, self.out = h, fw, data_dir, port, out
+        self.app_root = Path(app_root) if app_root else Path(fw.REPO)
+        self.th = load_tool_harness()          # the tool tree's harness: Sandbox, read_integrity, labels
         self.sb = None
         self.boots: list[dict] = []
         self.fs = campaign_flag_sets(fw)
@@ -593,29 +720,31 @@ class OwnedSandbox:
     def base(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    def env(self) -> list[str]:
+    def env(self) -> tuple[dict, list[str]]:
         return campaign_env(self.fs, self.overrides)
 
     def launcher_args(self) -> list[str]:
-        """Sandbox-recipe G2: the campaign never opens the shared data root (no snapshot of the shared root), and the
-        launcher's integrity log lands in this run's --out, never in the app root's docs."""
-        return ["--no-shared-root-snapshot", "--log-dir", str(self.out)]
+        """Sandbox-recipe G2 and review C1: the app root's api/ is served by the tool tree's launcher; the shared data
+        root is never opened; the integrity log lands in this run's --out, never in a repo's docs."""
+        return ["--app-root", str(self.app_root), "--no-shared-root-snapshot", "--log-dir", str(self.out)]
 
     def start(self) -> None:
-        if self.h.port_busy(self.port):
+        if self.th.port_busy(self.port):
             raise SystemExit(f"REFUSED: port {self.port} already has a listener (never killed)")
-        flags = self.env()
+        env, flags = self.env()
         n = len(self.boots) + 1
-        self.sb = self.h.Sandbox(str(self.data_dir), self.port, self.out / f"sandbox-boot{n}.log",
-                                 extra_args=self.launcher_args())
+        self.sb = self.th.Sandbox(str(self.data_dir), self.port, self.out / f"sandbox-boot{n}.log",
+                                  extra_args=self.launcher_args(), cwd=self.app_root, boot_script=TOOL_LAUNCHER,
+                                  env=env)
         self.sb.start()
         rec = {"boot": n, "flags_overridden": dict(self.overrides), "flags_on": flags, "pid": self.sb.proc.pid,
+               "launcher": str(TOOL_LAUNCHER), "app_root": str(self.app_root),
                "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
         self.boots.append(rec)
         if not self.sb.wait_healthy(self.base, 400):
             self.stop()
             raise SystemExit(f"REFUSED: the sandbox never answered /api/health (boot {n})")
-        self.sb.wait_checkpoint(self.h.POST_BOOT, self.h.POST_BOOT_WAIT_S)
+        self.sb.wait_checkpoint(self.th.POST_BOOT, self.th.POST_BOOT_WAIT_S)
 
     def stop(self) -> None:
         if not self.sb:
@@ -624,11 +753,12 @@ class OwnedSandbox:
         rec["stop"] = self.sb.stop()
         ipath = self.sb.integrity_path()
         kept = self.out / f"integrity-boot{rec['boot']}.md"
-        if ipath and Path(ipath).is_file():
+        if ipath and Path(ipath).is_file() and Path(ipath).resolve() != kept.resolve():
             kept.write_text(Path(ipath).read_text(encoding="utf-8", errors="replace"), encoding="utf-8", newline="\n")
             Path(ipath).unlink()
-        integ = self.h.read_integrity(kept, [self.h.PRE_BOOT, self.h.POST_BOOT, self.h.SHUTDOWN])
-        rec["first_line"] = self.h.integrity_line(integ, f"boot {rec['boot']}; stop: {rec['stop']}")
+        integ = self.th.read_integrity(kept, [self.th.PRE_BOOT, self.th.POST_BOOT, self.th.SHUTDOWN])
+        rec["first_line"] = self.th.integrity_line(integ, f"boot {rec['boot']}; stop: {rec['stop']}")
+        rec["integrity"] = integ["status"]           # CLEAN | NOT HASHED | NOT CLEAN | INCOMPLETE | MISSING
         rec["clean"] = bool(integ.get("clean"))
         print(rec["first_line"], flush=True)
         self.sb = None
@@ -728,7 +858,7 @@ class ClockSandbox:
     def start(self, instant: str, personas: list[str] | None = None) -> dict:
         if self.h.port_busy(self.port):
             raise SystemExit(f"REFUSED: port {self.port} already has a listener (never killed); pass --clock-port")
-        flags = campaign_env(self.fs)
+        env, flags = campaign_env(self.fs)
         n = len(self.boots) + 1
         log = self.out / f"clock-boot{n}.log"
         cmd = [sys.executable, "-u", "-c", self.h._SHIM, str(self.launcher), "--clock", instant,
@@ -736,7 +866,7 @@ class ClockSandbox:
                "--app-root", str(self.app_root), "--personas", ",".join(personas or [])]
         kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True})
         with open(log, "w", encoding="utf-8") as fh:
-            self.proc = subprocess.Popen(cmd, cwd=str(self.app_root), stdout=fh, stderr=subprocess.STDOUT, **kw)
+            self.proc = subprocess.Popen(cmd, cwd=str(self.app_root), stdout=fh, stderr=subprocess.STDOUT, env=env, **kw)
         rec = {"boot": n, "clock": instant, "pid": self.proc.pid, "log": str(log), "flags_on": flags,
                "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}
         self.boots.append(rec)
@@ -806,6 +936,7 @@ class Run:
         self.steps: list[dict] = []
         self.session_refusal: str | None = None   # set by new_context when a clock group has no vouched session
         self.theme_was: dict | None = None        # the member's theme preference before a `theme` step changed it
+        self.theme_restored: dict | None = None   # what restore_theme wrote back, and the answer
 
     # contexts and pages
     def new_context(self, name: str):
@@ -851,8 +982,13 @@ class Run:
         was, self.theme_was = self.theme_was, None
         if was is None or "main" not in self.pages:
             return
-        value = was.get("value") if isinstance(was.get("value"), str) else "dark"
-        self.page().request.post(self.g.base + "/api/auth/preferences", data={"key": "theme", "value": value})
+        # No door deletes a preference, so an ABSENT one is put back as "", which Layout.jsx reads exactly as absent
+        # (`prefs.theme` falsy -> data-theme "dark", the default); a stored value is put back as it was.
+        value = was.get("value") if isinstance(was.get("value"), str) else ""
+        r = self.page().request.post(self.g.base + "/api/auth/preferences", data={"key": "theme", "value": value})
+        self.theme_restored = {"value": value, "was_absent": not isinstance(was.get("value"), str), "http": r.status}
+        if r.status != 200:
+            raise Inconclusive(f"the theme preference could not be put back (HTTP {r.status}); later runs may inherit it")
 
     def close(self):
         with contextlib.suppress(Exception):
@@ -1663,7 +1799,8 @@ def a_theme(R, s, row):
     pg = R.page()
     if s.get("restore"):
         R.restore_theme()
-        row["read"].append({"what": "theme restored", "text": json.dumps(R.theme_was)})
+        row["read"].append({"what": "theme restored", "text": json.dumps(R.theme_restored)})
+        check(row, "the theme preference was put back (HTTP 200)", bool(R.theme_restored), json.dumps(R.theme_restored))
         return
     if R.theme_was is None:
         r = pg.request.get(R.g.base + "/api/auth/preferences?keys=theme")
@@ -1671,6 +1808,55 @@ def a_theme(R, s, row):
         R.theme_was = {"value": prev}
     r = pg.request.post(R.g.base + "/api/auth/preferences", data={"key": "theme", "value": s["value"]})
     check(row, f"the theme preference is {s['value']!r} (HTTP 200)", r.status == 200, f"HTTP {r.status}")
+
+
+#: axe-core's color-contrast rule alone, on one element (the preview being redrawn).
+AXE_CONTRAST_JS = """async (sel) => {
+  const root = document.querySelector(sel);
+  if (!root) return { error: 'no ' + sel };
+  const r = await window.axe.run(root, { runOnly: { type: 'rule', values: ['color-contrast'] },
+                                         resultTypes: ['violations', 'passes'] });
+  return { violations: r.violations.map(v => ({ id: v.id, nodes: v.nodes.length,
+             summary: (v.nodes[0] && v.nodes[0].failureSummary || '').slice(0, 300) })),
+           passes: r.passes.reduce((n, v) => n + v.nodes.length, 0) } }"""
+
+
+def a_axe_while_loading(R, s, row):
+    """F-DEF-1 I-2 (f-def-1-report.md fix round 1): the kept preview WHILE it is being redrawn (aria-busy, drawn at
+    --preview-dim-opacity) passes axe color-contrast. The network is held (CDP latency) so the loading state lasts;
+    another source tile starts a new preview; the busy preview is measured and axe runs on it, then the network is
+    released. A state that never shows (no kept preview, or the preview answered first) is INCONCLUSIVE, never a pass."""
+    pg = R.page()
+    dlg = builder(pg)
+    if not R.g.axe_src:
+        raise Inconclusive("axe-core unavailable (pass --axe)")
+    if not pg.evaluate("() => typeof window.axe !== 'undefined'"):
+        pg.add_script_tag(content=R.g.axe_src)
+    if R.size[0] <= 640:
+        open_phone_preview(R, row)
+    cdp = R.contexts["main"].new_cdp_session(pg)
+    cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": int(s.get("latency_ms", 6000)),
+                                                  "downloadThroughput": -1, "uploadThroughput": -1})
+    try:
+        act(R, pg, dlg.get_by_role("radio", name=s["source"]))
+        sel = '[data-testid=builder-preview-view][aria-busy="true"]'
+        try:
+            pg.locator(sel).first.wait_for(timeout=4000)
+        except Exception:  # noqa: BLE001
+            raise Inconclusive("the kept preview was never seen loading (aria-busy) under the held network")
+        m = pg.locator(sel).first.evaluate(MEASURE_JS)
+        row["read"].append({"what": "the preview while loading", "text": json.dumps(m)})
+        check(row, "the loading preview is drawn at opacity 0.9 (--preview-dim-opacity)",
+              abs(float(m["opacity"]) - 0.9) < 0.005, m["opacity"])
+        got = pg.evaluate(AXE_CONTRAST_JS, sel)
+        row["read"].append({"what": "axe color-contrast while loading", "text": json.dumps(got)[:1200]})
+        check(row, "axe color-contrast passes while the preview loads",
+              not got.get("error") and not got.get("violations") and got.get("passes", 0) > 0, json.dumps(got)[:400])
+    finally:
+        with contextlib.suppress(Exception):
+            cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": 0,
+                                                          "downloadThroughput": -1, "uploadThroughput": -1})
+            cdp.detach()
 
 
 def open_phone_preview(R: Run, row: dict) -> None:
@@ -1724,33 +1910,58 @@ def run_measures(R: Run, s: dict, row: dict) -> None:
                   bool(m) and all(x["display"] == "none" or x["h"] == 0 for x in m), json.dumps(m))
             continue
         if not n:
-            if t.get("absent_is") == "inconclusive":
-                row.setdefault("inconclusive", []).append(f"{what}: not on this page (e.g. the hub hides it)")
+            why = absent_explained(pg) if t.get("absent_is") == "inconclusive" else None
+            if why:
+                row.setdefault("inconclusive", []).append(f"{what}: not on this page ({why})")
                 continue
-            check(row, f"{what}: found", False, "0 found")
+            check(row, f"{what}: found", False, "0 found" + (" (no hub, no open sheet explains it)"
+                                                               if t.get("absent_is") else ""))
             continue
-        m = loc.first.evaluate(MEASURE_JS)
-        row["read"].append({"what": f"measure {what}", "text": json.dumps(m)})
-        if "min_height" in t:
-            check(row, f"{what}: at least {t['min_height']} px tall", m["h"] >= t["min_height"] - 0.5, f"{m['h']:.1f} px")
-        if "min_width" in t:
-            check(row, f"{what}: at least {t['min_width']} px wide", m["w"] >= t["min_width"] - 0.5, f"{m['w']:.1f} px")
-        if "opacity" in t:
-            check(row, f"{what}: opacity {t['opacity']}", abs(float(m["opacity"]) - t["opacity"]) < 0.005, m["opacity"])
-        if "first_span_opacity" in t:
-            ok = m["spanOpacity"] is not None and abs(float(m["spanOpacity"]) - t["first_span_opacity"]) < 0.005
-            check(row, f"{what}: its text at opacity {t['first_span_opacity']}", ok, str(m["spanOpacity"]))
-        if t.get("theme"):
-            check(row, f"{what}: drawn in the {t['theme']} theme", m["theme"] == t["theme"], str(m["theme"]))
-        if t.get("text"):
-            want = R.g.sentence(t["text"])
-            check(row, f"{what}: says {want!r}", m["text"] == want and m["display"] != "none", m["text"])
-        if t.get("text_starts"):
-            want = R.g.sentence(t["text_starts"])
-            check(row, f"{what}: starts {want!r}", m["text"].startswith(want), m["text"])
-        if t.get("text_not_starts"):
-            want = R.g.sentence(t["text_not_starts"])
-            check(row, f"{what}: no longer starts {want!r}", not m["text"].startswith(want), m["text"])
+        if n > 1 and not t.get("all"):
+            check(row, f"{what}: exactly one on the page", False, f"{n} found")
+            continue
+        for m in [loc.nth(i).evaluate(MEASURE_JS) for i in range(n)]:
+            measure_one(R, row, t, what, m)
+
+
+def absent_explained(pg) -> str | None:
+    """Why a control the product hides on purpose is not on the page, or None (then its absence is a FAIL): the
+    hub is mounted and shown (Layout.jsx renders the FeedbackWidget only while the hub is off), or a sheet is open."""
+    try:
+        return pg.evaluate("""() => {
+          const hub = document.querySelector('[data-testid=hub-root]');
+          if (hub && !hub.hidden && getComputedStyle(hub).display !== 'none') return 'the hub is shown';
+          const d = [...document.querySelectorAll('[role=dialog]')].find(e => e.getBoundingClientRect().height > 0);
+          return d ? 'a sheet is open' : null }""")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def measure_one(R: Run, row: dict, t: dict, what: str, m: dict) -> None:
+    row["read"].append({"what": f"measure {what}", "text": json.dumps(m)})
+    if "min_height" in t:
+        check(row, f"{what}: at least {t['min_height']} px tall", m["h"] >= t["min_height"] - 0.5, f"{m['h']:.1f} px")
+    if "min_width" in t:
+        check(row, f"{what}: at least {t['min_width']} px wide", m["w"] >= t["min_width"] - 0.5, f"{m['w']:.1f} px")
+    if "opacity" in t:
+        check(row, f"{what}: opacity {t['opacity']}", abs(float(m["opacity"]) - t["opacity"]) < 0.005, m["opacity"])
+    if "first_span_opacity" in t:
+        ok = m["spanOpacity"] is not None and abs(float(m["spanOpacity"]) - t["first_span_opacity"]) < 0.005
+        check(row, f"{what}: its text at opacity {t['first_span_opacity']}", ok, str(m["spanOpacity"]))
+    if t.get("theme"):
+        check(row, f"{what}: drawn in the {t['theme']} theme", m["theme"] == t["theme"], str(m["theme"]))
+    if t.get("text"):
+        want = R.g.sentence(t["text"])
+        check(row, f"{what}: says {want!r}", m["text"] == want and m["display"] != "none", m["text"])
+    if t.get("text_starts"):
+        want = R.g.sentence(t["text_starts"])
+        check(row, f"{what}: starts {want!r}", m["text"].startswith(want), m["text"])
+    if t.get("text_not_starts"):
+        want = R.g.sentence(t["text_not_starts"])
+        check(row, f"{what}: no longer starts {want!r}", not m["text"].startswith(want), m["text"])
+    if t.get("text_not_contains"):
+        want = R.g.sentence(t["text_not_contains"])
+        check(row, f"{what}: never says {want!r}", want not in m["text"], m["text"])
 
 
 # ── wave 11 steps (Task 11.21 Step 4): the real route shapes, driven over loopback HTTP ─────────
@@ -2273,7 +2484,7 @@ ACTIONS = {
     "note_unchanged": a_note_unchanged, "offline": a_offline, "wait": a_wait, "api": a_api, "api_burst": a_api_burst,
     "flag_restart": a_flag_restart, "widget_share_on": a_widget_share_on,
     "share_public": a_share_public, "admin_login": a_admin_login, "throttle": a_throttle, "check_text": a_check_text,
-    "noop": a_noop, "not_reachable": a_not_reachable, "theme": a_theme,
+    "noop": a_noop, "not_reachable": a_not_reachable, "theme": a_theme, "axe_while_loading": a_axe_while_loading,
     # wave 11 (real route shapes, w11_steps)
     "w11_browse": a_w11_browse, "w11_preview": a_w11_preview, "w11_share_preview": a_w11_share_preview,
     "w11_publish": a_w11_publish, "w11_adopt": a_w11_adopt, "w11_use": a_w11_use, "w11_unkeyed": a_w11_unkeyed,
@@ -2488,6 +2699,9 @@ class Campaign:
             res["at"] = {"index": persona["_at"], "instant": clock_instants(persona)[persona["_at"]]}
         if once_skipped:
             res["once_skipped"] = once_skipped
+        # Review m3: no INCONCLUSIVE hides in a step file; the run's own row names each one and why.
+        res["inconclusive"] = [{"step": x["step"], "why": x.get("error") or ""} for x in R.steps
+                               if x["verdict"] == "INCONCLUSIVE"]
         if vp_skipped:
             res["viewport_skipped"] = vp_skipped
         if clock_read:
@@ -2495,6 +2709,8 @@ class Campaign:
         append_jsonl(self.out / "results.jsonl", res)
         self.file_defects(R)
         print(f"[{persona['id']} {vp} {mode}] {verdict} {counts} findings={res['findings']}", flush=True)
+        for x in res["inconclusive"]:
+            print(f"    INCONCLUSIVE {x['step']}: {x['why'][:300]}", flush=True)
         return res
 
     def step(self, R: Run, sc: dict, s: dict, sid_: str, skip_rest: str | None) -> dict:
@@ -2676,7 +2892,7 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     libs = load_walk_libs(app_root)
     g = Campaign(args, spec, manifest, libs, out)
-    g.sentences = verify_sentences(spec, app_root)
+    g.sentences = verify_sentences(spec, app_root, served_tree=True)
     for x in selector_problems(spec, tree_reader(app_root)):
         g.selector_drift.setdefault((x["persona"], x["step"]), []).append(x["why"])
     axe = Path(args.axe) if args.axe else app_root / "app" / "node_modules" / "axe-core" / "axe.min.js"
@@ -2765,7 +2981,7 @@ def main(argv=None) -> int:
             results: list = []
             if plain:
                 if args.own_sandbox:
-                    g.sandbox = OwnedSandbox(g.h, g.fw, data_dir, args.port, out)
+                    g.sandbox = owned_sandbox(libs, app_root, data_dir, args.port, out)
                     g.sandbox.start()
                     g.base = g.sandbox.base
                     g.caps["restart"] = True

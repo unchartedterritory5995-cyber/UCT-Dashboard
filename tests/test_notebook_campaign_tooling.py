@@ -1331,7 +1331,7 @@ def test_every_literal_selector_a_handler_drives_is_anchored_in_the_frontend():
 
 
 def test_every_action_anchor_exists_and_names_a_real_action():
-    used = {k for v in rc.ACTION_ANCHORS.values() for k in v}
+    used = {k for v in rc.ACTION_ANCHORS.values() for k in v} | set(rc.MEASURE_ANCHORS)
     assert used <= set(rc.HANDLER_ANCHORS), used - set(rc.HANDLER_ANCHORS)
     assert set(rc.HANDLER_ANCHORS) - used == set(), set(rc.HANDLER_ANCHORS) - used
     assert set(rc.ACTION_ANCHORS) <= set(rc.ACTIONS)
@@ -1452,13 +1452,16 @@ class _Loc:
         return self.items[0]
 
 
-def _measure_run(found, vp="820"):
+def _measure_run(found, vp="820", explained=None):
     class Pg:
         def get_by_role(self, *a, **k):
             return _Loc(found)
 
         def get_by_test_id(self, *a):
             return _Loc(found)
+
+        def evaluate(self, js, *a):
+            return explained                    # absent_explained's answer: the hub shown, a sheet open, or None
 
     class G:
         def sentence(self, k):
@@ -1508,20 +1511,65 @@ def test_run_measures_hidden_needs_the_control_in_the_page_and_opacity_and_text_
     assert [c["ok"] for c in row["checks"]] == [False, False]
     fab = {"defect": "D-W11-004", "what": "fab", "role": "button", "name": "?", "viewports": ["820"],
            "min_height": 44, "absent_is": "inconclusive"}
-    R, row = _measure_run([])
+    R, row = _measure_run([], explained="the hub is shown")
     rc.run_measures(R, {"measure": [fab]}, row)
     assert row["checks"] == [] and row["inconclusive"]
+    R, row = _measure_run([])                   # review m3: absent with nothing to explain it is a FAIL
+    rc.run_measures(R, {"measure": [fab]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False] and not row.get("inconclusive")
 
 
-# ── sandbox-recipe G2: nothing in the campaign or its launcher stats, hashes or opens the shared data root ─────────
+def test_m7_measure_reads_every_match_or_asks_for_exactly_one():
+    t = {"defect": "D-W11-003", "what": "title", "role": "textbox", "name": "Note title", "viewports": ["820"],
+         "min_height": 44}
+    R, row = _measure_run([_box(h=44), _box(h=30)])
+    rc.run_measures(R, {"measure": [t]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False] and "exactly one" in row["checks"][0]["what"]
+    R, row = _measure_run([_box(h=44), _box(h=30)])
+    rc.run_measures(R, {"measure": [{**t, "all": True}]}, row)
+    assert [c["ok"] for c in row["checks"]] == [True, False]          # every match measured
+
+
+def test_m7_restore_theme_puts_an_absent_preference_back_as_absent_and_checks_the_answer():
+    posted = []
+
+    class Req:
+        def __init__(self, status):
+            self.status = status
+
+        def post(self, url, data):
+            posted.append(data)
+            return type("A", (), {"status": self.status})()
+
+    for status, raises in ((200, False), (500, True)):
+        posted.clear()
+        R = rc.Run.__new__(rc.Run)
+        R.theme_was, R.pages, R.g = {"value": None}, {"main": None}, type("G", (), {"base": "http://127.0.0.1:1"})()
+        R.page = lambda name="main", st=status: type("P", (), {"request": Req(st)})()
+        if raises:
+            with pytest.raises(rc.Inconclusive):
+                R.restore_theme()
+        else:
+            R.restore_theme()
+            assert R.theme_restored == {"value": "", "was_absent": True, "http": 200}
+        assert posted == [{"key": "theme", "value": ""}]
+
+
+# ── sandbox-recipe G2: the campaign's launcher never opens, reads, writes or hashes the shared data root ────────────
 #
 # The spy is the launcher's own process (a subprocess, so its env pins and tripwire never leak into this one): every
 # os / open / glob entry point that can stat, list, hash or open a path is wrapped, plus an audit hook, and each path is
 # tested with shared_root_guard.hit() against C:\data and a FAKE root. Every boot points the launcher's snapshot at the
 # fake root, and the CONTROL boots it WITHOUT the flag: the spy must see the fake root read, so a spy that cannot fire
 # cannot pass, and no test (nor any mutant) ever reads the live root.
-# Mutants (scratchpad mutate_g2.py): the flag no longer skipping the snapshot; the campaign dropping the flag; the log
-# written to the repo again. Each turned this block red.
+#
+# ⚠️ WHAT THIS PROVES, AND WHAT IT DOES NOT (review I3, ruling W11-R70 ACCEPTED): the spy stubs `api.main` and
+# uvicorn, so it covers the launcher's code up to serving. The SERVED app, once imported, runs `os.path.isdir("/data")`
+# (which is C:\data with the cwd on C:) in three pre-existing modules: api/services/cot_service.py (module level, before
+# its COT_DB_PATH read), api/services/research/ratings_db.py (module level, before RESEARCH_RATINGS_DB_PATH) and
+# api/services/single_stock_etfs.py (each resolve, before SSETF_DB_PATH). That is a directory stat only: no file under
+# it is opened, read, written or hashed. The claim is therefore "never opens, reads, writes or hashes; three
+# pre-existing app modules stat the directory", recorded in sandbox-recipe.md; app code is not edited here.
 
 _SPY = r'''
 import builtins, glob, io, json, os, sys, types
@@ -1571,7 +1619,7 @@ uv.run = lambda *a, **k: None
 sys.modules["uvicorn"] = uv
 
 # Whatever the mode, a snapshot the launcher takes reads the FAKE root, never the live one: so a mutant that drops
-# the flag is caught by the spy without this test ever opening C:\data itself.
+# the flag is caught by the spy without this test ever opening the live root itself.
 import data_root_snapshot as drs
 drs.DEFAULT_ROOT = fake
 drs.snapshot.__defaults__ = (fake,)
@@ -1582,7 +1630,7 @@ try:
     boot.main()
 except SystemExit as e:
     code = e.code
-json.dump({"hits": hits, "code": code}, open(out_json, "w"))
+json.dump({"hits": hits, "code": code, "repo_root": boot.REPO_ROOT}, open(out_json, "w"))
 '''
 
 
@@ -1593,7 +1641,7 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def _boot_with_spy(tmp_path, *, flag: bool) -> dict:
+def _boot_with_spy(tmp_path, *, flag: bool, app_root: bool = False) -> dict:
     import os
     import subprocess
     fake = tmp_path / "fake-shared-root"
@@ -1603,7 +1651,8 @@ def _boot_with_spy(tmp_path, *, flag: bool) -> dict:
     spy.write_text(_SPY, encoding="utf-8")
     out = tmp_path / "out"
     argv = ["--data-dir", str(tmp_path / "sbx"), "--port", str(_free_port()), "--host", "127.0.0.1",
-            "--log-dir", str(out)] + (["--no-shared-root-snapshot"] if flag else [])
+            "--log-dir", str(out)] + (["--no-shared-root-snapshot"] if flag else []) + \
+        (["--app-root", str(REPO)] if app_root else [])
     env = {k: v for k, v in os.environ.items() if not k.startswith("RAILWAY_")}
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     r = subprocess.run([sys.executable, str(spy), str(REPO), str(fake), str(tmp_path / "spy.json"), *argv],
@@ -1614,8 +1663,8 @@ def _boot_with_spy(tmp_path, *, flag: bool) -> dict:
     return got
 
 
-def test_g2_the_launcher_with_the_campaign_flag_never_touches_the_shared_root(tmp_path):
-    got = _boot_with_spy(tmp_path, flag=True)
+def test_g2_the_launcher_with_the_campaign_flag_never_opens_the_shared_root(tmp_path):
+    got = _boot_with_spy(tmp_path, flag=True, app_root=True)
     assert got["code"] in (0, None), got["stdout"][-1500:]
     assert "HUB SANDBOX" in got["stdout"]                                  # the whole pre-serve path ran
     assert got["hits"] == [], got["hits"][:10]
@@ -1632,81 +1681,197 @@ def test_g2_control_the_spy_sees_a_launcher_that_reads_a_root(tmp_path):
     assert not any("fake-shared-root" not in p for _, p in got["hits"]), got["hits"][:10]   # and never the real one
 
 
-def test_g2_the_launcher_refuses_a_log_dir_inside_the_shared_root(tmp_path, monkeypatch, capsys):
-    """Against a FAKE shared root (the guard's default roots, monkeypatched), so neither this test nor a mutant that
-    drops the refusal ever creates anything under the live one; `os.makedirs` is a tripwire here as well."""
+def test_g2_the_launcher_refuses_a_log_dir_inside_the_census_roots(tmp_path, monkeypatch, capsys):
+    """Against FAKE roots handed in as the census would (review m9: the log dir is refused against the same roots as
+    the data dir), so neither this test nor a mutant that drops the refusal ever creates anything under the live one;
+    `os.makedirs` is a tripwire here as well."""
     sys.path.insert(0, str(REPO / "scripts"))
     import hub_sandbox_boot as boot
-    import shared_root_guard as srg
     fake = tmp_path / "fake-root"
-    monkeypatch.setattr(srg, "DEFAULT_ROOTS", (str(fake),))
     made = []
     monkeypatch.setattr(boot.os, "makedirs", lambda *a, **k: made.append(a))
     with pytest.raises(SystemExit):
-        boot._log_file(str(fake / "sandbox-runs"), None)
+        boot._log_file(str(fake / "sandbox-runs"), None, roots=[str(fake)])
     assert "REFUSING" in capsys.readouterr().out and made == []
-    boot._log_file(str(tmp_path / "out"), None)                        # control: a sandbox folder is accepted
+    boot._log_file(str(tmp_path / "out"), None, roots=[str(fake)])     # control: a sandbox folder is accepted
     assert made == [(str(tmp_path / "out"),)]
+    src = (REPO / "scripts" / "hub_sandbox_boot.py").read_text(encoding="utf-8")
+    assert "roots=roots if roots is not None else _census_roots()" in src   # the default is the census, not a copy
 
 
-def test_g2_the_campaign_boots_its_own_sandbox_with_the_flag_and_its_out_dir(tmp_path):
-    made = []
-
-    class FakeSandbox:
-        def __init__(self, data_dir, port, log, extra_args=()):
-            made.append(list(extra_args))
-            self.proc = type("P", (), {"pid": 1})()
-
-        def start(self):
-            pass
-
-        def wait_healthy(self, *a):
-            return True
-
-        def wait_checkpoint(self, *a):
-            return True
-
-    h = type("H", (), {"Sandbox": FakeSandbox, "port_busy": staticmethod(lambda p: False), "POST_BOOT": "x",
-                       "POST_BOOT_WAIT_S": 0})
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "feature_flags.json").write_text('{"flags": {}}', encoding="utf-8")
-    fw = type("FW", (), {"flag_sets": staticmethod(lambda: {"all_names": [], "c1": [], "armed": []}), "REPO": tmp_path})
-    import os
-    saved = dict(os.environ)                     # campaign_env writes this process's environment for the child
-    try:
-        sb = rc.OwnedSandbox(h, fw, tmp_path / "sbx", 8999, tmp_path / "out")
-        sb.start()
-    finally:
-        os.environ.clear()
-        os.environ.update(saved)
-    assert made == [["--no-shared-root-snapshot", "--log-dir", str(tmp_path / "out")]]
-
-
-def test_g2_the_harness_passes_the_campaigns_launcher_flags_through():
-    sys.path.insert(0, str(REPO / "tools"))
-    import notebook_perf_harness as h
-    box = h.Sandbox("x", 1, Path("y.log"), extra_args=["--no-shared-root-snapshot", "--log-dir", "z"])
+def test_g2_the_tool_launcher_accepts_the_campaigns_options():
     import subprocess
+    r = subprocess.run([sys.executable, str(rc.TOOL_LAUNCHER), "--help"], capture_output=True, text=True,
+                       cwd=str(REPO), timeout=120, env={**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"},
+                       encoding="utf-8")
+    assert r.returncode == 0, r.stderr[-800:]
+    for opt in ("--app-root", "--no-shared-root-snapshot", "--log-dir"):
+        assert re.search(r"(?<![\w-])" + re.escape(opt) + r"(?![\w-])", r.stdout), opt    # the option itself
+
+
+def test_g2_the_harness_passes_the_campaigns_launcher_flags_through(tmp_path, monkeypatch):
+    th = rc.load_tool_harness()
     seen = {}
-    real = subprocess.Popen
-    subprocess.Popen = lambda cmd, **k: seen.setdefault("cmd", cmd)
-    try:
-        import tempfile
-        box.log_path = Path(tempfile.mkdtemp()) / "y.log"
-        box.start()
-    finally:
-        subprocess.Popen = real
-    assert seen["cmd"][-3:] == ["--no-shared-root-snapshot", "--log-dir", "z"]
+    monkeypatch.setattr(th.subprocess, "Popen", lambda cmd, **k: seen.update(cmd=cmd, **k))
+    box = th.Sandbox("x", 1, tmp_path / "y.log", extra_args=["--no-shared-root-snapshot", "--log-dir", "z"],
+                     cwd=tmp_path, boot_script=tmp_path / "boot.py", env={"PATH": "p"})
+    box.start()
+    assert seen["cmd"][4] == str(tmp_path / "boot.py") and seen["cmd"][-3:] == ["--no-shared-root-snapshot", "--log-dir", "z"]
+    assert seen["cwd"] == str(tmp_path) and seen["env"] == {"PATH": "p"}
 
 
-# ── sandbox-recipe G3: the campaign serves every flag production arms on web, derived from the ledger ───────────────
+# ── review C1: --own-sandbox works with an app root that predates the campaign's launcher options ──────────────────
+
+OLD_TOOLING = "0ac5b99cda"      # the merge-base: its harness has no extra_args, its launcher no G2 options
+
+
+def _old_app_root(tmp_path) -> Path:
+    """An app root whose tools/ and scripts/ are the merge-base's (no extra_args, no --no-shared-root-snapshot),
+    with the served tree's own ledger and auth.py, so the flags derive exactly as a run's do."""
+    import subprocess
+    app = tmp_path / "app"
+    for rel in ("tools/notebook_perf_harness.py", "scripts/hub_sandbox_boot.py", "docs/notebook/perf-budgets.json"):
+        f = app / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(subprocess.run(["git", "show", f"{OLD_TOOLING}:{rel}"], cwd=str(REPO), capture_output=True,
+                                    text=True, encoding="utf-8", check=True).stdout, encoding="utf-8")
+    for rel in ("docs/feature_flags.json", "api/routers/auth.py"):
+        f = app / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(frontend_read()(rel), encoding="utf-8")
+    return app
+
+
+def _load_as(path: Path, name: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_c1_own_sandbox_builds_and_starts_with_an_app_root_that_lacks_the_new_options(tmp_path, monkeypatch):
+    app = _old_app_root(tmp_path)
+    old_h = _load_as(app / "tools" / "notebook_perf_harness.py", "old_app_harness_for_c1")
+    with pytest.raises(TypeError):                     # control: the app root's own harness cannot take the options
+        old_h.Sandbox("x", 1, tmp_path / "l.log", extra_args=["--no-shared-root-snapshot"])
+    assert "--no-shared-root-snapshot" not in (app / "scripts" / "hub_sandbox_boot.py").read_text(encoding="utf-8")
+
+    class FW:
+        REPO = app
+        NOT_MEMBER_GATES = {"NOTEBOOK_DOOR_GUARD", "J2_ATTACHMENT_BACKUP_ENABLED", "J2_ATTACHMENT_GC_ENABLED",
+                            "J2_OCR_ENABLED"}
+
+        @staticmethod
+        def flag_sets():
+            return {"all_names": ["NOTEBOOK_DOOR_GUARD"], "c1": []}
+    th = rc.load_tool_harness()
+    seen = {}
+
+    class Proc:
+        pid = 4242
+
+        def poll(self):
+            return None
+    monkeypatch.setattr(th.subprocess, "Popen", lambda cmd, **k: (seen.update(cmd=cmd, **k), Proc())[1])
+    monkeypatch.setattr(th.Sandbox, "wait_healthy", lambda self, *a: True)
+    monkeypatch.setattr(th.Sandbox, "wait_checkpoint", lambda self, *a: True)
+    monkeypatch.setattr(th, "port_busy", lambda port: False)
+    monkeypatch.setenv("NOTEBOOK_POISON_FROM_SHELL", "1")
+    (tmp_path / "out").mkdir()                         # a run's --out exists before its sandbox boots
+    libs = (old_h, FW, None, None)                     # what load_walk_libs(<an old app root>) hands run_campaign
+    sb = rc.owned_sandbox(libs, app, tmp_path / "sbx", 8999, tmp_path / "out")
+    sb.start()                                         # must not raise
+    cmd = seen["cmd"]
+    assert cmd[4] == str(rc.TOOL_LAUNCHER)                                 # the TOOL tree's launcher
+    assert cmd[cmd.index("--app-root") + 1] == str(app) and "--no-shared-root-snapshot" in cmd
+    assert cmd[cmd.index("--log-dir") + 1] == str(tmp_path / "out")
+    assert seen["cwd"] == str(app)                                          # serving the app root's api/
+    assert "NOTEBOOK_POISON_FROM_SHELL" not in seen["env"]                  # hermetic (I6)
+    assert seen["env"]["NOTEBOOK_DOOR_GUARD"] == "unknown-only"             # production's mode (I4)
+    assert sb.boots[0]["launcher"] == str(rc.TOOL_LAUNCHER)
+
+
+def test_c1_main_builds_the_owned_sandbox_through_the_one_factory():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    main = src[src.index("def main("):]
+    assert "owned_sandbox(libs, app_root, data_dir, args.port, out)" in main and "OwnedSandbox(" not in main
+
+
+# ── review I1: NOT HASHED is its own status, never NOT CLEAN ─────────────────────────────────────────────────────────
+
+def _launcher_constant(name: str) -> str:
+    import ast
+    tree = ast.parse(rc.TOOL_LAUNCHER.read_text(encoding="utf-8"))
+    return next(n.value.value for n in tree.body if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", None) == name for t in n.targets))
+
+
+def _unhashed_log(tmp_path, labels) -> Path:
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    log = tmp_path / "integ.md"
+    for lab in labels:
+        boot._append_unhashed(str(log), lab)
+    return log
+
+
+def test_i1_an_unhashed_boot_reads_not_hashed_never_not_clean(tmp_path):
+    th = rc.load_tool_harness()
+    assert th.NOT_HASHED == _launcher_constant("NOT_HASHED")              # the launcher's words, one authority
+    log = _unhashed_log(tmp_path, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])
+    integ = th.read_integrity(log, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])
+    assert (integ["status"], integ["clean"]) == ("NOT HASHED", False)
+    line = th.integrity_line(integ)
+    assert line.startswith("SANDBOX INTEGRITY: NOT HASHED") and "NOT CLEAN" not in line and "db files hashed" not in line
+
+
+def test_i1_controls_a_missing_checkpoint_and_a_dirty_line_still_read_as_before(tmp_path):
+    th = rc.load_tool_harness()
+    log = _unhashed_log(tmp_path, [th.PRE_BOOT, th.POST_BOOT])
+    assert th.read_integrity(log, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])["status"] == "INCOMPLETE"
+    with open(log, "a", encoding="utf-8") as f:
+        f.write("- `2026-10-26 00:00:00`  **shutdown** \u2014 C:\\x, 3 db files \u2014 **1 FILE(S) CHANGED**\n")
+    assert th.read_integrity(log, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])["status"] == "NOT CLEAN"
+
+
+def test_i1_the_campaign_records_the_status_in_run_json(tmp_path):
+    th = rc.load_tool_harness()
+    log = _unhashed_log(tmp_path, [th.PRE_BOOT, th.POST_BOOT, th.SHUTDOWN])
+    sb = rc.OwnedSandbox.__new__(rc.OwnedSandbox)
+    sb.th, sb.out, sb.boots = th, tmp_path, [{"boot": 1}]
+    sb.sb = type("SB", (), {"stop": lambda self: "graceful", "integrity_path": lambda self: str(log)})()
+    sb.stop()
+    assert sb.boots[0]["integrity"] == "NOT HASHED" and "NOT CLEAN" not in sb.boots[0]["first_line"]
+
+
+# ── review I2: the seeder's schema boot never hashes or logs into the shared root or the app root by default ───────
+
+def test_i2_the_default_schema_boot_is_the_clock_launcher_and_hashing_is_an_opt_in():
+    args = sm.argparse.Namespace(schema_via_hub_launcher_hashing_shared_root=False, schema_via_clock_launcher=False)
+    assert sm.schema_booter(args) is sm.boot_schema_clock
+    args.schema_via_hub_launcher_hashing_shared_root = True
+    assert sm.schema_booter(args) is sm.boot_schema                        # control: the explicit opt-in
+    import inspect
+    body = inspect.getsource(sm.boot_schema_clock)
+    assert "sandbox_clock.py" in body and "hub_sandbox_boot" not in body and ".Sandbox(" not in body
+    assert "DEFAULT_ROOT" not in body and "data_root_snapshot" not in body
+    src = (REPO / "tools" / "notebook_campaign" / "seed_members.py").read_text(encoding="utf-8")
+    assert "schema_booter(args)(app_root, data_dir, args.schema_port, data_dir)" in src
+
+
+# ── G3 / review I4 / I6: production's served flags, at production's values, on a hermetic env ──────────────────────
 #
-# Mutants (scratchpad mutate_g3.py): campaign_env ignoring `armed_web`; armed_on_web ignoring `where`; ignoring
-# `status`; ignoring NOT_MEMBER_GATES. Each turned this block red.
+# Mutants (scratchpad mutate_g3.py and mutate_r1.py): campaign_env ignoring `armed_web`; armed_on_web ignoring `where`
+# or `status`; non-member gates kept; one sandbox back on flag_sets; the mode value served as "1"; the base env
+# copying the whole shell; MEMBER_VISIBLE dropped. Each turned this block red.
 
-def _g3_fw(tmp_path, flags: dict, all_names: list, c1: list, not_member=()):
+def _g3_fw(tmp_path, flags: dict, all_names: list, c1: list, not_member=(), auth_py: str | None = None):
     (tmp_path / "docs").mkdir(exist_ok=True)
     (tmp_path / "docs" / "feature_flags.json").write_text(json.dumps({"flags": flags}), encoding="utf-8")
+    if auth_py is not None:
+        (tmp_path / "api" / "routers").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "api" / "routers" / "auth.py").write_text(auth_py, encoding="utf-8")
 
     class FW:
         REPO = tmp_path
@@ -1718,29 +1883,71 @@ def _g3_fw(tmp_path, flags: dict, all_names: list, c1: list, not_member=()):
     return FW
 
 
-def _env_on(fs) -> set:
-    import os
-    saved = dict(os.environ)
-    try:
-        return {n for n in rc.campaign_env(fs) if "=" not in n}
-    finally:
-        os.environ.clear()
-        os.environ.update(saved)
+def _served(fs, base=None) -> dict:
+    return rc.campaign_env(fs, base=base if base is not None else {"PATH": "x"})[0]
 
 
 def test_g3_an_armed_web_flag_that_is_not_a_notebook_gate_is_served_on(tmp_path):
     flags = {"NOTEBOOK_EXAMPLE_NOTES_ENABLED": {"status": "armed", "where": ["web"]},
              "NOTEBOOK_WORKER_ONLY": {"status": "armed", "where": ["worker"]},
              "NOTEBOOK_DARK_ONE": {"status": "dark", "where": ["web"]},
-             "NOTEBOOK_DOOR_GUARD": {"status": "armed", "where": ["web"]},
+             "J2_ATTACHMENT_GC_ENABLED": {"status": "armed", "where": ["web"]},
+             "J2_OCR_ENABLED": {"status": "armed", "where": ["web"]},
              "NOTEBOOK_GATE_A": {"status": "armed", "where": ["web"]}}
-    fw = _g3_fw(tmp_path, flags, all_names=sorted(flags), c1=["NOTEBOOK_GATE_A"], not_member={"NOTEBOOK_DOOR_GUARD"})
+    fw = _g3_fw(tmp_path, flags, all_names=sorted(flags), c1=["NOTEBOOK_GATE_A"],
+                not_member={"J2_ATTACHMENT_GC_ENABLED", "J2_OCR_ENABLED"})
     fs = rc.campaign_flag_sets(fw)
-    assert fs["armed_web"] == ["NOTEBOOK_EXAMPLE_NOTES_ENABLED", "NOTEBOOK_GATE_A"]
-    on = _env_on(fs)
-    assert {"NOTEBOOK_EXAMPLE_NOTES_ENABLED", "NOTEBOOK_GATE_A", rc.W8, rc.W11} <= on
+    on = _served(fs)
+    assert {"NOTEBOOK_EXAMPLE_NOTES_ENABLED", "NOTEBOOK_GATE_A", rc.W8, rc.W11, "J2_OCR_ENABLED"} <= set(on)
+    assert on["J2_OCR_ENABLED"] == "1"                                      # member-visible: follows production (I6)
     # controls: a worker-only, a dark and a non-member gate stay off
-    assert not on & {"NOTEBOOK_WORKER_ONLY", "NOTEBOOK_DARK_ONE", "NOTEBOOK_DOOR_GUARD"}
+    assert not set(on) & {"NOTEBOOK_WORKER_ONLY", "NOTEBOOK_DARK_ONE", "J2_ATTACHMENT_GC_ENABLED"}
+
+
+def test_i4_a_mode_flag_is_served_at_productions_recorded_value(tmp_path):
+    """The served tree's own ledger and auth.py (at FRONTEND_REF): NOTEBOOK_DOOR_GUARD is armed on web in mode
+    `unknown-only`, so the campaign serves exactly that, never "1" and never the code default `full`."""
+    read = frontend_read()
+    led = json.loads(read("docs/feature_flags.json"))["flags"]
+    fw = _g3_fw(tmp_path, led, all_names=["NOTEBOOK_DOOR_GUARD"], c1=[], auth_py=read("api/routers/auth.py"),
+                not_member={"NOTEBOOK_DOOR_GUARD", "J2_OCR_ENABLED"})
+    fs = rc.campaign_flag_sets(fw)
+    assert fs["mode_problems"] == [] and fs["modes"] == {"NOTEBOOK_DOOR_GUARD": "unknown-only"}
+    assert _served(fs)["NOTEBOOK_DOOR_GUARD"] == "unknown-only"
+    # parity for every valued flag: each NOTEBOOK_MODE_FLAGS name armed on web is served at a value auth.py allows
+    for name, allowed in rc.mode_flags(tmp_path / "api" / "routers" / "auth.py").items():
+        if led.get(name, {}).get("status") == "armed":
+            assert _served(fs)[name] in allowed and _served(fs)[name] != "1", name
+
+
+def test_i4_an_unverified_mode_value_refuses_the_boot(tmp_path, monkeypatch):
+    auth = ('A = "full"\nB = "unknown-only"\nNOTEBOOK_MODE_FLAGS = {\n    "NOTEBOOK_DOOR_GUARD": (A, (A, B)),\n'
+            '    "NOTEBOOK_OTHER_MODE": (A, (A, B)),\n}\n')
+    led = {"NOTEBOOK_DOOR_GUARD": {"status": "armed", "where": ["web"], "note": "nothing quoted here"},
+           "NOTEBOOK_OTHER_MODE": {"status": "armed", "where": ["web"], "note": ""}}
+    fs = rc.campaign_flag_sets(_g3_fw(tmp_path, led, all_names=sorted(led), c1=[], auth_py=auth))
+    assert len(fs["mode_problems"]) == 2                                   # the quote missing; no recorded value
+    with pytest.raises(SystemExit, match="mode flag"):
+        rc.campaign_env(fs)
+
+
+def test_i6_the_served_env_is_hermetic(tmp_path):
+    fw = _g3_fw(tmp_path, {"NOTEBOOK_GATE_A": {"status": "armed", "where": ["web"]}}, all_names=["NOTEBOOK_GATE_A"],
+                c1=["NOTEBOOK_GATE_A"])
+    fs = rc.campaign_flag_sets(fw)
+    shell = {"PATH": "C:\\py", "SystemRoot": "C:\\Windows", "TEMP": "C:\\t", "APPDATA": "C:\\a",
+             "NOTEBOOK_POISON_ENABLED": "1", "NOTEBOOK_DOOR_GUARD": "full", "ANTHROPIC_API_KEY": "sk-x",
+             "RAILWAY_ENVIRONMENT": "production", "DATA_DIR": "C:\\data", "COMPASS_AUTOMATION_ENABLED": "1"}
+    env, applied = rc.campaign_env(fs, base=shell)
+    for leak in ("NOTEBOOK_POISON_ENABLED", "ANTHROPIC_API_KEY", "RAILWAY_ENVIRONMENT", "DATA_DIR",
+                 "COMPASS_AUTOMATION_ENABLED", "NOTEBOOK_DOOR_GUARD"):
+        assert leak not in env, leak
+    assert env["PATH"] == "C:\\py" and env["SystemRoot"] == "C:\\Windows" and env["NOTEBOOK_GATE_A"] == "1"
+    assert "NOTEBOOK_GATE_A=1" in applied
+    import os
+    before = dict(os.environ)
+    rc.campaign_env(fs)
+    assert dict(os.environ) == before                                      # never writes this process's env
 
 
 def test_g3_the_served_trees_ledger_arms_example_notes_so_the_campaign_serves_them():
@@ -1751,9 +1958,11 @@ def test_g3_the_served_trees_ledger_arms_example_notes_so_the_campaign_serves_th
     assert "NOTEBOOK_EXAMPLE_NOTES_ENABLED" in rc.armed_on_web(led, ())
 
 
-def test_g3_both_campaign_sandboxes_read_the_derived_flag_sets():
+def test_g3_both_campaign_sandboxes_read_the_derived_flag_sets_and_the_hermetic_env():
     src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
     assert src.count("self.fs = campaign_flag_sets(fw)") == 2 and "self.fs = fw.flag_sets()" not in src
+    assert src.count("env, flags = campaign_env(self.fs") == 1 and "env=env" in src
+    assert "os.environ.update(" not in src[src.index("def campaign_env"):src.index("def owned_sandbox")]
 
 
 # ── sandbox-recipe G4: every sentence is read from the merged tree the campaign serves ───────────────────────────────
@@ -1783,7 +1992,7 @@ def test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line():
             continue
         lines = text.splitlines()
         n = int(m["line"]) if m["line"] else 0
-        if not (0 < n <= len(lines) and frag[:24] in lines[n - 1]):
+        if not rc.fragment_on_line(lines, n, frag):                     # the WHOLE fragment (review m6)
             bad[k] = f"line {n} of {m['path']} does not hold {frag[:24]!r}"
     assert not bad, bad
 
@@ -1792,3 +2001,110 @@ def test_g4_a_sentence_on_another_ref_is_named():
     spec = {"sentences": {"a": {"text": "x", "source": "origin/feat/notebook-widgets-p2-be:api/x.py:1"},
                           "b": {"text": "y", "source": "api/y.py:2"}}}
     assert rc.sentence_refs(spec) == {"origin/feat/notebook-widgets-p2-be": ["a"]}
+
+
+# ── fix round 1 (review-campaign-g2g4.md, ruling W11-R70): the remaining rails ─────────────────────────────────────
+
+def test_m6_the_whole_fragment_must_be_on_its_line():
+    lines = ["const SAMPLE_LABEL = 'Sample data' // the label", "next"]
+    assert rc.fragment_on_line(lines, 1, "SAMPLE_LABEL = 'Sample data'")
+    assert not rc.fragment_on_line(lines, 1, "SAMPLE_LABEL = 'Sample data (drifted)'")    # same 24-char prefix
+    assert not rc.fragment_on_line(lines, 2, "SAMPLE_LABEL")
+    assert rc.fragment_on_line(lines, 1, "the label\nnext")                               # a two-line fragment
+
+
+def test_m6_a_run_reads_every_sentence_from_the_tree_it_serves(tmp_path):
+    (tmp_path / "x.js").write_text("const A = 'served words'\n", encoding="utf-8")
+    spec = {"sentences": {"a": {"text": "served words", "source": "origin/feat/no-such-ref-at-all:x.js:1",
+                                "fragment": "A = 'served words'"}}}
+    assert rc.verify_sentences(spec, tmp_path, served_tree=True)["a"]["ok"] is True
+    assert rc.verify_sentences(spec, tmp_path)["a"]["ok"] is False          # control: the ref read is unreadable
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert "g.sentences = verify_sentences(spec, app_root, served_tree=True)" in src
+
+
+def test_i5_the_live_region_is_summary_only_at_p25_a05_and_the_loading_and_retry_retests_are_scripted():
+    m5 = _step("P25.a.05")["measure"]
+    live = [t for t in m5 if t.get("testid") == "builder-live"]
+    assert live and live[0]["text_not_contains"] == "last_result" and set(live[0]["viewports"]) == {"1200", "820", "390"}
+    b = next(s for s in next(p for p in SPEC["personas"] if p["id"] == "P25")["scripts"] if s["id"] == "P25.b")
+    dos = [s["do"] for s in b["steps"]]
+    assert "axe_while_loading" in dos and dos.index("builder_blank") < dos.index("axe_while_loading")
+    retry = next(s for s in b["steps"] if s["do"] == "not_reachable")
+    assert "Try again" in retry["reason"] and "PreviewPane.jsx:" in retry["reason"]
+
+
+def test_i5_axe_while_loading_never_passes_without_seeing_the_loading_state():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    body = src[src.index("def a_axe_while_loading"):src.index("def open_phone_preview")]
+    assert "raise Inconclusive(\"the kept preview was never seen loading" in body
+    assert "runOnly: { type: 'rule', values: ['color-contrast'] }" in src
+    assert 'got.get("passes", 0) > 0' in body                           # a run that checked nothing is not a pass
+
+
+def test_m2_p04_checks_the_split_it_made_and_copy_is_quoted():
+    assert _step("P04.a.05")["live_re"] == "(?i)split by account"
+    for sid in ("P04.a.05", "P06.a.05", "P23.a.05", "P30.a.05", "P01.b.04", "P05.a.04", "P10.a.05", "P48.a.01"):
+        assert _step(sid).get("copy_sources"), sid
+
+
+def test_m4_every_step_has_a_validation_record_and_the_counts_add_up():
+    v = SPEC["validation"]
+    assert v["ref"].startswith(rc.FRONTEND_REF)
+    every = {f"{sc['id']}.{i + 1:02d}" for p in SPEC["personas"] for sc in p["scripts"] for i in range(len(sc["steps"]))}
+    assert set(v["steps"]) == every
+    kinds = {k: sum(1 for x in v["steps"].values() if x.split(":")[0].split(" +")[0] == k)
+             for k in ("ok", "fixed", "not_reachable", "http", "added")}
+    assert sum(kinds.values()) == len(every)
+    nr = {sid for sid, x in v["steps"].items() if x == "not_reachable"}
+    assert nr == {f"{sc['id']}.{i + 1:02d}" for p in SPEC["personas"] for sc in p["scripts"]
+                  for i, st in enumerate(sc["steps"]) if st["do"] in ("not_reachable", "noop")}
+
+
+def test_m3_a_run_lists_every_inconclusive_reason():
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert 'res["inconclusive"] = [{"step": x["step"], "why": x.get("error") or ""} for x in R.steps' in src
+    assert 'print(f"    INCONCLUSIVE {x[\'step\']}' in src
+
+
+# MUTANT LEDGER, ALL ROUNDS (review m8; re-run from the ledger folder's mutate_*.py; each turned the named rail red and
+# the file was restored byte for byte from a copy, never by git checkout):
+#   persona/selector (mutate_sel.py): S1 P06 by "Hour"; S2 P23 source "Closed trades"; S3 a card not on the shelf;
+#     S4 the builder-live anchor renamed; S5 a handler role name not anchored; S6 a measure target without its
+#     fragment; S7 script_runs_at always true; S7b the loop not asking it; S8 the min-height compare dropped; S9
+#     `hidden` passing on an absent control; S10 the P25 phone-bar retest removed; S11 a drifted step driven anyway.
+#   G2 (mutate_g2.py): M1 the flag not skipping the snapshot; M2 the campaign dropping the flag; M3 the log in the
+#     repo again; M4 the harness dropping extra args; M5 a log dir in the shared root accepted (fake roots only).
+#   G3 (mutate_g3.py): M1 campaign_env ignoring armed_web; M2 `where` ignored; M3 `status` ignored; M4 non-member
+#     gates kept; M5 one sandbox back on flag_sets.
+#   G4 (mutate_g4.py): M1 back on the -be ref; M2 a ref that does not exist; M3 a cited line moved; M4 ref_resolves
+#     always true.
+#   fix round 1 (mutate_r1.py): C1a the app root's harness used for the boot; C1b --app-root dropped; I1a NOT HASHED
+#     read as dirty; I1b the status not recorded; I2 the hashing schema boot as default; I4a the mode value not
+#     applied; I4b the ledger quote not checked; I6a the whole shell copied; I6b MEMBER_VISIBLE dropped; m3 an absent
+#     FAB always excused; m7a exactly-one dropped; m7b absent restored as "dark"; m9 the guard's default roots again;
+#     L --app-root gone from the launcher; C1c the kill-list parity check disabled; m6 the 24-char line check back; I5 the live-region target removed; m2 P04's
+#     regex back; m4 a step without a validation record.
+
+
+def test_c1_a_tool_launcher_with_a_shorter_kill_list_than_the_app_roots_refuses(tmp_path, capsys):
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    app = tmp_path / "app"
+    (app / "scripts").mkdir(parents=True)
+    mine = sorted(boot.KILL_LIST)
+    (app / "scripts" / "hub_sandbox_boot.py").write_text(
+        "KILL_LIST = {" + ", ".join(f"{k!r}: '0'" for k in mine + ["NEW_OUTBOUND_JOB_ENABLED"]) + "}\n",
+        encoding="utf-8")
+    saved_path, saved_root = list(sys.path), boot.REPO_ROOT
+    try:
+        with pytest.raises(SystemExit):
+            boot._use_app_root(str(app))
+        assert "NEW_OUTBOUND_JOB_ENABLED" in capsys.readouterr().out
+        (app / "scripts" / "hub_sandbox_boot.py").write_text(
+            "KILL_LIST = {" + ", ".join(f"{k!r}: '0'" for k in mine) + "}\n", encoding="utf-8")
+        assert boot._use_app_root(str(app)) == str(app)                  # control: the same kill list is served
+        assert sys.path[0] == str(app) and boot.REPO_ROOT == str(app)
+    finally:
+        sys.path[:] = saved_path
+        boot.REPO_ROOT = saved_root
