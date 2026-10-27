@@ -75,6 +75,13 @@ export function chartFromPhrase(phrase, charts, host, { other = null } = {}) {
   return null
 }
 
+// ⛔ Two charts in ONE link colour group always show the same symbol (a symbol change goes through the group,
+// exactly as a search pick does): different symbols on them can never both land. Said, never attempted.
+const LINKED = 'Those charts are linked to the same colour group, so they always show the same symbol. Unlink one of them first (set its link colour to not linked), then ask again — nothing has changed.'
+function linkedTogether(refs, charts) {
+  const groups = refs.map(r => charts.find(c => c.ref === r)?.group).filter(g => typeof g === 'string' && g && !g.startsWith('N'))
+  return groups.length !== new Set(groups).size
+}
 const setSymbol = (ref, symbol) => ({ action: 'chart.setSymbol', target: ref, args: { symbol } })
 const setTf = (ref, timeframe) => ({ action: 'chart.setTimeframe', target: ref, args: { timeframe } })
 const addCharts = (symbols, timeframe) => ({ action: 'widget.addCharts', target: 'workspace', args: { symbols, timeframe: timeframe || null, chart_type: null, exact: null } })
@@ -111,6 +118,7 @@ function sideBySide(raw, lower, charts) {
     // a chart already on one of them keeps it; the other chart takes the other symbol
     let [c1, c2] = charts
     if (showing(b).some(c => c.ref === c1.ref) || showing(a).some(c => c.ref === c2.ref)) [c1, c2] = [c2, c1]
+    if (linkedTogether([c1.ref, c2.ref], charts)) return { kind: 'say', text: LINKED }
     const ops = [setSymbol(c1.ref, a), setSymbol(c2.ref, b), ...(tf ? [setTf(c1.ref, tf), setTf(c2.ref, tf)] : [])]
     return { kind: 'ops', ops, mode: 'apply' }
   }
@@ -123,6 +131,7 @@ function sideBySide(raw, lower, charts) {
   const ca = keepA || free.shift()
   const cb = keepB || free.shift()
   if (!ca || !cb) return null
+  if (linkedTogether([ca.ref, cb.ref], charts)) return { kind: 'say', text: LINKED }
   const ops = [...(keepA ? [] : [setSymbol(ca.ref, a)]), ...(keepB ? [] : [setSymbol(cb.ref, b)]), ...(tf ? [setTf(ca.ref, tf), setTf(cb.ref, tf)] : [])]
   return ops.length ? { kind: 'ops', ops, mode: 'propose', note: `With ${charts.length} charts here I picked ${ca.label} for ${a} and ${cb.label} for ${b} — check it first; nothing has changed yet.` } : null
 }
@@ -170,6 +179,7 @@ function positional(raw, charts) {
   }
   if (picks.length < 2) return null
   if (new Set(picks.map(p => p.ref)).size !== picks.length) return { kind: 'say', text: 'Two of those name the same chart — say which chart each symbol goes on. Nothing has changed.' }
+  if (linkedTogether(picks.map(p => p.ref), charts)) return { kind: 'say', text: LINKED }
   const ops = picks.map(p => setSymbol(p.ref, p.symbol))
   if (tf) for (const p of picks) ops.push(setTf(p.ref, tf))
   return { kind: 'ops', ops, mode: 'apply' }

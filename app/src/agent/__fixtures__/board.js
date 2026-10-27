@@ -52,7 +52,7 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
     const charts = state.widgets.filter(x => x.type === 'chart')
     const pos = positionWord(w, charts) || null
     return {
-      ref: id, label: `Chart ${id}`, position: pos, cell: { x: w.x, y: w.y, w: w.w, h: w.h },
+      ref: id, label: `Chart ${id}`, position: pos, cell: { x: w.x, y: w.y, w: w.w, h: w.h }, group: w.color,
       symbol: state.groupSyms[keyOf(w)] || 'SPY', tf: w.opts.tf || 'D',
       stored: w.opts.settings ?? null, cs: mergeChartSettings(w.opts.settings || null),
       linkedCount: 0,

@@ -452,6 +452,9 @@ describe('"the second chart", "chart 3", "the middle one" — the board\'s readi
     expect(ordinalChart('the middle chart', charts).ref).toBe('B')
     expect(ordinalChart('the fifth chart', charts).ask.text).toMatch(/only 3 charts/)
     expect(ordinalChart('make it weekly', charts)).toBeNull()
+    // a unit after the number is a timeframe, never an ordinal
+    for (const t of ['set the chart 5 min', 'make the chart 1 hour', 'chart 3 days', 'chart 2-minute']) expect(ordinalChart(t, charts), t).toBeNull()
+    expect(ordinalChart('make chart 2 weekly', charts).ref).toBe('B')
   })
   it('"middle" on a 2×2 board is asked, never guessed', () => {
     const { host } = makeBoard([
@@ -469,6 +472,8 @@ describe('"the second chart", "chart 3", "the middle one" — the board\'s readi
   it('NL-1 / model plans: an ordinal counts as naming the chart (screenUnnamedTargets)', () => {
     const charts = row3().host.charts.list()
     expect([...chartsNamedBy('make the second chart weekly', charts)]).toEqual(['B'])
+    // "the first one" is as often a result or a list item: it never identifies a chart for a model plan
+    expect([...chartsNamedBy('add the first one to my watchlist', charts)]).toEqual([])
   })
 })
 
@@ -498,6 +503,16 @@ describe('multiChartPlan — several charts in one sentence', () => {
     expect(multiChartPlan('NVDA on the left', { host })).toBeNull()
     expect(multiChartPlan('NVDA on the left and AMD on the left', { host }).kind).toBe('say')
     expect(multiChartPlan('NVDA on the top and AMD on the bottom', { host }).kind).toBe('say')     // no top/bottom on a 1×2 board
+  })
+  it('two charts LINKED in one colour group can never show two symbols: said, never attempted', () => {
+    const { host } = makeBoard([
+      { id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A' }, { id: 'c2', type: 'chart', x: 12, y: 0, w: 12, h: 20, color: 'A' },
+    ], { A: 'SPY' })
+    for (const t of ['NVDA on the left and AMD on the right', 'show NVDA and AMD side by side']) {
+      const r = multiChartPlan(t, { host })
+      expect(r.kind, t).toBe('say')
+      expect(r.text).toMatch(/linked to the same colour group/)
+    }
   })
   it('side by side — 2 charts: both reused (a chart already on one of them keeps it), applied', () => {
     const host = board(2, ['AMD', 'SPY'])

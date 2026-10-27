@@ -129,7 +129,8 @@ export function pickedChoice(text, choices = []) {
 // board's (top to bottom, then left to right — host.charts.list()). "middle" only when it is unambiguous:
 // an odd number (3 or 5) of charts in ONE row or ONE column. → { ref, word } | { ask } | null (no such words).
 const ORD_WORDS = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6 }
-export const ORD_RE = /\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th|6th|last|middle|center|centre)\s+(?:chart|one)\b|\bchart\s+(?:#\s*)?([1-9])\b/i
+// ("chart 5" is an ordinal only when no unit follows: "the chart 5 min" is a timeframe, never the fifth chart)
+export const ORD_RE = /\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th|6th|last|middle|center|centre)\s+(?:chart|one)\b|\bchart\s+(?:#\s*)?([1-9])\b(?!\s*(?:(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|w|wk|wks|weeks?|mo|months?|x)\b|[%.:/-]))/i
 export function ordinalChart(text, charts = []) {
   const m = ORD_RE.exec(String(text || ''))
   if (!m) return null
@@ -155,9 +156,10 @@ export function ordinalChart(text, charts = []) {
 export function chartsNamedBy(text, charts = []) {
   const s = String(text || '')
   const named = new Set()
-  // P1: "the second chart", "chart 3", "the last one", "the middle chart"
+  // P1: "the second chart", "chart 3", "the middle chart" — only with the word CHART ("the first one" is as often a
+  // list item or a result as a chart, so it never identifies a chart for a model plan)
   const ord = ordinalChart(s, charts)
-  if (ord?.ref) named.add(ord.ref)
+  if (ord?.ref && /chart/i.test(ord.match[0])) named.add(ord.ref)
   for (const m of s.matchAll(POS_WORDS)) {
     const w = m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')
     const parts = w.split('-')
