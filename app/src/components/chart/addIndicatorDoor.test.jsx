@@ -30,6 +30,7 @@ import {
 import * as registry from './engine/nativeRegistry'
 import { parseSource } from './engine/sourceRef'
 import { BUILT_IN_ROWS } from './indicatorCatalog'
+import { resultRows } from './__tests__/resultRows'
 
 function Host({ initial, seen }) {
   const [cs, setCs] = useState(initial)
@@ -54,7 +55,7 @@ const search = (q) => {
   }
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: q } })
 }
-const optionNames = () => screen.queryAllByRole('option')
+const optionNames = () => resultRows()
   .map((o) => (o.querySelector('[class*="resName"]')?.textContent || '').trim())
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
@@ -71,7 +72,7 @@ describe('⛔⛔ "DATA SERIES" IS NOT A MEMBER CONCEPT (owner §8)', () => {
     search('series')
     expect(optionNames(), 'the Data Series substrate is offered to members again')
       .not.toContain('Data Series')
-    expect(screen.queryAllByRole('option').map((o) => o.dataset.defId))
+    expect(resultRows().map((o) => o.dataset.defId))
       .not.toContain('dataSeries')
   })
 
@@ -125,7 +126,7 @@ describe('⭐⭐ ONE MOVING AVERAGE IN BROWSE (owner §34)', () => {
     const seen = { cs: null }
     show(before, seen); openIndicators()
     search('moving average')
-    const row = screen.queryAllByRole('option').find((o) => o.dataset.defId === 'ma')
+    const row = resultRows().find((o) => o.dataset.defId === 'ma')
     expect(row, 'the revive row is gone').toBeTruthy()
     expect(row.textContent).toMatch(/Restore EMA 9/)
     fireEvent.click(row)
@@ -164,7 +165,7 @@ describe('⭐⭐ SEARCH QQQ → ADD QQQ (owner §9)', () => {
     show(mergeChartSettings(JSON.stringify({}))); openIndicators()
     search('QQQ')
     return waitFor(() => {
-      const row = screen.queryAllByRole('option').find((o) => o.dataset.resultKind === 'security')
+      const row = resultRows().find((o) => o.dataset.resultKind === 'security')
       expect(row, 'a ticker search produced no symbol row at all').toBeTruthy()
       // ⭐ THE INVERSION `symbolLibraryRow` DOCUMENTS: for a security the TICKER is
       // the thing and the long name is the gloss — the opposite of an indicator.
@@ -206,7 +207,7 @@ describe('⭐⭐ SEARCH QQQ → ADD QQQ (owner §9)', () => {
     show(mergeChartSettings(JSON.stringify({})), seen); openIndicators()
     search('QQQ')
     return waitFor(() => {
-      const row = screen.queryAllByRole('option').find((o) => o.dataset.resultKind === 'security')
+      const row = resultRows().find((o) => o.dataset.resultKind === 'security')
       expect(row).toBeTruthy()
       fireEvent.click(row)
       expect(seen.cs, 'the click created nothing').toBeTruthy()
@@ -219,7 +220,7 @@ describe('⭐⭐ SEARCH QQQ → ADD QQQ (owner §9)', () => {
       // DEFINITION and a symbol row's id is a TICKER. Three QQQ series on one
       // chart is legitimate (§32), so the row has to keep offering.
       search('QQQ')
-      const again = screen.queryAllByRole('option').find((o) => o.dataset.resultKind === 'security')
+      const again = resultRows().find((o) => o.dataset.resultKind === 'security')
       expect(again, 'the door did not re-open on a chart that already holds QQQ').toBeTruthy()
       expect(again.textContent, 'the symbol row went inert after one add').not.toMatch(/Active/)
     })

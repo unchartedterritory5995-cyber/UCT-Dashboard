@@ -47,7 +47,7 @@
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
 import { orderCategories } from './technicalCategories'
-import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
 } from './indicatorRegistry'
@@ -274,6 +274,11 @@ function aliasRowId(rowId, settings) {
 // collide with an indicator row id (`ovl:0`, `inst:rsi:1`, `overlay-2`, …).
 const featureRowId = (id) => `feature:${id}`
 
+// A result key as an id fragment. Injective (every non-word character becomes its
+// code point), so two keys can never share an id — `technical:macd` and a ticker
+// `TECHNICAL_MACD` stay apart.
+const resultIdSafe = (key) => String(key).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)
+
 export default function ChartSettingsIndicators({
   rows,
   settings,
@@ -329,6 +334,8 @@ export default function ChartSettingsIndicators({
   // the inspector offers only instance-level actions, exactly as before.
   definitionDoors = null,
 }) {
+  // ⭐ The prefix for each catalogue result's state id (`aria-describedby`).
+  const resultIdBase = useId()
   // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
   // AND the server-provided admin role. A member flipping localStorage from
   // DevTools still sees exactly the old "+ New Formula".
@@ -3096,13 +3103,24 @@ export default function ChartSettingsIndicators({
     // click is not offered.
     const refused = row.capability === CAPABILITY.UNSUPPORTED
     const canAdd = !on && !refused
+    const canAct = canAdd || (isFeature && on)
     const isEcon = row.kind === 'economic'
+    // The state word ("Active" / "Unavailable") sits beside the add control, not
+    // inside the title button, so the button names it by reference.
+    const stateId = (refused || on) ? `${resultIdBase}-state-${resultIdSafe(row.key || row.id)}` : undefined
     return (
+      /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS TITLE LINE IS. This `<li>` was a
+         `role="option"` with `tabIndex={0}` — and an ACTIVE row carries "Add
+         another", a user formula carries Modify / Edit formula / Custom copy, so
+         axe measured a focusable control nested inside an interactive one
+         (`nested-interactive`, on `movingAverage` — the one row on the chart).
+         An option cannot hold buttons, so the list is a plain list now: the
+         keyboard door is the real `<button>` around the title line below, and
+         its click BUBBLES to this `onClick` — one writer, so pointer and
+         keyboard add exactly the same way. The secondary buttons are siblings
+         of that button, never inside it. */
       <li
         key={row.key || row.id}
-        role="option"
-        aria-selected={on}
-        aria-disabled={refused ? 'true' : undefined}
         data-def-id={row.id}
         /* ⭐ THE ANCHOR'S ADDRESS, and it is `row.key` rather than `row.id` because
            a ticker and a definition can collide on `id` while `key` is what React
@@ -3115,12 +3133,8 @@ export default function ChartSettingsIndicators({
            be. `title` on the row rather than on the name, so the whole row is the
            hover target for it. */
         title={row.description || undefined}
-        tabIndex={0}
         className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
-        onClick={() => { if (canAdd || (isFeature && on)) addRow(row) }}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && (canAdd || (isFeature && on))) { e.preventDefault(); addRow(row) }
-        }}
+        onClick={() => { if (canAct) addRow(row) }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
             COLOUR: the LEFT column's micro-rail says *this is the plotted line you
@@ -3138,7 +3152,18 @@ export default function ChartSettingsIndicators({
             On one line the name, chip and metadata split ~330px three ways and every
             name truncated to a word. Economic only — every other kind keeps its line. */}
         <span className={`${styles.resMain} ${isEcon ? styles.resMainStacked : ''}`}>
-          <span className={styles.resTitleRow}>
+          {/* ⭐ THE ROW'S KEYBOARD DOOR — see the note on the `<li>`. No handler of
+              its own: Enter and Space click a native button, and that click
+              bubbles to the row. `aria-disabled`, not `disabled`, so a row that
+              is already on stays reachable and still says so. */}
+          <button
+            type="button"
+            className={`${styles.resTitleRow} ${styles.resPrimary}`}
+            data-result-primary="true"
+            aria-disabled={canAct ? undefined : 'true'}
+            aria-describedby={stateId}
+            title={row.description || undefined}
+          >
             <span className={styles.resName}>{row.name}</span>
             {/* ⭐ `chip` names a breadth row's POPULATION (UCT · US · NASDAQ · NYSE) so four
                 identically named metrics are told apart; every other kind keeps `shortName`. */}
@@ -3167,7 +3192,7 @@ export default function ChartSettingsIndicators({
             {row.tier && row.tier !== 'free' && !row.userDefined && (
               <span className={styles.resTier}>{row.tier}</span>
             )}
-          </span>
+          </button>
           {/* ⭐ PHASE 4 — the DEFINITION's own doors on the member's saved indicator:
               the same calls as the legend menu and the inspector. Buttons stop the
               click from also adding the row. */}
@@ -3242,10 +3267,10 @@ export default function ChartSettingsIndicators({
             — exactly as the library's "+ Add another" does. `volumeProfile` is
             carved out and has nothing to instantiate, so it gets the word alone. */}
         {refused ? (
-          <span className={styles.resActive}><span className={styles.resActiveTag}>Unavailable</span></span>
+          <span className={styles.resActive}><span className={styles.resActiveTag} id={stateId}>Unavailable</span></span>
         ) : on ? (
           <span className={styles.resActive}>
-            <span className={styles.resActiveTag}>Active</span>
+            <span className={styles.resActiveTag} id={stateId}>Active</span>
             {!row.carvedOut && !row.singleton && (
               <button
                 type="button"
@@ -3526,7 +3551,7 @@ export default function ChartSettingsIndicators({
                 `Popular` and `Formulas` resolve to a single group whose name is
                 the tab's own word; printing it again is furniture. */}
             {groups.length > 1 && <div className={styles.insSectionLabel}>{c}</div>}
-            <ul className={styles.resList} role="listbox" aria-label={c}>
+            <ul className={styles.resList} aria-label={c}>
               {tabResults.filter((r) => r.category === c).map(renderResult)}
             </ul>
           </section>

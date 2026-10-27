@@ -55,6 +55,7 @@ import { parseFormula } from './engine/ast/parse'
 import { buildDefinition } from './builder/BuilderSheet'
 import { evaluateFormula } from './builder/FormulaField'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { resultRows } from './__tests__/resultRows'
 
 const base = () => mergeChartSettings(null)
 
@@ -66,7 +67,7 @@ const open = (registry = engineRegistry) => {
 /** The row for one definition id, found the way a member finds it — by browsing
  *  the rendered list — rather than by a class name. */
 const rowFor = (defId) =>
-  screen.getAllByRole('option').find((li) => li.dataset.defId === defId)
+  resultRows().find((li) => li.dataset.defId === defId)
 
 /** The badge element on a row, or `null`. Located by the DATA CONTRACT
  *  (`data-repaint`) rather than by text, so a case can assert the ABSENCE of a
@@ -175,7 +176,7 @@ describe('🔴 the library row badges the LINTER\'S measurement, per plot', () =
     // ⛔ THE VOCABULARY IS IMPORTED, NEVER RETYPED, so a fourth mode cannot slip
     // past this by being spelled differently from the literal a test remembered.
     expect(REPAINT_MODES).toContain(CLEAN)
-    for (const row of screen.getAllByRole('option')) {
+    for (const row of resultRows()) {
       expect(within(row).queryByText(new RegExp(CLEAN, 'i')),
         'a row prints the clean badge — sixteen of seventeen definitions are ' +
         'hand-written computes the linter may not read, and painting them green ' +

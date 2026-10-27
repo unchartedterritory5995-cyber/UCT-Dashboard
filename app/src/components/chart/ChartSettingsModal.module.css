@@ -3048,7 +3048,22 @@
 }
 .resRow + .resRow { border-top: 1px solid var(--menu-divider, #202022); }
 .resRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.04)); }
-.resRow:focus-visible { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+/* ⚠️ THE ROW IS NOT FOCUSABLE ANY MORE — its title line is a real button (see
+   `renderResult`), so the ring is drawn round the ROW while that button has
+   keyboard focus, exactly where it used to be. */
+.resRow:has(.resPrimary:focus-visible) { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+/* The title-line button, reset to the span it replaced. */
+.resPrimary {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+.resPrimary:focus-visible { outline: none; }
 .resRowOn { cursor: default; }
 .resRowOn:hover { background: transparent; }
 /* ⚰️ IT WAS A COLUMN — a title row stacked over a description. The description

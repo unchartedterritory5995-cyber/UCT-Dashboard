@@ -8,6 +8,7 @@ import { mergeChartSettings, instanceTombstone } from './chartDefaults'
 import { getDefinition, listDefinitions } from './engine/nativeRegistry'
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { resultRows, getResultRow, resultIsOn } from './__tests__/resultRows'
 
 // ─── THE INDICATORS TAB, END TO END ─────────────────────────────────────────
 //
@@ -99,9 +100,9 @@ const search = (text) => {
 /** One catalogue result row, by its long name.
  *  ⚠️ SCOPED TO THE ADD SURFACE. The structure column stays on screen while a
  *  member searches — that is the whole point of a right-side Add — and ITS rows
- *  are `option`s too, so an unscoped `getByRole('option')` matches an indicator
+ *  are listed too, so an unscoped row lookup would match an indicator
  *  the chart already has and the case silently asserts against the wrong list. */
-const result = (re) => within(screen.getByTestId('add-surface')).getByRole('option', { name: re })
+const result = (re) => getResultRow(re, screen.getByTestId('add-surface'))
 
 const WITH_INSTANCE = {
   indicators: { vwap: { enabled: true, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 } },
@@ -238,7 +239,7 @@ describe('ChartSettingsModal — the ACTIVE list is what the chart draws', () =>
     // moved is one click, not the guarantee — so the sweep takes that click. A
     // definition that falls out of the catalogue still fails here by name.
     fireEvent.click(screen.getByRole('tab', { name: 'Technical' }))
-    const options = screen.getAllByRole('option').map((o) => o.getAttribute('data-def-id'))
+    const options = resultRows().map((o) => o.getAttribute('data-def-id'))
     for (const def of listDefinitions()) {
       // ⛔⛔ EXCEPT THE WRITTEN EXCLUSIONS, SUBTRACTED HERE AS A CLAIM.
       // `discoveryCatalog.LIBRARY_HIDDEN_IDS` names the definitions that are
@@ -410,7 +411,7 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     // so browse never shows two rows reading "Moving Average" (owner §34). A NAME
     // lookup is a moving subject anyway, which is the lesson the library suite
     // already wrote down. The subject of this case is the LEGACY row, by id.
-    const row = screen.getAllByRole('option').find((o) => o.dataset.defId === 'ma')
+    const row = resultRows().find((o) => o.dataset.defId === 'ma')
     expect(row, 'the legacy moving-average catalogue row is gone').toBeTruthy()
     expect(within(row).getByText(/Restore EMA 9/), 'the revive row does not name what it restores').toBeTruthy()
     // ⚰️ IT USED TO READ "Active" WITH A `＋ Add another` BESIDE IT, and the only
@@ -539,8 +540,8 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
       'the list showed an indicator over a chart with no line').not.toMatch(/VWAP/)
     // …and the catalogue agrees: the row is offerable, not ticked.
     search('vwap')
-    expect(result(/Session VWAP/).getAttribute('aria-selected'),
-      'the catalogue ticked a row over a chart with no line').toBe('false')
+    expect(resultIsOn(result(/Session VWAP/)),
+      'the catalogue ticked a row over a chart with no line').toBe(false)
   })
 })
 
@@ -552,7 +553,7 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     // `matches()` is IMPORTED from `IndicatorLibraryDialog`, so an abbreviation a
     // member knows an indicator by finds it here exactly as it does there. A
     // failure here means a SECOND search implementation has appeared.
-    expect(screen.getAllByRole('option').map(o => o.getAttribute('data-def-id')))
+    expect(resultRows().map(o => o.getAttribute('data-def-id')))
       .toContain('atr')
   })
 
@@ -564,7 +565,7 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     openIndicators()
     search('vwap')
     const row = result(/Session VWAP/)
-    expect(row.getAttribute('aria-selected')).toBe('true')
+    expect(resultIsOn(row)).toBe(true)
     expect(within(row).getByText('Active')).toBeTruthy()
     fireEvent.click(within(row).getByRole('button', { name: /Add another Session VWAP/ }))
     const next = lastCall(onChange)

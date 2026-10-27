@@ -40,6 +40,7 @@ import {
   POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf, glyphFamilyOf, GLYPH_FAMILIES, LIBRARY_TABS,
 } from './discoveryCatalog'
 import { INDICES_PRESET } from './symbolSearchModel'
+import { resultRows, getResultRow } from './__tests__/resultRows'
 
 // ⚠️ THE BREADTH REGISTRY IS A NETWORK FACT, so the family oracle is stubbed —
 // otherwise `symbolFamily` answers `'unknown'` and the Inspector's KIND line is
@@ -1624,7 +1625,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     fireEvent.click(tabNamed('Fundamentals'))
     const row = [...document.body.querySelectorAll('[data-testid="add-surface"] [class*="resName"]')]
       .find((e) => e.textContent.trim() === 'Net Margin')
-    fireEvent.click(row.closest('[tabindex]'))
+    fireEvent.click(row.closest('li'))
     const insts = (seen.cs?.indicatorInstances || []).filter((i) => i && !i.deleted && i.defId === 'dataSeries')
     const made = insts.find((i) => i.inputs?.source === 'fund:net_margin')
     expect(made, 'the click did not create a fund: dataSeries').toBeTruthy()
@@ -1760,7 +1761,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
       { target: { value: 'QQQ' } })
 
     const hit = await waitFor(() => {
-      const r = within(screen.getByTestId('add-surface')).queryAllByRole('option')
+      const r = resultRows(screen.getByTestId('add-surface'))
         .find((o) => o.dataset.resultKind === 'security')
       expect(r, 'the ticker never arrived as a result').toBeTruthy()
       return r
@@ -1784,7 +1785,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'QQQ' } })
     const hit = await waitFor(() => {
-      const r = within(screen.getByTestId('add-surface')).queryAllByRole('option')
+      const r = resultRows(screen.getByTestId('add-surface'))
         .find((o) => o.dataset.resultKind === 'security')
       expect(r).toBeTruthy()
       return r
@@ -1807,8 +1808,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     show(base()); openTab(); openAdd()
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'Relative Strength' } })
-    fireEvent.click(within(screen.getByTestId('add-surface'))
-      .getByRole('option', { name: /Relative Strength Index/ }))
+    fireEvent.click(getResultRow(/Relative Strength Index/, screen.getByTestId('add-surface')))
 
     expect(document.body.querySelector('[data-testid="add-surface"]')).toBeFalsy()
     expect(inspectorName()).toMatch(/Relative Strength Index/)
@@ -1844,7 +1844,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     // ⛔ ONE LINE, NOT A RESERVED BLOCK. It must not pretend to know how many
     // tickers are coming — reserving a twenty-row group's height for results that
     // may never arrive was measured and rejected.
-    expect(within(pending).queryAllByRole('option'), 'the notice reserved result rows').toHaveLength(0)
+    expect(resultRows(pending), 'the notice reserved result rows').toHaveLength(0)
     void resolve
   })
 
@@ -1861,7 +1861,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
       { target: { value: 'QQQ' } })
 
     return waitFor(() => {
-      expect(within(screen.getByTestId('add-surface')).queryAllByRole('option')
+      expect(resultRows(screen.getByTestId('add-surface'))
         .some((o) => o.dataset.resultKind === 'security'), 'the symbols never arrived').toBe(true)
       expect(screen.queryByTestId('symbols-pending'),
         'the loading notice outlived the group it stood in for').toBeNull()
@@ -1885,7 +1885,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'Relative Strength' } })
 
-    const rows = within(screen.getByTestId('add-surface')).getAllByRole('option')
+    const rows = resultRows(screen.getByTestId('add-surface'))
     expect(rows.length).toBeGreaterThan(0)
     for (const r of rows) {
       expect(r.getAttribute('data-result-key'), `a result row has no anchor: ${r.textContent}`).toBeTruthy()
