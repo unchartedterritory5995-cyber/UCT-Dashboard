@@ -218,6 +218,13 @@ def test_the_body_reader_and_the_reducer_import_in_either_order_in_a_fresh_inter
 # the raw request body (`read_capped_body`, `request.stream()`, `request.body()`) and decodes it. Each must decode
 # through the one body decode (`widget_request_body.loads_plain_body`, or the wave 11 `read_json_object`) and none may
 # call `json.loads` itself. Then every plain reader is DRIVEN with a body too deep to parse.
+#
+# Known readers OUTSIDE this derivation (part S review m-2), recorded rather than railed:
+#   * `notebook_inbound_email.receive_email` reads the body in `_read_capped` and decodes it in the handler with
+#     `json.loads` (a split reader the function-level rule cannot see). Its traffic is HMAC-signed by the worker, so no
+#     member can send it a body, deep or not.
+#   * `journal_two` `_parse_property_filter_param` / `_parse_property_sort_param` decode a GET QUERY value, not a body:
+#     the request line's own limit (h11, 16 KB) bounds its depth, and they predate wave 11.
 
 import ast  # noqa: E402
 import asyncio  # noqa: E402

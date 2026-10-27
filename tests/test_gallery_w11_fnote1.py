@@ -1240,6 +1240,88 @@ def test_W11_R62_one_mb_of_a_one_site_link_list_reduces_in_under_half_a_second(d
     assert len(out["content"][0]["content"]) == len(nodes)               # every lesson and comma travels
 
 
+# ── W11-R66: the cap only ever drops, it never splices ──────────────────────────────────────────────────────────
+
+_LEARN = "https://learn.example.org/"
+#: The padding the judge never looks at: a zero-width space, a Braille blank, a currency symbol.
+_PADS = {"zwsp": chr(0x200B), "braille blank": chr(0x2800), "dollar": "$"}
+
+
+def _visible(body) -> str:
+    out = []
+
+    def w(n):
+        if isinstance(n, dict):
+            if n.get("type") == "text":
+                out.append(n.get("text", ""))
+            for v in n.get("content", []) or []:
+                w(v)
+    w(body)
+    return gallery._without_ignorables("".join(out))
+
+
+def _splice_body(pad: str) -> dict:
+    """The part S review's I-1 (a): an over-cap part between two halves of an address, all to one host."""
+    return _para_of([_lk("broker", _LEARN + "a"), _lk(pad * 2100, _LEARN + "b"), _lk(".com", _LEARN + "c")])
+
+
+def _window_body(pad: str, lead: str = "") -> dict:
+    """The review's I-1 (b): 60 lessons, then an address held apart by 1,500 characters the judge ignores."""
+    nodes = [{"type": "text", "text": "intro "}]
+    if lead:
+        nodes.append(_lk(lead, _LEARN + "lead"))
+    nodes += [x for i in range(60) for x in (_lk(f"Lesson {i}: reading the tape", f"{_LEARN}{i}"),
+                                             {"type": "text", "text": ", "})]
+    nodes += [_lk("broker", _LEARN + "a"), _lk(pad * 1500, _LEARN + "b"), _lk(".com", _LEARN + "c")]
+    return _para_of(nodes)
+
+
+def _publish_outline(db, outline) -> dict:
+    s = style(db, AUTHOR, outline=outline)
+    out = gallery.publish_style(AUTHOR, s["id"], title="T", description="", category="journal",
+                               trading_style=None, conn=db)
+    raw = db.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?", (out["id"],)).fetchone()[0]
+    return json.loads(raw)["outlineBodyJson"]
+
+
+@pytest.mark.parametrize("pad", [*_PADS, "spaces"])
+@pytest.mark.parametrize("shape", ["splice", "window"])
+def test_W11_R66_an_address_held_apart_by_padding_never_travels(db, shape, pad):
+    """`spaces` is padding the FORM keeps (as one space), so only the over-cap rule catches it: dropping the 2,100
+    spaces on their own would splice "broker" and ".com" together. It is a splice case only (in the window shape
+    the spaces travel between the halves, which is no address)."""
+    if pad == "spaces" and shape == "window":
+        pytest.skip("spaces travel between the halves: not an address")
+    body = (_splice_body if shape == "splice" else _window_body)(" " if pad == "spaces" else _PADS[pad])
+    for where, out in (("_shared_outline", gallery._shared_outline(body, AUTHOR)),
+                       ("publish_style", _publish_outline(db, body))):
+        text = _visible(out)
+        assert "broker" not in text and ".com" not in text, (shape, pad, where, text[-80:])
+
+
+@pytest.mark.parametrize("pad", list(_PADS))
+def test_W11_R66_no_lead_offset_lets_the_padded_address_cross_a_window(pad):
+    """Every lead length from 1,024 to 2,047 characters (a full window step) before the lessons: the padded address
+    goes on every one."""
+    leaks = []
+    for n in range(1024, 2048):
+        lead = ("ab " * 700)[:n]
+        if "broker" in _visible(gallery._without_links(_window_body(_PADS[pad], lead))):
+            leaks.append(n)
+    assert not leaks, (pad, leaks[:10], len(leaks))
+
+
+def test_W11_R66_CONTROL_the_same_lessons_without_the_address_travel(db):
+    """The rails above drop for the address, not for the length: the same body without it, and the 120-lesson list,
+    travel whole."""
+    body = _window_body(chr(0x200B))
+    body["content"][0]["content"] = body["content"][0]["content"][:-3]
+    text = _visible(gallery._shared_outline(body, AUTHOR))
+    assert all(f"Lesson {i}: reading the tape" in text for i in range(60))
+    text = _visible(gallery._shared_outline(_para_of(_comma_list(120)), AUTHOR))
+    assert all(f"Lesson {i}: reading the tape" in text for i in range(120))
+
+
 def _address_form_slow(text: str) -> str:
     """`_address_form` before W11-R62's ASCII fast path (the per-character category rule), kept as the oracle."""
     import unicodedata
@@ -1257,6 +1339,24 @@ def test_W11_R62_the_ascii_fast_path_is_the_category_rule_exactly():
     for _ in range(20_000):
         s = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 24)))
         assert gallery._address_form(s) == _address_form_slow(s), ascii(s)
+
+
+
+def test_W11_R66_the_ascii_skeleton_fast_path_is_the_regex_rule_exactly():
+    """W11-R66's ASCII fast path in `_skeleton` (both skeletons are `[a-z0-9]` for casefolded ASCII) against the
+    regex rule it replaces, kept here as the oracle."""
+    import random
+    import unicodedata
+
+    def slow(text, latin):
+        t = unicodedata.normalize("NFKC", text).casefold()
+        return re.sub(r"[^a-z0-9]+" if latin else r"[\W_]+", "", t)
+    rng = random.Random(66)
+    alphabet = [chr(c) for c in range(128)] + [chr(0xE9), chr(0x3002), chr(0x2160), chr(0xFF21)]
+    for _ in range(20_000):
+        t = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 24)))
+        for latin in (True, False):
+            assert gallery._skeleton(t, latin=latin) == slow(t, latin), (ascii(t), latin)
 
 
 # ── W11-R57 / W11-R63: tags travel only inside the three RGI subdivision flags ───────────────────────────────────────────────
