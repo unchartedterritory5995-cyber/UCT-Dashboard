@@ -1225,15 +1225,18 @@ def test_W11_R62_CONTROL_the_small_pieces_are_harmless_alone():
 
 def test_W11_R62_one_mb_of_a_one_site_link_list_reduces_in_under_half_a_second(db):
     """1 MB of one stretch to one site (about 1,000 links of about 1,000 characters each): the window pass and the
-    per-part judgement together stay under half a second, and every link travels."""
+    per-part judgement together stay under half a second, and every link travels. Best of three runs, so a loaded
+    box (the suite under xdist) does not read as a slow check; a quadratic pass takes many seconds on every run."""
     words = ("reading the tape well " * 50)[:990]
     nodes = [x for i in range(1_000) for x in (_lk(f"Lesson {i:05d}: " + words, f"https://learn.tapereading.org/{i}"),
                                               {"type": "text", "text": ", "})]
     assert sum(len(n["text"]) for n in nodes) >= 1_000_000
-    t0 = time.perf_counter()
-    out = gallery._shared_outline(_para_of(nodes), AUTHOR)
-    took = time.perf_counter() - t0
-    assert took < 0.5, took
+    took = []
+    for _ in range(3):
+        t0 = time.perf_counter()
+        out = gallery._shared_outline(_para_of(nodes), AUTHOR)
+        took.append(time.perf_counter() - t0)
+    assert min(took) < 0.5, took
     assert len(out["content"][0]["content"]) == len(nodes)               # every lesson and comma travels
 
 
