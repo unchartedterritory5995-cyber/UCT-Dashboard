@@ -8,6 +8,9 @@
 // The eager journalBlocks.js keeps its own copy of the family test (one regex, railed against this one and against
 // the server's journal_styles.SLOT_ID_RE by templateSlots.test.js), so nothing eager imports this file.
 
+import { blockLabel } from './journalBlocks'
+import { PLACEHOLDER_LINE_RE } from '../components/notebook/styles/outlineText'
+
 /** Twin of `journal_styles.SLOT_ID_RE` (railed by templateSlots.test.js against the server's source text). */
 export const SLOT_ID_RE = /^(built|routine|tracker)_[a-z0-9]{1,2}$/
 
@@ -115,6 +118,38 @@ export function slotNamesOf(source) {
     for (const b of src.blocks) {
       if (b && typeof b === 'object' && slotFamily(b.block)) keep(b.block, b.displayName)
     }
+  }
+  return out
+}
+
+/**
+ * R3/R4 (11.20 rehearsal): an outline (a TipTap doc) as a member reads it. Each paragraph that is exactly one
+ * `{{block:<id>}}` placeholder becomes one italic line naming the block, so no placeholder token ever reaches the
+ * page: a slot through `slotLabel` (its settings from `blocks`, its name from `names`), any other block through
+ * `blockLabel`. Every other node is untouched. Total: anything that is not a doc comes back as given.
+ */
+export function outlineWithBlockNames(doc, blocks = [], names = {}) {
+  if (!doc || typeof doc !== 'object') return doc
+  const byId = new Map((Array.isArray(blocks) ? blocks : [])
+    .filter((b) => b && typeof b === 'object' && typeof b.block === 'string').map((b) => [b.block, b]))
+  const nameOf = (id) => (slotFamily(id) ? slotLabel(byId.get(id) || { block: id }, names) : blockLabel(id))
+  const walk = (n) => {
+    if (!n || typeof n !== 'object' || !Array.isArray(n.content)) return n
+    if (n.type === 'paragraph' && n.content.every((c) => c?.type === 'text')) {
+      const m = PLACEHOLDER_LINE_RE.exec(n.content.map((c) => c.text || '').join('').trim())
+      if (m) return { type: 'paragraph', content: [{ type: 'text', text: nameOf(m[1]), marks: [{ type: 'italic' }] }] }
+    }
+    return { ...n, content: n.content.map(walk) }
+  }
+  return walk(doc)
+}
+
+/** The names a `preview-mine` answer gives its slots: each card's title and each tool's name, keyed by block id. */
+export function previewSlotNames(answer) {
+  const out = {}
+  for (const x of [...(Array.isArray(answer?.cards) ? answer.cards : []), ...(Array.isArray(answer?.tools) ? answer.tools : [])]) {
+    const name = typeof x?.title === 'string' && x.title.trim() ? x.title : x?.name
+    if (typeof x?.slot === 'string' && typeof name === 'string' && name.trim()) out[x.slot] = name.trim()
   }
   return out
 }

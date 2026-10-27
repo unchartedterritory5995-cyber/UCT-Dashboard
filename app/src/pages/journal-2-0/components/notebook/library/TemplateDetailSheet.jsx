@@ -24,6 +24,7 @@ import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import { doorLostSentence } from '../../../lib/notebookWidgetsFlags'
 import lazyChunk from '../../../lib/lazyChunk'
 import { DocBody } from '../TemplatePreview'
+import { outlineWithBlockNames, previewSlotNames } from '../../../lib/templateSlots'
 import { PreviewCard, PreviewTool } from './PreviewParts'
 import styles from './library.module.css'
 
@@ -64,7 +65,7 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
     setOutline({ status: 'loading', body: null })
     setData(null)
     getGalleryTemplate(id).then(
-      (t) => { if (alive) setOutline({ status: 'ok', body: t?.bodyJson || null }) },
+      (t) => { if (alive) setOutline({ status: 'ok', body: t?.bodyJson || null, blocks: t?.payload?.blocks }) },
       () => { if (alive) setOutline({ status: 'error', body: null }) },
     )
     previewMine(id).then((out) => { if (alive) setData(out) })
@@ -95,7 +96,7 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
         <section className={styles.section} aria-label="Outline">
           {outline.status === 'loading' && <p className={styles.hint} role="status">{OUTLINE_LOADING}</p>}
           {outline.status === 'error' && <p className={styles.notice} role="alert">{OUTLINE_FAILED}</p>}
-          {outline.status === 'ok' && <DocBody body={outline.body} />}
+          {outline.status === 'ok' && <DocBody body={outlineWithBlockNames(outline.body, outline.blocks, previewSlotNames(answer))} />}
         </section>
         <section className={styles.section} aria-labelledby={`${uid}-data`}>
           <h3 className={styles.subheading} id={`${uid}-data`}>{DATA_HEADING}</h3>

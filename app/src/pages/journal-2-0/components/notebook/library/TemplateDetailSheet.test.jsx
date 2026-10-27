@@ -109,6 +109,34 @@ describe('the template detail', () => {
     expect(document.querySelector('[data-credit]').textContent).toBe(preview.credit)
   })
 
+  it('R3: the REAL official outline names its blocks; no {{block:...}} token ever reaches the DOM', async () => {
+    const libRow = contractBody('template-gallery.library').templates.find((r) => r.title === 'Night-before prep')
+    const detail = contractBody('template-gallery.item.official')
+    const preview = contractBody('template-gallery.preview-mine.questions')
+    // non-vacuity: the real outline carries placeholder lines, a slot among them
+    const raw = JSON.stringify(detail.template.bodyJson)
+    expect(raw).toContain('{{block:prepLevels}}')
+    expect(raw).toContain('{{block:routine_a}}')
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = new URL(String(url), 'http://x')
+      const method = init.method || 'GET'
+      if (u.pathname === `/api/j2/template-gallery/${libRow.id}/preview-mine` && method === 'POST') return json(200, preview)
+      if (u.pathname === `/api/j2/template-gallery/${libRow.id}` && method === 'GET') return json(200, detail)
+      return json(404, {})
+    })
+    render(<TemplateDetailSheet item={libRow} onClose={() => {}} />)
+    const body = await waitFor(() => {
+      const b = document.querySelector('[data-template-preview-body]')
+      expect(b).not.toBeNull()
+      return b
+    })
+    expect(within(body).getByText('Key levels from my plans')).toBeInTheDocument()     // journalBlocks' own name
+    expect(within(body).getByText('Earnings for my names')).toBeInTheDocument()
+    // the routine slot takes the name the server's preview gives it, once that answer lands
+    expect(await within(body).findByText(`Routine: ${preview.tools[0].name}`)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('{{block:')
+  })
+
   it('detail_calls_preview_mine_once_and_labels_sample', async () => {
     await open()
     await waitFor(() => expect(document.querySelectorAll('[data-built-view]').length).toBe(2))

@@ -4,7 +4,9 @@
 // ⛔ The text format is LOSSY for anything richer (lists, marks, links, images, other headings). A caller
 // must ask outlineIsExpressible(doc) before it shows a stored outline as text, and must never save a doc
 // that went through the text box unless the member changed the text.
-const PH = /^\{\{block:[a-zA-Z][a-zA-Z0-9_]{0,40}\}\}$/
+/** A line that is exactly one block placeholder (`{{block:<id>}}`, the server's `journal_styles.PLACEHOLDER_RE`). */
+export const PLACEHOLDER_LINE_RE = /^\{\{block:([a-zA-Z][a-zA-Z0-9_]{0,40})\}\}$/
+const PH = PLACEHOLDER_LINE_RE
 const text = (n) => (n.content || []).filter((c) => c.type === 'text').map((c) => c.text || '').join('')
 
 export function outlineTextToDoc(src) {
