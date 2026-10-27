@@ -1018,3 +1018,36 @@ def test_a_take_that_failed_open_is_never_given_back(app, client, db, monkeypatc
     monkeypatch.setattr(daily_counters, "_connect", real_connect)
     assert calls["n"] >= 1
     assert daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER) == 1
+
+
+def _real_busy_error():
+    """A REAL SQLITE_BUSY: a second connection asks for the write lock another one holds, with no wait."""
+    import sqlite3
+    from api.services import auth_db
+    holder = _hold_write_lock()
+    c = sqlite3.connect(auth_db._DB_PATH, timeout=0, isolation_level=None)
+    try:
+        c.execute("BEGIN IMMEDIATE")
+    except sqlite3.OperationalError as e:
+        return e
+    finally:
+        c.close()
+        holder.rollback()
+        holder.close()
+    raise AssertionError("the lock was granted")
+
+
+@pytest.mark.parametrize("method", ["POST", "DELETE"])
+def test_the_helpful_doors_answer_busy_never_a_500(app, client, db, monkeypatch, method):
+    # Review m-4: POST and DELETE /{id}/helpful (W11-R8's 409 helpful_days lives here) write outside `_w11`.
+    import sqlite3
+    from api.routers import notebook_template_gallery as tgr
+    err = _real_busy_error()
+    assert err.sqlite_errorcode == sqlite3.SQLITE_BUSY                               # non-vacuity: SQLite's own
+    monkeypatch.setattr(gallery, "set_helpful", lambda *a, **k: (_ for _ in ()).throw(err))
+    as_user(app, MEMBER)
+    url = f"{GALLERY}/g1/helpful"
+    resp = client.post(url) if method == "POST" else client.delete(url)
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == {"code": "busy", "message": tgr.DATABASE_BUSY_SENTENCE}
+    assert _no_store(resp)

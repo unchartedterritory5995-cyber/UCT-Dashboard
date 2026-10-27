@@ -623,6 +623,18 @@ def _database_busy(e: BaseException) -> bool:
     return isinstance(e, sqlite3.OperationalError) and isinstance(code, int) and (code & 0xFF) in _BUSY_CODES
 
 
+def _busy_answer(fn) -> Any:
+    """`fn()`, with a database another writer holds past the timeout answered 503 `busy` (the house sentence,
+    no-store) and nothing else changed: for the doors that keep their own refusal shapes outside `_w11` (review
+    m-4: POST and DELETE /{id}/helpful). `_w11` answers busy itself, by the same `_database_busy` test."""
+    try:
+        return fn()
+    except sqlite3.OperationalError as e:
+        if not _database_busy(e):
+            raise
+        raise _err(503, "busy", DATABASE_BUSY_SENTENCE) from None
+
+
 def _w11(fn) -> Any:
     """Run `fn()`; answer every refusal from its CLASS (W9-R14). None is the one 404. 11.20 R1: a database another
     writer holds past the timeout is 503 `busy` with the house sentence (nothing was written: every wave 11 write is
@@ -1083,7 +1095,7 @@ def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dic
     Wave 11 (W11-R8): before the 3rd use day, 409 `{"code": "helpful_days", "message": S_HELPFUL_DAYS}` (`_bad`)."""
     public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
     try:
-        out = gallery.set_helpful(user["id"], gallery_id, True)
+        out = _busy_answer(lambda: gallery.set_helpful(user["id"], gallery_id, True))
     except gallery.GalleryError as e:
         raise _bad(e)
     if out is None:
@@ -1095,7 +1107,7 @@ def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dic
 def unhelpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{helpful: false, count}`. The same 404s and the same budget as marking."""
     public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
-    out = gallery.set_helpful(user["id"], gallery_id, False)
+    out = _busy_answer(lambda: gallery.set_helpful(user["id"], gallery_id, False))
     if out is None:
         raise public.not_found()
     return out
