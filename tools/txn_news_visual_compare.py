@@ -23,7 +23,16 @@ SCENARIOS = {
     "light": "?theme=light",
     "applied-theme": "?theme=dark&apply=midnight-navy",
     "compact": "?theme=dark&density=compact",
+    "light-compact": "?theme=light&density=compact",
+    "light-applied-theme": "?theme=light&apply=midnight-navy",
+    "responsive-300": "?theme=dark&width=300",
+    "responsive-250": "?theme=dark&width=250",
 }
+
+# Interactive captures on the News pane (dark): the SHARED settings panel, the
+# SHARED colour picker it opens, and the alerts popover.
+NEWS = '[data-pane="tradeExchangeNews"]'
+
 
 # The equivalent element in each widget, by CSS-module class fragment.
 PROBES = {
@@ -85,6 +94,27 @@ def main() -> int:
                 page.wait_for_timeout(200)
             results[name] = page.evaluate(JS, [PROBES, PROPS])
             results[name]["_blocked_writes"] = page.evaluate("window.__newsHarnessBlocked || []")
+        page.goto(f"{args.base}/news-compare-harness.html?theme=dark")
+        page.wait_for_selector(f"{NEWS} [data-seq]", timeout=30000)
+        page.click(f'{NEWS} [aria-label="News widget settings"]')
+        page.wait_for_timeout(400)
+        page.screenshot(path=str(out / "settings-panel.png"))
+        page.click('button[title="Tickers"]')
+        page.wait_for_timeout(400)
+        page.screenshot(path=str(out / "color-picker.png"))
+        page.keyboard.press("Escape")
+        page.goto(f"{args.base}/news-compare-harness.html?theme=dark")
+        page.wait_for_selector(f"{NEWS} [data-seq]", timeout=30000)
+        page.click(f'{NEWS} [aria-label="News alerts"]')
+        page.wait_for_timeout(400)
+        page.screenshot(path=str(out / "alerts-popover.png"))
+        page.goto(f"{args.base}/news-compare-harness.html?theme=dark")
+        page.wait_for_selector(f"{NEWS} [data-seq]", timeout=30000)
+        page.hover(f"{NEWS} [data-seq]:nth-child(3)")
+        page.wait_for_timeout(200)
+        results["hover"] = page.evaluate("""() => {
+          const r = document.querySelectorAll('[data-pane="tradeExchangeNews"] [data-seq]')[2]
+          return getComputedStyle(r).backgroundColor }""")
         browser.close()
     (out / "metrics.json").write_text(json.dumps({"results": results, "console_errors": logs[:50]}, indent=2))
     lines = ["# News vs Watchlist vs Theme Tracker — computed styles (dark scenario)", ""]
@@ -102,7 +132,7 @@ def main() -> int:
         lines.append("")
     lines.append(f"Writes refused by the harness: {dark.get('_blocked_writes')}")
     (out / "metrics.md").write_text("\n".join(lines), encoding="utf-8")
-    print(f"wrote {len(SCENARIOS)} screenshots + metrics to {out}")
+    print(f"wrote {len(SCENARIOS) + 3} screenshots + metrics to {out}")
     print(f"console errors: {len(logs)}")
     return 0
 
