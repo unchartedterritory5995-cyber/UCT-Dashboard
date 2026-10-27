@@ -5,9 +5,14 @@ txn_journal.py``) on purpose rather than importing across the service boundary -
 the receiver is its own image and must not depend on ``api``. The handoff test
 writes with the receiver's code and reads with this one, so a drift fails there.
 
-⛔ LEAST PRIVILEGE: web's R2 token for this bucket should be READ-ONLY (list +
-get). Web never writes or deletes journal objects; retention is the bucket's
-lifecycle rule (see the receiver README).
+⛔ WRITE ACCESS, AND WHY (Checkpoint D1 durability audit). The receiver may
+acknowledge a headline that only WEB holds (R2 was failing at that moment). Its
+own background retry lives in memory and dies with a receiver restart, so the
+one durable owner of "the journal still lacks this record" is web's ledger
+(``deliveries.journaled``), and web's repair pass writes the missing object
+itself. So web's R2 token is Object Read & Write on this ONE bucket. It only
+ever PUTs a key the LIST did not show, with the receiver's exact bytes; nothing
+here deletes (retention is the bucket's lifecycle rule).
 """
 from __future__ import annotations
 
@@ -34,6 +39,8 @@ class JournalReader(Protocol):
 
     def get(self, event_id: str) -> Any: ...
 
+    def put(self, event_id: str, body: str) -> None: ...
+
 
 class FileJournalReader:
     kind = "file"
@@ -52,6 +59,16 @@ class FileJournalReader:
     def get(self, event_id: str) -> Any:
         with open(os.path.join(self.dir, f"{event_id}.json"), "rb") as fh:
             return json.loads(fh.read().decode("utf-8"))
+
+    def put(self, event_id: str, body: str) -> None:
+        import tempfile
+        final = os.path.join(self.dir, f"{event_id}.json")
+        fd, tmp = tempfile.mkstemp(dir=self.dir, prefix=".tmp-", suffix=".json")
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(body.encode("utf-8"))
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, final)
 
 
 class S3JournalReader:
@@ -82,6 +99,10 @@ class S3JournalReader:
         body = self.client.get_object(Bucket=self.bucket,
                                       Key=f"{self.prefix}/{event_id}.json")["Body"].read()
         return json.loads(body.decode("utf-8"))
+
+    def put(self, event_id: str, body: str) -> None:
+        self.client.put_object(Bucket=self.bucket, Key=f"{self.prefix}/{event_id}.json",
+                               Body=body.encode("utf-8"), ContentType="application/json")
 
 
 def reader_from_env() -> JournalReader | None:

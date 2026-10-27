@@ -56,7 +56,9 @@ CREATE TABLE IF NOT EXISTS deliveries (
     via             TEXT NOT NULL,          -- 'push' | 'reconcile'
     ingested_at_ms  INTEGER NOT NULL,
     header_names    TEXT NOT NULL DEFAULT '[]',
-    extra_keys      TEXT NOT NULL DEFAULT '[]'
+    extra_keys      TEXT NOT NULL DEFAULT '[]',
+    record_json     TEXT,                   -- the journal record exactly as received
+    journaled       INTEGER NOT NULL DEFAULT 0  -- 1 once the R2 journal is CONFIRMED to hold it
 );
 CREATE INDEX IF NOT EXISTS ix_txn_deliveries_received ON deliveries(received_at_ms);
 CREATE TABLE IF NOT EXISTS state (k TEXT PRIMARY KEY, v TEXT NOT NULL);
@@ -80,6 +82,14 @@ class Store:
         self._local = threading.local()
         with self._conn() as c:
             c.executescript(_SCHEMA)
+            have = {r[1] for r in c.execute("PRAGMA table_info(deliveries)")}
+            # Additive migration for a store created before Checkpoint D1.
+            if "record_json" not in have:
+                c.execute("ALTER TABLE deliveries ADD COLUMN record_json TEXT")
+            if "journaled" not in have:
+                c.execute("ALTER TABLE deliveries ADD COLUMN journaled INTEGER NOT NULL DEFAULT 0")
+            c.execute("CREATE INDEX IF NOT EXISTS ix_txn_deliveries_unjournaled "
+                      "ON deliveries(journaled, received_at_ms)")
         # ⭐ THE EPOCH: a random id minted once per database file. seq is only
         # meaningful within one epoch -- if the file is ever recreated, seq
         # restarts at 1 and a client holding cursor 4,812 must not read "nothing
@@ -107,7 +117,8 @@ class Store:
     # ── the writer side ──────────────────────────────────────────────────────
 
     def ingest(self, rec: dict[str, Any], *, via: str, dedupe_key: str, window_ms: int,
-               tickers: list[str], now_ms: int | None = None) -> dict[str, Any]:
+               tickers: list[str], now_ms: int | None = None,
+               record_json: str | None = None) -> dict[str, Any]:
         """Record one delivery. Returns ``{"kind", "seq", "headline"}``.
 
         ``kind`` is NEW (a headline was created), REPEAT (collapsed onto an
@@ -143,11 +154,15 @@ class Store:
                     (rec["id"], rec["source"], rec["content"], rec["received_at_ms"], dedupe_key,
                      json.dumps(tickers), now, via))
                 seq = cur.lastrowid
+            # A record recovered FROM the journal is in it by definition; a pushed
+            # one is unconfirmed until the repair pass sees it there (reconcile.py).
             c.execute("INSERT INTO deliveries(event_id, headline_seq, received_at_ms, kind, via, "
-                      "ingested_at_ms, header_names, extra_keys) VALUES (?,?,?,?,?,?,?,?)",
+                      "ingested_at_ms, header_names, extra_keys, record_json, journaled) "
+                      "VALUES (?,?,?,?,?,?,?,?,?,?)",
                       (rec["id"], seq, rec["received_at_ms"], "headline" if kind == NEW else "repeat",
                        via, now, json.dumps(rec.get("header_names", [])),
-                       json.dumps(rec.get("extra_keys", []))))
+                       json.dumps(rec.get("extra_keys", [])), record_json,
+                       1 if via == "reconcile" else 0))
             row = c.execute(f"SELECT {','.join(_COLS)} FROM headlines WHERE seq=?", (seq,)).fetchone()
             c.execute("COMMIT")
         except BaseException:
@@ -181,6 +196,36 @@ class Store:
     def set_state(self, k: str, v: str) -> None:
         self._conn().execute("INSERT INTO state(k, v) VALUES (?, ?) "
                              "ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, v))
+
+    # ── journal confirmation (the R2 repair ledger) ──────────────────────────
+
+    def unjournaled(self, limit: int = 500, older_than_ms: int | None = None) -> list[tuple[str, int, str | None]]:
+        """(event_id, received_at_ms, record_json) for deliveries the journal is
+        not yet confirmed to hold, oldest first. Persistent: survives restarts of
+        web AND of the receiver, so no repair work is ever held only in memory."""
+        q = "SELECT event_id, received_at_ms, record_json FROM deliveries WHERE journaled=0"
+        args: tuple = ()
+        if older_than_ms is not None:
+            q += " AND ingested_at_ms <= ?"
+            args = (int(older_than_ms),)
+        q += " ORDER BY received_at_ms, event_id LIMIT ?"
+        return list(self._conn().execute(q, (*args, int(limit))).fetchall())
+
+    def mark_journaled(self, event_ids: list[str]) -> int:
+        if not event_ids:
+            return 0
+        c = self._conn()
+        n = 0
+        for i in range(0, len(event_ids), 500):
+            chunk = event_ids[i:i + 500]
+            n += c.execute(f"UPDATE deliveries SET journaled=1 WHERE journaled=0 AND event_id IN "
+                           f"({','.join('?' * len(chunk))})", chunk).rowcount
+        return n
+
+    def journal_backlog(self) -> dict[str, Any]:
+        r = self._conn().execute(
+            "SELECT COUNT(*), MIN(received_at_ms) FROM deliveries WHERE journaled=0").fetchone()
+        return {"count": r[0], "oldest_ms": r[1]}
 
     # ── the reader side ──────────────────────────────────────────────────────
 

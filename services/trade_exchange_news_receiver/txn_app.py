@@ -159,8 +159,11 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
         web's SQLite (web answers 2xx only after a synchronous=FULL commit). A
         headline reaches a subscriber only through web's commit, so nothing is
         ever visible that is not durable somewhere -- and an R2 failure no longer
-        means "shown but unacknowledged": if web committed, the sender gets its 2xx
-        and the journal copy is retried in the background.
+        means "shown but unacknowledged": if web committed, the sender gets its 2xx.
+        The background retry here is only a FAST PATH: it lives in memory and dies
+        with a restart. The durable owner of "R2 still lacks this record" is web's
+        ledger (``deliveries.journaled`` + reconcile.repair_once), which rewrites
+        the identical object once R2 accepts writes (Checkpoint D1 audit).
         """
         push = forwarder.start(record, on_done=_forward_done)
         put = asyncio.get_running_loop().create_task(_put(record))

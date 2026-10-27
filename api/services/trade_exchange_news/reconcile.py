@@ -29,6 +29,20 @@ journal configured, or a recovery scan that fails, records the window as a gap
 too (``no_journal`` / ``journal_unreachable``) until a later scan covers it.
 Gaps are surfaced in the admin status and to stream clients.
 
+⭐ REPAIR — THE JOURNAL ALWAYS CATCHES UP (Checkpoint D1 durability audit). The
+receiver may acknowledge a headline only WEB holds (R2 was failing). Its own
+retry is in memory and dies with it, so the durable owner of that work is web's
+ledger: every pushed delivery is stored with its exact record and
+``journaled=0`` until a LIST shows the journal holds it. Each cycle,
+``repair_once`` confirms what the LIST shows and PUTs what it does not (after a
+short grace, so it does not race the receiver's own PUT). The backlog survives
+web restarts (it is in SQLite) and receiver restarts (it never lived there), and
+it is reported, never hidden: ``journal_backlog`` in the admin status, and a
+warning every cycle while anything older than REPAIR_WARN_MS is unconfirmed.
+What this guarantees: an acknowledged headline is durable in at least one store
+at all times, and in both once R2 accepts writes again. What it does NOT: a
+headline held only by web is lost if web's volume is lost before R2 recovers.
+
 ⚠️ Cost: one R2 LIST per interval (~86k Class A ops/month at 30 s) plus one GET
 per genuinely missed record.
 """
@@ -49,6 +63,12 @@ logger = logging.getLogger(__name__)
 
 #: Missed records are downloaded this many at a time (order kept by ``map``),
 #: so a long outage's backlog does not recover at one-GET-per-round-trip speed.
+#: Pushed deliveries younger than this are left alone: the receiver's own PUT is
+#: normally in flight and lands within milliseconds.
+REPAIR_GRACE_MS = 15_000
+#: An unconfirmed delivery older than this is logged as a warning every cycle.
+REPAIR_WARN_MS = 120_000
+REPAIR_BATCH = 500
 FETCH_WORKERS = 8
 FETCH_CHUNK = 64
 MAX_GAPS = 50
@@ -63,6 +83,10 @@ class Reconciler:
         self.last_error: str | None = None
         self.last_run_ms: int | None = None
         self.last_ok_ms: int | None = None
+        self._listing: tuple[int, set[str]] | None = None
+        self.repaired = 0
+        self.confirmed = 0
+        self.last_repair_error: str | None = None
         self._pool = ThreadPoolExecutor(max_workers=FETCH_WORKERS, thread_name_prefix="txn-fetch")
 
     # ── coverage ─────────────────────────────────────────────────────────────
@@ -132,8 +156,9 @@ class Reconciler:
 
     def _missing(self, start_ms: int) -> list[str]:
         store = self.pipeline.store
-        return [eid for eid in self.reader.ids_after(cursor_for_ms(start_ms))
-                if not store.known(eid)]
+        listed = list(self.reader.ids_after(cursor_for_ms(start_ms)))
+        self._listing = (start_ms, set(listed))        # reused by repair_once
+        return [eid for eid in listed if not store.known(eid)]
 
     def _fetch_chunk(self, ids: list[str]) -> list[Any]:
         return list(self._pool.map(self.reader.get, ids))   # map keeps the order
@@ -170,6 +195,53 @@ class Reconciler:
         self.last_run_ms = now
         return {"recovered": found}
 
+    # ── repair ───────────────────────────────────────────────────────────────
+
+    def _repair(self, now_ms: int) -> dict[str, Any]:
+        store = self.pipeline.store
+        backlog = store.unjournaled(REPAIR_BATCH, older_than_ms=now_ms - REPAIR_GRACE_MS)
+        if not backlog:
+            return {"confirmed": 0, "repaired": 0}
+        oldest = backlog[0][1]
+        listing = self._listing
+        # An event id encodes its receipt millisecond, so a LIST that started at or
+        # before the oldest unconfirmed receipt has seen every key it could hold.
+        if listing and listing[0] <= oldest:
+            present = listing[1]
+        else:
+            present = set(self.reader.ids_after(cursor_for_ms(oldest - config.reconcile_overlap_ms())))
+        confirmed = [eid for eid, _, _ in backlog if eid in present]
+        repaired = []
+        try:
+            for eid, _, body in backlog:
+                if eid in present or body is None:
+                    continue
+                self.reader.put(eid, body)
+                repaired.append(eid)
+            self.last_repair_error = None
+        finally:
+            store.mark_journaled(confirmed + repaired)
+        return {"confirmed": len(confirmed), "repaired": len(repaired)}
+
+    async def repair_once(self) -> dict[str, Any]:
+        if self.reader is None:
+            return {"skipped": "no_journal"}
+        now = int(time.time() * 1000)
+        try:
+            out = await asyncio.to_thread(self._repair, now)
+        except Exception as e:  # noqa: BLE001 -- the backlog stays; next cycle retries
+            self.last_repair_error = type(e).__name__
+            logger.warning("[txn] journal repair failed: %s", type(e).__name__)
+            out = {"error": type(e).__name__}
+        self.confirmed += out.get("confirmed", 0)
+        self.repaired += out.get("repaired", 0)
+        backlog = await asyncio.to_thread(self.pipeline.store.journal_backlog)
+        if backlog["count"] and backlog["oldest_ms"] and now - backlog["oldest_ms"] > REPAIR_WARN_MS:
+            logger.warning("[txn] %d acknowledged headline(s) are held by web only (oldest %ds); "
+                           "the R2 journal has not confirmed them", backlog["count"],
+                           (now - backlog["oldest_ms"]) // 1000)
+        return {**out, "backlog": backlog}
+
     async def run_forever(self) -> None:
         try:
             await asyncio.to_thread(self.boot_assess)
@@ -180,6 +252,7 @@ class Reconciler:
         while True:
             await asyncio.sleep(config.reconcile_interval_s())
             await self.run_once()
+            await self.repair_once()
             await asyncio.to_thread(self.heartbeat)
             try:
                 await self.pipeline.prune()
@@ -190,7 +263,10 @@ class Reconciler:
         return {"journal": getattr(self.reader, "kind", None), "runs": self.runs,
                 "recovered": self.recovered, "invalid": self.invalid,
                 "last_error": self.last_error, "last_run_ms": self.last_run_ms,
-                "coverage": self.coverage()}
+                "coverage": self.coverage(),
+                "journal_repair": {"confirmed": self.confirmed, "repaired": self.repaired,
+                                   "last_error": self.last_repair_error,
+                                   "backlog": self.pipeline.store.journal_backlog()}}
 
     def close(self) -> None:
         self._pool.shutdown(wait=False)

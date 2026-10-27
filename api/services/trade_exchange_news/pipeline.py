@@ -97,11 +97,11 @@ class Pipeline:
 
     # ── writing ──────────────────────────────────────────────────────────────
 
-    def _apply(self, rec: dict[str, Any], via: str) -> dict[str, Any]:
+    def _apply(self, rec: dict[str, Any], via: str, record_json: str | None = None) -> dict[str, Any]:
         t0 = time.perf_counter()
         out = self.store.ingest(rec, via=via, dedupe_key=records.dedupe_key(rec["source"], rec["content"]),
                                 window_ms=config.dedupe_window_ms(),
-                                tickers=_tickers_for(rec["content"]))
+                                tickers=_tickers_for(rec["content"]), record_json=record_json)
         if out["kind"] == NEW:
             ev = headline_event(out["headline"], self.store.epoch)
             self.loop.call_soon_threadsafe(self.hub.publish, ev)
@@ -132,7 +132,10 @@ class Pipeline:
         except records.RecordError:
             self.counts["invalid"] += 1
             raise
-        return await self.loop.run_in_executor(self._writer, self._apply, rec, via)
+        # The record is kept EXACTLY as received (journal encoding), so the repair
+        # pass can rewrite the identical object if the journal never got it.
+        return await self.loop.run_in_executor(self._writer, self._apply, rec, via,
+                                               records.encode_record(raw))
 
     async def submit_live(self, raw: Any) -> dict[str, Any]:
         if not self.ready.is_set():

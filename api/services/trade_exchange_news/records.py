@@ -8,6 +8,7 @@ cannot drift apart silently.
 """
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from typing import Any
@@ -48,6 +49,12 @@ def validate(obj: Any) -> dict[str, Any]:
             "extra_keys": sorted(k for k in (obj.get("extra") or {}) if isinstance(k, str))
             if isinstance(obj.get("extra"), dict) else [],
             "header_names": [h for h in delivery.get("header_names", []) if isinstance(h, str)][:64]}
+
+
+def encode_record(obj: dict[str, Any]) -> str:
+    """The journal's byte encoding (the receiver's ``txn_journal.encode``): a
+    record re-written by web's repair pass is byte-identical to the receiver's."""
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
 def normalize(content: str) -> str:

@@ -36,7 +36,7 @@ web: reconciler ── LIST/GET R2 journal after its cursor ─▶ same single w
 | receiver | optional `TXN_SENTRY_DSN`, `TXN_RATE_BURST` (60), `TXN_RATE_PER_SEC` (2), `TXN_MAX_BODY_BYTES` (16384), `TXN_MAX_CONTENT_CHARS` (8000), `TXN_JOURNAL_TIMEOUT_S` (4) | |
 | web | `TXN_ENABLED=1` | arms the ingest route + pipeline (dark otherwise) |
 | web | `TXN_INGEST_TOKEN_SHA256` | digest(s) of the receiver bearer |
-| web | `TXN_JOURNAL=s3` + same `TXN_JOURNAL_*` | **read-only (list+get) token** for recovery |
+| web | `TXN_JOURNAL=s3` + same `TXN_JOURNAL_*` | **Object Read & Write token on this bucket only**: recovery (list+get) AND the journal repair pass (put of a record R2 never got; see reconcile.py) |
 | web | optional `TXN_DEDUPE_WINDOW_S` (60, 0 = off), `TXN_HISTORY_MAX_AGE_HOURS` (168), `TXN_HISTORY_MAX_ITEMS` (5000), `TXN_RECONCILE_INTERVAL_S` (30), `TXN_RECONCILE_OVERLAP_S` (600), `TXN_BOOT_READY_WAIT_S` (5) | |
 
 Secrets: `python tools/txn_mint_secrets.py --out <file outside the repo>` writes both
@@ -46,7 +46,7 @@ chat, committed, or logged.
 ## Provisioning (needs owner approval — not done)
 1. R2 bucket `uct-trade-exchange-news` (or a prefix in an existing bucket), lifecycle
    rule: expire `trade-exchange-news/v1/events/` objects after 8 days (≥ web's 7-day history).
-2. Two R2 API tokens: receiver = Object Read & Write on that bucket; web = Object Read only.
+2. Two R2 API tokens, both Object Read & Write scoped to that ONE bucket (web needs write for the D1 repair pass). Separate tokens so either can be rotated or revoked alone.
 3. Railway service `trade-exchange-news-receiver`: root `services/trade_exchange_news_receiver`,
    Dockerfile builder (this `railway.json`), **no volume**, healthcheck `/health`,
    public Railway domain (`*.up.railway.app`) — ⚠️ do NOT put it behind Cloudflare's
