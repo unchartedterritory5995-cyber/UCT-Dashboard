@@ -355,6 +355,12 @@ def seed_member(svc: Services, p: dict, idx: int, seed: int, defaults: dict, cor
         body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": pub["text"]}]}]}
         nid = _id(svc.notes.create_note(uid, {"title": pub["title"], "bodyJson": body, "tags": []}))
         rec["public"] = {"note": nid, "title": pub["title"], "text": pub["text"]}
+        if pub.get("private"):
+            # W11-R83 I-4: a PRIVATE sibling (never shared): its title, body and tag must never reach a stranger
+            pv = pub["private"]
+            pbody = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": pv["text"]}]}]}
+            pid_ = _id(svc.notes.create_note(uid, {"title": pv["title"], "bodyJson": pbody, "tags": [pv["tag"]]}))
+            rec["public"]["private"] = {"note": pid_, "title": pv["title"], "text": pv["text"], "tag": pv["tag"]}
         if pub.get("share"):
             share = svc.shares.create_share(uid, nid)
             rec["public"]["share_path"] = f"{SHARED_NOTE_PATH}/{share['token']}" if share else None

@@ -174,19 +174,19 @@
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4314"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4318"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4313"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4317"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3269"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3273"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5216"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5220"
   },
   "title_too_long": {
    "text": "title too long",
@@ -772,7 +772,9 @@
          "path": "api/services/journal_two/widget_engine/plan.py",
          "fragment": "text += f\" {count:,} {u}.\""
         }
-       ]
+       ],
+       "zero_ok": true,
+       "zero_ok_why": "12 trades, none in the widget's range: the spec'd 'Not enough trades yet (0)' (builtModel.js) is correct here"
       },
       {
        "do": "close_dialog"
@@ -787,7 +789,9 @@
      "PASS": 2
     },
     "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
-    "changed_since": []
+    "changed_since": [
+     "P03.b.04 W11-R83 I-1 zero_ok (declared)"
+    ]
    }
   },
   {
@@ -1521,7 +1525,9 @@
        "forbid": [
         "zeros",
         "raw"
-       ]
+       ],
+       "zero_ok": true,
+       "zero_ok_why": "the example's last-30-days range holds none of P12's trades: the summary's '0 trades.' is correct here"
       },
       {
        "do": "close_dialog"
@@ -1574,7 +1580,9 @@
      "FAIL": 6
     },
     "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
-    "changed_since": []
+    "changed_since": [
+     "P12.a.04 W11-R83 I-1 zero_ok (declared)"
+    ]
    }
   },
   {
@@ -4925,7 +4933,12 @@
      "title": "Campaign P48 public note",
      "text": "A note a stranger can read.",
      "share": true,
-     "publish": true
+     "publish": true,
+     "private": {
+      "title": "Campaign P48 private plan zq7",
+      "text": "Private body zq7 never shared.",
+      "tag": "zq7-private"
+     }
     }
    },
    "scripts": [
@@ -4987,7 +5000,8 @@
     },
     "triage": "campaign-run/triage.md (every FAIL and INCONCLUSIVE step classified)",
     "changed_since": [
-     "T-18 shared, published, gallery library as a stranger"
+     "T-18 shared, published, gallery library as a stranger",
+     "data W11-R83 I-4 private sibling note forbidden on stranger pages"
     ]
    }
   },

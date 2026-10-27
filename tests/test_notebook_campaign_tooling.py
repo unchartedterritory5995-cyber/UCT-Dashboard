@@ -1986,9 +1986,10 @@ def test_g4_every_sentence_source_ref_is_the_campaign_ref_and_resolves():
 
 
 def test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line():
-    """At FRONTEND_REF (what the PR branch serves), whether the source names the ref or is read from the app root at
-    run time: the fragment is in the file and on the line the persona file cites."""
-    read = frontend_read()
+    """In the tree being SERVED (W11-R83 I-3: this checkout, merged with the wave branch before every campaign run, is
+    the code the server runs; a fixed ref goes stale under it): the fragment is in the file and on the cited line,
+    whether the source names a ref or not."""
+    read = rc.tree_reader(REPO)
     bad = {}
     for k, s in SPEC["sentences"].items():
         m = rc._SOURCE_RE.match(s["source"])
@@ -2401,11 +2402,18 @@ def test_t3_a_measure_target_finds_the_toggle_under_both_real_names():
         assert t["name"] == ["Add details", "Details"], sid
 
 
-def test_t4_the_specd_count_sentences_are_not_zeros_but_other_zeros_still_are():
-    assert rc.zeros_in("Win rate. Not enough trades yet (0)") == []
-    assert rc.zeros_in("Net P&L for closed trades in the last 90 days, all accounts. 0 trades.") == []
-    assert rc.zeros_in("You made 0 trades today") == ["0 trades"]                 # control: a bare zero count
-    assert rc.zeros_in("Win rate (0)") == ["(0)"]
+def test_t4_the_specd_count_sentences_are_exempt_only_where_a_step_declares_the_zero():
+    summary = "Net P&L for closed trades in the last 90 days, all accounts. 0 trades."
+    assert rc.zeros_in("Win rate. Not enough trades yet (0)", zero_ok=True) == []
+    assert rc.zeros_in(summary, zero_ok=True) == []
+    # W11-R83 I-1, the over-suppression control: a member with trades who is shown "0 trades" FAILS
+    assert rc.zeros_in(summary) == ["0 trades"] and rc.zeros_in("Win rate. Not enough trades yet (0)") == ["(0)"]
+    assert rc.zeros_in("You made 0 trades today", zero_ok=True) == ["0 trades"]  # a bare zero is never exempt
+    declared = sorted(f"{pid}:{st.get('zero_ok_why', '')[:0]}" for pid, st in
+                      [(p["id"], st) for p in SPEC["personas"] for sc in p["scripts"] for st in sc["steps"]]
+                      if st.get("zero_ok"))
+    assert declared == ["P03:", "P12:"]
+    assert _step("P03.b.04")["zero_ok"] and _step("P12.a.04")["zero_ok"] and _step("P03.b.04")["zero_ok_why"]
     read = frontend_read()
     for rx, path, frag in rc.ZERO_EXEMPT:
         assert frag in (read(path) or ""), (path, frag)                          # each exemption quotes its source
@@ -2455,12 +2463,8 @@ def test_t8_the_retrys_own_503s_are_expected_not_findings():
     row = {"checks": [], "read": []}
     rc.a_retry_kept_preview(_retry_run(w), {"source": "Closed trades", "samples": 6, "interval_ms": 1,
                                             "settle_ms": 1}, row)
-    assert 503 in row["expect_status"]
-    R = type("R", (), {"touch": False})()
-    row2 = {"expect_status": [503], "events": {"main": [{"http": 503, "method": "POST", "url": "/preview"}]}}
-    assert rc.findings_of(R, row2) == []
-    row2["expect_status"] = []                                                    # control: unexpected, filed
-    assert [f["kind"] for f in rc.findings_of(R, row2)] == ["http5xx"]
+    assert 503 not in row.get("expect_status", [])                               # never status-wide (W11-R83 m-1)
+    assert row["expect_http"] == [{"status": 503, "url": "/api/j2/widget-definitions/preview", "max": 2}]
 
 
 def test_t9_an_offline_disabled_tick_is_pressed_anyway():
@@ -2578,6 +2582,10 @@ def test_t6_expectations_find_a_sentence_the_text_query_missed(monkeypatch):
 
         def inner_text(self, timeout=None):
             return "x " * 1200 + want
+
+        def evaluate(self, js):
+            assert js == rc.BODY_TEXT_JS                                         # the body, never the live region
+            return "x " * 1200 + want
     monkeypatch.setattr(rc, "surface", lambda pg, within: Sur())
     R = type("R", (), {"page": lambda self: None})()
     R.g = type("G", (), {"sentence": lambda self, k: want})()
@@ -2659,11 +2667,13 @@ def test_t16_p06_discards_on_close():
 
 def test_t17_an_obscured_unfocused_target_is_not_a_finding():
     v = {"id": "target-size", "impact": "serious", "help": "h", "nodes": 1, "targets": ["#a"],
-         "node_info": [{"summary": "Target is partially obscured", "focused": False}]}
-    assert rc.obscured_unfocused(v)
-    assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target is partially obscured", "focused": True}]})
-    assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target has insufficient size", "focused": False}]})
-    R = type("R", (), {"touch": False})()
+         "node_info": [{"summary": "Target is partially obscured", "focused": False, "underBar": True}]}
+    assert rc.obscured_unfocused(v, keyboard=True)
+    assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target is partially obscured", "focused": True,
+                                                          "underBar": True}]}, keyboard=True)
+    assert not rc.obscured_unfocused({**v, "node_info": [{"summary": "Target has insufficient size", "focused": False,
+                                                          "underBar": True}]}, keyboard=True)
+    R = type("R", (), {"touch": False, "keyboard": True})()
     row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [v]}}}
     assert rc.findings_of(R, row) == []
     row["metrics"]["axe"]["violations"][0]["node_info"][0]["focused"] = True     # control: focused, filed
@@ -2695,7 +2705,7 @@ def test_t19_the_served_env_reaches_no_network_but_loopback(tmp_path):
     sb.app_root, sb.out = tmp_path, tmp_path
     assert "--block-outbound" in sb.launcher_args()
     src = rc.TOOL_LAUNCHER.read_text(encoding="utf-8").replace("\r\n", "\n")
-    assert "    if args.block_outbound:\n        os.environ.update(OUTBOUND_BLOCK)" in src
+    assert "        _refuse_block_port_listening()\n        os.environ.update(OUTBOUND_BLOCK)" in src
 
 
 def test_t20_a_clock_boot_exits_on_ctrl_break():
@@ -2718,3 +2728,177 @@ def test_coverage_every_persona_carries_its_served_run_validation_record():
     for p in SPEC["personas"]:
         v = p.get("validated")
         assert isinstance(v, dict) and v["served_run"] and v["runs"] and "triage" in v, p["id"]
+
+
+# ── W11-R83: the R81 review's fixes, each with an over-suppression control (mutate_r83.py turns each red) ─────────
+
+def _expect_zero(text, zero_ok):
+    class Sur:
+        def inner_text(self, timeout=None):
+            return text
+    R = type("R", (), {"page": lambda self: None})()
+    row = {"checks": [], "read": []}
+    import types
+    orig = rc.surface
+    rc.surface = lambda pg, within: Sur()
+    try:
+        rc.expectations(R, {"forbid": ["zeros"], **({"zero_ok": True} if zero_ok else {})}, row)
+    finally:
+        rc.surface = orig
+    return [c["ok"] for c in row["checks"]]
+
+
+def test_i1_a_step_that_does_not_declare_the_zero_fails_on_0_trades():
+    summary = "Net P&L for closed trades in the last 90 days, all accounts. 0 trades."
+    assert _expect_zero(summary, zero_ok=False) == [False]                       # the seeded book's control
+    assert _expect_zero(summary, zero_ok=True) == [True]
+
+
+def _ov(nodes=1, info=None, under=True, focused=False, summary="Target is partially obscured"):
+    info = info if info is not None else [{"target": f"#c{i}", "summary": summary, "underBar": under,
+                                           "focused": focused} for i in range(nodes)]
+    return {"id": "target-size", "impact": "serious", "help": "h", "nodes": nodes, "targets": ["#c0"],
+            "node_info": info}
+
+
+def test_i2_the_obscured_suppression_is_the_d005_geometry_only_and_is_recorded():
+    assert rc.obscured_unfocused(_ov(), keyboard=True)
+    assert not rc.obscured_unfocused(_ov(), keyboard=False)                       # a pointer-mode node is filed
+    assert not rc.obscured_unfocused(_ov(under=False), keyboard=True)             # covered by anything else: filed
+    assert not rc.obscured_unfocused(_ov(focused=True), keyboard=True)
+    thirteen = _ov(nodes=13)
+    thirteen["node_info"] = thirteen["node_info"][:12]                            # a 13th node not read: filed
+    assert not rc.obscured_unfocused(thirteen, keyboard=True)
+    assert rc.obscured_unfocused(_ov(nodes=13), keyboard=True)                    # all 13 read and covered: suppressed
+    assert ".map(n => { let el" in rc.AXE_RUN_JS and "slice(0, 12).map(n => { let el" not in rc.AXE_RUN_JS
+    assert "builder-summary-bar" in rc.AXE_RUN_JS
+    R = type("R", (), {"touch": False, "keyboard": True})()
+    row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov()]}}}
+    assert rc.findings_of(R, row) == [] and row["suppressed"][0]["targets"] == ["#c0"]
+    R.keyboard = False
+    row = {"expect_status": [], "events": {}, "metrics": {"axe": {"violations": [_ov()]}}}
+    assert [f["kind"] for f in rc.findings_of(R, row)] == ["axe:serious"] and "suppressed" not in row
+    src = (REPO / "tools" / "notebook_campaign" / "run_campaign.py").read_text(encoding="utf-8")
+    assert 'res["suppressed"] = [{"step": x["step"], **sup} for x in R.steps' in src
+
+
+def test_i3_the_moved_lines_are_pinned_to_the_served_tree():
+    want = {"key_in_flight": 4318, "key_reused": 4317, "listing_moved": 3273, "helpful_days": 5220}
+    for k, line in want.items():
+        assert SPEC["sentences"][k]["source"].endswith(f":{line}"), (k, SPEC["sentences"][k]["source"])
+
+
+def test_i4_the_stranger_pages_forbid_the_private_note_its_body_tag_and_the_member_id(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(rc, "check_public_page", lambda R, row, pub, keys, texts, forbid: seen.update(forbid=forbid))
+    walk = type("W", (), {"VIEWPORTS": {"1200": (1200, 800)}, "open_public": staticmethod(lambda *a, **k: {})})
+    R = type("R", (), {})()
+    R.vp, R.p = "1200", {"id": "P48"}
+    R.g = type("G", (), {"walk": walk, "browser": None, "base": "http://127.0.0.1:1"})()
+    R.member = {"email": "p48@x", "user_id": "u-48", "public": {
+        "share_path": "/share/n/t", "title": "Pub", "text": "Pub body",
+        "private": {"title": "Secret zq7", "text": "Secret body", "tag": "zq7-private"}}}
+    rc.a_open_public_page(R, {"page": "share"}, {"checks": [], "read": []})
+    assert {"p48@x", "u-48", "Secret zq7", "Secret body", "zq7-private"} <= set(seen["forbid"])
+    R.member["public"].pop("private")
+    with pytest.raises(rc.Inconclusive, match="no private sibling"):
+        rc.a_open_public_page(R, {"page": "share"}, {"checks": [], "read": []})
+    import inspect
+    src = inspect.getsource(sm.seed_member)
+    assert 'svc.notes.create_note(uid, {"title": pv["title"], "bodyJson": pbody, "tags": [pv["tag"]]})' in src
+    priv = next(p for p in SPEC["personas"] if p["id"] == "P48")["data"]["public"]["private"]
+    assert priv["title"] and priv["text"] and priv["tag"]
+
+
+def test_m1_the_retrys_exemption_is_its_url_and_its_count():
+    R = type("R", (), {"touch": False})()
+
+    def files(events, mx=2):
+        row = {"expect_status": [], "expect_http": [{"status": 503, "url": "/api/j2/widget-definitions/preview",
+                                                     "max": mx}], "events": {"main": events}}
+        return [f["detail"] for f in rc.findings_of(R, row)]
+    pv = {"http": 503, "method": "POST", "url": "http://x/api/j2/widget-definitions/preview"}
+    assert files([pv, pv]) == []
+    assert len(files([pv, pv, pv])) == 1                                          # a third 503 than intercepted
+    assert len(files([{"http": 503, "method": "POST", "url": "http://x/api/j2/widget-definitions/run"}])) == 1
+
+
+def test_m2_a_sentence_only_in_the_live_region_is_not_found_in_the_body(monkeypatch):
+    want = "None of these trades have a value for ET hour yet."
+
+    class Sur:
+        def get_by_text(self, *a, **k):
+            class L:
+                @property
+                def first(self):
+                    return self
+
+                def wait_for(self, **k):
+                    raise TimeoutError("missed")
+            return L()
+
+        def inner_text(self, timeout=None):
+            return "body text " + want                                            # the live region says it
+
+        def evaluate(self, js):
+            return "body text"                                                     # the body does not
+    monkeypatch.setattr(rc, "surface", lambda pg, within: Sur())
+    R = type("R", (), {"page": lambda self: None})()
+    R.g = type("G", (), {"sentence": lambda self, k: want})()
+    row = {"checks": [], "read": []}
+    rc.expectations(R, {"expect": ["split_none_hour"]}, row)
+    assert [c["ok"] for c in row["checks"]] == [False]
+    assert "[aria-live]" in rc.BODY_TEXT_JS and ".remove()" in rc.BODY_TEXT_JS
+
+
+def test_m3_a_dismissed_tour_is_recorded_on_the_run():
+    pg, R = _TourPage(), _tour_run()
+    rc.dismiss_tour(R, pg, None)
+    assert R.tour_dismissed is True
+
+
+def test_m4_a_use_with_no_question_sends_empty_choices_like_the_client(stub, tmp_path):
+    def ans(method, path, headers, body):
+        if path.endswith("/preview-mine"):
+            return 200, {"slots": [], "cards": [], "tools": [], "questions": []}
+        return 200, {"note": {"id": "n1"}, "replayed": False}
+    lib_two(stub, ans)
+    g, R = fake_run(tmp_path, stub.base)
+    step(g, R, {"do": "w11_use", "template": "Pre-market prep", "pick": "auto"})
+    body = json.loads(posts(stub, "/use-template")[0]["body"])
+    assert body.get("choices") == {} and body.get("answers") == {}
+
+
+def test_m5_every_expect_reused_step_also_proves_the_pick_by_its_embed():
+    found = [(pid, st) for pid, st in steps_of("w11_use") if st.get("expect_reused")]
+    assert found and all(st.get("expect_embed_routine") == st["expect_reused"] for _, st in found), found
+
+
+def test_m6_the_launcher_refuses_a_block_port_that_listens():
+    import socket
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    port = srv.getsockname()[1]
+    try:
+        with pytest.raises(SystemExit):
+            boot._refuse_block_port_listening(port)
+    finally:
+        srv.close()
+    boot._refuse_block_port_listening(port)                                       # control: nothing listens now
+    src = rc.TOOL_LAUNCHER.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert "    if args.block_outbound:\n        _refuse_block_port_listening()" in src
+    assert "trust_env=False" in src                                               # the gap, recorded
+
+
+def test_i3_the_g4_rail_reads_the_served_tree_not_a_ref(tmp_path):
+    """Right after a merge the ref and the served tree agree, so a ref-reading rail would pass today and go stale
+    under the next merge: the rail must read the working tree, and say so in its source."""
+    import inspect
+    (tmp_path / "a.txt").write_text("served", encoding="utf-8")
+    assert rc.tree_reader(tmp_path)("a.txt").strip() == "served"
+    assert rc.tree_reader(tmp_path)("missing.txt") is None
+    src = inspect.getsource(test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line)
+    assert "rc.tree_reader(REPO)" in src and "frontend_read()" not in src

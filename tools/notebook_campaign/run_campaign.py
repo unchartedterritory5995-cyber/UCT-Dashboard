@@ -509,8 +509,16 @@ AXE_RUN_JS = """async ([sel, tags]) => {
   return { version: window.axe.version, scope: sel && document.querySelector(sel) ? sel : 'body',
            violations: r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length,
              targets: v.nodes.slice(0, 4).map(n => n.target.join(' ')),
-             node_info: v.nodes.slice(0, 12).map(n => { let el = null; try { el = document.querySelector(n.target.join(' ')) } catch (e) {}
-               return { summary: (n.failureSummary || '').slice(0, 300), focused: !!el && (el === document.activeElement || el.contains(document.activeElement)) } }),
+             node_info: v.nodes.map(n => { let el = null; try { el = document.querySelector(n.target.join(' ')) } catch (e) {}
+               let underBar = false;
+               if (el) { const r = el.getBoundingClientRect();
+                 for (const [x, y] of [[r.left + 1, r.top + 1], [r.right - 1, r.top + 1], [r.left + 1, r.bottom - 1],
+                                        [r.right - 1, r.bottom - 1], [r.left + r.width / 2, r.top + r.height / 2]]) {
+                   const top = document.elementFromPoint(x, y);
+                   if (top && top.closest('[data-testid=builder-summary-bar]') && !el.contains(top)) underBar = true } }
+               return { target: n.target.join(' '), summary: (n.failureSummary || '').slice(0, 300),
+                        focused: !!el && (el === document.activeElement || el.contains(document.activeElement)),
+                        underBar } }),
              summary: (v.nodes[0] && v.nodes[0].failureSummary || '').slice(0, 300),
              html: (v.nodes[0] && v.nodes[0].html || '').slice(0, 200) })) };
 }"""
@@ -526,9 +534,13 @@ ZERO_EXEMPT = (
 )
 
 
-def zeros_in(text: str) -> list[str]:
-    for rx, _, _ in ZERO_EXEMPT:
-        text = re.sub(rx, " ", text or "")
+def zeros_in(text: str, zero_ok: bool = False) -> list[str]:
+    """The zeros a member should never see. The spec'd count sentences (ZERO_EXEMPT) are exempt ONLY where the step
+    declares the zero correct (`zero_ok`: an empty range, W11-R83 I-1); everywhere else a "0 trades" on a seeded
+    book is a finding."""
+    if zero_ok:
+        for rx, _, _ in ZERO_EXEMPT:
+            text = re.sub(rx, " ", text or "")
     return sorted({m.group(0) for m in ZERO_RE.finditer(text or "")})
 
 
@@ -1303,6 +1315,7 @@ def dismiss_tour(R: Run, pg, row: dict | None) -> bool:
     if R.tour_checked or R.notes_seeded or ((R.p.get("data") or {}).get("notes") or {}).get("n"):
         return False
     R.tour_checked = True
+    R.tour_dismissed = False
     card = pg.locator("[role=dialog][aria-modal=true]").filter(has=pg.get_by_role("button", name=TOUR_SKIP, exact=True))
     try:
         card.first.wait_for(state="visible", timeout=TOUR_WAIT_MS)
@@ -1313,6 +1326,7 @@ def dismiss_tour(R: Run, pg, row: dict | None) -> bool:
         card.first.wait_for(state="hidden", timeout=T)
     except Exception:  # noqa: BLE001
         raise Inconclusive("the first-run tour did not close on 'Skip tour'")
+    R.tour_dismissed = True
     if row is not None:
         row["read"].append({"what": "first-run tour", "text": "dismissed through 'Skip tour'"})
     return True
@@ -1915,9 +1929,14 @@ def a_open_public_page(R, s, row):
         raise Inconclusive(f"the seed recorded no {which} page for {R.p['id']} (seed_members `public`)")
     pub = R.g.walk.open_public(R.g.browser, R.vp if R.vp in R.g.walk.VIEWPORTS else "1200", R.g.base + path)
     pubrec = R.member.get("public") or {}
+    private = pubrec.get("private") or {}
+    if not private.get("title"):
+        raise Inconclusive("the seed recorded no private sibling note, so a leak could not be told from no leak")
+    forbid = [R.member.get("email", ""), R.member.get("user_id", ""), private.get("title", ""), private.get("text", ""),
+              private.get("tag", "")] + list(s.get("forbid_public") or [])
     check_public_page(R, row, pub, s.get("expect_public") or [],
                       [pubrec.get("title", ""), pubrec.get("text", "")] if s.get("expect_note") else [],
-                      [R.member.get("email", "")] + list(s.get("forbid_public") or []))
+                      [w for w in forbid if w])
 
 
 def a_admin_login(R, s, row):
@@ -2122,7 +2141,8 @@ def a_retry_kept_preview(R, s, row):
         open_phone_preview(R, row)
     last = R.g.sentence("last_result")
     before = wait_live_settled(pg, s)
-    row.setdefault("expect_status", []).append(503)     # T-8: this step's own injected answers are not findings
+    expected_http = {"status": 503, "url": "/api/j2/widget-definitions/preview", "max": 0}
+    row.setdefault("expect_http", []).append(expected_http)   # T-8: this step's own injected answers, counted below
     if not (before.get("live") or "").strip():
         raise Inconclusive("the live region held no summary before the failure (no kept preview to retry)")
     cdp = R.contexts["main"].new_cdp_session(pg)
@@ -2130,6 +2150,7 @@ def a_retry_kept_preview(R, s, row):
 
     def on_paused(ev):
         seen["paused"] += 1
+        expected_http["max"] = seen["paused"]
         cdp.send("Fetch.fulfillRequest", {"requestId": ev["requestId"], "responseCode": 503,
                                           "responseHeaders": [{"name": "Content-Type", "value": "application/json"}],
                                           "body": base64.b64encode(json.dumps(BUSY_BODY).encode()).decode()})
@@ -2500,7 +2521,7 @@ def choices_from_preview(preview: dict | None, title: str, *, strict: bool) -> d
     picks = client_choices(preview)
     if strict and picks and not any("use" in v for v in picks.values()):
         raise Inconclusive(f"the preview of {title!r} suggested no tool of the member's own to pick")
-    return picks or None
+    return picks
 
 
 def preview_for(R: Run, row: dict, title: str) -> dict | None:
@@ -2536,7 +2557,7 @@ def use_answers(preview: dict | None, title: str, *, required: bool) -> dict | N
     answers, missing = w11.answers_from_preview(preview)
     if missing:
         raise Inconclusive(f"the preview of {title!r} has no value of the member's own for {missing}")
-    return answers or None
+    return answers                      # W11-R83 m-4: `{}` when nothing is declared, as AdoptSheet sends it
 
 
 def _embeds_of(R, row, note: dict) -> list[dict]:
@@ -2551,9 +2572,10 @@ def a_w11_use(R, s, row):
     """Use (make a note) with an Idempotency-Key, then the same key again: the FIRST note, `replayed: true`."""
     title = s["template"]
     gid = w11_template(R, row, title)
-    preview = preview_for(R, row, title) if s.get("pick") in ("suggested", "auto") else R.remembered.get(f"preview:{title}")
+    # W11-R83 m-4: the client always reads the preview and always sends `choices` for a template (AdoptSheet :247)
+    preview = preview_for(R, row, title)
     choices = (choices_from_preview(preview, title, strict=s["pick"] == "suggested")
-               if s.get("pick") in ("suggested", "auto") else None)
+               if s.get("pick") in ("suggested", "auto") else client_choices(preview))
     answers = use_answers(preview, title, required=s.get("answers") == "preview")
     k = w11.new_key()
     t0 = time.perf_counter()
@@ -2578,10 +2600,9 @@ def a_w11_use(R, s, row):
         # T-11: the answer's `reused` lists what the Use reused WITHOUT the member choosing it, and excludes the
         # member's own pick by design (template_gallery.py made_now: "was not the member's own pick"). The member's
         # pick shows as: nothing new made for it, and the note's routine block is that routine (expect_embed_routine).
-        rid = R.resolve(f"@routine:{s['expect_reused']}")
         made_ids = [x.get("id") for x in (w11.get_path(body, "created.routines") or [])]
         check(row, f"the Use made no new routine in place of the member's own {s['expect_reused']!r}",
-              rid not in made_ids and not made_ids, json.dumps(made_ids))
+              not made_ids, json.dumps(made_ids))
     if s.get("expect_embed") or s.get("expect_embed_routine"):
         embeds = _embeds_of(R, row, body.get("note") or {})
         if s.get("expect_embed"):
@@ -2612,7 +2633,7 @@ def a_w11_unkeyed(R, s, row):
     """No Idempotency-Key where none is required (W11-R34: the key is optional on every wave 11 door): never 428."""
     gid = w11_template(R, row, s["template"])
     pv = preview_for(R, row, s["template"])
-    ch, ans = client_choices(pv) or None, use_answers(pv, s["template"], required=False)
+    ch, ans = client_choices(pv), use_answers(pv, s["template"], required=False)
     first = w11_send(R, row, w11.b_use_template(gid, key=None, answers=ans, choices=ch), "use-template (no key)")
     second = w11_send(R, row, w11.b_use_template(gid, key=None, answers=ans, choices=ch), "use-template again (no key)")
     w11_apply(row, w11.judge_unkeyed(first, second, "note.id"))
@@ -2622,7 +2643,7 @@ def a_w11_in_flight(R, s, row):
     """K presses with one key at once: one note, the rest replayed or 409 `conflict` S_KEY_IN_FLIGHT."""
     gid = w11_template(R, row, s["template"])
     pv = preview_for(R, row, s["template"])
-    ch, ans = client_choices(pv) or None, use_answers(pv, s["template"], required=False)
+    ch, ans = client_choices(pv), use_answers(pv, s["template"], required=False)
     k = w11.new_key()
     n = int(s.get("presses", 4))
     resps = w11_race(R, row, [w11.b_use_template(gid, key=k, answers=ans, choices=ch) for _ in range(n)],
@@ -2638,7 +2659,7 @@ def a_w11_key_reused(R, s, row):
     """One key on two doors (Use, then Adopt of the same template): 409 `key_reused` (A9; interim `conflict`)."""
     gid = w11_template(R, row, s["template"])
     pv = preview_for(R, row, s["template"])
-    ch, ans = client_choices(pv) or None, use_answers(pv, s["template"], required=False)
+    ch, ans = client_choices(pv), use_answers(pv, s["template"], required=False)
     k = w11.new_key()
     first = w11_send(R, row, w11.b_use_template(gid, key=k, answers=ans, choices=ch), "use-template (key K)")
     check(row, "the first press answers 200", first.status == 200, f"HTTP {first.status}")
@@ -2889,6 +2910,14 @@ def sent_check(R, row, key, s, said, pred):
 READ_TEXT_MAX = 8000
 
 
+#: The surface's text WITHOUT its live regions (W11-R83 m-2): a sentence that must be in the body is never found in an
+#: sr-only announcement. Block elements are joined with spaces so two blocks never run together.
+BODY_TEXT_JS = """(e) => { const c = e.cloneNode(true);
+  c.querySelectorAll('[aria-live], [role=status], [role=alert]').forEach(x => x.remove());
+  c.querySelectorAll('p, div, li, h1, h2, h3, h4, section, aside, button, label, span').forEach(x => x.append(' '));
+  return c.textContent || '' }"""
+
+
 def _norm_ws(t: str) -> str:
     return re.sub(r"\s+", " ", (t or "").replace("\u00a0", " ")).strip()
 
@@ -2918,7 +2947,7 @@ def expectations(R: Run, s: dict, row: dict) -> None:
             ok, read = True, ""
         except Exception:  # noqa: BLE001
             # T-6: the whole surface text, whitespace-normalised, is the authority; the read shows where it is
-            full = sur.inner_text(timeout=5000) or ""
+            full = sur.evaluate(BODY_TEXT_JS) or ""
             ok, read = sentence_in(want, full), text_window(want, full)
         check(row, f"says {want!r}", ok, read)
     text = sur.inner_text(timeout=5000) or ""
@@ -2932,7 +2961,7 @@ def expectations(R: Run, s: dict, row: dict) -> None:
     for rx in s.get("forbid_re") or []:
         check(row, f"never matches {rx}", re.search(rx, text) is None, ", ".join(re.findall(rx, text)[:4]))
     if "zeros" in (s.get("forbid") or []):
-        z = zeros_in(text)
+        z = zeros_in(text, bool(s.get("zero_ok")))
         check(row, "no zero, NaN, undefined or [object Object] is shown", not z, ", ".join(z))
     if "raw" in (s.get("forbid") or []):
         raw = pg.evaluate("() => ({imgx: document.querySelectorAll('img[src=\"x\"]').length,"
@@ -2968,22 +2997,31 @@ def metrics(R: Run, row: dict) -> dict:
     return out
 
 
-def obscured_unfocused(v: dict) -> bool:
-    """T-17: axe target-size flags a control as "partially obscured" when the builder body is scrolled under its
-    sticky summary bar. f-def-1-report.md (D-W11-005) triaged that as not-a-defect unless the obscured control is the
-    FOCUSED one (WCAG 2.4.11 is about focus). True only when every flagged node says obscured and none is focused."""
+def obscured_unfocused(v: dict, keyboard: bool = False) -> bool:
+    """T-17, scoped by ruling W11-R83 I-2 to the triaged D-W11-005 geometry: in a KEYBOARD run, an axe target-size
+    "partially obscured" whose every node (all of them read, never a sample) is covered by the builder's sticky phone
+    summary bar (`[data-testid=builder-summary-bar]`, probed at the corners and centre) and is not the focused control.
+    Anything else is filed: a pointer run (a touch member cannot tap a covered target, WCAG 2.5.8), a node covered by
+    anything else, a node not read. A suppression is recorded (findings_of), never silent."""
     nodes = v.get("node_info") or []
-    return (v.get("id") == "target-size" and bool(nodes)
-            and all("obscured" in (n.get("summary") or "") and not n.get("focused") for n in nodes))
+    return (keyboard and v.get("id") == "target-size" and bool(nodes) and len(nodes) >= int(v.get("nodes") or 0)
+            and all("obscured" in (n.get("summary") or "") and n.get("underBar") and not n.get("focused")
+                    for n in nodes))
 
 
 def findings_of(R: Run, row: dict) -> list[dict]:
     out = []
     expected = set(row.get("expect_status") or [])
+    allow = [dict(x, used=0) for x in row.get("expect_http") or []]
     for page, evs in row.get("events", {}).items():
         for e in evs:
             if "http" in e:
                 if e["http"] in expected:
+                    continue
+                hit = next((a for a in allow if a["status"] == e["http"] and a["url"] in (e.get("url") or "")
+                            and a["used"] < a["max"]), None)
+                if hit:
+                    hit["used"] += 1          # W11-R83 m-1: one injected answer excuses one event, at that URL only
                     continue
                 out.append({"kind": "http5xx" if e["http"] >= 500 else "http4xx", "page": page,
                             "detail": f"{e['method']} {e['url']} -> {e['http']}"})
@@ -3009,8 +3047,12 @@ def findings_of(R: Run, row: dict) -> list[dict]:
         for t in small:                       # one finding per control, so the same control dedupes across runs
             out.append({"kind": "tap", "page": "main", "detail": f"under {TAP_FLOOR} px: " + json.dumps(t, ensure_ascii=False)})
     for v in (m.get("axe") or {}).get("violations") or []:
-        if obscured_unfocused(v):
-            continue        # T-17 / D-W11-005: a chip scrolled under the sticky summary, never the focused one
+        if obscured_unfocused(v, getattr(R, "keyboard", False)):
+            # T-17 / D-W11-005, recorded so triage sees every one (W11-R83 I-2)
+            row.setdefault("suppressed", []).append({"rule": v.get("id"), "why": "D-W11-005: under the builder's "
+                                                     "sticky summary bar, not focused, keyboard run",
+                                                     "targets": [n.get("target") for n in v.get("node_info") or []]})
+            continue
         if v.get("impact") in ("serious", "critical"):
             out.append({"kind": f"axe:{v['impact']}", "page": "main",
                         "detail": f"{v['id']}: {v['help']} ({v['nodes']} nodes) {v['targets'][:2]} -- "
@@ -3110,6 +3152,7 @@ class Campaign:
         # Review m3: no INCONCLUSIVE hides in a step file; the run's own row names each one and why.
         res["inconclusive"] = [{"step": x["step"], "why": x.get("error") or ""} for x in R.steps
                                if x["verdict"] == "INCONCLUSIVE"]
+        res["suppressed"] = [{"step": x["step"], **sup} for x in R.steps for sup in x.get("suppressed") or []]
         if vp_skipped:
             res["viewport_skipped"] = vp_skipped
         if clock_read:
